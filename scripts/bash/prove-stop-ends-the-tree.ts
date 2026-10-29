@@ -51,6 +51,7 @@ writeFileSync(
     "const { writeFileSync, renameSync } = require('node:fs')",
     "const kid = spawn('sleep', ['600'], { detached: true, stdio: 'ignore' })",
     'kid.unref()',
+
     "writeFileSync(process.env.TREE_PIDS_FILE + '.part', process.pid + ':' + kid.pid)",
     "renameSync(process.env.TREE_PIDS_FILE + '.part', process.env.TREE_PIDS_FILE)",
     'setInterval(() => {}, 1000)',
@@ -66,6 +67,7 @@ async function spawnEscapeeTree(tag: string): Promise<Tree> {
     stdio: 'ignore',
     env: { ...process.env, TREE_PIDS_FILE: pidsFile },
   })
+
   const whole = /^\d+:\d+$/
   let record = ''
   for (let i = 0; i < 200 && !whole.test(record); i++) {
@@ -176,6 +178,7 @@ section("§5 F-1.1 — the receipt says INTERRUPTED on win32 and POSIX alike; th
   } else {
     console.log('  [SKIP] §5 POSIX live row — no live receipt on this host (win32: the taskkill stop is the field leg)')
   }
+
   const win32Receipt = { settled: true, exitCode: 1, interrupted: true, processesEnded: 5 }
   const win32 = settledStopSentence(win32Receipt)
   check('§5 win32 shape: reads interrupted', win32.includes('interrupted by the stop'), win32)
@@ -187,6 +190,7 @@ section("§5 F-1.1 — the receipt says INTERRUPTED on win32 and POSIX alike; th
   check('§5 a process that settled on its own keeps the plain sentence', plain === ' It settled with exit code 1.', plain)
   const bare = settledStopSentence({ settled: true, exitCode: undefined })
   check('§5 no code, no provenance: the bare settled sentence', bare === ' It settled.', bare)
+
   const toolSrc5 = readFileSync(join(ROOT, 'src/tools/TaskStopTool/TaskStopTool.ts'), 'utf8')
   const sentenceSrc = readFileSync(join(ROOT, 'src/tools/TaskStopTool/stopSettlement.ts'), 'utf8')
   const receiptSrc = readFileSync(join(ROOT, 'src/tasks/LocalShellTask/killShellTasks.ts'), 'utf8')

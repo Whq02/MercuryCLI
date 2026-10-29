@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -58,6 +59,7 @@ const SHAPES: Shape[] = [
   },
   {
     tag: 'apple-terminal',
+
     cols: 128, rows: 36,
     shrink: { cols: 128, rows: 30 },
     grow: { cols: 128, rows: 44 },
@@ -70,8 +72,10 @@ const SHAPES: Shape[] = [
 ]
 
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+
 const SHRINK_AT = 70
 const GROW_AT = 110
+
 const tk = (authored: number): number => Math.round(authored * vshotBudgetScale())
 const STORM_AT = 140
 
@@ -91,6 +95,7 @@ for (const shape of SHAPES) {
     resizes: [
       { atTick: SHRINK_AT, ...shape.shrink },
       { atTick: GROW_AT, ...shape.grow },
+
       ...shape.storm.map((s, i) => ({ atTick: STORM_AT + i, ...s })),
     ],
     sends: [
@@ -98,13 +103,19 @@ for (const shape of SHAPES) {
       { atTick: 999, requireAwait: true, awaitText: 'shortcuts', minTick: 4, awaitSettleTicks: 8, data: '\x1b[I', mark: 'chat' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '/mission relay probe\r', mark: 'mission' },
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, data: '\t', mark: 'focus' },
+
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: 2, awaitSettleTicks: 3, targetText: 'WORKBENCH', targetDx: 2, data: CLICK, mark: 'warmup' },
+
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: 2, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click1' },
+
       { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after1' },
+
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: SHRINK_AT + 3, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click2' },
       { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after2' },
+
       { atTick: 999, requireAwait: true, awaitText: 'no prompts sent yet', minTick: GROW_AT + 3, awaitSettleTicks: 3, targetText: 'no prompts sent yet', data: CLICK, mark: 'click3' },
       { atTick: 999, requireAwait: true, awaitText: '❯ no prompts sent yet', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after3' },
+
       { atTick: 999, requireAwait: true, awaitText: '◆ relay probe', minTick: STORM_AT + 6, awaitSettleTicks: 3, targetText: '◆ relay probe', targetDx: 2, data: CLICK, mark: 'click4' },
       { atTick: 999, requireAwait: true, awaitText: '❯ ◆ relay probe', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'after4' },
     ],
@@ -113,6 +124,7 @@ for (const shape of SHAPES) {
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
+
     env: { ...process.env, MERCURY_FULLSCREEN: '1', MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: FIXTURE_API_KEY, ...shape.env },
   })
   check(`${shape.tag}: drive exits 0`, res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-500)}`)

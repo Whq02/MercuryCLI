@@ -9,7 +9,6 @@ import {
 } from './openaiCatalogue.js'
 import type { OpenaiAccountSourceKind } from './openaiAccounts.js'
 
-
 const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
   primary: [
     'persistent-foreground-conversation',
@@ -29,6 +28,7 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
     'no-lost-input+no-duplicate-events',
   ],
   specialist: ['bounded-job-execution', 'structured-result-return', 'worktree-law', 'role-tool-denials'],
+
   coordinator: [
     'bounded-snapshot+delta-consumption',
     'typed-management-verbs-only',
@@ -40,6 +40,7 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
 }
 
 export function roleCapabilityDigest(role: ApexGptRole): string {
+
   const capabilities = (ROLE_CAPABILITIES as Partial<Record<string, readonly string[]>>)[role]
   if (capabilities === undefined) return 'rc1-retired-role'
   const hash = createHash('sha256')
@@ -50,7 +51,6 @@ export function roleCapabilityDigest(role: ApexGptRole): string {
   return `rc1-${hash.digest('hex').slice(0, 16)}`
 }
 
-
 export interface StoredQualificationReceipt {
   modelId: string
   role: ApexGptRole
@@ -58,9 +58,12 @@ export interface StoredQualificationReceipt {
   adapterDigest: string
   architectureEpoch: string
   roleCapabilityDigest: string
+
   behaviourContractDigest?: string
+
   liveEffort?: string
   responseId?: string
+
   displayName?: string
   qualifiedAtMs: number
 }
@@ -68,6 +71,7 @@ export interface StoredQualificationReceipt {
 interface QualificationFile {
   version: number
   receipts: StoredQualificationReceipt[]
+
   wireEfforts?: StoredWireEffortVocabulary[]
   [k: string]: unknown
 }
@@ -98,6 +102,7 @@ export function recordLiveQualification(i: {
   behaviourContractDigest?: string
   liveEffort?: string
   responseId?: string
+
   displayName?: string
   now?: () => number
 }): StoredQualificationReceipt | undefined {
@@ -149,7 +154,6 @@ export function readQualificationReceipts(): ReceiptCurrency[] {
   return readFile().receipts.map(receiptCurrency)
 }
 
-
 export const WIRE_EFFORT_MEMORY_PROBE_MS = 24 * 60 * 60 * 1000
 
 export function describeWireEffortProbeWindow(ms: number = WIRE_EFFORT_MEMORY_PROBE_MS): string {
@@ -163,7 +167,9 @@ export function describeWireEffortProbeWindow(ms: number = WIRE_EFFORT_MEMORY_PR
 export interface StoredWireEffortVocabulary {
   modelId: string
   sourceKind: OpenaiAccountSourceKind
+
   levels: string[]
+
   refused: string
   observedAtMs: number
 }

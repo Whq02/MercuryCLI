@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -52,6 +53,7 @@ console.log('L1 the total case — no skills dir anywhere, the first skill creat
 
 console.log('L2 control — an existing skills directory still hot-reloads')
 {
+
   await detector.rearmWatchRoots()
   let signals = 0
   const unsubscribe = detector.subscribe(() => {

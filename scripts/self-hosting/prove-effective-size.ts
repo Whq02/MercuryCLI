@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'

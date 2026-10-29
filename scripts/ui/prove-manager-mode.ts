@@ -74,6 +74,7 @@ const FIVE = { optionCount: 5, inInput: false };
 const digitActions = ['1', '2', '3', '4', '5'].map(d => mgrEarly.askCardKeyAction(d, FIVE));
 check('digits 1–5 each SELECT their option (highlight) — none commits, none advances',
   digitActions.every((a, i) => a.kind === 'select' && a.index === i), JSON.stringify(digitActions));
+
 const twice = [mgrEarly.askCardKeyAction('4', FIVE), mgrEarly.askCardKeyAction('4', FIVE)];
 check('a digit on the ALREADY-SELECTED option re-selects it — a double press is never a commit shortcut',
   twice.every(a => a.kind === 'select' && a.index === 3), JSON.stringify(twice));
@@ -98,12 +99,14 @@ check('the footer ordinal ("enough — plan it") is the one digit that FIRES —
   cards.includes('onEnough()') && cards.includes('enough — plan it'));
 check('the controlled-focus mirror keeps every differing digit press a REAL re-assert',
   cards.includes('setFocusTarget(String(value))') && navigation.includes('}, [focusValue])'));
+
 check('mouse parity rides the Select’s own option boxes (no localRow arithmetic in the card)',
   !/onClick=\{\(e: \{ localRow: number \}\)/.test(cards) &&
   /compact-vertical'\) \{[\s\S]{0,900}onClick=\{/.test(readFileSync('src/components/CustomSelect/select.tsx', 'utf8')));
 
 check('the custom option is the trailing INPUT row of the select',
   /type: 'input' as const,\s*\n\s*value: CUSTOM_VALUE/.test(cards));
+
 check("the custom ordinal falls inside the card's select range (custom = options.length + 1; the footer teaches 1–N)",
   cards.includes('const customOrdinal = ask.options.length + 1') && cards.includes('1–${ask.options.length} select'));
 check('the owner derives typing focus from the focused input option (isInInput)',
@@ -187,6 +190,7 @@ check('lane session ids are recorded lane-ordered; nothing waits when everything
   JSON.stringify(done.laneSessionIds) === JSON.stringify(['sid-1', 'sid-2']) && done.laneWaiting.length === 0);
 check('every op settled as a visible receipt row (per lane: contract.set + session.launch)',
   done.receipts.length === 4 && done.receipts.every(r => r.outcome === 'applied'));
+
 const fitOps: Op[] = [];
 const fitOne = await mgr.executeManagerPlan(twoLanes, { workspaceRoot: '/tmp/x', by: 'c', rpc: makeRecorder(fitOps), fits: 1 });
 check('fits=1: lane 1 starts under its contract, lane 2 WAITS (no op of any kind for it)',
@@ -198,6 +202,7 @@ check('a birth the daemon refuses for a seat joins the waiting set — no contra
   ceil.laneSessionIds[0] === null && JSON.stringify(ceil.laneWaiting) === '[0]' &&
     ceil.laneSessionIds[1] === 'sid-2' && noAdmitAndDeliver(ceilOps) && contractPrecedesDelivery(ceilOps) &&
     ceilOps.filter(o => o.action === 'contract').length === 1);
+
 mgr._resetManagerSupervisionForTesting();
 mgr.registerDispatchedManagerPlan(
   { ...twoLanes, state: 'dispatched', laneSessionIds: ['sid-1', null], laneWaiting: [1] },
@@ -214,6 +219,7 @@ check('a freed seat starts the waiting lane through birth(blank) → contract �
 check('the register no longer holds a waiting lane afterwards',
   (await mgr.startWaitingManagerLane({ live: 0, ceiling: 4 }, { rpc: makeRecorder(laterOps), by: 'c' })) === null && laterOps.length === 3);
 mgr._resetManagerSupervisionForTesting();
+
 {
   const { mkdtempSync: mkScratch } = await import('node:fs');
   const { tmpdir: osTmp } = await import('node:os');
@@ -300,6 +306,7 @@ check('ask_operator lands the card in the collector (the interview is the model�
   asked.ok === true && collector.ask !== undefined && !readFileSync('src/services/concourse/managerMode.ts', 'utf8').includes('QUESTION_LIST'));
 const second = JSON.parse((await askTool.run({ question: 'again?', options: ['a', 'b'] }, ctxStub)).content) as { ok: boolean };
 check('one card per turn — a second card call refuses (SEQUENTIAL cards, never a batch screen)', second.ok === false);
+
 const planTurnTools = mgr.managerToolSet({} as never);
 const freshPlanTool = planTurnTools.find(t => t.name === 'propose_plan')!;
 const planRefused = JSON.parse(

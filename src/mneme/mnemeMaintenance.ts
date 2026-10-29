@@ -1,6 +1,3 @@
-
-
-
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
@@ -24,6 +21,7 @@ type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
 interface MnemeStatus {
   enabled: boolean
   buffered: number
+
   pendingConsuming: number
   topicCount: number
   entryCount: number
@@ -188,6 +186,7 @@ export function runDueMaintenance(
       const t0 = performance.now()
       const { due, reason } = dueForMaintenance(dir)
       if (!due && !opts.force) return { ran: false, trigger, reason: 'not due' }
+
       const lock = lockView(dir)
       if (lock.present && lock.holderAlive === false) {
         if (acquireConsolidateLock(dir)) releaseConsolidateLock(dir)
@@ -210,6 +209,7 @@ export function runDueMaintenance(
       return { ran: false, trigger, reason: `error: ${String(e).slice(0, 120)}` }
     }
   })()
+
   inflight = run
   void run.finally(() => {
     if (inflight === run) inflight = null

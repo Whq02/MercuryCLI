@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/commands/** src/components/CritterSelect.tsx src/components/FullscreenLayout.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/CursorRow.tsx src/components/mercury-ui/useCursorFollow.ts src/components/mercury-ui/NavigablePanes.tsx src/components/CustomSelect/select.tsx src/components/design-system/ListItem.tsx
+
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

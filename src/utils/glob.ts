@@ -10,7 +10,6 @@ import { getPlatform } from './platform.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { ripGrepAnswer } from './ripgrep.js'
 
-
 function lastSeparatorIndex(value: string): number {
   const slashIndex = value.lastIndexOf('/')
   if (sep === '/') return slashIndex
@@ -22,6 +21,7 @@ export function extractGlobBaseDirectory(pattern: string): { baseDir: string; re
   if (metaIndex === -1) {
     const lastSep = lastSeparatorIndex(pattern)
     if (lastSep === -1) {
+
       return { baseDir: dirname(pattern), relativePattern: pattern }
     }
     return {
@@ -91,6 +91,7 @@ export async function glob(
       pattern = relativePattern
     }
   } else {
+
     const rewritten = resolveRelativePatternPrefix(searchDir, pattern)
     searchDir = rewritten.searchDir
     pattern = rewritten.pattern

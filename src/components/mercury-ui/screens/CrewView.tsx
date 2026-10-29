@@ -52,7 +52,6 @@ import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
 
-
 type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
 
 const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener))
@@ -66,6 +65,7 @@ const OPEN_GATE = { paused: false, parked: 0 } as const
 
 const NAME_W = 20
 const MODEL_W = 18
+
 const STATUS_W = 34
 function crewRowWidths(width: number, status: string): { name: number; status: number } {
   return { name: width >= 94 && width < 110 ? 12 : NAME_W, status: Math.min(STATUS_W, Math.max(8, status.length)) }
@@ -85,21 +85,26 @@ export function CrewView({
   const asks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks)
   const setAppState = useSetAppStateMaybe()
   const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
+
   const presence = useMemo(() => focusedRunnerPresence(), [roster])
   const sessionCrew = useSessionCrew()
   const agents = useMemo(() => sessionCrew.map(row => row.facts), [sessionCrew])
   const workById = useMemo(() => new Map(roster.rows.map(r => [r.id, r] as const)), [roster])
+
   const billed = hasFocusedSession() && getFocusedSessionConnector().identity().consoleBilling
   const rows = useMemo<Row[]>(
     () => agents.map((facts): Row => ({ kind: 'agent', id: `a:${facts.id}`, facts })),
     [agents],
   )
   const crewmates = useMemo(() => rows.map(row => row.facts), [rows])
+
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
   const [mode, setMode] = useState<Mode>(() => ({ view: 'list' }))
   const pastMount = useOpenEventGate()
+
   const listMode = mode.view === 'list' || (mode.view === 'card' && !workById.has(mode.id))
+
   const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
   const [doorNote, setDoorNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
   const armedTarget = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (agents.find(a => a.id === stopArm.id) ?? null) : null
@@ -119,6 +124,7 @@ export function CrewView({
 
   usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode)
   useInput((input, key) => {
+
     const selected = rows[sel]
     const target: CrewAgentFacts | null =
       mode.view === 'card' && !listMode
@@ -173,6 +179,7 @@ export function CrewView({
         })
       return
     }
+
     if (!listMode) return
     const nav = decodeNavKey(input, key, { orientation: 'vertical' })
     if (nav === 'cancel') {
@@ -188,6 +195,7 @@ export function CrewView({
       return
     }
     if (nav === 'activate') {
+
       if (!pastMount()) return
       const row = rows[sel]
       if (row === undefined) return
@@ -309,6 +317,7 @@ function AgentRow({
   const tokens = useMercuryTokens()
   const failed = facts.state === 'failed'
   const stopped = facts.state === 'stopped' || facts.state === 'interrupted'
+
   const paused = facts.state === 'paused'
   const pending = facts.status === 'pending'
   const settled = crewSettled(facts)
@@ -316,6 +325,7 @@ function AgentRow({
   const glyph = failed || stopped ? GLYPH.fail : pending || paused ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const nameColor = on ? tokens.textPrimary : settled ? tokens.textMuted : tokens.textSecondary
   const spend = billed ? crewCostLabel(facts) : null
+
   const wait = crewWaitLine(facts)
   const holders = crewWaitHolders(facts)
   const unread = crewUnreadLabel(facts)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
@@ -24,6 +25,7 @@ export type CorpusTask = {
   successChecks: SuccessCheck[]
   tags: string[]
 }
+
 export const WORKSPACE_CONTAINMENT =
   'WORKSPACE CONTAINMENT: your workspace is exactly this repository checkout (your current working ' +
   'directory). Every path in the task is relative to it. Never read from, cd into, or modify any other ' +
@@ -34,6 +36,7 @@ const here = import.meta.dir
 export const repoRoot = resolve(here, '..', '..')
 const corpusDir = join(here, 'corpus')
 export const CORPUS_TAG = 'bench-corpus-v1'
+
 export const CORPUS_COMMIT = '7901eb241f265055a8ac7c31bee340c7c58751fa'
 
 export function loadCorpus(): { tasks: CorpusTask[]; sha256: string } {
@@ -76,6 +79,7 @@ export function benchChildEnv(
   }
   env.MERCURY_CONFIG_DIR = cfgDir
   env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+
   env.BROWSER = '/usr/bin/true'
   Object.assign(env, extra)
   return env
@@ -88,9 +92,12 @@ export function scrubbedEnvKey(k: string): boolean {
 
 export function cloneAtSha(dir: string, sha: string): void {
   execFileSync('git', ['clone', '--quiet', repoRoot, dir], { stdio: 'pipe' })
+
   execFileSync('git', ['-C', dir, 'update-ref', 'refs/remotes/origin/main', sha], { stdio: 'pipe' })
+
   execFileSync('git', ['-C', dir, 'remote', 'set-url', 'origin', 'bench://neutered'], { stdio: 'pipe' })
   execFileSync('git', ['-C', dir, 'checkout', '--quiet', '--detach', sha], { stdio: 'pipe' })
+
   for (const name of ['node_modules', 'dist']) {
     const src = join(repoRoot, name)
     const dst = join(dir, name)

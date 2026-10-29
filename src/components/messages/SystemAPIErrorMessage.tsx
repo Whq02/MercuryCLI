@@ -28,6 +28,7 @@ export function SystemAPIErrorMessage({
   },
   verbose,
 }: Props): React.ReactNode {
+
   const [countdownMs, setCountdownMs] = useState(0)
   const done = countdownMs >= retryInMs
   useInterval(() => setCountdownMs(ms => ms + 1000), done ? null : 1000)
@@ -42,6 +43,7 @@ export function SystemAPIErrorMessage({
     (error as { message?: string })?.message || !errorDetail
       ? liveFormatted
       : `${errorDetail.name}${errorDetail.status ? ` ${errorDetail.status}` : ''}: ${errorDetail.message}`
+
   const transport = errorDetail?.transport
   const transportSuffix = transport?.code
     ? ` [${transport.code}${transport.via === 'recent-failure' ? ' · recent transport failure' : ''}]`
@@ -56,6 +58,7 @@ export function SystemAPIErrorMessage({
     transport?.code === 'UND_ERR_CONNECT_TIMEOUT' ||
     transport?.code === 'UND_ERR_HEADERS_TIMEOUT' ||
     transport?.code === 'UND_ERR_BODY_TIMEOUT'
+
   const timeoutRaw = flagEnv('MERCURY_API_TIMEOUT_MS')
   const timeoutParsed = apiTimeoutMsOverride()
   const timeoutHint = timeoutRaw

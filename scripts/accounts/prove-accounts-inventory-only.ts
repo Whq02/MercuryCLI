@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
+
 const seam = readFileSync(join(ROOT, 'src/services/providers/accountSlots.ts'), 'utf8')
 
 let failures = 0

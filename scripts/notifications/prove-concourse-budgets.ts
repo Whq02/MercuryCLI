@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
@@ -163,6 +164,7 @@ console.log('§7 the artifact')
     liveSceneBudgets: 'the pulse suite scene gates (input_processing ≤1500ms etc.)',
     windowsIdleBase: 'windows-tasks TASK-004: ~43 B/s idle (60-61 chunks / ~2.6KB per 60s, all attributable) at 19045/WT 1.24 — the basis, frozen POST the naked-pair fix',
   }
+
   const out = join(import.meta.dir, 'baselines', 'bench-concourse.json')
   if (!existsSync(out) || process.argv.includes('--remint')) {
     writeFileSync(out, `${JSON.stringify(report, null, 1)}\n`)

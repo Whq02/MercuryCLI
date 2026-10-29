@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatCallModel.ts src/services/providers/local/localCallModel.ts src/services/providers/local/ollamaChatTransport.ts src/services/providers/anthropic/streamCore.ts src/services/api/outputFit.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'

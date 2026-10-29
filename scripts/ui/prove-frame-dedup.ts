@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as any).MACRO = { ...((globalThis as any).MACRO ?? {}), VERSION: '1.0.0-beta.1' }
 process.env.MERCURY_SUBSTRATE = '0'
 delete process.env.MERCURY_DECK_PANE

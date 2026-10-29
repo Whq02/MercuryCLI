@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
@@ -87,6 +88,7 @@ section('§1 — the connector doors: the resting slot refuses typed; the hosted
   const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const { publishSessionFacts, readSessionFacts } = await import('../../src/services/engine-connector/seatProjections.ts')
+
   const untilPublished = async (capture: boolean): Promise<void> => {
     const deadline = Date.now() + 3000
     while (Date.now() < deadline) {

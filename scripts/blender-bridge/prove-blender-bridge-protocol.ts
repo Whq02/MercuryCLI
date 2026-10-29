@@ -73,6 +73,7 @@ async function main(): Promise<void> {
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) => client.request('objects_list', { maxObjects: i + 1 })),
     )
+
     const allMatch = results.every((r, i) => {
       if (!r.ok) return false
       const h = r.result as { nodeCount: number; truncatedNodes: number }
@@ -279,6 +280,7 @@ async function main(): Promise<void> {
     const a = new BlenderBridgeClient({ port: srv.port, token: 'tok', ...FAST })
     await a.request('scene_info')
     check('A ready', a.status() === 'ready')
+
     await new Promise<void>(resolve => {
       const probe = net.connect({ host: '127.0.0.1', port: srv.port }, () => {
         probe.destroy()
@@ -312,6 +314,7 @@ async function main(): Promise<void> {
     check('render_still acks started:true with the outputPath echoed',
       rs.ok === true && (rs as { result: { started: boolean; outputPath: string } }).result.started === true &&
         (rs as { result: { outputPath: string } }).result.outputPath === outputPath)
+
     const second = await client.request('render_still', { outputPath })
     check('a second render_still refuses RENDER_ACTIVE', !second.ok && second.error.code === 'RENDER_ACTIVE')
     const openDuring = await client.request('blend_open', { path: '/work/studio/assets/props.blend' })

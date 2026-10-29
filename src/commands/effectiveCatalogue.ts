@@ -13,15 +13,21 @@ export function devSurfacesEnabled(): boolean {
 type SurfaceVisibility = 'normal' | 'hidden' | 'dev'
 
 type EffectiveSurface = {
+
   name: string
+
   displayName: string
   aliases: readonly string[]
   description: string
+
   kind: Command['type']
+
   category: string
   categoryLabel: string
+
   enabled: boolean
   visibility: SurfaceVisibility
+
   canonicalRoute: string
 }
 
@@ -58,6 +64,7 @@ function toSurface(cmd: Command): EffectiveSurface {
 }
 
 export function effectiveCatalogue(): EffectiveSurface[] {
+
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { builtinCommands } = require('../commands.js') as typeof import('../commands.js')
   return builtinCommands().map(toSurface)

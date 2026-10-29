@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react'
 import useInput from '../../ink/hooks/use-input.js'
 import {
@@ -32,14 +31,19 @@ export function letterOrdinalOf(option: {
 type UseSelectProps<T> = {
   state: SelectState<T>
   isDisabled?: boolean
+
   disableSelection?: boolean | 'numeric'
+
   isMultiSelect?: boolean
   onCancel?: () => void
   onDownFromLastItem?: () => void
   onUpFromFirstItem?: () => void
   onInputModeToggle?: (value: T) => void
+
   getInputValue?: (value: T) => string
+
   submitInputOption?: (option: OptionWithDescription<T>) => void
+
   tryEnterImageSelectionMode?: () => boolean
   isImageSelectionModeActive?: boolean
 }
@@ -58,6 +62,7 @@ export function useSelectInput<T>({
   tryEnterImageSelectionMode,
   isImageSelectionModeActive = false,
 }: UseSelectProps<T>): void {
+
   usePopupPageOwner(!isDisabled)
   const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: !isDisabled })
   const tokenRef = useRef(overlayToken)
@@ -121,6 +126,7 @@ export function useSelectInput<T>({
   useKeybindings(
     {
       'select:cancel': () => {
+
         const token = tokenRef.current
         if (token === null || !isTopOverlayNow(token)) return false
         onCancel?.()
@@ -142,6 +148,7 @@ export function useSelectInput<T>({
         event.stopImmediatePropagation()
         return
       }
+
       if (key.tab && onInputModeToggle && state.focusedValue !== undefined) {
         onInputModeToggle(state.focusedValue)
         event.stopImmediatePropagation()
@@ -172,15 +179,16 @@ export function useSelectInput<T>({
         return
       }
 
-
       if (disableSelection !== true) {
         if (normalizeFullWidthSpace(input) === ' ') {
           if (isMultiSelect && focusedOption && !focusedOption.disabled) {
+
             state.selectFocusedOption()
             event.stopImmediatePropagation()
             return
           }
         }
+
         const activateOrdinalTarget = (
           target: OptionWithDescription<T>,
         ): void => {
@@ -203,11 +211,13 @@ export function useSelectInput<T>({
         const digits = normalizeFullWidthDigits(input)
         if (/^\d+$/.test(digits) && disableSelection !== 'numeric') {
           const target = state.options[parseInt(digits, 10) - 1]
+
           if (target !== undefined) {
             activateOrdinalTarget(target)
             return
           }
         }
+
         if (input.length === 1 && /[a-zA-Z]/.test(input)) {
           const pressed = input.toUpperCase()
           const at = state.options.findIndex(

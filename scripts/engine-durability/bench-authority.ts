@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { loadavg, tmpdir } from 'node:os'
@@ -14,6 +15,7 @@ const PHASES = new Set(
 )
 
 const REPO_ROOT = resolve(import.meta.dir, '..', '..')
+
 const WORKER = join(REPO_ROOT, 'scripts', 'engine-durability', 'bench-authority-worker.ts')
 
 const ROOT = mkdtempSync(join(tmpdir(), 'keel-auth-'))
@@ -542,6 +544,7 @@ async function ladder(): Promise<void> {
 }
 
 function matchedBVariant(): string {
+
   const cls = String((RESULTS.probe as { nodeFsyncClass?: string }).nodeFsyncClass ?? '')
   return cls.includes('FULLFSYNC') ? 'B:fullfsync' : 'B:full'
 }
@@ -742,6 +745,7 @@ async function crashLeg(opts: {
 
 async function crash(): Promise<void> {
   console.log('\n== CRASH RECOVERY (SIGKILL at commit phases and at random) ==')
+
   const phaseExpect: Record<string, (a: number) => number> = {
     'create-temp': a => a,
     write: a => a,
@@ -854,6 +858,7 @@ async function crash(): Promise<void> {
       killAfterMs: 8000,
     })
     const dOut = await daemon
+
     client.child.kill('SIGKILL')
     const cOut = await client
     const acked = lastAck(cOut.stdout)
@@ -897,6 +902,7 @@ async function crash(): Promise<void> {
 
 async function daemonless(): Promise<void> {
   console.log('\n== DAEMONLESS BEHAVIOUR + COLD START (candidate a) ==')
+
   const dir = freshDir('daemonless')
   const ghost = join(ROOT, 'no-daemon.sock')
   const t0 = performance.now()
@@ -906,6 +912,7 @@ async function daemonless(): Promise<void> {
   })
   const refuseMs = performance.now() - t0
   const refused = out.code !== 0
+
   const colds: number[] = []
   for (let i = 0; i < (QUICK ? 1 : 3); i++) {
     const cDir = freshDir(`coldstart-${i}`)

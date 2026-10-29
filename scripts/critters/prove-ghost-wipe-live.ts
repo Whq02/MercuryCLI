@@ -75,6 +75,7 @@ const samePaint = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg &&
 const emptyCell: Cell = { c: ' ', fg: 'default', bg: 'default' }
 type Grid = { cols: number; rows: number; grid: Cell[][] }
 const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: Array<{ label: string; grid: Cell[][] }>; sendReceipts?: Array<{ atTick: number }> }
+
 const ART_X0 = 24
 const ART_X1 = 50
 const artRows = (g: Cell[][]): number[] => {
@@ -175,6 +176,7 @@ if (POISON) {
 } else {
   t.check(`the cycle tick re-emits the rows the departed glyphs bled into (rows ${bleedRowSet.join(',')}: ${bleedCells} cells in the art's columns — the slivers)`, wipeCovers(cycle, departures) && bleedCells >= bleedWanted, `${bleedCells} for ${bleedWanted} bleed cells`)
 }
+
 const BOOT_TICKS = Math.round(8 * vshotBudgetScale())
 const wholeFrame = (tk: number): boolean => (byTick.get(tk)?.size ?? 0) >= ROWS
 const preTicks = [...byTick.keys()].filter(tk => tk < CLICK_AT && tk > BOOT_TICKS && !wholeFrame(tk))

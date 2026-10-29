@@ -1,4 +1,3 @@
-
 export const ATTENTION_BUCKETS = [
   'needs-you',
   'ready-to-review',
@@ -22,6 +21,7 @@ export type AttentionOwner =
   | 'obligations'
 
 export type AttentionReasonCode =
+
   | 'permission-orphaned'
   | 'permission-pending'
   | 'question-pending'
@@ -45,15 +45,20 @@ export type AttentionReasonCode =
 export type AttentionUrgency = 0 | 1 | 2
 
 export interface AttentionFact {
+
   subjectId: string
   owner: AttentionOwner
+
   sourceEventId: string
   bucket: AttentionBucket
   reasonCode: AttentionReasonCode
   reasonLabel: string
+
   sinceMs: number
+
   atMs: number
   urgency: AttentionUrgency
+
   title?: string
 }
 
@@ -71,6 +76,7 @@ export interface AttentionItem {
 }
 
 export interface AttentionState {
+
   items: ReadonlyMap<string, AttentionItem>
 }
 
@@ -87,7 +93,9 @@ export function foldAttention(
   for (const f of facts) {
     const prev = (items ?? state.items).get(f.subjectId)
     if (prev) {
+
       if (prev.sourceEventId === f.sourceEventId && prev.bucket === f.bucket) continue
+
       if (f.atMs < prev.atMs) continue
     }
     if (!items) items = new Map(state.items)

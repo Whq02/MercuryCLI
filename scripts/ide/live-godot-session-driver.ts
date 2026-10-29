@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -12,7 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-
 
 interface DriverArgs {
   mode: 'plumbing' | 'journey'
@@ -74,9 +74,9 @@ if ('error' in parsed) {
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 const godot = await import('../../src/services/ide/godotSession.js')
 
-
 if (parsed.mode === 'plumbing') {
   console.log('live-godot-session-driver: PLUMBING mode (no editor dialed)')
+
   const bad = parseDriverArgs(['--mode', 'nope'])
   check('plumbing: bad --mode is refused', 'error' in bad)
   const good = parseDriverArgs(['--mode', 'journey', '--scene', 'res://scenes/Main.tscn', '--break-line', '7'])
@@ -84,6 +84,7 @@ if (parsed.mode === 'plumbing') {
     'plumbing: journey args round-trip',
     !('error' in good) && good.mode === 'journey' && good.scene === 'res://scenes/Main.tscn' && good.breakLine === 7,
   )
+
   const arena = mkdtempSync(path.join(tmpdir(), 'godot-plumbing-'))
   try {
     mkdirSync(path.join(arena, 'game'), { recursive: true })
@@ -98,7 +99,6 @@ if (parsed.mode === 'plumbing') {
   console.log(failures === 0 ? 'live-godot-session-driver: plumbing GREEN' : 'live-godot-session-driver: plumbing RED')
   process.exit(failures === 0 ? 0 : 1)
 }
-
 
 if (process.env.RUN_LIVE !== '1') {
   console.log('live-godot-session-driver: journey mode needs RUN_LIVE=1 — skipping')
@@ -225,6 +225,7 @@ await runWithCwdOverride(root, async () => {
       console.log('  [SKIP] VULCAN runtime tree (MERCURY_GODOT_TOOLS not armed/reachable)')
     }
   } finally {
+
     if (launched) await removeDapSession(owner, 'godot-live')
   }
   const after = await godot.buildGodotIdeSession(owner, root)

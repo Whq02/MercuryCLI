@@ -38,6 +38,7 @@ export function PermissionRuleInput({
   })
 
   function handleSubmit(submitted: string): void {
+
     if (submitted.trim() === '') return
     onSubmit(permissionRuleValueFromString(submitted), ruleBehavior)
   }

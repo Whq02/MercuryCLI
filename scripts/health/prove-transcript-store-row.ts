@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir, userInfo } from 'node:os'

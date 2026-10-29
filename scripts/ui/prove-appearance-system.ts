@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { existsSync, readFileSync } from 'node:fs'
@@ -30,6 +31,7 @@ section('§1 — token completeness across every concrete family')
 {
   for (const family of FAMILIES) {
     const t = tokensMod.resolveMercuryTokens(family, ACCENT)
+
     const empty = tokensMod.listUnresolvedTokenRoles(t)
     check(`${family}: every semantic role resolves`, empty.length === 0, empty.join(','))
     const ramps = Object.entries(t.spectral)
@@ -41,6 +43,7 @@ section('§1 — token completeness across every concrete family')
     )
     check(`${family}: frozen`, Object.isFrozen(t))
     const dark = tokensMod.isDarkThemeFamily(family)
+
     const expectedCanvas = brand.groundFamilyFor(family).NIGHT
     check(`${family}: canvas ${dark ? 'painted' : 'left to the profile'}`, dark ? t.canvas === expectedCanvas : t.canvas === undefined)
   }
@@ -100,6 +103,7 @@ section('§4 — the ground follows the theme')
   Object.defineProperty(process.stdout, 'isTTY', { value: realIsTTY, configurable: true })
 
   const provider = src('components', 'design-system', 'ThemeProvider.tsx')
+
   check(
     'the provider re-syncs the ground on EVERY live theme change',
     provider.includes('syncOasisBgToTheme(resolvedTheme)') && /\[resolvedTheme\]\)/.test(provider),
@@ -122,6 +126,7 @@ section('§5 — one canonical picker + the /appearance center')
 
 section('§6 — True Black: the second appearance')
 {
+
   const reachable = themeMod.REACHABLE_THEME_SETTINGS as readonly string[]
   check(
     'the reachable registry carries exactly three appearances (dark · true-black · mono)',

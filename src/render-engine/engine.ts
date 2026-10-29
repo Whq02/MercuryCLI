@@ -1,4 +1,3 @@
-
 import { BSU, ENTER_ALT_SCREEN, ESU, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../ink/termio/dec.js'
 import { CURSOR_HOME, eraseToEndOfLine } from '../ink/termio/csi.js'
 import { clampRowToWidth } from './ansiText.js'
@@ -29,8 +28,11 @@ export interface RenderEngineOptions {
   viewport: Viewport
   profile: EngineProfile
   clock?: EngineClock
+
   onFlatnessViolation?: (identity: string, seq: number) => void
+
   frameCostForTest?: (kind: PaintKind) => number
+
   chokeHighWaterBytes?: number
 }
 
@@ -83,13 +85,13 @@ export class RenderEngine {
       if (e.kind === 'storm-entered') {
         this.scheduler.hold()
         this.m.holdingPaints++
+
         return
       }
       if (e.kind === 'storm-continues') return
       this.settleResize(e.cols, e.rows)
     })
   }
-
 
   nextSeq(): number {
     return this.ledger.nextSeq()
@@ -168,7 +170,6 @@ export class RenderEngine {
     this.door.flushSync()
   }
 
-
   metrics(): Readonly<EngineMetrics> {
     const s = this.scheduler.metrics()
     this.m.framesDeferredByChoke = s.chokeDeferrals
@@ -187,7 +188,6 @@ export class RenderEngine {
   profileRef(): EngineProfile {
     return this.profile
   }
-
 
   private paint(kind: PaintKind): number {
     if (this.detached || this.fullscreenOpen) return 0
@@ -241,6 +241,7 @@ export class RenderEngine {
   private settleResize(cols: number, rows: number): void {
     this.viewport = { cols, rows }
     this.ledger.advanceWidth(cols)
+
     this.m.settledReflows++
     this.scheduler.paintSettled()
   }

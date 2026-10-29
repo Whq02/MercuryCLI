@@ -53,8 +53,10 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
 }
 
 {
+
   const WHEEL = '\\x1b[<64;60;20M'
   const run = await runArtifactArena({
+
     turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), settleDelayMs: vshotBudgetMs(1500), whenModel: 'opus' }],
     sends: [
       '4500:hello',
@@ -74,6 +76,7 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
   )
   const lastWheelTs = Math.max(...wheelAtDrive.map(s => s.sent))
   const streamEnd = (run.fixture.pacedEmits.at(-1)?.at ?? 0) - boot
+
   const SETTLE_AT = streamEnd + 1500
   const [beforeSettle, afterSettle, fin] = screens(run, [
     SETTLE_AT - 200,
@@ -87,6 +90,7 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
     : -1
   check('V3 unstick intent recorded at wheel time', unsticks > 0, `${unsticks} marks`)
   check('V4 not dragged back: last line NOT visible at end', !flat(fin!.rows).includes(LAST_NEEDLE))
+
   const visLines = (rows: string[]): string =>
     rows
       .map(r => (r.match(/vp-line-(\d+)/) ?? [])[1])
@@ -98,6 +102,7 @@ console.log('── FLUX S6 viewport anchoring + scroll continuity (shipped arti
       visLines(beforeSettle!.rows) === visLines(afterSettle!.rows),
     `settle−200ms=[${visLines(beforeSettle!.rows)}] settle+250ms=[${visLines(afterSettle!.rows)}]`,
   )
+
   const finFlat = flat(fin!.rows)
   check(
     'V5b the final view still holds the scrolled-to region (the settle never yanks the reader)',

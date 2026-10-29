@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -157,6 +158,7 @@ if (POISON_DIST === undefined) {
   check('the board claims the slot at mount and releases by unmount cleanup', screen.includes('useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])'))
   check('the hint reads the MIRROR, never a provider of its own (the covered-provider truth)', screen.includes('useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)'))
   check('the hint reads the STAGE through its own subscription (the window\'s end repaints it) and spells the rung from the one owner, the row\'s newborn fact beside it', screen.includes('useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)') && screen.includes('closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged), peekSelRow?.newborn === true)'))
+
   const gestureAt = screen.indexOf('const closeChordGesture = (): void => {')
   const gesture = gestureAt !== -1 ? screen.slice(gestureAt, screen.indexOf('const closeChordRoutineRef', gestureAt)) : ''
   const rungBlock = (rung: string): string => {
@@ -173,7 +175,9 @@ if (POISON_DIST === undefined) {
   check('arm-delete: arms the window and speaks its receipt — no daemon verb', rungBlock('arm-delete').includes('closeChordStage.arm(sel.sessionId)') && !rungBlock('arm-delete').includes('callbacks.'))
   check('delete: closes the stage, drops the arm\'s note with the row, ends the record', rungBlock('delete').includes('closeChordStage.clear()') && rungBlock('delete').includes('setNote(prev => (prev?.row === sel.sessionId ? null : prev))') && rungBlock('delete').includes('callbacks.removeSession?.(sel.sessionId)'))
   check('no stage lives outside its owner: the screen keeps no clock of its own', !screen.includes('lastStopRef') && !screen.includes('CLOSE_CHORD_STAGE_WINDOW_MS'))
+
   check('C3 a row-keyed note clears when the selection leaves it or the row leaves the board', screen.includes('if (boardSel !== note.row || !sessionRows.some(r => r.sessionId === note.row)) setNote(null)') && /setNote\(\{ tone: 'muted', text: keyHintLabel\(receipt\), row: sel\.sessionId \}\)/.test(gesture))
+
   check('C1 a PARKED row enters on ONE ↵ (no composer target to arm) — the screen agrees with its hints', screen.includes("const parked = sessionRows.find(r => r.sessionId === sessionId)?.state === 'parked'") && screen.includes('if (!reducedStage && !parked && opts.pointer !== true && boardArmedRef.current !== sessionId) {'))
   check('C1 the composer gate says one ↵ on a parked row; no hint on the board says ↵↵ for it', screen.includes("'parked — ↵ brings it back; a sleeping chat takes no queue'") && !screen.includes('↵↵ brings it back'))
   const layout = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseLayout.tsx'), 'utf8')
@@ -182,10 +186,12 @@ if (POISON_DIST === undefined) {
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
+
   check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
   check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('`ctrl+x ctrl+x` stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md no longer advertises a bare-x board verb', !/`x` on a|`x` stops|second `x`/.test(docs))
+
   const driveMembers = readFileSync(join(REPO, 'scripts', 'switchboard-drives', 'members.txt'), 'utf8')
     .split('\n')
     .map(l => l.trim())
@@ -220,6 +226,7 @@ writeFileSync(
   }),
 )
 const api = await startFixtureApi([
+
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
   { kind: 'paced', deltas: Array.from({ length: 40 }, (_, i) => `tick${i + 1} `), gapMs: 600, whenModel: 'opus' },
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
@@ -229,6 +236,7 @@ const CTRL_X = String.fromCharCode(24)
 const BACKSPACE = String.fromCharCode(127)
 const N = '↑↓ choose'
 const after = (ms: number, payload: string): string => `after:${N}:${ms}:${payload}`
+
 const sendList: string[] = []
 const mark: Record<string, number> = {}
 const send = (name: string | undefined, ms: number, payload: string): void => {
@@ -246,6 +254,7 @@ send(undefined, 11400, '\r')
 send(undefined, 13400, `${ESC}[1;2D`)
 send(undefined, 14200, '\t')
 send(undefined, 15000, `${ESC}[B`)
+
 send(undefined, 15600, '\t')
 const SCALE = vshotBudgetScale()
 const real = (ms: number): number => Math.round(ms / SCALE)
@@ -257,15 +266,20 @@ send('arm', clock, CTRL_X)
 send('disarm', (clock += real(1300)), 'q')
 send(undefined, (clock += real(1700)), CTRL_X)
 send('stop', (clock += real(900)), CTRL_X)
+
 send('archiveArm', (clock += 11050), CTRL_X)
 send('archive', (clock += real(900)), CTRL_X)
+
 send('flipLeader', (clock += real(3800)), CTRL_X)
+
 send('lateLeader', (clock += real(5400)), CTRL_X)
 send('lateArm', (clock += real(900)), CTRL_X)
 send('deleteLeader', (clock += real(1600)), CTRL_X)
 send('delete', (clock += real(900)), CTRL_X)
+
 clock += 3200
 ;[...Array(7)].forEach((_, i) => send(undefined, clock + i * 80, BACKSPACE))
+
 send(undefined, (clock += 1000), `${ESC}[A`)
 send(undefined, (clock += 900), CTRL_X)
 send('nStop', (clock += real(900)), CTRL_X)
@@ -282,6 +296,7 @@ const child = spawn(
   {
     cwd,
     env: {
+
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -306,6 +321,7 @@ const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 10
 await driverClosed(child)
 clearTimeout(killer)
 await api.close()
+
 const reaped: number[] = []
 try {
   const wf = join(daemonDir, 'concourse-workers.json')
@@ -328,7 +344,9 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (name: string): number => Math.round((sendRecs[mark[name] ?? -1]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
+
   const stopAt = at('stop')
+
   const receiptAt = [1000, 2000, 3000, 4500, 6000].map(o => stopAt + o)
   const grabs = {
     x: at('x') + 1800,
@@ -341,6 +359,7 @@ if (sendRecs.length === sends.length) {
     nParked: at('nArchive') + 2500,
   }
   const enteredSeries = [2500, 4000, 6000, 8000].map(o => at('enter') + o)
+
   const LEADER_OFFSETS = [300, 500, 700]
   const leaderSeries = {
     arm: LEADER_OFFSETS.map(o => at('arm') + o),
@@ -360,6 +379,7 @@ if (sendRecs.length === sends.length) {
   const f = (name: keyof typeof grabs): { atMs: number; rows: string[] } => frameAt(grabs[name])
   const receiptFrames = receiptAt.map(frameAt)
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
+
   const hintSeen = (name: keyof typeof leaderSeries, needle: string): { frame: { atMs: number; rows: string[] }; detail: string } => {
     const frames = leaderSeries[name].map(frameAt)
     const hit = frames.find(g => t(g).includes(needle))
@@ -376,6 +396,7 @@ if (sendRecs.length === sends.length) {
     for (const g of receiptFrames) writeFileSync(join(dir, `receipt-${g.atMs}.txt`), t(g) + '\n')
     for (const ms of enteredSeries) writeFileSync(join(dir, `entered-${ms}.txt`), t(frameAt(ms)) + '\n')
   }
+
   const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|park|⌃x|ctrl\+x|stream slowly|neighbour ready|deletes|arms/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
   const draftRows = (g: { rows: string[] }): string => g.rows.filter(r => /❯|keep me|tab or click/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')
@@ -385,16 +406,21 @@ if (sendRecs.length === sends.length) {
     const armSeen = hintSeen('arm', keyHintLabel('⌃x again stops — esc keeps it'))
     check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armSeen.frame).includes(keyHintLabel('⌃x again stops — esc keeps it')), `${armSeen.detail} · ${t(armSeen.frame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)'}`)
     check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(f('disarm')).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(f('disarm'))) && f('disarm').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), f('disarm').rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
+
     check('STOP RUNG: the completed chord stopped the highlighted row — it STAYS, wearing stopped (inside 6 s)', /\bstopped\s+stream slowly/.test(t(stopFrame)), `+${stopFrame.atMs - stopAt}ms: ${stopWords(stopFrame)}`)
+
     const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it'))
     const receiptRows = receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | ')
     check("…and the composer's receipt spoke the stop verb's detail inside its beat", receiptFrames.some(receiptWords), receiptRows)
+
     check('…and once the row reads stopped the receipt advances to the archive hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(stopFrame))
+
     check('C4 STANDS: 10 s after the stop the row still reads stopped, never parked (no timer or sweep archived it)', /\bstopped\s+stream slowly/.test(t(f('stand'))) && !/\bparked\s+stream slowly/.test(t(f('stand'))), stopWords(f('stand')))
     const archiveSeen = hintSeen('archiveArm', keyHintLabel('⌃x again archives it (the chat stands parked)'))
     check('ARCHIVE ARM: the hint speaks the archive rung before the completion lands', t(archiveSeen.frame).includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), `${archiveSeen.detail} · ${stopWords(archiveSeen.frame)}`)
     check('ARCHIVE: the row STAYS on the board, parked — the record stands', /stream slowly/.test(t(f('parked'))) && /\bparked\s+stream slowly/.test(t(f('parked'))), stopWords(f('parked')))
+
     const flipSeen = hintSeen('flipIn', keyHintLabel('⌃x again deletes it (the record ends)'))
     check('C2 INSIDE: 4 s after the archive the pending leader reads the DELETE rung', t(flipSeen.frame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), `${flipSeen.detail} · ${stopWords(flipSeen.frame)}`)
     check('C2 THE WINDOW ENDS: at 5.5 s, the leader still pending, the hint flipped by itself to the fresh-start words (a press now arms; no stale "deletes")', t(f('flipOut')).includes(keyHintLabel('⌃x again arms the delete')) && !t(f('flipOut')).includes('again deletes it'), stopWords(f('flipOut')))
@@ -406,7 +432,9 @@ if (sendRecs.length === sends.length) {
     check('DELETE: exactly the highlighted session left the board', !/stream slowly/.test(t(f('gone'))))
     check('…the NEIGHBOUR survives untouched (its row still stands)', /neighbour rea/.test(t(f('gone'))) && !/no sessions running/.test(t(f('gone'))))
     check('…and the draft survives the whole ladder un-mangled', f('gone').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(f('gone')))
+
     check('C3 NO STALE NOTE: after the delete no line still carries the arm\'s note (it left with its row)', !/archived — |again deletes \(5 s\)/.test(t(f('gone'))), f('gone').rows.filter(r => /deletes|archived/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ') || '(no chord note)')
+
     check('C1 the neighbour parked on its own two rungs (stop, archive) — the board still the frame', /\bparked\s+neighbour rea/.test(t(f('nParked'))) && /SESSIONS/.test(t(f('nParked'))), stopWords(f('nParked')))
     const enteredFrames = enteredSeries.map(frameAt)
     const entered = enteredFrames.find(g => t(g).includes(keyHintLabel('⇧← back'))) ?? enteredFrames[enteredFrames.length - 1]!

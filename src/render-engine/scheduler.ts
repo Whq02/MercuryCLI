@@ -1,4 +1,3 @@
-
 import type { EngineClock } from './contracts.js'
 
 export const CADENCE_MS = 16
@@ -9,9 +8,12 @@ export const CHOKE_RETRY_MS = 10
 export type PaintKind = 'normal' | 'input' | 'holding' | 'settled'
 
 interface SchedulerDeps {
+
   paint(kind: PaintKind): number
+
   owedBytes(): number
   clock: EngineClock
+
   chokeHighWaterBytes?: number
 }
 
@@ -93,6 +95,7 @@ export class PaintScheduler {
 
     const sinceLast = now - this.lastPaintAt
     const inputOnly = this.pendingInput && !this.pendingNormal
+
     const gateMs = this.pendingInput ? CADENCE_MS : this.floorMs()
     if (sinceLast < gateMs) {
       if (!inputOnly && sinceLast < this.floorMs() && this.floorMs() > CADENCE_MS) {
@@ -107,6 +110,7 @@ export class PaintScheduler {
     this.pendingInput = false
     this.lastCost = this.deps.paint(kind)
     this.lastPaintAt = this.deps.clock.now()
+
     if (this.pendingNormal || this.pendingInput) this.arm(this.floorMs())
   }
 

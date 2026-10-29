@@ -1,4 +1,3 @@
-
 export interface SplashRun {
   text: string
   fg?: string

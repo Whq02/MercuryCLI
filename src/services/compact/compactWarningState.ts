@@ -1,4 +1,3 @@
-
 type Listener = () => void
 
 let suppressed = false

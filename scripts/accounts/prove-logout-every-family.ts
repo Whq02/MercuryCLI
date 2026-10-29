@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -88,6 +89,7 @@ const authFile = (name: string): Record<string, unknown> => {
 
 section('§1 before — every family PRESENT through its own resolver')
 {
+
   secrets.writeStoredOpenaiApiKey('sk-fixture-openai')
   secrets.writeStoredZaiApiKey('fixture-zai', 'coding')
   secrets.writeStoredOpenrouterApiKey('sk-or-fixture-stored')
@@ -99,6 +101,7 @@ section('§1 before — every family PRESENT through its own resolver')
   secrets.writeStoredLocalApiKey('fixture-local')
   writeFileSync(join(home, '.provider-secrets.json'), JSON.stringify({ ...authFile('.provider-secrets.json'), compatEndpointKeys: { named: 'fixture-named-endpoint' } }))
   check('a named custom endpoint key reads present before logout (F43A-C6-01)', secrets.readStoredCompatApiKey('named') === 'fixture-named-endpoint')
+
   moonshot.writeMoonshotTokens({ accessToken: 'kimi-fixture-access', refreshToken: 'kimi-fixture-refresh', accessTokenExpiresAtMs: far }, 'global')
   huggingface.writeHuggingfaceTokens(
     { accessToken: 'hf-fixture-access', refreshToken: 'hf-fixture-refresh', accessTokenExpiresAtMs: far },

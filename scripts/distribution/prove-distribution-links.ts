@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
@@ -25,6 +26,7 @@ for (const rel of ACTIVE) {
   }
   const text = readFileSync(p, 'utf8')
   const broken: string[] = []
+
   for (const m of text.matchAll(/\]\(([^)#\s]+)(?:#[^)\s]*)?\)/g)) {
     const target = m[1]
     if (/^[a-z]+:\/\//.test(target) || target.startsWith('mailto:')) continue
@@ -35,6 +37,7 @@ for (const rel of ACTIVE) {
 }
 
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
+
 check('README spells the public install channel', /mercury-cli\.ai\/install/.test(readme))
 check('README carries the notices pointer', readme.includes('THIRD_PARTY_NOTICES.md'))
 check('README states the computed default: the most recently connected provider', /most recently connected provider/.test(readme))

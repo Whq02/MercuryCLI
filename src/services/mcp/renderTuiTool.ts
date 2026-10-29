@@ -1,6 +1,3 @@
-
-
-
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
@@ -74,6 +71,7 @@ export function renderTui(opts: {
   const { root, bun } = prerequisites
   const cols = opts.cols ?? 120
   const rows = opts.rows ?? 44
+
   const out = join(tmpdir(), `render-tui-mcp-${process.pid}-${cols}.png`)
   rmSync(out, { force: true })
   const res = spawnSync(
@@ -96,6 +94,7 @@ export function renderTui(opts: {
     return {
       isError: true,
       content: [
+
         { type: 'text', text: `render_tui failed: ${res.error ? String(res.error) : res.stderr || 'no PNG'}` },
       ],
     }

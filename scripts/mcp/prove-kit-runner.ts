@@ -106,6 +106,7 @@ section('§K2 the spec composes the carry (the daemon half)')
   t('K8 a kit on the spec rides extraEnv as its exact JSON (beside the home pin, respawn-carried by the spec law)', deepEq(parsed, K_RESOLVED) && typeof (withKit.extraEnv as Record<string, string>).MERCURY_SESSION_HOME === 'string')
   const noKit = buildConcourseWorkerSpec({ ...base })
   t("K9 no kit ⇒ the key is ABSENT from extraEnv (absent, never the string 'undefined' — absence IS the whole-config law)", !('MERCURY_SESSION_KIT' in (noKit.extraEnv as Record<string, string>)))
+
   const warm = buildConcourseWorkerSpec({ runnerId: 'w-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true })
   t('K10 the builder stamps NO kit env on a kit-less spec, warm included (absence is the law; the warm ensure hands its own kit — prove-kit-birth §G)', !('MERCURY_SESSION_KIT' in (warm.extraEnv as Record<string, string>)))
   const round = await import('../../src/daemon/sessionKit.ts')
@@ -116,7 +117,9 @@ section('§K2 the spec composes the carry (the daemon half)')
 section('§K3 call-site census (source-shape: every non-warm road passes the kit; one env owner)')
 {
   const daemon = readFileSync(join(REPO, 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')
+
   t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', daemon.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && daemon.includes('...kitStampOf(kit),'))
+
   t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", daemon.includes('kitOverride: kit,'))
   t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", daemon.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && daemon.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
   const spawnEnvWrites = daemon.split('MERCURY_SESSION_KIT: JSON.stringify').length - 1
@@ -264,6 +267,7 @@ section('§C the completion (poison: a second road to resolved; a resolved recor
     permission_mode: 'flow',
     workspace: { cwd: PROJECT, original_cwd: PROJECT, project_root: PROJECT, instruction_roots: [] },
     queue: [],
+
     ...(kit !== undefined ? { kit: sessionKitToWire(kit as never) } : {}),
   })
   seat.onFactsAnswer('w-kit', answerOf(R), fakeRoster as never, DAEMON_DIR)
@@ -381,6 +385,7 @@ section('§N non-session insulation (poison: a kit env appearing on a warm/utili
   process.env.MERCURY_SESSION_KIT = JSON.stringify({ schema: 1, mcp: ['stray'], skills: [], invocable: [] })
   const workerEnv = buildRunnerInvocation(buildConcourseWorkerSpec({ ...base, kit: K_RESOLVED as never })).env
   t("N1 a SESSION worker's child env carries ITS SPEC's stamp — never the spawning process's stray (the strip runs before the overlay; the deliberate stamp lands)", workerEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
+
   const warmEnv = buildRunnerInvocation(buildConcourseWorkerSpec({ runnerId: 'w-ins-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true, kit: K_RESOLVED as never })).env
   t("N2 POISON armed: a WARM child env carries ITS SPEC's kit and never the stray beside it (the ensure's stamp is the only speaker; a spec-less warm build still stamps nothing — K10)", warmEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
   delete process.env.MERCURY_SESSION_KIT

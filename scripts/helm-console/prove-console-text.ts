@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { displayWidth } from '../../src/components/mercury-ui/glyphs.js'
 import { fmtTok, wrapPlain } from '../../src/utils/cockpit/helmConsoleText.js'

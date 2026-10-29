@@ -1,4 +1,3 @@
-
 import React, { forwardRef, type PropsWithChildren } from 'react'
 import type { DOMElement } from '../dom.js'
 import type { ClickEvent } from '../events/click-event.js'
@@ -10,8 +9,11 @@ import { logForDebugging } from '../../utils/debug.js'
 
 export type Props = Omit<Styles, 'textWrap'> & {
   readonly ref?: React.Ref<DOMElement>
+
   readonly tabIndex?: number
+
   readonly autoFocus?: boolean
+
   readonly onClick?: (event: ClickEvent) => void
   readonly onFocus?: (event: FocusEvent) => void
   readonly onFocusCapture?: (event: FocusEvent) => void
@@ -19,6 +21,7 @@ export type Props = Omit<Styles, 'textWrap'> & {
   readonly onBlurCapture?: (event: FocusEvent) => void
   readonly onKeyDown?: (event: KeyboardEvent) => void
   readonly onKeyDownCapture?: (event: KeyboardEvent) => void
+
   readonly onMouseEnter?: () => void
   readonly onMouseLeave?: () => void
   readonly onTextGesture?: TextGestureHandler
@@ -49,6 +52,7 @@ function checkSpacingIntegrality(style: Record<string, unknown>): void {
     const value = style[key]
     if (value === undefined) continue
     if (typeof value !== 'number' || !Number.isInteger(value)) {
+
       logForDebugging(`<Box> ${key} should be an integer, got ${String(value)}`, {
         level: 'warn',
       })
@@ -79,6 +83,7 @@ const Box = forwardRef<DOMElement, PropsWithChildren<Props>>(
     checkSpacingIntegrality(style as Record<string, unknown>)
     const overflowX = style.overflowX ?? style.overflow ?? 'visible'
     const overflowY = style.overflowY ?? style.overflow ?? 'visible'
+
     const resolved: Styles = {
       ...style,
       flexWrap: style.flexWrap ?? 'nowrap',

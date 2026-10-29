@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -37,6 +38,7 @@ const PROCESS_TERMS: Array<[string, RegExp]> = [
   ['closeout-file suffix', new RegExp(J('-', 'RECEIPT', '\\.md'))],
   ['relay-channel path (in)', new RegExp(J('field/', 'inbox'), 'i')],
   ['relay-channel path (out)', new RegExp(J('field/', 'results'), 'i')],
+
   ['work-stream tag', new RegExp('\\b[A-Z][A-Z0-9]{2,}(?:-[A-Z0-9]+)*' + J(' lane', 's?\\b') + '|' + J('\\blane ', '[A-Z][A-Z0-9]{2,}(?:-[A-Z0-9]+)*\\b'))],
   ['dated decision verb', new RegExp('\\b(?:' + [J('ru', 'led'), J('rul', 'ing'), J('sigh', 'ted'), J('supp', 'lied'), J('lan', 'ded'), J('fol', 'ded'), J('tr', 'ued'), J('rati', 'fied'), J('adjudi', 'cated')].join('|') + ')\\b[^\\n]{0,16}\\b20\\d\\d-\\d\\d-\\d\\d\\b')],
   ['field-report row id', new RegExp('\\b(?:' + J('F', 'N') + '|' + J('F', 'C') + ')-\\d{3}\\b|\\b' + J('TAS', 'K') + '-\\d{3}\\b')],

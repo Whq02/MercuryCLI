@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -35,6 +36,7 @@ const fnStart = layout.indexOf('export function FullscreenLayout')
 const fnBody = layout.slice(fnStart)
 check('FullscreenLayout is DE-MEMOIZED (no `const $ = _c(` decl)', !/const \$ = _c\(/.test(fnBody))
 check('FullscreenLayout body has no $[<n>] cache slot reads', !/\$\[\d/.test(fnBody))
+
 check('FullscreenLayout reads the shared physical-geometry decision for the cockpit',
   /useLayoutChrome\(\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
 check('FullscreenLayout mounts rails off railPlan (center-first shed)',
@@ -43,11 +45,13 @@ check('FullscreenLayout composes both rails inline (HelmHome absorbed)',
   /<HelmLanesRail/.test(fnBody) && /<HelmVitalsRail/.test(fnBody))
 check('FullscreenLayout keeps the deck-strip path (byte-identical OFF/narrow)',
   /chrome === 'deck-strip'/.test(fnBody) && /<DeckPane/.test(fnBody))
+
 check('M3: cockpit + deck toggle as siblings, providers always mounted (stable root)',
   /CockpitActiveContext\.Provider value=\{cockpit\}/.test(fnBody) &&
   /TerminalSizeContext\.Provider value=\{sizeVal\}/.test(fnBody) &&
   /\{fullscreen && !isCompact && chrome === 'deck-strip' \? <DeckPane \/> : null\}/.test(fnBody))
 check('M3: no separate <HelmHome> root (absorbed → no root-type flip)', !/<HelmHome/.test(fnBody))
+
 check('P3-continuity: rails stay mounted under a modal (visual claim only)',
   /const cockpit = fullscreen && chrome === 'cockpit'\n/.test(fnBody) &&
   !/const cockpit = fullscreen && chrome === 'cockpit' && !modalUp/.test(fnBody))
@@ -56,6 +60,7 @@ check('M2: modal spans the full terminal in every chrome',
   /rows: Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\),\s*columns,/.test(fnBody))
 check('P3-continuity: rail input parks while a modal is up',
   /const reachable = cockpit && !modalUp\s*setHelmVitalsAvailable\(reachable && plan\.vitals\)\s*if \(!reachable\) setHelmFocus\('prompt'\)/.test(fnBody))
+
 check('P3: surface claims full height (peek 0) in cockpit + deck-strip, default peek inline',
   /const modalPeek = isCompact \? 0 : chrome === 'inline' \? 2 : 0/.test(fnBody) &&
   /maxHeight=\{Math\.max\(0, terminalRows - modalPeek\)\}/.test(fnBody))
@@ -101,10 +106,12 @@ check('S8: CREW sources the projected roster through the crew predicate (the pro
     /crewAgentsOf\(projectWorkRoster\(kept\), sessionId\)/.test(crewLedgerSrc) &&
     workRosterSrc.includes("if (task.agentType === 'main-session') continue") &&
     /return row\.kind === 'agent'$/m.test(crewFactsSrc))
+
 check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate), keeps every crewmate the session has had — never filtered to the running ones — and pulls the viewed or pinned row into the cap",
   /crewAgentsOf\(roster\.rows, sessionId\)/.test(crewLedgerSrc) && !/\.filter\(f => f\.running/.test(lanes) && /keptIds\.includes\(c\.id\)/.test(lanes) && /running: workRowRuns\(row\)/.test(crewFactsSrc))
 check('a hosted CREW row opens the agent in the view (the crewmate road), never a /runs command',
   /\{ kind: 'crewmate', id: c\.id, label: c\.hosted \? `crew:h:\$\{c\.id\}` : c\.label \}/.test(lanes) && !/command: `\/(runs|tasks) \$\{c\.id\}`/.test(lanes))
+
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
 check('no TASKS card: the rail builds no ledger section or rows of its own',
@@ -113,6 +120,7 @@ check('RUNS is the one rail door to the /runs board (header opens /runs)',
   /key: 'runs', glyph: GLYPH\.turns, label: 'RUNS', count: `\$\{runsLive\} live`, open: '\/runs', rows/.test(lanes))
 check('a ledger alone never forces the busy layout (the solo gate reads crew, the viewed or pinned crewmate and runs only — no peers term)',
   /return input\.sessionCrew\.length === 0 && keptIds\.length === 0 && runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes) && !/ledgerOpen/.test(lanes) && !/peers\.length/.test(lanes))
+
 check('S4: the dead selectedCaret/focus path is removed from the rail',
   !/selectedCaret/.test(lanes) && !/onCursorMax/.test(lanes))
 

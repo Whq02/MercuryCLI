@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -19,11 +20,14 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const BASE = realpathSync(mkdtempSync(join(tmpdir(), 'shim-contain-')))
 const home = join(BASE, 'home')
 const versions = join(home, 'versions')
+
 const outside = join(home, 'outside', 'evil')
 mkdirSync(versions, { recursive: true })
 mkdirSync(outside, { recursive: true })
+
 writeFileSync(join(outside, 'mercury'), '#!/bin/sh\necho ESCAPED-THE-ROOT\nexit 0\n')
 chmodSync(join(outside, 'mercury'), 0o755)
+
 mkdirSync(join(versions, '1.2.3'), { recursive: true })
 writeFileSync(join(versions, '1.2.3', 'mercury'), '#!/bin/sh\necho LEGIT-LAUNCH\nexit 0\n')
 chmodSync(join(versions, '1.2.3', 'mercury'), 0o755)

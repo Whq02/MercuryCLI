@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { basename } from 'node:path'
 import type { Key } from '../ink.js'
@@ -52,6 +51,7 @@ export function usePasteHandler({
   pendingNow: () => boolean
 } {
   const chunksRef = useRef<string[]>([])
+
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const [isPasting, setIsPastingState] = useState(false)
   const pastingRef = useRef(false)
@@ -97,6 +97,7 @@ export function usePasteHandler({
           }
         })
         .catch(error => {
+
           if (mountedRef.current) onImageErrorRef.current?.(error instanceof Error ? error.message : String(error))
         })
         .finally(() => {
@@ -116,6 +117,7 @@ export function usePasteHandler({
     )
 
     if (imagePaths.length > 0 && onImagePasteRef.current) {
+
       void (async () => {
         let anyRead = false
         const nonImageLines: string[] = []
@@ -139,6 +141,7 @@ export function usePasteHandler({
                 continue
               }
             } catch (error) {
+
               anyRead = true
               if (mountedRef.current) onImageErrorRef.current?.(error instanceof Error ? error.message : String(error))
               continue
@@ -154,6 +157,7 @@ export function usePasteHandler({
           setIsPasting(false)
           return
         }
+
         if (getPlatform() === 'macos' && MACOS_SCREENSHOT_RE.test(joined)) {
           checkClipboardImage()
           return
@@ -165,6 +169,7 @@ export function usePasteHandler({
     }
 
     if (joined === '' && onImagePasteRef.current) {
+
       checkClipboardImage()
       return
     }
@@ -174,8 +179,10 @@ export function usePasteHandler({
   }, [checkClipboardImage])
 
   const wrappedOnInput = useCallback(
+
     (input: string, key: Key, _event?: unknown): void => {
       const flagged = key.isPasted === true
+
       if (flagged && input.length === 0 && onImagePasteRef.current) {
         setIsPasting(true)
         checkClipboardImage()

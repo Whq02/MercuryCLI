@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { Box, Text } from '../ink.js'
 import TextInput from './TextInput.js'

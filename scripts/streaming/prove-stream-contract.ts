@@ -46,6 +46,7 @@ function drive(frames: never[]) {
   const toolUses = new StreamBatcher<StreamingToolUse[]>([], {
     sink: v => toolCommits.push(v),
     flushNow: (prev, next) => prev.length !== next.length,
+
     setTimer: fn => {
       pending.push(fn)
       return pending.length

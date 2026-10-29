@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -37,6 +38,7 @@ function scanFacade(): { exports: FacadeExport[]; extraStatements: string[] } {
   )
   const exports: FacadeExport[] = []
   const extraStatements: string[] = []
+
   const SANCTIONED_LOCALS = new Set(['themed', 'render', 'createRoot'])
 
   for (const stmt of source.statements) {

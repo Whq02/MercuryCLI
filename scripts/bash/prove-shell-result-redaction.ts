@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/BashTool.tsx src/tools/BashTool/utils.ts src/utils/redactSecrets.ts src/state/AppStateStore.ts
+
 import { plugin } from 'bun'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

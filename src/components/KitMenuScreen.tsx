@@ -39,19 +39,26 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
-
 interface KitMenuScreenProps {
   onClose?: () => void;
+
   fullScene?: { columns: number; rows: number };
+
   catalogue?: KitCatalogue;
+
   store?: KitMenuStore;
+
   workspaceDir?: string;
 }
 
 export const KIT_LEGEND_SAVED = '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · esc back';
+
 export const KIT_LEGEND_PRESET = '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back';
+
 export const KIT_LEGEND_PROMPT = 'type a name · ↵ save · esc cancel';
+
 export const KIT_LEGEND_PRESETS = '↑↓ move · pgup/pgdn page · ↵ wear next session · ⌫ delete · esc back';
+
 export const PRESET_LAYER_EMPTY = "no presets saved — 'p' on the menu saves the current record under a name";
 
 export function presetPromptLines(name: string, note: string | null): string[] {
@@ -134,6 +141,7 @@ const DEFAULT_VIEW: KitRowView = { own: 'on', effective: 'on', masterOff: false 
 export const KIT_LEGEND = '↑↓ move · pgup/pgdn page · ↵ change · ⌫ default · esc back';
 
 export function kitValueLabel(row: KitRow, view: KitRowView = DEFAULT_VIEW): string {
+
   if (row.kind === 'note') return '';
   if (!isKitMember(row)) return '—';
   if (view.masterOff) return 'off (extension)';
@@ -209,6 +217,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
   const { columns: termCols, rows: termRows } = useTerminalSize();
   const columns = fullScene?.columns ?? termCols;
   const rows = fullScene?.rows ?? termRows;
+
   const [workspaceDir] = useState(() => givenWorkspace ?? process.cwd());
 
   const [catalogue, setCatalogue] = useState<KitCatalogue>(() => given ?? LOADING_KIT_CATALOGUE);
@@ -228,6 +237,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         });
     };
     enumerate();
+
     void skillChangeDetector.rearmWatchRoots().catch(() => {});
     const unsubscribe = skillChangeDetector.subscribe(enumerate);
     return () => {
@@ -245,6 +255,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     const res = store.write(workspaceDir, row, next);
     if (!res.ok) return `save refused — ${res.reason}`;
     setStates(store.read(workspaceDir));
+
     const carry = carryNextSessionKit(listRows, store.read(workspaceDir));
     if (!carry.carried) {
       const note = `${res.receipt} · not carried (${carry.reason}) — the birth derives from the record`;
@@ -254,6 +265,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     setLastReceipt(res.receipt);
     return res.receipt;
   };
+
   const cycleRow = (row: KitRow | null, direction: 1 | -1): string | null => {
     if (row === null || !isKitMember(row)) return null;
     const view = kitRowView(row, states);
@@ -317,14 +329,19 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     rows: listRows,
     rowId: kitRowId,
     idNamespace: 'kit-menu',
+
     active: !preset.open && !presetsLayer.open,
     onClose: () => {
+
       if (onClose) onClose();
       else leaveCurrentSurface();
     },
+
     unavailable: r => !isKitMember(r),
+
     actions: [
       { key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) },
+
       { key: ' ', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) },
       { key: 'backspace', hint: 'default', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => resetRow(row)) }) },
       {
@@ -414,9 +431,11 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
       model: renderModelChip(mainModel),
       critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
       critterHue: getSessionAccent().accent,
+
       dirBase: basename(process.cwd()) || process.cwd(),
       dirTail: '',
     };
+
     if (presetsLayer.open) {
       const armed = peekWornPresetKit()?.name ?? null;
       const empty = presetsLayer.facts.length === 0;
@@ -438,11 +457,13 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     }
     const entries = listRows.map(row => kitEntryOf(row, kitRowView(row, states)));
     const selectable = selectedRow !== null && isKitMember(selectedRow);
+
     const statusRight =
       (list.note ?? lastReceipt ?? kitStatusLine(states.size)) +
       (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
     return {
       entries,
+
       selIdx: selectable ? list.selectedIndex : -1,
       title: 'mcps & skills',
       summaryTitle: 'NEXT SESSION',
@@ -486,6 +507,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
         const entryIdx = composition.entryAt.get(i);
+
         if (entryIdx !== undefined && presetsLayer.open) {
           const fact = presetsLayer.facts[entryIdx];
           if (fact !== undefined) {
@@ -511,6 +533,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         if (row !== undefined && entryIdx !== undefined) {
           const props = list.rowProps(row, entryIdx);
           return (
+
             <InteractiveRow
               key={props.id}
               id={props.id}

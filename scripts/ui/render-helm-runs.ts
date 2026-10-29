@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
@@ -61,11 +62,16 @@ expect(
   'shell was genuinely backgrounded (the ctrl+b receipt in the transcript)',
   /manually backgrounded by user/.test(t),
 )
+
 expect('RUNS section header present (`RUNS · 1 live`)', /RUNS · 1 live/.test(t))
+
 expect('run row carries a work glyph before the title', /[◐◓◑◒] sleep 300/.test(t))
+
 expect('run row verb is `shell <elapsed>`', /sleep 300 · shell \d+[sm]/.test(t))
+
 expect('busy branch: CREW lane present', /CREW ·/.test(t))
 expect('solo NEXT hints replaced by the busy layout', !/NEXT/.test(t))
+
 expect('no TASKS card on the rail (RUNS is the one door to /tasks)', !/TASKS/.test(t) && !/no open tasks/.test(t))
 
 console.log('\n▶ drill: ↵ on the RUNS row opens the process card')

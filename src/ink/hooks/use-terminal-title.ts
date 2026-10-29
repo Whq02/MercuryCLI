@@ -1,4 +1,3 @@
-
 import { useContext, useEffect } from 'react'
 import stripAnsi from 'strip-ansi'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
@@ -17,7 +16,9 @@ export function useTerminalTitle(title: string | null): void {
   useEffect(() => {
     if (title === null || !write) return
     const clean = sanitizeTitle(title)
+
     if (process.platform === 'win32') {
+
       process.title = clean
       noteModeAcquired('terminal-title', 'terminal-title')
       return

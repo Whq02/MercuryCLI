@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,9 +15,12 @@ const VSHOT = join(ROOT, 'scripts', 'ui', 'vshot.py')
 const PROOF_KEY = 'sk-ant-proof-boot-mcp'
 
 const FIRST_FRAME_BOUND_TICKS = 50
+
 const SETTLE_TICKS = 15
+
 const HEADLESS_BUDGET_MS = 25_000
 const H1_MCP_TIMEOUT_MS = 4_000
+
 const COMPOSER_SIGIL = '❯'
 
 let failures = 0
@@ -40,11 +44,13 @@ if (!existsSync(DIST)) {
 
 const scratchRoots: string[] = []
 function world(tag: string): { home: string; cwd: string; dir: string } {
+
   const dir = realpathSync(mkdtempSync(join(tmpdir(), `boot-mcp-${tag}-`)))
   scratchRoots.push(dir)
   const home = join(dir, 'home')
   const cwd = join(dir, 'project')
   mkdirSync(cwd, { recursive: true })
+
   process.env.ANTHROPIC_API_KEY = PROOF_KEY
   seedFirstRun(home, [cwd])
   return { home, cwd, dir }
@@ -54,11 +60,13 @@ type StubSpec = { name: string; args: string[] }
 function stubConfig(stub: StubSpec): Record<string, unknown> {
   return { type: 'stdio', command: 'node', args: [STUB, '--name', stub.name, ...stub.args] }
 }
+
 function mcpConfigFile(dir: string, stub: StubSpec): string {
   const path = join(dir, `${stub.name}.mcp.json`)
   writeFileSync(path, JSON.stringify({ mcpServers: { [stub.name]: stubConfig(stub) } }, null, 2))
   return path
 }
+
 function addUserScopeServer(home: string, stub: StubSpec): void {
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
@@ -81,11 +89,14 @@ function bootEnv(home: string, extra: Record<string, string> = {}): NodeJS.Proce
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     ANTHROPIC_API_KEY: PROOF_KEY,
+
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
     TERM: 'xterm-256color',
+
     MERCURY_WARM_RUNNER: '0',
     ...extra,
   }
+
   for (const k of [
     'MERCURY_HOME',
     'MERCURY_HOME',
@@ -163,6 +174,7 @@ function ptyBoot(
       argv: ['node', DIST, ...argv],
       cols: 90,
       rows: 30,
+
       total: totalTicks,
       out: outPath,
       cwd,
@@ -173,6 +185,7 @@ function ptyBoot(
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     env,
     encoding: 'utf8',
+
     timeout: vshotBudgetMs(totalTicks * 200) + 15_000,
     maxBuffer: 64 * 1024 * 1024,
   })
@@ -239,10 +252,12 @@ if (driver.kind !== 'posix-pty') {
   section('I1–I3 — interactive legs')
   check('a POSIX capture driver (python3 + pyte) is available for the interactive legs', false, why)
 } else {
+
   const FACE_READY = '↑↓ choose'
   const FACE_ENTER = { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' }
   const FIRST_MESSAGE = [
     FACE_ENTER,
+
     { atTick: 200, awaitText: COMPOSER_SIGIL, minTick: 5, awaitSettleTicks: 4, data: 'hi' },
     { afterPrevTicks: 3, data: '\r' },
   ]

@@ -1,4 +1,3 @@
-
 import { getPlatform, type Platform } from '../../utils/platform.js'
 
 export function keyHintLabel(hint: string, platform: Platform = getPlatform()): string {

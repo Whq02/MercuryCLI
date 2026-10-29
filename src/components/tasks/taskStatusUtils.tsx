@@ -1,4 +1,3 @@
-
 import type { TaskState, BackgroundTaskState } from '../../tasks/types.js'
 import { isBackgroundTask } from '../../tasks/types.js'
 import {
@@ -18,6 +17,7 @@ function isTerminalStatus(status: string): boolean {
 export function isManageableTask(task: TaskState): task is BackgroundTaskState {
   const original: TaskState = task
   if (isBackgroundTask(task)) return true
+
   const candidate: TaskState = original
   if (isPanelAgentTask(candidate) && candidate.status === 'completed') {
     const deadline = candidate.evictAfter
@@ -41,6 +41,7 @@ export function getTaskStatusIcon(
   if (flags?.hasError) return GLYPH.fail
   if (flags?.shutdownRequested) return GLYPH.warn
   if (status === 'running') {
+
     if (flags?.isIdle) return '…'
     return GLYPH.inProgress
   }
@@ -56,6 +57,7 @@ export function getTaskStatusColor(
 ): 'success' | 'error' | 'warning' | 'background' {
   if (flags?.hasError) return 'error'
   if (flags?.shutdownRequested) return 'warning'
+
   if (flags?.isIdle) return 'background'
   if (status === 'running') return 'background'
   if (status === 'completed') return 'success'
@@ -63,7 +65,6 @@ export function getTaskStatusColor(
   if (status === 'killed') return 'warning'
   return 'background'
 }
-
 
 export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {
   if (!isLocalAgentTask(task)) return undefined

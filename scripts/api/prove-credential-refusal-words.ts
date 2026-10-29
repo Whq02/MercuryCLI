@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,6 +8,7 @@ import { join, resolve } from 'node:path'
 process.chdir(resolve(import.meta.dir, '..', '..'))
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'credential-words-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+
 process.env.CI = '1'
 const CREDENTIAL_VARS = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', 'MERCURY_API_KEY_FILE_DESCRIPTOR', 'ANTHROPIC_BASE_URL'] as const
 for (const name of CREDENTIAL_VARS) delete process.env[name]
@@ -32,6 +34,7 @@ const ROADS: Array<{ label: string; env: Record<string, string>; source: unknown
   { label: 'no credential anywhere', env: {}, source: { kind: 'none' }, words: errors.INVALID_API_KEY_ERROR_MESSAGE },
   { label: 'ANTHROPIC_API_KEY (the env key)', env: { ANTHROPIC_API_KEY: 'sk-ant-fixture-not-a-real-key' }, source: { kind: 'env', name: 'ANTHROPIC_API_KEY' }, words: 'Invalid API key · Fix ANTHROPIC_API_KEY' },
   { label: 'ANTHROPIC_AUTH_TOKEN (a gateway bearer)', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-bearer' }, source: { kind: 'env', name: 'ANTHROPIC_AUTH_TOKEN' }, words: 'Invalid credential · Fix ANTHROPIC_AUTH_TOKEN' },
+
   { label: 'ANTHROPIC_AUTH_TOKEN beside ANTHROPIC_API_KEY (the 401 names x-api-key: the key is blamed)', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-bearer', ANTHROPIC_API_KEY: 'sk-ant-fixture-not-a-real-key' }, source: { kind: 'env', name: 'ANTHROPIC_AUTH_TOKEN' }, words: 'Invalid API key · Fix ANTHROPIC_API_KEY' },
   { label: 'MERCURY_OAUTH_TOKEN (an env OAuth token)', env: { MERCURY_OAUTH_TOKEN: 'fixture-oauth' }, source: { kind: 'env', name: 'MERCURY_OAUTH_TOKEN' }, words: 'Invalid credential · Fix MERCURY_OAUTH_TOKEN' },
 ]

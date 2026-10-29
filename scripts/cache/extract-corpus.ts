@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { createHash } from 'node:crypto'
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = join(import.meta.dir, '..', '..')
+
 const transcriptsArg = process.argv.indexOf('--transcripts')
 const transcriptDir = transcriptsArg >= 0 ? process.argv[transcriptsArg + 1] : undefined
 if (!transcriptDir) {

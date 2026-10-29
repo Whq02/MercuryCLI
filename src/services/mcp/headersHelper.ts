@@ -36,6 +36,7 @@ async function getMcpHeadersFromHelper(
   }
 
   logMCPDebug(serverName, `running headersHelper: ${helper}`)
+
   const result = await execFileNoThrowWithCwd(helper, [], {
     cwd: getCwd(),
     shell: process.platform === 'win32' ? true : '/bin/sh',

@@ -59,6 +59,7 @@ function ReasonView({
   reason: PermissionDecisionReason | undefined
   nested?: boolean
 }): React.ReactNode {
+
   if (!reason) return <Text wrap="truncate-middle">undefined</Text>
   switch (reason.type) {
     case 'rule':
@@ -69,6 +70,7 @@ function ReasonView({
         </Text>
       )
     case 'mode':
+
       return <Text wrap="truncate-middle">{permissionModeTitle(reason.mode)}</Text>
     case 'workingDir':
     case 'safetyCheck':
@@ -78,6 +80,7 @@ function ReasonView({
     case 'asyncAgent':
       return <Text wrap="truncate-middle">{reason.reason}</Text>
     case 'bypassedAsk':
+
       return (
         <Text wrap="truncate-middle">
           {permissionModeTitle(reason.mode)} allowed it; {BYPASSED_ASK_ROAD_WORDS[reason.road]} would have asked:{' '}
@@ -131,6 +134,7 @@ function ReasonView({
       return <Box flexDirection="column">{rows}</Box>
     }
     default: {
+
       const display = String((reason as { reason?: unknown }).reason ?? '')
       return (
         <Text wrap="truncate-middle">

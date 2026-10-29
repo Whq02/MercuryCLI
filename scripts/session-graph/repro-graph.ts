@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()

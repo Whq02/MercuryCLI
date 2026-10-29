@@ -122,10 +122,12 @@ try {
   {
     const resizeSent = run.sendLog.at(0)
     void resizeSent
+
     const lastArrow = run.sendLog
       .filter(s => ['\x1b[B', '\x1b[A'].includes(Buffer.from(s.b64, 'base64').toString()))
       .at(-1)!
     const resizeEpoch = lastArrow.sent + (RESIZE_AT - (PRESS_START + (PRESSES - 1) * PRESS_STEP))
+
     const settleWrites = writes.filter(w => w.ts >= resizeEpoch && w.ts < resizeEpoch + 1_500).length
     const after = writes.filter(w => w.ts >= resizeEpoch + 1_500 && w.ts < resizeEpoch + 3_000).length
     t.check(`≤ 9 commits to settle the resize (${settleWrites})`, settleWrites <= 9)

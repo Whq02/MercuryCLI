@@ -1,4 +1,3 @@
-
 export const CLOSE_CHORD_STAGE_WINDOW_MS = 5000
 
 interface CloseChordStageSnapshot {
@@ -7,11 +6,17 @@ interface CloseChordStageSnapshot {
 }
 
 export interface CloseChordStage {
+
   arm(sessionId: string, now?: number): void
+
   clear(): void
+
   standsFor(sessionId: string | null | undefined): boolean
+
   read(): CloseChordStageSnapshot | null
+
   subscribe(listener: () => void): () => void
+
   dispose(): void
 }
 

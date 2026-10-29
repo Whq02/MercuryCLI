@@ -1,11 +1,14 @@
-
 const PROVIDER_MANAGED_EXACT: ReadonlySet<string> = new Set(
   [
+
     'MERCURY_PROVIDER_MANAGED_BY_HOST',
+
     'ANTHROPIC_BASE_URL',
+
     'ANTHROPIC_API_KEY',
     'ANTHROPIC_AUTH_TOKEN',
     'MERCURY_OAUTH_TOKEN',
+
     'MERCURY_MODEL',
     'MERCURY_SMALL_FAST_MODEL',
   ].map(name => name.toUpperCase()),

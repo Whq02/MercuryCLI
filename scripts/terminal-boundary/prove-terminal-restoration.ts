@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -38,6 +39,7 @@ async function drivePty(argv: string[], seconds: number, extraEnv: Record<string
     {
       cwd,
       env: {
+
         ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
         HOME: home,
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -119,6 +121,7 @@ section('R4 — interactive boot: the hold is consumed by the takeover, never re
     extraEnv: { MERCURY_ALT_HELD: '1' },
   })
   try {
+
     const raw = readFileSync(run.paths.drive, 'utf8')
     let bytes = ''
     let t0 = 0
@@ -133,6 +136,7 @@ section('R4 — interactive boot: the hold is consumed by the takeover, never re
       } catch {
       }
     }
+
     check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('lanes'), JSON.stringify(bytes.slice(0, 200)))
     check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'))
   } finally {

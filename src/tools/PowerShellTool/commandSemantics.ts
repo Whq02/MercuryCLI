@@ -1,4 +1,3 @@
-
 function baseCommandFor(command: string): string {
   const segments = command.split(/[;|]/)
   const last = (segments[segments.length - 1] ?? command).trim()
@@ -36,6 +35,7 @@ export function interpretCommandResult(
   }
 
   if (base === 'robocopy') {
+
     if (exitCode >= 8) return { isError: true }
     if (exitCode === 0) return { isError: false, message: 'no files copied; source and destination are already in sync' }
     const filesCopied = (exitCode & 1) === 1

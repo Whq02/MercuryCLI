@@ -11,7 +11,6 @@ import {
 } from '../../utils/cockpit/greetingShimmer.js'
 import { useIdleMotion } from '../../hooks/useIdleMotion.js'
 
-
 export function useGreetingShimmer(
   stops: string[],
   spanCells: number,
@@ -20,6 +19,7 @@ export function useGreetingShimmer(
   const reducedMotion =
     (useSettingsMaybe()?.view?.reducedMotion ?? false) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
+
   const glyphMotion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && glyphMotion !== 'off' && stops.length > 1 && spanCells > 1
 
@@ -37,6 +37,7 @@ export function useGreetingShimmer(
 
   const animate = enabled && !settled
   const [, phaseKey] = useAnimationValue(animate ? SHIMMER_TICK_MS : null, timeMs => {
+
     if (startRef.current === null) startRef.current = timeMs
     return shimmerPhaseKey(timeMs - startRef.current, spanRef.current)
   })

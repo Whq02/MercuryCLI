@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -25,12 +26,14 @@ const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
   encoding: 'utf-8',
   timeout: vshotBudgetMs(60000),
   env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME, VSHOT_TEE: tee },
 })
 cleanupScenario('resume-2turn')
 check('pty boot captured', res.status === 0 && existsSync(tee), res.stderr?.slice(0, 200) ?? '')
 if (res.status === 0 && existsSync(tee)) {
   const raw = readFileSync(tee, 'latin1')
+
   const modes: Array<[number, string]> = [
     [1049, 'alt screen'],
     [1000, 'mouse normal'],
@@ -49,6 +52,7 @@ rmSync(tee, { force: true })
 rmSync(cfgPath, { force: true })
 
 section('A2. pane open→close — the alt screen + lock survive (reentrancy)')
+
 const tee2 = join(tmpdir(), `mode-pane-${process.pid}.bin`)
 rmSync(tee2, { force: true })
 const cfg2 = {
@@ -67,12 +71,14 @@ const res2 = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), c
   encoding: 'utf-8',
   timeout: vshotBudgetMs(60000),
   env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME, VSHOT_TEE: tee2 },
 })
 cleanupScenario('resume-2turn')
 check('pane-cycle pty captured', res2.status === 0 && existsSync(tee2), res2.stderr?.slice(0, 200) ?? '')
 if (res2.status === 0 && existsSync(tee2)) {
   const raw2 = readFileSync(tee2, 'latin1')
+
   const clears = raw2.split('[2J').length - 1
   check('pane really cycled (≥3 clear bursts: boot + pane open + pane close)', clears >= 3, `clears=${clears}`)
   const panes: Array<[number, string]> = [
@@ -93,7 +99,9 @@ rmSync(cfg2Path, { force: true })
 section('B. re-assert wiring (engage paths + resume/wake/editor seams)')
 const srcOf = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 const ink = srcOf('ink', 'ink.tsx')
+
 check('resize re-asserts mouse + 1007', ink.includes("termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking), 'mode')"))
+
 const sess = srcOf('ink', 'root', 'screen-session.ts')
 check('editor-exit re-arms both', /exitEditorBytes[\s\S]{0,500}\(opts\.mouseTracking \? ENABLE_MOUSE_TRACKING : ''\)[\s\S]{0,120}\(opts\.altActive \? ENABLE_ALTERNATE_SCROLL : ''\)/.test(sess) && ink.includes('exitEditorBytes({'))
 const app = srcOf('ink', 'components', 'App.tsx')

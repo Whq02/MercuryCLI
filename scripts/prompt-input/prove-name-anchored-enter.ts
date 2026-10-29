@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,17 +38,20 @@ const hook = readFileSync(join(REPO, 'src', 'hooks', 'useTypeahead.tsx'), 'utf8'
 const caseStart = hook.indexOf("case 'command': {")
 const caseBlock = hook.slice(caseStart, hook.indexOf('case ', caseStart + 10))
 check('the guard reads viaEnter + never-navigated + the anchor law, ahead of the apply', /viaEnter &&\s*atIndex === undefined &&\s*!userNavigatedRef\.current &&\s*!isNameAnchoredSuggestion\(currentInput, suggestion\)/.test(caseBlock) && caseBlock.includes('isNameAnchoredSuggestion') && caseBlock.indexOf('isNameAnchoredSuggestion') < caseBlock.indexOf('applyCommandSuggestion'))
+
 check('a fresh publish resets the navigated flag', /userNavigatedRef\.current = false/.test(hook.slice(hook.indexOf('const publish'), hook.indexOf('const moveSelection'))))
 check('the ↑↓/⌃n/⌃p mover sets it', /const moveSelection = useCallback\(\s*\(delta: number\): void => \{\s*const list = suggestionsRef\.current\s*if \(list\.length === 0\) return\s*userNavigatedRef\.current = true/.test(hook))
 check('a refused bare ↵ submits the words AS TYPED (never a swallowed key — the kept draft built "/theme/mo" into a plain prompt)', /!isNameAnchoredSuggestion\(currentInput, suggestion\)\s*\)\s*\{[\s\S]{0,400}?clearSuggestions\(\)\s*onSubmit\?\.\(currentInput, true\)\s*return\s*\}/.test(caseBlock))
 
 console.log('§3 the poison from the real command table')
 {
+
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { getCommands } = await import('../../src/commands.js')
   const commands = (await getCommands(process.cwd()).catch(() => null)) as unknown[] | null
   if (commands === null || !Array.isArray(commands) || commands.length === 0) {
+
     console.log('  [INFO] the live command table did not assemble in this harness — §3 rides §1/§2')
   } else {
     const themed = generateCommandSuggestions('/theme', commands as never)

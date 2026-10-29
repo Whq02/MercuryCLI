@@ -18,6 +18,7 @@ console.log('── FLUX S10 polish sweep (shipped artifact) ──')
 
 const run = await runArtifactArena({
   seedCwd: { 'polish-probe.txt': 'one line of probe content\n' },
+
   turns: cwd => [
     { kind: 'tool_use', name: 'Read', input: { file_path: `${cwd}/polish-probe.txt` }, preText: 'reading the probe file now. ', whenModel: 'opus' },
     { kind: 'text', text: 'settled prose after the tool.', whenModel: 'opus' },
@@ -25,6 +26,7 @@ const run = await runArtifactArena({
   sends: ['4500:hello', '5300:\\r', '10500:Λ', '11000:Θ'],
   seconds: 13,
   keep: true,
+
   extraEnv: { MERCURY_LIVE_GLYPHS: '1' },
 })
 
@@ -48,6 +50,7 @@ const flat = fin.rows.join('\n')
 
 check('P3a settled prose painted', flat.includes('settled prose after the tool.'))
 check('P3b the resolved Read row leads with its ▤ mark', fin.rows.some(r => /▤ Read\b/.test(r) && !r.includes('◌')))
+
 check('P3c composer usable', /type a prompt|↵ sends|\? for shortcuts/.test(flat) || flat.includes('ΛΘ'))
 
 const sweepRows = fin.rows.filter(r => !r.includes('← back') && !r.includes('esc interrupts'))

@@ -1,4 +1,3 @@
-
 import React, { useLayoutEffect, useRef, useState } from 'react'
 import { Box } from '../../ink.js'
 import type { DOMElement } from '../../ink/dom.js'

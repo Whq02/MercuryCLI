@@ -1,4 +1,3 @@
-
 import type { AppState } from '../../state/AppState.js'
 import type { TaskState } from '../../tasks/types.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
@@ -19,8 +18,11 @@ import type { AgentRosterAttachment, AgentRosterRow } from './types.js'
 
 type AgentRosterInput = {
   tasks: AppState['tasks'] | undefined
+
   agentNameRegistry?: ReadonlyMap<string, string>
+
   excludeAgentId?: string
+
   queuedNoticeIds?: ReadonlySet<string>
   nowMs?: number
 }

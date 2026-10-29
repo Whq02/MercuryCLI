@@ -1,7 +1,7 @@
-
 export interface PaneWindow {
   start: number
   end: number
+
   above: number
   below: number
 }

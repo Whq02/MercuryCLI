@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -24,6 +25,7 @@ t.check(
 
 t.section('CS-21 — folios reach the inbox + the editor wire (journey-final pins, M8)')
 {
+
   let inboxWire = false
   try {
     inboxWire = /review-request|crew\/conversations/.test(readFileSync('src/utils/artifacts/reviewStore.ts', 'utf8'))
@@ -35,6 +37,7 @@ t.section('CS-21 — folios reach the inbox + the editor wire (journey-final pin
     inboxWire,
     'no review→conversation wire yet',
   )
+
   let acpFolioWire = false
   try {
     acpFolioWire = /_mercury\/crew|foldScopeDecisions|artifact/.test(

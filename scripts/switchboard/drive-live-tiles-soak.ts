@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -83,6 +84,7 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const seatProjections = await import('../../src/services/engine-connector/seatProjections.ts')
 
 const sessionIds: Record<string, string> = {}
+
 const ledger: Record<string, number[]> = {}
 for (const n of NAMES) ledger[n] = []
 const tokenIn = (text: string | null | undefined, name: string): number => {
@@ -95,6 +97,7 @@ try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [],
+
     sends: ['300000:\t', '301000:\x1b[B', '302000:\x1b[B'],
     seconds: 640,
     cols: SIZE.cols,
@@ -102,6 +105,7 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, ...Object.values(works)])
+
       const cfgPath = join(configDir, '.mercury.json')
       let cfg: Record<string, unknown> = {}
       try {
@@ -112,6 +116,7 @@ try {
       writeFileSync(cfgPath, JSON.stringify(cfg, null, 2))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+
       for (const n of NAMES) {
         const r = (await daemonControlRpc({
           op: 'concourseDispatch',
@@ -138,6 +143,7 @@ try {
           }, 40_000),
         )
       }
+
       sampler = setInterval(() => {
         for (const n of NAMES) {
           const tail = seatProjections.readSessionTail(sessionIds[n]!, daemonDir)
@@ -157,6 +163,7 @@ try {
   })
   if (sampler !== null) clearInterval(sampler)
   try {
+
     const batches = [
       Array.from({ length: 10 }, (_, i) => 20000 + i * 20000),
       Array.from({ length: 10 }, (_, i) => 220000 + i * 20000),
@@ -178,6 +185,7 @@ try {
       }
     }
     const rowOf = (g: { rows: string[] }, n: string): string => g.rows.find(r => new RegExp(`Soak ${n}\\s{2,}`).test(r)) ?? ''
+
     let crossed = 0
     for (const g of grabs) {
       for (const n of NAMES) {
@@ -189,12 +197,14 @@ try {
       }
     }
     check('S1 no wrong-session text in any tile (30×4 rows)', crossed === 0, `${crossed} crossings`)
+
     for (const n of NAMES) {
       const toks = grabs.map(g => tokenIn(rowOf(g, n), n)).filter(t => t >= 0)
       const peak = Math.max(...toks)
       const climb = toks.slice(0, toks.indexOf(peak) + 1)
       check(`S2 ${n}'s tile grew across the soak`, climb.length >= 5 && peak > climb[0]! && peak >= 200, `${toks.length} readings ${climb[0] ?? '—'}→peak ${peak}`)
     }
+
     let worst = 0
     let readings = 0
     for (const g of grabs) {
@@ -208,10 +218,12 @@ try {
       }
     }
     check('S3 every live tile token sits within 12 tokens (≈24 s) of the session\'s own tail ledger', readings >= 20 && worst <= 12, `${readings} readings, worst distance ${worst}`)
+
     const clocks = new Set(grabs.map(g => (g.rows.join('\n').match(/\b(\d{2}:\d{2}:\d{2})\b/) ?? [])[1] ?? ''))
     check('S4 the clock advances across the soak', clocks.size >= grabs.length * 0.6, `${clocks.size} distinct clocks over ${grabs.length} frames`)
     const lateSel = grabs.filter(g => g.atMs >= 320000).map(g => g.rows.find(r => r.includes('▸')) ?? '')
     check('S4 the minute-5 selection move landed (▸ on the third row)', lateSel.some(r => r.includes('Soak gamma') || r.includes('Soak delta') || r.includes('Soak beta')), lateSel[0]?.trim().slice(0, 60) ?? 'none')
+
     const degraded = grabs.filter(g => g.rows.join('\n').includes('tiles show summaries'))
     check('S5 no degrade under 4 live tiles', degraded.length === 0, degraded.length > 0 ? `frames: ${degraded.map(g => g.atMs).join(',')}` : '')
   } finally {

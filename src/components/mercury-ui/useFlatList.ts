@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useInput } from '../../ink.js'
 import { applyNavMotion, decodeNavKey } from './navSemantics.js'
@@ -9,29 +8,44 @@ type FlatListNoteKind = 'ok' | 'warn' | 'fail' | 'pending'
 type FlatListNote = { text: string; kind: FlatListNoteKind }
 
 type FlatListOptions<T> = {
+
   load: () => Promise<T[]>
+
   maxRows: number
+
   onClose: () => void
+
   onPrimary?: (row: T) => void
+
   primaryChar?: string
+
   charKeys?: boolean
+
   reloadNote?: string
+
   isActive?: boolean
+
   rowId?: (row: T) => string
 }
 
 type FlatList<T> = {
+
   raw: T[] | null
   list: T[]
+
   loadError: string | null
+
   visible: T[]
   above: number
   below: number
   clampedSel: number
+
   selected: T | undefined
   note: FlatListNote | null
   setNote: (n: FlatListNote | null) => void
+
   busyRef: React.MutableRefObject<boolean>
+
   reload: (opts?: { top?: boolean; at?: string }) => void
 }
 
@@ -48,6 +62,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
   const pastGate = useOpenEventGate()
   const listRef = React.useRef<T[]>([])
   const selRef = React.useRef(0)
+
   const selKeyRef = React.useRef<string | null>(null)
   const topRef = React.useRef(false)
   const atRef = React.useRef<string | null>(null)
@@ -65,6 +80,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
       .then(rows => {
         if (!alive) return
         listRef.current = rows
+
         const id = rowIdRef.current
         if (topRef.current) {
           topRef.current = false
@@ -87,6 +103,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
       })
       .catch((e: unknown) => {
         if (!alive) return
+
         listRef.current = []
         setRaw([])
         setLoadError(String(e))
@@ -98,6 +115,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
 
   const list = raw ?? []
   const absSel = Math.min(Math.max(0, sel), Math.max(0, list.length - 1))
+
   const win = paneWindow(list.length, absSel, maxRows)
   const visible = list.slice(win.start, win.end)
   const above = win.above
@@ -106,6 +124,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
 
   useInput(
     (input, key, event) => {
+
       const action = decodeNavKey(input, key, {
         orientation: 'vertical',
         leftCloses: true,
@@ -137,6 +156,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
       if (action !== 'activate' && (key.ctrl || key.meta || key.super)) return
       if (onPrimary && (action === 'activate' || (charKeys && primaryChar && input === primaryChar))) {
         event.stopImmediatePropagation()
+
         const rows = listRef.current
         const row = rows[Math.min(selRef.current, Math.max(0, rows.length - 1))]
         if (row !== undefined) onPrimary(row)

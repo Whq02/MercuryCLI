@@ -79,6 +79,7 @@ async function main(): Promise<void> {
     const macroKey = 'MACRO'
     const saved = (globalThis as Record<string, unknown>)[macroKey]
     ;(globalThis as Record<string, unknown>)[macroKey] = { VERSION: '0.0.0-src' }
+
     check('bare stamp ⇒ STILL registers (stamp-independence)', registerWardsGuard(store.setAppState, 'w-bare') !== null)
     resetWardsEngagedSessionsForTest()
     ;(globalThis as Record<string, unknown>)[macroKey] = saved
@@ -334,6 +335,7 @@ async function main(): Promise<void> {
 
   section('5. wiring — the registration chokepoints, never mode-skipped')
   {
+
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
     const src = (...p: string[]) =>
@@ -648,6 +650,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   console.log('✅ ALL WARDS PROOFS PASS')
+
   process.exit(0)
 }
 

@@ -1,4 +1,3 @@
-
 import {
   clearInvokedSkillsForAgent,
   getSdkAgentProgressSummariesEnabled,
@@ -85,6 +84,7 @@ import { runAgent, type RunAgentParams } from './runAgent.js'
 const BACKGROUND_HINT_DELAY_MS = 2_000
 
 const BACKGROUNDED = Symbol('foreground-agent-backgrounded')
+
 const TURN_ABORTED = Symbol('foreground-agent-turn-aborted')
 
 export type ForegroundAgentMetadata = {
@@ -94,6 +94,7 @@ export type ForegroundAgentMetadata = {
   startTime: number
   agentType: string
   isAsync: boolean
+
   structuredSpec?: { mode: 'permissive' | 'strict'; source: 'dispatch' | 'agent-definition' }
 }
 
@@ -117,7 +118,9 @@ type ForegroundAgentResult = {
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+
         agentName?: string
+
         backgroundReason: BackgroundHandoverReason
       }
 }
@@ -127,6 +130,7 @@ type ForegroundAgentExecutionInput = {
   promptMessages: Message[]
   prompt: string
   description: string
+
   name?: string
   modelNote?: string
   metadata: ForegroundAgentMetadata
@@ -169,6 +173,7 @@ export async function runForegroundAgentExecution(
   } = i
 
   const agentMessages: Message[] = []
+
   const agentStartTime = Date.now()
   const tracker = createProgressTracker()
   const resolveActivity = createActivityDescriptionResolver(
@@ -206,10 +211,13 @@ export async function runForegroundAgentExecution(
       prompt,
       setAppState: rootSetAppState,
       selectedAgent,
+
       model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
     })
+
     backgroundRace = foregroundTask.backgroundSignal.then(() => BACKGROUNDED)
+
     if (name !== undefined) registerAgentName(name, syncAgentId, rootSetAppState)
   }
 
@@ -222,8 +230,10 @@ export async function runForegroundAgentExecution(
     override: {
       ...runAgentParams.override,
       agentId: syncAgentId,
+
       ...(foregroundTask !== undefined ? { abortController: foregroundTask.abortController } : {}),
     },
+
     ...(foregroundRecordId !== undefined
       ? { onQueryProgress: (event: unknown) => publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState) }
       : {}),
@@ -247,6 +257,7 @@ export async function runForegroundAgentExecution(
     pending: Promise<IteratorResult<Message, void>>,
   ): Promise<void> => {
     try {
+
       let step = await pending
       while (!step.done) {
         const message = step.value
@@ -355,10 +366,12 @@ export async function runForegroundAgentExecution(
     } catch (error) {
       await agentIterator.return(undefined).catch(() => undefined)
       if (error instanceof AbortError) {
+
         const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
         killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
         closeOverloadEpisode(backgroundedTaskId)
         const worktreeResult = await cleanupWorktreeIfNeeded()
+
         await flushSessionStorage()
         const partialResult = extractPartialResult(agentMessages)
         const usage = {
@@ -389,6 +402,7 @@ export async function runForegroundAgentExecution(
         })
         return
       }
+
       const failure = errorMessage(error)
       const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
       const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
@@ -438,6 +452,7 @@ export async function runForegroundAgentExecution(
         })
         return
       }
+
       const budgetCut = recoveryBudgetCutOf(error)
       if (budgetCut !== null && foregroundTask !== undefined) {
         const delayMs = budgetCutResumeDelayMs(budgetCut)
@@ -452,6 +467,7 @@ export async function runForegroundAgentExecution(
         })
       }
     } finally {
+
       stopForegroundSummarization?.()
       try {
         clearInvokedSkillsForAgent(syncAgentId)
@@ -466,7 +482,9 @@ export async function runForegroundAgentExecution(
   let backgrounded = false
   let hintShown = false
   let heldError: unknown
+
   let seatPause: AgentPauseV1 | null = null
+
   let worktreeFields: WorktreeFields = {}
 
   const turnSignal = toolUseContext.abortController.signal
@@ -504,6 +522,7 @@ export async function runForegroundAgentExecution(
         let winner = await Promise.race([nextPromise, backgroundRace, turnAbortRace])
         const handedByTurnAbort = winner === TURN_ABORTED
         if (winner === TURN_ABORTED) {
+
           backgroundAgentTask(foregroundTask.taskId, toolUseContext.getAppState, rootSetAppState)
           winner = BACKGROUNDED
         }
@@ -511,9 +530,12 @@ export async function runForegroundAgentExecution(
           const task =
             toolUseContext.getAppState().tasks[foregroundTask.taskId]
           if (isLocalAgentTask(task) && task.isBackgrounded) {
+
             backgrounded = true
             const backgroundedTaskId = foregroundTask.taskId
+
             const sibling = takeSiblingEnd(backgroundedTaskId)
+
             void runWithAgentContext(syncAgentContext, () =>
               continueDetached(backgroundedTaskId, nextPromise),
             )
@@ -533,11 +555,13 @@ export async function runForegroundAgentExecution(
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
                 ...(name !== undefined ? { agentName: name } : {}),
+
                 backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
                 ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
             }
           }
+
           step = await nextPromise
         } else {
           step = winner
@@ -557,6 +581,7 @@ export async function runForegroundAgentExecution(
         toolUseContext.options.tools,
       )
       if (foregroundTask) {
+
         if (message.type === 'assistant') {
           publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)
         }
@@ -586,6 +611,7 @@ export async function runForegroundAgentExecution(
       if (message.type !== 'assistant' && message.type !== 'user') continue
 
       if (message.type === 'assistant') {
+
         toolUseContext.setResponseLength(
           prev => prev + getAssistantMessageContentLength(message),
         )
@@ -614,11 +640,14 @@ export async function runForegroundAgentExecution(
   } finally {
     toolUseContext.setToolJSX?.(null)
     if (onTurnAbort !== undefined) turnSignal.removeEventListener('abort', onTurnAbort)
+
     if (!backgrounded) stopForegroundSummarization?.()
     if (foregroundTask) {
       if (backgrounded) {
+
         unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
       } else {
+
         const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
         const status: 'completed' | 'failed' | 'stopped' =
           heldError instanceof AbortError
@@ -626,6 +655,7 @@ export async function runForegroundAgentExecution(
             : heldError !== undefined
               ? 'failed'
               : outcome!.status
+
         const why =
           outcome !== null && outcome.status === 'failed'
             ? { error: outcome.error }
@@ -633,6 +663,7 @@ export async function runForegroundAgentExecution(
               ? { error: errorMessage(heldError) }
               : undefined
         settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
+
         const windowPause = outcome !== null && outcome.status === 'failed' ? usageWindowPauseOf(agentMessages, metadata.resolvedAgentModel) : null
         const overload = heldError !== undefined
           ? overloadBudgetCutOf(heldError, metadata.resolvedAgentModel)
@@ -706,6 +737,7 @@ export async function runForegroundAgentExecution(
       ? seatPause !== null ? `${pauseLineWords(seatPause, Date.now())} — ${errorMessage(heldError)}` : errorMessage(heldError)
       : finalized.outcome?.status === 'failed'
         ?
+
           seatPause !== null
           ? `${pauseLineWords(seatPause, Date.now())} — ${finalized.outcome.error}`
           : finalized.outcome.error

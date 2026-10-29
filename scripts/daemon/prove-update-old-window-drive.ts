@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/daemon/main.ts src/daemon/handshake.ts src/daemon/ownedDaemon.ts src/services/switchboard/ensureDaemon.ts src/cli/update.ts
+
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'

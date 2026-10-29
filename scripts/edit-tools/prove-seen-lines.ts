@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
@@ -63,6 +64,7 @@ console.log('— U. unseen lines refuse until the hinted re-read —')
   const p = join(fixtures, 'ledger.ts')
   writeFileSync(p, Array.from({ length: 30 }, (_, k) => `line ${k + 1}`).join('\n') + '\n')
   const ctx = makeContext()
+
   ctx.readFileState.set(p, {
     content: readFileSync(p, 'utf8'),
     timestamp: Date.now() + 60_000,
@@ -74,6 +76,7 @@ console.log('— U. unseen lines refuse until the hinted re-read —')
   check('edit into undisplayed line 20 refuses', r1.data.outcome === 'failed', r1.data.result.slice(0, 200))
   check('the refusal is the not-read class with a Read hint', /never displayed/.test(r1.data.result) && /Read\(offset: 20, limit: 1\)/.test(r1.data.result), r1.data.result.slice(0, 300))
   check('nothing written on the refusal', readFileSync(p, 'utf8').includes('line 20\n'))
+
   recordSeenLines(owner, p, generation, 20, 1)
   const r2 = await callTool({ op: 'apply', patch }, ctx)
   check('after the hinted re-read the SAME patch lands', r2.data.outcome === 'succeeded', r2.data.result.slice(0, 200))
@@ -87,6 +90,7 @@ console.log('— G. generation-keyed sightings —')
   const ctx = makeContext()
   ctx.readFileState.set(p, { content: 'a\nb\nc\n', timestamp: Date.now() + 60_000 } as never)
   recordSeenLines(owner, p, fileGeneration(p)!, 1, 3)
+
   utimesSync(p, new Date(), new Date(Date.now() + 5_000))
   const patch = [`file ${p} ${anchorOf(p)}`, 'replace 2', '| B'].join('\n')
   const r = await callTool({ op: 'apply', patch }, ctx)
@@ -110,6 +114,7 @@ console.log('— P/B. pure-module laws: accumulation, coalescing, bounded forget
   const gap = checkSeenLines(owner, p, gen, spans(8, 12))
   check('a span straddling the gap refuses naming 11-12', !gap.ok && JSON.stringify((gap as { unseen: object[] }).unseen) === JSON.stringify([{ start: 11, end: 12 }]), JSON.stringify(gap))
   check('wrong generation refuses everything', !checkSeenLines(owner, p, 'm2:100', spans(1, 5)).ok)
+
   _resetSeenLinesForTesting()
   for (let i = 0; i < SEEN_LINES_BOUNDS.rangeCap + 40; i++) {
     recordSeenLines(owner, p, gen, i * 3 + 1, 1)

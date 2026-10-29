@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
@@ -33,6 +34,7 @@ function inProc(snippet: string, env: Record<string, string | undefined> = {}): 
   }).toString()
   const m = stdout.match(/%%%(.*)%%%/s)
   if (!m) throw new Error(`no result marker in: ${stdout.slice(-300)}`)
+
   const outside = stdout.replace(/%%%.*%%%/s, '')
   if (outside.includes('\x1b]1')) {
     throw new Error(`ground bytes leaked outside the injected writer: ${JSON.stringify(outside.slice(0, 120))}`)
@@ -98,6 +100,7 @@ console.log('the ONE terminal-ground lifecycle owner')
   `,
     { MERCURY_ALT_HELD: '1' },
   ) as string[]
+
   check('C4 rows B/D: the splash-era reply is never saved as the user’s ground', !r.includes('\x1b]11;#070d12\x07'), JSON.stringify(r))
   check('C4 rows B/D: the launcher handoff is healed with 111', r.filter(s => s === RESET_111).length === 1, JSON.stringify(r))
 }
@@ -160,6 +163,7 @@ console.log('the ONE terminal-ground lifecycle owner')
   check('C5c OASIS_BG=0 handoff writes nothing at exit', r.length === 0, JSON.stringify(r))
   const splashSrc = (await import('node:fs')).readFileSync(join(REPO, 'assets/splash/mercury-splash.mjs'), 'utf8')
   check(
+
     'C5c the splash gates its own OSC 11 on the same flag (the one spelling)',
     /TRUECOLOR && process\.env\.MERCURY_OASIS_BG !== '0'/.test(splashSrc),
   )
@@ -188,6 +192,7 @@ console.log('the ONE terminal-ground lifecycle owner')
 {
   const src = (await import('node:fs')).readFileSync(join(REPO, 'assets/splash/mercury-splash.mjs'), 'utf8')
   const fn = src.slice(src.indexOf('function restoreAndBrand()'))
+
   const holdSplit = fn.indexOf('if (HOLD_ALT_FOR_HANDOFF && !cancelled) {')
   const elseAt = fn.indexOf('} else {', holdSplit)
   const holdBranch = holdSplit >= 0 && elseAt > holdSplit ? fn.slice(holdSplit, elseAt) : ''

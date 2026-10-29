@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,6 +32,7 @@ t.section('S1 — the seat reading is stable under its own seats; the facts name
   t.check('the pure ladder still falls with available memory (the disease, isolated)', cap.machineSeatReading(10, cost * 10) === 10 && cap.machineSeatReading(10, cost * 6) === 6, `${cap.machineSeatReading(10, cost * 10)} → ${cap.machineSeatReading(10, cost * 6)}`)
   cap._setHeldMachineSeatReadingForTesting(5)
   const first = cap.resolveSeatCeiling()
+
   const again = cap.resolveSeatCeiling()
   t.check('five seats read once stay five on the re-read (held for the process)', first === 5 && again === 5, `${first} → ${again}`)
   const machineFacts = cap.seatCeilingFacts()
@@ -48,15 +50,18 @@ t.section('S2 — the seat sentence')
 {
   t.check('the seats: the width, the holders in order, the chat named', words.seatWaitWords({ width: 3, holders: ['agent-a', 'agent-b', words.CHAT_HOLDER], narrowing: null }) === 'waiting for a seat — 3 of 3 held (agent-a, agent-b, the chat)', words.seatWaitWords({ width: 3, holders: ['agent-a', 'agent-b', words.CHAT_HOLDER], narrowing: null }))
   t.check('no holders named ⇒ no parenthesis', words.seatWaitWords({ width: 2, holders: [], narrowing: null }) === 'waiting for a seat — 0 of 2 held', words.seatWaitWords({ width: 2, holders: [], narrowing: null }))
+
   const parts = words.seatWaitParts({ width: 3, holders: ['agent-a', 'agent-b', words.CHAT_HOLDER], narrowing: null })
   t.check('the parts: the gate and the holders, and the sentence is their join', parts.gate === 'waiting for a seat — 3 of 3 held' && parts.holders === 'agent-a, agent-b, the chat' && words.seatWaitWords({ width: 3, holders: ['agent-a', 'agent-b', words.CHAT_HOLDER], narrowing: null }) === `${parts.gate} (${parts.holders})`, JSON.stringify(parts))
   const split = words.splitWaitSentence('waiting for a seat — 3 of 3 held (agent-a, agent-b, the chat)')
   t.check('the splitter reads the published sentence back into the same parts', split.gate === parts.gate && split.holders === parts.holders, JSON.stringify(split))
   const bare = words.splitWaitSentence('waiting for a seat — 0 of 2 held')
   t.check('a sentence with no holders splits to the gate and no holders', bare.gate === 'waiting for a seat — 0 of 2 held' && bare.holders === '', JSON.stringify(bare))
+
   const crewFacts = await import('../../src/services/engine-connector/crewFacts.ts')
   const held = crewFacts.crewWaitHolders({ running: true, wait: 'waiting for a seat — 3 of 3 held (agent-a, agent-b, the chat)' } as never)
   t.check('the row\'s tail spells "held by …" (a verb, never a bare list)', held === 'held by agent-a, agent-b, the chat', String(held))
+
   const { readFileSync: readSrc } = await import('node:fs')
   const { join: joinPath } = await import('node:path')
   const board = readSrc(joinPath(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'WorkflowsBoard.tsx'), 'utf8')

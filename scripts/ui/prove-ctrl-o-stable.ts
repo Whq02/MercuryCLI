@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,9 +23,11 @@ console.log('prove-ctrl-o-stable')
 
 {
   const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
+
   const fls = (repl.match(/<FullscreenLayout[\s/>]/g) ?? []).length
   const mcp = (repl.match(/<MCPConnectionManager[\s/>]/g) ?? []).length
   check('A: exactly ONE <FullscreenLayout> in Chat (no transcript twin)', fls === 1, `${fls}`)
+
   check('A: NO <MCPConnectionManager> in Chat (the session runner manages MCP; nothing to survive the toggle)', mcp === 0, `${mcp}`)
   check('A: the unified mode flag drives the one skeleton', repl.includes('const inVirtualTranscript'))
   const legacy = repl.slice(repl.indexOf("if (screen === 'transcript' && !inVirtualTranscript)"))
@@ -75,6 +78,7 @@ function run(
 }
 
 writeSyntheticSession('tall', SID)
+
 const refSends = [
   { atTick: 26, data: CTRL_O },
   { atTick: 32, data: PAGE_UP },
@@ -83,6 +87,7 @@ const refSends = [
 const ref = run('ref', refSends, 44)
 
 writeSyntheticSession('tall', SID)
+
 const rtSends = [...refSends, { atTick: 40, data: CTRL_O }, { atTick: 46, data: CTRL_O }]
 const rt = run('roundtrip', rtSends, 58, true)
 
@@ -117,6 +122,7 @@ check(
   ref.grid.length > 0 && bestScore >= 0.9,
   `best shift ${bestShift}, ${(bestScore * 100).toFixed(1)}% rows matched`,
 )
+
 const lastTurnMarker = 'turn 18'
 check(
   'B: round-trip did NOT reset to the bottom',

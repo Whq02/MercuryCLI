@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
@@ -203,6 +204,7 @@ section('(e) every doorway name is consumed through the doorway; consumers take 
     set.add(file)
     consumed.set(bare, set)
   }
+
   const IMPORT = /\bimport\s+(type\s+)?[{]([^{}]*)[}]\s*from\s*['"]([^'"]+)['"]/g
   const DESTRUCTURE = /[{]([^{}]*)[}]\s*=\s*await\s+import\s*[(]\s*['"]([^'"]+)['"]\s*[)]/g
   const INLINE = /\bimport\s*[(]\s*['"]([^'"]+)['"]\s*[)]\s*[.]\s*([A-Za-z_$][\w$]*)/g

@@ -19,20 +19,27 @@ export const DEFAULT_LOCAL_PROBE_TARGETS: readonly { kind: LocalServerKind; root
 
 export const LOCAL_PROBE_TIMEOUT_MS = 900
 export const LOCAL_LOAD_TIMEOUT_MS = 180_000
+
 const OLLAMA_SHOW_BOUND = 32
 
 export type LocalContextSource = 'served' | 'modelfile' | 'model-max'
 
 export interface LocalModelRecord {
+
   id: string
   displayName?: string
   server: LocalServerKind
+
   baseUrl: string
+
   contextWindow?: { tokens: number; source: LocalContextSource }
+
   modelMaxContext?: number
+
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
   visionDeclared?: boolean
+
   loaded?: boolean
   family?: string
   parameterSize?: string
@@ -45,8 +52,11 @@ export interface LocalModelRecord {
 
 export interface LocalServerRecord {
   kind: LocalServerKind
+
   root: string
+
   baseUrl: string
+
   label: string
   version?: string
   models: LocalModelRecord[]
@@ -55,6 +65,7 @@ export interface LocalServerRecord {
 export interface LocalDiscoverySnapshot {
   servers: LocalServerRecord[]
   probedAtMs: number
+
   targetCount: number
 }
 
@@ -99,7 +110,6 @@ export function localProbeTargets(
   return targets
 }
 
-
 async function probeJson(
   url: string,
   io: LocalDiscoveryIo,
@@ -109,6 +119,7 @@ async function probeJson(
   const timeoutMs = init?.timeoutMs ?? io.timeoutMs ?? LOCAL_PROBE_TIMEOUT_MS
   const key = resolveLocalApiKey(io.env ?? process.env)
   try {
+
     const response = await fetchWithProviderDeadline(fetchImpl, 'local', timeoutMs, url, {
       method: init?.method ?? 'GET',
       headers: {
@@ -142,7 +153,6 @@ function strList(v: unknown): string[] | undefined {
 function parameterSizeWords(params: number): string {
   return params >= 1e9 ? `${(params / 1e9).toFixed(1)}B` : `${Math.round(params / 1e6)}M`
 }
-
 
 export interface OllamaServed {
   tokens: number
@@ -225,7 +235,6 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
   }
 }
 
-
 export async function probeLmStudio(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
   const baseUrl = `${root}/v1`
   const v1 = rec(await probeJson(`${root}/api/v1/models`, io))
@@ -288,7 +297,6 @@ export async function probeLmStudio(root: string, io: LocalDiscoveryIo): Promise
   return undefined
 }
 
-
 function openaiModelList(body: unknown): Record<string, unknown>[] | undefined {
   const o = rec(body)
   if (!o || !Array.isArray(o.data)) return undefined
@@ -313,7 +321,6 @@ export async function probeVllm(root: string, io: LocalDiscoveryIo): Promise<Loc
   }
   return { kind: 'vllm', root, baseUrl, label: 'vLLM', models }
 }
-
 
 export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
   const [v1Body, propsBody, routerBody] = await Promise.all([
@@ -381,7 +388,6 @@ export async function probeLlamaCpp(root: string, io: LocalDiscoveryIo): Promise
   }
 }
 
-
 export async function probeOpenaiCompatible(root: string, io: LocalDiscoveryIo): Promise<LocalServerRecord | undefined> {
   const ollama = await probeOllama(root, io)
   if (ollama) return ollama
@@ -438,7 +444,6 @@ export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<L
   return { servers, probedAtMs: io.now?.() ?? Date.now(), targetCount }
 }
 
-
 export const LOCAL_DISCOVERY_TTL_MS = 60_000
 
 let cached: LocalDiscoverySnapshot | null = null
@@ -458,6 +463,7 @@ export function refreshLocalDiscovery(opts?: LocalDiscoveryIo & { force?: boolea
       const before = cached
       const snapshot = await discoverLocalServers(io)
       cached = snapshot
+
       if (before === null || before.targetCount !== snapshot.targetCount || !isDeepStrictEqual(before.servers, snapshot.servers)) {
         bumpCatalogueEpoch()
       }

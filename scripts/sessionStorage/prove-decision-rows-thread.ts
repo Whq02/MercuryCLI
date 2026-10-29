@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -23,6 +24,7 @@ type Row = { uuid: string; parentUuid: string | null; type: string; message: { i
 const row = (uuid: string, parentUuid: string | null, type: string): Row => ({ uuid, parentUuid, type, message: { id: `msg-${uuid}`, role: type === 'assistant' ? 'assistant' : 'user', content: [] } })
 const chainTypes = (rows: Row[], leaf: string): string[] => {
   const map = new Map(rows.map(r => [r.uuid, r] as [never, never]))
+
   return buildConversationChain(map as never, rows.find(r => r.uuid === leaf) as never).map(r => (r as unknown as Row).type)
 }
 

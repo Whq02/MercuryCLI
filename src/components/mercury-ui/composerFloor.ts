@@ -1,4 +1,3 @@
-
 import type { Theme } from '../../utils/theme.js'
 
 export const COMPOSER_BORDER_SHED_ROWS = 14

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -223,6 +224,7 @@ section('§H the pick sites consume the plan (wiring anchors)')
       src.includes('TransitionPreviewCard') && src.includes('reconfirmTransitionPlan('),
     )
   }
+
   const textPath = readFileSync(join(ROOT, 'src/commands/model/model.tsx'), 'utf8')
   check(
     'the /model <id> text path routes through settleModelSelection',

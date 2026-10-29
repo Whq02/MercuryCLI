@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/runner/wire/* src/cli/run.ts src/cli/headless/runnerMethods.ts src/daemon/runnerConnection.ts src/daemon/headlessRun.ts src/services/acp/childSession.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'

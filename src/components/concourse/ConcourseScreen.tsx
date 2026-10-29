@@ -93,7 +93,6 @@ import { EFFORT_LEVELS } from '../../utils/effort.js';
 import { basename } from 'node:path';
 import { GroundPicker } from './GroundPicker.js';
 
-
 type ComposeContext =
   | { kind: 'chat' }
   | { kind: 'answer'; obligationId: string; title: string }
@@ -106,6 +105,7 @@ interface ConcourseCapsuleV2 {
   boardSel: string | null
   railSel: string | null
   boardScroll: number | null
+
   managerMode?: boolean
 }
 let presentationCapsule: ConcourseCapsuleV2 | null = null
@@ -141,6 +141,7 @@ export function liveComposerGateOf(
 ): { ok: true; placeholder: string } | { ok: false; line: string } {
   if (sel === undefined) return { ok: false, line: 'no session selected — the coordinator panel starts one' }
   if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
+
     return {
       ok: false,
       line:
@@ -150,6 +151,7 @@ export function liveComposerGateOf(
     }
   }
   if (sel.door !== undefined) return { ok: false, line: 'a door — ↵ opens it; nothing to message' }
+
   if (sel.sessionId.startsWith('dispatch:') || sel.state === 'queued') return { ok: false, line: 'queued — m stacks a message for its start' }
   if (sel.state === 'parked') return { ok: false, line: 'parked — ↵ brings it back; a sleeping chat takes no queue' }
   if (sel.state === 'attached') return { ok: false, line: 'with you — type in its own chat' }
@@ -196,6 +198,7 @@ export function ConcourseScreen({
   callbacks: ConcourseCallbacks
   degraded?: boolean
   controlNotes?: Readonly<Record<string, import('./contracts.js').ControlNoteState>>
+
   reducedStage?: boolean
 }): React.ReactNode {
   const { columns: termCols, rows: termRows } = useTerminalSize()
@@ -203,8 +206,10 @@ export function ConcourseScreen({
   const compactProfile = isCompact ? compactConcourseProfileOf(termCols) : null
   const compact = compactProfile !== null
   const coordinatorOn = snapshot.coordinator.mode === 'agent-assisted'
+
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const keyMapHint = stripKeyMapHint()
+
   useSyncExternalStore(subscribeSplitView, splitViewVersion, splitViewVersion)
   const splitActive = !reducedStage && !compact && splitViewOn() && splitAvailableAt(termCols, termRows)
   const splitGeo = splitActive ? splitGeometryAt(termCols, splitViewRatio()) : null
@@ -212,6 +217,7 @@ export function ConcourseScreen({
 
   const [filtering, setFiltering] = useState(presentationCapsule?.filtering ?? false)
   const [filter, setFilter] = useState<LineDraft>(presentationCapsule?.filter ?? { text: '', caret: 0 })
+
   const filterRef = useRef(filter)
   filterRef.current = filter
   const editFilter = (op: (d: LineDraft) => LineDraft): void => setFilter(prev => op(prev))
@@ -237,6 +243,7 @@ export function ConcourseScreen({
     if (compact) return carried === 'live' ? 'live' : 'list'
     return reducedStage ? 'list' : (carried ?? 'coordinator')
   })
+
   const [managerArmed, setManagerArmed] = useState<boolean>(() => presentationCapsule?.managerMode ?? false)
   const managerOn = managerArmed && !reducedStage
   const managerOnRef = useRef(managerOn)
@@ -246,6 +253,7 @@ export function ConcourseScreen({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsOpenRef = useRef(false)
   settingsOpenRef.current = settingsOpen
+
   const openCoordinatorSettings = (): void => {
     setSettingsOpen(v => (v ? false : !reducedStage))
   }
@@ -255,6 +263,7 @@ export function ConcourseScreen({
   useEffect(() => {
     if (reducedStage && settingsOpen) setSettingsOpen(false)
   }, [reducedStage, settingsOpen])
+
   const [groundPickerOpen, setGroundPickerOpen] = useState(false)
   const groundPickerOpenRef = useRef(false)
   groundPickerOpenRef.current = groundPickerOpen
@@ -317,21 +326,26 @@ export function ConcourseScreen({
     if (fb.sessionId !== boardSel) setBoardSel(fb.sessionId)
   }, [sessionRows, boardSel, newSessionLine])
   const [boardScroll, setBoardScroll] = useState<number | null>(presentationCapsule?.boardScroll ?? null)
+
   const [rowPeekOpen, setRowPeekOpen] = useState(false)
   const rowPeekOpenRef = useRef(false)
   rowPeekOpenRef.current = rowPeekOpen
+
   const [olderList, setOlderList] = useState<{ entries: OlderChatFact[]; total: number; at: number } | null>(null)
   const olderListRef = useRef<{ entries: OlderChatFact[]; total: number; at: number } | null>(null)
   olderListRef.current = olderList
   const unfoldOlderList = (row: ConcourseRowV1): void => {
     const projectDir = row.sessionId.slice(OLDER_CHATS_ROW_PREFIX.length)
+
     const excluded = new Set(
       snapshot.groups
         .flatMap(g => g.rows)
         .filter(r => r.door === undefined && !r.sessionId.startsWith('dispatch:') && !r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX))
         .map(r => r.sessionId),
     )
+
     const census = olderChatsCensus(projectDir, excluded, Date.now(), { entryCap: PARKED_CAP })
+
     const wouldAsk = Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, census.entries.length + 1))
     const wouldGrant = switchboardGeometry(
       cols,
@@ -350,9 +364,11 @@ export function ConcourseScreen({
     setRowPeekOpen(false)
     setOlderList({ entries: census.entries, total: census.total, at: 0 })
   }
+
   useEffect(() => {
     if (olderList !== null && (boardSel === null || !boardSel.startsWith(OLDER_CHATS_ROW_PREFIX))) setOlderList(null)
   }, [boardSel, olderList])
+
   const [boardArmed, setBoardArmed] = useState<string | null>(null)
   const boardArmedRef = useRef<string | null>(null)
   boardArmedRef.current = boardArmed
@@ -392,6 +408,7 @@ export function ConcourseScreen({
   useEffect(() => {
     if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)
   }, [boardSel, boardArmed])
+
   const [markedIds, setMarkedIds] = useState<ReadonlySet<string>>(() => new Set())
   const markedIdsRef = useRef<ReadonlySet<string>>(markedIds)
   markedIdsRef.current = markedIds
@@ -405,12 +422,14 @@ export function ConcourseScreen({
       return next
     })
   }
+
   const markProjectRef = useRef(snapshot.context.projectLabel)
   useEffect(() => {
     if (markProjectRef.current === snapshot.context.projectLabel) return
     markProjectRef.current = snapshot.context.projectLabel
     setMarkedIds(new Set())
   }, [snapshot.context.projectLabel])
+
   const [signInPicker] = useState(() => consumeSignInPickerReturn())
   const [rowPick, setRowPick] = useState<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(
     signInPicker?.kind === 'session' ? { kind: 'model', sessionId: signInPicker.sessionId, title: signInPicker.title } : null,
@@ -489,6 +508,7 @@ export function ConcourseScreen({
       setRestoredArmed(false)
     }
   }, [draft.text, region])
+
   const pendingOwnWritesRef = useRef(0)
   const persistDraft = (text: string, caret: number): void => {
     pendingOwnWritesRef.current += 1
@@ -502,6 +522,7 @@ export function ConcourseScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft.text, draft.caret])
   useEffect(() => {
+
     const unsub = subscribeCoordinatorDraftChanges(change => {
       if (change.cause === 'local-commit') return
       if (pendingOwnWritesRef.current > 0) return
@@ -529,6 +550,7 @@ export function ConcourseScreen({
     setLiveDraft(liveDraftRef.current)
     liveUndoRef.current = newDraftUndo()
   }
+
   const [broadcastArmed, setBroadcastArmed] = useState(false)
   const broadcastArmedRef = useRef(false)
   broadcastArmedRef.current = broadcastArmed
@@ -538,6 +560,7 @@ export function ConcourseScreen({
   }, [liveDraft.text, markedIds])
 
   const [pending, setPending] = useState(false)
+
   const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
   useEffect(() => {
     if (note?.row === undefined) return
@@ -641,6 +664,7 @@ export function ConcourseScreen({
       setComposeContext({ kind: 'chat' })
       return
     }
+
     const marked = markedRowsOf()
     if (marked.length >= 2) {
       if (!broadcastArmedRef.current) {
@@ -685,6 +709,7 @@ export function ConcourseScreen({
     if (reducedStage) return
     const text = draftRef.current.text.trim()
     if (text.length === 0 || pending) return
+
     if (text.startsWith('/')) {
       const cmd = text.split(/\s+/)[0]!.toLowerCase()
       if (cmd === '/clear') {
@@ -697,6 +722,7 @@ export function ConcourseScreen({
       }
       if (cmd === '/compact') {
         clearDraft()
+
         setNote({ tone: 'muted', text: 'compacting — summarizing the older turns…' })
         void import('../../services/concourse/coordinatorCompact.js')
           .then(m => m.summarizeCoordinatorConversation())
@@ -720,10 +746,12 @@ export function ConcourseScreen({
       return
     }
     if (!coordinatorOn && !managerOnRef.current) {
+
       if (needsSeatOverloadAsk(snapshot.counts.live, effectiveSeatCeiling())) {
         setSeatAsk({ text, live: snapshot.counts.live, ceiling: effectiveSeatCeiling() })
         return
       }
+
       launchDirect(text)
       return
     }
@@ -735,6 +763,7 @@ export function ConcourseScreen({
     const sendThroughDoor = (): void => {
       setPending(true)
       setNote(null)
+
       const minted = sendIdRef.current
       const clientMessageId =
         minted !== null && minted.text === text
@@ -750,6 +779,7 @@ export function ConcourseScreen({
       void door(text, clientMessageId, acceptedClear, managerOnRef.current ? { manager: true } : undefined)
         .then(() => {
           if (sendIdRef.current?.id === clientMessageId) sendIdRef.current = null
+
           if (aliveRef.current && !accepted) acceptedClear()
         })
         .catch((e: unknown) => {
@@ -772,6 +802,7 @@ export function ConcourseScreen({
         })
     }
     if (!coordinatorOn) {
+
       void import('../../services/concourse/managerMode.js')
         .then(m => m.resolveManagerModel())
         .then(model => {
@@ -852,10 +883,12 @@ export function ConcourseScreen({
     const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
     if (!sel) return
     if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
+
       setNote({ tone: 'muted', text: 'the older chats stay — ↵ opens them; clear one at a time from there', row: sel.sessionId })
       return
     }
     if (sel.door !== undefined) {
+
       setNote({
         tone: 'muted',
         text:
@@ -872,31 +905,38 @@ export function ConcourseScreen({
       case 'none':
         return
       case 'withdraw':
+
         callbacks.removeSession?.(sel.sessionId)
         return
       case 'stop':
+
         closeChordStage.arm(sel.sessionId)
         callbacks.stopSession?.(sel.sessionId)
         return
       case 'resend-stop':
+
         if (receipt !== null) setNote({ tone: 'muted', text: keyHintLabel(receipt), row: sel.sessionId })
         callbacks.stopSession?.(sel.sessionId)
         return
       case 'archive':
+
         closeChordStage.arm(sel.sessionId)
         callbacks.archiveSession?.(sel.sessionId)
         return
       case 'arm-delete':
+
         closeChordStage.arm(sel.sessionId)
         if (receipt !== null) setNote({ tone: 'muted', text: keyHintLabel(receipt), row: sel.sessionId })
         return
       case 'delete':
+
         closeChordStage.clear()
         setNote(prev => (prev?.row === sel.sessionId ? null : prev))
         callbacks.removeSession?.(sel.sessionId)
         return
     }
   }
+
   const closeChordRoutineRef = useRef(closeChordGesture)
   closeChordRoutineRef.current = closeChordGesture
   useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])
@@ -922,6 +962,7 @@ export function ConcourseScreen({
     }
   }
   const rowControlRefused = (reason: string): void => {
+
     callbacks.noteControl?.(`board:row-control:${boardSelRef.current ?? 'none'}`, { state: 'refused', reason })
   }
   const rowPauseToggle = (): void => {
@@ -942,6 +983,7 @@ export function ConcourseScreen({
   const selectedIsDoor = (): boolean => sessionRows.find(r => r.sessionId === boardSelRef.current)?.door !== undefined
 
   const enterSession = (sessionId: string, opts: { pointer?: boolean } = {}): void => {
+
     if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
       const open = olderListRef.current
       if (open === null) {
@@ -962,6 +1004,7 @@ export function ConcourseScreen({
       callbacks.resumeOlderChat(pick.sessionId, pick.transcriptPath, pick.title)
       return
     }
+
     if (sessionId.startsWith('dispatch:')) {
       const row = sessionRows.find(r => r.sessionId === sessionId)
       const line =
@@ -971,12 +1014,14 @@ export function ConcourseScreen({
       setNote({ tone: 'muted', text: `${line} · m queues a message` })
       return
     }
+
     const door = sessionRows.find(r => r.sessionId === sessionId)?.door
     if (door !== undefined) {
       if (door.kind === 'switch-project') pickGround(door.dir)
       else setGroundPickerOpen(true)
       return
     }
+
     const parked = sessionRows.find(r => r.sessionId === sessionId)?.state === 'parked'
     if (!reducedStage && !parked && opts.pointer !== true && boardArmedRef.current !== sessionId) {
       boardArmedRef.current = sessionId
@@ -985,6 +1030,7 @@ export function ConcourseScreen({
     }
     boardArmedRef.current = null
     setBoardArmed(null)
+
     callbacks.enterSession(sessionId)
   }
   const compactSteerOrEnter = (sel: ConcourseRowV1): void => {
@@ -1026,15 +1072,18 @@ export function ConcourseScreen({
     const o = snapshot.needsYou.find(x => x.obligationId === obligationId)
     if (!o) return
     if (o.foreignProject !== undefined) {
+
       takeObligationDoor(o)
       return
     }
     if (reducedStage) {
+
       callbacks.openObligation(obligationId)
       return
     }
     const ref = o.ref ?? ''
     if (ref.startsWith('kernel:capacity:')) {
+
       setRegion('coordinator')
       setNote({
         tone: 'muted',
@@ -1043,10 +1092,12 @@ export function ConcourseScreen({
       return
     }
     if (ref.startsWith('permission:git-init:')) {
+
       setRegion('coordinator')
       return
     }
     if (ref.startsWith('permission:')) {
+
       openObligationOrDoor(obligationId)
       return
     }
@@ -1062,9 +1113,11 @@ export function ConcourseScreen({
     setSeatAsk(null)
     if (ask === null) return
     if (!allowed) {
+
       setNote({ tone: 'muted', text: 'kept — nothing dispatched; your draft stays' })
       return
     }
+
     void callbacks.sendCoordinatorMessage?.(ask.text).catch(() => {})
     callbacks.submitSessionDraft(ask.text)
     clearDraft()
@@ -1074,15 +1127,18 @@ export function ConcourseScreen({
   const contractAskRef = useRef(contractAsk)
   contractAskRef.current = contractAsk
   const armContractAsk = (): void => {
+
     if (seatAskRef.current !== null || forkAskRef.current !== null) return
     setContractAsk(true)
   }
   const answerContractAsk = (contractText: string | null): void => {
     setContractAsk(false)
     if (contractText === null) {
+
       callbacks.newSession?.()
       return
     }
+
     callbacks.newSession?.({ contractText })
   }
 
@@ -1128,15 +1184,18 @@ export function ConcourseScreen({
       : null
   const managerCardArmedRef = useRef(false)
   managerCardArmedRef.current = managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy
+
   const sendManagerAnswer = (text: string): void => {
     draftEditedRef.current = true
     draftRef.current = { text, caret: text.length }
     setDraft(draftRef.current)
     sendCoordinator()
   }
+
   const runManagerDispatch = (
     entryId: string,
     plan: import('../../services/concourse/managerMode.js').ManagerPlanV1,
+
     fits: number,
   ): void => {
     setManagerPlanBusy(true)
@@ -1147,6 +1206,7 @@ export function ConcourseScreen({
           import('../../services/concourse/concourseSnapshot.js'),
         ])
         const ground = await snap.resolveHarnessGround().catch(() => getOriginalCwd())
+
         const done = await mgr.executeManagerPlan(plan, { workspaceRoot: ground, fits, entryId })
         const dispatched = {
           ...plan,
@@ -1186,11 +1246,13 @@ export function ConcourseScreen({
   }
   const answerManagerPlan = (entryId: string, plan: import('../../services/concourse/managerMode.js').ManagerPlanV1, yes: boolean, supervision: 'supervising' | 'launch-only'): void => {
     if (!yes) {
+
       void import('../../services/concourse/managerMode.js').then(m => m.markManagerPlanState(entryId, { state: 'declined' }))
       setNote({ tone: 'muted', text: 'kept as a draft — nothing dispatched; say what to change' })
       return
     }
     const withSupervision = { ...plan, supervision }
+
     if (snapshot.counts.live + plan.lanes.length > effectiveSeatCeiling()) {
       setManagerSeatAsk({ entryId, plan: withSupervision, live: snapshot.counts.live, ceiling: effectiveSeatCeiling() })
       return
@@ -1205,8 +1267,10 @@ export function ConcourseScreen({
       setNote({ tone: 'muted', text: 'kept — nothing dispatched; the plan card stays' })
       return
     }
+
     runManagerDispatch(ask.entryId, ask.plan, Math.max(0, ask.ceiling - ask.live))
   }
+
   useEffect(() => {
     if (reducedStage) return
     const rows = sessionRows.map(r => ({ sessionId: r.sessionId, state: r.state }))
@@ -1214,6 +1278,7 @@ export function ConcourseScreen({
     void import('../../services/concourse/managerMode.js')
       .then(async m => {
         await m.appendManagerSupervisionRows(rows)
+
         const startedLane = await m.startWaitingManagerLane(counts)
         if (startedLane !== null) callbacks.retrySnapshot?.()
       })
@@ -1236,6 +1301,7 @@ export function ConcourseScreen({
       alive = false
     }
   }, [])
+
   const [trustAsk, setTrustAsk] = useState<{ dir: string } | null>(null)
   const trustAskRef = useRef<{ dir: string } | null>(null)
   trustAskRef.current = trustAsk
@@ -1280,6 +1346,7 @@ export function ConcourseScreen({
         const { capacityDecisionReceipt } = await import('../../services/switchboard/capacityCheck.js')
         setNote({
           tone: 'muted',
+
           text: capacityDecisionReceipt(allowed, r.recommendedSeats),
         })
       })
@@ -1287,17 +1354,21 @@ export function ConcourseScreen({
   }
 
   const pastGate = useOpenEventGate()
+
   const peekSelRow = sessionRows.find(r => r.sessionId === boardSel)
   const peekRowLive =
     rowPeekOpen &&
     peekSelRow !== undefined &&
     (peekSelRow.state === 'working' || peekSelRow.state === 'needs-you' || peekSelRow.state === 'starting')
   const peekLive = useLiveTile(peekSelRow?.sessionId ?? '', peekSelRow?.workspaceDir, peekRowLive)
+
   const chipLine = useWorkChip(
     peekSelRow?.sessionId ?? '',
     peekSelRow !== undefined && peekSelRow.workspaceDir !== undefined && peekSelRow.state !== 'parked',
   )
+
   const rowControlNote = controlNotes?.[`board:row-control:${peekSelRow?.sessionId ?? 'none'}`]
+
   const pendingChordNow = useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)
   const chordStageNow = useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)
   const closeChordStaged = chordStageNow !== null && chordStageNow.sessionId === boardSel
@@ -1331,8 +1402,10 @@ export function ConcourseScreen({
   })()
   const chipRows =
     !rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0
+
   const olderRows = olderList !== null ? Math.max(2, Math.min(ROW_PEEK_DESIRED_ROWS, olderList.entries.length + 1)) : 0
   const focusTall: 'mirror' | 'coordinator' = region === 'coordinator' ? 'coordinator' : 'mirror'
+
   const coordBandDesired = draftWindow(draft, 5).bandRows
   const liveDraftDesired = reducedStage ? 0 : draftWindow(liveDraft, 3).bandRows
   const boardGroupCount = useMemo(() => boardGroups.filter(g => g.rows.length > 0).length, [boardGroups])
@@ -1364,8 +1437,10 @@ export function ConcourseScreen({
   )
 
   const regionsInOrder = useMemo<ConcourseRegion[]>(() => {
+
     const ring: ConcourseRegion[] = compact || reducedStage ? ['list', 'live'] : ['coordinator', 'list', 'live']
     if (!compact && snapshot.needsYou.length > 0) ring.push('rail')
+
     if (splitActive) ring.push('chat')
     return ring
   }, [snapshot.needsYou.length, reducedStage, splitActive, compact])
@@ -1373,15 +1448,18 @@ export function ConcourseScreen({
     if (region === 'rail' && snapshot.needsYou.length === 0) setRegion(reducedStage ? 'list' : 'coordinator')
   }, [region, snapshot.needsYou.length, reducedStage])
   useEffect(() => {
+
     if (reducedStage && region === 'coordinator') setRegion('list')
   }, [region, reducedStage])
   useEffect(() => {
     if (compact && region !== 'list' && region !== 'live') setRegion('list')
   }, [compact, region])
   useEffect(() => {
+
     if (!splitActive && region === 'chat') setRegion(reducedStage ? 'list' : 'live')
   }, [region, splitActive, reducedStage])
   useEffect(() => {
+
     if (reducedStage) return
     const c = collapseSplitForFrame(termCols, termRows)
     if (c.collapsed) setNote({ tone: 'warning', text: c.line })
@@ -1390,6 +1468,7 @@ export function ConcourseScreen({
     }
   }, [termCols, termRows, reducedStage])
   useEffect(() => {
+
     if (olderList !== null && geo.peekRows < 2) {
       setOlderList(null)
       setNote({ tone: 'muted', text: 'older chats folded — no room at this height' })
@@ -1419,6 +1498,7 @@ export function ConcourseScreen({
   }
 
   useInput((input, key, event) => {
+
     if (doorNoteRef.current) clearDoorNote()
     const modalOwner = boardModalOwner({
       capacityAsk: capacityAskRef.current,
@@ -1436,6 +1516,7 @@ export function ConcourseScreen({
       coordinatorFocused: region === 'coordinator',
       helpOpen: helpOpenRef.current,
     })
+
     const plainConsent = !key.ctrl && !key.meta && !key.super
     if (modalOwner === null && callbacks.daemonOfferArmed?.() === true && callbacks.answerDaemonOffer !== undefined) {
       if (plainConsent && (input === 'y' || input === 'Y')) {
@@ -1450,6 +1531,7 @@ export function ConcourseScreen({
       }
     }
     if (modalOwner === 'help') {
+
       event.stopImmediatePropagation()
       if (key.escape || input === '?' || key.return) {
         helpOpenRef.current = false
@@ -1458,12 +1540,14 @@ export function ConcourseScreen({
       return
     }
     if (modalOwner === 'capacity-ask') {
+
       event.stopImmediatePropagation()
       if (plainConsent && (input === 'y' || input === 'Y')) answerCapacityAsk(true)
       else if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) answerCapacityAsk(false)
       return
     }
     if (modalOwner === 'trust-ask') {
+
       event.stopImmediatePropagation()
       if (plainConsent && (input === 'y' || input === 'Y')) answerTrustAsk(true)
       else if (key.escape || (plainConsent && (input === 'n' || input === 'N'))) answerTrustAsk(false)
@@ -1473,6 +1557,7 @@ export function ConcourseScreen({
     const ctx = composeContextRef.current
     if (key.tab && !filtering) {
       event.stopImmediatePropagation()
+
       if (key.shift && region === 'coordinator' && !reducedStage) {
         const arming = !managerOnRef.current
         managerOnRef.current = arming
@@ -1487,6 +1572,7 @@ export function ConcourseScreen({
       })
       return
     }
+
     if (modalOwner === 'manager-seat-ask' || modalOwner === 'manager-card') return
     if (filtering) {
       if (key.escape) {
@@ -1523,6 +1609,7 @@ export function ConcourseScreen({
       }
       return
     }
+
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
       const compactListPainted = compactProfile === 'split' || (compactProfile === 'single' && region === 'list' && !contractAskRef.current)
@@ -1549,16 +1636,19 @@ export function ConcourseScreen({
       })
       return
     }
+
     if (key.ctrl && input === 'a' && !coordinatorOn) {
       event.stopImmediatePropagation()
       void callbacks.switchCoordinatorMode('agent-assisted')
       return
     }
+
     if (key.ctrl && input === 's' && !reducedStage) {
       event.stopImmediatePropagation()
       openCoordinatorSettings()
       return
     }
+
     if (key.ctrl && input === 'g') {
       event.stopImmediatePropagation()
       setGroundPickerOpen(v => !v)
@@ -1567,14 +1657,17 @@ export function ConcourseScreen({
     if (key.escape) {
       event.stopImmediatePropagation()
       if (ctx.kind !== 'chat') {
+
         setComposeContext({ kind: 'chat' })
         return
       }
       if (olderListRef.current !== null) {
+
         setOlderList(null)
         return
       }
       if (broadcastArmedRef.current) {
+
         broadcastArmedRef.current = false
         setBroadcastArmed(false)
         return
@@ -1591,20 +1684,24 @@ export function ConcourseScreen({
         return
       }
       if (boardArmedRef.current !== null) {
+
         boardArmedRef.current = null
         setBoardArmed(null)
         if (!compact) return
       }
       if (rowPeekOpenRef.current) {
+
         setRowPeekOpen(false)
         return
       }
       if (filterRef.current.text !== '') {
+
         filterRef.current = { text: '', caret: 0 }
         setFilter(filterRef.current)
         return
       }
       if (markedIdsRef.current.size > 0) {
+
         setMarkedIds(new Set())
         return
       }
@@ -1616,6 +1713,7 @@ export function ConcourseScreen({
       callbacks.retrySnapshot?.()
       return
     }
+
     if (region === 'rail') {
       const liveRailIdx = (): number =>
         Math.max(0, snapshot.needsYou.findIndex(o => o.obligationId === railSelRef.current))
@@ -1649,6 +1747,7 @@ export function ConcourseScreen({
       }
     }
     if (region === 'list') {
+
       if (input === '/' && !key.ctrl && !key.meta) {
         event.stopImmediatePropagation()
         setFiltering(true)
@@ -1663,6 +1762,7 @@ export function ConcourseScreen({
       }
       if (key.return && pastGate()) {
         event.stopImmediatePropagation()
+
         if (!reducedStage && liveDraftRef.current.text.trim().length > 0) {
           sendLive()
           return
@@ -1680,6 +1780,7 @@ export function ConcourseScreen({
         return
       }
       if (key.rightArrow && !key.ctrl && !key.meta) {
+
         event.stopImmediatePropagation()
         if (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow()) return
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
@@ -1700,12 +1801,14 @@ export function ConcourseScreen({
         rowStop()
         return
       }
+
       if (input === 'm' && !key.ctrl && !key.meta && !compact && !reducedStage && callbacks.newSession !== undefined && (sessionRows.length === 0 || (boardSelRef.current === NEW_SESSION_ROW_ID && newSessionLineNow())) && filterRef.current.text.trim().length === 0 && snapshot.newSession.door !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         setModelDefaultOpen(true)
         return
       }
       if (input === 'm' && !key.ctrl && !key.meta && pastGate()) {
+
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel?.sessionId.startsWith('dispatch:') === true) {
           event.stopImmediatePropagation()
@@ -1728,6 +1831,7 @@ export function ConcourseScreen({
         }
       }
       if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate()) {
+
         event.stopImmediatePropagation()
         const target = rowControlSel()
         if (target.row !== undefined) setRowPick({ kind: 'effort', sessionId: target.row.sessionId, title: target.row.title })
@@ -1735,6 +1839,7 @@ export function ConcourseScreen({
         return
       }
       if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate()) {
+
         event.stopImmediatePropagation()
         const target = rowControlSel()
         if (target.row !== undefined) callbacks.interruptSession(target.row.sessionId)
@@ -1742,11 +1847,13 @@ export function ConcourseScreen({
         return
       }
       if (input === 'p' && !key.ctrl && !key.meta && pastGate()) {
+
         event.stopImmediatePropagation()
         rowPauseToggle()
         return
       }
       if (input === 'r' && !key.ctrl && !key.meta && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
+
         event.stopImmediatePropagation()
         const sel = sessionRows.find(row => row.sessionId === boardSelRef.current)
         if (!sel || sel.sessionId.startsWith('dispatch:') || sel.door !== undefined || sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) return
@@ -1755,11 +1862,13 @@ export function ConcourseScreen({
         return
       }
       if (input === 'n' && !key.ctrl && !key.meta && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
+
         event.stopImmediatePropagation()
         armContractAsk()
         return
       }
       if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
+
         event.stopImmediatePropagation()
         if (compact) return
         const out = toggleSplitView(termCols, termRows)
@@ -1768,25 +1877,30 @@ export function ConcourseScreen({
         return
       }
       if ((input === '[' || input === ']') && !key.ctrl && !key.meta && splitActive && pastGate()) {
+
         event.stopImmediatePropagation()
         nudgeSplitRatio(input === '[' ? -1 : 1)
         return
       }
       if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
+
         event.stopImmediatePropagation()
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel !== undefined) toggleMark(sel.sessionId)
         return
       }
     }
+
     if (region === 'chat') {
       if (key.return && pastGate()) {
+
         event.stopImmediatePropagation()
         if (hasFocusedSession()) callbacks.exitToChat()
         else if (!landingInFlight()) armContractAsk()
         return
       }
       if (input === 's' && !key.ctrl && !key.meta && pastGate()) {
+
         event.stopImmediatePropagation()
         toggleSplitView(termCols, termRows)
         return
@@ -1797,6 +1911,7 @@ export function ConcourseScreen({
         return
       }
     }
+
     if (
       (region === 'live' && (key.upArrow || key.downArrow) && !liveDraftRef.current.text.includes(NL)) ||
       (region === 'chat' && (key.upArrow || key.downArrow))
@@ -1810,6 +1925,7 @@ export function ConcourseScreen({
       input === '?' &&
       !key.ctrl &&
       !key.meta &&
+
       helpKeyFiresFor(region, (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
     ) {
       event.stopImmediatePropagation()
@@ -1823,8 +1939,10 @@ export function ConcourseScreen({
       else rowPauseToggle()
       return
     }
+
     if (key.return && !key.shift) {
       if (region === 'coordinator') {
+
         if (draftRef.current.text.trim().length === 0) return
         event.stopImmediatePropagation()
         if (!pastGate()) return
@@ -1844,6 +1962,7 @@ export function ConcourseScreen({
         return
       }
       if (liveDraftRef.current.text.trim().length === 0) {
+
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel) enterSession(sel.sessionId)
         return
@@ -1852,14 +1971,18 @@ export function ConcourseScreen({
       return
     }
     if (reducedStage) {
+
       return
     }
     if (region === 'chat') {
+
       return
     }
     if (region !== 'coordinator' && region !== 'live') {
+
       return
     }
+
     const side =
       region === 'coordinator'
         ? { ref: draftRef, undo: undoRef, edit: editDraft, focus: 'coordinator' as ConcourseRegion }
@@ -1868,10 +1991,12 @@ export function ConcourseScreen({
       if (side.focus === 'coordinator') return null
       if (composeContextRef.current.kind !== 'chat') return null
       if (compact && selectedIsDoor()) return null
+
       if (broadcastFaceOf(markedRowsOf().length) !== null) return null
       const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSelRef.current))
       return g.ok ? null : g.line
     }
+
     const armSelectedForTyping = (): void => {
       if (side.focus !== 'live' || boardArmedRef.current !== null) return
       if (broadcastFaceOf(markedRowsOf().length) !== null) return
@@ -1921,6 +2046,7 @@ export function ConcourseScreen({
       return
     }
     if (region === 'live' && key.rightArrow && !key.ctrl && !key.meta && liveDraftRef.current.text.length === 0) {
+
       event.stopImmediatePropagation()
       const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
       if (sel !== undefined && sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
@@ -1936,12 +2062,14 @@ export function ConcourseScreen({
       return
     }
     if (region === 'coordinator' || region === 'live') {
+
       const motion = editorMotionOp(key)
       if (motion !== null) {
         event.stopImmediatePropagation()
         side.edit(motion)
         return
       }
+
       const vertical = caretVerticalOp(key, side.ref.current)
       if (vertical !== null) {
         event.stopImmediatePropagation()
@@ -1950,6 +2078,7 @@ export function ConcourseScreen({
       }
     }
     if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
+
       event.stopImmediatePropagation()
       const refusal = liveGateRefusal()
       if (refusal !== null) {
@@ -1965,6 +2094,7 @@ export function ConcourseScreen({
   })
 
   const t = useMercuryTokens()
+
   const residentAccent = useSessionAccent()
   const residentDef = React.useMemo(
     () => ({
@@ -1976,6 +2106,7 @@ export function ConcourseScreen({
   )
   const mirrorSlot = (rows: number, width: number, bare = false): React.ReactNode => {
     if (contractAsk) {
+
       return (
         <Box flexDirection="column" flexGrow={1} paddingX={1} overflow="hidden">
           <ContractOfferCard onAnswer={answerContractAsk} width={width} rows={rows} />
@@ -1987,6 +2118,7 @@ export function ConcourseScreen({
       return (
         <Box flexDirection="column" flexGrow={1} justifyContent="center" alignItems="center" overflow="hidden">
           {!isCompact && rows >= 8 && width >= 20 ? (
+
             <AnimatedCritterArt def={residentDef} square specimen />
           ) : null}
           <Text color={t.textMuted}>no sessions running</Text>
@@ -1995,6 +2127,7 @@ export function ConcourseScreen({
     }
     const sel = sessionRows.find(r => r.sessionId === boardSel)
     if (!sel || sel.sessionId.startsWith('dispatch:') || sel.workspaceDir === undefined) {
+
       const openNote = controlNotes?.['board:open']
       const noteRow = (() => {
         if (openNote === undefined) return null
@@ -2027,6 +2160,7 @@ export function ConcourseScreen({
                     ? 'needs git — say yes to the offer and it starts on its own'
                     : `${concourseWaitCopy(sel.waitReason, sel.waitDetail)} — it starts when one frees · m queues a message`
               : sel?.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX) === true
+
                 ? region === 'list' || region === 'live'
                   ? "the project's older chats — ↵ unfolds them on the board; a pick brings one back"
                   : "the project's older chats — tab to the list, ↵ unfolds them; a pick brings one back"
@@ -2075,11 +2209,13 @@ export function ConcourseScreen({
     : coordinatorOn
       ? 'talk to the coordinator — try "launch two sessions on this project"'
       : 'describe a task — ↵ starts a session with it as title'
+
   const coordinatorKeysHint = !reducedStage
     ? keyHintLabel(managerOn
       ? '↵ send · ⇧↵ newline · ⇧tab chat mode · tab panes'
       : '↵ send · ⇧↵ newline · ⇧tab manager · tab panes')
     : undefined
+
   const liveKeysHint =
     liveDraft.text.length === 0
       ? reducedStage
@@ -2093,6 +2229,7 @@ export function ConcourseScreen({
         ? { tone: 'info' as const, text: `rename · ${composeContext.title} · type the new title · ↵ saves · esc cancels` }
         : broadcastArmed
           ?
+
             { tone: 'warning' as const, text: `broadcast · sends to ${markedRows.length} sessions · ↵ again sends · esc cancels` }
           : null
 
@@ -2186,6 +2323,7 @@ export function ConcourseScreen({
         rowPeekNode={(rows, width) => {
           const sel = peekSelRow
           if (sel === undefined) return null
+
           const chipNode =
             chipLine !== null ? (
               <Box height={1} flexShrink={0} overflow="hidden">
@@ -2194,6 +2332,7 @@ export function ConcourseScreen({
                 </Text>
               </Box>
             ) : null
+
           const receiptNode = (() => {
             if (rowControlNote === undefined) return null
             const n = controlNoteOf(rowControlNote)
@@ -2216,6 +2355,7 @@ export function ConcourseScreen({
               </Box>
             )
           })()
+
           const armedNode =
             boardArmed === sel.sessionId ? (
               <Box height={1} flexShrink={0} overflow="hidden">
@@ -2227,6 +2367,7 @@ export function ConcourseScreen({
                 </Text>
               </Box>
             ) : null
+
           const closeHintNode =
             closeChordHint !== null ? (
               <Box height={1} flexShrink={0} overflow="hidden">
@@ -2237,6 +2378,7 @@ export function ConcourseScreen({
             ) : null
           const rowLine = closeHintNode ?? receiptNode ?? armedNode ?? chipNode
           if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX) && olderList !== null) {
+
             const span = Math.max(1, rows - 1)
             const win = paneWindow(olderList.entries.length, olderList.at, span)
             const beyond = olderList.total - olderList.entries.length
@@ -2314,6 +2456,7 @@ export function ConcourseScreen({
             <Box flexDirection="column" height={rows} overflow="hidden">
               {chipTake > 0 ? rowLine : null}
               {ask !== undefined ? (
+
                 <Box height={1} flexShrink={0} overflow="hidden">
                   <Text color={t.warning} wrap="truncate-end">
                     {CREW_ASK_WAIT_WORDS} · {askTileCopy(sel.title, ask)}
@@ -2350,6 +2493,7 @@ export function ConcourseScreen({
         modelPickerOpen={settingsOpen}
         groundPickerOpen={groundPickerOpen}
         coordinatorNode={(rows, width) => reducedStage ? (
+
           <Box flexDirection="column" height={rows} width={width} overflow="hidden" paddingX={1}>
             <Text color={t.textSecondary} wrap="truncate-end">{`live view — the concourse is off${(() => { const why = plainWorldWhy(); return why !== null && why !== 'concourse off' ? ` (${why})` : '' })()}`}</Text>
             <Text color={t.textMuted} wrap="truncate-end">{`your sessions run and show here · ↵ enters one${keyMapHint.length > 0 ? ` · ${keyMapHint}` : ''}`}</Text>
@@ -2392,6 +2536,7 @@ export function ConcourseScreen({
               callbacks.answerPermission?.(requestId, allow, obligationId)
             }
             {...(() => {
+
               if (reducedStage || gitOffer !== undefined || seatAsk !== null || forkAsk !== null || managerSeatAsk !== null) return {}
               if (managerAskArmed !== null) {
                 const armed = managerAskArmed
@@ -2405,6 +2550,7 @@ export function ConcourseScreen({
                       onDismiss={typedDraft => {
                         dismissedAsksRef.current.add(armed.entryId)
                         setDismissedAskBump(n => n + 1)
+
                         if (typedDraft !== undefined && typedDraft.length > 0) {
                           draftEditedRef.current = true
                           draftRef.current = { text: typedDraft, caret: typedDraft.length }
@@ -2427,6 +2573,7 @@ export function ConcourseScreen({
                       plan={planData.plan}
                       focused={region === 'coordinator'}
                       busy={managerPlanBusy}
+
                       maxRows={Math.max(8, rows - (Math.max(1, Math.min(coordBandDesired, rows - 8)) + 3) - 3)}
                       textWidth={Math.max(16, width - 8)}
                       onYes={supervision => answerManagerPlan(planData.entryId, planData.plan, true, supervision)}
@@ -2440,6 +2587,7 @@ export function ConcourseScreen({
             settingsOpen={settingsOpen && geo.profile === 'wide'}
             onCloseSettings={() => closeCoordinatorSettings()}
             onFocus={() => setRegion('coordinator')}
+
             onPickExample={text => {
               draftEditedRef.current = true
               draftRef.current = { text, caret: text.length }
@@ -2448,11 +2596,13 @@ export function ConcourseScreen({
             collapsed={geo.profile === 'stacked' && focusTall !== 'coordinator'}
             tailNote={note}
             composerNode={
+
               geo.profile === 'stacked' && focusTall !== 'coordinator' ? undefined : (
                 <ConcourseComposer
                   minimal={geo.constrained}
                   width={geo.constrained ? Math.max(0, width) : Math.max(24, width - 4)}
                   bandRows={geo.constrained ? Math.max(0, Math.min(coordBandDesired, rows)) : Math.max(1, Math.min(coordBandDesired, rows - 8))}
+
                   focused={region === 'coordinator' && !(managerAskArmed !== null || managerPlanArmed !== null || managerPlanBusy)}
                   draft={draft}
                   pending={pending}
@@ -2502,6 +2652,7 @@ export function ConcourseScreen({
           exitToChat: () => callbacks.exitToChat(),
           focusComposer: () => setRegion('coordinator'),
           focusList: () => setRegion('list'),
+
           openCoordinatorModel: () => {
             if (!mayArmBoardModal(modalFactsNow(), 'settings')) return
             openCoordinatorSettings()
@@ -2511,6 +2662,7 @@ export function ConcourseScreen({
             setGroundPickerOpen(v => !v)
           },
           ...(callbacks.retrySnapshot !== undefined ? { retrySnapshot: callbacks.retrySnapshot } : {}),
+
           ...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => armContractAsk() }),
         }}
         {...(controlNotes?.['board:new-session'] !== undefined ? { newSessionNote: controlNotes['board:new-session'] } : {})}
@@ -2594,6 +2746,7 @@ export function ConcourseScreen({
       ) : null}
       {capacityAsk ? <CapacityAskModal cols={cols} rows={termRows} onAnswer={answerCapacityAsk} /> : null}
       {seatAsk !== null ? (
+
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
           <SeatOverloadCard live={seatAsk.live} ceiling={seatAsk.ceiling} onAnswer={answerSeatAsk} />
         </FloatingPopup>
@@ -2604,6 +2757,7 @@ export function ConcourseScreen({
         </FloatingPopup>
       ) : null}
       {managerSeatAsk !== null ? (
+
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: termRows }} width={72} top={Math.floor(termRows / 2) - 7}>
           <ManagerSeatAskCard
             live={managerSeatAsk.live}
@@ -2669,6 +2823,7 @@ export function ConcourseScreen({
       {gitOffer !== undefined &&
       !contractAsk &&
       geo.profile !== 'wide' &&
+
       gitOfferOwnsTheKeys({
         capacityAsk,
         trustAsk: trustAsk !== null,
@@ -2685,6 +2840,7 @@ export function ConcourseScreen({
         coordinatorFocused: region === 'coordinator',
         helpOpen,
       }) ? (
+
         <FloatingPopup host={{ left: 0, top: 0, columns: cols, rows: geo.mainBand[1] + 1 }} width={geo.interior} top={geo.mainBand[1] - gitOfferCardRows(gitOffer.folder, geo.interior, gitOffer.folderHeld === true)}>
           <GitOfferCard
             offer={gitOffer}
@@ -2838,13 +2994,16 @@ function CapacityAskModal({
 function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = false }: { cols: number; rows: number; chat: boolean; reducedStage?: boolean; splitOn?: boolean }): React.ReactNode {
   const t = useMercuryTokens()
   useRegisterOverlay('concourse-help')
+
   const stage = { newSession: !reducedStage }
   const sections: Array<{ title: string; keys: ReadonlyArray<{ keys: string; label: string }> }> = [
     { title: 'BROWSE', keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY] },
     { title: 'NEEDS YOU (rail)', keys: regionKeysFor('rail', stage) },
     { title: 'SESSIONS (list)', keys: regionKeysFor('list', stage) },
+
     ...(reducedStage ? [] : [{ title: 'COORDINATOR (its composer)', keys: regionKeysFor('coordinator', stage) }]),
     { title: 'LIVE VIEW (its composer)', keys: regionKeysFor('live', stage) },
+
     ...(!reducedStage && splitAvailableAt(cols, rows)
       ? [
           splitOn
@@ -2853,6 +3012,7 @@ function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = f
         ]
       : []),
   ]
+
   const composedHeight = (list: typeof sections, marker: boolean): number =>
     list.reduce((n, s) => n + 1 + s.keys.length, 0) +
     Math.max(0, list.length - 1) +
@@ -2866,7 +3026,9 @@ function ConcourseKeyAtlas({ cols, rows, chat, reducedStage = false, splitOn = f
     shown = shown.slice(0, -1)
     hiddenSections++
   }
+
   const height = composedHeight(shown, hiddenSections > 0) - 2
+
   const keyCol = Math.max(12, ...sections.flatMap(s => s.keys.map(k => displayWidth(keyHintLabel(k.keys)) + 1)))
   const width = 46 + (keyCol - 12)
   return (

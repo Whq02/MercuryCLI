@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,6 +60,7 @@ section('§4 the boot-notice latch')
   check('everything is unnoticed before the first mark', before.length >= 3, String(before.length))
   crash.markCrashReportsNoticed()
   check('the mark latches — nothing unnoticed', crash.unnoticedCrashReports().length === 0)
+
   await new Promise(resolve => setTimeout(resolve, 20))
   crash.persistCrashReport(new Error('after the mark'), undefined, 'unhandled-rejection')
   const fresh = crash.unnoticedCrashReports()
@@ -78,6 +80,7 @@ section('§5 the wiring (structural)')
 
 section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
 {
+
   crash.persistCrashReport(new Error('locatable fixture'), { componentStack: 'at LostCard (l.tsx:1:1)' }, 'surface')
   const record = JSON.parse(readFileSync(crash.lastCrashReportPath()!, 'utf8')) as Record<string, unknown>
   check('the record carries the working directory', typeof record.cwd === 'string' && (record.cwd as string).length > 0, String(record.cwd))

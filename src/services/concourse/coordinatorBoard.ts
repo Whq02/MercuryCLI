@@ -1,4 +1,3 @@
-
 import type { ConcourseRowV1 } from '../../components/concourse/contracts.js'
 import { concourseWaitCopy } from '../../components/concourse/contracts.js'
 import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
@@ -9,24 +8,32 @@ export interface CoordinatorBoardSessionV1 {
   title: string
   state: string
   means: string
+
   brief?: string
+
   now?: string
   lastSpokeAgo?: string
   age?: string
+
   project?: string
+
   branch?: string
   worktree?: string
   commits?: string
   model?: string
   effort?: string
   workflowsAllowed?: true
+
   question?: string
   obligationId?: string
   permissionRef?: string
+
   waits?: string
   pausedBy?: string
   stoppedBy?: string
+
   ownTerminal?: true
+
   carriedFrom?: string
 }
 
@@ -49,11 +56,14 @@ export interface CoordinatorSourceV1 {
 }
 
 export interface CoordinatorBoardV1 {
+
   ground?: string
   clock?: string
   counts: Record<string, number | string>
   sessions: CoordinatorBoardSessionV1[]
+
   elsewhere?: Array<{ project: string; name: string; running: number; needsYou: number; finished: number }>
+
   finishedForks?: CoordinatorFinishedForkV1[]
   openObligations: Array<{
     obligationId: string
@@ -62,6 +72,7 @@ export interface CoordinatorBoardV1 {
     revision: number
     ref?: string
   }>
+
   degraded?: string
 }
 
@@ -70,6 +81,7 @@ export function describeSessionState(
   extras: { pausedBy?: string; stoppedBy?: string; ownTerminal?: boolean; retainedFork?: boolean; carriedFrom?: string } = {},
 ): string {
   if (extras.ownTerminal === true) return 'your own main session, with you in the terminal — not a background session; nothing to send here'
+
   const lead = extras.carriedFrom !== undefined ? `the focused chat, carried over from ${extras.carriedFrom} — ` : ''
   return lead + describeSessionStateBase(row, extras)
 }
@@ -110,6 +122,7 @@ export interface CoordinatorBoardViewOpts {
   crewDir?: string
   recordsDir?: string
   nowMs?: number
+
   ground?: string
 }
 
@@ -119,6 +132,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   const nowMs = opts.nowMs ?? Date.now()
   const snap = await import('./concourseSnapshot.js')
   const ground = opts.ground ?? (await snap.resolveHarnessGround().catch(() => undefined))
+
   let project: import('../../utils/bootCardFacts.js').ProjectIdentity | undefined
   if (ground !== undefined) {
     try {
@@ -153,6 +167,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   for (const rec of Object.values(records)) {
     if (rec.endedAt === undefined || !recordBySession.has(rec.sessionId)) recordBySession.set(rec.sessionId, rec)
   }
+
   let forkState: ((workspaceId: string, branch: string, worktree?: string) => string | undefined) | undefined
   let mainState: ((workspaceId: string) => string | undefined) | undefined
   try {
@@ -175,6 +190,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
         probes += 1
         try {
           if (wt.workspaceKindOf(workspaceId) === 'git') {
+
             const dirt = wt.cachedWorktreeDirt(workspaceId)
             words =
               dirt === null
@@ -198,6 +214,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   }
   const questionBySession = new Map<string, (typeof snapshot.needsYou)[number]>()
   for (const q of snapshot.needsYou) if (!questionBySession.has(q.sessionId)) questionBySession.set(q.sessionId, q)
+
   let openObligations: CoordinatorBoardV1['openObligations'] = []
   let settledCount = 0
   try {
@@ -230,6 +247,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   } catch {
     hostSessionId = undefined
   }
+
   let coordinatorSeat: string | undefined
   try {
     const { coordinatorAgentId } = await import('./coordinatorIdentity.js')
@@ -257,11 +275,14 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
   }
   for (const group of snapshot.groups) {
     for (const row of group.rows) {
+
       if (row.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
         counts.olderChats = (counts.olderChats ?? 0) + (Number.parseInt(row.title, 10) || 0)
         continue
       }
+
       if (row.door !== undefined) continue
+
       const rec = recordBySession.get(row.sessionId)
       const liveRec = rec !== undefined && rec.endedAt === undefined ? rec : undefined
       const ownTerminal = hostSessionId !== undefined && row.sessionId === hostSessionId && liveRec === undefined
@@ -278,6 +299,7 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
           : branch === undefined && project !== undefined && liveRec !== undefined && !ownTerminal && mainState !== undefined
             ? mainState(project)
             : undefined
+
       const title = retainedFork && rec?.title !== undefined && rec.title.length > 0 ? rec.title : row.title
       const pausedBy = whoOf(rec?.pausedBy)
       const stoppedBy = whoOf(rec?.stoppedBy)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,10 +8,13 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'anthropic-slot-preference-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
+
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN
+
 delete process.env.CI
 delete process.env.NODE_ENV
 
@@ -56,6 +60,7 @@ const anthropicActives = (): string[] => {
   const anthropic = groups.find(g => (g.family.id as string) === 'anthropic')
   return (anthropic?.slots ?? []).filter(s => s.active).map(s => s.id)
 }
+
 const activesOrNull = (): string[] | null => {
   try {
     const groups = deriveFamilySlotGroups()

@@ -6,8 +6,11 @@ import { withState, type Snapshot } from './types.js'
 export type ContextGaugeData = {
   usedPct: number | null
   window: number
+
   usedTokens: number | null
+
   fillSource: ContextFillView['fillSource']
+
   windowSource: ContextFillView['windowSource']
 }
 

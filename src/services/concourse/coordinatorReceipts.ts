@@ -1,4 +1,3 @@
-
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -15,6 +14,7 @@ import type { CoordinatorSwitchReceiptV1 } from './coordinatorModels.js'
 
 export const COORDINATOR_EVENT_KIND = 'mercury.coordinator'
 const ADAPTER = 'coordinator'
+
 const FEED_SCOPE = 'concourse'
 
 type CoordinatorFeedPayload =
@@ -75,6 +75,7 @@ registerActivityClassifier({
         class: 'question',
         verb: ACTION_VERB[r.verb],
         objectLabel: r.objectRef.slice(0, 60),
+
         phase: r.outcome === 'refused' || r.outcome === 'failed' ? 'failed' : 'succeeded',
         outcomeLabel: `${r.outcome}${r.detail ? ` — ${r.detail}` : ''}`.slice(0, 80),
       }
@@ -109,11 +110,11 @@ registerActivityClassifier({
       verb: r.target === 'mode' ? 'set coordinator mode' : 'switched coordinator model',
       objectLabel: r.value.slice(0, 60),
       phase: r.outcome === 'refused' ? 'failed' : 'succeeded',
+
       outcomeLabel: `${r.outcome}${r.reason ? ` — ${r.reason}` : r.detail ? ` — ${r.detail}` : ''}`.slice(0, 80),
     }
   },
 })
-
 
 interface ReceiptJournalRowV1 {
   seq: number
@@ -175,6 +176,7 @@ export async function foldJournaledCoordinatorReceipts(opts: { crewDir?: string 
   const state = await store.read()
   const unseen = state.rows.filter(r => r.seq > state.consumedSeq).sort((a, b) => a.seq - b.seq)
   let folded = 0
+
   let advanceTo = state.consumedSeq
   for (const row of unseen) {
     if (row.pid === process.pid) {
@@ -192,6 +194,7 @@ export async function foldJournaledCoordinatorReceipts(opts: { crewDir?: string 
         logForDebugging(`[coordinator/receipts] journal fold failed at seq ${row.seq}: ${err} — the cursor stops here; the row is retried next fold`)
         break
       }
+
       logForDebugging(`[coordinator/receipts] journal row ${row.seq} failed ${failures} folds: ${err} — skipped`)
       advanceTo = row.seq
     }

@@ -1,4 +1,3 @@
-
 import React, { PureComponent, type ReactNode } from 'react'
 import { LayoutChromeProvider } from '../../context/layoutChromeContext.js'
 import { signalInputLive } from '../../boot/launchGraph.js'
@@ -84,6 +83,7 @@ const LONE_ESCAPE_GRACE_REARMS = 2
 const LONE_ESCAPE_MOUSE_WINDOW_MS = 500
 const MULTI_CLICK_WINDOW_MS = 500
 const MULTI_CLICK_TOLERANCE_CELLS = 1
+
 export const REFOCUS_CLICK_WINDOW_MS = 200
 
 const OSC_BACKGROUND_COLOR = 11
@@ -112,6 +112,7 @@ type Props = {
   readonly handleSelectionDrag: (col: number, row: number) => void
   readonly handleSelectionStart?: (col: number, row: number, pressHadAlt: boolean) => void
   readonly handleSelectionRelease?: (col: number, row: number) => boolean
+
   readonly onStdinResume: () => void
   readonly setCursorDeclaration?: CursorDeclarationSetter
   readonly dispatchKeyboardEvent: (key: ParsedKey) => void
@@ -173,6 +174,7 @@ export default class App extends PureComponent<Props, State> {
   private loneEscapeGraceUsed = 0
   private lastMouseEventTime = 0
   private readonly querier: TerminalQuerier
+
   readonly gesture = {
     lastClickTime: 0,
     lastClickCol: -1,
@@ -181,9 +183,12 @@ export default class App extends PureComponent<Props, State> {
     pendingHyperlinkTimer: null as ReturnType<typeof setTimeout> | null,
     lastHoverCol: -1,
     lastHoverRow: -1,
+
     refocusedAt: -1,
+
     swallowRelease: false,
   }
+
   private lastStdinTime = Date.now()
   private terminalSize: TerminalSize = { columns: 0, rows: 0 }
 
@@ -196,7 +201,6 @@ export default class App extends PureComponent<Props, State> {
   private get isRawModeSupported(): boolean {
     return this.props.stdin.isTTY === true
   }
-
 
   override componentDidMount() {
     if (
@@ -241,6 +245,7 @@ export default class App extends PureComponent<Props, State> {
   }
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+
     persistCrashReport(error, errorInfo, 'app-root')
     this.handleExit(error)
   }
@@ -284,7 +289,6 @@ export default class App extends PureComponent<Props, State> {
     )
   }
 
-
   handleSetRawMode = (isEnabled: boolean): void => {
     const { stdin } = this.props
     if (!this.isRawModeSupported) {
@@ -301,16 +305,19 @@ export default class App extends PureComponent<Props, State> {
 
     if (isEnabled) {
       if (this.rawModeEnabledCount === 0) {
+
         stopCapturingEarlyInput()
         stdin.ref()
         stdin.setRawMode(true)
         stdin.addListener('readable', this.handleReadable)
+
         signalInputLive();
         const extendedKeys = extendedKeysSupportedNow()
         termWrite(this.props.stdout, rawModeArmBytes(extendedKeys), 'mode')
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
         noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'focus-events')
         if (extendedKeys) noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
+
         if (!this.identityProbed) {
           this.identityProbed = true
           void this.probeTerminalIdentity()
@@ -322,6 +329,7 @@ export default class App extends PureComponent<Props, State> {
 
     if (--this.rawModeEnabledCount === 0) {
       termWrite(this.props.stdout, rawModeDisarmBytes(), 'mode')
+
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'focus-events')
       noteModeReleased(RAW_MODE_LEDGER_OWNER, 'bracketed-paste')
@@ -342,8 +350,10 @@ export default class App extends PureComponent<Props, State> {
         markOriginalGroundQuerySent()
         backgroundQuery = this.querier.send(oscColor(OSC_BACKGROUND_COLOR))
       }
+
       if (isDecrqmProbeSafe()) markSyncProbeOutstanding(true)
       const syncQuery = isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)
+
       const kittyQuery = this.querier.send(kittyKeyboard())
       finishWidthProbe = queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
         instances.get(this.props.stdout)?.forceRedraw()
@@ -379,6 +389,7 @@ export default class App extends PureComponent<Props, State> {
       if (kitty !== undefined) {
         const wasActive = extendedKeysSupportedNow()
         upgradeExtendedKeysSupport()
+
         if (!wasActive && this.rawModeEnabledCount > 0) {
           termWrite(this.props.stdout, extendedKeysReenable(true), 'mode')
           noteModeAcquired(RAW_MODE_LEDGER_OWNER, 'kitty-kbd')
@@ -395,8 +406,8 @@ export default class App extends PureComponent<Props, State> {
     }
   }
 
-
   handleReadable = (): void => {
+
     const now = Date.now()
     const quietSpell = now - this.lastStdinTime > STDIN_GAP_REASSERT_MS
     let sawInput = false
@@ -412,6 +423,7 @@ export default class App extends PureComponent<Props, State> {
       }
     } catch (error) {
       logError(error)
+
       if (
         this.rawModeEnabledCount > 0 &&
         !this.props.stdin.listeners('readable').includes(this.handleReadable)
@@ -426,6 +438,7 @@ export default class App extends PureComponent<Props, State> {
 
   private handleInput(chunk: string | Buffer | null): void {
     if (chunk !== null) this.loneEscapeGraceUsed = 0
+
     if (chunk !== null) cockpitEngine()?.noteKeystroke()
 
     const [atoms, nextState] = parseMultipleKeypresses(this.keyParseState, chunk)
@@ -450,6 +463,7 @@ export default class App extends PureComponent<Props, State> {
     }
 
     const state = this.keyParseState
+
     if (
       state.incomplete ||
       (state.pendingBytes && state.pendingBytes.length > 0) ||
@@ -509,7 +523,6 @@ export default class App extends PureComponent<Props, State> {
     this.handleInput(null)
   }
 
-
   private dispatchBatch(rawAtoms: ParsedInput[]): void {
     const instance = instances.get(this.props.stdout)
     const atoms = instance
@@ -542,10 +555,12 @@ export default class App extends PureComponent<Props, State> {
       if (atom.kind === 'mouse') {
         const isClickClass = (atom.button & MOTION_BIT) === 0
         if (chunkConsumed && isClickClass) continue
+
         if (isDragMotion(atom) && i + 1 < atoms.length && isDragMotion(atoms[i + 1]!)) continue
         handleMouseEvent(this, atom)
         continue
       }
+
       if (atom.sequence === FOCUS_IN) {
         this.gesture.refocusedAt = Date.now()
         setTerminalFocused(true)
@@ -561,6 +576,7 @@ export default class App extends PureComponent<Props, State> {
         this.internal_eventEmitter.emit('terminalblur', new TerminalFocusEvent('terminalblur'))
         continue
       }
+
       if (!getTerminalFocused()) setTerminalFocused(true)
 
       const item = atom
@@ -573,6 +589,7 @@ export default class App extends PureComponent<Props, State> {
       this.handleRawInput(atom)
       const event = new InputEvent(atom)
       this.internal_eventEmitter.emit('input', event)
+
       if (event.seq <= inputConsumedThroughSeq()) {
         chunkConsumed = true
         continue
@@ -587,7 +604,6 @@ export default class App extends PureComponent<Props, State> {
       this.handleExit()
     }
   }
-
 
   handleExit = (error?: Error): void => {
     if (this.isRawModeSupported) this.handleSetRawMode(false)
@@ -610,6 +626,7 @@ export default class App extends PureComponent<Props, State> {
       process.removeListener('SIGCONT', onContinue)
     }
     process.on('SIGCONT', onContinue)
+
     process.kill(process.pid, 'SIGTSTP')
   }
 
@@ -648,6 +665,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
 
   if (atom.action === 'press') {
     if (isMotion && baseButton === 3) {
+
       if (selection.isDragging) {
         finishSelection(selection)
         props.notifySelectionChange()
@@ -667,12 +685,14 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       if (!m.swallowRelease) props.handleSelectionDrag(col, row)
       return
     }
+
     if (selection.isDragging) {
       finishSelection(selection)
       props.notifySelectionChange()
     }
     const now = Date.now()
     if (isRefocusPress({ focused: getTerminalFocused(), refocusedAt: m.refocusedAt, now })) {
+
       setTerminalFocused(true)
       m.refocusedAt = -1
       m.swallowRelease = true
@@ -711,6 +731,7 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
     }
     const pressHadAlt = (atom.button & ALT_MODIFIER_BIT) !== 0
     if (props.handleSelectionStart) {
+
       props.handleSelectionStart(col, row, pressHadAlt)
     } else {
       startSelection(selection, col, row)

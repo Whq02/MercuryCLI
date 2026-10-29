@@ -1,4 +1,3 @@
-
 import { truncateToWidth } from '../utils/truncate.js'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import React, {
@@ -45,6 +44,7 @@ type LogSelectorProps = {
   onCancel?: () => void
   onSelect: (log: SessionListing) => void
   onLogsChanged?: () => void
+
   onLogRenamed?: (sessionId: string, title: string) => void
   onLoadMore?: (count: number) => void
   initialSearchQuery?: string
@@ -55,6 +55,7 @@ type LogSelectorProps = {
 const MIN_LABEL_WIDTH = 8
 
 function displayTitle(log: SessionListing): string {
+
   return collapseWhitespace(getLogDisplayTitle(log, '(no prompt)'))
 }
 
@@ -64,6 +65,7 @@ function prDescriptor(log: SessionListing): string {
 }
 
 function truncateLabel(text: string, width: number): string {
+
   return truncateToWidth(text, Math.max(MIN_LABEL_WIDTH, width))
 }
 
@@ -82,6 +84,7 @@ function hasMeaningfulEntry(log: SessionListing): boolean {
 }
 
 function describeLog(log: SessionListing, withProjectPath: boolean): string {
+
   const base = formatLogMetadata(log)
   return withProjectPath && log.projectPath ? `${base} · ${log.projectPath}` : base
 }
@@ -245,6 +248,7 @@ export function LogSelector({
     (input, key) => {
       if (inPreview || inRename) return
       if (searchMode) {
+
         if (key.ctrl && input === 'n') setSearchMode(false)
         return
       }
@@ -257,6 +261,7 @@ export function LogSelector({
         return
       }
       if (key.ctrl && input === 'w') {
+
         if (multipleWorktreesRef.current) {
           setAllWorktrees(previous => !previous)
         }
@@ -311,6 +316,7 @@ export function LogSelector({
       if (!target || trimmed === '' || target.sessionId === undefined) return
       void saveCustomTitle(target.sessionId as UUID, trimmed, target.fullPath)
         .then(() => {
+
           if (onLogRenamed !== undefined) onLogRenamed(String(target.sessionId), trimmed)
           else onLogsChanged?.()
         })
@@ -492,6 +498,7 @@ export function LogSelector({
         {exitState.pending
           ? exitChordNoticeText(exitState.keyName)
           :
+
             packFooter(
               [...hints, ...(expandHint ? [expandHint] : [])].join(' · '),
               Math.max(0, columns - 4),

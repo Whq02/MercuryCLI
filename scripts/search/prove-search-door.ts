@@ -77,6 +77,7 @@ section('§2 the explicit-key plan remains deterministic when no session model o
   delete process.env.MERCURY_SEARCH_KEYLESS
   check('…and MERCURY_SEARCH_KEYLESS=0 removes the door and names the absence with both off doors',
     pinnedOff.doors.length === 0 && pinnedOff.closed.some(c => c.includes('DuckDuckGo page scraping is off') && c.includes('MERCURY_SEARCH_KEYLESS=0')), j(pinnedOff))
+
   let nonVendored = 0
   for (const braveKey of [undefined, 'stored'] as const) {
     for (const tavilyKey of [undefined, 'env'] as const) {

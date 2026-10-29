@@ -1,4 +1,3 @@
-
 import React, { Suspense, use } from 'react'
 import { Ansi } from '../../ink.js'
 import {
@@ -20,6 +19,7 @@ function cachedHighlight(
   const key = hashPair(language, code)
   const hit = highlightCache.get(key)
   if (hit !== undefined) {
+
     highlightCache.delete(key)
     highlightCache.set(key, hit)
     return hit
@@ -72,6 +72,7 @@ function AsyncHighlight({
   dim: boolean
 }): React.ReactNode {
   const api = use(getCliHighlightPromise())
+
   if (!api) return <Ansi dimColor={dim}>{linkifyCodeUrls(code)}</Ansi>
   return <Ansi dimColor={dim}>{linkifyCodeUrls(cachedHighlight(api, code, language))}</Ansi>
 }

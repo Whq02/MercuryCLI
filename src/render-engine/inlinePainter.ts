@@ -1,4 +1,3 @@
-
 import { HIDE_CURSOR, SHOW_CURSOR } from '../ink/termio/dec.js'
 import { cursorDown, cursorTo, cursorUp, eraseToEndOfLine } from '../ink/termio/csi.js'
 
@@ -12,6 +11,7 @@ export interface PaintResult {
 }
 
 export class InlineTailPainter {
+
   private prev: string[] = ['']
   private parkRow = 0
   private parkCol = 0
@@ -53,6 +53,7 @@ export class InlineTailPainter {
     }
 
     if (settled.length > 0) {
+
       moveToRow(0)
       cr()
       for (let i = 0; i < settled.length; i++) {
@@ -61,7 +62,9 @@ export class InlineTailPainter {
         row++
         col = 0
       }
+
       if (next.length === 0) {
+
         body += EL
       }
       for (let j = 0; j < next.length; j++) {
@@ -74,6 +77,7 @@ export class InlineTailPainter {
           col = 0
         }
       }
+
       const consumed = settled.length + Math.max(next.length, 1)
       const staleBeyond = prev.length - consumed
       for (let k = 0; k < staleBeyond; k++) {
@@ -83,6 +87,7 @@ export class InlineTailPainter {
         body += EL
       }
     } else {
+
       const force = options.forceRepaint === true
       const shared = Math.min(prev.length, next.length)
       for (let r = 0; r < shared; r++) {
@@ -94,6 +99,7 @@ export class InlineTailPainter {
         tailWrites++
       }
       if (next.length > prev.length) {
+
         moveToRow(prev.length - 1)
         cr()
         for (let r = prev.length; r < next.length; r++) {
@@ -103,6 +109,7 @@ export class InlineTailPainter {
           tailWrites++
         }
       } else if (next.length < prev.length) {
+
         for (let r = next.length; r < prev.length; r++) {
           moveToRow(r)
           cr()

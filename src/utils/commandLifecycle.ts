@@ -1,4 +1,3 @@
-
 type CommandLifecycleState = 'started' | 'completed'
 type CommandLifecycleListener = (commandUuid: string, state: CommandLifecycleState) => void
 

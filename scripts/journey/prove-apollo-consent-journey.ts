@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -69,6 +70,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
     }),
   )
+
   writeFileSync(
     path.join(RUN_HOME, 'settings.json'),
     JSON.stringify({ guardrails: { disableFlowMode: true } }),
@@ -100,6 +102,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
   const base = `http://127.0.0.1:${port}`
 
   try {
+
     const cardSelect: Record<Branch, string> = {
       build: '\r',
       'build-ask-first': '\x1b[B\r',
@@ -107,16 +110,20 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       'spec-review': '\r',
       'stray-write': '\r',
     }
+
     const sends: Array<Record<string, unknown>> = [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'build me a tiny hello demo\r', mark: 'directive' },
       { requireAwait: true, minTick: 6, awaitText: POLL_ONE_FRAGMENT, awaitSettleTicks: 3, data: '\r', mark: 'poll1-answer' },
       { requireAwait: true, minTick: 6, awaitText: '❯ 1. Yes — begin the build', awaitSettleTicks: 4, data: cardSelect[branch], mark: 'card-answer' },
     ]
     if (branch === 'build-ask-first') {
+
       sends.push({ requireAwait: true, minTick: 6, awaitText: SESSION_TIER_LABEL, awaitSettleTicks: 4, data: '\r', mark: 'write-approve' })
     }
     if (branch === 'more-questions') {
+
       sends.push({ requireAwait: true, minTick: 6, awaitText: POLL_TWO_FRAGMENT, awaitSettleTicks: 3, data: '\r', mark: 'poll2-answer' })
     }
     const out = path.join(RUN_HOME, `grid-${branch}-${cols}.json`)
@@ -161,6 +168,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       env: childEnv,
     })
     let gridText = ''
+
     const markFrames = new Map<string, string>()
     if (existsSync(out)) {
       const payload = JSON.parse(readFileSync(out, 'utf8')) as {
@@ -172,6 +180,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       gridText = toText(payload.grid)
       for (const mark of payload.marks ?? []) markFrames.set(mark.label, toText(mark.grid))
       writeFileSync(path.join(RUN_HOME, `grid-${branch}-${cols}.txt`), gridText)
+
       const keepDir = process.env.MERCURY_K2_CAPTURE_DIR
       if (keepDir) {
         mkdirSync(keepDir, { recursive: true })
@@ -215,6 +224,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       check('ask-first: no implement band (default paints no band — breadth stayed narrow)', !gridText.includes('implement mode on'))
       check('ask-first: the run finished', gridText.includes(FINAL_TEXT))
     } else if (branch === 'spec-review' || branch === 'stray-write') {
+
       const wire4 = bodyOf(anthropic[3])
       const wire5 = bodyOf(anthropic[4])
       const cardFrame = markFrames.get('card-answer') ?? ''

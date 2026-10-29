@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,6 +39,7 @@ section('I2 the ONE composer — identity over the label, label as the fallback,
 
 section('I1 the presence owner exposes identity per family from the OWNING store')
 {
+
   const providers = [
     { id: 'anthropic', available: true, description: { account: { kind: 'inherited-main', label: 'main' } } },
     { id: 'openai', available: true, description: { account: { kind: 'chatgpt-login', label: 'ChatGPT prolite subscription' } } },
@@ -117,6 +119,7 @@ section('I3 every identity surface reads the ONE composer (structural)')
   const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
   const chip = read('src/components/BootSplashScreen.tsx')
   const chipBlock = chip.slice(chip.indexOf('const chips = useMemo('), chip.indexOf('const selectedIndex = selCleared'))
+
   const sessionAccount = read('src/utils/accounts/sessionAccount.ts')
   check('the boot chip block reads the session-account composer', chipBlock.includes('sessionAccountWords(mainModel)'))
   check('…which reads the ONE identity composer (no second spelling of who)', sessionAccount.includes('presenceIdentityWords(presence)') && !chipBlock.includes('credentialLabel'))

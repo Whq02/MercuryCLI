@@ -87,6 +87,7 @@ export function applyPermissionUpdate(
     }
     case 'removeRules': {
       const key = ruleMapKey(update.behavior)
+
       const toRemove = new Set(update.rules.map(ruleString))
       const existing = next[key][update.destination] ?? []
       next[key][update.destination] = existing.filter(entry => !toRemove.has(entry))
@@ -95,6 +96,7 @@ export function applyPermissionUpdate(
       break
     }
     case 'setMode':
+
       if (next.mode === 'apollo') {
         holdModeTransition({
           from: 'apollo',
@@ -111,6 +113,7 @@ export function applyPermissionUpdate(
       logForDebugging(`permission update setMode → ${update.mode} (${update.destination})`)
       break
     default:
+
       return context
   }
   return next as unknown as ToolPermissionContext
@@ -140,6 +143,7 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
 
   switch (update.type) {
     case 'addRules': {
+
       const behaviorKey = settingsBehaviorKey(update.behavior)
       const additions = update.rules.map(ruleString)
       return writePartial(source, base => {
@@ -153,6 +157,7 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
       return writePartial(source, { guardrails: { [behaviorKey]: update.rules.map(ruleString) } })
     }
     case 'removeRules': {
+
       const behaviorKey = settingsBehaviorKey(update.behavior)
       const toRemove = new Set(update.rules.map(ruleString))
       return writePartial(source, base => ({
@@ -196,11 +201,13 @@ export function createReadRuleSuggestion(
     if (rest === '') return undefined
     anchored = `//${(drive[1] as string).toUpperCase()}/${rest}`
   } else {
+
     anchored = posix.startsWith('/') ? `/${posix}` : posix
   }
   const content = `${anchored}/**`
   return {
     type: 'addRules',
+
     rules: [{ toolName: 'Read', ruleContent: content }],
     behavior: 'allow',
     destination,
@@ -220,6 +227,7 @@ export function createEditRuleSuggestion(
     if (rest === '') return undefined
     anchored = `//${(drive[1] as string).toUpperCase()}/${rest}`
   } else {
+
     anchored = posix.startsWith('/') ? `/${posix}` : posix
   }
   return {
@@ -229,7 +237,6 @@ export function createEditRuleSuggestion(
     destination,
   } as PermissionUpdate
 }
-
 
 function structuredCloneContext(context: ToolPermissionContext): MutableContext {
   const c = context as unknown as MutableContext
@@ -259,8 +266,10 @@ function writePartial(
   source: EditableSettingSource,
   partial: Record<string, unknown> | ((rawBase: Record<string, unknown>) => Record<string, unknown>),
 ): PersistVerdict {
+
   const verdict = updateSettingsForSource(source, partial as never)
   if (verdict.error !== null) {
+
     logForDebugging(
       `permission update not saved to ${source}: ${verdict.error.message} — it applies for this session only`,
       { level: 'error' },

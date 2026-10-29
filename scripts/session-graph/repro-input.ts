@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { checker } from '../engine-durability/harness.ts'
 import { rowsBinding, shippedKeyForms } from '../lib/shippedKeyForms.ts'
 

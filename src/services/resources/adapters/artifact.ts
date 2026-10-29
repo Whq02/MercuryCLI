@@ -1,4 +1,3 @@
-
 import { getArtifact, listArtifacts } from '../../../utils/artifacts/store.js'
 import {
   isReviewArtifactId,
@@ -19,11 +18,11 @@ import {
   type ResourceAdapter,
 } from '../contracts.js'
 
-
 function staleNote(version: ReviewArtifactVersion, fallbackCwd: string): string {
   const bound = version.workspace.treeDigest
   if (!bound) return ''
   try {
+
     const root = version.workspace.roots[0] ?? fallbackCwd
     const current = computeWorkingTreeDigest(root)
     if (current && current !== bound) return ' · STALE (tree moved since this version)'
@@ -71,6 +70,7 @@ function resolveReviewArtifact(ref: ParsedRef, ctx: ResourceContext): ResourceRe
   const [id, ...rest] = ref.id.split('/')
   const state: ReviewArtifactState | null = readReviewArtifactState(id!)
   if (!state) {
+
     if (reviewArtifactJournalExists(id!)) {
       return {
         state: 'unavailable',

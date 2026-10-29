@@ -1,4 +1,3 @@
-
 import figures from 'figures'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
@@ -109,6 +108,7 @@ export function TaskListV2({
     const pending = tasks
       .filter(task => byStatus(task) === 'pending')
       .sort((a, b) => {
+
         const ab = isBlocked(a) ? 1 : 0
         const bb = isBlocked(b) ? 1 : 0
         if (ab !== bb) return ab - bb

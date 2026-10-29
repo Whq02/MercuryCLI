@@ -1,4 +1,3 @@
-
 export type Ordinal = string & { readonly __brand: 'Ordinal' }
 
 const ORDINAL_RE = /^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/

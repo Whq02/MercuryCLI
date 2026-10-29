@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import {
@@ -57,6 +58,7 @@ const surfaceArr = cmds.slice(cmds.indexOf('const COMMANDS = memoize'), cmds.ind
 check('/console registered inside the base COMMANDS array (unconditional)', surfaceArr.includes('consoleCommand,'))
 check('import present', cmds.includes("import consoleCommand from './commands/console/index.js'"))
 const domains = read('src/components/HelpV2/commandDomains.ts')
+
 check('HelpV2 domain lists console (btw removed)', /['"]console['"]/.test(domains) && !/['"]btw['"]/.test(domains))
 const cidx = read('src/commands/console/index.ts')
 check('/console isEnabled rides consoleEnabled()', cidx.includes('isEnabled: () => consoleEnabled()'))
@@ -74,6 +76,7 @@ check('row present', reg.includes("env: 'MERCURY_HELM_CONSOLE'"))
 check('default-on + additive + evidence names this suite', /MERCURY_HELM_CONSOLE'[^}]*kind: 'default-on'[^}]*tier: 'additive'[^}]*evidence: 'scripts\/helm-console\/run-all\.sh'/.test(reg))
 
 section('side-question hardening — the abort actually reaches the fork')
+
 const sq = read('src/utils/sideQuestion.ts')
 check('runSideQuestion accepts an abortController', sq.includes('abortController?: AbortController'))
 check(
@@ -83,6 +86,7 @@ check(
 )
 check('the /btw command stays deleted (the console owns side questions)', !existsSync('src/commands/btw'))
 const ask = read('src/utils/cockpit/helmConsoleAsk.ts')
+
 {
   const seam = await import('../../src/utils/cockpit/helmConsoleAsk.js').catch(() => null)
   if (seam !== null) {
@@ -103,6 +107,7 @@ const bus = read('src/state/vitalsBus.ts')
 const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
 
 section('workflow lead-run detail (vitals rail)')
+
 check('phase + agent progress derived from the one work-row owner', rail.includes('useFocusedWorkRows()') && rail.includes('focusedWorkflowRows(workRows)') && rail.includes('const leadDetail = workflowRowDetail(runningWf[0]!)'))
 
 console.log('')

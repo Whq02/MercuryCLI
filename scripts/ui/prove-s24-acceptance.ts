@@ -32,6 +32,7 @@ section('history: paste references')
   const refs = parseReferences(`before ${ref} after`)
   check('parseReferences finds the placeholder with its offset', refs.length === 1 && refs[0]!.id === 1 && refs[0]!.index === 7)
   check('non-positive ids are dropped', parseReferences(formatPastedTextRef(0, 2)).length === 0)
+
   const innerRef = formatPastedTextRef(2, 0)
   const expanded = expandPastedTextRefs(`x ${formatPastedTextRef(1, 0)} y`, {
     1: { id: 1, type: 'text', content: `body-with ${innerRef}` } as never,
@@ -43,6 +44,7 @@ section('history: paste references')
 
 section('wheel: browser-hosted + native models')
 {
+
   const hosted = initWheelAccel(true)
   let t = 1000
   computeWheelStep(hosted, 1, t)

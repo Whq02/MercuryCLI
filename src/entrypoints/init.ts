@@ -1,4 +1,5 @@
 import { memoize } from 'lodash-es'
+
 import '../bootstrap/state.js'
 import { enableConfigs } from '../utils/config.js'
 import { findMostRecentBackup } from '../utils/config/globalConfig.js'
@@ -24,10 +25,12 @@ import { armScratchpadSweep } from '../utils/scratchpad.js'
 export const init: () => Promise<void> = memoize(async (): Promise<void> => {
   profileCheckpoint('init_function_start')
   try {
+
     enableConfigs()
     profileCheckpoint('init_configs_enabled')
 
     applySafeConfigEnvironmentVariables()
+
     try {
       const { checkHasTrustDialogAccepted } = await import('../utils/config/trust.js')
       if (checkHasTrustDialogAccepted()) applyConfigEnvironmentVariables()
@@ -58,7 +61,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       }
     })
 
-
     recordFirstStartTime()
     profileCheckpoint('init_background_dispatch_done')
 
@@ -67,7 +69,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     configureGlobalAgents()
     profileCheckpoint('init_agents_configured')
 
-
     armWindowsShellRoad()
 
     registerCleanup(() => shutdownLspServerManager())
@@ -75,6 +76,7 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     profileCheckpoint('init_function_end')
   } catch (error) {
     if (error instanceof ConfigReadError) {
+
       process.stderr.write(
         `Mercury cannot read its configuration file at ${error.filePath} (${error.code}).\n` +
           `The file exists, so Mercury will not start on defaults and overwrite your saved account,\n` +
@@ -85,7 +87,9 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       return
     }
     if (error instanceof ConfigParseError) {
+
       if (isSessionMarkedNonInteractive()) {
+
         let backupPath: string | null = null
         try {
           backupPath = findMostRecentBackup(error.filePath)

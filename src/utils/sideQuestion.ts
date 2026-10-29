@@ -8,7 +8,6 @@ import { runForkedAgent } from './forkedAgent.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { EffortValue } from './effort.js'
 
-
 export type SideQuestionResult = {
   response: string | null
   usage: NonNullableUsage
@@ -78,6 +77,7 @@ export function extractResponse(messages: Message[]): string | null {
     const named = toolUse.name ? `the ${toolUse.name} tool` : 'a tool'
     return `The model tried to call ${named} instead of answering directly. Try rephrasing the question, or ask it in the main conversation.`
   }
+
   if (assistantApiErrorText !== null) {
     return assistantApiErrorText.startsWith(API_ERROR_MESSAGE_PREFIX)
       ? assistantApiErrorText
@@ -117,10 +117,14 @@ export async function runSideQuestion({
   cacheSafeParams: CacheSafeParams
   abortController?: AbortController
   originRef?: string
+
   effortValue?: EffortValue | null
+
   modelOverride?: string
+
   framing?: string
 }): Promise<SideQuestionResult> {
+
   const overrides = {
     ...(abortController ? { abortController } : {}),
     ...(modelOverride !== undefined

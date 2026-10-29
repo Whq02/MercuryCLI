@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'warm-runner-home-'))
 delete process.env.MERCURY_HOME
+
 writeFileSync(
   join(process.env.MERCURY_CONFIG_DIR, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -70,6 +72,7 @@ class FakeRoster {
       },
     })
     this.stands.set(short, stand)
+
     return { ok: true, pid: process.pid }
   }
   door(short: string): RunnerDoor | undefined {
@@ -97,6 +100,7 @@ class FakeRoster {
 const recordsDir = mkdtempSync(join(tmpdir(), 'warm-runner-daemon-'))
 const wsA = mkdtempSync(join(tmpdir(), 'warm-ws-a-'))
 const wsB = mkdtempSync(join(tmpdir(), 'warm-ws-b-'))
+
 const wsC = mkdtempSync(join(tmpdir(), 'warm-ws-c-'))
 const wsD = mkdtempSync(join(tmpdir(), 'warm-ws-d-'))
 const wsE = mkdtempSync(join(tmpdir(), 'warm-ws-e-'))
@@ -243,6 +247,7 @@ console.log('\n── W10: settings drift ──')
 {
   const ensured = await warm.ensureWarmRunner({ workspaceDir: wsD }, warmDeps)
   check('W10 a runner warms before the drift', ensured.state === 'warmed', ensured.detail ?? '')
+
   const row = STARTUP_MENU.find(r => process.env[r.env] === undefined)
   check('W10 a free menu row exists to drive the drift', row !== undefined, row?.env ?? 'none free')
   if (row !== undefined) {
@@ -259,6 +264,7 @@ console.log('\n── W10b: settings-file drift ──')
 {
   const ensured = await warm.ensureWarmRunner({ workspaceDir: wsF }, warmDeps)
   check('W10b a runner warms before the save', ensured.state === 'warmed', ensured.detail ?? '')
+
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), `${JSON.stringify({ patience: { recoveryBudgetMinutes: 0.5 } }, null, 2)}\n`)
   const before = roster.registered.length
   const admitted = await admit({ workspaceDir: wsF })
@@ -332,6 +338,7 @@ console.log('\n── W14: the settle reply on the tail ──')
   check('W14 the settle text reaches the tail projection at once', readSessionTail(sid, tailDir)?.text === 'The settle reply paints at once.')
   onSeatRow('concourse-w7', outcome(), seatRoster as never, tailDir)
   check('W14 the turn outcome clears the tail (the row owns the text)', readSessionTail(sid, tailDir)?.text === null)
+
   onSeatRow('concourse-w7', row({ type: 'block_start', message_id: 'msg_w14b', block: 0, of: 'text' }), seatRoster as never, tailDir)
   onSeatRow('concourse-w7', row({ type: 'text_delta', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
   check('W14 a streamed delta rides the tail as before', readSessionTail(sid, tailDir)?.text === 'stream')
@@ -351,6 +358,7 @@ console.log('\n── W13: source pins ──')
   const print = read('src/cli/run.ts')
   check('W13 the runner-side warm gate keys on the ABSENT identity (concourse role, no resume, no pinned id)', print.includes('options.bootSessionIdPinned !== true') && print.includes('awaitingSessionClaim'))
   check('W13 the claim validates everything BEFORE mutating (mode transition + effort ladder)', print.indexOf('claim refused —') !== -1 && print.indexOf('claim refused —') < print.indexOf('switchSession(sid as SessionId'))
+
   check('W13 the claim consumes the transcript-home pin at the id switch (the setup.ts seam deferred)', print.includes('const claimedHome = consumeSessionHomePin()') && print.includes('switchSession(sid as SessionId, claimedHome)'))
   check('W13 the id-keyed wiring arms at claim time (wards/crew/room under the claimed id)', print.includes('await armSessionRunnerWiring(sid)'))
   check('W13 the pre-claim gate parks user frames (belt: the daemon orders claim before words)', print.includes('claimGatedInput'))
@@ -369,6 +377,7 @@ console.log('\n── W13: source pins ──')
   check('W13 daemon status names warm runners on their own honest line', statusSrc.includes('warm runner'))
   const registry = read('src/substrate/flagRegistry.ts')
   check('W13 the warm idle knob has its registry row', registry.includes('MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES'))
+
   const proto = read('src/daemon/protocol.ts')
   check("W13 DaemonOp includes 'concourseWarm' with request + reply rows", /\|\s*'concourseWarm'/.test(proto) && proto.includes("op: 'concourseWarm'") && proto.includes("ok: true; op: 'concourseWarm'"))
   check('W13 WireStatus carries warmRunners (optional-additive)', /warmRunners\?: number/.test(proto))
@@ -411,6 +420,7 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     const ensure = (k: Kit) => warm.ensureWarmRunner({ workspaceDir: ws, kit: k }, deps15)
     return { roster15, booted, ensure }
   }
+
   {
     const { roster15, booted, ensure } = fresh()
     const [r1, r2] = await Promise.all([ensure(K1), ensure(K2)])
@@ -424,6 +434,7 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     const kept = await ensure(K2)
     check('W15 one runner lives, wearing the newest kit (a same-kit ensure keeps it)', warm.warmRunnerCount() === 1 && kept.state === 'kept' && kept.short === r2.short, `${kept.state}/${String(kept.short)}`)
   }
+
   {
     const { roster15, booted, ensure } = fresh()
     const [a, b, c] = await Promise.all([ensure(K1), ensure(K2), ensure(K3)])
@@ -436,17 +447,20 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     )
     check('W15 one runner lives after the chain, one retired', warm.warmRunnerCount() === 1 && roster15.killed.length === 1)
   }
+
   {
     const { roster15, ensure } = fresh()
     const [s1, s2] = await Promise.all([ensure(K1), ensure(K1)])
     check('W15 an equal carried kit joins the run (one child, same short)', roster15.registered.length === 1 && s1.state === 'warmed' && s2.state === 'warmed' && s1.short === s2.short)
   }
+
   {
     const { roster15, booted, ensure } = fresh()
     const mid: { run: ReturnType<typeof ensure> | null } = { run: null }
     const plain = roster15.registerLongLived.bind(roster15)
     roster15.registerLongLived = (short, spec) => {
       const out = plain(short, spec)
+
       if (spec.extraEnv?.MERCURY_SESSION_KIT === J(K2) && mid.run === null) mid.run = ensure(K3)
       return out
     }

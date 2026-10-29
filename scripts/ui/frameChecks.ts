@@ -1,4 +1,3 @@
-
 type Cell = { c?: string }
 export type Grid = Cell[][]
 
@@ -6,9 +5,12 @@ export const rowsOf = (g: Grid | undefined): string[] =>
   Array.isArray(g) ? g.map(row => row.map(cell => (cell.c === undefined || cell.c === '' ? ' ' : cell.c)).join('')) : []
 
 const BOX = new Set(['╭', '╮', '╰', '╯', '│', '─', '├', '┤', '┬', '┴', '┼', '┌', '┐', '└', '┘'])
+
 const CUT = new Set(['─', '╰', '╯', '┴', '┬', '┼', '━', '▔', '▁', '═'])
 const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+[cd]\b/i
+
 const KEY_HINT_ROW = /(^|· )(↑↓|↵|←→|esc|⌫|tab|space|⇧|⌃)/
+
 const isRule = (line: string): boolean => line.length > 0 && /^(.)\1*$/.test(line) && CUT.has(line[0]!)
 
 export type Finding = { kind: 'broken-border' | 'bleed' | 'clip' | 'no-exit' | 'footer-wrapped'; detail: string }
@@ -25,6 +27,7 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
         out.push({ kind: 'broken-border', detail: `row ${y}: ╭ at ${x0} has no ╮ (the top edge is cut or overwritten)` })
         continue
       }
+
       let closed = false
       let cut = false
       let lastInner = y
@@ -36,11 +39,13 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
           if (r !== '╯') out.push({ kind: 'broken-border', detail: `row ${yy}: bottom edge ╰ at ${x0} but ${JSON.stringify(r)} at ${x1}` })
           break
         }
+
         if (isRule(rows[yy]!) || (CUT.has(l) && l !== '│') || (CUT.has(r) && r !== '│')) {
           cut = true
           break
         }
         lastInner = yy
+
         const marginRow = rows[yy]!.replace(/^\s*│/, '').replace(/│\s*$/, '').trim() === ''
         if (l === ' ' && r === ' ' && marginRow) {
           cut = true
@@ -54,6 +59,7 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
           out.push({ kind: 'broken-border', detail: `row ${yy}: right edge at ${x1} reads ${JSON.stringify(r)} — "${rows[yy]!.slice(Math.max(0, x1 - 30), x1 + 2).trim()}"` })
           break
         }
+
         const after = cell(yy, x1 + 1)
         if (x1 + 1 < cols && after !== ' ' && !BOX.has(after)) {
           out.push({ kind: 'bleed', detail: `row ${yy}: ${JSON.stringify(after)} painted right of the border at ${x1 + 1}` })
@@ -61,15 +67,18 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
       }
       if (cut) continue
       if (!closed) {
+
         if (lastInner >= rows.length - 1 && y < rows.length - 4) {
           out.push({ kind: 'clip', detail: `shell opened at row ${y} (x ${x0}..${x1}) never closes — its footer is off screen` })
         }
         continue
       }
+
       if (x1 - x0 > cols / 2 && lastInner - y >= 3) {
         const inner = (yy: number): string => rows[yy]!.slice(x0 + 1, x1).trim()
         const footer = inner(lastInner)
         const above = inner(lastInner - 1)
+
         if (EXIT_HINT.test(footer) && above !== '' && KEY_HINT_ROW.test(above) && !above.includes('…')) {
           out.push({ kind: 'footer-wrapped', detail: `rows ${lastInner - 1}-${lastInner}: "${above}" / "${footer}"` })
         }
@@ -84,7 +93,6 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
   }
   return out
 }
-
 
 export function composerCaret(rows: string[]): { y: number; x: number } | null {
   let found: { y: number; x: number } | null = null

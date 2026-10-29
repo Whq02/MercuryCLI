@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -76,6 +77,7 @@ console.log('L1/L2 a live same-process sibling is alive to every sweep')
 console.log('L3 an unregistered same-pid record (prior generation) still recovers')
 {
   const dir2 = mkdtempSync(join(tmpdir(), 'journal-reuse-'))
+
   const seed = await journal
     .runJournaledOperation({
       journalDir: dir2,
@@ -88,6 +90,7 @@ console.log('L3 an unregistered same-pid record (prior generation) still recover
     .then((o: { operationId: string }) => o)
   const ops = (await journal.listJournalOperations(dir2)) as Array<Record<string, unknown>>
   const committed = ops.find(o => o.operationId === seed.operationId)!
+
   await journal.republishJournalOperation(dir2, {
     ...committed,
     state: 'applying',

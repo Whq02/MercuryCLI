@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -28,6 +29,7 @@ const turns: ScriptedTurn[] = [
     },
     preText: 'Spawning the probe agent.',
   },
+
   { kind: 'paced', deltas: Array.from({ length: 9 }, (_, i) => `count ${i + 1}. `), gapMs: 600 },
   { kind: 'text', text: 'Probe launched.' },
   { kind: 'text', text: 'Settled.' },

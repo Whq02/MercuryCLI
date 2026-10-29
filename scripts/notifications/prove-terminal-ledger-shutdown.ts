@@ -87,6 +87,7 @@ t.section('§4 — settle-everywhere: the shutdown writer is exactly-once')
 t.section('§5 — the partition: the full standing set notes and settles')
 {
   ledger._resetTerminalModeLedgerForTesting()
+
   ledger.noteModeAcquired('app-raw-mode', 'bracketed-paste')
   ledger.noteModeAcquired('app-raw-mode', 'focus-events')
   ledger.noteModeAcquired('app-raw-mode', 'kitty-kbd')
@@ -107,6 +108,7 @@ t.section('§5 — the partition: the full standing set notes and settles')
       open.has('mouse-tracking'),
     JSON.stringify([...open]),
   )
+
   ledger.noteModeReleased('alt-screen-session', 'alt-screen')
   ledger.noteModeReleased('alt-screen-session', 'alternate-scroll')
   ledger.noteModeReleased('alt-screen-session', 'mouse-tracking')
@@ -127,11 +129,13 @@ t.section('§5 — the partition: the full standing set notes and settles')
     ['paste', 'DBP'],
     ['focus', 'DFE'],
     ['kitty', 'DISABLE_KITTY_KEYBOARD'],
+
     ['ring', 'CLEAR_ITERM2_PROGRESS'],
     ['title', 'CLEAR_TERMINAL_TITLE'],
   ] as const) {
     const writes = [...cleanup.matchAll(new RegExp(`writeSync\\(1, ${needle}\\)`, 'g'))]
     const gated = writes.length > 0
+
     const allGated = writes.every(m => {
       const before = cleanup.slice(Math.max(0, (m.index ?? 0) - 300), m.index ?? 0)
       return /open\.has\(|shutdownReleaseObligations\(\)/.test(before)
@@ -142,6 +146,7 @@ t.section('§5 — the partition: the full standing set notes and settles')
 
 t.section('§6 — a boot with mouse capture off owes no mouse-tracking release')
 {
+
   ledger._resetTerminalModeLedgerForTesting()
   ledger.noteModeAcquired('alt-screen-session', 'alt-screen')
   ledger.noteModeAcquired('alt-screen-session', 'alternate-scroll')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -120,6 +121,7 @@ try {
       `frames with it: ${boardFrames.filter(g => text(g).includes('tiles show summaries')).map(g => g.atMs).join(',')}`,
     )
     const streamRow = (g: { rows: string[] }): string => g.rows.find(r => r.includes('Busy streamer')) ?? ''
+
     const liveTail = (row: string): boolean => /degrade-mark 0[1-9]\d/.test(row)
     check('D2 no live tokens in the degraded tile (the summary stands)', boardFrames.every(g => !liveTail(streamRow(g))), boardFrames.map(g => `${g.atMs}:${liveTail(streamRow(g)) ? 'LIVE' : 'still'}`).join(','))
     check('D2 the dim · mark leads the summary cell', boardFrames.some(g => / · |·/.test(streamRow(g))), JSON.stringify(streamRow(boardFrames[boardFrames.length - 1]!).slice(-50)))

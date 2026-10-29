@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { z } from 'zod'
@@ -23,7 +24,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-
 
 function sseChunk(obj: unknown): string {
   return `data: ${JSON.stringify(obj)}\n\n`
@@ -66,6 +66,7 @@ console.log(' S4 — Z.AI native streaming proof (fixture-driven)')
 console.log('============================================================')
 
 section('1 · SSE decoder — framing laws')
+
 {
   const dec = new SseDecoder()
   const wire = ': comment\r\ndata: {"a":1}\r\n\r\nevent: ping\ndata: line1\ndata: line2\n\n'
@@ -99,6 +100,7 @@ section('1 · SSE decoder — framing laws')
 }
 
 section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly')
+
 {
   const events = await collect(
     streamZaiChat({
@@ -124,6 +126,7 @@ section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly')
 }
 
 section('3 · identical assembly under pathological chunking')
+
 {
   const wire = HAPPY_WIRE.join('')
   const ragged: string[] = []
@@ -152,6 +155,7 @@ section('3 · identical assembly under pathological chunking')
 }
 
 section('4 · parallel incremental tool calls — exactly once, schema-validated')
+
 {
   const searchSchema = z.object({ query: z.string(), limit: z.number().int().min(1) })
   const readSchema = z.object({ path: z.string() })
@@ -168,6 +172,7 @@ section('4 · parallel incremental tool calls — exactly once, schema-validated
         },
       ],
     }),
+
     sseChunk({
       choices: [
         {
@@ -227,6 +232,7 @@ section('4 · parallel incremental tool calls — exactly once, schema-validated
       JSON.stringify([{ query: 'glm', limit: 3 }, { path: '/tmp/a.txt' }]),
     JSON.stringify(turn.toolUses),
   )
+
   const wireTools = mapToolsToZai([
     { name: 'search', input_schema: zodToJsonSchema(searchSchema) },
     { name: 'read', input_schema: zodToJsonSchema(readSchema) },
@@ -247,6 +253,7 @@ section('4 · parallel incremental tool calls — exactly once, schema-validated
 }
 
 section('5 · malformed tool call — surfaced, never silent')
+
 {
   const wire = [
     sseChunk({
@@ -279,6 +286,7 @@ section('5 · malformed tool call — surfaced, never silent')
 }
 
 section('6 · the finish_reason failure channel (documented SSE rule)')
+
 {
   for (const [reason, retryable] of [
     ['network_error', true],
@@ -309,6 +317,7 @@ section('6 · the finish_reason failure channel (documented SSE rule)')
 }
 
 section('7 · HTTP + api error mapping (documented code table)')
+
 {
   const auth = mapZaiHttpFailure(401, { error: { code: 1000, message: 'Authentication Failed' } })
   check('1000/401 → zai-1000, not retryable', auth.code === 'zai-1000' && !auth.retryable)
@@ -346,6 +355,7 @@ section('7 · HTTP + api error mapping (documented code table)')
 }
 
 section('8 · idle timeout — a silent stream faults, bounded')
+
 {
   const events = await collect(
     streamZaiChat({
@@ -368,6 +378,7 @@ section('8 · idle timeout — a silent stream faults, bounded')
 }
 
 section('9 · cancellation — abort mid-stream is a typed cancel')
+
 {
   const controller = new AbortController()
   const events: ZaiStreamEvent[] = []
@@ -393,6 +404,7 @@ section('9 · cancellation — abort mid-stream is a typed cancel')
 }
 
 section('10 · truncated stream — EOF without finish/[DONE] is a typed fault')
+
 {
   const events = await collect(
     streamZaiChat({
@@ -409,6 +421,7 @@ section('10 · truncated stream — EOF without finish/[DONE] is a typed fault')
 }
 
 section('11 · request mapping — native shapes, one schema truth, no key leak')
+
 {
   const request = buildZaiChatRequest({
     model: 'glm-5.2',

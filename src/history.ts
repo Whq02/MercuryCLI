@@ -1,4 +1,3 @@
-
 import { appendFile, readFile, stat } from 'fs/promises'
 import { closeSync, openSync } from 'fs'
 import { join } from 'path'
@@ -56,14 +55,15 @@ function historyDisabled(): boolean {
   return isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)
 }
 
-
 let pendingEntries: HistoryRecord[] = []
 let lastAppended: HistoryRecord | null = null
+
 const skipTimestamps = new Set<number>()
 let cleanupRegistered = false
 let inFlightFlush: Promise<void> | null = null
 let retryFlushRunning = false
 let flushFailureStreak = 0
+
 let everFlushed = false
 export function historyEverFlushedThisProcess(): boolean {
   return everFlushed
@@ -85,11 +85,13 @@ async function flushOnce(): Promise<void> {
       stale: 10_000,
       retries: { retries: 3, minTimeout: 50 },
     })
+
     const jsonLines = snapshot.map(record => JSON.stringify(record))
     pendingEntries = []
     await appendFile(historyFilePath(), jsonLines.join('\n') + '\n', {
       mode: 0o600,
     })
+
     await compactHistoryIfOversized()
     flushFailureStreak = 0
     everFlushed = true
@@ -97,6 +99,7 @@ async function flushOnce(): Promise<void> {
   } catch (error) {
     flushFailureStreak += 1
     lastFailure = { at: Date.now(), message: String(error) }
+
     if (pendingEntries !== snapshot) {
       pendingEntries = snapshot.concat(pendingEntries)
     }
@@ -145,6 +148,7 @@ export async function flushHistoryNow(): Promise<void> {
 
 export function getHistoryFlushHealth(): {
   pending: number
+
   inFlight: boolean
   streak: number
   lastFailure: { at: number; message: string } | null
@@ -152,12 +156,12 @@ export function getHistoryFlushHealth(): {
   return { pending: pendingEntries.length, inFlight: inFlightFlush !== null, streak: flushFailureStreak, lastFailure }
 }
 
-
 function toStoredPastes(
   pastedContents: Record<number, PastedContent>,
 ): Record<number, StoredPaste> {
   const stored: Record<number, StoredPaste> = {}
   for (const [key, paste] of Object.entries(pastedContents)) {
+
     if (paste.type === 'image') continue
     if (paste.content === '' && paste.contentHash !== undefined) {
       stored[Number(key)] = { id: paste.id, type: 'text', contentHash: paste.contentHash }
@@ -168,6 +172,7 @@ function toStoredPastes(
       continue
     }
     const contentHash = paste.contentHash ?? hashPastedText(paste.content)
+
     void storePastedText(contentHash, paste.content).catch(() => {})
     stored[Number(key)] = { id: paste.id, type: 'text', contentHash }
   }
@@ -229,9 +234,9 @@ export function removeLastFromHistory(): void {
     pendingEntries.splice(at, 1)
     return
   }
+
   skipTimestamps.add(target.timestamp)
 }
-
 
 function parseRecordLine(line: string): HistoryRecord | null {
   try {
@@ -289,6 +294,7 @@ async function compactHistoryIfOversized(): Promise<void> {
 async function resolveRecord(record: HistoryRecord): Promise<HistoryEntry> {
   const pastedContents: Record<number, PastedContent> = {}
   for (const [key, stored] of Object.entries(record.pastedContents ?? {})) {
+
     if (stored.content) {
       pastedContents[Number(key)] = {
         id: stored.id,
@@ -343,11 +349,13 @@ export async function* getHistory(): AsyncGenerator<HistoryEntry> {
     window.push(record)
   }
   if (window.length < READ_WINDOW) {
+
     const projectNeedle = JSON.stringify(project)
     for await (const record of diskRecordsReversed(line => line.includes(projectNeedle))) {
       if (typeof record.project !== 'string' || record.project !== project) continue
       if (isRetracted(record)) continue
       window.push(record)
+
       if (window.length >= READ_WINDOW) break
     }
   }
@@ -357,7 +365,6 @@ export async function* getHistory(): AsyncGenerator<HistoryEntry> {
     yield await resolveRecord(record)
   }
 }
-
 
 export function getPastedTextRefNumLines(text: string): number {
   return (text.match(/\r\n|\r|\n/g) ?? []).length

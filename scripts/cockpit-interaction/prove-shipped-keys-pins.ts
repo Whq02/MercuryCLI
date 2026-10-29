@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/keybindings/defaultBindings.ts
+
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'

@@ -14,15 +14,19 @@ function is(label: string, got: boolean, want: boolean): void {
 }
 
 console.log('── byte-identical for footers with NO close token ──')
+
 eq('shell footer (captureInput, esc-arrow) → esc / ← close',
   composeFooterHint('↑↓ select · ↵ switch', { closeKeys: 'esc-arrow', captureInput: true }),
   '↑↓ select · ↵ switch · esc / ← close')
+
 eq('captureInput=false → esc close',
   composeFooterHint('↑↓ select · ↵ switch', { closeKeys: 'esc-arrow', captureInput: false }),
   '↑↓ select · ↵ switch · esc close')
+
 eq("closeKeys='esc' → esc close",
   composeFooterHint('↑↓ move', { closeKeys: 'esc', captureInput: true }),
   '↑↓ move · esc close')
+
 eq('bare dir base + append',
   composeFooterHint('orchard-src', { closeKeys: 'esc-arrow', captureInput: true }),
   'orchard-src · esc / ← close')
@@ -35,6 +39,7 @@ const baked: Array<[string, string]> = [
   ['/copy', 'enter copy · w write to file · esc cancel'],
 ]
 for (const [name, f] of baked) {
+
   if (name.includes('cleaned')) {
     eq(`${name} → CommandCenter supplies esc close`,
       composeFooterHint(f, { closeKeys: 'esc', captureInput: false }),
@@ -71,6 +76,7 @@ eq('memory-centre query footer → no doubled tail (the pre-fix contradiction)',
   '↑↓ move · ↵ inspect · esc clear')
 
 console.log("\n── closeKeys 'none' — a phase that owns no exit advertises none ──")
+
 eq("'none' leaves a phase footer untouched",
   composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }),
   'deleting the named set…')

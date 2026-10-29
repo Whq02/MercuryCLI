@@ -56,13 +56,11 @@ import {
   trustWord,
 } from './rowWords.js'
 
-
 export type ExtensionsRoute =
   | { kind: 'board'; section: 'installed' | 'sources' }
   | { kind: 'open'; name: string }
   | { kind: 'add'; raw: string }
   | { kind: 'install'; target: string }
-
 
 type BoardRow =
   | { kind: 'ext'; entry: RosterEntry; health: Health | null }
@@ -72,15 +70,16 @@ function rowKeyOf(row: BoardRow): string {
   return row.kind === 'ext' ? `ext:${row.entry.id}` : `src:${row.row.label}`
 }
 
-
 export type CardSpec = {
   id: string
   cardKind: CardKind
+
   root: string
   label: string
   where: string | null
   commit: string | null
   previous: { root: string; version: string } | null
+
   back: BoardSeed
 }
 
@@ -91,7 +90,6 @@ type View =
   | { kind: 'source'; label: string }
   | { kind: 'ext'; id: string }
   | { kind: 'card'; card: CardSpec }
-
 
 type Slot =
   | { mode: 'add'; text: string; busy: string | null; error: string | null }
@@ -106,7 +104,6 @@ function bytesWord(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`
   return `${(n / (1024 * 1024)).toFixed(1)} MB`
 }
-
 
 export function ExtensionsBoard({
   onClose,
@@ -135,6 +132,7 @@ export function ExtensionsBoard({
 
   const kb = React.useMemo(() => resolveExtensionsBindings(), [])
   const kchar = (action: string): string | null => kb.chars.get(`extensions:${action}`) ?? null
+
   const declinedByDefaultChar = React.useMemo(() => {
     const defaults: ReadonlyArray<readonly [string, string]> = [
       ['extensions:toggle', ' '],
@@ -175,6 +173,7 @@ export function ExtensionsBoard({
     noteReloaded(pending)
     const result = await pending
     setExtensionsPending(false)
+
     const settled = computeActiveSet()
     setAppState(prev => ({ ...prev, extensions: extensionsStateFrom(settled, false, result.line) }))
     setSources(listSources())
@@ -183,10 +182,10 @@ export function ExtensionsBoard({
   }
 
   const toBoard = (seed: BoardSeed): void => {
+
     setActiveSection(seed.section ?? 'installed')
     setView({ kind: 'board', seed })
   }
-
 
   const openCardForEntry = (entry: RosterEntry, back: BoardSeed): void => {
     if (entry.home === 'proposal' && entry.proposal) {
@@ -830,6 +829,7 @@ export function ExtensionsBoard({
       }
     }
     if (note !== null) {
+
       const budget = Math.max(20, cols - 6)
       const noteRows: string[] = []
       let current = ''
@@ -939,6 +939,7 @@ export function ExtensionsBoard({
     {
       key: 'state',
       header: 'state',
+
       width: 11,
       cell: r => {
         if (r.kind !== 'src') return <Text color={tokens.textMuted}>—</Text>
@@ -963,6 +964,7 @@ export function ExtensionsBoard({
     {
       key: 'kind',
       header: 'kind',
+
       width: 7,
       cell: r => (
         <Text color={tokens.textMuted} wrap="truncate-end">
@@ -1049,6 +1051,7 @@ export function ExtensionsBoard({
       r => isExt(r) && openOptions(r.entry),
     ),
     ...act('previous', 'previous', r => isExt(r) && r.entry.previous !== null, r => isExt(r) && doSwapPrevious(r.entry)),
+
     ...act('refresh', 'refresh', isSrc, r => isSrc(r) && void doRefreshSource(r.row.label)),
     ...act('remove', 'remove', isSrc, r =>
       isSrc(r) ? setSlot({ mode: 'remove-source', label: r.row.label, installedIds: installedFromSource(r.row.label) }) : undefined,
@@ -1130,6 +1133,7 @@ export function ExtensionsBoard({
       label: 'installed',
       count: extRows.length,
       rows: extRows,
+
       emptyHint:
         filter !== ''
           ? 'nothing matches the filter'
@@ -1207,7 +1211,6 @@ export function ExtensionsBoard({
     />
   )
 }
-
 
 function ExtensionSidePane({ entry, health }: { entry: RosterEntry; health: Health | null }): React.ReactNode {
   const tokens = useMercuryTokens()

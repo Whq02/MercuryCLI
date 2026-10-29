@@ -94,8 +94,10 @@ section('§3 projection/ledger agreement')
 section('§4 the record-ingestion fold (the dialect seam)')
 {
   const ingestion = new RecordIngestion()
+
   const p1 = ingestion.ingest({ foldKey: 'round1/assistant/0', wireId: 'wire-aaa', text: 'answer one' })
   check('a genuinely new presentation records a row', p1.outcome === 'recorded')
+
   const p1again = ingestion.ingest({ foldKey: 'round1/assistant/0', wireId: 'wire-bbb', text: 'answer one' })
   const p2 = ingestion.ingest({ foldKey: 'round2/assistant/0', wireId: 'wire-ccc', text: 'answer two' })
   check('the re-presentation refolds onto the EXISTING row', p1again.outcome === 'refolded')

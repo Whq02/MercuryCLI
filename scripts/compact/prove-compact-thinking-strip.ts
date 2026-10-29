@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -7,6 +8,7 @@ import { join, resolve } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-thinking-strip-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
+
 process.env.MERCURY_TIME_BASED_MC = '1'
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 delete process.env.MERCURY_THINKING_BINDING
@@ -72,6 +74,7 @@ const hasThinking = (m: unknown): boolean => blocksOf(m).some(b => b.type === 't
 const textsOf = (m: unknown): string[] => blocksOf(m).filter(b => b.type === 'text').map(b => String(b.text))
 
 section('§1 the time-based clearing projection strips from the first cleared message')
+
 {
   const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
@@ -90,6 +93,7 @@ section('§1 the time-based clearing projection strips from the first cleared me
     check('the cleared message (index 2) is a fresh object; the edit lands there', projected.messages[2] !== history[2])
     check('the assistant BEFORE the edit keeps its thinking, by reference', projected.messages[1] === history[1] && hasThinking(projected.messages[1]))
     check('the assistant AFTER the edit loses its thinking', !hasThinking(projected.messages[3]))
+
     const afterId = (history[3] as { message: { id: string } }).message.id
     check("the projection names the stripped block as a dead mark (the assistant after the edit, block 0) and nothing before the edit", projected.deadMarks.length === 1 && projected.deadMarks[0]!.messageId === afterId && projected.deadMarks[0]!.blockIndex === 0, JSON.stringify(projected.deadMarks))
     check('…and keeps its text', j(textsOf(projected.messages[3])) === j(['done']))
@@ -127,6 +131,7 @@ function makeContext(): Record<string, unknown> {
     },
   }
 }
+
 const CACHE_SAFE = { systemPrompt: ['fixture posture'] } as never
 
 function nineRounds(): Msg[] {
@@ -143,6 +148,7 @@ const SUMMARY =
   'Key files: none. Open work: step ten.'
 
 section('§2 full compaction — the verbatim tail carries no thinking behind the summary')
+
 {
   const api = await startFixtureApi([{ kind: 'text', text: SUMMARY }] as ScriptedTurn[])
   process.env.ANTHROPIC_BASE_URL = api.url
@@ -159,6 +165,7 @@ section('§2 full compaction — the verbatim tail carries no thinking behind th
   check('compactConversation resolves', !!result && !error, (error?.stack ?? '').slice(0, 400))
   if (result) {
     const keep = (result.messagesToKeep ?? []) as Msg[]
+
     const keptAssistants = keep.filter(m => m.type === 'assistant').length
     check('the available eight complete rounds are kept behind the two head groups', keep.length === 15 && keptAssistants === 8, `${keep.length} messages, ${keptAssistants} assistant`)
     check('no kept message carries a thinking block', keep.length > 0 && !keep.some(hasThinking), j(keep.map(m => blocksOf(m).map(b => b.type))))
@@ -169,6 +176,7 @@ section('§2 full compaction — the verbatim tail carries no thinking behind th
 }
 
 section("§3 partial compaction — 'to' strips its re-homed rounds, 'from' keeps its prefix")
+
 {
   const api = await startFixtureApi([
     { kind: 'text', text: SUMMARY },
@@ -203,6 +211,7 @@ section("§3 partial compaction — 'to' strips its re-homed rounds, 'from' keep
 }
 
 section('§4 the consumers (structural) — three owners, one strip')
+
 {
   const compact = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
   const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')

@@ -11,6 +11,7 @@ const prevEnv = process.env.MERCURY_CONFIG_DIR
 const helpers = (await import('../../src/utils/secureStorage/macOsKeychainHelpers.js')) as typeof import('../../src/utils/secureStorage/macOsKeychainHelpers.js')
 
 const svcFor = (dir: string | undefined): string => {
+
   delete process.env.MERCURY_CONFIG_DIR
   delete process.env.MERCURY_HOME
   if (dir === undefined) delete process.env.MERCURY_CONFIG_DIR
@@ -36,15 +37,18 @@ check(svcFor(composed) === svcFor(decomposed), 'NFC: composed/decomposed path sp
 const envUtils = (await import('../../src/utils/envUtils.js')) as typeof import('../../src/utils/envUtils.js')
 const prevMercuryHome = process.env.MERCURY_HOME
 const prevMercuryConfigDir = process.env.MERCURY_CONFIG_DIR
+
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CONFIG_DIR
 ;(envUtils.getMercuryHome as unknown as { cache: { clear?: () => void } }).cache.clear?.()
+
 const resolvedDefaultHome = envUtils.getMercuryHome()
 const svcBuiltEnvless = svcFor(undefined)
 const svcBuiltExplicit = svcFor(resolvedDefaultHome)
 check(svcBuiltEnvless === svcBuiltExplicit,
   `built product: env-less and explicit MERCURY_CONFIG_DIR=${resolvedDefaultHome} (the resolver's own answer) share ONE service (${svcBuiltEnvless.slice(-10)}) — no re-login between launcher and env-less runs`)
 check(/-[0-9a-f]{8}$/.test(svcBuiltEnvless), 'a non-default home is suffix-keyed (credential identity split impossible)')
+
 const svcBuiltForeignHome = svcFor(join(homedir(), '.claude'))
 check(/-[0-9a-f]{8}$/.test(svcBuiltForeignHome), 'a run pinned to a foreign-named home is hashed like any other (one law, no bare entry)')
 

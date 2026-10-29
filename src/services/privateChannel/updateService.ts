@@ -82,18 +82,20 @@ function installedVersionTruth(roots: LayoutRoots): { version: string; source: '
   return { version: MACRO.VERSION, source: 'running' }
 }
 
-
 interface ChannelStatus {
   runningVersion: string
   installedVersion: string | null
+
   installedPointer: 'ok' | 'absent' | 'empty' | 'unreadable'
   previousVersion: string | null
   versionsPresent: string[]
   versionsDir: string
   shim: 'absent' | 'managed' | 'foreign'
   shimPath: string
+
   runtime: RunningRuntime
   channelRepo: string
+
   access: ChannelAccess
 }
 
@@ -116,7 +118,6 @@ export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> 
 
 export const statusRuntimeLine = (status: Pick<ChannelStatus, 'runtime'>): string => runtimeLine(status.runtime)
 
-
 export type CheckOutcome =
   | {
       state: 'update-available'
@@ -125,6 +126,7 @@ export type CheckOutcome =
       version: string
       assetName: string
       channelRepo: string
+
       road: ChannelRoadName
       assetUrl: string | null
       checksumUrl: string | null
@@ -140,6 +142,7 @@ export type CheckOutcome =
 export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Promise<CheckOutcome> {
   progress('checking')
   const slug = channelRepoSlug()
+
   const pointer = readCurrentVersionState(roots)
   if (pointer.state === 'unreadable') return { state: 'pointer-unreadable', note: pointer.note }
   const installed = installedVersionTruth(roots)
@@ -176,7 +179,6 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
   }
 }
 
-
 export const NOTHING_ACTIVATED_WORDS = 'nothing was activated — the active installation was not changed'
 
 type UpdateStage =
@@ -200,6 +202,7 @@ type UpdateOutcome =
       to: string
       previousKept: boolean
       shim: ShimOutcome
+
       road: ChannelRoadName
       signature: SignatureVerdict['state']
       unsignedOverride: boolean
@@ -317,6 +320,7 @@ export async function performUpdate(roots: LayoutRoots, progress: Progress, opts
 async function performUpdateTransaction(roots: LayoutRoots, progress: Progress, allowUnsigned: boolean): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
+
   const outcome = await acquireAndActivate(roots, progress, check, allowUnsigned)
   return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
 }
@@ -470,6 +474,7 @@ async function acquireAndActivate(
         activeVersion: previous ?? from,
       }
     }
+
     const shim = writeShim(roots)
     progress('complete', check.version)
     return {
@@ -483,6 +488,7 @@ async function acquireAndActivate(
       unsignedOverride,
     }
   } finally {
+
     try {
       rmSync(staging, { recursive: true, force: true })
     } catch (sweepError) {
@@ -491,7 +497,6 @@ async function acquireAndActivate(
     releaseUpdateLock(roots)
   }
 }
-
 
 export type RollbackOutcome =
   | { state: 'rolled-back'; from: string | null; to: string }
@@ -538,7 +543,6 @@ export async function performRollback(roots: LayoutRoots, progress: Progress): P
   }
 }
 
-
 type InstallVerbOutcome =
   | {
       state: 'installed'
@@ -547,7 +551,9 @@ type InstallVerbOutcome =
       changed: boolean
       activated: boolean
       shim: ReturnType<typeof writeShim>
+
       binDirOnPath: boolean
+
       path: PathEntryOutcome
       signature: SignatureVerdict['state']
       unsignedOverride: boolean
@@ -607,6 +613,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
     if (refusal) return refusal
     const unsignedOverride = provenance.verdict.state === 'unsigned' && allowUnsigned
     sweepUpdaterResidue(roots)
+
     const installed = installPayload(roots, payloadDir, payload.version, () => progress('staging', payload.version))
     if (installed.state === 'failed') {
       return { state: 'refused', reason: installed.note, remedy: 'free disk space and rerun `mercury install`' }
@@ -628,6 +635,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
     const binDirOnPath = (process.env.PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
+
     const io = pathEntryIo()
     const path: PathEntryOutcome =
       shim.state === 'refused-foreign'

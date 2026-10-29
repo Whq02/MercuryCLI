@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -44,7 +45,6 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
-
 function makeGate(): { open: () => void; promise: Promise<void> } {
   let open!: () => void
   const promise = new Promise<void>(r => {
@@ -66,6 +66,7 @@ function makeFakeTool(spec: {
     inputSchema: z.object({}).passthrough(),
     isConcurrencySafe: () => spec.concurrencySafe !== false,
     isReadOnly: () => true,
+
     interruptBehavior: () => 'cancel' as const,
     checkPermissions: async () => ({ behavior: 'allow', updatedInput: {} }),
     description: async () => 'query probe tool',
@@ -251,6 +252,7 @@ section("T4 — an abort while a tool executes after the reply settled returns {
   check("Terminal reason 'aborted_tools'", r.terminal?.reason === 'aborted_tools', r.terminal?.reason)
   const answered = r.messages.find(m => m.type === 'user' && textOf(m).includes('toolu_t4'))
   check('the aborted tool_use is still ANSWERED (interrupt/synthetic tool_result)', !!answered, j(realMessages(r.messages)).slice(0, 400))
+
   check('the TOOL-USE interruption message yields after the tool band', r.messages.some(m => m.type === 'user' && textOf(m).includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)))
   check('NO follow-up model call after the abort', r.api.messageRequests().length === 1, `${r.api.messageRequests().length}`)
 }

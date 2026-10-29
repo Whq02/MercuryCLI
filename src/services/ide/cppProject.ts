@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
@@ -13,12 +12,15 @@ type CppCompileDb =
 export interface CppCmakePreset {
   name: string
   displayName?: string
+
   binaryDir?: string
 }
 
 interface CppBuildDirInfo {
   path: string
+
   configured: boolean
+
   compileDb: boolean
   generator?: 'ninja' | 'make'
 }
@@ -34,18 +36,26 @@ export {
 
 export interface CppProjectProfile {
   projectRoot: string
+
   markers: string[]
+
   compileDb: CppCompileDb
+
   clangd: { configured: boolean; evidence?: string }
   clangTidy: { configured: boolean; evidence?: string }
   clangFormat: { configured: boolean; evidence?: string }
   cmake: {
+
     lists?: string
     presetsFile?: string
+
     presets: CppCmakePreset[]
+
     buildPresets: string[]
+
     presetsError?: string
   }
+
   buildDirs: CppBuildDirInfo[]
   buildSystem: { ninja: boolean; make: boolean }
   collectedAt: number
@@ -66,7 +76,6 @@ const CPP_PROJECT_MARKERS = [
   'meson.build',
 ] as const
 
-
 export function findCppProjectRoot(from: string = getCwd()): { root: string; markers: string[] } {
   let dir = path.resolve(from)
   for (let depth = 0; depth < ROOT_WALK_LIMIT; depth++) {
@@ -78,7 +87,6 @@ export function findCppProjectRoot(from: string = getCwd()): { root: string; mar
   }
   return { root: path.resolve(from), markers: [] }
 }
-
 
 function classifyCompileDb(dbPath: string): CompileDbSource {
   const base = path.basename(dbPath)
@@ -94,7 +102,6 @@ export function cppCompileDbVerdict(from: string = getCwd()): CppCompileDb {
   }
   return { state: 'absent', remedy: compileDbRemedy(probe) }
 }
-
 
 interface RawPreset {
   name?: unknown
@@ -175,7 +182,6 @@ export function parseCMakePresets(root: string): {
   }
 }
 
-
 const BUILD_DIR_NAME = /^(build|out|_build|cmake-build-)/i
 
 function buildDirInfo(dir: string): CppBuildDirInfo {
@@ -205,11 +211,11 @@ function findCppBuildDirs(root: string, presets: CppCmakePreset[]): CppBuildDirI
   } catch {
   }
   for (const p of presets) {
+
     if (p.binaryDir && !p.binaryDir.includes('${') && existsSync(p.binaryDir)) push(p.binaryDir)
   }
   return dirs
 }
-
 
 let profileCache: { at: number; key: string; profile: CppProjectProfile } | null = null
 

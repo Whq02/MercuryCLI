@@ -13,6 +13,7 @@ const ok = (name: string, pass: boolean, detail = ''): void => {
 
 const scratch = mkdtempSync(join(tmpdir(), 'crucible-field-packet-'))
 try {
+
   const gen = spawnSync(
     process.execPath,
     [join(repoRoot, 'scripts/field-tasks/gen-field-packet.ts'), '--out', scratch, '--allow-unbuilt'],

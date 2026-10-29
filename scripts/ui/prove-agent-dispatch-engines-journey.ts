@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,9 +36,12 @@ const zaiFixture = Bun.serve({
 
 interface CaptureResult {
   text: string
+
   flat: string
+
   sends: number
   receipts: number
+
   marks: Record<string, string>
 }
 
@@ -103,6 +107,7 @@ function seedHome(): string {
       theme: 'dark',
       hasCompletedOnboarding: true,
       projects: { [ROOT]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
+
       ...(process.env.ANTHROPIC_API_KEY
         ? { customApiKeyResponses: { approved: [process.env.ANTHROPIC_API_KEY.slice(-20)], rejected: [] } }
         : {}),
@@ -117,6 +122,7 @@ function baseEnv(home: string): Record<string, string> {
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
+
     OPENAI_API_KEY: '',
     MERCURY_ZAI_API_BASE: `http://127.0.0.1:${zaiFixture.port}/v4`,
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -145,6 +151,7 @@ console.log('============================================================')
         { data: KEY, atTick: 999, awaitText: 'Key:', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: '\r', afterPrevTicks: 4 },
         { data: '\r', atTick: 999, awaitText: 'press Enter to continue', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'receipt' },
+
         { data: 'Q', atTick: 999, awaitText: 'stored (auth-scoped, mode 600)', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'report' },
       ],
       readyText: ['stored (auth-scoped, mode 600)'],
@@ -154,6 +161,7 @@ console.log('============================================================')
   )
   console.log('\nkey journey — /logins zai, default-on engines')
   check('first paint unregressed: every send became due (the composer painted its placeholder)', sends > 0 && receipts === sends)
+
   check('save receipt names the auth-scoped store', (marks.receipt ?? '').includes('GLM Coding Plan key stored (auth-scoped, mode 600)'), (marks.receipt ?? '(no receipt frame)').slice(0, 200))
   check('the key was proven on the loopback models list with the pasted value as the bearer before it was stored, and the receipt counts the two GLM models listed', modelsListReads.length >= 1 && modelsListReads.every(bearer => bearer === `Bearer ${KEY}`) && (marks.receipt ?? '').includes('2 GLM models listed for the key'), `${modelsListReads.length} list read(s) · ${(marks.receipt ?? '').slice(0, 200)}`)
   check('the key VALUE never survives to the final grid', !text.includes(KEY))
@@ -167,6 +175,7 @@ console.log('============================================================')
     check('stored file mode 600', (statSync(secretsPath).mode & 0o777) === 0o600, (statSync(secretsPath).mode & 0o777).toString(8))
     check('stored file holds the key (round-trip)', readFileSync(secretsPath, 'utf8').includes(KEY))
   }
+
   if (failures > 0) {
     console.log('\n── the report frame (mark) ──')
     console.log(report ? report.slice(0, 1200) : '(no report frame)')

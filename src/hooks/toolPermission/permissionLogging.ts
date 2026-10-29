@@ -1,4 +1,3 @@
-
 export type PermissionApprovalSource =
   | { type: 'hook'; permanent?: boolean }
   | { type: 'user'; permanent: boolean }

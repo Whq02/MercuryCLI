@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'write-ladder-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
+
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'write-ladder-')))
 const realCwd = join(scratch, 'real', 'project')
 const aliasRoot = join(scratch, 'alias')
@@ -14,6 +16,7 @@ mkdirSync(realCwd, { recursive: true })
 mkdirSync(outside, { recursive: true })
 symlinkSync(join(scratch, 'real'), aliasRoot)
 const aliasCwd = join(aliasRoot, 'project')
+
 writeFileSync(join(outside, 'secret.txt'), 'outside\n')
 symlinkSync(join(outside, 'secret.txt'), join(realCwd, 'escape.txt'))
 process.chdir(realCwd)

@@ -83,6 +83,7 @@ try {
     void dialog.dismiss()
   })
   await page.goto(`http://localhost:${port}/`, { waitUntil: 'networkidle0' })
+
   await page.waitForFunction(() => document.querySelectorAll('#board-root [data-cid]').length > 0, { timeout: 10_000 })
 
   const domState = async (): Promise<{ columns: Record<string, string[]>; counts: string[]; overdue: string[]; empties: number }> =>
@@ -91,6 +92,7 @@ try {
       const columns: Record<string, string[]> = {}
       const counts: string[] = []
       for (const section of sections) {
+
         const label = (section.getAttribute('aria-label') ?? section.textContent ?? '').trim().toLowerCase()
         const status = ['waiting', 'moving', 'delivered', 'flagged'].find(s => label.includes(s)) ?? 'unknown'
         columns[status] = [...section.querySelectorAll('[data-cid]')].map(el => (el as HTMLElement).dataset.cid ?? '')
@@ -182,6 +184,7 @@ try {
     search: (document.getElementById('search') as HTMLInputElement).value,
     cards: [...document.querySelectorAll('[data-cid]')].map(el => (el as HTMLElement).dataset.cid),
   }))
+
   check('filter-persists', eq(persisted.cards, ['w-1004']),
     `after reload the board stays filtered to ${JSON.stringify(persisted.cards)}; input box shows ${JSON.stringify(persisted.search)} (given-shell rehydration gap, noted)`)
 
@@ -202,6 +205,7 @@ try {
 
   const failed = checks.filter(c => !c.pass)
   if (failed.length > 0) {
+
     writeFileSync(receiptPath.replace(/\.txt$/, '.failure.html'), await page.content(), 'utf8')
   }
 } finally {

@@ -1,5 +1,5 @@
-
 export interface BlenderBridgeFile {
+
   path: string
   content: string
 }

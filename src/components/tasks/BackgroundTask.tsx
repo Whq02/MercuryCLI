@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
@@ -37,6 +36,7 @@ function AgentLine({
   task: LocalAgentTaskState | (TaskState & { description: string })
   width: number
 }): React.ReactNode {
+
   const unread =
     task.status === 'completed' &&
     (task as { retrieved?: boolean }).retrieved !== true
@@ -94,6 +94,7 @@ export function BackgroundTask({
     case 'local_workflow':
       return <WorkflowLine workflow={task} width={maxActivityWidth} />
     default:
+
       return (
         <AgentLine
           task={task as TaskState & { description: string }}

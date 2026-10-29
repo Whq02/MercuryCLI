@@ -8,6 +8,7 @@ import { deepseekBalanceUrl } from './deepseekAccounts.js'
 
 interface DeepseekBalanceInfo {
   currency: string
+
   totalBalance: string
   grantedBalance?: string
   toppedUpBalance?: string
@@ -20,6 +21,7 @@ interface DeepseekObservedBalance {
 }
 
 let observed: DeepseekObservedBalance | null = null
+
 let observedIdentity = 'none'
 
 function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
@@ -84,6 +86,7 @@ export async function fetchDeepseekBalance(
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   try {
+
     const response = await fetchWithProviderDeadline(fetchImpl, 'deepseek', PROBE_TIMEOUT_MS, deepseekBalanceUrl(io?.env ?? process.env), {
       method: 'GET',
       headers: {
@@ -97,6 +100,7 @@ export async function fetchDeepseekBalance(
     const decoded = decodeDeepseekBalance(await response.json(), io?.now?.() ?? Date.now())
     if (!decoded) return { state: 'refused', status: response.status }
     observed = decoded
+
     observedIdentity = credentialFingerprint(key)
     return { state: 'confirmed', balance: decoded }
   } catch (error) {

@@ -1,7 +1,6 @@
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-
 export const MC_CLEARED_PLACEHOLDER = '[stale tool result pruned — content cleared]'
 
 export const MC_DIGEST_PREFIX = '[stale tool result · digest:'
@@ -75,6 +74,7 @@ function classify(text: string, lines: readonly string[]): ContentClass {
   for (const ch of text) if (ch === '{' || ch === '}' || ch === '[' || ch === ']') brackets++
   const r = (x: number) => x / n
   const bracketDensity = text.length > 0 ? brackets / text.length : 0
+
   if ((r(c.errLike) > 0 && r(c.stackLike) > 0) || r(c.stackLike) >= 0.3) return 'log/stacktrace'
   if (r(c.diffLike) >= 0.4) return 'diff'
   if (r(c.jsonStruct) >= 0.3 || bracketDensity >= 0.08) return 'json/structured'
@@ -94,6 +94,7 @@ export function digestClearedToolResult(content: DigestableContent): string {
   if (!text.trim()) return MC_CLEARED_PLACEHOLDER
 
   const lines = text.split('\n')
+
   const approxTokens = Math.round(text.length / 4 / 10) * 10
   const cls = classify(text, lines)
   return `${MC_DIGEST_PREFIX} ${lines.length} lines, ~${approxTokens} tok, ${cls}]`

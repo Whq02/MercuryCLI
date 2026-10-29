@@ -18,7 +18,6 @@ import type {
   Transport,
 } from './types.js'
 
-
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
 type NamedCommand = { name: string; type?: string; source?: string; isMcp?: boolean }
 
@@ -85,7 +84,6 @@ export function isMcpTool(tool: { name: string; isMcp?: boolean }): boolean {
   return tool.name.startsWith('mcp__') || tool.isMcp === true
 }
 
-
 function sortKeysDeep(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortKeysDeep)
   if (value !== null && typeof value === 'object') {
@@ -140,7 +138,6 @@ export function excludeStaleExtensionClients<
   }
 }
 
-
 export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
   switch (scope) {
     case 'user':
@@ -161,6 +158,7 @@ export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
 }
 
 function getGlobalMercuryConfigPath(): string {
+
   return getGlobalMercuryFile()
 }
 
@@ -191,13 +189,16 @@ export function ensureConfigScope(scope?: string): ConfigScope {
   throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${OPERATOR_CONFIG_SCOPES.join(', ')}`)
 }
 
-
 export const MCP_CONNECT_TIMEOUT_TELEMETRY = 'MCP connection timeout'
 
 interface McpConnectFailureContext {
+
   transport: string
+
   command?: string
+
   url?: string
+
   stderrTail?: string
 }
 
@@ -241,6 +242,7 @@ export function describeMcpConnectFailure(error: unknown, context: McpConnectFai
   }
   const { host, target, port } = urlTarget(context.url)
   const chain = errorMessageWithCause(error)
+
   if (code === 'ECONNREFUSED' || code === 'ConnectionRefused' || chain.includes('ECONNREFUSED') || chain.includes('Unable to connect')) {
     return `connection refused at ${target} — nothing is listening there; start the server, then retry from /mcp`
   }
@@ -332,7 +334,6 @@ export function parseHeaders(headerArray: string[]): Record<string, string> {
   }
   return headers
 }
-
 
 type McpDefinitionRecord = {
   command?: string
@@ -442,7 +443,6 @@ export function getProjectMcpServerStatus(
   if (match === 'name') upgradeProjectMcpApproval(serverName, config)
   return 'approved'
 }
-
 
 export function getLoggingSafeMcpBaseUrl(
   config: McpServerConfig | ScopedMcpServerConfig,

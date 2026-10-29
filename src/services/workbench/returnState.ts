@@ -1,7 +1,9 @@
-
 export interface BoardReturnState {
+
   rowKey?: string
+
   sectionId?: string
+
   drafts?: Record<string, string>
   atMs: number
 }

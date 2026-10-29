@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -20,6 +21,7 @@ function section(t: string): void {
 }
 
 if (!existsSync(DIST)) {
+
   console.log('\n  [SKIP — LOUD] dist/mercury.mjs absent — the E02/E07 E2E legs did NOT run.')
   console.log('  This prover boots the built runtime; the pooled and hosted gates prebuild')
   console.log('  it and run these legs for real. To run them here: bun run build.ts')
@@ -32,6 +34,7 @@ if (!nodeBin) {
 }
 
 async function freshFixture(): Promise<Awaited<ReturnType<typeof startFixtureApi>>> {
+
   return startFixtureApi([
     { kind: 'text', text: 'IDENTITY-REPLY-E02' },
     { kind: 'text', text: 'IDENTITY-REPLY-E02' },
@@ -42,6 +45,7 @@ async function freshFixture(): Promise<Awaited<ReturnType<typeof startFixtureApi
 
 function runHeadless(fixtureUrl: string, home: string, cwd: string, mode: string): Promise<{ out: string; code: number }> {
   mkdirSync(cwd, { recursive: true })
+
   return new Promise(resolvePromise => {
     const child = spawn(
       nodeBin!,

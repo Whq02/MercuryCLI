@@ -1,6 +1,3 @@
-
-
-
 import { stripBOM } from '../utils/jsonRead.js'
 
 function tokenSet(body: string): Set<string> {
@@ -25,9 +22,13 @@ export const HISTORY_HEADING = 'history'
 export interface MnemeEntry {
   text: string
   seq: number
+
   time: string
+
   source: string
+
   supersedes?: string
+
   supersededBy?: number
 }
 
@@ -37,6 +38,7 @@ export interface MnemeSection {
 }
 
 export interface MnemeTopicDoc {
+
   id: string
   slug: string
   summary: string

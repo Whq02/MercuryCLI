@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -12,6 +13,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const SCRIPTS = join(ROOT, 'scripts')
 
 const EXEMPT_DIRS = ['scripts/mission-runner/corpus/']
+
 const EXEMPT_FILES: Record<string, string> = {
   'scripts/formal-models/prove-flag-interactions.ts': '`cluster.indexOf(b) <= cluster.indexOf(a)` is loop control over a known membership, not a pin',
 }
@@ -36,6 +38,7 @@ function bareOrderingCompares(source: string): BareCompare[] {
     const [whole, x, a, op, y, b] = m as unknown as [string, string, string, string, string, string]
     const start = m.index
     const end = start + whole.length
+
     let lo = start
     for (let n = 0; n < 9 && lo > 0; n++) {
       lo = source.lastIndexOf('\n', lo - 1)
@@ -49,6 +52,7 @@ function bareOrderingCompares(source: string): BareCompare[] {
     const left = `${x}.indexOf(${a})`
     const right = `${y}.indexOf(${b})`
     const vulnerable = op.startsWith('<') ? left : right
+
     const proven = new Set<string>()
     const exprs = new Set<string>()
     const wre = new RegExp(COMPARE.source, 'g')
@@ -64,11 +68,13 @@ function bareOrderingCompares(source: string): BareCompare[] {
     }
     exprs.add(vulnerable)
     for (const e of exprs) {
+
       const guard = new RegExp(`${escapeRe(e)}\\s*(?:!==\\s*-1|>=\\s*0|>\\s*-1|>\\s*0|===\\s*0)`)
       const inc = e.match(/^(.*)\.indexOf\((.*)\)$/)
       const includes = inc !== null ? new RegExp(`${escapeRe(inc[1]!)}\\.includes\\(${escapeRe(inc[2]!)}\\)`) : null
       if (guard.test(window) || (includes !== null && includes.test(window))) proven.add(e)
     }
+
     let grew = true
     while (grew) {
       grew = false

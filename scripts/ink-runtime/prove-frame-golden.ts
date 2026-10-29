@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -31,7 +32,6 @@ function renderScene(scene: FrameScene): {
     viewport: frame.viewport,
   }
 }
-
 
 const SCENES: FrameScene[] = [
   {

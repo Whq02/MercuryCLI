@@ -1,15 +1,18 @@
-
 import { listAttachedSeats } from './seatBridge.js'
 import type { CrewMemberV1, CrewSnapshotV1 } from './projection.js'
 import type { CrewAgentId } from './identity.js'
 
 interface TargetPickerRow {
   agentId: CrewAgentId
+
   label: string
   presence: CrewMemberV1['presence']
   lifecycle?: CrewMemberV1['lifecycle']
+
   endpoint: 'seat' | 'local-queue' | 'none'
+
   dispatchable: boolean
+
   seatId?: string
 }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -12,12 +13,14 @@ function section(t: string): void {
 }
 
 const { stripKeyMapHintOf, stripStops } = await import('../../src/context/surfaceRoute.js')
+
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.js')
 const footerModule = (await import('../../src/components/PromptInput/PromptInputFooter.js')) as { footerStripHint?: (hint: string) => string }
 const footerStripHint = footerModule.footerStripHint ?? ((hint: string): string => hint)
 
 section('§1 the derivation — both worlds, through the real strip owners')
 {
+
   const full = stripStops({ concourseEnabled: true, chatBoot: false, chatPresent: true })
   check('full world stops = menu · concourse · chat', full.join(',') === 'boot-settings,concourse,repl', full.join(','))
   check('the chat footer hint reads "⇧← concourse" (host-spelled)', stripKeyMapHintOf('repl', full) === keyHintLabel('⇧← concourse'), stripKeyMapHintOf('repl', full))

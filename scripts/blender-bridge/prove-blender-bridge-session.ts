@@ -131,6 +131,7 @@ section('5. reachable — editor truth through the client; the NO-scope-guard la
   check('editor truth ok: scene info string', session.editor.state === 'ok' && /BLENDER_EEVEE_NEXT/.test((session.editor as { sceneInfo: string }).sceneInfo))
   check('editor truth ok: render state string', session.editor.state === 'ok' && /"render":false/.test((session.editor as { renderState: string }).renderState))
   check('editor truth ok: report head string', session.editor.state === 'ok' && /entries/.test((session.editor as { reportHead: string }).reportHead))
+
   const elsewhere = path.join(scratch, 'elsewhere')
   mkdirSync(elsewhere, { recursive: true })
   const foreign = await runWithCwdOverride(elsewhere, () => buildBlenderBridgeIdeSession(elsewhere))

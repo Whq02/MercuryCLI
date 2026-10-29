@@ -1,6 +1,4 @@
-
 type LiteralOrString<T extends string> = T | (string & {})
-
 
 export type SubscriptionType = 'max' | 'pro' | 'enterprise' | 'team'
 
@@ -11,7 +9,6 @@ export type RateLimitTier = LiteralOrString<
 export type BillingType = LiteralOrString<
   'stripe' | 'invoice' | 'free' | 'unknown'
 >
-
 
 interface OAuthTokenAccount {
   uuid: string
@@ -24,12 +21,16 @@ interface OAuthTokenOrganization {
 
 export interface OAuthTokens {
   accessToken: string
+
   refreshToken: string | null
+
   expiresAt: number | null
   scopes: string[]
   subscriptionType: SubscriptionType | null
   rateLimitTier: RateLimitTier | null
+
   profile?: OAuthProfileResponse
+
   tokenAccount?: {
     uuid: string
     emailAddress: string
@@ -46,18 +47,20 @@ export interface OAuthTokenExchangeResponse {
   organization?: OAuthTokenOrganization
 }
 
-
 interface OAuthProfileAccount {
   uuid: string
   email: string
+
   display_name: string
   created_at: string
+
   has_claude_max?: boolean
   has_claude_pro?: boolean
 }
 
 interface OAuthProfileOrganization {
   uuid: string
+
   organization_type?: LiteralOrString<
     'claude_max' | 'claude_pro' | 'claude_enterprise' | 'claude_team'
   >
@@ -70,7 +73,6 @@ export interface OAuthProfileResponse {
   account: OAuthProfileAccount
   organization: OAuthProfileOrganization
 }
-
 
 export interface UserRolesResponse {
   organization_role: string | null

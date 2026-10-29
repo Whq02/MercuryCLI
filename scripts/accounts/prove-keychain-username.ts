@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { join } from 'node:path'

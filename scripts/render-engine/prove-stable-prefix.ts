@@ -96,6 +96,7 @@ section('§3 flush-for-flush equality across the fence stream')
       break
     }
     if (fenceOpenAt !== -1 && fenceCloseAt === -1 && idx > fenceOpenAt) {
+
       if (cache.prefixPromotions() > promosAtOpen + 1) promoteInsideFence = true
     }
   }

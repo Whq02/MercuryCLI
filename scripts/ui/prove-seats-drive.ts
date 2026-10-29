@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFile, spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -36,8 +37,11 @@ const PHASE = 'Survey'
 const STATIONS = ['a', 'b', 'c', 'd'] as const
 type Station = (typeof STATIONS)[number]
 const labelOf = (s: Station): string => `seat-${s}`
+
 const SEAT_CEILING = 2
+
 const HOLD_MS = 20_000 * vshotBudgetScale()
+
 const IDLE_FIRST_S = 5
 const IDLE_SECOND_S = 20
 const WF_SCRIPT = [
@@ -61,6 +65,7 @@ const offersTool = (body: unknown, name: string): boolean => {
   const tools = (body as { tools?: unknown[] })?.tools
   return Array.isArray(tools) && tools.some(t => (t as { name?: string })?.name === name)
 }
+
 function answeredTool(items: Item[]): string | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -75,6 +80,7 @@ function answeredTool(items: Item[]): string | null {
   }
   return null
 }
+
 function stationOf(items: Item[]): Station | null {
   const userText = items
     .filter(i => i.role === 'user')
@@ -94,6 +100,7 @@ type Answer =
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
 const USAGE = { input_tokens: 900, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+
 function answer(model: string, blocks: Answer[]): { head: string; tail: string } {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const head = `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_seats_${++msgSeq}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...USAGE, output_tokens: 1 } } })}`
@@ -169,6 +176,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
           break
         case 'seat':
           if (station === 'a') {
+
             const bashes = toolCallsOf(items, 'Bash')
             if (bashes < 2) {
               blocks = [{ type: 'tool_use', id: `toolu_seats_sleep_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${bashes === 0 ? IDLE_FIRST_S : IDLE_SECOND_S}`, description: 'the station survey' } }]
@@ -178,6 +186,7 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
               kind = 'done'
             }
           } else {
+
             blocks = [{ type: 'text', text: `SEAT-DONE-${station}` }]
             holdMs = HOLD_MS
             kind = 'held'
@@ -221,6 +230,7 @@ type Grid = Array<Array<{ c?: string } | string>>
 const gridText = (grid: Grid): string =>
   grid.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd()).join('\n')
 type Capture = { text: string; marks: Record<string, string>; markTicks: Record<string, number>; receipts: Array<{ atTick: number; ts: number }>; sends: number; endReason: string; stderr: string; rss: RssSample[] }
+
 type RssSample = { at: number; pid: number; rssBytes: number; role: 'daemon' | 'runner' | 'screen' | 'other' }
 
 function startRssSampler(root: () => number | undefined): { stop(): RssSample[] } {
@@ -374,6 +384,7 @@ function dump(label: string, frame: string | undefined): void {
   }
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row}`)
 }
+
 const laneOf = (frame: string | undefined, s: Station): string =>
   rowsWith(frame, `${labelOf(s)} · `).map(flat).join(' | ')
 
@@ -400,6 +411,7 @@ function readRunManifest(home: string): AgentSummary[] | null {
     return null
   }
 }
+
 function manifestAtBusyMoment(home: string, hits: Hit[], afterMs: number): Promise<{ agents: AgentSummary[] | null; atMs: number }> {
   return new Promise(resolve => {
     const poll = setInterval(() => {
@@ -422,6 +434,7 @@ const fixture = await startFixture(Number(process.env.SEATS_DRIVE_PORT ?? 25183)
 const COLS = 160
 const ROWS = 44
 let cap: Capture | null = null
+
 const busyManifest = manifestAtBusyMoment(home, fixture.hits, 8_000)
 try {
   cap = await capture(
@@ -431,15 +444,21 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
         { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
+
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
+
         { data: '/workflows\r', afterPrevTicks: 30 },
         { data: '\r', awaitText: WF_NAME, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
         { data: '', afterPrevTicks: 12, mark: 'run-busy' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '\x1b', afterPrevTicks: 3 },
+
         { data: '', awaitText: NOTED, requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'settled' },
         { data: '', afterPrevTicks: 4, mark: 'end' },
       ],
@@ -462,6 +481,7 @@ if (cap !== null) {
   const at = (h: Hit | undefined): string => (h === undefined ? '—' : `${((h.startMs - clock0) / 1000).toFixed(1)}s`)
   console.log(`  wire (first call per station): ${STATIONS.map(s => `${labelOf(s)}@${at(firstCall(s))}`).join(' · ')}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
+
   const busyTick = cap.markTicks['run-busy']
   const busyTs = cap.receipts.find(r => r.atTick === busyTick)?.ts
   if (busyTs !== undefined) {
@@ -469,6 +489,7 @@ if (cap !== null) {
     const landed = seatHits.filter(h => h.kind === 'done' && h.endMs !== 0 && h.endMs <= busyTs).map(h => labelOf(h.station!))
     console.log(`  at the busy moment (${((busyTs - clock0) / 1000).toFixed(1)}s): calls in flight ${inFlight.length} (${inFlight.join(', ')}) · landed ${landed.length}`)
   }
+
   dump('run-busy', m['run-busy'])
   console.log(`  memory: ${rssSummary(cap.rss).join(' · ') || '(no samples)'}`)
   if (KEEP) for (const label of ['launched', 'settled']) dump(label, m[label])
@@ -497,6 +518,7 @@ if (cap !== null) {
     return a === undefined ? '(no summary)' : `${a.state}${a.waiting !== undefined ? `/${a.waiting}` : ''}${a.waitWords !== undefined ? ` "${a.waitWords}"` : ''}`
   }
   console.log(`  manifest ${(manifest.atMs / 1000).toFixed(1)}s after the first seat call: ${STATIONS.map(s => `${labelOf(s)} ${wordsOf(s)}`).join(' · ')}`)
+
   const dTile = summary('d')
   const aTile = summary('a')
   check('D2 the manifest carries every agent', STATIONS.every(s => summary(s) !== undefined), String(manifest.agents?.map(a => a.label).join(',')))
@@ -505,6 +527,7 @@ if (cap !== null) {
   check("D2 b's and c's tiles hold seats: neither waits for one", summary('b')?.waiting !== 'seat' && summary('c')?.waiting !== 'seat', `${wordsOf('b')} || ${wordsOf('c')}`)
   check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", aTile?.waiting === 'seat' && /\(seat-b, seat-c\)$/.test(aTile.waitWords ?? ''), wordsOf('a'))
   check('D2 no tile wears a gate sentence of its own (a start tile carries no words)', (manifest.agents ?? []).every(a => a.state !== 'start' || a.waitWords === undefined), String(manifest.agents?.map(a => `${a.label}:${a.state}`).join(',')))
+
   const busy = m['run-busy']
   const lanes = STATIONS.map(s => laneOf(busy, s))
   console.log(`  run view lanes: ${lanes.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -132,6 +133,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const shimLog = join(SCRATCH, `git-${surface}.log`)
   writeFileSync(shimLog, '')
+
   const idle: Send[] = [{ afterPrevTicks: SETTLE_TICKS, data: '', mark: 'surface' }, { afterPrevTicks: IDLE_TICKS, data: '', mark: 'surface-end' }, ...QUIT]
   const sends: Send[] =
     surface === 'face'
@@ -195,6 +197,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const rows = winStart !== undefined && winEnd !== undefined ? all.filter(r => r.start >= winStart && r.start <= winEnd) : []
   const minutes = winStart !== undefined && winEnd !== undefined ? (winEnd - winStart) / 60000 : 0
   if (minutes === 0) console.log(`  (${surface}: no idle window — ${String(payload.endReason)} · ${tail.slice(-300)})`)
+
   const status = git(FIX, 'status', '--porcelain').trim()
   return { surface, lines, rows, minutes, before, after, endReason: payload.endReason, status }
 }

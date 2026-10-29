@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -28,6 +29,7 @@ writeFileSync(
   }),
 )
 writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
+
 writeFileSync(
   join(HOME, 'settings.json'),
   JSON.stringify({
@@ -43,12 +45,14 @@ const trustModule = (await import('../../src/utils/config/trust.js')) as unknown
   untrustedWorkspaceHeadless?: () => boolean
   resetTrustDialogAcceptedCacheForTesting: () => void
 }
+
 const untrustedWorkspaceHeadless = trustModule.untrustedWorkspaceHeadless ?? ((): boolean => false)
 const predicateExported = typeof trustModule.untrustedWorkspaceHeadless === 'function'
 const resetTrustDialogAcceptedCacheForTesting = trustModule.resetTrustDialogAcceptedCacheForTesting
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
 
 setCwd(PROJ)
+
 setOriginalCwd(PROJ)
 setProjectRoot(PROJ)
 resetSettingsCache()
@@ -208,6 +212,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
         events: { hooks: { 'session.start': [{ run: `touch ${marker('user-marker')}` }] } },
       }),
     )
+
     const childEnv: Record<string, string | undefined> = {
       ...process.env,
       MERCURY_CONFIG_DIR: LIVE_HOME,

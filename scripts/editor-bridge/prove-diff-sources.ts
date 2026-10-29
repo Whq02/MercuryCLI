@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -21,6 +22,7 @@ process.env.MERCURY_REVIEW_ARTIFACTS_DIR = reviewRoot
 const repo = mkdtempSync(join(tmpdir(), 'mosaic-diff-repo-'))
 const laneParent = mkdtempSync(join(tmpdir(), 'mosaic-diff-lane-'))
 process.on('exit', () => {
+
   for (const dir of [reviewRoot, repo, laneParent]) {
     try {
       rmSync(dir, { recursive: true, force: true })

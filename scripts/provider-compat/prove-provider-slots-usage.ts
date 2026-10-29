@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -107,6 +108,7 @@ section('1 · /accounts slots for the key-lane families')
     'the Kimi sign-in stands shadowed under the env pin (env > sign-in > stored)',
     moonshotOauthUnderEnv?.active === false && moonshotOauthUnderEnv?.stateNote === 'shadowed — the environment variable wins',
   )
+
   const signedIn = deriveFamilySlotGroups(providers, {
     moonshotEnvKey: () => undefined,
     moonshotStoredKey: () => 'sk-moon-stored-987654321',
@@ -171,6 +173,7 @@ section('2 · active-source usage shapes for the new lanes')
     "moonshot absent ⇒ shape 'none' with the provider label",
     moonshotAbsent.shape === 'none' && moonshotAbsent.label === 'Moonshot usage',
   )
+
   const kimiUsage = activeSourceUsage({
     model: 'kimi-k3',
     reads: {
@@ -330,6 +333,7 @@ section('4 · /usage sections per family')
 
 section('5 · reasoning-history contracts (documented per model, wired per lane)')
 {
+
   check('kimi-k3 returns reasoning history', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k3') === true)
   check('kimi-k2.7-code returns reasoning history (doc-mandatory)', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code') === true)
   check('kimi-k2.7-code-highspeed matches its base model', moonshotLaneProfile.keepsReasoningHistory?.('kimi-k2.7-code-highspeed') === true)

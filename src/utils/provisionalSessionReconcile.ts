@@ -1,4 +1,3 @@
-
 import { existsSync } from 'node:fs'
 import { rm, rmdir } from 'node:fs/promises'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -22,6 +21,7 @@ export async function reconcileProvisionalSession(
   try {
     if (previousId === nextId) return
     if (!SESSION_ID_RE.test(previousId)) return
+
     let transcriptPath: string
     try {
       transcriptPath = getTranscriptPathForSession(previousId)

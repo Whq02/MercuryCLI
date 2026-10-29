@@ -1,10 +1,12 @@
-
 interface InterruptLatchV1 {
+
   readonly pressedAtMs: number
 }
 
 interface InterruptLatchFactsV1 {
+
   inFlight: boolean
+
   turnStartedAtMs: number | null
 }
 

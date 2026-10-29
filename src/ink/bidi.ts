@@ -1,4 +1,3 @@
-
 import bidiFactory from 'bidi-js'
 import presentationData from './arabicPresentationForms.json'
 

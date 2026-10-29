@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -49,7 +50,6 @@ section('§A the wiring is live on all three lanes (+ the reference carrier)')
   const options = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('the callModel Options contract carries callReference', options.includes('callReference?: ModelCallReference'))
 }
-
 
 type Snap = Parameters<typeof det.recordPromptState>[0]
 const SYSTEM = [{ text: 'the system prompt bytes' }]

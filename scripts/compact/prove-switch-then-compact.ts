@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -79,18 +80,21 @@ function makeMixedMessages(): unknown[] {
       },
     })
   }
+
   for (let index = 0; index < 3; index++) {
     round(index, 'gpt-5.5', [
       { type: 'thinking', thinking: `gpt-era reasoning ${index}`, signature: '' },
       { type: 'text', text: `gpt answer ${index}.` },
     ], 20_000 + index * 1000)
   }
+
   for (let index = 3; index < 6; index++) {
     round(index, 'claude-opus-4-8', [
       { type: 'thinking', thinking: `opus reasoning ${index}`, signature: `sig-${index}-abcdef` },
       { type: 'text', text: `opus answer ${index}.` },
     ], 60_000 + index * 1000)
   }
+
   for (let index = 6; index < 10; index++) {
     round(index, 'glm-5.2', [{ type: 'text', text: `glm answer ${index}.` }], 120_000 + index * 1000)
   }

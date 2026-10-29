@@ -81,6 +81,7 @@ if (p) {
   assert(p.sections.every(s => /^[0-9a-f]{8}$/.test(s.sha8)), 'every section carries a sha-8 fingerprint')
   assert(p.absent.length === 1 && p.absent[0]?.name === 'language', 'absent section recorded with its reason')
   assert(typeof p.openaiChars === 'number' && p.openaiChars > 0, 'openai render size recorded')
+
   const json = JSON.stringify(p)
   assert(!json.includes('HEAD-A') && !json.includes('MODEPACK') && !json.includes('W-1'), 'SHAPE-ONLY: zero segment content in the record')
 }

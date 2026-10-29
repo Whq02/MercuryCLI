@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -211,6 +212,7 @@ console.log('── R7 child SIGKILL before the commit marker ⇒ roll-forward +
   const summary = await recover(c)
   check('recovery ROLLS FORWARD to committed', summary.rolledForward.length === 1)
   check('disk stays planned after roll-forward', diskState(c).every(s => s === 'planned'))
+
   const again = commitInChild(c, '', { pinOriginals: true, ownerKey: `rec-child-${caseN}` })
   check('re-running the same plan replays across processes', /"kind":"replayed"/.test(again.stdout), again.stdout)
 }
@@ -227,6 +229,7 @@ console.log('── R8 later bytes are NEVER overwritten by recovery ──')
   check('the op + bundle are retained as evidence', (await nonTerminalOps(c)).length === 1 && existsSync(join(c.csHome, 'bundles')))
   const second = await recover(c)
   check('repeat recovery stays unresolved (idempotent, still untouched)', second.unrecoverable.length === 1 && readFileSync(c.paths[0]!, 'utf8') === 'THIRD-PARTY BYTES\n')
+
   writeFileSync(c.paths[0]!, c.originals[0]!)
   const third = await recover(c)
   check('once settled, recovery compensates and closes the op', third.compensated.length === 1 && (await nonTerminalOps(c)).length === 0)
@@ -237,6 +240,7 @@ console.log('── R9 death DURING recovery ⇒ the next recovery completes ─
   const c = makeCase()
   const r = commitInChild(c, 'journal-after-step@commit-0:kill')
   check('setup: first target landed', r.signal === 'SIGKILL' && diskState(c)[0] === 'planned')
+
   process.env.MERCURY_FAULT_INJECT = `changeset-during-compensate@${c.paths[0]}:throw`
   const interrupted = await recoverChangeSetJournal({ journalDir: join(c.csHome, 'journal'), bundleRoot: join(c.csHome, 'bundles') })
   delete process.env.MERCURY_FAULT_INJECT

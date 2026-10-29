@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,6 +27,7 @@ const grep = (pattern: string, extraArgs = ''): string => {
   }
 }
 const FLAG_NAME = '(MERCURY_[A-Z_0-9]+)'
+
 const SWEPT_SPELLINGS = new Set([
   'MERCURY_TANK',
   'MERCURY_HEALER',
@@ -41,6 +43,7 @@ const literalReads = new Set(
     .map(l => l.replace(/^(?:process\.)?env\./, '').trim())
     .filter(Boolean),
 )
+
 const quotedFlagLiterals = new Set(
   grep(`['"]${FLAG_NAME}['"]`, '--exclude=flagRegistry.ts')
     .split('\n')
@@ -48,6 +51,7 @@ const quotedFlagLiterals = new Set(
     .filter(Boolean),
 )
 for (const e of quotedFlagLiterals) literalReads.add(e)
+
 const PRE_BOOT_FILES = [
   'assets/splash/mercury-splash.mjs',
   'scripts/release/launcherTemplates.mjs',
@@ -59,10 +63,12 @@ const preBootText = PRE_BOOT_FILES.map(f => {
     return ''
   }
 }).join('\n')
+
 const LAUNCHER_LOCALS = /^MERCURY_(SA_[A-Z_0-9]+|TAKEOVER|PRE|PROBE_OUT)$/
 for (const m of preBootText.matchAll(/(?:process\.env\.|%|\$\{?)(MERCURY_[A-Z_0-9]+)/g)) {
   const name = m[1]!
   if (LAUNCHER_LOCALS.test(name)) continue
+
   literalReads.add(name)
 }
 const registered = new Set(FLAG_REGISTRY.map(f => f.env))
@@ -82,6 +88,7 @@ const flagEnabledSites = new Set(
     .map(l => (l.match(/(MERCURY_[A-Z_0-9]+)/) ?? [])[1] ?? '')
     .filter(Boolean),
 )
+
 const harnessConsumed = (f: (typeof FLAG_REGISTRY)[number]): boolean => {
   const consumer = (f as { consumer?: string }).consumer
   if (typeof consumer !== 'string' || !consumer.startsWith('scripts/')) return false
@@ -94,6 +101,7 @@ const harnessConsumed = (f: (typeof FLAG_REGISTRY)[number]): boolean => {
 const consumed = (f: (typeof FLAG_REGISTRY)[number]): boolean =>
   literalReads.has(f.env) ||
   flagEnabledSites.has(f.env) ||
+
   (f.preBoot === true && preBootText.includes(f.env)) ||
   harnessConsumed(f)
 const dead = FLAG_REGISTRY.filter(f => !consumed(f))
@@ -145,6 +153,7 @@ for (const env of optInSample) {
   delete process.env[env]
   check(`${env}: unset ⇒ OFF, '1' ⇒ ON (live re-read)`, !off && on)
 }
+
 let threw = false
 try {
   flagEnabled('MERCURY_DAEMON_OWNER_PID')
@@ -170,6 +179,7 @@ section('§3c the registry reader honours the registered spelling only')
   }
   check('an unregistered name is not a flag (flagEnabled throws)', rejected)
 }
+
 {
   const canon = FLAG_REGISTRY.map(f => f.env)
   const canonSet = new Set(canon)
@@ -191,6 +201,7 @@ const badTier = FLAG_REGISTRY.filter(f => f.tier !== undefined && !VALID_TIERS.h
 check('every tier is in the vocabulary', badTier.length === 0, badTier.map(f => `${f.env}=${f.tier}`).join(', '))
 const knobTiered = FLAG_REGISTRY.filter(f => (f.kind === 'value' || f.kind === 'mixed') && f.tier !== undefined)
 check('value/mixed knobs carry no tier (not graduation subjects)', knobTiered.length === 0, knobTiered.map(f => f.env).join(', '))
+
 const defaultOnBehavioral = FLAG_REGISTRY.filter(f => f.kind === 'default-on' && f.tier === 'behavioral')
 const unevidenced = defaultOnBehavioral.filter(f => !f.evidence)
 check(
@@ -205,10 +216,10 @@ check(
   missingEvidenceFiles.map(f => `${f.env}→${f.evidence}`).slice(0, 3).join(', '),
 )
 
-
 section('§5 compat pairing is TYPED, never prose-only; paired spellings are live')
 {
   const registrySrc = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
+
   const proseOnly: string[] = []
   for (const spec of FLAG_REGISTRY) {
     const m = /compat spelling (CLAUDE[A-Z_]*)/.exec(spec.summary)
@@ -234,7 +245,6 @@ section('§5 compat pairing is TYPED, never prose-only; paired spellings are liv
   check('every typed compat spelling is read at a boundary in src', dead.length === 0, dead.join(', '))
   void registrySrc
 }
-
 
 section('§6 interaction metadata is closed, symmetric, and retirement-dated')
 {
@@ -266,6 +276,7 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
   check('every interaction reference names a registered flag', refsExist)
   check('interactsWith is symmetric (a new interacting flag without metadata fails HERE)', symmetric)
   check('every interacting flag carries a retirement condition', retired)
+
   let closure = true
   for (const f of interacting) {
     for (const ref of f.requires ?? []) {
@@ -282,11 +293,13 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
 section('§7 swept-spelling totality — swept spellings never ride a registry reader')
 {
   const READERS = '(flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'
+
   const sweptAlt = [...SWEPT_SPELLINGS].join('|')
   const directHits = grep(`${READERS}\\((\\s*['"](${sweptAlt})['"])`)
     .split('\n')
     .filter(Boolean)
   check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
+
   const gates = readFileSync(join(root, 'src/utils/workerRole.ts'), 'utf8')
   const spawn = readFileSync(join(root, 'src/daemon/headlessRun.ts'), 'utf8')
   const membersOf = (src: string): Set<string> => {
@@ -311,6 +324,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
     /LIVE_ROLE_ENV_VARS\.flatMap\(flagSpellings\), \.\.\.RETIRED_SEAT_ENV_VARS/.test(spawn) &&
       !/RETIRED_SEAT_ENV_VARS\.flatMap\(flagSpellings\)/.test(spawn),
   )
+
   const READER_CALL = '(?:flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'
   const ARRAY_METHOD = '(?:flatMap|map|forEach|filter|some|every|find|findIndex|findLast)'
   const DECL_RE = /const (\w+)[^=\n]*=\s*\[((?:[^\][]|\n)*?)\]/g
@@ -332,8 +346,11 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
     return [...d.literals, ...d.spreads.flatMap(s => membersOfDecl(decls, s, depth + 1))]
   }
   const feedsReader = (id: string, text: string): boolean => {
+
     if (new RegExp(`\\b${id}\\.${ARRAY_METHOD}\\(\\s*${READER_CALL}\\s*\\)`).test(text)) return true
+
     if (new RegExp(`\\b${id}\\.${ARRAY_METHOD}\\(\\s*\\(?\\s*\\w+[^)\\n]*\\)?\\s*=>[^\\n]*${READER_CALL}\\(`).test(text)) return true
+
     for (const m of text.matchAll(new RegExp(`for \\((?:const|let|var) (\\w+) of ${id}\\)`, 'g'))) {
       const v = m[1]!
       const window = text.slice(m.index!, m.index! + 600)
@@ -359,6 +376,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
     }
   }
   check('every array fed to a registry reader holds only registered members (every feeding shape)', arrayFlowHits.length === 0, arrayFlowHits.slice(0, 4).join(' · '))
+
   const sweptLiteral = "'MERCURY_" + "TANK'"
   const shapes: Array<[string, string, boolean]> = [
     ['flatMap(flagSpellings)', `const BAD = [${sweptLiteral}]\nconst x = BAD.flatMap(flagSpellings)`, true],

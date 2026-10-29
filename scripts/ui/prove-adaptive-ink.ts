@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -6,8 +7,11 @@ const ROOT = path.resolve(import.meta.dir, '../..')
 
 type Entry = {
   file: string
+
   allow?: string[]
+
   reason?: string
+
   roles?: boolean
 }
 
@@ -25,17 +29,23 @@ const REGISTRY: Entry[] = [
   { file: 'src/components/messages/AssistantToolUseMessage.tsx', roles: true },
   { file: 'src/components/messages/CollapsedReadSearchContent.tsx', roles: true },
   { file: 'src/components/mercury-ui/InteractiveDisclosure.tsx', roles: true },
+
   { file: 'src/components/mercury-ui/components.tsx' },
+
   { file: 'src/components/MercuryFrame.tsx' },
   { file: 'src/components/MercuryHome.tsx' },
   { file: 'src/components/HelmVitalsRail.tsx' },
+
   { file: 'src/components/HelmLanesRail.tsx' },
   { file: 'src/components/FullscreenLayout.tsx' },
   { file: 'src/components/DeckPane.tsx' },
+
   { file: 'src/components/Spinner/StreamingHoldRow.tsx' },
   { file: 'src/components/mercury-ui/WorkCapsule.tsx' },
   { file: 'src/components/MercurySetupFrame.tsx' },
+
   { file: 'src/components/TerminalProfileCard.tsx' },
+
   { file: 'src/components/MercuryInputAtlas.tsx' },
   { file: 'src/components/MercuryFileOpen.tsx' },
   { file: 'src/components/MercuryContentSearch.tsx' },

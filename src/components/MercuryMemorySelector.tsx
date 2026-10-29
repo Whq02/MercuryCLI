@@ -7,7 +7,6 @@ import { GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
-
 type MemoryTarget = {
   label: string
   path: string
@@ -31,6 +30,7 @@ export function MercuryMemorySelector({
   isActive?: boolean
 }): React.ReactNode {
   const accent = useSessionAccent().accent
+
   const all = Array.isArray(targets) ? targets : []
   const shown = useMemo(() => all.slice(0, MAX_ROWS), [all])
 

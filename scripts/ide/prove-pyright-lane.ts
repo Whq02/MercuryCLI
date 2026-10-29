@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -6,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
+
 const CACHE = join(ROOT, 'dist', 'vendor', 'pyright')
 
 let failures = 0
@@ -61,6 +63,7 @@ if (existsSync(CACHE)) {
 
   const empty = mkdtempSync(join(tmpdir(), 'no-pyright-'))
   try {
+
     process.env.MERCURY_PYRIGHT_VENDOR_DIR = empty
     pyright._resetPyrightProbeCacheForTesting()
     const broken = pyright.probeBuiltinPyright()
@@ -69,6 +72,7 @@ if (existsSync(CACHE)) {
       !broken.available && (broken.reason ?? '').includes('MERCURY_PYRIGHT_VENDOR_DIR'),
       JSON.stringify(broken),
     )
+
     delete process.env.MERCURY_PYRIGHT_VENDOR_DIR
     pyright._resetPyrightProbeCacheForTesting()
     const fallback = pyright.probeBuiltinPyright()

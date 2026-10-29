@@ -45,7 +45,9 @@ section('rule parser — the deny/ask/allow rule shapes bashPermissions resolves
 
 section('wildcard matcher — a deny like Bash(rm *) catches rm, with a real word boundary')
 {
+
   check('rm * MATCHES "rm -rf /" (the deny would fire)', matchWildcardPattern('rm *', 'rm -rf /'))
+
   check('rm * does NOT match "rmdir foo" (word boundary, not a substring)', !matchWildcardPattern('rm *', 'rmdir foo'))
   check('git status does NOT match "git status-x" (exact-ish boundary)', !matchWildcardPattern('git status', 'git statusx'))
 }
@@ -58,6 +60,7 @@ section('read-only allowlist — git read-only subcommands in, git WRITERS out')
   check('GIT_READ_ONLY_COMMANDS allowlists "git status"', has('git status'))
   check('GIT_READ_ONLY_COMMANDS allowlists "git log"', has('git log'))
   check('GIT_READ_ONLY_COMMANDS allowlists "git diff"', has('git diff'))
+
   check('"git push" is NOT read-only-allowlisted', !has('git push'))
   check('"git commit" is NOT read-only-allowlisted', !has('git commit'))
   check('"git reset" is NOT read-only-allowlisted', !has('git reset'))
@@ -68,6 +71,7 @@ section('flag validator — a write flag flips a read-only command to NOT-safe')
 {
   const gitLog = ro.GIT_READ_ONLY_COMMANDS['git log']!
   check('validateFlags("git log --oneline") === true (read-only flag passes)', ro.validateFlags(['git', 'log', '--oneline'], 2, gitLog, { commandName: 'git', rawCommand: 'git log --oneline' }) === true)
+
   check('validateFlags("git log --output=/tmp/x") === false (write flag rejected)', ro.validateFlags(['git', 'log', '--output=/tmp/x'], 2, gitLog, { commandName: 'git', rawCommand: 'git log --output=/tmp/x' }) === false)
   const gitDiff = ro.GIT_READ_ONLY_COMMANDS['git diff']!
   check('validateFlags("git diff --output=/tmp/x") === false (write flag rejected)', ro.validateFlags(['git', 'diff', '--output=/tmp/x'], 2, gitDiff, { commandName: 'git', rawCommand: 'git diff --output=/tmp/x' }) === false)
@@ -79,10 +83,14 @@ section('dist ships the owned-file decision boundaries (cd+git gate, read-only r
   if (!existsSync(dist)) {
     console.log('  [SKIP] dist/mercury.mjs not built — run `bun run build.ts` to grep-verify the shipped branches')
   } else {
+
     const present = (needle: string): boolean =>
       execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
+
     check('cd+git bare-repo ASK gate ships in dist', present('A compound command pairing cd with git needs approval — the cd could land the git call inside a hostile bare repository'))
+
     check('read-only bare-repo git guard ships in dist', present('This directory has bare-repository structure, so git commands here go through the permission gate'))
+
     check("read-only auto-allow reason ('Read-only command is allowed') ships in dist", present('Read-only command is allowed'))
     check("the read-only help spellings and the resume hints are the CLI's own: no other tool's spelling ships in dist", !present('claude -h') && !present('claude --help') && !present('claude -r '))
   }
@@ -92,10 +100,13 @@ section("prose hygiene — BashTool/prompt.ts uses ASCII apostrophes (no curly U
 {
   const promptSrc = join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'prompt.ts')
   const text = readFileSync(promptSrc, 'utf-8')
+
   let curlyCount = 0
   for (const ch of text) if (ch.codePointAt(0) === 0x2019) curlyCount++
   check('BashTool/prompt.ts contains ZERO curly apostrophes (U+2019)', curlyCount === 0, `count=${curlyCount}`)
+
   check("the normalized ASCII prose (\"a crewmate's run\") is present", text.includes("a crewmate's run"))
+
   const planted = text.replace("a crewmate's run", 'a crewmate’s run')
   let plantedCurly = 0
   for (const ch of planted) if (ch.codePointAt(0) === 0x2019) plantedCurly++

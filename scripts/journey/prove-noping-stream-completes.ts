@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -88,6 +89,7 @@ const cfg = {
   argv: ['node', DIST],
   cwd: FIXTURE_CWD,
   sends: [
+
     { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'stream the plan\r' },
   ],

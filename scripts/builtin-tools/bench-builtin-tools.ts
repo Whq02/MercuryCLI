@@ -20,6 +20,7 @@ const CONFIG_HOME = mkdtempSync(join(tmpdir(), 'builtin-tools-bench-home-'))
 const DAEMON_HOME = mkdtempSync(join(tmpdir(), 'builtin-tools-bench-daemon-'))
 if (!process.env.MERCURY_CONFIG_DIR) process.env.MERCURY_CONFIG_DIR = CONFIG_HOME
 if (!process.env.MERCURY_DAEMON_DIR) process.env.MERCURY_DAEMON_DIR = DAEMON_HOME
+
 if (!process.env.MERCURY_TYPESCRIPT_VENDOR_DIR) {
   const vendored = join(repoRoot, 'dist', 'vendor', 'typescript', 'typescript.js')
   if (!existsSync(vendored)) {
@@ -49,6 +50,7 @@ const { evidenceFor, _resetEvidencePlaneForTesting } = await import(
   '../../src/services/primitives/evidencePlane.ts'
 )
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
+
 await import('../../src/services/resources/adapters/structure.ts')
 await import('../../src/services/resources/adapters/git.ts')
 await import('../../src/services/resources/adapters/journey.ts')
@@ -65,20 +67,29 @@ interface TaskResult {
   id: string
   capability: string
   toolPath: 'tool-level'
+
   completed: boolean
+
   retries: number
+
   failedOperations: number
+
   falseSuccess: boolean
   elapsedMs: number
   outputBytes: number
   outputBounded: boolean
+
   expectedResources: number
   resourcesResolved: boolean
+
   expectedTransactions: number
   transactionsSettled: boolean
+
   expectedEvidence: number
   evidencePresent: boolean
+
   cleanup: 'ok' | 'failed' | 'n/a'
+
   note: string
 }
 

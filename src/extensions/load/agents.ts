@@ -20,6 +20,7 @@ function buildAgent(ext: ActiveExtension, agent: ResolvedAgent): ExtensionAgentD
     coerceDescriptionToString(frontmatter.description, agentType, owner) ??
     coerceDescriptionToString(frontmatter['when-to-use']) ??
     `An agent provided by the ${owner} extension`
+
   for (const field of ['tools', 'disallowedTools'] as const) {
     const problem = agentToolsFrontmatterProblem(frontmatter[field])
     if (problem) logForDebugging(`extension agent ${agentType}: ${field} unreadable (${problem}) — restricted to no tools`)
@@ -57,6 +58,7 @@ function buildAgent(ext: ActiveExtension, agent: ResolvedAgent): ExtensionAgentD
     if (maxTurns === undefined) logForDebugging(`extension agent ${agentType}: maxTurns must be a positive integer — dropped`)
   }
   const effectiveTools = withMemoryVerbs(tools, memory)
+
   const promptBase = substituteOptionsInContent(substituteRootAndData(agent.body.trim(), ext.root, ext.entry.id), ext.options, ext.manifest.needs?.options)
   const memoryScope = memory
   return {

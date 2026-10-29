@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -91,15 +92,21 @@ if (driver.kind !== 'posix-pty') {
     JSON.stringify({
       argv: ['node', BIN],
       sends: [
+
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 4, data: '\r' },
+
         { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 3, data: '\u001b[H' },
+
         { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
         { afterPrevTicks: 2, data: '\x1b' },
+
         { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
         { requireAwait: true, awaitText: 'Model set to Fable 5.1', awaitStableTicks: 2, mark: 'set', data: '' },
+
         { afterPrevTicks: 3, data: '/model', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
         { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '' },
@@ -117,9 +124,11 @@ if (driver.kind !== 'posix-pty') {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
+
       MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
       MERCURY_LIVE_GLYPHS: '0',
+
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:9',
     },
@@ -127,6 +136,7 @@ if (driver.kind !== 'posix-pty') {
   })
   check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${(res.stderr ?? '').trim().slice(-300)}`)
   if (res.status !== 0) {
+
     console.log('  ── the final screen (vshot stdout) ──')
     for (const row of (res.stdout ?? '').split('\n')) console.log('  │' + row.replace(/\s+$/, ''))
     if (existsSync(grid)) {
@@ -156,6 +166,7 @@ if (driver.kind !== 'posix-pty') {
     check('the picker moment was observed', picker !== undefined)
     check('the set moment was observed', set !== undefined)
     check('the reopened moment was observed', reopened !== undefined)
+
     const newestRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.1 {2,}/.test(l) && !l.includes('frontier:'))
     const previousRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5 {2,}/.test(l) && !l.includes('frontier:'))
     if (picker) {
@@ -177,6 +188,7 @@ if (driver.kind !== 'posix-pty') {
       const p = previousRow(ls)
       check("reopened: the newest row reads 'current' (the exact-generation alias set the row the family word resolves to)", n >= 0 && /\bcurrent\b/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
       check("reopened: the previous row still carries no state word", p >= 0 && !/\bcurrent\b/.test(ls[p] ?? ''), (ls[p] ?? '').trim())
+
       const paneStart = Math.max(0, (ls.find(l => l.includes('╭')) ?? '').indexOf('╭'))
       const under = (ls[n + 1] ?? '').slice(paneStart).replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
       check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `"${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)

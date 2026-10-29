@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join, relative } from 'node:path'
 
@@ -13,6 +14,7 @@ const SOT = new Set<string>([
 const EXEMPT_DIRS: string[] = []
 
 const ALLOW: Record<string, string> = {
+
   'src/utils/cockpit/critterData.ts': 'critter art-data hues (sibling to sessionAccent CRITTERS); EYE_BG annotated == IVORY',
   'src/commands/insights.ts': 'CSS hex inside a generated HTML report string — not a TUI token',
   'src/services/samples/docTheme.ts': 'the samples page is a browser document: its CSS variables and canvas fills are hex inside the generated HTML string — not a TUI token',
@@ -60,6 +62,7 @@ for (const abs of files) {
   const rel = relative(ROOT, abs).split('\\').join('/')
   if (SOT.has(rel)) continue
   if (EXEMPT_DIRS.some(d => rel.startsWith(d))) continue
+
   if (
     rel.startsWith('src/skills/bundled/') &&
     rel.endsWith('Content.ts') &&
@@ -84,6 +87,7 @@ check(
 )
 
 section('scan: named chalk colours (UX-6 — the hex ratchet blind spot)')
+
 const CHALK_NAMED = /chalk(?:\.\w+)*\.(cyan|magenta|yellow|red|green|blue|white|black|gray|grey|cyanBright|magentaBright|yellowBright|redBright|greenBright|blueBright)\b/
 const CHALK_ALLOW: Record<string, number> = {
   'src/main.tsx': 28,

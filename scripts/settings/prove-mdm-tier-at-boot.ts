@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -83,6 +84,7 @@ else {
 console.log('L3 wiring — main.tsx drives the tier load at the boot barrier')
 {
   const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
+
   const at = main.indexOf('const { ensureMdmSettingsLoaded')
   const hook = at >= 0 ? main.slice(Math.max(0, at - 400), at + 3000) : ''
   check('the barrier sits inside a preAction hook', at >= 0 && main.lastIndexOf("program.hook('preAction'", at) >= 0)

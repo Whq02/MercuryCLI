@@ -2,12 +2,12 @@ import { open, type FileHandle } from 'node:fs/promises'
 
 import { isENOENT } from './errors.js'
 
-
 export const CHUNK_SIZE = 8 * 1024
 const MAX_SCAN_BYTES = 10 * 1024 * 1024
 
 type EditContext = {
   content: string
+
   lineOffset: number
   truncated: boolean
 }
@@ -56,6 +56,7 @@ export async function scanForContext(handle: FileHandle, needle: string, context
     if (scanned >= MAX_SCAN_BYTES) return { content: '', lineOffset: 1, truncated: true }
     const { bytesRead } = await handle.read(buffer, 0, CHUNK_SIZE, position)
     if (bytesRead === 0) {
+
       return { content: '', lineOffset: 1, truncated: false }
     }
     position += bytesRead
@@ -112,6 +113,7 @@ export async function scanForContext(handle: FileHandle, needle: string, context
       const sliceBuffer = sliceLength <= CHUNK_SIZE ? buffer : Buffer.allocUnsafe(sliceLength)
       const { bytesRead: sliceRead } = await handle.read(sliceBuffer, 0, sliceLength, sliceStartByte)
       let content = sliceBuffer.toString('utf8', 0, sliceRead)
+
       if (content.includes('\r')) content = content.replace(/\r\n/g, '\n')
 
       const newlinesToMatch = newlinesBefore + countNewlines(window.slice(0, match.index))

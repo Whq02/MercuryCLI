@@ -16,8 +16,11 @@ export type CrewAgentState = 'running' | 'idle' | 'paused' | 'landed' | 'stopped
 export const CREW_INTERRUPTED_BY_OPERATOR_WORDS = 'interrupted by the operator on its screen'
 
 export interface CrewAgentTokens {
+
   total: number
+
   context: number | null
+
   input: number | null
   output: number | null
   cached?: number | null
@@ -27,30 +30,46 @@ export interface CrewAgentFacts {
   id: string
   name: string
   kind: CrewAgentKind
+
   status: string
+
   state: CrewAgentState
+
   running: boolean
+
   model: string | null
+
   tokens: CrewAgentTokens | null
+
   costUSD: number | null
+
   unpricedTurns: number
+
   toolUses: number | null
+
   activity: string | null
+
   wait: string | null
+
   toolUseId: string | null
   startedAt: number
   endedAt: number | null
   agentType: string | null
+
   crew: string | null
   effort: string | null
   transcriptAgentId: string | null
   description: string | null
   error: string | null
+
   stopReason: string | null
+
   phase: AgentWaitV1 | null
+
   paused: AgentPauseV1 | null
   pendingAsks: number
   unreadNotices: number
+
   sessionId: string | null
   cwd: string | null
   worktree: string | null
@@ -207,9 +226,10 @@ export function crewSpendOf(agents: readonly CrewAgentFacts[]): { costUSD: numbe
   return { costUSD, unpricedTurns }
 }
 
-
 export const CREW_EMPTY_LINE = 'no crewmates running'
+
 export const CREW_EMPTY_DOOR = 'ask the chat to delegate work'
+
 export const CREW_MODEL_UNKNOWN = '—'
 
 export function crewModelLabel(facts: CrewAgentFacts): string {

@@ -1,4 +1,3 @@
-
 import { join } from 'node:path'
 import { getMercuryHome, isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { LineEndingType } from '../../utils/fileRead.js'
@@ -32,18 +31,24 @@ export function changeSetBundleRoot(): string {
   return join(changeSetHomeDir(), 'bundles')
 }
 
-
 export const CHANGESET_BOUNDS = {
+
   maxFiles: 16,
+
   maxHunksPerFile: 32,
+
   maxHunksTotal: 128,
+
   maxStagedBytes: 4_000_000,
+
   maxDiffLines: 240,
+
   planRing: 16,
+
   planTtlMs: 30 * 60_000,
+
   bundleKeepTerminal: 8,
 } as const
-
 
 export interface ChangeSetMemberEdit {
   old_string: string
@@ -57,32 +62,46 @@ export type ExactEditOutcome =
 
 export interface ChangeSetMemberInput {
   file_path: string
+
   expected_anchor: string
   hunks?: EditHunkInput[]
   edits?: ChangeSetMemberEdit[]
+
   op?: 'edit' | 'delete' | 'move'
+
   new_path?: string
 }
 
-
 export interface ChangeSetTargetPlan {
+
   requestedPath: string
+
   canonicalPath: string
   expectedAnchor: string
+
   observedAnchor: string
+
   originalDigest: string
+
   plannedDigest: string
   originalByteLength: number
   plannedByteLength: number
   encoding: BufferEncoding
   lineEndings: LineEndingType
   finalNewline: boolean
+
   mode: number
+
   hunkSpans: HunkSpan[]
+
   plannedContent: string
+
   diff: BoundedDiff
+
   changed: boolean
+
   fileOp?: 'delete' | 'move'
+
   newPath?: string
   staleRecovery?: string
 }
@@ -92,7 +111,6 @@ export interface ChangeSetTargetBytes {
   originalBytes: Buffer
   plannedBytes: Buffer
 }
-
 
 export type ChangeSetPlanState =
   | 'prepared'
@@ -108,21 +126,26 @@ export type ChangeSetPlanState =
 
 export interface ChangeSetPlan {
   version: typeof CHANGESET_CONTRACT_VERSION
+
   id: string
+
   digest: string
+
   ownerKey: string
   createdAt: number
   expiresAt: number
   state: ChangeSetPlanState
+
   targets: ChangeSetTargetPlan[]
+
   changedPaths: string[]
+
   noChangePaths: string[]
   totalHunks: number
   note?: string
   appliedAt?: number
   operationId?: string
 }
-
 
 type ChangeSetRefusalCode =
   | 'schema'
@@ -160,14 +183,17 @@ export interface ChangeSetMemberFailure {
 export interface ChangeSetRefusal {
   ok: false
   code: ChangeSetRefusalCode
+
   message: string
   failures?: ChangeSetMemberFailure[]
+
   recovery: string
 }
 
 interface ChangeSetPlanned {
   ok: true
   plan: ChangeSetPlan
+
   bytes: Map<string, ChangeSetTargetBytes>
 }
 

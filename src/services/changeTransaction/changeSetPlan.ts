@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
@@ -32,6 +31,7 @@ interface ChangeSetPlanContext {
     target: { canonicalPath: string; requestedPath: string; expectedAnchor: string; content: string },
     edit: ChangeSetMemberEdit,
   ) => ExactEditOutcome
+
   readEvidence?: (target: {
     canonicalPath: string
     requestedPath: string
@@ -40,9 +40,12 @@ interface ChangeSetPlanContext {
     hunks: readonly EditHunkInput[]
     touched?: LineRange[] | null
   }) => { ok: true } | { ok: false; message: string }
+
   scopeCheck?: (canonicalPath: string) => string | null
   lastRead?: (canonicalPath: string, requestedPath: string) => string | null
+
   validateTarget?: (target: ChangeSetTargetPlan, plannedContent: string) => string | null
+
   seenLinesCheck?: (
     target: { canonicalPath: string; requestedPath: string },
     spans: readonly import('./hunks.js').HunkSpan[],
@@ -281,6 +284,7 @@ export function planChangeSet(
   interface Resolved {
     member: ChangeSetMemberInput
     canonical: string
+
     destination?: string
   }
   const resolved: Resolved[] = []
@@ -506,6 +510,7 @@ export function planChangeSet(
       hunkSpans = spansOfPlacements(body, placed.placements)
       plannedContent = bom + splicePlacements(body, placed.placements)
     } else if (memberHunks.length === 0) {
+
       plannedContent = content
     } else {
       const hunkPlan = planHunks(body, memberHunks, memberAnchor)
@@ -553,6 +558,7 @@ export function planChangeSet(
       hunkSpans,
       plannedContent,
       diff: { hunks: [], omittedHunks: 0, added: 0, removed: 0 },
+
       changed: memberOp !== 'edit' || plannedContent !== content,
       ...(memberOp !== 'edit' ? { fileOp: memberOp } : {}),
       ...(destination !== undefined ? { newPath: destination } : {}),
@@ -567,6 +573,7 @@ export function planChangeSet(
     }
     targets.push(target)
     bytes.set(canonical, { canonicalPath: canonical, originalBytes: raw, plannedBytes })
+
     originalContentByPath.set(canonical, content)
   }
 

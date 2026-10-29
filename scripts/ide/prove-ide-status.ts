@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -61,6 +62,7 @@ try {
     const db = probeCompileDb()
     check('row exists', cpp !== undefined)
     if (clangd.available) {
+
       check('row state matches the clangd probe (configured — present, not spawned)', cpp?.state === 'configured' && (cpp?.detail ?? '').includes(clangd.clangdPath ?? ''), cpp?.detail)
       check('an absent compile DB carries the cmake remedy', db.compileDb !== undefined || (cpp?.remedy ?? '').includes('compile_commands'), cpp?.remedy)
     } else {

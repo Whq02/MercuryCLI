@@ -1,4 +1,3 @@
-
 import vm from 'node:vm'
 
 import {
@@ -18,13 +17,11 @@ import {
   SYNC_TIMEOUT_MS,
 } from './compiler.js'
 
-
 const RESULT_LOG_CAP = 1000
 
 const CHILD_GROUP_GLYPH = '▸'
 
 const STACK_FRAME_CAP = 5
-
 
 export interface TokenBudget {
   total: number | null
@@ -39,6 +36,7 @@ export interface WorkflowHooks {
   phase(title: unknown): void
   getAgentCount(): number
   getFailures(): string[]
+
   bindVMAwait(bridge: {
     settle: (v: unknown) => Promise<{ v: unknown }>
     call: (fn: unknown, ...args: unknown[]) => unknown
@@ -76,13 +74,17 @@ export interface ProgressFrame {
 }
 
 export interface WorkflowTimers {
+
   setTimeout: (cb: () => void, ms: number) => number
+
   clearTimeout: (id: number) => void
+
   bindVMInvoke: (invoke: (fn: () => void) => void) => void
 }
 
 export function makeTimers(signal?: AbortSignal): WorkflowTimers {
   const pending = new Set<number>()
+
   let invokeInRealm: (cb: () => void) => void = cb => cb()
 
   signal?.addEventListener(
@@ -139,7 +141,6 @@ export function makeVMConsole(emit: (msg: string) => void): Record<string, unkno
     warn: channel('[warn] '),
   }
 }
-
 
 function defineScriptGlobal(ctx: vm.Context, name: string, value: unknown): void {
   Object.defineProperty(ctx, name, {
@@ -217,6 +218,7 @@ async function emptyGetAllWorkflows(): Promise<Array<{ name: string }>> {
 }
 
 export interface BuildContextOptions {
+
   makeHooks: (args: {
     toolUseContext: WorkflowToolContext
     canUseTool: unknown
@@ -238,9 +240,12 @@ export interface BuildContextOptions {
   tokenBudget?: TokenBudget
   journal?: WorkflowJournal
   journalSnapshot?: JournalSnapshot
+
   resolveWorkflow?: SubWorkflowDeps['resolveWorkflow']
   getAllWorkflows?: SubWorkflowDeps['getAllWorkflows']
+
   getCwd?: SubWorkflowDeps['getCwd']
+
   evolutionLedger?: EvolutionLedgerHost
 }
 
@@ -248,6 +253,7 @@ export function buildVMContext(opts: BuildContextOptions): {
   vmContext: vm.Context
   hooks: WorkflowHooks
 } {
+
   const hooks = opts.makeHooks({
     toolUseContext: opts.toolUseContext,
     canUseTool: opts.toolUseContext.canUseTool,
@@ -350,11 +356,13 @@ export function buildVMContext(opts: BuildContextOptions): {
 }
 
 export interface RunResult {
+
   result: unknown
   agentCount: number
   logs: string[]
   failures: string[]
   durationMs: number
+
   error?: string
 }
 
@@ -377,6 +385,7 @@ export function deriveWorkflowTerminalStatus(input: {
 }
 
 export interface RunWorkflowOptions {
+
   makeHooks: BuildContextOptions['makeHooks']
   workflowRunId?: string
   onProgress?: (frame: ProgressFrame) => void
@@ -433,10 +442,12 @@ export async function runWorkflowScript(
   let releaseAbortListener: (() => void) | undefined
 
   try {
+
     const rawResult = vmScript.runInContext(vmContext, {
       timeout: opts.syncTimeoutMs ?? SYNC_TIMEOUT_MS,
     })
     const envelopePromise = makeSettle(vmContext)(rawResult)
+
     envelopePromise.catch(() => {})
 
     let envelope: { v: unknown }
@@ -465,6 +476,7 @@ export async function runWorkflowScript(
         typeof member === 'function' ? undefined : member
       result = JSON.parse(JSON.stringify(settledValue, dropFunctions) ?? 'null')
     }
+
     JSON.stringify(result)
 
     return {
@@ -505,13 +517,16 @@ export interface SubWorkflowDeps {
   abortSignal?: AbortSignal
   budget: unknown
   timers: Pick<WorkflowTimers, 'setTimeout' | 'clearTimeout'>
+
   getCwd?: () => string
   resolveWorkflow: (
     name: string,
     cwd: string,
   ) => Promise<{ name: string; script: string } | undefined>
   getAllWorkflows: (cwd: string) => Promise<Array<{ name: string }>>
+
   readScriptFile?: (path: string) => Promise<{ script: string; path: string } | { error: string }>
+
   evolutionLedger?: EvolutionLedgerHost
   hooks: {
     agent: (prompt: string, opts?: unknown) => Promise<unknown>
@@ -524,12 +539,14 @@ export interface SubWorkflowDeps {
 }
 
 export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
+
   const runsByName = new Map<string, number>()
 
   const fn = async function workflow(
     nameOrRef: string | { scriptPath: string },
     args?: unknown,
   ): Promise<unknown> {
+
     if (deps.abortSignal?.aborted) return new Promise(() => {})
 
     let body: string
@@ -581,6 +598,7 @@ export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
     deps.hooks.log(`${CHILD_GROUP_GLYPH} running dynamic workflow ${name}`)
 
     const logPrefix = `[${name}] `
+
     const childEntrypoints = {
       agent: (p: string, o: unknown) =>
         deps.hooks.agent(p, { ...(o as object), phase: groupLabel }),
@@ -634,10 +652,12 @@ export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
       const settled = await settle(
         compiled.vmScript.runInContext(ctx, { timeout: SYNC_TIMEOUT_MS }),
       )
+
       const result = cloneIn(settled.v)
       deps.hooks.log(`${CHILD_GROUP_GLYPH} ${name} done`)
       return result
     } catch (e) {
+
       let msg: string
       try {
         msg = condenseThrown(e)
@@ -650,6 +670,7 @@ export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
       throw detachedError(msg, thrownName, stack)
     }
   }
+
   Object.setPrototypeOf(fn, null)
   delete (fn as { constructor?: unknown }).constructor
   delete (fn as { prototype?: unknown }).prototype

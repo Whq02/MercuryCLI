@@ -19,6 +19,7 @@ export const USAGE_RESPONSE_FRESH_MS = 5 * 60_000
 export interface UsageFreshnessFacts {
   source?: UsageFeed
   observedAtMs?: number
+
   freshForMs?: number
 }
 

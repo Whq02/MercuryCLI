@@ -5,5 +5,6 @@ export class ModelConfigOwner {
   engineModelOverride: ModelSetting | undefined = undefined
   initialEngineModel: ModelSetting = null
   modelStrings: ModelStrings | null = null
+
   sdkBetas: string[] | undefined = undefined
 }

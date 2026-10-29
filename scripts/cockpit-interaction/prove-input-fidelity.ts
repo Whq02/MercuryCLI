@@ -23,6 +23,7 @@ if (!existsSync(BIN)) {
     env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
   })
   const out = join(scratch, 'fid.json')
+
   const EXPECT = 'alpha bravo charlie delta'
   const cfg = {
     cols: 120,
@@ -33,6 +34,7 @@ if (!existsSync(BIN)) {
     cwd: process.cwd(),
     resizes: [{ cols: 100, rows: 40, afterMark: 'pre-resize', afterMs: 0 }],
     sends: [
+
       { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'alpha ' },
       { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ alpha ', data: 'b' },
@@ -40,8 +42,10 @@ if (!existsSync(BIN)) {
       { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha br', data: 'a' },
       { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha bra', data: 'v' },
       { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha brav', data: 'o' },
+
       { atTick: 999, requireAwait: true, awaitText: 'alpha bravo', minTick: 5, awaitSettleTicks: 2, data: '\u0018', mark: 'pre-overlay' },
       { afterPrevTicks: 2, requireAwait: true, awaitText: 'alpha bravo', awaitSettleTicks: 2, data: 'p' },
+
       { atTick: 999, requireAwait: true, awaitText: 'palette', minTick: 5, awaitSettleTicks: 2, data: '\u001b', mark: 'overlay-open' },
       { afterPrevTicks: 3, requireAwait: true, awaitText: '❯ alpha bravo', awaitPattern: '\\A(?![\\s\\S]*palette)', data: ' charlie' },
       { atTick: 200, requireAwait: true, awaitText: '❯ alpha bravo charlie', data: '', mark: 'pre-resize' },

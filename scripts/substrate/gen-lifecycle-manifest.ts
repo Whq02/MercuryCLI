@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 

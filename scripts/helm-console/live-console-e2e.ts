@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -44,6 +45,7 @@ console.log('============================================================')
       { atTick: 44, data: 'Reply with exactly the single word: pong' },
       { atTick: 52, data: '\r' },
     ],
+
     total: 235,
   }
   const g = capture(cfg, '/tmp/grid-live-console.json')

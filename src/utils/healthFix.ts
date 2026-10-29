@@ -1,4 +1,3 @@
-
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   isFixable,
@@ -19,6 +18,7 @@ export interface AppliedFix {
   plan: string
   remedyClass: 'safe' | 'destructive'
   applied: RemedyOutcome
+
   verified: RemedyOutcome | null
 }
 

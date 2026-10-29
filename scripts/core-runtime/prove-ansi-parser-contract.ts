@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { Parser } from '../../src/ink/termio/display.js'
 import {
   type Action,
@@ -224,6 +225,7 @@ function oExtColor(
       }
     }
   }
+
   const next = groups[i + 1]
   if (!next) return null
   if (next.n === 5 && groups[i + 2]?.n != null) {
@@ -287,6 +289,7 @@ function oracleFold(raw: string, prev: OStyle): OStyle {
         else s.ulc = c.color
         i += c.extra
       }
+
       continue
     }
     if (code === 59) { s.ulc = 'd'; continue }
@@ -862,6 +865,7 @@ for (const g of GOLDENS) {
           )
       }
     }
+
     const a = Math.floor(g.input.length / 3)
     const b = Math.floor((2 * g.input.length) / 3)
     if (a > 0 && b > a && b < g.input.length) {
@@ -998,6 +1002,7 @@ for (const g of GOLDENS) {
 }
 
 {
+
   const p1 = new Parser()
   p1.feed('\x1b[1;31m')
   const acts = p1.feed('x')

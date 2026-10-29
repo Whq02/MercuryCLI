@@ -20,6 +20,7 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
       if (server.transport === 'stdio') {
         const declared = server.config as { command: string; args?: string[]; env?: Record<string, string> }
         const dataDir = getExtensionDataDir(id)
+
         try {
           mkdirSync(dataDir, { recursive: true })
         } catch {

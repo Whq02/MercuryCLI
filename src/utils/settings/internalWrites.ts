@@ -1,4 +1,3 @@
-
 const internalWriteMarks = new Map<string, number>()
 
 export function markInternalWrite(path: string): void {

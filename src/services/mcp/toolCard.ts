@@ -1,6 +1,3 @@
-
-
-
 import type { McpToolAnnotations } from './toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -10,6 +7,7 @@ export function isTrustedMcpServer(serverName: string): boolean {
   if (!raw || typeof raw !== 'string') return false
   for (const entry of raw.split(',')) {
     const name = entry.trim()
+
     if (name.length > 0 && name === serverName) return true
   }
   return false

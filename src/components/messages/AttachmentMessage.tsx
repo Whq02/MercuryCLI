@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { Attachment } from '../../utils/attachments/types.js'
@@ -78,6 +77,7 @@ export function AttachmentMessage({
   verbose?: boolean
   isTranscriptMode?: boolean
 }): React.ReactNode {
+
   const selectedBg = useSelectedMessageBg()
   if (attachment.type === 'skill_discovery') return null
 
@@ -225,6 +225,7 @@ export function AttachmentMessage({
       )
 
     case 'command_permissions':
+
       return null
 
     case 'hook': {
@@ -272,6 +273,7 @@ export function AttachmentMessage({
       )
 
     default: {
+
       const nullRendering: NullRenderingAttachmentType = attachment.type
       void nullRendering
       return null

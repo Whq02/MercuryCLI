@@ -90,6 +90,7 @@ export function buildTransitionPlan(args: {
   messages: readonly Message[]
   from: string | null
   to: string | null
+
   imagesSupported?: boolean
 }): TransitionPlan {
   const { messages, from, to } = args
@@ -138,6 +139,7 @@ export function buildTransitionPlan(args: {
     let lossless = true
 
     if (m.type === 'assistant') {
+
       const thinkingBlocks =
         targetRoute !== 'anthropic'
           ? blocks.filter(

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type Socket } from 'node:net'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -96,6 +97,7 @@ section('S2 rotation — a stale key comes back EAUTH, is re-read, and the op is
   check('the op succeeded through the re-send', r.ok === true, JSON.stringify(r))
   check('exactly one re-read and one re-send', census.keyReads === 1 && census.eauthRetries === 1, JSON.stringify(census))
   const again = await stamped()
+
   check('the next op hits the memo with the rotated key (no further read)', again.ok === true && census.keyMemoHits === 2 && census.keyReads === 1, JSON.stringify(census))
 }
 

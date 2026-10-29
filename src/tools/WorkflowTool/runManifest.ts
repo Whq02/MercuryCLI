@@ -1,4 +1,3 @@
-
 import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { randomUUID } from 'node:crypto'
@@ -31,31 +30,41 @@ export type WorkflowRunAgentSummary = {
   agentId?: string
   index: number
   label: string
+
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
   phaseIndex?: number
   phaseTitle?: string
   model?: string
   agentType?: string
   effort?: string
+
   tokens?: number
+
   usage?: WorkflowUsageRollup
   toolCalls?: number
   durationMs?: number
+
   startedAt?: number
+
   queuedAt?: number
   attempt?: number
+
   waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
+
   waitWords?: string
   pausedBy?: string
   endedBy?: string
   retryInMs?: number
+
   recoveryTimeoutMs?: number
   retryAttempt?: number
   lastAttemptReason?: string
   lastProgressAt?: number
   lastToolName?: string
+
   lastToolSummary?: string
   promptPreview?: string
+
   resultPreview?: string
   error?: string
   cached?: boolean
@@ -80,17 +89,24 @@ export type WorkflowRunManifest = {
   description?: string
   phases?: WorkflowPhase[]
   scriptPath?: string
+
   scriptDigest?: string
+
   args?: unknown
   argsPreview?: string
   sessionId?: string
+
   transcriptDir?: string
+
   runDir: string
   startTime: number
   endTime?: number
   status: 'running' | 'completed' | 'completed_with_failures' | 'failed' | 'killed' | 'paused'
+
   origin?: { cwd: string; repoRoot?: string }
+
   owner?: { instanceId: string; epoch: number }
+
   transcriptDirs?: string[]
   ownerPid: number
   controlVersion?: number
@@ -98,7 +114,9 @@ export type WorkflowRunManifest = {
   pausedAt?: WorkflowPausePosition
   endedBy?: string
   agentCount: number
+
   totalTokens: number
+
   usage?: WorkflowRunUsage
   totalToolCalls: number
   error?: string
@@ -164,6 +182,7 @@ export type PhaseBucketOf<A> = {
   title: string
   detail?: string
   model?: string
+
   planned: boolean
   agents: A[]
 }
@@ -184,10 +203,12 @@ export function groupAgentsByPhase<
   const add = (b: PhaseBucketOf<A>): PhaseBucketOf<A> => {
     buckets.push(b)
     byIndex.set(b.index, b)
+
     if (!byTitle.has(b.title)) byTitle.set(b.title, b)
     nextIndex = Math.max(nextIndex, b.index + 1)
     return b
   }
+
   const addLive = (index: number, title: string): PhaseBucketOf<A> =>
     add({
       index: byIndex.has(index) ? nextIndex : index,
@@ -209,6 +230,7 @@ export function groupAgentsByPhase<
     addLive(ev.index, ev.title)
   }
   for (const a of agents) {
+
     let b =
       (a.phaseTitle != null ? byTitle.get(a.phaseTitle) : undefined) ??
       (typeof a.phaseIndex === 'number' ? byIndex.get(a.phaseIndex) : undefined)
@@ -245,16 +267,18 @@ export function logsTail(logs: readonly string[]): string[] {
   return logs.slice(-LOGS_TAIL_COUNT)
 }
 
-
 export function createManifestWriteChain(
   publish: (m: WorkflowRunManifest) => Promise<void>,
   logFailure: (e: unknown) => void,
   opts?: {
+
     stillOwner?: () => Promise<boolean>
     onFenced?: () => void
   },
 ): {
+
   finalized: () => boolean
+
   write: (snapshot: WorkflowRunManifest, final: boolean) => Promise<boolean>
 } {
   let finalized = false
@@ -476,6 +500,7 @@ export function runLiveness(
   nowMs: number,
   pidAlive: (pid: number) => boolean,
 ): RunLiveness {
+
   if (manifest.status !== 'running') return 'live'
   if (nowMs - mtimeMs <= RUN_MANIFEST_STALE_MS) return 'live'
   try {
@@ -493,7 +518,6 @@ export function isRunOrphaned(
 ): boolean {
   return runLiveness(manifest, mtimeMs, nowMs, pidAlive) === 'orphaned'
 }
-
 
 export const RUN_CLAIM_FILENAME = 'claim.json'
 
@@ -521,6 +545,7 @@ export async function readRunClaim(runDir: string): Promise<RunClaim | undefined
 export async function claimRun(runDir: string): Promise<RunClaim> {
   await mkdir(runDir, { recursive: true })
   const claimPath = path.join(runDir, RUN_CLAIM_FILENAME)
+
   try {
     await stat(claimPath)
   } catch {
@@ -573,6 +598,7 @@ export function diskResumability(
     fileExists: (p: string) => boolean
     readFileText: (p: string) => string | undefined
     sha256: (text: string) => string
+
     nowMs?: number
   },
 ): DiskResumability {
@@ -583,6 +609,7 @@ export function diskResumability(
     return { ok: false, reason: 'parked in a live process (heartbeat fresh) — P there resumes it; never resume under a healthy owner' }
   }
   if (m.status === 'running') {
+
     if (m.mtimeMs !== undefined && deps.nowMs !== undefined) {
       if (recordedOwnerAlive(m, m.mtimeMs, deps.nowMs)) {
         return { ok: false, reason: 'the recorded owner is alive (heartbeat fresh) — never resume under a healthy owner' }

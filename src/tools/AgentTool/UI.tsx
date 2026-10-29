@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import { AgentProgressLine } from '../../components/AgentProgressLine.js'
@@ -19,6 +18,7 @@ import type {
 import type { Tools } from '../../Tool.js'
 import { safeSearchOrReadClassification, safeUserFacingName } from '../../Tool.js'
 import { buildSubagentLookups } from '../../utils/messages.js'
+
 import { formatTokens } from '../../utils/format.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import type { ApiUsage } from '../../types/wire.js'
@@ -70,7 +70,6 @@ type AgentUiInput = {
   name?: string
 }
 
-
 function formatDuration(ms: number): string {
   if (ms >= 60_000) {
     const minutes = Math.floor(ms / 60_000)
@@ -118,7 +117,6 @@ function latestTokenTotal(
   }
   return 0
 }
-
 
 function AgentPromptDisplay({
   prompt,
@@ -231,6 +229,7 @@ export function renderToolUseProgressMessage(
     terminalSize?: { columns: number; rows: number }
     inProgressToolCallCount?: number
     isTranscriptMode?: boolean
+
     toolUseID?: string
   },
 ): React.ReactNode {
@@ -239,6 +238,7 @@ export function renderToolUseProgressMessage(
   const rows = displayRows(progressMessages)
 
   if (messagesOf(progressMessages).length === 0) {
+
     return <AgentFactsOrInitialising {...(options.toolUseID !== undefined ? { toolUseID: options.toolUseID } : {})} />
   }
 
@@ -385,6 +385,7 @@ export function renderToolResultMessage(
 
   if (record.status === 'completed' || record.status === 'failed') {
     const failed = record.status === 'failed'
+
     const contextTokens = record.usage ? getTokenCountFromUsage(record.usage as ApiUsage) : 0
     const result = [
       pluralise(record.totalToolUseCount ?? 0, 'tool use'),
@@ -510,7 +511,6 @@ export function renderToolUseErrorMessage(
   )
 }
 
-
 type GroupedToolUse = {
   toolUseID?: string
   toolUse?: { id?: string; input?: unknown }
@@ -550,6 +550,7 @@ function extractLastToolInfo(
   tools: Tools,
 ): string | null {
   const rows = messagesOf(progressMessages)
+
   const toolUseById = new Map<string, { name: string; input: unknown }>()
   for (const row of rows) {
     const content = row.data.message!.message.content
@@ -566,6 +567,7 @@ function extractLastToolInfo(
       }
     }
   }
+
   let trailingSearchReads = 0
   outer: for (let i = rows.length - 1; i >= 0; i--) {
     const message = rows[i]!.data.message!
@@ -590,6 +592,7 @@ function extractLastToolInfo(
   if (trailingSearchReads >= 2) {
     return `Searching and reading (${trailingSearchReads} operations)`
   }
+
   for (let i = rows.length - 1; i >= 0; i--) {
     const message = rows[i]!.data.message!
     if (message.type !== 'user') continue
@@ -621,6 +624,7 @@ type GroupedEntry = {
   toolUseCount: number
   tokens: number
   lastTool: string | null
+
   output?: { totalToolUseCount?: number; totalTokens?: number }
   resolved: boolean
   isErrored: boolean
@@ -639,6 +643,7 @@ function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
 function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
   const roster = useFocusedWorkRoster()
   const agents = React.useMemo(() => crewAgentsOf(roster.rows, null), [roster])
+
   const anyRunning = React.useMemo(() => entries.some(entry => factsForEntry(agents, entry)?.running === true), [agents, entries])
   const now = useNowTick(animate || anyRunning ? 1000 : null)
   return (
@@ -646,6 +651,7 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
       {entries.map((entry, index) => {
         const facts = factsForEntry(agents, entry)
         const resolved = entry.resolved || (facts !== null && !facts.running)
+
         const receiptTokens = (entry.output?.totalTokens ?? 0) > 0 ? entry.output!.totalTokens : undefined
         const tokensLabel =
           facts !== null
@@ -716,6 +722,7 @@ export function renderGroupedAgentToolUse(
   const entries = toolUses.map(entry => {
     const input = parseGroupInput(entry)
     const progress = entry.progressMessages ?? []
+
     let toolUseCount = 0
     for (const row of messagesOf(progress)) {
       const message = row.data.message!

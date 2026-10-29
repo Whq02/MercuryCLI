@@ -23,6 +23,7 @@ export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
     case 'stream_delta':
       return [event.raw as LegacyQueryYield]
     case 'assistant_settled':
+
       return event.withheld ? [] : [event.message as LegacyQueryYield]
     case 'assistant_retracted':
       return [
@@ -45,6 +46,7 @@ export function legacyYieldsOf(event: RunEvent): LegacyQueryYield[] {
     case 'run_terminal':
     case 'run_started':
     case 'model_call_started':
+
     case 'model_permit':
     case 'tool_started':
     case 'followup_drained':
@@ -68,6 +70,7 @@ export async function* projectLegacyYields(
     }
   }
   if (!terminal) {
+
     throw new Error('run-core: event stream ended without run_terminal')
   }
   return terminal

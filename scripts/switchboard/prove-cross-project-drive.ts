@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -80,14 +81,21 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
 }
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const BOARD = 'SESSION CONCOURSE'
+
 const TAG = keyHintLabel('⇧← back')
+
 const FROM_P = `✦ from ${basename(CWD)}`
+
 const LINE_P = `running in ${basename(CWD)}`
 const LINE_Q = `running in ${basename(OTHER)}`
+
 const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in …?${basename(project)}\\b`)
 const DOOR = 'switch to see them'
 const GROUP = 'OTHER PROJECTS'
@@ -97,6 +105,7 @@ const DOWN = '\x1b[B'
 const UP = '\x1b[A'
 const CTRL_G = '\x07'
 const ESC = String.fromCharCode(27)
+
 const WARM_TICKS = 25
 
 type Send = Record<string, unknown>
@@ -219,6 +228,7 @@ const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER) || frame.includes(TAG)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
 const rowsWith = (frame: string, needle: string): string => frame.split('\n').filter(l => l.includes(needle)).map(l => l.trim().slice(0, 100)).join(' | ')
+
 const PICK_Q: Send[] = [
   { afterPrevTicks: 6, data: CTRL_G },
   { afterPrevTicks: 6, data: DOWN },
@@ -246,6 +256,7 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4, mark: 'p-board-before-pick' }),
       ...PICK_Q,
       { afterPrevTicks: 20, data: '', mark: 'q-board-carried' },
+
       { afterPrevTicks: 4, data: 'n' },
       { afterPrevTicks: 4, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
@@ -285,9 +296,11 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       ...PICK_Q,
+
       { afterPrevTicks: 20, data: 'n' },
       { afterPrevTicks: 6, data: ESC },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
+
       { afterPrevTicks: 6, data: '\t' },
       { afterPrevTicks: 6, data: DOWN, mark: 'q-board' },
       { afterPrevTicks: 4, data: '\r' },
@@ -318,6 +331,7 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
     home,
     argv: ['--chat'],
     sends: [
+
       g(CHAT_READY_LINE, '', { mark: 'landing' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),

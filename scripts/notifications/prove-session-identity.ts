@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-class: heavy
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -100,6 +100,7 @@ try {
   const sessionId = String(dispatch.sessionId ?? '')
 
   const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
+
   const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
   const snapOpts = { recordsDir: daemonDir, crewDir, draftDir, peekSessionId: sessionId, project: projectIdentity(ws) }
   const snapA = await buildConcourseSnapshot(snapOpts)
@@ -108,9 +109,11 @@ try {
   check('board row and peek name the SAME session', snapA.peek?.sessionId === sessionId, String(snapA.peek?.sessionId))
   check('board row and peek carry the SAME title', boardRow?.title === 'Identity worker' && snapA.peek?.title === 'Identity worker', `${boardRow?.title} / ${snapA.peek?.title}`)
   const route = await import('../../src/context/surfaceRoute.ts')
+
   await import('../../src/components/concourse/ConcourseRoute.tsx')
   const entered = route.enterSessionChat(sessionId)
   const now = route.currentSurfaceRoute() as { kind: string; sessionId?: string }
+
   check(
     "the retired 'session:<id>' route refuses honestly (surface-unregistered) — the swap is the enter path",
     entered.ok === false && (entered as { code?: string }).code === 'surface-unregistered' && now.kind === 'repl',

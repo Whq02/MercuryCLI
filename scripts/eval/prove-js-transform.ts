@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { splitTopLevelSegments, transformJsCell } from '../../src/services/eval/jsCellTransform.js'
@@ -29,6 +30,7 @@ section('export <decl>: the export is stripped and the name persists')
 section('un-salvageable export forms pass through byte-identical (honest error)')
 for (const src of ['export default foo', "export * from './m.js'", 'export { a, b }']) {
   const t = transformJsCell(src)
+
   check(`\`${src}\` keeps its export keyword verbatim`, t.code.includes(src), t.code)
   check(`\`${src}\` is NOT turned into a \`default …\`/\`* …\` fragment`, !/^default\s|\n\* from/.test(t.code.trim()), t.code)
 }

@@ -1,4 +1,3 @@
-
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -16,6 +15,7 @@ const PROBE_TIMEOUT_MS = 4_000
 
 type ProbeResult = { ok: true; version: string } | { ok: false; whyNot: string }
 interface ProbeEntry {
+
   at: number
   result: ProbeResult | null
   inflight: Promise<ProbeResult> | null
@@ -98,6 +98,7 @@ export function discoverPython(cwd: string): EvalLanguageAvailability {
   for (const candidate of pythonCandidates(cwd)) {
     const probe = readProbe(candidate, ['--version'])
     if (probe === null) {
+
       return { language: 'py', available: false, probing: true, whyNot: `probing ${candidate} (the first answer is pending)` }
     }
     if (!probe.ok) {

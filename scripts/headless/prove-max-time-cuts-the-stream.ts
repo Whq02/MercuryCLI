@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/rows/turn.ts src/cli/run.ts src/services/providers/local/ollamaChatTransport.ts src/services/providers/local/localCallModel.ts src/rows/vocabulary.ts
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -29,6 +29,7 @@ const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
 mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
+
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = daemon
 
@@ -66,7 +67,6 @@ const runChild = (
     `FC2 FIXED: collision-free temps under overlap (${parsed.anomalies}/${parsed.rounds} anomalies, ${parsed.orphanTmps} orphan tmp(s))`,
   )
 }
-
 
 {
   const storePath = join(tmp, 'fc5-inbox.json')
@@ -132,6 +132,7 @@ const runChild = (
       stdio: 'ignore',
     })
     const exited = new Promise<void>(r => child.once('exit', () => r()))
+
     const deadline = Date.now() + 20_000
     while (Date.now() < deadline) {
       if (existsSync(hwm)) {
@@ -157,12 +158,14 @@ const runChild = (
     } catch {
       liveIds = ['unparseable']
     }
+
     pinned = liveIds.length === 0
   }
   ok(
     pinned,
     `FC6 FIXED: an interrupted reset resurrects NOTHING — ${survivors} files survived the kill, ${liveIds.length} served as live`,
   )
+
   const swept = runChild('taskSweepChild.ts', { RELIA_LIST: listId })
   let sweptCount = -1
   try {
@@ -176,6 +179,7 @@ const runChild = (
     swept.status === 0 && sweptCount === survivors && remaining === 0,
     `FC6 GC: sweepDeadEpochTasks reclaimed all ${sweptCount} dead bodies`,
   )
+
   const liveProbe = runChild('taskCreateChild.ts', { RELIA_LIST: listId })
   let probe: { id?: string; live?: string[] } = {}
   try {
@@ -187,7 +191,6 @@ const runChild = (
     `FC6 LIVENESS: a current-epoch task serves as live (created ${probe.id ?? '?'}, ${probe.live?.length ?? 0} live)`,
   )
 }
-
 
 {
   const storePath = join(tmp, 'fc8-store.json')
@@ -202,6 +205,7 @@ const runChild = (
         : null,
     empty: () => ({ n: 0 }),
     onReadFailure: 'empty',
+
     watchDebounceMs: 400,
   })()
   let fixedFc8 = false
@@ -223,6 +227,7 @@ const runChild = (
     const res = runChild('storeDoublePublishChild.ts', { RELIA_STORE: storePath })
     await sleep(1400)
     unsub()
+
     const last = observed.at(-1)
     fixedFc8 =
       res.status === 0 &&

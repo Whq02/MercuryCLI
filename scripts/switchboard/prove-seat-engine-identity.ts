@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -115,6 +116,7 @@ const idInPrompt = (text: string): string | null => {
 }
 
 section('§1 — the owner: one line, any family, the exact id verbatim')
+
 {
   for (const [label, id] of [
     ['an anthropic id', 'claude-opus-5'],
@@ -140,6 +142,7 @@ section('§1 — the owner: one line, any family, the exact id verbatim')
 }
 
 section('§2 — the main loop: the env block names no engine (the seat reads mercury://seat for the model it runs on)')
+
 {
   const env = await prompts.computeSimpleEnvInfo('claude-opus-5')
   check('the main-loop env block carries no engine line', !env.includes('the model you run through Mercury is') && idInPrompt(env) === null, env.slice(0, 200))
@@ -152,6 +155,7 @@ section('§2 — the main loop: the env block names no engine (the seat reads me
 }
 
 section('§3 — subagents: the child’s env block names no engine either')
+
 {
   const sections = await prompts.enhanceSystemPromptWithEnvDetails(['<task prompt>'], 'claude-sonnet-5')
   const whole = sections.join('\n\n')
@@ -161,6 +165,7 @@ section('§3 — subagents: the child’s env block names no engine either')
 }
 
 section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
+
 {
   const { COORDINATOR_CONTRACT, COORDINATOR_CONTRACT_VERSION } = await import('../../src/services/concourse/coordinatorLane.ts')
   const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
@@ -180,6 +185,7 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
   const body = responses[0]?.body ?? {}
   const instructions = typeof body.instructions === 'string' ? body.instructions : ''
   check('the coordinator seat’s prompt carries the engine line', /the model you run through Mercury is/.test(instructions), instructions.slice(0, 200))
+
   check(
     'the id in the prompt EQUALS the dispatch stamp',
     idInPrompt(instructions) !== null && idInPrompt(instructions) === body.model,
@@ -194,6 +200,7 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
 }
 
 section('§5 — workers: the spec boots on the model admission resolved')
+
 {
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
   const spec = buildConcourseWorkerSpec({
@@ -205,6 +212,7 @@ section('§5 — workers: the spec boots on the model admission resolved')
     cwd: scratch,
   })
   check('the worker spec carries the admitted model id', spec.model === 'claude-opus-5', String(spec.model))
+
   const env = await prompts.computeSimpleEnvInfo(String(spec.model))
   check('…and the worker’s own prompt states no id (its seat reference does)', idInPrompt(env) === null && !env.includes('claude-opus-5'), env)
 }

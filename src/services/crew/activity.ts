@@ -1,4 +1,3 @@
-
 import type { SeatEvent } from './seatBridge.js'
 import type { CrewAgentId } from './identity.js'
 
@@ -29,6 +28,7 @@ export const ACTIVITY_PHASES = [
 export type ActivityPhase = (typeof ACTIVITY_PHASES)[number]
 
 export interface AgentActivityV1 {
+
   activityId: string
   agentId: CrewAgentId
   sessionId: string
@@ -40,7 +40,9 @@ export interface AgentActivityV1 {
   outcomeLabel?: string
   startedAt: number
   updatedAt: number
+
   labelExtends?: boolean
+
   rawRefs: string[]
   evidenceRefs: string[]
 }
@@ -54,7 +56,9 @@ export interface ActivityInput {
 }
 
 interface ActivityClassifier {
+
   name: string
+
   precedence: number
   matches(input: ActivityInput): boolean
   lift(input: ActivityInput): Omit<AgentActivityV1, 'agentId' | 'sessionId' | 'conversationId'>
@@ -74,8 +78,10 @@ export function activityClassifierOrder(): Array<{ name: string; precedence: num
 export function activityIdOf(input: ActivityInput): string {
   const scope = `${input.adapterKind}:${input.sessionId}`
   const p = input.event.payload as Record<string, unknown> | null
+
   const update = p?.update as Record<string, unknown> | undefined
   if (update?.sessionUpdate === 'agent_message_chunk') return `${scope}:msg-stream`
+
   const toolCallId = toolCallIdOf(p)
   if (toolCallId) return `${scope}:tool:${toolCallId}`
   return `${scope}:evt:${input.event.sourceEventId}`
@@ -109,12 +115,14 @@ export function classifyActivity(input: ActivityInput): AgentActivityV1 {
       continue
     }
   }
+
   throw new Error('crew/activity: the unknown fallback classifier is not registered')
 }
 
-
 export interface ActivityFeedState {
+
   rows: ReadonlyMap<string, AgentActivityV1>
+
   order: readonly string[]
 }
 
@@ -128,6 +136,7 @@ export function foldActivity(state: ActivityFeedState, row: AgentActivityV1): Ac
   const rows = new Map(state.rows)
   const existing = rows.get(row.activityId)
   if (existing) {
+
     rows.set(row.activityId, {
       ...existing,
       phase: row.phase,
@@ -149,6 +158,7 @@ export function foldActivity(state: ActivityFeedState, row: AgentActivityV1): Ac
   if (order.length > ACTIVITY_FEED_CAP) {
     const terminal = new Set<ActivityPhase>(['succeeded', 'failed', 'cancelled'])
     const dropIx = order.findIndex(id => terminal.has(rows.get(id)?.phase ?? 'succeeded'))
+
     if (dropIx >= 0) {
       rows.delete(order[dropIx]!)
       order = [...order.slice(0, dropIx), ...order.slice(dropIx + 1)]
@@ -160,7 +170,6 @@ export function foldActivity(state: ActivityFeedState, row: AgentActivityV1): Ac
 export function activityRows(state: ActivityFeedState): AgentActivityV1[] {
   return state.order.map(id => state.rows.get(id)!).filter(Boolean)
 }
-
 
 function acpToolCall(input: ActivityInput): Record<string, unknown> | null {
   const p = input.event.payload as Record<string, unknown> | null
@@ -230,6 +239,7 @@ registerActivityClassifier({
       verb: 'said',
       objectLabel: String(update?.content?.text ?? '').slice(0, 60) || 'a message',
       phase: 'succeeded',
+
       labelExtends: true,
     }
   },
@@ -291,7 +301,6 @@ registerActivityClassifier({
     outcomeLabel: 'unclassified — raw event behind disclosure',
   }),
 })
-
 
 let liveFeed = emptyActivityFeed()
 const feedListeners = new Set<() => void>()

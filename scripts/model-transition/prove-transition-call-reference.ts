@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -65,7 +66,6 @@ section('§A builder laws — deterministic, order-sensitive, frozen')
   check('reference deep-frozen (object + toolNames)', Object.isFrozen(a) && Object.isFrozen(a.toolNames))
   check('toolCount/toolNames coherent', a.toolCount === 2 && a.toolNames.join(',') === 'Alpha,Beta')
 }
-
 
 const allowAll = async (_tool: unknown, input: Record<string, unknown>) =>
   ({
@@ -158,6 +158,7 @@ section('§B the real machine — frozen per attempt, refresh lands at the bound
       debug: false,
       verbose: false,
       agentDefinitions: { activeAgents: [], allAgents: [] },
+
       refreshTools: () => turn2Tools,
     },
     getAppState: () => appState,

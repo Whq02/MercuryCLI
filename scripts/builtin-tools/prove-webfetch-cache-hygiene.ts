@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { LRUCache } from 'lru-cache'
@@ -26,6 +27,7 @@ console.log('prove-webfetch-cache-hygiene — the self-cleaning cache is literal
   bare.set('u', page)
   purged.set('u', page)
   await sleep(200)
+
   const lingering = bare.calculatedSize
   check(
     'WITHOUT autopurge the expired page is unservable yet its bytes linger (the class is real)',

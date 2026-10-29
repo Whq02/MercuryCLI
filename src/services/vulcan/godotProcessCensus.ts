@@ -1,4 +1,3 @@
-
 import { readlinkSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
@@ -7,10 +6,15 @@ export type CensusPlatform = 'win32' | 'darwin' | 'linux'
 
 export interface GodotProcess {
   pid: number
+
   executable: string
+
   args: string
+
   editor: boolean
+
   headless: boolean
+
   project?: string
 }
 
@@ -95,7 +99,6 @@ function factsOf(pid: number, executable: string, args: string): GodotProcess {
   }
 }
 
-
 export function parseDarwinCensus(commTable: string, argsTable: string): GodotProcess[] {
   const exeByPid = new Map<number, string>()
   for (const line of commTable.split('\n')) {
@@ -163,7 +166,6 @@ export function parseWin32Census(table: string): GodotProcess[] {
   }
   return out
 }
-
 
 const defaultRunner: CensusRunner = {
   async exec(file, args) {

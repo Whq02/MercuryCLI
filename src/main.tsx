@@ -144,6 +144,7 @@ function refuseDebugger(): void {
   const envHit = /--inspect(-brk)?(=|\s|$)/.test(nodeOptions) || (!isBun && /--debug(-brk)?(=|\s|$)/.test(nodeOptions))
   let inspectorHit = false
   try {
+
     const req = (globalThis as { require?: (id: string) => { url?: () => string | undefined } }).require
     if (req) inspectorHit = Boolean(req('node:inspector').url?.())
   } catch {
@@ -161,7 +162,6 @@ function applyMergedConfigEnv(): void {
     process.env[key] = String(value)
   }
 }
-
 
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -214,9 +214,11 @@ function exitForCommanderError(error: { code?: string; exitCode?: number; messag
 }
 
 function failCli(message: string, code: 1 | 2 = 2): never {
+
   if (wantsRowStream()) {
     try {
       const envelope = refusedOutcome([message])
+
       writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(code)
     } catch {
@@ -245,6 +247,7 @@ export async function main(): Promise<void> {
   profileCheckpoint('main_function_start')
 
   applyBootMenuEnv();
+
   recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
   ensurePrivateConfigHome();
   collectLauncherNotes();
@@ -261,11 +264,13 @@ export async function main(): Promise<void> {
   const { initializeWarningHandler } = await import('./utils/warningHandler.js')
   initializeWarningHandler()
   process.on('exit', () => {
+
     if (!process.stderr.isTTY) return
     process.stderr.write('\x1b[?25h')
     process.stderr.write('\x1b]111\x07')
   })
   if (!isRunArgv()) {
+
     process.on('SIGINT', () => process.exit(130))
   }
   profileCheckpoint('main_warning_handler_initialized')
@@ -302,6 +307,7 @@ export async function main(): Promise<void> {
 function eagerLoadSettings(): void {
   profileCheckpoint('eagerLoadSettings_start')
   const argv = process.argv
+
   const ddIndex = argv.indexOf('--')
   const optionArgv = ddIndex >= 0 ? argv.slice(0, ddIndex) : argv
   const eagerFlagValue = (name: string): string | undefined => readSessionOption(optionArgv.slice(2), name).value
@@ -317,6 +323,7 @@ function eagerLoadSettings(): void {
         } catch {
           failCli('The JSON supplied to --config is invalid.')
         }
+
         const serialized = JSON.stringify(parsed).replace(
           /[-]/g,
           ch => `\\u${ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`,
@@ -380,6 +387,7 @@ async function run(): Promise<void> {
     }
     return values
   }
+
   program.hook('preAction', async (_thisCommand, actionCommand) => {
     if (actionCommand === (program as unknown) || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
     try {
@@ -391,6 +399,7 @@ async function run(): Promise<void> {
         node = node.parent
       }
       if (names.length > 0) {
+
         const { enableConfigs } = await import('./utils/config/globalConfig.js')
         enableConfigs()
         const { noteHeadlessActivity } = await import('./utils/activityLedger.js')
@@ -407,6 +416,7 @@ async function run(): Promise<void> {
     .enablePositionalOptions()
     .configureHelp({ sortSubcommands: true, sortOptions: true })
     .configureOutput({
+
       writeOut: text => {
         releaseLauncherAltHoldNow()
         process.stdout.write(text)
@@ -435,6 +445,7 @@ async function run(): Promise<void> {
     .option('--allow-sovereign', 'Let the session switch into running without permission prompts (sovereign mode) later; it does not start there')
     .addOption(new Option('--reasoning-mode <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
     .addOption(new Option('--max-turns <turns>', 'Maximum turns for a run').argParser((value: string) => {
+
       const parsed = Number(value)
       if (!Number.isInteger(parsed) || parsed <= 0) {
         failCli(`--max-turns must be a positive integer (got '${value}')`)
@@ -476,6 +487,7 @@ async function run(): Promise<void> {
     .option('--model <model>', 'The model for the session')
     .option('--advise', 'Turn on the second model that advises the working model (the advisor) from the run\'s first turn (at birth) — the headless form of /advise on; the advisor\'s master switch in Mercury\'s home folder for this run (the config home) must be on')
     .option(`--effort <level>`, `Reasoning effort level (${EFFORT_LEVELS.join(', ')})`, value => {
+
       const { level } = parseCliEffort(value)
       if (level === undefined) {
         throw new InvalidArgumentError(
@@ -516,16 +528,19 @@ async function run(): Promise<void> {
   program.hook('preAction', async (_thisCommand, actionCommand) => {
     if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
     profileCheckpoint('preAction_start')
+
     const slowBootNote = setTimeout(() => {
       if (process.stderr.isTTY) process.stderr.write('checking the system keychain and managed settings…\n')
     }, 1_500)
     slowBootNote.unref?.()
+
     const { ensureMdmSettingsLoaded, mdmBootAwaitsRawRead, getMdmSettings, getHkcuSettings } = await import('./utils/settings/mdm/settings.js')
     if (mdmBootAwaitsRawRead()) {
       await ensureMdmSettingsLoaded().catch((error: unknown) => {
         logForDebugging(`MDM settings load failed at boot; no policy tier applies: ${String(error)}`, { level: 'error' })
       })
     } else {
+
       void ensureMdmSettingsLoaded()
         .then(() => {
           if (Object.keys(getMdmSettings().settings).length === 0 && Object.keys(getHkcuSettings().settings).length === 0) return
@@ -544,10 +559,13 @@ async function run(): Promise<void> {
     if (resolveTerminalExperience().terminalTitle.effective) {
       process.title = 'mercury'
     }
+
     initSinks()
     profileCheckpoint('preAction_after_sinks')
+
     const extensionPaths = sessionOptions(actionCommand).extension as unknown
     if (Array.isArray(extensionPaths) && extensionPaths.length > 0 && extensionPaths.every(entry => typeof entry === 'string')) {
+
       const { existsSync: extensionDirExists } = require('node:fs') as typeof import('node:fs')
       const missing = (extensionPaths as string[]).filter(entry => !extensionDirExists(entry))
       if (missing.length > 0) {
@@ -609,6 +627,7 @@ async function run(): Promise<void> {
 
   if (isRunArgv()) {
     profileCheckpoint('run_before_parse')
+
     if (wantsRowStream()) {
       program.exitOverride()
       runCommand.exitOverride()
@@ -664,9 +683,11 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       const { mcpServeHandler } = await import('./cli/handlers/mcp.js')
       await mcpServeHandler(options)
     })
+
   if (process.argv.includes('mcp')) {
     try {
       const { registerMcpAddCommand } = await import('./commands/mcp/addCommand.js')
+
       registerMcpAddCommand(mcp as unknown as Parameters<typeof registerMcpAddCommand>[0])
     } catch (error) {
       logError(error)
@@ -1056,6 +1077,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       .description(description)
       .allowUnknownOption(true)
       .action(() => {
+
         writeErr(usage)
         process.exit(1)
       })
@@ -1113,6 +1135,7 @@ async function healthAction(options: {
   only?: string
   yes: boolean
 }): Promise<void> {
+
   const { resolveHealthPresentation, renderPlainCertificate, writeOutAndExit } = await import(
     './cli/healthPresentation.js'
   )
@@ -1127,9 +1150,11 @@ async function healthAction(options: {
   )
   if (presentation.output === 'json') {
     const { runHealthJsonCli } = await import('./cli/healthJson.js')
+
     await runHealthJsonCli({ deep: options.deep, only: options.only })
     return
   }
+
   if (presentation.output === 'text' || presentation.depth === 'deep' || options.only !== undefined) {
     const { beginReadOnlyDiagnostic } = await import('./utils/diagnosticReadOnly.js')
     beginReadOnlyDiagnostic()
@@ -1137,6 +1162,7 @@ async function healthAction(options: {
     let completed = 0
     const cert = await runAndRecordHealthReport({
       depth: options.deep ? 'deep' : 'fast',
+
       onProgress: event => {
         completed++
         process.stderr.write(`[health] ${completed}/${event.total} ${event.check.id}: ${event.check.status}\n`)
@@ -1153,6 +1179,7 @@ async function healthAction(options: {
         )
         process.exit(1)
       }
+
       return writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
     }
     return writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
@@ -1177,6 +1204,7 @@ async function showAction(
       }
       setFlagEnv('MERCURY_IMAGE_PROTOCOL', options.protocol)
     }
+
     {
       const { readSync: readBytes, openSync: openFd, closeSync: closeFd } = await import('node:fs')
       const head = Buffer.alloc(12)
@@ -1205,6 +1233,7 @@ async function showAction(
       maxCols: options.cols ?? 76,
     })
     const payload = rendered.payload
+
     await new Promise<void>((resolvePromise, rejectPromise) => {
       process.stdout.write(`${payload}\n`, error => (error ? rejectPromise(error) : resolvePromise()))
     })
@@ -1226,11 +1255,14 @@ const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--conc
 const PRINT_ONLY_VERBS: ReadonlySet<string> = new Set(['version', 'help'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
+
   if ((opts as { version?: boolean }).version) {
     console.log(`Mercury ${MACRO.VERSION}`)
     process.exit(0)
   }
+
   try {
+
     recordLaunchMilestone('runtime-entry', { boot: getIsInteractive() ? 'interactive' : 'headless' })
   } catch {
   }
@@ -1326,11 +1358,13 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (opts.lean) {
+
     setFlagEnv('MERCURY_BARE', '1')
   }
   let inputPrompt = runMode && inputPromptArg === '-' ? undefined : inputPromptArg
   if (typedString(opts.draft)) {
     startCapturingEarlyInput()
+
     process.stdin.unshift?.(Buffer.from(String(opts.draft)))
   }
 
@@ -1395,6 +1429,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       thinkingConfig = shouldEnableThinkingByDefault() ? { type: 'adaptive' } : { type: 'disabled' }
     }
   }
+
   noteSessionThinkingConfig(thinkingConfig)
 
   const agentInfo = await getAgentDefinitionsWithOverrides()
@@ -1402,8 +1437,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   let allAgents = agentInfo.allAgents
   if (typedString(opts.agentDefs)) {
     try {
+
       const cliAgents = parseAgentsFromJson(JSON.parse(typedString(opts.agentDefs)!) as unknown)
       allAgents = [...allAgents, ...cliAgents]
+
       activeAgents = computeActiveAgents(allAgents)
     } catch (error) {
       logError(error)
@@ -1419,6 +1456,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (requestedAgent) {
     mainThreadAgentDefinition = activeAgents.find(agent => agent.agentType === requestedAgent)
     if (!mainThreadAgentDefinition) {
+
       const refusal = `unknown agent '${requestedAgent}' — available: ${activeAgents.map(agent => agent.agentType).join(', ')}`
       if (typedString(opts.agent) !== undefined) {
         failCli(refusal)
@@ -1490,12 +1528,14 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (
+
     (runMode || !process.stdout.isTTY) &&
     prompt === undefined &&
     !opts.resume &&
     !opts.continue &&
     !opts.pr &&
     inputFormat !== 'rows' &&
+
     mainThreadAgentDefinition?.initialPrompt == null
   ) {
     const variadicCandidates: Array<[string, unknown]> = [
@@ -1592,12 +1632,15 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       ),
     }
   }
+
   const strictOrBare = Boolean(opts.onlyMcp) || isBareMode()
   const mcpResolutionStartedAt = Date.now()
+
   const discoveredMcpPromise: Promise<Record<string, ScopedMcpServerConfig>> = strictOrBare
     ? Promise.resolve({})
     : getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)
   const mcpConfigPromise = discoveredMcpPromise.then(discovered => {
+
     const regular: Record<string, ScopedMcpServerConfig> = Object.assign(Object.create(null), discovered, dynamicMcpConfig) as Record<string, ScopedMcpServerConfig>
     logForDebugging(`MCP config resolution took ${Date.now() - mcpResolutionStartedAt}ms`)
     return regular
@@ -1605,6 +1648,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = dynamicMcpConfig
 
   if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
+
     initBundledSkills()
     const { initBundledWorkflows } = await import('./tools/WorkflowTool/bundled/index.js')
     initBundledWorkflows()
@@ -1612,6 +1656,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const { getProjectRoot, getOriginalCwd } = await import('./bootstrap/state.js')
   const cwd = process.cwd()
   if (!worktreeEnabled && !isNonInteractiveSession && checkHasTrustDialogAccepted()) {
+
     void getInstructionFiles().catch(() => {})
   }
   profileCheckpoint('action_before_setup')
@@ -1628,6 +1673,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   )
   let commandsPromise: Promise<import('./commands.js').Command[]>
   if (worktreeEnabled) {
+
     await setupPromise
     commandsPromise = getCommands(getProjectRoot())
   } else {
@@ -1751,6 +1797,7 @@ function parseDynamicMcpConfigs(items: string[]): {
   for (const rawItem of items) {
     const item = rawItem.trim()
     if (!item) continue
+
     let inlineObject: unknown
     let isInline = false
     try {
@@ -1763,6 +1810,7 @@ function parseDynamicMcpConfigs(items: string[]): {
       ? parseMcpConfig({ configObject: inlineObject, expandVars: true, scope: 'dynamic' })
       : parseMcpConfigFromFilePath({ filePath: item, expandVars: true, scope: 'dynamic' })
     for (const entry of parsed.errors) errors.push(`${entry.path}: ${entry.message}`)
+
     Object.assign(servers, parsed.config?.mcpServers ?? {})
   }
   return { servers, errors }
@@ -1775,6 +1823,7 @@ async function interactiveLaunch(args: {
   permissionMode: PermissionMode
   toolPermissionContext: AppState['toolPermissionContext']
   allowDangerousSkip: boolean
+
   dynamicMcpConfig: Record<string, ScopedMcpServerConfig> | undefined
   thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   resolvedInitialModel: string
@@ -1788,6 +1837,7 @@ async function interactiveLaunch(args: {
   let inputPrompt = args.prompt
 
   profileCheckpoint('action_before_create_root')
+
   const { renderOptions, getFpsMetrics, stats } = getRenderContext(false)
   const { createRoot } = await import('./ink.js')
   const root = await createRoot(renderOptions)
@@ -1811,11 +1861,13 @@ async function interactiveLaunch(args: {
     return
   }
   if (process.exitCode !== undefined && process.exitCode !== 0) {
+
     announceAbandonedLaunch()
     logForDebugging('graceful shutdown already initiated; abandoning interactive launch')
     return
   }
   if (isShuttingDown()) {
+
     announceAbandonedLaunch()
     logForDebugging('shutdown in progress; abandoning interactive launch')
     return
@@ -1827,6 +1879,7 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('example-commands', async () => {
     await refreshExampleCommands()
   })
+
   registerBackgroundNode('session-registry', async () => {
     await registerSession()
     if (args.sessionTitle) await updateSessionName(args.sessionTitle)
@@ -1840,6 +1893,7 @@ async function interactiveLaunch(args: {
     }
   })
   registerBackgroundNode('session-telemetry', async () => {
+
     void getEngineModel()
     const { ensureExtensionsLoaded } = await import('./extensions/boot.js')
     await ensureExtensionsLoaded().catch(() => {})
@@ -1886,6 +1940,7 @@ async function interactiveLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
+
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
   const initialState: AppState = {
@@ -1893,7 +1948,9 @@ async function interactiveLaunch(args: {
     toolPermissionContext: effectiveContext,
     verbose: config.toolOutput === 'full',
     expandedView: config.showExpandedTasks ? 'tasks' : 'none',
+
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
+
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     remoteControlEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
@@ -1916,11 +1973,14 @@ async function interactiveLaunch(args: {
   }
 
   saveGlobalConfigDeferred(current => ({ ...current, numStartups: (current.numStartups ?? 0) + 1 }))
+
   clearBootAttempts()
+
   armProvisionalSessionReconcile()
   registerBackgroundNode('startup-records', async () => {
     await flushDeferredGlobalConfigSaves()
     try {
+
       recordInvocation()
     } catch {
     }
@@ -1931,9 +1991,11 @@ async function interactiveLaunch(args: {
     armQuitParksAll()
   }
   if (opts.continue || opts.resume || opts.pr || inputPrompt) {
+
     markExplicitBootJourney()
   }
   if (opts.chat === true) {
+
     const { markChatBoot } = await import('./context/surfaceRoute.js')
     markChatBoot()
   }
@@ -1943,6 +2005,7 @@ async function interactiveLaunch(args: {
     stats,
     initialState,
   }
+
   const chatProps: ChatProps = {
     commands,
     initialTools: [...getTools(effectiveContext)],
@@ -1956,11 +2019,13 @@ async function interactiveLaunch(args: {
   markLaunchBegun();
 
   try {
+
     type ResumeLog = { fullPath?: string; customTitle?: string; agentName?: string }
     const resumeAtBoot = async (sessionId: string, log: ResumeLog): Promise<boolean> => {
       const { focusResumedSession } = await import('./services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(sessionId, log.fullPath, {
         ...(log.customTitle ?? log.agentName ? { title: (log.customTitle ?? log.agentName) as string } : {}),
+
         permissionMode: args.permissionMode,
         ...(typedString(opts.model) !== undefined ? { model: args.resolvedInitialModel } : {}),
         ...(typeof opts.effort === 'string' ? { effort: opts.effort } : {}),
@@ -1969,6 +2034,7 @@ async function interactiveLaunch(args: {
       await exitWithError(root, `Failed to resume session ${sessionId}: ${outcome.reason}`)
       return false
     }
+
     {
       const facts = await import('./services/switchboard/bootBirthFacts.js')
       const { runnerArgvFromBoot } = await import('./services/switchboard/runnerArgv.js')
@@ -2003,6 +2069,7 @@ async function interactiveLaunch(args: {
           searchTerm = resumeValue
         }
       } else if (typeof resumeValue === 'string') {
+
         const log = await lastSession(resumeValue as UUID).catch(() => null)
         if (!log) {
           await exitWithError(root, `No conversation found for session id ${resumeValue}`)
@@ -2014,6 +2081,7 @@ async function interactiveLaunch(args: {
       if (resumeLog && resumeSessionId) {
         if (!(await resumeAtBoot(String(resumeSessionId), resumeLog))) return
       } else {
+
         const { getWorktreePaths } = await import('./utils/getWorktreePaths.js')
         const worktreePathsPromise = getWorktreePaths(process.cwd()).catch(() => [] as string[])
         await launchResumeChooser(root, appProps, worktreePathsPromise, {
@@ -2025,15 +2093,19 @@ async function interactiveLaunch(args: {
         return
       }
     } else {
+
       const promptIsWords = typeof inputPrompt === 'string' && inputPrompt.trim() !== '' && !inputPrompt.trimStart().startsWith('/')
       const { isFullscreenEnvEnabled } = await import('./utils/fullscreen.js')
       if (promptIsWords || !isFullscreenEnvEnabled()) {
         const { bornSession } = await import('./services/switchboard/bornSession.js')
+
         const birth = bornSession({ workspaceDir: getCwd(), model: null })
         void birth.then(async born => {
           if (born.ok) return
           logForDebugging(`[boot] the chat-forward birth was refused: ${born.reason}`)
+
           retractExplicitBootJourney()
+
           const { mintImmediateReceipt } = await import('./utils/model/seatReceipts.js')
           mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')
         })
@@ -2045,12 +2117,15 @@ async function interactiveLaunch(args: {
       isStrictMcpConfig: Boolean(args.opts.onlyMcp),
     })
   } catch (error) {
+
     logError(error)
+
     const detail = error instanceof Error ? error.message : String(error)
     writeErr(`Mercury exited on an error: ${detail}`)
     const crashPath = lastCrashReportPath()
     if (crashPath) writeErr(`Crash report: ${crashPath}`)
     writeErr(`Run ${binaryName()} health for diagnostics.`)
+
     await crashShutdown(1)
     process.exit(1)
   }
@@ -2059,6 +2134,7 @@ async function interactiveLaunch(args: {
 }
 
 function assistantBridgeSeed(): boolean {
+
   return false
 }
 
@@ -2066,9 +2142,11 @@ async function connectMcpBatch(
   configs: Record<string, ScopedMcpServerConfig>,
   setAppState: (updater: (previous: AppState) => AppState) => void,
 ): Promise<void> {
+
   const { survivors, collided } = fenceMcpPrefixCollisions(configs)
   const { members, excluded } = partitionMcpConfigsByMembership(survivors)
   if (members.length === 0 && excluded.length === 0 && collided.length === 0) return
+
   setAppState(previous => ({
     ...previous,
     mcp: {
@@ -2085,6 +2163,7 @@ async function connectMcpBatch(
     members.map(async ([name, config]) => {
       try {
         const client = await connectToServer(name, config)
+
         const [tools, commands] = await Promise.all([
           fetchToolsForClient(client),
           fetchCommandsForClient(client),
@@ -2101,6 +2180,7 @@ async function connectMcpBatch(
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error)
         logForDebugging(`MCP connect failed for ${name}: ${reason}`)
+
         setAppState(previous => ({
           ...previous,
           mcp: {
@@ -2214,12 +2294,14 @@ async function runLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
+
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\n`)
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: args.toolPermissionContext,
     verbose: config.toolOutput === 'full',
+
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
   }
   const store = createStore<AppState>(initialState, ({ newState, oldState }) =>
@@ -2250,7 +2332,9 @@ async function runLaunch(args: {
   profileCheckpoint('action_before_mcp_configs_await')
   const regularMcpConfigs = await args.mcpConfigPromise
   profileCheckpoint('action_mcp_configs_loaded')
+
   {
+
     if (consumeSessionKitPin().outcome === 'refused') {
       const receiptHome = getSessionProjectDir()
       if (receiptHome !== null) noteRefusedKitOnSessionReceipt(receiptHome, getSessionId())
@@ -2323,6 +2407,7 @@ async function runLaunch(args: {
         agent: typedString(opts.agent),
         workload: typedString(opts.meterTag),
         advise: opts.advise === true,
+
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
         initializeMcp,
         door: args.door,
@@ -2331,6 +2416,7 @@ async function runLaunch(args: {
       },
     )
   } catch (error) {
+
     writeErr(`Error: ${error instanceof Error ? error.message : String(error)}`)
     if (!isShuttingDown()) {
       await gracefulShutdown(1)
@@ -2356,6 +2442,7 @@ async function connectAnthropicConnectors(store: {
     const connectorSignatures = new Set(
       Object.values(connectorEntries).map(config => getMcpServerSignature(config)),
     )
+
     const suppressed: string[] = []
     for (const client of state.mcp.clients) {
       if (!client.name.startsWith('ext:')) continue
@@ -2366,6 +2453,7 @@ async function connectAnthropicConnectors(store: {
         await clearServerCache(client.name, client.config).catch(() => {})
       }
     }
+
     const manualSignatures = new Set(
       store
         .getState()
@@ -2374,6 +2462,7 @@ async function connectAnthropicConnectors(store: {
         )
         .map(client => getMcpServerSignature(client.config)),
     )
+
     const surviving: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
     for (const [name, connectorConfig] of Object.entries(connectorEntries)) {
       if (manualSignatures.has(getMcpServerSignature(connectorConfig))) continue
@@ -2403,11 +2492,13 @@ async function connectAnthropicConnectors(store: {
   const raced = await Promise.race([work, bound])
   if (timerBox.timer !== undefined) clearTimeout(timerBox.timer)
   if (raced === 'timeout') {
+
     logForDebugging('claude.ai connectors were not ready within 5s; continuing')
   }
 }
 
 export function startDeferredPrefetches(): void {
+
   if (isBareMode()) return
   void import('./services/api/clientContractLearned.js')
     .then(({ startClientContractPeek }) => startClientContractPeek())
@@ -2415,6 +2506,7 @@ export function startDeferredPrefetches(): void {
   void (async () => {
     try {
       void getUserContext().catch(() => {})
+
       if (!getIsInteractive()) {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_non_interactive')
         void getSystemContext().catch(() => {})
@@ -2429,6 +2521,7 @@ export function startDeferredPrefetches(): void {
         prefetchThirdPartyCredentials?: () => void
       }
       prefetchThirdPartyCredentials?.()
+
       if (getIsInteractive()) void countFilesRoundedRg(process.cwd(), AbortSignal.timeout(3000)).catch(() => {})
       const { getModelCapability } = (await import('./utils/model/capabilities.js')) as {
         getModelCapability?: (model: string) => unknown

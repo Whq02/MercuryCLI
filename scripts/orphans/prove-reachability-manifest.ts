@@ -123,6 +123,7 @@ t.section('§3 — proof-only reachability can never claim production-live (CA-0
   }
 
   t.check('the severed-flag finding list is EMPTY (pinned)', manifest.summary.flagFindings.length === 0, manifest.summary.flagFindings.join(','))
+
   const flagMiss = manifest.flags.filter(f => f.consumerExists === 1 && f.consumerReached === 0 && f.consumerParked !== 1)
   t.check('every existing src flag consumer is reached or parked in the typed baseline', flagMiss.length === 0, flagMiss.map(f => f.env).join(','))
   const parked = manifest.flags.filter(f => f.consumerParked === 1).map(f => f.env)

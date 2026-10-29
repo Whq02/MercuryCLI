@@ -1,4 +1,3 @@
-
 import { useContext, useEffect, useState } from 'react'
 import { ClockContext } from '../components/ClockContext.js'
 import { MotionParkContext } from '../components/MotionParkContext.js'

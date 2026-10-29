@@ -1,7 +1,5 @@
-
 import { z } from 'zod/v4'
 import { logForDebugging } from '../../utils/debug.js'
-
 
 const readyFrame = z.object({ t: z.literal('ready'), token: z.string() })
 const startedFrame = z.object({ t: z.literal('started'), token: z.string(), id: z.string() })
@@ -26,6 +24,7 @@ const errorFrame = z.object({
   name: z.string(),
   value: z.string(),
   traceback: z.string(),
+
   survived: z.array(z.string()).optional(),
   declared: z.array(z.string()).optional(),
 })
@@ -57,7 +56,6 @@ const runnerFrameSchema = z.discriminatedUnion('t', [
 
 export type RunnerFrame = z.infer<typeof runnerFrameSchema>
 export type BridgeRequestFrame = z.infer<typeof bridgeFrame>
-
 
 type HostFrame =
   | { t: 'hello'; token: string; cwd: string }

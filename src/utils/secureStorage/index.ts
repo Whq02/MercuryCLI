@@ -4,7 +4,6 @@ import { macOsKeychainStorage } from './macOsKeychainStorage.js'
 import { plainTextStorage } from './plainTextStorage.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
-
 export { createFallbackStorage } from './fallbackStorage.js'
 export {
   clearKeychainCache,

@@ -1,4 +1,3 @@
-
 export const RELATION_EDGE_KINDS = [
   'spawned-by',
   'depends-on',
@@ -11,16 +10,20 @@ export type OverlapProvenance = 'reported' | 'changed' | 'unknown'
 
 export interface OverlapPath {
   path: string
+
   from: OverlapProvenance
+
   to: OverlapProvenance
 }
 
 export interface RelationFact {
   kind: RelationEdgeKind
+
   from: string
   to: string
   owner: string
   sourceEventId: string
+
   paths?: readonly OverlapPath[]
 }
 
@@ -34,6 +37,7 @@ export interface RelationEdge {
 }
 
 export interface RelationState {
+
   edges: ReadonlyMap<string, RelationEdge>
 }
 

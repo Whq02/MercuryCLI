@@ -8,7 +8,9 @@ import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
 
 export const SNAPSHOT_SCHEMA = 5
+
 const DIGEST_TAIL_BYTES = 4096
+
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 
 export function resumeSnapshotEnabled(): boolean {
@@ -73,6 +75,7 @@ export function writeResumeSnapshot(
       fold: serializeFold(fold),
       order: transcriptRowOrder(fold.messages),
     })
+
     durableAtomicPublishSync(snapshotPathFor(transcriptPath), payload)
   } catch {
   }
@@ -80,6 +83,7 @@ export function writeResumeSnapshot(
 
 type SnapshotHit = {
   fold: TranscriptFoldState
+
   tail: Buffer
   byteCursor: number
   fileSize: number
@@ -103,8 +107,11 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     if (!Array.isArray(raw.order) || !raw.order.every(id => typeof id === 'string')) return null
     const order = raw.order as string[]
     const { size } = statSync(transcriptPath)
+
     if (size < cursor) return null
+
     if (digestPrefixTail(transcriptPath, cursor) !== raw.prefixDigest) return null
+
     const tailLen = size - cursor
     const tail = Buffer.allocUnsafe(tailLen)
     const fd = openSync(transcriptPath, 'r')
@@ -118,6 +125,7 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     } finally {
       closeSync(fd)
     }
+
     if (read < tailLen) return null
     return {
       fold: deserializeFold(raw.fold, order),

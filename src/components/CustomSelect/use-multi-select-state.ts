@@ -1,4 +1,3 @@
-
 import { useCallback, useRef, useState } from 'react'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
 import useInput from '../../ink/hooks/use-input.js'
@@ -27,15 +26,22 @@ type UseMultiSelectStateProps<T> = {
   onCancel: () => void
   onSubmit?: (values: T[]) => void
   onFocus?: (value: T) => void
+
   focusValue?: T
+
   initialFocusLast?: boolean
+
   hideIndexes?: boolean
+
   hasSubmitButton?: boolean
   isDisabled?: boolean
   onDownFromLastItem?: () => void
   onUpFromFirstItem?: () => void
+
   onEmptyInputSubmit?: (value: T) => void
+
   onTabOut?: (direction: 'next' | 'previous') => void
+
   onSubmitFocusChange?: (focused: boolean) => void
 }
 
@@ -45,6 +51,7 @@ type MultiSelectState<T> = SelectNavigation<T> & {
   isSubmitFocused: boolean
   updateInputValue: (value: T, text: string) => void
   toggleValue: (value: T) => void
+
   activateInputValue: (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string) => void
   onCancel: () => void
 }
@@ -68,6 +75,7 @@ export function useMultiSelectState<T>({
   onTabOut,
   onSubmitFocusChange,
 }: UseMultiSelectStateProps<T>): MultiSelectState<T> {
+
   usePopupPageOwner(!isDisabled)
   useRegisterOverlay('multi-select', true, { ownsPageKeys: !isDisabled })
 
@@ -94,6 +102,7 @@ export function useMultiSelectState<T>({
     return seeded
   })
   const [isSubmitFocused, setSubmitFocusedState] = useState(false)
+
   const submitFocusedRef = useRef(isSubmitFocused)
   submitFocusedRef.current = isSubmitFocused
   const onSubmitFocusChangeRef = useRef(onSubmitFocusChange)
@@ -118,6 +127,7 @@ export function useMultiSelectState<T>({
 
   const selectedValuesRef = useRef(selectedValues)
   selectedValuesRef.current = selectedValues
+
   const inputValuesRef = useRef(inputValues)
   inputValuesRef.current = inputValues
 
@@ -183,6 +193,7 @@ export function useMultiSelectState<T>({
 
   useInput(
     (input, key, event) => {
+
       if (navigation.isInInput && !isSubmitFocused) {
         const allowed =
           key.upArrow ||

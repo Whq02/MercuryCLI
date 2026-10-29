@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto'
 
 import { validateUuid } from './uuid.js'
 
-
 type ParsedSessionUrl = {
   sessionId: string
   jsonlFile: string | null

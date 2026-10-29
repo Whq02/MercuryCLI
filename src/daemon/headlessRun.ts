@@ -1,4 +1,3 @@
-
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -20,6 +19,7 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
+
 function sweptRoleSpellings(): string[] {
   return [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
 }
@@ -59,7 +59,6 @@ export function getRunMaxBufBytes(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : RUN_MAXBUF_BYTES
 }
 
-
 export const HEADLESS_PERMISSION_MODE_DEFAULT = 'default'
 
 export const HEADLESS_PERMISSION_MODES = [
@@ -94,14 +93,17 @@ export function headlessPermissionArgv(
 ): string[] {
   if (mode === 'sovereign') return ['--sovereign']
   const words = mode === 'default' ? [] : ['--mode', mode]
+
   return allowBypass ? [...words, '--allow-sovereign'] : words
 }
 
 export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
+
   killProcessGroup(child, signal)
 }
 
 function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
+
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const v of sweptRoleSpellings()) {
     delete env[v]
@@ -112,15 +114,20 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
 export interface HeadlessResult {
   stdout: string
   code: number | null
+
   pid?: number
+
   timedOut?: boolean
 }
 
 export interface HeadlessSpec {
   id: string
   prompt: string
+
   permissionMode?: HeadlessPermissionMode
+
   allowedTools?: readonly string[]
+
   resumeSessionId?: string
 }
 
@@ -139,22 +146,33 @@ export function getSelfInvocation(): { node: string; script: string } {
   return { node: process.execPath, script: selfScriptPath() }
 }
 
-
 export interface RunnerChildSpec {
+
   model: string
+
   keyless?: true
+
   effort: string
+
   appendSystemPrompt: string
+
   role: 'MERCURY_CONCOURSE_WORKER'
   agentName: string
   agentId: string
   cwd?: string
+
   extraEnv?: Readonly<Record<string, string>>
+
   permissionMode?: SeatPermissionMode
+
   allowBypass?: true
+
   allowedTools?: readonly string[]
+
   extraArgv?: readonly string[]
+
   respawnExtraArgv?: readonly string[]
+
   stripEnv?: readonly string[]
   sessionPin?: { sessionId: string; cwd: string }
   partialRows?: true
@@ -201,34 +219,44 @@ export function buildRunnerInvocation(
   capabilities: Capabilities
 } {
   const { node, script } = getSelfInvocation()
+
   const model = spec.model
   const argv = [
     script,
     'runner',
+
     ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
+
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowed-tools', ...spec.allowedTools]
       : []),
+
     ...(spec.keyless ? [] : ['--model', model]),
     '--brief-add',
     spec.appendSystemPrompt,
+
     ...(opts?.respawn ? respawnArgvOf(spec) : identityArgvOf(spec, spec.extraArgv ?? [])),
     ...sessionPinArgv(spec.sessionPin),
   ]
+
   const inherited: NodeJS.ProcessEnv = { ...process.env }
+
   for (const v of spec.stripEnv ?? []) {
     delete inherited[v]
   }
   const env: NodeJS.ProcessEnv = {
     ...inherited,
+
     ...(spec.extraEnv ?? {}),
     MERCURY_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
   }
+
   for (const v of sweptRoleSpellings()) {
     delete env[v]
   }
   stampFlagOnEnv(env, spec.role, '1')
+
   stampSpawnReceipt(env, [
     ...Object.keys(spec.extraEnv ?? {}),
     'MERCURY_MODEL',
@@ -251,7 +279,9 @@ export function spawnRunnerChild(
   if (!script) {
     logForDebugging('[daemon] cannot resolve self executable; long-lived child not spawned')
   }
+
   stampFlagOnEnv(env, WORKER_PARENT_PID_ENV, String(process.pid))
+
   stampFlagOnEnv(env, SPAWNED_BY_ENV, spawnedByStamp(`daemon-${spec.role.toLowerCase()}`, spec.agentId))
   stampSpawnReceipt(env, [WORKER_PARENT_PID_ENV, SPAWNED_BY_ENV])
   recordSpawn({
@@ -266,6 +296,7 @@ export function spawnRunnerChild(
   const child = spawn(node, argv, {
     cwd: spec.cwd ?? process.cwd(),
     stdio: ['pipe', 'pipe', 'pipe'],
+
     windowsHide: true,
     env,
   })
@@ -291,10 +322,12 @@ export function runTaskHeadless(
     logForDebugging(`[daemon] running ${spec.id} headlessly`)
     let child: ChildProcess
     try {
+
       const oneShotEnv = cloneEnvWithoutRoles()
       stampFlagOnEnv(oneShotEnv, WORKER_PARENT_PID_ENV, String(process.pid))
       stampFlagOnEnv(oneShotEnv, SPAWNED_BY_ENV, spawnedByStamp('daemon-fire', spec.id))
       stampSpawnReceipt(oneShotEnv, [WORKER_PARENT_PID_ENV, SPAWNED_BY_ENV])
+
       const cwdGate = assertSpawnCwd(dir)
       if (!cwdGate.ok) {
         recordSpawn({ kind: 'headless-refused', id: spec.id, cwd: dir, reason: cwdGate.reason })
@@ -303,6 +336,7 @@ export function runTaskHeadless(
         return
       }
       recordSpawn({ kind: 'headless', id: spec.id, cwd: dir })
+
       child = spawn(
         node,
         [
@@ -312,19 +346,25 @@ export function runTaskHeadless(
           ...(spec.allowedTools && spec.allowedTools.length > 0
             ? ['--allowed-tools', ...spec.allowedTools]
             : []),
+
           ...(spec.resumeSessionId ? ['--resume', spec.resumeSessionId] : []),
           '--',
           spec.prompt,
         ],
         {
         cwd: dir,
+
         detached: true,
+
         windowsHide: true,
+
         stdio: ['ignore', 'pipe', 'ignore'],
+
         env: oneShotEnv,
       })
     } catch (e) {
       logForDebugging(`[daemon] spawn failed for ${spec.id}: ${e}`)
+
       recordSpawnExit({
         kind: 'headless',
         event: 'exit',
@@ -342,7 +382,9 @@ export function runTaskHeadless(
     let stdout = ''
     const maxBuf = getRunMaxBufBytes()
     let settled = false
+
     let wasTimedOut = false
+
     let killTimer: ReturnType<typeof setTimeout> | undefined
     const finish = (code: number | null) => {
       if (settled) return
@@ -350,6 +392,7 @@ export function runTaskHeadless(
       clearTimeout(timer)
       if (killTimer) clearTimeout(killTimer)
       if (killCloseBackstop) clearTimeout(killCloseBackstop)
+
       recordSpawnExit({
         kind: 'headless',
         event: 'exit',
@@ -382,6 +425,7 @@ export function runTaskHeadless(
       )
       killProcessTree(child, 'SIGTERM')
       if (graceMs <= 0) {
+
         killProcessTree(child, 'SIGKILL')
         finishOnCloseWithBackstop()
         return
@@ -398,6 +442,7 @@ export function runTaskHeadless(
     child.stdout?.setEncoding('utf8')
     child.stdout?.on('data', d => {
       stdout += d
+
       if (stdout.length > maxBuf) stdout = stdout.slice(-maxBuf)
     })
     child.on('error', e => {

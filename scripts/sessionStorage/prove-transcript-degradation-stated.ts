@@ -133,6 +133,7 @@ section('§3 a whole-file refusal is stated — the empty resume is not silent')
 {
   loading._resetTranscriptLoadDegradationForTesting()
   const path = join(scratch, `${SID}-refused.jsonl`)
+
   const foreign = '{"not":"a transcript"}\n{"still":"not one"}\n'
   writeFileSync(path, foreign)
   const loaded = await loading.loadTranscriptFile(path)

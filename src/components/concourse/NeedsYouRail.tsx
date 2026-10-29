@@ -7,7 +7,6 @@ import { paneWindow } from '../mercury-ui/paneWindow.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import type { ConcourseSnapshotV1 } from './contracts.js';
 
-
 export const RAIL_MAX_ROWS = 3;
 
 interface RailTailChunk {
@@ -17,7 +16,9 @@ interface RailTailChunk {
 
 interface RailTailPart {
   key: 'meta' | 'answer' | 'open' | 'dismiss'
+
   priority: number
+
   text: string
   chunks: RailTailChunk[]
 }
@@ -25,6 +26,7 @@ interface RailTailPart {
 export function railTailParts(
   o: { projectLabel: string; agentLabel: string; ageLabel: string },
   budget: number,
+
   door = false,
 ): RailTailPart[] {
   const part = (key: RailTailPart['key'], priority: number, chunks: RailTailChunk[]): RailTailPart => ({
@@ -34,6 +36,7 @@ export function railTailParts(
     chunks,
   });
   const parts: RailTailPart[] = [
+
     part('meta', 1, [{ text: `${o.projectLabel} · ${o.ageLabel}`, tone: 'muted' }]),
     part('answer', 4, [
       { text: ` ${GLYPH.sep} `, tone: 'muted' },
@@ -47,6 +50,7 @@ export function railTailParts(
             { text: 'open session', tone: 'affordance' },
           ]),
         ]),
+
     part('dismiss', 3.5, [
       { text: ` ${GLYPH.sep} `, tone: 'muted' },
       { text: '✕ dismiss', tone: 'affordance' },
@@ -71,22 +75,29 @@ export function NeedsYouRail({
   focused: boolean
   selectedIndex: number
   width: number
+
   maxRows?: number
+
   showRule?: boolean
+
   onSelectRow?: (index: number) => void
   onAnswer?: (obligationId: string) => void
   onOpen?: (obligationId: string) => void
+
   onDismiss?: (obligationId: string) => void
 }): React.ReactNode {
   const t = useMercuryTokens();
+
   const total = snapshot.needsYou.length;
   const win = paneWindow(total, selectedIndex, Math.max(1, Math.min(RAIL_MAX_ROWS, maxRows)));
   const rows = snapshot.needsYou.slice(win.start, win.end);
   if (rows.length === 0) return null;
   return (
+
     <Box
       flexDirection="column"
       flexShrink={0}
+
       borderStyle={paletteCollapsed() && focused ? 'bold' : 'round'}
       borderColor={t.warning}
       paddingX={1}
@@ -111,6 +122,7 @@ export function NeedsYouRail({
         </Box>
       ) : null}
       {(() => {
+
         const titleBand = Math.min(
           Math.max(14, Math.floor(width * 0.27)),
           Math.max(14, ...rows.map(o => displayWidth(o.title) + 3)),

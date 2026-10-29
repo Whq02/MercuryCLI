@@ -160,6 +160,7 @@ async function main(): Promise<void> {
 
   section('4. backoff — fast-fail window, doubling, reset on success')
   {
+
     const deadPort = await new Promise<number>(resolve => {
       const s = net.createServer()
       s.listen(0, '127.0.0.1', () => {
@@ -179,8 +180,10 @@ async function main(): Promise<void> {
     const r3 = await client.request('z')
     check('after the window a reconnect is attempted', !r3.ok && r3.error.code !== 'EDITOR_UNREACHABLE', !r3.ok ? r3.error.code : '')
     check('second failure doubles again', client.nextDelayMs() === FAST.backoffStartMs * 4, `${client.nextDelayMs()}`)
+
     const srv = await startFakeServer('tok')
     const c2 = new VulcanClient({ port: srv.port, instance: srv.instance, token: 'tok', ...FAST })
+
     await c2.request('warm')
     srv.setMode('drop-on-request')
     const rd = await c2.request('will-drop')
@@ -198,6 +201,7 @@ async function main(): Promise<void> {
 
   section('5. events — unsolicited frames buffer + drain')
   {
+
     const evtServer = net.createServer(socket => {
       const instance = fakeInstance(socket.localPort!)
       let authed = false
@@ -257,6 +261,7 @@ async function main(): Promise<void> {
 
   section('6. seamark PB-1 — squatted port + queued-request deadlines (never hangs)')
   {
+
     const squatted = await new Promise<{ port: number; close: () => void }>(resolve => {
       const sockets = new Set<net.Socket>()
       const server = net.createServer(socket => {

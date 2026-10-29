@@ -1,7 +1,6 @@
 import type { RenderableMessage, Message } from '../types/message.js'
 import { isTurnCutText } from './messages.js'
 
-
 const searchTextCache = new WeakMap<object, string>()
 
 function toolUseSearchText(input: unknown): string {
@@ -62,6 +61,7 @@ function stripSystemReminders(text: string): string {
 }
 
 function isInterruptionSentinel(text: string): boolean {
+
   return isTurnCutText(text)
 }
 
@@ -76,6 +76,7 @@ function computeSearchText(message: RenderableMessage): string {
   if (message.type === 'user') {
     const content = message.message.content
     if (typeof content === 'string') {
+
       return isInterruptionSentinel(content) ? '' : content
     }
     if (!Array.isArray(content)) return ''
@@ -85,6 +86,7 @@ function computeSearchText(message: RenderableMessage): string {
       if (block.type === 'text' && typeof block.text === 'string') {
         if (!isInterruptionSentinel(block.text)) parts.push(block.text)
       } else if (block.type === 'tool_result') {
+
         parts.push(toolResultSearchText(toolUseResult))
       }
     }
@@ -99,6 +101,7 @@ function computeSearchText(message: RenderableMessage): string {
       if (block.type === 'text' && typeof block.text === 'string') {
         parts.push(block.text)
       } else if (block.type === 'tool_use') {
+
         parts.push(toolUseSearchText(block.input))
       }
     }
@@ -109,6 +112,7 @@ function computeSearchText(message: RenderableMessage): string {
     const attachment = (message as { attachment?: { type?: string } }).attachment
     if (!attachment) return ''
     if (attachment.type === 'queued_command') {
+
       const queued = attachment as { prompt?: unknown; commandMode?: string; isMeta?: boolean }
       if (queued.commandMode === 'task-notification') return ''
       if (queued.isMeta === true) return ''
@@ -125,6 +129,7 @@ function computeSearchText(message: RenderableMessage): string {
   }
 
   if ((message as { type?: string }).type === 'collapsed_read_search') {
+
     const memories = (message as { relevantMemories?: Array<{ content?: unknown }> }).relevantMemories
     if (!Array.isArray(memories)) return ''
     return memories.map(memory => (typeof memory.content === 'string' ? memory.content : '')).join('\n')
@@ -140,7 +145,6 @@ export function renderableSearchText(msg: RenderableMessage): string {
   searchTextCache.set(msg as object, text)
   return text
 }
-
 
 export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'ApolloReview',
@@ -233,6 +237,7 @@ export function parseSearchQuery(raw: string): SearchQuery {
     if (lower.startsWith('tool:') || lower.startsWith('file:')) {
       const value = token.slice(5)
       if (value === '' || value.startsWith('"')) {
+
         freeTokens.push(token)
         continue
       }

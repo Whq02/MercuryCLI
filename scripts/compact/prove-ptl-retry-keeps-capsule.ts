@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -32,6 +33,7 @@ type Msg = { type: string; uuid: string; isCompactSummary?: boolean; isMeta?: bo
 const isCapsule = (m: Msg): boolean => isCompactBoundaryMessage(m as never) || (m.type === 'user' && m.isCompactSummary === true)
 const isMarker = (m: Msg): boolean => m.type === 'user' && m.isMeta === true && typeof m.message?.content === 'string' && m.message.content.includes('folded for the compaction retry')
 const uuids = (list: Msg[]): string[] => list.map(m => m.uuid)
+
 const working = (list: Msg[]): number => list.filter(m => !isCapsule(m) && !isMarker(m)).length
 
 function round(n: number): Msg[] {
@@ -128,6 +130,7 @@ console.log('L4 two capsules (older pair kept by a from-direction partial): both
   const older = capsule('SUMMARY-OLD')
   const newer = capsule('SUMMARY-NEW')
   const messages: Msg[] = [older.boundary, older.summary, ...round(1), ...round(2), newer.boundary, newer.summary, ...round(3), ...round(4), ...round(5)]
+
   const out = truncate(messages, ptl(700))
   check('progress', out !== null && working(out) < working(messages), `${out ? working(out) : 'null'}/${working(messages)}`)
   if (out !== null) {

@@ -13,7 +13,6 @@ import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 
-
 export type EditorResult = {
   content: string | null
   error?: string
@@ -74,6 +73,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
   try {
     await instance.awaitTerminalQueries()
     if (isTerminalEditor) {
+
       instance.enterAlternateScreen()
     } else {
       instance.pause()
@@ -81,6 +81,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
     }
     try {
       const exitCode = await new Promise<number | null>((resolveExit, rejectExit) => {
+
         const child = spawn(commandLine, { shell: true, windowsHide: false, stdio: 'inherit', env: { ...subprocessEnv() } })
         child.once('error', rejectExit)
         child.once('exit', code => resolveExit(code))
@@ -93,6 +94,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       }
       return { content: readFileSync(filePath, 'utf8') }
     } finally {
+
       reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')
       if (isTerminalEditor) {
         instance.exitAlternateScreen()
@@ -103,6 +105,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       simulateConsoleFaultAfterHandback()
     }
   } catch {
+
     return { content: null }
   }
 }
@@ -132,6 +135,7 @@ function collapseUnmodifiedPastes(
   for (const paste of Object.values(pastedContents)) {
     if (paste.type !== 'text') continue
     if (!result.includes(paste.content)) continue
+
     result = result.replace(paste.content, () =>
       formatPastedTextRef(paste.id, getPastedTextRefNumLines(paste.content)),
     )
@@ -143,15 +147,18 @@ export async function editPromptInEditor(
   currentPrompt: string,
   pastedContents?: Record<number, PastedContent>,
 ): Promise<EditorResult> {
+
   const textForFile = pastedContents ? expandPastedTextRefs(currentPrompt, pastedContents) : currentPrompt
   const tempFilePath = generateTempFilePath()
   writeFileSync(tempFilePath, textForFile, { encoding: 'utf8', flush: true })
   try {
     const result = await editFileInEditor(tempFilePath)
     if (result.content === null) {
+
       return result
     }
     let content = result.content
+
     if (content.endsWith('\n') && !content.endsWith('\n\n')) {
       content = content.slice(0, -1)
     }

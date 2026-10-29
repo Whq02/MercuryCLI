@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -11,6 +12,7 @@ delete process.env.MERCURY_EDIT_HUNKS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
 if (process.argv.includes('--print-schema-keys')) {
+
   const gateArg = process.argv.find(a => a.startsWith('--gate='))
   if (gateArg) process.env.MERCURY_EDIT_HUNKS = gateArg.slice('--gate='.length)
   const { FileEditTool: tool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
@@ -161,6 +163,7 @@ section('P. pure plan + apply math')
 
 section('S. gating — OFF is the exact pre-S2 surface')
 {
+
   const { spawnSync } = await import('node:child_process')
   const probe = (envValue: string | undefined): string[] => {
     const args = [import.meta.path, '--print-schema-keys']

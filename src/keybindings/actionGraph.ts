@@ -1,11 +1,14 @@
-
 export type ActionMeta = {
+
   description: string
+
   contexts: readonly string[]
+
   rebindOnly?: string
 }
 
 export const ACTION_GRAPH = {
+
   'app:interrupt': { description: 'Interrupt the current turn (double-press quits)', contexts: ['Global'] },
   'app:exit': { description: 'Exit Mercury (double-press)', contexts: ['Global'] },
   'app:toggleTasks': { description: 'Toggle the task list panel', contexts: ['Global'] },
@@ -19,13 +22,19 @@ export const ACTION_GRAPH = {
   'app:commandPalette': { description: 'Open the command palette', contexts: ['Global'] },
   'app:fileOpen': { description: 'Open the file quick-open (insert @path)', contexts: ['Global'] },
   'app:contentSearch': { description: 'Search file contents (insert @file#Lline)', contexts: ['Global'] },
+
   'app:openSurfaceSwitcher': { description: 'Open the Session Concourse — every surface, one board', contexts: ['Global'] },
+
   'concourse:closeSession': { description: 'Close the highlighted Concourse session (staged: stop, then remove — the same chord walks both)', contexts: ['Global'] },
+
   'app:cycleSurfaceForward': { description: 'Cycle to the next surface (the focused chat → Concourse → Boot menu — only screens that exist)', contexts: ['Global'] },
   'app:cycleSurfaceBack': { description: 'Cycle to the previous surface', contexts: ['Global'] },
+
   'app:surfaceRight': { description: 'Surface strip right (Boot menu → Concourse → the focused chat; only stops that exist — with no chat open, no movement)', contexts: ['Global'] },
   'app:surfaceLeft': { description: 'Surface strip left (the focused chat → Concourse → Boot menu)', contexts: ['Global'] },
+
   'history:search': { description: 'Search command history', contexts: ['Global'] },
+
   'chat:cancel': { description: 'Cancel the current input or close the transient surface', contexts: ['Chat'] },
   'chat:killAgents': { description: 'Stop all running crewmates', contexts: ['Chat'] },
   'chat:backgroundShell': { description: 'background the command', contexts: ['Chat'] },
@@ -43,10 +52,12 @@ export const ACTION_GRAPH = {
   'chat:stash': { description: 'Stash the current draft', contexts: ['Chat'] },
   'chat:imagePaste': { description: 'Paste an image from the clipboard', contexts: ['Chat'] },
   'chat:messageActions': { description: 'Open message actions on a previous turn', contexts: ['Chat'] },
+
   'autocomplete:accept': { description: 'Accept the highlighted completion', contexts: ['Autocomplete'] },
   'autocomplete:dismiss': { description: 'Dismiss the completion menu', contexts: ['Autocomplete'] },
   'autocomplete:previous': { description: 'Previous completion', contexts: ['Autocomplete'] },
   'autocomplete:next': { description: 'Next completion', contexts: ['Autocomplete'] },
+
   'confirm:yes': { description: "Confirm the dialog's primary action", contexts: ['Confirmation'] },
   'confirm:no': { description: 'Decline / dismiss', contexts: ['Confirmation', 'Settings'] },
   'confirm:previous': { description: 'Previous option', contexts: ['Confirmation'] },
@@ -55,21 +66,29 @@ export const ACTION_GRAPH = {
   'confirm:approveWithFeedback': { description: 'Approve the plan carrying the typed feedback', contexts: ['Confirmation'] },
   'confirm:toggleExplanation': { description: 'Toggle the permission explanation', contexts: ['Confirmation'] },
   'confirm:toggleFullPreview': { description: 'Expand or collapse the consent card\'s bounded file preview', contexts: ['Confirmation'] },
+
   'tabs:next': { description: 'Next tab', contexts: ['Tabs'] },
   'tabs:previous': { description: 'Previous tab', contexts: ['Tabs'] },
+
   'transcript:toggleShowAll': { description: 'Toggle full transcript detail', contexts: ['Transcript'] },
   'transcript:exit': { description: 'Leave the transcript viewer', contexts: ['Transcript'] },
+
   'historySearch:next': { description: 'Next history match', contexts: ['HistorySearch'] },
   'historySearch:accept': { description: 'Accept the match into the composer', contexts: ['HistorySearch'] },
   'historySearch:cancel': { description: 'Cancel history search', contexts: ['HistorySearch'] },
   'historySearch:execute': { description: 'Run the matched command immediately', contexts: ['HistorySearch'] },
+
   'task:background': { description: 'Send the running task to the background', contexts: ['Task'] },
+
   'theme:toggleSyntaxHighlighting': { description: 'Toggle syntax highlighting preview', contexts: ['ThemePicker'] },
+
   'help:dismiss': { description: 'Close help', contexts: ['Help'] },
+
   'attachments:next': { description: 'Next attachment', contexts: ['Attachments'] },
   'attachments:previous': { description: 'Previous attachment', contexts: ['Attachments'] },
   'attachments:remove': { description: 'Remove the selected attachment', contexts: ['Attachments'] },
   'attachments:exit': { description: 'Leave attachment navigation', contexts: ['Attachments'] },
+
   'footer:up': { description: 'Move up the footer indicators', contexts: ['Footer'] },
   'footer:down': { description: 'Move down the footer indicators', contexts: ['Footer'] },
   'footer:next': { description: 'Next footer indicator', contexts: ['Footer'] },
@@ -81,12 +100,15 @@ export const ACTION_GRAPH = {
     contexts: ['Footer'],
     rebindOnly: 'reached through the footer row actions; bind a chord for one-key dismissal',
   },
+
   'messageSelector:up': { description: 'Previous message', contexts: ['MessageSelector'] },
   'messageSelector:down': { description: 'Next message', contexts: ['MessageSelector'] },
   'messageSelector:top': { description: 'First message', contexts: ['MessageSelector'] },
   'messageSelector:bottom': { description: 'Last message', contexts: ['MessageSelector'] },
   'messageSelector:select': { description: 'Rewind to the selected message', contexts: ['MessageSelector'] },
+
   'messageSelector:close': { description: 'Close the rewind surface back to the chat', contexts: ['MessageSelector'] },
+
   'messageActions:prev': { description: 'Previous message row', contexts: ['MessageActions'] },
   'messageActions:next': { description: 'Next message row', contexts: ['MessageActions'] },
   'messageActions:top': { description: 'First message row', contexts: ['MessageActions'] },
@@ -98,6 +120,7 @@ export const ACTION_GRAPH = {
   'messageActions:enter': { description: 'Open actions for the selected message', contexts: ['MessageActions'] },
   'messageActions:c': { description: 'Copy the selected message', contexts: ['MessageActions'] },
   'messageActions:p': { description: 'Pin the selected message', contexts: ['MessageActions'] },
+
   'diff:dismiss': { description: 'Close the diff workspace', contexts: ['DiffDialog'] },
   'diff:previousSource': { description: 'Previous diff source', contexts: ['DiffDialog'] },
   'diff:nextSource': { description: 'Next diff source', contexts: ['DiffDialog'] },
@@ -120,12 +143,14 @@ export const ACTION_GRAPH = {
   'diff:resolveComments': { description: 'Resolve the selected comments', contexts: ['DiffDialog'] },
   'diff:sendComments': { description: 'Send the selected comments', contexts: ['DiffDialog'] },
   'diff:sendAllComments': { description: 'Send every pending comment', contexts: ['DiffDialog'] },
+
   'select:next': { description: 'Next row', contexts: ['Select', 'Settings'] },
   'select:previous': { description: 'Previous row', contexts: ['Select', 'Settings'] },
   'select:first': { description: 'First row', contexts: ['Select', 'Settings'] },
   'select:last': { description: 'Last row', contexts: ['Select', 'Settings'] },
   'select:accept': { description: 'Choose the selected row', contexts: ['Select', 'Settings'] },
   'select:cancel': { description: 'Cancel the selection', contexts: ['Select'] },
+
   'extensions:toggle': { description: 'Turn the selected extension off or on', contexts: ['Extensions'] },
   'extensions:install': { description: 'Install or approve the selected extension (the approval card)', contexts: ['Extensions'] },
   'extensions:update': { description: 'Update the selected extension to the version its source lists', contexts: ['Extensions'] },
@@ -137,10 +162,14 @@ export const ACTION_GRAPH = {
   'extensions:reload': { description: 'Reload the extensions into the running session', contexts: ['Extensions'] },
   'extensions:filter': { description: 'Filter the rows', contexts: ['Extensions'] },
   'extensions:previous': { description: "Swap back to the selected extension's previous version", contexts: ['Extensions'] },
+
   'permission:toggleDebug': { description: 'Toggle permission debug detail', contexts: ['Confirmation'] },
+
   'settings:retry': { description: 'Retry loading usage data', contexts: ['Settings'] },
+
   'atlas:lookup': { description: 'Input atlas: capture one chord and explain what it does', contexts: ['Atlas'] },
   'atlas:rebind': { description: 'Input atlas: rebind the selected action', contexts: ['Atlas'] },
+
   'scroll:pageUp': { description: 'Scroll a page up', contexts: ['Scroll'] },
   'scroll:pageDown': { description: 'Scroll a page down', contexts: ['Scroll'] },
   'scroll:lineUp': { description: 'Scroll a line up', contexts: ['Scroll'] },

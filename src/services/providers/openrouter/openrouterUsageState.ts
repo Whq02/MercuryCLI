@@ -9,16 +9,21 @@ import { wordsNameTheKey } from '../catalogueBody.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
-
 export interface OpenrouterKeyUsage {
+
   label?: string
+
   usage?: number
   usageDaily?: number
   usageWeekly?: number
   usageMonthly?: number
+
   limit?: number | null
+
   limitRemaining?: number | null
+
   limitReset?: string
+
   isFreeTier?: boolean
   observedAtMs: number
 }
@@ -29,6 +34,7 @@ let lastErrorSource: OpenrouterKeySource | undefined
 let lastErrorStatus: number | undefined
 let lastAttemptAtMs = 0
 let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
+
 let observedIdentity = 'none'
 
 const KEY_USAGE_TTL_MS = USAGE_POLL_TTL_MS
@@ -160,6 +166,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
   const now = opts?.now ?? Date.now
   const env = opts?.env ?? process.env
   dropIfStale(env)
+
   if (!catalogueTrafficVerdict('openrouter', env).allowed) {
     return Promise.resolve(observedKeyUsage)
   }
@@ -168,6 +175,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
     return Promise.resolve(observedKeyUsage)
   }
   if (inFlight) return inFlight
+
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   inFlight = (async (): Promise<OpenrouterKeyUsage | null> => {
     let auth = resolveOpenrouterRequestAuth(env)
@@ -234,7 +242,6 @@ export function refreshOpenrouterKeyUsage(opts?: {
   })()
   return inFlight
 }
-
 
 export type OpenrouterLimitWindow =
   | { state: 'limited'; resetsAtMs: number; observedAtMs: number }

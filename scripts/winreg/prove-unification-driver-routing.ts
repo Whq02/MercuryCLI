@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -92,6 +93,7 @@ t.section("§4 the unification prover's cfg vocabulary is the Windows engine's g
 {
   const src = readFileSync(join(REPO, 'scripts/switchboard/prove-session-unification.ts'), 'utf8')
   const win = readFileSync(join(REPO, 'scripts/winreg/vshot-win.py'), 'utf8')
+
   const GRAMMAR = [
     'cols', 'rows', 'total', 'argv', 'sends', 'out', 'readyText', 'readySettleTicks', 'stableTicks', 'resizes', 'cwd', 'stableRegion', 'requireStable',
     'atTick', 'afterPrevTicks', 'awaitText', 'awaitRaw', 'minTick', 'awaitSettleTicks', 'awaitStableTicks', 'data', 'mark', 'requireAwait',

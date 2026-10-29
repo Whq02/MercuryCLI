@@ -2,7 +2,6 @@ import type { Stats } from 'fs'
 import { logForDebugging } from './debug.js'
 import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOperations.js'
 
-
 export type LineEndingType = 'CRLF' | 'LF'
 
 export const LOSSY_DECODE_MESSAGE =
@@ -58,6 +57,7 @@ export function readFileSyncWithMetadata(filePath: string): {
   rawContent: string
   encoding: BufferEncoding
   lineEndings: LineEndingType
+
   losslessDecode: boolean
 } {
   const fsImpl = getFsImplementation()

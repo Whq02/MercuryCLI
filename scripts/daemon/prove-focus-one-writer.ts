@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,6 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
+
 function grepSrc(pattern: string): string[] {
   try {
     return execFileSync('grep', ['-rn', '-E', pattern, 'src'], { encoding: 'utf8', cwd: process.cwd() }).split('\n').filter(l => l.trim() !== '')

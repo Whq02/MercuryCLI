@@ -12,15 +12,18 @@ import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 
-
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
+
 const MOONSHOT_DEVICE_AUTH_PATH = '/api/oauth/device_authorization'
 const MOONSHOT_TOKEN_PATH = '/api/oauth/token'
 const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
+
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
 export const KIMI_OAUTH_CLIENT_ID = '17e5f671-d194-4dfb-9706-5516cb48c098'
+
 const DEVICE_DEFAULT_INTERVAL_SEC = 5
+
 const REFRESH_MARGIN_MS = 15 * 60 * 1000
 const MIN_REFRESH_MARGIN_MS = 60 * 1000
 
@@ -57,15 +60,18 @@ export function moonshotApiBase(env: NodeJS.ProcessEnv = process.env): string {
 export function moonshotChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${moonshotApiBase(env)}/chat/completions`
 }
+
 export function moonshotOauthBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_MOONSHOT_OAUTH_BASE']?.trim() || KIMI_REGION_PROFILES[region].oauthHost).replace(
     /\/+$/,
     '',
   )
 }
+
 export function moonshotOauthClientId(env: NodeJS.ProcessEnv = process.env): string {
   return env['MERCURY_MOONSHOT_OAUTH_CLIENT_ID']?.trim() || KIMI_OAUTH_CLIENT_ID
 }
+
 export function kimiCodingBase(region: KimiRegion, env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_MOONSHOT_CODING_BASE']?.trim() || KIMI_REGION_PROFILES[region].codingBase).replace(
     /\/+$/,
@@ -79,13 +85,13 @@ export function kimiUsagesUrl(region: KimiRegion, env: NodeJS.ProcessEnv = proce
   return `${kimiCodingBase(region, env)}/usages`
 }
 
-
 const MOONSHOT_AUTH_VERSION = 1
 const AUTH_FILE_NAME = '.moonshot-auth.json'
 
 export interface MoonshotStoredTokens {
   accessToken: string
   refreshToken?: string
+
   accessTokenExpiresAtMs?: number
   scope?: string
 }
@@ -99,6 +105,7 @@ export interface MoonshotServedModelRecord {
 interface MoonshotAuthFile {
   version: number
   tokens?: MoonshotStoredTokens
+
   region?: KimiRegion
   lastRefreshMs?: number
   servedModels?: Record<string, MoonshotServedModelRecord[]>
@@ -125,6 +132,7 @@ function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): 
   const existing = readAuthFile() ?? { version: MOONSHOT_AUTH_VERSION }
   const next = mutate({ ...existing, version: MOONSHOT_AUTH_VERSION })
   const path = authFilePath()
+
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
@@ -134,6 +142,7 @@ function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): 
 
 function writeAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): void {
   publishAuthFile(mutate)
+
   noteCredentialChange()
 }
 
@@ -317,7 +326,6 @@ export function moonshotAuthPathForDisplay(): string {
   return authFilePath()
 }
 
-
 export interface MoonshotDeviceAuthStart {
   deviceCode: string
   userCode: string
@@ -325,6 +333,7 @@ export interface MoonshotDeviceAuthStart {
   verificationUriComplete?: string
   intervalSec: number
   expiresAtMs: number
+
   region: KimiRegion
 }
 
@@ -339,6 +348,7 @@ export interface MoonshotOauthIo {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   now?: () => number
+
   region?: KimiRegion
 }
 
@@ -357,6 +367,7 @@ async function postForm(
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const fetchImpl = oauthFetch(io)
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
+
   const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
     method: 'POST',
     headers: {
@@ -488,10 +499,10 @@ export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotSto
   return refreshInFlight
 }
 
-
 export type MoonshotAccountRef =
   | {
       kind: 'kimi-oauth'
+
       label: string
       region: KimiRegion
     }
@@ -542,6 +553,7 @@ export function moonshotDispatchSource(env: NodeJS.ProcessEnv = process.env): Mo
 
 export interface MoonshotDispatchCredential {
   apiKey: string
+
   requestUrl: string
   source: MoonshotDispatchSource
   accountIdentity: string
@@ -564,6 +576,7 @@ export async function resolveMoonshotDispatchCredential(
       if (oauth.refreshToken) {
         const fresh = await refreshMoonshotTokens(io)
         if (fresh) return signedIn(fresh)
+
         const remaining = moonshotStoredTokens()
         if (remaining) {
           if (remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now) {

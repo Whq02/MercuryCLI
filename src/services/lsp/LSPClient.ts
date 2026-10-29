@@ -16,7 +16,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
 
-
 export type LSPStopResult = {
   outcome: 'exited' | 'killed'
   elapsedMs: number
@@ -29,6 +28,7 @@ export type LSPClient = {
   readonly isInitialized: boolean
   start(command: string, args: string[], options?: { env?: NodeJS.ProcessEnv; cwd?: string }): Promise<void>
   initialize(params: InitializeParams): Promise<InitializeResult>
+
   sendRequest<T>(method: string, params: unknown, token?: CancellationToken): Promise<T>
   sendNotification(method: string, params: unknown): Promise<void>
   onNotification(method: string, handler: (params: unknown) => void): void
@@ -63,10 +63,13 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
   let capabilities: ServerCapabilities | undefined
   let initialized = false
   let stopping = false
+
   let startFailed = false
   let startError: Error | undefined
   let crashNotified = false
+
   const stderrTail: string[] = []
+
   let deathReject: ((err: Error) => void) | null = null
   let deathPromise: Promise<never> | null = null
 
@@ -83,14 +86,17 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     deathReject?.(new Error(`${message}${tail}`))
     deathReject = null
   }
+
   const notificationHandlers: QueuedNotification[] = []
   const requestHandlers: QueuedRequest[] = []
+
   let processErrorListener: ((err: Error) => void) | null = null
   let processExitListener: ((code: number | null, signal: NodeJS.Signals | null) => void) | null = null
   let stdinErrorListener: ((err: Error) => void) | null = null
   let stderrDataListener: ((chunk: Buffer) => void) | null = null
 
   function notifyCrash(error: Error): void {
+
     if (crashNotified || stopping) return
     crashNotified = true
     initialized = false
@@ -110,6 +116,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     options?: { env?: NodeJS.ProcessEnv; cwd?: string },
   ): Promise<void> {
     try {
+
       startFailed = false
       startError = undefined
       crashNotified = false
@@ -175,6 +182,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
           code !== null && code !== 0
             ? `LSP server ${serverName} crashed with exit code ${code}`
             : `LSP server ${serverName} exited unexpectedly (code ${String(code)}, signal ${signal ?? 'none'})`
+
         signalDeath(message)
         notifyCrash(new Error(message))
       }
@@ -194,6 +202,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       conn.onError(([err]: [Error]) => {
         if (stopping || connection !== conn) return
         logForDebugging(`LSP server ${serverName} connection error: ${err.message}`, { level: 'error' })
+
         if (!initialized) {
           startFailed = true
           startError = err
@@ -239,6 +248,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     checkStartFailure()
     try {
       const request = connection.sendRequest('initialize', params) as Promise<InitializeResult>
+
       const result = deathPromise !== null ? await Promise.race([request, deathPromise]) : await request
       capabilities = result.capabilities
       await connection.sendNotification('initialized', {})
@@ -266,6 +276,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
   async function sendNotification(method: string, params: unknown): Promise<void> {
     if (connection === null) throw new Error(`LSP server ${serverName} not started`)
     checkStartFailure()
+
     try {
       await connection.sendNotification(method, params)
     } catch (err) {
@@ -275,6 +286,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
   }
 
   function onNotification(method: string, handler: (params: unknown) => void): void {
+
     notificationHandlers.push({ method, handler })
     if (connection === null) {
       logForDebugging(`LSP server ${serverName}: queued notification handler ${method} (no connection yet)`)
@@ -285,6 +297,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
   }
 
   function onRequest<P, R>(method: string, handler: (params: P) => R | Promise<R>): void {
+
     requestHandlers.push({ method, handler: handler as (params: never) => unknown })
     if (connection === null) {
       logForDebugging(`LSP server ${serverName}: queued request handler ${method} (no connection yet)`)
@@ -304,6 +317,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     const started = performance.now()
     let result: LSPStopResult | undefined
     const budget = opts?.gracefulTimeoutMs ?? DEFAULT_GRACEFUL_TIMEOUT_MS
+
     stopping = true
     let gracefulFailed: unknown = null
     const hears = serverStillHears()
@@ -314,6 +328,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       const conn = connection
       let deadline: NodeJS.Timeout | null = null
       try {
+
         const shutdown = conn.sendRequest('shutdown', null)
         shutdown.catch(() => {
         })
@@ -333,6 +348,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
         if (deadline !== null) clearTimeout(deadline)
       }
     }
+
     if (connection !== null) {
       try {
         connection.dispose()
@@ -347,6 +363,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       if (processExitListener) proc.off('exit', processExitListener)
       if (stdinErrorListener) proc.stdin?.off('error', stdinErrorListener)
       if (stderrDataListener) proc.stderr?.off('data', stderrDataListener)
+
       const alreadyExited = proc.exitCode !== null || proc.signalCode !== null
       const receipt = await endProcessTree(proc, 'SIGTERM')
       const finalReceipt = receipt.survivors.length > 0 && proc.pid
@@ -370,6 +387,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     capabilities = undefined
     stopping = false
     if (gracefulFailed !== null) {
+
       startFailed = true
       startError = gracefulFailed instanceof Error ? gracefulFailed : new Error(String(gracefulFailed))
       logForDebugging(`LSP server ${serverName} graceful shutdown failed: ${String(gracefulFailed)}`)

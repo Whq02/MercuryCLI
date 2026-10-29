@@ -1,4 +1,3 @@
-
 import { z } from 'zod'
 import { agentToolRuleProblem } from './agentToolRules.js'
 import { decodeAgentDocument, validateAgentIdentifier } from '../../services/agents/codec.js'
@@ -36,7 +35,6 @@ import {
   type AgentMemoryScope,
 } from './agentMemory.js'
 
-
 export type AgentMcpServerSpec = string | Record<string, McpServerConfig>
 
 export type AgentSource =
@@ -50,6 +48,7 @@ export type AgentSource =
 
 type BaseAgentDefinition = {
   agentType: string
+
   whenToUse: string
   tools?: string[]
   disallowedTools?: string[]
@@ -64,21 +63,28 @@ type BaseAgentDefinition = {
   maxTurns?: number
   filename?: string
   baseDir?: string
+
   standingRule?: string
+
   requiredMcpServers?: string[]
   background?: boolean
   initialPrompt?: string
   memory?: AgentMemoryScope
   isolation?: 'worktree' | 'remote'
+
   omitProjectInstructions?: boolean
+
   fixedOutputContract?: boolean
+
   operatorOverride?: AgentOverrideProvenance
+
   disabled?: boolean
 }
 
 export type BuiltInAgentDefinition = BaseAgentDefinition & {
   source: 'built-in'
   baseDir: string
+
   callback?: () => void | Promise<void>
   getSystemPrompt: (params: {
     toolUseContext: Pick<ToolUseContext, 'options'>
@@ -88,12 +94,15 @@ export type BuiltInAgentDefinition = BaseAgentDefinition & {
 export type CustomAgentDefinition = BaseAgentDefinition & {
   source: Exclude<AgentSource, 'built-in' | 'extension'>
   getSystemPrompt: () => string
+
   filePath?: string
+
   revision?: string
 }
 
 export type ExtensionAgentDefinition = BaseAgentDefinition & {
   source: 'extension'
+
   extensionName?: string
   getSystemPrompt: () => string
 }
@@ -106,7 +115,9 @@ export type AgentDefinition =
 export type AgentDefinitionsResult = {
   activeAgents: AgentDefinition[]
   allAgents: AgentDefinition[]
+
   failedFiles?: { path: string; error: string }[]
+
   allowedAgentTypes?: string[]
 }
 
@@ -115,7 +126,6 @@ export function isBuiltInAgent(
 ): def is BuiltInAgentDefinition {
   return def.source === 'built-in'
 }
-
 
 const PRECEDENCE_DESCENDING: readonly AgentSource[] = [
   'policySettings',
@@ -165,7 +175,6 @@ export function computeActiveAgents(
   return getActiveAgentsFromList(allAgents).filter(a => a.disabled !== true)
 }
 
-
 function makeSystemPromptClosure(
   agentType: string,
   prompt: string,
@@ -214,7 +223,6 @@ function validateHooks(raw: unknown, origin: string): HooksSettings | undefined 
   return Object.keys(reading.hooks).length > 0 ? reading.hooks : undefined
 }
 
-
 function parseAgentFromMarkdown(
   filePath: string,
   baseDir: string,
@@ -234,6 +242,7 @@ function parseAgentFromMarkdown(
         `agents: ${filePath} ${diagnostic.severity} [${diagnostic.code}] ${diagnostic.message}`,
       )
     }
+
     const errorDiagnostics = document.diagnostics.filter(d => d.severity === 'error')
     if (errorDiagnostics.length > 0) {
       if (failures) {
@@ -328,7 +337,6 @@ function readStandingRule(record: Record<string, unknown>): string | undefined {
   if (typeof current === 'string' && current.trim()) return current
   return undefined
 }
-
 
 const toolRuleSchema = z.string().superRefine((spec, context) => {
   const problem = agentToolRuleProblem(spec)
@@ -434,7 +442,6 @@ export function parseAgentsFromJson(
   return agents
 }
 
-
 type FailedFileRow = { path: string; error: string }
 
 const AGENTS_SUBDIR = 'agents'
@@ -454,6 +461,7 @@ async function loadAgentDefinitionsUncached(
   cwd: string,
 ): Promise<AgentDefinitionsResult> {
   try {
+
     if (isEnvTruthy(process.env.MERCURY_BARE)) {
       const builtIns = getBuiltInAgents()
       return { activeAgents: builtIns, allAgents: builtIns }
@@ -466,6 +474,7 @@ async function loadAgentDefinitionsUncached(
     const markdownFiles = await loadMarkdownFilesForSubdir(AGENTS_SUBDIR, cwd)
     for (const file of markdownFiles) {
       const frontmatter: Record<string, unknown> = file.frontmatter ?? {}
+
       if (file.parseError) {
         failedFiles.push({
           path: file.filePath,
@@ -474,7 +483,9 @@ async function loadAgentDefinitionsUncached(
         continue
       }
       const rawName = frontmatter['name']
+
       if (rawName === undefined || rawName === null || rawName === '') {
+
         logForDebugging(`agents: ${file.filePath} has no frontmatter name — treated as a co-located reference document, not a definition`)
         continue
       }
@@ -485,6 +496,7 @@ async function loadAgentDefinitionsUncached(
         })
         continue
       }
+
       const identifierError = validateAgentIdentifier(rawName)
       if (identifierError !== null) {
         failedFiles.push({

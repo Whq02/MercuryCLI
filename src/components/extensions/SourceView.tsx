@@ -41,6 +41,7 @@ export function SourceView({
   label: string
   entries: RosterEntry[]
   sources: SourceRow[]
+
   onBack: (seedRow?: string) => void
   onInstall: (label: string, name: string) => void
   onUpdate: (entry: RosterEntry) => void

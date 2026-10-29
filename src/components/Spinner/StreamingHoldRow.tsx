@@ -9,7 +9,6 @@ import { liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 
-
 const STREAM_GLYPH_TICK_MS = WORK_TICK_MS / 4
 
 export function StreamingHoldRow({
@@ -23,14 +22,17 @@ export function StreamingHoldRow({
   loadingStartTimeRef: React.MutableRefObject<number>
   totalPausedMsRef: React.MutableRefObject<number>
   pauseStartTimeRef: React.MutableRefObject<number | null>
+
   responseLengthRef?: React.RefObject<number>
   outputTokensRef?: React.RefObject<number | null>
   liveTurnFactsRef?: React.RefObject<LiveTurnFactsV1>
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+
   const [, tick] = useAnimationValue(960, t => Math.floor(t / 960))
   void tick
   const now = Date.now()
+
   if (loadingStartTimeRef.current === 0) {
     loadingStartTimeRef.current = now
   }
@@ -40,13 +42,16 @@ export function StreamingHoldRow({
         loadingStartTimeRef.current -
         totalPausedMsRef.current
       : now - loadingStartTimeRef.current - totalPausedMsRef.current
+
   const liveChars = responseLengthRef?.current ?? Number.NaN
   const liveWords = liveCounterWords(
     { ...(liveTurnFactsRef?.current ?? turnFactsOfRefs(liveChars, outputTokensRef?.current ?? null)), phase: 'writing', sentAtMs: now - Math.max(0, elapsedMs) },
     now,
   )
+
   const otps = useOutputRate(liveTurnFactsRef?.current.replyChars ?? liveChars, pauseStartTimeRef.current === null && liveWords.promise === null, now)
   const stripLines = turnStripLines(loadingStartTimeRef.current, 1)
+
   return (
     <Box height={stripLines} width="100%">
       <Text>

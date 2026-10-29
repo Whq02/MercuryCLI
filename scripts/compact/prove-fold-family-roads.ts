@@ -20,6 +20,7 @@ for (const key of Object.keys(process.env)) {
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-roads-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+
 const DUMP_DIR = mkdtempSync(join(tmpdir(), 'fold-roads-dump-'))
 process.env.MERCURY_WIRE_DUMP = DUMP_DIR
 
@@ -50,6 +51,7 @@ guard.unref?.()
 
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
 const { startFoldFamiliesFixture } = await import('./foldFamiliesFixture.ts')
+
 const shared = await startCrossfamilyFixture({ port: SHARED_PORT, gptReasoningLevels: ['low', 'medium', 'high'] })
 const census = await startFoldFamiliesFixture({ port: CENSUS_PORT })
 Object.assign(process.env, shared.env, census.env)
@@ -258,6 +260,7 @@ section('§1 the route verdict per family, pure — fork or direct, and the fami
 
 section('§2 the request shape per family — the session profile in each family\'s own spelling, no other family\'s field')
 type Expect = {
+
   effort: 'absent' | 'session'
   thinking: 'off' | 'disabled-object'
   cap: 'max_tokens' | 'max_completion_tokens' | 'maxOutputTokens' | 'none'
@@ -310,6 +313,7 @@ for (const leg of LEGS) {
   const e = leg.expect
   check(`${leg.family}/${leg.road}: the session's own posture rides the wire`, shape.posture)
   if (e.effort === 'session') {
+
     check(`${leg.family}/${leg.road}: effort is the SESSION's own word (the messages cache keys on it) — never the mechanical 'low'`, shape.effort.length >= 1 && shape.effort.every(w => w !== 'low' && SESSION_TIERS.has(w)), j(shape.effort))
   } else {
     check(`${leg.family}/${leg.road}: this model has no effort dial`, shape.effort.length === 0, j(shape.effort))
@@ -335,6 +339,7 @@ for (const leg of LEGS) {
   if (e.streamOptions !== null) check(`${leg.family}/${leg.road}: stream_options.include_usage rides the chat wire`, shape.streamOptions === e.streamOptions)
   check(`${leg.family}/${leg.road}: no server-side context edits ride (context_management)`, !shape.contextManagement)
 }
+
 section("§2c the home fold carries only the session effort word")
 {
   for (const road of ['fork', 'direct'] as const) {
@@ -368,6 +373,7 @@ section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 r
 }
 
 section("§8 the OpenAI road: the fold's request IS the session's last request plus the summariser prompt")
+
 {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
@@ -381,6 +387,7 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   const systemContext = { gitStatus: 'clean' }
   const messages = makeMessages()
   const before = shared.captured.length
+
   const sessionStream = routedCallModel({
     messages: messages as never,
     systemPrompt: asSystemPrompt(appendSystemContext([...posture], systemContext)),
@@ -424,6 +431,7 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
 }
 
 section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's rows — each reminder its own item, the reply's replay items behind them, then the prompt as its own item")
+
 {
   const { query } = await import('../../src/query.ts')
   const { productionDeps } = await import('../../src/query/deps.ts')
@@ -534,6 +542,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
   const foldInput = [...seed, ...(reply !== undefined ? [reply] : [])]
   const continuation = continuationOfSentRequest(recorded, foldInput as never)
   check('§8b: the fold input continues the recorded request — the reply is the whole tail', continuation !== null && continuation.tail.length === 1 && continuation.sent.length === seed.length, j({ sent: continuation?.sent.length, tail: continuation?.tail.length }))
+
   const minted = createUserMessage({ content: '<system-reminder>a per-request reminder the request minted</system-reminder>', isMeta: true })
   const withMinted = continuationOfSentRequest([minted, ...(recorded ?? [])] as never, foldInput as never)
   check('§8b: a meta row the request minted and the conversation never held rides again (skipped in the walk, kept in the sent rows)', withMinted !== null && withMinted.sent.length === seed.length + 1 && withMinted.tail.length === 1)
@@ -566,6 +575,7 @@ for (const row of shapes) {
 
 section("§2b the thinking-off word on the wire — a fold on a Gemini thinking row or an OpenRouter reasoning row sends the family's lowest word, never silence")
 {
+
   const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
   const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
   const jsonFetch = (body: unknown): typeof fetch =>
@@ -802,6 +812,7 @@ section('§6 the fold bounds, measured — a cut stream is never a summary (the 
   const CHUNKS = ['paced ', 'summary ', 'body: ', 'the ', 'stream ', 'is ', 'healthy ', 'but ', 'longer ', 'than ', 'the ', 'stall.']
   const PACE_MS = 200
   const STALL_MS = 600
+
   let plan: 'healthy' | 'wedge' = 'healthy'
   const server = createServer((req, res) => {
     const chunks: Buffer[] = []
@@ -849,6 +860,7 @@ section('§6 the fold bounds, measured — a cut stream is never a summary (the 
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}`
   setFoldBoundsForTests({ stallMs: STALL_MS })
   const healthyMs = CHUNKS.length * PACE_MS
+
   type FoldRow = { kind: string; road?: string; outcome?: string; detail?: string; ms?: number }
   const foldRowsNow = (): FoldRow[] => {
     const files = readdirSync(DUMP_DIR).filter(f => f.endsWith('.jsonl'))
@@ -932,6 +944,7 @@ section('§7 the wire dump — every road writes its fold row beside the request
 
 section('§9 the home direct lane under thinking disabled: replayed signed thinking never rides the wire')
 {
+
   const model = 'claude-opus-4-8'
   const history = makeMessages() as Array<{ type?: string; message?: { content?: unknown[] } }>
   const row = history[1]!

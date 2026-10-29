@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,8 +34,10 @@ const roads: Array<{ tag: string; signal: string; toCockpit: boolean }> = [
   { tag: 'hup-face', signal: 'SIGHUP', toCockpit: false },
 ]
 for (const road of roads) {
+
   const home = mkdtempSync(join(tmpdir(), `exit-road-${road.tag}-`))
   homes.push(home)
+
   seedFirstRun(home, [base.cwd])
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -77,6 +80,7 @@ for (const road of roads) {
     const armed = mark(r, 'armed')!
     const after = mark(r, 'after-exit')!
     const armedEv = modeEventsBetween(r, 0, armed.teeOffset)
+
     check(`${road.tag}: the surface was armed before the signal (mouse tracking on)`, MOUSE_FAMILIES.every(f => lastStateOf(armedEv, f) === 'on'), armedEv.map(e => e.mode).slice(-8).join(' '))
     disarmed(r, armed.teeOffset, `${road.tag}: after ${road.signal}`)
     check(`${road.tag}: the shell prompt is usable after the exit`, after.grid.includes('done-42'))

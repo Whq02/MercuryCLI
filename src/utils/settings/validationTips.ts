@@ -27,26 +27,31 @@ export const MODE_GLOSS: Record<(typeof PERMISSION_MODES)[number], string> = {
 const DEFAULT_MODE_SUGGESTION = `Valid modes: ${PERMISSION_MODES.map(mode => `"${mode}" (${MODE_GLOSS[mode]})`).join(', ')}`
 
 function matchTip(context: TipContext): ValidationTip | null {
+
   if (context.path === 'guardrails.mode' && context.code === 'invalid_value') {
     return { suggestion: DEFAULT_MODE_SUGGESTION }
   }
+
   if (context.path === 'credentials.keyCommand' && context.code === 'invalid_type') {
     return {
       suggestion:
         'credentials.keyCommand must be a shell command that prints only the API key to stdout, e.g. "/usr/local/bin/print-api-key.sh"',
     }
   }
+
   if (context.path === 'records.retentionDays' && context.code === 'too_small' && context.expected === '0') {
     return {
       suggestion:
         'records.retentionDays must be 0 or greater. A positive number is the retention window for recordings and tool results in days (default 30); session transcripts are never aged out. 0 turns transcript writing off: no new transcript is written, and the ones already on disk stay',
     }
   }
+
   if (context.path.startsWith('environment.values.') && context.code === 'invalid_type') {
     return {
       suggestion: 'Environment values must be strings — quote numbers and booleans, e.g. "MY_FLAG": "true"',
     }
   }
+
   if (
     (context.path === 'guardrails.allow' || context.path === 'guardrails.ask' || context.path === 'guardrails.deny') &&
     context.code === 'invalid_type' &&
@@ -57,21 +62,26 @@ function matchTip(context: TipContext): ValidationTip | null {
         'Use an array of Tool(specifier) rules, e.g. ["Bash(npm run build)", "Bash(npm run *)", "Edit(src/**)", "Read(~/docs/**)"]. The * character is the wildcard; a space and a star end a "starts with" rule',
     }
   }
+
   if (context.path.includes('hooks') && context.code === 'invalid_type') {
     return {
       suggestion:
         'Hooks are a map of event name to a list of entries; one entry is one hook with its own match. The match is a STRING: a tool name, a pipe-separated list, a regular expression, or * or empty to match everything. Example: {"tool.before": [{"match": "Bash|Edit", "run": "./check.sh"}]}',
     }
   }
+
   if (context.code === 'invalid_type' && context.expected === 'boolean') {
     return { suggestion: 'Use unquoted true or false, e.g. "engine": { "reasoning": true }' }
   }
+
   if (context.code === 'unrecognized_keys') {
     return { suggestion: 'Check for typos, or consult the settings documentation for the supported fields' }
   }
+
   if (context.code === 'invalid_value' && context.enumValues !== undefined && context.enumValues.length > 0) {
     return {}
   }
+
   if (
     context.code === 'invalid_type' &&
     context.expected === 'object' &&

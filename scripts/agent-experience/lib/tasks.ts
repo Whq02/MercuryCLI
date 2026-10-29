@@ -25,7 +25,9 @@ export interface TaskContext {
 
 interface OracleInput {
   run: RunRecord
+
   hits: FixtureHit[]
+
   prior?: RunRecord
 }
 
@@ -37,14 +39,17 @@ interface OracleVerdict {
 export interface TaskDef {
   id: string
   title: string
+
   ask: string
   needs?: 'browser'
+
   resumeOf?: string
   allowedTools: string[]
   maxTurns: number
   prompt(ctx: TaskContext): string
   script(ctx: TaskContext): ScriptedTurn[]
   seats?(ctx: TaskContext): Record<string, ScriptedTurn[]>
+
   probeTools: string[]
   oracle(ctx: TaskContext, input: OracleInput): OracleVerdict
 }
@@ -87,6 +92,7 @@ export const TASKS: TaskDef[] = [
     allowedTools: CODING_TOOLS,
     maxTurns: 12,
     prompt: ctx => withMarker(ctx, 'fix-bug', TASKS_ASK('fix-bug')),
+
     probeTools: ['Bash'],
     script: ctx => [
       call('Bash', { command: 'node --test', description: 'Run the test suite' }),
@@ -144,6 +150,7 @@ export const TASKS: TaskDef[] = [
     allowedTools: CODING_TOOLS,
     maxTurns: 10,
     prompt: ctx => withMarker(ctx, 'anchored-edit', TASKS_ASK('anchored-edit')),
+
     probeTools: ['Edit'],
     script: ctx => [
       call('Edit', { file_path: join(ctx.projectDir, 'README.md'), old_string: '## usage', new_string: '## Usage (CLI)' }),
@@ -167,6 +174,7 @@ export const TASKS: TaskDef[] = [
     allowedTools: ['Read', 'Grep', 'Glob', 'Bash(grep *)', 'Bash(rg *)'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'search-symbol', TASKS_ASK('search-symbol')),
+
     probeTools: ['Grep'],
     script: ctx => [
       call('Grep', { query: 'normalizeRecord', path: ctx.projectDir }),
@@ -207,6 +215,7 @@ export const TASKS: TaskDef[] = [
     allowedTools: ['Skill', 'Read', 'Grep', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'use-skill', TASKS_ASK('use-skill')),
+
     probeTools: ['Skill'],
     script: () => [
       call('Skill', { skill: 'provider-api' }),
@@ -243,6 +252,7 @@ export const TASKS: TaskDef[] = [
       const results = toolResultsOf(run, 'Crewmate')
       const reported = results.some(r => !r.isError && /median/i.test(r.text))
       const relayed = /mean/i.test(run.finalText) && /median/i.test(run.finalText)
+
       const seatRan = ctx.mechanical ? hits.some(h => h.kind === 'seat' && h.seatId === 'summary') && run.subagentToolUses.some(u => u.name === 'Read') : true
       return { pass: reported && relayed && seatRan, detail: `agent reported: ${reported}; relayed: ${relayed}; seat ran its script: ${seatRan}` }
     },
@@ -274,6 +284,7 @@ export const TASKS: TaskDef[] = [
     allowedTools: ['Browser'],
     maxTurns: 10,
     prompt: ctx => withMarker(ctx, 'browser-page', `Open ${ctx.pageUrl} in the Browser tool, tell me the page title, and take a screenshot.`),
+
     probeTools: ['Browser'],
     script: ctx => [
       call('Browser', { op: 'open' }),
@@ -340,6 +351,7 @@ export const TASKS: TaskDef[] = [
       for (const u of agentUses) perMessage.set(u.messageId, (perMessage.get(u.messageId) ?? 0) + 1)
       const parallel = [...perMessage.values()].some(n => n >= 2)
       const results = toolResultsOf(run, 'Crewmate')
+
       const countRe = new RegExp(`(^|[^0-9])${ctx.facts.testCount}([^0-9]|$)`)
       const seatA = results.some(r => !r.isError && countRe.test(r.text))
       const seatB = results.some(r => !r.isError && /median/i.test(r.text))
@@ -356,8 +368,10 @@ export const TASKS: TaskDef[] = [
     allowedTools: ['AstSearch', 'AstEdit', 'Read', 'Grep', 'Glob', 'Bash(node *)'],
     maxTurns: 10,
     prompt: ctx => withMarker(ctx, 'structural-rename', TASKS_ASK('structural-rename')),
+
     probeTools: ['AstEdit'],
     script: ctx => {
+
       const rels = ['src/format.js', 'src/records.js', 'src/stats.js']
       const files = rels.map((rel): [string, string, string] => {
         const before = readFile(ctx.projectDir, rel)
@@ -382,6 +396,7 @@ export const TASKS: TaskDef[] = [
       const onlySources = changed.length === 3 && changed.every(f => f.startsWith('src/'))
       const readmeIntact = readFile(ctx.projectDir, 'README.md').includes('normalizeRecord')
       const structural = run.toolUses.some(u => u.name === 'AstEdit' && u.input.apply === true && typeof u.input.plan === 'string')
+
       const tests = runTests(ctx.projectDir, ctx.nodeBin)
       const passed = Number(/(?:^|\n)(?:ℹ|#) pass (\d+)/.exec(tests.output)?.[1] ?? -1)
       const failed = Number(/(?:^|\n)(?:ℹ|#) fail (\d+)/.exec(tests.output)?.[1] ?? -1)

@@ -120,6 +120,7 @@ function enrichSummaryForLiveDisplay(
 
   for (const summary of result.summaryMessages) {
     if (!summary.isCompactSummary) continue
+
     delete summary.isVisibleInTranscriptOnly
     const existing = summary.summarizeMetadata
     summary.summarizeMetadata = {
@@ -127,6 +128,7 @@ function enrichSummaryForLiveDisplay(
       messagesSummarized: existing?.messagesSummarized ?? computedCount,
       ...(customInstructions ? { userContext: existing?.userContext ?? customInstructions } : {}),
       ...(pct !== undefined ? { contextReclaimedPct: pct } : {}),
+
       ...(pctValid ? { tokensBefore: pre, tokensAfter: post } : {}),
       ...(kept > 0 ? { keptMessages: kept } : {}),
     } as UserMessage['summarizeMetadata']
@@ -142,6 +144,7 @@ export async function call(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
+
   return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
     trigger: 'manual',
     sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
@@ -153,6 +156,7 @@ async function callUnderFoldStatus(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
+
   const projected = getMessagesAfterCompactBoundary(context.messages)
   if (projected.length === 0) {
     throw new Error('No messages to compact.')
@@ -160,6 +164,7 @@ async function callUnderFoldStatus(
   const customInstructions = args.trim()
 
   try {
+
     if (!customInstructions) {
       if (shouldUseSessionMemoryCompaction()) context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
       const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context, 'manual')
@@ -199,6 +204,7 @@ async function callUnderFoldStatus(
       false,
       customInstructions || undefined,
       false,
+
       {
         isRecompaction: false,
         turnsSincePreviousCompact: -1,
@@ -207,11 +213,13 @@ async function callUnderFoldStatus(
       undefined,
       foldModel.model,
     )
+
     setLastSummarizedMessageId(undefined)
     suppressCompactWarning()
     getUserContext.cache?.clear?.()
     runPostCompactCleanup(undefined, buildPostCompactMessages(result))
     if (shouldEnrichForLiveDisplay(context)) {
+
       enrichSummaryForLiveDisplay(result, summaryInput.length, customInstructions)
     }
     return {
@@ -220,7 +228,9 @@ async function callUnderFoldStatus(
       displayText: buildDisplayText(context, result, summaryInput.length),
     }
   } catch (error) {
+
     if (context.abortController.signal.aborted || isAbortError(error)) {
+
       throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
     }
     if (

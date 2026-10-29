@@ -1,4 +1,3 @@
-
 import type { Writable } from 'node:stream'
 
 export type JsonRpcId = number | string | null

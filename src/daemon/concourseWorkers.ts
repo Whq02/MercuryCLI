@@ -55,9 +55,7 @@ import { parseSessionKind, SESSION_KIND_ENV, sessionKindOfAsker, type SessionKin
 import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
 import { runningBuildTree } from '../utils/artifactIdentity.js'
 
-
 export const CONCOURSE_SHORT_PREFIX = 'concourse-w'
-
 
 export function canonicalWorkspaceId(dir: string): string {
   try {
@@ -67,11 +65,11 @@ export function canonicalWorkspaceId(dir: string): string {
   }
 }
 
-
 export type WorkspaceIsolation = 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
 
 export interface WorkspaceClaim {
   workspaceId: string
+
   isolation?: WorkspaceIsolation
   title?: string
 }
@@ -125,6 +123,7 @@ export function evaluateConcourseAdmission(
     const liveIso = claim.isolation ?? 'exclusive'
     const bothReadOnly = liveIso === 'read-only' && reqIso === 'read-only'
     const eitherIsolated = liveIso === 'worktree-isolated' || reqIso === 'worktree-isolated'
+
     const bothShared = liveIso === 'shared' && reqIso === 'shared'
     if (bothReadOnly || eitherIsolated || bothShared) continue
     return {
@@ -140,81 +139,124 @@ export function evaluateConcourseAdmission(
   return { admit: true }
 }
 
-
 export interface ConcourseWorkerRecordV1 {
   schema: 1
+
   runnerId: string
+
   sessionId: string
+
   workspaceId: string
   isolation: WorkspaceIsolation
+
   modelKey: string
+
   keyless?: true
+
   agentName?: string
+
   seatsMax?: 1 | 2
+
   effort?: string
+
   permissionMode?: SeatPermissionMode
+
   bypassConsent?: true
   kind?: SessionKind
   spawnedAt: number
+
   endedAt?: number
+
   pausedAt?: number
   pausedBy?: string
+
   pendingModelKey?: string
+
   pendingEffort?: string
+
   pendingKitEdits?: Array<{ edit: import('./sessionKit.js').SessionKitEditV1; by: string }>
+
   spawnSwitches?: Partial<Record<'subagents' | 'workflows', 'on' | 'off'>>
+
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean; by: string }>
+
   lastLiveAt: number
   pid?: number
+
   procStart?: string
+
   lastDeliveryAt?: number
   lastTurnSettledAt?: number
+
   activity?: {
     state: 'working' | 'waiting' | 'idle'
     subagents: number
     description: string
     lastTurnAt: number | null
   }
+
   bornBlankAt?: number
   birthKey?: string
+
   settingsSnapshot?: import('../substrate/startupMenu.js').SessionEffectiveSettingsSnapshotV1
+
   branchName?: string
+
   worktreePath?: string
+
   workspaceKind?: 'git' | 'plain-folder'
+
   title?: string
+
   titleSource?: 'operator' | 'minted'
+
   titleMintedAt?: number
+
   attachedAt?: number
   attachedBy?: string
+
   attachRequestedAt?: number
   attachRequestedBy?: string
+
   lastAttachGrantAt?: number
+
   stoppedAt?: number
   stoppedBy?: string
   turnCutAt?: number
   turnCutBy?: string
+
   stopRequestedAt?: number
   stopRequestedBy?: string
   stopRequestedRetired?: ConcourseWorkerRecordV1['retired']
+
   retired?: { reason: 'idle-empty'; idleMs: number; thresholdMs: number; at: number }
+
   crash?: { at: number; reason: string; respawning: boolean }
+
   runnerArgv?: string[]
+
   workflowsAllowed?: true
   workflowsGrantedBy?: string
   workflowsGrantedAt?: number
+
   focusedAt?: number
   focusedBy?: string
   terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
+
   parkedAt?: number
   parkedBy?: string
   parkReason?: string
+
   parkRequestedAt?: number
   parkRequestedBy?: string
   parkRequestedReason?: string
   parkIntent?: { token: string; by: string; at: number; pid: number }
   parkRefused?: { reason: string; at: number; by: string }
+
   contract?: import('./sessionContract.js').SessionContractV1
+
   kit?: import('./sessionKit.js').SessionKitV1
+
   schedules?: import('./saturn.js').SaturnScheduleV1[]
   heldFires?: import('./saturn.js').HeldFireV1[]
   buildTree?: string
@@ -268,17 +310,21 @@ export function turnInFlightOf(rec: Pick<ConcourseWorkerRecordV1, 'lastDeliveryA
   return rec.lastDeliveryAt !== undefined && (rec.lastTurnSettledAt === undefined || rec.lastTurnSettledAt < rec.lastDeliveryAt)
 }
 
-
 export interface CollisionEvidenceV1 {
   schema: 1
+
   kind: 'exclusive-overlap' | 'authored-work-retained'
   workspaceId: string
+
   holders: Array<{ workerId: string; sessionId?: string; isolation?: WorkspaceIsolation }>
   observedAt: number
   refusedClientMessageId?: string
   detail?: string
+
   files?: string[]
+
   branchName?: string
+
   consumedAt?: number
 }
 
@@ -364,6 +410,7 @@ export function readSessionWorkersSnapshot(dir?: string): SessionWorkersSnapshot
   try {
     const raw = JSON.parse(readFileSync(concourseWorkersPath(dir), 'utf8')) as ConcourseWorkerFileV1
     if (!raw || raw.version !== 1 || typeof raw.workers !== 'object' || raw.workers === null || Array.isArray(raw.workers)) return { state: 'unavailable' }
+
     for (const rec of Object.values(raw.workers)) {
       const legacy = rec as ConcourseWorkerRecordV1 & { workerId?: string }
       if (legacy.runnerId === undefined && typeof legacy.workerId === 'string') {
@@ -384,8 +431,10 @@ export function markConcourseWorkerDelivery(runnerId: string, dir?: string): voi
       if (rec && rec.endedAt === undefined) {
         rec.lastDeliveryAt = Date.now()
         rec.activity = { state: 'working', subagents: rec.activity?.subagents ?? 0, description: 'working', lastTurnAt: rec.activity?.lastTurnAt ?? null }
+
         delete rec.crash
         delete rec.parkRefused
+
         if (rec.contract !== undefined && rec.contract.status === 'acknowledged') {
           rec.contract.status = 'active'
         }
@@ -450,6 +499,7 @@ export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: 
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) {
         rec.pid = pid
+
         const fields = pidFieldsOf(pid)
         if (fields.procStart !== undefined) rec.procStart = fields.procStart
         else delete rec.procStart
@@ -695,12 +745,12 @@ export function updateConcourseWorkers(
   return workers
 }
 
-
 export function concourseWorkerStripEnv(): string[] {
   return [
     'MERCURY_SPLASH_HANDOFF',
     'MERCURY_ALT_HELD',
     'MERCURY_LAUNCH_ID',
+
     'MERCURY_SESSION_KIT',
     SESSION_KIND_ENV,
   ].flatMap(flagSpellings)
@@ -727,27 +777,41 @@ export function seatInitialPermissionMode(override?: PermissionMode): SeatPermis
 
 export function buildConcourseWorkerSpec(args: {
   runnerId: string
+
   sessionId?: string
   workspaceId: string
+
   modelKey: string
+
   keyless?: true
+
   effort?: string
   title?: string
+
   resume?: boolean
+
   cwd?: string
+
   permissionMode?: PermissionMode
+
   bypassConsent?: true
+
   runnerArgv?: readonly string[]
+
   warm?: boolean
+
   kit?: SessionKitV1
   restartReason?: string
   kind?: SessionKind
 }): RunnerChildSpec {
   const runnerArgv = splitAppendSystemPrompt(args.runnerArgv ?? [])
   return {
+
     model: foldLegacyWorkerModelKey(args.modelKey),
     ...(args.keyless ? { keyless: true } : {}),
+
     effort: args.effort ?? 'high',
+
     appendSystemPrompt: [
       "This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.",
       backgroundWorkerDelegationSentence(),
@@ -758,16 +822,21 @@ export function buildConcourseWorkerSpec(args: {
     agentName: args.runnerId,
     agentId: `${args.runnerId}@concourse`,
     cwd: args.cwd ?? args.workspaceId,
+
     extraEnv: {
       MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),
+
       MERCURY_SEATS: String(effectiveSeatCeiling()),
+
       ...(args.kit !== undefined ? { MERCURY_SESSION_KIT: JSON.stringify(args.kit) } : {}),
       ...(args.restartReason !== undefined ? { MERCURY_RUNNER_RESTART_REASON: args.restartReason } : {}),
       ...(args.kind !== undefined ? { [SESSION_KIND_ENV]: args.kind } : {}),
     },
     permissionMode: seatInitialPermissionMode(args.permissionMode),
+
     ...(args.bypassConsent === true ? { allowBypass: true as const } : {}),
     stripEnv: concourseWorkerStripEnv(),
+
     partialRows: true,
     extraArgv: args.warm
       ? []
@@ -779,6 +848,7 @@ export function buildConcourseWorkerSpec(args: {
             ...(args.title !== undefined ? ['--title', args.title] : []),
             ...runnerArgv.rest,
           ],
+
     respawnExtraArgv: args.warm ? [] : ['--resume', args.sessionId!, ...runnerArgv.rest],
   }
 }
@@ -804,24 +874,31 @@ export function sessionKindOfSpec(spec: Pick<RunnerChildSpec, 'extraEnv'>): Sess
   return parseSessionKind(spec.extraEnv?.[SESSION_KIND_ENV])
 }
 
-
 export interface ConcourseAdmitDeps {
+
   roster: () => (WorkerRosterPort & { kill?(short: string): boolean }) | undefined
+
   dir?: string
+
   onSpawned?: (runnerId: string, spec: RunnerChildSpec, pid: number | undefined) => void
+
   claimWarm?: (args: {
     workspaceId: string
     sessionId: string
     modelKey: string
     effort: string
     permissionMode: string
+
     bypassConsent: boolean
+
     kit: SessionKitV1
+
     resume?: true
     restartReason?: string
   }) => Promise<
     { claimed: true; short: string; pid?: number; spec: RunnerChildSpec } | { claimed: false; reason: string }
   >
+
   ensureWarm?: (workspaceDir: string, kit?: SessionKitV1, bypassConsent?: boolean) => void
 }
 
@@ -834,6 +911,7 @@ export type DefaultedAdmissionResolution =
       kind: 'decision'
       decision: AdmissionDecision
       effectiveIsolation: WorkspaceIsolation
+
       gitOfferRefused?: GitInitRefusal
     }
   | { kind: 'git-offer'; code: 'no-repository'; error: string; moves: ConcourseMoveV1[] }
@@ -860,6 +938,7 @@ export function resolveDefaultedAdmission(
       if (retry.admit) effectiveIsolation = 'worktree-isolated'
       decision = retry
     } else {
+
       const refusal = gitInitRefusal(claim.workspaceId)
       if (refusal !== null) {
         return {
@@ -889,18 +968,28 @@ export interface ConcourseAdmitRequest {
   workspaceDir: string
   isolation?: WorkspaceIsolation
   modelKey?: string
+
   effort?: string
   title?: string
+
   agentName?: string
+
   seatsMax?: 1 | 2
+
   resumeSessionId?: string
   permissionMode?: PermissionMode
+
   runnerArgv?: string[]
+
   bornBlank?: boolean
+
   vacatingSessionId?: string
   birthKey?: string
+
   kit?: SessionKitV1
+
   kitPreset?: string
+
   bypassConsent?: true
   by?: string
   restartReason?: 'update'
@@ -923,15 +1012,24 @@ export type ConcourseAdmitResult =
       sessionId: string
       workspaceId: string
       pid?: number
+
       branchName?: string
+
       mainHolderTitle?: string
+
       modelId?: string
       modelDisplayName?: string
+
       note?: string
+
       effort?: string
+
       kitSource?: 'carried' | 'derived' | 'preset'
+
       presetName?: string
+
       presetNote?: string
+
       liveHop?: true
     }
   | {
@@ -939,6 +1037,7 @@ export type ConcourseAdmitResult =
       error: string
       code: ConcourseRefusalCode
       moves?: ConcourseMoveV1[]
+
       gitOfferRefused?: GitInitRefusal
     }
 
@@ -956,10 +1055,13 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
   if (!existsSync(transcript)) return undefined
   let retained: string | undefined
   try {
+
     scanTranscriptLinesBackward(transcript, line => {
+
       if (!line.includes('assistant') && !line.includes('output') && !line.includes('"metaKind":"model"')) return
       try {
         const row = JSON.parse(line) as Record<string, unknown>
+
         const entry = (
           typeof row.recordId === 'string' && row.payload !== undefined
             ? (recordToEntry(row as never) as Record<string, unknown>)
@@ -988,6 +1090,7 @@ export function makeConcourseAdmitHandler(
   deps: ConcourseAdmitDeps,
 ): (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult> {
   return async req => {
+
     if (req.effort !== undefined) {
       const level = normalizeEffortLevelString(req.effort)
       if (level === undefined) {
@@ -999,12 +1102,15 @@ export function makeConcourseAdmitHandler(
       }
       req = { ...req, effort: level }
     }
+
     const retainedModelKey =
       req.modelKey === undefined && req.resumeSessionId !== undefined
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
+
     refreshSignInReads(true)
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
+
     let admission = validated
     let retainedNote: string | undefined
     if (!validated.ok && req.modelKey === undefined && retainedModelKey !== undefined && validated.reason.startsWith('no-credential:')) {
@@ -1018,6 +1124,7 @@ export function makeConcourseAdmitHandler(
       }
     }
     if (!admission.ok) {
+
       const read = admission.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(admission.reason.slice('no-credential:'.length))}` : ''
       const error = `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''}${read} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`
       // eslint-disable-next-line no-console
@@ -1026,7 +1133,9 @@ export function makeConcourseAdmitHandler(
     }
     const modelKey = admission.entry.modelId
     const modelDisplayName = admission.entry.displayName
+
     const keyless = admission.keyless === true
+
     if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note
     let stat
     try {
@@ -1042,6 +1151,7 @@ export function makeConcourseAdmitHandler(
 
     const kind = sessionKindOfAsker(req.by)
     const workspaceId = canonicalWorkspaceId(req.workspaceDir)
+
     let preset: { name: string; kit: SessionKitV1; note?: string } | undefined
     if (req.kitPreset !== undefined) {
       if (req.kit !== undefined) {
@@ -1057,6 +1167,7 @@ export function makeConcourseAdmitHandler(
     }
     const records = readSessionWorkers(deps.dir)
     const liveShorts = new Set(roster.list().filter(j => !j.outcome).map(j => j.short))
+
     const liveWorkers = Object.values(records).filter(
       r => r.endedAt === undefined && r.parkedAt === undefined && (liveShorts.has(r.runnerId) || r.attachedAt !== undefined),
     )
@@ -1081,6 +1192,7 @@ export function makeConcourseAdmitHandler(
         }
       }
     }
+
     if (req.resumeSessionId !== undefined) {
       const standing = Object.values(records).find(r => r.sessionId === req.resumeSessionId && r.endedAt === undefined)
       if (standing !== undefined) {
@@ -1097,6 +1209,7 @@ export function makeConcourseAdmitHandler(
             ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
+
             ...(preset !== undefined ? { preset } : {}),
             by: 'operator',
             kind,
@@ -1108,9 +1221,11 @@ export function makeConcourseAdmitHandler(
         return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated
       }
     }
+
     const admissionClaims = liveWorkers.filter(
       r => req.vacatingSessionId === undefined || r.sessionId !== req.vacatingSessionId,
     )
+
     const resolution = resolveDefaultedAdmission(
       admissionClaims.map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation, ...(r.title !== undefined ? { title: r.title } : {}) })),
       { workspaceId, ...(req.isolation !== undefined ? { isolation: req.isolation } : {}) },
@@ -1140,17 +1255,21 @@ export function makeConcourseAdmitHandler(
       const facts = readSessionFacts(previous.sessionId, deps.dir)
       carryClearModel(home, sessionId, previous.sessionId, facts?.model.setting ?? previous.modelKey)
     }
+
     if (
       deps.claimWarm !== undefined &&
       kind === 'oculus' &&
+
       !keyless &&
       req.resumeSessionId === undefined &&
+
       (effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&
       (req.runnerArgv === undefined || req.runnerArgv.length === 0)
     ) {
       const claimSessionId = randomUUID()
       carryBuildNotices(claimSessionId)
       const claimEffort = req.effort ?? 'high'
+
       const claimPosture = seatInitialPermissionMode(req.permissionMode)
       const claimStartedAt = Date.now()
       const claimed = await deps.claimWarm({
@@ -1163,9 +1282,11 @@ export function makeConcourseAdmitHandler(
         kit,
       })
       if (claimed.claimed) {
+
         // eslint-disable-next-line no-console
         console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
         const runnerId = claimed.short
+
         const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
         updateConcourseWorkers(workers => {
           workers[runnerId] = {
@@ -1189,13 +1310,16 @@ export function makeConcourseAdmitHandler(
             ...(req.title !== undefined ? { title: partiallySanitizeUnicode(req.title) } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
             ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
+
             ...kitStampOf(kit),
+
             permissionMode: claimPosture,
             ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
             kind,
           }
         }, deps.dir)
         deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
+
         if (deps.ensureWarm !== undefined) {
           const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
           rewarm.unref?.()
@@ -1215,6 +1339,7 @@ export function makeConcourseAdmitHandler(
         }
       }
       logForDebugging(`[daemon] warm claim declined (${claimed.reason}) — spawning cold`)
+
       if (deps.ensureWarm !== undefined) {
         const rewarm = setTimeout(() => deps.ensureWarm!(workspaceId, kit, req.bypassConsent === true), 0)
         rewarm.unref?.()
@@ -1239,15 +1364,18 @@ export function makeConcourseAdmitHandler(
     }
 
     const sessionId = req.resumeSessionId ?? randomUUID()
+
     const workspaceKind = workspaceKindOf(workspaceId)
     let workerCwd = workspaceId
     let worktreePath: string | undefined
     let worktreeBranch: string | undefined
     if (effectiveIsolation === 'worktree-isolated') {
+
       const wt = await ensureWorkerWorktree(workspaceId, runnerId, deps.dir, {
         branchName: mintWorktreeBranchName(req.title ?? sessionId.slice(0, 8), records),
       })
       if (!wt.ok) {
+
         if (wt.code === 'no-repository' || wt.code === 'unborn-head') {
           return {
             ok: false,
@@ -1270,6 +1398,7 @@ export function makeConcourseAdmitHandler(
       worktreePath = wt.path
       worktreeBranch = wt.branchName
     }
+
     const priorSnapshot =
       req.resumeSessionId !== undefined
         ? Object.values(records)
@@ -1277,6 +1406,7 @@ export function makeConcourseAdmitHandler(
             .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.settingsSnapshot
         : undefined
     const snapshot = priorSnapshot ?? resolveEffectiveSettingsSnapshot({ sessionId })
+
     const effort =
       req.effort ??
       (req.resumeSessionId !== undefined
@@ -1304,9 +1434,11 @@ export function makeConcourseAdmitHandler(
         return saved
       })() ??
       'high'
+
     if (req.resumeSessionId !== undefined && worktreePath !== undefined) {
       migrateTranscriptHomeToLaw({ sessionId, workspaceId, worktreePath })
     }
+
     const runnerArgv =
       req.runnerArgv ??
       (req.resumeSessionId !== undefined
@@ -1314,6 +1446,7 @@ export function makeConcourseAdmitHandler(
             .filter(r => r.sessionId === req.resumeSessionId && r.runnerArgv !== undefined)
             .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.runnerArgv
         : undefined)
+
     const spec = buildConcourseWorkerSpec({
       runnerId,
       sessionId,
@@ -1343,6 +1476,7 @@ export function makeConcourseAdmitHandler(
         modelKey,
         effort,
         ...(keyless ? { keyless: true } : {}),
+
         ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
           ? { agentName: req.agentName.trim().slice(0, 24) }
           : {}),
@@ -1359,10 +1493,13 @@ export function makeConcourseAdmitHandler(
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
         ...(req.birthKey !== undefined ? { birthKey: req.birthKey } : {}),
+
         ...spawnPostureOf(spec),
+
         ...kitStampOf(kit),
       }
     }, deps.dir)
+
     if (req.resumeSessionId !== undefined) {
       noteRecordlessResumeKit({ workspaceId, sessionId }, kit, req.kit !== undefined ? 'carried' : 'derived', 'daemon:admit')
     }
@@ -1414,7 +1551,6 @@ function mintWorktreeBranchName(
   return `${base}-${Date.now().toString(36).slice(-4)}`
 }
 
-
 export type ConcoursePauseOutcome =
   | { outcome: 'applied' }
   | { outcome: 'noop'; reason: 'already-paused' | 'not-paused' }
@@ -1465,6 +1601,7 @@ export function resumeConcourseWorker(
       out = { outcome: 'refused', reason: 'terminal-immutable' }
       return
     }
+
     if (rec.pausedAt === undefined && rec.attachRequestedAt === undefined) {
       out = { outcome: 'noop', reason: 'not-paused' }
       return
@@ -1492,6 +1629,7 @@ function reapSettledWorktree(
 ): { branchName?: string; committedAhead?: number; files: string[] } | undefined {
   if (rec.worktreePath === undefined) return undefined
   const outcome = reapWorkerWorktree(rec.workspaceId, rec.runnerId, dir, {
+
     path: rec.worktreePath,
     ...(rec.branchName !== undefined ? { branchName: rec.branchName } : {}),
   })
@@ -1527,6 +1665,7 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     const rec = workers[runnerId]
     if (rec && rec.endedAt === undefined) {
       rec.endedAt = Date.now()
+
       delete rec.focusedAt
       delete rec.focusedBy
       settled = true
@@ -1534,14 +1673,17 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
       settledRec = rec
     }
   }, dir)
+
   if (settled && settledRec !== undefined && settledRec.parkedAt === undefined && !isNewbornRecord(settledRec)) {
     try {
       writeSessionCloseReceipts(getProjectDir(settledRec.workspaceId), settledRec.sessionId, 'settle', settledRec.agentName)
     } catch {
     }
   }
+
   const retainedInfo =
     settled && settledRec !== undefined ? reapSettledWorktree(settledRec, dir) : undefined
+
   if (settled && endedSessionId !== undefined) {
     try {
       retireSeatProjections(endedSessionId, dir)
@@ -1554,9 +1696,11 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
     } catch {
     }
   }
+
   if (settled && endedSessionId !== undefined) {
     const sid = endedSessionId
     const rec2 = settledRec
+
     let retained:
       | {
           workspaceId: string
@@ -1565,6 +1709,7 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
           mainHolderSessionId?: string
           batchBranches: string[]
           batchWorkerIds: string[]
+
           worktreePath?: string
           committedAhead?: number
           uncommittedFiles?: string[]
@@ -1614,6 +1759,7 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
               receipts.some(
                 r =>
                   (r.verb === 'session.redirect' || r.verb === 'session.launch') &&
+
                   (r.outcome === 'applied' || r.outcome === 'queued'),
               )
             ) {
@@ -1622,17 +1768,19 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
           }),
       )
       .catch(err => {
+
         logForDebugging(`[concourse] R2 kernel ride failed for ${runnerId}: ${err}`)
       })
   }
   return settled
 }
 
-
 export interface ConcourseReconcileReceipt {
   settled: string[]
   live: string[]
+
   newbornsReleased: string[]
+
   parked: string[]
 }
 
@@ -1644,6 +1792,7 @@ export function reconcileConcourseWorkers(
   updateConcourseWorkers(workers => {
     for (const rec of Object.values(workers)) {
       if (rec.endedAt !== undefined) continue
+
       if (rec.focusedAt !== undefined) {
         const seatPid = stampedTerminalPid(rec.focusedBy)
         if (seatPid === undefined || !isProcessAlive(seatPid)) {
@@ -1652,6 +1801,7 @@ export function reconcileConcourseWorkers(
           delete rec.focusedBy
         }
       }
+
       if (rec.parkedAt !== undefined) {
         receipt.parked.push(rec.runnerId)
         continue
@@ -1676,6 +1826,7 @@ export function reconcileConcourseWorkers(
           }
         }
       }
+
       if (rec.stopRequestedAt !== undefined && !rosterLiveShorts.has(rec.runnerId) && !workerPidAlive(rec)) {
         stampStopped(rec, rec.stopRequestedBy ?? 'daemon:reconcile', rec.stopRequestedRetired)
         receipt.live.push(rec.runnerId)
@@ -1692,10 +1843,12 @@ export function reconcileConcourseWorkers(
         receipt.live.push(rec.runnerId)
         continue
       }
+
       if (rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined) {
         receipt.newbornsReleased.push(rec.runnerId)
         continue
       }
+
       if (rec.crash !== undefined) {
         if (rec.crash.respawning) {
           rec.crash = {
@@ -1719,6 +1872,7 @@ export function reconcileConcourseWorkers(
       receipt.settled.push(rec.runnerId)
     }
   }, dir)
+
   for (const runnerId of receipt.newbornsReleased) settleConcourseWorker(runnerId, dir)
   if (receipt.newbornsReleased.length > 0) {
     logForDebugging(`[concourse] reconciled ${receipt.newbornsReleased.length} blank newborn(s) found dead as RELEASED (nothing to bring back): ${receipt.newbornsReleased.join(', ')}`)
@@ -1737,7 +1891,6 @@ export function listConcourseWorkers(
   if (rosterLiveShorts === null) return records
   return records.filter(r => rosterLiveShorts.has(r.runnerId))
 }
-
 
 export function migrateTranscriptHomeToLaw(rec: {
   sessionId: string
@@ -1780,6 +1933,7 @@ export function attachYieldConcourseSession(
     )
     if (!rec) return
     if (rec.attachedAt !== undefined) {
+
       const recordedPid = /^operator:(\d+)$/.exec(rec.attachedBy ?? '')?.[1]
       const callerMatches = rec.attachedBy === undefined || rec.attachedBy === 'operator' || rec.attachedBy === by
       const holderDead = recordedPid !== undefined && !isProcessAlive(Number(recordedPid))
@@ -1810,6 +1964,7 @@ export function attachYieldConcourseSession(
       return
     }
     if (alive) {
+
       const killed = roster !== undefined && roster.kill(rec.runnerId)
       if (!killed) {
         out = {
@@ -1827,6 +1982,7 @@ export function attachYieldConcourseSession(
     rec.lastAttachGrantAt = Date.now()
     delete rec.attachRequestedAt
     delete rec.attachRequestedBy
+
     delete rec.crash
     rec.lastLiveAt = Date.now()
     migrateTranscriptHomeToLaw(rec)
@@ -1866,6 +2022,7 @@ export function detachRespawnConcourseSession(
   )
   if (!rec) return { outcome: 'refused', reason: 'unknown-session' }
   if (rec.attachedAt === undefined) return { outcome: 'noop', reason: 'not-attached' }
+
   if (
     opts?.mintedAtMs !== undefined &&
     rec.lastAttachGrantAt !== undefined &&
@@ -1887,11 +2044,13 @@ export function detachRespawnConcourseSession(
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     ...(rec.title !== undefined ? { title: rec.title } : {}),
     ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
+
     ...(rec.kit !== undefined ? { kit: rec.kit } : {}),
     ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
   })
+
   let reg = roster.registerLongLived(rec.runnerId, spec)
   if (!reg.ok && roster.has(rec.runnerId).present) {
     roster.kill(rec.runnerId)
@@ -1967,9 +2126,13 @@ export function reviveConcourseWorker(
   opts?: {
     allowStopped?: boolean
     clearCrash?: boolean
+
     kitOverride?: SessionKitV1
+
     modelOverride?: string
+
     permissionMode?: PermissionMode
+
     bypassConsent?: boolean
     kind?: SessionKind
     restartReason?: 'update'
@@ -2004,6 +2167,7 @@ export function reviveConcourseWorker(
   }
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
+
   const revivePosture = opts?.permissionMode ?? rec.permissionMode
   const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const reviveKind = opts?.kind ?? rec.kind ?? sessionKindOfAsker(by)
@@ -2039,13 +2203,16 @@ export function reviveConcourseWorker(
     delete w.retired
     delete w.turnCutAt
     delete w.turnCutBy
+
     delete w.restartReason
     clearParkedFields(w)
     if (opts?.clearCrash === true) delete w.crash
     if (opts?.modelOverride !== undefined) {
+
       w.modelKey = opts.modelOverride
       delete w.pendingModelKey
     }
+
     stampSpawnPosture(w, spawnPostureOf(spec))
     w.lastLiveAt = Date.now()
     if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
@@ -2057,7 +2224,6 @@ export function reviveConcourseWorker(
     ...(reg.pid !== undefined ? { pid: reg.pid } : {}),
   }
 }
-
 
 function clearReactivatedFields(rec: ConcourseWorkerRecordV1): void {
   clearParkedFields(rec)
@@ -2095,11 +2261,15 @@ export async function reactivateConcourseSession(
   args: {
     modelKey: string
     modelDisplayName?: string
+
     keyless?: true
     effort?: string
     permissionMode?: PermissionMode
+
     bypassConsent?: true
+
     kit?: SessionKitV1
+
     preset?: { name: string; kit: SessionKitV1; note?: string }
     by: string
     kind?: SessionKind
@@ -2133,20 +2303,25 @@ export async function reactivateConcourseSession(
       ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
       ...display,
       ...(rec.pid !== undefined ? { pid: rec.pid } : {}),
+
       liveHop: true,
     }
   }
+
   const claimIsolation: WorkspaceIsolation =
     (rec.isolation ?? 'exclusive') === 'exclusive' && rec.worktreePath === undefined ? 'shared' : rec.isolation
   const decision = evaluateConcourseAdmission(live, { workspaceId: rec.workspaceId, isolation: claimIsolation })
   if (!decision.admit) {
     return refuseReactivate(rec, decision.code, `parked — ${decision.reason} · ↵ again retries`, deps.dir, decision.moves)
   }
+
   const isolationDrift = claimIsolation !== (rec.isolation ?? 'exclusive')
   const effort = args.effort ?? rec.effort ?? 'high'
+
   const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)
   const kitSource: KitStampSource = args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'
   if (args.restartReason !== undefined) rec.restartReason = args.restartReason
+
   if (
     deps.claimWarm !== undefined &&
     kind === 'oculus' &&
@@ -2155,6 +2330,7 @@ export async function reactivateConcourseSession(
     (rec.runnerArgv === undefined || rec.runnerArgv.length === 0)
   ) {
     const claimStartedAt = Date.now()
+
     const claimPosture = seatInitialPermissionMode(args.permissionMode)
     const claimed = await deps.claimWarm({
       workspaceId: rec.workspaceId,
@@ -2163,6 +2339,7 @@ export async function reactivateConcourseSession(
       effort,
       permissionMode: claimPosture,
       bypassConsent: args.bypassConsent === true,
+
       kit,
       restartReason: runnerRestartReasonOf(rec),
       resume: true,
@@ -2190,7 +2367,9 @@ export async function reactivateConcourseSession(
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
         Object.assign(next, buildTreeFields())
+
         restampSessionKit(next, kit, kitSource, args.by)
+
         stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}), kind })
         workers[short] = next
       }, deps.dir)
@@ -2213,11 +2392,13 @@ export async function reactivateConcourseSession(
       }
     }
     logForDebugging(`[daemon] warm claim declined for the reactivate of ${rec.sessionId} (${claimed.reason}) — respawning cold`)
+
     if (deps.ensureWarm !== undefined) {
       const rewarm = setTimeout(() => deps.ensureWarm!(rec.workspaceId, kit, args.bypassConsent === true), 0)
       rewarm.unref?.()
     }
   }
+
   const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
   if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
     updateConcourseWorkers(workers => {
@@ -2235,6 +2416,7 @@ export async function reactivateConcourseSession(
     has: (short: string): { present: boolean } => roster.has(short),
     registerLongLived: (short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived(short, spec),
   }
+
   const revived = reviveConcourseWorker(
     rec.sessionId,
     args.by,
@@ -2255,6 +2437,7 @@ export async function reactivateConcourseSession(
       ? refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail}`, deps.dir)
       : refuseReactivate(rec, 'spawn-failed', `parked — ${revived.detail ?? revived.reason} · ↵ again retries`, deps.dir)
   }
+
   if (revived.outcome === 'applied') {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
@@ -2272,6 +2455,7 @@ export async function reactivateConcourseSession(
       modelKey: args.modelKey,
       ...(args.keyless ? { keyless: true } : {}),
       effort,
+
       kit,
       ...(rec.title !== undefined ? { title: rec.title } : {}),
       ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
@@ -2290,6 +2474,7 @@ export async function reactivateConcourseSession(
     workspaceId: rec.workspaceId,
     modelId: args.modelKey,
     effort,
+
     ...(revived.outcome === 'applied' ? { kitSource } : {}),
     ...(revived.outcome === 'applied' && args.preset !== undefined ? { presetName: args.preset.name, ...(args.preset.note !== undefined ? { presetNote: args.preset.note } : {}) } : {}),
     ...display,
@@ -2301,6 +2486,7 @@ export type ConcourseStopOutcome =
   | {
       outcome: 'applied'
       runnerId: string
+
       acknowledged: boolean
     }
   | { outcome: 'noop'; reason: 'already-stopped' }
@@ -2313,6 +2499,7 @@ function stampStopped(rec: ConcourseWorkerRecordV1, by: string, retired?: Concou
   delete rec.stopRequestedAt
   delete rec.stopRequestedBy
   delete rec.stopRequestedRetired
+
   delete rec.crash
 }
 
@@ -2329,11 +2516,13 @@ export function stopConcourseSession(
       r => r.sessionId === sessionId && r.endedAt === undefined,
     )
     if (!rec) return
+
     if (rec.stoppedAt !== undefined || rec.parkedAt !== undefined) {
       out = { outcome: 'noop', reason: 'already-stopped' }
       return
     }
     if (workerPidAlive(rec)) {
+
       const killed = roster !== undefined && roster.kill(rec.runnerId)
       if (!killed) {
         out = {
@@ -2343,6 +2532,7 @@ export function stopConcourseSession(
         }
         return
       }
+
       if (rec.stopRequestedAt === undefined) {
         rec.stopRequestedAt = Date.now()
         rec.stopRequestedBy = by
@@ -2374,7 +2564,6 @@ export function completeRequestedStop(runnerId: string, dir?: string): boolean {
   return completed
 }
 
-
 function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: string): void {
   rec.parkedAt = Date.now()
   rec.parkedBy = by
@@ -2396,6 +2585,7 @@ function stampParked(rec: ConcourseWorkerRecordV1, by: string, reason?: string):
   delete rec.crash
   delete rec.focusedAt
   delete rec.focusedBy
+
   try {
     writeSessionCloseReceipts(getProjectDir(rec.workspaceId), rec.sessionId, 'park', rec.agentName)
   } catch {
@@ -2446,6 +2636,7 @@ export function parkConcourseSession(
       return
     }
     if (alive) {
+
       const killed = roster !== undefined && roster.kill(rec.runnerId)
       if (!killed) {
         out = {
@@ -2466,6 +2657,7 @@ export function parkConcourseSession(
     stampParked(rec, by, opts?.reason)
     out = { outcome: 'applied', runnerId: rec.runnerId, released: false }
   }, dir)
+
   if (releaseNewborn !== undefined) settleConcourseWorker(releaseNewborn, dir)
   return out
 }
@@ -2715,7 +2907,6 @@ export function revokeConcourseWorkflows(
   return out
 }
 
-
 export type ConcourseFocusOutcome =
   | { outcome: 'applied'; runnerId: string; cleared: string[] }
   | { outcome: 'noop'; reason: 'already-focused' | 'not-focused' }
@@ -2825,6 +3016,7 @@ export function sessionOwnedByLiveWorker(sessionId: string, dir?: string): strin
   for (const rec of Object.values(readSessionWorkers(dir))) {
     if (rec.endedAt !== undefined) continue
     if (rec.sessionId !== sessionId) continue
+
     if (rec.attachedAt !== undefined) return rec.runnerId
     if (workerPidAlive(rec)) return rec.runnerId
   }

@@ -1,4 +1,3 @@
-
 import { randomUUID, type UUID } from 'node:crypto'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, MessageOrigin } from '../../types/message.js'
@@ -16,6 +15,7 @@ export function processTextPrompt(
   batchUuids?: string[],
   origin?: MessageOrigin,
 ): { messages: Message[]; shouldQuery: boolean } {
+
   const promptUuid = uuid ?? (randomUUID() as UUID)
 
   let content: string | ContentBlockParam[]

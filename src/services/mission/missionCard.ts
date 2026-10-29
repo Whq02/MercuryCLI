@@ -11,8 +11,10 @@ export type MissionCardState = 'armed' | 'met' | 'stood-down' | 'cleared' | 'con
 interface MissionCard {
   schema: 1
   sessionId: string
+
   goal: string
   state: MissionCardState
+
   nextStep: string | null
   iterations: number
   setAt: string

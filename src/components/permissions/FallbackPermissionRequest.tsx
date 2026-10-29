@@ -41,6 +41,7 @@ export function FallbackPermissionRequest({
     if (shouldShowAlwaysAllowOptions()) {
       result.push({
         label: (
+
           <Text>
             Yes, and don&apos;t ask again for <Text bold>{displayName}</Text> in this project
           </Text>
@@ -63,6 +64,7 @@ export function FallbackPermissionRequest({
         onDone()
         break
       case 'yes-dont-ask-again':
+
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {
             type: 'addRules',

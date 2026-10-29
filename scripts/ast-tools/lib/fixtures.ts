@@ -6,7 +6,9 @@ interface LanguageFixture {
   file: string
   good: string
   pattern: string
+
   expect: number
+
   capture?: string
   rewrite?: { rewrite: string; contains: string; inPlace?: boolean }
 }

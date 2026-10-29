@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -166,6 +167,7 @@ function envFor(home: string, fixturePath: string | null): Record<string, string
   }
   return base
 }
+
 const armThenExit: Send[] = [
   { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 1, mark: 'armed' },
   { data: CTRL_C, afterPrevTicks: 1 },
@@ -249,6 +251,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
   const c = capture('F-lapse', ['node', BIN], [
     { data: CTRL_C, requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
     { data: '', requireAwait: true, awaitText: NOTICE, awaitSettleTicks: 1, mark: 'armed' },
+
     { data: AFTER, afterPrevTicks: 1 },
     { data: '', afterPrevTicks: 22, mark: 'lapsed' },
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, fixturePath) })
@@ -261,6 +264,7 @@ console.log('leg F — the window lapse (one press never exits; the notice clear
 
 console.log('leg H — the concourse under a consent card (the seat-overload Select owns its keys; the exit still fires)')
 {
+
   const { home, fixturePath } = freshHome('consent', fixture => {
     fixture.counts.live = 9
   })
@@ -279,6 +283,7 @@ console.log('leg H — the concourse under a consent card (the seat-overload Sel
 console.log('leg I — the concourse under a manager card (the interview card owns its keys; the exit still fires)')
 {
   const { home, fixturePath } = freshHome('manager')
+
   writeFileSync(
     join(home, 'coordinator-conversation.json'),
     JSON.stringify({
@@ -310,6 +315,7 @@ console.log('leg G — the main Chat (the control: the same words, the same exit
   const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [{ kind: 'text', text: 'Spare.' }],
+
     sends: ['after:Type a prompt:1500:\x03', `after:Type a prompt:${1500 + Math.round(1100 / vshotBudgetScale())}:\x03`],
     anchor: null,
     seconds: 25,

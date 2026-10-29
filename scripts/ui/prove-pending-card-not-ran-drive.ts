@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/messages/CollapsedReadSearchContent* src/components/MessageRow* src/components/Messages*
+
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'

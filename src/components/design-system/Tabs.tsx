@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useCallback,
@@ -30,6 +29,7 @@ type TabsContextValue = {
   headerFocused: boolean
   focusHeader: () => void
   blurHeader: () => void
+
   registerNavOptIn: () => () => void
 }
 
@@ -42,11 +42,14 @@ type TabsProps = {
   defaultTab?: string
   hidden?: boolean
   useFullWidth?: boolean
+
   selectedTab?: string
   onTabChange?: (id: string) => void
+
   banner?: React.ReactNode
   disableNavigation?: boolean
   initialHeaderFocused?: boolean
+
   contentHeight?: number
   navFromContent?: boolean
 }
@@ -127,6 +130,7 @@ export function Tabs({
       setInternalIndex(nextIndex)
       onTabChange?.(target.id)
     }
+
     setHeaderFocused(true)
   }
 
@@ -182,6 +186,7 @@ export function Tabs({
         tabIndex={-1}
         autoFocus
         onKeyDown={(event: KeyboardEvent) => {
+
           if (event.key === 'down' && visible && hasNavOptIn && headerFocused) {
             setHeaderFocused(false)
           }

@@ -1,4 +1,3 @@
-
 export const DEAD_THINKING_PLACEHOLDER = '[reasoning the API dropped — not carried forward]'
 
 export function isDeadThinkingPlaceholder(block: unknown): boolean {

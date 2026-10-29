@@ -1,9 +1,9 @@
-
 import { Event } from './event.js'
 
 export class ClickEvent extends Event {
   readonly col: number
   readonly row: number
+
   readonly cellIsBlank: boolean
   localCol: number
   localRow: number

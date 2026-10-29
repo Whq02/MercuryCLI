@@ -1,4 +1,3 @@
-
 import type { Dirent } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises'
@@ -55,7 +54,6 @@ import {
 import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 
-
 type MercuryLspOperation =
   | 'diagnostics'
   | 'rename'
@@ -86,6 +84,7 @@ export type MercuryLspOpInput = {
   actionId?: string
   actionIndex?: number
   paths?: string[]
+
   method?: string
   params?: string
   plan?: string
@@ -141,7 +140,6 @@ type OpEnv = {
   requestWritePermission?: (path: string) => Promise<boolean>
 }
 
-
 const MAX_LSP_FILE_BYTES = 10_000_000
 const PREPARE_ROUNDS = 3
 const WORKSPACE_DIAG_FILE_CAP = 50
@@ -150,7 +148,6 @@ const SERVER_SYNC_DEADLINE_MS = 4_000
 const STABILIZE_DEADLINE_MS = 3_000
 const STABILIZE_QUIET_WINDOW_MS = 300
 const IGNORED_WALK_DIRS = new Set(['node_modules', '.git', 'dist', '.build-tree'])
-
 
 function displayPathFor(cwd: string, fileOrUri: string): string {
   const path = fileOrUri.startsWith('file://')
@@ -261,8 +258,8 @@ async function syncFileFromDisk(manager: LSPServerManager, absolutePath: string)
   return text
 }
 
-
 type DiagnosticsBaseline = {
+
   generationKey: string
   docVersion: number | undefined
   resultId: string | undefined
@@ -282,7 +279,9 @@ type PullDiagnosticsOutcome =
       kind: 'fresh'
       items: LspWireDiagnostic[]
       docVersion: number | undefined
+
       pulledFrom?: string[]
+
       pushed?: string[]
       failed?: ClaimantFailure[]
     }
@@ -404,6 +403,7 @@ async function pullFileDiagnostics(
 ): Promise<PullDiagnosticsOutcome> {
   const claimants = manager.getServersForFile(absolutePath)
   if (claimants.length === 0) {
+
     return { kind: 'no-claimant' }
   }
   const uri = pathToFileURL(resolve(absolutePath)).href
@@ -446,6 +446,7 @@ async function pullFileDiagnostics(
         items?: LspWireDiagnostic[]
       }>('textDocument/diagnostic', params)
     } catch (err) {
+
       logForDebugging(`lsp ops: pull from ${server.name} failed: ${String(err)}`)
       failed.push({ server, stage: 'pull', cause: requestFailureCause(server, 'textDocument/diagnostic', err) })
       continue
@@ -471,6 +472,7 @@ async function pullFileDiagnostics(
     pulledFrom.push(server.name)
     anyFresh = true
   }
+
   const pushed = await harvestPublishedReports(
     absolutePath,
     pushOnlyNames,
@@ -494,7 +496,6 @@ async function pullFileDiagnostics(
     ...(failed.length > 0 ? { failed } : {}),
   }
 }
-
 
 export async function syncServersAfterWrite(
   manager: LSPServerManager,
@@ -527,7 +528,6 @@ export async function syncServersAfterWrite(
   }
 }
 
-
 type DiagnosticStabilization =
   | { state: 'fresh'; errors: number; warnings: number; total: number }
   | { state: 'unchanged'; errors: number; warnings: number; total: number }
@@ -551,6 +551,7 @@ export async function awaitDiagnosticStabilization(
   const capabilities = server.capabilities as ServerCapabilities | undefined
 
   if (capabilities?.diagnosticProvider) {
+
     let timer: NodeJS.Timeout | undefined
     try {
       const outcome = await Promise.race([
@@ -560,6 +561,7 @@ export async function awaitDiagnosticStabilization(
         }),
       ])
       if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
+
       if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') return { state: 'unsupported' }
       if (outcome.kind === 'protocol-violation') return { state: 'failed', reason: outcome.detail }
       if (outcome.kind === 'unavailable') return { state: 'failed', reason: unavailableWords(outcome.failed, absolutePath, dirname(absolutePath)).what }
@@ -615,7 +617,6 @@ export async function awaitDiagnosticStabilization(
   })
 }
 
-
 type LspServerStatusRow = {
   name: string
   state: string
@@ -667,7 +668,6 @@ function statusRowsFor(manager: LSPServerManager, filePath?: string): LspServerS
   return rows
 }
 
-
 type WireCodeAction = {
   title: string
   kind?: string
@@ -687,11 +687,11 @@ export function actionIdentity(action: WireCodeAction): string {
   return `ca-${createHash('sha256').update(material).digest('hex').slice(0, 8)}`
 }
 
-
 type PreparedApply =
   | {
       ok: true
       files: NormalizedFileEdits[]
+
       snapshots: Map<string, string>
     }
   | { ok: false; reason: string }
@@ -956,6 +956,7 @@ function touchedLinesOf(file: NormalizedFileEdits): Array<{ start: number; end: 
 
 type AppliedOutcome = {
   output: MercuryLspOpOutput
+
   writtenPaths: string[]
 }
 
@@ -1201,6 +1202,7 @@ async function applyPrepared(
       logForDebugging(`lsp ops: anchor bookkeeping failed for ${w.abs}: ${String(error)}`)
     }
   }
+
   const primary = written[0]!.abs
   const stabilization = await awaitDiagnosticStabilization(manager, primary)
   try {
@@ -1269,7 +1271,6 @@ async function applyPrepared(
   }
 }
 
-
 function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: Array<{ server: string; cause: string }> } {
   const words = failed.map(failure => claimantFailureWords(failure, path, cwd))
   const remedies = [...new Set(words.map(w => w.remedy).filter(r => r !== ''))]
@@ -1291,6 +1292,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
   }
   if (pulled.kind === 'no-claimant') {
+
     const extension = extname(env.absolutePath).toLowerCase()
     return {
       result:
@@ -1345,6 +1347,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       },
     }
   }
+
   const sourceNote = [
     ...(pulled.pulledFrom && pulled.pulledFrom.length > 0 ? [`pulled: ${pulled.pulledFrom.join(', ')}`] : []),
     ...(pulled.pushed && pulled.pushed.length > 0 ? [`published: ${pulled.pushed.join(', ')}`] : []),
@@ -1924,6 +1927,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       unreadable.push(dir)
       return
     }
+
     entries.sort((a, b) => a.name.localeCompare(b.name))
     const files: string[] = []
     const subdirectories: string[] = []
@@ -2103,6 +2107,7 @@ async function pathRenameClaimants(
     addAll(env.manager.getServersForFile(newPath))
     return out
   }
+
   const FILE_SCAN_CAP = 2_000
   let scanned = 0
   const extensions = new Set<string>()
@@ -2151,6 +2156,7 @@ function coalesceWorkspaceEdits(
       }
       if (dropped > 0) {
         overlapNotes.push(
+
           `${server}: ${dropped} overlapping edit(s) in ${file.uri.slice(file.uri.lastIndexOf('/') + 1) || file.uri} yielded to ${entry.owners.join('+') || 'the prior claimant'}`,
         )
       }
@@ -2467,6 +2473,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     }
     editedPaths = applied.writtenPaths
     if (applied.output.effect.outcome === 'indeterminate') {
+
       return {
         ...applied.output,
         result: `${applied.output.result}\nThe file was NOT moved — re-run LspMoveFile once the servers settle.`,
@@ -2687,6 +2694,7 @@ async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
     delegate.effect.outcome === 'failed' &&
     delegate.result.includes('apply: true requires actionId')
   ) {
+
     const listing = await opCodeActions({
       ...env,
       input: { ...input, operation: 'codeActions', apply: false },
@@ -2748,7 +2756,6 @@ async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-
 type FormatWant = 'formatDocument' | 'formatRange' | 'organizeImports'
 
 function advertisesWant(capabilities: ServerCapabilities | undefined, want: FormatWant): boolean {
@@ -2778,6 +2785,7 @@ async function resolveFormatOwner(
   }
   const reports: string[] = []
   for (const claimant of claimants) {
+
     if (claimant.state !== 'running') {
       try {
         if (claimant.state === 'stopping') await claimant.stop()
@@ -2843,6 +2851,7 @@ async function opFormatFamily(env: OpEnv, want: FormatWant): Promise<MercuryLspO
 
   const requestEdit = async (): Promise<WorkspaceEditLike | null> => {
     if (want === 'organizeImports') {
+
       const wholeFileText = await readFile(env.absolutePath, 'utf8')
       const wholeFileLines = wholeFileText.split('\n')
       const actions = await owner.sendRequest<Array<WireCodeAction | null> | null>(
@@ -2902,6 +2911,7 @@ async function opFormatFamily(env: OpEnv, want: FormatWant): Promise<MercuryLspO
   await syncFileFromDisk(env.manager, env.absolutePath)
   const prepared = await prepareApply(env, requestEdit)
   if (!prepared.ok) {
+
     if (/edit set is empty/.test(prepared.reason)) {
       const message =
         want === 'organizeImports'
@@ -2996,7 +3006,6 @@ async function opMoveSymbol(env: OpEnv): Promise<MercuryLspOpOutput> {
   const applied = await applyPrepared(env, 'moveSymbol', prepared.files, prepared.snapshots)
   return applied.output
 }
-
 
 const RAW_RESULT_CHAR_CAP = 20_000
 
@@ -3112,8 +3121,8 @@ async function opRawRequest(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
 }
 
-
 export async function runMercuryLspOp(env: OpEnv): Promise<MercuryLspOpOutput> {
+
   try {
     await env.manager.revalidateOpenDocuments()
   } catch {

@@ -10,6 +10,7 @@ export function MercuryExitConfirm({
   onQuit,
   onStay,
 }: {
+
   liveWords: string
   onQuit: () => void
   onStay: () => void

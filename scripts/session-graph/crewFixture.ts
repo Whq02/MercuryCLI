@@ -1,10 +1,11 @@
-
 import type { ActivityInput } from '../../src/services/crew/activity.ts'
 
 interface CrewFixtureCounts {
   agents: number
   conversations: number
+
   conversationEvents: number
+
   activityEvents: number
 }
 
@@ -13,6 +14,7 @@ interface CrewFixture {
   counts: CrewFixtureCounts
   agentIds: string[]
   conversationIds: string[]
+
   activityStream: ActivityInput[]
 }
 
@@ -32,6 +34,7 @@ const EVENT_KINDS = ['message', 'question', 'activity', 'delivery', 'review-requ
 
 export async function buildCrewFixture(args: {
   seed: number
+
   dir?: string
   counts?: Partial<CrewFixtureCounts>
 }): Promise<CrewFixture> {
@@ -61,6 +64,7 @@ export async function buildCrewFixture(args: {
       kind: (['work', 'console-side', 'direct'] as const)[Math.floor(rand() * 3)]!,
       title: `fixture thread ${String(i).padStart(3, '0')}`,
       participants: [{ kind: 'agent', agentId: agentIds[Math.floor(rand() * agentIds.length)]! as never }],
+
       adoptId: `cv-fx${args.seed}-${String(i).padStart(4, '0')}` as never,
       ...(args.dir !== undefined ? { dir: args.dir } : {}),
     })

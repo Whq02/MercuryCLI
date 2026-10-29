@@ -1,4 +1,3 @@
-
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -20,7 +19,6 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
   }
 }
-
 
 {
   const r = normalizeWorkspaceEdit({
@@ -74,7 +72,6 @@ function check(name: string, ok: boolean, detail?: string): void {
   check('normalize: null edit refused', !r.ok)
 }
 
-
 {
   const text = 'const alpha = 1\nconst beta = alpha + alpha\n'
   const edits = [
@@ -82,6 +79,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     { range: rangeOf(text, 'alpha', 1), newText: 'omega' },
     { range: rangeOf(text, 'alpha', 2), newText: 'omega' },
   ]
+
   const r = applyEditsToText(text, [edits[2]!, edits[0]!, edits[1]!])
   check(
     'apply: 3 same-file edits, shuffled input order, all land',
@@ -120,6 +118,7 @@ for (const newline of ['\n', '\r\n', '\r']) {
   check('an overlong edit column preserves the line ending ' + JSON.stringify(newline), applied.ok && applied.text === 'ABC' + newline + 'def')
 }
 {
+
   const text = 'ab'
   const r = applyEditsToText(text, [
     { range: { start: { line: 0, character: 1 }, end: { line: 0, character: 1 } }, newText: 'X' },
@@ -127,7 +126,6 @@ for (const newline of ['\n', '\r\n', '\r']) {
   ])
   check('apply: insertion adjacent to replacement allowed', r.ok && r.text === 'aXY')
 }
-
 
 {
   const text = Array.from({ length: 60 }, (_, i) => `const v${i} = ${i}`).join('\n')
@@ -146,7 +144,6 @@ for (const newline of ['\n', '\r\n', '\r']) {
     preview.split('\n')[0],
   )
 }
-
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -171,6 +168,7 @@ function fakeEnvFor(dir: string, opts: {
     saveFile: async (f: string) => {
       savedFiles.push(f)
     },
+
     changeAndSaveFile: async (f: string) => {
       synced.push('change')
       savedFiles.push(f)
@@ -215,6 +213,7 @@ function scratchDirInCwd(tag: string): string {
 }
 
 {
+
   const dir = scratchDirInCwd('apply')
   const env = fakeEnvFor(dir, {
     renameEditFor: file => ({
@@ -245,6 +244,7 @@ function scratchDirInCwd(tag: string): string {
 }
 
 {
+
   const dir = scratchDirInCwd('drift')
   const env = fakeEnvFor(dir, {
     renameEditFor: file => ({
@@ -289,6 +289,7 @@ function scratchDirInCwd(tag: string): string {
 }
 
 {
+
   const dir = scratchDirInCwd('approved')
   const env = fakeEnvFor(dir, {
     ctx: ASKING_CTX,
@@ -354,7 +355,9 @@ for (const mode of ['implement', 'default', 'sovereign']) {
 }
 
 {
+
   const dir = scratchDirInCwd('deny')
+
   const env = fakeEnvFor(dir, {
     ctx: {
       ...PERMISSIVE_CTX,
@@ -389,6 +392,7 @@ for (const mode of ['implement', 'default', 'sovereign']) {
 }
 
 {
+
   const dir = scratchDirInCwd('grow')
   const extra = ['b.ts', 'c.ts', 'd.ts', 'e.ts'].map(n => path.join(dir, n))
   for (const f of extra) writeFileSync(f, 'export const x = 1\n')
@@ -432,6 +436,7 @@ for (const mode of ['implement', 'default', 'sovereign']) {
     path.join(path.resolve(import.meta.dir, '../..'), 'src/tools/LSPTool/mercuryOps.ts'),
     'utf8',
   )
+
   const permIdx = src.indexOf('checkWritePermissionForTool(')
   const commitIdx = src.indexOf('runVerbatimTextCommit(')
   check(
@@ -443,6 +448,7 @@ for (const mode of ['implement', 'default', 'sovereign']) {
     'utf8',
   )
   const revalidateIdx = core.indexOf("diskState[i] !== 'original'")
+
   const renameIdx = core.indexOf('await renameWithWin32Retry(')
   check(
     'structure: current-byte revalidation precedes every rename in the shared core',

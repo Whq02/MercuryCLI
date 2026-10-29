@@ -41,6 +41,7 @@ export function PermissionDialog({
       s?.toolPermissionContext?.mode,
   ) as PermissionMode | undefined
   const modeActive = !isDefaultMode(mode)
+
   const cardColor: keyof Theme =
     modeActive && mode ? (getModeColor(mode) as keyof Theme) : color
   const modeChip =
@@ -50,6 +51,7 @@ export function PermissionDialog({
         {permissionModeTitle(mode).toLowerCase()}
       </Text>
     ) : null
+
   const queueStatus = React.useContext(PermissionQueueContext)
   const queueMarker =
     queueStatus && queueStatus.total > 1 ? (

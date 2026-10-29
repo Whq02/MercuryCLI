@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,6 +40,7 @@ const rejected = (extra: Partial<Limits> = {}): Limits => ({
 const textFor = (limits: Limits, model: string): string => msgs.getRateLimitErrorMessage(limits, model) ?? ''
 
 section('§1 — the pool that is dry is named, claim or no claim')
+
 {
   for (const [claim, name] of [
     ['seven_day_fable', 'Fable limit'],
@@ -51,12 +53,14 @@ section('§1 — the pool that is dry is named, claim or no claim')
   }
   const noClaim = textFor(rejected(), 'claude-fable-5')
   check('a claim-less rejection still names a window', /this account's usage limit is reached/.test(noClaim), noClaim)
+
   const overage = textFor(rejected({ rateLimitType: 'seven_day_fable', overageStatus: 'rejected' }), 'claude-fable-5')
   check('a rejected overage names the window underneath it', overage.includes('Fable limit'), overage)
   check('…and never the pool-less generic', !/usage limit is reached/.test(overage), overage)
 }
 
 section('§2 — the model that hit the wall')
+
 {
   const text = textFor(rejected({ rateLimitType: 'seven_day_fable' }), 'claude-fable-5')
   check('the marketing name rides the refusal', /on Fable 5/.test(text), text)
@@ -67,11 +71,13 @@ section('§2 — the model that hit the wall')
 }
 
 section('§3 — the in-family fix, and where it would be a lie')
+
 {
   for (const claim of ['seven_day_fable', 'seven_day_opus'] as const) {
     const text = textFor(rejected({ rateLimitType: claim }), 'claude-fable-5')
     check(`${claim} offers the same-account switch`, /other Claude model pools are separate/.test(text) && text.includes('/model'), text)
   }
+
   for (const claim of ['five_hour', 'seven_day'] as const) {
     const text = textFor(rejected({ rateLimitType: claim }), 'claude-fable-5')
     check(`${claim} offers NO model switch (the window is shared)`, !/other Claude model pools/.test(text), text)
@@ -84,9 +90,11 @@ section('§3 — the in-family fix, and where it would be a lie')
 }
 
 section('§4 — every remedy names a live command')
+
 {
   const src = readFileSync(join(import.meta.dir, '../../src/services/rateLimitMessages.ts'), 'utf8')
   const row = readFileSync(join(import.meta.dir, '../../src/components/messages/RateLimitMessage.tsx'), 'utf8')
+
   const registered = new Set<string>()
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
@@ -102,6 +110,7 @@ section('§4 — every remedy names a live command')
     [...text.matchAll(/(?:^|[\s"'`(])\/([a-z][a-z0-9-]*)/g)].map(m => m[1]!)
   const ghosts = [...new Set([...named(src), ...named(row)])].filter(n => !registered.has(n))
   check('every /command the owner and the row name is a registered slash command', ghosts.length === 0, ghosts.join(', '))
+
   const text = textFor(rejected({ rateLimitType: 'seven_day_fable' }), 'claude-fable-5')
   check('a refusal carries no plan pointer', !/\/upgrade\b/.test(text), text)
   check('the error path has no plan clause (the row surface owns the account remedy)', !/errorUpsellClause/.test(src))
@@ -113,7 +122,9 @@ section('§4 — every remedy names a live command')
 }
 
 section('§5 — the order at the row: pool + in-family, then plan, then elsewhere')
+
 {
+
   const composed = msgs.composeAnthropicWallRemedies({
     slotAppendix: () => 'The other slot is signed in — the wall card offers the switch in one key.',
     upsellEligible: () => true,
@@ -132,6 +143,7 @@ section('§5 — the order at the row: pool + in-family, then plan, then elsewhe
 }
 
 section('§6 — the row still renders as a rate-limit row')
+
 {
   for (const claim of ['seven_day_fable', 'five_hour', 'seven_day'] as const) {
     const text = textFor(rejected({ rateLimitType: claim }), 'claude-opus-5')

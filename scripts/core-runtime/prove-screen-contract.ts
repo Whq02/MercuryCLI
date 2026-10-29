@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   blitRegion,
   type Cell,
@@ -214,6 +215,7 @@ console.log('native-core T2 — screen cell-grid + damage contract')
   s4.damage = undefined
   setCellAt(s4, 2, 0, narrow('n', pools.style.none))
   check('ghost-tail repair in damage', inDamage(s4, 3, 0), JSON.stringify(s4.damage))
+
   const s5 = createScreen(8, 1, pools.style, pools.char, pools.link)
   setCellAt(s5, 1, 0, wide('漢', pools.style.none))
   s5.damage = undefined
@@ -323,10 +325,12 @@ console.log('native-core T2 — screen cell-grid + damage contract')
 
 {
   const pools = makePools()
+
   for (const ch of ['a', ' ', '', '漢', '👩‍👩‍👧‍👦', '⚔️']) {
     check(`charPool round-trip ${JSON.stringify(ch)}`, pools.char.get(pools.char.intern(ch)) === ch)
   }
   check('charPool stable ids', pools.char.intern('q') === pools.char.intern('q'))
+
   check('linkPool none is 0', pools.link.intern(undefined) === 0 && pools.link.get(0) === undefined)
   const lid = pools.link.intern('https://m.example/a')
   check('linkPool round-trip', pools.link.get(lid) === 'https://m.example/a')

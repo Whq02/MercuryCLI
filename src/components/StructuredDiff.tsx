@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, RawAnsi } from '../ink.js'
 import { colorStripped } from '../ink/colorize.js'
@@ -30,6 +29,7 @@ function gutterWidthOf(patch: StructuredPatchHunk): number {
     patch.oldStart + patch.oldLines - 1,
     patch.newStart + patch.newLines - 1,
   )
+
   return String(maxLine).length + 3
 }
 

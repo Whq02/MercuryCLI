@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,8 +23,10 @@ console.log('A — the verb family is the LANDED one; no new daemon verb was add
   for (const verb of ['pause', 'resume', 'interrupt', 'set-model', 'session-facts']) {
     check(`A1 concourseControl carries '${verb}' (the controls build on it)`, protocol.includes(`'${verb}'`) && server.includes(`'${verb}'`))
   }
+
   check("A2 the wire carries 'set-effort' (the daemon door — fold-ordered before this key)", protocol.includes("'set-effort'") && server.includes("'set-effort'"))
   const route = read('src/components/concourse/ConcourseRoute.tsx')
+
   const effortCalls = route.split("action: 'set-effort'").length - 1
   check(
     "A5 poison — e fires exactly one set-effort with the `effort` field, latched against duplicates",
@@ -113,6 +116,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
     'B4 the row pick modal (model AND effort — one grammar) is declared and owns the keys while open (through the ONE modal owner)',
     screen.includes('rowPick: rowPickRef.current !== null,') &&
       screen.includes("if (modalOwner !== null && modalOwner !== 'manager-seat-ask' && modalOwner !== 'manager-card') return") &&
+
       screen.includes("import { RowPickModal } from './RowPickModal.js'") &&
       !screen.includes('function RowPickModal('),
   )
@@ -214,6 +218,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
 console.log('C — the L17 cut: a session ask routes INTO the chat; no board key answers it')
 {
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
+
   check("C1 the ComposeContext union carries no 'permission' member", !screen.includes("kind: 'permission'"))
   check(
     'C1 no y/n permission grammar on the board (the handler and its context line are gone)',
@@ -224,6 +229,7 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
     screen.indexOf("if (ref.startsWith('permission:git-init:')) {") !== -1 && screen.indexOf("if (ref.startsWith('permission:')) {") > screen.indexOf("if (ref.startsWith('permission:git-init:')) {") &&
       /if \(ref\.startsWith\('permission:'\)\) \{[\s\S]{0,400}?openObligationOrDoor\(obligationId\)[\s\S]{0,40}?return/.test(screen),
   )
+
   const answerSites = screen.split('callbacks.answerPermission?.(').length - 1
   check('C3 poison — exactly two answer-permission call sites remain on the screen (both the git card wires)', answerSites === 2)
   const gitCard = read('src/components/concourse/GitOfferCard.tsx')
@@ -237,6 +243,7 @@ console.log('C — the L17 cut: a session ask routes INTO the chat; no board key
     deriveGitOffer([{ obligationId: 'o1', sessionId: 'session-1', ref: 'permission:req-77' }]) === undefined &&
       deriveGitOffer([{ obligationId: 'o2', sessionId: 'folder:/tmp/x', ref: 'permission:git-init:abc' }]) !== undefined,
   )
+
   check("C4 the answer-permission verb itself stands (chat-side plumbing)", read('src/daemon/protocol.ts').includes("'answer-permission'"))
 }
 
@@ -350,6 +357,7 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   check(
     'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
     screen.includes("gitOffer !== undefined && seatAsk === null && forkAsk === null && !contractAsk && geo.profile === 'wide'") &&
+
       /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*geo\.profile !== 'wide' &&/.test(screen) &&
       screen.includes('gitOfferOwnsTheKeys({') &&
       screen.includes('seatAsk: seatAsk !== null,') &&
@@ -389,6 +397,7 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
       stripsSrc.includes('${seatsCell.text} seats'),
   )
+
   check(
     'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
     (() => {
@@ -443,6 +452,7 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
     'F3 the redirect leg composes NONE (an existing session was briefed at its birth)',
     dispatchSrc.includes('attemptRedirectDelivery(rec, dispatches, req.targetSessionId, req.prompt, promptExtrasOf(req))'),
   )
+
   const { stripGroundNote, GROUND_NOTE_MARK } = await import('../../src/daemon/isolationNote.ts')
   check(
     'F5 stripGroundNote: framed words yield the words, bare words pass through, a lone note yields nothing',
@@ -521,6 +531,7 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
       const w = ws['concourse-w9']
       if (w) w.parkedAt = Date.now()
     }, denyDir)
+
     return gated && d.folderClaimHeld(folder, denyDir) === false
   })())
   const asks = await import('../../src/daemon/permissionAsks.ts')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -107,6 +108,7 @@ section('(2) provenance shape-parity — the recorder cannot drift')
   check('mode section named mode-apollo', prov?.sections.some(s => s.group === 'mode' && s.name === 'mode-apollo') === true)
   check('contract digest recorded (bc1-)', typeof prov?.digest === 'string' && prov.digest.startsWith('bc1-'))
   check('total chars accounted', prov?.totalChars === 'ab'.length + 'XX'.length + 'w1w2'.length + 'm'.length + 'anti'.length)
+
   composeSystemPrompt({
     staticSections: ['a'],
     dynamicBoundary: [],
@@ -162,7 +164,6 @@ section('conversation guidance stays fixed while capabilities change')
     else process.env.MERCURY_ENTRYPOINT = oldEntry
   }
 }
-
 
 section('main and sub-agent instructions match the available interaction model')
 {

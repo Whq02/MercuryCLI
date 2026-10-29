@@ -28,11 +28,13 @@ t.section('§1 — the sleep derivation (CR-3: agent activity + grace)')
 {
   const T0 = 1_000_000_000
   const past = sleep.SLEEP_AFTER_MS
+
   t.check(
     'the grace is the 45 s fresh-vs-stale window (one definition of recent)',
     sleep.SLEEP_AFTER_MS === 45_000,
     String(sleep.SLEEP_AFTER_MS),
   )
+
   t.check('a live turn is active', sleep.signalsActive({ ...quiet, turnLive: true }))
   t.check('streaming tokens are active', sleep.signalsActive({ ...quiet, streaming: true }))
   t.check('a pending permission ask is active', sleep.signalsActive({ ...quiet, awaitingPermission: true }))
@@ -73,6 +75,7 @@ t.section('§1 — the sleep derivation (CR-3: agent activity + grace)')
     !sleep.isAsleepAt(quiet, T0, T0 + past - 1_000),
     'awake',
   )
+
   t.check(
     'a live turn wakes it however long it slept',
     !sleep.isAsleepAt({ ...quiet, turnLive: true }, T0, T0 + past * 10),
@@ -83,6 +86,7 @@ t.section('§1 — the sleep derivation (CR-3: agent activity + grace)')
     !sleep.isAsleepAt({ ...quiet, awaitingPermission: true }, T0, T0 + past * 10),
     'awake',
   )
+
   t.check(
     'quiet is measured from the last turn END, not the baseline',
     !sleep.isAsleepAt({ ...quiet, lastTurnEndTs: T0 + past }, T0, T0 + past + 1_000),
@@ -134,7 +138,9 @@ t.section('§3 — swayRows: the extremities move, the mass does not')
     for (let p = 0; p < cd.SWAY_PHASES; p++) {
       const out = cd.swayRows(art, depth, p)
       t.check(`${name} p${p}: row count + every width preserved`, out.length === art.length && out.every((r, i) => r.length === art[i]!.length))
+
       t.check(`${name} p${p}: no painted cell is ever lost`, ink(out) === ink(art), `${ink(out)} vs ${ink(art)}`)
+
       const firstMoving = Math.max(0, art.length - depth)
       t.check(
         `${name} p${p}: rows above the flow depth are byte-identical`,
@@ -154,6 +160,7 @@ t.section('§4 — the Zzz never touches the creature')
   for (const [label, art] of forms) {
     const slots = cd.sleepZzzSlots(art)
     t.check(`${label}: a Zzz slot exists`, slots.length > 0, JSON.stringify(slots))
+
     t.check(
       `${label}: every slot is empty in both rows of the top pair`,
       slots.every(c => (art[0]![c] ?? '.') === '.' && (art[1]![c] ?? '.') === '.'),
@@ -162,6 +169,7 @@ t.section('§4 — the Zzz never touches the creature')
     for (let p = 0; p < cd.SLEEP_PHASES; p++) {
       const out = cd.sleepZzzArt(art, p)
       t.check(`${label} z${p}: geometry preserved`, out.length === art.length && out.every((r, i) => r.length === art[i]!.length))
+
       const damaged: string[] = []
       out.forEach((row, i) => {
         for (let c = 0; c < row.length; c++) {
@@ -171,9 +179,11 @@ t.section('§4 — the Zzz never touches the creature')
         }
       })
       t.check(`${label} z${p}: only empty cells become z`, damaged.length === 0, damaged.join(','))
+
       t.check(`${label} z${p}: nothing below the top pair changes`, out.slice(2).every((r, i) => r === art[i + 2]), 'below')
     }
   }
+
   const full = ['MMM', 'MMM', 'MMM']
   t.check('a full top pair yields no slots and no damage', cd.sleepZzzSlots(full).length === 0 && cd.sleepZzzArt(full, 2).join('') === full.join(''))
 }
@@ -187,6 +197,7 @@ t.section('§5 — the packed frame key')
   t.check('an awake key carries NO sleep phase', idle.readCritterFrameKey(awake).sleepPhase === null, awake)
   t.check('an asleep key carries a sleep phase', idle.readCritterFrameKey(asleep).sleepPhase !== null, asleep)
   t.check('an asleep key is always lidded', idle.readCritterFrameKey(asleep).pupil === idle.EYE_SHUT, asleep)
+
   const swaySeen = new Set<number>()
   const zSeen = new Set<number>()
   let bad = ''
@@ -205,12 +216,14 @@ t.section('§5 — the packed frame key')
   t.check('every unpacked phase stays in range over a minute of clock', bad === '', bad)
   t.check('the sleeping sway visits every phase', swaySeen.size === cd.SWAY_PHASES, String(swaySeen.size))
   t.check('the Zzz visits every phase', zSeen.size === cd.SLEEP_PHASES, String(zSeen.size))
+
   t.check('the sleeping drift is slower than the waking one', idle.SLEEP_SWAY_TICK_MS > idle.SWAY_TICK_MS, `${idle.SLEEP_SWAY_TICK_MS} > ${idle.SWAY_TICK_MS}`)
   t.check('a malformed key degrades to the rest frame rather than throwing', idle.readCritterFrameKey('').swayPhase === 0)
 }
 
 t.section('§5b — sway continuity across the sleep boundary (CR-2)')
 {
+
   let identical = true
   for (let ms = 0; ms < 30_000; ms += 37) {
     if (idle.swayPhaseAt(ms, false) !== Math.floor(ms / idle.SWAY_TICK_MS) % cd.SWAY_PHASES) identical = false
@@ -274,6 +287,7 @@ t.section('§6 — the wiring laws')
     (animated.match(/useIdleAnimation\(/g) ?? []).length === 2 && /readCritterFrameKey/.test(animated),
     'one packed key for the art, one for the breathing dot',
   )
+
   t.check(
     'the frame derive is the store-owned critterLiveFrameKey (one time base)',
     /critterLiveFrameKey\(\)/.test(animated) && !/critterFrameKey\(/.test(animated),
@@ -292,12 +306,14 @@ t.section('§6 — the wiring laws')
   )
 
   const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
+
   const zzzAt = painter.indexOf('sleepZzzArt(')
   t.check(
     'the Zzz is applied AFTER the sway (the width contract)',
     painter.indexOf('swayRows(') > 0 && zzzAt > painter.lastIndexOf('swayRows('),
     `sway@${painter.lastIndexOf('swayRows(')} zzz@${zzzAt}`,
   )
+
   const poseAt = painter.indexOf('sleepPoseFor(')
   const breathAt = painter.indexOf('sleepBreathArt(')
   t.check(
@@ -357,11 +373,14 @@ t.section('§7 — the authored sleep poses (CR-3)')
         [...chars].every(c => /^#[0-9a-f]{6}$/i.test(cd.cellColor(def, c) ?? '')),
         [...chars].join(''),
       )
+
       const [aS, aE] = cd.heroContentBounds(awake)
       const [pS, pE] = cd.heroContentBounds(art)
       t.check(`${def.name}/${form} pose: bounds inside the awake grid's`, pS >= aS && pE <= aE, `[${pS},${pE}) vs [${aS},${aE})`)
+
       t.check(`${def.name}/${form} pose: three Zzz slots (the full ladder)`, cd.sleepZzzSlots(art).length >= 3, String(cd.sleepZzzSlots(art).length))
       t.check(`${def.name}/${form} pose: no detached fragments`, specks(art).length === 0, specks(art).join(' '))
+
       const b1 = cd.sleepBreathArt(art, 1)
       t.check(`${def.name}/${form} breath: frame 0 is the pose byte-for-byte`, cd.sleepBreathArt(art, 0).join('\n') === art.join('\n'))
       t.check(`${def.name}/${form} breath: the exhale frame differs (the dip is visible)`, b1.join('\n') !== art.join('\n'))
@@ -374,6 +393,7 @@ t.section('§7 — the authored sleep poses (CR-3)')
       const [bS, bE] = cd.heroContentBounds(b1)
       t.check(`${def.name}/${form} breath: only clears cells, bounds pinned`, onlyClears && bS === pS && bE === pE)
       t.check(`${def.name}/${form} breath: no fragments on the exhale`, specks(b1).length === 0, specks(b1).join(' '))
+
       t.check(`${def.name}/${form} pose flow: whole pairs`, pose.flow % 2 === 0 && (art.length - pose.flow) % 2 === 0, String(pose.flow))
       if (pose.flow > 0) {
         const frames = new Set<string>()
@@ -382,6 +402,7 @@ t.section('§7 — the authored sleep poses (CR-3)')
       }
     }
   }
+
   for (const def of cd.CRITTERS) {
     for (const [form, art] of [['mini', cd.miniArtFor(def.name)]] as const) {
       const depth = cd.flowDepthFor(def, form)
@@ -396,6 +417,7 @@ t.section('§7 — the authored sleep poses (CR-3)')
 
 t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
 {
+
   const somePhases = (keys: string[], pick: (k: string) => unknown): number =>
     new Set(keys.map(pick).map(String)).size
 
@@ -414,6 +436,7 @@ t.section('§8 — LIVENESS: nothing ever freezes (the CR-3 mandate)')
       if (ph !== null) seen.add(ph)
       prev.push(key)
       if (prev.length > 3) prev.shift()
+
       if (prev.length === 3 && new Set(prev).size < 2) frozenWindow = `@step ${step}: ${prev.join(',')}`
     }
     t.check('asleep: the z visits every phase over simulated hours', seen.size === cd.SLEEP_PHASES, String(seen.size))
@@ -591,6 +614,7 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
 {
   const { displayWidth } = await import('../../src/components/mercury-ui/glyphs.js')
   const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d]))
+
   const expected: Record<string, string> = {
     crab: cd.SLEEP_GLYPHS_DEFAULT,
     octopus: cd.SLEEP_GLYPHS_DEFAULT,
@@ -615,6 +639,7 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
     cd.sleepGlyphsFor({ ...byName['clam']!, hue: '#000000', hueDeep: '#000000' }) === cd.CLAM_SLEEP_GLYPHS,
   )
   t.check('a malformed ladder degrades to the Zzz (total, never a blank sleep)', cd.sleepGlyphsFor({ sleepGlyphs: 'zz' }) === cd.SLEEP_GLYPHS_DEFAULT && cd.sleepGlyphsFor({ sleepGlyphs: 'zzzzz' }) === cd.SLEEP_GLYPHS_DEFAULT && cd.sleepGlyphsFor({ sleepGlyphs: '' }) === cd.SLEEP_GLYPHS_DEFAULT && cd.sleepGlyphsFor({}) === cd.SLEEP_GLYPHS_DEFAULT)
+
   for (const def of cd.CRITTERS) {
     for (const form of ['mini'] as const) {
       const pose = cd.sleepPoseFor(def, form)!
@@ -628,6 +653,7 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
       const wantFirst = Math.max(1, ladder.length - (cd.SLEEP_PHASES - 1))
       t.check(`${def.name}/${form}: phase 0 lights the rightmost ${wantFirst} slot(s) — the ladder's tail`, first.length === wantFirst && first.every((c, i) => c === slots[slots.length - wantFirst + i]), first.join(','))
       t.check(`${def.name}/${form}: the climb adds one glyph per phase and ends whole`, litAt(1).length === wantFirst + 1 && litAt(2).length === ladder.length)
+
       const full = cd.sleepZzzArt(pose.art, 2, count)
       t.check(`${def.name}/${form}: the full frame writes the slots and nothing else`, full.slice(2).every((r, i) => r === pose.art[i + 2]) && [...full[0]!].every((ch, c) => ch === (slots.includes(c) ? cd.SLEEP_CELL : pose.art[0]![c])))
     }
@@ -712,6 +738,7 @@ t.section('§12 — the VALVE SETTLE: the clam breathes with its shell, never sw
     t.check(`clam/${form}: content bounds unchanged (the mount's width budget holds)`, aS === sS && aE === sE, `[${sS},${sE}) vs [${aS},${aE})`)
     t.check(`clam/${form}: no detached fragments on the settle frame`, specksOf(settled).length === 0, specksOf(settled).join(' '))
     t.check(`clam/${form}: the P-over-P eye pairs survive the settle in place (the pupil seam still fires)`, pPairs(settled) === pPairs(awake) && pPairs(awake).length > 0, pPairs(settled))
+
     t.check(`clam/${form}: depth 0 is the identity`, cd.settleRows(awake, 0, settlePhases[0]!).join('\n') === awake.join('\n'))
     t.check(`clam/${form}: an out-of-range depth is the identity, never a throw`, cd.settleRows(awake, awake.length, settlePhases[0]!).join('\n') === awake.join('\n'))
   }
@@ -722,11 +749,13 @@ t.section('§12 — the VALVE SETTLE: the clam breathes with its shell, never sw
   const settleAt = painter.indexOf('settleRows(')
   const swayAt = painter.indexOf('swayRows(')
   t.check('the settle is applied AFTER the breath and BEFORE the sway', breathAt > 0 && settleAt > breathAt && swayAt > settleAt, `breath@${breathAt} settle@${settleAt} sway@${swayAt}`)
+
   t.check('ONE composition settles every form (the square tier rides the same register as mini — no second path)', (painter.match(/settleRows\(breathed, settleDepth, swayPhase\)/g) ?? []).length === 1 && /const base = pose \? pose\.art : usingSquare \? def\.squareDock : def\.mini/.test(painter))
 }
 
 t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical (base A/B) · the width law at four · reduced motion holds the whole ladder')
 {
+
   const { readFileSync } = await import('node:fs')
   const { composeZzzFrames, ZZZ_FIXTURE_PATH } = await import('./zzzFrames.ts')
   const React = (await import('react')).default
@@ -777,6 +806,7 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
       })
       t.check(`clam/${form} phase ${p}: only the slots change, every width preserved`, damaged.length === 0 && frame.every((r, i) => r.length === sliced[i]!.length), damaged.join(','))
     }
+
     const renderDef = clam
     const budget = sliced[0]!.length
     t.check(`clam/${form}: the sleep pose's width IS the awake budget (${budget})`, budget === cd.miniArtFor('clam')[0]!.length, String(budget))
@@ -787,6 +817,7 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
       const w = Math.max(...out.split('\n').map(l => l.length))
       t.check(`clam/${form} phase ${p}: the asleep render, bubbles included, fits the same budget (${w} ≤ ${budget})`, w <= budget, `${w} vs ${budget}`)
     }
+
     const awakeGrid = cd.miniArtFor('clam')
     const awakeSlots = cd.sleepZzzSlots(awakeGrid, four)
     t.check(`clam/${form} awake grid at count 4: every slot is an empty top-pair cell (the crown is never overwritten)`, awakeSlots.every(c => awakeGrid[0]![c] === '.' && awakeGrid[1]![c] === '.'), JSON.stringify(awakeSlots))
@@ -794,6 +825,7 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
 
   const animated = await Bun.file('src/components/mercury-ui/AnimatedCritterArt.tsx').text()
   t.check('the static (reduced-motion) branch renders the FULL sleep phase', /pupil=\{EYE_SHUT\} sleepPhase=\{2\}/.test(animated) && cd.SLEEP_PHASES - 1 === 2)
+
   {
     const { AnimatedCritterArt } = await import('../../src/components/mercury-ui/AnimatedCritterArt.js')
     const prevIdle = process.env['MERCURY_CRITTER_IDLE']

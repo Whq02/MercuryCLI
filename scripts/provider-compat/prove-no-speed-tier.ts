@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -292,6 +293,7 @@ section('static pins — the owners carry no speed-tier vocabulary')
     }
   }
   check('the Anthropic transport directory exists', transportFiles.length > 0, transportDirs.join(','))
+
   const offenders = transportFiles.filter(f => /fastMode|FAST_MODE|speed\s*=\s*'fast'|speed:\s*'fast'|\{\s*speed\s*\}/.test(read(f)) || /\bfast[-_]mode/i.test(read(f)))
   check('the Anthropic transport neither latches a fast-mode header nor sets a speed param', offenders.length === 0, offenders.join(','))
   check('the settings schema carries no fast-mode key', !/fastMode/.test(read('src/utils/settings/types.ts')))

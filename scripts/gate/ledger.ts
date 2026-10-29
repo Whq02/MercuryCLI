@@ -8,6 +8,7 @@ import { join } from 'node:path'
 export const LEDGER_PATH = 'scripts/gate/gate-ledger.jsonl'
 
 export const CODE_TREE_EXCLUDED: readonly string[] = [LEDGER_PATH]
+
 export const CODE_TREE_EXCLUDED_PREFIXES: readonly string[] = ['docs/releases/']
 
 export const LEDGER_SCHEMA = 2 as const
@@ -27,17 +28,24 @@ const VERDICT_SCOPES: readonly VerdictScope[] = ['release', 'drives', 'all']
 interface GateLedgerRow {
   schema: LedgerSchema
   recordedAt: string
+
   commit: string
+
   codeTree: string
   lockfileDigest: string
+
   toolchain: { node: string; bun: string }
+
   declaredToolchain: { node: string; bun: string }
   kind: LedgerKind
+
   scope?: VerdictScope
+
   deferred?: Record<string, string[]>
   runId: string | null
   ok: boolean
   shardResults: Array<{ name: string; status: ShardStatus; durationSec?: number }>
+
   coveredRange: { from: string | null; to: string; commits: number }
 }
 
@@ -90,6 +98,7 @@ export function declaredToolchain(rev = 'HEAD'): { node: string; bun: string } {
       cwd: ROOT,
       encoding: 'utf8',
     })
+
     const m = gate.match(/bun-version:\s*(\d+\.\d+\.\d+)/) ?? gate.match(/bun-v(\d+\.\d+\.\d+)/)
     if (m) bun = m[1]!
   } catch {
@@ -111,6 +120,7 @@ export function readLedger(): GateLedgerRow[] {
     try {
       rows.push(JSON.parse(trimmed) as GateLedgerRow)
     } catch {
+
       throw new Error(`gate ledger: malformed row — ${trimmed.slice(0, 120)}`)
     }
   }
@@ -124,6 +134,7 @@ function appendRow(row: GateLedgerRow): void {
 interface EligibilityQuery {
   rev?: string
   kind?: LedgerKind | 'any'
+
   requireDeclaredToolchain?: boolean
 }
 
@@ -135,6 +146,7 @@ function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   const rev = q.rev ?? 'HEAD'
   const kind = q.kind ?? 'any'
   const codeTree = computeCodeTree(rev)
+
   const treeBySchema: Record<LedgerSchema, string> = { 1: computeCodeTree(rev, 1), 2: codeTree }
   const lockfile = lockfileDigest(rev)
   const declared = declaredToolchain(rev)
@@ -142,6 +154,7 @@ function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   if (kind !== 'any' && isAdvisoryKind(kind)) {
     return { eligible: false, reason: `a "${kind}" verdict is advisory — it reports the drives and verifies nothing`, codeTree }
   }
+
   const rows = readLedger().filter(r => r.ok && r.codeTree === treeBySchema[r.schema === 2 ? 2 : 1] && !isAdvisoryKind(r.kind))
   if (rows.length === 0) {
     return { eligible: false, reason: 'no green verdict recorded for this codeTree', codeTree }
@@ -182,7 +195,6 @@ function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   return { eligible: true, row: byLock[byLock.length - 1]!, codeTree }
 }
 
-
 interface VerdictFile {
   ok?: unknown
   pass?: unknown
@@ -219,12 +231,14 @@ interface RecordOptions {
   verdictPath: string
   kind: LedgerKind
   runId?: string | null
+
   toolchain?: { node: string; bun: string }
 }
 
 function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
   const v = JSON.parse(readFileSync(opts.verdictPath, 'utf8')) as VerdictFile
   if (v.ok !== true) throw new Error('gate ledger: refusing to record a verdict that is not green')
+
   const scope: VerdictScope = v.scope === undefined ? 'all' : (v.scope as VerdictScope)
   if (!VERDICT_SCOPES.includes(scope)) {
     throw new Error(`gate ledger: verdict scope "${String(v.scope)}" is not release|drives|all`)
@@ -246,6 +260,7 @@ function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
   if (v.dirty === true) {
     throw new Error('gate ledger: refusing a verdict taken against a dirty tree')
   }
+
   if (typeof v.treeSha === 'string') {
     const commitTree = git(['rev-parse', `${commit}^{tree}`]).trim()
     if (v.treeSha !== commitTree) {
@@ -285,7 +300,6 @@ function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
   }
 }
 
-
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`)
   return i === -1 ? undefined : process.argv[i + 1]
@@ -299,6 +313,7 @@ if (import.meta.main) {
       if (!LEDGER_KINDS.includes(kind)) throw new Error(`gate ledger: --kind wants ${LEDGER_KINDS.join('|')} (got "${kind}")`)
       const verdictPath = arg('verdict')
       if (!verdictPath) throw new Error('gate ledger: --verdict <path> is required')
+
       const tc = arg('toolchain')
       let toolchain: { node: string; bun: string } | undefined
       if (tc) {

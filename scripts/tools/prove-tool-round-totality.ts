@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -161,6 +162,7 @@ console.log('── 1. the executor is total over hostile blocks ──')
       t(`${h.label}: the refusal names a reason`, only.text.length > 0 && only.text !== '<tool_use_error></tool_use_error>', only.text.slice(0, 80))
     }
   }
+
   const dup = await round(
     [
       { id: 'tu_dup', name: 'Read', input: { file_path: join(WORK, 'plain.txt') } },
@@ -169,6 +171,7 @@ console.log('── 1. the executor is total over hostile blocks ──')
     baseTools,
   )
   t('two blocks under one id: both settle, the round never rejects', dup.threw === undefined && dup.results.length === 2 && dup.results.every(r => r.id === 'tu_dup'), `threw=${dup.threw ?? 'no'} results=${dup.results.length}`)
+
   const ids = hostile.map((_, k) => `tu_par_${k}`)
   const par = await round(hostile.map((h, k) => ({ id: ids[k]!, name: h.name, input: h.input })), baseTools)
   t('the whole hostile family in ONE round: every id answered exactly once, no rejection', par.threw === undefined && answeredOnce(par.results, ids), `threw=${par.threw ?? 'no'} answered=${par.results.length}/${ids.length}`)
@@ -250,6 +253,7 @@ console.log('── 4. render-path totality over the reachable hostile family �
         }
       }
     }
+
     const errorHook = record.renderToolUseErrorMessage
     if (typeof errorHook === 'function') {
       for (const [label, err] of [['Error', new Error(CONTROL)], ['string', CONTROL], ['{}', {}], ['null', null]] as const) {
@@ -260,6 +264,7 @@ console.log('── 4. render-path totality over the reachable hostile family �
         }
       }
     }
+
     const progressHook = record.renderToolUseProgressMessage
     if (typeof progressHook === 'function') {
       for (const [label, progress] of [['[]', []], ['hostile entries', [{ data: null }, { data: CONTROL }, {}]]] as const) {

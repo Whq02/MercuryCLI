@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
@@ -52,7 +53,6 @@ function sched(
     ...over,
   }
 }
-
 
 const JOURNEY_SCHEDULES: SaturnScheduleV1[] = [
   sched({
@@ -207,7 +207,6 @@ export function composeSaturn(
 }
 
 const heldIdx = FIXTURE_FACTS.rows.findIndex(r => r.facts.id === 'dddd4444')
-
 
 export const FIXTURE_FORM: SaturnFormStateV1 = {
   ...freshSaturnForm({ modelKey: 'claude-opus-5', workspaceDir: '/Users/op/Developer/orchard-src' }),

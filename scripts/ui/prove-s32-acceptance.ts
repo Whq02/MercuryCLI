@@ -67,6 +67,7 @@ function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++
 }
+
 function pin(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} [pin] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failures++
@@ -333,6 +334,7 @@ console.log('\n── kill ring (13–17) ──')
   clearKillRing()
   resetKillAccumulation()
   pushToKillRing('shared-kill', 'append')
+
   check('17. the ring is shared across input fields (module-global)', getLastKill() === 'shared-kill')
 }
 
@@ -373,6 +375,7 @@ console.log('\n── vim (18–31) ──')
     { label: 'dtx', keys: ['d', 't', 'x'], text: 'aaxbb', offset: 0, expect: 'xbb' },
     { label: 'di(', keys: ['d', 'i', '('], text: 'a(bc)d', offset: 2, expect: 'a()d' },
   ]
+
   const replay = (recorded: RecordedChange | undefined, r: ReturnType<typeof makeVim>): void => {
     if (!recorded) return
     if (recorded.type === 'operator') {
@@ -536,6 +539,7 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
     formatDuration(86399999, { mostSignificantOnly: true }),
     formatDuration(3600000, { hideTrailingZeros: true }),
   ]
+
   check(
     '32. duration boundaries (floor, round+carry, day cap) with and without both options',
     base[0] === '0s' &&
@@ -555,6 +559,7 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
 }
 
 {
+
   const v = [formatFileSize(1023), formatFileSize(1024), formatFileSize(1048575), formatFileSize(1048576)]
   check('33. file-size unit boundaries and no trailing .0', v[0] === '1023 bytes' && v[1] === '1KB' && v[2] === '1024KB' && v[3] === '1MB' && !v.some(s => /\.0(?![0-9])/.test(s!)), JSON.stringify(v))
 }
@@ -578,6 +583,7 @@ console.log('\n── formatters, markdown, folding (32–42) ──')
   const keptFour = renderTruncatedContent(four, 80)
   const narrow = renderTruncatedContent(five, 1)
   const pre = renderTruncatedContent(five, 80, true)
+
   check(
     '37. fold: 4 lines kept when exactly one would hide; hint otherwise; wrap floor ≥10; approximate branch present (tilde e2e via prove-terminal-approx-label)',
     keptFour.split('\n').length === 4 &&
@@ -615,6 +621,7 @@ configureMarked()
 {
   const loose = applyMarkdown('- one\n\n- two', 'dark', null, 80).replace(/\x1b\[[0-9;]*m/g, '')
   const nested = applyMarkdown('1. top\n   1. mid\n      1. third\n         1. fourth', 'dark', null, 80).replace(/\x1b\[[0-9;]*m/g, '')
+
   check(
     '40. loose list keeps both markers; ordered numbering: letters at depth 2, roman at depth 3',
     (loose.match(/-/g) ?? []).length >= 2 && /1\. top/.test(nested) && /1\. mid/.test(nested) && /a\. third/.test(nested) && /i\. fourth/.test(nested),
@@ -657,6 +664,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   git(sub, '-c user.email=t@t -c user.name=t commit -qm init')
   git(parent, `-c protocol.file.allow=always submodule add -q ${sub} vendor/sub`)
   const insideSub = join(parent, 'vendor', 'sub')
+
   const probe = join(area, 'probe-walk.ts')
   writeFileSync(
     probe,
@@ -762,6 +770,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   const cached = await loadMarkdownFilesForSubdir('skills', proj)
   clearMarkdownFileCache()
   const after = await loadMarkdownFilesForSubdir('skills', proj)
+
   check(
     '48. clearMarkdownFileCache forces a re-scan',
     cached.length === before.length && after.length === before.length + 1 && after.some(f => f.filePath.endsWith('new.md')),
@@ -864,6 +873,7 @@ const git = (cwd: string, cmd: string): string => execSync(`git ${cmd}`, { cwd, 
   }
   const dark = getTheme('dark')
   const trueBlack = getTheme('true-black')
+
   const eq = (a: string, b: string): boolean => rgbToHex(a).toLowerCase() === rgbToHex(b).toLowerCase()
   const spineShared =
     eq(dark.success, MERCURY_TEAL) && eq(dark.error, MERCURY_CRIMSON) && eq(dark.warning, MERCURY_AMBER) && eq(trueBlack.success, MERCURY_TEAL)

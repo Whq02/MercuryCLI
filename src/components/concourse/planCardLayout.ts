@@ -1,12 +1,14 @@
-
 import type { ManagerLaneV1, ManagerPlanV1 } from '../../services/concourse/managerMode.js'
 
 type PlanLaneTier = 'full' | 'compact' | 'titles'
 
 interface PlanCardLayout {
   tier: PlanLaneTier
+
   shown: number
+
   hidden: number
+
   lanesRows: number
 }
 
@@ -15,6 +17,7 @@ const wrapRows = (text: string, textWidth: number): number =>
 
 export function laneRowsFor(lane: ManagerLaneV1, tier: PlanLaneTier, textWidth: number): number {
   if (tier === 'titles') return 1
+
   const body = textWidth - 2
   if (tier === 'compact') return 2 + wrapRows(`territory: ${lane.territory}`, body)
   return 2 + wrapRows(`scope: ${lane.scope}`, body) + wrapRows(`delivers: ${lane.deliverables}`, body) + wrapRows(`territory: ${lane.territory}`, body)
@@ -36,6 +39,7 @@ export function planCardLayout(plan: ManagerPlanV1, maxRows: number | undefined,
     if (rows <= budget) return { tier, shown: lanes.length, hidden: 0, lanesRows: rows }
   }
   if (lanes.length <= budget) return { tier: 'titles', shown: lanes.length, hidden: 0, lanesRows: lanes.length }
+
   const shown = Math.max(1, Math.min(lanes.length, budget - 1))
   const hidden = lanes.length - shown
   return { tier: 'titles', shown, hidden, lanesRows: shown + (hidden > 0 ? 1 : 0) }

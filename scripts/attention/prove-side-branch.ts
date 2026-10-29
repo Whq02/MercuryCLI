@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -57,6 +58,7 @@ t.section('§3 — attachable results')
 
 t.section('§4 — the surface is bound')
 {
+
   const contracts = readFileSync('src/services/attention/contracts.ts', 'utf8')
   t.check("the attention contract names the 'side-question' kind", /['"]side-question['"]/.test(contracts))
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')

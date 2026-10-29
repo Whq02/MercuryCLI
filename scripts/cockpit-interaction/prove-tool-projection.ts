@@ -22,6 +22,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     Text: React.ComponentType<Record<string, unknown>>
   }
   const { TOOL_FAMILY_MARKS } = await import('../../src/components/mercury-ui/toolGlyphs.js')
+
   void render(
     React.createElement(
       Box,
@@ -61,6 +62,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
   const scratch = mkdtempSync(join(tmpdir(), 'hz-toolproj-'))
 
   const { getAllBaseTools } = await import('../../src/tools.ts')
+
   const SWEEP_EXCLUDED_DIRS = new Set(['testing', 'MCPTool'])
   const DIR_NAMES = new Map<string, Set<string>>()
   for (const dir of readdirSync('src/tools', { withFileTypes: true })) {
@@ -76,6 +78,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     }
     if (names.size > 0) DIR_NAMES.set(dir.name, names)
   }
+
   const LIVE_TOOLS = getAllBaseTools().filter(tool => tool.name !== 'TestingPermission')
   const LIVE = LIVE_TOOLS.map(tool => tool.name)
   const POOL: string[] = [
@@ -90,6 +93,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       LIVE.length > 40 && LIVE.every(n => POOL.includes(n)),
       `${LIVE.length} registered live`,
     )
+
     for (const name of ['ReadMcpResource', 'Structure', 'Test', 'Journey', 'Git', 'Browser']) {
       t.check(`${name} is in the ratchet's pool`, POOL.includes(name), 'seen')
     }
@@ -120,6 +124,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       new Set(marks.map(m => m.fallback)).size === marks.length,
       marks.map(m => m.fallback).join(','),
     )
+
     const statusSpine = new Set([
       GLYPH.ok, GLYPH.pending, GLYPH.inProgress, GLYPH.done, GLYPH.read,
       GLYPH.fail, GLYPH.warn, GLYPH.circledBullet, GLYPH.fisheye, GLYPH.diamond,
@@ -152,6 +157,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
 
   t.section('§2 — the projection contract: declared, never forgotten')
   {
+
     const implementers = new Set<string>(
       LIVE_TOOLS.filter(tool => typeof tool.extractSearchText === 'function').map(tool => tool.name),
     )
@@ -167,6 +173,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       }
     }
     t.check('some tools own their own extraction', implementers.size > 0, `${implementers.size}`)
+
     for (const name of ['Crewmate', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Test', 'Git']) {
       t.check(`${name} owns its extraction — its painted result is findable`, implementers.has(name), 'extracts')
     }
@@ -270,6 +277,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       !bare.structured && bare.text === 'tool:',
       JSON.stringify(bare),
     )
+
     const spaced = parseSearchQuery('  a  b ')
     t.check(
       'whitespace in a plain query survives verbatim',

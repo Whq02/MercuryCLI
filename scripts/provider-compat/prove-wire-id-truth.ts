@@ -14,7 +14,6 @@ delete process.env.DEEPSEEK_API_KEY
 delete process.env.GEMINI_API_KEY
 delete process.env.HF_TOKEN
 
-
 interface Captured {
   path: string
   model: string
@@ -33,12 +32,15 @@ let CATALOGUE: { data: Array<Record<string, unknown>>; total_count: number; link
 }
 const CATALOGUE_POISONED: typeof CATALOGUE = {
   data: [
+
     { id: 'anthropic/claude-opus-5[1m]', name: 'anthropic/claude-opus-5[1m]' },
     { id: 'anthropic/openai/gpt-5.6-sol[1m]', name: 'anthropic/openai/gpt-5.6-sol[1m]' },
     { id: 'anthropic/x-ai/grok-4.6', name: 'anthropic/x-ai/grok-4.6' },
+
     { id: 'anthropic/claude-opus-5', name: 'Anthropic: Claude Opus 5', context_length: 1_000_000 },
     { id: 'openai/gpt-5.6-sol', name: 'OpenAI: GPT-5.6 Sol', context_length: 1_050_000 },
     { id: 'x-ai/grok-4.6', name: 'xAI: Grok 4.6' },
+
     { id: 'anthropic/meta/muse-spark-1.2[1m]', name: 'anthropic/meta/muse-spark-1.2[1m]' },
   ],
   total_count: 7,
@@ -77,6 +79,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'GET' && path === '/openrouter/api/v1/key') {
+
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ data: { usage: 0 } }))
       return
@@ -172,6 +175,7 @@ console.log(' wire-id truth — the OpenRouter 400 class, hardened (LANE WID)')
 console.log('============================================================')
 
 section('1 · catalogue row → /model row: canonical values, no toggle, selectable')
+
 await refreshOpenrouterCatalogue('env', { force: true })
 const rows = getOpenrouterModelOptions().filter(r => !String(r.value).startsWith('__'))
 check('the fixture catalogue renders all three rows', rows.length === 3)
@@ -193,6 +197,7 @@ check(
 )
 
 section("2 · the operator's case: picked row → dispatch → the EXACT wire id")
+
 {
   const before = captured.length
   const { errors } = await drive('openrouter/openai/gpt-5.6-terra')
@@ -206,6 +211,7 @@ section("2 · the operator's case: picked row → dispatch → the EXACT wire id
 }
 
 section('3 · a legacy [1m]-dressed pick HEALS to the vendor slug (never a 400)')
+
 {
   const dressed = withContext1m('openrouter/anthropic/claude-fable-5')
   check('the dressing under test is the shipped toggle spelling', dressed === 'openrouter/anthropic/claude-fable-5[1m]')
@@ -226,6 +232,7 @@ section('3 · a legacy [1m]-dressed pick HEALS to the vendor slug (never a 400)'
 }
 
 section("4 · the operator's junk REFUSES catalogue-worded — zero bytes hit the wire")
+
 {
   const junk = 'openrouter/anthropic/openai/gpt-5.6-terra[1m]'
   const before = captured.length
@@ -241,6 +248,7 @@ section("4 · the operator's junk REFUSES catalogue-worded — zero bytes hit th
 }
 
 section("5 · the router's own aggregate: openrouter/openrouter/auto → openrouter/auto")
+
 {
   const { errors } = await drive('openrouter/openrouter/auto')
   const wire = captured[captured.length - 1]
@@ -249,6 +257,7 @@ section("5 · the router's own aggregate: openrouter/openrouter/auto → openrou
 }
 
 section('6 · the persistence round-trip: override slot → boot parse → dispatch, byte-identical')
+
 {
   const picked = 'openrouter/openai/gpt-5.6-terra'
   check(
@@ -274,6 +283,7 @@ section('6 · the persistence round-trip: override slot → boot parse → dispa
 }
 
 section('7 · window truth: Mercury dressing on a carrier id never buys a 1M budget')
+
 {
   const resolution = resolveContextWindow('openrouter/anthropic/claude-fable-5[1m]')
   check(
@@ -284,6 +294,7 @@ section('7 · window truth: Mercury dressing on a carrier id never buys a 1M bud
 }
 
 section('8 · the one owner and the lane projection agree on every dispatchable id')
+
 {
   const ids = [
     'openrouter/openai/gpt-5.6-terra',
@@ -304,6 +315,7 @@ section('8 · the one owner and the lane projection agree on every dispatchable 
 }
 
 section("9 · the poisoned feed: junk rows HEAL onto listed twins; the operator's screen renders vendor truth")
+
 {
   const { __resetOpenrouterCatalogueForTest } = await import(
     '../../src/services/providers/openrouter/openrouterCatalogue.ts'
@@ -358,6 +370,7 @@ section("9 · the poisoned feed: junk rows HEAL onto listed twins; the operator'
 }
 
 section('10 · bare vendor slugs never join first-party identity (the carrier-shaped law)')
+
 {
   check(
     'getCanonicalName is identity on bare vendor slugs (no substring family fold)',

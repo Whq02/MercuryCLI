@@ -1,7 +1,6 @@
 import type { Transport } from './sdk.js'
 import type { JSONRPCMessage } from './sdk.js'
 
-
 class InProcessTransport implements Transport {
   onclose?: () => void
   onerror?: (error: Error) => void
@@ -21,6 +20,7 @@ class InProcessTransport implements Transport {
     if (this.closed) throw new Error('InProcessTransport: cannot send on a closed transport')
     const target = this.peer
     if (target === null || target.closed) throw new Error('InProcessTransport: peer transport is closed')
+
     queueMicrotask(() => {
       target.onmessage?.(message)
     })

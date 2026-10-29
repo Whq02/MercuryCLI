@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-class: heavy
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -28,6 +28,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 seedFirstRun(home, [work, ws])
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+
 const { enableConfigs: __enableConfigs } = await import('../../src/utils/config.ts')
 __enableConfigs()
 const __wm = await import('../../src/services/concourse/workerModels.ts')
@@ -154,12 +155,14 @@ try {
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; error?: string }
   check('the hung-turn delivery is accepted', hung.ok === true, hung.error ?? '')
+
   await api.messageRequestStarted(3)
   const interrupt = (await daemonControlRpc(
     { op: 'sessionControl', action: 'interrupt', sessionId, by: 'operator' } as never,
     { timeoutMs: 10_000 },
   )) as { ok?: boolean; outcome?: string; detail?: string }
   check('interrupt receipt: applied through the worker control channel', interrupt.outcome === 'applied', interrupt.detail ?? '')
+
   const afterInterrupt = (await daemonControlRpc(
     {
       op: 'concourseDispatch',
@@ -195,6 +198,7 @@ try {
   )) as { ok?: boolean; error?: string; state?: string }
   check(
     'a redirect while paused is HELD with the typed reason (never failed)',
+
     heldTry.ok === false && (heldTry as { heldReason?: string }).heldReason === 'session-paused' && heldTry.state === 'queued',
     `ok=${heldTry.ok} state=${heldTry.state} err=${heldTry.error ?? ''}`,
   )
@@ -278,8 +282,10 @@ try {
   const { readFileSync } = await import('node:fs')
   const proto = readFileSync(join(process.cwd(), 'src/daemon/protocol.ts'), 'utf8')
   const controlBlock = proto.slice(proto.indexOf("op: 'sessionControl'"))
+
   const actionBlock = controlBlock.slice(controlBlock.indexOf('action:'), controlBlock.indexOf('sessionId'))
   const union = [...new Set([...actionBlock.matchAll(/'([a-z-]+)'/g)].map(m => m[1]))].join(' | ')
+
   check(
     "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·mcp-action·mcp-tools·set-spawn-switch·stop-agent·resume-agent·withdraw-send·background-shell·pause-gate·leave·set-effort·contract·set-kit·set-schedule·send-now — the exit road: the cockpit asks the daemon-hosted runner for its closing note before the terminal comes back)",
     union ===

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/main.tsx src/entrypoints/cli.tsx src/entrypoints/projectRoot.ts src/utils/gracefulShutdown.ts src/cli/headless/refusalEnvelope.ts
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

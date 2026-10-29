@@ -1,8 +1,9 @@
-
 export function keyPasteGuardNote(
   raw: string,
   opts: {
+
     stores: string
+
     looksLike?: string
   },
 ): string | null {

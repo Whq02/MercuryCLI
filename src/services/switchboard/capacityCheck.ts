@@ -13,13 +13,15 @@ export const SEAT_COST_BYTES: Readonly<Record<SeatKind, number>> = {
   agent: 32 * 2 ** 20,
   runner: 384 * 2 ** 20,
 }
+
 export const SEAT_COST_KIND: SeatKind = 'runner'
+
 export const SEATS_PER_CORE = 2
+
 export const SEAT_FLOOR = 2
 
 const MB = 2 ** 20
 const GB = 2 ** 30
-
 
 export type MemoryRead = 'vm_stat' | 'meminfo' | 'counter' | 'free'
 
@@ -86,7 +88,6 @@ export function sampleAvailableMemory(): MemorySample {
   }
   return rememberMemorySample(fallback)
 }
-
 
 export function machineSeatReading(
   cores: number = availableCores(),
@@ -234,6 +235,7 @@ export function seatReadingInputsWords(sample: SeatReadingSample): string {
 }
 
 export function describeSeatReading(ceiling: number): string {
+
   const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
   const operator = operatorSeatsOf(decision)
   if (operator !== null && operator === ceiling) {
@@ -258,7 +260,9 @@ export function describeSeatReading(ceiling: number): string {
 export interface CapacityProbe {
   cores: number
   totalMemBytes: number
+
   availableMemBytes: number
+
   otherAgentClis: number
 }
 
@@ -289,6 +293,7 @@ export function looksLikeAgentCli(command: string): boolean {
 
 async function countOtherAgentClis(): Promise<number> {
   try {
+
     const r =
       process.platform === 'win32'
         ? await execFileNoThrow(
@@ -350,6 +355,7 @@ export async function recordCapacityDecision(
 ): Promise<{ allowed: boolean; recommendedSeats: number }> {
   if (!allowed) {
     saveGlobalConfig(c => {
+
       const { recommendedSeats: _dropped, ...rest } = c.switchboardCapacity ?? {}
       return { ...c, switchboardCapacity: { ...rest, askedAt: Date.now(), allowed: false } }
     })
@@ -372,11 +378,16 @@ export type SeatCeilingSource = 'operator' | 'consented' | 'machine'
 export interface SeatCeilingFacts {
   seats: number
   source: SeatCeilingSource
+
   sentence: string
+
   lever: string
+
   reading: number
+
   readingSentence: string
   sample: SeatReadingSample | null
+
   consented: number | null
 }
 
@@ -392,10 +403,12 @@ export function operatorSeatsStored(): number | null {
 }
 
 export function seatCeilingFacts(): SeatCeilingFacts {
+
   const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
   const operator = operatorSeatsOf(decision)
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
   const consented = typeof stored === 'number' && Number.isFinite(stored) ? Math.max(1, Math.floor(stored)) : null
+
   const reading = stampedSeats() ?? heldMachineSeatReading()
   const seats = operator ?? consented ?? reading
   return {

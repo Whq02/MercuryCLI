@@ -1,4 +1,3 @@
-
 import { isMcpServerDisabled } from '../../services/mcp/config.js'
 import { describeMcpPolicy, getMaxExposedRisk, isMcpPolicyActive } from '../../services/mcp/toolPolicy.js'
 import { getProjectMcpConfigsFromCwd, mcpServersSkippedForTrustLine, PROJECT_MCP_FILE_SPELLING } from '../../services/mcp/config.js'
@@ -18,9 +17,13 @@ export type McpServerState =
 export interface McpServerRow {
   name: string
   state: McpServerState
+
   detail: string
+
   source: 'config' | 'runtime'
+
   connection?: MCPServerConnection
+
   error?: string
 }
 
@@ -35,12 +38,15 @@ export interface McpCounts {
 }
 
 export type McpData = {
+
   servers: McpServerRow[]
+
   names: string[]
   counts: McpCounts
   maxRisk: string
   mcpPolicyActive: boolean
   mcpPolicyHint: string
+
   runtimeStampedAt: number | null
 }
 
@@ -78,7 +84,6 @@ export function subscribeMcpGauge(cb: () => void): () => void {
 export function getMcpGaugeVersion(): number {
   return version
 }
-
 
 function bounded(text: string, max: number): string {
   const oneLine = text.replace(/\s+/g, ' ').trim()
@@ -177,6 +182,7 @@ export function mcpGauge(): Snapshot<{ data: McpData }> {
   try {
     const g = getGlobalConfig()
     const p = getCurrentProjectConfig()
+
     let projectNames: string[] = []
     try {
       if (!untrustedWorkspaceHeadless()) {

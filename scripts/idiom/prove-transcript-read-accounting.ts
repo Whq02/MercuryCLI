@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 const { decodeTranscriptBuffer, TRANSCRIPT_FORMAT_REFUSAL } = await import(
   '../../src/fabric/transcriptDecode.js'
 )
@@ -31,6 +32,7 @@ const valid = recordLine({
   timestamp: '2026-08-01T10:00:00.000Z',
 })
 const malformed = '{ this is not json'
+
 const wrongShape = (() => {
   const rec = JSON.parse(valid) as { payload: { content: unknown } }
   rec.payload.content = 42
@@ -64,6 +66,7 @@ section('§C clean buffers take the fast path (Buffer + string forms)')
     const d = decodeTranscriptBuffer<Record<string, unknown>>(form)
     check(`clean ${Buffer.isBuffer(form) ? 'Buffer' : 'string'}: 500/500 entries, zero classified`, d.entries.length === 500 && d.malformed.length === 0 && d.invalid.length === 0 && d.totalLines === 500)
   }
+
   const gappy = valid + '\n\n' + recordLine({
     type: 'user',
     uuid: '00000000-0000-4000-8000-000000000002',

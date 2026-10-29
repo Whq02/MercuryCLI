@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'gate-prov-proj-')))
 mkdirSync(join(SCRATCH, '.mercury', 'gate'), { recursive: true })
+
 writeFileSync(
   join(SCRATCH, '.mercury', 'gate', 'verdict.json'),
   JSON.stringify({

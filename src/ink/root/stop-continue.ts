@@ -23,6 +23,7 @@ type StopStdin = {
 }
 
 type StopRestoreReceipt = {
+
   rawModeOff: boolean
 }
 

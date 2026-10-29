@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -118,6 +119,7 @@ function switchedHistory(): Message[] {
       { type: 'text', text: 'The plan takes shape: auth first, then billing.', citations: null },
     ], 'end_turn'),
     createUserMessage({ content: 'write the plan document now' }) as Message,
+
     createUserInterruptionMessage({ toolUse: false }) as Message,
     switchBreadcrumb(),
     createUserMessage({ content: 'pick up from gpt pls' }) as Message,
@@ -228,12 +230,14 @@ function degenerates(body: Body): string[] {
 }
 
 section('§A both requests capture and settle')
+
 const switched = await drive(switchedHistory())
 const native = await drive(nativeHistory())
 check('the SWITCHED request dispatched and the turn settled', switched.threw === undefined && switched.settled && Object.keys(switched.body).length > 0, `threw=${String(switched.threw)}`)
 check('the NATIVE request dispatched and the turn settled', native.threw === undefined && native.settled && Object.keys(native.body).length > 0, `threw=${String(native.threw)}`)
 
 section('§B top-level key parity')
+
 {
   const sKeys = Object.keys(switched.body).sort().join(',')
   const nKeys = Object.keys(native.body).sort().join(',')
@@ -243,9 +247,11 @@ section('§B top-level key parity')
 }
 
 section('§C the block-shape vocabulary — switched ⊆ native + allowed extras')
+
 {
   const switchedShapes = blockShapes(switched.body)
   const nativeShapes = blockShapes(native.body)
+
   const extras = [...switchedShapes].filter(s => !nativeShapes.has(s))
   check(
     'no switched-only block shape exists (the conversion invents NOTHING)',
@@ -255,6 +261,7 @@ section('§C the block-shape vocabulary — switched ⊆ native + allowed extras
 }
 
 section('§D degenerate-shape scan of the switched body')
+
 {
   const found = degenerates(switched.body)
   check('no degenerate shapes ride the switched wire', found.length === 0, found.join(' | '))
@@ -274,6 +281,7 @@ section('§D degenerate-shape scan of the switched body')
 }
 
 section('§E the shape digest (for the receipt)')
+
 {
   const shapes = [...blockShapes(switched.body)].sort()
   console.log('  switched-request block vocabulary:')

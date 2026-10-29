@@ -18,7 +18,6 @@ import {
 } from './agentStateHeuristic.js'
 import { routedCallModelSettled } from './providers/callModelRouter.js'
 
-
 export {
   type AgentState,
   type AgentTempo,
@@ -67,6 +66,7 @@ export async function classifyAgentState(
   if (!heuristic) return null
 
   const llmEnabled = flagEnv('MERCURY_AGENT_NEEDS_YOU_LLM') === '1'
+
   if (!llmEnabled || heuristic.source === 'preclassify') {
     return heuristic
   }
@@ -76,6 +76,7 @@ export async function classifyAgentState(
     const query = createUserMessage({
       content: `Latest agent message tail:\n${tail}`,
     })
+
     const response = await routedCallModelSettled({
       messages: [query],
       systemPrompt: asSystemPrompt([NEEDS_YOU_SYSTEM_PROMPT]),
@@ -120,7 +121,6 @@ export async function classifyAgentState(
     return heuristic
   }
 }
-
 
 const verdictBySession = new Map<string, { verdict: AgentStateVerdict; at: number }>()
 

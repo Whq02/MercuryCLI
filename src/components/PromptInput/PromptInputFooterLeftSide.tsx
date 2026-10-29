@@ -1,4 +1,3 @@
-
 import React, { useContext, useEffect, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } from '../../services/voice/voiceSession.js'
@@ -58,11 +57,13 @@ export function PromptInputFooterLeftSide({
   exitPending: boolean
   exitKeyName: string | null
   isPasting: boolean
+
   searchField?: React.ReactNode
   vimInsert?: boolean
   mode: PromptInputMode
   isLoading: boolean
   hintsEnabled?: boolean
+
   crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
@@ -89,6 +90,7 @@ export function PromptInputFooterLeftSide({
   void ownSelectionVersion
   const hasSelection = useHasSelection() || peekOwnInputSelection() !== null
   const selection = useSelection()
+
   const cancelChord = useShortcutDisplay('chat:cancel', 'Chat', 'esc')
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
   const tasksChord = useShortcutDisplay('app:toggleTasks', 'Global', 'ctrl+t')
@@ -103,10 +105,12 @@ export function PromptInputFooterLeftSide({
   const noticeWayOut = noticeText !== null ? noticeRowWayOut(currentNotice) : null
   const noticeBlock = noticeText === null ? noticeRowBlock(currentNotice) : null
   const blockRows = noticeBlock === null ? 0 : noticeBlockRows(currentNotice)
+
   const prStatus = usePrStatus(
     isLoading,
     !compact && getGlobalConfig().prStatusFooterEnabled !== false,
   )
+
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const desktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, desktopSnapshot)
   const desktopFile = useSyncExternalStore(subscribeDesktopClaimFile, desktopClaimFileSnapshot, desktopClaimFileSnapshot)
@@ -126,9 +130,11 @@ export function PromptInputFooterLeftSide({
   if (exitPending) {
     return <ExitChordNotice keyName={exitKeyName} />
   }
+
   if (isPasting) {
     return <Text dimColor>pasting text…</Text>
   }
+
   if (voice.phase === 'recording') {
     return (
       <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
@@ -192,6 +198,7 @@ export function PromptInputFooterLeftSide({
 
   const parts: React.ReactNode[] = []
   if (mode === 'bash') {
+
     return (
       <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
         {searchField ?? (
@@ -207,6 +214,7 @@ export function PromptInputFooterLeftSide({
     task => isLocalAgentTask(task) && task.status === 'running',
   )
   if (viewingCrewmate && viewedCrewmateCompleted) {
+
     parts.push(
       <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
     )
@@ -230,6 +238,7 @@ export function PromptInputFooterLeftSide({
       )
     }
   }
+
   if (isFullscreenActive() && hasSelection) {
     if (!isCopyOnSelectEnabled()) {
       parts.push(
@@ -308,6 +317,7 @@ export function PromptInputFooterLeftSide({
         <Box
           flexShrink={0}
           onClick={() => {
+
             requestCommandDispatch('/help')
           }}
         >
@@ -347,6 +357,7 @@ export function PromptInputFooterLeftSide({
   )
 
   if (crewmatePillsPresent && !showTasksPill) {
+
     return (
       <Box flexDirection="column">
         <BackgroundTaskStatus

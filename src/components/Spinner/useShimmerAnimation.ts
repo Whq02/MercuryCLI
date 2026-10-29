@@ -1,4 +1,3 @@
-
 import type { DOMElement } from '../../ink.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -7,6 +6,7 @@ import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 
 const CYCLE_PAD = 20
 const LEAD_OUTSIDE = 10
+
 const STALLED_INDEX = -10_000
 
 export function useShimmerAnimation(
@@ -23,8 +23,10 @@ export function useShimmerAnimation(
     timeMs => {
       const step = Math.floor(timeMs / tickMs) % cycle
       if (mode === 'requesting') {
+
         return step - LEAD_OUTSIDE
       }
+
       return width + LEAD_OUTSIDE - step
     },
   )

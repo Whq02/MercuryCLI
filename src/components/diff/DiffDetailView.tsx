@@ -10,10 +10,10 @@ import { StructuredDiff } from '../StructuredDiff.js';
 import { displayWidth, truncateToWidth } from '../mercury-ui/glyphs.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 
-
 type Props = {
   filePath: string;
   hunks: StructuredPatchHunk[];
+
   hunkIndex?: number;
   linesAdded?: number;
   linesRemoved?: number;

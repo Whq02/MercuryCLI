@@ -1,4 +1,3 @@
-
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { ASK_ADVISOR_TOOL_NAME } from '../AskAdvisorTool/constants.js'
@@ -185,6 +184,7 @@ export type RunAgentParams = {
   description?: string
   name?: string
   launchedAt?: number
+
   seatHolder?: string
   transcriptSubdir?: string
   effortOverride?: string
@@ -192,9 +192,13 @@ export type RunAgentParams = {
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
   beforeQueryStep?: () => Promise<void> | undefined
+
   onWait?: (words: string | null) => void
+
   onPendingAsks?: (count: number) => void
+
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
+
   structuredOutputSpec?: {
     schema: Record<string, unknown>
     mode: 'permissive' | 'strict'
@@ -229,6 +233,7 @@ export async function connectAgentMcpServers(
   if (!specs || specs.length === 0) {
     return { clients: [], tools: [], cleanup: async () => {} }
   }
+
   if (
     isRestrictedToExtensionsOnly('mcp') &&
     !isSourceAdminTrusted(definition.source) &&
@@ -254,6 +259,7 @@ export async function connectAgentMcpServers(
   for (const spec of specs) {
     try {
       if (typeof spec === 'string') {
+
         const row = catalogueByName.get(spec)
         if (!row) {
           logForDebugging(
@@ -267,6 +273,7 @@ export async function connectAgentMcpServers(
           )
           continue
         }
+
         const client = await connectToServer(spec, row.config)
         connected.push(client)
         tools.push(...(await fetchToolsForClient(client)))
@@ -280,6 +287,7 @@ export async function connectAgentMcpServers(
         continue
       }
       const name = keys[0]!
+
       const inlineConfig = spec[name] as Record<string, unknown>
       if (!McpServerConfigSchema().safeParse(inlineConfig).success) {
         logForDebugging(
@@ -287,24 +295,28 @@ export async function connectAgentMcpServers(
         )
         continue
       }
+
       if (!(name in filterMcpServersByPolicy({ [name]: inlineConfig }).allowed)) {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — blocked by managed policy (kit.permit/kit.deny)`,
         )
         continue
       }
+
       if (doesEnterpriseMcpConfigExist() && !areMcpConfigsAllowedWithEnterpriseMcpConfig({ [name]: inlineConfig } as never)) {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — an enterprise MCP configuration exists and owns the server set`,
         )
         continue
       }
+
       if (catalogueByName.get(name)?.type === 'disabled') {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — the session's catalogue excludes this name (parent-catalogue ∩ grant)`,
         )
         continue
       }
+
       const client = await connectToServer(name, {
         ...inlineConfig,
         scope: 'dynamic',
@@ -349,6 +361,7 @@ async function preloadSkills(
   const skillNames = definition.skills
   if (!skillNames || skillNames.length === 0) return []
   const commands = await getSkillToolCommands(getProjectRoot())
+
   const { formatSkillLoadingMetadata } = await import(
     '../../utils/processUserInput/processSlashCommand.js'
   )
@@ -615,6 +628,7 @@ export async function* runAgent(
     toolUseContext.options.engineModel,
     model as never,
   )
+
   const resolvedEffort = resolveAgentEffort({
     effortOverride,
     useExactTools,
@@ -637,6 +651,7 @@ export async function* runAgent(
   const ownerAbortController =
     override?.abortController ??
     (isAsync ? new AbortController() : toolUseContext.abortController)
+
   const abortController = createChildAbortController(ownerAbortController)
   const startedAt = Date.now()
   let eventsSeen = 0
@@ -669,8 +684,10 @@ export async function* runAgent(
     },
   })
   let watchdog = armWatchdog()
+
   const recovery = makeRecoveryBudget()
   let throttled: Error | null = null
+
   let cuttingWait = { declaredMs: 0, honoredMs: 0 }
   const cutAtBudget = (cutting: { declaredMs: number; honoredMs: number }): void => {
     cuttingWait = cutting
@@ -729,6 +746,7 @@ export async function* runAgent(
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
   const endProjectLeases = beginAgentProjectLeases(agentId, abortController.signal)
+
   noteAgentEffortWord(agentId, resolvedEffort)
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
@@ -793,6 +811,7 @@ export async function* runAgent(
   const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
 
   try {
+
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 
@@ -833,6 +852,7 @@ export async function* runAgent(
           }
           instructionCapture = {
             profile: requestedProfile,
+
             digest: slice.bundle.bundleDigest,
           }
         } catch (error) {
@@ -884,6 +904,7 @@ export async function* runAgent(
         avoidPrompts,
         isAsync,
         allowedTools,
+
         effortValue: resolveAgentEffort({
           effortOverride,
           useExactTools,
@@ -919,6 +940,7 @@ export async function* runAgent(
     const agentMcp = await connectAgentMcpServers(
       agentDefinition.mcpServers,
       agentDefinition,
+
       [
         ...toolUseContext.options.mcpClients,
         ...(toolUseContext.getAppState?.().mcp.clients ?? []),
@@ -978,6 +1000,7 @@ export async function* runAgent(
     }
 
     const parentOptions = toolUseContext.options
+
     const isNonInteractiveSession = posture.isNonInteractiveSession
 
     const thinkingOverride = { thinkingConfig: thinkingConfigOverride ?? parentOptions.thinkingConfig ?? sessionThinkingConfig() }
@@ -987,10 +1010,13 @@ export async function* runAgent(
       agentType: agentDefinition.agentType,
       abortController,
       getAppState: agentGetAppState,
+
       shareSetAppState: !isAsync,
       shareSetResponseLength: true,
+
       options: {
         isNonInteractiveSession,
+
         ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
@@ -1012,6 +1038,7 @@ export async function* runAgent(
     })
     childContextRef.current = childContext
     if (worktreePath !== undefined) claimDiagnosticsRoot(processOwnerForLane(agentId), worktreePath)
+
     childContext.agentKind = agentKind
     childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
     if (onWait !== undefined) childContext.onSeatWait = onWait
@@ -1019,6 +1046,7 @@ export async function* runAgent(
       ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
         true
     }
+
     childContext.setSDKStatus = (status: unknown) => {
       if (status === null || typeof status !== 'object') return
       if ('streamActivity' in status) {
@@ -1136,6 +1164,7 @@ export async function* runAgent(
       systemPrompt: asSystemPrompt(systemPrompt),
       userContext,
       systemContext,
+
       canUseTool: canUseToolAskLively,
       toolUseContext: childContext,
       querySource,
@@ -1143,14 +1172,18 @@ export async function* runAgent(
     }
 
     const observeProgress = (message: LegacyQueryYield): void => {
+
       eventsSeen++
       touchThrough(declaredRecoveryWaitMs(message))
       const notice = recoveryNoticeFacts(message)
       if (notice !== null) {
+
         accountant.wait(notice, true)
       } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
+
         accountant.spoke()
       }
+
       if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
@@ -1158,6 +1191,7 @@ export async function* runAgent(
           toolUsesSeen++
         }
       }
+
       onQueryProgress?.(message as Message)
     }
     const retriedRefusals = new Set<string>()
@@ -1205,6 +1239,7 @@ export async function* runAgent(
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
         streamedRows.push(message as Message)
+
         await landAgentTranscriptRows(
           [message as Message],
           agentId,
@@ -1238,6 +1273,7 @@ export async function* runAgent(
         yield message as Message
         continue
       }
+
       const subtype = (anyMessage as { subtype?: string }).subtype
       const recordable =
         anyMessage.type === 'assistant' ||
@@ -1293,6 +1329,7 @@ export async function* runAgent(
     if (abortController.signal.aborted) {
       throw new AbortError()
     }
+
     if (isBuiltInAgent(agentDefinition) && agentDefinition.callback) {
       void agentDefinition.callback()
     }
@@ -1313,6 +1350,7 @@ export async function* runAgent(
       askHeartbeat = null
     }
     if (deferredTouch !== null) clearTimeout(deferredTouch)
+
     await mcp.cleanup()
     readFileState.clear?.()
     initialMessages.length = 0
@@ -1324,12 +1362,15 @@ export async function* runAgent(
         removeSessionHooks(rootSetAppState, hookScope)
       }
       clearAgentTranscriptSubdir(agentId)
+
       killShellTasksForAgent(
         agentId,
         toolUseContext.getAppState,
         rootSetAppState,
       )
+
       await endEngineSessionFor(agentId)
+
       await disposeOwnerProcesses(processOwnerForLane(agentId))
       releaseDiagnosticsWriter(processOwnerForLane(agentId), worktreePath)
     }

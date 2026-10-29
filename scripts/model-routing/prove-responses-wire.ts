@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   mapOpenaiHttpFailure,
   ResponsesStreamFold,
@@ -33,6 +34,7 @@ function foldAll(payloads: unknown[]): OpenaiStreamEvent[] {
 }
 
 section('1 · the SSE fold — typed events, exactly-once settlement')
+
 {
   const events = foldAll([
     { type: 'response.created', response: { id: 'resp_1' } },
@@ -113,6 +115,7 @@ section('1 · the SSE fold — typed events, exactly-once settlement')
     'reasoning item settles with summary + encrypted content',
     finish.reasoningItems.length === 1 && finish.reasoningItems[0]!.encrypted_content === 'ENC_BLOB',
   )
+
   const kinds = finish.orderedItems.map(i => i.type)
   check(
     'orderedItems = reasoning → message → function_call (EXACT arrival order)',
@@ -132,6 +135,7 @@ section('1 · the SSE fold — typed events, exactly-once settlement')
 }
 
 section('1c · the NULL-OPTIONAL law (the field class)')
+
 {
   const events = foldAll([
     { type: 'response.created', response: { id: 'resp_null' } },
@@ -163,6 +167,7 @@ section('1c · the NULL-OPTIONAL law (the field class)')
 }
 
 section('1b · terminal honesty — failed / incomplete / refusal')
+
 {
   const failed = foldAll([
     {
@@ -210,6 +215,7 @@ section('1b · terminal honesty — failed / incomplete / refusal')
 }
 
 section('2 · error mapping (documented table)')
+
 {
   const limit = mapOpenaiHttpFailure(429, { error: { code: 'rate_limit_exceeded', message: 'slow down' } })
   check('429 ⇒ usage-limit, retryable, coded', limit.kind === 'usage-limit' && limit.retryable && limit.code === 'openai-rate_limit_exceeded')
@@ -222,6 +228,7 @@ section('2 · error mapping (documented table)')
 }
 
 section('3 · the request bridge — stateless replay')
+
 {
   const tools = mapToolsToOpenai([
     { name: 'EchoTool', description: 'echoes', input_schema: { type: 'object' } },
@@ -305,6 +312,7 @@ section('3 · the request bridge — stateless replay')
   check('stateless replay: store:false + encrypted include', request.store === false && JSON.stringify(request.include) === JSON.stringify(['reasoning.encrypted_content']))
   check('stream:true · tool_choice auto · parallel tool calls', request.stream === true && request.tool_choice === 'auto' && request.parallel_tool_calls === true)
   check("reasoning {effort:'high', summary:'auto'}", request.reasoning?.effort === 'high' && request.reasoning.summary === 'auto')
+
   check('instructions + prompt_cache_key carried · NO max_output_tokens', request.instructions === 'You are a specialist.' && request.prompt_cache_key === 'mercury:s:main' && !('max_output_tokens' in request))
 }
 

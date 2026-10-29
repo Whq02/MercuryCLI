@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
@@ -120,6 +121,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     seen.push(got)
     check(`beta-table: ${label}`, eq(got, want), JSON.stringify({ got, want }))
   }
+
   const forbidden = [
     'redact-thinking-2026-02-12',
     'context-management-2025-06-27',
@@ -190,6 +192,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 }
 
 {
+
   const canon: Array<[string, string]> = [
     ['claude-opus-4-8', 'claude-opus-4-6'],
     ['claude-opus-4-6', 'claude-opus-4-6'],
@@ -241,6 +244,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
 {
   const table: Array<[string, boolean, boolean, boolean]> = [
+
     ['claude-opus-4-8', true, true, true],
     ['claude-opus-4-6', true, true, false],
     ['claude-sonnet-4-6', true, true, false],
@@ -265,6 +269,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       effort.getMaxSupportedEffortLevel('claude-haiku-4-5-20251001') === 'high' &&
       effort.getMaxSupportedEffortLevel('claude-sonnet-5') === 'max',
   )
+
   check(
     'effort: the turn-effort floor API is retired',
     !('setTurnEffortFloor' in effort) &&
@@ -607,6 +612,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'record: frozen at every level',
     Object.isFrozen(frozen) && Object.isFrozen(frozen.context) && Object.isFrozen(frozen.betas.all),
   )
+
   const base = caps.resolveModelCapabilities('claude-opus-4-6[1m]')
   const disabled = withEnv({ MERCURY_DISABLE_1M_CONTEXT: '1' }, () =>
     caps.resolveModelCapabilities('claude-opus-4-6[1m]'),
@@ -637,8 +643,11 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
   const MODEL_NAME_CENSUS = [
     'src/commands/model/model.tsx',
+
     'src/services/anthropicLimits.ts',
+
     'src/services/providers/primaryBackend.ts',
+
     'src/utils/effort.ts',
   ].sort()
   const modelNameFound = grep(/includes\('(?:opus|sonnet|haiku|claude)/)

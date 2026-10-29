@@ -1,4 +1,3 @@
-
 import type {
   WorkbenchLaneRow,
   WorkbenchMissionRow,
@@ -7,7 +6,6 @@ import type {
   WorkbenchThreadKind,
   WorkbenchThreadRow,
 } from './contracts.js'
-
 
 export interface ExecutionFact {
   id: string
@@ -71,6 +69,7 @@ export interface WorkbenchSourceInputs {
   now: number
   projectRoot: string
   sessionId: string | null
+
   sources: WorkbenchSources
   generation: {
     treeDigest?: string
@@ -80,14 +79,17 @@ export interface WorkbenchSourceInputs {
   }
   executions: ExecutionFact[]
   mainRun: RunFacts | null
+
   richTasks: Map<string, RichTaskFact>
+
   agentMeta: Map<string, AgentMetaFact>
+
   laneRuns: Map<string, RunFacts>
   workflowsDisk: WorkflowDiskFact[]
   artifacts: ArtifactHeadFact[]
+
   gitWorktreeLanes: Array<{ path: string; branch?: string; head?: string }>
 }
-
 
 const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-job'])
 
@@ -148,6 +150,7 @@ function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
     if (blocker) row.blocker = blocker
     rows.push(row)
   }
+
   const terminal = new Set(['succeeded', 'failed', 'stopped', 'cancelled'])
   rows.sort((a, b) => {
     const at = terminal.has(a.state) ? 1 : 0
@@ -178,7 +181,6 @@ function deriveRootRow(inputs: WorkbenchSourceInputs): WorkbenchThreadRow {
   return row
 }
 
-
 export function laneDisplayName(args: {
   goal?: string
   worktreePath?: string
@@ -186,6 +188,7 @@ export function laneDisplayName(args: {
 }): string {
   if (args.goal && args.goal.trim() !== '') return args.goal
   if (args.worktreePath) {
+
     const base = args.worktreePath.replace(/[\\/]+$/, '').split(/[\\/]/).pop()
     if (base) return base
   }
@@ -194,6 +197,7 @@ export function laneDisplayName(args: {
 
 export function deriveLaneRows(inputs: WorkbenchSourceInputs): WorkbenchLaneRow[] {
   const rows: WorkbenchLaneRow[] = []
+
   const seen = new Set<string>()
   const threadLike: Array<{ id: string; worktreePath?: string; state: string }> = []
   for (const exec of inputs.executions) {
@@ -216,6 +220,7 @@ export function deriveLaneRows(inputs: WorkbenchSourceInputs): WorkbenchLaneRow[
       refs: [],
     })
   }
+
   for (const wt of inputs.gitWorktreeLanes) {
     if (seen.has(wt.path)) continue
     seen.add(wt.path)
@@ -233,7 +238,6 @@ export function deriveLaneRows(inputs: WorkbenchSourceInputs): WorkbenchLaneRow[
   }
   return rows
 }
-
 
 export function deriveNextAction(args: {
   reviewQueue: WorkbenchSnapshot['reviewQueue']
@@ -253,7 +257,6 @@ export function deriveNextAction(args: {
   if (args.mainRun?.nextAction) return args.mainRun.nextAction
   return null
 }
-
 
 export function composeWorkbenchSnapshot(
   inputs: WorkbenchSourceInputs,
@@ -281,6 +284,7 @@ export function composeWorkbenchSnapshot(
         note: `${a.title}: ${a.openComments} open comment${a.openComments === 1 ? '' : 's'}`,
       })
     }
+
     const stale =
       a.treeDigest !== undefined &&
       inputs.generation.treeDigest !== undefined &&
@@ -316,6 +320,7 @@ export function composeWorkbenchSnapshot(
       lanes,
       mainRun: inputs.mainRun,
     }),
+
     sources: inputs.sources,
   }
 }

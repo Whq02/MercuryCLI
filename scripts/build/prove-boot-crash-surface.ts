@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { builtinModules } from 'node:module'
@@ -39,6 +40,7 @@ section('§1 — no handle-require shape: the entry and the handlers fail loud')
   const offenders = handleRequiredPackages()
   check('no src module requires a package through a createRequire(import.meta.url) handle', offenders.length === 0, offenders.join(', '))
   check('the entry catches what escapes main() and fails loud', /main\(\)\.catch\(async \(error: unknown\) => \{[\s\S]*?failLoud\(error, 'boot'\)/.test(cli) && !/^void main\(\)$/m.test(cli))
+
   check('unhandledRejection routes module-load failures to the loud exit', /process\.on\('unhandledRejection', \(reason: unknown\) => \{[\s\S]{0,600}if \(isModuleLoadFailure\(reason\) && !isShuttingDown\(\)\) \{\s*failLoud\(reason, 'unhandled-rejection'\)/.test(shutdown))
   check('uncaughtException routes module-load failures to the loud exit', /process\.on\('uncaughtException', \(err: unknown\) => \{[\s\S]{0,400}if \(isModuleLoadFailure\(err\) && !isShuttingDown\(\)\) \{\s*failLoud\(err, 'uncaught-exception'\)/.test(shutdown))
   check('failLoud restores the terminal, prints the card and force-exits 1', /export function failLoud\([\s\S]*runTerminalRestoration\(\)[\s\S]*MERCURY COULD NOT START[\s\S]*forceExit\(1\)/.test(shutdown))
@@ -104,6 +106,7 @@ const CARD = 'MERCURY COULD NOT START'
 
 section('§2 — the loud exit under node (a bundle of the real shutdown owner)')
 {
+
   const entry = join(work, 'entry.ts')
   writeFileSync(
     entry,
@@ -184,6 +187,7 @@ section('§3 — the shipped artifact out of tree: the real boot path, unshimmed
     const bundle = join(iso, 'mercury.mjs')
 
     const plain = run([bundle, 'health', '--json'], cleanEnv({ CI: 'true' }), 90_000, iso)
+
     check('health --json out of tree exits 0|3 (init() ran through the bundled transport owners; 3 = the signed-out verdict fault)', plain.status === 0 || plain.status === 3, `status ${plain.status} signal ${plain.signal} ${plain.stderr.slice(0, 300)}`)
     check('…with no module-load failure and no card on stderr', !/Cannot find module|MERCURY COULD NOT START/.test(plain.stderr), plain.stderr.slice(0, 300))
 

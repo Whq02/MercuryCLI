@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -42,12 +43,14 @@ section('§1 the hint owners, per host')
 section('§2 the consumers ride the owners')
 {
   const src = readFileSync(join(import.meta.dir, '../../src/services/dap/dapClient.ts'), 'utf8')
+
   const code = src.split('\n').filter(line => !/^\s*(\/\/|\*)/.test(line)).join('\n')
   check('the xcode-select text lives once, inside the darwin owner arm', (code.match(/xcode-select --install/g) ?? []).length === 1)
   check('the brew-netcoredbg text lives once, inside the owner', (code.match(/brew install netcoredbg/g) ?? []).length === 1)
   check('the lldb row takes its unresolved hint from the owner', /: lldbDapInstallHint\(\)/.test(src))
   check('the dotnet row and its dormant entry take the owner', (src.match(/netcoredbgInstallHint\(\)/g) ?? []).length === 2)
   check('the dormant gdb entry takes the owner', /key: 'gdb', hint: gdbInstallHint\(\)/.test(src))
+
   const dormant = dap.dormantBuiltinAdapterHints()
   const dotnet = dormant.find(d => d.key === 'dotnet')
   const gdb = dormant.find(d => d.key === 'gdb')

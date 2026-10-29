@@ -1,4 +1,3 @@
-
 import { basename, join } from 'node:path'
 import { homedir } from 'node:os'
 import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from 'node:fs'
@@ -52,6 +51,7 @@ export function concourseNowLabel(
       ? sanitizeLabel(rec.crash.reason)
       : state === 'needs-you' && !alive && rec.pid !== undefined
         ?
+
           'its process is gone'
         : (state === 'working' || state === 'ready-to-review') && rec.parkIntent !== undefined
           ? `${PARKING_NOW_LEAD}${sanitizeLabel(rec.parkIntent.by)}`
@@ -182,36 +182,51 @@ export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, 
   }
 }
 
-
 export interface ConcourseSeedOverridesV1 {
   projectDir?: string
+
   projectDirAt?: number
   modelKey?: string
+
   effort?: string
   isolation?: 'isolated-worktree' | 'exclusive' | 'shared-read-only'
+
   title?: string
+
   agentName?: string
+
   seatsMax?: 1 | 2
 }
 
 interface ConcourseDraftFileV1 {
   draft: string
+
   draftCaret?: number
   updatedAtMs: number
   seedOverrides?: ConcourseSeedOverridesV1
+
   sessionDrafts?: Record<string, string>
+
   sessionDraftCarets?: Record<string, number>
+
   heldDispatch?: {
     clientMessageId: string
     envelopeKey: string
+
     prompt?: string
+
     op?: Record<string, unknown>
   }
+
   heldDeliveries?: Record<string, { clientMessageId: string; text: string }>
+
   queuedStacks?: Record<string, Array<{ clientMessageId: string; text: string; mintedAtMs: number }>>
+
   pendingHandback?: { kind: 'detach' | 'valve-resume' | 'grant-workflows'; sessionId: string; mintedAtMs: number }
+
   coordinatorDraft?: string
   coordinatorDraftCaret?: number
+
   parkedCleared?: Record<string, number>
   sessionSeenAt?: Record<string, number>
 }
@@ -243,6 +258,7 @@ const decodeOverrides = (raw: unknown): ConcourseSeedOverridesV1 | undefined => 
   const r = raw as Partial<ConcourseSeedOverridesV1>
   const out: ConcourseSeedOverridesV1 = {}
   if (typeof r.projectDir === 'string' && r.projectDir.length > 0) {
+
     const p = r.projectDir.slice(0, 1024)
     out.projectDir = p === '~' ? homedir() : p.startsWith('~/') ? join(homedir(), p.slice(2)) : p
     if (typeof r.projectDirAt === 'number' && Number.isFinite(r.projectDirAt)) out.projectDirAt = r.projectDirAt
@@ -278,6 +294,7 @@ const draftStore = defineStore<ConcourseDraftFileV1, [dir?: string]>({
     const overrides = decodeOverrides(r.seedOverrides)
     const sessionDrafts = decodeSessionDrafts(r.sessionDrafts)
     const draft = typeof r.draft === 'string' ? r.draft.slice(0, 4000) : ''
+
     let sessionDraftCarets: Record<string, number> | undefined
     if (sessionDrafts !== undefined && r.sessionDraftCarets && typeof r.sessionDraftCarets === 'object') {
       const out: Record<string, number> = {}
@@ -337,6 +354,7 @@ const draftStore = defineStore<ConcourseDraftFileV1, [dir?: string]>({
     let heldDeliveries: Record<string, { clientMessageId: string; text: string }> | undefined
     if (r.heldDeliveries && typeof r.heldDeliveries === 'object' && !Array.isArray(r.heldDeliveries)) {
       const out: Record<string, { clientMessageId: string; text: string }> = {}
+
       for (const [k, v] of Object.entries(r.heldDeliveries as Record<string, unknown>).slice(0, SESSION_DRAFT_CAP)) {
         const h = v as { clientMessageId?: unknown; text?: unknown }
         if (
@@ -517,6 +535,7 @@ export async function writeConcourseHeldDelivery(
     const map = { ...(prev.heldDeliveries ?? {}) }
     if (held === null) delete map[sessionId]
     else {
+
       delete map[sessionId]
       map[sessionId] = held
       const keys = Object.keys(map)
@@ -584,16 +603,19 @@ export async function writeConcourseSeedOverride(
       if (v === null || v === undefined) delete next[k as keyof ConcourseSeedOverridesV1]
       else (next as Record<string, unknown>)[k] = v
     }
+
     if ('projectDir' in patch) {
       if (next.projectDir !== undefined) next.projectDirAt = Date.now()
       else delete next.projectDirAt
     }
+
     if (
       next.isolation !== undefined &&
       next.isolation === resolveIsolationSeed({ ...next, isolation: undefined }, getCwd())
     ) {
       delete next.isolation
     }
+
     if (next.effort === 'high') delete next.effort
     return {
       ...prev,
@@ -646,6 +668,7 @@ export async function writeConcourseSessionDraft(sessionId: string, text: string
     if (text.length > 0) next[sessionId] = text.slice(0, 4000)
     const keys = Object.keys(next)
     for (const k of keys.slice(0, Math.max(0, keys.length - SESSION_DRAFT_CAP))) delete next[k]
+
     const carets: Record<string, number> = {}
     for (const [k, v] of Object.entries(prev.sessionDraftCarets ?? {})) {
       if (next[k] !== undefined) carets[k] = v
@@ -688,12 +711,14 @@ export function resolveIsolationSeed(
   cwd: string,
 ): 'isolated-worktree' | 'exclusive' | 'shared-read-only' {
   if (seeds.isolation !== undefined) return seeds.isolation
+
   return 'exclusive'
 }
 
 export function dispatchSeedInputs(
   seeds: ConcourseSeedOverridesV1,
   cwd: string,
+
   resolvedModelId?: string,
   savedEffort?: string,
 ): {
@@ -723,7 +748,6 @@ export function dispatchSeedInputs(
   }
 }
 
-
 const PARKED_SCAN_SLACK = 4
 
 export const OLDER_CHATS_ROW_PREFIX = 'older:'
@@ -741,16 +765,19 @@ export function olderChatsRow(projectDir: string, projectLabel: string, older: n
   }
 }
 
-
 export interface OlderChatFact {
   sessionId: string
+
   transcriptPath: string
   ageMs: number
+
   title: string
 }
 
 export interface OlderChatsCensusV1 {
+
   total: number
+
   entries: OlderChatFact[]
 }
 
@@ -778,6 +805,7 @@ export function olderChatsCensus(
   try {
     const entryCap = Math.max(0, opts.entryCap ?? 0)
     const skip = opts.excludeSessionId !== undefined ? `${opts.excludeSessionId}.jsonl` : null
+
     const candidates: Array<{ sessionId: string; file: string; mtimeMs: number; size: number; ageMs: number }> = []
     if (opts.sessions !== undefined) {
       for (const s of opts.sessions) {
@@ -836,6 +864,7 @@ export function parkedBoardRows(
   const rows: ConcourseRowV1[] = []
   try {
     const projectLabel = sanitizeLabel(projectDisplayName(projectDir))
+
     const listed =
       sessions ??
       parkedSessionsOf(projectDir, {
@@ -863,6 +892,7 @@ export function parkedBoardRows(
         transcriptPath: s.transcriptPath,
       })
     }
+
     const excluded = new Set<string>(liveSessionIds)
     for (const r of rows) excluded.add(r.sessionId)
     const census = olderChatsCensus(projectDir, excluded, nowMs, {
@@ -907,6 +937,7 @@ async function resolvedCoordinator(): Promise<{
   fallbackReason?: string
 }> {
   try {
+
     const { resolveEffectiveCoordinator } = await import('./coordinatorLane.js')
     const effective = await resolveEffectiveCoordinator()
     const mode = effective.resolution.effective
@@ -947,9 +978,12 @@ export interface BuildConcourseSnapshotOpts {
   recordsDir?: string
   crewDir?: string
   draftDir?: string
+
   peekSessionId?: string
+
   residentOverride?: 'wink' | 'refused' | 'held'
   nowMs?: number
+
   project?: ProjectIdentity
 }
 
@@ -964,6 +998,7 @@ export async function buildConcourseSnapshot(
   const project = opts.project ?? currentProject()
   const allRecords = workers.listConcourseWorkers(null, opts.recordsDir)
   const records = allRecords.filter(r => inProject(project, r.workspaceId))
+
   await obligations
     .foldLegacyObligationsIntoSwitchboardScope(opts.crewDir)
     .catch(() => 0)
@@ -984,6 +1019,7 @@ export async function buildConcourseSnapshot(
     }
   } catch {
   }
+
   const foreignOf = (workspaceId: string): string | undefined =>
     inProject(project, workspaceId) ? undefined : sanitizeLabel(projectDisplayName(workspaceId))
 
@@ -996,12 +1032,15 @@ export async function buildConcourseSnapshot(
     const state = concourseRecordState(rec, { needsYou: needsYouSessions.has(rec.sessionId), alive })
     const projectName = basename(rec.workspaceId) || rec.workspaceId
     workspaceOfRow.set(rec.sessionId, rec.workspaceId)
+
     const nowLabel = concourseNowLabel(rec, { alive, needsYou: needsYouSessions.has(rec.sessionId) }, nowMs)
     return {
       sessionId: rec.sessionId,
+
       title: sanitizeLabel(sessionTitleOf(rec, () => headBriefLabel(rec, 48))),
       state,
       projectLabel: sanitizeLabel(projectName),
+
       ownerLabel: sanitizeLabel(rec.agentName ?? 'Mercury'),
       ageLabel: ageLabelOf(nowMs, rec.spawnedAt),
       seats: null,
@@ -1010,13 +1049,16 @@ export async function buildConcourseSnapshot(
       ...(state === 'ready-to-review' && rec.lastTurnSettledAt !== undefined && rec.lastTurnSettledAt > (seenAt[rec.sessionId] ?? 0) ? { finishedUnseen: true as const } : {}),
       ...(rec.workflowsAllowed === true ? { workflowsAllowed: true } : {}),
       ...(rec.kind !== undefined ? { kind: rec.kind } : {}),
+
       ...((): { scheduleNextFireMs?: number } => {
         const next = saturnSoonestFireMs(rec, nowMs)
         return next !== null ? { scheduleNextFireMs: next } : {}
       })(),
       workspaceDir: rec.workspaceId,
+
       ...(typeof rec.modelKey === 'string' && rec.modelKey !== '' ? { modelId: rec.modelKey } : {}),
       ...(rec.branchName !== undefined ? { worktreeBranch: sanitizeLabel(rec.branchName) } : {}),
+
       ...(state === 'parked' ? { transcriptPath: workerTranscriptPath(rec) } : {}),
     }
   })
@@ -1027,11 +1069,14 @@ export async function buildConcourseSnapshot(
       .filter(d => d.state === 'queued' && d.sessionId === undefined && d.heldReason !== undefined)
       .filter(d => d.workspaceId === undefined || inProject(project, d.workspaceId))
       .map(d => {
+
         let waitReason: ConcourseRowV1['waitReason'] = normalizeHoldReason(d.heldReason) as Exclude<
           ReturnType<typeof normalizeHoldReason>,
           'session-with-you'
         >
+
         if (waitReason === 'repo-held') {
+
           const holderLive = allRecords.some(
             r =>
               r.endedAt === undefined &&
@@ -1089,6 +1134,7 @@ export async function buildConcourseSnapshot(
     if (workspace === undefined || inProject(project, workspace)) return [r]
     return r.sessionId === focusedSessionId ? [{ ...r, foreignProject: foreignOf(workspace) ?? '' }] : []
   })
+
   let foreignParkedRow: ConcourseRowV1 | undefined
   if (
     focusedSessionId !== null &&
@@ -1115,6 +1161,7 @@ export async function buildConcourseSnapshot(
   const byBucket = (bucket: ConcourseRowV1['state'][]): ConcourseRowV1[] =>
     rows.filter(r => bucket.includes(r.state))
   const groups: ConcourseSnapshotV1['groups'] = []
+
   const attachedRows = byBucket(['attached'])
   if (attachedRows.length > 0) groups.push({ id: 'attached', label: 'WITH YOU', rows: attachedRows })
   const needsYouRows = byBucket(['needs-you'])
@@ -1125,12 +1172,16 @@ export async function buildConcourseSnapshot(
   const pausedRows = byBucket(['paused'])
   const stoppedRows = byBucket(['stopped'])
   if (needsYouRows.length > 0) groups.push({ id: 'needs-you', label: 'NEEDS YOU', rows: needsYouRows })
+
   if (reviewRows.length > 0) groups.push({ id: 'ready-to-review', label: 'READY TO REVIEW', rows: reviewRows })
   if (workingRows.length > 0) groups.push({ id: 'working', label: 'WORKING', rows: workingRows })
   if (startingRows.length > 0) groups.push({ id: 'starting', label: 'STARTING', rows: startingRows })
+
   if (queuedRows.length > 0) groups.push({ id: 'queued', label: 'QUEUED', rows: queuedRows })
   if (pausedRows.length > 0) groups.push({ id: 'paused', label: 'PAUSED', rows: pausedRows })
+
   if (stoppedRows.length > 0) groups.push({ id: 'stopped', label: 'STOPPED', rows: stoppedRows })
+
   const elsewhere: ConcourseElsewhereV1[] = projectActivity(allRows, {
     current: project,
     excludeSessionId: focusedSessionId,
@@ -1158,6 +1209,7 @@ export async function buildConcourseSnapshot(
       ownerLabel: null,
       ageLabel: null,
       seats: null,
+
       nowLabel: keyHintLabel('⌃g picks one'),
       door: { kind: 'pick-project', more: moreElsewhere },
     })
@@ -1170,6 +1222,7 @@ export async function buildConcourseSnapshot(
     LIVE_STATES.includes(r.state) &&
     (r.state === 'attached' || r.state === 'starting' || aliveById.get(r.sessionId) === true)
   const live = rows.filter(holdsSeat)
+
   const liveAll = allRows.filter(holdsSeat)
   const peekRecord =
     records.find(r => r.sessionId === (opts.peekSessionId ?? '')) ??
@@ -1189,8 +1242,11 @@ export async function buildConcourseSnapshot(
   const draftFile = await draftStore(opts.draftDir).read()
   const draft = draftFile.draft
   const draftCaret = Math.max(0, Math.min(draft.length, draftFile.draftCaret ?? draft.length))
+
   const seedOverrides = await readConcourseSeedOverrides(opts.draftDir)
+
   const projectLabel = project.name
+
   let hostSessionId: string | undefined
   try {
     const state = await import('../../bootstrap/state.js')
@@ -1198,6 +1254,7 @@ export async function buildConcourseSnapshot(
   } catch {
     hostSessionId = undefined
   }
+
   const parkedRecordRows = byBucket(['parked']).sort((a, b) => {
     const at = (row: ConcourseRowV1): number => records.find(r => r.sessionId === row.sessionId)?.parkedAt ?? 0
     return at(b) - at(a)
@@ -1210,18 +1267,22 @@ export async function buildConcourseSnapshot(
     hostSessionId,
   )
   const parkedRows = [...parkedRecordRows, ...parkedTranscriptRows]
+
   const parkedGroupRows = [...(foreignParkedRow !== undefined ? [foreignParkedRow] : []), ...parkedRows]
   if (parkedGroupRows.length > 0) groups.push({ id: 'parked', label: 'PARKED', rows: parkedGroupRows })
   rows.push(...parkedTranscriptRows)
   if (foreignParkedRow !== undefined) rows.push(foreignParkedRow)
+
   const { composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId } = await import('./workerModels.js')
   const workerRegistry = await composeWorkerModelRegistry()
+
   const chosenModelId =
     seedOverrides.modelKey !== undefined
       ? await canonicalWorkerModelId(seedOverrides.modelKey)
       : defaultWorkerModelId(workerRegistry, 'session')
   const modelLabel =
     workerRegistry.entries.find(e => e.modelId === chosenModelId)?.displayName ?? chosenModelId
+
   let scopeDetail = 'shares a workspace exclusively'
   if (!scopeClear && peekRecord !== null) {
     try {
@@ -1235,10 +1296,12 @@ export async function buildConcourseSnapshot(
     } catch {
     }
   }
+
   let preflight: { ok: boolean; refusals: string[] } | undefined
   if (draft.length > 0) {
     try {
       const { preflightConcourseDispatch } = await import('../../daemon/concourseDispatch.js')
+
       const previewReq: Omit<ReturnType<typeof dispatchSeedInputs>, 'isolation'> & {
         isolation?: 'worktree-isolated' | 'read-only' | 'exclusive'
       } = { ...dispatchSeedInputs(seedOverrides, getCwd()) }
@@ -1250,6 +1313,7 @@ export async function buildConcourseSnapshot(
     }
   }
   const coordinator = await resolvedCoordinator()
+
   let coordinatorHeld = 0
   if (coordinator.mode === 'agent-assisted') {
     try {
@@ -1262,6 +1326,7 @@ export async function buildConcourseSnapshot(
 
   const railModelId =
     peekRecord !== null ? await canonicalWorkerModelId(peekRecord.modelKey ?? 'fable') : chosenModelId
+
   const savedEffort = getInitialEffortSetting()
   let door: { modelLabel: string; effortLevel: string } | undefined
   if (sessionDefaultsKeyOn()) {
@@ -1288,7 +1353,9 @@ export async function buildConcourseSnapshot(
       ...(railEffort ? { effortLabel: railEffort } : {}),
     },
     breadcrumb: { active: 'concourse' },
+
     coordinator,
+
     focusedChat: {
       kind: 'non-model-controller',
       counted: false,
@@ -1301,6 +1368,7 @@ export async function buildConcourseSnapshot(
       working: allRows.filter(r => r.state === 'working').length,
       queued: allRows.filter(r => r.state === 'starting').length,
       seatsHeld: coordinatorHeld,
+
       seatsDenominator:
         liveAll.reduce((sum, row) => {
           const rec = allRecords.find(r => r.sessionId === row.sessionId)
@@ -1309,10 +1377,12 @@ export async function buildConcourseSnapshot(
       admission: 'auto-balanced',
     },
     needsYou: openObl.map(o => {
+
       const rec = allRecords.find(r => r.sessionId === o.sessionId)
       const home = rec !== undefined ? foreignOf(rec.workspaceId) : undefined
       return {
         obligationId: o.obligationId,
+
         ...(o.ref !== undefined ? { ref: o.ref } : {}),
         sessionId: o.sessionId,
         title:
@@ -1332,10 +1402,12 @@ export async function buildConcourseSnapshot(
       ? {
           sessionId: peekRecord.sessionId,
           title: sanitizeLabel(sessionTitleOf(peekRecord, () => headBriefLabel(peekRecord, 48))),
+
           state: concourseRecordState(peekRecord, {
             needsYou: needsYouSessions.has(peekRecord.sessionId),
             alive: peekRecord.pid !== undefined && isProcessAlive(peekRecord.pid),
           }),
+
           projectLabel: sanitizeLabel(
             (basename(peekRecord.workspaceId) || peekRecord.workspaceId) +
               (peekRecord.workspaceKind === 'plain-folder' ? ' · plain folder' : ''),
@@ -1343,6 +1415,7 @@ export async function buildConcourseSnapshot(
           agentLabel: sanitizeLabel(peekRecord.agentName ?? 'Mercury'),
           modelLabel:
             workerRegistry.entries.find(e => e.modelId === railModelId)?.displayName ?? peekRecord.modelKey,
+
           ...(await (async () => {
             const cap = peekRecord.settingsSnapshot
             if (cap === undefined) return {}
@@ -1363,6 +1436,7 @@ export async function buildConcourseSnapshot(
           seats: null,
           timeline: [{ clock: clockOf(peekRecord.spawnedAt), label: 'started' }],
           scope: scopeClear ? { kind: 'clear' } : { kind: 'overlap', detail: scopeDetail },
+
           actions: [
             'enter-full-session',
             ...(peekRecord.pausedAt === undefined && peekRecord.pid !== undefined && isProcessAlive(peekRecord.pid)
@@ -1370,6 +1444,7 @@ export async function buildConcourseSnapshot(
               : []),
             ...(peekRecord.pausedAt !== undefined ? (['resume'] as const) : []),
           ],
+
           residentState:
             opts.residentOverride ??
             (rows.find(r => r.sessionId === peekRecord.sessionId)?.state === 'starting' ? 'molt' : 'settled'),
@@ -1378,10 +1453,13 @@ export async function buildConcourseSnapshot(
     newSession: {
       seeds: {
         projectLabel,
+
         agentLabel: sanitizeLabel(seedOverrides.agentName ?? 'Mercury'),
         modelLabel,
         modelId: chosenModelId,
+
         modelIsDefault: chosenModelId === defaultWorkerModelId(workerRegistry, 'session'),
+
         effortLevel: seedOverrides.effort ?? savedEffort ?? 'high',
         effortIsDefault: (seedOverrides.effort ?? savedEffort ?? 'high') === (savedEffort ?? 'high'),
         isolation: resolveIsolationSeed(seedOverrides, getCwd()),
@@ -1389,9 +1467,11 @@ export async function buildConcourseSnapshot(
       },
       draft,
       draftCaret,
+
       modelOptions: workerRegistry.entries
         .filter(e => e.session.availability === 'available')
         .map(e => ({ modelId: e.modelId, displayName: e.displayName })),
+
       advancedAvailable: true,
       ...(seedOverrides.title !== undefined ? { titleSeed: seedOverrides.title } : {}),
       ...(preflight !== undefined ? { preflight } : {}),

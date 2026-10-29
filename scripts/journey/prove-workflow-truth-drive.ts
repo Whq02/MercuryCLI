@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -36,9 +37,12 @@ const WF_NAME = 'truth-survey'
 const PHASE = 'Survey'
 const STATIONS = ['one', 'two'] as const
 type Station = (typeof STATIONS)[number]
+
 const SEAT_READS = 12
 const SEAT_STEP_MS = vshotBudgetMs(3000)
+
 const FIRST_HOLD_MS = vshotBudgetMs(6000)
+
 const FACTS_HOLD_MS = vshotBudgetMs(4000)
 const WF_SCRIPT = [
   `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
@@ -61,6 +65,7 @@ const offersTool = (body: unknown, name: string): boolean => {
   const tools = (body as { tools?: unknown[] })?.tools
   return Array.isArray(tools) && tools.some(t => (t as { name?: string })?.name === name)
 }
+
 function answeredTool(items: Item[]): string | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -75,6 +80,7 @@ function answeredTool(items: Item[]): string | null {
   }
   return null
 }
+
 function stationOf(items: Item[]): Station | null {
   const userText = items
     .filter(i => i.role === 'user')
@@ -94,6 +100,7 @@ type Answer =
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
 const USAGE = { input_tokens: 900, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
+
 function answer(model: string, blocks: Answer[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const parts: string[] = [
@@ -271,6 +278,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
+
     MERCURY_SESSION_FACTS_HOLD_MS: String(FACTS_HOLD_MS),
   }
 }
@@ -300,6 +308,7 @@ function panelRows(frame: string | undefined, label: string, nextLabel: string):
   }
   return out
 }
+
 function panelCount(frame: string | undefined, label: string): number | null {
   const head = rowsWith(frame, label)[0] ?? ''
   const m = new RegExp(`${label}\\s*[·:]?\\s*(\\d+)`).exec(head)
@@ -314,6 +323,7 @@ const { home, cwd } = seedWorld()
 const fixture = await startFixture(Number(process.env.WF_TRUTH_PORT ?? 25199), cwd)
 const COLS = 160
 const ROWS = 44
+
 const factsDir = join(home, 'daemon', 'session-facts')
 const factsLog: string[] = []
 const factsEdges: { file?: number; work?: number } = {}
@@ -359,15 +369,22 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
         { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 0, mark: 'composer' },
+
         { data: '', afterPrevTicks: 3, mark: 'skeleton-1' },
         { data: '', afterPrevTicks: 3, mark: 'skeleton-2' },
         { data: '', afterPrevTicks: 3, mark: 'skeleton-3' },
         { data: '', afterPrevTicks: 3, mark: 'skeleton-4' },
+
         { data: `${ASK}\r`, afterPrevTicks: 2, awaitSettleTicks: 3, mark: 'boot' },
+
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
+
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
+
         { data: '/workflows\r', afterPrevTicks: 2 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '', afterPrevTicks: 4, mark: 'run-early' },
@@ -375,13 +392,17 @@ try {
         { data: '', afterPrevTicks: 10, mark: 'run-early-3' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '\x1b', afterPrevTicks: 2 },
+
         { data: '', afterPrevTicks: 30, mark: 'cockpit-busy' },
+
         { data: '/workflows\r', afterPrevTicks: 2 },
         { data: '\r', awaitText: WF_NAME, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
         { data: '', afterPrevTicks: 12, mark: 'run' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '\x1b', afterPrevTicks: 3 },
+
         { data: '', afterPrevTicks: 8, mark: 'cockpit-again' },
+
         { data: '', awaitText: NOTED, requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'settled' },
         { data: '/workflows\r', afterPrevTicks: 2 },
         { data: '', afterPrevTicks: 12, mark: 'board-settled' },
@@ -448,6 +469,7 @@ if (cap !== null) {
 
   console.log('\n— W8 the first frames on disk —')
   {
+
     const clockOf = (frame: string | undefined): number => {
       const hit = /⦿ running · (\d+)s ·/.exec(frame ?? '')
       return hit ? Number(hit[1]) : -1
@@ -477,6 +499,7 @@ if (cap !== null) {
 
   console.log('\n— W6 the wait words —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
+
     const waits = rowsWith(m[label], /waiting on/)
     check(`W6 [${label}] the strip says the turn waits on 1 workflow — never on "1 crewmate"`, waits.length > 0 && waits.every(r => r.includes('waiting on 1 workflow')) && !waits.some(r => /waiting on 1 crewmate/.test(r)), waits.map(flat).join(' | ').slice(0, 300))
   }

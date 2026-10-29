@@ -24,8 +24,8 @@ const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
 export type { GeminiSourceKind }
 
-
 export interface GeminiLiveModel {
+
   id: string
   displayName?: string
   description?: string
@@ -33,6 +33,7 @@ export interface GeminiLiveModel {
   inputTokenLimit?: number
   outputTokenLimit?: number
   supportedGenerationMethods?: readonly string[]
+
   thinking?: boolean
   images?: boolean
   disabled?: true
@@ -101,7 +102,6 @@ function decodeModel(raw: unknown): GeminiLiveModel | undefined {
   }
 }
 
-
 const GEMINI_PAGE_SIZE = 1000
 const GEMINI_MAX_PAGES = 5
 const CATALOGUE_ERROR_BODY_LIMIT = 600
@@ -154,12 +154,14 @@ export async function fetchGeminiLiveModels(opts: {
   headers: Record<string, string>
   fetchImpl?: typeof fetch
 }): Promise<{ models: GeminiLiveModel[]; fetchedAtMs: number }> {
+
   const fetchImpl = opts.fetchImpl ?? getApiFetch()
   const models: GeminiLiveModel[] = []
   let pageToken: string | undefined
   for (let page = 0; page < GEMINI_MAX_PAGES; page++) {
     const params = new URLSearchParams({ pageSize: String(GEMINI_PAGE_SIZE) })
     if (pageToken) params.set('pageToken', pageToken)
+
     const response = await fetchWithProviderDeadline(fetchImpl, 'gemini', CATALOGUE_FETCH_TIMEOUT_MS, `${opts.baseUrl}/models?${params.toString()}`, {
       method: 'GET',
       headers: { ...opts.headers, 'user-agent': getUserAgent() },
@@ -180,14 +182,15 @@ export async function fetchGeminiLiveModels(opts: {
   return { models, fetchedAtMs: Date.now() }
 }
 
-
 const GEMINI_CATALOGUE_TTL_MS = 5 * 60_000
 
 export interface GeminiCatalogueSnapshot {
   sourceKind: GeminiSourceKind
   models: GeminiLiveModel[]
+
   fetchedAtMs: number
   lastAttemptAtMs?: number
+
   lastError?: string
   lastStatus?: number
   lastSaid?: string
@@ -218,6 +221,7 @@ export function refreshGeminiCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(sourceKind, opts?.env)
   const cached = catalogueCache.get(identity)
+
   if (!catalogueTrafficVerdict('gemini', opts?.env ?? process.env).allowed) {
     return Promise.resolve(cached ?? null)
   }
@@ -308,7 +312,6 @@ export function refreshGeminiCatalogue(
   return work
 }
 
-
 export function geminiListedModel(
   model: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -349,7 +352,6 @@ export function geminiEffortVocabularyFor(
   return geminiListedModel(model, env)?.thinking === true ? GEMINI_REASONING_EFFORTS : []
 }
 
-
 export type GeminiDisabledWhy =
   | 'no-account'
   | 'auth-invalid'
@@ -362,12 +364,12 @@ export type GeminiAvailability =
   | { state: 'disabled'; why: GeminiDisabledWhy; reason: string }
   | {
       state: 'ready'
+
       ids: string[]
       source: string
       sourceKind: GeminiSourceKind
       fetchedAtMs: number
     }
-
 
 const GEMINI_NO_CHAT_ID = /(?:^|-)(?:image|imagen|veo|tts)(?:-|$)|nano-banana/i
 const GEMINI_NO_CHAT_NAME = /\bimage\b|\bimagen\b|\bveo\b|\btts\b|\bnano banana\b/i
@@ -517,6 +519,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
   const snapshot = getCachedGeminiCatalogue(sourceKind, env)
   const verdict = catalogueTrafficVerdict('gemini', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) {
+
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
@@ -559,8 +562,8 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
   }
 }
 
-
 export const GEMINI_MODEL_GROUP = 'Mercury — Gemini models'
+
 export const GEMINI_CONNECT_OPTION_VALUE = '__mercury_gemini_connect__'
 
 export function geminiDispatchReady(
@@ -611,6 +614,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
     ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),
   }))
   return [...geminiGenerateModels(snapshot).map(model => {
+
     const routed = declaredRouteOf(model.id) === 'gemini'
     const unroutableReason = `outside the routable gemini-* id space — selecting it would misroute; not selectable`
     return {

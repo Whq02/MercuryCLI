@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -67,6 +68,7 @@ function countingFetch(body: unknown, calls: { n: number; auth: string[] }): typ
 }
 
 section('§0 the fingerprint is one-way, short, and absence-safe')
+
 {
   const a = credentialFingerprint('sk-A')
   const b = credentialFingerprint('sk-B')
@@ -76,6 +78,7 @@ section('§0 the fingerprint is one-way, short, and absence-safe')
 }
 
 section('§1 OpenAI catalogue — per key, not per source kind')
+
 {
   const openai = await import('../../src/services/providers/openai/openaiCatalogue.ts')
   openai.__resetOpenaiCatalogueForTest()
@@ -103,6 +106,7 @@ section('§1 OpenAI catalogue — per key, not per source kind')
 }
 
 section('§2 Gemini catalogue — per key')
+
 {
   const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
   gemini.__resetGeminiCatalogueForTest()
@@ -124,6 +128,7 @@ section('§2 Gemini catalogue — per key')
 }
 
 section('§3 Hugging Face catalogue — a keyed view is per token')
+
 {
   const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
   hf.__resetHuggingfaceCatalogueForTest()
@@ -144,6 +149,7 @@ section('§3 Hugging Face catalogue — a keyed view is per token')
 }
 
 section('§4 OpenRouter key usage — the credits belong to the key that polled them')
+
 {
   const usage = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
   usage.__resetOpenrouterUsageStateForTest()
@@ -161,6 +167,7 @@ section('§4 OpenRouter key usage — the credits belong to the key that polled 
 }
 
 section('§5 DeepSeek balance — per key')
+
 {
   const ds = await import('../../src/services/providers/deepseek/deepseekUsageState.ts')
   ds.__resetDeepseekUsageForTest()
@@ -178,6 +185,7 @@ section('§5 DeepSeek balance — per key')
 }
 
 section('§6 Moonshot balance — per key')
+
 {
   const ms = await import('../../src/services/providers/moonshot/moonshotUsageState.ts')
   ms.__resetMoonshotUsageForTest()

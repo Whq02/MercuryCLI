@@ -1,4 +1,3 @@
-
 import type { ParsedRef, ResourceAdapter, ResourceContext, ResourceResult } from '../contracts.js'
 import { registerResourceAdapter } from '../registry.js'
 import {
@@ -69,6 +68,7 @@ export const repoAdapter: ResourceAdapter = {
       if (rest[0] !== undefined && rest[0] !== 'diff' && !Number.isSafeInteger(n)) {
         return { state: 'absent', note: `'${rest[0]}' is not a PR number` }
       }
+
       const diffAt = rest[0] === 'diff' ? 0 : rest[1] === 'diff' ? 1 : -1
       if (diffAt >= 0) {
         const { fetchPrDiffFiles, fetchPrDiffPage } = await import('../../repoHost/repoHost.js')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,7 @@ const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_token
 const outcome = (): Record<string, unknown> => row({ type: 'outcome', schema: 1, turn_id: 't-lv', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
 const tail = () => readSessionTail(sid, dir)
 const progress = () => readSessionProgress(sid, dir)
+
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const cadence = (): Promise<void> => sleep(1150)
 
@@ -108,6 +110,7 @@ console.log('\nL4 silence stands still, and the seat never counts its own probe 
   const stamp = tail()?.lastEventAtMs ?? 0
   await sleep(1200)
   check('no row ⇒ the stamp does not move (the seat invents no liveness)', tail()?.lastEventAtMs === stamp, JSON.stringify({ stamp, now: tail()?.lastEventAtMs }))
+
   onFactsAnswer(
     SHORT,
     {
@@ -165,6 +168,7 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check('SeatStatusV1 carries the owner’s facts and its verdict', ['quietMs', 'watchdogMs', 'phaseMs', 'toolBudgetMs', 'stuck'].every(f => contract.includes(f)))
   const bar = read('src/components/SwitchboardTagBar.tsx')
   check('the row speaks "stuck" through the owner’s verdict alone (the status’s stuck field inside statusLine), never a local threshold', /\bs\.stuck\b/.test(bar) && !bar.includes('silenceMs') && !bar.includes('30_000'))
+
   check('the row’s copy is the one exported statusLine', bar.includes('export function statusLine') && /^\s*const line = .*\bstatusLine\(live, status, crew\)$/m.test(bar))
   const seatSrc = read('src/daemon/sessionSeat.ts')
   check('the seat stamps every partial row before the arms (the runner speaking, whatever the row)', /function onSeatPartialRow[\s\S]{0,400}noteSeatEvent\(seat, dir\)/.test(seatSrc))

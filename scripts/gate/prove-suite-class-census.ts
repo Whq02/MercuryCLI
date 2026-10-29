@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-//  drives set (pty) from each suite's `# gate-class:` header, so a header that
+
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join as nativeJoin, relative as nativeRelative, resolve as nativeResolve } from 'node:path'
@@ -10,6 +10,7 @@ const resolve: typeof nativeResolve = process.platform === 'win32' ? (...parts) 
 
 const REPORT = process.argv.includes('--report')
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
+
 const SELF = resolve(import.meta.path)
 
 type Ext = 'ts' | 'tsx' | 'mjs' | 'js' | 'py' | 'sh'
@@ -17,20 +18,29 @@ const EXT_RE = /\.(ts|tsx|mjs|js|py|sh)$/
 const extOf = (p: string): Ext | null => (EXT_RE.exec(p)?.[1] as Ext | undefined) ?? null
 
 const PY_PTY = /\b(?:pty\.fork|pty\.openpty|os\.openpty|os\.forkpty|pty\.spawn)\s*\(/
+
 const NODE_PTY = /(?:from\s*|require\s*\(\s*|import\s*\(\s*)['"]node-pty['"]/
+
 const SPAWN_CALL = /\b(?:spawn|spawnSync|execFile|execFileSync|exec|execSync|subprocess\.(?:run|Popen|call|check_output)|Bun\.spawn(?:Sync)?)\b/
 const SHELL_PYTHON = /(?:^|[\s"'(])python3?\b/
 const spawnShape = (line: string, ext: Ext | null): boolean => SPAWN_CALL.test(line) || (ext === 'sh' && SHELL_PYTHON.test(line))
+
 const PREFLIGHT = '--preflight'
+
 const SHELL_FILE_TEST = /(?:\[\[?|\btest)\s+(?:!\s+)?-[a-zA-Z]\s+(?:"[^"]*"|'[^']*'|\S+)(?:\s+\]\]?)?/g
+
 const READ = /\b(?:readFileSync|readFile|existsSync|statSync|readdirSync|Bun\.file)\s*\(/
+
 const ASSIGN = /^\s*(?:export\s+)?(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=]+)?=[^=]|^\s*[A-Za-z_$][\w$.]*\s*=[^=]/
+
 const ENGINE_RESOLVER = /\b(?:captureEngineEntry|CAPTURE_ENGINE_ENTRY)\b/
+
 const ENV_GATED = /\$\{[A-Z_]+:-0\}"?\s*=\s*"1"/
 const TYPE_IMPORT = /^\s*(?:import|export)\s+type\b/
 const DIR_ANCHORS = new Set(['import.meta.dir', '__dirname', 'HERE', 'here', 'DIR', 'dir'])
 const ROOT_ANCHORS = new Set(['ROOT', 'REPO', 'repo', 'root', 'repoRoot', 'REPO_ROOT', 'repo_root'])
 const CLASSES = new Set(['pure', 'cpu', 'pty', 'exclusive'])
+
 const SPAWN_WINDOW = 6
 
 function codeLines(path: string): string[] {
@@ -60,6 +70,7 @@ function codeLines(path: string): string[] {
 
 interface LineCtx {
   read: boolean
+
   spawn: boolean
 }
 
@@ -123,6 +134,7 @@ function shellTargets(root: string, file: string): Set<string> {
       }
     }
     if (raw.includes(PREFLIGHT)) continue
+
     const line = raw
       .replace(SHELL_FILE_TEST, ' ')
       .replace(/"\$\(dirname "\$0"\)"/g, dir)
@@ -204,6 +216,7 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
       break
     }
   }
+
   const resolvedDrive = lines.some((l, i) => ctx[i]!.spawn && !ctx[i]!.read && ENGINE_RESOLVER.test(l) && !l.includes(PREFLIGHT) && !IMPORT_LINE.test(l))
   if (!ev.some(e => e.startsWith('spawns')) && resolvedDrive) ev.push('spawns the resolved capture engine')
   return ev
@@ -212,9 +225,12 @@ function evidenceOf(lines: string[], ctx: LineCtx[], fileSpawns: boolean, engine
 interface SuiteCensus {
   suite: string
   cls: string
+
   files: number
   executed: string[]
+
   drivers: string[]
+
   chain: string[]
   evidence: string
 }
@@ -253,6 +269,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     }
     return a
   }
+
   const memo = new Map<string, { chain: string[]; evidence: string } | null>()
   const visiting = new Set<string>()
   const chainOf = (f: string): { chain: string[]; evidence: string } | null => {
@@ -282,6 +299,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
     const text = readFileSync(runner, 'utf8')
     const cls = text.match(/^# gate-class:\s*(\S+)/m)?.[1] ?? 'undeclared'
     const start = new Set<string>([...shellTargets(root, runner), ...(members.get(s) ?? [])])
+
     const complement = /cat scripts\/([A-Za-z0-9_-]+)-\*\/members\.txt/.exec(text)?.[1]
     if (complement) for (const [sib, set] of members) if (sib.startsWith(`${complement}-`)) for (const f of set) start.delete(f)
     start.delete(runner)
@@ -307,15 +325,18 @@ function selfTest(): boolean {
     writeFileSync(join(root, rel), body)
   }
   const bun = '"${BUN:-$HOME/.bun/bin/bun}"'
+
   const forkCall = ['pty', 'fork()'].join('.')
   w('scripts/ui/engine.py', `import os, pty\npid, fd = ${forkCall}\n`)
   w('scripts/lib/arena.ts', "import { spawn } from 'node:child_process'\nexport type Row = { a: number }\nexport const run = (r: string) => spawn('/usr/bin/python3', [join(r, 'scripts/ui/engine.py')])\n")
   w('scripts/lib/tui.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(ROOT, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
+
   w('scripts/via-import/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nclaimed=$(cat scripts/via-import-*/members.txt 2>/dev/null | grep -v '^#')\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
   w('scripts/via-import/prove-a.ts', "import { run } from '../lib/arena.ts'\nrun('.')\n")
   w('scripts/via-import/prove-b.ts', 'export const b = 1\n')
   w('scripts/via-import-2/run-all.sh', '#!/usr/bin/env bash\n# gate-class: cpu\nwhile read -r name; do f="scripts/via-import/$name"; bun "$f"; done < scripts/via-import-2/members.txt\n')
   w('scripts/via-import-2/members.txt', '# members\nprove-a.ts\n')
+
   w('scripts/reads-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n${bun} run "$here/prove-c.ts"\n`)
   w('scripts/reads-only/prove-c.ts', "import { readFileSync } from 'node:fs'\nimport { spawnSync } from 'node:child_process'\nconst src = readFileSync(join(ROOT, 'scripts/ui/engine.py'), 'utf8')\nspawnSync('true', [])\n")
   w('scripts/type-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-h.ts"\n`)
@@ -325,6 +346,7 @@ function selfTest(): boolean {
   w('scripts/gated/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nglobs=("$here"/prove-*.ts)\n[ "\${UI_RENDER:-0}" = "1" ] && globs+=("$here"/render-*.ts)\nfor f in "\${globs[@]}"; do ${bun} run "$f"; done\n`)
   w('scripts/gated/prove-d.ts', 'export const d = 1\n')
   w('scripts/gated/render-x.ts', "import { spawnSync } from 'node:child_process'\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
+
   w('scripts/py-direct/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\n/usr/bin/python3 "$here/prove-e.py"\n')
   w('scripts/py-direct/prove-e.py', `import pty\npid, fd = ${forkCall}\n`)
   w('scripts/named-list/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nfor prover in prove-f prove-g; do ${bun} run "$here/$prover.ts"; done\n`)
@@ -332,13 +354,17 @@ function selfTest(): boolean {
   w('scripts/named-list/prove-g.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
   w('scripts/multi-line/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-j.ts"\n`)
   w('scripts/multi-line/prove-j.ts', "import { spawnSync } from 'node:child_process'\nconst res = spawnSync(\n  BUN,\n  ['run', 'scripts/lib/tui.ts', '--cols', '80'],\n)\n")
+
   w('scripts/lib/resolver.ts', "export type Driver = { kind: 'posix'; python: string; engine: 'scripts/ui/engine.py' }\nexport const ENTRY = { posix: 'scripts/ui/engine.py' } as const\nexport function captureEngineEntry(d: Driver, root: string): string { return join(root, ENTRY[d.kind]) }\nexport function resolveDriver(): Driver { const python = findOnPath('python3') ?? '/usr/bin/python3'; return { kind: 'posix', python, engine: 'scripts/ui/engine.py' } }\n")
   w('scripts/names-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-l.ts"\n`)
   w('scripts/names-only/prove-l.ts', "import { resolveDriver } from '../lib/resolver.ts'\nexport const l = resolveDriver().python\n")
+
   w('scripts/preflight-only/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n/usr/bin/python3 "$root/scripts/ui/engine.py" --preflight || exit 78\n${bun} run "$here/prove-k.ts"\n`)
   w('scripts/preflight-only/prove-k.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nconst res = spawnSync(d.python, [captureEngineEntry(d, ROOT), '--preflight'], { encoding: 'utf8' })\nexport const k = res.status\n")
+
   w('scripts/file-test/run-all.sh', `#!/usr/bin/env bash\n# gate-class: pure\n[ -f "$root/scripts/ui/engine.py" ] || exit 1\nif test -x "$root/scripts/ui/engine.py"; then echo present; fi\n${bun} run "$here/prove-n.ts"\n`)
   w('scripts/file-test/prove-n.ts', 'export const n = 1\n')
+
   w('scripts/resolved-drive/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-m.ts"\n`)
   w('scripts/resolved-drive/prove-m.ts', "import { spawnSync } from 'node:child_process'\nimport { captureEngineEntry, resolveDriver } from '../lib/resolver.ts'\nconst d = resolveDriver()\nspawnSync(d.python, [captureEngineEntry(d, ROOT), '--preflight'], { encoding: 'utf8' })\nspawnSync(d.python, [captureEngineEntry(d, ROOT), cfgPath], { encoding: 'utf8' })\n")
   w('scripts/template-import/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\n${bun} run "$here/prove-o.ts"\n`)

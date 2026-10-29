@@ -36,6 +36,7 @@ t.section('§1 — generated operation sequences: replay, abort, terminality, qu
           const dir = join(root, `j-${++serial}`)
           const work = join(root, `w-${serial}`)
           mkdirSync(work, { recursive: true })
+
           const committed = new Map<string, number>()
           const stepRuns = new Map<string, number>()
           for (const op of ops) {
@@ -68,6 +69,7 @@ t.section('§1 — generated operation sequences: replay, abort, terminality, qu
             }
             const wasCommitted = committed.has(op.key)
             if (wasCommitted) {
+
               if (outcome !== 'replayed') throw new Error(`committed key ${op.key} did not replay (${outcome})`)
               if ((result as { v: number }).v !== committed.get(op.key)) {
                 throw new Error(`replay of ${op.key} returned a different result`)
@@ -84,6 +86,7 @@ t.section('§1 — generated operation sequences: replay, abort, terminality, qu
               }
             }
           }
+
           const records = await listJournalOperations(dir)
           const nonTerminal = records.filter(r => r.state !== 'committed' && r.state !== 'aborted')
           if (nonTerminal.length > 0) {

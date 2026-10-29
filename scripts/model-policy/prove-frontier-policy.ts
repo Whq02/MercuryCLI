@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   evaluateFrontierDecision,
   frontierOperatorDecision,
@@ -188,6 +189,7 @@ console.log('\n§8 conversation-model retention (pure helper; ambient-safe forms
     'synthetic/error rows are skipped',
     restoreConversationModelFromMessages([asst('claude-sonnet-4-6'), asst('<synthetic>')]) === 'claude-sonnet-4-6',
   )
+
   check(
     'a carrier-served session retains its slash-form id verbatim (no family gate)',
     restoreConversationModelFromMessages([user(), asst('openrouter/stealth/ox-alpha')]) ===
@@ -233,6 +235,7 @@ console.log('\nprojection identities (ambient-safe on any profile)')
   const d = frontierOperatorDecision()
   check('best ≡ the decision (the first-party frontier alias)', getBestModel() === d.setting)
   check("parse('best') ≡ the decision", parseUserSpecifiedModel('best') === d.setting)
+
   const computed = computedDefault()
   check('the session default ≡ the computed default', getDefaultEngineModelSetting() === computed.setting)
   check(

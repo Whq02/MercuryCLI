@@ -1,4 +1,3 @@
-
 import type { Key } from '../../ink.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { permissionCardMounted } from '../permissions/permissionFocus.js'
@@ -69,6 +68,7 @@ export function isSeedableInput(input: string, key: Key): boolean {
   if (key.pageUp || key.pageDown || key.home || key.end) return false
   if (key.wheelUp || key.wheelDown) return false
   if (/^[0-9]+$/.test(input)) return false
+
   // eslint-disable-next-line no-control-regex
   if (/[\x00-\x1f\x7f]/.test(input)) return false
   return true

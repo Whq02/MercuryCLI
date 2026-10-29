@@ -1,4 +1,3 @@
-
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { logForDebugging } from '../../utils/debug.js'
@@ -38,7 +37,6 @@ import type { SampleItem } from '../samples/contracts.js'
 
 const MAX_DISPLAYS_PER_CELL = 24
 
-
 export function evalJournalDir(): string {
   return join(getMercuryHome(), 'eval', 'journal')
 }
@@ -73,6 +71,7 @@ async function journalKernel(
 }
 
 let recoveryRan = false
+
 export async function recoverEvalKernels(): Promise<string[]> {
   const notes: string[] = []
   try {
@@ -84,6 +83,7 @@ export async function recoverEvalKernels(): Promise<string[]> {
       let reaped = false
       if (typeof payload.pid === 'number') {
         try {
+
           const pid = payload.pid
           killProcessGroup({ pid, kill: signal => (process.kill(pid, signal), true) })
           reaped = true
@@ -104,7 +104,6 @@ export async function recoverEvalKernels(): Promise<string[]> {
   }
   return notes
 }
-
 
 class PauseableDeadline {
   private consumedMs = 0
@@ -148,10 +147,10 @@ class PauseableDeadline {
   }
 }
 
-
 export interface CellBudgetHooks {
   bridgeBegin: () => void
   bridgeEnd: () => void
+
   askBegin: () => void
   askEnd: () => void
 }
@@ -178,6 +177,7 @@ interface KernelEntry {
   cwd: string
   owner: string
   operationId: string
+
   lastUsedAt: number
 }
 
@@ -186,6 +186,7 @@ export class EvalKernelManager {
   private chains = new Map<string, Promise<unknown>>()
   private exitHookInstalled = false
   private sweepTimer: ReturnType<typeof setInterval> | null = null
+
   private reapedIdle = new Map<string, { idleMs: number; owner: string }>()
   private interruptedKernels = new Map<string, string>()
 
@@ -217,6 +218,7 @@ export class EvalKernelManager {
     if (this.exitHookInstalled) return
     this.exitHookInstalled = true
     process.on('exit', () => {
+
       for (const entry of this.kernels.values()) entry.kernel.killNow()
     })
   }
@@ -382,6 +384,7 @@ export class EvalKernelManager {
       }
       if (input.reset) {
         await this.disposeKey(key)
+
         this.reapedIdle.delete(key)
         this.interruptedKernels.delete(key)
         annotations.push(`the ${input.language} kernel was reset before this cell (other languages keep their state)`)
@@ -435,6 +438,7 @@ export class EvalKernelManager {
     let displaysDropped = 0
     let resultRepr: string | undefined
     let cellError: { name: string; value: string; traceback: string; survived?: string[]; declared?: string[] } | undefined
+
     const nested: { seq: number; name: string; ok: boolean; error?: string; code?: number }[] = []
 
     const cellId = `cell-${entry.kernel.executionCount + 1}-${Date.now().toString(36)}`
@@ -542,6 +546,7 @@ export class EvalKernelManager {
     if (end.kind === 'kernel-exit') {
       if (interruptRequested !== null) {
         this.interruptedKernels.set(key, owner)
+
         annotations.push(
           escalated
             ? 'the interrupt was not honoured in time (stuck native code?) — the kernel was killed and will be recreated on the next call'
@@ -550,6 +555,7 @@ export class EvalKernelManager {
         annotations.push(cancelReasonNote(interruptRequested, timeoutSeconds))
         return this.composeOutcome('cancelled', stdout, stderr, displays, displaysDropped, resultRepr, cellError, annotations, runtimeMs, bridgeMs, entry, cellId, samples)
       }
+
       if (retriesLeft > 0 && !abortSignal.aborted) {
         annotations.push(
           `the kernel died mid-cell (${end.signal ?? `exit ${end.code}`}) — replaced and the cell retried once on a fresh kernel`,
@@ -567,11 +573,13 @@ export class EvalKernelManager {
 
     let status = end.status
     if (interruptRequested !== null && status !== 'cancelled') {
+
       annotations.push('an interrupt was requested but the cell had already settled')
     }
     if (status === 'cancelled') {
       annotations.push(cancelReasonNote(interruptRequested ?? 'abort', timeoutSeconds))
       if (input.language === 'js') {
+
         await this.disposeKey(key)
         this.interruptedKernels.set(key, owner)
         annotations.push('the JS kernel was recreated after the interrupt: kernel state was reset (re-run your setup cell)')
@@ -688,6 +696,7 @@ function writeSpill(
   annotations: string[],
 ): string | undefined {
   try {
+
     let dir: string
     try {
       dir = getToolResultsDir()

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -111,6 +112,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
+
     MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
@@ -144,6 +146,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
 
 const netlines = (netlog: string): string[] =>
   existsSync(netlog) ? readFileSync(netlog, 'utf8').split('\n').filter(l => l.trim() !== '') : []
+
 const catalogueLines = (lines: string[], opts?: { allowLoopbackModels?: boolean }): string[] =>
   lines.filter(line => {
     const local = line.startsWith('tcp-local') || line.startsWith('tls-local') || line.includes('-local.') || line.startsWith('fetch-local')
@@ -184,6 +187,7 @@ console.log('[0] poison controls — the tripwire trips, and loopback passes')
   check('control: http.get to a poison host trips and logs', httpTripped && seen.some(l => l.startsWith('http.get')), seen.join(' · '))
   check('control: fetch to a poison host trips and logs (a /models spelling counts as catalogue)', fetchTripped && seen.some(l => l.startsWith('fetch ')) && catalogueLines(seen).length > 0, seen.join(' · '))
   check('control: raw TLS to a poison host trips and logs', tlsTripped && seen.some(l => l.startsWith('tls ')), seen.join(' · '))
+
   const fixture = spawn(process.execPath, ['run', FIXTURE, '0', join(scratch, 'poison-ledger.log')], { stdio: ['ignore', 'pipe', 'pipe'] })
   const port = await new Promise<number>((resolvePort, reject) => {
     const killer = setTimeout(() => reject(new Error('fixture never printed PORT')), 15_000)
@@ -220,6 +224,7 @@ interface DriveResult {
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
+
   const debugFile = process.env.CATGATE_DEBUG_FILE
   const argv = debugFile ? ['node', DIST, '--debug', `--log-file=${debugFile}.${tag}.log`] : ['node', DIST]
   writeFileSync(cfgPath, JSON.stringify({ argv, sends, total, cols: 120, rows: 40, out: grid, title: tag }))
@@ -238,7 +243,9 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
     const text = (g: Array<Array<{ c: string }>>): string => g.map(row => row.map(c => c.c).join('')).join('\n')
     gridText = [...(payload.marks ?? []).map(m => text(m.grid)), payload.grid ? text(payload.grid) : ''].join('\n')
   }
+
   if (res.status !== 0 && gridText !== '') {
+
     if (existsSync(grid)) {
       const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
       for (const m of payload.marks ?? []) {
@@ -288,12 +295,16 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     seededHome('home-b'),
     netlog,
     [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
+
       { afterPrevTicks: 2, mark: 'typed', data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { afterPrevTicks: 3, mark: 'entered', data: '' },
+
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
+
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(4) },
       { afterPrevTicks: 3, mark: 'walk-1', data: '' },
       { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
@@ -316,9 +327,11 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
   check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, catalogue.join(' · '))
+
   const rowsOf = (needle: string): string => [...new Set(res.gridText.split('\n').filter(l => l.toLowerCase().includes(needle)).map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90)))].join(' | ') || '(no row)'
   const hfOnScreen = res.gridText.includes('connect Hugging Face to browse its models')
   if (!hfOnScreen) {
+
     const seen = [...new Set(res.gridText.split('\n').map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim()).filter(l => l.length > 0))]
     console.log(`  the walk's rows (${seen.length} distinct):`)
     for (const row of seen) console.log(`    ${row.slice(0, 110)}`)
@@ -347,10 +360,12 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
     seededHome('home-c'),
     netlog,
     [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
+
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { requireAwait: true, awaitText: 'catgate', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
@@ -391,11 +406,13 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
     seededHome('home-d'),
     netlog,
     [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
+
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { afterPrevTicks: 15, mark: 'settled', data: '' },
     ],

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
@@ -20,6 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
+
 const BARE = /\b\d[\d.]*k? tokens\b/
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')
@@ -48,6 +50,7 @@ type UsageBits = Partial<{
 }>
 type BlockSpec = { type: 'text'; text: string } | { type: 'thinking'; thinking: string } | { type: 'tool_use'; name: string }
 let seq = 0
+
 const assistant = (id: string, usage: UsageBits, blocks: BlockSpec[] = [], stopReason: string | null = null): never =>
   ({
     type: 'assistant',
@@ -123,6 +126,7 @@ const openaiUsage = mapOpenaiUsageToAnthropic({ inputTokens: 1000, outputTokens:
     snapshot.contextTokens === 2600 && snapshot.inputTokens! + snapshot.outputTokens! === 4800 && snapshot.tokenCount === 4800 && snapshot.totalTokens === 4800,
     JSON.stringify(snapshot),
   )
+
   const late = assistant('r4', {}) as unknown as { message: { usage: { input_tokens: number; output_tokens: number } } }
   updateProgressFromMessage(tr, late as never)
   check('§2 a yielded placeholder (no usage yet) changes nothing', getTokenCountFromTracker(tr) === 4800 && getContextTokensFromTracker(tr) === 2600)
@@ -241,6 +245,7 @@ console.log('— §5 the surfaces —')
   check("§5 the transcript's grouped card paints the joined record's context with its word", !grouped.startsWith('RENDER FAILED') && grouped.includes('2.6k context') && !BARE.test(grouped), grouped.replace(/\s+/g, ' ').slice(0, 300))
   const single = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-ag1' }), 100)
   check("§5 the single card before any progress row paints the record's context", single.includes('2.6k context') && !BARE.test(single), single.slice(0, 200))
+
   const settled = await paint(
     ui.renderToolResultMessage(
       {

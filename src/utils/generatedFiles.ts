@@ -1,7 +1,6 @@
 import { posix } from 'node:path'
 import { sep } from 'node:path'
 
-
 const GENERATED_FILE_NAMES = new Set([
   'package-lock.json',
   'yarn.lock',
@@ -70,12 +69,14 @@ const GENERATED_NAME_PATTERNS: RegExp[] = [
 ]
 
 export function isGeneratedFile(filePath: string): boolean {
+
   const normalized = '/' + filePath.split(sep).join('/')
   const fileName = posix.basename(normalized).toLowerCase()
 
   if (GENERATED_FILE_NAMES.has(fileName)) return true
 
   const segments = fileName.split('.')
+
   if (segments.length >= 2 && (segments[0] as string) !== '') {
     const simpleExtension = `.${segments[segments.length - 1]}`
     if (GENERATED_EXTENSIONS.has(simpleExtension)) return true

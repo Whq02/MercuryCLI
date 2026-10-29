@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'fs'
 import { join, resolve, sep } from 'path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
@@ -12,7 +11,9 @@ interface ScratchLease {
   root: string
   createdAt: number
   lastUsedAt: number
+
   cleanupPolicy: 'on-complete' | 'preserve'
+
   recovery: string
 }
 
@@ -37,6 +38,7 @@ function loadRegistry(): ScratchLease[] {
 
 function publishRegistry(leases: ScratchLease[]): void {
   const file: RegistryFile = { v: SCRATCH_LEASE_REGISTRY_VERSION, leases }
+
   durableAtomicPublishSync(registryPath(), JSON.stringify(file, null, 1))
 }
 
@@ -103,6 +105,7 @@ interface ScratchLeftover extends ScratchLease {
 }
 
 function dirSizeBytes(root: string, budget = 20_000): number {
+
   let total = 0
   let visited = 0
   const stack = [root]

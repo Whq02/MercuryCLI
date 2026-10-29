@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -34,6 +35,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const SEAT_ONE = 'tide-gauges'
 const SEAT_TWO = 'reef-survey'
 const ASK = 'crew-drive: launch two'
+
 const FIXTURE_API_KEY = 'fixture-key-000'
 
 type Route = 'parent' | 'parent-ack' | 'seat' | 'seat-ack' | 'side'
@@ -241,7 +243,9 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 const COLS = 160
 const ROWS = 44
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
+
 const SPLASH_READY = 'type a prompt, or / for commands'
+
 const SHIFT_LEFT = '\x1b[1;2D'
 const BOARD = 'SESSION CONCOURSE'
 const FACE_READY = '↵ start  ·  ↑↓ choose'
@@ -278,15 +282,18 @@ try {
       argv: ['node', DIST],
       sends: [
         ...bootSends(ASK),
+
         { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
         { data: '\r', afterPrevTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
+
         { data: '/clear', afterPrevTicks: 4 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '/crewmates', atTick: 999, awaitText: SPLASH_READY, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'fresh' },
         { data: '\r', afterPrevTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew' },
         { data: SHIFT_LEFT, afterPrevTicks: 4, mark: 'fresh-after' },
+
         { data: SHIFT_LEFT, atTick: 999, awaitText: BOARD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board' },
         { data: '\r', atTick: 999, awaitText: FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3, mark: 'face' },
         { data: '/crewmates', atTick: 999, awaitText: SPLASH_READY, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'fresh-b' },
@@ -317,6 +324,7 @@ const freshCrew = marks['fresh-crew'] ?? ''
 check(`the born session's Crew view reads the honest empty line ("${CREW_EMPTY_LINE}") and names no seat`, freshCrew.includes(CREW_EMPTY_LINE) && !namesSeat(freshCrew), freshCrew.split('\n').filter(l => /sub-agent|running/.test(l)).join(' | '))
 const freshAfter = marks['fresh-after'] ?? ''
 check('back on the fresh chat, still none of it', !namesSeat(freshAfter) && !attributesCrew(freshAfter))
+
 check('the leave gesture reached the concourse, then the face', (marks['board'] ?? '').includes(BOARD) && (marks['face'] ?? '').includes(FACE_READY))
 const freshB = marks['fresh-b'] ?? ''
 check('the session born from the face is a fresh chat naming no earlier seat and attributing no sub-agents', freshB.includes(SPLASH_READY) && !namesSeat(freshB) && !attributesCrew(freshB), freshB.split('\n').filter(l => namesSeat(l) || attributesCrew(l)).join(' | '))

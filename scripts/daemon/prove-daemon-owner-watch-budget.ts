@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -178,6 +179,7 @@ const idleFrom = Date.now()
 console.log(`  idling ${IDLE_MS / 1000}s (daemon pid ${daemonPid}, owner pid ${ownerPid})…`)
 await wait(IDLE_MS)
 const idleTo = Date.now()
+
 await until(() => readCensus(daemonPid).some(l => l.t >= idleTo), 10_000)
 const win = censusWindow(readCensus(daemonPid), idleFrom, idleTo)
 check('the daemon is still alive after the idle window (the owner lives)', ownerWatch.isProcessAlive(daemonPid))
@@ -276,6 +278,7 @@ if (exitCode === 'still-running') {
 
 section('§4 THE OWNER PIPE — EOF reaps the daemon while the owner pid still lives')
 if (POSIX) {
+
   const HELPER = `
 const { spawn } = require('node:child_process')
 const fs = require('node:fs')
@@ -400,6 +403,7 @@ section('§5 PID REUSE — the token is read again only when liveness moved: a p
   r.set({ alive: false })
   await r.tick(1)
   check('one dead beat, no reap yet', r.handle.facts().deadStreak === 1 && r.reaped.length === 0)
+
   r.set({ alive: true, token: 'token-B' })
   await r.tick(1)
   check('the pid came back: one probe reads the stranger, the grace completes, reaped as owner-replaced', r.tokens === 1 && r.handle.facts().identityLost && r.reaped.join() === 'owner-replaced', `${r.tokens} probes; reaped=${r.reaped.join()}`)

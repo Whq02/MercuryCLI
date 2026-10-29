@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -211,6 +212,7 @@ section('L8 — rows failure: framing holds; the typed error rides the outcome')
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
   const result = parsed.find(e => e.type === 'outcome') as { status?: string; error?: { message?: string; class?: string } } | undefined
   check('the outcome reads failed', result?.status === 'failed', JSON.stringify(result ?? {}).slice(0, 200))
+
   check(
     'the error text rides the typed record, not a free-form line',
     typeof result?.error?.class === 'string' && String(result?.error?.message).includes('lucid-sj-bad-request'),
@@ -283,7 +285,9 @@ async function driveDist(
 }
 
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
+
 const RIDING_PATHS = new Set(['input', 'structured', 'tool_use_result', 'permission_suggestions', 'updated_permissions', 'config', 'effective', 'sources', 'provenance'])
+
 const NAME_KEYED = new Set(['models', 'extensions', 'skill_states', 'errors', 'headers', 'env'])
 function oddKeys(value: unknown, path: string, out: string[], namesAreData = false): void {
   if (Array.isArray(value)) {

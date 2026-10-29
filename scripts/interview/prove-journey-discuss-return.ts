@@ -36,6 +36,7 @@ const TURNS: ScriptedTurn[] = [
 
 const run = await runArtifactArena({
   turns: TURNS,
+
   sends: [
     '8000:design the config layer',
     '8800:\r',

@@ -4,6 +4,7 @@ const command = {
   name: 'bootmenu',
   description: 'Open Boot Settings — future-session defaults, in place',
   supportsNonInteractive: false,
+
   seat: 'screen',
   type: 'local',
   load: () => import('./bootmenu.js'),

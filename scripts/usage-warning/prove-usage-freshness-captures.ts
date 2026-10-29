@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,6 +40,7 @@ type Send = Record<string, unknown>
 interface Capture {
   text: string
   marks: Record<string, string>
+
   markAt: Record<string, number>
   sends: number
   receipts: number
@@ -70,6 +72,7 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
   const text = gridText(payload.grid)
   const marks: Record<string, string> = {}
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
+
   const markAt: Record<string, number> = {}
   const sendList = Array.isArray(cfg.sends) ? (cfg.sends as Array<{ mark?: string }>) : []
   ;(payload.sendReceipts ?? []).forEach((receipt, i) => {
@@ -91,6 +94,7 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
 }
 
 function seedHome(): { home: string; workspace: string } {
+
   const home = mkdtempSync(join(realpathSync(tmpdir()), 'usage-fresh-home-'))
   const workspace = join(home, 'workspace')
   mkdirSync(workspace, { recursive: true })
@@ -103,6 +107,7 @@ function seedHome(): { home: string; workspace: string } {
     }),
   )
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: 'claude-opus-5' } }))
+
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({
@@ -132,6 +137,7 @@ function baseEnv(home: string, apiUrl: string): Record<string, string> {
     MERCURY_OPERATOR: 'sam',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
+
     ANTHROPIC_BASE_URL: apiUrl,
     MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:9',
     BROWSER: 'true',
@@ -167,6 +173,7 @@ function reapHome(home: string): void {
 }
 
 const hoursOn = (h: number): string => new Date(Date.now() + h * 3600e3).toISOString()
+
 const risingPayload = (n: number): unknown => ({
   five_hour: { utilization: 26 + 10 * n, resets_at: hoursOn(2) },
   seven_day: { utilization: 44, resets_at: hoursOn(6 * 24) },
@@ -176,11 +183,13 @@ const risingPayload = (n: number): unknown => ({
 const FACE_THEN_CHAT: Send[] = [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
+
 const usageThenBack = (tabNeedle: string, mark = 'after-usage'): Send[] => [
   { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\x1b', atTick: 999, awaitText: tabNeedle, requireAwait: true, minTick: 4, awaitSettleTicks: 2 },
   { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark },
 ]
+
 const markAfter = (label: string, ms: number): Send => ({ afterPrevTicks: ticks(ms), data: '', mark: label })
 
 const BAR = '[█░▰▱]{2,4}'
@@ -272,6 +281,7 @@ if (LEGS.has('a')) {
   const f2 = fiveHourPct(c.marks.floor2 ?? '')
   const f3 = fiveHourPct(c.marks.floor3 ?? '')
   check(`A: three floors later the row has NOT moved (${shown} → ${f1} → ${f2} → ${f3}): nothing reads on a clock`, f1 === shown && f2 === shown && f3 === shown, usageBlock(c.marks.floor3 ?? ''))
+
   const readLinesA = existsSync(debugFileA) ? readFileSync(debugFileA, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
   const reasonsA = readLinesA.map(l => /read #\d+ \((open|operator|sign-in)\)/.exec(l)?.[1] ?? 'unnamed')
   const instantsA = api.usageRequests.map(r => r.at)
@@ -291,6 +301,7 @@ if (LEGS.has('a')) {
 if (LEGS.has('b')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
+
   api.usage.mode = 'error'
   api.usage.status = 500
   api.usage.payload = risingPayload
@@ -312,6 +323,7 @@ if (LEGS.has('b')) {
         ...usageThenBack('500'),
         markAfter('inside-backoff', backoffMs / 2),
         markAfter('after-backoff', backoffMs / 2 + 2_000),
+
         ...usageThenBack('Current session', 'after-second-usage'),
         { data: '', afterPrevTicks: ticks(1_500), mark: 'recovered' },
       ],
@@ -359,6 +371,7 @@ if (LEGS.has('c')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
+
   api.usage.next = n => {
     if (n >= 2) api.usage.mode = 'hang'
   }
@@ -373,6 +386,7 @@ if (LEGS.has('c')) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
+
         ...usageThenBack('Anthropic usage'),
         markAfter('young', POLL_MS),
         markAfter('stale', staleAfterMs + 4_000),
@@ -403,6 +417,7 @@ if (LEGS.has('e')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
+
   const debugFileE = join(home, 'usage-read.debug.log')
   const t0 = Date.now()
   const c = await capture(
@@ -424,6 +439,7 @@ if (LEGS.has('e')) {
     },
     {
       ...baseEnv(home, api.url),
+
       MERCURY_HELM_HOME: '0',
       MERCURY_SUBSTRATE: '0',
     },
@@ -445,6 +461,7 @@ if (LEGS.has('e')) {
   const held = new RegExp(`5h ${BAR} (\\d+)%`).exec(p2)
   const readsE = readLinesE.map(l => l.replace(/^.*\[usage\] /, '')).join(' | ') || 'none'
   check(`E: the band's chip HOLDS its figure across two floors (5h ${held?.[1] ?? '?'}% = ${afterChip?.[1] ?? '?'}) and carries its age`, held !== null && afterChip !== null && Number(held[1]) === Number(afterChip[1]) && new RegExp(AGE).test(p2), `${p2.slice(0, 200)} · reads: ${readsE}`)
+
   const reasons = readLinesE.map(l => /read #\d+ \((open|operator|sign-in)\)/.exec(l)?.[1] ?? 'unnamed')
   const instants = api.usageRequests.map(r => r.at)
   const insideFloor = reasons
@@ -460,6 +477,7 @@ if (LEGS.has('f')) {
   const { home, workspace } = seedHome()
   const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
   api.usage.payload = risingPayload
+
   const RETRY_AFTER_S = 240
   api.usage.rateLimit = { limit: 1, windowMs: 180_000, retryAfterS: RETRY_AFTER_S }
   const debugFile = join(home, 'usage-read.debug.log')
@@ -473,14 +491,19 @@ if (LEGS.has('f')) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_CHAT,
+
         { data: '', atTick: 999, awaitText: 'USAGE', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
+
         markAfter('floor', POLL_MS + 1_500),
         { data: 'Spare a word.\r', afterPrevTicks: 2 },
         { data: '', atTick: 999, awaitText: 'Spare.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'turn' },
+
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'tab' },
+
         { data: 'r', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 1, awaitSettleTicks: 2 },
         { data: '', afterPrevTicks: ticks(2_000), mark: 'held' },
+
         { data: '\x1b', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 1, awaitSettleTicks: 2 },
         { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'after-usage' },
       ],

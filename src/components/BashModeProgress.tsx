@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box } from '../ink.js'
 import { BASH_INPUT_TAG } from '../constants/xml.js'

@@ -1,4 +1,3 @@
-
 interface InputRange {
   start: number
   end: number
@@ -14,6 +13,7 @@ export function expandRangeToChips(text: string, range: InputRange): InputRange 
   for (const m of text.matchAll(CHIP_RE)) {
     const cs = m.index
     const ce = m.index + m[0].length
+
     if (start < ce && end > cs) {
       if (start > cs) start = cs
       if (end < ce) end = ce

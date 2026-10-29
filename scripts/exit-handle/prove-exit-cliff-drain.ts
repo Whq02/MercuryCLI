@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -122,6 +123,7 @@ check(
   )
 }
 {
+
   const ran: string[] = []
   const t0 = Date.now()
   const r = await drainNamedSeams(
@@ -165,6 +167,7 @@ check(
     },
   })
   process.env.MERCURY_EXIT_CLIFF_DRAIN = '0'
+
   let turnedWhileSkipped = false
   const skipTimer = setTimeout(() => { turnedWhileSkipped = true }, 0)
   const skipped = await drainExitCliffSeams(200)

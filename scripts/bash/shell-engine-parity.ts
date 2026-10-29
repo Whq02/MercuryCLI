@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,9 +8,11 @@ import { brushPackPlatform } from '../../src/utils/shell/brushPack.ts'
 
 const ENGINES = ['system', 'brush'] as const
 export type Engine = (typeof ENGINES)[number]
+
 export const ENGINE_ENV = 'MERCURY_SHELL_ENGINE'
 
 export const ROOT: string = resolve(import.meta.dir, '..', '..')
+
 const BUN = process.env.BUN ?? process.execPath
 
 type CheckStatus = 'PASS' | 'FAIL' | 'SKIP'
@@ -17,6 +20,7 @@ interface Check {
   status: CheckStatus
   label: string
   detail: string
+
   ordinal: number
 }
 interface ProverRun {
@@ -30,6 +34,7 @@ interface ProverRun {
   checks: Check[]
 }
 type SideStatus = CheckStatus | 'absent'
+
 const LIVE_ENGINE_LINE = /the shell that answered: brush/
 type EngineGrade = 'exercised' | 'control-only'
 interface ParityRow {
@@ -48,6 +53,7 @@ interface ProverParity {
   mismatches: ParityRow[]
   exitMismatch: boolean
   verdict: 'same' | 'mismatch'
+
   grade: EngineGrade
 }
 type LaneState = { state: 'wired' | 'unwired'; reason: string; pack: string | null }
@@ -56,20 +62,22 @@ interface ParityReport {
   shell: string | null
   provers: ProverParity[]
   verdict: 'same' | 'mismatch'
+
   exercised: number
   reportPath: string | null
 }
 interface RunOptions {
+
   shell?: string
   timeoutMs?: number
   cwd?: string
 }
 
-
 export function findVendoredBrush(root: string = ROOT): string | null {
   const packRoot = join(root, 'vendor', 'brush')
   if (!existsSync(packRoot)) return null
   const names = new Set(['brush', 'brush.exe'])
+
   const host = brushPackPlatform()
   if (host !== null) {
     for (const bin of ['brush', 'brush.exe']) {
@@ -124,7 +132,6 @@ export function resolveEngineUnderTest(env: NodeJS.ProcessEnv = process.env, roo
   return engineLaneState(root).state === 'wired' ? 'brush' : 'system'
 }
 
-
 const BRACKETED = /^\s*\[(PASS|FAIL|SKIP)\]\s*(.*?)\s*$/
 const BARE = /^(PASS|FAIL|SKIP)\s{2,}(.*?)\s*$/
 const DETAIL_SEPARATOR = ' — '
@@ -146,7 +153,6 @@ function parseChecks(text: string): Check[] {
   }
   return checks
 }
-
 
 function runProver(prover: string, engine: Engine, options: RunOptions = {}): ProverRun {
   const path = isAbsolute(prover) ? prover : join(ROOT, prover)
@@ -178,7 +184,6 @@ function runProver(prover: string, engine: Engine, options: RunOptions = {}): Pr
     checks: parseChecks(stdout),
   }
 }
-
 
 const keyOf = (check: Check): string => `${check.label}#${check.ordinal}`
 
@@ -242,7 +247,6 @@ export function runParity(provers: readonly string[], options: RunOptions & { ou
   return report
 }
 
-
 const tail = (text: string, lines = 30): string =>
   text
     .split(/\r?\n/)
@@ -303,7 +307,6 @@ export function summarize(prover: ProverParity): string {
     .join('; ')
   return `${head}: ${named}`
 }
-
 
 if (import.meta.main) {
   const args = process.argv.slice(2)

@@ -1,4 +1,3 @@
-
 import { spawn, spawnSync } from 'node:child_process'
 import { vshotBudgetMs } from '../../lib/captureDriver.ts'
 import {
@@ -58,6 +57,7 @@ interface PulseRun {
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
   driverOut: string
+
   anchorShiftMs: number
   paths: { home: string; cwd: string; drive: string; tee: string }
   cleanup: () => void
@@ -79,13 +79,16 @@ export function restoreOffsets<T extends { atMs: number }>(run: { anchorShiftMs:
 
 interface PulseArenaOpts {
   turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])
+
   sends: (string | ObservedSend)[]
   seconds: number
   cols?: number
   rows?: number
   keep?: boolean
   resizes?: string[]
+
   seedCwd?: Record<string, string>
+
   seedConfig?: Record<string, string>
   extraEnv?: Record<string, string>
 }
@@ -114,8 +117,10 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const nodeBin = nodeBinPath()
 
   const home = mkdtempSync(join(tmpdir(), 'pulse-arena-home-'))
+
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'pulse-arena-cwd-')))
   seedFiles(cwd, opts.seedCwd ?? {})
+
   const scripted = (typeof opts.turns === 'function' ? opts.turns(cwd) : opts.turns).map(
     (turn): ScriptedTurn => (turn.whenModel === undefined ? { ...turn, whenModel: 'opus' } : turn),
   )
@@ -138,6 +143,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const drive = join(home, 'drive.jsonl')
 
   const sendArgs: string[] = []
+
   sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
   const observed = opts.sends.filter((s): s is ObservedSend => typeof s !== 'string')
@@ -146,6 +152,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
     writeFileSync(walkFile, JSON.stringify(observed))
     sendArgs.push('--send-file', walkFile)
   }
+
   sendArgs.push('--anchor', `${COMPOSER_READY_NEEDLE}:${COMPOSER_NOMINAL_MS}`)
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 
@@ -163,6 +170,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
     {
       cwd,
       env: {
+
         ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
         HOME: home,
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -174,6 +182,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',
+
         MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',
@@ -189,6 +198,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   let driverOut = ''
   child.stdout.on('data', d => (driverOut += d))
   child.stderr.on('data', d => (driverOut += d))
+
   const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(opts.seconds * 1000) + 22_000)
   await new Promise<void>(resolve => child.on('exit', () => resolve()))
   clearTimeout(killer)
@@ -215,6 +225,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
       ? (row as TeeWrite)
       : null,
   )
+
   const sendLog = readJsonl<SendRecord>(drive, row =>
     row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number' && (row as { after?: string }).after !== FACE_READY_NEEDLE
       ? (row as SendRecord)
@@ -244,7 +255,6 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
     cleanup,
   }
 }
-
 
 const ESC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[A-Za-z@`~]|\x1b[()][0-9A-Za-z]|\x1b[A-Za-z=><]/g
 

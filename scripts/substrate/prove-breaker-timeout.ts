@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -21,6 +22,7 @@ const { DaemonBreaker } = (await import('../../src/utils/daemonBreaker.js')) as 
 
 section('recordTimeout(): N timeouts in a row stay CLOSED (vs recordResult ⇒ OPEN)')
 {
+
   const mk = () => new DaemonBreaker({ consecutiveFails: 3, windowSize: 100, failureRate: 0.999, cooldownMs: 1000, now: () => 0 })
   const crash = mk()
   crash.recordResult(false); crash.recordResult(false)
@@ -49,6 +51,7 @@ section('recordTimeout() RESETS a primed consecutive streak')
 
 section('window-rate backstop: an ALL-timeout window still trips (wedged spawner)')
 {
+
   const b = new DaemonBreaker({ consecutiveFails: 100, windowSize: 4, failureRate: 0.75, cooldownMs: 1000, now: () => 0 })
   b.recordTimeout(); b.recordTimeout(); b.recordTimeout()
   check('3 timeouts (window not full) ⇒ CLOSED', b.getState() === 'closed')
@@ -88,6 +91,7 @@ section('END-TO-END: real runTaskHeadless sets timedOut:true on a wall-clock cap
   process.argv[1] = childScript
   let res: import('../../src/daemon/headlessRun.js').HeadlessResult
   try {
+
     res = await hr.runTaskHeadless({ id: 'to-test', prompt: 'noop' }, dir, undefined, 200)
   } finally {
     process.argv[1] = realArgv1
@@ -123,6 +127,7 @@ section('structural: the one feed site calls the carve-out branch (wired, not in
   const mainTs = src('daemon', 'main.ts')
   const rosterTs = src('daemon', 'roster.ts')
   const hrTs = src('daemon', 'headlessRun.ts')
+
   check('main.ts holds no direct runTaskHeadless dispatch (roster owns the feed)', !/await runTaskHeadless/.test(mainTs))
   check('roster.ts reads res.timedOut + calls recordTimeout', /res\.timedOut === true && !DaemonBreaker\.timeoutIsFleetFailure\(\)[\s\S]{0,120}recordTimeout\(\)/.test(rosterTs))
   check('headlessRun sets wasTimedOut on the cap timer', /wasTimedOut = true/.test(hrTs))

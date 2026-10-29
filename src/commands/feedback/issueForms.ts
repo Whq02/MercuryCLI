@@ -1,24 +1,31 @@
 export type IssueKind = 'tester' | 'bug' | 'provider' | 'feature'
 
 type IssueFieldSource =
+
   | 'auto'
   | 'words'
   | 'ask'
   | 'health'
 
 interface IssueField {
+
   id: string
+
   label: string
   source: IssueFieldSource
+
   prompt?: string
   required?: boolean
 }
 
 export interface IssueForm {
   kind: IssueKind
+
   template: string
+
   name: string
   description: string
+
   titlePrefix: string
   fields: readonly IssueField[]
 }
@@ -146,7 +153,6 @@ export function promptedFields(form: IssueForm): IssueField[] {
   return [...words, ...asks]
 }
 
-
 const TITLE_CAP = 200
 
 export function fullIssueTitle(form: IssueForm, drafted: string): string {
@@ -158,18 +164,20 @@ export function fullIssueTitle(form: IssueForm, drafted: string): string {
   return `${form.titlePrefix}${text}`
 }
 
-
 export const SECTION_HEADING = '### '
 
 export const RECENT_ERRORS_MAX = 20
 export const RECENT_ERROR_CHARS = 500
 
 interface IssueBodyInput {
+
   values: Readonly<Partial<Record<string, string>>>
+
   recentErrors: readonly { error: string; timestamp: string }[]
 }
 
 function fence(text: string): string {
+
   let width = 3
   for (const match of text.matchAll(/`+/g)) width = Math.max(width, match[0].length + 1)
   const ticks = '`'.repeat(width)
@@ -218,11 +226,11 @@ export function issueSectionLabels(body: string): string[] {
   return out
 }
 
-
 interface NoGhParagraphInput {
   note: string
   remedy: string
   slug: string
+
   draftPath: string | null
   bodyPath: string | null
 }
@@ -234,7 +242,6 @@ export function noGhParagraph(i: NoGhParagraphInput): string {
       : 'The draft file could not be written (see the error log).'
   return `The issue was not filed: ${i.note} — ${i.remedy}. ${where} File it by hand at https://github.com/${i.slug}/issues.`
 }
-
 
 export const ISSUE_FORM_URL_CAP = 7250
 
@@ -258,8 +265,11 @@ export function healthPointer(bodyPath: string | null): string {
 }
 
 interface IssueFormUrlInput {
+
   slug: string
+
   title: string
+
   values: Readonly<Partial<Record<string, string>>>
 }
 

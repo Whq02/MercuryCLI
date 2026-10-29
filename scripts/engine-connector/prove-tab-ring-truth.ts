@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
@@ -13,6 +14,7 @@ process.env['MERCURY_OPERATOR'] = 'sam'
 for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_CLOCK', 'MERCURY_LIVE_GLYPHS']) {
   process.env[k] = '0'
 }
+
 delete process.env['TMUX']
 delete process.env['STY']
 
@@ -24,6 +26,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { createTabRing } = await import('../../src/ink/terminalWrite.ts')
 const { isProgressReportingAvailable } = await import('../../src/ink/session/capabilities.ts')
+
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
@@ -65,6 +68,7 @@ console.log('— R2 liveness only —')
   const writes: string[] = []
   const ring = createTabRing(w => writes.push(w), () => true)
   const seat = Symbol('seat')
+
   const unansweredToolUseIds = new Set(['toolu_left_without_a_result'])
   ring.hold(seat, true)
   ring.hold(seat, false)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -135,6 +136,7 @@ const turnsCjk: ScriptedTurn[] = [
 ]
 
 type Frame = { atMs: number; rows: string[]; reverse: number[][]; bg: [number, number, string][] }
+
 type CopyFacts = {
   bytes: number
   segmentHits: number
@@ -243,6 +245,7 @@ for (const spec of activeSpecs) {
     )
   }
   const key = (c: number[]): string => `${c[0]},${c[1]}`
+
   const preReverse = new Set(pre.reverse.map(key))
   const preBg = new Map(pre.bg.map(([x, y, col]) => [`${x},${y}`, col]))
   const overlay: [number, number][] = []
@@ -280,6 +283,7 @@ for (const spec of activeSpecs) {
     t.check('no rail bytes in the CJK copy', fact.borderGlyphHits === 0 && fact.railLaneHits === 0)
   } else if (spec.kind === 'resize') {
     const final = screens[screens.length - 1]
+
     const ghost = [
       ...final.reverse.filter(c => !preReverse.has(key(c))).map(c => [c[0]!, c[1]!] as [number, number]),
       ...final.bg.filter(([x, y, col]) => col === SELECTION_BG && preBg.get(`${x},${y}`) !== col).map(([x, y]) => [x, y] as [number, number]),
@@ -305,6 +309,7 @@ for (const spec of activeSpecs) {
       `${fact.newlineCount}`,
     )
   } else {
+
     t.check(
       'overlay never leaves the rail region (x <= 24)',
       overlay.length === 0 || Math.max(...overlayXs) <= 24,

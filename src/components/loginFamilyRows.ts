@@ -1,6 +1,6 @@
-
 import { configuredCompatEndpoints } from '../services/providers/openaicompat/compatAccounts.js'
 import { cachedCompatCatalogue, compatEndpointPodTerminated } from '../services/providers/openaicompat/compatCatalogue.js'
+
 export type LoginFamilyValue =
   | 'anthropic'
   | 'openai'
@@ -36,6 +36,7 @@ export const ANTHROPIC_FAMILY_ROW_LABEL = 'Anthropic — Claude subscription or 
 
 export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
   return [
+
     ...(engineLegs
       ? [{ label: 'OpenAI — ChatGPT subscription or API key', value: 'openai' as const }]
       : []),
@@ -51,6 +52,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
             label: 'Hugging Face — sign-in or Hub token',
             value: 'huggingface' as const,
           },
+
           { label: 'Kimi (Moonshot) — device-code sign-in or API key', value: 'moonshot' as const },
           { label: 'GLM (Z.AI) — API key (general or GLM Coding Plan)', value: 'zai' as const },
           { label: 'DeepSeek — API key', value: 'deepseek' as const },

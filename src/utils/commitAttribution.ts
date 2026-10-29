@@ -11,7 +11,6 @@ import { findGitRoot, gitExe } from './git.js'
 import { isGeneratedFile } from './generatedFiles.js'
 import { logError } from './log.js'
 
-
 const GIT_PROBE_TIMEOUT_MS = 5000
 
 const CHARS_PER_LINE_ESTIMATE = 40
@@ -40,6 +39,7 @@ type AttributionSummary = {
   mercuryChars: number
   humanChars: number
   percentage: number
+
   surfaces: string[]
 }
 
@@ -81,6 +81,7 @@ function toEntries<V>(mapOrObject: Map<string, V> | Record<string, V> | undefine
 function tryRelativeUnderRoot(root: string, filePath: string): string | null {
   const relativePath = relative(root, filePath)
   if (relativePath === '' || relativePath.startsWith('..') || isAbsolute(relativePath)) return null
+
   return relativePath.split(sep).join('/')
 }
 
@@ -179,6 +180,7 @@ export function trackFileModification(
 
 type MergedStates = {
   surface: string
+
   surfaces: string[]
   fileStates: Map<string, FileAttributionState>
   sessionBaselines: Map<string, SessionBaseline>
@@ -238,6 +240,7 @@ export async function calculateCommitAttribution(
           const stats = await getFsImplementation().stat(expandFilePath(stagedFile))
           fileSize = stats.size
         } catch {
+
           return { kind: 'dropped' }
         }
         if (tracked) {
@@ -246,6 +249,7 @@ export async function calculateCommitAttribution(
           const estimate = await getGitDiffSize(stagedFile)
           humanChars = estimate === 0 ? fileSize : estimate
         } else {
+
           humanChars = fileSize
         }
       }
@@ -263,6 +267,7 @@ export async function calculateCommitAttribution(
       }
     }),
   )
+
   for (let i = 0; i < stagedFiles.length; i++) {
     const outcome = outcomes[i] as WalkOutcome
     const stagedFile = stagedFiles[i] as string
@@ -285,6 +290,7 @@ export async function calculateCommitAttribution(
   const grandTotal = totalMercury + totalHuman
   const surfaceBreakdown: Record<string, { mercuryChars: number; percentage: number }> = {}
   for (const [surface, mercuryChars] of Object.entries(perSurfaceMercury)) {
+
     surfaceBreakdown[surface] = {
       mercuryChars,
       percentage: grandTotal === 0 ? 0 : Math.round((mercuryChars / grandTotal) * 100),

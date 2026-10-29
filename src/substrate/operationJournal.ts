@@ -1,4 +1,3 @@
-
 import { readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -34,14 +33,19 @@ export interface DurableOperation {
   steps: readonly DurableOperationStep[]
   createdAt: string
   updatedAt: string
+
   writerPid: number
+
   result?: unknown
+
   failure?: string
+
   payload?: unknown
 }
 
 const OP_PREFIX = 'op-'
 const OP_SUFFIX = '.json'
+
 const KEEP_TERMINAL_OPS = 20
 
 const opPath = (dir: string, id: string): string => join(dir, `${OP_PREFIX}${id}${OP_SUFFIX}`)
@@ -77,6 +81,7 @@ function clearOperationLiveInProcess(operationId: string): void {
 }
 
 export function isJournalWriterAlive(op: DurableOperation): boolean {
+
   if (liveInProcessOperations.has(op.operationId)) return true
   return pidAlive(op.writerPid) && op.writerPid !== process.pid
 }
@@ -214,6 +219,7 @@ async function withJournalLock<R>(dir: string, fn: () => Promise<R>): Promise<R>
 interface JournalStepSpec {
   id: string
   target: string
+
   run: () => Promise<{ digest?: string } | void>
 }
 
@@ -222,9 +228,12 @@ interface JournaledOperationSpec<R> {
   ownerKey: string
   kind: string
   idempotencyKey: string
+
   payload?: unknown
   steps: JournalStepSpec[]
+
   compensate?: () => Promise<void>
+
   result?: () => R
 }
 
@@ -237,6 +246,7 @@ export async function runJournaledOperation<R>(
   spec: JournaledOperationSpec<R>,
 ): Promise<JournaledOperationOutcome<R>> {
   const { journalDir } = spec
+
   const prev = dirChains.get(journalDir) ?? Promise.resolve()
   let done!: () => void
   const gate = new Promise<void>(r => {
@@ -261,6 +271,7 @@ async function runJournaledOperationInner<R>(
   spec: JournaledOperationSpec<R>,
 ): Promise<JournaledOperationOutcome<R>> {
   const { journalDir } = spec
+
   const prepared = await withJournalLock(journalDir, async (): Promise<
     | { action: 'run'; op: DurableOperation }
     | JournaledOperationOutcome<R>
@@ -280,8 +291,10 @@ async function runJournaledOperationInner<R>(
     const incomplete = existing.find(o => !isTerminal(o.state))
     if (incomplete) {
       if (isJournalWriterAlive(incomplete)) {
+
         return { outcome: 'in-flight', operationId: incomplete.operationId }
       }
+
       if (spec.compensate) {
         await transition(journalDir, incomplete, 'compensating', {
           failure: 'writer died mid-operation; compensated before re-run',
@@ -307,8 +320,10 @@ async function runJournaledOperationInner<R>(
       writerPid: process.pid,
       ...(spec.payload !== undefined ? { payload: spec.payload } : {}),
     }
+
     markOperationLiveInProcess(op.operationId)
     try {
+
       await publishOp(journalDir, op)
       faultPoint('journal-after-prepare', opPath(journalDir, op.operationId))
     } catch (e) {
@@ -334,16 +349,20 @@ async function runJournaledOperationInner<R>(
             : s,
         ),
       }
+
       await publishOp(journalDir, op)
       faultPoint('journal-after-step', `${opPath(journalDir, op.operationId)}#${stepSpec.id}`)
     }
     const result = spec.result?.()
     op = { ...op, state: 'committed', ...(result !== undefined ? { result } : {}) }
     faultPoint('journal-before-commit', opPath(journalDir, op.operationId))
+
     await publishOp(journalDir, op)
+
     void compactJournalDir(journalDir).catch(() => {})
     return { outcome: 'committed', operationId: op.operationId, result, replayed: false }
   } catch (e) {
+
     try {
       op = { ...op, state: 'compensating', failure: String(e).slice(0, 300) }
       await publishOp(journalDir, op)
@@ -361,6 +380,7 @@ async function runJournaledOperationInner<R>(
     }
     throw e
   } finally {
+
     clearOperationLiveInProcess(prepared.op.operationId)
   }
 }
@@ -374,9 +394,10 @@ async function transition(
   await publishOp(dir, { ...op, ...extra, state })
 }
 
-
 interface JournalRecoveryHandler {
+
   rollForward?: (op: DurableOperation) => Promise<void>
+
   compensate?: (op: DurableOperation) => Promise<void>
 }
 
@@ -384,6 +405,7 @@ export interface JournalRecoverySummary {
   scanned: number
   rolledForward: string[]
   compensated: string[]
+
   waiting: string[]
   unrecoverable: string[]
 }
@@ -408,6 +430,7 @@ export async function recoverJournalDir(
   for (const { op } of records) {
     summary.scanned++
     if (isTerminal(op.state)) continue
+
     if (isJournalWriterAlive(op)) {
       summary.waiting.push(op.operationId)
       continue
@@ -442,6 +465,7 @@ export async function recoverJournalDir(
         continue
       }
       if (handler.rollForward) {
+
         await handler.rollForward(op)
         await transition(dir, op, 'committed')
         summary.rolledForward.push(op.operationId)

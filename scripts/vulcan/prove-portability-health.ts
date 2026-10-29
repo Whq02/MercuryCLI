@@ -21,6 +21,7 @@ console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'portab-'))
 try {
+
   const proj = join(scratch, 'Deadnight Próject')
   const skillDir = join(proj, '.mercury', 'skills', 'launch-game')
   mkdirSync(skillDir, { recursive: true })

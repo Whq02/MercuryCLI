@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -100,9 +101,11 @@ if (driver.kind !== 'posix-pty') {
   const env = {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
+
     MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
+
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
   const capture = (name: string, sends: unknown[], total: number): { text: string; marks: Record<string, string>; status: number | null; stderr: string } => {
@@ -120,6 +123,7 @@ if (driver.kind !== 'posix-pty') {
 
   {
     const r = capture('logins', [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
@@ -152,6 +156,7 @@ if (driver.kind !== 'posix-pty') {
   }
   {
     const r = capture('help', [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/help', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
@@ -162,13 +167,16 @@ if (driver.kind !== 'posix-pty') {
     const open = r.marks.open ?? ''
     const rows = open.split('\n')
     check('/help at 100x30: "$EDITOR" reads whole (no clipped column)', open.includes('to edit in $EDITOR'))
+
     const bashRow = rows.find(row => row.includes('! for bash mode'))
     const cmdRow = rows.find(row => row.includes('/ for commands'))
     const secondColumn = (row: string | undefined): string => (row ?? '').split(/\s{2,}/).map(s => s.trim()).filter(Boolean)[1] ?? ''
     const twoColumns = /(⇧← |shift\+← |for command palette)/.test(secondColumn(bashRow)) && /(for command palette|to open a file)/.test(secondColumn(cmdRow))
     check('/help at 100x30: two columns — the global column stands beside the prefix rows (the strip row or the palette row heads it)', twoColumns, `bash row: ${JSON.stringify(secondColumn(bashRow))} · commands row: ${JSON.stringify(secondColumn(cmdRow))}`)
+
     const strays = rows.filter(row => /^\s*│\s{34,}[^\s│]/.test(row) && !/for |to |\/keybindings/.test(row))
     check('/help at 100x30: no row wrapped into a third column line (every global row sits beside a left row or below the last one)', strays.length === 0, strays.map(r => JSON.stringify(r.trim())).join(' · '))
+
     if (!twoColumns) console.log(rows.map(row => `      │${row.trimEnd()}`).join('\n'))
     check('/help at 100x30: the footer close hint is on screen', open.includes('esc close'))
   }

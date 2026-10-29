@@ -1,4 +1,3 @@
-
 import { logForDebugging } from '../../utils/debug.js'
 import {
   emptyAttentionState,
@@ -25,6 +24,7 @@ export type AttentionGatherer = () => {
 
 interface GathererEntry {
   gather: AttentionGatherer
+
   subscribe?: (cb: () => void) => () => void
   activeUnsub?: (() => void) | null
 }
@@ -47,7 +47,6 @@ export function registerAttentionGatherer(
     gatherers.delete(entry)
   }
 }
-
 
 let attention: AttentionState = emptyAttentionState()
 let relations: RelationState = emptyRelationState()

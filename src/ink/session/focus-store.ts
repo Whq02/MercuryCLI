@@ -1,4 +1,3 @@
-
 export type TerminalFocusState = 'focused' | 'blurred' | 'unknown'
 
 let state: TerminalFocusState = 'unknown'

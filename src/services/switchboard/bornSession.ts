@@ -14,10 +14,15 @@ export type BirthOutcome =
   | { ok: false; reason: string }
 
 export interface BirthRequest {
+
   workspaceDir: string
+
   model?: string | null
+
   title?: string | null
+
   firstPaintMs?: number
+
   vacatingSessionId?: string
 }
 
@@ -120,6 +125,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
     const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')
     await readComputedDefaultCatalogue()
   }
+
   const screen = screenBirthModel()
   const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   const born = birthModelForSignedInFamily(resolved, facts.model === null && (req.model ?? null) === null)
@@ -165,14 +171,18 @@ async function admitAndEnter(
         birthKey,
         by: 'operator',
         ...(waitForSeatMs > 0 ? { waitForSeatMs } : {}),
+
         isolation: 'shared',
+
         ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
         ...(effort !== null ? { effort } : {}),
         ...(facts.permissionMode !== null ? { permissionMode: facts.permissionMode } : {}),
+
         ...carriedConsentOf(facts),
         ...(facts.runnerArgv.length > 0 ? { runnerArgv: [...facts.runnerArgv] } : {}),
+
         ...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),
       } as never,
@@ -191,8 +201,11 @@ async function admitAndEnter(
     if (reply.refusal === 'runtime-ceiling') return { ok: false, reason: seatRefusalWords(reply) }
     return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
+
   if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
+
   catalogFirstChat(req.workspaceDir, sessionId)
+
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {
     logForDebugging(`[switchboard] born session ${sessionId} could not be entered: ${hop.reason}`)

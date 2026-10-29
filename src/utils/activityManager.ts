@@ -1,4 +1,3 @@
-
 type ActiveTimeCounter = {
   add(value: number, attributes: Record<string, string>): void
 }
@@ -23,6 +22,7 @@ class ActivityManager {
   private readonly clock: () => number
   private readonly getActiveTimeCounter: () => ActiveTimeCounter | undefined
   private readonly activeOperations = new Set<string>()
+
   private lastUserActivityMs = 0
   private cliActive = false
   private cliReferenceTimeMs: number
@@ -58,6 +58,7 @@ class ActivityManager {
   endCLIActivity(operationId: string): void {
     this.activeOperations.delete(operationId)
     if (this.activeOperations.size === 0) {
+
       const now = this.clock()
       const elapsedMs = now - this.cliReferenceTimeMs
       if (elapsedMs > 0) {

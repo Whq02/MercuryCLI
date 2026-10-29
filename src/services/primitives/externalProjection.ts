@@ -1,4 +1,3 @@
-
 import {
   isTerminalExecutionState,
   type ExecutionSpec,
@@ -52,12 +51,14 @@ export function projectExternalState(
         initialState: initial as 'queued' | 'starting' | 'running' | 'ready',
       })
       if (target !== initial) {
+
         transitionExecution(owner, spec.id, target)
       }
       return
     }
 
     if (current.state === target) return
+
     const path = legalPath(current.state, target)
     if (!path) return
     for (let i = 0; i < path.length; i++) {
@@ -93,6 +94,7 @@ function legalPath(from: ExecutionState, to: ExecutionState): ExecutionState[] |
         }
         return path
       }
+
       if (!isTerminalExecutionState(next)) queue.push(next)
     }
   }

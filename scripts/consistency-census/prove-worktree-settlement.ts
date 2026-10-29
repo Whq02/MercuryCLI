@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -169,6 +170,7 @@ const settle = (repo: string, lane: string, branch: string, head: string) =>
 
 if (process.platform === 'win32') {
   const { symlinkSync, openSync, closeSync } = await import('node:fs')
+
   {
     const { repo, head } = mkRepo()
     const { lane, branch } = mkLane(repo)
@@ -182,6 +184,7 @@ if (process.platform === 'win32') {
     })
     check('§N1 junction-reached pristine lane settles (or reports typed non-success — never silent)', r.outcome === 'settled' || r.outcome === 'retryable-partial', r.outcome)
   }
+
   {
     const { repo, head } = mkRepo()
     const { lane, branch } = mkLane(repo)

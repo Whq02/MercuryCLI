@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -110,6 +111,7 @@ section('§5 memory off ⇒ zero writes (runtime probe)')
 section('§6 hostile content cannot make entries unparsable (signature hygiene)')
 {
   const d6 = mkdtempSync(join(tmpdir(), 'mneme-hygiene-'))
+
   appendObservation({ text: 'line one\nline two, with commas', source: 'agent<x>, weird', topicHint: 'hygiene' }, d6)
   const r = maybeConsolidate({ force: true, dir: d6 })
   check('poisoned batch consolidates', r.consolidated, r.reason)
@@ -128,6 +130,7 @@ section('§7 reserved heading renamed · cross-doc supersede completed')
   check('seed consolidates', maybeConsolidate({ force: true, dir: d7 }).consolidated)
   const seedSeq = listTopicDocs(d7)[0]!.sections[0]!.entries[0]!.seq
   appendObservation({ text: 'fact alpha v2, now owned by beta', source: 'src-b', topicHint: 'beta' }, d7)
+
   const xdoc: MnemeRewriter = ({ rows }) => ({
     blocks: [{ topicSlug: 'beta', summary: 'beta facts', heading: 'History', entries: rows.map(row => ({ text: row.text, seq: row.seq, time: row.ts, source: row.source, supersedes: String(seedSeq) })) }],
   })

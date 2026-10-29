@@ -1,4 +1,3 @@
-
 import { useTheme } from '../../ink.js'
 import {
   type MercuryThemeTokens,

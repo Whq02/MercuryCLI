@@ -1,4 +1,3 @@
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -99,6 +98,7 @@ check('isLspConnected() is true with the server running', mgrModule.isLspConnect
   check(`closeAllFiles closed both docs (${closed})`, closed === 2)
   check('closed docs no longer read open', manager.isFileOpen(appPath) === false && manager.isFileOpen(libPath) === false)
   check('closed doc has no version', manager.getDocumentVersion(appPath) === undefined)
+
   await manager.openFile(appPath, appText)
   check('re-open after release works', manager.isFileOpen(appPath) === true)
 }

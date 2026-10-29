@@ -1,6 +1,5 @@
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 
-
 export const DESCRIPTION = 'Retrieve one task from the task list by its id.'
 
 export const PROMPT = `Get the full details of one task by id.

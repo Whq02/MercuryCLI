@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { check, cleanup, finish, loadEval, makeContext, section, setup, within } from './lib.js'
 
 const { work } = setup()

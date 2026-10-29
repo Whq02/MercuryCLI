@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'crypto'
 import { link, mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { dirname } from 'path'
@@ -26,9 +25,11 @@ async function currentProcStartAnyPlatform(): Promise<{ procStartField: { procSt
 
 async function liveTokenFor(holder: PidLockHolder | null): Promise<string | null | undefined> {
   if (!holder?.procStart) return undefined
+
   if (/^\d+$/.test(holder.procStart)) {
     const local = procStartToken(holder.pid)
     if (local !== undefined) return local
+
     const probed = await getProcessStartTokenAsync(holder.pid)
     return probed === '' ? '' : null
   }
@@ -87,8 +88,10 @@ const REAP_CONFIRM_MS = 150
 export function holderAlive(
   holder: PidLockHolder,
   polarity: LivenessPolarity,
+
   liveToken?: string | null,
 ): boolean {
+
   if (holder.pid <= 1) return polarity === 'assume-alive'
   try {
     process.kill(holder.pid, 0)
@@ -97,6 +100,7 @@ export function holderAlive(
     return polarity === 'assume-alive'
   }
   if (holder.procStart) {
+
     const current =
       liveToken !== undefined ? liveToken : (procStartToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
     if (current === '') return false
@@ -145,9 +149,11 @@ export async function acquirePidLock(
   owner: string,
   opts: {
     liveness: LivenessPolarity
+
     extra?: Record<string, unknown>
   },
 ): Promise<PidLockAcquire> {
+
   if (typeof owner !== 'string' || owner.length === 0) {
     logForDebugging(`[pidLock] refused to claim ${path}: empty owner identity`)
     return { held: false }
@@ -163,6 +169,7 @@ export async function acquirePidLock(
   for (let attempt = 0; attempt < 2; attempt++) {
     let claim = await claimLockAtomically(path, payload)
     if (claim === 'noparent') {
+
       try {
         await mkdir(dirname(path), { recursive: true })
       } catch (e) {
@@ -175,6 +182,7 @@ export async function acquirePidLock(
     if (claim !== 'held') return { held: false }
 
     const holder = await readHolder(path)
+
     if (holder !== null && holder.owner === owner) {
       if (holder.pid !== process.pid) {
         const temp = `${path}.restamp-${process.pid}-${randomUUID().slice(0, 8)}`
@@ -189,9 +197,11 @@ export async function acquirePidLock(
       }
       return { held: true, fresh: false }
     }
+
     if (holder && holderAlive(holder, opts.liveness, await liveTokenFor(holder))) {
       return { held: false, by: holder }
     }
+
     const judged = await readRawRecord(path)
     if (judged === null) continue
     await sleep(REAP_CONFIRM_MS)
@@ -274,10 +284,12 @@ export async function acquirePidLockWithRetry(
   throw new PidLockBusyError(path, lastHolderPid)
 }
 
-
 export interface PidLockReleaseReceipt {
+
   outcome: 'removed' | 'absent' | 'not-held' | 'deferred' | 'failed'
+
   attempts: number
+
   fsCode?: string
 }
 
@@ -374,6 +386,7 @@ export async function releasePidLock(
   const initial = await readRaw(path)
   if (initial.kind === 'missing') return settle({ outcome: 'absent', attempts: 0 })
   if (initial.kind === 'unreadable') {
+
     return settle({ outcome: 'failed', attempts: 0, ...(initial.code ? { fsCode: initial.code } : {}) })
   }
   const holder = parseHolder(initial.raw)
@@ -385,18 +398,22 @@ export async function releasePidLock(
       await doUnlink(path)
     } catch (e) {
       code = getErrnoCode(e)
+
       if (code === 'ENOENT') return settle({ outcome: 'removed', attempts: attempt })
       if (code === undefined) code = 'EUNKNOWN'
     }
     if (code === undefined) {
+
       const after = await readRaw(path)
       if (after.kind === 'missing') return settle({ outcome: 'removed', attempts: attempt })
       if (after.kind === 'ok') {
         const afterHolder = parseHolder(after.raw)
         if (!afterHolder || afterHolder.owner !== owner) {
+
           return settle({ outcome: 'removed', attempts: attempt })
         }
       }
+
       code = 'EBUSY'
     }
     const delay = renameRetryDelayMs(code, attempt, platform)
@@ -419,6 +436,7 @@ export async function probePidLock(
   if (!holder) return null
   if (holderAlive(holder, opts.liveness, opts.cachedLiveness ? undefined : await liveTokenFor(holder))) return holder
   if (opts.reclaimStale) {
+
     const judged = await readRawRecord(path)
     if (judged === null) return null
     await sleep(REAP_CONFIRM_MS)

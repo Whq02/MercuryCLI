@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -44,9 +45,11 @@ const walk = (dir: string): void => {
       const push = (mechanism: Hit['mechanism']): void => {
         hits.push({ file: rel, mechanism, excerpt: text.trim().slice(0, 140) })
       }
+
       if (/(?<![.\w])execSync\(/.test(text)) push('execSync-string')
       else if (/(?<![.\w])exec\((`|')/.test(text)) push('exec-string')
       if (/spawnSync?\((['"`])(bash|sh|zsh|cmd|powershell)\1\s*,\s*\[\s*(['"`])-c\3/.test(text)) push('shell-dash-c')
+
       if (/\/usr\/bin\/python3/.test(text) && /spawn|SYS_PY|PYTHON|python3'|python3"|= '\/usr/.test(text)) {
         push('hardcoded-interpreter')
       }

@@ -20,25 +20,34 @@ export interface WirePrefixParts {
 }
 
 export interface PrefixMismatch {
+
   part: string
+
   path: string
+
   before?: string
   after?: string
 }
 
 export interface PrefixVerdict {
+
   mismatch: PrefixMismatch | null
+
   lastThinkingIndex: number
+
   compared: boolean
   behind: number
+
   key: string
   fixedPrefix?: { previous: string | null; current: string; unchanged: boolean; bytes: number }
+
   wireMessageIds: Array<string | null>
 }
 
 interface SystemBlockRecord {
   digest: string
   text: string
+
   sections: Array<{ heading: string; at: number }>
 }
 
@@ -48,6 +57,7 @@ interface ToolRecord {
   description: string
   schema: string
   definition: string
+
   bound: boolean
 }
 
@@ -66,6 +76,7 @@ interface PrefixRecord {
   system: SystemBlockRecord[]
   tools: ToolRecord[]
   messages: MessageRecord[]
+
   wireMessageIds: Array<string | null>
   dropped: Set<string>
 }
@@ -166,6 +177,7 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
   })
   const messages = parts.messages.map(message => {
     const m = withoutCacheControl(message) as { role?: unknown; content?: unknown }
+
     const indexed = Array.isArray(m.content) ? m.content.map((block, index) => ({ block, index })) : null
     const visible = indexed?.filter(({ block }) => !isThinkingBlock(block) && !isDeadThinkingPlaceholder(block))
     const content = visible ? visible.map(({ block }) => block) : m.content
@@ -204,6 +216,7 @@ function firstDiffAt(a: string, b: string): number {
 const ordinal = (index: number): string => `turn ${index}`
 
 function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThinkingIndex: number): PrefixMismatch | null {
+
   const blocks = Math.max(previous.system.length, current.system.length)
   for (let b = 0; b < blocks; b++) {
     const was = previous.system[b]
@@ -217,6 +230,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     const name = section === undefined ? `the system prompt (block ${b})` : `the system prompt's ${section.heading} section`
     return { part: name, path: `system[${b}].text@char ${at}`, before: excerpt(was.text, at), after: excerpt(now.text, at) }
   }
+
   const wasByName = new Map(previous.tools.map(t => [t.name, t] as const))
   const nowByName = new Map(current.tools.map(t => [t.name, t] as const))
   const wasBound = previous.tools.filter(t => t.bound)
@@ -229,6 +243,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     if (removed.length > 0) words.push(`${removed.length} removed (${removed.join(', ')})`)
     return { part: `the tools set: ${words.join(', ')}`, path: `tools.length (${wasBound.length} → ${nowBound.length})` }
   }
+
   const wasBoth = wasBound.filter(t => nowByName.get(t.name)?.bound === true)
   const nowBoth = nowBound.filter(t => wasByName.get(t.name)?.bound === true)
   for (let i = 0; i < wasBoth.length; i++) {
@@ -292,6 +307,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
 }
 
 const records = new Map<string, PrefixRecord>()
+
 const verdicts = new Map<string, PrefixVerdict>()
 
 export { PREFIX_LEDGER_FILE, prefixLedgerPath }
@@ -512,6 +528,7 @@ export function judgeAndRecordPrefix(
   key: string,
   parts: WirePrefixParts,
   wireMessageIds: ReadonlyArray<string | null> = [],
+
   opts?: { replaceRecord?: boolean },
 ): PrefixVerdict {
   const replace = opts?.replaceRecord !== false
@@ -539,6 +556,7 @@ export function judgeAndRecordPrefix(
     }
   }
   const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, behind, key, fixedPrefix, wireMessageIds: current.wireMessageIds }
+
   if (replace) {
     records.set(owner, current)
     verdicts.set(owner, verdict)
@@ -581,7 +599,6 @@ export function pendingPrefixVerdict(owner: string): PrefixVerdict | null {
 export function describePrefixMismatch(mismatch: PrefixMismatch): string {
   return `Mercury's prefix ledger names the part that moved: ${mismatch.part} (${mismatch.path}).`
 }
-
 
 export type InducedPrefixEdit = { kind: 'system' } | { kind: 'tools' } | { kind: 'turn'; index: number }
 

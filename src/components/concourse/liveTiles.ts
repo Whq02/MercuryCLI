@@ -18,7 +18,6 @@ import { workerTranscriptPath } from '../../services/concourse/workerTranscript.
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { logForDebugging } from '../../utils/debug.js'
 
-
 type LiveTileNow =
   | { kind: 'streaming'; line: string }
   | { kind: 'tool'; line: string }
@@ -57,12 +56,16 @@ export function askTileCopy(title: string, question: string): string {
 }
 
 const TAIL_FRESH_MS = 10_000
+
 export function gateTailFreshness(tail: LiveTileTail | null, nowMs: number): LiveTileTail | null {
   if (tail === null || tail.text === null) return tail
   return nowMs - tail.atMs < TAIL_FRESH_MS ? tail : { ...tail, text: null }
 }
+
 const DRAIN_COALESCE_MS = 80
+
 const HEARTBEAT_MS = 1000
+
 export const TILE_BUDGET_MS_PER_S = 40
 const DEGRADE_WINDOWS = 2
 const RECOVER_PROBES = 2
@@ -71,11 +74,14 @@ const PROBE_MS = 5000
 interface TileEntry {
   sessionId: string
   workspaceId: string
+
   tailFile: string
   listeners: Set<() => void>
   now: LiveTileNow
   dirty: boolean
+
   transcriptStamp: string
+
   tailStamp: string
 }
 
@@ -86,7 +92,9 @@ interface LiveTileStoreDeps {
   activity: (rec: { sessionId: string; workspaceId: string }) => { label: string; kind?: 'tool' | 'text'; settled?: true } | null
   transcriptPath: (rec: { sessionId: string; workspaceId: string }) => string
   nowMs: () => number
+
   forceDegrade: boolean
+
   armMachinery: boolean
 }
 
@@ -260,6 +268,7 @@ export class LiveTileStore {
       const t0 = this.deps.nowMs()
       let next: LiveTileNow
       try {
+
         const tailRaw = gateTailFreshness(this.deps.readTail(e.sessionId), this.deps.nowMs())
         const tailStamp = tailRaw === null ? 'none' : `${tailRaw.atMs}:${tailRaw.text === null ? 0 : tailRaw.text.length}`
         let transcriptStamp = 'none'
@@ -292,6 +301,7 @@ export class LiveTileStore {
         }
       }
     }
+
     if (probe) {
       if (cost < TILE_BUDGET_MS_PER_S / 2) {
         this.underStreak += 1
@@ -327,6 +337,7 @@ export class LiveTileStore {
         logForDebugging(`[concourse] live-tile degrade listener threw (ignored): ${err}`)
       }
     }
+
     for (const e of this.entries.values()) {
       for (const l of [...e.listeners]) {
         try {
@@ -367,9 +378,9 @@ export function useLiveTile(
   }
 }
 
-
 export function workChipTextOf(facts: { work?: readonly WorkRowV1[] } | null): string | null {
   if (facts === null) return null
+
   if (facts.work === undefined) return WORK_UNREPORTED_MARK
   const line = workChipLine(workCounts(facts.work))
   return line === null ? null : `${line} running`

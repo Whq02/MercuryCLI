@@ -1,4 +1,3 @@
-
 type PointerCell = { col: number; row: number }
 
 const POINTER_IDLE_RESET_MS = 6000
@@ -22,6 +21,7 @@ function armIdleReset(): void {
       notify()
     }
   }, POINTER_IDLE_RESET_MS)
+
   idleTimer.unref?.()
 }
 
@@ -58,9 +58,11 @@ export function getPointerVersion(): number {
 
 export function subscribePointerCell(listener: () => void): () => void {
   listeners.add(listener)
+
   if (listeners.size === 1 && cell !== null && idleTimer === null) armIdleReset()
   return () => {
     listeners.delete(listener)
+
     if (listeners.size === 0 && idleTimer !== null) {
       clearTimeout(idleTimer)
       idleTimer = null

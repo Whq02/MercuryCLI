@@ -55,9 +55,11 @@ export interface BenchmarkFixture {
   port: number
   pageUrl: string
   hits: FixtureHit[]
+
   setScript(family: FamilyId, taskId: string, turns: ScriptedTurn[]): void
   setSeat(family: FamilyId, seatId: string, turns: ScriptedTurn[]): void
   clearFamily(family: FamilyId): void
+
   envFor(family: FamilyId, mode?: 'pinned' | 'bare'): Record<string, string>
   close(): Promise<void>
 }
@@ -185,6 +187,7 @@ export async function startBenchmarkFixture(opts: { port: number }): Promise<Ben
       }
       const { family, dialect } = lane
       const model = String(body.model ?? '')
+
       const texts = userTexts(body, dialect)
       let seat: string | undefined
       let task: string | undefined
@@ -197,6 +200,7 @@ export async function startBenchmarkFixture(opts: { port: number }): Promise<Ben
       if (seat !== undefined) task = undefined
       const tools = Array.isArray(body.tools) ? (body.tools as unknown[]) : []
       const side = tools.length === 0 || hasForcedToolChoice(body) || (seat === undefined && task === undefined)
+
       const results = toolResultCount(body, dialect) + refusedCallCount(body, dialect)
       let turn: ScriptedTurn
       let kind: FixtureHit['kind']
@@ -246,6 +250,7 @@ export async function startBenchmarkFixture(opts: { port: number }): Promise<Ben
         chat: { ZAI_API_KEY: 'fixture-zai-key' },
         openrouter: { OPENROUTER_API_KEY: 'fixture-openrouter-key' },
       }
+
       const pins = mode === 'bare' ? bases[family] : Object.assign({}, ...Object.values(bases))
       return { ...pins, ...credentials[family] }
     },

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -84,6 +85,7 @@ console.log('== bracketed paste: multiline + tabs stay ONE content atom ==')
   const flat = visibleText(atoms)
   check('the pasted newlines/tabs never became Enter/Tab keys', !atoms.some(e => e.key.return || e.key.tab))
   check('the paste content survives byte-exact', flat === pasted, JSON.stringify(flat).slice(0, 80))
+
   const cut = Math.floor(bytes.length / 2)
   const split = feed([bytes.subarray(0, cut), bytes.subarray(cut)])
   check('a mid-paste chunk split changes nothing', visibleText(split) === flat)
@@ -97,16 +99,20 @@ console.log('== modified Enter: CSI-u variants + legacy forms ==')
   check('ctrl+enter (CSI-u 13;5u) → return + ctrl, no text', ctrlEnter.length === 1 && ctrlEnter[0]!.key.return && ctrlEnter[0]!.key.ctrl && ctrlEnter[0]!.input === '', JSON.stringify(ctrlEnter[0]))
   const plain = feed([Buffer.from('\r')])
   check('legacy \\r stays return', plain.length === 1 && plain[0]!.key.return)
+
   const escCr = feed([Buffer.from('\x1b\r')])
   check('ESC+CR stays un-merged (characterized — not a Mercury binding)', !escCr.some(e => e.key.return && e.key.meta))
 }
 
 console.log('== enhanced sequences: decode or swallow — never leak bytes ==')
 {
+
   const f13 = feed([Buffer.from('\x1b[57376u')])
   check('an unmapped kitty functional key never leaks text', visibleText(f13) === '', JSON.stringify(f13))
+
   const ctrlI = feed([Buffer.from('\x1b[105;5u')])
   check('CSI-u ctrl+i decodes with ctrl (not a bare tab)', ctrlI.length === 1 && ctrlI[0]!.key.ctrl && !ctrlI[0]!.key.tab, JSON.stringify(ctrlI[0]))
+
   const shiftTab = feed([Buffer.from('\x1b[9;2u')])
   check('CSI-u shift+tab → tab flag, NO text', shiftTab.length === 1 && shiftTab[0]!.key.tab && shiftTab[0]!.key.shift && shiftTab[0]!.input === '', JSON.stringify(shiftTab[0]))
   const mokEsc = feed([Buffer.from('\x1b[27;2;27~')])
@@ -138,6 +144,7 @@ console.log('== reversible detection + IME prerequisites (source pins) ==')
   check('the composer declares the hardware cursor (use-declared-cursor)', baseText.includes('use-declared-cursor') || baseText.includes('useDeclaredCursor'))
   check('the console editor rides the SAME machinery (TextInput)', consoleSrc.includes('<TextInput'))
   check('the prompts-panel editor rides the SAME machinery (TextInput)', promptsPanel.includes('<TextInput'))
+
   check('the fullscreen autocomplete renders ABOVE the composer (never obscures the cursor)', fullscreen.includes('<PromptOverlayStrip />\n      {overlay ?? null}\n      {bottom}'))
   check('the width oracle is grapheme-true (ZWJ family = one cell-cluster width)', stringWidth('\u{1F468}‍\u{1F469}‍\u{1F467}') <= 2 && stringWidth('漢') === 2 && stringWidth('é') === 1)
 }

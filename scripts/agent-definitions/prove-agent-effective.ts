@@ -14,6 +14,7 @@ mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_EFFORT_LEVEL
+
 process.env.NODE_ENV = 'test'
 
 await import('../../src/tools/AgentTool/AgentTool.js')
@@ -205,12 +206,14 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
 {
   console.log('E6: dispatch seam pins (display truth = dispatch truth inputs)')
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
+
   check(
     'runAgent consumes definition-effort-over-the-configured-default (the one ladder at the dispatch seam), never the session state',
     /definitionEffort:\s*agentDefinition\.effort,\s*defaultEffort:\s*subagentDefaultEffort\(\),/.test(
       runAgent,
     ) && !/sessionEffort/.test(runAgent),
   )
+
   const agentTool = readFileSync('src/tools/AgentTool/AgentTool.tsx', 'utf-8')
   check(
     'AgentTool records the plan-resolved model at launch (the task record names what runs)',
@@ -226,6 +229,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
 
 {
   console.log('E7: the agent-scoped state dispatches the resolved effort (FN-018 rank 2)')
+
   const { resolveAgentEffort } = await import('../../src/tools/AgentTool/runAgent.js')
   check('pin wins on a non-exact-tools run', resolveAgentEffort({ effortOverride: 'max', useExactTools: false, definitionEffort: 'low', defaultEffort: 'medium' }) === 'max')
   check('an exact-tools run ignores the pin (the definition rules)', resolveAgentEffort({ effortOverride: 'max', useExactTools: true, definitionEffort: 'low', defaultEffort: 'medium' }) === 'low')
@@ -234,6 +238,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   check('nothing declared anywhere ⇒ undefined (the resolver keeps its own default)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === undefined)
   check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, defaultEffort: 'low' }) === 'low')
   check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, defaultEffort: undefined }) === 'xhigh')
+
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
   const scopedAt = runAgent.indexOf('const agentGetAppState')
   const scoped = runAgent.slice(scopedAt, closingBraceAfter(runAgent, scopedAt < 0 ? -1 : runAgent.indexOf('{', scopedAt)) + 1)
@@ -252,6 +257,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   check('dispatch reads appState.effortValue (the key the scoped state now carries)', /iter\.appState\.effortValue/.test(turnMachine))
   const store = readFileSync('src/state/AppStateStore.ts', 'utf-8')
   check('AppState declares effortValue and no effort key', /^\s*effortValue: EffortValue \| undefined/m.test(store) && !/^\s*effort: /m.test(store))
+
   check('the instruction capture reads bundleDigest (no structural cast to a field that does not exist)', /digest: slice\.bundle\.bundleDigest/.test(runAgent) && !/\{ digest\?: string \}/.test(runAgent))
 }
 

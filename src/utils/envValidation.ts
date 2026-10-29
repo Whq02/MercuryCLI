@@ -16,6 +16,7 @@ export function validateBoundedIntEnvVar(
   if (value === undefined || value === '') {
     return { effective: defaultValue, status: 'valid' }
   }
+
   const parsed = Number(value.trim())
   if (!Number.isInteger(parsed) || parsed <= 0) {
     const message = `invalid value "${value}"; using the default of ${defaultValue}`

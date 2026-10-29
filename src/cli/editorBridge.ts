@@ -1,4 +1,3 @@
-
 import { execFileSync } from 'node:child_process'
 import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from '../utils/editorExtensionPackage.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
@@ -16,6 +15,7 @@ const DARWIN_BUNDLE_CLIS: Record<(typeof EDITOR_CLIS)[number], string> = {
 const WIN32_CANDIDATES = ['code.cmd', 'code', 'code.exe', 'code-insiders.cmd', 'cursor.cmd', 'codium.cmd', 'windsurf.cmd']
 
 function findEditorCli(): string | null {
+
   const isWindows = process.platform === 'win32'
   const candidates: string[] = []
   if (isWindows) {
@@ -87,6 +87,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
       return 1
     }
     if (!cli) {
+
       err(`editor: nothing installed — no VS Code-family CLI is available (${CLI_ROSTER}). Manual install:`)
       err('  1. Open VS Code → Extensions panel')
       err('  2. “…” menu → Install from VSIX…')
@@ -99,6 +100,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
         stdio: 'inherit',
         timeout: 120_000,
         env: subprocessEnv(),
+
         ...(process.platform === 'win32' ? { shell: true } : {}),
       })
       out(`installed ${MERCURY_IDE_EXTENSION_ID} from ${vsix} via ${cli} — reload the editor window to activate it`)
@@ -110,6 +112,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
   }
 
   if (!cli) {
+
     err(`editor: nothing uninstalled — no VS Code-family CLI is available (${CLI_ROSTER}). Manual uninstall: VS Code → Extensions → Mercury → Uninstall.`)
     return 1
   }

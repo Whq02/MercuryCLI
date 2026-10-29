@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
@@ -216,6 +217,7 @@ async function driveProtocol(): Promise<void> {
     thirdCall !== undefined && JSON.stringify(thirdCall.body).includes('headless probe three'),
     String(fixture.messageRequests().length),
   )
+
   send('headless probe four')
   await fixture.messageRequestStarted(4)
   void host.request('turn/interrupt', { op_id: 'req_int2' }).catch(() => undefined)

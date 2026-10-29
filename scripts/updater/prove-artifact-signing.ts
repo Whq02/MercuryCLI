@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { generateKeyPairSync } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,6 +15,7 @@ import {
 import { verifyPayloadDir } from '../../src/services/privateChannel/artifactVerify.js'
 import type { TrustedSigningKey } from '../../src/services/privateChannel/signingTrust.js'
 // @ts-expect-error — the packager-side authority is plain .mjs (no types); the
+
 import { readCompatFloor, releaseLayoutSection } from '../release/payloadContract.mjs'
 
 {
@@ -86,6 +88,7 @@ function buildFixturePayload(name: string, opts: { sign?: boolean; licenseId?: s
 }
 
 try {
+
   const stmt: SigningStatementV1 = {
     schema: 1,
     name: 'mercury',

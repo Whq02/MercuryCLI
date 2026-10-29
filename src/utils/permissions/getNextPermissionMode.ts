@@ -3,12 +3,12 @@ import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { isFlowGateEnabled, transitionPermissionMode } from './permissionSetup.js'
 
-
 function bypassAvailable(context: ToolPermissionContext): boolean {
   return (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
 }
 
 function canCycleToFlow(_context: ToolPermissionContext): boolean {
+
   const gateEnabled = isFlowGateEnabled()
   return gateEnabled
 }
@@ -23,6 +23,7 @@ export function getNextPermissionMode(
     case 'implement':
       return 'apollo'
     case 'apollo':
+
       if (canCycleToFlow(toolPermissionContext)) return 'flow'
       if (bypassAvailable(toolPermissionContext)) return 'sovereign'
       return 'default'
@@ -33,6 +34,7 @@ export function getNextPermissionMode(
     case 'dontAsk':
       return 'default'
     default:
+
       return 'default'
   }
 }

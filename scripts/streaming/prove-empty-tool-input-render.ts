@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -33,6 +34,7 @@ const check = (name: string, ok: boolean, detail = ''): void => {
 }
 
 const home = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'empty-tool-home-'))
+
 const cwd = realpathSync(mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'empty-tool-cwd-')))
 const configDir = join(home, '.mercury')
 mkdirSync(configDir, { recursive: true })
@@ -52,6 +54,7 @@ const base = (extra: Record<string, unknown>) => ({
   isSidechain: false, entrypoint: 'cli',
   cwd, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra,
 })
+
 const rows = [
   base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001',
     message: { role: 'user', content: 'make a tool call that does nothing' },
@@ -68,6 +71,7 @@ const rows = [
     toolUseResult: 'The required parameter `command` is missing',
     timestamp: '2026-06-19T12:00:03.000Z' }),
 ]
+
 writeFileSync(join(projectDir, `${SID}.jsonl`), encodeSeedTranscript(rows, SID))
 
 const drive = join(home, 'drive.jsonl')
@@ -79,6 +83,7 @@ const driven = spawnSync(
   {
     cwd, encoding: 'utf8', timeout: vshotBudgetMs(60_000),
     env: {
+
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home, PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'xterm-256color',
       MERCURY_CONFIG_DIR: configDir, MERCURY_TERMINAL_TITLE: '0', MERCURY_BOOT_PREFLIGHT: '0',
@@ -120,6 +125,7 @@ check('no app-root crash report under the config home', appRoot.length === 0,
       return name
     }
   }).join(' | '))
+
 check('the resumed session rows paint', /make a tool call that does nothing/.test(screen),
   screen.trim().length < 40 ? 'screen empty (process died?)' : 'prompt row absent')
 check('the command-less Bash call renders as a transcript row', /bash command|Bash/.test(screen))

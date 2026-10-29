@@ -7,16 +7,24 @@ import { getIsGit, gitExe } from './git.js'
 import { logError } from './log.js'
 import { getGitEmail } from './user.js'
 
-
 const NON_CORE_PATTERNS: RegExp[] = [
+
   /(^|\/)(package-lock\.json|yarn\.lock|bun\.lock|bun\.lockb|pnpm-lock\.yaml|Pipfile\.lock|poetry\.lock|Cargo\.lock|Gemfile\.lock|go\.sum|composer\.lock|uv\.lock)$/,
+
   /\.generated\./,
+
   /(^|\/)(dist|build|out|target|node_modules|\.next|__pycache__)\//,
+
   /\.(min\.js|min\.css|map|pyc|pyo)$/,
+
   /\.(json|ya?ml|toml|xml|ini|cfg|conf|env|lock|txt|md|mdx|rst|csv|log|svg)$/i,
+
   /(^|\/)\.?(eslintrc|prettierrc|babelrc|editorconfig|gitignore|gitattributes|dockerignore|npmrc)/,
+
   /(^|\/)(tsconfig|jsconfig|biome|vitest\.config|jest\.config|webpack\.config|vite\.config|rollup\.config)\.[a-z]+$/,
+
   /(^|\/)(\.github|\.vscode|\.idea)\//,
+
   /(^|\/)(CHANGELOG|LICENSE|CONTRIBUTING|CODEOWNERS|README)(\.[a-z]+)?$/i,
 ]
 
@@ -53,7 +61,9 @@ function pickDiverseCoreFiles(sortedPaths: string[], want: number): string[] {
 }
 
 async function tallyGitHistory(args: string[], useResolvedGit: boolean, counts: Map<string, number>): Promise<void> {
+
   const result = await execFileNoThrow(useResolvedGit ? gitExe() : 'git', args)
+
   for (const line of result.stdout.split('\n')) {
     const trimmed = line.trim()
     if (!trimmed) continue
@@ -75,6 +85,7 @@ async function gatherFrequentFiles(): Promise<string[]> {
         counts,
       )
     }
+
     if (counts.size < 10) {
       await tallyGitHistory(
         ['log', '-n', '1000', '--pretty=format:', '--name-only', '--diff-filter=M'],

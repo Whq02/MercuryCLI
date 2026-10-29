@@ -16,7 +16,6 @@ import { isXtermJs } from './session/capabilities.js'
 import { widestLine } from './widest-line.js'
 import wrapText, { truncateParts } from './wrap-text.js'
 
-
 export type ScrollHint = { delta: number; top: number; bottom: number }
 export type ScrollTranslation = { delta: number; viewportTop: number; viewportBottom: number }
 

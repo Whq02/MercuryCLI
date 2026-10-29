@@ -3,11 +3,9 @@ import { deflateSync } from 'node:zlib'
 import { stringWidth } from '../ink/stringWidth.js'
 import { DEFAULT_BG, parseAnsi, type AnsiColor, type ParsedLine } from './ansiSpans.js'
 
-
 const CELL_WIDTH = 24
 const CELL_HEIGHT = 48
 const CELL_BYTES = CELL_WIDTH * CELL_HEIGHT
-
 
 type StrokeGlyph = number[][]
 
@@ -125,6 +123,7 @@ const STROKE_GLYPHS: Record<string, StrokeGlyph> = {
   '|': [[3, 0, 3, 10.4]],
   '}': [[1.8, 0, 2.8, 0.8, 2.8, 3.8, 3.8, 4.8, 2.8, 5.8, 2.8, 8.8, 1.8, 9.6]],
   '~': [[1, 5.6, 1.8, 4.8, 2.8, 5, 3.6, 5.6, 4.4, 5.8, 5.2, 5]],
+
   '·': [[3, 4.8, 3, 5.2]],
   '•': [[2.6, 4.6, 3.4, 4.6, 3.4, 5.4, 2.6, 5.4, 2.6, 4.6], [3, 4.6, 3, 5.4]],
   '…': [[1.1, 8.7, 1.1, 9], [3, 8.7, 3, 9], [4.9, 8.7, 4.9, 9]],
@@ -216,7 +215,6 @@ const SHADE_BLEND: Record<string, number> = {
   '█': 1.0,
 }
 
-
 const CRC_TABLE: Uint32Array = (() => {
   const table = new Uint32Array(256)
   for (let n = 0; n < 256; n++) {
@@ -271,11 +269,14 @@ function encodePng(pixels: Buffer, width: number, height: number): Buffer {
   ])
 }
 
-
 export type AnsiToPngOptions = {
+
   scale?: number
+
   paddingX?: number
+
   paddingY?: number
+
   borderRadius?: number
   background?: AnsiColor
 }
@@ -298,6 +299,7 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
     lines.pop()
   }
   if (lines.length === 0) {
+
     lines.push([{ text: '', color: { r: 229, g: 229, b: 229 }, bold: false }])
   }
 
@@ -323,6 +325,7 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
   const radius = borderRadius * scale
   if (radius > 0) {
     const corners: Array<[number, number, number, number]> = [
+
       [0, 0, radius, radius],
       [width - radius, 0, width - radius, radius],
       [0, height - radius, radius, height - radius],
@@ -356,7 +359,9 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
     for (let gy = 0; gy < CELL_HEIGHT; gy++) {
       for (let gx = 0; gx < CELL_WIDTH; gx++) {
         const rawAlpha = cell[gy * CELL_WIDTH + gx] as number
+
         if (rawAlpha === 0) continue
+
         const alpha = bold ? Math.min(255, Math.round(rawAlpha * 1.4)) : rawAlpha
         for (let sy = 0; sy < scale; sy++) {
           for (let sx = 0; sx < scale; sx++) {
@@ -364,6 +369,7 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
             const py = (cellY + gy) * scale + sy
             if (px < 0 || px >= width || py < 0 || py >= height) continue
             const offset = (py * width + px) * 4
+
             pixels[offset] = (color.r * alpha + (pixels[offset] as number) * (256 - alpha)) >> 8
             pixels[offset + 1] =
               (color.g * alpha + (pixels[offset + 1] as number) * (256 - alpha)) >> 8
@@ -398,10 +404,13 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
 
   for (let row = 0; row < rows; row++) {
     const line = lines[row] as ParsedLine
+
     let column = 0
     for (const span of line) {
+
       for (const char of span.text) {
         const cellWidth = stringWidth(char)
+
         if (cellWidth === 0) continue
         const cellX = paddingX + column * CELL_WIDTH
         const cellY = paddingY + row * CELL_HEIGHT
@@ -410,6 +419,7 @@ export function ansiToPng(ansiText: string, options: AnsiToPngOptions = {}): Buf
           fillShadeCell(cellX, cellY, span.color, shade)
         } else {
           const glyph = font.get(char.codePointAt(0) as number)
+
           blitGlyph(glyph ?? fallback, cellX, cellY, span.color, span.bold)
         }
         column += cellWidth

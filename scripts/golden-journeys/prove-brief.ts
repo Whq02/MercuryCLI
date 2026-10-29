@@ -1,4 +1,3 @@
-
 import {
   SIDS,
   capture,
@@ -59,6 +58,7 @@ const planning = capture({ sid: sidA, tag: 'brief-planning', total: 90 })
 check('the planning world shows the plan formed, at a glance', hasProse(planning, 'Plan formed — five items queued'))
 check("the plan's objective is on screen (the ask line)", hasProse(planning, 'Replatform the fixture pipeline'))
 retiredBriefAbsent('planning', planning)
+
 const planningPanel = capture({ sid: sidA, tag: 'brief-planning-panel', sends: slashSends('/workbench'), total: 110 })
 check("the prompts panel's receipt roll carries the plan's ask", hasProse(planningPanel, 'Replatform the fixture pipeline'))
 check('the prompts panel chrome renders (the three tabs)', /PROMPTS/.test(planningPanel.text) && /SAVED PROMPTS/.test(planningPanel.text))

@@ -134,6 +134,7 @@ function makeCacheFixture(buildId: string): string {
   check('the download call lives ONLY in the consented install module', installSrc.includes('await install({'))
   const sessionSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts')).text()
   check('the session module never downloads', !sessionSrc.includes('install('))
+
   check('the launch path never spawns the version probe', !sessionSrc.includes('browserVersionOf('))
   const toolSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts')).text()
   check('the tool never downloads', !toolSrc.includes("from '@puppeteer/browsers'"))

@@ -1,4 +1,3 @@
-
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
@@ -21,18 +20,25 @@ export type ToolAsk = PermissionRequestParams
 interface ChildEventHandlers {
   onInit: (mercurySessionId: string) => void
   onAssistantText: (text: string) => void
+
   onAssistantThought?: (text: string) => void
   onToolUse: (toolUseId: string, name: string, input: unknown) => void
+
   onToolResult: (toolUseId: string, isError: boolean, content?: string) => void
+
   onToolProgress?: (parentToolUseId: string, text: string) => void
+
   onMode?: (mode: string) => void
   onTurnEnd: (outcome: 'success' | 'error' | 'cancelled', detail: TurnEndDetail) => void
+
   onUsage?: (
     lastRoundTrip: Record<string, unknown>,
     model: string,
     turnCostUsd?: number,
   ) => void
+
   onPermissionAsk: (requestId: number, ask: ToolAsk, withdrawn: AbortSignal) => Promise<PermissionAnswer>
+
   onElicitation?: (params: ElicitationRequestParams, withdrawn: AbortSignal) => Promise<ElicitationAnswer>
   onElicitationComplete?: (server: string, elicitationId: string) => void
   onReadTextFile?: (params: ParamsOf<'fs/read_text_file'>, withdrawn: AbortSignal) => Promise<ResultOf<'fs/read_text_file'>>
@@ -47,15 +53,20 @@ interface ChildEventHandlers {
 
 interface SpawnChildOptions {
   cwd: string
+
   sessionId?: string
   resumeSessionId?: string
   model?: string
   permissionMode?: string
+
   allowSovereign?: boolean
   effort?: string
+
   entry?: { node: string; script: string }
   env?: Record<string, string>
+
   mcpConfig?: string
+
   elicitation?: boolean
   fsReadTextFile?: boolean
   fsWriteTextFile?: boolean
@@ -96,6 +107,7 @@ export class MercuryChildSession {
   readonly child: ChildProcess
   readonly cwd: string
   readonly peer: Peer
+
   readonly initialized: Promise<string | null>
   mercurySessionId: string | null = null
   private readonly handlers: ChildEventHandlers
@@ -105,6 +117,7 @@ export class MercuryChildSession {
   private queuedPromptId: string | null = null
   private turnOpen = false
   private interruptWhenTurnOpens = false
+
   private lastRoundTripUsage: Record<string, unknown> | null = null
   private lastRoundTripModel = ''
 
@@ -124,12 +137,16 @@ export class MercuryChildSession {
       ...(opts.mcpConfig ? ['--mcp', opts.mcpConfig] : []),
     ]
     const env: NodeJS.ProcessEnv = {
+
       ...process.env,
+
       MERCURY_TASKS: process.env.MERCURY_TASKS ?? '1',
+
       MERCURY_TASK_LIST_ID: opts.resumeSessionId ?? opts.sessionId ?? '',
       ...(opts.env ?? {}),
       ...(opts.effort ? { MERCURY_EFFORT_LEVEL: opts.effort } : {}),
     }
+
     for (const spelling of flagSpellings('MERCURY_SESSION_KIT')) delete env[spelling]
     this.child = spawn(node, argv, {
       windowsHide: true,
@@ -141,6 +158,7 @@ export class MercuryChildSession {
       this.dead = true
       if (!this.closedByUs) this.handlers.onExit(code)
     })
+
     this.child.on('error', err => {
       this.dead = true
       logForDebugging(`[acp] child error: ${err}`)
@@ -265,6 +283,7 @@ export class MercuryChildSession {
         return
       }
       case 'step': {
+
         if (tagged !== null) return
         const usage = row.usage
         if (usage !== null && typeof usage === 'object') {
@@ -295,6 +314,7 @@ export class MercuryChildSession {
         this.turnOpen = false
         this.queuedPromptId = null
         this.interruptWhenTurnOpens = false
+
         if (this.lastRoundTripUsage !== null) {
           this.handlers.onUsage?.(this.lastRoundTripUsage, this.lastRoundTripModel, typeof row.cost_usd === 'number' ? row.cost_usd : undefined)
           this.lastRoundTripUsage = null

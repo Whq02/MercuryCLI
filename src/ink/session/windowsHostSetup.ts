@@ -1,4 +1,3 @@
-
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
@@ -13,7 +12,9 @@ export interface WindowsHostInventory {
 export interface HostSetupAction {
   id: 'install-windows-terminal' | 'install-pwsh7'
   label: string
+
   command: string[] | null
+
   url: string
 }
 
@@ -21,6 +22,7 @@ const WHERE_TIMEOUT_MS = 2500
 
 type PresenceEntry = {
   probe: Promise<PresenceState>
+
   settled: PresenceState | null
   at: number
 }
@@ -72,6 +74,7 @@ function rawWhereExists(exe: string): Promise<PresenceState> {
       { timeout: WHERE_TIMEOUT_MS, windowsHide: true, env: { ...subprocessEnv() } },
       err => {
         if (!err) return resolve('present')
+
         const code: unknown = (err as { code?: unknown }).code
         resolve(code === 1 ? 'missing' : 'unknown')
       },
@@ -162,12 +165,14 @@ export function hostSetupActions(inv: WindowsHostInventory): HostSetupAction[] {
 export function launchHostSetupAction(action: HostSetupAction): boolean {
   if (!action.command) return false
   try {
+
     execFile(
       'cmd.exe',
       ['/c', 'start', '', ...action.command],
       { windowsHide: false, env: { ...subprocessEnv() } },
       () => {},
     )
+
     evictHostPresence(presenceTargetsForAction(action.id))
     return true
   } catch {

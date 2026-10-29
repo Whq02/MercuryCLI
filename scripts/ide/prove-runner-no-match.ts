@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/ide/projectRunners* src/services/ide/pythonTests* src/services/ide/runnerReporters* src/tools/TestTool/* src/services/resources/adapters/test*
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

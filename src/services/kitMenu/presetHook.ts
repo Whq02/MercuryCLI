@@ -3,7 +3,9 @@ import type { KitDeltasShape } from './menuStore.js'
 
 export interface KitPresetSnapshot {
   workspaceDir: string
+
   deltas: KitDeltasShape
+
   members: { mcp: string[]; skills: string[]; extensions: string[] }
 }
 

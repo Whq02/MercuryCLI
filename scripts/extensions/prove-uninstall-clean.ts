@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -87,7 +88,9 @@ const EXCLUDE = ['extensions/sources', 'extensions/extensions.log', 'extensions/
 
 const added = await sources.addSource(FIXTURE, { label: 'fixture-source' })
 check('the fixture source adds', added.ok)
+
 writeFileSync(join(otherProject, '.mercury', 'settings.local.json'), JSON.stringify({ extensions: { enabled: { 'kitchen-sink@fixture-source': true } } }, null, 2))
+
 const settingsSeed = await import('../../src/utils/settings/settings.ts')
 getSecureStorage().update({ trustedDeviceToken: 'seed-token' } as never)
 check('the fresh home has no settings.json before install', !existsSync(join(home, 'settings.json')))
@@ -108,6 +111,7 @@ check('a sensitive option lands in the secure store, a plain one in settings', s
   check('the sensitive value NEVER touches the settings file', !settingsRaw.includes('hunter2-secret'))
   check('the plain value lives in settings', settingsRaw.includes('"FIXTURE_NAME"'))
 }
+
 const dataDir = paths.getExtensionDataDir('kitchen-sink@fixture-source')
 mkdirSync(dataDir, { recursive: true })
 writeFileSync(join(dataDir, 'hook.log'), 'ROOT=…\n')
@@ -141,6 +145,7 @@ await reloadMod.reloadExtensions({ cwd })
   check('the version folders are gone', !existsSync(paths.getInstalledIdDir('kitchen-sink@fixture-source')))
   check('the data folder is gone', !existsSync(dataDir))
 }
+
 check('the second uninstall lands', install.uninstall('partial-one@fixture-source').ok)
 await reloadMod.reloadExtensions({ cwd })
 {
@@ -152,6 +157,7 @@ await reloadMod.reloadExtensions({ cwd })
       return Object.entries(parsed).some(([id, row]) => row.label !== 'mercury' || id !== `${id.split('@')[0]}@mercury` || !Object.hasOwn(bundledPayloads, id.split('@')[0]!))
     }
     if (d === 'new: schema/settings.schema.json') {
+
       return false
     }
     const shipped = /^new: extensions\/bundled\/([^/]+)\/[^/]+\//.exec(d)
@@ -159,6 +165,7 @@ await reloadMod.reloadExtensions({ cwd })
     return true
   })
   check('the home is byte-identical except the source cache and the log', tolerated.length === 0, tolerated.slice(0, 6).join(' · '))
+
   check('no settings.json husk remains on the fresh home', !existsSync(join(home, 'settings.json')))
 }
 
@@ -196,6 +203,7 @@ console.log('[5] a seeded settings file returns to its prior bytes — never del
 
 console.log('[6] a $schema-only settings file leaves the disk with the husk')
 {
+
   rmSync(join(home, 'settings.json'), { force: true })
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ $schema: 'https://json.schemastore.org/other-settings.json' }, null, 2))
   const again = await install.installFromSource('fixture-source', 'kitchen-sink')

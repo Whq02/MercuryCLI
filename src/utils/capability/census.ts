@@ -1,4 +1,3 @@
-
 import { getAllBaseTools } from '../../tools.js'
 import { toolMatchesName, type Tool } from '../../Tool.js'
 import { getFlagSpec } from '../../substrate/flagRegistry.js'
@@ -32,7 +31,9 @@ export const CAPABILITY_UNITS = [
   'operator-io',
   'scheduling',
   'game-engine',
+
   'browser-drive',
+
   'pixel-art',
   'desktop-drive',
   'video-generation',
@@ -42,17 +43,26 @@ type SupportState = 'available' | 'conditional' | 'degraded' | 'unavailable'
 
 interface ToolCensusRow {
   name: string
+
   inCatalogNow: boolean
+
   category: CapabilityCategory
   risk: CapabilityRisk
+
   readOnlyProbe: boolean | null
   concurrencySafeProbe: boolean | null
+
   cancellation: 'cancel' | 'block'
   deferred: boolean
+
   operations: string[] | null
+
   declared: ToolCapability | null
+
   units: string[]
+
   proof: string | null
+
   enabledNow: boolean
   support: SupportState
 }
@@ -139,8 +149,10 @@ function probe(fn: ((input: Record<string, never>) => boolean) | undefined): boo
 
 function liveSupport(declared: ToolCapability | null, enabledNow: boolean): SupportState {
   if (enabledNow) {
+
     return declared?.conditions?.length ? 'conditional' : 'available'
   }
+
   return 'conditional'
 }
 
@@ -277,6 +289,7 @@ export const CENSUS_NO_REASON = 'no reason declared — declare gate/conditions 
 
 interface CensusGapLine {
   support: 'conditional' | 'unavailable'
+
   tools: string[]
   reason: string
 }

@@ -18,7 +18,6 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-
 const COPY_ACK_MS = 2000
 
 export function HuggingfaceConnect({
@@ -90,6 +89,7 @@ export function HuggingfaceConnect({
       return
     }
     if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
+
       event.stopImmediatePropagation()
       void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
         if (sequence) process.stdout.write(sequence)
@@ -191,6 +191,7 @@ function HuggingfaceTokenLeg({
     if (storingRef.current) return
     const token = raw.trim()
     if (!token) return
+
     const guard = keyPasteGuardNote(token, { stores: 'a Hugging Face token (hf_…)', looksLike: 'a token' })
     if (guard !== null) {
       onNote(guard)
@@ -201,6 +202,7 @@ function HuggingfaceTokenLeg({
     void storeHuggingfaceTokenLogin(token).then(outcome => {
       storingRef.current = false
       if (!outcome.stored) {
+
         setStoring(false)
         onNote(outcome.receipt)
         return

@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { crashReportDirDisplay } from '../../utils/crashReport.js'
 import Box from './Box.js'

@@ -1,22 +1,27 @@
-
 import type { AgentId } from './ids.js'
 import type { AssistantMessage, NormalizedUserMessage } from './message.js'
 
-
 export type BashProgress = {
   type: 'bash_progress'
+
   output: string
+
   fullOutput: string
+
   elapsedTimeSeconds: number
   totalLines: number
+
   totalBytes?: number
+
   taskId?: string
   timeoutMs?: number
+
   budgetMs?: number
 }
 
 type TestProgress = {
   type: 'test_progress'
+
   line: string
   elapsedTimeSeconds: number
 }
@@ -30,15 +35,17 @@ export type PowerShellProgress = {
   totalBytes: number
   taskId?: string
   timeoutMs?: number
+
   budgetMs?: number
 }
 
 export type ShellProgress = BashProgress | PowerShellProgress
 
-
 export type AgentToolProgress = {
   type: 'agent_progress'
+
   message: AssistantMessage | NormalizedUserMessage
+
   prompt: string
   agentId: AgentId
 }
@@ -46,22 +53,25 @@ export type AgentToolProgress = {
 export type SkillToolProgress = {
   type: 'skill_progress'
   message: AssistantMessage | NormalizedUserMessage
+
   prompt: string
   agentId: AgentId
 }
-
 
 export type MCPProgress = {
   type: 'mcp_progress'
   status: 'started' | 'completed' | 'failed' | 'progress'
   serverName: string
   toolName: string
+
   elapsedTimeMs?: number
+
   progress?: number
+
   total?: number
+
   progressMessage?: string
 }
-
 
 export type WebSearchProgress =
   | {
@@ -74,19 +84,21 @@ export type WebSearchProgress =
       query: string
     }
 
-
 export type SdkWorkflowProgress =
   | { type: 'workflow_log'; message: string }
   | {
       type: 'workflow_phase'
+
       index: number
       title: string
       kind?: 'phase' | 'child'
     }
   | {
       type: 'workflow_agent'
+
       index: number
       label: string
+
       state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
       phaseIndex?: number
       phaseTitle?: string
@@ -98,12 +110,12 @@ export type SdkWorkflowProgress =
       [k: string]: unknown
     }
 
-
 export type EvalToolProgress =
   | {
       type: 'eval_progress'
       kind: 'output'
       stream: 'stdout' | 'stderr'
+
       tail: string
       language: string
       title?: string

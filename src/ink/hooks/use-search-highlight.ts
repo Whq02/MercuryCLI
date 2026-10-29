@@ -1,4 +1,3 @@
-
 import { useContext, useMemo } from 'react'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import type { DOMElement } from '../dom.js'
@@ -7,13 +6,17 @@ import type { MatchPosition } from '../render-to-screen.js'
 export type SearchPositionsState = {
   positions: MatchPosition[]
   rowOffset: number
+
   colOffset: number
   currentIdx: number
 }
 
 type SearchHighlightApi = {
+
   setQuery: (query: string) => void
+
   scanElement: (el: DOMElement) => MatchPosition[]
+
   setPositions: (state: SearchPositionsState | null) => void
 }
 

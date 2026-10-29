@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/BashPermissionRequest/** src/hooks/useFocusedWorkspaceCwd* src/services/engine-connector/focusedConnector* src/services/engine-connector/noSessionConnector*
+
 import { mock } from 'bun:test'
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'

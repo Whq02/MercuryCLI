@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import {
@@ -93,7 +94,9 @@ section('6. router class mirrors — every first-party generation classifies to 
 
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
+
   const censusFiles: string[] = []
+
   for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
     check(
       `${rel} — carries NO model literal (the catalogue resolves live)`,
@@ -113,6 +116,7 @@ section('7. code-side model default census — literals resolve live, tiers trac
       dead.length ? `dead: ${dead.join(', ')}` : 'no literals matched — census regex aged',
     )
   }
+
   const routing = src('src/tools/WorkflowTool/workflowRouting.ts')
   check(
     'the workflow executor route is the neutral seat default (no pinned first-party id)',
@@ -120,6 +124,7 @@ section('7. code-side model default census — literals resolve live, tiers trac
       routing.includes('neutralSeatDefault()?.setting') &&
       !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
   )
+
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
   const crewOpus = foldLegacyWorkerModelKey('opus')
   check(

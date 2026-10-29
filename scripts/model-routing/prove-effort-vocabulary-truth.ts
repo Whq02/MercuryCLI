@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -31,12 +32,14 @@ const { DEEPSEEK_EFFORTS } = await import('../../src/services/providers/deepseek
 
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
+
 const PROVIDER_DEFAULT_LABEL = 'default'
 
 const moonshotWire = (request: string | undefined): string | undefined =>
   (wire.buildMoonshotExtras({ wireModel: 'kimi-k3', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
 const deepseekWire = (request: string | undefined): string | undefined =>
   (wire.buildDeepseekExtras({ wireModel: 'deepseek-flash', effortValue: request, thinkingEnabled: true, maxOutputTokensOverride: undefined }) as { reasoning_effort?: string }).reasoning_effort
+
 const glmWire = (model: string, request: string | undefined): string | undefined => {
   const vocabulary = glmEffortsFor(model)
   return request && vocabulary ? (glmAcceptsEffort(model, request) ? request : nearestSupportedWireEffort(request, [...vocabulary])) : undefined
@@ -107,6 +110,7 @@ section('§4 the projections every surface reads agree with the truth')
   check('the applied value follows the wire', effort.resolveAppliedEffort('deepseek-flash', 'medium') === 'low')
   check('the selectable stops on kimi-k3 carry no medium', !effort.selectableEffortLevels('kimi-k3').includes('medium'))
   check("the wire's requested string stays the REQUEST (the builders step it themselves — one table, two readers)", effort.resolveWireRequestedEffort('kimi-k3', 'medium') === 'medium')
+
   const sonnet = effort.resolveEffortTruth('claude-sonnet-5', 'medium')
   check('a first-party id still rides the ladder (medium stays medium)', sonnet.catalogue === 'static-tables' && sonnet.wire === 'medium', JSON.stringify(sonnet))
 }

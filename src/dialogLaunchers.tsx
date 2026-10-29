@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import type { Root } from './ink.js'
 import type { AppState } from './state/AppStateStore.js'
@@ -78,6 +77,7 @@ export async function launchResumeChooser(
   worktreePathsPromise: Promise<string[]>,
   resumeProps: ResumeChooserProps,
 ): Promise<void> {
+
   const [{ ResumeConversation }, { App }, { KeybindingSetup }, worktreePaths] =
     await Promise.all([
       import('./screens/ResumeConversation.js'),
@@ -85,6 +85,7 @@ export async function launchResumeChooser(
       import('./keybindings/KeybindingProviderSetup.js'),
       worktreePathsPromise.catch(() => [] as string[]),
     ])
+
   root.render(
     <App {...appProps}>
       <KeybindingSetup>

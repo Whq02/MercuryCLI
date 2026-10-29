@@ -72,6 +72,7 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
     'claude-opus-4-8',
     'claude-opus-4-6',
     'claude-haiku-4-5',
+
     'openrouter/anthropic/claude-fable-5-1',
     'openrouter/anthropic/claude-sonnet-5-5',
   ]
@@ -105,6 +106,7 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
     check(`${m}: {type:'tool'} rides verbatim (same object)`, foldToolChoiceForModel(m, forcedTool) === forcedTool)
     check(`${m}: {type:'any'} rides verbatim (same object)`, foldToolChoiceForModel(m, forcedAny) === forcedAny)
   }
+
   check('the fold never mutates the input object', show(forcedTool) === show({ type: 'tool', name: 'classify_result' }))
 }
 
@@ -125,6 +127,7 @@ section('§2 thinking is always on for the frontier family; the disable is omitt
       show(sideQueryThinkingParam(m, false, 4096)),
     )
   }
+
   for (const m of [...alwaysOn, 'claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-6']) {
     check(`${m}: adaptive-capable per the owner`, modelSupportsAdaptiveThinking(m))
     check(
@@ -195,6 +198,7 @@ section('§3 both Anthropic wire builders ride the one fold and the one thinking
 section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest')
 {
   const ID = 'claude-fable-5-1'
+
   const FAMILY = 'claude-fable-5'
   check('its own canonical (never swallowed by the fable-5 substring arm)', getCanonicalName(ID) === ID)
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID)

@@ -57,6 +57,7 @@ section('E07 — a genuine static change moves the RIGHT segment')
   const a = fingerprintCacheablePrefix({ systemBlocks: blocks as never, tools: [{ name: 'Read' }] })
   const b = fingerprintCacheablePrefix({ systemBlocks: changed as never, tools: [{ name: 'Read' }] })
   check('E07: the full digest moves', a.fullPrefixDigest !== b.fullPrefixDigest)
+
   const movedIdx = a.segments
     .map((s, i) => (b.segments[i] && s.digest !== b.segments[i]!.digest ? i : -1))
     .filter(i => i >= 0)

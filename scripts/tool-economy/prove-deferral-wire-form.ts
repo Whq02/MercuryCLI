@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,6 +46,7 @@ const ROUTE_MODELS: Record<string, string> = {
 
 section('§1 THE TABLE — one row per declared route, read by one owner')
 {
+
   const declared = new Set<string>(PROVIDER_ID_SPACES.map((s: { route: string }) => s.route))
   check('the home lane is recognised as a route of its own', declaredRouteOf('claude-sonnet-5') === 'anthropic')
   declared.add('anthropic')

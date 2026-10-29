@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -7,6 +8,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
 process.env['MERCURY_CONFIG_DIR'] = mkdtempSync(join(tmpdir(), 'critter-frame-cache-'))
+
 process.env['FORCE_COLOR'] = '3'
 delete process.env['NO_COLOR']
 process.env['MERCURY_CRITTER_GAZE'] = '0'
@@ -32,6 +34,7 @@ const defFor = (def: Def, _form: Form): Def => ({ ...def })
 const formProps = (form: Form): Props => ({ square: form === 'square' })
 const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d])) as Record<string, Def>
 const FORMS: Form[] = ['square', 'mini']
+
 const painted = new Map<string, Def>()
 for (const def of cd.CRITTERS) for (const form of FORMS) painted.set(`${def.name}/${form}`, defFor(def, form))
 const pd = (name: string, form: Form): Def => painted.get(`${name}/${form}`)!
@@ -56,6 +59,7 @@ t.section('§1 — root identity: the same inputs hand React the same element')
         if (a !== b) identical = false
         roots.push(a)
       }
+
       if (roots[0] === roots[2]) distinct = false
       t.check(`${def.name}/${form}: a repeated frame is the SAME root element (four frames)`, identical)
       t.check(`${def.name}/${form}: different frames are different roots`, distinct)
@@ -65,6 +69,7 @@ t.section('§1 — root identity: the same inputs hand React the same element')
 
 t.section('§2 — line reuse: only the cells that move are rebuilt')
 {
+
   const jellyDock = pd('jellyfish', 'square')
   const dockRest = paint({ def: jellyDock, square: true, swayPhase: 0 })
   const lid = paint({ def: jellyDock, square: true, swayPhase: 0, pupil: idle.EYE_SHUT })
@@ -72,6 +77,7 @@ t.section('§2 — line reuse: only the cells that move are rebuilt')
   const changed = linesOf(dockRest).map((l, i) => (l !== lidLines[i] ? i : -1)).filter(i => i >= 0)
   const eyeLine = Math.floor(jellyDock.squareDock.findIndex(r => r.includes('K')) / 2)
   t.check(`jellyfish/square: a blink rebuilds exactly the eye line (${eyeLine})`, changed.length === 1 && changed[0] === eyeLine, changed.join(','))
+
   const crab = pd('crab', 'square')
   const crabRoots = new Set<El>()
   for (let p = 0; p < cd.SWAY_PHASES; p++) crabRoots.add(paint({ def: crab, square: true, swayPhase: p }))
@@ -97,6 +103,7 @@ t.section('§3 — byte-identity: a hit renders what a miss renders, and what a 
       }
     }
   }
+
   await renderToString(React.createElement(CritterArt, { def: pd('crab', 'square'), square: true } as never), 60)
   let same = 0
   let total = 0
@@ -115,6 +122,7 @@ t.section('§3 — byte-identity: a hit renders what a miss renders, and what a 
     total++
     let identical = missPlain === hitPlain && missAnsi === hitAnsi && coldPlain === hitPlain && coldAnsi === hitAnsi && missPlain.trim() !== ''
     if (!identical) {
+
       const againPlain = await renderToString(el(shared), 60)
       const againAnsi = await renderToAnsiString(el(shared), 60)
       const cold2: Def = { ...shared }
@@ -138,12 +146,15 @@ t.section('§4 — bounds: a whole cycle stays under the caps; contexts cold-sta
 {
   for (const def of cd.CRITTERS) {
     for (const form of FORMS) {
+
       const d: Def = { ...defFor(def, form) }
+
       for (let p = 0; p < cd.SWAY_PHASES; p++) {
         for (const pupil of [idle.EYE_OPEN, idle.EYE_SHUT]) paint({ def: d, ...formProps(form), swayPhase: p, pupil })
       }
       const awake = critterFrameCacheStatsForProofs(d)
       t.check(`${def.name}/${form}: the awake cycle paints in ONE context (${awake.lines} lines · ${awake.roots} roots)`, awake.contexts === 1 && awake.lines > 0)
+
       for (let p = 0; p < cd.SWAY_PHASES; p++) {
         for (let z = 0; z < cd.SLEEP_PHASES; z++) paint({ def: d, ...formProps(form), swayPhase: p, pupil: idle.EYE_SHUT, sleepPhase: z })
       }
@@ -151,6 +162,7 @@ t.section('§4 — bounds: a whole cycle stays under the caps; contexts cold-sta
       t.check(`${def.name}/${form}: the full sway × blink × sleep cycle stays under the caps (${s.lines} lines ≤ 96 · ${s.roots} roots ≤ 48 · ${s.contexts} contexts ≤ 4)`, s.lines <= 96 && s.roots <= 48 && s.contexts <= 4 && s.lines > 0)
     }
   }
+
   const d: Def = { ...byName['octopus']! }
   const contexts: Props[] = [{}, { chunky: true }, { glowToward: '#7fd8c8' }, { legendOverride: { C: '#3fbfa0' } }, { pupil: '◦' }]
   for (const c of contexts) paint({ def: d, ...c })
@@ -204,6 +216,7 @@ t.section('§6 — the gaze memos: same object for the same grid, same values as
     const bf = cd.heroContentBounds([...art])
     t.check(`${def.name}: heroContentBounds answers the same tuple for the same grid, the same values for a copy`, ba === bb && ba[0] === bf[0] && ba[1] === bf[1])
   }
+
   const crab = byName['crab']!.squareDock
   const moved = gz.applyGazeKey(crab, gz.gazeKeyForPointer(crab, -40, crab.length / 2))
   t.check('a gazed grid (a new array) discovers its own clusters — the rest cells differ from the authored grid\'s', moved !== crab && JSON.stringify(gz.heroEyeClusters(moved).map(c => c.rest)) !== JSON.stringify(gz.heroEyeClusters(crab).map(c => c.rest)))
@@ -211,6 +224,7 @@ t.section('§6 — the gaze memos: same object for the same grid, same values as
 
 t.section('§8 — under the REAL clock a still critter never commits a frame identical to its previous one')
 {
+
   const { EventEmitter } = await import('node:events')
   const { PassThrough } = await import('node:stream')
   const { renderSync } = await import('../../src/ink/root.js')
@@ -231,6 +245,7 @@ t.section('§8 — under the REAL clock a still critter never commits a frame id
     }) as unknown as NodeJS.ReadStream
   delete process.env['MERCURY_CRITTER_IDLE']
   delete process.env['MERCURY_CRITTER_SLEEP']
+
   const WINDOW_MS = idle.SWAY_TICK_MS * 3 + 400
   const safeStart = idle.SECOND_LID_AT + idle.LID_MS + 200
   const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

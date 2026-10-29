@@ -1,4 +1,3 @@
-
 import * as net from 'node:net'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
 import {
@@ -80,7 +79,9 @@ export class BlenderBridgeClient {
   private buf = ''
   private nextId = 1
   private pending = new Map<number, Pending>()
+
   private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: BlenderBridgeResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+
   private helloTimer: NodeJS.Timeout | null = null
   private events: BlenderBridgeEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
@@ -89,6 +90,7 @@ export class BlenderBridgeClient {
   private backoffUntil = 0
   private helloError: BlenderBridgeError | null = null
   private lastHello: BlenderBridgeHelloInfo | null = null
+
   private readonly heartbeatMs: number
   private readonly pongTimeoutMs: number
   private readonly backoffStartMs: number
@@ -155,6 +157,7 @@ export class BlenderBridgeClient {
       )
     }
     return new Promise<BlenderBridgeResult>(resolve => {
+
       const entry = {
         op,
         args,
@@ -184,7 +187,6 @@ export class BlenderBridgeClient {
     this.teardown(err('CLIENT_CLOSED', 'the Blender bridge client was closed'))
   }
 
-
   private connect(): void {
     this.state = 'connecting'
     this.helloError = null
@@ -202,10 +204,12 @@ export class BlenderBridgeClient {
       clearTimeout(connectTimer)
       socket.write(buildBlenderBridgeHelloFrame(this.token))
     })
+
     socket.on('data', chunk => {
       this.onData(chunk.toString('utf8'))
     })
     const fail = () => {
+
       if (this.socket !== socket) return
       clearTimeout(connectTimer)
       if (this.helloTimer) {
@@ -232,6 +236,7 @@ export class BlenderBridgeClient {
       const frame = parseBlenderBridgeFrame(line)
       if (frame.kind === 'unknown') {
         if (this.state === 'connecting') {
+
           this.socket?.destroy(new Error('unparseable handshake payload — not a Blender bridge?'))
           return
         }
@@ -243,11 +248,13 @@ export class BlenderBridgeClient {
 
   private onFrame(frame: Exclude<ReturnType<typeof parseBlenderBridgeFrame>, { kind: 'unknown' }>): void {
     if (this.state === 'connecting') {
+
       if (this.helloTimer) {
         clearTimeout(this.helloTimer)
         this.helloTimer = null
       }
       if ((frame.kind === 'hello-reply' || frame.kind === 'response') && frame.ok === true) {
+
         const info = (frame.result ?? null) as BlenderBridgeHelloInfo | null
         const remote = typeof info?.version === 'number' ? info.version : undefined
         if (remote !== BLENDER_BRIDGE_PROTOCOL_VERSION) {
@@ -362,6 +369,7 @@ export class BlenderBridgeClient {
           'retry — the client reconnects on the next call',
         )
     this.teardown(reason)
+
     this.backoffUntil = Date.now() + this.backoffMs
     this.backoffMs = Math.min(this.backoffMs * 2, this.backoffCapMs)
   }
@@ -387,7 +395,6 @@ export class BlenderBridgeClient {
     }
   }
 }
-
 
 let singleton: { client: BlenderBridgeClient; key: string } | null = null
 

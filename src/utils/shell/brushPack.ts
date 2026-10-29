@@ -26,8 +26,10 @@ export function brushBinaryFor(packPlatform: string): string {
 
 interface BrushPackManifestBase {
   name: typeof BRUSH_PACK_NAME
+
   version: string
   platform: string
+
   target: string
   binary: string
   binarySha256: string
@@ -45,10 +47,13 @@ interface BrushReleaseArchiveManifest extends BrushPackManifestBase {
 
 export interface BrushCargoBuildManifest extends BrushPackManifestBase {
   source: 'cargo-build'
+
   crate: string
   crateVersion: string
+
   crateSha256: string | null
   patchSha256?: string
+
   cargo: string
 }
 
@@ -185,6 +190,7 @@ export function resolveBrushPackDir(moduleDir: string = path.dirname(fileURLToPa
   if (vendoredCheck.state === 'ok') {
     return { state: 'ok', dir: vendored, binaryPath: vendoredCheck.binaryPath, manifest: vendoredCheck.manifest, source: 'vendored' }
   }
+
   let dir = moduleDir
   let lockPath: string | null = null
   for (let i = 0; i < 6; i++) {

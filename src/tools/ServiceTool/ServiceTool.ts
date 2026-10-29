@@ -1,4 +1,3 @@
-
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import {
@@ -247,6 +246,7 @@ async function runOp(input: Input, sessionId: string, owner: OwnerKey): Promise<
       if (!input.name) need('name')
       const result = await stopService(project, input.name!)
       if ('error' in result) return { op: 'stop', result: result.error, name: input.name }
+
       const note = result.note ?? result.record.stopNote
       return {
         op: 'stop',
@@ -347,6 +347,7 @@ Services are addressable as mercury://service/<name> (Inspect). Never auto-start
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
+
   extractSearchText({ result }) {
     return result
   },

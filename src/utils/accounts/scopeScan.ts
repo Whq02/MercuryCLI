@@ -1,4 +1,3 @@
-
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { globalConfigFileIn } from '../env.js'
@@ -14,6 +13,7 @@ export type AccountScope = {
   authed: boolean
   email?: string
   uuid?: string
+
   foreignHarness: boolean
 }
 
@@ -47,6 +47,7 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
 }
 
 interface ScopeAuthReads {
+
   storedLogin?: (dir: string) => boolean
 }
 

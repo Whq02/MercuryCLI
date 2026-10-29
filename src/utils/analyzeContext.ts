@@ -43,7 +43,6 @@ import { getEngineModel } from './model/model.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import { isToolSearchEnabled } from './toolSearch.js'
 
-
 export const TOOL_TOKEN_COUNT_OVERHEAD = 500
 
 interface DeferredBuiltinTool {
@@ -98,10 +97,12 @@ export interface ContextData {
     includedSkills: number
     tokens: number
     skillFrontmatter: Array<{ name: string; source: ContextItemSource; tokens: number }>
+
     listingTruncation?: { budgetChars: number; nameOnly: number; withheld: number } | null
   }
   autoCompactThreshold?: number
   isAutoCompactEnabled: boolean
+
   countsAvailable: boolean
   messageBreakdown?: {
     toolCallTokens: number
@@ -130,7 +131,6 @@ type ContextItemSource =
   | 'policySettings'
   | 'extension'
   | 'built-in'
-
 
 type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
 
@@ -306,6 +306,7 @@ async function countMcpToolTokens(
   for (let i = 0; i < tools.length; i++) {
     const tool = tools[i] as Tool
     const displayTokens = Math.round((bulkTotal * (estimates[i] as number)) / estimateSum)
+
     const serverName = tool.name.split('__')[1] || UNKNOWN_NAME
     const isLoaded = usedNames.has(tool.name) || !isDeferredToolFor(tool, model, undefined, messages)
     if (isLoaded) {
@@ -314,6 +315,7 @@ async function countMcpToolTokens(
     } else if (deferralOn) {
       deferredSum += displayTokens
     }
+
     mcpToolDetails.push({
       name: tool.name,
       serverName,
@@ -329,7 +331,6 @@ async function countMcpToolTokens(
     loadedMcpToolNames,
   }
 }
-
 
 function sectionDisplayName(part: string): string {
   const heading = /^#+\s+(.+)$/m.exec(part)
@@ -352,6 +353,7 @@ async function countSystemPrompt(
     options?.mcpClients as MCPServerConnection[] | undefined,
   )
   const { buildEffectiveSystemPrompt } = await import('./systemPrompt.js')
+
   const effective = buildEffectiveSystemPrompt({
     mainThreadAgentDefinition: mainThreadAgentDefinition as AgentDefinition,
     toolUseContext: toolUseContext ?? ({ options: {} } as Pick<ToolUseContext, 'options'>),
@@ -371,6 +373,7 @@ async function countSystemPrompt(
   if (parts.length === 0 && contextEntries.length === 0) {
     return { tokens: 0, sections: [], requestSystem }
   }
+
   const sections: SystemPromptSectionDetail[] = await Promise.all([
     ...parts.map(async part => ({
       name: sectionDisplayName(part),
@@ -389,9 +392,11 @@ async function countMemoryFiles(): Promise<{
   tokens: number
   details: Array<{ path: string; type: string; tokens: number }>
 }> {
+
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return { tokens: 0, details: [] }
   }
+
   const own = filterInjectedInstructionFiles(await getInstructionFiles())
   const details: Array<{ path: string; type: string; tokens: number }> = []
   let total = 0
@@ -402,7 +407,6 @@ async function countMemoryFiles(): Promise<{
   }
   return { tokens: total, details }
 }
-
 
 const FREE_SPACE_NAME = 'Free space'
 
@@ -472,6 +476,7 @@ function buildGrid(
   while (squares.length < freeTarget) {
     squares.push({
       color: freeSpaceCategory?.color ?? 'promptBorder',
+
       isFilled: true,
       categoryName: FREE_SPACE_NAME,
       tokens: freeTokens,
@@ -490,7 +495,6 @@ function buildGrid(
   }
   return rows
 }
-
 
 function roughBlockTokens(block: unknown): number {
   try {
@@ -593,7 +597,6 @@ function computeMessageBreakdown(messages: Message[]): NonNullable<ContextData['
   }
 }
 
-
 export async function analyzeContextUsage(
   messages: Message[],
   model: string,
@@ -606,6 +609,7 @@ export async function analyzeContextUsage(
   originalMessages?: Message[],
 ): Promise<ContextData> {
   counterRoadDown = false
+
   const runtimeModel = model
   const contextWindow = getContextWindowForModel(runtimeModel, getSdkBetas())
 
@@ -657,6 +661,7 @@ export async function analyzeContextUsage(
       )
     }
   } else {
+
     const usedNames = new Set<string>()
     for (const message of messages) {
       if (message.type !== 'assistant') continue
@@ -740,6 +745,7 @@ export async function analyzeContextUsage(
   let skillsBlock: ContextData['skills']
   try {
     if (skillTool) {
+
       const commands = await getLimitedSkillToolCommands(getCwd())
       const skillFrontmatter = commands.map(command => {
         const record = command as unknown as { type?: string; source?: ContextItemSource }
@@ -753,6 +759,7 @@ export async function analyzeContextUsage(
         }
       })
       const frontmatterTotal = skillFrontmatter.reduce((total, skill) => total + skill.tokens, 0)
+
       const { formatCommandsWithinBudgetDetailed } = await import('../tools/SkillTool/prompt.js')
       const listingTruncation = formatCommandsWithinBudgetDetailed(commands, contextWindow).truncation
       skillsBlock = {
@@ -777,6 +784,7 @@ export async function analyzeContextUsage(
     }
   }
   pushContent('System prompt', systemPromptResult.tokens, 'promptBorder')
+
   pushContent('System tools', builtinToolTokens - (skillsBlock?.tokens ?? 0), 'inactive')
   pushContent('MCP tools', mcpResult.mcpToolTokens, 'cyan_FOR_SUBAGENTS_ONLY')
   pushContent('MCP tools (deferred)', mcpResult.deferredToolTokens, 'inactive', true)
@@ -803,6 +811,7 @@ export async function analyzeContextUsage(
   let reserveName: string
   let autoCompactThreshold: number | undefined
   if (autoCompactOn) {
+
     autoCompactThreshold = getAutoCompactThreshold(model)
     reserveTokens = contextWindow - autoCompactThreshold
     reserveName = 'Autocompact buffer'
@@ -813,6 +822,7 @@ export async function analyzeContextUsage(
   categories.push({ name: reserveName, tokens: reserveTokens, color: 'inactive' })
 
   const freeSpace = Math.max(0, contextWindow - usedForLayout - reserveTokens)
+
   categories.push({ name: FREE_SPACE_NAME, tokens: freeSpace, color: 'promptBorder' })
 
   const gridRows = buildGrid(categories, contextWindow, reserveName, terminalWidth)
@@ -829,8 +839,10 @@ export async function analyzeContextUsage(
     gridRows,
     model: runtimeModel,
     memoryFiles: memoryFiles.details,
+
     systemPromptSections: systemPromptResult.sections,
     mcpTools: mcpResult.mcpToolDetails,
+
     agents: agentDetails,
     isAutoCompactEnabled: autoCompactOn,
     countsAvailable,

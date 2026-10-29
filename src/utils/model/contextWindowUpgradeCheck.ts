@@ -1,8 +1,11 @@
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 
 type UpgradeMessage = {
+
   suffixedAlias: string
+
   displayName: string
+
   multiplier: number
   warning: string
   tip: string
@@ -29,6 +32,7 @@ export function getUpgradeMessage(context: string | null | undefined): UpgradeMe
     suffixedAlias,
     displayName,
     multiplier: 5,
+
     warning: `/model ${suffixedAlias}`,
     tip: `You have access to ${displayName} — 5x more context. Run /model ${suffixedAlias} to switch.`,
   }

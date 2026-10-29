@@ -1,4 +1,3 @@
-
 import { charWidth, displayWidth } from '../../components/mercury-ui/glyphs.js'
 
 export function fmtTok(n: number): string {
@@ -57,6 +56,7 @@ export function wrapPlain(text: string, width: number): string[] {
     }
     if (line && out.length < WRAP_LINES_MAX) out.push(line)
   }
+
   while (out[out.length - 1] === '') out.pop()
   return out
 }

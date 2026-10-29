@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
@@ -8,6 +9,7 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'mcp-membership-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
+
 const PROJECT = join(SCRATCH, 'project')
 mkdirSync(PROJECT, { recursive: true })
 process.chdir(PROJECT)
@@ -41,6 +43,7 @@ section('§1 owner semantics: the per-project record, verbatim')
   const { setMcpServerEnabled } = await import('../../src/services/mcp/config.ts')
 
   t('an unconfigured name is a member (default-on)', isMcpCatalogueMember('alpha') === true)
+
   setMcpServerEnabled('blocked-server', false)
   t(
     'a record-disabled name is NOT a member (the opt-out list bites)',

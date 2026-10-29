@@ -46,6 +46,7 @@ export default {
   contentLength: ORIENT_PROMPT.length,
   source: 'builtin',
   async getPromptForCommand(): Promise<ContentBlockParam[]> {
+
     maybeMarkProjectOnboardingComplete()
     return [{ type: 'text', text: ORIENT_PROMPT }]
   },

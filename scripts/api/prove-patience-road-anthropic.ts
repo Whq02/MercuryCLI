@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -56,6 +57,7 @@ async function play(silence: boolean): Promise<Played> {
       terminal ||= part.type === 'message_stop'
     }
   } catch (error) {
+
     if (!controller.signal.aborted) throw error
   } finally {
     watchdog.stop()

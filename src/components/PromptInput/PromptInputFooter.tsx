@@ -1,4 +1,3 @@
-
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import {
@@ -83,6 +82,7 @@ export function PromptInputFooter({
   messages: Message[]
   mcpClients?: MCPServerConnection[]
   hintsEnabled?: boolean
+
   crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
@@ -90,11 +90,13 @@ export function PromptInputFooter({
   suggestionRows?: number
 }): React.ReactNode {
   const { columns } = useTerminalSize()
+
   useSyncExternalStore(subscribeExtendedKeysSupport, extendedKeysSupportedNow, extendedKeysSupportedNow)
   const composerCrewmate = useComposerCrewmate()
   const viewedCrewmate = useViewedCrewmate()
   const fullscreen = isFullscreenEnvEnabled()
   const narrow = columns < NARROW_COLUMNS
+
   const stripHint = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => stripKeyMapHintOf('repl', presentStripStops()),

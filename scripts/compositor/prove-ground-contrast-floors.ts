@@ -25,6 +25,7 @@ const ACCENTS: Array<[string, string]> = [
 
 const dark = resolveMercuryTokens('dark', TERRA)
 if (dark.canvas === undefined) throw new Error('dark family lost its canvas ground')
+
 const FIELD = dark.canvas
 
 function worstOnField(ink: string): { ratio: number; at: string } {
@@ -51,6 +52,7 @@ t.section('§1 — text floors on the ACTUAL painted ground (the flat estate NIG
     muted.ratio >= 3.0,
     `${dark.textMuted} worst ${muted.ratio.toFixed(2)} @ ${muted.at}`,
   )
+
   const instrVsSecondary = contrastRatio(dark.textInstruction, dark.spectraGround!.bottom)
   const secondary = contrastRatio(dark.textSecondary, dark.spectraGround!.bottom)
   t.check(
@@ -75,6 +77,7 @@ t.section('§2 — the focused pill: textInverse on the accentSoft pill, every a
 
 t.section('§3 — banded-cursor guard: the band stays visible on the flat ground')
 {
+
   const BAND_FLOOR = 1.1
   for (const [name, hue] of ACCENTS) {
     const tokens = resolveMercuryTokens('dark', hue)
@@ -102,6 +105,7 @@ t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
     colorize.includes('export function truecolorActive') && colorize.includes('chalk.level >= 3'),
     'the chalk-authority module',
   )
+
   const listFork = /borderColor=\{region === 'list' \? t\.info : t\.borderSubtle\}/.test(layout)
   const coordPane = readFileSync('src/components/concourse/CoordinatorPane.tsx', 'utf8')
   const coordFork = /borderColor=\{focused \? t\.info : t\.borderSubtle\}/.test(coordPane)
@@ -112,6 +116,7 @@ t.section('§4 — the truecolor gate + collapsed-focus ink (source ratchets)')
     listFork && coordFork && stripFork,
     `list ${listFork} · coordinator ${coordFork} · strip ${stripFork} (borderSubtle quantizes to ansi BLACK at level 1)`,
   )
+
   t.check(
     'the focused chip ink is textInverse on the pill (a11y-p2-09)',
     strips.includes('modelPickerOpen ? t.textInverse') &&

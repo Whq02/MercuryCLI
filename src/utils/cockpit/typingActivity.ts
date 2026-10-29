@@ -1,4 +1,3 @@
-
 export const TYPING_HOLD_MS = 1400
 
 let typingActive = false

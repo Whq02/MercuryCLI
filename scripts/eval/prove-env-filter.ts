@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, within } from './lib.js'
 
@@ -11,8 +12,10 @@ section('the enumeration mirrors real resolvers (anti-drift)')
 const names = credentialEnvNames()
 check('the enumeration is non-trivial', names.length >= 10, String(names.length))
 for (const name of names) {
+
   let hits: string[] = []
   try {
+
     hits = execSync(`grep -rlF ${JSON.stringify(name)} src --include='*.ts' --include='*.tsx' || true`, {
       encoding: 'utf8',
       cwd: process.cwd(),

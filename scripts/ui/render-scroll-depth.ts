@@ -8,6 +8,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
+
 const CONFIG_HOME = resolveProofHome([REPO.normalize('NFC')])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(REPO.normalize('NFC'))))
 const SID = `00000000-aaaa-bbbb-ffff-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
@@ -32,12 +33,14 @@ const fixture = join(PROJECTS, `${SID}.jsonl`)
 writeFileSync(fixture, lines.map(l => JSON.stringify(l)).join('\n') + '\n')
 
 const PAGEUP = '\x1b[5~'
+
 const sends = Array.from({ length: 48 }, (_, i) => ({ atTick: 45 + i * 3, data: PAGEUP }))
 const grid = '/tmp/render-scroll-depth-grid.json'
 const cfgPath = '/tmp/render-scroll-depth-cfg.json'
 writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID], sends, total: 245, cols: 120, rows: 44, out: grid }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf-8', timeout: vshotBudgetMs(220000),
+
   env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME },
 })
 try { rmSync(fixture) } catch {  }
@@ -59,6 +62,7 @@ const nums = rows
   .map(Number)
 check(nums.length > 0, `transcript rows visible after the walk (${nums.length})`)
 const lowest = nums.length ? Math.min(...nums) : Infinity
+
 check(lowest <= 3, `deep history reached to the floor — lowest visible turn ${lowest} (pre-fix stall: ~169)`)
 
 console.log(failures === 0 ? '✅ scroll depth GREEN' : `❌ scroll depth RED (${failures})`)

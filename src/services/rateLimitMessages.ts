@@ -4,14 +4,15 @@ import { getMarketingNameForModel } from '../utils/model/model.js'
 import type { AnthropicLimits, RateLimitType } from './anthropicLimits.js'
 import { usageWarningTier } from './providers/usageTiers.js'
 
-
 const SEPARATOR = ' · '
 
 const RATE_LIMIT_ERROR_PREFIXES = [
+
   "Anthropic says this account's",
   'Anthropic says this account has used',
   'Anthropic says this account is now using extra usage · ',
   'Anthropic says this account is close to its extra usage',
+
   "You've reached your",
   "You've used",
   "You're now using extra usage · ",
@@ -120,6 +121,7 @@ function limitReachedMessage(limits: AnthropicLimits, model: string): string {
     if (limits.overageDisabledReason === 'out_of_credits') {
       return `Anthropic says this account's extra usage is used up${onModel}${resetClause}${fixes}`
     }
+
     return `Anthropic says this account's ${limitReachedName(limits.rateLimitType)} is reached${onModel}${resetClause}${fixes}`
   }
   const name = limitReachedName(limits.rateLimitType)
@@ -137,12 +139,14 @@ function earlyWarningMessage(limits: AnthropicLimits): string | null {
   const resetClause =
     limits.resetsAt ? `${SEPARATOR}resets ${formatResetTime(limits.resetsAt)}` : ''
   const percentage = limits.utilization !== undefined ? Math.floor(limits.utilization * 100) : 0
+
   if (percentage && limits.resetsAt) {
     return `Anthropic says this account has used ${percentage}% of its ${name}${resetClause}${upsellClause}`
   }
   if (percentage) {
     return `Anthropic says this account has used ${percentage}% of its ${name}${upsellClause}`
   }
+
   const approachName = claim === 'overage' ? 'extra usage limit' : name
   return `Anthropic says this account is approaching its ${approachName}${resetClause}${upsellClause}`
 }
@@ -197,7 +201,6 @@ export function getRateLimitErrorMessage(limits: AnthropicLimits, model: string)
   return result !== null && result.severity === 'error' ? result.message : null
 }
 
-
 export type UpsellMessageParams = {
   shouldShowUpsell: boolean
 }
@@ -208,8 +211,11 @@ export function getUpsellMessage(params: UpsellMessageParams): string | null {
 }
 
 interface WallRemedyReads {
+
   slotAppendix?: () => string
+
   upsellEligible?: () => boolean
+
   laneTarget?: () => { route: string; name: string } | null
   carryWords?: () => string | undefined
 }

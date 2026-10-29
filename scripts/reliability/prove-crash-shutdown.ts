@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -124,6 +125,7 @@ function runChild(body: string, timeoutMs: number): { status: number | null; ms:
     })
     return { status: r.status, stderr: r.stderr ?? '' }
   }
+
   const blocker = join(SCRATCH, 'blocker')
   writeFileSync(blocker, 'a file where a directory was expected')
   const refusing = drive(join(blocker, 'home'))
@@ -131,6 +133,7 @@ function runChild(body: string, timeoutMs: number): { status: number | null; ms:
   t('§6 …with no report: line (nothing landed)', !/^report:/m.test(refusing.stderr), refusing.stderr.slice(0, 600))
   t('§6 …and a next: line that never promises the report below', !refusing.stderr.includes('the report below carries it'), refusing.stderr.slice(0, 600))
   t('§6 …but says the report could not be written and points at the console trace', /no crash report could be written/.test(refusing.stderr) && refusing.stderr.includes('--debug --log-stderr'), refusing.stderr.slice(0, 600))
+
   const landed = drive(join(SCRATCH, 'card-home'))
   t('§6 control: a writable home prints the report: line', /^report:\s+\S*crash-\d+-boot\.json/m.test(landed.stderr), landed.stderr.slice(0, 600))
   t('§6 control: …and the next: line keeps its promise', landed.stderr.includes('the report below carries it'), landed.stderr.slice(0, 600))

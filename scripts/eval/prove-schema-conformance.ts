@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, cleanup, finish, section, setup } from './lib.js'
@@ -81,6 +82,7 @@ interface Row {
   name: string
   schema: object
   value: unknown
+
   expect: Verdict
 }
 

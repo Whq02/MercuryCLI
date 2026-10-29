@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,6 +40,7 @@ function effortReadoutRuns(stored: EffortValue | undefined, model: string): stri
 
 console.log('— §1 the operator scene: fresh session, no stored value —')
 {
+
   const model = 'claude-opus-5'
   const chip = effort.getDisplayedEffortLabel(model, undefined)
   t('the chip says the model default (high)', chip === 'high', chip)
@@ -74,11 +76,13 @@ console.log('— §2 chip ≡ slider: the whole ladder × models × env pins —
   }
   delete process.env.MERCURY_EFFORT_LEVEL
   t(`chip and slider agree on all ${cases} ladder cases`, agreements === cases, firstMiss)
+
   process.env.MERCURY_EFFORT_LEVEL = 'high'
   const chipPinned = effort.getDisplayedEffortLabel('claude-opus-5', 'xhigh')
   const openedPinned = sliderOpens('claude-opus-5', 'xhigh')
   t('an env pin below the stored value rules BOTH gauges', chipPinned === 'high' && openedPinned === 'high', `chip ${chipPinned}, slider ${openedPinned}`)
   delete process.env.MERCURY_EFFORT_LEVEL
+
   const chipStepped = effort.getDisplayedEffortLabel('claude-opus-4-6', 'xhigh')
   const openedStepped = sliderOpens('claude-opus-4-6', 'xhigh')
   t('a stored tier above the model ladder steps down on BOTH gauges', chipStepped === 'high' && openedStepped === 'high', `chip ${chipStepped}, slider ${openedStepped}`)
@@ -104,6 +108,7 @@ console.log('— §4 override targets keep their own truths —')
   t('a session at max opens on the max row, the last row of the popup', geo.levels[maxSlot]?.value === 'max' && maxSlot === geo.levels.length - 1, String(geo.levels[maxSlot]?.value))
   const ovSlot = popup.effortPopupOpeningRow('claude-opus-5', 'low', 'xhigh')
   t('an override target opens on the override', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
+
   process.env.MERCURY_EFFORT_LEVEL = 'low'
   const ovPinned = popup.effortPopupOpeningRow('claude-opus-5', undefined, 'max')
   t('…and a foreign env pin cannot move an override target', geo.levels[ovPinned]?.value === 'max', String(geo.levels[ovPinned]?.value))

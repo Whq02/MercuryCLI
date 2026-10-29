@@ -1,4 +1,3 @@
-
 type ParsedSlashCommand = {
   commandName: string
   args: string

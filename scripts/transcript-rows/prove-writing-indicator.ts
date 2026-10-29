@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -73,6 +74,7 @@ section('W1 the fold is honest per phase')
 section('W2 the connector busy-union never claims writing for a fold-idle transcript')
 {
   const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
+
   check(
     "the union stamps 'thinking' when busy over an idle fold (dispatched, nothing streamed)",
     /this\.liveState\.phase === 'idle'\s*\?\s*'thinking'/.test(src),

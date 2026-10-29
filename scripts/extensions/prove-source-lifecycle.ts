@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0-proof' }
 
 import { execFileSync } from 'node:child_process'
@@ -68,6 +69,7 @@ const BASE = `http://127.0.0.1:${PORT}`
 
 async function zipOf(dir: string): Promise<Buffer> {
   const { zipSync } = await import('fflate')
+
   const files: Record<string, [Uint8Array, { os: number; attrs: number }]> = {}
   const walk = (d: string, prefix: string): void => {
     for (const entry of readdirSync(d, { withFileTypes: true })) {
@@ -232,6 +234,7 @@ console.log('[5] refresh: only a refresh discovers a newer version; nothing is i
   check('install from the git source lands under installed/<id>/<version>', installed.ok && installed.root === paths.getInstalledVersionDir('kitchen-sink@fixture-source', '1.0.0'), installed.ok ? '' : installed.reason)
   const approved = install.approve('kitchen-sink@fixture-source')
   check('approve records the hash and the switch', approved.ok)
+
   const manifestPath = join(repo, 'kitchen-sink', 'mercury-extension.json')
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   manifest.version = '1.1.0'
@@ -265,6 +268,7 @@ console.log('[5] refresh: only a refresh discovers a newer version; nothing is i
   const stillThere = sources.readSourceCatalogue('fixture-source', records.sourcesOrEmpty()['fixture-source']!)
   check('the previous catalogue still lists', stillThere.ok && stillThere.catalogue.extensions.length === 3)
   check('the row reads ✕ unreachable with the reason', sources.listSources().find(r => r.label === 'fixture-source')?.state === 'unreachable')
+
   writeFileSync(cataloguePath, JSON.stringify(catalogue, null, 2))
   git(['add', '-A'], repo)
   git(['commit', '-q', '-m', 'repair'], repo)
@@ -304,6 +308,7 @@ console.log('[6] remove: the source only (copies keep working) · the source and
 
 console.log('[7] the vanished source: unreachable host · missing folder · 404 archive · shrunken catalogue')
 {
+
   const deadRepo = join(scratch, 'dead-repo')
   cpSync(FIXTURE, deadRepo, { recursive: true })
   git(['init', '-q', '-b', 'main'], deadRepo)

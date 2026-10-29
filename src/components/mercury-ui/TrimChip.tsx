@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useSyncExternalStore } from 'react'
 import { Text } from '../../ink.js'

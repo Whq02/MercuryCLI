@@ -44,6 +44,7 @@ section('§1 within budget — full listing, no record')
 
 section('§2 the allowance boundary, exact')
 {
+
   const above = withBudget(59, () => prompt.formatCommandsWithinBudgetDetailed(pair))
   t('one char above the fall: descriptions shortened, still present, NO record', above.truncation === null && above.content.includes('- alpha: '), JSON.stringify(above))
   const below = withBudget(58, () => prompt.formatCommandsWithinBudgetDetailed(pair))

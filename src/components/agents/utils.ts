@@ -1,4 +1,3 @@
-
 import type { AgentSource } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getSettingSourceDisplayNameCapitalized } from '../../utils/settings/constants.js'
 

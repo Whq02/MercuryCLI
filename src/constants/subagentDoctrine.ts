@@ -1,4 +1,3 @@
-
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { ToolUseContext } from '../Tool.js'
@@ -9,6 +8,7 @@ import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
+
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'
 
 const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(

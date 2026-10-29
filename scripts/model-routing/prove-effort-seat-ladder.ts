@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -25,6 +26,7 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-seat-'))
+
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 const effort = await import('../../src/utils/effort.js')
@@ -67,6 +69,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
   const stamped = effort.resolveStampedEffortTruth(MODEL, 'xhigh')
   check("a seat row's stamped truth resolves the seat's own word (no env, no agent)", stamped.requested === 'xhigh' && stamped.requestedSource === 'session')
+
   check('the ladder ends at max and a word above it is not a level (no door admits it; the ceiling is max)', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 1] === 'max' && effort.normalizeEffortLevelString('ultra') === undefined && effort.parseEffortValue('ultra') === undefined && effort.getMaxSupportedEffortLevel(MODEL) === 'max' && !(effort.selectableEffortLevels(MODEL) as readonly string[]).includes('ultra'))
   delete process.env.MERCURY_EFFORT_LEVEL
 }
@@ -119,11 +122,14 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check("the deep agent's request carries max (asked max → sent max)", deep.wire === 'max' && deep.requestedSource === 'agent', JSON.stringify(deep))
   check("the quick agent's request carries xhigh", quick.wire === 'xhigh' && quick.requestedSource === 'agent', JSON.stringify(quick))
   check("the seat's own request still carries its stamp (max)", seat.wire === 'max' && seat.requestedSource === 'env', JSON.stringify(seat))
+
   const stepped = effort.resolveEffortTruth('gpt-5.5', 'max', { agentId: 'astra-deep' })
   check("an own word the row lacks steps to the nearest served word (max → xhigh) and the record keeps both", stepped.wire === 'xhigh' && stepped.requested === 'max' && stepped.adjustedFrom === 'max', JSON.stringify(stepped))
+
   effort.noteAgentEffortWord('astra-top', 'ultra' as never)
   const top = effort.resolveEffortTruth('gpt-6-astra', 'ultra' as never, { agentId: 'astra-top' })
   check("a list word above the ladder is never sent: asked raw, the row default (high on this list) rides", top.wire === 'high' && top.applied === 'high' && top.requestedSource === 'agent', JSON.stringify(top))
+
   effort.noteAgentEffortWord('astra-default', 'high')
   const riding = effort.resolveEffortTruth('gpt-6-astra', 'high', { agentId: 'astra-default' })
   check("a sub-agent on the configured default keeps it under a seat stamped max (the stamp is the seat's, never the crew's)", riding.wire === 'high' && riding.requestedSource === 'agent', JSON.stringify(riding))
@@ -141,6 +147,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the line names the asked word, the model and the served word', line === 'effort max is not served on GPT-5.5 today — sent xhigh', line)
   const omitted = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max' })
   check('a wire that omits the key says so', omitted === 'effort max is not served on GPT-5.5 today — no effort key was sent (the model default applies)', omitted)
+
   const refused = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', sent: 'xhigh', wireRefused: { road: 'ChatGPT subscription', reprobeAfter: 'a day' } })
   check('a wire-refused word names the road and the re-probe', refused === 'effort max: the wire refused it for GPT-5.5 on the ChatGPT subscription road today — sent xhigh, the nearest word it serves; Mercury asks the wire again after a day', refused)
   const refusedNoKey = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', wireRefused: { road: 'API key', reprobeAfter: 'a day' } })

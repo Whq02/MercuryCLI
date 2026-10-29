@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -57,12 +58,14 @@ console.log('\n── §2 contracts pinned in source ─────────
   check('useTextInput routes ALL range edits through the one splice', (uti.match(/spliceInputRange\(/g) ?? []).length >= 2 && !/cursor\.text\.slice\(0, r\.start\) \+ cursor\.text\.slice\(r\.end\)/.test(uti))
   check('←/→ collapse the selection to its edges', uti.includes('setOffset(key.leftArrow ? r.start : r.end)'))
   check('esc clears the selection, never the draft', uti.includes('if (key.escape) {\n            onSelectionConsumed?.()\n            return\n          }'))
+
   const graph = read('src/keybindings/actionGraph.ts')
   const schema = read('src/keybindings/schema.ts')
   const shipped = shippedKeyForms()
   const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
   check('chat:redo registered in schema + defaults + help', graph.includes("'chat:redo'") && schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") && formsMissing(shipped, 'Chat', 'ctrl+x ctrl+r', 'chat:redo').length === 0 && help.includes('to redo'))
   check('ctrl+z is never advertised for redo', rowsBinding(shipped, (action, chord) => action === 'chat:redo' && chord.endsWith('ctrl+z')).length === 0 && !help.includes('ctrl + z to redo'))
+
   const shutdown = read('src/utils/gracefulShutdown.ts')
   const installerStart = shutdown.indexOf('export const setupGracefulShutdown')
   const crashHandlerAt = shutdown.indexOf("process.on('uncaughtException'")
@@ -82,6 +85,7 @@ console.log('\n── §2 contracts pinned in source ─────────
 console.log('\n── §3 the REAL binary: burst-undo · redo · receipts ─────────')
 function composerCapture(
   tag: string,
+
   sends: Array<Record<string, unknown> & { data: string }>,
   total: number,
   early?: { readyText?: string; stableTicks?: number },
@@ -106,12 +110,14 @@ function composerCapture(
     env: {
       ...process.env,
       MERCURY_LIVE_GLYPHS: '0',
+
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
   })
   cleanupScenario('cockpit-short')
   if (res.status !== 0) {
     check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
+
     try {
       const g = (JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: { c: string }[][] }).grid
       console.log(g.slice(-6).map(r => `      | ${r.map(c => c.c).join('').trimEnd()}`).join('\n'))
@@ -123,6 +129,7 @@ function composerCapture(
   return grid.map(r => r.map(c => c.c).join(''))
 }
 {
+
   const a = composerCapture(
     'undo',
     [
@@ -141,6 +148,7 @@ function composerCapture(
     )
     check('the ↶ receipt showed', a.some(l => l.includes('undid')))
   }
+
   const b = composerCapture(
     'redo',
     [
@@ -161,6 +169,7 @@ function composerCapture(
     )
     check('the ↷ receipt showed', b.some(l => l.includes('redid')))
   }
+
   const c = composerCapture(
     'undo2',
     [
@@ -180,14 +189,17 @@ function composerCapture(
       c.find(l => l.includes('alpha')) ?? '(draft missing)',
     )
   }
+
   const d = composerCapture(
     'paste-undo',
     [
+
       { awaitRaw: '\u001b[?2004h', minTick: 2, atTick: 40, data: '' },
       { awaitText: '❯', minTick: 2, atTick: 45, data: '' },
       { afterPrevTicks: 1, data: '\x1b[200~pasted alpha content\x1b[201~' },
       { afterPrevTicks: 14, data: '\x1f' },
     ],
+
     90,
     { readyText: 'undid' },
   )

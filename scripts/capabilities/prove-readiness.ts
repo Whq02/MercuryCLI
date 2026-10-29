@@ -133,6 +133,7 @@ try {
   if (!distFresh) {
     console.log('· health --json leg SKIPPED (dist not built from this tree — the gate prebuilds)')
   } else {
+
     const d = spawnSync('node', [dist, 'health', '--json'], {
       encoding: 'utf8',
       timeout: 90_000,

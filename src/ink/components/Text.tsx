@@ -1,4 +1,3 @@
-
 import React from 'react'
 import type { Color, Styles, TextStyles } from '../styles.js'
 

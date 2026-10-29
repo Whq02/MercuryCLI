@@ -34,6 +34,7 @@ export function SessionWaitingRoom({
   title: string
   project: string
   onBack: () => void
+
   onAdmitted: (sessionId: string) => void
 }): React.ReactNode {
   const t = useMercuryTokens()

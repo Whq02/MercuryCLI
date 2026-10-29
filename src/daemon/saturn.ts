@@ -9,14 +9,19 @@ import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseWorkers.js'
 import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 
-
 export interface ScheduleAccountV1 {
+
   family: string
+
   source: 'oauth' | 'api-key' | 'keyless'
   modelKey?: string
+
   scopeDir?: string
+
   identity?: string
+
   knownExpiresAt?: number | null
+
   refreshable?: boolean
 }
 
@@ -27,7 +32,6 @@ export type ScheduleAccountVerdictV1 =
   | { state: 'signed-out' }
   | { state: 'unreachable' }
   | { state: 'rate-limited'; retryAt?: number }
-
 
 export type SaturnWhenV1 =
   | { kind: 'at'; atMs: number; spelling?: string }
@@ -41,37 +45,49 @@ export interface SaturnBirthSpecV1 {
   workspaceDir: string
   modelKey: string
   effort?: string
+
   contract?: { text: string } | null
+
   kitPreset?: string
+
   opening?: string
+
   presence: 'headless' | 'screen-present'
   title?: string
 }
 
 export interface SaturnScheduleV1 {
   schema: 1
+
   id: string
   when: SaturnWhenV1
   action: SaturnActionV1
+
   account: ScheduleAccountV1
+
   modelKey: string
   effort?: string
   createdAt: number
+
   createdBy: string
+
   lastFiredAt?: number
+
   preflightAtWrite?: ScheduleAccountVerdictV1
+
   paused?: true
   note?: string
   title?: string
 }
 
-
 export interface SaturnFireEnvelopeV1 {
   scheduleId: string
   kind: 'fire' | 'birth'
   dueAt: number
+
   prompt?: string
   onParked?: 'wake' | 'queue'
+
   birth?: SaturnBirthSpecV1
 }
 
@@ -82,25 +98,29 @@ export interface HeldFireV1 {
   envelope: SaturnFireEnvelopeV1
   heldAt: number
   detail?: string
+
   mismatchIdentity?: string
 }
 
-
 export const SATURN_ID_PATTERN = /^[0-9a-f]{8}$/
+
 export const SATURN_SCHEDULE_CAP = 50
+
 export const SATURN_PROMPT_CAP = 20_000
 export const SATURN_SPELLING_CAP = 200
 export const SATURN_NOTE_CAP = 500
 export const SATURN_TITLE_CAP = 200
 export const SATURN_MODEL_CAP = 200
 export const SATURN_PATH_CAP = 4096
-export const SATURN_HELD_CAP = 200
-export const SATURN_EDIT_BURST_CAP = 20
 
+export const SATURN_HELD_CAP = 200
+
+export const SATURN_EDIT_BURST_CAP = 20
 
 export interface SaturnScheduleSubmissionV1 {
   when: SaturnWhenV1
   action: SaturnActionV1
+
   modelKey?: string
   effort?: string
   note?: string
@@ -272,7 +292,6 @@ export function validateSaturnSubmission(raw: unknown): SaturnValidation {
   return { ok: true, submission }
 }
 
-
 export function saturnNextFireMs(when: SaturnWhenV1, fromMs: number): number | null {
   if (when.kind === 'at') return when.atMs > fromMs ? when.atMs : null
   const fields = parseCronExpression(when.cron)
@@ -281,18 +300,20 @@ export function saturnNextFireMs(when: SaturnWhenV1, fromMs: number): number | n
   return next ? next.getTime() : null
 }
 
-
 export type ScheduleOp = 'add' | 'remove' | 'pause' | 'resume'
 
 export interface ScheduleOpRequestV1 {
   op: ScheduleOp
+
   schedule?: unknown
+
   scheduleId?: string
 }
 
 export interface ScheduleOpDepsV1 {
   deriveAccount: (modelKey: string) => { ok: true; account: ScheduleAccountV1 } | { ok: false; reason: string }
   preflight?: (account: ScheduleAccountV1, nextFireMs: number | null) => ScheduleAccountVerdictV1
+
   mintId?: () => string
 }
 
@@ -307,6 +328,7 @@ export function mintUnusedId(mint: () => string, standing: ReadonlyArray<{ id: s
 export type ScheduleOpOutcome = {
   outcome: 'applied' | 'noop' | 'refused'
   detail?: string
+
   scheduleId?: string
   nextFireMs?: number | null
   family?: string
@@ -340,6 +362,7 @@ export function applyConcourseScheduleOp(
           return
         }
         const sub = validated.submission
+
         if (sub.action.kind === 'birth' && sub.modelKey !== undefined && sub.modelKey !== sub.action.birth.modelKey) {
           out = { outcome: 'refused', detail: 'schedule refused — modelKey must match birth.modelKey (the account preflights the model the birth runs)' }
           return
@@ -398,10 +421,12 @@ export function applyConcourseScheduleOp(
         }
         const remaining = (rec.schedules ?? []).filter(s => s.id !== target.schedule.id)
         if (remaining.length === 0) {
+
           delete rec.schedules
         } else {
           rec.schedules = remaining
         }
+
         const keptHolds = (rec.heldFires ?? []).filter(h => h.scheduleId !== target.schedule.id)
         const droppedHolds = (rec.heldFires?.length ?? 0) - keptHolds.length
         if (droppedHolds > 0) {
@@ -483,7 +508,6 @@ function targetOf(
   if (!schedule) return { ok: false, reason: `unknown-schedule: this session holds no schedule '${scheduleId}'` }
   return { ok: true, schedule }
 }
-
 
 export function markSaturnFired(
   sessionId: string,
@@ -647,9 +671,9 @@ export function dropSaturnSelfWakes(
   return out
 }
 
-
 export interface SaturnFactsRowV1 {
   id: string
+
   when: string
   nextFireMs: number | null
   kind: 'fire' | 'birth'
@@ -662,6 +686,7 @@ export function saturnFactsOf(
   nowMs: number,
 ): { schedules?: SaturnFactsRowV1[]; heldFireCount?: number } {
   const out: { schedules?: SaturnFactsRowV1[]; heldFireCount?: number } = {}
+
   if (Array.isArray(rec.schedules)) {
     out.schedules = rec.schedules.filter(s => saturnScheduleRowUsable(s)).map(s => ({
       id: s.id,

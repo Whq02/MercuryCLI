@@ -1,4 +1,3 @@
-
 import { stringWidth } from '../../ink/stringWidth.js'
 import { COMPOSER_BORDER_SHED_ROWS } from './composerFloor.js'
 import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.js'
@@ -6,8 +5,11 @@ import { CR_COLS, SQUARE_DOCK_ART_LINES } from '../../utils/cockpit/critterData.
 export { paneWindow, scrolledWindow, fitGroupedWindow, fitMeasuredWindow, type PaneWindow } from './paneWindow.js'
 
 export type FrameSpec = {
+
   border?: boolean
+
   paddingX?: number
+
   marginX?: number
 }
 
@@ -29,6 +31,7 @@ export function panelWidth(
   const cap = opts.cap ?? Number.POSITIVE_INFINITY
   const min = Math.max(0, opts.min ?? 0)
   const usable = Math.max(0, cols - reserve)
+
   return Math.min(cols, Math.max(min, Math.min(cap, usable)))
 }
 
@@ -100,6 +103,7 @@ export function shedToFit<T extends { text: string; priority: number }>(
   const width = (list: readonly T[]): number =>
     stringWidth(list.map(p => p.text).join(sep))
   while (kept.length > 0 && width(kept) > budget) {
+
     let dropIdx = 0
     for (let i = 1; i < kept.length; i++) {
       if (kept[i]!.priority <= kept[dropIdx]!.priority) dropIdx = i

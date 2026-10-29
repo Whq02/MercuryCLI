@@ -1,4 +1,3 @@
-
 import type {
   AttachmentMessage,
   NormalizedAssistantMessage,
@@ -61,6 +60,7 @@ export function reorderMessagesInUI(
   messages: DisplayMessage[],
   syntheticStreamingToolUseMessages: NormalizedAssistantMessage[],
 ): DisplayMessage[] {
+
   const roles = messages.map(classify)
   const groups = new Map<string, ToolUseGroup>()
   const groupFor = (toolUseID: string): ToolUseGroup => {
@@ -107,12 +107,14 @@ export function reorderMessagesInUI(
         result.push(...group.postHooks)
         break
       }
+
       case 'use-unkeyed':
       case 'pre-hook':
       case 'result':
       case 'post-hook':
         break
       case 'api-error': {
+
         const previous = result.at(-1)
         if (previous?.type === 'system' && previous.subtype === 'api_error') {
           result[result.length - 1] = message

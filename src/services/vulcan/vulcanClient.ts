@@ -1,4 +1,3 @@
-
 import * as net from 'node:net'
 import { findGodotProjectRoot } from '../lsp/godotLane.js'
 import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
@@ -51,7 +50,9 @@ export class VulcanClient {
   private buf = ''
   private nextId = 1
   private pending = new Map<number, Pending>()
+
   private queue: Array<{ op: string; args: Record<string, unknown> | undefined; timeoutMs: number; resolve: (r: VulcanResult) => void; queueTimer: NodeJS.Timeout | null }> = []
+
   private helloTimer: NodeJS.Timeout | null = null
   private events: VulcanEvent[] = []
   private heartbeat: NodeJS.Timeout | null = null
@@ -59,6 +60,7 @@ export class VulcanClient {
   private backoffMs: number
   private backoffUntil = 0
   private helloError: VulcanError | null = null
+
   private readonly heartbeatMs: number
   private readonly pongTimeoutMs: number
   private readonly backoffStartMs: number
@@ -123,6 +125,7 @@ export class VulcanClient {
       )
     }
     return new Promise<VulcanResult>(resolve => {
+
       const entry = {
         op,
         args,
@@ -152,7 +155,6 @@ export class VulcanClient {
     this.teardown(err('CLIENT_CLOSED', 'the VULCAN client was closed'))
   }
 
-
   private connect(): void {
     this.state = 'connecting'
     this.helloError = null
@@ -170,10 +172,12 @@ export class VulcanClient {
       clearTimeout(connectTimer)
       socket.write(JSON.stringify({ op: 'hello', token: this.token, role: 'client', version: 1, ...(this.expectedInstance ? { instance: this.expectedInstance.id } : {}) }) + '\n')
     })
+
     socket.on('data', chunk => {
       this.onData(chunk.toString('utf8'))
     })
     const fail = () => {
+
       if (this.socket !== socket) return
       clearTimeout(connectTimer)
       if (this.helloTimer) {
@@ -202,6 +206,7 @@ export class VulcanClient {
         frame = JSON.parse(line) as Record<string, unknown>
       } catch {
         if (this.state === 'connecting') {
+
           this.socket?.destroy(new Error('unparseable handshake payload — not a VULCAN server?'))
           return
         }
@@ -217,6 +222,7 @@ export class VulcanClient {
 
   private onFrame(frame: Record<string, unknown>): void {
     if (this.state === 'connecting') {
+
       if (this.helloTimer) {
         clearTimeout(this.helloTimer)
         this.helloTimer = null
@@ -341,6 +347,7 @@ export class VulcanClient {
           )
       : err('CONNECTION_LOST', 'the editor connection dropped mid-flight', 'retry — the client reconnects on the next call')
     this.teardown(reason)
+
     this.backoffUntil = Date.now() + this.backoffMs
     this.backoffMs = Math.min(this.backoffMs * 2, this.backoffCapMs)
   }

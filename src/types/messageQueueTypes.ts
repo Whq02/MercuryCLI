@@ -1,4 +1,3 @@
-
 import type { SessionId } from './ids.js'
 import type { MessageOrigin } from './message.js'
 import type { QueuedCommand } from './textInputTypes.js'

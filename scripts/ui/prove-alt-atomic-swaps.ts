@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 
 let fail = 0
@@ -27,6 +28,7 @@ check(
 )
 check(
   'the outermost mount still clears a fresh buffer — deferred into the first frame or written bare',
+
   alt.includes("ink.armAltScreenEntry(ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\\x1b[2J\\x1b[H' + armBytes)") &&
     alt.includes("writeRaw(ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\\x1b[2J\\x1b[H' + armBytes)"),
 )
@@ -41,6 +43,7 @@ const exitFn = ink.slice(
   ink.indexOf('exitAlternateScreen(): void {') + 2200,
 )
 check('exitAlternateScreen exists', exitFn.length > 100)
+
 const sess = readFileSync('src/ink/root/screen-session.ts', 'utf8')
 check(
   'fullscreen return has NO eager 2J (erase is deferred to the builder non-alt branch)',
@@ -66,6 +69,7 @@ check(
   'an unconsumed launcher hold is released on process exit',
   hold.includes("process.on('exit'") && hold.includes('?1049l'),
 )
+
 const shutdown = readFileSync('src/utils/shutdownRestoration.ts', 'utf8')
 check(
   'graceful shutdown exits the alt buffer exactly once via unmount',

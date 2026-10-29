@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -33,6 +34,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const RUNNER = 'runner-1'
 const SESSION = 'session-1'
+
 writeFileSync(
   join(daemonDir, 'concourse-workers.json'),
   JSON.stringify({ version: 1, workers: { [RUNNER]: { schema: 1, runnerId: RUNNER, sessionId: SESSION, workspaceId: '/ws', isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: 1 } } }),
@@ -85,6 +87,7 @@ section('§3 refusals are typed; an older runner names the restart; a runner tha
   const b = withdrawSessionSend(SESSION, 'msg-8', roster, daemonDir)
   await stand.nextRequest('queue/withdraw')
   check('two requests stand pending (the queue scope serializes them inside the runner; the host holds both)', pendingCount() === 2, String(pendingCount()))
+
   stand.connection.close('the seat was relaunched')
   const [ra, rb] = await Promise.all([a, b])
   check('a runner that leaves mid-wait answers every withdraw refused, naming the departure', ra.outcome === 'refused' && rb.outcome === 'refused' && (ra.detail ?? '').includes('left before it answered the withdraw') && ra.withdrawn === undefined, j([ra, rb]))

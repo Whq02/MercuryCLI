@@ -145,6 +145,7 @@ t.section('§6 — sessions: idempotent, lineage-linked, bounded')
 
 t.section('§7 — restart continuity: determinism across a fresh open')
 {
+
   const again = await identity.ensureAgentIdentity({
     displayName: 'whatever-the-adapter-says-now',
     binding: { bindingKind: 'adapter', bindingId: 'ext-session-1', adapterKind: 'claude-code' },

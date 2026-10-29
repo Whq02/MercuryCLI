@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -77,6 +78,7 @@ section('(3) healing: 1-based-era data merges into the planned buckets')
 
 section('(4) edges: unplanned titles, unphased agents, index collisions, empty')
 {
+
   const g1 = groupAgentsByPhase(
     [{ title: 'Scan' }],
     [{ index: 0, title: 'Surprise' }],

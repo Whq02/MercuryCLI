@@ -12,7 +12,6 @@ import type {
   LayoutWrap,
 } from '../../src/ink/layout/node.js'
 
-
 type NodeSpec = {
   width?: number | `${number}%` | 'auto'
   height?: number | `${number}%` | 'auto'
@@ -36,6 +35,7 @@ type NodeSpec = {
   padding?: Partial<Record<LayoutEdge, number>>
   border?: Partial<Record<LayoutEdge, number>>
   gap?: Partial<Record<LayoutGutter, number>>
+
   text?: number
   children?: NodeSpec[]
 }
@@ -43,7 +43,9 @@ type NodeSpec = {
 export type Scene = {
   name: string
   root: NodeSpec
+
   passes: Array<[number | undefined, number | undefined]>
+
   mutate?: (handles: BuiltNode[], passIndex: number) => void
 }
 
@@ -51,9 +53,9 @@ type BuiltNode = {
   node: LayoutNode
   spec: NodeSpec
   path: string
+
   textLen?: { value: number }
 }
-
 
 function fakeTextMeasure(
   len: { value: number },
@@ -67,11 +69,11 @@ function fakeTextMeasure(
     if (widthMode === 'exactly') {
       return { width: w, height: Math.max(1, Math.ceil(n / w)) }
     }
+
     if (n <= w) return { width: n, height: 1 }
     return { width: w, height: Math.ceil(n / w) }
   }
 }
-
 
 function applyDimension(
   node: LayoutNode,
@@ -176,7 +178,6 @@ function buildScene(
   return out
 }
 
-
 export type SceneRects = Record<
   string,
   { left: number; top: number; width: number; height: number }
@@ -200,7 +201,6 @@ function readRects(handles: BuiltNode[]): SceneRects {
 function freeScene(handles: BuiltNode[]): void {
   handles[0]?.node.freeRecursive()
 }
-
 
 export function lcg(seed: number): () => number {
   let s = seed >>> 0
@@ -265,7 +265,6 @@ function randomSpec(rnd: () => number, depth: number): NodeSpec {
   }
   return spec
 }
-
 
 function curatedScenes(): Scene[] {
   const scenes: Scene[] = []
@@ -559,9 +558,11 @@ function curatedScenes(): Scene[] {
     mutate: (handles, passIndex) => {
       const texts = handles.filter(h => h.textLen)
       if (passIndex === 0) {
+
         texts[1]!.textLen!.value = 55
         texts[1]!.node.markDirty()
       } else if (passIndex === 2) {
+
         texts[1]!.textLen!.value = 30
         texts[1]!.node.markDirty()
       }
@@ -643,7 +644,6 @@ export function productionScenes(count: number, seedBase = 0x9d0d): Scene[] {
 export function allScenes(): Scene[] {
   return [...curatedScenes(), ...randomScenes(48)]
 }
-
 
 export function runScene(
   scene: Scene,

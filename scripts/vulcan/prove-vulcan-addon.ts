@@ -23,6 +23,7 @@ const owned = new Map<string, string>()
 const claimed: string[] = []
 for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
   const text = readFileSync(path.join(catDir, f), 'utf8')
+
   const m = text.match(/func ops\(\)[^:]*:\s*\n([\s\S]*?)(?=\nstatic func|\nfunc |$)/)
   const body = m ? m[1]! : ''
   for (const om of body.matchAll(/"([a-z0-9_]+)"/g)) {
@@ -84,6 +85,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
   const proj = path.join(scratch, 'project.godot')
   const BASE = '[application]\n\nconfig/name="Deadnight"\nrun/main_scene="res://main.tscn"\n\n[rendering]\n\nquality=2\n'
   try {
+
     wf(proj, BASE)
     const r1 = await mutateProjectGodot(scratch, (text: string) => ({
       text: text + '\n[mercury_vulcan]\n\nport=6010\n',
@@ -97,6 +99,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
     const r2 = await mutateProjectGodot(scratch, (text: string) => {
       calls++
       if (calls === 1) {
+
         wf(proj, BASE + '\n[editor_saved]\n\nvalue=1\n')
       }
       return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
@@ -134,6 +137,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
 section('5. the one injection road — a press is an event; step mode is served')
 {
   const bridge = readFileSync(path.join(addon, 'core', 'runtime_bridge.gd'), 'utf8')
+
   const bodies = new Map<string, string>()
   for (const m of bridge.matchAll(/^(?:static )?func (\w+)\([^\n]*\n([\s\S]*?)(?=^(?:static )?func |(?![\s\S]))/gm)) bodies.set(m[1]!, m[2]!)
   const parsers = [...bodies].filter(([, body]) => /Input\.parse_input_event\(/.test(body)).map(([name]) => name).sort()

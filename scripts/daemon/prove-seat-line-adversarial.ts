@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -94,6 +95,7 @@ console.log('\nE4 deltas then the same turn settled text row: never double-count
   await published()
   const afterDelta = tail()?.turnChars ?? 0
   check('the delta counted', afterDelta === 'Streamed once. '.length, String(afterDelta))
+
   feed(row({ type: 'text', message_id: 'msg_adv4', block: 0, text: 'Streamed once. ' }))
   await published()
   check(

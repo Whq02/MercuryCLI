@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -99,6 +100,7 @@ function makeModel(script: unknown[][]): { calls: CallRecord[]; callModel: (req:
 
 type CompactCall = { messages: unknown[]; forced: Sig | undefined }
 type CompactAnswer = Record<string, unknown> | ((call: CompactCall) => Record<string, unknown>)
+
 function makeCompact(opts: { onForced?: CompactAnswer[]; onThreshold?: CompactAnswer[] } = {}) {
   const calls: CompactCall[] = []
   let forcedIdx = 0
@@ -246,6 +248,7 @@ function seedPlain(): unknown[] {
   const earlier = createAssistantMessage({ content: 'earlier reply' })
   return [createUserMessage({ content: 'earlier ask' }), earlier, createUserMessage({ content: OPERATOR_ASK })]
 }
+
 function seedWithReads(rounds: number, lastUsage?: number, superseded = false): unknown[] {
   const out: unknown[] = [createUserMessage({ content: 'earlier ask' })]
   for (let i = 0; i < rounds; i++) {

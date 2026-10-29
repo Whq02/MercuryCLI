@@ -1,4 +1,3 @@
-
 import { useRef, useSyncExternalStore } from 'react'
 import { useNotifications, type Notification } from '../context/notifications.js'
 import { useIsOverlayActive } from '../context/overlayContext.js'
@@ -10,6 +9,7 @@ import {
   isLocalAgentTask,
   stopRunningAgentTasks,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+
 import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { pressInterrupt } from '../input-core/interruptArity.js'
 import { useFocusedShellRunning } from '../services/engine-connector/shellRunning.js'
@@ -44,6 +44,7 @@ export function backgroundShellNotice(receipt: AgentControlReceiptV1): Notificat
 
 export function interruptFocusedTurn(): boolean {
   const focused = getFocusedSessionConnector()
+
   const running = workCounts(focused.workRoster().rows)
   const press = hasSeatLive(focused) ? focused.status() : null
   if (!focused.interrupt()) return false
@@ -94,24 +95,29 @@ export function CancelRequestHandler({
   focusedTurnActive,
   compactWork,
 }: {
+
   focusedTurnActive?: boolean
   compactWork?: CompactWorkControls
   isElicitationFocused?: boolean
+
   isInterviewFocused?: boolean
   onAgentsKilled?: () => void
   isMessageSelectorVisible?: boolean
   screen: Screen
   abortSignal?: AbortSignal
+
   vimMode?: VimMode
   isLocalJSXCommand?: boolean
   isSearchingHistory?: boolean
   isHelpOpen?: boolean
+
   isInputDialogFocused?: boolean
   streamMode?: string
 }): null {
   const store = useAppStateStore()
   const setAppState = useSetAppState()
   const { addNotification, removeNotification } = useNotifications()
+
   const overlayActive = useIsOverlayActive()
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x ctrl+k')
   const killPressAtRef = useRef(0)
@@ -121,6 +127,7 @@ export function CancelRequestHandler({
   const viewingCrewmate = store.getState().viewingAgentTaskId !== undefined
 
   const settleAsksAndCancel = (): void => {
+
     interruptFocusedTurn()
   }
 
@@ -148,10 +155,12 @@ export function CancelRequestHandler({
     'chat:cancel',
     () => {
       if (compactWork !== undefined && compactWork.read() !== 'composer') return false
+
       if (pendingInput.mode() !== 'prompt' && pendingInput.text() === '') {
         return false
       }
       if (taskRunning) {
+
         const press = pressInterrupt('chat')
         if (!press.fire) {
           addNotification({
@@ -206,6 +215,7 @@ export function CancelRequestHandler({
     () => {
       if (compactWork?.read() === 'detail') return false
       if (compactWork?.read() === 'summary') compactWork.set('composer')
+
       const freshState = store.getState() as AppState
       const viewedCrewmate = freshState.viewingAgentTaskId
       const viewingCrewmateNow = viewedCrewmate !== undefined
@@ -215,6 +225,7 @@ export function CancelRequestHandler({
       }
       if (taskRunning) {
         settleAsksAndCancel()
+
         if (!viewingCrewmateNow && !isInputDialogFocused) return false
       }
     },

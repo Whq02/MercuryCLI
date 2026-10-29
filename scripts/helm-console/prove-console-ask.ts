@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -46,6 +47,7 @@ section('(1) UNSET console ⇒ the hint · zero wire requests · zero context re
     wireCalls++
     throw new Error('the wire must never be reached by an unset console')
   }) as unknown as typeof fetch
+
   const context = new Proxy(
     {},
     {
@@ -81,6 +83,7 @@ section('(1) UNSET console ⇒ the hint · zero wire requests · zero context re
 
 section('(2) a pinned console rides the stamped identity + the console ROLE in the user turn')
 {
+
   const reads = {
     options: () => [{ value: 'opus', label: 'Opus 4.8', description: '' }],
     presences: () => [{ id: 'anthropic', available: true, credentialed: true, credentialLabel: 'Claude subscription (max)' }],
@@ -125,6 +128,7 @@ section('(2) a pinned console rides the stamped identity + the console ROLE in t
       (turn.match(new RegExp(`model id "${pin.model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`, 'g')) ?? []).length === 1,
     )
   }
+
   check(
     'the /btw turn is the shared framing + the question (unchanged shape)',
     sideQuestionTurn('q') === `<system-reminder>\n${SIDE_QUESTION_FRAMING}\nSide question: q\n</system-reminder>`,
@@ -135,6 +139,7 @@ section('(2) a pinned console rides the stamped identity + the console ROLE in t
       SIDE_QUESTION_FRAMING.includes('You have no tools') &&
       SIDE_QUESTION_FRAMING.includes('single response'),
   )
+
   process.env.MERCURY_CONSOLE_MODEL = 'kimi-k3'
   const envPin = resolveSubModel('console')
   check(

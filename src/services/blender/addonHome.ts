@@ -1,4 +1,3 @@
-
 import { statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -16,11 +15,14 @@ function isDir(p: string): boolean {
 }
 
 interface BlenderAddonHomeCensus {
+
   home?: {
     path: string
     source: 'pin' | 'blender-user-scripts' | 'blender-user-resources' | 'default'
   }
+
   pinError?: string
+
   reason?: string
 }
 
@@ -33,6 +35,7 @@ export function resolveBlenderAddonHome(testOpts?: {
   platform?: NodeJS.Platform
   home?: string
   env?: Record<string, string | undefined>
+
   version?: string
 }): BlenderAddonHomeCensus {
   const pin = blenderBridgeAddonDirOverride()
@@ -54,6 +57,7 @@ export function resolveBlenderAddonHome(testOpts?: {
       home: { path: path.join(userResources, 'scripts', 'addons'), source: 'blender-user-resources' },
     }
   }
+
   let version = testOpts?.version
   if (version === undefined) {
     const census = locateBlender()

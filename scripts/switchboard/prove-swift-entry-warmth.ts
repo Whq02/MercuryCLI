@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -117,6 +118,7 @@ const warmText = await renderMessagesToPlainText(w.paintedTranscriptOf([], w.ent
 check('the warm first frame carries the tail\'s own words', warmText.includes('the mirror held row 5'), warmText.slice(0, 80))
 check('…and is never blank', warmText.trim().length > 0)
 w.evictSessionWarmth('s1')
+
 const React = (await import('react')).default
 const { renderToString } = await import('../../src/utils/staticRender.tsx')
 const { Box, Text } = await import('../../src/ink.js')
@@ -131,6 +133,7 @@ console.log('\n§5 the identity law (the covered-slot entry: C → board → A)'
 w._resetSessionWarmthForTesting()
 const cRecords = [row(200, 'the covered chat C words')] as never[]
 w.rememberSessionWarmth('A', [row(1, 'warm A tail')] as never, 0)
+
 w.armEntryWarmth('A', 'the chosen chat', 'C')
 check('the arm carries the covered identity', w.enteringWarmth()?.coveredSessionId === 'C')
 const coveredFrame = w.paintedTranscriptOf(cRecords as never, w.enteringWarmth(), 'C')
@@ -140,6 +143,7 @@ check(
 )
 check('(b) A\'s warm tail paints while the slot still holds C', JSON.stringify(coveredFrame).includes('warm A tail'))
 check('…and no loading line beside the warm content', w.entryLoadingLineOf(w.enteringWarmth(), false, 'C') === null)
+
 w.evictSessionWarmth('A')
 check(
   '(b-cold) the honest loading line covers C\'s records for a cold A',
@@ -147,14 +151,18 @@ check(
   String(w.entryLoadingLineOf(w.enteringWarmth(), false, 'C')),
 )
 check('…and the row half paints no covered rows', w.paintedTranscriptOf(cRecords as never, w.enteringWarmth(), 'C').length === 0)
+
 const aRecords = [row(300, 'A landed truth')] as never[]
 check('the armed mount keeps truth-wins (identity kept)', w.paintedTranscriptOf(aRecords as never, w.enteringWarmth(), 'A') === (aRecords as never))
+
 w.rememberSessionWarmth('A', [row(2, 'warm A again')] as never, 0)
 const tRecords = [row(400, 'third session T truth')] as never[]
 check('(c) a third identity paints its own records', w.paintedTranscriptOf(tRecords as never, w.enteringWarmth(), 'T') === (tRecords as never))
 check('(c) …and never wears the entry\'s loading line', w.entryLoadingLineOf(w.enteringWarmth(), true, 'T') === null)
 check('(c) …and never borrows the armed warmth', !JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), 'T')).includes('warm A again'))
+
 check('the resting slot ("" — landing in flight) still paints the warmth', JSON.stringify(w.paintedTranscriptOf([] as never, w.enteringWarmth(), '')).includes('warm A again'))
+
 check(
   'the Chat settle spares armed-or-covered',
   repl.includes('focusedId !== warmth.sessionId && focusedId !== warmth.coveredSessionId'),

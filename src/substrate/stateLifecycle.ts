@@ -1,4 +1,3 @@
-
 import { readdir, readFile, rm, rmdir, stat, unlink, writeFile } from 'fs/promises'
 import { dirname, join, resolve, sep } from 'path'
 import { getMercuryHome } from '../utils/envUtils.js'
@@ -11,8 +10,11 @@ type LifecycleKind = 'semantic' | 'cache' | 'lock' | 'claim' | 'temp' | 'log'
 type LifecycleAction = 'remove' | 'compact' | 'rotate' | 'retain' | 'reference'
 
 interface LifecycleBudget {
+
   deadlineMs: number
+
   removalsLeft: number
+
   now: () => number
 }
 
@@ -22,12 +24,15 @@ interface LifecycleClassReceipt {
   removed: number
   retained: number
   failures: Array<{ path: string; code?: string }>
+
   done: boolean
 }
 
 interface LifecyclePassReceipt {
   receipts: LifecycleClassReceipt[]
+
   cycleComplete: boolean
+
   cycleFailures: number
   removed: number
   budgetExhausted: boolean
@@ -36,21 +41,27 @@ interface LifecyclePassReceipt {
 interface LifecycleClassDecl {
   id: string
   lane: LifecycleLane
+
   owner: string
+
   root: string
   kind: LifecycleKind
+
   liveReference: string
+
   terminal: string
   retention: string
   debrisPatterns?: string[]
   action: LifecycleAction
   prover: string
+
   collect?: (budget: LifecycleBudget) => Promise<LifecycleClassReceipt>
 }
 
-
 const DAY_MS = 24 * 60 * 60 * 1000
+
 const SEMANTIC_RETENTION_MS = 30 * DAY_MS
+
 const SKELETON_RETENTION_MS = 7 * DAY_MS
 
 const SIDECAR_RE = /\.(claim|restamp|reap)-(\d+)-[0-9a-f]{8}$/
@@ -138,7 +149,6 @@ const emptyReceipt = (id: string): LifecycleClassReceipt => ({
   failures: [],
   done: false,
 })
-
 
 async function collectLockSidecars(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
   const receipt = emptyReceipt('lock-sidecar-temps')
@@ -256,7 +266,6 @@ async function collectShellSnapshots(budget: LifecycleBudget): Promise<Lifecycle
   receipt.done = true
   return receipt
 }
-
 
 export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
@@ -534,7 +543,6 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     prover: 'scripts/operator-identity/prove-operator-identity.ts',
   },
 ] as const
-
 
 interface LifecycleCursor {
   v: 1

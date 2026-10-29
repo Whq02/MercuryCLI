@@ -115,9 +115,12 @@ class CaptureError extends Error {
 }
 
 interface CaptureResult {
+
   wav: Buffer
   durationMs: number
+
   silent: boolean
+
   autoStopped: boolean
   backend: CaptureBackendKind
   streamErrors: CaptureStreamErrors
@@ -128,7 +131,9 @@ const NO_STREAM_ERRORS: CaptureStreamErrors = { transient: 0, lastTransient: nul
 export interface CaptureHandle {
   readonly backend: CaptureBackendKind
   readonly startedAt: number
+
   stop(): Promise<CaptureResult>
+
   cancel(): void
   readonly settled: boolean
   streamErrors(): CaptureStreamErrors
@@ -136,13 +141,17 @@ export interface CaptureHandle {
 
 interface StartCaptureOptions {
   env?: NodeJS.ProcessEnv
+
   backend?: CaptureBackendResolution
+
   boundMs?: number
+
   onAutoStop?: () => void
   now?: () => number
 }
 
 interface RawCapture {
+
   stop(): Promise<Buffer>
   cancel(): void
   streamErrors?(): CaptureStreamErrors
@@ -157,7 +166,6 @@ export function microphonePermissionHint(platform: string = process.platform): s
   }
   return 'check the operating system microphone permission for your terminal'
 }
-
 
 function startVendored(): RawCapture {
   const load = loadVoiceAddon()
@@ -197,7 +205,6 @@ function startVendored(): RawCapture {
   }
 }
 
-
 function startFixture(): RawCapture {
   const path = fixtureWavPath()
   return {
@@ -219,7 +226,6 @@ function startFixture(): RawCapture {
   }
 }
 
-
 function firstDshowAudioDevice(ffmpeg: string, env: NodeJS.ProcessEnv): string | null {
   const probe = spawnSync(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { encoding: 'utf8', env, timeout: 10_000, windowsHide: true })
   const text = `${probe.stdout ?? ''}\n${probe.stderr ?? ''}`
@@ -233,6 +239,7 @@ function firstDshowAudioDevice(ffmpeg: string, env: NodeJS.ProcessEnv): string |
 function recorderArgv(kind: 'sox' | 'arecord' | 'ffmpeg', exe: string, env: NodeJS.ProcessEnv): string[] {
   switch (kind) {
     case 'sox':
+
       return ['-q', '-d', '-t', 'raw', '-r', String(VOICE_SAMPLE_RATE), '-c', '1', '-b', '16', '-e', 'signed-integer', '-']
     case 'arecord':
       return ['-q', '-f', 'S16_LE', '-r', String(VOICE_SAMPLE_RATE), '-c', '1', '-t', 'raw', '-']
@@ -274,6 +281,7 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
   })
   const end = async (): Promise<void> => {
     if (child.exitCode !== null) return
+
     try {
       child.stdin?.write('q\n')
       child.stdin?.end()
@@ -305,7 +313,6 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
     },
   }
 }
-
 
 export function voiceDebugWavDir(): string | null {
   const dir = (flagEnv('MERCURY_VOICE_DEBUG_WAV_DIR') ?? '').trim()

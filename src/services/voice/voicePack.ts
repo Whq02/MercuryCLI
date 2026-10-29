@@ -41,12 +41,16 @@ export interface VoicePackCrate {
 
 export interface VoicePackManifest {
   name: typeof VOICE_PACK_NAME
+
   version: string
   platform: string
   addon: string
   addonSha256: string
+
   sourceTreeDigest: string
+
   cargo: string
+
   crates: VoicePackCrate[]
   fileCount: number
   treeDigest: string
@@ -178,6 +182,7 @@ export function resolveVoicePackDir(): VoicePackResolution {
   if (vendoredCheck.state === 'ok') {
     return { state: 'ok', dir: vendored, addonPath: vendoredCheck.addonPath, manifest: vendoredCheck.manifest, source: 'vendored' }
   }
+
   let dir = moduleDir
   for (let i = 0; i < 6; i++) {
     const candidate = path.join(dir, ...VOICE_PACK_PATH.split('/'), platform)
@@ -202,9 +207,11 @@ interface ProcessGroupAnswer {
 }
 
 interface TerminalReclaimAnswer {
+
   reclaimed: boolean
   before?: number | null
   after?: number | null
+
   reason?: string | null
 }
 
@@ -218,13 +225,19 @@ export interface VoiceAddon {
   packVersion(): string
   listInputDevices(): string[]
   defaultInputDevice(): string | null
+
   startCapture(): number
   captureErrors(handle: number): CaptureStreamErrors
+
   stopCapture(handle: number): Buffer
+
   cancelCapture(handle: number): void
   lastCaptureErrors(handle: number): CaptureStreamErrors | null
+
   ttyForegroundGroup(fd: number): ProcessGroupAnswer
+
   ownProcessGroup(): ProcessGroupAnswer
+
   reclaimTerminal(fd: number): TerminalReclaimAnswer
 }
 
@@ -252,10 +265,12 @@ export function loadVoiceAddon(): VoiceAddonLoad {
   if (loaded !== null) return loaded
   const resolution = resolveVoicePackDir()
   if (resolution.state === 'unavailable') {
+
     return resolution
   }
   try {
     const req = createRequire(resolution.addonPath)
+
     const target: string = resolution.addonPath
     const raw = req(target) as Partial<VoiceAddon>
     for (const fn of VOICE_ADDON_EXPORTS) {

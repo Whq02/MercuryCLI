@@ -1,4 +1,3 @@
-
 import { existsSync } from 'node:fs'
 import { unlink } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -14,8 +13,11 @@ import { getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
 
 interface DaemonRecordsReconcile {
+
   state: 'live' | 'clean' | 'reconciled'
+
   cleaned: string[]
+
   deadPid?: number
   reason: string
 }
@@ -37,6 +39,7 @@ export async function reconcileDaemonRecords(opts?: {
     }
     recordPidRecycled = true
   }
+
   const lockHolder = await probePidLock(lockPath, { liveness: 'assume-alive' })
   if (lockHolder && !(recordPidRecycled && sup !== null && lockHolder.pid === sup.pid)) {
     return {
@@ -83,6 +86,7 @@ export async function reconcileDaemonRecords(opts?: {
         ? `daemon pid ${deadPid} recycled by another process (start-token mismatch) and control socket silent`
         : `daemon pid ${deadPid} not running and control socket silent`
       : 'no live daemon and control socket silent'
+
   logForDebugging(
     `[daemon-records] reconciled stale daemon records (${reason}): removed ${cleaned.join(', ')}`,
   )

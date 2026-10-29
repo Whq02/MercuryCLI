@@ -1,4 +1,3 @@
-
 import {
   getGraphemeSegmenter,
   getWordSegmenter,
@@ -8,8 +7,8 @@ import { stringWidth } from '../ink/stringWidth.js'
 import { wrapAnsi } from '../ink/wrapAnsi.js'
 import { CHIP_PATTERN } from './inputRange.js'
 
-
 const VIM_WORD_CHAR_REGEX = /[\p{L}\p{N}\p{M}_]/u
+
 const WHITESPACE_REGEX = /\s/
 
 export function isVimWordChar(ch: string): boolean {
@@ -19,7 +18,6 @@ export function isVimWhitespace(ch: string): boolean {
   return WHITESPACE_REGEX.test(ch)
 }
 
-
 const CHIP_END_RE = new RegExp(`(?:${CHIP_PATTERN})$`)
 const CHIP_START_RE = new RegExp(`^(?:${CHIP_PATTERN})`)
 
@@ -27,12 +25,15 @@ function chipScanRe(): RegExp {
   return new RegExp(CHIP_PATTERN, 'g')
 }
 
-
 class WrappedLine {
   constructor(
+
     readonly text: string,
+
     readonly startOffset: number,
+
     readonly isPrecededByNewline: boolean,
+
     readonly endsWithNewline: boolean,
   ) {}
 
@@ -52,8 +53,8 @@ class WrappedLine {
 
 type WordBoundary = { start: number; end: number; isWordLike: boolean }
 
-
 export class MeasuredText {
+
   readonly text: string
   readonly columns: number
 
@@ -84,12 +85,14 @@ export class MeasuredText {
       if (lineText.length > 0) {
         const idx = this.text.indexOf(lineText, pos)
         if (idx === -1) {
+
           throw new Error(
             `MeasuredText: wrapped line ${i} not found in source text`,
           )
         }
         start = idx
       } else {
+
         start = pos
       }
       const end = start + lineText.length
@@ -119,7 +122,6 @@ export class MeasuredText {
   private trimCountOf(line: WrappedLine): number {
     return line.text.length - this.displayTextOf(line).length
   }
-
 
   private graphemes(): number[] {
     if (this.graphemeStarts) return this.graphemeStarts
@@ -161,7 +163,6 @@ export class MeasuredText {
     return snapped
   }
 
-
   getWordBoundaries(): WordBoundary[] {
     if (this.wordBoundaries) return this.wordBoundaries
     const out: WordBoundary[] = []
@@ -175,7 +176,6 @@ export class MeasuredText {
     this.wordBoundaries = out
     return out
   }
-
 
   stringIndexToDisplayWidth(text: string, index: number): number {
     return stringWidth(text.slice(0, index))
@@ -192,7 +192,6 @@ export class MeasuredText {
     }
     return index
   }
-
 
   getPositionFromOffset(offset: number): { line: number; column: number } {
     const lines = this.lines()
@@ -230,6 +229,7 @@ export class MeasuredText {
     const display = this.displayTextOf(line)
     const trim = this.trimCountOf(line)
     const idx = this.displayWidthToStringIndex(display, Math.max(0, position.column))
+
     const offset = line.startOffset + trim + idx
     return Math.min(offset, line.startOffset + line.text.length)
   }
@@ -263,7 +263,6 @@ function paintSelected(display: string, lineStart: number, selection: SelectionP
   return display.slice(0, from) + selection.paint(display.slice(from, to)) + display.slice(to)
 }
 
-
 export class Cursor {
   readonly offset: number
   readonly selection: number
@@ -288,7 +287,6 @@ export class Cursor {
     return this.measuredText.text
   }
 
-
   equals(other: Cursor): boolean {
     return this.offset === other.offset && this.measuredText === other.measuredText
   }
@@ -300,7 +298,6 @@ export class Cursor {
   isAtEnd(): boolean {
     return this.offset === this.text.length
   }
-
 
   chipEndingAt(offset: number): { start: number; end: number } | null {
     const m = CHIP_END_RE.exec(this.text.slice(0, offset))
@@ -327,7 +324,6 @@ export class Cursor {
     return offset
   }
 
-
   private atSelf(): Cursor {
     return this.selection === 0 ? this : new Cursor(this.measuredText, this.offset)
   }
@@ -345,7 +341,6 @@ export class Cursor {
     if (chip) return new Cursor(this.measuredText, chip.end)
     return new Cursor(this.measuredText, this.measuredText.nextOffset(this.offset))
   }
-
 
   getPosition(): { line: number; column: number } {
     return this.measuredText.getPositionFromOffset(this.offset)
@@ -368,7 +363,6 @@ export class Cursor {
       this.measuredText.getOffsetFromPosition({ line: line + 1, column }),
     )
   }
-
 
   startOfLine(): Cursor {
     const { line, column } = this.getPosition()
@@ -402,7 +396,6 @@ export class Cursor {
       this.measuredText.getOffsetFromPosition({ line, column: 0 }),
     )
   }
-
 
   private logicalLineStart(offset: number): number {
     const idx = this.text.lastIndexOf('\n', offset - 1)
@@ -453,7 +446,6 @@ export class Cursor {
     return new Cursor(this.measuredText, this.measuredText.snapToGraphemeBoundary(target))
   }
 
-
   startOfFirstLine(): Cursor {
     return new Cursor(this.measuredText, 0)
   }
@@ -472,7 +464,6 @@ export class Cursor {
     return new Cursor(this.measuredText, offset)
   }
 
-
   private wordLikeBoundaries(): WordBoundary[] {
     return this.measuredText.getWordBoundaries().filter(b => b.isWordLike)
   }
@@ -488,6 +479,7 @@ export class Cursor {
   prevWord(): Cursor {
     if (this.offset === 0) return this.atSelf()
     const words = this.wordLikeBoundaries()
+
     for (const w of words) {
       if (this.offset > w.start && this.offset <= w.end) {
         return new Cursor(this.measuredText, w.start)
@@ -512,6 +504,7 @@ export class Cursor {
       const w = words[i]!
       const last = this.lastCharOf(w)
       if (this.offset >= w.start && this.offset < w.end) {
+
         if (this.offset < last) return new Cursor(this.measuredText, last)
         const next = words[i + 1]
         if (!next) return this.atSelf()
@@ -523,7 +516,6 @@ export class Cursor {
     }
     return this.atSelf()
   }
-
 
   private charAt(offset: number): string {
     if (offset >= this.text.length) return ''
@@ -560,6 +552,7 @@ export class Cursor {
     }
     if (pos >= this.text.length) return new Cursor(doc, this.text.length)
     const cls = this.classOf(this.charAt(pos))
+
     while (pos < this.text.length) {
       const next = doc.nextOffset(pos)
       if (next >= this.text.length || this.classOf(this.charAt(next)) !== cls) break
@@ -586,7 +579,6 @@ export class Cursor {
     }
     return new Cursor(doc, pos)
   }
-
 
   private wsAt(cursor: Cursor): boolean {
     const ch = cursor.charAt(cursor.offset)
@@ -618,6 +610,7 @@ export class Cursor {
         : this.wsAt(n)
     }
     if (!this.wsAt(c) && followingIsBreak(c)) {
+
       c = c.right()
     }
     while (!c.isAtEnd() && this.wsAt(c)) {
@@ -653,7 +646,6 @@ export class Cursor {
     return c
   }
 
-
   modifyText(end: Cursor, insertString: string = ''): Cursor {
     const start = Math.min(this.offset, end.offset)
     const stop = Math.max(this.offset, end.offset)
@@ -678,9 +670,9 @@ export class Cursor {
     return target.modifyText(this)
   }
 
-
   deleteToLineStart(): { cursor: Cursor; killed: string } {
     if (this.offset > 0 && this.text[this.offset - 1] === '\n') {
+
       const start = new Cursor(this.measuredText, this.offset - 1)
       return { cursor: start.modifyText(this), killed: '\n' }
     }
@@ -718,6 +710,7 @@ export class Cursor {
   }
 
   deleteTokenBefore(): Cursor | null {
+
     const selected = this.chipStartingAt(this.offset)
     if (selected) {
       let end = selected.end
@@ -735,7 +728,6 @@ export class Cursor {
     if (preceding !== '' && !/\s$/.test(preceding)) return null
     return new Cursor(this.measuredText, chipStart).modifyText(this)
   }
-
 
   findCharacter(char: string, type: 'f' | 'F' | 't' | 'T', count: number = 1): number | null {
     const doc = this.measuredText
@@ -769,7 +761,6 @@ export class Cursor {
     }
     return null
   }
-
 
   getViewportStartLine(maxVisibleLines?: number, previousStart?: number): number {
     if (!maxVisibleLines || maxVisibleLines <= 0) return 0
@@ -805,7 +796,6 @@ export class Cursor {
     return lines[after]!.startOffset
   }
 
-
   render(
     cursorChar: string,
     mask: string,
@@ -833,6 +823,7 @@ export class Cursor {
       const lineStart = raw.startOffset + raw.text.length - display.length
 
       if (mask) {
+
         display = this.maskLine(display, mask, i === lastLineIdx)
       }
 
@@ -902,6 +893,7 @@ export class Cursor {
     }
 
     if (atCaret === '') {
+
       return paintedBefore + (hidden ? '' : invert(cursorChar))
     }
     const cell = hidden ? paintSelected(atCaret, lineStart + before.length, selection) : invert(atCaret)
@@ -912,7 +904,6 @@ export class Cursor {
     )
   }
 }
-
 
 const KILL_RING_CAPACITY = 10
 

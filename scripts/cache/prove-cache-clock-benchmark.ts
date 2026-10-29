@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { corpusSha256, runBenchmark, type Corpus } from './bench-sim.ts'

@@ -26,9 +26,9 @@ import type {
 import type { BoxReadingV1 } from '../../utils/boxLock.js'
 import type { OpenaiLiveModel } from '../providers/openai/openaiClient.js'
 
-
 export interface QueuedFactV1 {
   uuid?: string
+
   value: string
   mode: PromptInputMode
   origin?: import('../../types/message.js').MessageOrigin
@@ -37,7 +37,9 @@ export interface QueuedFactV1 {
 
 export interface SessionFactsAnswerV1 {
   model: {
+
     effective: string
+
     setting: string | null
   }
   usage: UsageFactsV1
@@ -45,18 +47,26 @@ export interface SessionFactsAnswerV1 {
   skills: SkillsRosterEntryV1[]
   mcp: McpRosterEntryV1[]
   permissionMode: PermissionMode
+
   effortSent?: string | null
   workspace: WorkspaceFactsV1
   queue: QueuedFactV1[]
   recoveredCommandIds?: string[]
+
   work?: WorkRowV1[]
+
   mission?: MissionRowV1[]
   samples?: SampleRowV1[]
   notices?: NoticeRowV1[]
+
   kit?: import('../../daemon/sessionKit.js').SessionKitV1
+
   pendingScheduleEdits?: import('../../daemon/saturn.js').ScheduleOpRequestV1[]
+
   fileCheckpoints?: FileCheckpointFactsV1
+
   streamIdleTimeoutMs?: number
+
   spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
   box?: BoxReadingV1
   openaiCatalogue?: OpenaiCatalogueFactV1
@@ -67,8 +77,10 @@ export interface SessionFactsAnswerV1 {
 }
 
 export interface FileCheckpointFactsV1 {
+
   capture: boolean
   source?: 'interactive' | 'seat' | 'initialize' | 'setting' | 'headless'
+
   restorable: string[]
   files?: string[]
   undo?: string
@@ -83,15 +95,25 @@ export interface OpenaiCatalogueFactV1 {
 export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMode'> {
   schema: 1
   sessionId: string
+
   atMs: number
+
   permissionMode?: PermissionMode
+
   pendingModel: string | null
+
   effort?: string
+
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
+
   modelSettled?: { from: string; to: string; atMs: number }
+
   busy: boolean
+
   turnStartedAt?: number
+
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
+
   heldFireCount?: number
   runnerGeneration?: number
   queueReady?: boolean
@@ -121,17 +143,22 @@ export function runnerStateFactOf(
   return undefined
 }
 
-
 export interface SessionAskProjectionV1 {
+
   requestId: string
+
   toolUseId: string
   toolName: string
   input: Record<string, unknown>
+
   suggestions?: PermissionUpdate[]
   blockedPath?: string
   cwd?: string
+
   decisionReason?: string
+
   decisionReasonDetail?: DecisionReasonWireV1
+
   description?: string
   agentId?: string
   askedAt: number
@@ -149,26 +176,39 @@ export interface SessionTailV1 {
   sessionId: string
   atMs: number
   text: string | null
+
   turnChars?: number
   turnOutputTokens?: number
   turnThinkingChars?: number
   turnThinkingBlocks?: number
   firstByteAtMs?: number
+
   messageId?: string
+
   phase?: TextPhase
   withdrawn?: string
+
   stateWord?: 'compacting' | 'waiting-on-agents'
+
   waitingOnAgents?: number
+
   fold?: FoldStatusV1
+
   wait?: RequestWaitV1
+
   lastEventAtMs?: number
+
   streamBlock?: 'thinking' | 'text' | 'tool_use'
+
   blockSinceMs?: number
 }
 
 export interface SessionProgressEntryV1 {
+
   toolUseID: string
+
   dataType: string
+
   seq: number
   latestLine?: string
   elapsedTimeSeconds?: number
@@ -176,6 +216,7 @@ export interface SessionProgressEntryV1 {
   totalBytes?: number
   mcpProgress?: number
   mcpTotal?: number
+
   budgetMs?: number
 }
 
@@ -183,9 +224,9 @@ export interface SessionProgressV1 {
   schema: 1
   sessionId: string
   atMs: number
+
   tools: Record<string, SessionProgressEntryV1>
 }
-
 
 function safeName(sessionId: string): string {
   return sessionId.replace(/[^A-Za-z0-9._-]/g, '_')
@@ -222,7 +263,6 @@ export function sessionProgressDir(dir: string = daemonDir()): string {
 export function sessionProgressPath(sessionId: string, dir?: string): string {
   return join(sessionProgressDir(dir), `${safeName(sessionId)}.json`)
 }
-
 
 function readJson<T>(path: string, accept: (raw: unknown) => raw is T): T | null {
   try {
@@ -286,7 +326,6 @@ function isProgress(raw: unknown): raw is SessionProgressV1 {
 export function readSessionProgress(sessionId: string, dir?: string): SessionProgressV1 | null {
   return readJson(sessionProgressPath(sessionId, dir), isProgress)
 }
-
 
 export function publishSessionFacts(facts: SessionFactsV1, dir?: string): void {
   if (!daemonHomeStands('the session facts', dir)) return

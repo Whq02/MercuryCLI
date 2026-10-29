@@ -23,7 +23,6 @@ import { readPinnedStatus } from '../mneme/mnemeFrontPage.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { formatTextSize } from '../mneme/mnemeUsage.js'
 
-
 type StatusNoticeType = 'warning' | 'info'
 
 type StatusNoticeContext = {
@@ -82,6 +81,7 @@ const largeAgentDescriptionsNotice: StatusNoticeDefinition = {
 const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
   id: 'claude-ai-external-token',
   type: 'warning',
+
   isActive: (context: StatusNoticeContext) => {
     void context
     if (!isClaudeAISubscriber()) return false
@@ -108,6 +108,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
   isActive: (context: StatusNoticeContext) => {
     void context
     try {
+
       const storedKey = getApiKeyFromConfigOrMacOSKeychain()
       if (storedKey === null) return false
       const resolved = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
@@ -118,6 +119,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
   },
   render: (context: StatusNoticeContext) => {
     void context
+
     const resolved = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
     return (
       <Box marginTop={1}>
@@ -136,6 +138,7 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   isActive: (context: StatusNoticeContext) => {
     void context
     try {
+
       const apiKeySource = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source
       const tokenSource = getAuthTokenSource().source
       if (apiKeySource === 'none' || tokenSource === 'none') return false

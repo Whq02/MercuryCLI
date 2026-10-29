@@ -30,6 +30,7 @@ async function findPowerShell(): Promise<string | null> {
         } catch {
           continue
         }
+
         if (!isUnderSnap(candidate)) return candidate
       }
     }

@@ -7,7 +7,6 @@ import type {
   McpStdioServerConfig,
 } from '../../services/mcp/types.js'
 
-
 type ServerInfoBase = {
   name: string
   client: MCPServerConnection
@@ -43,13 +42,17 @@ export type ServerInfo =
   | HTTPServerInfo
   | AnthropicProxyServerInfo
 
-
 type AgentMcpServerInfoBase = {
   name: string
+
   sourceAgents: string[]
+
   needsAuth: boolean
+
   url?: string
+
   command?: string
+
   isAuthenticated?: boolean
 }
 

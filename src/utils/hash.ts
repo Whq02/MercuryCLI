@@ -1,4 +1,3 @@
-
 type BunHash = {
   hash(input: string, seed?: number): number | bigint
 }

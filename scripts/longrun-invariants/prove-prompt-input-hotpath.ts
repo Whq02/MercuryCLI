@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,6 +43,7 @@ function seedRuns(cwd: string, n: number): void {
         agents: [],
       }),
     )
+
     const t = new Date(1_700_000_000_000 + i * 2000)
     utimesSync(file, t, t)
   }
@@ -68,6 +70,7 @@ section('K1a — an I/O-failed manifest is COUNTED, never silently dropped')
 {
   const cwd = mkdtempSync(join(tmpdir(), 'kinetic-unreadable-'))
   seedRuns(cwd, 4)
+
   const blocked = join(workflowRunsRoot(cwd), 'wf_002', 'run.json')
   chmodSync(blocked, 0o000)
   const { rows, unreadable } = await listWorkflowRunsDetailed(cwd)
@@ -75,6 +78,7 @@ section('K1a — an I/O-failed manifest is COUNTED, never silently dropped')
   check('the failed read is COUNTED as unreadable (partial listing, said so)',
     unreadable === 1, String(unreadable))
   chmodSync(blocked, 0o644)
+
   mkdirSync(join(workflowRunsRoot(cwd), 'wf_empty_dir'), { recursive: true })
   const after = await listWorkflowRunsDetailed(cwd)
   check('a dir with NO manifest is a skip, not an unreadable',
@@ -116,6 +120,7 @@ section('K4 — unmoved slices keep identity; the notify pulse always fires')
   const bus = readFileSync(join(import.meta.dir, '..', '..', 'src', 'state', 'vitalsBus.ts'), 'utf8')
   check('unchanged slices are dropped before assignment (identity holds)',
     bus.includes('if (jsonStringify(prev) === jsonStringify(fresh))'))
+
   check('the heartbeat notify ALWAYS fires (sync-read surfaces ride the pulse)',
     !bus.includes('if (!changed) return') && /version: snapshots\.version \+ 1,\s*\}\s*emit\(\)/.test(bus))
   check('the selector overload exists for slice-scoped subscribers',
@@ -130,6 +135,7 @@ section('K5/K6/K7/K10a — derivation cadence, parked clocks, shared timer, hone
     join(import.meta.dir, '..', '..', 'src', 'components', 'tasks', 'WorkflowsBoard.tsx'),
     'utf8',
   )
+
   check('row derivation (incl. the pidAlive probes) is memoized on data, not ticks',
     board.includes('const derivedRows = React.useMemo(') && board.includes('}, [tasks, pastRuns, roster])'))
   check('the board clock parks when nothing is in motion',

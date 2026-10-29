@@ -16,6 +16,7 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
 
 {
   const src = read('src/components/mercury-ui/useFlatList.ts')
+
   t('useFlatList: ↵ dispatches the primary (activate)', src.includes("action === 'activate'"))
   t(
     'useFlatList: event-identity launch gate (not wall-clock, not a ready flag)',
@@ -35,6 +36,7 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
   t('HealthCertificate: no setTimeout ready-flag', !READY_FLAG_RE.test(src))
   t(
     'HealthCertificate: footer leads nav then ↵ primary (gated on rows to select); the n/N marker rides the tail',
+
     /\{ text: listed \? '↑↓ move' : '', priority: 9 \},\n\s+\{ text: listed \? '↵ unfold' : '', priority: 8 \},/.test(src) && /\{ text: listed \? `\$\{segments\.cursor \+ 1\}\/\$\{segments\.rows\}` : '', priority: 5 \},\n\s+\]/.test(src),
   )
 }

@@ -1,4 +1,3 @@
-
 import { LayoutEdge, type LayoutNode } from './layout/node.js'
 
 export default function getMaxWidth(layoutNode: LayoutNode): number {

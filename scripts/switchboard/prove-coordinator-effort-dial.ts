@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,6 +33,7 @@ const models = await import('../../src/services/concourse/coordinatorModels.ts')
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 
 section('§1 — the switch owner: normalize, refuse typed, no-change, applied')
+
 {
   const junk = await models.switchCoordinatorEffort('ludicrous speed')
   check('junk refuses typed', junk.outcome === 'refused' && junk.reason === 'unknown-effort', JSON.stringify(junk))
@@ -51,12 +53,14 @@ section('§1 — the switch owner: normalize, refuse typed, no-change, applied')
 }
 
 section('§2 — the ONE reader: validated at read, never a guess')
+
 {
   check('the reader answers the persisted level', models.resolveCoordinatorEffort() === 'max')
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: 'hyper' } }))
   check('a hand-poisoned config reads undefined (no guess, no substitute)', models.resolveCoordinatorEffort() === undefined)
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: undefined } }))
   check('an absent pick reads undefined (the model default applies)', models.resolveCoordinatorEffort() === undefined)
+
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   updateSettingsForSource('userSettings', { engine: { effort: 'xhigh' } })
   check("no dial ⇒ the operator's /effort level applies to the coordinator (xhigh from the settings)", models.resolveCoordinatorEffort() === 'xhigh')
@@ -70,6 +74,7 @@ section('§2 — the ONE reader: validated at read, never a guess')
 }
 
 section('§3 — the turns carry it (the call site spells the reader)')
+
 {
   const call = readFileSync(join(import.meta.dir, '../../src/services/concourse/coordinatorCall.ts'), 'utf8')
   check('coordinatorCall passes effortValue from the ONE reader', call.includes('effortValue: resolveCoordinatorEffort(),'))
@@ -77,6 +82,7 @@ section('§3 — the turns carry it (the call site spells the reader)')
 }
 
 section('§4 — the doorway: e on the selected model, one UI, honest legend')
+
 {
   const picker = readFileSync(join(import.meta.dir, '../../src/components/concourse/CoordinatorModelPicker.tsx'), 'utf8')
   check("the e list-action exists, gated to model rows", /key: 'e',\s*\n\s*hint: 'effort',\s*\n\s*when: r => r\.kind === 'model'/.test(picker))
@@ -87,6 +93,7 @@ section('§4 — the doorway: e on the selected model, one UI, honest legend')
   )
   check('the pick writes through the switch owner callback', picker.includes('callbacks.switchCoordinatorEffort?.(id)'))
   check('the doorway mounts the ONE RowPickModal (no picker invented)', picker.includes("import { RowPickModal } from './RowPickModal.js'") && picker.includes('titlePrefix="EFFORT"'))
+
   check("…over the coordinator model's own stops from the effort owner", picker.includes('coordinatorEffortOptions(effortPick.modelId)') && picker.includes("resolveEffortTruth(modelId, undefined, { thinkingEnabled: false })"))
   check("the legend advertises e exactly when it fires (model row + empty query)", /list\.selectedRow\?\.kind === 'model' && query\.length === 0\s*\n?\s*\? \[\{ text: 'e effort'/.test(picker))
   check('the list yields whole while the modal is up', picker.includes('active: effortPick === null'))
@@ -95,6 +102,7 @@ section('§4 — the doorway: e on the selected model, one UI, honest legend')
 }
 
 section("§5 — the session rows' e keeps its job")
+
 {
   const screen = readFileSync(join(import.meta.dir, '../../src/components/concourse/ConcourseScreen.tsx'), 'utf8')
   check(

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -21,6 +22,7 @@ const NEEDLES: Array<[string, RegExp]> = [
 ]
 
 const BARE_TOKEN = /^['"][A-Za-z0-9_./@:-]+['"]$/
+
 const HOLES = /\$\{[^}]*\}/g
 
 const FILES = [
@@ -71,10 +73,12 @@ function copyOf(source: string): Array<{ line: number; text: string }> {
   while ((m = literal.exec(text)) !== null) {
     const line = text.slice(0, m.index).split('\n').length
     const lineText = lines[line - 1] ?? ''
+
     if (/^\s*(import|export)\b/.test(lineText) || /\bfrom\s*$/.test(text.slice(Math.max(0, m.index - 8), m.index))) continue
     if (BARE_TOKEN.test(m[0])) continue
     out.push({ line, text: m[0].startsWith('`') ? m[0].replace(HOLES, ' ') : m[0] })
   }
+
   const jsx = />([^<>{}\n]*[A-Za-z][^<>{}\n]*)</g
   while ((m = jsx.exec(text)) !== null) {
     const line = text.slice(0, m.index).split('\n').length

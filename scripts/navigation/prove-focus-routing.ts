@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -64,6 +65,7 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   const resume = read('src/components/MercuryResume.tsx')
   const config = read('src/components/MercuryConfig.tsx')
   const consoleSrc = read('src/commands/console/console.tsx')
+
   const promptsPanel = read('src/components/prompts-panel/PromptsPanel.tsx')
   const logsel = read('src/components/LogSelector.tsx')
 
@@ -73,6 +75,7 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   check('resume registers', resume.includes("useRegisterOverlay('resume'"))
   check('config registers', config.includes("useRegisterOverlay('config'"))
   check('console registers', consoleSrc.includes("useRegisterOverlay('console'"))
+
   for (const [name, src] of [
     ['boards', panes],
     ['model picker', picker],
@@ -125,6 +128,7 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   check('palette declares page-key ownership on its overlay', pal.includes('ownsPageKeys: true'))
   check('search windows the FULL set and pages by its viewport', hs.includes('pageSize: MAX_ROWS') && hs.includes('ownsPageKeys: true'))
   const scroll = read('src/components/ScrollKeybindingHandler.tsx')
+
   check('the transcript scroller YIELDS page keys to a declared overlay pager (all 6 scroll handlers)', (scroll.match(/if \(topOverlayOwnsPageKeys\(\)\) return false/g) ?? []).length === 6)
   const uti = read('src/hooks/useTextInput.ts')
   check('the editor honors disablePageKeyCursorMovement (one meaning per key)', uti.includes('disablePageKeyCursorMovement'))

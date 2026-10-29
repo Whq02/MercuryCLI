@@ -5,7 +5,6 @@ import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getDefaultBranch, getIsGit, gitExe } from './git.js'
 import { resolveGitDir } from './git/gitFilesystem.js'
 
-
 const GIT_TIMEOUT_MS = 5000
 const MAX_FILES_DETAILED = 50
 const MAX_FILE_DIFF_BYTES = 1024 * 1024
@@ -28,6 +27,7 @@ type PerFileStats = {
 export type GitDiffResult = {
   stats: GitDiffStats
   perFileStats: Map<string, PerFileStats>
+
   hunks: Map<string, StructuredPatchHunk[]>
 }
 
@@ -37,11 +37,11 @@ type NumstatResult = {
 }
 
 export type GitDiffSpec = {
+
   args: string[]
   cwd?: string
   includeUntracked?: boolean
 }
-
 
 async function pathExistsAny(path: string): Promise<boolean> {
   try {
@@ -72,7 +72,6 @@ async function isTransientStateIn(cwd: string): Promise<boolean> {
   return present.some(Boolean)
 }
 
-
 function parseGitNumstat(stdout: string): NumstatResult {
   const perFileStats = new Map<string, PerFileStats>()
   let filesCount = 0
@@ -84,6 +83,7 @@ function parseGitNumstat(stdout: string): NumstatResult {
     if (parts.length < 3) continue
     const addedRaw = parts[0] as string
     const removedRaw = parts[1] as string
+
     const path = parts.slice(2).join('\t')
     const isBinary = addedRaw === '-' || removedRaw === '-'
     const added = isBinary ? 0 : parseInt(addedRaw, 10) || 0
@@ -142,9 +142,11 @@ function parseGitDiff(stdout: string): Map<string, StructuredPatchHunk[]> {
         continue
       }
       if (!open) continue
+
       if (line === '' && i === lines.length - 1) continue
       if (line.startsWith('+') || line.startsWith('-') || line.startsWith(' ') || line === '') {
         if (storedLines < MAX_LINES_PER_FILE) {
+
           open.lines.push((' ' + line).slice(1))
           storedLines++
         }
@@ -165,7 +167,6 @@ function parseShortstat(stdout: string): GitDiffStats | null {
     linesRemoved: match[3] === undefined ? 0 : Number(match[3]),
   }
 }
-
 
 async function listUntracked(cwd?: string): Promise<string[] | null> {
   const args = ['ls-files', '--others', '--exclude-standard']

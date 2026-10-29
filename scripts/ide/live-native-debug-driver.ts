@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -39,6 +40,7 @@ const launch = await call({
   session: 'live',
 })
 check('launch stops on the conditional breakpoint', /stopped — reason breakpoint/.test(launch.data.result), launch.data.result.split('\n').slice(0, 3).join(' | '))
+
 const stopStack = await call({ op: 'stack', session: 'live' })
 const stopFrame = Number(stopStack.data.result.match(/\[frameId (\d+)\]/)?.[1])
 check('stack exposes a frameId at the stop', Number.isInteger(stopFrame), stopStack.data.result.split('\n')[0])

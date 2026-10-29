@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
@@ -25,6 +24,7 @@ export function useRateLimitWarningNotification(model: string): void {
   const limits = useAnthropicLimits()
   const tick = useNowTick(ENGINE_FEEDER_REREAD_MS)
   const connector = useSessionConnector()
+
   const usageRecordVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const openaiObservedVersion = useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   const overageShownRef = useRef(false)
@@ -55,6 +55,7 @@ export function useRateLimitWarningNotification(model: string): void {
       connector.usage().limitWarning,
       providerLimitWarning({
         model,
+
         reads: { anthropicLimits: () => limits },
       }),
     )

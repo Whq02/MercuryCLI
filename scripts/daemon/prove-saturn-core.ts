@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,6 +12,7 @@ mkdirSync(DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
+
 delete process.env.DEEPSEEK_API_KEY
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -71,6 +73,7 @@ function seedRecord(): void {
       spawnedAt: Date.now(),
       lastLiveAt: Date.now(),
     } as never
+
     workers['concourse-w0'] = {
       schema: 1,
       runnerId: 'concourse-w0',
@@ -143,6 +146,7 @@ console.log('§A0 validator poisons')
 
 console.log('§A1 the writer')
 {
+
   updateConcourseWorkers(workers => {
     for (const key of Object.keys(workers)) delete workers[key]
   }, DAEMON_DIR)
@@ -150,6 +154,7 @@ console.log('§A1 the writer')
   check('unknown session refuses typed', none.outcome === 'refused' && (none.detail ?? '').includes('unknown-session'))
 
   seedRecord()
+
   const badAdd = applyConcourseScheduleOp(SESSION, { op: 'add', schedule: { when: goodAt, action: { kind: 'fire', prompt: '' } } }, 'operator:test', okDeps, DAEMON_DIR)
   check('malformed add refuses typed at the writer', badAdd.outcome === 'refused' && (badAdd.detail ?? '').startsWith('schedule refused — '))
   check('a refused add materializes NO field', !('schedules' in rawRecord()))
@@ -406,11 +411,13 @@ console.log('§W the wire')
   const window = protocol.slice(protocol.indexOf('action:', actionsAt), protocol.indexOf('sessionId: string', actionsAt))
   check("W1 'set-schedule' is APPENDED LAST in the union (after 'set-kit'; source order is the shape)", /\|\s*'set-kit'\s*\|\s*'set-schedule'\s*$/m.test(window.trimEnd()))
   check('W2 the payload rides OUTSIDE the action window, typed off ScheduleOpRequestV1', !window.includes('scheduleEdit') && protocol.includes("scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1"))
+
   const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
   check('W3 ONE wire proto beside its registered shape (bump discipline is prove-protocol-shape\'s)', (protocol.match(/export const MERCURY_DAEMON_PROTO = /g) ?? []).length === 1 && protocol.includes(`export const MERCURY_DAEMON_PROTO = ${MERCURY_DAEMON_PROTO}`) && protocol.includes("export const DAEMON_PROTO_SHAPE = 'sha256:"))
 
   const server = read('src/daemon/controlServer.ts')
   const controlArm = server.slice(server.indexOf("case 'sessionControl': {"), server.indexOf("case 'sessionList': {"))
+
   check(
     "W4 the server routes the action and narrows: op grammar · 'add' through validateSaturnSubmission ('scheduleEdit refused — <reason>') · the id grammar · the typed forward · the requires-string",
     controlArm.includes("raw.action === 'set-schedule'") &&
@@ -511,6 +518,7 @@ console.log('§F the ticker')
   const ports = {
     now: () => pinnedNow ?? Date.now(),
     records: () => Object.values(JSON.parse(readFileSync(concourseWorkersPath(DAEMON_DIR), 'utf8')).workers as Record<string, never>).filter((r: { endedAt?: number }) => r.endedAt === undefined) as never[],
+
     deriveAccount: (_m: string) => ({ ok: true as const, account: { ...FIXTURE_ACCOUNT } }),
     liveFacts: () =>
       liveFactsState === 'ready'
@@ -566,6 +574,7 @@ console.log('§F the ticker')
 
   const r2 = await tickSaturnOnce(ports)
   check('F2 the due one-shot fired once', r2.fired === 1 && delivered.length === 1)
+
   check('F2 the delivery is the dispatch shape: deterministic owner-scoped id, live arm', delivered[0]!.parked === false && delivered[0]!.prompt === 'run the nightly audit' && new RegExp(`^saturn-${SESSION}-[0-9a-f]{8}-\\d+$`).test(delivered[0]!.clientMessageId))
   check('F2 the one-shot is SPENT and the field dropped whole', !('schedules' in rawRecord()))
   check("F2 the 'schedule-fire' receipt rows outcome fired", (receiptTail('schedule-fire')?.details as Record<string, unknown> | undefined)?.outcome === 'fired')
@@ -782,6 +791,7 @@ console.log('§B the birth tier')
   const bornReceipts = (sessionId: string) => receipts.readSessionReceipts(home, sessionId).filter(r => r.kind === 'schedule-fire')
 
   const spec1 = { workspaceDir: '/scratch/repo', modelKey: 'claude-opus-5', presence: 'headless' as const, opening: 'audit the nightly build', kitPreset: 'writing', contract: { text: 'nightly audit duty' }, title: 'Nightly audit' }
+
   const b1 = await birth(spec1, { scheduleId: 'aaaa0001', dueAt: 1111, by: 'saturn:aaaa0001', owner: 'sess-author-1' })
   check('B1 born-working lands with the session id', b1.ok === true && b1.sessionId === 'born-w1')
   const call1 = dispatchCalls[0]!
@@ -881,6 +891,7 @@ console.log('§T the facts-borne road')
       { op: 'bogus-op' },
     ],
   }
+
   seatMod.onFactsAnswer('concourse-w1', answer, fixtureRoster as never, DAEMON_DIR)
   await new Promise(r => setTimeout(r, 50))
   const landedRows = ((rawRecord().schedules ?? []) as Array<Record<string, unknown>>).filter(s => (s.when as Record<string, unknown>).spelling === 'every day 08:00')
@@ -958,6 +969,7 @@ console.log('§X the box tier')
   const boxPorts = {
     now: () => Date.now(),
     records: () => [],
+
     deriveAccount: (_m: string) => ({ ok: true as const, account: { family: 'anthropic', source: 'oauth' as const } }),
     liveFacts: () =>
       boxFacts === 'ready'
@@ -1018,6 +1030,7 @@ console.log('§A3 one-writer census')
   check('the census walks a real tree', files.length > 500, `${files.length} files`)
   const offenders: string[] = []
   const pen = /(\.schedules\s*=[^=]|\.heldFires\s*=[^=]|delete\s+\w+\.schedules|delete\s+\w+\.heldFires)/
+
   const PEN_HOMES = new Set(['src/daemon/saturn.ts', 'src/daemon/saturnBoxSchedules.ts'])
   for (const f of files) {
     const body = readFileSync(join(import.meta.dir, '../..', f), 'utf8')

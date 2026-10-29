@@ -41,7 +41,6 @@ function optionEnvName(key: string): string {
   return `${OPTION_ENV_PREFIX}${key.replace(/[^A-Za-z0-9_]/g, '_').toUpperCase()}`
 }
 
-
 type SecretsBlob = { extensionSecrets?: Record<string, Record<string, string>> }
 
 export function loadOptionValues(id: string, schema: NonNullable<ManifestNeeds['options']> | undefined): OptionValues {
@@ -103,6 +102,7 @@ export function deleteOptionValues(id: string): { settingsWritten: boolean } {
   if (current.extensionSecrets && current.extensionSecrets[id] !== undefined) {
     const rest = { ...current.extensionSecrets }
     delete rest[id]
+
     const next: Record<string, unknown> = { ...current }
     if (Object.keys(rest).length > 0) next['extensionSecrets'] = rest
     else delete next['extensionSecrets']

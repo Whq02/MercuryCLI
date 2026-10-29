@@ -6,7 +6,6 @@ import { lineAnchorsEnabled } from '../../services/changeTransaction/lineAnchors
 import { lazySchema } from '../../utils/lazySchema.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 
-
 const FILE_PATH_DESCRIPTION = 'The absolute path to the file to modify'
 const OLD_STRING_DESCRIPTION = 'The text to replace (always sent together with new_string)'
 const NEW_STRING_DESCRIPTION =
@@ -160,7 +159,9 @@ export const outputSchema = lazySchema(() =>
     replaceAll: z.boolean(),
     gitDiff: gitDiffSchema().optional(),
     noChange: noChangeSchema().optional(),
+
     freshLineAnchors: z.string().optional(),
+
     staleRecovery: z.string().optional(),
     readThrough: z.string().optional(),
     editedLines: editedLinesSchema().optional(),

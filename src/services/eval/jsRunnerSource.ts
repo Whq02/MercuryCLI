@@ -1,4 +1,3 @@
-
 import { jsCellTransformerSource } from './jsCellTransform.js'
 
 export const JS_RUNNER_SOURCE: string = `// Mercury eval kernel runner (generated; do not edit in place)

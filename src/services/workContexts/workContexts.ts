@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -20,7 +19,6 @@ import { resolveProjectConfigPath } from '../../utils/projectConfig.js'
 import { createAgentWorktree } from '../../utils/worktree.js'
 
 const GIT_TIMEOUT_MS = 8000
-
 
 export interface WorkContextSetupState {
   copiedFiles: string[]
@@ -71,18 +69,20 @@ export interface HandoffPreview {
     dirtyPaths: string[]
     exists: boolean
   }
+
   divergence: { ahead: number; behind: number } | null
+
   overlap: string[]
   verification: string | null
   pendingComments: number
   operations: HandoffOperation[]
   conflicts: Array<{ path: string; reason: string }>
   suggestedResolutions: string[]
+
   observedDigest: string | null
 }
 
 export type WorkContextResult<T> = { ok: true; value: T } | { ok: false; reason: string }
-
 
 export function workContextsRoot(): string {
   const override = flagEnv('MERCURY_WORK_CONTEXTS_DIR')
@@ -130,7 +130,6 @@ export function listWorkContexts(filter?: {
   }
 }
 
-
 async function gitIn(cwd: string, args: string[]): Promise<{ stdout: string; code: number }> {
   return execFileNoThrowWithCwd(gitExe(), args, {
     cwd,
@@ -140,6 +139,7 @@ async function gitIn(cwd: string, args: string[]): Promise<{ stdout: string; cod
 }
 
 async function dirtyPathsIn(cwd: string): Promise<string[]> {
+
   const { stdout, code } = await gitIn(cwd, ['status', '--porcelain=v1', '-uall', '-z'])
   if (code !== 0) return []
   const paths = new Set<string>()
@@ -149,6 +149,7 @@ async function dirtyPathsIn(cwd: string): Promise<string[]> {
     if (rec.length < 4) continue
     const xy = rec.slice(0, 2)
     paths.add(rec.slice(3))
+
     if (xy.includes('R') || xy.includes('C')) {
       const origin = records[i + 1]
       if (origin && origin.length > 0) {
@@ -196,13 +197,13 @@ async function divergenceBetween(
 
 function realpathOrSelf(p: string): string {
   try {
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return (require('node:fs') as typeof import('node:fs')).realpathSync(p)
   } catch {
     return p
   }
 }
-
 
 export interface WorktreeSetupConfig {
   copyFiles: string[]
@@ -249,7 +250,6 @@ export function copySetupFiles(
   }
   return { copiedFiles: copied, skippedExisting: skipped }
 }
-
 
 export function bindWorkContext(input: {
   sessionId: string
@@ -317,7 +317,6 @@ export function updateWorkContext(
   writeContext(next)
   return { ok: true, value: next }
 }
-
 
 export async function previewHandoff(input: {
   contextId: string
@@ -406,6 +405,7 @@ export async function executeHandoff(input: {
       reason: `the preview has ${input.preview.conflicts.length} conflict(s) — resolve them first (${input.preview.suggestedResolutions[0] ?? ''})`,
     }
   }
+
   const current = await handoffFenceDigest(
     ctx.mode === 'worktree' ? (ctx.worktreePath ?? ctx.roots[0]!) : ctx.roots[0]!,
   )
@@ -422,6 +422,7 @@ export async function executeHandoff(input: {
   let laneId = ctx.laneId
 
   if (input.to.mode === 'worktree' && toRoot === null) {
+
     const { stdout: sessionRoot, code: rootCode } = await gitIn(getCwd(), [
       'rev-parse',
       '--show-toplevel',
@@ -430,6 +431,7 @@ export async function executeHandoff(input: {
       'rev-parse',
       '--show-toplevel',
     ])
+
     if (rootCode === 0 && launchFolderBoundsProject(getCwd())) {
       return {
         ok: false,
@@ -480,7 +482,6 @@ export async function executeHandoff(input: {
   return { ok: true, value: { context: updated.value, ...(setupState && { setup: setupState }) } }
 }
 
-
 export async function parkWorkContext(id: string): Promise<WorkContextResult<{ recoveryRef: string }>> {
   const ctx = readWorkContext(id)
   if (!ctx) return { ok: false, reason: `no work context '${id}'` }
@@ -488,6 +489,7 @@ export async function parkWorkContext(id: string): Promise<WorkContextResult<{ r
   const dirty = existsSync(root) ? await dirtyPathsIn(root) : []
   const branch = existsSync(root) ? await branchOf(root) : null
   const head = existsSync(root) ? await headOf(root) : null
+
   const artifact = createReviewArtifact({
     kind: 'report',
     title: `parked lane ${ctx.laneId ?? ctx.contextId}`,
@@ -535,6 +537,7 @@ export function restoreWorkContext(id: string): WorkContextResult<WorkContextV1>
 
 export async function cleanupLane(input: {
   contextId: string
+
   baseRoot: string
 }): Promise<WorkContextResult<{ removedWorktree: string }>> {
   const ctx = readWorkContext(input.contextId)
@@ -546,6 +549,7 @@ export async function cleanupLane(input: {
   if (!existsSync(wt)) {
     return { ok: false, reason: `worktree ${wt} does not exist` }
   }
+
   const dirty = await dirtyPathsIn(wt)
   if (dirty.length > 0) {
     return {
@@ -553,6 +557,7 @@ export async function cleanupLane(input: {
       reason: `NOT clean — ${dirty.length} dirty path(s) (${dirty.slice(0, 5).join(', ')}); park it instead (parkWorkContext preserves a recovery artifact)`,
     }
   }
+
   const laneHead = await headOf(wt)
   if (!laneHead) return { ok: false, reason: 'cannot resolve the lane HEAD' }
   const { code: ancestorCode } = await gitIn(input.baseRoot, [
@@ -567,6 +572,7 @@ export async function cleanupLane(input: {
       reason: `NOT integrated — the lane head ${laneHead.slice(0, 8)} is not an ancestor of the base; merge it first or park the lane`,
     }
   }
+
   const { code: removeCode, stdout } = await gitIn(input.baseRoot, ['worktree', 'remove', wt])
   if (removeCode !== 0) {
     return { ok: false, reason: `git worktree remove refused: ${stdout.slice(0, 200)}` }

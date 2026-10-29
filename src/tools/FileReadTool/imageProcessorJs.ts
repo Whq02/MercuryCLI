@@ -35,6 +35,7 @@ export function imageDimensionsFromHeader(buffer: Buffer): { width: number; heig
     return null
   }
   if (buffer.length >= 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+
     let offset = 2
     while (offset + 9 < buffer.length) {
       if (buffer[offset] !== 0xff) {
@@ -62,7 +63,6 @@ export function imageDimensionsFromHeader(buffer: Buffer): { width: number; heig
   }
   return null
 }
-
 
 export interface RgbaImage {
   width: number
@@ -157,6 +157,7 @@ export function decodePng(buffer: Buffer): RgbaImage {
 
   const data = new Uint8Array(width * height * 4)
   const sampleAt = (row: Uint8Array, index: number): number => {
+
     if (bitDepth === 8) return row[index]!
     if (bitDepth === 16) return row[index * 2]!
     const perByte = 8 / bitDepth
@@ -271,7 +272,6 @@ function decodeImage(buffer: Buffer): RgbaImage {
   )
 }
 
-
 export function downscaleRgba(image: RgbaImage, targetWidth: number, targetHeight: number): RgbaImage {
   const width = Math.max(1, Math.round(targetWidth))
   const height = Math.max(1, Math.round(targetHeight))
@@ -310,7 +310,6 @@ export function downscaleRgba(image: RgbaImage, targetWidth: number, targetHeigh
   }
   return { width, height, data: out }
 }
-
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256)
@@ -378,6 +377,7 @@ export function encodePng(image: RgbaImage, options: { compressionLevel?: number
   header[10] = 0
   header[11] = 0
   header[12] = 0
+
   const level = Math.min(6, Math.max(0, options.compressionLevel ?? 6))
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -386,7 +386,6 @@ export function encodePng(image: RgbaImage, options: { compressionLevel?: number
     pngChunk('IEND', new Uint8Array(0)),
   ])
 }
-
 
 function cropRgba(image: RgbaImage, region: { left: number; top: number; width: number; height: number }): RgbaImage {
   const out = new Uint8Array(region.width * region.height * 4)
@@ -437,6 +436,7 @@ class JavascriptImageInstance implements SharpInstance {
     let image = decodeImage(this.input)
     if (this.region !== null) image = cropRgba(image, this.region)
     if (this.target !== null && (this.target.width !== null || this.target.height !== null)) {
+
       const boxWidth = this.target.width ?? Number.POSITIVE_INFINITY
       const boxHeight = this.target.height ?? Number.POSITIVE_INFINITY
       const scale = Math.min(boxWidth / image.width, boxHeight / image.height)

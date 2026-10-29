@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/messages/AssistantThinkingMessage.tsx src/components/messages/thinkingGrammar.tsx
-// gate-watch: src/components/SwitchboardTagBar.tsx src/commands/effort/effort.tsx
-// gate-watch: src/services/providers/gemini/geminiClient.ts src/services/providers/openaicompat/compatChatCallModel.ts
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

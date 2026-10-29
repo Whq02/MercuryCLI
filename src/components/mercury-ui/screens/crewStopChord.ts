@@ -1,4 +1,3 @@
-
 export const CREW_STOP_WINDOW_MS = 2000
 
 export type CrewStopArm = { id: string; at: number }

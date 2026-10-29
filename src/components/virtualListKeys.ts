@@ -1,6 +1,6 @@
-
 export interface ItemKeyState<T> {
   keys: string[]
+
   rows: readonly T[]
   keyFn: (row: T, index: number) => string
 }

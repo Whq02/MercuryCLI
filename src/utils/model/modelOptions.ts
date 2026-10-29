@@ -53,11 +53,16 @@ export type ModelOption = {
   value: string
   label: string
   description: string
+
   descriptionForModel?: string
+
   group?: string
+
   unavailable?: string
   cataloguePending?: true
+
   statedContextWindow?: number
+
   catalogueDoor?: { family: string; total: number }
   liveUnknown?: boolean
 }
@@ -65,9 +70,11 @@ export type ModelOption = {
 export const LIVE_UNKNOWN_ROW_WORDS = 'live · unknown to mercury'
 
 export const GPT_CONNECT_OPTION_VALUE = '__hermes_gpt_connect__'
+
 export const ANTHROPIC_CONNECT_OPTION_VALUE = '__mercury_anthropic_connect__'
 
 export interface ModelOptionReads {
+
   anthropicCredentialed?: () => boolean
   anthropicLiveRows?: () => readonly AnthropicLiveRow[]
 }
@@ -157,7 +164,6 @@ export function anthropicNotSignedInReason(): string {
 export { getGptSeatAvailability }
 export type { GptSeatAvailability }
 
-
 const TRAILING_1M_RE = /\[1m\]$/i
 const ANY_1M_RE = /\[1m\]/gi
 
@@ -169,7 +175,6 @@ export function withContext1m(value: string): string {
 export function stripContext1m(value: string): string {
   return value.replace(ANY_1M_RE, '')
 }
-
 
 function aliasRow(alias: string, description: string): ModelOption {
   const id = parseUserSpecifiedModel(alias)
@@ -258,7 +263,6 @@ function baseTierRows(): ModelOption[] {
     : standardShapeTierRows()
 }
 
-
 function collectStringValues(options: ModelOption[]): Set<string> {
   const values = new Set<string>()
   for (const option of options) {
@@ -268,6 +272,7 @@ function collectStringValues(options: ModelOption[]): Set<string> {
 }
 
 function isSentinelValue(v: string): boolean {
+
   if (v === GPT_CONNECT_OPTION_VALUE) return true
   return v.startsWith('__') || v.includes(':')
 }
@@ -357,6 +362,7 @@ export function isProviderActionRow(value: string): boolean {
   return (
     value === GPT_CONNECT_OPTION_VALUE ||
     value.startsWith(KEY_CONNECT_PREFIX) ||
+
     /^__mercury_[a-z0-9-]+_connect__$/.test(value) ||
     isCatalogueDoorRow(value)
   )
@@ -412,6 +418,7 @@ function gptDisqualificationCopy(
     case 'hidden-or-retired':
       return `hidden by the account source (${why.detail})`
     case 'effort-catalogue-undecodable':
+
       return 'effort catalogue undecodable'
     case 'catalogue-unavailable':
       return `live catalogue unavailable${why.detail ? ` (${why.detail})` : ''}`
@@ -474,6 +481,7 @@ function getQualifiedGptOptions(): ModelOption[] {
           : 'The GPT group is armed but not connected — the operator signs in with /logins; no GPT model is selectable until the live catalogue qualifies candidates.',
       group: OPENAI_MODEL_GROUP,
     }
+
     if (signIn) return [connectRow]
     const pending = availability.why === 'catalogue-pending'
     return [connectRow, ...GPT_DISPLAY_PINS.map(pin => (pending ? { ...unavailableGptRow(pin, reason), cataloguePending: true as const } : unavailableGptRow(pin, reason)))]
@@ -485,6 +493,7 @@ function getQualifiedGptOptions(): ModelOption[] {
   for (const candidate of qualifiedGptCandidates('primary', availability.sourceKind)) {
     const id = candidate.identity.canonicalId
     listed.add(id)
+
     const label = gptDisplayName(id) ?? candidate.displayName
     const liveUnknown = candidate.identity.unparsed === true
     out.push({
@@ -498,6 +507,7 @@ function getQualifiedGptOptions(): ModelOption[] {
       ...(liveUnknown ? { liveUnknown: true } : {}),
     })
   }
+
   for (const pin of GPT_DISPLAY_PINS) {
     if (listed.has(pin.id)) continue
     const evaluated = evaluateGptCandidate(pin.id, availability.sourceKind)
@@ -507,11 +517,11 @@ function getQualifiedGptOptions(): ModelOption[] {
   return out
 }
 
-
 export interface KeyLanePin {
   id: string
   displayName: string
   observedAt: string
+
   contextWindow?: number
   listedLive?: boolean
   servedAs?: { id: string; displayName: string }
@@ -661,6 +671,7 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
 
 export interface KeyLaneReads {
   zaiKeyPresent(): boolean
+
   moonshotCredentialPresent(): boolean
   deepseekKeyPresent(): boolean
   xaiKeyPresent?(): boolean
@@ -676,6 +687,7 @@ export interface KeyLaneReads {
   cerebrasKeyPresent?(): boolean
   fireworksKeyPresent?(): boolean
   qwenKeyPresent?(): boolean
+
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
   namedCompat?(): ModelOption[]
 }
@@ -871,6 +883,7 @@ export function keyLaneGroupRows(args: {
   providerName: string
   connectValue: string
   connectHint: string
+
   connectLabel?: string
   keyPresent: boolean
   pins: KeyLanePin[]
@@ -1084,6 +1097,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   const namedCompat = reads.namedCompat?.() ?? []
   if (namedCompat.length > 0) out.push(...namedCompat)
   else if (compat === undefined) {
+
     out.push({
       value: keyConnectValue('compat'),
       label: 'Custom endpoint — configure',
@@ -1141,6 +1155,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   for (const row of getGeminiModelOptions()) {
     pushIfAbsent(options, row)
   }
+
   for (const row of getHuggingfaceModelOptions()) {
     pushIfAbsent(options, row)
   }
@@ -1221,17 +1236,20 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   )
 }
 
-
 export function focusedOptionSupports1m(value: string): boolean {
+
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModel(stripContext1m(value))
   const canonical = getCanonicalName(familyDefaultsModel(resolved))
+
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return false
   }
+
   const UNCONDITIONAL_1M = new Set(['claude-opus-4-6', 'claude-sonnet-4-6'])
   if (UNCONDITIONAL_1M.has(canonical)) return true
+
   if (canonical === 'claude-fable-5') return modelSupports1M(resolved)
   return false
 }

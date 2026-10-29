@@ -60,6 +60,7 @@ const run = await runArtifactArena({
 })
 
 try {
+
   const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const escAt = sends.find(s => s.data === '\x1b')?.at ?? -1
   const enterAt = sends.filter(s => s.data === '\r').at(-1)?.at ?? -1

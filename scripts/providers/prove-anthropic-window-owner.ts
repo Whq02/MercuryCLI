@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -53,6 +54,7 @@ const resetsAtIso = new Date(Date.now() + 3_600_000).toISOString()
   resetLimitsForCredentialSwitch()
   const w = quotaWindows()
   t('§4 after the credential-switch reset the meters are empty', w.fiveHour.state === 'unavailable')
+
   __setAnthropicOwnerResolverForTest(() => 'anthropic:oauth:slot-b')
   foldUtilizationFromEndpoint({ five_hour: { utilization: 7, resets_at: resetsAtIso }, seven_day: null })
   t('§4 …and the new slot re-stamps with its own observation', Math.round(quotaWindows().fiveHour.usedPct ?? -1) === 7)

@@ -214,12 +214,14 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
 
   if (options.status) {
     const status = await channelStatus(roots)
+
     const pointerDamaged = status.installedPointer === 'unreadable'
     if (options.json) {
       return pointerDamaged
         ? failJson({ mode: 'status', ...status, provenance: provenanceRecord })
         : emitJson({ mode: 'status', ...status, provenance: provenanceRecord })
     }
+
     const installedLine =
       status.installedPointer === 'ok'
         ? status.installedVersion!
@@ -255,6 +257,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       if (options.json) return failJson({ mode: 'rollback', state: 'refused', reason: sourceCheckoutReason, remedy, provenance: provenanceRecord })
       return cliError(`rollback refused: ${sourceCheckoutReason}\n  ${remedy}`)
     }
+
     reconcileManagedShims(roots)
     const rolled = await performRollback(roots, progress)
     const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
@@ -326,6 +329,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null
   const openWindowsLineText = openWindows === null ? '' : `\n${openWindows}`
   const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
+
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
     await runLifecycleVerbOpportunity('update')
@@ -342,6 +346,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   }
   switch (result.state) {
     case 'updated': {
+
       const shimLine =
         result.shim.state === 'refused-foreign'
           ? `\n  stable command NOT refreshed: ${result.shim.note}`
@@ -376,6 +381,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
           return cliError('update did not run')
       }
     case 'refused': {
+
       const receiptLine = result.receiptPath ? `\n  receipt: ${result.receiptPath}` : ''
       const retryLine = result.retryable ? ' (retry is appropriate)' : ''
       return cliError(

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -45,6 +46,7 @@ for (const key of ['DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_
   const { join } = await import('node:path')
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-s6-home-'))
 }
+
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
@@ -67,6 +69,7 @@ const LIVE_WIRE = {
       display_name: 'GPT-5.6 Sol',
       supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'],
       default_reasoning_level: 'medium',
+
       priority: 1,
     },
     {
@@ -118,6 +121,7 @@ async function armWithUnreachableCatalogue(): Promise<void> {
 }
 
 section('1 · the grammar surface — the class aliases and the exact-id shapes; no per-boot advertisement')
+
 {
   check('class aliases first', ENGINE_DISPATCH_MODELS[0] === 'gpt' && ENGINE_DISPATCH_MODELS[1] === 'glm', ENGINE_DISPATCH_MODELS.join(','))
   for (const id of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'glm-5.2']) {
@@ -130,6 +134,7 @@ section('1 · the grammar surface — the class aliases and the exact-id shapes;
 }
 
 section('2 · exact gpt ids vs the LIVE catalogue (qualification law)')
+
 {
   await armWithLiveCatalogue()
   const sol = await resolveEngineDispatch('gpt-5.6-sol')
@@ -150,6 +155,7 @@ section('2 · exact gpt ids vs the LIVE catalogue (qualification law)')
     unknown.includes("'gpt-9000'") && unknown.includes('not-in-live-catalogue'),
     unknown,
   )
+
   const prevGen = await resolveEngineDispatch('gpt-5.5')
   check(
     "'gpt-5.5' resolves live (offered by the account — no generation gate)",
@@ -159,6 +165,7 @@ section('2 · exact gpt ids vs the LIVE catalogue (qualification law)')
 }
 
 section('3 · deprecated ids refuse loudly (live list irrelevant)')
+
 {
   for (const dead of DEPRECATED_GPT_IDS) {
     const message = await refusal(() => resolveEngineDispatch(dead))
@@ -171,6 +178,7 @@ section('3 · deprecated ids refuse loudly (live list irrelevant)')
 }
 
 section('4 · live catalogue unreachable ⇒ display-pin fallback')
+
 {
   await armWithUnreachableCatalogue()
   const pinned = await resolveEngineDispatch('gpt-5.6-terra')
@@ -190,6 +198,7 @@ section('4 · live catalogue unreachable ⇒ display-pin fallback')
 }
 
 section('5 · exact glm ids + gate refusals')
+
 {
   await armWithLiveCatalogue()
   const glm = await resolveEngineDispatch('glm-5.2')
@@ -210,6 +219,7 @@ section('5 · exact glm ids + gate refusals')
     unverified.includes("Z.AI model 'glm-9999-nonexistent' is on neither mercury://models") && unverified.includes('glm-5.2') && unverified.includes('mercury://models/known') && unverified.includes('ask the operator'),
     unverified,
   )
+
   delete process.env.OPENAI_API_KEY
   __resetProviderDiscoveryForTest()
   const uncredentialed = await refusal(() => resolveEngineDispatch('gpt-5.6-sol'))
@@ -221,6 +231,7 @@ section('5 · exact glm ids + gate refusals')
 }
 
 section('6 · the class aliases law')
+
 {
   await armWithLiveCatalogue()
   const gpt = await resolveEngineDispatch('gpt')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -22,6 +23,7 @@ t.section('§1 — the seam')
 
 t.section('§2 — the surface retired (the prompts panel has no deep-links)')
 {
+
   const panel = readFileSync('src/components/prompts-panel/PromptsPanel.tsx', 'utf8')
   t.check('the prompts panel never touches the return-state seam', !panel.includes('returnState'))
   const { execSync } = await import('node:child_process')

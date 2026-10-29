@@ -33,21 +33,25 @@ function unescapeRuleContent(content: string): string {
 }
 
 export function permissionRuleValueFromString(ruleString: string): PermissionRuleValue {
+
   const trimmed = ruleString.trim()
   const open = firstUnescaped(trimmed, '(')
   if (open === -1) {
     return { toolName: trimmed }
   }
   const close = lastUnescaped(trimmed, ')')
+
   if (close === -1 || close <= open || close !== trimmed.length - 1) {
     return { toolName: trimmed }
   }
   const toolName = trimmed.slice(0, open).trim()
   if (toolName === '') {
+
     return { toolName: trimmed }
   }
   const rawContent = trimmed.slice(open + 1, close)
   const content = unescapeRuleContent(rawContent)
+
   if (content === '' || content === '*') {
     return { toolName: toolName }
   }

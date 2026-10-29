@@ -1,4 +1,3 @@
-
 import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
 import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
@@ -36,6 +35,7 @@ function armSilenceGuards(
   const onBeforeExit = (): void => {
     if (!armed) return
     armed = false
+
     void emitAndExit(stallRecord('drained its event loop'), 1)
   }
   process.on('beforeExit', onBeforeExit)
@@ -114,6 +114,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
         code: 'cert-unavailable',
       }, 1)
     }
+
     let cert = await runAndRecordHealthReport({
       depth,
       onProgress: ev => {
@@ -122,6 +123,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
         trace.lastSettled = ev.check.id
       },
     })
+
     if (opts?.only !== undefined) {
       const { filterCertificateToCheck, flattenChecks } = await import('../utils/healthCertCore.js')
       const filtered = filterCertificateToCheck(cert, opts.only)
@@ -136,6 +138,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
       disarm()
       return emitAndExit({ certSchema: 2, ...filtered }, (filtered as { verdict?: string }).verdict === 'fault' ? 3 : 0)
     }
+
     let readiness: unknown
     let readinessError: string | undefined
     try {
@@ -145,6 +148,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
       readinessError = e instanceof Error ? e.message : String(e)
     }
     disarm()
+
     return emitAndExit(
       { certSchema: 2, ...cert, ...(readiness ? { readiness } : {}), ...(readinessError ? { readinessError } : {}) },
       (cert as { verdict?: string }).verdict === 'fault' ? 3 : 0,

@@ -97,20 +97,26 @@ interface PendingAsk {
   workspaceId: string
   toolName: string
   input: Record<string, unknown>
+
   toolUseId?: string
+
   agentId?: string
   suggestions?: PermissionUpdate[]
   blockedPath?: string
   cwd?: string
   decisionReason?: string
+
   decisionReasonDetail?: DecisionReasonWireV1
   description?: string
   obligationId?: string
+
   obligationLanded?: Promise<string | undefined>
   askedAt?: number
   limitMs?: number
   deadline?: InactivityDeadline
+
   settle?: (answer: PermissionAnswer) => void
+
   local?: 'git-init'
 }
 
@@ -191,9 +197,13 @@ function publishAsksFor(sessionId: string, dir?: string): void {
 }
 
 export interface SeatAskAnswerV1 {
+
   updatedInput?: Record<string, unknown>
+
   permissionUpdates?: PermissionUpdate[]
+
   feedback?: string
+
   interrupt?: boolean
 }
 
@@ -261,6 +271,7 @@ export function holdWorkerAsk(
   const requestId = randomUUID()
   if (presence(dir) === 'absent') return answered(denyUnattended(requestId, short, rec, toolName))
   if (pending.size >= MAX_PENDING) {
+
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
       settleUnanswered(oldestId, oldest, 'evicted', oldest.limitMs ?? 0)
@@ -283,6 +294,7 @@ export function holdWorkerAsk(
     ...(params.blocked_path !== undefined ? { blockedPath: params.blocked_path } : {}),
     ...(params.cwd !== undefined ? { cwd: params.cwd } : {}),
     ...(params.reason !== undefined ? { decisionReason: params.reason } : {}),
+
     ...(decodeDecisionReasonFromWire(params.reason_detail) !== undefined
       ? { decisionReasonDetail: params.reason_detail as DecisionReasonWireV1 }
       : {}),
@@ -295,6 +307,7 @@ export function holdWorkerAsk(
   })
   pending.set(requestId, ask)
   publishAsksFor(rec.sessionId, dir)
+
   if (ask.agentId !== undefined) {
     ask.deadline = armInactivityDeadline({
       seam: `permission ask ${requestId} (${toolName} for ${short})`,
@@ -305,6 +318,7 @@ export function holdWorkerAsk(
       },
     })
   }
+
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
@@ -324,6 +338,7 @@ export function holdWorkerAsk(
 }
 
 export function mintGitInitAsk(folder: string): { requestId: string } | { refused: GitInitRefusal } {
+
   const refusal = gitInitRefusal(folder)
   if (refusal !== null) {
     logForDebugging(`[daemon] git-init ask not minted for ${folder}: ${refusal.words}`)
@@ -332,9 +347,11 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
   for (const [id, a] of pending) {
     if (a.local === 'git-init' && a.workspaceId === folder) return { requestId: id }
   }
+
   const requestId = `git-init:${createHash('sha1').update(folder).digest('hex').slice(0, 12)}`
   writeGitInitAsks({ ...readGitInitAsks(), [requestId]: folder })
   if (pending.size >= MAX_PENDING) {
+
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
       settleUnanswered(oldestId, oldest, 'evicted', oldest.limitMs ?? 0)
@@ -350,6 +367,7 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
     local: 'git-init',
   }
   pending.set(requestId, ask)
+
   const entries = entryCountWords(countEntriesBounded(folder))
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
@@ -399,13 +417,16 @@ export function answerPermissionAsk(
   allow: boolean,
   by: string,
   hooks?: {
+
     onGitReady?: (folder: string) => ReadonlyArray<{ clientMessageId: string; title?: string }>
+
     onDenyProceed?: (folder: string) => ReadonlyArray<{ clientMessageId: string; title?: string }>
   },
   answer?: SeatAskAnswerV1,
 ): { outcome: 'applied' | 'refused'; detail?: string } {
   let ask = pending.get(requestId)
   if (!ask && requestId.startsWith('git-init:')) {
+
     const folder = findGitInitFolderByRef(requestId)
     if (folder !== undefined) {
       ask = {
@@ -433,6 +454,7 @@ export function answerPermissionAsk(
       pending.delete(requestId)
       dropSidecar()
       settleObligation()
+
       const starting = hooks?.onDenyProceed?.(ask.workspaceId) ?? []
       const names = starting
         .map(s => s.title ?? s.clientMessageId)
@@ -466,6 +488,7 @@ export function answerPermissionAsk(
   }
   const updatedInput = answer?.updatedInput
   const updatedPermissions = answer?.permissionUpdates !== undefined && answer.permissionUpdates.length > 0 ? answer.permissionUpdates : undefined
+
   const feedback = answer?.feedback?.trim()
   const denial = feedback ? REJECT_MESSAGE_WITH_REASON_PREFIX + feedback : REJECT_MESSAGE
   if (ask.settle === undefined) return { outcome: 'refused', detail: 'the ask has no runner to answer' }

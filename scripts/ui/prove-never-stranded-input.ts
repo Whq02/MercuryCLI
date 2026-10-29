@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -40,6 +41,7 @@ console.log('§1 CB-04 — the zero-row drop-down arm refused at the door; shrin
     'the arrow-eat stays gated on the armed list alone (disarm returns the arrows to the board)',
     screen.includes('const open = olderListRef.current') && screen.includes('if (open === null || !(key.upArrow || key.downArrow)) return false'),
   )
+
   check('the 2-row floor is the ask floor (max(2, …)) — one number, two sites', resolveConcourseProfile(120, 24) === 'wide')
 }
 
@@ -65,6 +67,7 @@ console.log('§3 A5 — the resume waits bind their exits; a cancel outlives a l
     'the leaf carries its own KeybindingSetup (this root guarantees no provider — the NoConversations precedent)',
     /<KeybindingSetup>\s*\n\s*<ResumeWaitInner/.test(screen),
   )
+
   const guards = (screen.match(/if \(gen !== resumeGenRef\.current\) return/g) ?? []).length
   check(`every await in onSelect re-checks the generation (2 guards, found ${guards})`, guards >= 2)
   check('a cancel bumps the generation so in-flight work goes stale', screen.includes('resumeGenRef.current++') && screen.includes('const gen = ++resumeGenRef.current'))
@@ -108,6 +111,7 @@ console.log("§5 A7 — the exit-grammar pair (c/d) is never eaten by a letter-v
     const guards = lines.flatMap(line => /^\s*const (\w+) = .*key\.ctrl/.exec(line)?.[1] ?? [])
     lines.forEach((line, i) => {
       if (!/input === '[cd]'/.test(line)) return
+
       const windowText = lines.slice(Math.max(0, i - 4), i + 4).join('\n')
       if (/key\.ctrl/.test(windowText)) return
       if (guards.some(guard => new RegExp(`\\b${guard}\\b`).test(line))) return

@@ -70,6 +70,7 @@ const SLEEP_THRESHOLD_SECONDS = 2
 function detectBlockedSleepPattern(command: string): string | null {
   const trimmed = command.trim()
   const firstStatement = (trimmed.split(/[;|&\r\n]/)[0] ?? '').trim()
+
   const match = firstStatement.match(/^(?:start-sleep|sleep)(?:\s+(?:-s(?:econds)?)?\s*)?(\d+(?:\.\d+)?)\s*$/i)
   if (!match) return null
   const seconds = parseFloat(match[1] as string)
@@ -82,14 +83,13 @@ function detectBlockedSleepPattern(command: string): string | null {
 
 const detectSleep = detectBlockedSleepPattern
 
-
 const QUIET_WINDOW_MS = 2_000
 const SOFT_TIMEOUT_MS = 30_000
 const PERSIST_THRESHOLD_CHARS = 30_000
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
+
 const BACKGROUND_TASKS_DISABLED = false
 const NEVER_AUTO_BACKGROUND = new Set(['start-sleep', 'sleep'])
-
 
 function buildModelSchema() {
   return z.strictObject({
@@ -119,11 +119,11 @@ type Out = {
   persistedOutputPath?: string
   persistedOutputSize?: number
   gitOperation?: unknown
+
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
   outputBudgetNotice?: string
 }
-
 
 const NEUTRAL = new Set(['write-output', 'write-host'])
 const SEARCH = new Set(['select-string', 'get-childitem', 'findstr', 'where.exe'])
@@ -146,7 +146,6 @@ function isSearchOrRead(command: string): { isSearch: boolean; isRead: boolean }
   return sawReal ? { isSearch, isRead } : { isSearch: false, isRead: false }
 }
 
-
 async function* runPowerShell(
   input: PowerShellToolInput,
   context: ToolUseContext,
@@ -162,6 +161,7 @@ async function* runPowerShell(
 
   let progressResolve: (() => void) | null = null
   let latest = { recent: '', all: '', lines: 0, bytes: 0, incomplete: false }
+
   let scrubbedSessionEnv: readonly string[] = []
 
   const powershellPath = await getCachedPowerShellPath()
@@ -216,6 +216,7 @@ async function* runPowerShell(
       { command: input.command, description: input.description ?? input.command, shellCommand, toolUseId: context.toolUseId, agentId: agentId as never },
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
+
     if (handle.accepted === false) return
     backgroundId = handle.taskId
     progressResolve?.()
@@ -233,6 +234,7 @@ async function* runPowerShell(
       { abortController, getAppState: () => { throw new Error('spawn must not read app state') }, setAppState: setTaskState },
     )
     if (handle.accepted === false) {
+
       const result = await shellCommand.result
       shellCommand.cleanup()
       return await postProcess(result)
@@ -313,6 +315,7 @@ async function* runPowerShell(
           type: 'powershell_progress', output: display, fullOutput: latest.all,
           elapsedTimeSeconds: elapsedSeconds, totalLines: latest.lines, totalBytes: latest.bytes,
           taskId: foregroundTaskId ?? undefined, ...(requestedTimeout ? { timeoutMs: effectiveTimeout } : {}),
+
           budgetMs: effectiveTimeout,
         },
       }
@@ -322,6 +325,7 @@ async function* runPowerShell(
   }
 
   async function postProcess(result: ExecResult): Promise<Out> {
+
     const notExecuted = result.preSpawnError !== undefined || result.backgroundTaskId !== undefined
     if (!notExecuted) {
       trackGitOperations(input.command, result.code, result.stdout)
@@ -368,6 +372,7 @@ async function* runPowerShell(
     let persistedOutputPath: string | undefined
     let persistedOutputSize: number | undefined
     if (result.outputFilePath && result.outputTaskId) {
+
       try {
         const stats = await stat(result.outputFilePath)
         persistedOutputSize = stats.size
@@ -395,7 +400,6 @@ async function* runPowerShell(
   }
 }
 
-
 function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam {
   if (output.isImage) {
     const image = buildImageToolResult(output.stdout, toolUseID)
@@ -403,6 +407,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   let stdout = output.stdout.replace(/^\s*\n/g, '').trimEnd()
   if (output.persistedOutputPath) {
+
     const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
     stdout = buildLargeToolResultMessage({
       filepath: output.persistedOutputPath, originalSize: output.persistedOutputSize ?? 0,
@@ -423,7 +428,6 @@ function backgroundNoticeFor(output: Out): string {
   if (output.backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
   return `Running in the background (ID: ${id}). Output: ${outputPath}.`
 }
-
 
 export const PowerShellTool = buildTool({
   name: POWERSHELL_TOOL_NAME,
@@ -494,6 +498,7 @@ export const PowerShellTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output: Out, toolUseID: string) { return mapResultToBlock(output, toolUseID) },
   extractSearchText(output: Out): string { return output.stderr ? `${output.stdout}\n${output.stderr}` : output.stdout },
+
   isResultTruncated(output: Out): boolean {
     return isOutputLineTruncated(output.stdout) || isOutputLineTruncated(output.stderr)
   },
@@ -511,6 +516,7 @@ function isPsReadOnly(input: PowerShellToolInput): boolean {
 
 function sleepGatePreconditions(input: PowerShellToolInput): boolean {
   if (BACKGROUND_TASKS_DISABLED || input.run_in_background) return false
+
   return isGitBashAvailable()
 }
 

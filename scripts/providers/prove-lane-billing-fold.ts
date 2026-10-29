@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,6 +40,7 @@ const billing = await import('../../src/services/providers/laneBillingState.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
 
 section('§1 the owner: record · read · clear · isolation')
+
 {
   billing.__resetLaneBillingStateForTest()
   check('nothing observed ⇒ clear (absence of evidence, never a balance claim)', billing.laneBillingState('deepseek').state === 'clear')
@@ -61,6 +63,7 @@ section('§1 the owner: record · read · clear · isolation')
 }
 
 section('§2 the live read bundle reads the owner')
+
 {
   billing.__resetLaneBillingStateForTest()
   process.env.OPENROUTER_API_KEY = 'sk-or-v1-BILLINGFOLDPROOF000000000'
@@ -85,6 +88,7 @@ section('§2 the live read bundle reads the owner')
 }
 
 section('§3 the feeders record AND clear (structural pins)')
+
 {
   for (const [file, lane] of [
     ['src/services/providers/openaicompat/compatChatCallModel.ts', 'profile.lane'],

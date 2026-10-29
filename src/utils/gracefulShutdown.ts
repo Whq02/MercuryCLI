@@ -13,8 +13,8 @@ import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 
-
 export type GracefulShutdownOptions = {
+
   finalMessage?: string
 }
 
@@ -26,7 +26,6 @@ const FAILSAFE_FLOOR_MS = 5000
 const FAILSAFE_HOOK_MARGIN_MS = 3500
 const ORPHAN_CHECK_INTERVAL_MS = 30_000
 const RESTORATION_PREFETCH_DELAY_MS = 3000
-
 
 type ShutdownRestorationModule = typeof import('./shutdownRestoration.js')
 
@@ -94,7 +93,6 @@ function runResumeHint(): void {
   restoration?.printResumeHint()
 }
 
-
 let failsafeTimer: ReturnType<typeof setTimeout> | undefined
 
 function forceExit(exitCode: number): void {
@@ -102,6 +100,7 @@ function forceExit(exitCode: number): void {
     clearTimeout(failsafeTimer)
     failsafeTimer = undefined
   }
+
   if (!terminalIsGone()) {
     try {
       const restoration =
@@ -112,6 +111,7 @@ function forceExit(exitCode: number): void {
   try {
     process.exit(exitCode)
   } catch (err) {
+
     if (process.env.NODE_ENV === 'test') throw err
     process.kill(process.pid, 'SIGKILL')
   }
@@ -119,7 +119,6 @@ function forceExit(exitCode: number): void {
     throw new Error('forceExit: process.exit returned control')
   }
 }
-
 
 const MODULE_LOAD_CODES = new Set([
   'MODULE_NOT_FOUND',
@@ -167,8 +166,10 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
   let reportPath: string | null = null
   let reportRefusal = 'the config home refused the write'
   try {
+
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crash = require('./crashReport.js') as typeof import('./crashReport.js')
+
     const before = crash.lastCrashReportPath()
     crash.persistCrashReport(err, undefined, 'boot')
     const after = crash.lastCrashReportPath()
@@ -178,6 +179,7 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
       reportRefusal = `${crash.crashReportDirDisplay()} refused the write${refusal !== null ? `: ${refusal}` : ''}`
     }
   } catch (forensicsErr) {
+
     reportRefusal = forensicsErr instanceof Error ? forensicsErr.message : String(forensicsErr)
   }
   runTerminalRestoration()
@@ -189,6 +191,7 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     origin === 'boot'
       ? 'no session was opened and nothing was changed'
       : 'the session was stopped before it could act on a broken runtime'
+
   const next = moduleFailure
     ? 'redeploy the runtime (scripts/ops/deploy-runtime.sh) or roll back (mercury update --rollback); `mercury health` names the runtime in use'
     : reportPath !== null
@@ -207,9 +210,9 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     writeSync(2, `${lines.join('\n')}\n`)
   } catch {
   }
+
   void crashShutdown(1)
 }
-
 
 const BREAKER_WINDOW_MS = 5000
 const BREAKER_THRESHOLD = 10
@@ -241,7 +244,6 @@ export function recordUncaughtAndCheckBreaker(nowMs: number): boolean {
   }
   return false
 }
-
 
 function isRunMode(): boolean {
   return isRunArgv()
@@ -280,6 +282,7 @@ function truncate(text: string, max: number): string {
 let handlersInstalled = false
 
 export const setupGracefulShutdown = (): void => {
+
   if (handlersInstalled) return
   handlersInstalled = true
 
@@ -287,29 +290,36 @@ export const setupGracefulShutdown = (): void => {
 
   if (!isDaemonSubcommand()) {
     process.on('SIGINT', () => {
+
       if (runModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
       writePreflightSignal(130)
+
       gracefulShutdownSync(130)
     })
     process.on('SIGTERM', () => {
+
       if (runModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
       writePreflightSignal(143)
       gracefulShutdownSync(143)
     })
+
     process.on('SIGHUP', () => {
       markTerminalGone()
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGHUP' })
       gracefulShutdownSync(129)
     })
+
     process.on('SIGBREAK', () => {
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGBREAK' })
       gracefulShutdownSync(149)
     })
     if (process.platform !== 'win32') {
+
       if (process.stdin.isTTY) {
         const orphanCheck = setInterval(() => {
+
           if (getIsScrollDraining()) return
           if (!process.stdout.writable || !process.stdin.readable) {
             clearInterval(orphanCheck)
@@ -344,8 +354,10 @@ export const setupGracefulShutdown = (): void => {
   }
 
   process.on('uncaughtException', (err: unknown) => {
+
     if (isModuleLoadFailure(err) && !isShuttingDown()) {
       failLoud(err, 'uncaught-exception')
+
       return
     }
     if (breaker.tripped) return
@@ -358,6 +370,7 @@ export const setupGracefulShutdown = (): void => {
     if (breaker.ring.length < BREAKER_RING_CAPACITY || tripped) {
       breaker.ring.push({ name, message: truncate(message, 200) })
     }
+
     if (!persistedUncaughtOnce) {
       persistedUncaughtOnce = true
       try {
@@ -368,6 +381,7 @@ export const setupGracefulShutdown = (): void => {
       }
     }
     if (tripped) {
+
       runTerminalRestoration()
       try {
         for (const record of breaker.ring) {
@@ -384,14 +398,17 @@ export const setupGracefulShutdown = (): void => {
         crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
       } catch {
       }
+
       if (isShuttingDown()) forceExit(1)
       else void crashShutdown(1)
     }
   })
 
   process.on('unhandledRejection', (reason: unknown) => {
+
     if (isModuleLoadFailure(reason) && !isShuttingDown()) {
       failLoud(reason, 'unhandled-rejection')
+
       return
     }
     if (isShuttingDown() && isPeerGoneWriteError(reason)) {
@@ -401,6 +418,7 @@ export const setupGracefulShutdown = (): void => {
       return
     }
     if (!persistedRejectionOnce && reason instanceof Error) {
+
       persistedRejectionOnce = true
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -435,7 +453,6 @@ export const setupGracefulShutdown = (): void => {
   }
 }
 
-
 let shutdownInProgress = false
 
 export function isShuttingDown(): boolean {
@@ -468,6 +485,7 @@ export async function gracefulShutdown(
   process.exitCode = exitCode
 
   if (restorationModule) await (await import('../ink/instances.js')).default.get(process.stdout)?.awaitTerminalQueries()
+
   runTerminalRestoration()
   runResumeHint()
 

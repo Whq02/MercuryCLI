@@ -32,12 +32,13 @@ type MicrocompactResult = {
     deletedToolIds: string[]
     baselineCacheDeletedTokens: number | null
   }
+
   pruned?: { cleared: number; tokensSaved: number; clearedIds: string[] }
+
   deadMarks?: DeadThinkingMark[]
 }
 
 type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
-
 
 const estimateToolResultTokens = estimateContentTokens
 const estimateBlockTokens = estimateContentTokens
@@ -57,7 +58,6 @@ export function estimateContextTokens(messages: Message[], model?: string): numb
   return roughTokenCountEstimationForMessages(messages, model)
 }
 
-
 const MAIN_THREAD_PREFIX = 'main_thread'
 
 function isMainThreadSource(querySource: string | undefined): boolean {
@@ -70,6 +70,7 @@ function evaluateTimeBasedTrigger(
 ): { gapMinutes: number; config: ReturnType<typeof getTimeBasedMCConfig> } | null {
   const config = getTimeBasedMCConfig()
   if (!config.enabled) return null
+
   if (querySource === undefined) return null
   if (!isMainThreadSource(querySource)) return null
 
@@ -112,9 +113,13 @@ export function projectTimeBasedMicrocompact(
   messages: Message[]
   cleared: number
   tokensSaved: number
+
   gapMinutes: number
+
   clearedReadPaths: string[]
+
   clearedIds: string[]
+
   deadMarks: DeadThinkingMark[]
 } | null {
   const fired =
@@ -124,6 +129,7 @@ export function projectTimeBasedMicrocompact(
   if (fired === null) return null
 
   const compactableIds: string[] = []
+
   const readPathById = new Map<string, string>()
   const filePathById = trigger?.supersededOnly === true ? new Map<string, string>() : null
   for (const message of messages) {
@@ -216,6 +222,7 @@ export function projectTimeBasedMicrocompact(
         typeof block.tool_use_id === 'string' &&
         clearSet.has(block.tool_use_id) &&
         !isClearedOrDigested(block.content) &&
+
         !isBelowPlaceholderFloor(estimateToolResultTokens(block.content))
       ) {
         touched = true
@@ -239,8 +246,10 @@ export function projectTimeBasedMicrocompact(
   })
 
   if (tokensSaved === 0 || tokensSaved < minimumSaving) return null
+
   const firstCleared = projected.findIndex((message, index) => message !== messages[index])
   const withValidThinking = firstCleared === -1 ? projected : stripThinkingFromIndex(projected, firstCleared)
+
   const deadMarks: DeadThinkingMark[] = []
   if (firstCleared !== -1) {
     for (let index = firstCleared; index < projected.length; index++) {
@@ -256,7 +265,6 @@ export function projectTimeBasedMicrocompact(
   return { messages: withValidThinking, cleared, tokensSaved, gapMinutes: fired.gapMinutes, clearedReadPaths, clearedIds, deadMarks }
 }
 
-
 type CacheEditState = {
   registeredToolIds: string[]
   pinnedEdits: PendingCacheEdits[]
@@ -269,6 +277,7 @@ const cacheEditStore = new OwnerScopedStore<CacheEditState>({
 })
 
 function ownerOrMain(owner: OwnerKey | undefined): OwnerKey {
+
   return owner ?? processMainOwner()
 }
 
@@ -304,20 +313,22 @@ export const resetMicrocompactState: (owner?: OwnerKey) => void = function (owne
   state.pendingEdits = null
 }
 
-
 export async function microcompactMessages(
   messages: Message[],
   _toolUseContext?: unknown,
   querySource?: string,
   invalidate?: {
+
     readFileState: Pick<FileStateCache, 'delete'>
   },
   trigger?: MicrocompactTrigger,
 ): Promise<MicrocompactResult> {
+
   clearCompactWarningSuppression()
 
   const projected = projectTimeBasedMicrocompact(messages, querySource, trigger)
   if (projected !== null) {
+
     const config = getTimeBasedMCConfig()
     logForDebugging(
       trigger?.pressure === true
@@ -325,13 +336,16 @@ export async function microcompactMessages(
         : `time-based microcompact: gap ${Math.round(projected.gapMinutes)}min ≥ ${config.thresholdMinutes}min — cleared ${projected.cleared} tool results (~${projected.tokensSaved} tokens)`,
     )
     suppressCompactWarning()
+
     resetMicrocompactState()
+
     if (invalidate) {
       for (const clearedPath of projected.clearedReadPaths) {
         invalidate.readFileState.delete(expandPath(clearedPath))
         invalidate.readFileState.delete(clearedPath)
       }
     }
+
     return {
       messages: projected.messages,
       pruned: { cleared: projected.cleared, tokensSaved: projected.tokensSaved, clearedIds: projected.clearedIds },

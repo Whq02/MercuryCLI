@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/BashPermissionRequest/** src/components/permissions/SedEditPermissionRequest/** src/tools/BashTool/BashTool.tsx src/utils/path.ts
+
 import { mock } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter as NodeEventEmitter } from 'node:events'

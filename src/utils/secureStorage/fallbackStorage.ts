@@ -17,10 +17,12 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
     },
 
     update(data: SecureStorageData): { success: boolean; warning?: string } {
+
       const previouslyHeld = primary.read()
       const primaryResult = primary.update(data)
       if (primaryResult.success) {
         if (previouslyHeld === null) {
+
           secondary.delete()
         }
         return primaryResult
@@ -28,6 +30,7 @@ export function createFallbackStorage(primary: SecureStorage, secondary: SecureS
       const secondaryResult = secondary.update(data)
       if (secondaryResult.success) {
         if (previouslyHeld !== null) {
+
           primary.delete()
         }
         return {

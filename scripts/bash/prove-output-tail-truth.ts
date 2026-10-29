@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -52,6 +53,7 @@ section('§2 the persisted-output preview carries head + tail, and the Bash mapp
   check('the preview names the skipped middle', /skipped — full output persisted/.test(preview) && hasMore)
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
   check('the Bash mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(src) && !/preview: stdout\.slice\(0, 2000\)/.test(src))
+
   const ps = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
   check('the PowerShell mapper builds its preview with generatePreview, never a head slice', /generatePreview\(stdout, PREVIEW_SIZE_CHARS, output\.persistedOutputSize\)/.test(ps) && !/preview: stdout\.slice\(0, 2000\)/.test(ps) && !/\.slice\(0, 2000\)/.test(ps))
   check('…imported from the one preview owner (toolResultStorage), beside the large-result message builder', /import \{[^}]*generatePreview[^}]*PREVIEW_SIZE_CHARS[^}]*\} from '\.\.\/\.\.\/utils\/toolResultStorage\.js'/.test(ps))
@@ -71,6 +73,7 @@ section('§2b the PowerShell family applies the in-memory head + tail cut Bash d
     'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
     bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: webNotice + formatted.truncatedContent,'),
   )
+
   check('the error throws keep today’s bytes beside scrub attribution on both shells, once; each applies a per-call budget there only when one is given, and declares the error windowed when it did', ps.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && ps.includes("const error = new ShellError('', [thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, notice)") && [ps, bash].every(src => src.includes('throw budget.requested === undefined ? error : windowedError(error)')))
 }
 
@@ -98,6 +101,7 @@ section('§4 the spilled-file read keeps the head and the tail, and names the fi
   writeFileSync(path, body, 'utf8')
   const out = new TaskOutput(id, null, true)
   const read = await out.getStdout()
+
   check('the file read fits the cap, notice included', read.length <= cap, String(read.length))
   check('the FIRST line survives the spill read', read.startsWith('line 1:'))
   check('the LAST lines survive the spill read — the verdict reaches the model', read.endsWith('Tests: 1 failed, 412 passed') && read.includes('FAIL src/thing.test.ts'))
@@ -110,6 +114,7 @@ section('§4 the spilled-file read keeps the head and the tail, and names the fi
   check('the head closes on a complete line (snapped to a newline)', /line \d+: y{40}$/.test(beforeNotice), JSON.stringify(beforeNotice.slice(-60)))
   check('the tail opens on a line start (snapped to a newline)', /^line \d+: y{40}/.test(afterNotice), JSON.stringify(afterNotice.slice(0, 60)))
   check('a stale head-only read shape is gone from TaskOutput', !/this\.fileRedundant = result\.bytesRead === result\.bytesTotal\n\s*this\.fileSize = result\.bytesTotal\n\s*return result\.content/.test(readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'task', 'TaskOutput.ts'), 'utf8')))
+
   const smallId = generateTaskId('local_bash')
   const smallPath = getTaskOutputPath(smallId)
   writeFileSync(smallPath, 'a\nb\nc', 'utf8')
@@ -120,6 +125,7 @@ section('§4 the spilled-file read keeps the head and the tail, and names the fi
 
 section('§5 the second cut never eats the first cut’s honest notice')
 {
+
   const cap = getMaxOutputLength()
   const spillPath = '/tmp/task-output/task-x.output'
   const upstreamNotice = `\n\n[123456 bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at ${spillPath}]\n\n`
@@ -130,12 +136,14 @@ section('§5 the second cut never eats the first cut’s honest notice')
   const kept = formatOutput(preExcerpted, { preExcerpted: true })
   check('a pre-excerpted result passes through WHOLE', kept.truncatedContent === preExcerpted)
   check('…so the upstream byte count and the spill path survive as the one notice', kept.truncatedContent.includes('123456 bytes truncated') && kept.truncatedContent.includes(spillPath) && !/\[\d+ lines? truncated from the middle/.test(kept.truncatedContent))
+
   const eaten = formatOutput(preExcerpted)
   check('the unflagged cut still demonstrates the disease it prevents', !eaten.truncatedContent.includes('123456 bytes truncated') && /\[\d+ lines? truncated from the middle/.test(eaten.truncatedContent))
 }
 
 section('§5 spill finalization never blocks the thread (awaited async, both twins)')
 {
+
   for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
     const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
     check(`${rel}: no sync stat/truncate/link/copy anywhere`, !/\b(?:statSync|truncateSync|linkSync|copyFileSync)\s*\(/.test(src))
@@ -145,6 +153,7 @@ section('§5 spill finalization never blocks the thread (awaited async, both twi
 
 section('§6 one completion promise per command; the quiet timer dies on finish')
 {
+
   for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
     const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
     check(`${rel}: exactly ONE completion .then per run`, src.split(".then(() => 'done'").length === 2)
@@ -154,6 +163,7 @@ section('§6 one completion promise per command; the quiet timer dies on finish'
 
 section('§7 the shell-image read is awaited — never a sync read on the tool’s async road')
 {
+
   const { resizeShellImageOutput } = await import('../../src/tools/BashTool/utils.ts')
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'utils.ts'), 'utf8')
   check('utils.ts carries no statSync/readFileSync (the resize road awaits node:fs/promises)', !/\b(?:statSync|readFileSync)\s*\(/.test(src) && src.includes("await import('node:fs/promises')"))
@@ -173,6 +183,7 @@ section('§7 the shell-image read is awaited — never a sync read on the tool�
     rejected = true
   }
   check('a vanished spill file still rejects (the sync shape threw — drop-in parity)', rejected)
+
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
   const spill = join(dir, 'image.output')
   writeFileSync(spill, `data:image/png;base64,${png.toString('base64')}`)

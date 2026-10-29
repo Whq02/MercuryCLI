@@ -1,4 +1,3 @@
-
 import type { ToolEffect } from '../../Tool.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
@@ -7,15 +6,21 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 export const CHANGE_CONTRACT_VERSION = 1
 
 export interface ChangeIntent {
+
   source: string
+
   operation: string
+
   targetPaths: string[]
+
   expectedAnchor?: string
+
   targetVersions?: { path: string; version: string }[]
 }
 
 export interface ChangeReceipt {
   version: typeof CHANGE_CONTRACT_VERSION
+
   seq: number
   id: string
   owner: OwnerKey
@@ -38,6 +43,7 @@ const MUTATION_OPERATION_PREFIXES = [
   'lsp.formatDocument',
   'lsp.formatRange',
   'lsp.organizeImports',
+
   'structure.apply',
   'git.commit',
   'git.stage',

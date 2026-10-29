@@ -37,7 +37,6 @@ function endTs(run: ArenaRun): number {
   return 0
 }
 
-
 console.log('── FLUX S4 region-invalidation matrix (shipped artifact) ──')
 
 const idle = await runArtifactArena({ turns: [], sends: [], seconds: 11, probe: true })
@@ -58,6 +57,7 @@ const typing = await runArtifactArena({
   probe: true,
   anchor: LANDED,
 })
+
 const glyphSends = typing.sendLog
   .filter(s => GLYPHS.includes(Buffer.from(s.b64, 'base64').toString('utf8')))
   .map(s => s.sent)
@@ -79,6 +79,7 @@ const stream = await runArtifactArena({
   seconds: 13,
   probe: true,
 })
+
 const tailMarks = stream.probe ? markEpochs(stream.probe, 'tail:publish') : []
 const streamWin: [number, number] =
   tailMarks.length >= 10
@@ -94,7 +95,6 @@ const spinner = await runArtifactArena({
 })
 const spinnerSubmit = spinner.sendLog[spinner.sendLog.length - 1]?.sent ?? 0
 const spinnerWin: [number, number] = [spinnerSubmit + 1500, endTs(spinner) - 800]
-
 
 type Scene = { name: string; run: ArenaRun; win: [number, number]; owners: string[] }
 const scenes: Scene[] = [
@@ -135,10 +135,12 @@ for (const scene of scenes) {
 }
 
 if (!report) {
+
   check('typing: composer actually moved', inWindow(typing, 'render:composer', typingWin) >= GLYPHS.length - 1)
   check('stream: tail actually streamed', tailMarks.length >= 10, `${tailMarks.length} tail publishes`)
   check('stream: the tail leaf painted the flow', inWindow(stream, 'render:tail', streamWin) >= 10, `${inWindow(stream, 'render:tail', streamWin)} tail renders in the flow`)
   check('stream: fixture served the paced turn', stream.fixture.pacedEmits.length === 100, `${stream.fixture.pacedEmits.length}`)
+
   const spinnerMainRequests = spinner.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))

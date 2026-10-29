@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
@@ -33,6 +34,7 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   check('T2 the concourse seed callback rides the ONE owner', route.includes('harnessGround.js') && !route.includes('state.setCwdState('))
   const face = read('src/components/BootSplashScreen.tsx')
   check('T2 the Boot face project pick rides the ONE owner', face.includes('applyHarnessGround(p.dir)'))
+
   const state = await import('../../src/bootstrap/state.ts')
   const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
@@ -61,6 +63,7 @@ const read = (rel: string): string => readFileSync(rel, 'utf8')
   check('T3 the ground move gates on the trust ledger', open.includes('isPathTrusted(p.dir)'))
   check('T3 the pick lands in the MAIN chat (never a board detour)', open.includes('enterRootChat()'))
   const owner = read('src/utils/bootCardFacts.ts')
+
   check('T3 the owner threads the newest transcript path', owner.includes('transcriptPath: newest !== null ? newest.file : null'))
 }
 

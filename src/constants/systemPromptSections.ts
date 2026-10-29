@@ -10,7 +10,9 @@ type SectionValue = string | null
 type SystemPromptSection = {
   name: string
   compute: () => SectionValue | Promise<SectionValue>
+
   computeKey: (() => string | null) | null
+
   cacheBreaking: boolean
 }
 

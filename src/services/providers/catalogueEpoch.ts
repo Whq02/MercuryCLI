@@ -1,4 +1,3 @@
-
 let epoch = 0
 const listeners = new Set<() => void>()
 

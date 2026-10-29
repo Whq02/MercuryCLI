@@ -117,6 +117,7 @@ Examples:
             }
             let confirmation = `Added ${transport.toUpperCase()} MCP server ${name} at ${describeUrlRedacted(commandOrUrl)} (${scope} scope)`
             if (headers) {
+
               confirmation += `\nheaders: ${describeHeadersRedacted(headers)}`
             }
             cliOk(`${confirmation}\nConfiguration written to ${describeMcpConfigFilePath(scope)}`)

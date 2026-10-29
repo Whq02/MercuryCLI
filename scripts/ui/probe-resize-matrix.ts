@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,12 +18,13 @@ function arg(flag: string, def: string): string {
   return i >= 0 ? process.argv[i + 1]! : def
 }
 
-
 const SHIFT_UP = '\x1b[1;2A'
 const DOWN = '\x1b[B'
 const PAGE_UP = '\x1b[5~'
 const ESC = '\x1b'
+
 const COMPOSER_AT_REST = '? for shortcuts'
+
 const CHAT_QUIET_TICK = 40
 const STREAM_LINE = /rz-stream-line-\d{3}/g
 const STREAM_LINES = 100
@@ -32,28 +34,46 @@ type Ready = { text: string; stable?: number; minTick?: number } | { atTick: num
 type KeyExpect = 'composer-echo' | 'selection-moves' | 'closes' | 'changes'
 type Scene = {
   name: string
+
   base: string
+
   world: 'chat' | 'card' | 'face' | 'board' | 'surface'
+
   sends?: Record<string, unknown>[]
+
   replaceSends?: boolean
+
   ready: Ready
+
   once: string[]
+
   oncePattern?: RegExp
+
   keep: string[]
+
   keepFinal?: string[]
+
   keepPattern?: RegExp
+
   anchorPattern?: RegExp
   contentPattern?: RegExp
+
   armed?: boolean
+
   live?: boolean
+
   repetitive?: boolean
+
   key: { data: string; expect: KeyExpect }
+
   fixture?: ScriptedTurn[]
+
   root?: RegExp
 }
 
 const SCENES: Scene[] = [
   {
+
     name: 'boot-face', base: 'boot-face', world: 'face',
     replaceSends: true,
     ready: { text: 'Health Check', stable: 3 },
@@ -62,6 +82,7 @@ const SCENES: Scene[] = [
     root: /↵ start\s+·\s+↑↓ choose/,
   },
   {
+
     name: 'boot-settings', base: 'boot-settings', world: 'face',
     replaceSends: true,
     sends: [{ requireAwait: true, awaitText: 'Health Check', awaitStableTicks: 2, data: 'm' }],
@@ -73,6 +94,7 @@ const SCENES: Scene[] = [
   {
     name: 'chat-idle', base: 'cockpit-wide', world: 'chat',
     ready: { text: COMPOSER_AT_REST, stable: 3, minTick: CHAT_QUIET_TICK },
+
     once: [COMPOSER_AT_REST], keep: ['health none — /health'],
     key: { data: 'x', expect: 'composer-echo' },
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
@@ -83,6 +105,7 @@ const SCENES: Scene[] = [
       { requireAwait: true, awaitText: COMPOSER_AT_REST, minTick: CHAT_QUIET_TICK, awaitStableTicks: 2, data: 'stream the resize journey' },
       { afterPrevTicks: 2, data: '\r' },
     ],
+
     ready: { text: 'rz-stream-line-010' },
     once: [], oncePattern: STREAM_LINE,
     keep: [], keepPattern: STREAM_LINE,
@@ -93,6 +116,7 @@ const SCENES: Scene[] = [
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/,
   },
   {
+
     name: 'chat-cursor', base: 'cockpit-wide', world: 'card',
     sends: [{ requireAwait: true, awaitText: COMPOSER_AT_REST, minTick: CHAT_QUIET_TICK, awaitStableTicks: 2, data: SHIFT_UP }],
     ready: { text: 'navigate', stable: 2 },
@@ -101,10 +125,12 @@ const SCENES: Scene[] = [
   },
   {
     name: 'chat-scrolled', base: 'cockpit-scrolled', world: 'chat',
+
     ready: { text: '] ❯ turn', stable: 3, minTick: CHAT_QUIET_TICK },
     once: [], keep: [],
     anchorPattern: /\] ❯ turn (\d+):/, contentPattern: /\] ❯ turn \d+:|Reply \d+:|fox jumps/,
     repetitive: true,
+
     key: { data: PAGE_UP, expect: 'changes' },
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/,
   },
@@ -117,15 +143,18 @@ const SCENES: Scene[] = [
     ready: { text: 'Do you want to proceed?', stable: 2 },
     once: ['Do you want to proceed?'], keep: ['Do you want to proceed?'],
     key: { data: ESC, expect: 'closes' },
+
     fixture: [{ kind: 'tool_use', name: 'Bash', input: { command: 'rm -f /tmp/mercury-resize-nothing-here', description: 'tidy' }, preText: 'about to tidy up.' }],
   },
   {
     name: 'concourse', base: 'concourse', world: 'board',
+
     ready: { text: 'STATUS & TITLE', stable: 3 },
     once: ['STATUS & TITLE'], keep: ['SESSIONS', 'STATUS & TITLE'], armed: true,
     key: { data: DOWN, expect: 'changes' },
   },
   {
+
     name: 'concourse-armed', base: 'concourse-r0-select-move', world: 'board',
     ready: { text: 'STATUS & TITLE', stable: 3 },
     once: ['STATUS & TITLE'], keep: ['SESSIONS', 'STATUS & TITLE'], armed: true,
@@ -170,7 +199,6 @@ const SCENES: Scene[] = [
   },
 ]
 
-
 type Step = { cols: number; rows: number; afterMs: number }
 type Move = { name: string; start: [number, number]; steps: Step[] }
 const MOVES: Move[] = [
@@ -187,15 +215,16 @@ const MOVES: Move[] = [
       { cols: 120, rows: 40, afterMs: 80 },
     ],
   },
+
   { name: 'below', start: [120, 40], steps: [{ cols: 72, rows: 20, afterMs: 400 }, { cols: 120, rows: 40, afterMs: 1500 }] },
   { name: 'height', start: [120, 40], steps: [{ cols: 120, rows: 30, afterMs: 400 }] },
   { name: 'width', start: [120, 40], steps: [{ cols: 100, rows: 40, afterMs: 400 }] },
 ]
+
 const roundTrip = (m: Move): boolean => {
   const last = m.steps[m.steps.length - 1]!
   return last.cols === m.start[0] && last.rows === m.start[1]
 }
-
 
 const sceneFilter = arg('--scenes', '').split(',').map(s => s.trim()).filter(Boolean)
 const moveFilter = arg('--moves', '').split(',').map(s => s.trim()).filter(Boolean)
@@ -298,6 +327,7 @@ async function capture(scene: Scene, move: Move): Promise<Result> {
   }
   const keyTick = prev + 2
   chain.push({ afterPrevTicks: 2, mark: 'key', data: scene.key.data })
+
   chain.push({ afterPrevTicks: 5, mark: 'after-key', data: '' })
   prev = keyTick + 5
   const resizes = move.steps.map((s, i) =>
@@ -327,6 +357,7 @@ async function capture(scene: Scene, move: Move): Promise<Result> {
       ? {
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+
           MERCURY_TERMINAL_TITLE: '0',
         }
       : {}),
@@ -352,7 +383,6 @@ async function capture(scene: Scene, move: Move): Promise<Result> {
   const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as Payload
   return judge(scene, move, payload, teePath, tag)
 }
-
 
 type TeeFrame = { tick: number; bytes: Buffer }
 function readTee(path: string): TeeFrame[] {
@@ -386,10 +416,10 @@ function census(frames: TeeFrame[], window: string, fromTick: number, toTick: nu
   }
 }
 
-
 const CARET_BLOCK = /❯ ▌/g
 const text = (rows: string[]): string => rows.join('\n').replace(CARET_BLOCK, '❯  ')
 const BOX_ONLY = /^[\s─│╭╮╰╯├┤┬┴┼━▔▁═┌┐└┘]*$/
+
 function doubledRows(rows: string[]): Map<string, number[]> {
   const seen = new Map<string, number[]>()
   rows.forEach((r, i) => {
@@ -402,6 +432,7 @@ function doubledRows(rows: string[]): Map<string, number[]> {
   for (const [k, v] of seen) if (v.length < 2) seen.delete(k)
   return seen
 }
+
 const BOARD_ARMED = /▸ [●◐○□◆✓✕]\s+\S+\s+(.+?)(?:…|\s{2,}|│|$)/
 function armedTitle(rows: string[]): string | null {
   for (const r of rows) {
@@ -447,6 +478,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   const tee = readTee(teePath)
   const censuses: Census[] = []
   const stepStart = (i: number): number => stages[i]!.untilTick
+
   type Window = { label: string; from: number; to: number | null; steps: number[] }
   const windows: Window[] = []
   let open: Window | null = null
@@ -463,6 +495,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   }
   const keyTick = marks.get('key')!.atTick
   for (const w of windows) {
+
     const c = census(tee, w.label, w.from, w.to ?? keyTick)
     censuses.push(c)
     const expected = 1
@@ -496,6 +529,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   }
 
   for (const f of settledFrames) {
+
     for (const needle of scene.once) {
       const hits = needleRows(f.rows, needle)
       if (hits.length > 1) findings.push({ kind: 'doubled', detail: `${f.label}: "${needle}" on rows ${hits.join(',')}` })
@@ -511,6 +545,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
       if (readyDoubled.has(row)) continue
       findings.push({ kind: 'doubled-row', detail: `${f.label}: rows ${at.join(',')} both read "${row.slice(0, 60)}"` })
     }
+
     if (scene.world === 'chat') {
       const caret = composerCaret(f.rows)
       if (caret === null) findings.push({ kind: 'cursor', detail: `${f.label}: no composer row on screen` })
@@ -524,6 +559,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
     if (scene.anchorPattern && scene.contentPattern) {
       const sameWidth = f.cols === readyMark.cols
       if (sameWidth) {
+
         const inner = (r: string): string => r.replace(/^[^│]*│/, '').replace(/│\s*$/, '').trim()
         const top = readyRows.find(r => scene.contentPattern!.test(r))
         if (top !== undefined && !f.rows.some(r => inner(r) === inner(top))) {
@@ -547,6 +583,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
       const after = armedTitle(f.rows)
       if (before !== null && after !== before) findings.push({ kind: 'armed-lost', detail: `${f.label}: the armed row was "${before}…", now ${after === null ? 'none' : `"${after}…"`}` })
     }
+
     for (const x of inspect(f.rows, f.cols, scene.root)) findings.push({ kind: x.kind, detail: `${f.label}: ${x.detail}` })
   }
   if (scene.keepFinal) {
@@ -599,7 +636,6 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
   const verdicts = findings.filter(f => f.kind !== 'timeline')
   return { scene: scene.name, move: move.name, ok: verdicts.length === 0, findings, census: censuses, note, frames: frames.map(f => f.label) }
 }
-
 
 const jobs: Array<[Scene, Move]> = []
 for (const s of scenes) for (const m of moves) jobs.push([s, m])

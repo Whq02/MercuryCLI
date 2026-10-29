@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -131,6 +132,7 @@ console.log('[7] the built bundle carries the new literals and none of the retir
   }
   check('dist carries the ext: server prefix helper', dist.includes(J('ext', ':')))
   check('dist carries the record files', dist.includes('installed.json') && dist.includes('sources.json'))
+
   for (const [label, needle] of [
     ['the retired manifest dir', J('.mercury', '-plug', 'in')],
     ['the retired registry file', J('known_', 'market', 'places.json')],

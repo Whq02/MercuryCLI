@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -225,6 +226,7 @@ section('A1 — two commands, teardown after the FIRST attachment yield')
     left.length === 1 && left[0]?.uuid === U2,
     `queue holds ${left.length}: ${JSON.stringify(left.map(c => c.value))}`,
   )
+
   const second = makeGen(i => (i === 0 ? toolTurn('EchoTool', { text: 'round one' }) : textTurn('done')))
   const yields = await runWhole(second.gen)
   const drained = yields.filter(isQueuedCommandAttachment)

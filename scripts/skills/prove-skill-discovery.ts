@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0-proof' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -35,6 +36,7 @@ function skill(dir: string, name: string, extra = ''): void {
   mkdirSync(join(dir, name), { recursive: true })
   writeFileSync(join(dir, name, 'SKILL.md'), `---\nname: ${name}\ndescription: proof skill ${name}\n${extra}---\n${BODY}\n`)
 }
+
 skill(join(project, '.mercury', 'skills'), 'project-real')
 skill(join(project, OTHER_HOME, 'skills'), 'project-other')
 skill(join(configHome, 'skills'), 'user-real')

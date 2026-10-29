@@ -71,12 +71,14 @@ t.section('§1 — the fold: two-arm equivalence, replay-anywhere no-op, future 
   try {
     fc.assert(
       fc.property(logArb, fc.nat({ max: 60 }), fc.nat({ max: 60 }), (log, dupAtRaw, dupInsRaw) => {
+
         let pure = emptyInterviewState()
         for (const e of log) pure = foldInterview(pure, e)
         const rebuilt = rebuildInterview(log)
         if (JSON.stringify(pure) !== JSON.stringify(rebuilt)) {
           throw new Error('two-arm divergence: pure chain ≠ shared-set rebuild')
         }
+
         if (log.length > 0) {
           const dupAt = dupAtRaw % log.length
           const insAt = Math.min(log.length, dupAt + 1 + (dupInsRaw % (log.length - dupAt)))
@@ -85,9 +87,11 @@ t.section('§1 — the fold: two-arm equivalence, replay-anywhere no-op, future 
             throw new Error(`replay of element ${dupAt} at ${insAt} moved state`)
           }
         }
+
         if (JSON.stringify(rebuildInterview(log)) !== JSON.stringify(rebuilt)) {
           throw new Error('rebuild is nondeterministic')
         }
+
         const alien = { kind: 'from-the-future', eventId: `ie_alien_${n}`, atMs: 9_999 } as never as Ev
         const withAlien = rebuildInterview([...log, alien])
         const seenDelta = withAlien.seenEventIds.size - rebuilt.seenEventIds.size
@@ -119,10 +123,12 @@ t.section('§2 — resolveSelectionBudget is total, clamped, and identical-when-
         ),
         fc.option(fc.record({ maxOptionalItems: fc.nat({ max: 50 }) }), { nil: undefined }),
         (flagValue, caller) => {
+
           delete process.env.MERCURY_SELECTION_BUDGET
           const unset = resolveSelectionBudget(caller)
           if (caller && unset.budget !== caller) throw new Error('unset flag did not pass the caller budget through by reference')
           if (!caller && unset.budget !== null) throw new Error('unset flag with no caller must resolve null')
+
           process.env.MERCURY_SELECTION_BUDGET = flagValue
           const r = resolveSelectionBudget(caller)
           if (r.budget) {

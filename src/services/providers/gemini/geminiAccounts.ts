@@ -29,12 +29,13 @@ import {
 import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, type GeminiPlanTierFacts } from './geminiPlanAccess.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 
-
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const GOOGLE_OAUTH_AUTH_BASE = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_OAUTH_TOKEN_BASE = 'https://oauth2.googleapis.com/token'
+
 const GEMINI_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever'
+
 const GEMINI_REDIRECT_PORT = 1457
 const GEMINI_REDIRECT_URI = `http://127.0.0.1:${GEMINI_REDIRECT_PORT}/oauth2/callback`
 export const GEMINI_PLAN_REDIRECT_PORT = 51121
@@ -58,14 +59,15 @@ function googleUserinfoBase(env: NodeJS.ProcessEnv = process.env): string {
   return (pinned && /^https?:\/\//i.test(pinned) ? pinned : GOOGLE_USERINFO_BASE).replace(/\/+$/, '')
 }
 
-
 const GEMINI_AUTH_VERSION = 1
 const AUTH_FILE_NAME = '.gemini-auth.json'
 
 export interface GeminiStoredTokens {
   accessToken: string
   refreshToken: string
+
   accessTokenExpiresAtMs?: number
+
   scope?: string
 }
 
@@ -91,6 +93,7 @@ interface GeminiAuthFile {
   tokens?: GeminiStoredTokens
   plan?: GeminiPlanStored
   lastRefreshMs?: number
+
   preferredSource?: GeminiSourceKind
   [k: string]: unknown
 }
@@ -129,13 +132,13 @@ function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
     chmodSync(path, 0o600)
   } catch {
   }
+
   noteCredentialChange()
 }
 
 export function geminiAuthPathForDisplay(): string {
   return authFilePath()
 }
-
 
 export function geminiOauthClientConfig(
   env: NodeJS.ProcessEnv = process.env,
@@ -172,12 +175,12 @@ export function writeGeminiOauthClientConfig(config: GeminiOauthClientConfig | n
   })
 }
 
-
 export type GeminiKeySource = 'env-google' | 'env-gemini' | 'stored'
 
 export interface GeminiAccountRef {
   provider: 'gemini'
   kind: GeminiSourceKind
+
   label: string
   keySource?: GeminiKeySource
 }
@@ -325,7 +328,6 @@ export function resolveGeminiAccount(
   return plan ?? oauth ?? keyRef()
 }
 
-
 const REFRESH_SKEW_MS = 5 * 60_000
 let refreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
 
@@ -345,6 +347,7 @@ async function postGoogleToken(
   const url = googleOauthTokenBase(env)
   let response: Response
   try {
+
     response = await fetchWithProviderDeadline(fetchImpl, 'gemini', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
       method: 'POST',
       headers: {
@@ -358,6 +361,7 @@ async function postGoogleToken(
     throw new Error(`google token endpoint unreachable (${url}): ${errorMessageWithCause(error)}`)
   }
   if (!response.ok) {
+
     let oauthError = ''
     try {
       const body = (await response.json()) as Record<string, unknown>
@@ -396,6 +400,7 @@ export async function currentGeminiTokens(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   now?: () => number
+
   force?: boolean
 }): Promise<GeminiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
@@ -406,6 +411,7 @@ export async function currentGeminiTokens(opts?: {
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = (async () => {
     try {
+
       const latest = readAuthFile()?.tokens
       if (
         tokensFresh(latest, now()) &&
@@ -427,6 +433,7 @@ export async function currentGeminiTokens(opts?: {
       writeAuthFile(f => ({ ...f, tokens: next, lastRefreshMs: now() }))
       return next
     } catch (error) {
+
       if (error instanceof Error && /\binvalid_grant\b/.test(error.message)) {
         writeAuthFile(file => {
           const next = { ...file }
@@ -504,10 +511,10 @@ export function disconnectGeminiOauth(): void {
   })
 }
 
-
 export interface GeminiRequestAuth {
   account: GeminiAccountRef
   baseUrl: string
+
   headers: Record<string, string>
   plan?: { projectId: string; bases: string[] }
 }
@@ -516,6 +523,7 @@ export async function resolveGeminiRequestAuth(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   sourceKind?: GeminiSourceKind
+
   forceRefresh?: boolean
 }): Promise<GeminiRequestAuth | undefined> {
   const env = opts?.env ?? process.env
@@ -570,12 +578,13 @@ export async function resolveGeminiRequestAuth(opts?: {
   }
 }
 
-
 export interface GeminiConnectHandles {
   authorizeUrl: string
   result: Promise<GeminiAccountRef>
+
   completeWithRedirect(pasted: string): void
   cancel(reason?: string): void
+
   boundLoopbackPort(): number | undefined
 }
 
@@ -631,7 +640,9 @@ export interface GeminiConnectOptions {
   env?: NodeJS.ProcessEnv
   skipBrowserOpen?: boolean
   onListenerIssue?: (message: string) => void
+
   onSettledAfterCancel?: (ref: GeminiAccountRef) => void
+
   loopbackPort?: number
 }
 
@@ -656,6 +667,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
   let done = false
   let exchangeInFlight = false
   let cancelledMidExchange = false
+
   let settled = false
   const doSettle = (ref: GeminiAccountRef): void => {
     if (settled) return
@@ -675,6 +687,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
     try {
       const ref = await road.exchange(code)
       if (cancelledMidExchange) {
+
         opts?.onSettledAfterCancel?.(ref)
         return 'disclosed'
       }
@@ -713,6 +726,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
       res.writeHead(404).end()
       return
     }
+
     const oauthError = url.searchParams.get('error')
     if (oauthError) {
       const remedy = geminiOauthErrorRemedy(
@@ -731,6 +745,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
         .end('Mercury: sign-in state mismatch — return to the terminal and retry.')
       return
     }
+
     void (async () => {
       const end = await finish(code)
       if (end === 'settled' || end === 'disclosed') {
@@ -776,6 +791,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
     result,
     completeWithRedirect(pasted: string): void {
       const extracted = extractCode(pasted)
+
       if (extracted.error) {
         failTerminal(new Error(geminiOauthErrorRemedy(extracted.error, extracted.errorDescription)))
         return
@@ -791,6 +807,7 @@ function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectO
       void finish(extracted.code)
     },
     cancel(reason?: string): void {
+
       if (exchangeInFlight) cancelledMidExchange = true
       done = true
       server?.close()
@@ -816,6 +833,7 @@ export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiCo
 
   if (!client) {
     const result = new Promise<GeminiAccountRef>((_resolve, reject) => {
+
       setTimeout(() => reject(new Error(geminiOauthClientMissingCopy(env)!)), 0)
     })
     return {
@@ -849,6 +867,7 @@ export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiCo
       lastRefreshMs: Date.now(),
       preferredSource: 'oauth',
     }))
+
     recordSignIn('gemini', 'oauth')
     return { provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }
   }

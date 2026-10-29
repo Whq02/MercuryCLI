@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -43,6 +44,7 @@ section('§1 ceilings are typed')
 
 section('§2 the ceiling is structural (maximal stores) + found shapes recorded')
 {
+
   const key = 'sk-test-000000000000'
   const reads = {
     scanScopes: () => [
@@ -80,6 +82,7 @@ section('§2 the ceiling is structural (maximal stores) + found shapes recorded'
     familyReads: { claudeSubscriber: () => true },
   }
   const groups = deriveFamilySlotGroups(undefined, reads as never)
+
   const identities = { '/tmp/prove-slots-home': { state: 'verified' as const, email: 'a@x.com' } }
   const counts: Record<string, number> = {}
   for (const g of groups) counts[g.family.id] = familySigninCount(g.slots, identities)
@@ -93,6 +96,7 @@ section('§2 the ceiling is structural (maximal stores) + found shapes recorded'
   }
   check('anthropic maximal = exactly 2 (OAuth login + managed key)', counts['anthropic'] === 2, String(counts['anthropic']))
   check('openai maximal = exactly 2 (subscription + stored key)', counts['openai'] === 2, String(counts['openai']))
+
   const found: Record<string, number> = { zai: 1, openrouter: 2, gemini: 2, moonshot: 2, deepseek: 1, 'openai-compat': 1, huggingface: 2, local: 2 }
   for (const [fam, expected] of Object.entries(found)) {
     check(`found shape: ${fam} holds ${expected} (recorded fact)`, counts[fam] === expected, `${fam}=${counts[fam]}`)
@@ -115,12 +119,14 @@ section('§3 plain sign-out per slot (the anthropic OAuth slot)')
   let fired2 = 0
   const out2 = executeSlotRemoval(signedOut as never, { signOutAnthropicOauth: () => { fired2++ } })
   check('a signed-out slot answers honestly, mutating nothing', fired2 === 0 && !out2.mutated && /not signed in/.test(out2.note), out2.note)
+
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
   check('no removal route deletes a directory', !slotsSrc.includes('rmSync') && !slotsSrc.includes('rm -rf'))
 }
 
 section('§4 the switching machinery is ABSENT (superseded-law tombstone)')
 {
+
   const gone = [
     'slotScopeCredential',
     'applyBootAuthScope',
@@ -142,6 +148,7 @@ section('§4 the switching machinery is ABSENT (superseded-law tombstone)')
 
 section('§5 the login gesture reroutes to Logins (board wiring — operator-ruled)')
 {
+
   const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('↵ on the current anthropic scope reroutes to Logins, family-focused', board.includes("rerouteToLogins('anthropic'"))
   check('a non-current scope names the honest road (never the wrong store)', board.includes('MERCURY_CONFIG_DIR='))

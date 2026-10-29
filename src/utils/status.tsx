@@ -15,13 +15,13 @@ import {
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/wallet/wallet.js'
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
 
-
 type Property = {
   label?: string
   value: React.ReactNode | string[]
 }
 
 export function propertyValueToText(value: React.ReactNode | string[]): string {
+
   if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value.join(', ')
   return nodeText(value as React.ReactNode)
 }
@@ -45,11 +45,13 @@ export function buildProviderAccountBlocks(
     activeFor?: (provider: WalletEntry['provider']) => WalletEntry | undefined
     organization?: () => string | undefined
     isDemo?: boolean
+
     usability?: () => Partial<Record<string, { blockers: string[] }>>
   },
 ): Property[] {
   const isDemo = reads?.isDemo ?? Boolean(process.env.MERCURY_DEMO)
   const allEntries = reads?.entries ? reads.entries() : walletEntries()
+
   let usabilityByFamily: Partial<Record<string, { blockers: string[] }>> = {}
   try {
     usabilityByFamily = reads?.usability ? reads.usability() : resolveProviderUsability()
@@ -68,16 +70,19 @@ export function buildProviderAccountBlocks(
       })
       continue
     }
+
     const active =
       entries.length > 0
         ? (reads?.activeFor ?? activeWalletEntry)(entries[0]!.provider)
         : undefined
+
     const words = isDemo ? family.credentialLabel : presenceIdentityWords(family)
     rows.push({
       label: name,
       value: <Text>{words ?? active?.label ?? entries[0]!.label}</Text>,
     })
     if (!isDemo && family.identity !== undefined && family.credentialLabel !== undefined) {
+
       rows.push({ label: '', value: <Text dimColor>via · {family.credentialLabel}</Text> })
     } else if (active?.identity?.email && !isDemo) {
       rows.push({ label: '', value: <Text dimColor>email · {active.identity.email}</Text> })
@@ -94,6 +99,7 @@ export function buildProviderAccountBlocks(
       }
     }
     if (entries.length > 1) {
+
       const activeText = isDemo ? (active?.kind ?? 'none') : (active?.label ?? 'none')
       rows.push({
         label: '',
@@ -121,6 +127,7 @@ export function buildAccountProperties(): Property[] {
   if (account.apiKeySource) {
     properties.push({ label: 'API key', value: <Text>{account.apiKeySource}</Text> })
   }
+
   const isDemo = Boolean(process.env.MERCURY_DEMO)
   if (account.organization && !isDemo) {
     properties.push({ label: 'Organization', value: <Text>{account.organization}</Text> })
@@ -141,6 +148,7 @@ export function buildAPIProviderProperties(): Property[] {
     properties.push({ label: 'Proxy', value: <Text>{proxyUrl}</Text> })
   }
   if (process.env.NODE_EXTRA_CA_CERTS) {
+
     properties.push({ label: 'Additional CA cert(s)', value: <Text>{extraCaCertsStatusLine() ?? process.env.NODE_EXTRA_CA_CERTS}</Text> })
   }
   const mtlsConfig = getMTLSConfig()

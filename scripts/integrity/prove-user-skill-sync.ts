@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BUNDLED = join(REPO, 'src', 'skills', 'bundled')
+
 const userSkillsArg = process.argv.indexOf('--user-skills')
 const USER_SKILLS = userSkillsArg >= 0 ? process.argv[userSkillsArg + 1]?.normalize('NFC') : undefined
 

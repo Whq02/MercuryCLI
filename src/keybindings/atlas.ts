@@ -1,4 +1,3 @@
-
 import { ACTION_GRAPH, type ActionMeta } from './actionGraph.js'
 import { chordToDisplayString, chordToString } from './parser.js'
 import { classifyChordDelivery, legacyByteClass, type ChordDelivery } from './delivery.js'
@@ -28,16 +27,24 @@ type AtlasShadow = {
 }
 
 export type AtlasRow = {
+
   action: string | null
+
   description: string
   context: KeybindingContextName
+
   chord: string
   origin: AtlasOrigin
   state: AtlasState
+
   shadowed: readonly AtlasShadow[]
+
   reserved?: ReservedShortcut
+
   reason?: string
+
   delivery?: ChordDelivery
+
   collidesWith?: { chord: string; action: string | null }
 }
 
@@ -57,9 +64,13 @@ function reservedFor(
 }
 
 type BuildAtlasOptions = {
+
   defaultCount: number
+
   reserved?: readonly ReservedShortcut[]
+
   platform?: DisplayPlatform
+
   extendedKeys?: boolean
 }
 
@@ -90,6 +101,7 @@ export function buildAtlas(
 
   const rows: AtlasRow[] = []
   const reachable = new Set<string>()
+
   const byteClassIndex = new Map<string, Array<{ chord: string; action: string | null }>>()
   for (const entries of groups.values()) {
     const winner = entries[entries.length - 1]
@@ -122,6 +134,7 @@ export function buildAtlas(
       }
     }
   }
+
   if (!extendedKeys) {
     for (const list of byteClassIndex.values()) {
       if (list.length < 2) continue
@@ -176,7 +189,6 @@ export function atlasMatches(row: AtlasRow, query: string): boolean {
   return `${row.description} ${row.context} ${row.chord}`.toLowerCase().includes(q)
 }
 
-
 export type ActionAffordance =
   | { kind: 'bound'; chord: string }
   | { kind: 'disabled'; chord: string; reason: string }
@@ -213,7 +225,6 @@ export function actionAffordance(
   return { kind: 'bound', chord }
 }
 
-
 type LookupOutcome =
   | 'match'
   | 'unbound'
@@ -223,12 +234,16 @@ type LookupOutcome =
 
 export type LookupReport = {
   outcome: LookupOutcome
+
   chord: string
   action?: string
   description?: string
+
   context?: KeybindingContextName
+
   candidates: readonly AtlasShadow[]
   reserved?: ReservedShortcut
+
   verdict: string
 }
 
@@ -236,6 +251,7 @@ type ExplainOptions = {
   defaultCount: number
   reserved?: readonly ReservedShortcut[]
   platform?: DisplayPlatform
+
   passesThroughToEditor: boolean
 }
 
@@ -340,7 +356,6 @@ function describeKeystroke(
   parts.push(named)
   return parts.join('+')
 }
-
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 

@@ -38,6 +38,7 @@ t.section(`§1 — the modal family closes inside the view (${COMPACT_CONTROL_CO
   const lines = renderScenario('model-picker-home', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const all = lines.join('\n')
   const closes = lines.some(l => l.trimStart().startsWith('╰'))
+
   if (!closes) lines.forEach((l, i) => console.log(`      grid[${String(i).padStart(2, '0')}] ${JSON.stringify(l)}`))
   t.check('the card CLOSES: a bottom border row is on screen', closes, lines[lines.length - 1] ?? '(empty)')
   const focused = lines.filter(l => /│\s*❯\s+\S.+\bcurrent\b/.test(l))
@@ -54,6 +55,7 @@ t.section(`§2 — the inline Chat keeps its input line at the floor (${COMPACT_
   const lines = renderScenario('thinking-row', COMPACT_CONTROL_COLS, COMPACT_CONTROL_ROWS)
   const inputAt = lines.findIndex(l => l.trim().startsWith('❯') || l.includes('│❯'))
   t.check('a ❯ input line renders', inputAt >= 0, lines[inputAt] ?? '(no input line)')
+
   t.check(
     'the frame is whole: the input line sits between its ╭ and ╰ rows',
     inputAt > 0 && (lines[inputAt - 1] ?? '').trimStart().startsWith('╭') && (lines[inputAt + 1] ?? '').trimStart().startsWith('╰'),

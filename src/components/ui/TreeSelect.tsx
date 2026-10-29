@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react'
 import { Box } from '../../ink.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
@@ -21,7 +20,9 @@ export type TreeNode<T> = {
 
 type TreeSelectProps<T> = {
   nodes: TreeNode<T>[]
+
   focusedNodeId?: string
+
   isNodeExpanded?: (nodeId: string) => boolean
   onExpand?: (nodeId: string) => void
   onCollapse?: (nodeId: string) => void
@@ -102,6 +103,7 @@ export function TreeSelect<T>({
   }
 
   const handleKeyDown = (event: KeyboardEvent): void => {
+
     if (isDisabled || focusedNodeId === undefined) return
     const focusedRow = byId.get(focusedNodeId)
     if (!focusedRow) return
@@ -115,6 +117,7 @@ export function TreeSelect<T>({
       if (focusedRow.hasChildren && focusedRow.expanded) {
         collapse(focusedRow.node.id)
       } else if (focusedRow.parentId !== null) {
+
         collapse(focusedRow.parentId)
         moveFocusTo(focusedRow.parentId)
       }
@@ -151,6 +154,7 @@ export function TreeSelect<T>({
       defaultFocusValue={programmaticFocusId ?? focusedNodeId}
       onFocus={id => {
         if (suppressFocusIdRef.current === id) {
+
           suppressFocusIdRef.current = null
           lastFocusIdRef.current = id
           return

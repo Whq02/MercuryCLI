@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -31,6 +32,7 @@ function askOf(body: Record<string, unknown>): string {
 
 let overloadedSeen = 0
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+
   let dropped = false
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))

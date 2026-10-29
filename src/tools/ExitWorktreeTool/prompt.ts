@@ -1,4 +1,3 @@
-
 export function getExitWorktreeToolPrompt(): string {
   return `Ends a worktree session that was started with the EnterWorktree tool and returns the session to the original directory.
 

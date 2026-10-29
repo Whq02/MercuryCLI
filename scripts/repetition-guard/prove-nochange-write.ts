@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
@@ -115,6 +116,7 @@ console.log('── N. byte-identical overwrite ⇒ honest no-change ──')
   }
 }
 {
+
   _resetRepetitionPolicyForTesting()
   const p = join(fixtures, 'empty.txt')
   writeFileSync(p, '')
@@ -175,6 +177,7 @@ console.log('── L. create/update lanes unchanged ──')
 console.log('── W. the anchored non-mutating disposition ──')
 {
   _resetRepetitionPolicyForTesting()
+
   const pUnreadSame = join(fixtures, 'unread-identical.txt')
   const body = 'line-1\nline-2\nline-3\n'
   writeFileSync(pUnreadSame, body)

@@ -1,4 +1,3 @@
-
 import type { AgentResultEnvelope } from './contracts.js'
 
 const envelopes = new WeakMap<object, AgentResultEnvelope>()

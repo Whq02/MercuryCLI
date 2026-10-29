@@ -1,9 +1,10 @@
-
 import { Ajv } from 'ajv'
 
 interface SchemaIssue {
+
   path: string
   message: string
+
   keyword: string
 }
 

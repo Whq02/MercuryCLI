@@ -39,10 +39,12 @@ for (const width of [-3, -1, 0, Number.NaN]) {
 }
 
 const { detectGitOperation } = await import('../../src/tools/shared/gitOperationTracking.ts')
+
 const pathological = 'a..'.repeat(50_000)
 const startedAt = performance.now()
 detectGitOperation('git push origin main', pathological)
 const elapsedMs = performance.now() - startedAt
+
 t('pathological push output scans promptly', elapsedMs < 2000, `${Math.round(elapsedMs)}ms`)
 const realPush = detectGitOperation(
   'git push origin main',

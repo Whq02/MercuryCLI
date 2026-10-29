@@ -1,4 +1,3 @@
-
 import { EventEmitter as NodeEventEmitter } from 'node:events'
 import { Event } from './event.js'
 import { InputEvent, inputConsumedThroughSeq } from './input-event.js'

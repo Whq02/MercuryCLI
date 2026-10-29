@@ -22,7 +22,6 @@ import {
   userFacingName,
 } from './UI.js'
 
-
 const DEFAULT_RESULT_LIMIT = 100
 
 export function ignoredPathsLine(ignored: number): string {
@@ -47,6 +46,7 @@ export type Output = {
   filenames: string[]
   truncated: boolean
   ignored?: number
+
   incomplete?: string
 }
 
@@ -76,6 +76,7 @@ export const GlobTool = buildTool({
   outputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
+
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     for (const path of [input.path, input.pattern]) {
       const remote = path === undefined ? null : checkUncPathPermission(path, context.getAppState().toolPermissionContext)
@@ -103,6 +104,7 @@ export const GlobTool = buildTool({
     return text
   },
   async prompt(): Promise<string> {
+
     return DESCRIPTION
   },
   async validateInput(input: Input) {
@@ -142,6 +144,7 @@ export const GlobTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext) {
     const started = Date.now()
+
     const root = searchRootFor(input.path, input.pattern)
     const limit = context.globLimits?.maxResults ?? DEFAULT_RESULT_LIMIT
     const { files, truncated, ignored, incomplete } = await glob(
@@ -164,6 +167,7 @@ export const GlobTool = buildTool({
     }
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
+
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
     const ignoredNote = data.ignored !== undefined && data.ignored > 0 ? `\n${ignoredPathsLine(data.ignored)}` : ''
     if (data.numFiles === 0) {
@@ -181,6 +185,7 @@ export const GlobTool = buildTool({
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: content + ignoredNote + incompleteNote }
   },
   extractSearchText(data: Output): string {
+
     return data.filenames.join('\n')
   },
   isResultTruncated,

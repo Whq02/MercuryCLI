@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -33,14 +34,17 @@ console.log('§2 a prover on two or more homes carries a daemon dir in each spaw
   const offenders: string[] = []
   let multiHome = 0
   for (const file of files) {
+
     if (file.endsWith('prove-capture-home-owns-daemon.ts')) continue
     const src = readFileSync(join(ROOT, file), 'utf8')
     if (!src.includes('renderScenarios')) continue
+
     const minted = (expr: string): boolean => expr !== 'CONFIG_HOME' && !expr.startsWith('process.env.MERCURY_CONFIG_DIR')
     const homes = new Set<string>()
     for (const m of src.matchAll(/MERCURY_CONFIG_DIR: ([^,\n}]+)/g)) if (minted(m[1]!.trim())) homes.add(m[1]!.trim())
     if (homes.size < 2) continue
     multiHome++
+
     for (const m of src.matchAll(/\{[^{}]*MERCURY_CONFIG_DIR: ([^,\n}]+)[^{}]*\}/g)) {
       if (!minted(m[1]!.trim())) continue
       if (!m[0].includes('MERCURY_DAEMON_DIR')) offenders.push(`${file}: ${m[0].replace(/\s+/g, ' ').slice(0, 80)}`)

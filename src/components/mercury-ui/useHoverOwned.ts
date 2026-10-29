@@ -11,6 +11,7 @@ export function useHoverOwned(id: string): boolean {
     () => getHoverOwner() === id,
     () => false,
   )
+
   useEffect(() => {
     const p = flagEnv('MERCURY_HOVER_DEBUG')
     if (!p) return

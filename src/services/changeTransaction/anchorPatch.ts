@@ -1,4 +1,3 @@
-
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { changeSetEnabled } from './changeSetContracts.js'
 import { parseAnchor } from './snapshotAnchor.js'
@@ -8,15 +7,18 @@ export function anchorPatchEnabled(): boolean {
   return changeSetEnabled() && isEnvTruthy(flagEnv('MERCURY_ANCHOR_PATCH'))
 }
 
-
 export const ANCHOR_PATCH_BOUNDS = {
+
   maxPatchLines: 20_000,
+
   maxBodyLinesPerOp: 5_000,
+
   maxBodyLinesTotal: 10_000,
+
   maxOpsTotal: 256,
+
   maxRegisterName: 24,
 } as const
-
 
 type AnchorPatchRange = { start: number; end: number }
 
@@ -41,6 +43,7 @@ export interface AnchorPatchSection {
   path: string
   anchor: string
   ops: AnchorPatchOp[]
+
   line: number
 }
 
@@ -75,6 +78,7 @@ type AnchorPatchErrorCode =
 interface AnchorPatchError {
   ok: false
   code: AnchorPatchErrorCode
+
   line: number
   message: string
 }
@@ -83,7 +87,9 @@ export interface AnchorPatchParse {
   ok: true
   sections: AnchorPatchSection[]
   warnings: AnchorPatchWarning[]
+
   cutRegisters: Map<string, number>
+
   storeReads: Set<string>
 }
 
@@ -193,6 +199,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
   const cutRegisters = new Map<string, number>()
   const storeReads = new Set<string>()
   let current: AnchorPatchSection | null = null
+
   let bodyTarget: { body: string[]; opLine: number; kind: string } | null = null
   let totalOps = 0
   let totalBodyLines = 0
@@ -238,6 +245,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
       continue
     }
     if (raw.startsWith('|')) {
+
       return err(
         'unknown-op',
         lineNo,
@@ -251,6 +259,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
     }
     const line = trimmedEnd.trim()
     if (line === '') {
+
       continue
     }
 
@@ -271,6 +280,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
           `a section header is 'file <path> <anchor>' — got '${line.slice(0, 60)}'`,
         )
       }
+
       const anchor = tokens[tokens.length - 1]!
       if (!parseAnchor(anchor)) {
         return err(
@@ -387,6 +397,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
         break
       }
       case 'cut': {
+
         if (tokens.length !== 2 && !(tokens.length === 4 && tokens[2] === 'into')) {
           return err('bad-range', lineNo, `cut is 'cut <N|N-M>' or 'cut <N|N-M> into <register>'`)
         }
@@ -413,6 +424,7 @@ export function parseAnchorPatch(patchText: string): AnchorPatchParseResult {
         break
       }
       case 'paste': {
+
         let register: string | null = null
         let rest = tokens.slice(1)
         if (rest.length === 3) {

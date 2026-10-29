@@ -10,7 +10,6 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
-
 type SearchHit = { title: string; snippet?: string; meta?: string }
 
 const TITLE_WIDTH = 38
@@ -41,17 +40,21 @@ export function MercurySearch({
   onClose: () => void
   isActive?: boolean
 }): React.ReactNode {
+
   const overlayToken = useRegisterOverlay('search', true, { ownsPageKeys: true })
+
   const accent = useSessionAccent().accent
   const all = Array.isArray(results) ? results : []
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
+
   const [cursorOffset, setCursorOffset] = useState(0)
 
   const filtered = useMemo(
     () => (prefiltered ? all : all.filter(h => matches(h, query))),
     [all, query, prefiltered],
   )
+
   const winStart = Math.max(0, Math.min(sel - Math.floor(MAX_ROWS / 2), filtered.length - MAX_ROWS))
   const shown = useMemo(() => filtered.slice(winStart, winStart + MAX_ROWS), [filtered, winStart])
 
@@ -104,6 +107,7 @@ export function MercurySearch({
       view="search"
       onClose={onClose}
       captureInput={false}
+
       footer={filtered.length > 0 ? 'type · ↑↓ move · ↵ open' : 'type — backspace to widen'}
     >
       <Box marginTop={1}>

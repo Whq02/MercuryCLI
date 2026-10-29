@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,6 +31,7 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
   check('future-dated (>120s ahead) ⇒ stale', d(JSON.stringify({ version: 1, ts: NOW + 121_000, action: 'continue' })).reason === 'stale')
   check('a stale receipt arms NO boot-surface intent', consumeBootSurfaceIntent() === null)
   check('screen-only receipt (plain new-session) ⇒ nothing to apply', d(fresh({ screen: 'held' })).reason === 'screen-only')
+
   check('screen-only ⇒ no boot-surface intent (the landing is the resolver\'s rule, not the receipt\'s)', consumeBootSurfaceIntent() === null)
   check(
     "screen-only 'restored' arms nothing either (the resolver's live fullscreen gate owns the inline refusal)",
@@ -44,28 +46,34 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
   check('continue without dir ⇒ --continue alone', contNoDir.apply?.spliceArg === '--continue' && contNoDir.apply?.chdir === undefined)
   const contBadDir = d(fresh({ action: 'continue', dir: '/vanished' }))
   check('continue + vanished dir ⇒ --continue alone (dir dropped)', contBadDir.apply?.spliceArg === '--continue' && contBadDir.apply?.chdir === undefined)
+
   const res = d(fresh({ action: 'resume', dir: '/proof/project' }))
   check("resume + dir ⇒ chdir alone, NO splice, the 'resume' face door armed once", res.apply?.chdir === '/proof/project' && res.apply?.spliceArg === undefined && consumeFaceDoorDeepLink() === 'resume' && consumeFaceDoorDeepLink() === null)
   const doc = d(fresh({ action: 'health' }))
   check("health ⇒ nothing to chdir or splice, the 'health' face door armed once", doc.apply === null && consumeFaceDoorDeepLink() === 'health' && consumeFaceDoorDeepLink() === null)
   const conc = d(fresh({ action: 'concourse' }))
+
   check(
     'concourse ⇒ the typed boot-surface intent, never an argv splice or chdir (RFI-3)',
     conc.apply === null && conc.reason === 'applied' && consumeBootSurfaceIntent() === 'concourse',
   )
   check('the boot-surface intent is one-shot (a second read is empty)', consumeBootSurfaceIntent() === null)
+
   void d(fresh({ action: 'continue' }))
   check("continue ⇒ 'repl' boot-surface intent (the chosen journey outranks policy)", consumeBootSurfaceIntent() === 'repl')
+
   void d(fresh({ action: 'resume' }))
   check("resume ⇒ NO boot-surface intent (the face door rides instead)", consumeBootSurfaceIntent() === null && consumeFaceDoorDeepLink() === 'resume')
   void d(fresh({ action: 'health' }))
   check("health ⇒ NO boot-surface intent (the face door rides instead)", consumeBootSurfaceIntent() === null && consumeFaceDoorDeepLink() === 'health')
+
   const kit = d(fresh({ action: 'kit' }))
   check('kit ⇒ applied with nothing to chdir or splice (the face is the landing)', kit.apply === null && kit.reason === 'applied')
   check('kit arms NO boot-surface intent (the resolver\'s one landing rule stands)', consumeBootSurfaceIntent() === null)
   check('kit arms the manager deep-link (consumed once — the second read is empty)', consumeKitManagerDeepLink() === true && consumeKitManagerDeepLink() === false)
   check('an unknown action never arms the manager (the deep-link rides the closed vocabulary)', d(fresh({ action: 'kit-manager' })).reason === 'unknown-action' && consumeKitManagerDeepLink() === false)
   check('a stale kit receipt arms nothing', d(JSON.stringify({ version: 1, ts: NOW - 121_000, action: 'kit' })).reason === 'stale' && consumeKitManagerDeepLink() === false)
+
   const sat = d(fresh({ action: 'saturn' }))
   check('saturn ⇒ applied with nothing to chdir or splice (the face is the landing)', sat.apply === null && sat.reason === 'applied')
   check('saturn arms NO boot-surface intent (the one landing rule stands)', consumeBootSurfaceIntent() === null)
@@ -107,6 +115,7 @@ section('(2) consumeSplashHandover — one-shot env, file discipline, applicatio
 {
   const scratch = mkdtempSync(join(tmpdir(), 'splash receipt '))
   const home = join(scratch, 'home')
+
   const project = join(scratch, 'picked café-日本 project')
   mkdirSync(home, { recursive: true })
   mkdirSync(project, { recursive: true })
@@ -118,8 +127,10 @@ section('(2) consumeSplashHandover — one-shot env, file discipline, applicatio
     MERCURY_SPLASH_HANDOFF: process.env.MERCURY_SPLASH_HANDOFF,
     MERCURY_SPLASH_HANDOFF: process.env.MERCURY_SPLASH_HANDOFF,
   }
+
   process.env.MERCURY_CONFIG_DIR = home
   try {
+
     delete process.env.MERCURY_SPLASH_HANDOFF
     delete process.env.MERCURY_SPLASH_HANDOFF
     writeFileSync(receipt, fresh({ action: 'continue', dir: project }).replace(String(NOW), String(Date.now())))
@@ -178,6 +189,7 @@ section('(3) the boot-completion beacon — asset stamp shape ⇄ bootBeacon rea
   try {
     const p = bootAttemptsPath(scratch)
     check('the beacon path is home-scoped boot-attempts.json', p === join(scratch, 'boot-attempts.json'))
+
     writeFileSync(p, JSON.stringify({ version: 1, attempts: [NOW - 60_000, NOW] }) + '\n')
     const residue = readBootAttemptResidue(scratch)
     check('the asset shape round-trips (count + lastTs)', residue?.count === 2 && residue?.lastTs === NOW, JSON.stringify(residue))

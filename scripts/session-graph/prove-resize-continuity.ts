@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -39,6 +40,7 @@ t.section('§1 — the prompts panel survives the full geometry sweep')
 t.section('§2 — selection identity holds (the row key, not the index)')
 {
   const at120 = grabScreens(run, 120, 40, [-1])[0]!
+
   const selectedLine = at120.rows.find(r => r.includes('▸') && r.includes(HELD_ROW))
   t.check(
     'the selection pointer sits ON the sent prompt’s row after three geometry changes',
@@ -49,6 +51,5 @@ t.section('§2 — selection identity holds (the row key, not the index)')
   t.check('the footer still teaches the panel verbs (esc close)', /esc close/.test(text))
   t.check('no blank frame settled (the two-phase capture law)', at120.rows.some(r => r.trim() !== ''))
 }
-
 
 t.finish('prove-resize-continuity')

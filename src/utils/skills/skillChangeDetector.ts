@@ -13,12 +13,12 @@ import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
 
-
 type TimingOverrides = {
   stabilityThresholdMs?: number
   pollIntervalMs?: number
   debounceMs?: number
   bunPollIntervalMs?: number
+
   watcherFactory?: WatcherFactory
 }
 
@@ -34,13 +34,16 @@ const defaultWatcherFactory: WatcherFactory = (paths, options) =>
 let stabilityThresholdMs = 1000
 let pollIntervalMs = 500
 let debounceMs = 300
+
 let bunPollIntervalMs = 2000
 
 let initialized = false
 let disposed = false
 let watcherFactory: WatcherFactory = defaultWatcherFactory
+
 let watcherGeneration = 0
 let watcher: SkillWatcher | null = null
+
 let birthWatcher: SkillWatcher | null = null
 let reloadTimer: NodeJS.Timeout | null = null
 let pendingPaths = new Set<string>()
@@ -64,6 +67,7 @@ function scheduleReload(changedPath: string): void {
 
 function registerDynamicSkillsOnce(): void {
   if (dynamicSkillsRegistered) return
+
   dynamicSkillsRegistered = true
   onDynamicSkillsLoaded(() => {
     clearCommandMemoizationCaches()
@@ -87,6 +91,7 @@ async function rearmWatchRoots(): Promise<string[]> {
   watcher = null
   birthWatcher = null
   await closing
+
   if (gen !== watcherGeneration || disposed) return []
   return armWatcher(gen)
 }
@@ -111,6 +116,7 @@ function nearestWatchableAncestor(path: string): string | null {
 
 async function armWatcher(gen: number): Promise<string[]> {
   const targets = new Set<string>()
+
   const birthAncestors = new Map<string, Set<string>>()
   const addCandidate = (path: string): void => {
     try {
@@ -169,6 +175,7 @@ async function armWatcher(gen: number): Promise<string[]> {
   }
 
   if (targets.size === 0) {
+
     if (unregisterCleanup === null) {
       unregisterCleanup = registerCleanup(async () => {
         await dispose()
@@ -211,6 +218,7 @@ async function armWatcher(gen: number): Promise<string[]> {
     logError(error as Error)
   })
   if (disposed || gen !== watcherGeneration) {
+
     void built.close()
     return []
   }

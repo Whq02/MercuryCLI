@@ -9,7 +9,6 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
-
 export const inputSchema = lazySchema(() =>
   z.strictObject({
     server: z.string().describe('The name of the MCP server to read the resource from'),
@@ -121,6 +120,7 @@ export const ReadMcpResourceTool = buildTool({
     }
     const live = await ensureConnectedClient(client)
     const result = await live.client.request({ method: 'resources/read', params: { uri } })
+
     const contents = await Promise.all(
       (result.contents as ResourceContent[]).map((entry, index) =>
         projectEntry(entry, index, server, uri),

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -52,6 +53,7 @@ writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# switch drive fixture\n')
 
 const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
+
 const fixture = spawn('node', [path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
 })
@@ -78,6 +80,7 @@ const reap = (): void => {
     fixture.kill('SIGTERM')
   } catch {
   }
+
   if (failures === 0) {
     try {
       rmSync(RUN_HOME, { recursive: true, force: true })
@@ -98,10 +101,14 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol'],
   cwd: FIXTURE_CWD,
   sends: [
+
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
+
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
+
     { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
+
     { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
   ],
   readyText: [OPUS_REPLY],
@@ -149,6 +156,7 @@ if (existsSync(out)) {
     sendReceipts?: Array<{ mark?: string; atMs?: number }>
   }
   gridText = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+
   const receipts = (payload.sendReceipts ?? []) as unknown as Array<{ atTick?: number; ts?: number }>
   switchSentAt = receipts[2]?.atTick ?? 0
   pickupSentAt = receipts[4]?.ts ?? 0
@@ -163,6 +171,7 @@ section('L1 — the GPT leg ran on the real binary')
 {
   const gptCalls = wire.filter(c => c.kind === 'openai')
   check('the Responses fixture served the GPT turn', gptCalls.length >= 1, `openai calls=${gptCalls.length} vshot status=${res.status} hits=${wire.map(c => `${c.kind}:${c.url ?? ''}`).join('|') || 'NONE'}`)
+
   check(
     'the GPT reply painted (the switch send fired on its await, not its deadline)',
     switchSentAt > 0 && switchSentAt < 120,
@@ -173,6 +182,7 @@ section('L1 — the GPT leg ran on the real binary')
 section('L2/L3 — the switched turn DISPATCHES to the Anthropic wire')
 {
   const opusCalls = wire.filter(c => c.kind === 'anthropic')
+
   const main = opusCalls.find(
     c =>
       Array.isArray(c.body?.tools) &&

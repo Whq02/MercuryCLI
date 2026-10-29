@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -129,6 +130,7 @@ section('G4 · the switch re-anchors the gauge')
 section('G5 · the contradiction is dead')
 {
   const ladder = compact.calculateTokenWarningState(44_000, FALLBACK)
+
   check('22 % used on a 200k window: positive room (57 % left to the 78.5 % fold point), never 0 %', ladder.level === 'ok' && ladder.pctLeft !== undefined && ladder.pctLeft >= 56 && ladder.pctLeft <= 57, JSON.stringify(ladder))
   const view = contextFillView([user('hi'), asst('resp-F', 'compat/my-model', usageOf(44_000), 'x')] as never, FALLBACK)
   check('  the view says the same: used 22 · left 57 · fold 78.5', view.usedPct === 22 && view.leftUntilCompactPct !== null && view.leftUntilCompactPct >= 56 && view.leftUntilCompactPct <= 57, JSON.stringify(view))

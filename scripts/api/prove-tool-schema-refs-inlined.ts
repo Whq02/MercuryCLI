@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/inlineSchemaRefs.ts src/utils/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 

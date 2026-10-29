@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, readdirSync } from 'node:fs'
 import { codeOnlyText } from '../lib/codeText.ts'
 import { join } from 'node:path'
@@ -76,6 +77,7 @@ console.log('§2 the menu: warn iff below its floor; the exit named; fits by con
     selIdx: 3,
     title: 'boot menu',
     legend: '↑↓ choose · ↵ cycle · esc back',
+
     summaryRows: [
       { key: 'Profile', value: 'defaults' },
       { key: 'Sessions', value: '2 live' },

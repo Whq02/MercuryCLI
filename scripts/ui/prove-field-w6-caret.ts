@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { Cursor } from '../../src/utils/Cursor.js'
 
 let failures = 0

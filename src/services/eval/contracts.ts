@@ -1,4 +1,3 @@
-
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import type { SampleItem } from '../samples/contracts.js'
 
@@ -17,33 +16,43 @@ export function evalPythonOverride(): string | undefined {
   return value ? value : undefined
 }
 
-
 export const EVAL_DEFAULT_TIMEOUT_SECONDS = 30
+
 export const EVAL_MAX_TIMEOUT_SECONDS = 600
+
 export const EVAL_WALL_CEILING_MS = 30 * 60_000
+
 export const EVAL_INTERRUPT_ESCALATION_MS = 2_000
+
 export const EVAL_SHUTDOWN_GRACE_MS = 1_500
+
 export const EVAL_IDLE_TTL_MS = 15 * 60_000
+
 export const EVAL_IDLE_SWEEP_MS = 60_000
 
-
 export const EVAL_HEAD_BYTES = 24_000
-export const EVAL_TAIL_BYTES = 8_000
-export const EVAL_MAX_LINE_CHARS = 2_000
-export const EVAL_MAX_DISPLAY_CHARS = 10_000
-export const EVAL_SPILL_MAX_BYTES = 8 * 1024 * 1024
 
+export const EVAL_TAIL_BYTES = 8_000
+
+export const EVAL_MAX_LINE_CHARS = 2_000
+
+export const EVAL_MAX_DISPLAY_CHARS = 10_000
+
+export const EVAL_SPILL_MAX_BYTES = 8 * 1024 * 1024
 
 export interface EvalCellInput {
   language: EvalLanguage
   code: string
   title?: string
+
   timeoutSeconds?: number
+
   reset?: boolean
 }
 
 export interface EvalDisplay {
   mime: 'text/plain' | 'text/markdown' | 'application/json' | 'image/png' | 'image/jpeg'
+
   data: string
   b64?: boolean
 }
@@ -51,6 +60,7 @@ export interface EvalDisplay {
 type EvalCellStatus = 'ok' | 'error' | 'cancelled'
 
 export interface EvalStreamCapture {
+
   text: string
   truncated: boolean
   totalBytes: number
@@ -63,22 +73,30 @@ export interface EvalCellOutcome {
   stderr: EvalStreamCapture
   displays: EvalDisplay[]
   samples?: SampleItem[]
+
   resultRepr?: string
   error?: { name: string; value: string; traceback: string }
+
   spillPath?: string
+
   annotations: string[]
+
   runtimeMs: number
+
   bridgeMs: number
   executionCount: number
 }
 
-
 export interface EvalLanguageAvailability {
   language: EvalLanguage
   available: boolean
+
   interpreterPath?: string
+
   version?: string
+
   whyNot?: string
+
   probing?: true
 }
 

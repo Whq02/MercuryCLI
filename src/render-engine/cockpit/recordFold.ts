@@ -1,11 +1,12 @@
-
 interface FoldOutcome {
+
   readonly uuid: string
   readonly outcome: 'recorded' | 'refolded'
   readonly foldKey: string
 }
 
 interface RecordFoldOptions {
+
   onRefold?: (foldKey: string, firstUuid: string, freshUuid: string) => void
 }
 

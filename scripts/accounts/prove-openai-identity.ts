@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,6 +46,7 @@ section('O1 the decode captures the standard email claim')
 
 section('O2 the stored ref carries the email beside the untouched label')
 {
+
   const { writeFileSync, mkdirSync } = await import('node:fs')
   const path = accounts.openaiAuthPathForDisplay()
   mkdirSync(join(path, '..'), { recursive: true })

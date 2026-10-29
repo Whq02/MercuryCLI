@@ -31,7 +31,6 @@ import { buildMissionRow, gatherMissionView, type MissionRow } from '../../servi
 import { getCwd } from '../../utils/cwd.js'
 import { buildBootRecoveryRow, buildRunRows, type RunRow } from './runInspectorModel.js'
 
-
 const TONE: Record<RunRow['tone'], string> = {
   ok: TEAL,
   warn: AMBER,
@@ -88,6 +87,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const reconcile = useCallback(() => {
     void (async () => {
       if (getRunSnapshot(owner) === null) {
+
         await reconcileOnResume(owner, getCwd())
       } else {
         await syncDeliverablesFromTasks(owner)
@@ -145,6 +145,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
 
   const innerW = Math.max(40, columns - 4)
   const snap = snapshot
+
   const controls: string[] =
     snap && rows.length > 0 ? ['↑↓ select', 'pgup/pgdn page', '↵ evidence', 'g reconcile'] : ['g reconcile']
   if (snap?.lifecycle === 'active') controls.push('p pause')

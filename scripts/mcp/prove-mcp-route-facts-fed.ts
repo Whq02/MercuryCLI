@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -112,6 +113,7 @@ section("§5 the row speaks the deadline's honest reason (the panel's own words)
   const line = mcpRosterLine({ clients: rows })
   check('§5 the face line carries the reason beside the failed state', line.includes(`frozen (failed) — ${REASON}`), line)
   check('§5 … and the healthy rows stay bare', line.includes('docs (connected) · slow (pending)'), line)
+
   const { mcpServerState } = await import('../../src/commands/mcp/McpPopup.tsx')
   check("§5 the popup carries the failed client's own reason", mcpServerState(failed as never) === 'failed: ' + REASON)
   const rosterSrc = readFileSync(join(ROOT, 'src/services/engine-connector/rosterTerms.ts'), 'utf8')
@@ -120,6 +122,7 @@ section("§5 the row speaks the deadline's honest reason (the panel's own words)
 
 section('§6 the failed rows lead the line')
 {
+
   const { mcpRosterRowsFailedFirst } = await import(join(ROOT, 'src/commands/mcp/route.ts'))
   const roster = {
     clients: [

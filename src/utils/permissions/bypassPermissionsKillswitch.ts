@@ -26,10 +26,12 @@ export async function checkAndDisableSovereignIfNeeded(
   if (!context.isBypassPermissionsModeAvailable) return
   bypassCheckRan = true
   if (isSovereignDisabled()) {
+
     setAppState(prev => ({
       ...prev,
       toolPermissionContext: createSovereignDisabledContext(prev.toolPermissionContext),
     }))
+
     enqueueNotification(setAppState, {
       key: 'bypass-killswitch',
       text: modeBypassesPermissions(context.mode)

@@ -158,23 +158,37 @@ export interface CompatLaneProfile {
   classifyFault?(fault: CompatFault): NonNullable<AssistantMessage['error']> | undefined
   leadingNotes?: readonly string[]
   partialFaultPolicy?: 'stop'
+
   providerLabel: string
+
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
+
   credentialHint: string
+
   authRemedy?: string
+
   billingRemedy?: string
+
   recoverCredential?(): Promise<CompatCredential | undefined | null>
+
   requestUrl(): string
+
   wireModelId(modelId: string): string
+
   requestFitRefusal?(estimate: { requestBytes: number; estTokens: number; toolCount: number; wireModel: string }): string | undefined
   servedWindowTokens?(): number | undefined
+
   onResponseHeaders?(headers: Headers, status?: number): void
   onCredentialRefused?(fault: Pick<CompatFault, 'status' | 'code' | 'message'>): void
+
   extraHeaders?(): Record<string, string> | undefined
+
   omitsToolChoice?: boolean
+
   toolCapabilityRefusal?(wireModel: string): string | undefined
   toolsInPrompt?(wireModel: string): boolean
   outputCeiling?(modelId: string): number | undefined
+
   buildExtras(args: {
     wireModel: string
     effortValue: string | undefined
@@ -337,6 +351,7 @@ export function compatTerminalFaultText(
     case 'billing_error':
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} reports the account out of credit (${detail}) — ${profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.'}`
     case 'rate_limit': {
+
       const head = `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})`
       if (fault.retryAfterMs !== undefined) {
         const asked = ` — the provider asks for a ${providerWaitWords(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched crewmate pauses until then' : ''}`
@@ -375,6 +390,7 @@ async function buildApiShapedTools(
   conversationKey?: string,
   pool: Tools = tools,
 ): Promise<ApiShapedTool[]> {
+
   const schemas = await Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
@@ -480,6 +496,7 @@ export async function* compatChatCallModel(
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
+
     latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
@@ -493,6 +510,7 @@ export async function* compatChatCallModel(
   }
   const toolDeclarations = declared.rows
   const callableTools = [...apiTools, ...declared.admitted].filter(tool => !plan.isDeferredUnadmitted(tool.name))
+
   const contract = resolveBehaviourContract([...systemPrompt])
   const systemText = renderGenericInstructions(contract)
   const wireModel = profile.wireModelId(modelId)
@@ -647,6 +665,7 @@ export async function* compatChatCallModel(
   })
 
   let recovery: 'retried' | 'no-new-credential' | undefined
+
   const turnStartedAtMs = Date.now()
   let attemptStartedAtMs = turnStartedAtMs
   let busy: { ladder: BusyRetryLadder; fault: CompatFault } | undefined
@@ -692,6 +711,7 @@ export async function* compatChatCallModel(
       observeSignInResponse(signInRequest, 200)
       liveProof.set(profile.lane, { at: Date.now(), model: modelId })
       if (outcome.served !== undefined) profile.noteServedModel?.(modelId, outcome.served, credential)
+
       recordLaneTurnSettled(profile.lane)
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
@@ -704,6 +724,7 @@ export async function* compatChatCallModel(
     const laneClass = profile.classifyFault?.(outcome.fault)
     const typed = laneClass ?? compatFaultToTypedError(outcome.fault)
     if (laneClass === undefined || typed === 'authentication_failed') observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
+
     if (
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
@@ -718,8 +739,10 @@ export async function* compatChatCallModel(
         credential = fresh
         continue
       }
+
       if (fresh !== null) recovery = 'no-new-credential'
     }
+
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
@@ -810,6 +833,7 @@ export async function* compatChatCallModel(
     const retryable =
       !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < COMPAT_MAX_ATTEMPTS
     if (retryable) {
+
       const delayMs = Math.max(COMPAT_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       const notice = createSystemAPIErrorMessage(
         Object.assign(new Error(outcome.fault.message), {
@@ -826,6 +850,7 @@ export async function* compatChatCallModel(
       if (signal.aborted) return
       continue
     }
+
     const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
     if (wall !== undefined) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
@@ -838,6 +863,7 @@ export async function* compatChatCallModel(
     }
     if (typed === 'authentication_failed') profile.onCredentialRefused?.(outcome.fault)
     if (typed === 'billing_error') {
+
       recordLaneBillingRefusal(profile.lane, {
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
         remedy: profile.billingRemedy ?? 'top up the account at the provider, then retry; /model picks another model meanwhile.',
@@ -859,6 +885,7 @@ export async function* compatChatCallModel(
       ))
       return
     }
+
     const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
@@ -884,6 +911,7 @@ async function* streamOneCompatAttempt(ctx: {
   profile: CompatLaneProfile
   request: CompatChatRequest
   apiKey: string | undefined
+
   requestUrl: string
   signal: AbortSignal
   tools: Tools
@@ -891,6 +919,7 @@ async function* streamOneCompatAttempt(ctx: {
   modelId: string
   messages: Message[]
   preparedMessages: Message[]
+
   deferredUnadmitted?: (name: string) => boolean
   callableTools?: readonly ApiShapedTool[]
   effort?: EffortStampV1
@@ -1048,6 +1077,7 @@ async function* streamOneCompatAttempt(ctx: {
           : { type: 'text', text: '', citations: null },
     })
   }
+
   function* emitSettledBlock(
     block: ContentBlock,
     deltas: ApiContentBlockDelta[],
@@ -1104,6 +1134,7 @@ async function* streamOneCompatAttempt(ctx: {
     request,
     signal,
     imagesSupported: ctx.imagesSupported,
+
     idleTimeoutMs,
     silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: profile.lane, dialect: profile.dialect, cold, promptTokens, idleMs: idleTimeoutMs, prefillTokensPerSecond }),
     ...(profile.liveness !== undefined
@@ -1115,6 +1146,7 @@ async function* streamOneCompatAttempt(ctx: {
         }
       : {}),
     ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
+
     firstByte: {
       cold,
       promptTokens,
@@ -1267,6 +1299,7 @@ async function* streamOneCompatAttempt(ctx: {
     yield* closeOpenBlock()
     return { kind: 'fault', fault, retryEligible: !hasTool && !isLocalLivenessCut(fault) }
   }
+
   const typedEnd =
     fault !== undefined && !finish && !retryTemporary && !retryStream
       ? typedStreamEndOf({
@@ -1380,6 +1413,7 @@ async function* streamOneCompatAttempt(ctx: {
       refusal.decorate,
     )
   }
+
   const terminationNote = retryTemporary ? undefined : ((): string | undefined => {
     switch (finish?.reason) {
       case 'content_filter':

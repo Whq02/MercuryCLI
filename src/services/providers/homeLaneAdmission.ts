@@ -12,9 +12,12 @@ export function homeLaneAdmissionRefusal(
   reads?: HomeLaneAdmissionReads,
 ): string | null {
   const firstPartyOrigin = reads?.firstPartyBaseUrl?.() ?? isFirstPartyAnthropicBaseUrl()
+
   if (!firstPartyOrigin) return null
+
   const verdict = canonicalWireModelId(model)
   if (!verdict.ok) return verdict.reason
+
   const recognition = recognizeModelId(model, reads?.env)
   if (recognition.kind !== 'unrecognised') return null
   return `${unrecognisedModelIdReason(model)}. Refused before any request — the /model picker lists the live catalogues.`

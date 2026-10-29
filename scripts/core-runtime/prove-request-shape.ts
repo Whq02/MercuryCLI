@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -40,7 +41,6 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 function normalize(value: unknown): string {
   if (value === undefined) return '<undefined>'
@@ -56,6 +56,7 @@ function normalize(value: unknown): string {
 const SENTINEL = new Error('request-captured')
 type Captured = { url: string; headers: Record<string, string>; body: unknown }
 let captured: Captured | null = null
+
 let abortCapture: (() => void) | null = null
 
 const captureFetch: typeof fetch = async (input, init) => {
@@ -113,7 +114,6 @@ async function captureRequest(model: string): Promise<Captured> {
   return captured
 }
 
-
 section('WIRE — first-party composed request bodies (fetchOverride capture)')
 {
   const opus = await captureRequest('claude-opus-4-8')
@@ -151,7 +151,6 @@ section('WIRE — first-party composed request bodies (fetchOverride capture)')
   check('fable: effort param present (an effort-capable model)',
     normalize(fable.body).includes('effort') || shapeOf(fable) === shapeOf(opus))
 }
-
 
 section('PIECES — cache control · metadata · message params')
 {

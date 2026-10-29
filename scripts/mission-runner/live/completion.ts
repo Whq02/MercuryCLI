@@ -1,4 +1,3 @@
-
 const MISSION_REVIEW_VERDICTS = ['accept', 'revise', 'reject', 'indeterminate'] as const
 type MissionReviewVerdict = (typeof MISSION_REVIEW_VERDICTS)[number]
 
@@ -6,6 +5,7 @@ interface MissionReviewResult {
   verdict: MissionReviewVerdict
   requirementIds: string[]
   evidenceRefs: string[]
+
   nextAction: string | null
 }
 
@@ -32,16 +32,22 @@ export function parseReviewResult(text: string): MissionReviewResult {
 }
 
 interface MissionCompletionInputs {
+
   grader: 'pass' | 'fail' | 'absent'
+
   undeclaredEffectDivergence: number
+
   semanticRequired: boolean
+
   reviewer: MissionReviewResult | null
+
   implementerClaimedSuccess: boolean
 }
 
 interface MissionAcceptance {
   state: 'accepted' | 'revise' | 'rejected' | 'indeterminate'
   decidedBy: 'mechanical-grader' | 'evidence-divergence' | 'reviewer' | 'unresolved-semantics'
+
   incorrectCompletionClaim: boolean
   notes: string[]
 }

@@ -18,6 +18,7 @@ export class SseDecoder {
   push(chunk: Buffer | string): SseDecodeResult[] {
     const text = typeof chunk === 'string' ? chunk : this.decoder.write(chunk)
     const out: SseDecodeResult[] = []
+
     const buf = this.tail === '' ? text : this.tail + text
     let pos = 0
     for (;;) {
@@ -33,6 +34,7 @@ export class SseDecoder {
 
   private consumeLine(line: string, out: SseDecodeResult[]): void {
     if (line === '') {
+
       if (this.dataLines.length > 0) {
         out.push({
           kind: 'event',
@@ -59,6 +61,7 @@ export class SseDecoder {
     const finalText = this.decoder.end()
     const out: SseDecodeResult[] = []
     if (finalText) {
+
       const line = (this.tail + finalText).replace(/\r$/, '')
       this.tail = ''
       if (line !== '') this.consumeLine(line, out)

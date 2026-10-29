@@ -44,9 +44,11 @@ function optionTakesArgument(spec: CommandSpec | null, flag: string, followedByN
 }): boolean {
   const option = findOption(spec, flag)
   if (option) {
+
     return option.args !== undefined
   }
   if (!spec) return false
+
   if (followedByNonFlagSubcommand.hasSubcommands && followedByNonFlagSubcommand.next !== undefined) {
     const next = followedByNonFlagSubcommand.next
     if (!next.startsWith('-') && !findSubcommandSpec(spec, next)) return true
@@ -127,6 +129,7 @@ function stopAtArgument(token: string, precedingTokens: string[], spec: CommandS
   const fileLike = token.includes('/') || hasFileExtension(token)
   const urlLike = URL_PREFIXES.some(prefix => token.startsWith(prefix))
   if (!fileLike && !urlLike) return false
+
   const prev = precedingTokens[precedingTokens.length - 1]
   if (prev === '-m') {
     const option = findOption(spec, '-m')
@@ -152,6 +155,7 @@ export async function buildPrefix(
     if (token === '') continue
 
     if (token.startsWith('-')) {
+
       if (token === '-c' && (command.toLowerCase() === 'python' || command.toLowerCase() === 'python3')) {
         break
       }
@@ -162,6 +166,7 @@ export async function buildPrefix(
         continue
       }
       if (hasSubcommands && !foundSubcommand) {
+
         if (optionTakesArgument(spec, token, { hasSubcommands, next: args[i + 1] })) i++
         continue
       }

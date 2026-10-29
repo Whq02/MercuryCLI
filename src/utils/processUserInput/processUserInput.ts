@@ -1,4 +1,3 @@
-
 import { randomUUID, type UUID } from 'node:crypto'
 import type { SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
@@ -49,10 +48,11 @@ export type ProcessUserInputBaseResult = {
   commandError?: string
   nextInput?: string
   submitNextInput?: boolean
+
   commandRefused?: true
+
   hookBlocked?: true
 }
-
 
 type ProcessUserInputOptions = {
   input: string | ContentBlockParam[]
@@ -62,8 +62,10 @@ type ProcessUserInputOptions = {
   context: ProcessUserInputContext
   pastedContents?: Record<number, PastedContent>
   messages: Message[]
+
   setUserInputOnProcessing?: (input: string | undefined) => void
   uuid?: string
+
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
   querySource: QuerySource
@@ -75,7 +77,6 @@ type ProcessUserInputOptions = {
   skipAttachments?: boolean
   isAlreadyProcessing?: boolean
 }
-
 
 export async function processUserInput(
   options: ProcessUserInputOptions,
@@ -177,7 +178,6 @@ export async function processUserInput(
   return { ...base, messages: [...base.messages, ...hookMessages] }
 }
 
-
 function isImageBlock(block: ContentBlockParam): block is ImageBlockParam {
   return (block as { type?: string }).type === 'image'
 }
@@ -201,11 +201,13 @@ async function processUserInputBase(
     isAlreadyProcessing,
   } = options
   let skipSlashCommands = options.skipSlashCommands === true
+
   const imageMetadataTexts: string[] = []
   let normalizedInput: string | ContentBlockParam[] = input
   if (Array.isArray(input)) {
     const processed: ContentBlockParam[] = []
     for (const raw of input) {
+
       let block = raw
       if (isStoredImageRef(raw)) {
         const read = await readStoredImageRef(raw)

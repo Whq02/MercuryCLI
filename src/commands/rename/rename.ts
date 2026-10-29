@@ -15,6 +15,7 @@ export async function call(
   const focusedSessionId = hasFocusedSession() ? getFocusedSessionConnector().sessionId() : null
   let name = (args ?? '').trim()
   if (name === '') {
+
     const messages = context.messages ?? []
     const lastBoundary = messages.reduce(
       (found, message, index) => (isCompactBoundaryMessage(message) ? index : found),
@@ -39,6 +40,7 @@ export async function call(
     onDone('A session name needs visible text.', { display: 'system' })
     return null
   }
+
   if (focusedSessionId !== null) {
     const sessionId = focusedSessionId
     try {
@@ -67,6 +69,7 @@ export async function call(
 
   const sessionId = getSessionId() as UUID
   const transcriptPath = getTranscriptPath()
+
   await saveCustomTitle(sessionId, name, transcriptPath)
   await saveAgentName(sessionId, name, transcriptPath)
   context.setAppState(prev => ({

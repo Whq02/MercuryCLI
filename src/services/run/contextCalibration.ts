@@ -1,15 +1,17 @@
-
 export const CODEC_EPOCHS = Object.freeze({
   anthropic: 1,
   openai: 1,
   zai: 1,
+
   moonshot: 1,
   deepseek: 1,
   xai: 1,
   meta: 1,
   'openai-compat': 1,
+
   openrouter: 1,
   gemini: 1,
+
   huggingface: 1,
   local: 1,
   mistral: 1,
@@ -31,6 +33,7 @@ type CalibrationRoute = keyof typeof CODEC_EPOCHS
 const BASE_CHARS_PER_TOKEN = 4
 
 export function calibrationKeyFor(route: CalibrationRoute | 'unrecognised', model: string): string {
+
   const epoch = CODEC_EPOCHS[route === 'unrecognised' ? 'anthropic' : route]
   return `${route}:${model}:c${epoch}`
 }
@@ -45,6 +48,7 @@ interface CalibrationAggregate {
 }
 
 export const MAX_CALIBRATION_KEYS = 64
+
 const EMA_ALPHA = 0.2
 
 const aggregates = new Map<string, CalibrationAggregate>()

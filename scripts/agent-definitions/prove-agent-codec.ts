@@ -68,6 +68,7 @@ Second paragraph.
   check('color', f.color === 'cyan')
   check('mcpServers preserved', Array.isArray(f.mcpServers) && f.mcpServers.length === 1)
   check('hooks preserved', f.hooks !== undefined)
+
   check('body verbatim', doc.body === 'You are the full agent.\n\nSecond paragraph.\n')
   check('no unknown keys', doc.unknownKeys.length === 0, doc.unknownKeys.join(','))
   check('no error diagnostics', doc.diagnostics.every(d => d.severity !== 'error'),
@@ -211,6 +212,7 @@ const CRLF = '---\r\nname: crlf-agent\r\ndescription: "windows file"\r\nmodel: s
     threw = e instanceof AgentCodecPatchError
   }
   check('nested field patch refuses (raw view owns it)', threw)
+
   const hazard = patchAgentDocument(doc, {
     set: { description: 'globs like **/*.{ts,tsx} and "quotes" and #comment: yes\nline2' },
   })
@@ -312,6 +314,7 @@ const CRLF = '---\r\nname: crlf-agent\r\ndescription: "windows file"\r\nmodel: s
     JSON.stringify(cleanList.fields.tools) === '["Read","Grep"]' &&
       cleanList.diagnostics.every(d => d.severity !== 'error'),
   )
+
   const absent = doc('')
   check(
     'NO tools line ⇒ all tools (fields.tools undefined), no diagnostic',

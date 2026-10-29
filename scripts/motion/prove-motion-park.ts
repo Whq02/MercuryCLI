@@ -43,6 +43,7 @@ check(
 
 const teeDir = mkdtempSync(join(tmpdir(), 'glide-park-'))
 const tee = join(teeDir, 'tee.jsonl')
+
 const run = await runArtifactArena({
   turns: [{ kind: 'text', text: 'REPLY-PARK done.' }],
   sends: ['after:Type a prompt:500:warm up\\r', 'after:REPLY-PARK done.:500:/help\\r', 'after:Mercury — help:19000:\\x1b'],
@@ -71,6 +72,7 @@ check('the help sheet opened as a claims-modal', modal.length >= 1, `frames=${mo
 
 if (modal.length >= 1) {
   const openTs = modal[0]!.ts
+
   const quietFrom = openTs + SHIMMER_GREETING_MS + 1500
   const quietTo = quietFrom + 6000
   const win = recs.filter(r => r.ts >= quietFrom && r.ts <= quietTo)
@@ -83,6 +85,7 @@ if (modal.length >= 1) {
     isModal(recs.filter(r => r.ts <= quietFrom).at(-1) ?? { rows: [] }) && isModal(recs.filter(r => r.ts <= quietTo).at(-1) ?? { rows: [] }) && win.every(isModal) && identical <= 3,
     `identical=${identical} composes=${win.length}`,
   )
+
   const closeFrame = recs.find(r => r.ts > quietTo && !isModal(r))
   check('the help closed (a non-modal compose follows coverage)', closeFrame !== undefined)
   if (closeFrame) {

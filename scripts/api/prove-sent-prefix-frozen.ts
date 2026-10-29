@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -79,12 +80,14 @@ function withoutCacheControl(value: unknown): unknown {
   }
   return value
 }
+
 function wireOf(m: unknown): string {
   const row = m as { message?: { role?: string; content?: unknown } }
   return j(withoutCacheControl({ role: row.message?.role, content: row.message?.content }))
 }
 
 section('§1 the projection law — appended rows extend the view, never rewrite it')
+
 {
   const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
   const { enforceToolResultBudget, createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
@@ -128,6 +131,7 @@ section('§1 the projection law — appended rows extend the view, never rewrite
 }
 
 section('§1b the tool roster freeze (pure) — a latched decision holds; a joiner rides deferred or is held')
+
 {
   const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/services/providers/toolEconomy.ts')
   const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
@@ -172,6 +176,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   check('latched: the first request decided search on; the servers landing leaves the roster byte-identical', p1.enabled && p2.enabled && names(p1) === names(p2), `${names(p1)} → ${names(p2)}`)
   check('THE ROSTER LAW: a deferrable tool rides the roster from the FIRST request (deferred on the wire), never held back for an admission', names(p1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && p1.deferredNames.has('Browser') && !p1.admittedNames.has('Browser'), names(p1))
   check('…the latch records the decision and the names it saw, in order', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.enabled === true && j(toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.names) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']))
+
   const admitted = [user('one'), assistant([{ type: 'tool_use', id: 'toolu_ts', name: TOOL_SEARCH_TOOL_NAME, input: { query: 'browser' } }]), user([{ type: 'tool_result', tool_use_id: 'toolu_ts', content: [{ type: 'tool_reference', tool_name: 'Browser' }] }])]
   const pAdmit = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
   const pAdmit2 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
@@ -188,6 +193,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const lateFull = fakeTool('LateBuiltin')
   const p3b = await plan([search, readTool, deferrable, mcpTool, lateFull], { pending: false, key: 'conv-a' })
   check('a NON-deferrable joiner is held even under a deferring latch (a regular tool added later is an edit)', names(p3b) === names(p3), names(p3b))
+
   const other = [user('another chat')]
   const o1 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, mcpTool] as never, messages: other as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-a' })
   check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8') && o1.deferredNames.has('mcp__srv__late'), names(o1))
@@ -198,17 +204,21 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const m1 = await plan([search, readTool, deferred], { pending: false, key: 'conv-marks' })
   const m2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
   check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('Deferred') && m2.deferredNames.has('Deferred'), `${names(m2)} deferred=${j([...m2.deferredNames])}`)
+
   const lsp = fakeTool('LspTool')
   const lspPlan = (rule: (t: { name: string }) => boolean) =>
     planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferred, lsp] as never, messages: [], getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-lsp', alsoDefer: rule as never })
   const l1 = await lspPlan(t => t.name === 'LspTool')
   const l2 = await lspPlan(() => false)
   check("a lane's own deferral rule is judged once: the tool it deferred at the first request stays deferred when the rule later says no", l1.deferredNames.has('LspTool') && l2.deferredNames.has('LspTool') && names(l2) === names(l1), j([...l2.deferredNames]))
+
   const j1 = await plan([search, readTool, deferred, mcpTool], { pending: false, key: 'conv-marks' })
   const j2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
   check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Deferred', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
+
   const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
   check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
+
   const forkSrc = readFileSync(join(ROOT, 'src', 'utils', 'forkedAgent.ts'), 'utf8')
   const tmSrc = readFileSync(join(ROOT, 'src', 'run-core', 'turn-machine.ts'), 'utf8')
   const compactSrc = readFileSync(join(ROOT, 'src', 'services', 'compact', 'compact.ts'), 'utf8')
@@ -229,6 +239,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   clearToolRosterLatches()
   const s4 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
   check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'Browser', 'LateBuiltin']), names(s4))
+
   const s5 = await plan([search, readTool, late], {})
   check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8') === undefined, names(s5))
 
@@ -245,6 +256,7 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
 }
 
 section('§1c the resume restore (pure) — the first exchange record, then a NEW process re-sends the frozen roster and sections byte for byte')
+
 {
   const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore, pendingToolRosterRestore, conversationRosterKey } =
     await import('../../src/services/providers/toolEconomy.ts')
@@ -280,6 +292,7 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   freshProcess()
   setSystemPromptSectionCacheEntry('mode-vulcan', null, null)
   setSystemPromptSectionCacheEntry('memory', 'the memory as first seen', null)
+
   contextCache.set(undefined, Promise.resolve({ gitStatus: 'the tree as first seen' }))
   const p1 = await doPlan([search, read, browser])
   const names1 = rosterNames(p1)
@@ -475,6 +488,7 @@ if (!existsSync(DIST)) {
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
+
           MERCURY_THINKING_BINDING: 'drop_block',
           ...extraEnv,
         },
@@ -494,6 +508,7 @@ if (!existsSync(DIST)) {
         })
       })
     }
+
     function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; requests?: TurnRequest[] }>): Promise<RunResult> {
       return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, ...(t.before ? { before: t.before } : {}), requests: t.requests ?? [] })) })
     }
@@ -501,6 +516,7 @@ if (!existsSync(DIST)) {
 
     function census(label: string, reqs: ReturnType<FixtureApi['messageRequests']>, expectPrefix: boolean): number[] {
       const diffs: number[] = []
+
       const models = [...new Set(reqs.map(r => String((r.body as Body).model ?? '')))]
       if (expectPrefix) check(`${label}: one model id on the wire across every request (${models.join(' · ') || 'none'})`, reqs.length > 0 && models.length === 1 && models[0] !== '', models.join(' · '))
       for (let i = 1; i < reqs.length; i++) {
@@ -551,6 +567,7 @@ if (!existsSync(DIST)) {
       }
       return diffs
     }
+
     function transcriptNotices(arena: Arena, sessionId: string): string[] {
       const walk = (dir: string): string[] => {
         const out: string[] = []
@@ -663,8 +680,8 @@ if (!existsSync(DIST)) {
       }
     }
 
-
     section('§2 the wire, one process — three turns, a file rewritten on disk between them')
+
     {
       const turns: ScriptedTurn[] = [
         { kind: 'tool_use', name: 'Read', input: {}, thinking: 'plan: read the note' },
@@ -702,6 +719,7 @@ if (!existsSync(DIST)) {
     }
 
     section('§3 the wire, across a resume — the same @-mentioned file, rewritten between processes')
+
     {
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S3-TURN-1-DONE', thinking: 'read the mention', inputTransformations: [] },
@@ -729,6 +747,7 @@ if (!existsSync(DIST)) {
     }
 
     section('§4 the control — compaction moves the prefix lawfully; the receipt names it')
+
     {
       const DROP = { type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }
       const turns: ScriptedTurn[] = [
@@ -750,6 +769,7 @@ if (!existsSync(DIST)) {
       check('three message requests: the fat turn, the summary, the post-compaction turn', reqs.length === 3, String(reqs.length))
       const diffs = census('§4', reqs, false)
       check('the post-compaction request starts from a rewritten messages[0] (the lawful change)', diffs[1] === 0, j(diffs))
+
       const notices = transcriptNotices(arena, SID)
       check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
       const notice = notices[0] ?? ''
@@ -761,11 +781,13 @@ if (!existsSync(DIST)) {
     }
 
     section('§5 a model switch — the previous model\'s thinking leaves the requests, one quiet receipt; same-model spellings never read as a switch')
+
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const thinkingBlocksOf = (body: Body): number =>
       ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
     const switchArgs = (model: string): string[] => ['--model', model, '--allowed-tools', 'Read']
     {
+
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S5-OPUS-1', thinking: 'opus one', model: 'claude-opus-4-8' },
         { kind: 'text', text: 'S5-OPUS-2', thinking: 'opus two', model: 'claude-opus-4-8' },
@@ -790,6 +812,7 @@ if (!existsSync(DIST)) {
       check('…and its text and tool turns are intact (the opus answers still ride)', q3 !== undefined && j(q3.messages).includes('S5-OPUS-1') && j(q3.messages).includes('S5-OPUS-2'))
       check('the second fable request carries only the fable thinking (one block), the opus blocks still out', q4 !== undefined && thinkingBlocksOf(q4) === 1 && j(q4.messages).includes('fable one'), String(q4 && thinkingBlocksOf(q4)))
       check('the fable requests keep the shared prefix byte-identical (the strip is stable across requests)', q3 !== undefined && q4 !== undefined && j(withoutCacheControl((q3.messages ?? []).slice(0, (q3.messages ?? []).length))) === j(withoutCacheControl((q4.messages ?? []).slice(0, (q3.messages ?? []).length))))
+
       const debugLines = (file: string): string[] => { try { return readFileSync(file, 'utf8').split('\n').filter(l => l.includes('preserved thinking: Preserved thinking')) } catch { return [] } }
       const receipts3 = debugLines(debug3)
       const receipts4 = debugLines(debug4)
@@ -802,6 +825,7 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
     {
+
       const legs: Array<{ label: string; spellings: string[]; wire: string }> = [
         { label: 'Claude Fable 5.1', spellings: ['claude-fable-5-1', 'fable51', 'claude-fable-5-1[1m]'], wire: 'claude-fable-5-1' },
         { label: 'Claude Opus 5', spellings: ['claude-opus-5', 'opus5', 'claude-opus-5[1m]'], wire: 'claude-opus-5' },
@@ -820,6 +844,7 @@ if (!existsSync(DIST)) {
         check(`${leg.label}: three requests, one wire id (${leg.wire}) whatever the spelling`, reqs.length === 3 && reqs.every(r => (r.body as Body).model === leg.wire), reqs.map(r => String((r.body as Body).model)).join(' · '))
         const last = reqs[2]?.body as Body | undefined
         check(`${leg.label}: the last request replays both earlier thinking blocks (no spelling read as a switch)`, last !== undefined && thinkingBlocksOf(last) === 2, String(last && thinkingBlocksOf(last)))
+
         census(`§5 ${leg.wire}`, reqs, true)
         const q3 = reqs[2]?.body as Body | undefined
         check(`${leg.label} [1m]: the system prompt names no engine and never the window suffix`, q3 !== undefined && !systemTextOf(q3).includes('the model you run through Mercury is') && !systemTextOf(q3).includes(leg.wire) && !systemTextOf(q3).includes('[1m]') && !systemTextOf(q3).includes('1M context'), systemTextOf(q3).slice(0, 200))
@@ -829,9 +854,11 @@ if (!existsSync(DIST)) {
     }
 
     section('§6 the Godot control section — read from the filesystem, frozen for the conversation')
+
     const toolNamesOf = (body: Body): string[] => (Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => String(t.name)) : [])
     const godotProject = '; Engine configuration file.\nconfig_version=5\n\n[application]\n\nconfig/name="Fixture"\n'
     {
+
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S6A-TURN-1', thinking: 'godot a 1', inputTransformations: [] },
         { kind: 'tool_use', name: 'ToolSearch', input: { query: 'select:Godot' }, thinking: 'godot a lookup' },
@@ -852,8 +879,10 @@ if (!existsSync(DIST)) {
       check('§6a five message requests (turn 2 carries the lookup round and the Godot round)', reqs.length === 5, String(reqs.length))
       census('§6a', reqs, true)
       check('§6a the section stays absent (no project at the first request)', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface')), reqs.map(q => systemTextOf(q.body as Body).includes('Godot control surface')).join(','))
+
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
       check('§6a the Godot tool is offered from the FIRST request (the flag alone seats it) and on every request across the project\'s birth', reqs.every(offersGodot), reqs.map(offersGodot).join(','))
+
       const messagesTextOf = (q: { body: unknown }): string => j((q.body as Body).messages ?? [])
       const cwdTail = arena.cwd.slice(arena.cwd.lastIndexOf('/') + 1)
       check('§6a the Godot tool answered vulcan_status for the project born mid-session (callable at once, no compaction needed)', reqs.slice(3).some(q => messagesTextOf(q).includes('flag: armed') && messagesTextOf(q).includes(`project: `) && messagesTextOf(q).includes(cwdTail)), reqs.slice(3).map(q => messagesTextOf(q).includes('flag: armed')).join(','))
@@ -861,6 +890,7 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
     {
+
       const turns: ScriptedTurn[] = [1, 2, 3].map(n => ({ kind: 'text' as const, text: `S6B-TURN-${n}`, thinking: `godot b ${n}`, inputTransformations: [] }))
       const fixture = await startFixtureApi(turns)
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
@@ -875,12 +905,14 @@ if (!existsSync(DIST)) {
       const reqs = mainRequests(fixture)
       check('§6b three message requests', reqs.length === 3, String(reqs.length))
       census('§6b', reqs, true)
+
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
       check('§6b the section rides every request (present at the first one), the Godot tool offered on every request', reqs.length === 3 && reqs.every(q => systemTextOf(q.body as Body).includes('Godot control surface') && offersGodot(q)), reqs.map(q => `${systemTextOf(q.body as Body).includes('Godot control surface')}/${offersGodot(q)}`).join(','))
       await fixture.close()
     }
 
     section('§6c the resume road — a gate that flips between two processes never rewrites the frozen prefix (the operator\'s Godot session, on the real binding check)')
+
     const transcriptText = (arena: Arena, sessionId: string): string => {
       const files: string[] = []
       const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${sessionId}.jsonl`) files.push(f) } }
@@ -897,6 +929,7 @@ if (!existsSync(DIST)) {
       const r1 = await run(arena, ['run', 'start a game', ...common, '--session-id', SID])
       check('§6c turn 1 (the flag off, no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       check('§6c the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
+
       arena.env.MERCURY_GODOT_TOOLS = '1'
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const r2 = await run(arena, ['run', 'inspect the scene', ...common, '--resume', SID])
@@ -913,6 +946,7 @@ if (!existsSync(DIST)) {
     }
 
     section('§6d the resume road — the git-status snapshot (the last system block) never rewrites across two processes; a tree that moved reaches the model on a new row')
+
     {
       const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6D-T${n}`, thinking: `tree ${n}` }))
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
@@ -930,6 +964,7 @@ if (!existsSync(DIST)) {
       const sysA = systemTextOf(reqs1[0]!.body as Body)
       check('§6d the first request appended the git-status snapshot as its last system block', sysA.includes('gitStatus:'), sysA.slice(-200))
       check('§6d the record carries that snapshot', /"systemContext":\{"gitStatus":/.test(transcriptText(arena, SID)) || transcriptText(arena, SID).includes('"gitStatus"'), transcriptText(arena, SID).includes('bound_prefix') ? 'record present, snapshot absent' : 'no record')
+
       writeFileSync(join(arena.cwd, 'notes.txt'), 'saved between the turns\n')
       const r2 = await run(arena, ['run', 'and now?', ...common, '--resume', SID])
       check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
@@ -973,9 +1008,11 @@ if (!existsSync(DIST)) {
     }
 
     section("§7 the six-request proof — two admissions, apollo→flow, sub-agents off, an effort change, then a compaction: the prefix never moves until the fold; every deferral mark and the summariser's array ride frozen")
+
     {
       const summary = 'S7 SUMMARY needle: the session found the fetch and browser tools, switched to flow, turned sub-agents off and lowered the effort.'
       const turns: ScriptedTurn[] = [
+
         { kind: 'text', text: 'S7-T1', thinking: 's7 one', model: 'claude-fable-5-1' },
         { kind: 'tool_use', name: 'ToolSearch', input: { query: 'WebFetch' }, thinking: 's7 lookup one', model: 'claude-fable-5-1' },
         { kind: 'text', text: 'S7-T2', thinking: 's7 two', model: 'claude-fable-5-1' },
@@ -987,14 +1024,18 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: summary, model: 'claude-fable-5-1' },
         { kind: 'text', text: 'S7-T7', thinking: 's7 seven (after the fold)', model: 'claude-fable-5-1' },
       ]
+
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
       const arena = makeArena(fixture, {
         MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9',
+
         MERCURY_CONCOURSE_WORKER: '1',
+
         MERCURY_TOOL_SEARCH: 'tst',
       })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0fa'
       const debugFile = join(arena.home, 's7.debug.log')
+
       mkdirSync(join(arena.home, 'daemon'), { recursive: true })
       writeFileSync(join(arena.home, 'daemon', 'concourse-workers.json'), JSON.stringify({
         version: 1,
@@ -1004,6 +1045,7 @@ if (!existsSync(DIST)) {
       }))
       const r = await runStreaming(
         arena,
+
         ['--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'start the interview' },
@@ -1019,23 +1061,28 @@ if (!existsSync(DIST)) {
       check('§7 every turn answered around the lookups and the fold', ['S7-T1', 'S7-T2', 'S7-T3', 'S7-T4', 'S7-T5', 'S7-T6', 'S7-T7'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
       const reqs = mainRequests(fixture)
       check('§7 ten message requests (seven turns, two lookup rounds, one summary)', reqs.length === 10, String(reqs.length))
+
       const beforeFold = reqs.slice(0, 9)
       census('§7 before the fold', beforeFold, true)
       const foldPair = reqs.slice(8, 10)
       const foldDiffs = census('§7 the fold', foldPair, false)
       check('§7 the post-compaction request starts from a rewritten messages[0] (the one lawful change)', foldDiffs[0] === 0, j(foldDiffs))
+
       const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
       const dropLines = debug.split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
       check('§7 the API-faithful fixture dropped nothing on any request of the session (zero drop lists)', dropLines.length === 0 && !r.stdout.includes('thinking_dropped'), `${dropLines.length} drop line(s)`)
       const notices = transcriptNotices(arena, SID)
       check('§7 no receipt at all — no defect row, no mode row, nothing lawful to report either', notices.length === 0, j(notices))
+
       check('§7 the apollo-born first request lists ApolloReview (deferred, like every deferrable tool)', toolNamesOf(reqs[0]!.body as Body).includes('ApolloReview'), toolNamesOf(reqs[0]!.body as Body).join(','))
+
       const toolsOf = (q: { body: unknown }): Array<{ name?: string; defer_loading?: boolean }> => (Array.isArray((q.body as Body).tools) ? ((q.body as Body).tools as Array<{ name?: string; defer_loading?: boolean }>) : [])
       const first = toolsOf(reqs[0]!)
       check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')))
       check('§7 the Crewmate tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[6]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[8]!).some(t => t.name === 'Crewmate'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Crewmate')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Crewmate')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Crewmate')}`)
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
+
       const rows = (() => {
         const dir = join(arena.home, '.mercury', 'projects')
         const files: string[] = []
@@ -1044,6 +1091,7 @@ if (!existsSync(DIST)) {
         return files.map(f => readFileSync(f, 'utf8')).join('\n')
       })()
       check('§7 the apollo pack rode a persisted mode_pack row and left through a mode_pack_exit row (never the system prompt)', rows.includes('"attachmentType":"mode_pack"') && rows.includes('"attachmentType":"mode_pack_exit"') && !systemTextOf(reqs[0]!.body as Body).includes('Apollo Mode'), `${rows.includes('"attachmentType":"mode_pack"')}/${rows.includes('"attachmentType":"mode_pack_exit"')}`)
+
       const marksOf = (q: { body: unknown }): string => toolsOf(q).map(t => `${t.name}${t.defer_loading === true ? '+' : '-'}`).join(' ')
       console.log(`    §7 tools per request: ${reqs.map((q, i) => `${i + 1}:${toolsOf(q).length}`).join(' ')}`)
       for (let i = 1; i < beforeFold.length; i++) {
@@ -1056,6 +1104,7 @@ if (!existsSync(DIST)) {
       const crewMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^Crewmate[+-]$/.test(m)).join(' ')
       check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
       check('§7 after the toggle the crew tool (Agent) is still listed with its mark byte-identical to the first request (the mark travels with the definition)', crewMarks(reqs[6]!) !== '' && crewMarks(reqs[6]!) === crewMarks(reqs[0]!), `${crewMarks(reqs[0]!)} → ${crewMarks(reqs[6]!)}`)
+
       const summariser = reqs[8]!
       check("§7 the fold took the cache-sharing fork road (the field's road on Fable 5.1)", debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
       check("§7 the summariser's tools array is the conversation's, byte for byte (the fork rides the parent's frozen roster)", j(withoutCacheControl((summariser.body as Body).tools)) === j(withoutCacheControl((reqs[7]!.body as Body).tools)) && marksOf(summariser) === marksOf(reqs[7]!), `${toolsOf(summariser).length} vs ${toolsOf(reqs[7]!).length} tools; summariser ${crewMarks(summariser)} vs conversation ${crewMarks(reqs[7]!)}`)
@@ -1064,6 +1113,7 @@ if (!existsSync(DIST)) {
     }
 
     section('§8 a model switch mid-conversation continues — Fable 5.1 → Opus 5 → Fable 5.1 with thinking and tool turns between: every request legal, one quiet receipt per switch, prefixes frozen')
+
     {
       const FABLE = 'claude-fable-5-1'
       const OPUS = 'claude-opus-5'
@@ -1077,6 +1127,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'S8-F3', thinking: 'fable three', model: FABLE },
         { kind: 'text', text: 'S8-F4', thinking: 'fable four', model: FABLE },
       ]
+
       const fixture = await startFixtureApi(turns, { bindingCheck: true, apiChecks: true })
       const arena = makeArena(fixture, { MERCURY_TOOL_SEARCH: 'tst' })
       const notePath = join(arena.cwd, 'note.txt')
@@ -1103,6 +1154,7 @@ if (!existsSync(DIST)) {
       check('§8 eight message requests (two tool rounds) and NOT ONE refused by the API\'s own checks', reqs.length === 8 && fixture.refusals.length === 0, `${reqs.length} requests; refusals=${j(fixture.refusals)}`)
       const bodies = reqs.map(q => q.body as Body)
       check('§8 the wire model follows the switch: fable · fable · fable · opus · opus · opus · fable · fable', j(bodies.map(b => b.model)) === j([FABLE, FABLE, FABLE, OPUS, OPUS, OPUS, FABLE, FABLE]), j(bodies.map(b => b.model)))
+
       const opusFirst = reqs[3]!
       const opusBody = opusFirst.body as Body & { max_tokens?: number; output_config?: unknown; betas?: unknown }
       const assistantShapes = ((opusBody.messages ?? []) as Array<{ role?: string; content?: unknown }>).filter(m => m.role === 'assistant').map(m => (Array.isArray(m.content) ? (m.content as Block[]).map(b => b.type).join('+') : typeof m.content))
@@ -1111,9 +1163,11 @@ if (!existsSync(DIST)) {
       check('§8 max_tokens on the Opus request is within its cap (the switch re-resolves the target\'s limits)', typeof opusBody.max_tokens === 'number' && opusBody.max_tokens <= 128_000, String(opusBody.max_tokens))
       const fableBack = reqs[6]!.body as Body
       check('§8 back on Fable: the Opus thinking is stripped and the Fable blocks from before the switch replay (three: two turns plus the tool round)', thinkingBlocksOf(fableBack) === 3 && j(fableBack.messages).includes('fable one') && j(fableBack.messages).includes('fable reads') && !j(fableBack.messages).includes('opus one'), String(thinkingBlocksOf(fableBack)))
+
       census('§8 fable', reqs.slice(0, 3), true)
       census('§8 opus', reqs.slice(3, 6), true)
       census('§8 fable again', reqs.slice(6, 8), true)
+
       const crossSwitch = census('§8 across the switch', [reqs[2]!, reqs[3]!], false)
       console.log(`    §8 across the switch: first messages diff at ${j(crossSwitch)} (the thinking strip; not prefix)`)
       const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
@@ -1126,24 +1180,30 @@ if (!existsSync(DIST)) {
     }
 
     section("§9 a running sub-agent through the main's fold — its own prefix never moves, the API-faithful fixture drops nothing under the error behaviour, and its landing during the fold is delivered once, after the boundary")
+
     {
       const FABLE = 'claude-fable-5-1'
+
       const SEAT_ALIAS = 'opus'
       const { ALL_MODEL_CONFIGS, newestGenerationKey } = await import('../../src/utils/model/configs.ts')
       const SEAT = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
       const SEAT_DESCRIPTION = 'prefix-seat'
       const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
       const turns: ScriptedTurn[] = [
+
         { kind: 'tool_use', name: 'Crewmate', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', crewmate_type: 'mercury-crew', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
+
         { kind: 'paced', deltas: [summary], gapMs: 0, startDelayMs: 7000, whenModel: 'fable' },
         { kind: 'text', text: 'S9-POST', thinking: 's9 after the fold', model: FABLE, whenModel: 'fable' },
         { kind: 'text', text: 'S9-NOTED', thinking: 's9 noted', model: FABLE, whenModel: 'fable' },
+
         { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat one', model: SEAT, whenModel: 'opus' },
         { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat two', model: SEAT, whenModel: 'opus' },
         { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat three', model: SEAT, whenModel: 'opus' },
         { kind: 'text', text: 'S9-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'opus' },
       ]
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
+
       const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error', MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0fc'
       const debugFile = join(arena.home, 's9.debug.log')
@@ -1166,12 +1226,16 @@ if (!existsSync(DIST)) {
       const summaryIndex = reqs.findIndex(q => modelOf(q).includes('fable') && j((q.body as Body).messages).includes('Reply with prose only'))
       const postIndex = reqs.findIndex((q, i) => i > summaryIndex && modelOf(q).includes('fable'))
       const seatIndexes = reqs.map((q, i) => (modelOf(q).includes('opus') ? i : -1)).filter(i => i >= 0)
+
       check("§9 the seat's rounds ran through the fold (two or more seat requests between the summary request and the post-fold request)", summaryIndex > 0 && postIndex > summaryIndex && seatIndexes.filter(i => i > summaryIndex && i < postIndex).length >= 2, `summary@${summaryIndex + 1} post@${postIndex + 1} seat@${seatIndexes.map(i => i + 1).join(',')}`)
+
       census('§9 the seat', seatReqs, true)
       const seatLast = seatReqs[seatReqs.length - 1]?.body as Body | undefined
       check("§9 the seat's last request replays its own thinking blocks under the prefix law (a crewmate keeps the thinking its parent runs with; the assembler strips nothing it declared)", seatLast !== undefined && thinkingBlocksOf(seatLast) >= 1, String(seatLast && thinkingBlocksOf(seatLast)))
       check('§9 the API-faithful fixture REFUSED nothing under the error behaviour (0 dropped blocks, 0 refusals) — the seat never saw a rewritten prefix', fixture.refusals.length === 0 && !debugText.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped'), j(fixture.refusals))
+
       check("§9 every one of the main's requests carried the error behaviour on the wire", mainReqs.every(q => (q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior === 'error'), reqs.map(q => String((q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior)).join(','))
+
       const lastSeatIndex = seatIndexes[seatIndexes.length - 1] ?? -1
       check("§9 the seat's final request landed during the fold (before the post-fold request)", lastSeatIndex > summaryIndex && lastSeatIndex < postIndex, `seat last@${lastSeatIndex + 1} post@${postIndex + 1}`)
       const noticeReqs = mainReqs.filter(q => {
@@ -1191,6 +1255,7 @@ if (!existsSync(DIST)) {
     }
 
     section("§10 a three-agent dispatch — the sent tool_use blocks are byte-identical on every later request of the main, whatever the launches resolved")
+
     for (const background of [true, false]) {
       const FABLE = 'claude-opus-5'
       const SEAT_ALIAS = 'sonnet'
@@ -1201,7 +1266,9 @@ if (!existsSync(DIST)) {
         input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, crewmate_type: 'mercury-crew', run_in_background: background, model: SEAT_ALIAS },
       })
       const turns: ScriptedTurn[] = [
+
         { kind: 'paced_tool_use', preDeltas: ['Dispatching the first wave of three agents.'], gapMs: 0, tools: [seatCall(1), seatCall(2), seatCall(3)], whenModel: 'opus' },
+
         { kind: 'text', text: 'S10-DISPATCHED', thinking: 's10 dispatched', model: FABLE, whenModel: 'opus' },
         { kind: 'text', text: 'S10-NOTED-1', thinking: 's10 noted one', model: FABLE, whenModel: 'opus' },
         { kind: 'text', text: 'S10-NOTED-2', thinking: 's10 noted two', model: FABLE, whenModel: 'opus' },
@@ -1209,6 +1276,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'S10-NOTED-4', thinking: 's10 noted four', model: FABLE, whenModel: 'opus' },
         { kind: 'text', text: 'S10-NOTED-5', thinking: 's10 noted five', model: FABLE, whenModel: 'opus' },
         { kind: 'text', text: 'S10-NOTED-6', thinking: 's10 noted six', model: FABLE, whenModel: 'opus' },
+
         { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
         { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
         { kind: 'text', text: 'S10-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'sonnet' },
@@ -1231,6 +1299,7 @@ if (!existsSync(DIST)) {
       const seatReqs = reqs.filter(q => modelOf(q).includes('sonnet'))
       console.log(`    §10 ${tag} wire order: ${reqs.map((q, i) => `${i + 1}:${modelOf(q).includes('sonnet') ? 'seat' : 'main'}`).join(' ')}`)
       check(`§10 ${tag}: three seat requests and at least three from the main (the dispatch, the answer after the launches, the notices)`, seatReqs.length === 3 && mainReqs.length >= 3, `main ${mainReqs.length}; seat ${seatReqs.length}`)
+
       const dispatchRowOf = (q: { body: unknown }): { index: number; row: unknown } | null => {
         const messages = ((q.body as Body).messages ?? []) as Array<{ role?: string; content?: unknown }>
         for (let i = 0; i < messages.length; i++) {

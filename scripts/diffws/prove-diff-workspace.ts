@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -11,6 +12,7 @@ const BIN = join(REPO, 'dist/mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
 const FIX = join(REPO, '.mercury', 'proof-fixtures', 'diffws', 'fx')
 const SID = 'd1ffd1ff-2222-4222-8222-222222222222'
+
 const CONFIG_HOME = resolveProofHome([FIX])
 
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -22,7 +24,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-
 function git(...args: string[]): void {
   execFileSync('git', args, { cwd: FIX, stdio: 'ignore' })
 }
@@ -33,18 +34,24 @@ function buildFixture(): void {
   git('init', '-q')
   git('config', 'user.email', 'fixture@mercury.local')
   git('config', 'user.name', 'fixture')
+
   writeFileSync(join(FIX, '.gitignore'), '.mercury/\n')
 
   const multiBase = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a-multi`).join('\n')
   writeFileSync(join(FIX, 'a-multi.ts'), multiBase + '\n')
+
   for (let i = 1; i <= 8; i++) {
     writeFileSync(join(FIX, `file-${i}.ts`), `export const v${i} = ${i}\nexport const w${i} = ${i}\n`)
   }
+
   const deepDir = join(FIX, 'deep/nested/very/long/path/of/many/segments')
   mkdirSync(deepDir, { recursive: true })
   writeFileSync(join(deepDir, 'component-with-a-long-name.ts'), 'export const deep = 1\n')
+
   writeFileSync(join(FIX, 'bin.dat'), Buffer.from([0, 1, 2, 3, 0, 255, 254]))
+
   writeFileSync(join(FIX, 'b-large.txt'), 'large line\n'.repeat(110_000))
+
   writeFileSync(
     join(FIX, 'c-trunc.txt'),
     Array.from({ length: 500 }, (_, i) => `trunc ${i}`).join('\n') + '\n',
@@ -142,6 +149,7 @@ function buildFixture(): void {
       timestamp: '2026-07-12T10:00:04.000Z',
     }),
   ]
+
   writeFileSync(join(PROJ_DIR, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
 }
 
@@ -150,8 +158,8 @@ function cleanupFixture(): void {
   rmSync(PROJ_DIR, { recursive: true, force: true })
 }
 
-
 type Cell = { c: string }
+
 function tempoSends(
   sends: Array<{ atTick: number; data: string }>,
 ): Array<Record<string, unknown>> {
@@ -161,6 +169,7 @@ function tempoSends(
     { afterPrevTicks: 3, data: sends[1]!.data },
   ]
   for (let i = 2; i < sends.length; i++) {
+
     if (i === 2)
       out.push({ ...sends[i]!, awaitText: 'uncommitted (HEAD)', minTick: 8, awaitSettleTicks: 3 })
     else
@@ -189,6 +198,7 @@ function capture(
       cwd: FIX,
       sends: tempoSends(sends),
       total,
+
       stableTicks: 6,
       cols,
       rows,
@@ -202,6 +212,7 @@ function capture(
       ...process.env,
       MERCURY_LIVE_GLYPHS: '0',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
+
       VISUAL: '',
       EDITOR: '',
       ...extraEnv,
@@ -243,6 +254,7 @@ try {
       list.some(l => /↓ \d+ more/.test(l)) || list.filter(l => /file-\d\.ts/.test(l)).length >= 8,
     )
     check('truncated posture renders', list.some(l => l.includes('(truncated)')))
+
     check('c copy-path hint present', list.some(l => l.includes('c copy path')))
   }
 
@@ -291,6 +303,7 @@ try {
   }
 
   console.log('\n── sources: ←/→ + path-stable carry ─────────────────────────')
+
   const turn = capture(
     'turn',
     [
@@ -300,6 +313,7 @@ try {
       { atTick: 64, data: '\x1b[B' },
       { atTick: 67, data: '\x1b[B' },
       { atTick: 70, data: '\x1b[B' },
+
       { atTick: 75, data: '\x1b[C' },
       { atTick: 79, data: '\x1b[C' },
       { atTick: 83, data: '\x1b[C' },
@@ -350,6 +364,7 @@ try {
   if (folded) {
     check('80-col: the summary FOLDS below the list (path + facts present)', folded.some(l => l.includes('hunks')) && folded.some(l => l.includes('a-multi.ts')))
   }
+
   const narrow = capture('narrow-floor', [...OPEN, { atTick: 58, data: '\r' }], 78, {}, 80, 22)
   if (narrow) {
     check('floor detail: the label keeps the filename', narrow.some(l => l.includes('a-multi.ts')))

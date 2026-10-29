@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, useInput } from '../ink.js'
 import { EXIT_CHORD_WINDOW_MS, useDoublePress } from '../hooks/useDoublePress.js'
@@ -18,6 +17,7 @@ export function SurfaceExitChord({ onPendingChange }: { onPendingChange: (pendin
     EXIT_CHORD_WINDOW_MS,
   )
   useInput((input, key) => {
+
     if (key.ctrl && input === 'c') press()
   })
   return null

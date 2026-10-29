@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react'
 
 export function useMinDisplayTime<T>(value: T, minMs: number): T {

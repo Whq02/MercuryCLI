@@ -41,12 +41,14 @@ if (!existsSync(BIN)) {
     out,
     cwd: process.cwd(),
     sends: [
+
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'go\r' },
       { atTick: 999, awaitText: 'chunk-150 ', minTick: 2, awaitSettleTicks: 1, data: '\u001b[5~' },
       { requireAwait: true, awaitText: 'chunk-80 ', awaitStableTicks: 2, awaitStableRegion: [24, 5, 119, 32], data: '\u001b[5~' },
       { requireAwait: true, awaitText: 'chunk-30 ', awaitStableTicks: 2, awaitStableRegion: [24, 5, 119, 32], data: '', mark: 'anchorA' },
       { afterPrevTicks: 20, data: '', mark: 'anchorB' },
+
       { afterPrevTicks: 2, data: '\u001b[1;5F' },
       { atTick: 999, awaitText: 'chunk-190 ', minTick: 2, awaitSettleTicks: 1, data: '', mark: 'tail' },
     ],
@@ -74,6 +76,7 @@ if (!existsSync(BIN)) {
   let driverOut = ''
   child.stdout.on('data', (d: Buffer) => (driverOut += String(d)))
   child.stderr.on('data', (d: Buffer) => (driverOut += String(d)))
+
   const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(200_000))
   const status = await new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
   clearTimeout(killer)

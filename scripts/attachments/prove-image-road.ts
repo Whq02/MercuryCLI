@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -192,11 +193,13 @@ section('§4 the JavaScript road\'s codec')
   check('encodes a PNG sharp reads back at 400x300', reread.format === 'png' && reread.width === 400 && reread.height === 300)
   const roundTrip = jsRoad.decodePng(jsRoad.encodePng(decodedRgba))
   check('a PNG round trip is lossless', Buffer.from(roundTrip.data).equals(Buffer.from(decodedRgba.data)))
+
   const bmp = Buffer.concat([
     Buffer.from([0x42, 0x4d, 70, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     Buffer.from([0, 0, 255, 255, 255, 255, 0, 0, 255, 0, 0, 0, 255, 0, 0, 0]),
   ])
   const decodedBmp = jsRoad.decodeBmp(bmp)
+
   check(
     'decodes a 24-bit BMP (bottom-up rows, BGR order)',
     decodedBmp.width === 2 &&
@@ -233,6 +236,7 @@ section('§4 the JavaScript road\'s codec')
 
 section('§4b the last-resort read advertises the type of the bytes it returns')
 {
+
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   const { readImageWithTokenBudget } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
   const grain = await sharp({ create: { width: 800, height: 600, channels: 3, noise: { type: 'gaussian', mean: 128, sigma: 60 } } }).png().toBuffer()
@@ -278,6 +282,7 @@ section('§5 one file per paste, the by-reference block, the missing words, the 
   check('a file that has gone is said in words that name the path', gone?.kind === 'missing' && gone.words.includes(pathOne ?? '?') && /\[Image #1\]/.test(gone.words), gone?.kind === 'missing' ? gone.words : '')
   check('…and the chip\'s state says so', store.storedImageState(1)?.present === false)
   check('a reference for a paste whose file is absent is null (the body rides instead)', store.storedImageRefBlock(one) === null)
+
   const base = join(HOME, 'image-cache')
   const old = join(base, 'other-old')
   const fresh = join(base, 'other-fresh')

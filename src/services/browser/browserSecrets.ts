@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'node:child_process'
 import { createHmac, randomUUID } from 'node:crypto'
 import * as fs from 'node:fs'
@@ -9,6 +8,7 @@ import { readKeychainServiceSync } from '../../utils/secureStorage/macOsKeychain
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
 const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
+
 export const BROWSER_SECRET_REF_GRAMMAR = /^[A-Z][A-Z0-9_]{0,63}$/
 const BROWSER_SECRETS_FILENAME = 'browser-secrets.json'
 

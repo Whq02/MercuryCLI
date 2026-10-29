@@ -12,12 +12,14 @@ type Props = {
 
 function MercuryCostThreshold({ onDone }: Props): React.ReactNode {
   const cost = getFocusedSessionConnector().usage().totalCostUSD
+
   const tokens = useMercuryTokens()
   return (
     <CommandCenter
       view="cost threshold"
       footer="↵ acknowledge to continue · esc close"
       onClose={onDone}
+
       captureInput={true}
     >
       <Box flexDirection="column" marginTop={1}>
@@ -43,5 +45,6 @@ function MercuryCostThreshold({ onDone }: Props): React.ReactNode {
 }
 
 export function CostThresholdDialog({ onDone }: Props): React.ReactNode {
+
   return <MercuryCostThreshold onDone={onDone} />
 }

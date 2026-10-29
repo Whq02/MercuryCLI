@@ -115,15 +115,14 @@ import './services/resources/adapters/service.js'
 import './services/resources/adapters/structure.js'
 import './services/resources/adapters/test.js'
 import './services/resources/adapters/ide.js'
+
 import './services/resources/adapters/mission.js'
 import './services/resources/adapters/project.js'
 import './services/resources/adapters/repo.js'
 import './services/resources/adapters/transcript.js'
 import './services/resources/adapters/workbench.js'
 
-
 export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
-
 
 function cycleTolerant<T>(get: () => T): T | undefined {
   try {
@@ -132,7 +131,6 @@ function cycleTolerant<T>(get: () => T): T | undefined {
     return undefined
   }
 }
-
 
 const SCHEDULING_ENABLED_AT_LOAD = !isEnvTruthy(flagEnv('MERCURY_SATURN_DISABLE'))
 
@@ -191,6 +189,7 @@ export function getAllBaseTools(): Tools {
     ...(jevEvalEnabled() ? [JevEvalTool] : []),
     ...(advisorEnabled() ? [AskAdvisorTool] : []),
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
+
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
     cycleTolerant(() => ResumeAgentTool),
@@ -201,6 +200,7 @@ export function getAllBaseTools(): Tools {
       : []),
     MONITOR_TOOL,
     ContextLeftTool,
+
     ...(contractToolHosted() ? [ContractTool] : []),
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
@@ -212,6 +212,7 @@ export function getAllBaseTools(): Tools {
     ...(isToolSearchEnabledOptimistic() ? [ToolSearchTool] : []),
     DocumentTool,
   ]
+
   return tools.filter((tool): tool is Tool => Boolean(tool))
 }
 
@@ -225,6 +226,7 @@ export function filterToolsByDenyRules<T extends { name: string; mcpInfo?: unkno
 function wholeToolDenyRuleFor(tool: { name: string; mcpInfo?: unknown }, permissionContext: ToolPermissionContext): PermissionRule | null {
   const rule = getDenyRuleForTool(permissionContext, tool as never)
   if (!rule) return null
+
   return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null ? null : rule
 }
 

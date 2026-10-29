@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import {
   DECOR_TICK_MS,
@@ -87,6 +88,7 @@ check(
   `${TWINKLE_MS} > ${DECOR_TICK_MS}`,
 )
 {
+
   let allPhasesSee = true
   for (let phase = 0; phase < DECOR_TICK_MS; phase += 7) {
     let saw = false
@@ -98,6 +100,7 @@ check(
   check('every sampler phase sees the glint at least once per cycle', allPhasesSee)
 }
 {
+
   let minRun = Infinity
   let runStart = 0
   let prev = readyBucket(0)
@@ -109,6 +112,7 @@ check(
       prev = b
     }
   }
+
   check(
     `READY bucket dwell ≥ its own tick (no rendered step skipped)`,
     minRun >= READY_TICK_MS,

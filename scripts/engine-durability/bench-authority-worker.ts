@@ -205,6 +205,7 @@ function parseWorkload(spec) {
 }
 
 function foldLogLines(raw) {
+
   const lines = raw.split('\n')
   if (lines[lines.length - 1] === '') lines.pop()
   let torn = 0
@@ -240,9 +241,9 @@ function foldLogLines(raw) {
 }
 
 function sqliteOpen(db) {
+
   return import('node:sqlite').then(m => new m.DatabaseSync(db))
 }
-
 
 async function modeProbeFsync() {
   const file = within(argv[1])
@@ -319,6 +320,7 @@ async function makeCommitter(armSpec, workload, dir) {
   if (arm === 'S') {
     const r = await loadReal()
     if (w.kind === 'mailbox') {
+
       const store = r.defineStore({
         name: 'bench-mailbox',
         path: p => p,
@@ -354,6 +356,7 @@ async function makeCommitter(armSpec, workload, dir) {
       }
     }
     if (w.kind === 'sidecar') {
+
       const path = within(join(dir, 'bench.run.json'))
       const snapshot = makeRunSnapshot('bench-owner')
       let writeSeq = 0
@@ -370,6 +373,7 @@ async function makeCommitter(armSpec, workload, dir) {
       }
     }
     if (w.kind === 'task') {
+
       const tasksDir = within(join(dir, 'tasks'))
       mkdirSync(tasksDir, { recursive: true })
       const lockTarget = join(tasksDir, '.lock')
@@ -465,6 +469,7 @@ async function makeCommitter(armSpec, workload, dir) {
   }
 
   if (arm === 'C') {
+
     const log = within(join(dir, 'events.jsonl'))
     let localSeq = 0
     const makeLine = () => {
@@ -493,6 +498,7 @@ async function makeCommitter(armSpec, workload, dir) {
   }
 
   if (arm === 'A') {
+
     const sock = sub
     const conn = connect(sock)
     await new Promise((res, rej) => {
@@ -618,6 +624,7 @@ async function modeDaemon() {
     }
     publishes++
     if (faultAfter > 0 && publishes > faultAfter && faultSpec) {
+
       process.env.MERCURY_FAULT_INJECT = faultSpec
       process.env.MERCURY_FAULT_INJECT = faultSpec
     }
@@ -632,6 +639,7 @@ async function modeDaemon() {
     pumping = true
     try {
       while (queue.length > 0) {
+
         const batch = batchMode === 'group' ? queue.splice(0) : queue.splice(0, 1)
         for (const item of batch) {
           writeSeq++
@@ -729,6 +737,7 @@ async function modeVerify() {
         out.writeSeq = parsed.writeSeq
         out.eventsLen = parsed.snapshot?.recentEvents?.length
       }
+
       out.orphanTemps = readdirSync(dir).filter(n => n.endsWith('.tmp')).length
       out.ok = true
     } else if (arm === 'B') {
@@ -776,6 +785,7 @@ async function modeBuildLog() {
     const m = makeMessage(seq, 700)
     const lines = [JSON.stringify({ t: 'send', msg: m, seq })]
     byId.set(m.id, m)
+
     if (seq % 5 !== 0 && byId.size > 2) {
       const olderId = [...byId.keys()][Math.max(0, byId.size - 3)]
       lines.push(JSON.stringify({ t: 'read', id: olderId }))
@@ -826,6 +836,7 @@ async function modeFold() {
     const sqlite = await import('node:sqlite')
     for (let i = 0; i < reps; i++) {
       const t0 = performance.now()
+
       const db = new sqlite.DatabaseSync(path, { readOnly: true })
       const rows = db.prepare('SELECT seq,id,sender,ts,read,body FROM messages WHERE inbox=? ORDER BY seq').all('bench')
       db.close()

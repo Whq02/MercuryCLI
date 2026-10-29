@@ -1,4 +1,3 @@
-
 import React, {
   useCallback,
   useEffect,
@@ -135,13 +134,18 @@ export function ConsoleOAuthFlow({
 }: {
   onAccountChange?: (receipt: string) => void
   onDone: () => void
+
   onCancel?: () => void
+
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
   startingMessage?: string
   mode?: 'login' | 'setup-token'
   forceLoginMethod?: 'claudeai' | 'console'
+
   initialFocus?: LoginFamilyFocus
+
   onSkip?: () => void
+
   onAbandonLeg?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -189,6 +193,7 @@ export function ConsoleOAuthFlow({
   const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }).length + (onSkip !== undefined ? 1 : 0)
   usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
   const [code, setCodeState] = useState('')
+
   const codeRef = useRef('')
   const setCode = useCallback((next: string): void => {
     codeRef.current = next
@@ -241,6 +246,7 @@ export function ConsoleOAuthFlow({
 
   const submitCode = useCallback(
     (raw: string) => {
+
       if (!model.submitCode(raw)) {
         setCode('')
         setCodeCursor(0)
@@ -306,6 +312,7 @@ export function ConsoleOAuthFlow({
       case 'anthropic-key':
         return frame(<AnthropicKeyLeg onDone={onDone} onBack={() => setLeg('anthropic')} />)
       case 'openai':
+
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(
           <Box flexDirection="column" gap={compact ? 0 : 1}>
@@ -319,6 +326,7 @@ export function ConsoleOAuthFlow({
         )
 
       case 'openai-subscription':
+
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(<OpenaiSubscriptionLeg onOpenaiDone={settleLeg} />)
 
@@ -407,10 +415,12 @@ export function ConsoleOAuthFlow({
 
   switch (state.name) {
     case 'idle': {
+
       const idleRows = [
         ...loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }),
         ...(onSkip !== undefined ? [signInLaterRow(localRoad)] : []),
       ]
+
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
       const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
       const facts = popup ? collectLoginsScreenFacts() : null
@@ -444,6 +454,7 @@ export function ConsoleOAuthFlow({
             hideIndexes
             disableSelection="numeric"
             visibleOptionCount={rosterWindow}
+
             defaultFocusValue={defaultFocus}
             layout={popup ? 'compact-vertical' : 'compact'}
             options={idleRows.map(row => {
@@ -463,6 +474,7 @@ export function ConsoleOAuthFlow({
               }
               startFamily(value)
             }}
+
             onCancel={onCancel}
           />
           </PopupCompactContext.Provider>
@@ -528,6 +540,7 @@ export function ConsoleOAuthFlow({
     }
 
     case 'creating-key':
+
       return frame(
         <Box>
           <Spinner />
@@ -594,6 +607,7 @@ function OpenaiSubscriptionLeg({
 }: {
   onOpenaiDone: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
+
   const [mode, setMode] = useState<'browser' | 'device'>('browser')
   return (
     <OpenaiConnect
@@ -624,6 +638,7 @@ function OpenaiKeyLeg({
   const submit = (raw: string): void => {
     const value = raw.trim()
     if (!value) return
+
     const guard = keyPasteGuardNote(value, {
       stores: 'an OpenAI key. Anthropic usage-based billing signs in through the Anthropic row, under Usage-based billing, instead',
     })
@@ -632,6 +647,7 @@ function OpenaiKeyLeg({
       return
     }
     setStoring(true)
+
     void storeOpenaiApiKeyLogin(value).then(outcome => {
       if (!outcome.stored) {
         setStoring(false)
@@ -666,6 +682,7 @@ function OpenaiKeyLeg({
 }
 
 function SuccessEnterConfirms({ onDone }: { onDone: () => void }): React.ReactNode {
+
   useInput((input, key) => {
     if (key.return || key.escape) onDone()
   })
@@ -758,6 +775,7 @@ function ProviderReadinessBlock({ rows, statusWidth }: { rows: number; statusWid
       {shown.map(({ id, label }) => {
         const lane = map[id]
         const status = readinessStatusOf(lane)
+
         return (
           <Box key={id}>
             <Box width={READINESS_LABEL_WIDTH} flexShrink={0}>

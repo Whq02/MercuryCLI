@@ -9,6 +9,7 @@ import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './install
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
+
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
 
 export type UserPathKind = 'ExpandString' | 'String'
@@ -35,7 +36,6 @@ export type PathEntryOutcome =
   | { state: 'would-write'; dir: string; targets: string[]; line: string }
   | { state: 'written'; dir: string; targets: string[]; line: string }
   | { state: 'refused'; dir: string; reason: string; line: string }
-
 
 export function spellUnderHome(dir: string, home: string, prefix = '$HOME'): string {
   const root = home.replace(/\/+$/, '')
@@ -174,9 +174,9 @@ export function commandOnPathWarning(
   return [fact, fix]
 }
 
-
 interface Decision {
   outcome: PathEntryOutcome
+
   apply?: () => PathEntryOutcome
 }
 
@@ -200,6 +200,7 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
       text = `${shGuardedLine(spelled)}\n`
       break
     case 'bash': {
+
       const login =
         ['.bash_profile', '.bash_login', '.profile'].map(name => join(io.home, name)).find(candidate => io.readFile(candidate) !== null) ??
         join(io.home, '.profile')
@@ -298,7 +299,6 @@ export function ensureBinDirOnPath(roots: LayoutRoots, io: PathEntryIo): PathEnt
     return refusal(roots, io, errorText(e))
   }
 }
-
 
 export const WIN32_READ_USER_PATH_PS1 = [
   "$ErrorActionPreference = 'Stop'",
@@ -420,6 +420,7 @@ function writeUserPathFile(file: string, expected: string, value: string, kind: 
 export function realPathEntryIo(opts: { powershell?: () => string | null } = {}): PathEntryIo {
   const storeFile = flagEnv('MERCURY_USER_PATH_FILE')
   return {
+
     env: process.env,
     home: homedir(),
     readFile(path) {

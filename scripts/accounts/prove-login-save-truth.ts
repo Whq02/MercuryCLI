@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,6 +82,7 @@ async function drive(save: () => SaveResult): Promise<{
     } as never,
   )
   machine.start(true)
+
   await new Promise(resolve => setTimeout(resolve, 20))
   return { flows, final, recorded, notified, stored, label }
 }

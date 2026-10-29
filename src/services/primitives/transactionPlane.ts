@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -112,6 +111,7 @@ export function transitionTransaction(
       `cannot claim 'verified' without observed check evidence refs`,
     )
   }
+
   const next: TransactionRecord = {
     ...record,
     state: to,
@@ -125,13 +125,13 @@ export function transitionTransaction(
   return next
 }
 
-
 function fileRef(path: string): string {
   return `mercury://file/${path.replace(/^\//, '')}`
 }
 
 function ingestReceipt(receipt: ChangeReceipt): void {
   try {
+
     const expectedVersions =
       receipt.intent.targetVersions !== undefined
         ? receipt.intent.targetVersions.map(v => `${v.path}@${v.version}`)
@@ -158,6 +158,7 @@ function ingestReceipt(receipt: ChangeReceipt): void {
         break
       case 'failed':
         transitionTransaction(receipt.owner, record.id, 'failed', {
+
           effectRef,
           resultRefs: receipt.effect.changedPaths.map(fileRef),
           failure: {
@@ -168,6 +169,7 @@ function ingestReceipt(receipt: ChangeReceipt): void {
         })
         break
       case 'indeterminate':
+
         transitionTransaction(receipt.owner, record.id, 'failed', {
           effectRef,
           resultRefs: receipt.effect.changedPaths.map(fileRef),
@@ -190,7 +192,6 @@ function installTransactionIngestion(): void {
   subscribeChangeReceipts(ingestReceipt)
 }
 installTransactionIngestion()
-
 
 export function transactionsFor(owner: OwnerKey): readonly TransactionRecord[] {
   const owned = store.peek(owner)

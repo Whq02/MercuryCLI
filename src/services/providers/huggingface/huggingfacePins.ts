@@ -1,4 +1,3 @@
-
 export const HUGGINGFACE_MODEL_PREFIX = 'huggingface/'
 
 export function isHuggingfaceModelId(model: string): boolean {
@@ -8,6 +7,7 @@ export function isHuggingfaceModelId(model: string): boolean {
 export function splitHuggingfaceSlug(wireSlug: string): { hubId: string; suffix?: string } {
   const trimmed = wireSlug.trim()
   const colon = trimmed.lastIndexOf(':')
+
   if (colon === -1 || trimmed.indexOf('/', colon) !== -1) return { hubId: trimmed }
   const suffix = trimmed.slice(colon + 1)
   return suffix ? { hubId: trimmed.slice(0, colon), suffix } : { hubId: trimmed.slice(0, colon) }
@@ -22,12 +22,17 @@ export function huggingfaceSlugModelName(slug: string): string {
 export const HUGGINGFACE_POLICY_SUFFIXES: ReadonlySet<string> = new Set(['fastest', 'cheapest', 'preferred'])
 
 interface HuggingfaceDisplayPin {
+
   id: string
   displayName: string
+
   observedAt: string
   source?: string
+
   contextWindow?: number
+
   supportsTools: boolean
+
   priceFloorInPerMtok?: number
   priceFloorOutPerMtok?: number
 }

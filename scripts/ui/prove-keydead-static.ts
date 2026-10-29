@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -6,8 +7,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 const TREES = ['src/components', 'src/screens', 'src/commands']
 
 const ALLOW: Record<string, string> = {
+
   'src/components/MercuryFrame.tsx :: tab': 'statusbar hint for the global shift+tab mode carousel (keybindings layer)',
   'src/components/concourse/SessionMirror.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
+
   'src/components/concourse/ConcourseRoute.tsx :: letter:y':
     'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
   'src/components/concourse/ConcourseRoute.tsx :: letter:n':
@@ -26,6 +29,7 @@ interface Site {
 }
 
 const KEY_TOKEN_HINT = /esc|↵|↑↓|←|→|tab\b|pg(up|dn)|±/
+
 const LETTER_VERB = /(?:^|· |\/)([a-z])(?= [a-z])/g
 
 function walk(dir: string, out: string[]): void {
@@ -69,6 +73,7 @@ function extractTokens(hint: string): string[] {
   if (hint.includes('±') || / \+\/- /.test(hint)) tokens.add('plusminus')
   for (const m of hint.matchAll(LETTER_VERB)) {
     const ch = m[1]!
+
     tokens.add(`letter:${ch}`)
   }
   return [...tokens]
@@ -143,11 +148,15 @@ function consoleOAuthBindsSkip(text: string): boolean {
 }
 
 function hasBinding(text: string, token: string, file: string): boolean {
+
   const rendersCommandCenter = commandCenterBindsInput(text)
   const rendersSelectWithCancel = selectBindsCancel(text)
   const rendersNavPanes = /<NavigablePanes[\s\n<]/.test(text)
+
   const usesFlatList = /useFlatList[<(]/.test(text)
+
   const usesSpecimenNav = /useSpecimenNav[<(]/.test(text) || /useInteractiveList[<(]/.test(text)
+
   const decodedNames = [...text.matchAll(/\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*decodeNavKey\(/g)].map(match => match[1]!)
   const acts = (name: string): boolean =>
     decodedNames.some(variable => new RegExp(`\\b${variable.replaceAll('$', '\\$')}\\s*===\\s*['\"]${name}['\"]`).test(text))
@@ -162,6 +171,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
       return (
         acts('cancel') ||
         /key\.escape/.test(text) ||
+
         /onEscape=\{/.test(text) ||
         rendersCommandCenter ||
         rendersSelectWithCancel ||
@@ -176,6 +186,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
         acts('activate') ||
         /key\.return/.test(text) ||
         text.includes("key: 'return'") ||
+
         /onSubmit=\{/.test(text) ||
         rendersNavPanes ||
         rendersSelect ||
@@ -221,6 +232,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
       const ch = token.slice('letter:'.length)
       if (ch === 's' && consoleOAuthBindsSkip(text)) return true
       if (ch === 'r' && usesFlatList) return true
+
       const tells = [
         `input === '${ch}'`,
         `input === "${ch}"`,
@@ -232,6 +244,7 @@ function hasBinding(text: string, token: string, file: string): boolean {
         `input.toLowerCase() === '${ch}'`,
       ]
       if (tells.some(t => text.includes(t))) return true
+
       return false
     }
   }

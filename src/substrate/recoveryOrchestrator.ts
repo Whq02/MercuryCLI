@@ -1,4 +1,3 @@
-
 import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { mapWithConcurrency } from '../utils/concurrency.js'
@@ -22,12 +21,17 @@ export interface BootRecoveryReport {
   startedAt: string
   durationMs: number
   orphanTemps: { dirsSwept: number; removed: number }
+
   runJournal: JournalRecoverySummary | null
+
   changeSetJournal: JournalRecoverySummary | null
   deadEpochTasks: { listsChecked: number; removed: number }
+
   daemonRecords: { state: 'live' | 'clean' | 'reconciled'; cleaned: string[] } | null
   quarantine: { total: number; recent: number }
+
   errors: string[]
+
   notes: string[]
 }
 
@@ -105,6 +109,7 @@ async function collectSweepDirs(
   const home = getMercuryHome()
   push(home)
   push(join(home, 'recovery'))
+
   try {
     const { changeSetJournalDir } = await import(
       '../services/changeTransaction/changeSetContracts.js'
@@ -119,6 +124,7 @@ async function collectSweepDirs(
     }
   } catch {
   }
+
   try {
     const { daemonDir } = await import('../daemon/controlSocket.js')
     const daemon = daemonDir()
@@ -150,6 +156,7 @@ async function sweepOrphanTemps(
   notes: string[],
 ): Promise<{ dirsSwept: number; removed: number }> {
   const dirs = await collectSweepDirs(scope, errors, notes)
+
   const removedPerDir = await Promise.all(dirs.map(dir => cleanupOrphanDurableTemps(dir)))
   const removed = removedPerDir.reduce((sum, r) => sum + r.length, 0)
   return { dirsSwept: dirs.length, removed }
@@ -168,10 +175,12 @@ async function sweepTaskEpochs(
     return out
   }
   const { readTaskEpoch, sweepDeadEpochTasks } = await import('../utils/tasks.js')
+
   const epochChecks = await mapWithConcurrency(lists, 8, async list => {
     try {
       return (await readTaskEpoch(list)) > 0
     } catch {
+
       return false
     }
   })
@@ -197,6 +206,7 @@ async function sweepTaskEpochs(
 export async function runBootRecovery(opts: {
   scope: BootRecoveryScope
   sessionId?: string
+
   projectDir?: string
 }): Promise<BootRecoveryReport> {
   if (inflight) return inflight

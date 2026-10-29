@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -132,6 +133,7 @@ check(
   if (!existsSync(DIST)) {
     check('dist/mercury.mjs exists (build first — the live leg drives the artifact)', false)
   } else {
+
     const home = mkdtempSync(join(tmpdir(), 'fold-p-home-'))
     const refused = { kind: 'error', status: 401, errorType: 'authentication_error', message: 'invalid x-api-key' } as const
     const fixture = await startFixtureApi(Array.from({ length: 8 }, () => refused), { messageHeaders: { 'x-should-retry': 'false' } })
@@ -162,6 +164,7 @@ check(
     const err = `${run.stderr}${run.stdout}`
     check(
       "run --model 'Sonnet 5' resolves through the fold (reaches auth; never 'no family declares')",
+
       !err.includes('not a model id any provider family declares') && /Authentication|401|Not logged in|Invalid (API key|credential)/i.test(err),
       err.slice(0, 140).replace(/\s+/g, ' '),
     )

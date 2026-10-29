@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -130,6 +131,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
   const ESC = String.fromCharCode(27)
   const sgrClick = (col: number, row: number): string =>
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
+
   const ROOT_ROW = 3
   const CHILD_ROW = 4
   const CHILD_RAIL_ROW = 'poise probe · runni…'
@@ -246,6 +248,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
       pendingMessages: [],
       ...over,
     }) as never
+
   const table: [string, never, boolean][] = [
     ['running agent', la({}), true],
     ['completed + retained (viewed)', la({ status: 'completed', retain: true }), true],
@@ -307,6 +310,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     /onForeground\?\:/.test(src('src/components/tasks/AsyncAgentDetailDialog.tsx')) &&
       /action="foreground"/.test(src('src/components/tasks/AsyncAgentDetailDialog.tsx')),
   )
+
   t.check(
     'footer pill + prompt gate + dialog list share isManageableTask',
     ['src/components/tasks/BackgroundTaskStatus.tsx', 'src/components/PromptInput/PromptInputFooterLeftSide.tsx', 'src/components/PromptInput/PromptInput.tsx', 'src/components/tasks/BackgroundTasksDialog.tsx'].every(
@@ -399,6 +403,5 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
   }
   run.cleanup()
 }
-
 
 t.finish('prove-view-target-parity')

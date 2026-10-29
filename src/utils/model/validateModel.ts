@@ -40,6 +40,7 @@ async function validateNonAnthropicModel(
     | 'qwen',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
+
   if (route !== 'openrouter') {
     const { canonicalWireModelId } = await import('../../services/providers/routeLaw.js')
     const verdict = canonicalWireModelId(trimmed)
@@ -55,6 +56,7 @@ async function validateNonAnthropicModel(
         error: 'Hugging Face is unavailable — no credential (/logins connects, or set HF_TOKEN).',
       }
     }
+
     const { huggingfaceLiveModel, getCachedHuggingfaceCatalogue, refreshHuggingfaceCatalogue } = await import(
       '../../services/providers/huggingface/huggingfaceCatalogue.js'
     )
@@ -113,6 +115,7 @@ async function validateNonAnthropicModel(
         error: 'OpenRouter is unavailable — no account (/logins adds OpenRouter: OAuth mints a key, or paste one).',
       }
     }
+
     const { refreshOpenrouterCatalogue } = await import(
       '../../services/providers/openrouter/openrouterCatalogue.js'
     )
@@ -157,6 +160,7 @@ async function validateNonAnthropicModel(
     }
     return { valid: true }
   }
+
   if (route === 'moonshot') {
     const { moonshotDispatchSource } = await import(
       '../../services/providers/moonshot/moonshotAccounts.js'
@@ -396,6 +400,7 @@ async function validateNonAnthropicModel(
   if (evaluated.ok) return { valid: true }
   switch (evaluated.why.reason) {
     case 'catalogue-unavailable':
+
       return { valid: true, skipCache: true }
     case 'not-in-live-catalogue':
       return {
@@ -496,6 +501,7 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
     return { valid: true }
   } catch (error) {
     const mapped = mapValidationError(error)
+
     if (mapped === 'Model not found' && recognition.kind === 'unrecognised') {
       return {
         valid: false,

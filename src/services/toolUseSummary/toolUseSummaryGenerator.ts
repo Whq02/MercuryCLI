@@ -76,6 +76,7 @@ export async function generateToolUseSummary(
     const text = extractTextContent(result.message.content).trim()
     return text === '' ? null : text
   } catch (error) {
+
     const normalized = toError(error)
     ;(normalized as { cause?: unknown }).cause = {
       errorId: E_TOOL_USE_SUMMARY_GENERATION_FAILED,

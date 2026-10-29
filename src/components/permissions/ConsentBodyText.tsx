@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useState } from 'react'
 import { Text } from '../../ink.js'
@@ -13,12 +12,15 @@ export function ConsentBodyText({
   after,
 }: {
   text: string
+
   tail?: string
   dimColor?: boolean
+
   after?: React.ReactNode
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const [expanded, setExpanded] = useState(false)
+
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   })

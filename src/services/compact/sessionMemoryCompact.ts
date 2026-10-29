@@ -33,7 +33,6 @@ import type { ToolUseContext } from '../../Tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
-
 type SessionMemoryCompactConfig = {
   minTokensToPreserve: number
   minTextBlockMessages: number
@@ -51,7 +50,6 @@ let config: SessionMemoryCompactConfig = { ...DEFAULT_SM_COMPACT_CONFIG }
 export function shouldUseSessionMemoryCompaction(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_SM_COMPACT'))
 }
-
 
 function hasTextBlocks(message: Message): boolean {
   if (message.type === 'assistant') {
@@ -148,6 +146,7 @@ function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: 
 
   if (!meetsMax() && !meetsMins()) {
     while (start > floor) {
+
       start--
       const message = messages[start] as Message
       tokens += estimateMessageTokens([message])
@@ -159,11 +158,11 @@ function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: 
   return adjustIndexToPreserveAPIInvariants(messages, start)
 }
 
-
 export async function trySessionMemoryCompaction(
   messages: Message[],
   agentId?: string,
   autoCompactThreshold?: number,
+
   rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId'>,
   trigger: 'auto' | 'manual' = 'auto',
 ): Promise<CompactionResult | null> {
@@ -177,14 +176,17 @@ export async function trySessionMemoryCompaction(
     let lastSummarizedIndex: number
     if (lastSummarizedId !== undefined) {
       lastSummarizedIndex = messages.findIndex(message => message.uuid === lastSummarizedId)
+
       if (lastSummarizedIndex === -1) return null
     } else {
+
       lastSummarizedIndex = messages.length - 1
     }
 
     await waitForSessionMemoryExtraction()
 
     const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
+
     const kept = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
 
     const preTokens = tokenCountFromLastAPIResponse(messages)
@@ -238,6 +240,7 @@ export async function trySessionMemoryCompaction(
 
     const estimate = estimateContextTokens(buildPostCompactMessages(result))
     if (autoCompactThreshold !== undefined && estimate >= autoCompactThreshold) {
+
       return null
     }
     result.postCompactTokenCount = estimate

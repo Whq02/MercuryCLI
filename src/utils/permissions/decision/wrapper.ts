@@ -10,6 +10,7 @@ import { logError } from '../../log.js'
 const readOnlyAllowlistModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require('../readOnlyAllowlist.js') as typeof import('../readOnlyAllowlist.js'))
+
 const workflowModule = {
   WORKFLOW_TOOL_NAME: (
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -20,6 +21,7 @@ const workflowModule = {
     require('../../../tools/WorkflowTool/workflowEnablement.js') as typeof import('../../../tools/WorkflowTool/workflowEnablement.js')
   ).dynamicWorkflowsEnabled,
 }
+
 const permissionSetupModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require('../permissionSetup.js') as typeof import('../permissionSetup.js'))
@@ -52,7 +54,6 @@ import type {
   WrapperTrace,
 } from './trace.js'
 
-
 function reasonCarriesAskRule(
   reason: PermissionDecisionReason | undefined,
 ): boolean {
@@ -75,7 +76,6 @@ function workflowRequiresConsent(toolName: string): boolean {
   )
 }
 
-
 export function guardHookUpdatedInput(
   recheckedDecision:
     | PermissionAskDecision
@@ -97,7 +97,6 @@ export function guardHookUpdatedInput(
   }
   return null
 }
-
 
 async function consultHeadlessPermissionHooks(
   tool: Tool,
@@ -150,7 +149,6 @@ async function consultHeadlessPermissionHooks(
   return null
 }
 
-
 function hideDangerousAllowsFromView(context: ToolUseContext): {
   viewContext: ToolUseContext
   hiddenCount: number
@@ -182,6 +180,7 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
     })
     if (kept.length !== entries.length) trimmedLayers[source] = kept
   }
+
   if (hiddenCount === 0) return { viewContext: context, hiddenCount: 0 }
 
   const viewContext: ToolUseContext = {
@@ -200,17 +199,19 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
   return { viewContext, hiddenCount }
 }
 
-
 interface WrapperPorts {
+
   isAllowlistedTool(
     toolName: string,
     input: { action?: unknown; actions?: unknown } | null,
   ): boolean
+
   resolveAcceptEditsVerdict(
     tool: Tool,
     input: Record<string, unknown>,
     context: ToolUseContext,
   ): Promise<PermissionResult>
+
   runHeadlessHooks(
     tool: Tool,
     input: { [key: string]: unknown },
@@ -226,6 +227,7 @@ export const defaultWrapperPorts: WrapperPorts = {
     readOnlyAllowlistModule!.isReadOnlyAllowlistedTool(toolName, input),
   resolveAcceptEditsVerdict: async (tool, input, context) => {
     const parsedInput = tool.inputSchema.parse(input)
+
     const probeContext: ToolUseContext = {
       ...context,
       getAppState: () => {
@@ -250,7 +252,6 @@ interface FullDecisionOutcome {
   engineTrace: DecisionTrace
   wrapper: WrapperTrace
 }
-
 
 export async function decideToolPermissionWithModes(
   tool: Tool,
@@ -409,6 +410,7 @@ export async function decideToolPermissionWithModes(
       let residualInput: Record<string, unknown> | undefined
 
       if (tool.name !== AGENT_TOOL_NAME) {
+
         let probeContext: ToolUseContext | null = context
         try {
           const view = hideDangerousAllowsFromView(context)

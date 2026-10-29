@@ -29,6 +29,7 @@ function check(name: string, cond: boolean, detail?: string): void {
 }
 
 const SIZES = [10, 100, 1000, 5000]
+
 const COLD_CEILING: Record<number, number> = { 10: 3000, 100: 5000, 1000: 20000, 5000: 60000 }
 const WARM_CEILING = 50
 const FILTER_CEILING: Record<number, number> = { 10: 50, 100: 100, 1000: 600, 5000: 2500 }

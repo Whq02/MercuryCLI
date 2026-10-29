@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -65,6 +66,7 @@ function parts(overrides: Partial<PromptParts> = {}): PromptParts {
 }
 
 section('1 · parity — composeSystemPrompt ≡ the frozen legacy expression')
+
 {
   const shapes: Array<[string, PromptParts]> = [
     ['baseline (nulls filtered)', parts()],
@@ -93,6 +95,7 @@ section('1 · parity — composeSystemPrompt ≡ the frozen legacy expression')
 }
 
 section('2 · renderers — one content on every wire (empty scope sets)')
+
 {
   const p = parts({
     dynamicSpecs: [
@@ -122,6 +125,7 @@ section('2 · renderers — one content on every wire (empty scope sets)')
 }
 
 section('3 · digest — stable · content-sensitive · context-excluded')
+
 {
   const a = buildBehaviourContract(parts())
   const b = buildBehaviourContract(parts())
@@ -141,6 +145,7 @@ section('3 · digest — stable · content-sensitive · context-excluded')
 }
 
 section('4 · registry — anthropic-content hit · tail probe · typed recovery · raw fallback')
+
 {
   __resetBehaviourContractRegistryForTest()
   const typed = buildBehaviourContract(
@@ -165,6 +170,7 @@ section('4 · registry — anthropic-content hit · tail probe · typed recovery
 }
 
 section('5 · unsigned-thinking strip (the Sol→Opus live-400 law)')
+
 {
   const mk = (content: unknown[]): never =>
     ({ type: 'assistant', message: { role: 'assistant', content }, uuid: 'u', timestamp: 't' }) as never
@@ -187,6 +193,7 @@ section('5 · unsigned-thinking strip (the Sol→Opus live-400 law)')
   check('a turn left empty gains the placeholder (row stays valid)', keptContent.length === 1 && keptContent[0]!.type === 'text')
   const untouched = [anthropicTurn]
   check('no unsigned thinking ⇒ the SAME array reference (zero-copy)', stripUnsignedThinkingBlocks(untouched as never) === (untouched as never))
+
   const labelledTurn = mk([
     { type: 'text', text: 'Working note.', citations: null, phase: 'commentary' },
     { type: 'text', text: 'The answer.', citations: null, phase: 'final_answer' },
@@ -247,6 +254,7 @@ section('5 · unsigned-thinking strip (the Sol→Opus live-400 law)')
 }
 
 section('6 · section metadata — semantic names, owner, cacheClass')
+
 {
   const contract = buildBehaviourContract(
     parts({

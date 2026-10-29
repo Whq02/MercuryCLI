@@ -43,6 +43,7 @@ function geminiStatus(): ProviderStatus {
 }
 
 function listGeminiModels(): ProviderModel[] {
+
   return []
 }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import * as ts from 'typescript'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -73,6 +74,7 @@ console.log('§3 the live-seat rule: a board with a live seat refuses whole-grid
     check(`the POSIX capture engine is on this host (${driver.kind}) — the rule's refusal cannot be driven here`, false)
   } else {
     const scratch = mkdtempSync(join(tmpdir(), 'vshot-live-seat-'))
+
     const run = (name: string, cfg: Record<string, unknown>): { status: number | null; stderr: string } => {
       const cfgPath = join(scratch, `${name}.json`)
       writeFileSync(cfgPath, JSON.stringify({ argv: ['true'], cols: 20, rows: 4, total: 2, out: join(scratch, `${name}.grid.json`), ...cfg }))

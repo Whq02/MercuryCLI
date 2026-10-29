@@ -14,7 +14,6 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import type { ConcourseSnapshotV1 } from './contracts.js';
 
-
 function useConcourseIdentity(): {
   markKey: string;
   accent: string;
@@ -61,15 +60,18 @@ function Breadcrumb({
 }: {
   active: ConcourseSnapshotV1['breadcrumb']['active']
   onBoot?: () => void
+
   onConcourse?: () => void
   onFocusedChat?: () => void
 }): React.ReactNode {
   const t = useMercuryTokens();
+
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const chat = chatPresent();
   const dest = (id: string, label: string, onGo?: () => void): React.ReactNode => (
     <InteractiveRow id={`concourse:crumb:${id}`} directActivate hoverStyle="chrome-ink" {...(onGo ? { onActivate: onGo } : {})} flexShrink={0}>
       {hover => (
+
         <Text color={hover ? t.info : t.textMuted}>
           {label}
         </Text>
@@ -110,19 +112,25 @@ export function ConcourseHeader({
   columns: paneColumns,
 }: {
   snapshot: ConcourseSnapshotV1
+
   onBoot?: () => void
   onFocusedChat?: () => void
+
   columns?: number
 }): React.ReactNode {
   const t = useMercuryTokens();
   const { columns: termColumns } = useTerminalSize();
   const columns = paneColumns ?? termColumns;
+
   const showBreadcrumb = columns >= 110;
   const showContextLabels = columns >= 92;
+
   const identity = useConcourseIdentity();
   const { isCompact } = useLayoutChrome();
+
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const chat = chatPresent();
+
   const markDef = React.useMemo(
     () => ({
       ...critterDefForKey(identity.markKey),
@@ -156,6 +164,7 @@ export function ConcourseHeader({
               />
             </>
           ) : (
+
             <>
               <Box flexGrow={1} />
               {chat ? (

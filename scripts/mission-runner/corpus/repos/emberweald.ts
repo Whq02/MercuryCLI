@@ -3143,6 +3143,7 @@ export const EMBERWEALD_REPO: HelixRepoSpec = {
   id: 'emberweald',
   seed: 'inline',
   files: FILES,
+
   branches: { 'task/g2': G2_OVERLAY, 'task/g3': G3_OVERLAY },
 }
 
@@ -6081,7 +6082,6 @@ export function stepItems(world, frame) {
   // Lifetimes first.
   if (player.emberSurgeLeft > 0) player.emberSurgeLeft -= 1
 
-
   // Drops: one contractual roll per fallen creature.
   for (const event of world.events) {
     if (event.type !== 'enemy-down') continue
@@ -6259,7 +6259,6 @@ export function stepItems(world, frame) {
   if (player.emberSurgeLeft > 0) player.emberSurgeLeft -= 1
   for (const ward of world.wards) ward.ticksLeft -= 1
   world.wards = world.wards.filter(w => w.ticksLeft > 0)
-
 
   // Pickups: stack-first, then first empty slot; else stay grounded.
   if (player.alive) {

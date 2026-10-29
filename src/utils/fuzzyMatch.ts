@@ -1,7 +1,7 @@
-
-
 interface FuzzyResult {
+
   path: string
+
   score: number
 }
 
@@ -23,11 +23,11 @@ const TUNING = {
   queryCap: 64,
 } as const
 
-
 const SLASH = 47
 const BACKSLASH = 92
 
 function isSegmentEdge(code: number): boolean {
+
   return (
     code === SLASH ||
     code === BACKSLASH ||
@@ -58,7 +58,6 @@ function edgeBonus(original: string, at: number): number {
   return 0
 }
 
-
 function buildSegmentDigest(candidates: string[]): FuzzyResult[] {
   const segments = new Set<string>()
   for (const candidate of candidates) {
@@ -78,7 +77,6 @@ function buildSegmentDigest(candidates: string[]): FuzzyResult[] {
   })
   return ranked.map((path) => ({ path, score: 0 }))
 }
-
 
 class RankShelf {
   private entries: { path: string; score: number }[] = []
@@ -100,6 +98,7 @@ class RankShelf {
       return
     }
     if (score <= this.floor) return
+
     let lo = 0
     let hi = this.entries.length
     while (lo < hi) {
@@ -118,7 +117,6 @@ class RankShelf {
       .map(({ path, score }) => ({ path, score }))
   }
 }
-
 
 export function createFuzzyIndex(list: readonly string[]): FuzzyIndex {
   const candidates: string[] = []
@@ -163,6 +161,7 @@ export function createFuzzyIndex(list: readonly string[]): FuzzyIndex {
       const shelf = new RankShelf(limit)
 
       candidate: for (let i = 0; i < total; i++) {
+
         if ((masks[i] & needMask) !== needMask) continue
 
         const text = exactCase ? candidates[i] : folded[i]

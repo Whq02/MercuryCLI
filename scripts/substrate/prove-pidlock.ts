@@ -21,6 +21,7 @@ const L = (name: string) => join(tmp, name)
 {
   const a = await acquirePidLock(L('a.lock'), 'owner-a', { liveness: 'assume-dead' })
   ok(a.held && a.fresh, '§1 fresh acquire succeeds')
+
   const child = spawn('sleep', ['30'], { stdio: 'ignore' })
   writeFileSync(
     L('live.lock'),
@@ -72,6 +73,7 @@ const L = (name: string) => join(tmp, name)
 }
 
 {
+
   const recorded = { owner: 'recorded', pid: process.pid, acquiredAt: Date.now(), procStart: 'token-A' }
   ok(holderAlive(recorded, 'assume-alive', 'token-A') === true, '§6 the same token ⇒ the recorded process still owns the pid (blocked)')
   ok(holderAlive(recorded, 'assume-alive', 'token-B') === false, '§6 a DIFFERENT token ⇒ the pid was recycled ⇒ dead (reclaimable) — the guard that was linux-only')
@@ -79,9 +81,11 @@ const L = (name: string) => join(tmp, name)
   ok(holderAlive(recorded, 'assume-alive', null) === true, '§6 an unknowable token (null) ⇒ alive (never a death verdict from a probe glitch)')
   const tokenless = { owner: 'legacy', pid: process.pid, acquiredAt: Date.now() }
   ok(holderAlive(tokenless, 'assume-alive', 'token-B') === true, '§6 a record WITHOUT a token keeps pid-only liveness (pre-token records unchanged)')
+
   const mine = await acquirePidLock(L('tok.lock'), 'owner-t', { liveness: 'assume-alive' })
   const raw = JSON.parse(readFileSync(L('tok.lock'), 'utf8')) as { procStart?: string }
   ok(mine.held && typeof raw.procStart === 'string' && raw.procStart.length > 0, '§6 acquire records a procStart token on this platform (was linux-only)')
+
   writeFileSync(L('recycled.lock'), JSON.stringify({ owner: 'ghost', pid: process.pid, acquiredAt: Date.now() - 60_000, procStart: 'not-our-start-time' }))
   const reclaimed = await acquirePidLock(L('recycled.lock'), 'owner-u', { liveness: 'assume-alive' })
   ok(reclaimed.held === true, '§6 a live pid whose recorded token mismatches the LIVE token is reclaimed end to end (the async pre-fetch through the one owner)')
@@ -92,6 +96,7 @@ const L = (name: string) => join(tmp, name)
   const fn = src.slice(src.indexOf('async function liveTokenFor('), src.indexOf('export interface PidLockHolder'))
   ok(/\/\^\\d\+\$\/\.test\(holder\.procStart\)/.test(fn) && fn.includes('procStartToken(holder.pid)'), '§7 liveTokenFor reads a digits record through /proc first (the record\'s own vocabulary)')
   ok(/return probed === '' \? '' : null/.test(fn), "§7 a ps token against a /proc record is unknowable (null ⇒ alive), a gone answer ('') stays gone")
+
   writeFileSync(L('digits.lock'), JSON.stringify({ owner: 'ghost', pid: process.pid, acquiredAt: Date.now() - 60_000, procStart: '424242' }))
   const digits = await acquirePidLock(L('digits.lock'), 'owner-v', { liveness: 'assume-alive' })
   if (process.platform === 'linux') {

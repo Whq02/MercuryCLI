@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
@@ -24,6 +25,7 @@ const sse = (data: unknown): string => `data: ${JSON.stringify(data)}\n\n`
 
 type Mode = 'burst' | 'window'
 let mode: Mode = 'burst'
+
 const requests: Array<{ road: string; nth: number; status: number }> = []
 const counts = new Map<string, number>()
 const RETRY_AFTER_BURST = '1'

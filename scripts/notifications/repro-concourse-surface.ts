@@ -23,6 +23,7 @@ t.section('§2 — the Boot Menu carries the Off/Auto/Always row')
 {
   const row = STARTUP_MENU.find(r => r.env === 'MERCURY_CONCOURSE')
   t.check('STARTUP_MENU has a MERCURY_CONCOURSE row', row != null, row ? row.kind : 'no row')
+
   const options = (row?.options ?? []).map(o => (typeof o === 'string' ? o : (o as { value: string }).value)).sort()
   t.check(
     "the row is an enum over exactly the non-default choices {always, auto}",

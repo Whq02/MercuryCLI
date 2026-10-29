@@ -78,6 +78,7 @@ t.section('§3 — readability floors decide side-by-side')
 
 t.section('§4 — display cells, not .length')
 {
+
   const ascii = measureOptionPane(q(['abcdefghijklmnop', 'x']))
   const cjk = measureOptionPane(q(['配置配置配置配置配置配置配置配置', 'x']))
   t.check('a wide-glyph label widens the pane beyond its .length', cjk > ascii, `${cjk} vs ${ascii}`)

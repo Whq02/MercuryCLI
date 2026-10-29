@@ -28,6 +28,7 @@ function clearAuthRelatedCaches(): void {
 export async function performLogout({
   clearOnboarding = false,
 }: { clearOnboarding?: boolean } = {}): Promise<void> {
+
   try {
     const tokens = getClaudeAIOAuthTokens()
     if (tokens?.refreshToken) {
@@ -39,6 +40,7 @@ export async function performLogout({
 
   await removeApiKey()
   getSecureStorage().delete()
+
   clearScopeIdentitySnapshot(getMercuryHome())
   forgetScopeIdentity()
 
@@ -52,6 +54,7 @@ export async function performLogout({
   }
 
   clearAuthRelatedCaches()
+
   noteCredentialChange()
 
   saveGlobalConfig(current => {

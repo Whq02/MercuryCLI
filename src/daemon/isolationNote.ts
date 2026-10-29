@@ -9,8 +9,11 @@ export function stripGroundNote(raw: string): string {
 }
 
 interface IsolationFactV1 {
+
   isolation: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
+
   workspaceId: string
+
   branchName?: string
 }
 

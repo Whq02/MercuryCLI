@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -6,7 +7,9 @@ import { basename, dirname, join } from 'node:path'
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'concourse-resume-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
+
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
+
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
@@ -54,6 +57,7 @@ function liveRecord(runnerId: string, sessionId: string, workspaceId: string): C
     pid: process.pid,
   } as ConcourseWorkerRecordV1
 }
+
 function transcriptRows(cwd: string, sessionId: string, words: string): Record<string, unknown>[] {
   const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false,
@@ -73,6 +77,7 @@ function transcriptRows(cwd: string, sessionId: string, words: string): Record<s
   })
   return words.length > 0 ? [row({ type: 'user', message: { role: 'user', content: words } }), reply] : [reply]
 }
+
 function seedSession(file: string, cwd: string, sessionId: string, words: string, ageMs: number): void {
   mkdirSync(cwd, { recursive: true })
   mkdirSync(dirname(file), { recursive: true })
@@ -80,12 +85,14 @@ function seedSession(file: string, cwd: string, sessionId: string, words: string
   const at = new Date(NOW - ageMs)
   utimesSync(file, at, at)
 }
+
 function seedChat(project: string, sessionId: string, words: string, ageMs: number): string {
   const file = workerTranscriptPath({ sessionId, workspaceId: project })
   seedSession(file, project, sessionId, words, ageMs)
   return file
 }
 const sid = (tail: string): string => `00000000-bbbb-4000-8000-${tail.padStart(12, '0')}`
+
 const buildFor = (projectDir: string): ReturnType<typeof buildConcourseSnapshot> =>
   buildConcourseSnapshot({ recordsDir, crewDir, draftDir, nowMs: NOW, project: projectIdentity(projectDir) })
 const parkedOf = async (projectDir: string): Promise<Array<import('../../src/components/concourse/contracts.ts').ConcourseRowV1>> => {
@@ -106,7 +113,9 @@ const S_OTHER = sid('ee')
   const fileA = seedChat(P_CUR, S_A, 'resume me a', 60 * 60_000)
   seedChat(P_CUR, S_B, 'resume me b', 3 * 60 * 60_000)
   seedChat(P_CUR, S_BLANK, '', 20 * 60_000)
+
   seedChat(P_CUR, String(state.getSessionId()), 'the host', 5 * 60_000)
+
   seedChat(P_OTHER, S_OTHER, 'the other project', 60_000)
   const S_OTHER_LIVE = sid('ef')
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P_CUR), liveRecord('concourse-w9', S_OTHER_LIVE, P_OTHER)])
@@ -147,6 +156,7 @@ const S_OTHER = sid('ee')
   )
   check('the chat SURVIVES the clearing (the transcript is untouched)', existsSync(fileA))
   check('the mark is durable and readable (the board remembers across rebuilds)', (await readParkedCleared(draftDir)).has(S_A))
+
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P_CUR), liveRecord('concourse-w2', S_A, P_CUR)])
   const revived = await buildFor(P_CUR)
   check('a cleared chat that runs again is a LIVE row (the mark is a view preference, never session truth)', revived.groups.some(g => g.id === 'working' && g.rows.some(r => r.sessionId === S_A)) && !(revived.groups.find(g => g.id === 'parked')?.rows ?? []).some(r => r.sessionId === S_A))
@@ -155,6 +165,7 @@ const S_OTHER = sid('ee')
   const poison = await parkedOf(P_CUR)
   check('POISON CONTROL (live): the live session\'s file with no record IS a parked row', poison.some(r => r.sessionId === S_LIVE))
   check('POISON CONTROL (cleared): the cleared chat stays off the board while its mark stands', !poison.some(r => r.sessionId === S_A))
+
   const facts = [
     { sessionId: S_A, transcriptPath: workerTranscriptPath({ sessionId: S_A, workspaceId: P_CUR }), ageMs: 60_000 },
     { sessionId: S_B, transcriptPath: workerTranscriptPath({ sessionId: S_B, workspaceId: P_CUR }), ageMs: 120_000 },
@@ -169,6 +180,7 @@ const S_OTHER = sid('ee')
       pure[1]?.title === '1 older chat · ↵ to browse',
     pure.map(r => r.title).join(' | '),
   )
+
   const listed = parkedSessionsOf(P_CUR)
   check('the listing owner lists the project\'s own home only (the path law), newest first', listed.every(s => s.transcriptPath.startsWith(getProjectDir(P_CUR))) && !listed.some(s => s.sessionId === S_OTHER) && listed[0]?.sessionId === String(state.getSessionId()))
   check('the listing owner skips the excluded (host) file', !parkedSessionsOf(P_CUR, { excludeSessionId: String(state.getSessionId()) }).some(s => s.sessionId === String(state.getSessionId())))
@@ -177,6 +189,7 @@ const S_OTHER = sid('ee')
 console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the window never shrinks')
 {
   for (let i = 1; i <= 14; i++) seedChat(P_CUR, sid(`c${i}`), `cap ${i}`, (4 + i) * 60 * 60_000)
+
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P_CUR), liveRecord('concourse-w2', sid('55'), P_CUR), liveRecord('concourse-w3', sid('56'), join(SCRATCH, 'proj-live-3'))])
   const snap = await buildFor(P_CUR)
   const flat = snap.groups.flatMap(g => g.rows)
@@ -223,6 +236,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   seedChat(P_WEEK, S_W2, 'this week two', 2 * DAY)
   seedChat(P_WEEK, S_W3, 'this week three', 6 * DAY)
   for (let i = 1; i <= 14; i++) seedChat(P_WEEK, sid(`e${i}`), `older ${i}`, (7 + i) * DAY)
+
   seedWorkers([liveRecord('concourse-w1', S_W1, P_WEEK)])
   const snap = await buildFor(P_WEEK)
   const parked = snap.groups.find(g => g.id === 'parked')?.rows ?? []
@@ -233,6 +247,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   check('POISON: no chat older than a week is painted as a row', rows.every(r => r.ageLabel !== null && !/^(7|[89]|1\d|2\d)d$/.test(r.ageLabel)), rows.map(r => r.ageLabel).join(','))
   check('the older line is ONE honest line, LAST in the group, counting the census (17 chats − 2 painted − 1 record-owned = 14 enumerable)', line !== undefined && parked[parked.length - 1] === line && line.title === '14 older chats · ↵ to browse', line?.title)
   check('the older line is a door, not a session: parked state, no transcript, no age, no owner', line?.state === 'parked' && line.transcriptPath === undefined && line.ageLabel === null && line.ownerLabel === null && line.workspaceDir === undefined)
+
   const P_CAP = join(SCRATCH, 'proj-cap-week')
   for (let i = 1; i <= 12; i++) seedChat(P_CAP, sid(`a${i}`), `week ${i}`, i * 60 * 60_000)
   for (let i = 1; i <= 5; i++) seedChat(P_CAP, sid(`b${i}`), `old ${i}`, (9 + i) * DAY)
@@ -242,6 +257,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   const cappedLine = capped.find(r => r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX))
   check('the ≤10 cap applies within the week tier; the line counts the rest (2 past the cap + 5 older = 7)', cappedRows.length === PARKED_CAP && cappedLine?.title === '7 older chats · ↵ to browse', `${cappedRows.length} · ${cappedLine?.title ?? '(no line)'}`)
   check('a project whose chats all fit paints no older line', !(await parkedOf(P_OTHER)).some(r => r.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)))
+
   const route = read('src/components/concourse/ConcourseRoute.tsx')
   const enterAt = route.indexOf('const attachAndEnter = useCallback(')
   const enterBody = route.slice(enterAt, route.indexOf('const waitingRoomAdmitted = useCallback(', enterAt))
@@ -252,6 +268,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   check('the drop-down is the screen\'s own in-place layer: unfold on ↵/→, esc folds, a selection move folds (a VIEW, never a hop)', screen.includes('const unfoldOlderList = (row: ConcourseRowV1): void => {') && screen.includes('setOlderList(null)') && screen.includes('olderNavConsumed'))
   const builder = read('src/services/concourse/concourseSnapshot.ts')
   check('the builder lists the WEEK tier and pushes the older line after the rows (cap first)', builder.includes('withinMs: PARKED_WEEK_MS,') && builder.indexOf('for (const s of listed) {') !== -1 && builder.indexOf('rows.push(olderChatsRow(') > builder.indexOf('for (const s of listed) {'))
+
   check(
     'the line derives from THE CENSUS — one owner enumerates and counts; no second arithmetic',
     builder.includes('const census = olderChatsCensus(projectDir, excluded, nowMs') &&
@@ -259,6 +276,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
       builder.includes('if (census.total > 0) rows.push(olderChatsRow(projectDir, projectLabel, census.total))') &&
       !builder.includes('liveInProject'),
   )
+
   const { readdirSync, statSync } = await import('node:fs')
   const offenders: string[] = []
   const THE_ONE_DOOR = join('src', 'utils', 'sessionStorage', 'transcriptPruneDoor.ts')
@@ -270,6 +288,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
       else if (/\.(ts|tsx)$/.test(name)) {
         const lines = readFileSync(p, 'utf8').split('\n')
         lines.forEach((l, i) => {
+
           if (/unlinkSync\(|rmSync\(|\.unlink\(|\brm\(|rimraf/.test(l) && /transcript|\.jsonl|workerTranscriptPath|getTranscriptPath|receiptsPath|SessionReceipt/i.test(l)) offenders.push(`${p}:${i + 1}`)
         })
       }
@@ -280,6 +299,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
   const doorSource = readFileSync(join(process.cwd(), THE_ONE_DOOR), 'utf8')
   check('the one exempt file exists and IS the door (it exports the operator prune door and holds the transcript unlink)', doorSource.includes('export async function operatorPruneTranscripts(') && doorSource.includes('await fs.unlink(candidate.transcriptPath)'))
   check("the door's delete function never appears in the sweep's file (auto-deletion cannot re-arm through the sweep)", !read('src/utils/cleanup.ts').includes('operatorPruneTranscripts'))
+
   const sweep = read('src/utils/cleanup.ts')
   check("the retention sweep ages only recordings (.cast) — a transcript (.jsonl) is never auto-deleted (operator ruling: never)", /endsWith\('\.cast'\)/.test(sweep) && !/endsWith\('\.jsonl'\)[^\n]*continue/.test(sweep) && !/!entry\.name\.endsWith\('\.jsonl'\) &&/.test(sweep))
   for (const owner of ['src/services/concourse/concourseSnapshot.ts', 'src/components/concourse/ConcourseRoute.tsx', 'src/utils/bootCardFacts.ts', 'src/daemon/idleRetirement.ts', 'src/services/switchboard/sessionReceipts.ts']) {
@@ -306,6 +326,7 @@ console.log('A3 — ↵ reactivates through the ONE resume door; the close chord
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const chordAt = screen.indexOf('const closeChordGesture = (): void => {')
   const chordBody = screen.slice(chordAt, screen.indexOf('const closeChordRoutineRef', chordAt))
+
   check('the chord on a parked row: a fresh completed gesture ARMS the delete (nothing runs), the same gesture inside the stage window ends the record — the release grammar on the new key', chordAt !== -1 && chordBody.includes('closeChordRungOf(boardSelectionClassOf(sel), closeChordStage.standsFor(sel.sessionId))') && chordBody.includes("case 'arm-delete':") && chordBody.includes("case 'delete':") && chordBody.indexOf("case 'delete':") > chordBody.indexOf("case 'arm-delete':") && chordBody.includes('callbacks.removeSession?.(sel.sessionId)'))
   check('plain x carries no full-size board verb (the poison the chord retired); the compact concourse alone binds x to stop, every site guarded by the compact decision', (screen.match(/input === 'x'/g) ?? []).length === 3 && screen.includes("if (compact && input === 'x' && !key.ctrl && !key.meta && pastGate()) {") && screen.includes("if (compact && region === 'live' && !key.ctrl && !key.meta && (input === 'x' || input === 'p') && liveDraftRef.current.text.length === 0 && pastGate()) {") && screen.includes("if (input === 'x') rowStop()"))
   check('a parked row subscribes to no work chip (the calm law)', screen.includes("peekSelRow.workspaceDir !== undefined && peekSelRow.state !== 'parked'"))
@@ -348,19 +369,23 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
   check('B3 the screen wires the tab only off the reduced stage (rule 5: live view only) — the tab now ARMS the contract ask, which births through the same door on its answer', screen.includes('...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => armContractAsk() })'))
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
   check('B3 the layout paints the tab only with the door wired and derives the legend through the one resolver', layout.includes('wiring.newSession !== undefined ? (') && layout.includes('id="concourse:board:new-session"') && layout.includes('regionKeysFor(region, {') && layout.includes('newSession: wiring.newSession !== undefined,'))
+
   check("B3 the boot menu stays the solo road: the face's New Session births through the same door (the model resolves inside the door — birthModelOf)", read('src/components/BootSplashScreen.tsx').includes('bornSession({ workspaceDir: getCwd() })') && !read('src/components/BootSplashScreen.tsx').includes('bornSession({ workspaceDir: process.cwd() })'))
+
   const { stripKeyMapHintOf } = await import('../../src/context/surfaceRoute.ts')
   const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   check("B4 the reduced band paints the router's key-map hint, re-read on the route beat", screen.includes('const keyMapHint = stripKeyMapHint()') && screen.includes('useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)') && screen.includes('${keyMapHint.length > 0 ? ` · ${keyMapHint}` : \'\'}'))
   check('B4 with the concourse off and no chat, the live view offers the boot face to the left and no chat stop to the right', stripKeyMapHintOf('concourse', ['boot-settings']).startsWith(keyHintLabel('⇧← boot face')) && !stripKeyMapHintOf('concourse', ['boot-settings']).includes(keyHintLabel('⇧→ chat')))
   check('B4 with a chat present the live view offers both moves', stripKeyMapHintOf('concourse', ['boot-settings', 'repl']) === keyHintLabel('⇧← boot face · ⇧→ chat'))
   check('B4 the reduced pane notice derives its move from the same hint (the retired literal is gone)', screen.includes('your sessions run and show here · ↵ enters one${keyMapHint.length > 0 ? ` · ${keyMapHint}` : \'\'}') && !screen.includes('⇧← the boot menu'))
+
   const { browseKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   check("B5 the ONE legend resolver relabels esc by chat presence ('focused chat' ↔ 'boot face'), the other keys untouched", browseKeysFor({ chatPresent: true }).find(k => k.keys === 'esc')?.label === 'focused chat' && browseKeysFor({ chatPresent: false }).find(k => k.keys === 'esc')?.label === 'boot face' && browseKeysFor({ chatPresent: false }).filter(k => k.keys !== 'esc').map(k => k.label).join(',') === browseKeysFor({ chatPresent: true }).filter(k => k.keys !== 'esc').map(k => k.label).join(','))
   check('B5 the layout derives its legend through the resolver, re-read on the route beat (the too-small frame left with the compact cockpit)', layout.includes('const browseKeys = browseKeysFor({ chatPresent: chat, region })') && layout.includes("browseKeys.find(k => k.keys === 'esc')!") && layout.includes('useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)'))
   check('B5 the atlas reads the same resolver', screen.includes("keys: [...browseKeysFor({ chatPresent: chat }), CONCOURSE_HELP_KEY]") && screen.includes('chat={chatPresent()}'))
   const header = read('src/components/concourse/ConcourseHeader.tsx')
   check('B5 the FOCUSED CHAT crumb is a destination only while a chat exists — inert and muted otherwise, full and compact alike', header.includes("chat ? (\n        dest('focused-chat', 'FOCUSED CHAT', onFocusedChat)\n      ) : (\n        <Text color={t.textMuted}>FOCUSED CHAT</Text>") && header.includes('<Text color={t.textMuted}>FOCUSED CHAT ›</Text>') && header.split('useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)').length === 3)
+
   const routeSrc = read('src/components/concourse/ConcourseRoute.tsx')
   check("B5 esc's verb lands where the legend points: the focused chat, else the boot menu directly (the refused home verb falls through — never a dead esc under a 'boot menu' label), on the route and the assembling shell alike", routeSrc.split('if (!enterRootChat().ok) enterBootSettings()').length === 3)
   check('B5 the assembling shell says where its esc lands by presence', routeSrc.includes("chatPresent() ? 'esc focused chat' : 'esc boot face'"))
@@ -368,6 +393,7 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
 
 console.log('C — the renames: the idle knob speaks the session estate; the accent module says the screen; the in-process connector is gone')
 {
+
   const CANON = 'MERCURY_SESSION_IDLE_RETIRE_MINUTES'
   const OLD = 'MERCURY_CONCOURSE_' + 'IDLE_RETIRE_MINUTES'
   const saved = { canon: process.env[CANON], old: process.env[OLD] }
@@ -410,9 +436,11 @@ console.log('C — the renames: the idle knob speaks the session estate; the acc
   check('C1 grace: the reaper reads the session spelling through the ONE bounded reader, nothing below it', reaper.includes(`flagEnv('${GRACE}'),`) && !reaper.includes(GRACE_OLD))
   const sibling = read('scripts/daemon/prove-newborn-grace.ts')
   check('C1 grace: the sibling prover pins the session spelling and knows no other', sibling.includes(`env: '${GRACE}'`) && sibling.includes(`process.env.${GRACE} = '45'`) && !sibling.includes(GRACE_OLD))
+
   const accent = read('src/components/mercury-ui/sessionAccent.ts')
   check('C2 the chat-first phrasing is gone ("Session-only", "the critter session-theme", "the active session critter")', !accent.includes('Session-only') && !accent.includes('critter session-theme') && !accent.includes('The active session critter') && !accent.includes('the live session critter'))
   check('C2 the exported spellings stand (the sweep is named, not smuggled)', accent.includes('export function getSessionAccent(): Critter') && accent.includes('export function useSessionAccent(): Critter'))
+
   const { readdirSync, statSync } = await import('node:fs')
   const hits: string[] = []
   const walk = (dir: string): void => {

@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -77,9 +76,12 @@ export function MCPRemoteServerMenu({
   borderless = false,
 }: {
   server: ServerInfo
+
   serverToolsCount: number
   onViewTools: () => void
+
   onCancel: (tabHint?: string) => void
+
   onComplete: (result?: string) => void
   borderless?: boolean
 }): React.ReactNode {
@@ -107,6 +109,7 @@ export function MCPRemoteServerMenu({
   const unmountedRef = useRef(false)
   useEffect(
     () => () => {
+
       unmountedRef.current = true
       abortRef.current?.abort()
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
@@ -162,6 +165,7 @@ export function MCPRemoteServerMenu({
     abortRef.current = controller
     try {
       if (wasAuthenticated) {
+
         await revokeServerTokens(server.name, remote.config, {
           preserveStepUpState: true,
         })
@@ -190,6 +194,7 @@ export function MCPRemoteServerMenu({
       } else if (error instanceof Error) {
         setErrorLine(error.message)
       }
+
       setPhase({ id: 'menu' })
     } finally {
       if (abortRef.current === controller) abortRef.current = null
@@ -297,6 +302,7 @@ export function MCPRemoteServerMenu({
 
   if (phase.id === 'auth') {
     return (
+
       <Dialog
         title={capitalise(server.name)}
         onCancel={cancelAuth}

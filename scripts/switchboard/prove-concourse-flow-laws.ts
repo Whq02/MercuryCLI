@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -60,6 +61,7 @@ const folderB = mkdtempSync(join(tmpdir(), 'concflow-folder-b-'))
     'both asks are pending, folder-bound',
     listPendingPermissionAsks().filter(a => a.requestId.startsWith('git-init:')).length === 2,
   )
+
   let rows: Awaited<ReturnType<typeof openObligations>> = []
   for (let i = 0; i < 40; i++) {
     rows = await openObligations({ scope: 'switchboard' })

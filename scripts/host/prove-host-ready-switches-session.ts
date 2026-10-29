@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/host/worker.ts src/commands/llmhost/words.ts src/daemon/sessionSeat.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'

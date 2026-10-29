@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,6 +36,7 @@ function walk(root: string): string[] {
   )
   check('P1 resume() keeps the composer where it was (no draft flush)', !resumeBody.includes('flushDrafts('))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
+
   const fnAt = hop.indexOf('async function focusResumedSessionLanding(')
   const fnBody = hop.slice(fnAt, hop.indexOf('async function paintResumeRecap', fnAt))
   check('P1 the resume landing body is anchored (the slice cannot go vacuous)', fnAt !== -1 && hop.indexOf('async function paintResumeRecap', fnAt) > fnAt)
@@ -48,6 +50,7 @@ function walk(root: string): string[] {
   const boot = read('src/components/BootSplashScreen.tsx')
   const newAt = boot.indexOf("case 'new': {")
   const newBody = boot.slice(newAt, boot.indexOf("case 'continue'", newAt))
+
   check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
   const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
   check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootChat().ok;') !== -1 && road.indexOf('const flipped = enterRootChat().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
@@ -61,6 +64,7 @@ function walk(root: string): string[] {
 {
   const { NoSessionConnector, NO_CHAT_OPEN } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const resting = new NoSessionConnector()
+
   check('P3 the resting slot is daemon-carried and blank', resting.carrier === 'daemon' && resting.records().length === 0)
   check('P3 nothing runs and nothing is pending', resting.turnActive() === false && resting.asks().length === 0 && resting.interrupt() === false)
   check('P3 the usage is honest zeros', resting.usage().totalCostUSD === 0 && resting.usage().totalInputTokens === 0)
@@ -72,6 +76,7 @@ function walk(root: string): string[] {
   check('P3 a model switch is refused (nothing to switch)', (await resting.setModel('claude-sonnet-5')).state === 'refused')
   const ask = await resting.answerAsk()
   check('P3 an ask answer is refused (no asks exist)', ask.ok === false)
+
   check(
     'P3 the reader doors answer stable snapshots (records/asks/modelFacts/usage/identity/skills/mcp/workspace/work)',
     resting.records() === resting.records() &&
@@ -85,11 +90,13 @@ function walk(root: string): string[] {
       resting.workRoster() === resting.workRoster(),
   )
   const src = read('src/services/switchboard/bornSession.ts')
+
   const fnAt = src.indexOf('async function birth(')
   const body = src.slice(fnAt)
   check('P3 the birth body is anchored (the slice cannot go vacuous)', fnAt !== -1)
   check('P3 the birth door admits through the daemon (born = registered) and then hops', body.includes("op: 'sessionAdmit'") && body.indexOf("op: 'sessionAdmit'") < body.indexOf('hopIntoBoardSession(sessionId'))
   check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
+
   check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort (the launch word, else the saved default, else absent), the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('const effort = facts.effort ?? getInitialEffortSetting() ?? null') && body.includes('{ effort }') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
   check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
   const armAt = body.indexOf('armLandingWords({ model: model ?? null, effort, permissionMode: facts.permissionMode })')
@@ -188,6 +195,7 @@ function walk(root: string): string[] {
   const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
   check('P6 the screen passes NO model into a session send (the runner owns the wire) — the poison is a render-sampled read', onSubmitAt !== -1 && !submitBody.includes('engineModel') && !/sendWords\([^)]*model/.test(submitBody))
   const birthSrc = read('src/services/switchboard/bornSession.ts')
+
   check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
 }

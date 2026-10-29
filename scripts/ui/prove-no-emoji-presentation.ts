@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -34,7 +35,6 @@ function section(t: string): void {
 const VS15 = String.fromCharCode(TEXT_PRESENTATION_SELECTOR)
 const VS16 = String.fromCharCode(EMOJI_PRESENTATION_SELECTOR)
 const cpName = (cp: number): string => 'U+' + cp.toString(16).toUpperCase().padStart(4, '0')
-
 
 const BASE_FONT_TEXT = new Set<number>([
   0x23, 0x2a, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
@@ -164,7 +164,6 @@ function walk(dir: string, exts: string[], out: string[]): void {
 const describe = (f: Finding): string =>
   `${f.file}:${f.line}:${f.col} ${cpName(f.codePoint)} ${String.fromCodePoint(f.codePoint)} ${f.rule} (${f.via})`
 
-
 console.log('============================================================')
 console.log(` no-emoji-presentation — the paint census (Unicode ${EMOJI_DATA_UNICODE_VERSION}, under ${RUNTIME})`)
 console.log('============================================================')
@@ -178,6 +177,7 @@ const anywhere: Finding[] = []
 const painted: Finding[] = []
 for (const abs of files) {
   const rel = relative(ROOT, abs).split('\\').join('/')
+
   const text = readFileSync(abs).toString('utf8')
   if (WIRE_PAYLOAD_FILES.has(rel)) continue
   anywhere.push(...anywhereFindings(text, rel))
@@ -221,6 +221,7 @@ check('and the ones it left DO (tick, warning, info, squareSmall, squareSmallFil
 section('§4 THE WIDTH LAW: a glyph + U+FE0E pair (none painted any more) is one cell and never splits')
 const PAIR = '\u25B2' + VS15
 const intact = (s: string): boolean => {
+
   const cps = Array.from(s)
   return cps.every((c, i) => c !== VS15 || cps[i - 1] === '\u25B2')
 }

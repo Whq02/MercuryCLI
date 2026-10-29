@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -50,8 +49,11 @@ export function findUnityProjectRoot(from: string = getCwd()): string | undefine
 }
 
 interface UnityProjectVersion {
+
   version?: string
+
   versionWithRevision?: string
+
   reason?: string
 }
 
@@ -78,13 +80,16 @@ export function readUnityProjectVersion(root: string): UnityProjectVersion {
 }
 
 interface UnityEditorLocation {
+
   version?: string
+
   path: string
   source: 'pin' | 'hub' | 'path'
 }
 
 interface UnityEditorCensus {
   editors: UnityEditorLocation[]
+
   pinError?: string
 }
 
@@ -160,11 +165,16 @@ export function locateUnityEditors(testOpts?: {
 interface UnityProjectProfile {
   state: 'ok'
   root: string
+
   markers: string[]
+
   projectVersion: UnityProjectVersion
+
   editors: UnityEditorLocation[]
   pinError?: string
+
   projectEditor?: UnityEditorLocation
+
   editorDetail: string
 }
 

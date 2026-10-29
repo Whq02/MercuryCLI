@@ -20,8 +20,10 @@ interface ShellNotice {
   message: RenderableMessage
   shape: 'attachment' | 'user'
   status: ShellOutcome
+
   detail: string
   text: string
+
   queued: boolean
 }
 

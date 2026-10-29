@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -26,6 +27,7 @@ const { readRecord, servicesDir, startService, stopService } = manager as unknow
   startService: (a: { sessionId: string; spec: Record<string, unknown> }) => Promise<Record<string, unknown>>
   stopService: (cwd: string, name: string) => Promise<Record<string, unknown>>
 }
+
 function writeRecord(cwd: string, record: Record<string, unknown>): void {
   const name = (record.spec as { name: string }).name
   writeFileSync(join(servicesDir(cwd), `${name}.json`), JSON.stringify(record, null, 2))
@@ -74,6 +76,7 @@ section('§1 decideServiceStrike — the table')
 
 section('§2 a record pointing at a BYSTANDER with no identity token')
 {
+
   const bystander = spawn(NODE, ['-e', "const {spawn}=require('node:child_process'); const kid=spawn(process.execPath,['-e','setTimeout(()=>{},60000)'],{stdio:'ignore'}); console.log(kid.pid); setTimeout(()=>{},60000)"], {
     stdio: ['ignore', 'pipe', 'ignore'],
     windowsHide: true,
@@ -103,6 +106,7 @@ section('§2 a record pointing at a BYSTANDER with no identity token')
   const real = readRecord(workDir, 'unverifiable')
   const realPid = Number(real?.pid)
   check('the real service started', Number.isInteger(realPid) && realPid > 0)
+
   writeRecord(workDir, { ...(real as Record<string, unknown>), pid: bystander.pid, startToken: null, state: 'running' })
 
   const stopped = await stopService(workDir, 'unverifiable')
@@ -120,6 +124,7 @@ section('§2 a record pointing at a BYSTANDER with no identity token')
     if (childPid) process.kill(childPid, 'SIGKILL')
   } catch {
   }
+
   try {
     if (realPid) process.kill(realPid, 'SIGKILL')
   } catch {
@@ -164,6 +169,7 @@ section('§3 a record whose token DISAGREES with the live pid')
 
 section('§4 a service Mercury can prove is its own is still stopped, tree and all')
 {
+
   await startService({
     sessionId: SESSION,
     spec: {
@@ -185,6 +191,7 @@ section('§4 a service Mercury can prove is its own is still stopped, tree and a
   const pid = Number(record?.pid)
   check('the stubborn service is running with a recorded pid', Number.isInteger(pid) && alive(pid))
   check('its identity token was captured (no blocking probe needed)', typeof record?.startToken === 'string' && String(record?.startToken).length > 0, JSON.stringify(record?.startToken))
+
   let kidPid = 0
   for (let i = 0; i < 40 && kidPid === 0; i++) {
     try {

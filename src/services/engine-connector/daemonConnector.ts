@@ -110,6 +110,7 @@ export interface DaemonSessionRecordV1 {
   title: string
   projectLabel: string
   workspaceId: string
+
   home: string
   isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
   branchLabel?: string
@@ -129,16 +130,22 @@ interface SeatSend {
   clientMessageId: string
   text: string
   sentAtMs: number
+
   state: 'pending' | 'delivered' | 'queued' | 'taken'
+
   heldFor?: 'compaction'
   crossedRunner?: true
   mode: 'prompt' | 'bash'
+
   source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, PastedContent> }
+
   withdrawing?: true
 }
 
 const REFUSED_EMPTY: SendReceiptV1 = { state: 'refused', detail: 'nothing to send' }
+
 export const RECALL_TAKEN_LINE = 'already taken — esc interrupts the turn'
+
 export const RECALL_UNKNOWN_LINE = 'nothing queued to take back — esc interrupts the turn'
 const QUOTED_WORDS_MAX = 32
 function quoteWords(words: string): string {
@@ -152,6 +159,7 @@ export function lostWithRunnerLine(lines: readonly string[]): string {
   const named = lines.map(quoteWords).join(' · ')
   return lines.length === 1 ? `the runner restarted (${named} not taken); type it again` : `the runner restarted (${named} not taken); type them again`
 }
+
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
 function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
@@ -189,6 +197,7 @@ function reconstructedProgressMessage(parentToolUseID: string, entry: SessionPro
       totalLines: entry.totalLines ?? 0,
     }
     if (entry.dataType === 'powershell_progress') {
+
       data = { type: 'powershell_progress', ...body, totalBytes: entry.totalBytes ?? 0 }
     } else {
       const bash: ShellProgress = { type: 'bash_progress', ...body }
@@ -221,13 +230,17 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
 }
 const RPC_TIMEOUT_MS = 15_000
 const LEAVE_RPC_TIMEOUT_MS = 135_000
+
 export const HEARTBEAT_MS = 400
+
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export const SEAT_VERB_SETTLE_MS = 4000
+
 const LIVENESS_TICK_MS = 1000
 export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
 const ECHO_RETIRE_MS = 10 * 60_000
+
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const SEAT_BY = `operator:${process.pid}`
@@ -276,6 +289,7 @@ function toolFor(name: string): Tool {
 export function projectionChangeKey(stat: { mtimeMs: number; size: number; ino: number }): string {
   return `${stat.mtimeMs}:${stat.size}:${stat.ino}`
 }
+
 export const PROJECTION_ABSENT = 'absent'
 
 export class ProjectionFeed {
@@ -285,6 +299,7 @@ export class ProjectionFeed {
   private lastKey = PROJECTION_ABSENT
   private settleUntilMs = 0
   private recheck: ReturnType<typeof setTimeout> | null = null
+
   constructor(
     private readonly dir: string,
     private readonly path: string,
@@ -317,6 +332,7 @@ export class ProjectionFeed {
     if (this.settleUntilMs > Date.now()) return HEARTBEAT_MS
     return this.idleFloorMs()
   }
+
   rearm(): void {
     if (this.timer === null) return
     const ms = this.cadenceMs()
@@ -333,6 +349,7 @@ export class ProjectionFeed {
     const revert = setTimeout(() => this.rearm(), windowMs)
     revert.unref?.()
   }
+
   heartbeatMs(): number {
     return this.timer === null ? 0 : this.timerMs
   }
@@ -340,6 +357,7 @@ export class ProjectionFeed {
     if (this.timer !== null) return
     try {
       mkdirSync(this.dir, { recursive: true })
+
       const watcher = watch(resolveWatchRoot(this.dir), this.report)
       watcher.on('error', () => {
         try {
@@ -347,6 +365,7 @@ export class ProjectionFeed {
         } catch {
         }
         if (this.watcher === watcher) this.watcher = null
+
         this.rearm()
       })
       this.watcher = watcher
@@ -378,6 +397,7 @@ export class ProjectionFeed {
 }
 
 type Listeners = Set<() => void>
+
 function connectorTrace(entry: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
   if (!path) return
@@ -392,6 +412,7 @@ function foldStillRuns(status: FoldStatusV1 | null): boolean {
 }
 
 function emitAll(listeners: Listeners, what: string): void {
+
   fluxMark(`emit:${what}`)
   for (const l of [...listeners]) {
     try {
@@ -406,10 +427,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   readonly carrier = 'daemon' as const
 
   private rawRecords: Message[] = []
+
   private recordSigs: string[] = []
   private painted: readonly Message[] = []
+
   private liveState: SessionLiveV1 = IDLE_LIVE
   private factsBusy = false
+
   private busyStallDeadline: ReturnType<typeof armInactivityDeadline> | null = null
   private static readonly BUSY_STALL_MS = 45_000
   private carrierGoneTicks = 0
@@ -446,6 +470,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       .then(reply => {
         const r = reply as { ok?: boolean; outcome?: string; detail?: string }
         if (r.ok === true && r.outcome !== 'refused') {
+
           if (this.factsBusy) this.armBusyStall()
           return
         }
@@ -509,6 +534,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return { ...next, busy: false, work: [], mission: [], samples: [] }
   }
   private effectiveLive: SessionLiveV1 = IDLE_LIVE
+
   private displayRows: Array<{ row: Message; anchor: number }> = []
   private clearModelReceipt: Message | null | undefined
   private echoRows = new Map<string, Message>()
@@ -520,19 +546,26 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tailSinceMs = 0
   private rowsAfterTail = 0
   private textRows: CommittedTextRow[] = []
+
   private textRetiredRowUuids = new Set<string>()
   private retainedSend: { text: string; id: string } | null = null
   private interrupting = false
+
   private interruptPressedAtMs: number | null = null
   private lastSize = -1
   private lastLen = -1
+
   private chainCursor: TranscriptChainCursor | null = null
+
   private readonly liveFold: LiveTurnFold = createLiveTurnFold()
+
   private releaseTranscript: (() => void) | null = null
   private transcriptWatcher: FSWatcher | null = null
   private transcriptTimer: ReturnType<typeof setInterval> | null = null
   private transcriptTimerMs = 0
+
   private turnInFlight = false
+
   private tickInFlight: Promise<void> | null = null
   private tickDirty = false
   private readonly transcriptPath: string
@@ -543,9 +576,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly factsFeed: ProjectionFeed
   private readonly modelListeners: Listeners = new Set()
   private readonly permissionListeners: Listeners = new Set()
+
   private readonly workListeners: Listeners = new Set()
   private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
   private workStamp = '[true,[],[]]'
+
   private readonly checkpointListeners: Listeners = new Set()
   private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
   private checkpointStamp = ''
@@ -561,41 +596,54 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private tailMessageId: string | null = null
   private interruptedMessageId: string | null = null
   private withdrawnMessageId: string | null = null
+
   private liveTurnChars = 0
   private liveTurnOutputTokens: number | null = null
   private liveTurnThinkingChars = 0
   private liveTurnThinkingBlocks = 0
   private liveFirstByteAtMs: number | null = null
+
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
+
   private liveAgentsWaiting = 0
   private runnerGeneration: number | null = null
   private lostLineNotice: LostLineV1 | null = null
+
   private liveFoldStatus: FoldStatusV1 | null = null
+
   private foldExitLatch: FoldStatusV1 | null = null
   private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
   private foldLingerTimer: ReturnType<typeof setTimeout> | null = null
   private foldLingerOver = false
   private readonly foldListeners = new Set<() => void>()
+
   private liveWait: RequestWaitV1 | null = null
+
   private hardStopping = false
 
   private lastEventAtMs: number | null = null
+
   private streamBlock: 'thinking' | 'text' | 'tool_use' | null = null
   private blockSinceMs: number | null = null
+
   private readonly toolBudgets = new Map<string, { budgetMs: number; elapsedMs: number; atMs: number }>()
+
   private livenessTicker: ReturnType<typeof setInterval> | null = null
 
   private readonly progressFeed: ProjectionFeed
   private progressAtMs = -1
+
   private readonly publishedProgressSeqs = new Map<string, number>()
 
   private attached = false
+
   private admission: Promise<string | null> | null = null
   private refusedAdmission: string | null = null
 
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+
     this.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
@@ -607,7 +655,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.refreshCheckpoints()
   }
 
-
   attach(): Promise<void> {
     if (this.attached) return Promise.resolve()
     this.attached = true
@@ -618,7 +665,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.asksFeed.start()
     this.tailFeed.start()
     this.progressFeed.start()
+
     void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(() => {})
+
     seatVerb('focus', this.record.sessionId)
     return this.tick()
   }
@@ -639,13 +688,16 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     } catch {
     }
     this.transcriptWatcher = null
+
     this.releaseTranscript?.()
     this.releaseTranscript = null
     this.factsFeed.stop()
     this.asksFeed.stop()
     this.tailFeed.stop()
     this.progressFeed.stop()
+
     seatVerb('blur', this.record.sessionId)
+
     this.tailStore.reset(null)
     this.tailStore.dropSettled()
     this.tailStore.setMessageId(null)
@@ -655,6 +707,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveTurnChars = 0
     this.liveTurnOutputTokens = null
     this.clearLiveStateWord()
+
     clearEphemeralProgress()
     this.publishedProgressSeqs.clear()
     this.progressAtMs = -1
@@ -674,6 +727,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     for (const [parentId, entry] of entries) {
+
       if (typeof entry.budgetMs === 'number') {
         this.toolBudgets.set(parentId, { budgetMs: entry.budgetMs, elapsedMs: (entry.elapsedTimeSeconds ?? 0) * 1000, atMs: progress.atMs })
       }
@@ -704,16 +758,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveTurnThinkingChars = typeof tail.turnThinkingChars === 'number' && Number.isFinite(tail.turnThinkingChars) ? Math.max(0, tail.turnThinkingChars) : 0
     this.liveTurnThinkingBlocks = typeof tail.turnThinkingBlocks === 'number' && Number.isFinite(tail.turnThinkingBlocks) ? Math.max(0, Math.floor(tail.turnThinkingBlocks)) : 0
     this.liveFirstByteAtMs = typeof tail.firstByteAtMs === 'number' && Number.isFinite(tail.firstByteAtMs) ? tail.firstByteAtMs : null
+
     this.setLiveStateWord(
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
+
     this.setLiveFold(tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
+
     const wait = decodeRequestWait(tail.wait)
     if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
       this.liveWait = wait
       emitAll(this.liveListeners, 'live')
     }
+
     this.lastEventAtMs = typeof tail.lastEventAtMs === 'number' ? tail.lastEventAtMs : null
     const block = tail.streamBlock === 'thinking' || tail.streamBlock === 'text' || tail.streamBlock === 'tool_use' ? tail.streamBlock : null
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
@@ -739,7 +797,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.tailSeq = this.arrivalSeq
       this.tailSinceMs = typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : tail.atMs
     }
+
     this.tailStore.setMessageId(typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null)
+
     this.tailStore.setPhase(tail.phase === 'commentary' || tail.phase === 'final_answer' ? tail.phase : null)
     if (text === null) {
       this.clearTail(tail.atMs)
@@ -836,6 +896,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const wasCompacting = this.liveStateWord === 'compacting'
     this.liveStateWord = word
     this.liveAgentsWaiting = count
+
     if (wasCompacting && word !== 'compacting') {
       for (const s of this.sends) if (s.state === 'queued') this.dressSend(s.clientMessageId, 'queued')
     }
@@ -955,6 +1016,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         } catch {
         }
         if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
+
         this.armTranscriptTimer()
       })
       this.transcriptWatcher = watcher
@@ -1007,6 +1069,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   addDisplayRow(row: Message): void {
     const subtype = (row as { subtype?: string }).subtype
+
     const kept =
       row.type === 'system' && subtype === 'away_summary'
         ? this.displayRows.filter(d => !(d.row.type === 'system' && (d.row as { subtype?: string }).subtype === 'away_summary'))
@@ -1050,7 +1113,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.refusedAdmission
   }
 
-
   private tick(): Promise<void> {
     if (this.tickInFlight !== null) {
       this.tickDirty = true
@@ -1080,19 +1142,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         sizeNow = -1
       }
       connectorTrace({ ev: 'tick', sid: this.record.sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
+
       if (sizeNow === this.lastSize && this.lastLen >= 0) return
       if (sizeNow !== -1 && this.transcriptWatcher === null) {
+
         this.armTranscriptWatcher()
         this.armTranscriptTimer()
       }
+
       const reader = await import('../../utils/sessionStorage/transcriptReader.js')
       if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
       const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
       if (!this.attached) return
       this.chainCursor = chain.cursor
       const raw = chain.rows as unknown as Message[]
+
       this.lastSize = sizeNow
       this.lastLen = raw.length
+
       const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
       const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
       const merge = mergeRecordsContentKeyed(
@@ -1107,10 +1174,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
       if (merge.reusedAll) return
       this.rawRecords = merge.records
+
       if (chain.rewound) {
         this.releaseDisplayRowsPast(chain.since)
         this.textRows = []
       }
+
       this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
       this.releaseTail()
       this.reconcileSends()
@@ -1118,15 +1187,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.paint()
       this.recomputeLive()
     } catch (error) {
+
       connectorTrace({ ev: 'tick-error', sid: this.record.sessionId, message: error instanceof Error ? error.message : String(error) })
     }
   }
 
   private recomputeLive(): void {
+
     const sendInFlight = this.sends.some(s => s.state === 'delivered')
     const inFlight = this.factsBusy || sendInFlight
+
     const streaming: SessionLiveV1['phase'] | null =
       this.streamBlock === 'thinking' ? 'thinking' : this.streamBlock !== null ? 'responding' : null
+
     const phase: SessionLiveV1['phase'] =
       inFlight && this.liveStateWord === 'compacting' && foldStillRuns(this.liveFoldStatus)
         ? 'compacting'
@@ -1138,8 +1211,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
               ? 'thinking'
               : this.liveState.phase
     const agentsWaiting = phase === 'waiting' ? this.liveAgentsWaiting : 0
+
     const waitingOn = phase === 'waiting' ? workCounts(this.facts?.work ?? []) : null
     const waitingOnWords = waitingOn !== null ? workChipLine(waitingOn) : null
+
     const inProgressToolUseIDs = inFlight
       ? this.liveState.inProgressToolUseIDs
       : IDLE_LIVE.inProgressToolUseIDs
@@ -1152,6 +1227,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
       inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
       [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
+
     let latchReleased = false
     if (this.interruptPressedAtMs !== null) {
       const release = interruptLatchRelease(
@@ -1166,24 +1242,30 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         latchReleased = true
       }
     }
+
     if (!inFlight && this.tailStore.read() !== null) this.clearTail(Date.now())
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveTurnOutputTokens = null
+
     if (!inFlight && (prev.inFlight || this.liveStateWord !== 'waiting-on-agents')) this.clearLiveStateWord()
     if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
+
       const gone = this.liveFoldStatus
       this.liveFoldStatus = null
       if (gone.trigger === 'manual') this.latchFold(gone)
       emitAll(this.foldListeners, 'fold')
     }
+
     if (!inFlight && this.publishedProgressSeqs.size > 0) {
       clearEphemeralProgress()
       this.publishedProgressSeqs.clear()
     }
+
     if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
     this.syncLivenessTicker(inFlight)
     this.syncFeedCadence(inFlight)
     if (!changed) {
+
       if (latchReleased) emitAll(this.liveListeners, 'live')
       return
     }
@@ -1193,6 +1275,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       agentsWaiting,
       ...(waitingOn !== null && waitingOnWords !== null ? { waitingOn } : {}),
       inProgressToolUseIDs,
+
       turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null,
     }
     emitAll(this.liveListeners, 'live')
@@ -1210,6 +1293,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.retireTextRowsWithRunner()
       }
     }
+
     let born = false
     for (const entry of queue) {
       if (!isNoticeFact(entry)) continue
@@ -1229,6 +1313,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (isNoticeFact(entry)) queuedIds.add(noticeKeyOf(entry.value))
     }
     for (const s of this.sends) {
+
       if (s.state === 'pending' || s.withdrawing === true) continue
       if (queuedIds.has(s.clientMessageId)) {
         if (s.state !== 'queued') this.dressSend(s.clientMessageId, 'queued')
@@ -1236,6 +1321,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.dressSend(s.clientMessageId, 'taken', facts.atMs)
       }
     }
+
     const ordered = queueOrderedSends(this.sends, queue)
     const moved = ordered.some((entry, i) => entry !== this.sends[i])
     if (moved) this.sends = ordered
@@ -1243,6 +1329,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private dressSend(clientMessageId: string, state: SeatSend['state'], takenAtMs = Date.now()): void {
+
     const current = this.sends.find(s => s.clientMessageId === clientMessageId)
     if (state === 'taken' && isNoticeKey(clientMessageId) && current !== undefined) {
       const row = this.echoRows.get(clientMessageId)
@@ -1340,6 +1427,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     for (const s of this.sends) {
       if (landed.has(s.clientMessageId)) continue
+
       if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
         continue
@@ -1418,11 +1506,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const echoes: Message[] = [...held.map(entry => entry.row), ...afterTail]
     this.rowsAfterTail = afterTail.length
+
     const kept = withoutRetractedReplies(projectOperatorRewinds(this.rawRecords))
     const dropped = kept.length === this.rawRecords.length ? null : new Set<Message>(kept)
     if (echoes.length === 0 && this.displayRows.length === 0 && dropped === null) {
       this.painted = this.rawRecords
     } else {
+
       const rows: Message[] = []
       let d = 0
       for (let i = 0; i <= this.rawRecords.length; i++) {
@@ -1446,7 +1536,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
   }
-
 
   private refreshCheckpoints(): void {
     const fc = this.facts?.fileCheckpoints
@@ -1489,6 +1578,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (reply.ok !== true) {
         const error = typeof reply.error === 'string' ? reply.error : ''
         if (reply.refusal === 'daemon-older') {
+
           return { outcome: 'refused', mode: req.mode, refusal: 'daemon-older', detail: error }
         }
         return { outcome: 'refused', mode: req.mode, refusal: 'restore-failed', detail: `${error !== '' ? error : 'the daemon refused the rewind'} — nothing is assumed restored` }
@@ -1514,10 +1604,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
-
   private readFacts(): void {
     const next = readSessionFacts(this.record.sessionId)
     if (next === null) {
+
       if (this.facts !== null && ((this.facts.work?.length ?? 0) > 0 || (this.facts.mission?.length ?? 0) > 0 || (this.facts.samples?.length ?? 0) > 0) && !existsSync(sessionFactsPath(this.record.sessionId))) {
         this.facts = { ...this.facts, work: [], mission: [], samples: [] }
         this.refreshWork()
@@ -1527,6 +1617,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const prev = this.facts
     this.facts = this.factsFromCarrier(next)
     this.refreshCheckpoints()
+
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
     adoptAnthropicWindowFact(next.usage?.anthropicWindow)
@@ -1534,6 +1625,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (next.openaiCatalogue !== undefined && next.openaiCatalogue.fetchedAtMs !== prev?.openaiCatalogue?.fetchedAtMs) {
       adoptOpenaiCatalogueFact(next.openaiCatalogue)
     }
+
     const settled = next.modelSettled
     if (
       prev !== null &&
@@ -1554,6 +1646,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         }) as unknown as Message,
       )
     }
+
     const modelMoved =
       prev === null ||
       prev.model.effective !== next.model.effective ||
@@ -1562,6 +1655,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev.effort !== next.effort ||
       prev.effortSent !== next.effortSent
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
+
     this.factsBusy = this.facts.busy
     if (this.facts.busy) this.armBusyStall()
     else this.disarmBusyStall()
@@ -1570,12 +1664,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.effectiveLive.inFlight, interrupting: this.interrupting, hardStopping: this.hardStopping })
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
+
     if (!modelMoved) emitAll(this.modelListeners, 'model')
+
     if (this.reconcileSends() || this.clearModelReceipt === undefined) this.paint()
     this.refreshWork()
   }
 
   private refreshWork(): void {
+
     const reported = this.facts?.work !== undefined
     const gone = this.carrierGoneAtFactsMs !== null
     const rows = this.facts?.work ?? []
@@ -1588,7 +1685,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }
     emitAll(this.workListeners, 'work')
   }
-
 
   private readAsks(): void {
     const projection = readSessionAsks(this.record.sessionId)
@@ -1662,6 +1758,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private buildConfirm(row: SessionAskProjectionV1): ToolUseConfirm {
     const tool = toolFor(row.toolName)
+
     const decisionReason =
       decodeDecisionReasonFromWire(row.decisionReasonDetail) ??
       (row.decisionReason !== undefined ? { type: 'other' as const, reason: row.decisionReason } : undefined)
@@ -1687,6 +1784,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
       onUserInteraction: () => {},
       onAbort: () => {
+
         void this.answerThroughDaemon(row.requestId, { kind: 'abort' })
       },
       onAllow: async (updatedInput, permissionUpdates, feedback, contentBlocks) => {
@@ -1703,6 +1801,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       },
       recheckPermission: async () => {},
     }
+
     void Promise.resolve(
       tool.description(row.input as never, {
         isNonInteractiveSession: false,
@@ -1717,7 +1816,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return confirm
   }
 
-
   private async rpc(req: Record<string, unknown>, timeoutMs = RPC_TIMEOUT_MS): Promise<Record<string, unknown>> {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     return (await daemonControlRpc(req as never, { timeoutMs })) as Record<string, unknown>
@@ -1731,6 +1829,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
+
     this.settleAsk(requestId)
     try {
       const reply = await this.chainRpc({
@@ -1754,6 +1853,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       })
       const ok = reply.ok === true && reply.outcome === 'applied'
       if (!ok) return { ok: false, detail: String(reply.detail ?? reply.error ?? 'the ask was already answered') }
+
       const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined
       const blocks = answer.kind === 'allow' || answer.kind === 'deny' ? answer.contentBlocks : undefined
       if ((answer.kind === 'allow' && feedback) || (blocks !== undefined && blocks.length > 0)) {
@@ -1779,19 +1879,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const images = [...imageBlocksOf(pastes), ...(opts.extraBlocks ?? [])]
     if (expanded === '' && images.length === 0) return REFUSED_EMPTY
     const mode: 'prompt' | 'bash' = opts.mode === 'bash' ? 'bash' : 'prompt'
+
     const provisionalId =
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
+
     const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
     this.paint()
+
     const answering = await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
     if (clientMessageId !== provisionalId) {
+
       const rows = [...this.echoRows]
       this.echoRows.clear()
       for (const [key, row] of rows) this.echoRows.set(key === provisionalId ? clientMessageId : key, row)
     }
     submitTrace('connector-deliver', expanded, { mode, clientMessageId })
+
     const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, source: { text, mode, pastedContents: pastes } }
     this.sends = [...this.sends.filter(s => s.clientMessageId !== clientMessageId), send]
     this.stampArrival(clientMessageId)
@@ -1804,6 +1909,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.echoRows.delete(clientMessageId)
         this.paint()
       } else {
+
         const queuedNow = this.factsBusy || this.liveStateWord === 'compacting'
         this.dressSend(clientMessageId, queuedNow ? 'queued' : 'delivered')
         connectorTrace({ ev: 'send', sid: this.record.sessionId, state: queuedNow ? 'queued' : 'delivered' })
@@ -1811,12 +1917,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
       emitAll(this.liveListeners, 'live')
       if (state === 'delivered') {
+
         this.refusedAdmission = null
         return { state: 'accepted' }
       }
       return { state: 'refused', detail: detail ?? (state === 'held' ? 'held — ↵ again replays it' : 'the session did not take it') }
     }
     try {
+
       const refusal = this.admission !== null ? await this.admission : null
       if (refusal !== null) {
         return settle('failed', `the session could not resume — ${refusal} · ↵ again retries`)
@@ -1825,6 +1933,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (!(await ensureOwnedDaemon())) {
         return settle('failed', 'the daemon that hosts sessions did not start — ↵ again starts it and retries')
       }
+
       if (this.isAttached()) seatVerb('focus', this.record.sessionId)
       if (answering !== null) {
         const kernel = await import('../concourse/coordinatorKernel.js')
@@ -1870,7 +1979,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return null
     }
   }
-
 
   sessionId(): string {
     return this.record.sessionId
@@ -1962,6 +2070,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (hard) this.hardStopping = true
     else {
       this.interrupting = true
+
       this.interruptPressedAtMs = Date.now()
       this.interruptedMessageId = this.tailStore.readIds().current ?? this.tailMessageId
       if (this.interruptedMessageId !== null) {
@@ -1975,6 +2084,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     emitAll(this.liveListeners, 'live')
     connectorTrace({ ev: 'interrupt', sid: this.record.sessionId, hard, turnStartedAtMs: this.liveState.turnStartedAtMs })
+
     const undo = (): void => {
       if (hard) this.hardStopping = false
       else {
@@ -1984,6 +2094,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
       emitAll(this.liveListeners, 'live')
     }
+
     void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
       .then(reply => {
         if (!(reply.ok === true && reply.outcome === 'applied')) undo()
@@ -1991,7 +2102,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       .catch(undo)
     return true
   }
-
 
   recallableSend(): RecallableSendV1 | null {
     let latest: SeatSend | null = null
@@ -2014,6 +2124,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (send.state === 'pending') {
       const settled = await this.settled(clientMessageId)
       send = this.sends.find(s => s.clientMessageId === clientMessageId)
+
       if (send === undefined) return nothing
       if (!settled) return { withdrawn: false, reason: 'refused', detail: 'the line is still on its way to the session — ↑ again in a moment' }
       if (send.state === 'taken') return taken
@@ -2075,6 +2186,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.settleWaiters.delete(clientMessageId)
     for (const w of waiters) w()
   }
+
   private settled(clientMessageId: string): Promise<boolean> {
     const send = this.sends.find(s => s.clientMessageId === clientMessageId)
     if (send === undefined || send.state !== 'pending') return Promise.resolve(true)
@@ -2193,6 +2305,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         ...(note !== undefined ? { note } : {}),
       })
       if (reply.ok !== true) {
+
         return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
       }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
@@ -2205,6 +2318,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   modelFacts(): ModelFactsV1 {
     const effective = this.facts?.model.effective ?? this.record.modelKey ?? getEngineModel()
+
     const effectiveSource: 'live' | 'record' | 'ambient' =
       this.facts !== null ? 'live' : this.record.modelKey !== undefined ? 'record' : 'ambient'
     return {
@@ -2212,7 +2326,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       effectiveSource,
       main: effective,
       setting: this.facts?.model.setting ?? this.record.modelKey ?? null,
+
       sessionPin: this.facts?.model.setting ?? this.record.modelKey ?? null,
+
       effort: this.facts?.effort ?? this.record.effort ?? null,
       ...(this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
@@ -2239,6 +2355,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const refuse = (detail: string): ModelSwitchReceiptV1 => {
       logForDebugging(`[engine-connector] daemon set-model refused: ${detail}`)
+
       this.readFacts()
       return { state: 'refused', detail }
     }
@@ -2249,16 +2366,19 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
       if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the switch')
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
+
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
       this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
       if (outcome === 'applied') {
+
         const respawned = (reply as { respawned?: unknown }).respawned === true
         if (respawned) this.readFacts()
         if (detail !== undefined && (respawned || detail !== `${this.record.runnerId} → ${target}`)) return { state: 'applied', note: detail }
       }
       return { state: outcome }
     } catch (e) {
+
       return refuse(`the daemon is not answering — the switch did not land (${e instanceof Error ? e.message : String(e)})`)
     }
   }
@@ -2273,6 +2393,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     const refuse = (detail: string): ModelSwitchReceiptV1 => {
       logForDebugging(`[engine-connector] daemon set-effort refused: ${detail}`)
+
       this.readFacts()
       return { state: 'refused', detail }
     }
@@ -2283,6 +2404,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
       if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the effort')
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
+
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
       this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
@@ -2386,6 +2508,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the toggle') }
       const outcome = reply.outcome
       if (outcome === 'applied' || outcome === 'queued' || outcome === 'noop' || outcome === 'refused') {
+
         this.readFacts()
         return { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
       }
@@ -2423,6 +2546,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   async setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1> {
+
     const before = this.facts
     if (this.facts !== null) {
       this.facts = { ...this.facts, permissionMode: mode }
@@ -2442,6 +2566,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (receipt.outcome === 'applied') this.factsFeed.settle(SEAT_VERB_SETTLE_MS)
     if (receipt.outcome === 'refused') {
+
       if (this.facts !== null && this.facts.permissionMode === mode) {
         this.facts = before !== null ? before : this.facts
         emitAll(this.permissionListeners, 'permission')
@@ -2461,7 +2586,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const trimmed = line.trim()
     return this.deliver(trimmed.startsWith('/') ? trimmed : `/${trimmed}`, {})
   }
-
 
   live(): SessionLiveV1 {
     return this.effectiveLive
@@ -2493,9 +2617,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   status(): SeatStatusV1 {
+
     const live = this.effectiveLive
     const now = Date.now()
     const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
+
     const wait = live.inFlight ? this.liveWait : null
     const watchdogMs =
       wait?.kind === 'first-byte' ? wait.budgetMs : typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
@@ -2503,6 +2629,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     let toolBudgetMs: number | null = null
     if (live.inFlight) {
       if (live.phase === 'tool') {
+
         const started = this.toolStartedAtMs(live.inProgressToolUseIDs)
         if (started !== null) phaseMs = Math.max(0, now - started)
         for (const [id, budget] of this.toolBudgets) {
@@ -2516,6 +2643,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         phaseMs = Math.max(0, now - live.turnStartedAtMs)
       }
     }
+
     const stuck =
       live.inFlight &&
       !this.interrupting &&
@@ -2524,6 +2652,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       watchdogMs !== null &&
       quietMs >= streamIdleWarningMsOf(watchdogMs)
     return {
+
       title: liveTitleDeriver?.(this.record) ?? this.record.title,
       projectLabel: this.record.projectLabel,
       interrupting: this.interrupting,
@@ -2540,7 +2669,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 }
-
 
 const connectors = new Map<string, DaemonSessionConnector>()
 
@@ -2569,6 +2697,7 @@ let latestHop: { epoch: number; connector: DaemonSessionConnector } | null = nul
 
 export async function focusDaemonSession(record: DaemonSessionRecordV1): Promise<DaemonSessionConnector> {
   const connector = daemonSessionConnectorFor(record)
+
   const epoch = claimHopEpoch()
   latestHop = { epoch, connector }
   await connector.attach()

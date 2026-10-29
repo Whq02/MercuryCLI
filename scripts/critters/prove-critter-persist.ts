@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -23,6 +24,7 @@ console.log('— the ↵ pick persists (source lock) —')
 
 console.log('— hero-click morphs persist too (every entry point sticks) —')
 {
+
   const home = src('src/components/MercuryHome.tsx')
   t('the berth activate rides the one owner', home.includes('onActivate={cycleSessionCritter}'))
   t('the hero mounts the mini row, whose art click rides the one owner', home.includes('<MiniCritter />') && src('src/components/mercury-ui/MiniCritter.tsx').includes('onClick={cycleSessionCritter}'))
@@ -49,6 +51,7 @@ console.log('— boot resolution honors the persisted default —')
 
 console.log('— BOOT ORDER (the day-one bug): module init precedes the latch —')
 {
+
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const home = mkdtempSync(join(tmpdir(), 'critter-bootorder-'))
@@ -73,6 +76,7 @@ console.log('— BOOT ORDER (the day-one bug): module init precedes the latch �
 
 console.log('— a SAVED defaultCritter the pool does not know resolves to the DEFAULT at read (never rewritten) —')
 {
+
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { spawnSync } = await import('node:child_process')

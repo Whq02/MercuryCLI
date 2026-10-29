@@ -1,4 +1,3 @@
-
 import chalk from 'chalk'
 import { marked, type Token, type Tokens } from 'marked'
 import stripAnsi from 'strip-ansi'
@@ -27,7 +26,6 @@ export function configureMarked(): void {
   })
 }
 
-
 const ISSUE_REFERENCE_RE = /(^|[^\w./-])([A-Za-z0-9_-]+)\/([A-Za-z0-9_.-]+)#(\d+)/g
 
 function linkifyIssueReferences(text: string): string {
@@ -37,7 +35,6 @@ function linkifyIssueReferences(text: string): string {
     return `${lead}${createHyperlink(`https://github.com/${owner}/${repo}/issues/${num}`, reference)}`
   })
 }
-
 
 function bijectiveLetters(n: number): string {
   let out = ''
@@ -73,7 +70,6 @@ function formatOrdinal(n: number, depth: number): string {
   return String(n)
 }
 
-
 function padAligned(
   content: string,
   displayWidth: number,
@@ -89,18 +85,17 @@ function padAligned(
   return content + ' '.repeat(pad)
 }
 
-
 const MARKDOWN_MARKER_RE = /[#*`|[>\-_~+=<\\]|\n\s*\n|^\s*\d+[.)]\s|^ {4}|^\t|&#?\w+;/m
 
 export function hasMarkdownMarkers(text: string): boolean {
   return MARKDOWN_MARKER_RE.test(text)
 }
 
-
 export function applyMarkdown(
   content: string,
   theme: ThemeName,
   highlight?: CliHighlight | null,
+
   maxWidth: number = process.stdout.columns ?? Number.POSITIVE_INFINITY,
 ): string {
   configureMarked()
@@ -127,7 +122,6 @@ export function stripInlineMarkdown(content: string): string {
     )
     .join('\n')
 }
-
 
 function renderChildren(
   tokens: Token[] | undefined,
@@ -158,6 +152,7 @@ export function formatToken(
     case 'blockquote': {
       const quote = token as Tokens.Blockquote
       const body = renderChildren(quote.tokens, theme, highlight)
+
       return body
         .split('\n')
         .map(line =>
@@ -182,6 +177,7 @@ export function formatToken(
     }
 
     case 'codespan':
+
       return color('info', theme)(token.text)
 
     case 'em':
@@ -201,6 +197,7 @@ export function formatToken(
     }
 
     case 'hr':
+
       return '---\n'
 
     case 'image':
@@ -242,6 +239,7 @@ export function formatToken(
     case 'list_item': {
       const item = token as Tokens.ListItem
       const indent = '  '.repeat(listDepth)
+
       return item.tokens
         .map((child, idx) => {
           const depth = child.type === 'list' ? listDepth + 1 : listDepth
@@ -273,13 +271,16 @@ export function formatToken(
     case 'text': {
       const text = token as Tokens.Text
       if (parent?.type === 'link') {
+
         return text.text
       }
       if (parent?.type === 'list_item') {
+
         const body = text.tokens
           ? text.tokens.map(t => formatToken(t, theme, 0, undefined, text, highlight)).join('')
           : linkifyIssueReferences(text.text)
         const marker = listItemMarker(orderedListNumber, listDepth)
+
         const hung = body.split('\n').join(`\n${' '.repeat(stringWidth(marker))}`)
         return `${marker}${hung}\n`
       }
@@ -307,10 +308,10 @@ export function formatToken(
       return ''
 
     default:
+
       return ''
   }
 }
-
 
 const MIN_COLUMN_WIDTH = 3
 

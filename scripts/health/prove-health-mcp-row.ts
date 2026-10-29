@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -97,6 +98,7 @@ try {
       cwd: CWD,
       cols: 120,
       rows: 40,
+
       sends: [
         { atTick: 140, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/health' },
         { afterPrevTicks: 6, data: '\r' },
@@ -129,6 +131,7 @@ try {
       writeFileSync(join(captureDir, 'health-mcp-row-120x40.txt'), lines.join('\n') + '\n')
     }
     const mcpLine = lines.find(l => l.includes('MCP policy')) ?? ''
+
     check('/health painted its certificate', lines.some(l => l.includes('Mercury · health')))
     check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120))
     check('no grid cell holds [object Object]', !lines.some(l => l.includes('[object Object]')))

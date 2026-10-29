@@ -7,7 +7,6 @@ import { endProcessTree, type ProcessTreeKillReceipt } from './processGroup.js'
 import { MAX_TASK_OUTPUT_BYTES, MAX_TASK_OUTPUT_BYTES_DISPLAY } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
 
-
 export const HARD_CAP_MULTIPLIER = 10
 
 const KILL_GRACE_MS = 2000
@@ -25,21 +24,26 @@ export type ExecResult = {
   outputFileSize?: number
   outputTaskId?: string
   preSpawnError?: string
+
   timeoutAutoBackgroundedAfterMs?: number
 }
 
 type OnTimeoutCallback = (backgroundFn: (taskId: string) => boolean) => void
 
 export type ShellCommand = {
+
   background: (taskId: string) => boolean
   result: Promise<ExecResult>
   kill: () => void
   status: 'running' | 'backgrounded' | 'completed' | 'killed'
   cleanup: () => void
+
   onTimeout?: (callback: OnTimeoutCallback) => void
   taskOutput: TaskOutput
   pid?: number
+
   treeKillReceipt?: Promise<ProcessTreeKillReceipt>
+
   scrubbedSessionEnv?: readonly string[]
 }
 
@@ -129,6 +133,7 @@ export function wrapSpawn(
   }
 
   const teardownListeners = (): void => {
+
     if (sizeWatchdogTimer !== undefined) {
       clearInterval(sizeWatchdogTimer)
       sizeWatchdogTimer = undefined
@@ -149,20 +154,25 @@ export function wrapSpawn(
   const kill = (): void => {
     status = 'killed'
     killedByMercury = true
+
     const fallbackCode = killedByTimeoutPolicy ? 143 : 137
     if (!child?.pid) {
+
       settleExitCode(fallbackCode)
       return
     }
     if (graceTimer === undefined) {
+
       graceTimer = setTimeout(() => settleExitCode(fallbackCode), KILL_GRACE_MS)
       graceTimer.unref()
     }
+
     const sweep = endProcessTree(child, 'SIGKILL')
     treeKillReceipt ??= sweep
   }
 
   const onAbort = (): void => {
+
     if (signal?.reason === 'interrupt') return
     kill()
   }
@@ -174,8 +184,10 @@ export function wrapSpawn(
         try {
           size = (await stat(taskOutput.path)).size
         } catch {
+
           return
         }
+
         if (sizeWatchdogTimer === undefined || status !== 'backgrounded') return
         if (size > maxOutputBytes) {
           killedBySizeWatchdog = true
@@ -196,15 +208,19 @@ export function wrapSpawn(
   }
 
   const background = (taskId: string): boolean => {
+
     if (status !== 'running') return false
     backgroundTaskId = taskId
     status = 'backgrounded'
+
     teardownListeners()
     if (fileMode) {
       startSizeWatchdog()
     } else {
+
       taskOutput.spillToDisk()
     }
+
     if (timeoutElapsed) {
       armHardCap()
     }
@@ -217,9 +233,11 @@ export function wrapSpawn(
       graceTimer = undefined
     }
     teardownListeners()
+
     if (status === 'running' || status === 'backgrounded') {
       status = 'completed'
     }
+
     await new Promise(resolve => setImmediate(resolve))
     const stdout = await taskOutput.getStdout()
     let stderr = taskOutput.getStderr()
@@ -235,6 +253,7 @@ export function wrapSpawn(
 
     if (fileMode && backgroundTaskId === undefined) {
       if (taskOutput.outputFileRedundant) {
+
         await taskOutput.deleteOutputFile()
       } else {
         execResult.outputFilePath = taskOutput.path
@@ -253,6 +272,7 @@ export function wrapSpawn(
         `time bound). For a service-style command that should run indefinitely, background it ` +
         `explicitly instead.`
     } else if (killedByTimeoutPolicy) {
+
       note = `Command timed out after ${formatDuration(timeout)}.`
     }
     if (note !== undefined) {
@@ -269,6 +289,7 @@ export function wrapSpawn(
     stdoutWrapper = null
     stderrWrapper = null
     taskOutput.clear()
+
     teardownListeners()
     child = null
     signal = null
@@ -285,9 +306,11 @@ export function wrapSpawn(
   timeoutTimer = setTimeout(() => {
     timeoutFired = true
     if (shouldAutoBackground && timeoutCallback !== undefined) {
+
       timeoutElapsed = true
       timeoutCallback(background)
     } else {
+
       killedByTimeoutPolicy = true
       kill()
     }
@@ -310,6 +333,7 @@ export function wrapSpawn(
   }
   if (shouldAutoBackground) {
     command.onTimeout = (callback: OnTimeoutCallback): void => {
+
       if (timeoutFired) return
       timeoutCallback = callback
     }

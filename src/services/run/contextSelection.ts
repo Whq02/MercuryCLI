@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { Message } from '../../types/message.js'
@@ -64,7 +63,9 @@ type RequiredReason =
   | 'required:dependency'
 
 interface SourceSpanRef {
+
   recordUuid: string
+
   viewIndex: number
 }
 
@@ -72,6 +73,7 @@ interface SelectionReduction {
   reasonCode: 'excluded:scored-out'
   span: SourceSpanRef
   itemType: string
+
   pointer: string
 }
 
@@ -80,17 +82,23 @@ type SelectionOverflow = 'none' | 'closure-exceeds-budget'
 export interface ContextSelectionPlan {
   version: typeof CONTEXT_SELECTION_VERSION
   policy: ContextPolicyClass
+
   candidateCount: number
   requiredCount: number
   optionalCount: number
+
   excluded: SelectionReduction[]
+
   exclusionsCapped: boolean
+
   overflow: SelectionOverflow
+
   indexVisited: number
+
   indexMode: 'incremental' | 'rebase' | 'noop'
+
   digest: string
 }
-
 
 const uuidOf = (m: Message): string => (m as { uuid?: string }).uuid ?? ''
 const typeOf = (m: Message): string => (m as { type?: string }).type ?? '?'
@@ -139,16 +147,18 @@ function isRealUserMessage(m: Message): boolean {
   return toolResultIdsOf(m).length === 0
 }
 
-
 export const MAX_CANDIDATES = 4096
 export const MAX_RECORDED_EXCLUSIONS = 200
+
 const MAX_FILE_EDGES = 32
+
 const ACCESS_DECAY = 0.5
 
 interface CandidateMeta {
   viewIndex: number
   itemType: string
   chars: number
+
   score: number
 }
 
@@ -226,6 +236,7 @@ export function updateCandidateIndex(
       score: 1,
     })
   }
+
   if (state.candidates.size > MAX_CANDIDATES) {
     let overflow = state.candidates.size - MAX_CANDIDATES
     for (const uuid of state.candidates.keys()) {
@@ -239,7 +250,6 @@ export function updateCandidateIndex(
   state.folds++
   return { visited, mode: prefixIntact ? 'incremental' : 'rebase' }
 }
-
 
 const REQUIRED_TAIL_MESSAGES = 10
 
@@ -284,6 +294,7 @@ function computeRequiredClosure(view: Message[]): Map<number, RequiredReason> {
       latestPathUse.delete(p)
       if (blocks.length > 0) latestPathUse.set(p, blocks[0]!.id)
       if (latestPathUse.size > MAX_FILE_EDGES) {
+
         const oldest = latestPathUse.keys().next().value as string | undefined
         if (oldest !== undefined) latestPathUse.delete(oldest)
       }
@@ -316,9 +327,10 @@ function computeRequiredClosure(view: Message[]): Map<number, RequiredReason> {
   return required
 }
 
-
 export interface SelectionBudget {
+
   maxOptionalItems: number
+
   maxTotalItems?: number
 }
 
@@ -395,6 +407,7 @@ export function runSelectionStage(
     typeof budget.maxTotalItems === 'number' &&
     required.size > budget.maxTotalItems
   ) {
+
     overflow = 'closure-exceeds-budget'
   }
 

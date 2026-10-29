@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -62,6 +63,7 @@ async function drive(args: {
   mkdirSync(cwd, { recursive: true })
   const configHome = join(home, 'confighome')
   seedFirstRun(configHome, [cwd])
+
   const cfgFile = join(configHome, '.mercury.json')
   try {
     const cfg = JSON.parse(readFileSync(cfgFile, 'utf8')) as Record<string, unknown>
@@ -76,6 +78,7 @@ async function drive(args: {
     { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 4, data: '/caching\r' },
     ...(args.dial
       ? ([
+
           { requireAwait: true, awaitText: 'prompt-caching truth', awaitSettleTicks: 3, data: '\r' },
           { requireAwait: true, awaitText: 'future defaults', awaitSettleTicks: 2, data: '\r' },
         ] satisfies Send[])
@@ -173,6 +176,7 @@ async function drive(args: {
       grid.includes('future defaults') && grid.includes('revision 2'))
     check(`${label}: the 1h consent line paints beside the live 1h choice`,
       grid.includes('doubles every cache write'))
+
     try {
       const bootEnv = JSON.parse(
         readFileSync(join(configHome, 'boot-env.json'), 'utf8'),

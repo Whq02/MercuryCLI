@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -86,12 +87,14 @@ section('M4 the completed read writes the record — win32 only; either hive cou
 
 section('M5 the barrier shape — the skip arm never waits on the spawns; the await arm (the control) does')
 {
+
   raw._setMdmRawReadForProofs(new Promise<never>(() => {}))
   mdm.clearMdmSettingsCache()
   const hAbsent = scratch()
   memo.writeMdmProbeMemo(false, hAbsent)
   const hNone = scratch()
   const barrier = async (awaits: boolean): Promise<'proceeded' | 'waited'> => {
+
     if (awaits) {
       await mdm.ensureMdmSettingsLoaded().catch(() => {})
       return 'proceeded'
@@ -108,6 +111,7 @@ section('M5 the barrier shape — the skip arm never waits on the spawns; the aw
 section('M6 wiring')
 {
   const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
+
   const at = main.indexOf('const { ensureMdmSettingsLoaded, mdmBootAwaitsRawRead')
   const hook = at >= 0 ? main.slice(Math.max(0, at - 400), at + 3000) : ''
   check('the barrier sits inside a preAction hook', at >= 0 && main.lastIndexOf("program.hook('preAction'", at) >= 0)

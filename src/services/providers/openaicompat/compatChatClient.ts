@@ -47,7 +47,6 @@ function unrefTimer(handle: unknown): void {
   ;(handle as { unref?: () => void } | null | undefined)?.unref?.()
 }
 
-
 export interface CompatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null | ZaiContentPart[]
@@ -79,6 +78,7 @@ export interface CompatChatRequest {
   messages: CompatWireMessage[]
   tools?: CompatTool[]
   tool_choice?: 'auto' | 'none' | 'required'
+
   extra?: Record<string, unknown>
 }
 
@@ -89,7 +89,6 @@ export interface CompatDeferralFacts {
   cacheDomainKey?: string
   imagesSupported: boolean
 }
-
 
 export type CompatFinishReason =
   | 'stop'
@@ -106,6 +105,7 @@ export interface CompatUsage {
   cachedInputTokens?: number
   reasoningTokens?: number
   totalTokens?: number
+
   statedCostUSD?: number
 }
 
@@ -129,6 +129,7 @@ export type CompatStreamEvent =
   | {
       type: 'finish'
       reason: CompatFinishReason
+
       rawReason: string
       toolCalls: CompatCompletedToolCall[]
     }
@@ -143,19 +144,21 @@ export interface CompatFault {
     | 'timeout'
     | 'cancelled'
     | 'transport-error'
+
   code: string
   message: string
   retryable: boolean
   silentMs?: number
   inStream?: true
+
   status?: number
   parameter?: string
   errorType?: string
   classification?: 'authentication_failed' | 'billing_error' | 'rate_limit' | 'server_error' | 'invalid_request'
+
   retryAfterMs?: number
   outage?: OutageCause
 }
-
 
 function vendorErrorWord(err: Record<string, unknown> | undefined): string | undefined {
   if (!err) return undefined
@@ -184,6 +187,7 @@ export function describeTransportFailure(error: unknown, baseURL: string | undef
     ].filter((v): v is string => typeof v === 'string' && v.length > 0)
     if (facts.length > 0) parts.push(facts.join(' '))
     else if (node.message && node.message !== 'fetch failed') parts.push(node.message)
+
     const aggregate = (node as { errors?: unknown[] }).errors
     node = aggregate && aggregate.length > 0 ? aggregate[0] : (node as { cause?: unknown }).cause
     depth++
@@ -206,10 +210,12 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const o = typeof envelope === 'object' && envelope !== null ? (envelope as Record<string, unknown>) : undefined
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const vendor = vendorEnvelopeFault(o)
+
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
   const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
   const throttled = isBedrockThrottle({ ...o, status, headers, message })
   const word = throttled ? 'ThrottlingException' : vendorErrorWord(err)
+
   let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
   if (status === 429 && retryAfterMs === undefined) {
     const details = Array.isArray(err?.details) ? err.details : []
@@ -230,12 +236,12 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
     ...(throttled ? { classification: 'rate_limit' as const } : {}),
     ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
     ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
+
     retryable: throttled || status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
 }
-
 
 export interface CompatLivenessReading {
   state: 'working' | 'alive' | 'unknown' | 'dead'
@@ -244,24 +250,31 @@ export interface CompatLivenessReading {
 }
 
 export interface CompatStreamOptions {
+
   apiKey?: string
+
   url: string
   request: CompatChatRequest
   signal?: AbortSignal
+
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
   liveness?: { fenceMs: number | null; read(): Promise<CompatLivenessReading> }
   onStreamActivity?: (atMs: number) => void
+
   firstByte?: {
     cold: boolean
     promptTokens: number
+
     model: string
     prefillMs?: number
     attempt?: number
     onWait?: (wait: RequestWaitV1 | null) => void
   }
+
   extraHeaders?: Record<string, string>
+
   onResponseHeaders?: (headers: Headers, status?: number) => void
   timers?: StreamTimers
   local?: LocalStreamLaw
@@ -355,7 +368,6 @@ export function startLocalSilenceWatch(args: {
   }
 }
 
-
 function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): CompatCompletedToolCall[] {
   const out: CompatCompletedToolCall[] = []
   for (const a of [...acc.values()].sort((x, y) => x.index - y.index)) {
@@ -410,6 +422,7 @@ export async function* streamCompatChat(
 
   try {
     let response: Response
+
     const firstByteBudget =
       local !== undefined
         ? local.promiseMs
@@ -562,6 +575,7 @@ export async function* streamCompatChat(
         return
       }
       if (!cancelled && firstByteFired) {
+
         const waited = firstByteTimeoutLine(firstByteExtended ? { ...wait, budgetMs: Math.max(wait.budgetMs, timers.now() - wait.sinceMs) } : wait)
         yield {
           type: 'stream-fault',
@@ -618,6 +632,7 @@ export async function* streamCompatChat(
     const decoder = new SseDecoder()
     let rawHead = ''
     let sawEvent = false
+
     let watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
     if (local !== undefined) {
@@ -733,6 +748,7 @@ export async function* streamCompatChat(
                       retryable: true,
                     },
         }
+
         void reader.cancel().catch(() => {})
         return
       }
@@ -811,6 +827,7 @@ export async function* streamCompatChat(
             }
           }
           if (event.type === 'stream-fault') {
+
             finished = true
           }
           if (event.type === 'usage' && local !== undefined && ingestMs !== null) {
@@ -860,10 +877,10 @@ export async function* streamCompatChat(
     idleWatchdog?.stop()
     silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
+
     controller.abort()
   }
 }
-
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
@@ -916,6 +933,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
   const o = asRecord(parsed)
   const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
   if (servedModel !== '') out.push({ type: 'served-model', model: servedModel })
+
   const envelope = vendorEnvelopeFault(o)
   if (envelope !== undefined) out.push({ type: 'stream-fault', fault: envelope })
   const errRecord = asRecord(o?.error)
@@ -924,6 +942,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
       typeof o?.error === 'string'
         ? o.error
         : String(errRecord?.message ?? JSON.stringify(errRecord).slice(0, 200))
+
     const numericCode = typeof errRecord?.code === 'number' ? errRecord.code : undefined
     const word = vendorErrorWord(errRecord)
     out.push({
@@ -1009,6 +1028,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
 
   const finishRaw = choice?.finish_reason
   if (finishRaw === 'error') {
+
     if (errRecord === undefined && typeof o?.error !== 'string') {
       out.push({
         type: 'stream-fault',

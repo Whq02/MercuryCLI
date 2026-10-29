@@ -56,6 +56,7 @@ if (mode === 'increment' || mode === 'increment-paused') {
   }
   process.exit(0)
 } else if (mode === 'spam') {
+
   const chunk = 'x'.repeat(64 * 1024)
   console.log('SPAMMING')
   for (;;) {

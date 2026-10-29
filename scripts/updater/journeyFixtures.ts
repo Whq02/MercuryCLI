@@ -21,6 +21,7 @@ const { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher } = (await imp
 
 export const ROOT = join(import.meta.dir, '..', '..')
 export const IS_WIN = process.platform === 'win32'
+
 const HOST_TARGET = IS_WIN ? 'windows-x64' : process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
 export const FLOOR = readCompatFloor()
 const NODE_POLICY = parseEnginesNode(
@@ -42,7 +43,9 @@ interface PayloadOpts {
   bundlePath?: string
   stagedFail?: boolean
   postSwitchFail?: boolean
+
   shape?: PayloadShape
+
   tampered?: boolean
   signing?: 'unrecognized-key' | 'malformed'
 }
@@ -58,8 +61,10 @@ const m = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), '
 ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta.url).pathname)\nif (/[\\/\\\\]${version.replace(/\./g, '\\.')}[\\/\\\\]$/.test(dir)) process.exit(1)\n` : ''}console.log('Mercury ' + m.version)
 `
   writeFileSync(join(dir, 'mercury.mjs'), opts.bundlePath ? readFileSync(opts.bundlePath) : body)
+
   writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)
   writeFileSync(join(dir, 'splash-core.mjs'), `// fixture splash core ${version}\n`)
+
   if (IS_WIN) {
     writeFileSync(join(dir, 'mercury.cmd'), cmdLauncher(NODE_POLICY))
     writeFileSync(join(dir, 'mercury.ps1'), ps1Launcher(NODE_POLICY))
@@ -68,10 +73,12 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
     writeFileSync(join(dir, 'mercury'), posixLauncher(NODE_POLICY))
     writeFileSync(join(dir, 'install.sh'), `#!/bin/sh\n# fixture installer stub\n`)
   }
+
   for (const doc of DOC_SET) {
     writeFileSync(join(dir, doc), `# fixture ${doc} ${version}\n`)
   }
   writeFileSync(join(dir, 'mercury-vscode.vsix'), `fixture-vsix ${version}\n`)
+
   writeFileSync(join(dir, 'verify-artifact.mjs'), `// fixture provenance verifier ${version}\n`)
   const manifest: Record<string, unknown> = {
     schema: 2,
@@ -82,6 +89,7 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   }
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest) + '\n')
   if (shape === 'release-layout') {
+
     const layout = releaseLayoutSection(dir, HOST_TARGET, FLOOR) as { payloadDigest: string }
     manifest.releaseLayout = layout
     if (opts.tampered || opts.signing === 'unrecognized-key') {
@@ -179,9 +187,9 @@ export function makeFixtures(fixturesRoot: string, name: string, specs: ReleaseF
   return dir
 }
 
-
 interface FixtureServerOptions {
   fixtures: string
+
   log?: string
   visibility?: 'public' | 'private'
   rateLimit?: boolean
@@ -190,6 +198,7 @@ interface FixtureServerOptions {
 }
 
 interface FixtureServer {
+
   url: string
   close: () => Promise<void>
 }

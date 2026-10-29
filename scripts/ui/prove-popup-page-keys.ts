@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/ScrollKeybindingHandler.tsx src/components/CustomSelect/use-select-input.ts src/components/HelpV2/Commands.tsx src/commands/health/HealthCertificate.tsx
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

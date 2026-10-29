@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useMemo, useRef } from 'react'
 import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
@@ -16,7 +15,6 @@ import {
   isTurnCutText,
   NO_RESPONSE_REQUESTED,
 } from '../utils/messages.js'
-
 
 type NavigableType =
   | 'user'
@@ -145,6 +143,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
     case 'collapsed_read_search':
       return true
     case 'turn_receipt':
+
       return false
     case 'attachment':
       return INCLUDED_ATTACHMENT_TYPES.has(msg.attachment.type)
@@ -152,7 +151,6 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
       return false
   }
 }
-
 
 function toolResultText(result: NormalizedUserMessage): string {
   const first = result.message.content[0]
@@ -225,7 +223,6 @@ export function copyTextOf(msg: NavigableMessage): string {
   }
 }
 
-
 export type MessageActionsState = {
   uuid: string
   type: NavigableType
@@ -269,6 +266,7 @@ export const MESSAGE_ACTIONS: readonly MessageAction[] = [
     types: ['grouped_tool_use', 'collapsed_read_search', 'attachment', 'system', 'user'],
     isApplicable: cursor => cursor.type !== 'user' || cursor.notice === true,
     staysInCursorMode: true,
+
     run: () => {},
   },
   {
@@ -315,7 +313,6 @@ function applicableActions(cursor: MessageActionsState): MessageAction[] {
   )
 }
 
-
 export function useMessageActions(
   navRef: React.RefObject<MessageActionsNav | null>,
   caps: MessageActionCaps,
@@ -323,6 +320,7 @@ export function useMessageActions(
   enter: () => void
   handlers: Record<string, () => void>
 } {
+
   const capsRef = useRef(caps)
   capsRef.current = caps
 
@@ -368,6 +366,7 @@ export function useMessageActions(
           navRef.current?.bottom()
         },
         'messageActions:escape': (): void => {
+
           const current = getMessageCursor()
           if (current?.expanded) {
             setMessageCursor({ ...current, expanded: false })
@@ -376,6 +375,7 @@ export function useMessageActions(
           exit()
         },
         'messageActions:ctrlc': (): void => {
+
           exit()
         },
         'messageActions:enter': (): void => {
@@ -404,10 +404,10 @@ export function MessageActionsKeybindings({
   return null
 }
 
-
 export function MessageActionsBar({
   cursor: given,
 }: {
+
   cursor?: MessageActionsState
 } = {}): React.ReactNode {
   const live = useMessageCursor()
@@ -444,7 +444,6 @@ export function MessageActionsBar({
     </Box>
   )
 }
-
 
 export const MessageActionsSelectedContext = createContext<boolean>(false)
 

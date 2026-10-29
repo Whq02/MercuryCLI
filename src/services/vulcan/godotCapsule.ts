@@ -1,4 +1,3 @@
-
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { classCacheReport, type StaleClass } from './classCache.js'
@@ -15,6 +14,7 @@ export interface GodotStaticCapsule {
   input_action_count: number
   global_classes: Array<{ class: string; base: string; path: string }>
   global_class_count: number
+
   class_cache: { state: 'fresh' | 'stale' | 'absent'; stale: Array<Pick<StaleClass, 'class' | 'path' | 'reason'>>; hint: string }
   scene_count: number
   script_count: number

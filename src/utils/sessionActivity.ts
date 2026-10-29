@@ -1,7 +1,6 @@
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { registerCleanup } from './cleanupRegistry.js'
 
-
 type SessionActivityReason = 'api_call' | 'tool_exec'
 
 const keepAliveCallback: (() => void) | null = null
@@ -29,6 +28,7 @@ export function startSessionActivity(reason: SessionActivityReason): void {
       logForDiagnosticsNoPII('info', 'session_activity_at_shutdown', {
         refcount,
         active: { ...perReason },
+
         oldest_activity_ms: refcount > 0 && oldestActivityStartMs !== null ? Date.now() - oldestActivityStartMs : null,
       })
     })

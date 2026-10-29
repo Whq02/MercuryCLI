@@ -1,4 +1,3 @@
-
 import { Event } from './event.js'
 
 export type TerminalFocusEventType = 'terminalfocus' | 'terminalblur'

@@ -26,6 +26,7 @@ export function PermissionRuleExplanation({
     case 'rule': {
       const ruleString = permissionRuleValueToString(reason.rule.ruleValue)
       const words = reasonForRule({ ruleReasons }, reason.rule)
+
       const managed = reason.rule.source === 'policySettings'
       return (
         <Box flexDirection="column">
@@ -38,6 +39,7 @@ export function PermissionRuleExplanation({
       )
     }
     case 'hook': {
+
       if (mode === 'flow') {
         return (
           <Box flexDirection="column">
@@ -79,6 +81,7 @@ export function PermissionRuleExplanation({
     case 'safetyCheck':
     case 'guard':
     case 'other': {
+
       const text =
         (reason as { message?: string; reason?: string }).message ??
         (reason as { message?: string; reason?: string }).reason

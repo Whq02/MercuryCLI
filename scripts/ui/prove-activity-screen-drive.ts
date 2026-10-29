@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/useCursorFollow.ts src/components/FullscreenLayout.tsx src/screens/Chat.tsx
+
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

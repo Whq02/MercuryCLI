@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -22,6 +23,7 @@ process.chdir(ROOT)
 
 const engine: Engine = resolveEngineUnderTest()
 const lane = engineLaneState()
+
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
 let failures = 0
@@ -58,6 +60,7 @@ interface Outcome {
 interface RunOptions {
   timeout?: number
   abortAfterMs?: number
+
   owner?: string
 }
 
@@ -69,6 +72,7 @@ async function run(command: string, opts: RunOptions = {}): Promise<Outcome> {
     shouldAutoBackground: false,
     ...(opts.owner !== undefined ? { owner: opts.owner } : {}),
   })
+
   if (opts.abortAfterMs !== undefined) setTimeout(() => controller.abort('stop'), opts.abortAfterMs)
   const result = await handle.result
   return {
@@ -84,12 +88,14 @@ async function run(command: string, opts: RunOptions = {}): Promise<Outcome> {
 
 interface Expect {
   code?: number
+
   out?: string
   outMatch?: RegExp
   cwd?: string
   interrupted?: boolean
   stderrMatch?: RegExp
   maxMs?: number
+
   bytes?: number
 }
 type PerEngine = { system: Expect; brush: Expect }
@@ -139,6 +145,7 @@ section('§0 the live engine answers the pin')
   const probe = await run('echo "${BRUSH_VERSION:-system}"')
   const answered = probe.out.trim()
   note(`the shell that answered: ${answered === 'system' ? 'the system shell' : `brush ${answered}`}; $BASH_VERSION=${(await run('echo "$BASH_VERSION"')).out.trim() || '(empty)'}`)
+
   check(
     'the engine under test is the one on the wire (brush answers a version; the system shell answers none)',
     engine === 'brush' ? answered !== 'system' && answered !== '' : answered === 'system',
@@ -181,6 +188,7 @@ section('§3 pipelines and stdin')
   await row("the command's own stdin redirect is honoured", `head -c 3 < /dev/zero | wc -c | tr -d ' '`, { code: 0, out: '3' })
   await row('a subshell stage reads the pipe, not the closed stdin', `echo a | (read x; echo "got $x")`, { code: 0, out: 'got a' })
   await row('a long loop piped to tail delivers the last line', `for i in $(seq 1 2000); do echo "line $i"; done | tail -1`, { code: 0, out: 'line 2000' })
+
   await row('the pipeline status is the last stage; pipefail flips it, then is reset', `false | true; echo "$?"; set -o pipefail; false | true; echo "$?"; set +o pipefail`, { code: 0, out: '0\n1' })
   await row('a SIGPIPE-terminated producer does not fail the pipeline', `yes | head -2 | wc -l | tr -d ' '`, { code: 0, out: '2' })
   await row('read at EOF returns 1 with an empty value', `read x; rc=$?; echo "[$x] rc=$rc"`, { code: 0, out: '[] rc=1' })
@@ -204,10 +212,12 @@ section('§4 exit codes and stream order')
   await row('an indexed array (zero-based) and its length', 'a=(x y z); echo "${a[1]} ${#a[@]}"', { code: 0, out: 'y 3' })
   await row('a function with a local and a case', 'f() { local x=$1; case $x in a) echo A;; *) echo other;; esac; }; f a; f b', { code: 0, out: 'A\nother' })
   await row('[[ =~ ]] with a capture', '[[ "abc" =~ ^a(b)c$ ]] && echo "re=${BASH_REMATCH[1]}"', { code: 0, out: 're=b' })
+
   await row('an EXIT trap fires at command end on the system shell; at session end under the engine (one persistent shell)', 'trap "echo trapped" EXIT; echo body', {
     system: { code: 0, out: 'body\ntrapped' },
     brush: { code: 0, out: 'body' },
   })
+
   const bashMajor = engine === 'system' ? Number((await run('echo "${BASH_VERSINFO[0]}"')).out.trim()) : NaN
   if (engine === 'system') note(`the system shell is bash ${bashMajor}: set -e ${bashMajor >= 4 ? 'is ignored inside the tool\'s && chain (the command runs on)' : 'aborts the command'}`)
   await row('set -e inside a command: bash 3 aborts it on the system shell and bash 4+ runs on (errexit is ignored inside the && chain); the engine suppresses it at the boundary (a failure never ends the persistent session)', 'set -e; false; echo not-reached', {
@@ -225,6 +235,7 @@ section('§5 the cwd record — the shell directory, which the cd moves; the ses
   await row('cd ../.. climbs', 'cd ../..', { code: 0, cwd: SCRATCH })
   await row('a subshell cd never moves the shell', `(cd "${SUB}"; pwd); pwd`, { code: 0, out: `${SUB_PRINTED}\n${SCRATCH_PRINTED}`, cwd: SCRATCH })
   await row('a failed cd leaves the shell where it was', `cd "${SCRATCH}/nope" 2>/dev/null; echo "rc=$?"`, { code: 0, out: 'rc=1', cwd: SCRATCH })
+
   const deleted = await row(
     'a command that deletes its own directory leaves the shell in an existing one',
     `mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`,
@@ -259,7 +270,9 @@ section('§6 the environment the seam sets')
 
 section('§7 the security preamble and globs')
 {
+
   const extglob = await run(`(cd "${GLOB}" && echo +(one.txt|two.txt))`)
+
   check(
     'extended globs: the preamble disables them on the system shell (the pattern never expands); brush keeps them on (the shopt is a no-op)',
     engine === 'brush' ? /one\.txt two\.txt/.test(extglob.out) : !/one\.txt two\.txt/.test(extglob.out),
@@ -335,6 +348,7 @@ section('§12 a background-intent call takes its own shell; the session is untou
 section('§13 the live progress view: first lines, a silent command, a stray frame byte')
 {
   const { TaskOutput } = await import('../../src/utils/task/TaskOutput.ts')
+
   const gated = async (label: string, command: (gate: string) => string, seen: (all: string) => boolean): Promise<void> => {
     const gate = join(mkdtempSync(join(tmpdir(), 'progress-gate-')), 'open')
     let sawIt = false
@@ -369,6 +383,7 @@ section('§13 the live progress view: first lines, a silent command, a stray fra
 
 section('§14 two owners through the seam: a process each on the system shell, a session each on the engine')
 {
+
   const order: string[] = []
   const a = run('sleep 2; echo A', { owner: 'owner-a' }).then(r => {
     order.push('a')
@@ -404,7 +419,9 @@ section('§15 an abort with the interrupt reason (the steer road): kept for the 
   const deadline = Date.now() + 10_000
   while (!existsSync(gate) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20))
   check('the command is in flight (its gate file exists)', existsSync(gate))
+
   turn.abort('interrupt')
+
   const spawned = await spawnShellTask({ command: 'interrupt probe', description: 'interrupt probe', shellCommand: handle }, taskContext)
   const result = await handle.result
   check(
@@ -422,11 +439,13 @@ section('§15 an abort with the interrupt reason (the steer road): kept for the 
   check('a refused background settles its row from the real result, never a running phantom', engine === 'brush' ? state.tasks[spawned.taskId]?.status === 'failed' && state.tasks[spawned.taskId]?.notified === true : state.tasks[spawned.taskId]?.status !== undefined, JSON.stringify(state.tasks[spawned.taskId] ?? null)?.slice(0, 120))
   if (spawned.accepted === false) handle.cleanup()
   await row("the next call: the engine's result says the session was reset by the interrupt; the system shell owes no note", 'echo next', { system: { code: 0, out: 'next', stderrMatch: /^$/ }, brush: { code: 0, out: 'next', stderrMatch: /interrupted/ } })
+
   const finished = await exec('echo finished', new AbortController().signal, 'bash', { timeout: 20_000, shouldAutoBackground: false })
   await finished.result
   const late = await spawnShellTask({ command: 'late probe', description: 'late probe', shellCommand: finished }, taskContext)
   check('a command that already ended is refused on both engines (accepted false)', late.accepted === false, `accepted=${String(late.accepted)}`)
   finished.cleanup()
+
   const bashSrc = readFileSync(join(ROOT, 'src/tools/BashTool/BashTool.tsx'), 'utf8')
   const psSrc = readFileSync(join(ROOT, 'src/tools/PowerShellTool/PowerShellTool.tsx'), 'utf8')
   check('the Bash tool never sets a background id on a refused spawn (the steer and the explicit road)', (bashSrc.match(/if \(handle\.accepted === false\)/g) ?? []).length === 2 && /if \(handle\.accepted === false\) return\n\s*backgroundId = handle\.taskId/.test(bashSrc))

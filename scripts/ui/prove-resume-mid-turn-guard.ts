@@ -38,11 +38,13 @@ check(
 )
 
 const hop = read('src/services/switchboard/hopIntoSession.ts')
+
 const fnAt = hop.indexOf('async function focusResumedSessionLanding(')
 check('the hop owner declares the one resume path', fnAt !== -1)
 const fnBody = hop.slice(fnAt, hop.indexOf('\n}\n', fnAt))
 check('a session live on the board is ENTERED first (a hop, never a resume)', fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'"))
 check('a durable session is admitted with --resume as a managed session', fnBody.includes('resumeSessionId: sessionId'))
+
 check('the resume never yields, attaches or respawns a runner', !/action: '(attach|respawn|stop)'/.test(fnBody) && !fnBody.includes("op: 'concourseRespawn'"))
 
 if (failures > 0) {

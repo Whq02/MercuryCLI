@@ -27,9 +27,7 @@ import {
   parseGeneratedAssetsMap,
 } from './generatedAssets.js'
 
-
 export const COMMIT_GATE_ID = 'commit-gate'
-
 
 function isGitCommit(segment: string): boolean {
   return /\bgit(?:\s+(?:(?:-C|-c|--git-dir|--work-tree)\s+(?:"(?:[^"\\]|\\.)*"|'[^']*'|\S+)|--(?:git-dir|work-tree)=(?:"(?:[^"\\]|\\.)*"|'[^']*'|\S+)))*\s+commit\b(?!-)/i.test(
@@ -45,19 +43,23 @@ function receiptEligibleCommand(segments: readonly { text: string }[]): boolean 
 }
 
 interface CommitGateVerdict {
+
   allow: boolean
+
   rule:
     | 'not-a-commit'
     | 'chained-verify'
     | 'fresh-receipt'
     | 'bare-commit'
     | 'no-verify-flag'
+
   reason: string
 }
 
 export function evaluateCommitGate(
   command: string,
   opts?: {
+
     freshReceipt?: boolean
   },
 ): CommitGateVerdict {
@@ -91,6 +93,7 @@ export function evaluateCommitGate(
           reason: 'commit is chained behind a verify (&&) — green-gate enforced',
         }
       }
+
       const op = segments[i]!.opBefore
       if (op === '&&') continue
       if (op === 'pipe' && pipefailActiveBefore(segments, i)) continue
@@ -190,7 +193,6 @@ function registerCommitGate(sessionId: string): string {
   return COMMIT_GATE_ID
 }
 
-
 function assetCommandSegments(command: string): ReturnType<typeof splitShellControlOps> {
   const segments: ReturnType<typeof splitShellControlOps> = []
   const tokens = /\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*'|\d*>&\d+|&>>?|&&|\|\||[;\n&|]/g
@@ -242,6 +244,7 @@ function rejectGitSelectionEnvironment(segment: string): void {
 
 function commitRepositoryArguments(commitSegment: string): string[] {
   rejectGitSelectionEnvironment(commitSegment)
+
   const header: string[] = []
   let optionValue = false
   for (const match of commitSegment.matchAll(/(?:[^\s'"\\]+|\\[\s\S]|"(?:[^"\\]|\\[\s\S])*"|'[^']*')+/g)) {
@@ -384,6 +387,7 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
     if (staged.has(path)) return staged.get(path)!
     let text: string | null
     try {
+
       text = workingPaths.has(path)
         ? readFileSync(join(root, path), 'utf8')
         : execFileSync('git', gitArgs([...prefix, 'show', `:${path}`], directory), { cwd: directory, env: subprocessEnv(), encoding: 'utf8', stdio: 'pipe', timeout: 3000, windowsHide: true, maxBuffer: 16 * 1024 * 1024 })
@@ -430,7 +434,6 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
 function unregisterCommitGate(sessionId: string): void {
   disengageToolGuard(sessionId, COMMIT_GATE_ID)
 }
-
 
 export function commitGateEnabled(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_COMMIT_GATE'))

@@ -30,6 +30,7 @@ check('the hold survives a stalled stream (still there 2s later)', HOLD.test(ber
   const e2 = Number(berth(t2!.rows).match(HOLD)?.[1] ?? -1)
   check('the elapsed timer ADVANCES across the stall', e2 > e1, `${e1}s → ${e2}s`)
 }
+
 {
   const emptyCard = t1!.rows
     .slice(2, 13)

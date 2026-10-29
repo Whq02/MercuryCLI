@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto'
 import type { CapabilityKind, CapabilityState } from '../capabilities.js'
 import type {
@@ -38,6 +37,7 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
   let child: NdjsonChildLike | null = null
   const eventListeners = new Set<(evt: SeatEvent) => void>()
   const lifecycleListeners = new Set<(s: 'connected' | 'disconnected' | 'exited') => void>()
+
   let eventSeq = 0
 
   const ensureChild = (): NdjsonChildLike => {
@@ -52,6 +52,7 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
       } catch {
         return
       }
+
       if (typeof parsed.method === 'string' && parsed.id === undefined) {
         const evt: SeatEvent = {
           sourceEventId: `${parsed.method}-${++eventSeq}`,
@@ -63,6 +64,7 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
       }
     })
     c.onExit(() => {
+
       if (child === c) child = null
       for (const l of [...lifecycleListeners]) l('exited')
     })
@@ -103,6 +105,7 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
         raw: { userAgent: body.result?.userAgent },
       }
     },
+
     onEvent(listener) {
       eventListeners.add(listener)
       return () => eventListeners.delete(listener)
@@ -112,6 +115,7 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
       return () => lifecycleListeners.delete(listener)
     },
     async detach(): Promise<void> {
+
       const c = child
       child = null
       if (c) await (c.killAndWait?.() ?? Promise.resolve(c.kill()))

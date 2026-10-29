@@ -1,4 +1,3 @@
-
 import type { OwnerKey } from '../run/ownerKey.js'
 import {
   getExecution,
@@ -6,7 +5,6 @@ import {
   settleExecution,
 } from './executionPlane.js'
 import { isTerminalExecutionState } from './execution.js'
-
 
 type CanonicalModelEvent =
   | { type: 'response.started'; model?: string }
@@ -24,9 +22,9 @@ export interface ModelRuntimeCapabilities {
   reasoning: boolean
   toolUse: boolean
   usageAccounting: boolean
+
   extensions: string[]
 }
-
 
 interface SseLikeEvent {
   type?: string
@@ -127,7 +125,6 @@ function usageEvent(usage: NonNullable<SseLikeEvent['usage']>): CanonicalModelEv
     ...(usage.output_tokens !== undefined && { outputTokens: usage.output_tokens }),
   }
 }
-
 
 const TURN_EXECUTION_ID = 'model-turn'
 

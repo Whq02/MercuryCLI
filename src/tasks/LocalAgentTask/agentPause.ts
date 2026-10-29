@@ -1,9 +1,10 @@
-
 type AgentPauseWhy = 'usage limit' | 'provider busy' | 'provider overloaded'
 
 export type AgentPauseV1 = {
   why: AgentPauseWhy
+
   words: string
+
   resumesAtMs?: number
 }
 

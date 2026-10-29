@@ -1,4 +1,3 @@
-
 export function getLocalISODate(): string {
   const now = new Date()
   const year = now.getFullYear()

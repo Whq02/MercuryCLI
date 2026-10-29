@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
+
 process.env.MERCURY_FULLSCREEN = '1'
 
 let failures = 0
@@ -132,6 +134,7 @@ console.log('§2 the real bundle — one folded row in the chat, the three in th
   } else {
     const { CONFIG_HOME, RUNTIME_CWD, SID, cleanupScenario, encodeFixtureTranscript, scenario } = await import('./renderScenarios.ts')
     const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
+
     const cfg = scenario('cockpit-scrolled', 150, 40) as Record<string, unknown>
     const base = (extra: Record<string, unknown>): Record<string, unknown> => ({ isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: SID, version: '1.0.0-beta.1', gitBranch: 'main', ...extra })
     const U1 = '00000000-0000-4000-8000-000000000001'

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   clearSelection,
   createSelectionState,
@@ -74,6 +75,7 @@ check(
 }
 
 {
+
   const acrossHead = drag([0, 1], [5, 1])
   check('drag ending on a wide head keeps the whole glyph', acrossHead === 'あい漢', JSON.stringify(acrossHead))
   const acrossTail = drag([1, 1], [6, 1])

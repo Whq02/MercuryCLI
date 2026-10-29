@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,6 +25,7 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
   check('the registration is AWAITED, not a fire-and-forget IIFE', !/void \(async \(\) => \{[\s\S]{0,400}registerMcpAddCommand/.test(main))
 
   const dist = join(ROOT, 'dist', 'mercury.mjs')
+
   const { whichSync: whichExe } = await import('../../src/utils/which.js')
   const nodeExe = whichExe('node')
   if (existsSync(dist) && nodeExe !== null) {
@@ -32,6 +34,7 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
     try {
       const help = spawnSync(nodeExe, [dist, 'mcp', 'add', '--help'], { encoding: 'utf8', timeout: 60_000, env })
       check('`mcp add --help` answers with the add usage (exit 0)', help.status === 0 && /add/.test(help.stdout) && /Usage/i.test(help.stdout), `status ${help.status} stdout ${JSON.stringify(help.stdout.slice(0, 200))} stderr ${JSON.stringify(help.stderr.slice(0, 200))}`)
+
       const bad = spawnSync(nodeExe, [dist, 'mcp', 'nonesuch-verb'], { encoding: 'utf8', timeout: 60_000, env })
       check('an unknown mcp verb is still refused (the fix did not widen the roster)', bad.status !== 0 && /unknown command/i.test(bad.stderr + bad.stdout))
     } finally {
@@ -46,6 +49,7 @@ section('(1) `mercury mcp add` is registered BEFORE the parser looks for it')
 
 section('(2) path-scoped permission rules match on Windows — the writer and the reader agree on one spelling')
 {
+
   const scratchHome = mkdtempSync(join(tmpdir(), 'winseams-perm-'))
   process.env.MERCURY_CONFIG_DIR = scratchHome
   try {
@@ -69,6 +73,7 @@ section('(2) path-scoped permission rules match on Windows — the writer and th
     check('a relative pattern stays relative on Windows', relative.root === null && relative.relative === 'src/**')
     const home = rootForPattern('~/proj/**', 'userSettings', 'windows')
     check('the ~ spelling is untouched by the drive arm', home.root !== null && home.relative === '/proj/**')
+
     const written = content(createReadRuleSuggestion('C:\\Users\\op\\proj'))
     const read = rootForPattern(written ?? '', 'session', 'windows')
     check('round trip: the written grant anchors at C: with the folder relative', written === '//C/Users/op/proj/**' && read.root === `C:${sep}` && read.relative === 'Users/op/proj/**')
@@ -93,6 +98,7 @@ section('(3) one folder, one config key; the trust card compares keys')
 
 section('(4) executable probes ride the one PATHEXT-aware owner')
 {
+
   const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check("the repo-host row asks whichSync('gh')", health.includes("const ghOnPath = whichSync('gh') !== null"))
   check('no bare-name gh PATH walk survives in the health report', !/existsSync\(nodePath\.join\(d, 'gh'\)\)/.test(health))
@@ -106,6 +112,7 @@ section('(4) executable probes ride the one PATHEXT-aware owner')
 
 section('(5) one config home, one spelling')
 {
+
   const { canonicalHomeSpelling } = await import('../../src/utils/envUtils.js')
   check('win32: a trailing backslash is dropped', canonicalHomeSpelling('C:\\Users\\op\\.mercury\\', 'win32') === 'C:\\Users\\op\\.mercury')
   check('win32: forward slashes become the OS spelling', canonicalHomeSpelling('C:/Users/op/.mercury', 'win32') === 'C:\\Users\\op\\.mercury')
@@ -124,6 +131,7 @@ section('(5) one config home, one spelling')
 
 section('(6) the build-tree stamp rides the staleness sweep')
 {
+
   const build = readFileSync(join(ROOT, 'build.ts'), 'utf8')
   const sweep = build.slice(build.indexOf("rmSync(resolve(OUT, 'manifest.json')"), build.indexOf('SELF-CONTAINMENT TRIPWIRE'))
   check('the sweep removes the stale build-tree stamp beside the manifest', sweep.includes("rmSync(resolve(OUT, '.build-tree'), { force: true })"))
@@ -141,6 +149,7 @@ section('(7) a boot opens no connect of its own — no API-origin warm-up exists
 
 section('(8) every honest engine-unavailable code the providers spell is on the health allowlist')
 {
+
   const { readdirSync, statSync } = await import('node:fs')
   const walk = (dir: string, out: string[] = []): string[] => {
     for (const name of readdirSync(dir)) {
@@ -167,17 +176,20 @@ section('(8) every honest engine-unavailable code the providers spell is on the 
 
 section('(9) the Windows default editor is an executable, never a cmd builtin')
 {
+
   const editor = readFileSync(join(ROOT, 'src', 'utils', 'editor.ts'), 'utf8')
   const def = /const WINDOWS_DEFAULT_EDITOR = '([^']+)'/.exec(editor)?.[1] ?? ''
   check("the default is bare 'notepad'", def === 'notepad', JSON.stringify(def))
   check('no cmd builtin (start) is spelled as the executable', !/^start\b/.test(def))
   check('the classifier still knows notepad as a GUI editor', /GUI_EDITORS = \[[\s\S]*?'notepad'[\s\S]*?\]/.test(editor))
   const launcher = readFileSync(join(ROOT, 'src', 'utils', 'promptEditor.ts'), 'utf8')
+
   check('the launcher still runs the line through a shell with a re-quoted executable (the law the default must survive)', /spawn\(commandLine, \{ shell: true,[^)\n]*stdio: 'inherit'/.test(launcher))
 }
 
 section('(10) the starter keybindings.json passes the product\'s own validator')
 {
+
   const { generateKeybindingsTemplate } = await import('../../src/keybindings/template.js')
   const { validateUserConfig, checkReservedShortcuts, isUserConfigContext } = await import('../../src/keybindings/validate.js')
   const { parseKeybindings } = await import('../../src/keybindings/loadUserBindings.js').catch(() => ({ parseKeybindings: undefined as undefined }))
@@ -198,6 +210,7 @@ section('(10) the starter keybindings.json passes the product\'s own validator')
 
 section('(11) the swallowed-prompt guard fires on the inferred print shape and knows every variadic option')
 {
+
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
   const candidatesAt = main.indexOf('const variadicCandidates')
   const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
@@ -211,6 +224,7 @@ section('(11) the swallowed-prompt guard fires on the inferred print shape and k
 
 section('(12) the reserved-shortcut table knows Windows')
 {
+
   const { reservedShortcutsFor, WINDOWS_RESERVED, NON_REBINDABLE, MACOS_RESERVED } = await import('../../src/keybindings/reservedShortcuts.js')
   const win = reservedShortcutsFor('windows')
   const keys = new Set(win.map(s => s.key))
@@ -226,6 +240,7 @@ section('(12) the reserved-shortcut table knows Windows')
 
 section('(13) the Windows install guide tells the tree\'s truth (a ratchet on the audited claims)')
 {
+
   const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
   check('no "refuses to draw narrower than 100" claim', !/refuses to draw narrower/.test(doc))
   check('the guide states there is no minimum terminal size', doc.includes('no minimum terminal size'))
@@ -233,6 +248,7 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
   check('the concourse chooses a layout instead of refusing small terminals', !layout.includes("return 'too-small'") && !layout.includes('terminal too small for'))
   check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
   check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
+
   check('the splash tip says a bare direct node start paints it before the home screen', /a bare `node dist\\mercury\.mjs` runs it before the\s+(?:home screen|face)/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
   check('no stale "blank screen after the splash" row', !/blank screen after the splash/.test(doc))
   check('the degraded-build row names the manifest tell, not a build error line', /lists names under `degraded`/.test(doc) && !/ends with `dist\/manifest\.json missing`/.test(doc))
@@ -244,6 +260,7 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
 
 section('(14) a deep probe\'s scratch sweep never outranks its verdict')
 {
+
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
   const { sweepProbeDir } = await import('../../src/utils/healthDeepProbes.js')
   let calls = 0
@@ -266,6 +283,7 @@ section('(14) a deep probe\'s scratch sweep never outranks its verdict')
   }
   check('a STRUCTURAL refusal yields after ONE attempt — the transient-class law, never a blind ladder', sweepProbeDir('/scratch/s', structuralThrows, 4, 1) === false && structural === 1)
   const probes = readFileSync(join(ROOT, 'src', 'utils', 'healthDeepProbes.ts'), 'utf8')
+
   const outsideOwner = probes
     .replace(/remover: \(path: string\) => void = path => rmSync\(path, \{ recursive: true, force: true \}\)/, '')
     .replace(/import \{ mkdtempSync, rmSync \} from 'node:fs'/, '')
@@ -276,9 +294,11 @@ section('(14) a deep probe\'s scratch sweep never outranks its verdict')
 
 section('(15) an invalid Grep pattern is a refusal, never "no matches"')
 {
+
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
   const { ripGrep, RipgrepUsageError, resolveRipgrep } = await import('../../src/utils/ripgrep.js')
   const rg = resolveRipgrep()
+
   const { whichSync: whichRg } = await import('../../src/utils/which.js')
   const rgPresent = rg.mode === 'system' ? whichRg(rg.config.rgPath) !== null : existsSync(rg.config.rgPath)
   const scratch = mkdtempSync(join(tmpdir(), 'winseams-rg-'))
@@ -298,6 +318,7 @@ section('(15) an invalid Grep pattern is a refusal, never "no matches"')
     }
     const found = !rgPresent ? [] : await ripGrep(['-n', 'beta'], scratch, new AbortController().signal)
     check('a valid search still returns its matches', !rgPresent || found.some(line => line.includes('beta')), JSON.stringify(found))
+
     const { isRipgrepUsageDiagnostic, ripGrepAnswer } = await import('../../src/utils/ripgrep.js')
     check(
       'usage shapes read as usage (regex parse error · the error:-led argument refusal · an unrecognized flag)',
@@ -353,6 +374,7 @@ section('(15) an invalid Grep pattern is a refusal, never "no matches"')
 
 section('(16) MERCURY_SPLASH=static exits the splash asset like off')
 {
+
   const asset = readFileSync(join(ROOT, 'assets', 'splash', 'mercury-splash.mjs'), 'utf8')
   check('the asset exits on static exactly where it exits on off', asset.includes("if (process.env.MERCURY_SPLASH === 'off' || process.env.MERCURY_SPLASH === 'static' || !out.isTTY) process.exit(0)"))
   const launchers = readFileSync(join(ROOT, 'scripts', 'release', 'launcherTemplates.mjs'), 'utf8')
@@ -361,6 +383,7 @@ section('(16) MERCURY_SPLASH=static exits the splash asset like off')
 
 section('(17) raw-spelling credential continuity + the one keyed principal (the F-11 aftermath)')
 {
+
   const savedConfigDir = process.env.MERCURY_CONFIG_DIR
   const savedHome = process.env.MERCURY_HOME
   const savedUser = process.env.USER
@@ -412,6 +435,7 @@ section('(17) raw-spelling credential continuity + the one keyed principal (the 
 
 section("(18) the shell-mode '!' is consumed by exactly one owner (w2-f13-02 — the appended-bang class)")
 {
+
   const prompt = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerDraft.ts'), 'utf8')
   const singleBangAt = prompt.indexOf('value.slice(1) === input')
   const singleBang = prompt.slice(singleBangAt, prompt.indexOf("setMode('bash')", singleBangAt))

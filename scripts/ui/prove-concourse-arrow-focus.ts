@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -136,8 +137,10 @@ interface Send {
   awaitText?: string
   minTick?: number
   awaitSettleTicks?: number
+
   mark?: string
 }
+
 const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 
@@ -147,11 +150,14 @@ function newScratch(tag: string, seedConversation: boolean): string {
   seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
+
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
   cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
+
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   if (seedConversation) {
+
     const ts = 1754000000000
     writeFileSync(
       join(scratch, 'coordinator-conversation.json'),
@@ -170,6 +176,7 @@ function newScratch(tag: string, seedConversation: boolean): string {
   }
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
+
   fixture.needsYou = []
   fixture.coordinator = { mode: 'agent-assisted', assistModelLabel: 'Opus 5' }
   writeFileSync(join(scratch, 'concourse-fixture.json'), JSON.stringify(fixture))
@@ -193,9 +200,11 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     MERCURY_CREW_DIR: join(scratch, 'crew'),
     MERCURY_AWAY_SUMMARY: '0',
+
     MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
+
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
@@ -211,11 +220,13 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
   return lines
 }
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
+
 const hasWrapped = (lines: string[], needle: string): boolean =>
   lines
     .map(l => (l.split('│')[1] ?? '').trim())
     .join(' ')
     .includes(needle)
+
 const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
 const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
 const sameTitle = (a: string, b: string): boolean => {
@@ -223,6 +234,7 @@ const sameTitle = (a: string, b: string): boolean => {
   const y = b.split('…')[0] ?? ''
   return x.length >= 8 && (x.startsWith(y) || y.startsWith(x))
 }
+
 const settle = { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 2 }
 const scratches: string[] = []
 
@@ -240,6 +252,7 @@ const scratches: string[] = []
   const rowBefore = selRow(before)
   const rowAfter = selRow(afterDown)
   const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
+
   check(
     'coord: the pane is OUT of its zero state (conversation painted or opening — the example walk is not in play)',
     (hasWrapped(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
@@ -267,6 +280,7 @@ const scratches: string[] = []
 {
   const scratch = newScratch('zero', false)
   scratches.push(scratch)
+
   capture('zero', scratch, [
     { ...settle, awaitText: 'launch two sessions', data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '', mark: 'after' },
@@ -275,6 +289,7 @@ const scratches: string[] = []
   const after = markOf('zero', 'after')
   const first = COORDINATOR_EXAMPLE_PROMPTS[0]
   const second = COORDINATOR_EXAMPLE_PROMPTS[1]
+
   const marked = (lines: string[], prompt: string): boolean => lines.some(l => l.includes(prompt) && l.includes('· ↵'))
   check('zero: the pane paints its example prompts with the first highlighted (· ↵ fills the box)', marked(before, first) && !marked(before, second), before.find(l => l.includes(first))?.trim().slice(0, 100) ?? '(no example row)')
   check('zero: ↓ walked the highlight to the second example — the pane received the key and spent it on its own meaning', marked(after, second) && !marked(after, first), after.find(l => l.includes(second))?.trim().slice(0, 100) ?? '(no example row)')

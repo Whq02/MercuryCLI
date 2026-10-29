@@ -13,7 +13,6 @@ import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { cockpitBottomSlotReserve, viewportRows } from './mercury-ui/geometry.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
-
 type FileLoader = (query: string) => Promise<SuggestionItem[]>
 const defaultLoadFiles: FileLoader = async query => {
   const { generateFileSuggestions } = await import('../hooks/fileSuggestions.js')
@@ -23,6 +22,7 @@ const defaultLoadFiles: FileLoader = async query => {
 const PATH_WIDTH = 52
 const QUERY_WIDTH = 56
 const MAX_ROWS = 12
+
 const HEIGHT_RESERVE = 26
 const MIN_ROWS = 4
 
@@ -35,12 +35,15 @@ export function MercuryFileOpen({
   onPick: (insertText: string) => void
   onClose: () => void
   isActive?: boolean
+
   loadFiles?: FileLoader
 }): React.ReactNode {
+
   const overlayToken = useRegisterOverlay('file-open');
   const tokens = useMercuryTokens()
   const accent = tokens.accent
   const termRows = useTerminalSize().rows
+
   const cockpitActive = React.useContext(CockpitActiveContext)
   const rowCap = viewportRows(termRows, {
     reserve: cockpitActive ? cockpitBottomSlotReserve(termRows) : HEIGHT_RESERVE,
@@ -49,6 +52,7 @@ export function MercuryFileOpen({
   })
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
+
   const [cursorOffset, setCursorOffset] = useState(0)
   const [results, setResults] = useState<SuggestionItem[] | null>(null)
   const genRef = useRef(0)

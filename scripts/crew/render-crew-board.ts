@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -6,6 +7,7 @@ import { basename, join } from 'node:path'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
+
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')
@@ -26,6 +28,7 @@ if (!existsSync(BIN)) {
 
 const home = mkdtempSync(join(tmpdir(), 'crew-render-home-'))
 const FAKE_KEY = 'sk-ant-api03-crewrenderproof0000000000'
+
 writeFileSync(join(home, '.mercury.json'), JSON.stringify({
   hasCompletedOnboarding: true, theme: 'dark', numStartups: 5,
   customApiKeyResponses: { approved: [FAKE_KEY.slice(-20)], rejected: [] },
@@ -52,6 +55,7 @@ const lines = [
     timestamp: '2026-06-19T13:00:02.000Z',
   }),
 ]
+
 writeFileSync(join(PROJECTS, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
 
 function capture(cols: number, tag: string, extraEnv: Record<string, string>): string[] | null {
@@ -59,6 +63,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
   const cfgPath = `/tmp/crew-board-cfg-${tag}-${cols}.json`
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, '--resume', SID],
+
     sends: [
       { data: '/crewmates', atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
@@ -71,6 +76,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
+
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_OPERATOR: 'sam',

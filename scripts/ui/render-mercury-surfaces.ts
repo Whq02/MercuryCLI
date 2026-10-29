@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -7,6 +8,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BUN = process.env.BUN || join(process.env.HOME!, '.bun', 'bin', 'bun')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -28,6 +30,7 @@ function shoot(cmd: string, cols: number): string {
   const out = `/tmp/mercury-surface-${cmd.replace(/\//g, '')}-${cols}.html`
   const cfg = {
     argv: ['node', BIN],
+
     sends: [{ atTick: 30, data: cmd }, { atTick: 38, data: '\r' }],
     total: 56,
     cols,
@@ -35,11 +38,13 @@ function shoot(cmd: string, cols: number): string {
     out,
     title: `${cmd} @ ${cols}`,
   }
+
   const cfgPath = `/tmp/vs-surface-${cmd.replace(/\//g, '')}-${cols}.json`
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME },
     timeout: vshotBudgetMs(30000),
   })
@@ -60,8 +65,10 @@ const model80 = shoot('/model', 80)
 const model120 = shoot('/model', 120)
 
 console.log('\n── /model (responsive: stack < 110 cols · footer + rows intact, not shrink-wrapped) ──')
+
 expect('@80  footer tail intact on one line (stacked, no wrap)', /tab to search · esc or click outside closes/.test(model80))
 expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↑↓ select · ↵ switch · ctrl\+w context · → ← fold · tab to search · esc or click outside closes/.test(model120))
+
 expect('@80  longest rail row intact (not shrink-wrapped)', /current\s+\S+ ctx/.test(model80))
 expect('@80  the model header renders as the plain title line and a provider heading', /Mercury · model/.test(model80) && /[▾▸❯] [A-Z.]+ · /.test(model80))
 console.log('\nHTML written to /tmp/mercury-surface-model-{80,120}.html')

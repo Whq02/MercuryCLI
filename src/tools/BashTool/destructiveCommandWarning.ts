@@ -1,6 +1,7 @@
 const SEGMENT_BOUNDARY = String.raw`(?:^|[;&|])\s*`
 
 function firstFlagCluster(afterCommand: string): string | null {
+
   const match = afterCommand.match(/^\s+-([A-Za-z]+)(?:\s|$)/)
   return match ? (match[1] as string) : null
 }
@@ -8,6 +9,7 @@ function firstFlagCluster(afterCommand: string): string | null {
 type Matcher = (command: string) => string | null
 
 const MATCHERS: Matcher[] = [
+
   command =>
     /\bgit\s+reset\b[^\n]*\s--hard\b/.test(command)
       ? 'Note: a hard reset may discard uncommitted changes.'
@@ -23,6 +25,7 @@ const MATCHERS: Matcher[] = [
   command => {
     if (!/\bgit\s+clean\b/.test(command)) return null
     const segment = command.match(/git\s+clean\b[^;&|\n]*/)?.[0] ?? ''
+
     const hasForce = /\s(?:-[A-Za-z]*f[A-Za-z]*|--force)\b/.test(segment)
     const hasDryRun = /\s(?:-[A-Za-z]*n[A-Za-z]*|--dry-run)\b/.test(segment)
     return hasForce && !hasDryRun
@@ -48,6 +51,7 @@ const MATCHERS: Matcher[] = [
   command => {
     if (!/\bgit\s+branch\b/.test(command)) return null
     const segment = command.match(/git\s+branch\b[^;&|\n]*/)?.[0] ?? ''
+
     const shortForce = /\s-D[ \t]+/.test(segment)
     const longForce =
       /\s--delete\b[^\n]*\s--force\b/.test(segment) || /\s--force\b[^\n]*\s--delete\b/.test(segment)
@@ -71,12 +75,14 @@ const MATCHERS: Matcher[] = [
     }
     return null
   },
+
   command => {
     const cluster = rmFirstCluster(command)
     return cluster && /[rR]/.test(cluster)
       ? 'Note: this may recursively remove files.'
       : null
   },
+
   command => {
     const cluster = rmFirstCluster(command)
     return cluster && /f/.test(cluster) ? 'Note: this may force-remove files.' : null

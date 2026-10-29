@@ -1,4 +1,3 @@
-
 import { readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
@@ -15,6 +14,7 @@ type ReadTargetKind = 'file' | 'directory' | 'resource' | 'url'
 
 interface ReadTarget {
   kind: ReadTargetKind
+
   raw: string
 }
 
@@ -34,6 +34,7 @@ export function isDirectoryTarget(fullPath: string): boolean {
 }
 
 interface RenderedTarget {
+
   content: string
   numLines: number
 }

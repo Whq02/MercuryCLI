@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/compact/autoCompact.ts src/utils/model/contextWindowWarmup.ts src/services/providers/local/localWindow.ts src/services/providers/local/localCallModel.ts src/run-core/turn-machine.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'

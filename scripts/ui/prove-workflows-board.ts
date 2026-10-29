@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,9 +27,11 @@ function capture(name: string, cols: number, rows: number): string {
     const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
       encoding: 'utf-8',
       timeout: vshotBudgetMs(180000),
+
       env: { ...process.env },
     })
     if (res.status !== 0) {
+
       console.log(
         `  vshot failed (status ${res.status ?? 'null'}${res.signal ? ` · signal ${res.signal}` : ''}${res.error ? ` · ${String(res.error)}` : ''}):`,
         (res.stderr || '(empty stderr)').slice(0, 300),
@@ -84,6 +87,7 @@ check(
   /2\/2/.test(board),
   '',
 )
+
 check('phase-dot strip + settled count (●● 2/2)', /●● 2\/2/.test(board), '')
 check('compact token rollup speaks ◈ (29.7k)', /◈ 29\.7k/.test(board), '')
 check('settled run shows TOTAL runtime right-aligned (1m 0s)', /1m 0s/.test(board), '')
@@ -106,6 +110,7 @@ check(
   `found ${(run.match(/· design ─/g) ?? []).length}`,
 )
 check('agent lanes carry ◈ token marks', /◈/.test(run), '')
+
 check('dossier in-row carries the dispatch prompt', /in {2}Design the \/substrate gate panel/.test(run), '')
 check('dossier now-row reads settled with the tool count', /now settled · \d+ tool calls/.test(run), '')
 check('dossier out-row carries the result', /out Design complete/.test(run), '')
@@ -132,6 +137,7 @@ check("inspector heads with the agent's machine head", /relay/.test(inspector), 
 const carry = capture('workflows-live-carryback', 120, 40)
 check('carry-back capture is non-blank', carry.replace(/\s/g, '').length > 0)
 check('carry-back returned to the board (Past section painted)', /Past/.test(carry) && /substrate-carried/.test(carry), '')
+
 const carryLines = carry.split('\n')
 check(
   'cursor carried back to the inspected row (▸ + stale-drifter on one line)',
@@ -181,6 +187,7 @@ check(
     inspLines.some(l => /reasoning ─{4,}/.test(l)) && inspLines.some(l => /activity — .*─{4,}/.test(l)),
     '',
   )
+
   check('inspector: no e-expand hint when nothing is clipped', !/e expand/.test(insp) && /esc \/ ← back/.test(insp), '')
 
   const long = capture('workflows-live-inspector-long', 120, 40)

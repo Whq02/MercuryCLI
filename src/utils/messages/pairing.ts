@@ -43,7 +43,6 @@ function resultsAnsweredOnce(
   })
 }
 
-
 type PairingRow = UserMessage | AssistantMessage
 
 function detachedUser(row: UserMessage, first: boolean): UserMessage | null {
@@ -184,6 +183,7 @@ export function foldSplitTurnsForWire(
     ) {
       out[out.length - 1] = {
         ...prev,
+
         ...('apexProviderTurn' in msg && msg.apexProviderTurn !== undefined
           ? { apexProviderTurn: msg.apexProviderTurn }
           : {}),
@@ -227,7 +227,6 @@ export function foldSplitTurnsForWire(
   return out
 }
 
-
 function repairResultAdjacency(
   rows: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
@@ -265,6 +264,7 @@ function repairResultAdjacency(
     for (const id of useIds) {
       if (inNext.has(id)) continue
       const found = loc.get(id)
+
       if (!found || found.row <= ri + 1) continue
       const key = `${found.row}:${found.block}`
       if (moved.has(key)) continue
@@ -368,6 +368,7 @@ export function stripUnsignedThinkingBlocks(
     if (msg.type !== 'assistant') return msg
     const content = msg.message.content
     const filtered = content.filter(b => !isUnsignedThinkingBlock(b))
+
     const labelled = filtered.some(b => b.type === 'text' && 'phase' in b)
     if (filtered.length === content.length && !labelled) return msg
     changed = true

@@ -11,10 +11,12 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { contextFillView, type ContextFillView } from '../utils/contextFill.js'
 import type { Message } from '../types/message.js'
 
-
 export type DisplayedSessionModel = {
+
   label: string
+
   compact: string
+
   pendingNext: string | null
 }
 
@@ -87,6 +89,7 @@ export function useFocusedSentEffort(): string | null | undefined {
 
 export function useDisplayedSessionModel(): DisplayedSessionModel {
   const mainModel = useSyncExternalStore(subscribeFocusedModel, getFocusedMainModel, getFocusedMainModel)
+
   const pendingParked = useSyncExternalStore(subscribeFocusedModel, getFocusedPendingParked, getFocusedPendingParked)
   const pendingSetting = useSyncExternalStore(subscribeFocusedModel, getFocusedPendingSetting, getFocusedPendingSetting)
   const pendingSwitch = useMemo(

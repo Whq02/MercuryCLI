@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
@@ -15,6 +14,7 @@ interface GlobalClassEntry {
 
 interface DeclaredClass {
   class: string
+
   path: string
   mtimeMs: number
 }
@@ -29,12 +29,15 @@ interface ClassCacheReport {
   cacheFile: string
   present: boolean
   cacheMtimeMs?: number
+
   classes: GlobalClassEntry[]
   classTotal: number
+
   declared: DeclaredClass[]
   declaredTotal: number
   stale: StaleClass[]
   state: 'fresh' | 'stale' | 'absent'
+
   hint: string
 }
 
@@ -204,6 +207,7 @@ async function refreshClassesHeadless(executable: string, projectRoot: string): 
   const after = classCacheReport(projectRoot)
   const beforeNames = new Set(before.classes.map(c => c.class))
   const added = after.classes.map(c => c.class).filter(c => !beforeNames.has(c))
+
   const raw = `${r.stdout}\n${r.stderr}`.replace(ANSI_RE, '').trim()
   const outputTail = raw.length > OUTPUT_TAIL_CHARS ? '…' + raw.slice(-OUTPUT_TAIL_CHARS) : raw
   const ok = r.code === 0 && after.present

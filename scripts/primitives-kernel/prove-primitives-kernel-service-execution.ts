@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -122,6 +123,7 @@ console.log('killed process reconciles honestly')
   check('live pid recorded', typeof pid === 'number')
   if (typeof pid === 'number') {
     process.kill(pid, 'SIGKILL')
+
     await new Promise(r => setTimeout(r, 400))
     const reconciled = reconcileRecord(workDir, 'axiom-web')
     check('record downgrades to failed/stopped from process truth',
@@ -139,6 +141,7 @@ console.log('plane-side requestStop drives the real stop ladder')
   const before = P.getExecution(owner, execId)
   check('fourth start live (gen 4)', before?.generation === 4 && before.state === 'starting')
   P.requestStopExecution(owner, execId)
+
   const deadline = Date.now() + 10_000
   let settled = false
   while (Date.now() < deadline) {

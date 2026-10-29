@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,6 +40,7 @@ const sessionTable = sessionSeatCommandTable(table)
 const screenSeat = table.filter(c => commandSeat(c) === 'screen')
 check('C1 every command the screen knows has exactly one seat', table.every(c => (commandSeat(c) === 'screen') !== sessionTable.includes(c)))
 check('C1 the runner table is the session-seat half of the one table', sessionTable.every(c => commandSeat(c) === 'session') && sessionTable.length + screenSeat.length === table.length, `${sessionTable.length} session · ${screenSeat.length} screen · ${table.length} total`)
+
 const sessionSeatDropped = table.filter(c => c.type === 'local' && commandSeat(c) === 'session' && !printTable.includes(c))
 const screenSeatLocals = table.filter(c => c.type === 'local' && commandSeat(c) === 'screen' && c.uiRouteAlias === undefined && c.name !== 'bootmenu')
 const before = [...sessionSeatDropped, ...screenSeatLocals].map(c => c.name).sort()
@@ -135,6 +137,7 @@ function receiptOf(batch: string[]): string {
 
 {
   const runner = spawnRunner(true)
+
   const first = await send(runner, 'hello runner')
   check('C3 the session runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
   for (const c of sessionSeatDropped) {
@@ -152,6 +155,7 @@ function receiptOf(batch: string[]): string {
   const control = spawnRunner(false)
   const first = await send(control, 'hello control')
   check('C4 the plain runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
+
   let refused = 0
   for (const c of sessionSeatDropped) {
     const batch = await send(control, `/${c.name}`)
@@ -165,11 +169,13 @@ function receiptOf(batch: string[]): string {
 
 {
   const commands = read('src/commands.ts')
+
   const seatBody = commands.slice(commands.indexOf('export function commandSeat('), commands.indexOf('export function sessionSeatCommandTable('))
   check('C5 commandSeat is the one dispatch rule (route alias · dialog · marked local · user-private ⇒ screen; else session)', seatBody.includes("if (command.type === 'local-jsx') return 'screen'") && seatBody.includes("command.uiRouteAlias !== undefined || command.seat === 'screen' || command.userPrivate === true") && seatBody.includes("return 'session'"))
   const main = read('src/main.tsx')
   check("C5 the session runner's table is sessionSeatCommandTable (MERCURY_CONCOURSE_WORKER decides)", main.includes("flagEnv('MERCURY_CONCOURSE_WORKER') === '1'") && main.includes('sessionSeatCommandTable(args.commands)'))
   const repl = read('src/screens/Chat.tsx')
+
   check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value)'))
   const clear = read('src/commands/clear/clear.ts')
   check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
@@ -184,6 +190,7 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const { builtinCommands, commandOffInPlainWorld, isCommandEnabled } = await import('../../src/commands.ts')
   const { unavailableCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
   const { setConcourseEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
+
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const registry = [...builtinCommands()]
@@ -197,9 +204,11 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   const runs = registry.find(command => command.name === 'runs')
   check('the board is /runs and /tasks resolves to the very same command', runs !== undefined && findCommand('runs', registry) === runs && findCommand('tasks', registry) === runs)
   check('the command-name catalogue keeps both the board name and its fallback', builtInCommandNames().has('runs') && builtInCommandNames().has('tasks'))
+
   route._resetSurfaceRouteForTesting()
   setConcourseEnabled(true)
   check('C6 fleet world: the world gates nothing', registry.every(c => !commandOffInPlainWorld(c)))
+
   route.markChatBoot()
   check('C6 --chat: exactly the concourse-only commands are off by the world', registry.every(c => commandOffInPlainWorld(c) === (c.needsConcourse === true)))
   check('C6 --chat: the one enablement read drops them from the table', concourseOnly.every(c => !isCommandEnabled(c)))
@@ -208,12 +217,15 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   check('C6 POISON absent: no concourse-only command answers the generic enablement line or "Unknown skill" in the plain world', concourseOnly.every(c => { const l = unavailableCommandLine(c); return !l.includes('exists but is not enabled') && !l.includes('Unknown skill') }))
   check('C6 --chat over a saved switch off is no contradiction: both = the plain world, the sentence names both and the way back', (() => { setConcourseEnabled(false); const l = unavailableCommandLine(byName('workflows')!); setConcourseEnabled(true); return l.includes('(--chat · concourse off)') && l.includes('`mercury --concourse-on` or /config turns it back') })())
   route._resetSurfaceRouteForTesting()
+
   setConcourseEnabled(false)
   check('C6 the switch off: the same set is off; the sentence names the way back (--concourse-on or /config)', concourseOnly.every(c => commandOffInPlainWorld(c)) && unavailableCommandLine(byName('crewmates')!).includes('the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back'))
   setConcourseEnabled(true)
   check('C6 the switch back on: the fleet world again (off is never a one-way door)', registry.every(c => !commandOffInPlainWorld(c)))
   check('C6 the sentence has one owner (surfaceRoute.concourseOffSentence) and the dispatcher reads it first', read('src/utils/processUserInput/processSlashCommand.tsx').includes('if (commandOffInPlainWorld(real)) {') && read('src/commands/enablement.ts').includes('command.needsConcourse === true && chatOnlyBoot()'))
+
   const dispatcher = read('src/utils/processUserInput/processSlashCommand.tsx')
+
   const reReadIdx = dispatcher.indexOf('if (command && !isCommandEnabled(command)) {')
   check('C6 the dispatcher re-reads enablement at dispatch (a mid-session switch flip answers the line, never runs from the stale roster)', reReadIdx !== -1 && dispatcher.indexOf('if (!command) {', reReadIdx) !== -1)
 }

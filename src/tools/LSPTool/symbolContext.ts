@@ -3,7 +3,6 @@ import { closeSync, openSync, readSync } from 'node:fs'
 import { logForDebugging } from '../../utils/debug.js'
 import { expandPath } from '../../utils/path.js'
 
-
 const MAX_SCAN_BYTES = 64 * 1024
 const MAX_SYMBOL_LENGTH = 30
 

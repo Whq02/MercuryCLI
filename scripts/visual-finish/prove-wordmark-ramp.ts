@@ -81,12 +81,14 @@ t.section('§3 — wordmarkForm: the ONE banner/compact law (D8)')
       wordmarkForm(cols, rows),
     )
   }
+
   const rowsOnly = (rows: number): 'banner' | 'compact' => (rows >= 34 ? 'banner' : 'compact')
   t.check(
     'the historical rows-only variant disagrees at 47x34/47x35 (the discriminator)',
     rowsOnly(34) !== wordmarkForm(47, 34) && rowsOnly(35) !== wordmarkForm(47, 35),
     `rows-only says ${rowsOnly(34)}, unified says ${wordmarkForm(47, 34)}`,
   )
+
   const home = readFileSync('src/components/MercuryHome.tsx', 'utf8')
   const callSites = (home.match(/wordmarkForm\(/g) ?? []).length
   t.check(
@@ -120,6 +122,7 @@ t.section('§4 — R5: a non-crab warm-red accent derives its own ramp')
     reduced.focalRamp.length === 1 && reduced.focalRamp[0] === WARM_RED_SAMPLE,
     reduced.focalRamp.join(' '),
   )
+
   const assets = readFileSync('src/components/mercury-ui/assets.tsx', 'utf8')
   t.check(
     'the Wordmark version tail rides t.textMuted (no fixed FAINT, D11)',

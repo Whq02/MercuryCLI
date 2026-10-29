@@ -1,4 +1,3 @@
-
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 
 type SectionPlan =
@@ -94,6 +93,7 @@ export function planSectionEdit(
     lines.splice(found.start - 1, found.end - found.start + 1, ...bodyLines(op.replace))
   } else {
     if (op.append === '') return { ok: false, message: 'append is empty — there is nothing to add to the section' }
+
     let last = found.end
     while (last > found.start && lines[last - 1]!.trim() === '') last--
     lines.splice(last, 0, ...bodyLines(op.append))

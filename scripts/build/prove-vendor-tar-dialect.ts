@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -80,6 +81,7 @@ console.log('[3] the census: every fetch script extracts through the one helper'
 
 console.log('[4] live: the faked dialect aborts the old shape, the helper extracts whole')
 {
+
   const bin = join(scratch, 'bin')
   mkdirSync(bin, { recursive: true })
   const argvLog = join(scratch, 'argv.log')
@@ -99,6 +101,7 @@ console.log('[4] live: the faked dialect aborts the old shape, the helper extrac
   const oldPath = process.env.PATH
   process.env.PATH = `${bin}:${oldPath ?? ''}`
   try {
+
     const control = spawnSync('tar', ['-xzf', 'C:\\repo\\vendor\\cache\\x.tgz', '-C', '/tmp/x'], { encoding: 'utf8', env: process.env })
     check('the control reproduces the field abort', control.status === 128 && /Cannot connect/.test(control.stderr ?? ''), `status ${String(control.status)}`)
 

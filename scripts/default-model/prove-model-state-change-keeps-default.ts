@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/state/onChangeAppState.ts src/commands/model/persistModelChoice.ts src/bootstrap/state.ts
+
 import '../lib/hermetic.ts'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

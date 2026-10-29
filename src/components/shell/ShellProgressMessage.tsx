@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import stripAnsi from 'strip-ansi'
@@ -34,6 +33,7 @@ export function ShellProgressMessage({
   verbose: boolean
 }): React.ReactNode {
   void taskId
+
   const shownLatchRef = useRef(0)
   const incremental = stripAnsi(output).trim()
   const full = stripAnsi(fullOutput).trim()
@@ -70,6 +70,7 @@ export function ShellProgressMessage({
   shownLatchRef.current = latch
 
   if (latch === 0) {
+
     return (
       <OffscreenFreeze>
         <MessageResponse>

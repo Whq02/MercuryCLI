@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, rmSync, statSync } from 'node:fs'
@@ -180,6 +181,7 @@ section('4 · the ladder + the dispatch credential (env > sign-in > stored key)'
   check('labels never carry a token/key value', !labels.includes('at-3') && !labels.includes('sk-moon'))
   disconnectMoonshotOauth()
   check('a disconnect drops the tokens, keeps the region, falls to the stored key on the platform base', moonshotStoredTokens() === undefined && moonshotStoredRegion() === 'global' && (await resolveMoonshotDispatchCredential({ env }))?.source === 'stored' && (await resolveMoonshotDispatchCredential({ env }))?.requestUrl === 'https://api.moonshot.ai/v1/chat/completions')
+
   writeMoonshotTokens({ accessToken: 'at-4', refreshToken: 'rt-4', accessTokenExpiresAtMs: 1_000_000 }, 'global')
   let refreshed = 0
   const rotating = (async () => {
@@ -195,6 +197,7 @@ section('4 · the ladder + the dispatch credential (env > sign-in > stored key)'
   check('an expired sign-in with no refresh route is dropped; the stored key answers', expired?.source === 'stored' && moonshotStoredTokens() === undefined)
   writeMoonshotRegion('mainland-cn')
   check('the region can be remembered on its own (the card writes it before the flow)', moonshotStoredRegion() === 'mainland-cn')
+
   writeMoonshotTokens({ accessToken: 'at-7', refreshToken: 'rt-7' }, 'mainland-cn')
   const mainland = await resolveMoonshotDispatchCredential({ env })
   check(

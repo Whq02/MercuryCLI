@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -144,6 +145,7 @@ if (process.platform !== 'darwin' || !existsSync('/usr/bin/hdiutil')) {
     try {
       const target = join(mount, 'source.ts')
       writeFileSync(target, OLD)
+
       let chunks = 0
       try {
         const fd = openSync(join(mount, 'filler.bin'), 'w')
@@ -159,6 +161,7 @@ if (process.platform !== 'darwin' || !existsSync('/usr/bin/hdiutil')) {
       } catch (e) {
         check('the volume is full (the filler hit ENOSPC)', (e as { code?: string }).code === 'ENOSPC', `${(e as { code?: string }).code} after ${chunks} chunks`)
       }
+
       const { threw } = attempt(target, NEW.repeat(64))
       check('LIVE: the write is refused typed with ENOSPC, naming the file', isTypedRefusal(threw, 'ENOSPC', target), threw instanceof Error ? `${threw.name}: ${threw.message}` : 'no throw')
       check('LIVE: the source file keeps its old bytes (never zero-length)', readFileSync(target, 'utf8') === OLD, `size now ${statSync(target).size}`)

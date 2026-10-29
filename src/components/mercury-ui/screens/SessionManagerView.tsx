@@ -40,7 +40,6 @@ function shellInteriorWidth(columns: number): number {
   return Math.max(40, columns - 4)
 }
 
-
 interface OwnSessionStateWords {
   glyph: string
   state: string
@@ -75,14 +74,19 @@ export function SessionManagerView({
   onNewSession,
   initialScope,
 }: {
+
   onClose: () => void
+
   onCloseAll?: () => void
+
   onResume?: (
     sessionId: UUID,
     log: SessionListing,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
+
   onNewSession?: () => void
+
   initialScope?: SessionScope
 }): React.ReactNode {
   if (onResume && onNewSession) {
@@ -96,6 +100,7 @@ export function SessionManagerView({
       />
     )
   }
+
   return (
     <CommandCenter view="sessions" onClose={onClose} closeKeys="esc">
       <Box marginTop={1}>
@@ -121,7 +126,6 @@ export function computeSessionWindow(
   return { start, end: start + size }
 }
 
-
 function LiveSessionManager({
   onClose,
   onCloseAll,
@@ -144,11 +148,16 @@ function LiveSessionManager({
   const ownState = useMemo(() => ownSessionStateWords(ownSessionRecord(getFocusedSessionConnector().sessionId())), [])
   const { columns } = useTerminalSize()
   const W = shellInteriorWidth(columns)
+
   const [switching, setSwitching] = useState<'swapping' | null>(null)
   const switchGenRef = useRef(0)
+
   const [scope, setScope] = useState<SessionScope>(initialScope)
+
   const { logs, pendingMore, flat, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
+
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
+
   const [prune, setPrune] = useState<
     | { stage: 'card'; offer: PruneOffer; answer: 'no' | 'yes' }
     | { stage: 'deleting' }
@@ -159,6 +168,7 @@ function LiveSessionManager({
   const pastOpenEvent = useOpenEventGate()
 
   const WINDOW = 8
+
   const navKeys = useMemo(
     () => [
       ...flat.map(f => `s:${sessionIdOfListing(f.row.log) ?? `${f.project}:${f.row.label}`}`),
@@ -168,14 +178,17 @@ function LiveSessionManager({
   const stable = useStableSelection(navKeys, k => k)
   const sel = stable.index
   const navLen = flat.length
+
   const confirmingResolved = confirmingKey === null ? -1 : navKeys.indexOf(confirmingKey)
   const confirming: number | null = confirmingResolved >= 0 ? confirmingResolved : null
   const { start: winStart, end: winEnd } = computeSessionWindow(sel, flat.length, WINDOW)
   const shown = flat.slice(winStart, winEnd)
   const newerHidden = winStart
   const olderHidden = flat.length - winEnd
+
   const targetAt = (i: number): SessionListing | null => flat[i]?.row.log ?? null
   const targetLabel = (i: number): string => flat[i]?.row.label ?? ''
+
   const moveTo = (i: number): void => {
     stable.select(Math.max(0, Math.min(i, Math.max(0, navLen - 1))))
     setConfirmingKey(null)
@@ -200,6 +213,7 @@ function LiveSessionManager({
   async function runPrune(offer: PruneOffer) {
     setPrune({ stage: 'deleting' })
     const receipt = await operatorPruneTranscripts(offer)
+
     dropSessions(new Set(receipt.deletedSessionIds))
     setPrune({ stage: 'receipt', receipt })
   }
@@ -210,10 +224,13 @@ function LiveSessionManager({
     const sessionId = sessionIdOfListing(log)
     if (!sessionId) return
     const gen = ++switchGenRef.current
+
     setSwitching('swapping')
     try {
       await onResume(sessionId, log, 'slash_command_picker')
+
       if (gen !== switchGenRef.current) return
+
       onCloseAll()
     } catch {
       if (gen === switchGenRef.current) setSwitching(null)
@@ -232,9 +249,11 @@ function LiveSessionManager({
   useInput(
     (input, key) => {
       if (switching !== null) {
+
         if (key.escape) leaveSwitch()
         return
       }
+
       if (prune !== null) {
         if (prune.stage === 'deleting') return
         if (prune.stage === 'receipt') {
@@ -264,6 +283,7 @@ function LiveSessionManager({
         }
         return
       }
+
       if (confirming !== null) {
         if (key.escape || input === 'n') {
           setConfirmingKey(null)
@@ -276,6 +296,7 @@ function LiveSessionManager({
         }
         return
       }
+
       const action = decodeNavKey(input, key, { orientation: 'vertical', leftCloses: true })
       if (action === 'cancel') {
         onClose()
@@ -299,20 +320,24 @@ function LiveSessionManager({
       }
       if (!pastOpenEvent()) return
       if (key.return && navLen > 0) {
+
         setConfirmingKey(navKeys[Math.min(sel, navLen - 1)] ?? null)
         return
       }
       if (input === 'n') {
+
         onNewSession()
         return
       }
       if (input === 'a') {
+
         setScope(s => (s === 'project' ? 'all' : 'project'))
         stable.select(0)
         setConfirmingKey(null)
         return
       }
       if (input === 'd' && !key.ctrl && !key.meta) {
+
         openPruneDoor()
         return
       }
@@ -321,6 +346,7 @@ function LiveSessionManager({
   )
 
   const scopeHint = scope === 'project' ? 'a all history' : 'a this project'
+
   const footer =
     confirming !== null
       ? '↵ yes, switch · esc / n cancel'
@@ -329,6 +355,7 @@ function LiveSessionManager({
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
   if (switching !== null) {
+
     return (
       <CommandCenter
         view="sessions"
@@ -358,6 +385,7 @@ function LiveSessionManager({
         view="sessions"
         onClose={() => setPrune(null)}
         captureInput={false}
+
         closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}
         footer={pruneFooter}
       >
@@ -506,7 +534,9 @@ function LiveSessionManager({
               const i = winStart + wi
               const on = i === sel
               const pending = confirming === i
+
               const def = critterForKey(sessionIdOfListing(f.row.log) ?? f.row.label)
+
               const cardKey = navKeys[i] ?? (sessionIdOfListing(f.row.log) ?? f.row.label)
               return (
                 <InteractiveRow

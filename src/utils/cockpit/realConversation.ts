@@ -42,7 +42,9 @@ function textOf(content: unknown): string {
 export function isTranscriptFurnitureMessage(
   msg: ConversationSignalMessage,
 ): boolean {
+
   if (msg.type === 'system') return true
+
   if (msg.type === 'assistant') {
     const content = msg.message?.content
     if (typeof content === 'string') return content === NO_RESPONSE_SENTINEL

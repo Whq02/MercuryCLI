@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +17,7 @@ const dir = mkdtempSync(join(tmpdir(), 'ff-lossy-'))
 
 console.log('§1 the read owner tells a lossy decode from a clean one')
 {
+
   const cp1252 = Buffer.from([0x63, 0x61, 0x66, 0xe9, 0x20, 0x97, 0x20, 0x6e, 0x61, 0xef, 0x76, 0x65, 0x0d, 0x0a])
   const p1 = join(dir, 'ansi.txt')
   writeFileSync(p1, cp1252)

@@ -22,6 +22,7 @@ export function checkCrossProjectResume(
   const projectPath = (log as { projectPath?: string }).projectPath
   if (!projectPath) return { isCrossProject: false }
   if (projectPath === getOriginalCwd()) return { isCrossProject: false }
+
   try {
     if (!existsSync(projectPath)) return { isCrossProject: false }
   } catch {
@@ -36,7 +37,9 @@ export function checkCrossProjectResume(
 
   const sessionId = sessionIdOfListing(log)
   if (!sessionId) return { isCrossProject: false }
+
   const quotedPath = quote([projectPath])
+
   const command = `cd ${quotedPath} && ${binaryName()} --resume ${sessionId}`
   return { isCrossProject: true, isSameRepoWorktree: false, projectPath, command }
 }

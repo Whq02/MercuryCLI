@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import type { AnsiCode } from '@alcalzone/ansi-tokenize'
 import {
   appendChildNode,
@@ -75,7 +76,6 @@ function lcg(seed: number): () => number {
 }
 
 console.log('native-core T7 — input geometry contract')
-
 
 function compose(root: DOMElement, cols: number, rows: number): void {
   const ctx = makeContext()
@@ -242,6 +242,7 @@ function putText(
   }
 
   {
+
     const ghost = createNode('ink-box')
     applySceneStyle(ghost, { width: 20, height: 6 })
     appendChildNode(boxA, ghost)
@@ -357,6 +358,7 @@ putText(wu.screen, wu.styles, 0, 7, 'https://cut.co/abc')
 putText(wu.screen, wu.styles, 0, 8, 'file:///tmp/x ok')
 putText(wu.screen, wu.styles, 0, 9, '漢https://w.co')
 putText(wu.screen, wu.styles, 0, 10, 'linked text', wu.styles.none, 'https://link.example')
+
 wu.screen.noSelect[7 * WU_W + 10] = 1
 wu.screen.noSelect[7 * WU_W + 11] = 1
 
@@ -374,6 +376,7 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
   check('word: > is punctuation-class run', wordSpanAt(25, 0) === '25..25@0', wordSpanAt(25, 0))
   check('word: ! is punctuation-class run', wordSpanAt(29, 0) === '29..29@0', wordSpanAt(29, 0))
   check('word: interior whitespace run', wordSpanAt(1, 2) === '1..2@2', wordSpanAt(1, 2))
+
   check('word: blank tail selects the space run to the edge', wordSpanAt(10, 2) === `4..${WU_W - 1}@2`, wordSpanAt(10, 2))
   {
     const s = createSelectionState()
@@ -464,21 +467,30 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
 
 {
   const url = (col: number, row: number): string => findPlainTextUrlAt(wu.screen, col, row) ?? 'undefined'
+
   check('url: first of two in one run', url(8, 3) === 'https://a.co', url(8, 3))
   check('url: second of two in one run', url(20, 3) === 'https://b.co', url(20, 3))
   check('url: last char of the second', url(28, 3) === 'https://b.co', url(28, 3))
+
   check('url: the separating comma resolves to none', url(16, 3) === 'undefined', url(16, 3))
+
   check('url: balanced (y) kept', url(10, 4) === 'https://en.wk/x_(y)', url(10, 4))
+
   check('url: wrapping paren stripped', url(5, 5) === 'https://x.co/a', url(5, 5))
   check('url: click on the stripped closer misses (right edge)', url(15, 5) === 'undefined', url(15, 5))
+
   check('url: trailing dots stripped', url(3, 6) === 'https://tail.co', url(3, 6))
   check('url: click on a stripped dot misses', url(16, 6) === 'undefined', url(16, 6))
+
   check('url: click on the noSelect cell misses', url(10, 7) === 'undefined', url(10, 7))
   check('url: right fragment after the gutter has no scheme', url(15, 7) === 'undefined', url(15, 7))
+
   check('url: left fragment returns the truncated URL (quirk)', url(5, 7) === 'https://cu', url(5, 7))
+
   check('url: file scheme resolves', url(4, 8) === 'file:///tmp/x', url(4, 8))
   check('url: schemeless word misses', url(14, 8) === 'undefined', url(14, 8))
   check('url: space misses', url(13, 8) === 'undefined', url(13, 8))
+
   check('url: run bounded by the wide glyph still resolves', url(6, 9) === 'https://w.co', url(6, 9))
   check('url: click on the wide tail rebases to the head and misses', url(1, 9) === 'undefined', url(1, 9))
   check('url: OOB row misses', url(0, 99) === 'undefined')
@@ -549,6 +561,7 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
   check('clip band: negative lo clamps to 0', s4.clipLo === 0 && s4.clipHi === 12)
   setSelectionClipBand(s4, 9, 4, 40)
   check('clip band: hi floors at lo', s4.clipLo === 9 && s4.clipHi === 9)
+
   const sBand = createSelectionState()
   setSelectionClipBand(sBand, 4, 11, 40)
   check('clip band: row args omitted leaves the row band undefined', sBand.clipTop === undefined && sBand.clipBottom === undefined)
@@ -692,6 +705,7 @@ function oracleCopy(screen: Screen, s: SelectionState): string {
       for (let x = 0; x < CP_W; x++) {
         const restyled = cellAt(oscreen, x, y)!.styleId !== before[y]![x]
         if (!restyled) continue
+
         const cell = cellAt(oscreen, x, y)!
         const inRange =
           bounds !== null &&
@@ -712,6 +726,7 @@ function oracleCopy(screen: Screen, s: SelectionState): string {
         }
       }
     }
+
     if (bounds) {
       for (let row = bounds.start.row; row <= bounds.end.row; row++) {
         const rowStart = Math.max(row === bounds.start.row ? bounds.start.col : 0, bandLo)
@@ -825,8 +840,10 @@ function scrollScene(scrollTop: number): FrameScene {
     },
   }
 }
+
 function composeScrolled(scrollTop: number): Screen {
   const scene = scrollScene(scrollTop)
+
   const ctx = makeContext()
   const root = createNode('ink-root')
   applySceneStyle(root, { width: scene.cols, height: scene.rows, flexDirection: 'column' })
@@ -853,6 +870,7 @@ function composeScrolled(scrollTop: number): Screen {
   const screen = composeScrolled(1)
   const lines = screenLines(screen)
   check('f4-4 scene: header row intact above the scrollbox', lines[0] === 'HEADER', JSON.stringify(lines))
+
   check('f4-4: through-clip softWrap record exists at the viewport top, NEGATED', screen.softWrap[1]! < 0, JSON.stringify([...screen.softWrap]))
   check('f4-4: mid-viewport wrap row still marked', screen.softWrap[2]! > 0, JSON.stringify([...screen.softWrap]))
 
@@ -914,6 +932,7 @@ function composeScrolled(scrollTop: number): Screen {
     check('capture above: only selection-intersecting rows captured', s.scrolledOffAbove.length === 1, JSON.stringify(s.scrolledOffAbove))
     check('capture above: the anchor row honored its col at capture time', s.scrolledOffAbove[0] === 'row1 abcdefghij'.slice(5), JSON.stringify(s.scrolledOffAbove))
     check('capture above: anchor col reset to the full-width edge', s.anchor?.col === 0 && s.anchor.row === 1, JSON.stringify(s.anchor))
+
     captureScrolledRows(s, screen, 2, 2, 'above')
     check('capture above: second row captured full-width', s.scrolledOffAbove[1] === 'row2 abcdefghij', JSON.stringify(s.scrolledOffAbove))
   }
@@ -1056,6 +1075,7 @@ function composeScrolled(scrollTop: number): Screen {
     else if (aRow > H - 1) m.anchor.col = W - 1
     if (fRow < 0) m.focus.col = 0
     else if (fRow > H - 1) m.focus.col = W - 1
+
     const minDoc = Math.min(m.anchor.doc, m.focus.doc)
     const maxDoc = Math.max(m.anchor.doc, m.focus.doc)
     const oldAbove = Math.max(0, tOld - minDoc)
@@ -1170,6 +1190,7 @@ function composeScrolled(scrollTop: number): Screen {
     stepPgUp(env, 3)
     assertLedger(env, 'J1 pgup3 (round trip)')
     check('J1: accumulators empty after the full return', env.sel.scrolledOffAbove.length === 0 && env.sel.scrolledOffBelow.length === 0)
+
     check('J1 quirk: anchor col stays edge-consumed after the round trip', env.sel.anchor?.col === 0, JSON.stringify(env.sel.anchor))
     stepPgDn(env, 4)
     assertLedger(env, 'J1 pgdn4')
@@ -1198,6 +1219,7 @@ function composeScrolled(scrollTop: number): Screen {
     check('J1b: below accumulator drained', env.sel.scrolledOffBelow.length === 0)
     stepPgUp(env, 4)
     assertLedger(env, 'J1b re-scroll')
+
     const env2 = mkEnv(5)
     dragTo(env2, 1, 1, 5, 2)
     finishSelection(env2.sel)
@@ -1247,6 +1269,7 @@ function composeScrolled(scrollTop: number): Screen {
     check('J5: below debt established', env.sel.scrolledOffBelow.length === 1)
     moveFocus(env.sel, 3, 3)
     env.m.focus = { doc: env.t + 3, col: 3 }
+
     check('J5: stale below entry lingers until the next shift', env.sel.scrolledOffBelow.length === 1)
     captureScrolledRows(env.sel, env.screen, H - 1, H - 1, 'below')
     modelCapture(env.m, env.t, H - 1, H - 1, 'below')
@@ -1314,6 +1337,7 @@ function composeScrolled(scrollTop: number): Screen {
     updateSelection(below, 5, 4)
     const clearedBelow = shiftSelectionForFollow(below, 10, 0, H - 1)
     check('follow clear: both ends past the BOTTOM clears (the twin)', clearedBelow === true && hasSelection(below) === false)
+
     const straddle = createSelectionState()
     startSelection(straddle, 2, 0)
     updateSelection(straddle, 5, 3)
@@ -1367,6 +1391,7 @@ function composeScrolled(scrollTop: number): Screen {
   for (let y = 0; y < 3; y++) for (let x = 0; x < 10; x++) charsAfter.push(charInCellAt(screen, x, y) ?? '')
   check('overlay: chars byte-identical', JSON.stringify(charsAfter) === JSON.stringify(charsBefore))
   check('overlay: noSelect/softWrap untouched', JSON.stringify([...screen.noSelect]) === nsBefore && JSON.stringify([...screen.softWrap]) === swBefore)
+
   check('overlay: damage IS tracked through setCellStyleId', screen.damage !== undefined)
 }
 

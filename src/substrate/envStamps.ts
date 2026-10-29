@@ -1,6 +1,3 @@
-
-
-
 import { join, resolve } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { FLAG_REGISTRY, flagSpellings, selfWrittenFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
@@ -82,6 +79,7 @@ export function sessionEnvStamps(env: NodeJS.ProcessEnv = process.env): string[]
   for (const spelling of spawnSelfStamped(env).keys()) {
     if (env[spelling] !== undefined) stamps.add(spelling)
   }
+
   for (const [spelling, value] of selfWrittenFlagEnv()) {
     if (env[spelling] === value) stamps.add(spelling)
   }

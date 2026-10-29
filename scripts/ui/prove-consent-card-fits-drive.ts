@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -30,6 +31,7 @@ function section(t: string): void {
 }
 
 const CTRL_F = '\\x06'
+
 const RESIZE_AT = 15000
 const CHORD_AFTER_RESIZE = [17500, 20000]
 const CARD_NOMINAL_MS = 8000
@@ -48,7 +50,9 @@ type Scene = {
   id: string
   title: string
   needle: string
+
   overHeight: boolean
+
   beyondCut: [string, string]
   turns: (cwd: string) => ScriptedTurn[]
   seed?: (configDir: string, cwd: string) => void
@@ -193,6 +197,7 @@ for (const scene of SCENES) {
     for (const [label, rows, state, beyond] of frames) {
       dump(scene.id, label, rows)
       if (!scene.overHeight) {
+
         check(`${scene.id} ${label}: the card title is on the frame`, rowsHaving(rows, scene.title))
         check(`${scene.id} ${label}: the options row is ON the frame`, optionsRow(rows))
         check(`${scene.id} ${label}: no tail — the body fits whole`, !tailRow(rows))
@@ -211,6 +216,7 @@ for (const scene of SCENES) {
     printFrame(`${scene.id} 100x30 collapsed`, f1!.rows)
     printFrame(`${scene.id} 120x40 collapsed`, f4!.rows)
   } else {
+
     const [final] = grabScreens(run, 120, 40, [-1])
     printFrame(`${scene.id} final screen (no card needle)`, final!.rows)
   }
@@ -219,6 +225,7 @@ for (const scene of SCENES) {
 
 if (!ONLY || ONLY.has('sovereign')) {
   section('sovereign — an edit to .mercury/guard.mjs under the bypass posture paints NO card')
+
   const SHORT_BEFORE = 'alpha line one\nbeta line two\n'
   const SHORT_AFTER = 'alpha line one\ngamma line two\n'
   const run = await runArtifactArena({
@@ -232,6 +239,7 @@ if (!ONLY || ONLY.has('sovereign')) {
     seedHome: (configDir, cwd) => {
       mkdirSync(join(cwd, '.mercury'), { recursive: true })
       writeFileSync(join(cwd, '.mercury', 'guard.mjs'), SHORT_BEFORE)
+
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true } }))
     },
     extraEnv: { MERCURY_SKIP_PERMISSIONS: '1' },
@@ -278,6 +286,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, '⦿ Edit file'))
   check('sovereign + tool ask rule: the edit landed on disk', ruledEdited.includes('gamma line two'))
   check('sovereign + tool ask rule: the allowance row names the posture and nothing more', rowsHaving(ruledRows, 'allowed by sovereign') && !rowsHaving(ruledRows, 'the rule Edit'))
+
   const persisted = sessionFiles(join(run.paths.home, '.mercury', 'projects'))
     .map(f => readFileSync(f, 'utf8'))
     .some(text => text.includes('"bypassed_ask"') && text.includes('"safetyCheckAsk"') && text.includes('sensitive file'))

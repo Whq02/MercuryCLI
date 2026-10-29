@@ -1,4 +1,3 @@
-
 import { randomBytes } from 'node:crypto'
 import { existsSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,16 +7,19 @@ import { projectSlug, sanitizePath } from '../sessionStoragePortable.js'
 
 export interface SavedPromptV1 {
   id: string
+
   text: string
   createdAt: string
   updatedAt: string
 }
 
 export interface SavedPromptsFile {
+
   drafts: SavedPromptV1[]
 }
 
 export const MAX_SAVED_PROMPTS = 200
+
 export const MAX_SAVED_PROMPT_CHARS = 4000
 
 export function savedPromptsRoot(): string {
@@ -159,7 +161,6 @@ export async function moveSavedPrompt(projectPath: string, id: string, delta: -1
     return { next: { drafts }, result: { ok: true as const, id } }
   })
 }
-
 
 type Cached = { drafts: SavedPromptV1[] | null; problem: string | null; listeners: Set<() => void>; stop: (() => void) | null }
 const cache = new Map<string, Cached>()

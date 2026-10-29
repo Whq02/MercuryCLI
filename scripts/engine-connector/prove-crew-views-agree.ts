@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/services/engine-connector/crewFacts.ts src/state/crewLedger.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

@@ -64,10 +64,12 @@ const NO_IDENTITY: SeatIdentityV1 = Object.freeze({
 const NO_SKILLS: SkillsRosterV1 = Object.freeze({ skills: Object.freeze([]) as never })
 const NO_MCP: McpRosterV1 = Object.freeze({ clients: Object.freeze([]) as never })
 const EMPTY_MCP_TOOLS: readonly McpToolEntryV1[] = Object.freeze([])
+
 const NO_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'off' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 const NOOP_UNSUBSCRIBE = (): void => {}
 
 export class NoSessionConnector implements EngineConnectorV1 {
+
   readonly carrier = 'daemon' as const
   private cachedModelFacts: ModelFactsV1 | null = null
   private cachedWorkspace: WorkspaceFactsV1 | null = null
@@ -104,12 +106,14 @@ export class NoSessionConnector implements EngineConnectorV1 {
   interrupt(): boolean {
     return false
   }
+
   recallableSend(): null {
     return null
   }
   async withdrawSend(): Promise<WithdrawReceiptV1> {
     return { withdrawn: false, reason: 'refused', detail: NO_CHAT_OPEN }
   }
+
   async stopAgent(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
@@ -131,6 +135,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async leave(): Promise<LeaveReceiptV1> {
     return { note: 'skipped', detail: NO_CHAT_OPEN }
   }
+
   modelFacts(): ModelFactsV1 {
     const landing = landingWordsOf(bootBirthFacts())
     const main = landing.model ?? getEngineModel()
@@ -166,9 +171,11 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async mcpTools(serverName: string): Promise<McpToolsV1> {
     return { server: serverName, state: 'unavailable', tools: EMPTY_MCP_TOOLS, omitted: 0, detail: NO_CHAT_OPEN }
   }
+
   async setKit(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT
   }
+
   spawnSwitches(): SpawnSwitchFacts {
     return NO_SPAWN_SWITCHES
   }
@@ -178,6 +185,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   advisorFacts(): null {
     return null
   }
+
   checkpointFacts(): CheckpointFactsV1 {
     return NO_CHECKPOINTS
   }
@@ -187,6 +195,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     return { outcome: 'refused', mode: req.mode, refusal: 'no-chat', detail: NO_CHAT_OPEN }
   }
+
   permissionMode(): PermissionMode | null {
     const born = landingWordsOf(bootBirthFacts()).permissionMode
     if (born === null) return null
@@ -199,6 +208,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   setPermissionMode(): Promise<PermissionModeReceiptV1> {
     return Promise.resolve({ outcome: 'noop', detail: 'no session is focused' })
   }
+
   workspace(): WorkspaceFactsV1 {
     const cwd = getCwd()
     if (this.cachedWorkspace === null || this.cachedWorkspace.cwd !== cwd) {
@@ -209,6 +219,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async dispatchSlash(): Promise<SendReceiptV1> {
     return REFUSED_NO_CHAT
   }
+
   workRoster(): WorkRosterV1 {
     return EMPTY_WORK
   }

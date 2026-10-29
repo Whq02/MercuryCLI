@@ -1,4 +1,3 @@
-
 const COMMON_SWITCHES: string[] = ['-verbose', '-debug']
 
 const COMMON_VALUE_PARAMS: string[] = [

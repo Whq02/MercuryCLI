@@ -1,4 +1,3 @@
-
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { anthropicAccountApiBase } from '../../constants/oauth.js'
@@ -17,6 +16,7 @@ export type ScopeIdentityState =
   | { state: 'unverified'; email?: string; note: string }
 
 const CACHE_TTL_MS = 5 * 60_000
+
 const cache = new Map<string, { at: number; epoch: number; value: ScopeIdentityState }>()
 
 export function forgetScopeIdentity(dir?: string): void {
@@ -42,6 +42,7 @@ export async function resolveLiveScopeIdentity(
   const epoch = signInLedgerEpoch()
   if (cached && cached.epoch === epoch && Date.now() - cached.at < CACHE_TTL_MS) return cached.value
   const value = await resolveUncached(dir, deps)
+
   if (value.state !== 'unverified') cache.set(dir, { at: Date.now(), epoch, value })
   return value
 }
@@ -156,6 +157,7 @@ export function healScopeIdentitySnapshot(
       try {
         parsed = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
       } catch (readErr) {
+
         logForDebugging(`[accounts] snapshot heal skipped for ${dir}: the file is not readable JSON (${String(readErr)})`)
         return
       }

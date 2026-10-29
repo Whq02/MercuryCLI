@@ -1,6 +1,3 @@
-
-
-
 import {
   classifyMcpToolRisk,
   type McpRisk,
@@ -148,6 +145,7 @@ export function deriveCategory(tool: Tool): CapabilityCategory {
 }
 
 export function deriveRisk(tool: Tool): CapabilityRisk {
+
   if (isMcpTool(tool)) {
     return classifyMcpToolRisk(annotationsFromTool(tool))
   }
@@ -181,6 +179,7 @@ export function deriveCapabilityDescriptor(tool: Tool): CapabilityDescriptor {
       provenance: deriveProvenance(tool),
     }
   } catch {
+
     return {
       name: typeof tool?.name === 'string' ? tool.name : '',
       category: 'other',

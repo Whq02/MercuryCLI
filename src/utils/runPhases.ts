@@ -1,4 +1,3 @@
-
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { getPerformance } from './profilerBase.js'
 
@@ -32,10 +31,15 @@ export function noteRunPhase(phase: RunPhase, atMs?: number): void {
 }
 
 interface RunPhaseReport {
+
   phases: Array<{ phase: RunPhase; atMs: number }>
+
   monotonic: boolean
+
   wallMs: number
+
   providerApiMs: number
+
   localOverheadMs: number
 }
 

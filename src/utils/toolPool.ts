@@ -2,7 +2,6 @@ import { isMcpTool } from '../services/mcp/utils.js'
 import type { Tool } from '../Tool.js'
 import type { PermissionMode } from '../types/permissions.js'
 
-
 const byName = (a: Tool, b: Tool): number => a.name.localeCompare(b.name)
 
 export function mergeAndFilterTools(

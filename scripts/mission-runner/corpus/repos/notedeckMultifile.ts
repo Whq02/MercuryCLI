@@ -1,6 +1,5 @@
 import type { BranchOverlay } from '../contracts.js'
 
-
 const MF_BANNER_BASE = `export const BANNER = 'notedeck v1'
 
 export function bannerLine() {
@@ -34,7 +33,6 @@ test('about text carries v2', () => {
   assert.ok(aboutText().includes('notedeck v2'))
 })
 `
-
 
 const MF_SLUG_BASE = `// Slugs: lowercase, every non-alphanumeric character becomes a dash.
 export function slugify(s) {
@@ -82,7 +80,6 @@ test('punctuation runs collapse too', () => {
   assert.equal(slugify('Hello, World'), 'hello-world')
 })
 `
-
 
 const MF_FORMAT_LEGACY = `export function formatNote(note) {
   return '[' + note.id + '] ' + note.title
@@ -135,7 +132,6 @@ test('view D rides format2 with its lane tag', () => {
   assert.equal(viewD(note), 'D: [n-1] t #d')
 })
 `
-
 
 const MF_PIPELINE_BASE = `import { trim } from './stages/trim.js'
 import { upper } from './stages/upper.js'
@@ -215,7 +211,6 @@ test('the pipeline runs end to end', () => {
 })
 `
 
-
 export function mfLimits(value: number): string {
   return `export const MAX_NOTES = ${value}
 `
@@ -232,7 +227,6 @@ test('every limits module carries 250', () => {
   assert.equal(C, 250)
 })
 `
-
 
 const MF_GREETING_BASE = `export function greeting(name) {
   return 'hullo, ' + name
@@ -253,7 +247,6 @@ test('greeting spells hello', () => {
   assert.equal(greeting('kai'), 'hello, kai')
 })
 `
-
 
 export const MF_BRANCHES: Record<string, BranchOverlay> = {
   'task/mf-banner': {

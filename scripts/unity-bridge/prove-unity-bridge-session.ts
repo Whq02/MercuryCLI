@@ -91,6 +91,7 @@ section('5. reachable — editor truth through the client; the scope guard')
   check('editor truth ok: play state string', session.editor.state === 'ok' && /isPlaying/.test((session.editor as { playState: string }).playState))
   check('editor truth ok: scenes string', session.editor.state === 'ok' && /Assets\/Scenes\/Main\.unity/.test((session.editor as { scenes: string }).scenes))
   check('editor truth ok: console head string', session.editor.state === 'ok' && /entries/.test((session.editor as { consoleHead: string }).consoleHead))
+
   const foreign = await runWithCwdOverride(proj, () => buildUnityBridgeIdeSession(otherProj))
   check('a foreign root answers the scope sentence, never the wrong editor', foreign.editor.state === 'unavailable' && /scoped to the working-directory project/.test((foreign.editor as { detail: string }).detail))
   await fake.close()

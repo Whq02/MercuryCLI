@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import {
@@ -161,6 +162,7 @@ section('gate polarity — default-on')
   process.env.MERCURY_LIVE_GLYPHS = '0'
   check("fork + '0' ⇒ disabled (hard-off)", liveGlyphsEnabled() === false)
   delete process.env.MERCURY_LIVE_GLYPHS
+
   setStamp(false)
   check('bare stamp ⇒ STILL enabled (stamp-independence)', liveGlyphsEnabled() === true)
   setStamp(true)
@@ -193,6 +195,7 @@ section('adoption + hygiene pins (source greps)')
   )
   check(
     'rail countdowns ride a tick, not a render-frozen Date.now()',
+
     rail.includes('useNowTick(Math.min(30_000, usagePollTtlMs()))'),
   )
   const deck = readFileSync('src/components/DeckPane.tsx', 'utf8')
@@ -240,6 +243,7 @@ section('adoption — the alive-Chat pass (breath · glint · nudge; the tool ro
   )
   const assets = readFileSync('src/components/mercury-ui/assets.tsx', 'utf8')
   check('the inline Sigil glints via TwinkleSpark', assets.includes('<TwinkleSpark color={accent} />'))
+
   const cursorFiles = [
     'src/commands/console/console.tsx',
     'src/commands/health/HealthCertificate.tsx',
@@ -274,6 +278,7 @@ section('dist — the built binary carries the rotation (host-vs-binary)')
 
 section('CACHED MOTION FRAMES — authored at module scope, zero idle cost')
 {
+
   const anim = readFileSync('src/ink/hooks/use-animation-value.ts', 'utf8')
   check(
     'offscreen / parked / motion-off all fold to inactive (one gate)',

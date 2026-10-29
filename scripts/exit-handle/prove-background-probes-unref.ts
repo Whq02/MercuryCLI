@@ -36,6 +36,7 @@ check(
 
 console.log('§3 the exit ends what the unref let go')
 {
+
   const owner = await import('../../src/utils/ripgrep.ts')
   const target = join(REPO, 'node_modules')
   const marker = `background-probes-marker-${process.pid}`

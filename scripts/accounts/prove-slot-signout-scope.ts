@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -40,6 +41,7 @@ enableConfigs()
 
 const credentialsPath = join(home, '.credentials.json')
 const far = Date.now() + 365 * 24 * 3600_000
+
 const seed = (): void => {
   writeFileSync(
     credentialsPath,
@@ -79,6 +81,7 @@ section('§1 removeSecureStorageField — exactly one field leaves')
     const again = door('claudeAiOauth')
     check('a repeat removal is a no-op that still succeeds', !again.removed && again.success && again.kept === SIBLINGS.length, JSON.stringify(again))
     check('the no-op rewrote nothing away', siblingsIntact(readStore()))
+
     writeFileSync(credentialsPath, JSON.stringify({ trustedDeviceToken: 'only' }))
     const last = door('trustedDeviceToken')
     check('removing the last field deletes the emptied store', last.removed && last.success && !existsSync(credentialsPath), JSON.stringify(last))
@@ -99,6 +102,7 @@ section('§2 the /logins slot road — the default sign-out keeps the siblings')
   }
   const out = executeSlotRemoval(slot as never)
   check('the board answers mutated with the this-login-only receipt', out.mutated && /this Claude login/.test(out.note), out.note)
+
   const deadline = Date.now() + 8_000
   let settled = readStore()
   while (Date.now() < deadline && settled !== null && settled.claudeAiOauth !== undefined) {

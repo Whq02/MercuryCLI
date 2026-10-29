@@ -7,7 +7,6 @@ import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { expandPath } from '../path.js'
 
-
 type DirectoryEntry = {
   name: string
   path: string
@@ -150,6 +149,7 @@ export function isPathLikeToken(token: string): boolean {
   if (token.startsWith('~/') || token.startsWith('/') || token.startsWith('./') || token.startsWith('../')) {
     return true
   }
+
   if (token.startsWith('.\\') || token.startsWith('..\\') || token.startsWith('~\\')) return true
   if (token === '~' || token === '.' || token === '..') return true
   if (/^[A-Za-z]:[/\\]/.test(token)) return true

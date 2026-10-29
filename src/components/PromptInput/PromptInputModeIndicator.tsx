@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
@@ -26,6 +25,7 @@ export function PromptInputModeIndicator({
   mode: PromptInputMode
   isLoading: boolean
   inputEmpty: boolean
+
   viewedAgentName?: string
   viewedAgentColor?: string
   cells?: number

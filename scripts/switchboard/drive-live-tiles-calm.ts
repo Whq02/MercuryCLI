@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,7 +32,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
+
   { kind: 'text', text: 'quiet done.' },
+
   { kind: 'paced', deltas: Array.from({ length: 90 }, (_, i) => `calm-alpha ${String(i + 1).padStart(3, '0')} `), gapMs: 600, settleDelayMs: 1500 },
   { kind: 'text', text: 'Spare.' },
 ])
@@ -82,6 +85,7 @@ try {
       seedFirstRun(configDir, [cwd, work, workC])
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+
       const c = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'calm-idle-1',
@@ -126,12 +130,15 @@ try {
     }
     const boardFrames = grabs.filter(g => g.rows.some(r => r.includes('SESSIONS')))
     check('the board painted for the whole minute', boardFrames.length >= 50, `${boardFrames.length} frames`)
+
     const stripAge = (row: string): string => row.replace(/\s+$/, '').slice(0, Math.max(0, SIZE.cols - 9))
     const idleRow = (g: { rows: string[] }): string => stripAge(g.rows.find(r => r.includes('Idle done')) ?? '')
     const streamRow = (g: { rows: string[] }): string => (g.rows.find(r => r.includes('Calm streamer')) ?? '').replace(/\s+$/, '')
+
     const calmWindow = boardFrames.filter(g => g.atMs <= 55000)
     const idleVariants = new Set(calmWindow.map(idleRow))
     check('C1 the idle row is byte-stable across the whole minute', idleVariants.size === 1 && !idleVariants.has(''), `${idleVariants.size} variant(s): ${[...idleVariants].map(v => JSON.stringify(v.slice(-40))).join(' | ')}`)
+
     const orderOf = (g: { rows: string[] }): string =>
       g.rows
         .map(r => (r.includes('Calm streamer') ? 'A' : r.includes('Idle done') ? 'C' : ''))
@@ -139,8 +146,10 @@ try {
         .join('')
     const orders = new Set(calmWindow.map(orderOf))
     check('C2 the row order never changes while states hold', orders.size === 1 && !orders.has(''), `orders: ${[...orders].join(',')}`)
+
     const streamVariants = new Set(calmWindow.map(streamRow))
     check('C3 poison: the streaming row DOES change', streamVariants.size >= 5, `${streamVariants.size} variants`)
+
     const finalFrames = boardFrames.filter(g => g.atMs >= 60000)
     const finalRows = (g: { rows: string[] }): string => [idleRow(g), stripAge(streamRow(g))].join('\n')
     const finals = new Set(finalFrames.map(finalRows))

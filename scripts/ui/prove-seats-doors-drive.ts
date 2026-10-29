@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -168,6 +169,7 @@ function dump(label: string, frame: string | undefined): void {
   }
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row}`)
 }
+
 const valueNumber = (frame: string | undefined, source: string): number | null => {
   const m = new RegExp(`(\\d+) · ${source}`).exec(frame ?? '')
   return m ? Number(m[1]) : null
@@ -185,6 +187,7 @@ const DOWN = '\x1b[B'
 const RIGHT = '\x1b[C'
 const BACKSPACE = '\x7f'
 const ESC = '\x1b'
+
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
 const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
 const TO_SEATS = DOWN.repeat(withJevRow(STARTUP_MENU).length)
@@ -196,13 +199,21 @@ try {
       cwd,
       cols: COLS,
       rows: ROWS,
+
       sends: [
+
         { data: 's', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
         { data: TO_SEATS, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+
         { data: RIGHT, awaitText: "· this machine's reading", requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-seats' },
+
         { data: BACKSPACE, awaitText: 'set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-raised' },
+
         { data: ESC, awaitText: 'seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
+
         { data: '/seats\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: `/seats ${SET_TO}\r`, awaitText: 'Seats: ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-status' },
         { data: '/config\r', awaitText: `Seats set to ${SET_TO}`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-set' },
@@ -240,6 +251,7 @@ if (cap !== null) {
   check("B1 ⌫ returns to the machine's reading and the receipt says so", rowsWith(m['menu-auto'], /seats follow this machine's reading/).length > 0 && valueNumber(m['menu-auto'], "this machine's reading") === reading, rowsWith(m['menu-auto'], /follow|reading/).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— B2 the verb —')
+
   const status = rowsWith(m['verb-status'], /Seats: \d+ · /).map(flat).join(' | ')
   const runnerReading = Number(/Seats: (\d+) · /.exec(status)?.[1] ?? Number.NaN)
   check("B2 /seats reports the ceiling and its source — the machine's reading, named", /Seats: \d+ · this machine's reading \(/.test(status) && Number.isFinite(runnerReading), status.slice(0, 300))

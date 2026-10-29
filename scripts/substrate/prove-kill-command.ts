@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -52,6 +53,7 @@ const r2 = await um.call('__proof_cmd__', {})
 check('/unkill <tool> returns text + restores', r2.type === 'text' && isCapabilityKilled('__proof_cmd__', 'whoever') === false)
 const rList = await km.call('', {})
 check('/kill (no arg) lists current kills (no mutation)', rList.type === 'text' && /killed this session/i.test(rList.value))
+
 await km.call('scout:__proof_scoped__', {})
 check('/kill scout:tool scopes to that agent only', isCapabilityKilled('__proof_scoped__', 'scout') === true && isCapabilityKilled('__proof_scoped__', 'other') === false)
 await um.call('scout:__proof_scoped__', {})

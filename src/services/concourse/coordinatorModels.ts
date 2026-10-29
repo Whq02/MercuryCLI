@@ -1,5 +1,5 @@
-
 export type CoordinatorModelAvailability =
+
   | 'ready'
   | 'not-signed-in'
   | 'provider-unavailable'
@@ -8,14 +8,18 @@ export type CoordinatorModelAvailability =
 export interface CoordinatorModelEntryV1 {
   modelId: string
   displayName: string
+
   source: import('../providers/routeLaw.js').CallModelRoute | 'unrecognised'
   availability: CoordinatorModelAvailability
+
   detail?: string
+
   description?: string
 }
 
 export interface CoordinatorModelRegistryV1 {
   entries: CoordinatorModelEntryV1[]
+
   selectable: boolean
 }
 
@@ -94,6 +98,7 @@ export async function composeCoordinatorModelRegistry(
       ...(wrapped.receipt.displayName !== undefined ? { displayName: wrapped.receipt.displayName } : {}),
     })
   }
+
   if (credentialed('openai')) await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending('openai')
   const { getGptSeatAvailability } = await import('../providers/openai/openaiCatalogue.js')
   const gptCatalogueLanded = getGptSeatAvailability().state === 'ready'
@@ -114,6 +119,7 @@ export async function composeCoordinatorModelRegistry(
   for (const o of getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') })) {
     const v = o.value
     if (!v || v.startsWith('__')) continue
+
     const modelId = await canonicalCoordinatorModelId(v)
     if (seen.has(modelId)) continue
     seen.add(modelId)
@@ -123,6 +129,7 @@ export async function composeCoordinatorModelRegistry(
       entries.push({ ...gptEntry(modelId, o.label, o.unavailable), ...description })
       continue
     }
+
     const label: Pick<CoordinatorModelEntryV1, 'availability' | 'detail'> = !credentialed(route)
       ? notSignedIn(route)
       : o.unavailable !== undefined
@@ -130,17 +137,21 @@ export async function composeCoordinatorModelRegistry(
         : { availability: 'ready' }
     entries.push({ modelId, displayName: o.label, source: route, ...label, ...description })
   }
+
   for (const [modelId, rec] of coordinatorReceipts) {
     if (seen.has(modelId)) continue
     seen.add(modelId)
     entries.push(storedGptEntry(modelId, rec.displayName ?? modelId))
   }
+
   const { GPT_DISPLAY_PINS } = await import('../providers/openai/gptPins.js')
   for (const pin of GPT_DISPLAY_PINS) {
     if (seen.has(pin.id)) continue
     seen.add(pin.id)
+
     entries.push(gptEntry(pin.id, pin.displayName))
   }
+
   const { getGlobalConfig } = await import('../../utils/config.js')
   const stored = getGlobalConfig().concourseCoordinator?.assistModel
   const configured = stored === undefined ? undefined : await canonicalCoordinatorModelId(stored)
@@ -162,15 +173,19 @@ export async function composeCoordinatorModelRegistry(
   return { entries, selectable: entries.length > 0 }
 }
 
-
 export interface CoordinatorSwitchReceiptV1 {
   target: 'assist-model' | 'mode' | 'effort'
   value: string
   outcome: 'applied' | 'no-change' | 'refused'
+
   reason?: string
+
   availability?: CoordinatorModelAvailability
+
   detail?: string
+
   inFlightTurns: number
+
   boundary: string
 }
 
@@ -248,6 +263,7 @@ export async function switchCoordinatorEffort(effortWord: string): Promise<Coord
     return receipt
   }
   const { getGlobalConfig, saveGlobalConfig } = await import('../../utils/config.js')
+
   const choice = await validateCoordinatorModelChoice(getGlobalConfig().concourseCoordinator?.assistModel)
   const detail = choice.ok ? coordinatorEffortDetail(choice.entry.modelId, level) : undefined
   if (getGlobalConfig().concourseCoordinator?.effort === level) {
@@ -344,6 +360,7 @@ export async function validateCoordinatorModelChoice(
 > {
   if (modelId === undefined || modelId === '') return { ok: false, reason: 'no-choice' }
   const registry = await composeCoordinatorModelRegistry()
+
   const wanted = await canonicalCoordinatorModelId(modelId)
   const entry = registry.entries.find(e => e.modelId === wanted)
   if (entry) return { ok: true, entry }

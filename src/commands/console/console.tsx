@@ -32,7 +32,6 @@ import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { renderModelName } from '../../utils/model/model.js'
 import { consoleModelOverride, resolveSubModel } from '../../utils/model/subModelSlots.js'
 
-
 const LIST_ROWS = 5
 const SCROLL_LINES = 4
 
@@ -54,6 +53,7 @@ function ConsoleView({
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const { columns, rows } = useTerminalSize()
+
   const width = Math.max(60, Math.min(110, columns - 4))
   const bodyW = width - 4
 
@@ -76,14 +76,18 @@ function ConsoleView({
   }, [entries.length, sel])
 
   const pastGate = useOpenEventGate()
+
   const [cursorOffset, setCursorOffset] = useState(0)
+
   const overlayToken = useRegisterOverlay('console', true)
 
   const askedInitial = useRef(false)
   useEffect(() => {
     if (askedInitial.current || !initialQuestion) return
     askedInitial.current = true
+
     const originMatch = /^--origin=(\S+)\s+/.exec(initialQuestion)
+
     const originRef =
       originMatch?.[1] !== undefined
         ? decodeURIComponent(originMatch[1])
@@ -116,6 +120,7 @@ function ConsoleView({
   }
 
   useInput((input, key, event) => {
+
     const action = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
     if (action === 'cancel') {
       if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
@@ -144,6 +149,7 @@ function ConsoleView({
       return
     }
     if (key.ctrl && input === 'l') {
+
       event.stopImmediatePropagation()
       consoleClear()
       setSel(0)
@@ -155,6 +161,7 @@ function ConsoleView({
   const shown = entries.slice(shownStart, shownStart + LIST_ROWS)
   const current: ConsoleEntry | undefined = entries[Math.min(sel, Math.max(0, entries.length - 1))]
   const answerHeight = Math.max(6, rows - 10 - Math.min(entries.length, LIST_ROWS))
+
   const slot = resolveSubModel('console')
   const subtitle =
     slot.origin === 'unset'
@@ -284,6 +291,7 @@ export async function call(
   args: string,
 ): Promise<React.ReactNode> {
   const question = args?.trim()
+
   if (question?.toLowerCase() === 'clear') {
     const had = consoleClear()
     onDone(had ? 'Console cleared' : 'Console already empty', {

@@ -27,13 +27,17 @@ export function packMembersFor(packPlatform: string): string[] {
 
 export interface VendoredRuntimeRecord {
   vendored: true
+
   path: string
+
   binary: string
   name: 'node'
   version: string
   platform: NodePackPlatform
   license: string
+
   archiveSha256: string
+
   binarySha256: string
 }
 
@@ -152,8 +156,11 @@ function sameFile(a: string, b: string, isWindows: boolean): boolean {
 }
 
 export interface RunningRuntime {
+
   source: 'vendored' | 'explicit' | 'system'
+
   version: string
+
   vendored: { version: string; binaryPath: string; inUse: boolean } | null
 }
 

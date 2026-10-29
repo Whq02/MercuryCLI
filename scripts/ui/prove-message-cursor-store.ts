@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 
 import { readFileSync } from 'node:fs'

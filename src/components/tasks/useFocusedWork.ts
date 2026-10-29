@@ -65,12 +65,12 @@ export function runningWorkflowRows(rows: readonly WorkRowV1[]): WorkRowV1[] {
   return focusedWorkflowRows(rows).filter(workRowRuns)
 }
 
-
 export type FocusedRunnerPresence = 'blank' | 'live' | 'dormant'
 
 export function focusedRunnerPresence(): FocusedRunnerPresence {
   if (!hasFocusedSession()) return 'blank'
   const sessionId = getFocusedSessionConnector().sessionId()
+
   const live = Object.values(readSessionWorkers()).some(
     rec => rec.sessionId === sessionId && runnerRecordAlive(rec, pidAlive),
   )

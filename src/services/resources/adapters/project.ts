@@ -1,4 +1,3 @@
-
 import { basename } from 'node:path'
 import { discoverLaunchProfiles } from '../../ide/launchProfiles.js'
 import { projectIntelEnabled } from '../../projectIntel/contracts.js'
@@ -184,6 +183,7 @@ const projectAdapter: ResourceAdapter = {
     }
 
     if (child === 'checks') {
+
       const discovery = await discoverLaunchProfiles(ctx.cwd)
       const profiles = discovery.profiles.map(p => ({
         id: p.id,
@@ -218,6 +218,7 @@ const projectAdapter: ResourceAdapter = {
           note: 'the context child needs a task: mercury://project/current?child=context&q=<task text>',
         }
       }
+
       let pins: string[] = []
       let drops: string[] = []
       let goal: string | null = null

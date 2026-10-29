@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,6 +28,7 @@ section('§1 THE PURE PARSE')
       'Project' as never,
       join(ROOT, 'MERCURY.md'),
     ) as unknown as { includePaths: string[]; bareMentionPaths?: string[] }
+
     return { includePaths: parsed.includePaths, bareMentionPaths: parsed.bareMentionPaths ?? [] }
   }
 

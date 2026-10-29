@@ -1,4 +1,3 @@
-
 type ParkedReader<T> = {
   resolve: (result: IteratorResult<T, undefined>) => void
   reject: (error: unknown) => void
@@ -8,6 +7,7 @@ const COMPACT_AT = 1024
 
 export class Stream<T> implements AsyncIterableIterator<T> {
   private queue: T[] = []
+
   private head = 0
   private isDone = false
   private recordedError: unknown = undefined
@@ -52,6 +52,7 @@ export class Stream<T> implements AsyncIterableIterator<T> {
   enqueue(value: T): void {
     const parked = this.parked
     if (parked) {
+
       this.parked = null
       parked.resolve({ done: false, value })
     } else {

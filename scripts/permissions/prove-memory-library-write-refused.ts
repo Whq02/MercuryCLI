@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/pathValidation.ts src/utils/memoryFileDetection.ts
-// gate-watch: src/utils/collapseReadSearch.ts src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts src/mneme/paths.ts
+
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

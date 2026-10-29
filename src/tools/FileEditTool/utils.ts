@@ -20,7 +20,6 @@ import {
 import { plainTypography } from '../../utils/typography.js'
 import type { FileEdit } from './types.js'
 
-
 export { LEFT_DOUBLE_CURLY_QUOTE, LEFT_SINGLE_CURLY_QUOTE, RIGHT_DOUBLE_CURLY_QUOTE, RIGHT_SINGLE_CURLY_QUOTE }
 
 export function normalizeQuotes(s: string): string {
@@ -41,11 +40,10 @@ export function stripSequentialReadPrefixes(text: string, referenceText: string)
   return lines.map(line => line.replace(prefix, '')).join('\n')
 }
 
-
 function stripTrailingWhitespace(s: string): string {
+
   return s.replace(/[^\S\r\n]+(?=\r\n|\r|\n|$)/g, '')
 }
-
 
 export const FORGIVENESS_CONTENT_DRIFT_LIMIT = 0
 
@@ -388,7 +386,6 @@ export async function preserveQuoteStyleForFile(
   return fileLanguageKind(filePath, fileContent.split('\n', 1)[0]) === 'prose' ? styled : exact
 }
 
-
 export function applyEditToFile(
   originalContent: string,
   oldString: string,
@@ -420,6 +417,7 @@ export function getPatchForEdits({
   fileContents: string
   edits: Array<{ old_string: string; new_string: string; replace_all?: boolean }>
 }): { patch: StructuredPatchHunk[]; updatedFile: string } {
+
   if (
     fileContents === '' &&
     edits.length === 1 &&
@@ -432,6 +430,7 @@ export function getPatchForEdits({
   let updatedFile = fileContents
   const appliedReplacements: string[] = []
   for (const edit of edits) {
+
     const strippedOld = stripTrailingNewlines(edit.old_string)
     for (const replacement of appliedReplacements) {
       if (replacement.includes(strippedOld)) {
@@ -482,7 +481,6 @@ export function getPatchForEdit({
   })
 }
 
-
 const TWO_FILE_SNIPPET_CONTEXT_LINES = 8
 const TWO_FILE_SNIPPET_MAX_BYTES = 8192
 const HUNK_SEPARATOR = '...'
@@ -522,7 +520,6 @@ export function getSnippetForTwoFileDiff(a: string, b: string, startLine = 1): s
   return `${kept}\n\n[${dropped} ${plural(dropped, 'line')} truncated]`
 }
 
-
 const DESANITIZATION_TABLE: Array<[sanitized: string, original: string]> = [
   ['<fnr>', '<function_results>'],
   ['<n>', '<name>'],
@@ -552,7 +549,6 @@ function applyDesanitization(s: string): string {
   return result
 }
 
-
 type FileEditsInput = {
   file_path: string
   edits: Array<{ old_string?: string; new_string?: string; replace_all?: boolean }>
@@ -572,6 +568,7 @@ export function normalizeFileEditInput<T extends FileEditsInput>(input: T): T {
 
   const isMarkdown = /\.(md|mdx)$/i.test(file_path)
   const normalizedEdits = edits.map(edit => {
+
     if (edit.old_string === undefined || edit.new_string === undefined) return edit
     const newString = isMarkdown ? edit.new_string : stripTrailingWhitespace(edit.new_string)
     if (fileContent.includes(edit.old_string)) {
@@ -579,6 +576,7 @@ export function normalizeFileEditInput<T extends FileEditsInput>(input: T): T {
     }
     const desanitizedOld = applyDesanitization(edit.old_string)
     if (fileContent.includes(desanitizedOld)) {
+
       return {
         ...edit,
         old_string: desanitizedOld,
@@ -589,7 +587,6 @@ export function normalizeFileEditInput<T extends FileEditsInput>(input: T): T {
   })
   return { ...input, edits: normalizedEdits }
 }
-
 
 function editsLiterallyEqual(edits1: FileEdit[], edits2: FileEdit[]): boolean {
   if (edits1.length !== edits2.length) return false

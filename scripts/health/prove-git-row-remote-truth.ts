@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,6 +33,7 @@ const report = await import('../../src/utils/healthReport.js')
 const gitRow = async (dir: string): Promise<string> => {
   setCwd(dir)
   process.chdir(dir)
+
   regroundGitWatch()
   const cert = await report.runHealthReport({ depth: 'fast' })
   const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'git')

@@ -1,4 +1,3 @@
-
 type ReapedWorker = {
   short: string
   kind: 'long-lived' | 'one-shot'
@@ -43,6 +42,7 @@ export function summarizeHalt(r: HaltResult): string {
         `daemon halted (reaped ${workers.length}: ${named}${more > 0 ? `, +${more} more` : ''})`,
       )
     } else if (r.daemon.reaped != null && r.daemon.reaped > 0) {
+
       parts.push(`daemon halted (reaped ${r.daemon.reaped} worker${r.daemon.reaped === 1 ? '' : 's'})`)
     } else {
       parts.push('daemon halted (no live workers to reap)')

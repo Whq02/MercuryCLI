@@ -1,4 +1,3 @@
-
 import { writeFileSync } from 'node:fs'
 import { runCompassArena, grabScreens, pct, firstOutAfter, settleAfter, type CompassRun } from './arena.ts'
 import { streamedTailTurn, TAIL_SENTINEL, STREAM_FIN } from './fixture1k.ts'
@@ -13,7 +12,6 @@ const PGUP = '\\x1b[5~'
 const PGDN = '\\x1b[6~'
 const ESC = '\\x1b'
 const ENTER = '\\r'
-
 
 function typeSends(startMs: number, text: string, gapMs: number): string[] {
   return [...text].map((ch, i) => `${startMs + i * gapMs}:${ch}`)
@@ -65,7 +63,6 @@ function summarize(lat: number[]): { n: number; p50: number; p95: number; max: n
   }
 }
 
-
 async function legLoad(): Promise<Record<string, unknown>> {
   const run = await runCompassArena({ sends: [], seconds: 15 })
   try {
@@ -86,6 +83,7 @@ async function legLoad(): Promise<Record<string, unknown>> {
     const bootBytes = run.outs.reduce((a, o) => a + o.bytes, 0)
     return {
       loaded: true,
+
       tailVisibleAtMsAfterFirstPaint: first?.atMs ?? -1,
       bootBytes,
       bootChunks: run.outs.length,
@@ -375,7 +373,6 @@ async function legHeldArrow(runs: number): Promise<Record<string, unknown>> {
     pageUpBurstOnTranscript: report(pageup, 30, 30),
   }
 }
-
 
 const ALL_LEGS = ['load', 'stream', 'echo', 'nav', 'scroll', 'overlay', 'resize', 'heldarrow'] as const
 type Leg = (typeof ALL_LEGS)[number]

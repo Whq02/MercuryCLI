@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,6 +7,7 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'mcp-era-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
+
 process.env.MERCURY_MCP_TIMEOUT_MS = '4000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -164,6 +166,7 @@ await (async () => {
     eraVerdictCachePath() === join(getMercuryHome(), 'mcp-era-cache.json'),
     eraVerdictCachePath(),
   )
+
   const secretKey = 'srv-c:{"type":"stdio","command":"x","env":{"TOKEN":"sekrit-value-never-on-disk"}}'
   await recordEraVerdict(secretKey, 'legacy', t0)
   const text = readFileSync(eraVerdictCachePath(), 'utf8')
@@ -286,6 +289,7 @@ const scoped = {
 } as never
 const NAME = 'era-older'
 const key = mcp.getServerCacheKey(NAME, scoped)
+
 const settled = (): Promise<void> => clearEraVerdict('era-proof-no-such-server')
 const connect = async (): Promise<{ type: string; era: string | undefined; error?: string }> => {
   const { client } = await mcp.reconnectMcpServerImpl(NAME, scoped)

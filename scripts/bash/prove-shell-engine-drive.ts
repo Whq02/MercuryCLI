@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -35,6 +36,7 @@ interface Fixture {
   base: string
   results: ToolResultSeen[]
   descriptions: string[]
+
   stamps: Record<number, number>
   close(): Promise<void>
 }
@@ -166,6 +168,7 @@ async function startFixture(port: number, cwd: string): Promise<Fixture> {
       } else {
         const seen = toolResults(body)
         stamps[seen.length] ??= Date.now()
+
         for (const r of seen) if (!results.some(k => k.index === r.index)) results.push(r)
         const description = bashDescription(body)
         if (description !== null && !descriptions.includes(description)) descriptions.push(description)
@@ -176,6 +179,7 @@ async function startFixture(port: number, cwd: string): Promise<Fixture> {
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+
   const address = server.address()
   const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
@@ -244,6 +248,7 @@ function seedWorld(): { home: string; cwd: string } {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'shell-drive-cwd-')))
   mkdirSync(join(cwd, SUBDIR_NAME))
   seedFirstRun(home, [cwd])
+
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash'], sovereignConsentSeen: true } }, null, 2))
   return { home, cwd }
 }
@@ -253,6 +258,7 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
+
     MERCURY_SKIP_PERMISSIONS: '1',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -274,6 +280,7 @@ function driveEnv(home: string, fixtureBase: string, engine: Engine): Record<str
 const COLS = 160
 const ROWS = 50
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
+
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
@@ -304,9 +311,11 @@ async function leg(engine: Engine, port: number): Promise<void> {
         rows: ROWS,
         total: 320,
         cwd,
+
         argv: [nodeArgv0, DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK),
+
           { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },
           { data: '', atTick: 999, awaitText: 'Ran 6 bash commands', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'tools' },
           { data: '', atTick: 999, awaitText: '[Background] a background call · done', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'background' },
@@ -333,9 +342,11 @@ async function leg(engine: Engine, port: number): Promise<void> {
     check(`${engine}: call 2 reads the honest reset — no variable, no function, the directory kept`, r(2).text.includes('[none]') && r(2).text.includes('fn-missing') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)))
   }
   check(`${engine}: the pipeline's rows reach the model`, /1:AlphA\s+2:betA\s+3:gAmmA/.test(flat(r(3).text)), JSON.stringify(r(3).text.slice(0, 120)))
+
   check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))}`)
   check(`${engine}: the timed-out command tells the model it timed out`, /timed out/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 200)))
   note(`${engine}: result 5 = ${JSON.stringify(r(5).text.trim().slice(0, 240))}`)
+
   const bgTurnMs = (fixture.stamps[6] ?? 0) - (fixture.stamps[5] ?? 0)
   note(`${engine}: result 6 = ${JSON.stringify(r(6).text.trim().slice(0, 160))}; the background turn took ${bgTurnMs}ms (the command sleeps 15s)`)
   check(`${engine}: the run_in_background call returns the task receipt at once — the turn is not blocked by the sleeping command`, fixture.stamps[6] !== undefined && bgTurnMs > 0 && bgTurnMs < 8_000, `${bgTurnMs}ms`)
@@ -348,6 +359,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
   } else {
     check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists between calls/i.test(description) && /variables, functions and options do not/i.test(description), description.slice(0, 200))
   }
+
   check(`${engine}: the transcript painted the model's turn text`, /setting state/.test(marks['text'] ?? cap.text))
   check(`${engine}: the transcript collapsed the turn's bash calls into one group`, /Ran \d+ bash commands/.test(marks['tools'] ?? cap.text), JSON.stringify((flat(marks['tools'] ?? cap.text).match(/Ran \d+ bash commands/) ?? ['no group'])[0]))
   check(`${engine}: the run_in_background completion surfaced in the transcript as one counted notice row (● [Background] a background call · done · N lines ›)`, /● \[Background\] a background call · done · \d+ lines? ›/.test(flat(marks['background'] ?? cap.text)), JSON.stringify((flat(marks['background'] ?? cap.text).match(/\[Background\].{0,60}/) ?? ['no bg line'])[0]))

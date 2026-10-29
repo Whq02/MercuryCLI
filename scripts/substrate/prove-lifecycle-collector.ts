@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   chmodSync,
   existsSync,
@@ -15,6 +16,7 @@ import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'lifecycle-collector-'))
 process.env.MERCURY_CONFIG_DIR = HOME
+
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_CREW_DIR
 delete process.env.MERCURY_DAEMON_DIR
@@ -67,7 +69,6 @@ section('§1 COLLECTOR CLASSES')
   writeFileSync(newSnap, '# new')
   backdate(oldSnap, 45 * DAY)
 
-
   const oldList = join(tasksRoot, 'old-list')
   const freshList = join(tasksRoot, 'fresh-list')
   mkdirSync(oldList, { recursive: true })
@@ -105,6 +106,7 @@ section('§1 COLLECTOR CLASSES')
 section('§2 BUDGET + CURSOR (G08)')
 {
   await lifecycle._resetLifecycleForProofs()
+
   const snapOld2 = join(snapshots, 'snapshot-bash-0001-cccccc.sh')
   writeFileSync(snapOld2, '# old2')
   backdate(snapOld2, 45 * DAY)
@@ -132,6 +134,7 @@ section('§3 THE SENTINEL LAW (G07)')
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
+
   const jailDir = snapshots
   mkdirSync(jailDir, { recursive: true })
   const jailed = join(jailDir, 'snapshot-zsh-3333-dddddd.sh')

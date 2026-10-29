@@ -8,8 +8,8 @@ export function actionFingerprint(nextAction: string): string {
   return digest(['action', nextAction.toLowerCase().replace(/\s+/g, ' ').trim()])
 }
 
-
 export interface RunProgressState {
+
   progressSinceDecision: number
 }
 

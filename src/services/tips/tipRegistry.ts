@@ -8,7 +8,6 @@ import { getNewlineInstructions } from '../../components/PromptInput/utils.js'
 import type { Tip, TipContext } from './types.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
 
-
 function chordForChatAction(action: string, fallback: string): string {
   try {
     const affordance = actionAffordance(action, 'Chat', loadKeybindingsSync())
@@ -18,8 +17,8 @@ function chordForChatAction(action: string, fallback: string): string {
   }
 }
 
-
 const GENERAL_TIPS: Tip[] = [
+
   {
     id: 'cycle-mode',
     cooldownSessions: 5,
@@ -61,6 +60,7 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
+
   {
     id: 'concourse-board',
     cooldownSessions: 8,
@@ -89,6 +89,7 @@ const GENERAL_TIPS: Tip[] = [
       return "/effort picks the model's reasoning effort — low is fastest, high is thorough."
     },
     async isRelevant() {
+
       return getSettingsForSource('policySettings')?.engine?.effort === undefined
     },
   },
@@ -137,6 +138,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'newline-terminal',
     cooldownSessions: 15,
     async content() {
+
       return `Multi-line prompt: ${getNewlineInstructions()}.`
     },
     async isRelevant() {
@@ -288,10 +290,12 @@ const GENERAL_TIPS: Tip[] = [
     id: 'powershell-tool',
     cooldownSessions: 20,
     async content() {
+
       return 'Set MERCURY_USE_POWERSHELL_TOOL=1 to run Windows commands through PowerShell.'
     },
     async isRelevant() {
       if (getPlatform() !== 'windows') return false
+
       return process.env.MERCURY_USE_POWERSHELL_TOOL === undefined
     },
   },
@@ -300,7 +304,6 @@ const GENERAL_TIPS: Tip[] = [
 const INTERNAL_TIPS: Tip[] = []
 
 const CATALOGUE: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
-
 
 function getCustomTips(): { tips: Tip[]; excludeDefault: boolean } {
   const override = getInitialSettings().activity?.tips?.words as
@@ -316,7 +319,6 @@ function getCustomTips(): { tips: Tip[]; excludeDefault: boolean } {
   }))
   return { tips, excludeDefault: override?.excludeDefault === true }
 }
-
 
 export async function getRelevantTips(context?: TipContext): Promise<Tip[]> {
   const { tips: customTips, excludeDefault } = getCustomTips()

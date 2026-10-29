@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
 
 const t = checker()
+
 const root = scratchRoot('durable-obligations')
 process.env.MERCURY_CREW_DIR = join(root, 'crew')
 
@@ -195,6 +196,7 @@ t.section('§12 — the PRODUCTION raiser: crew dispatch wires the durable twin'
     attachments: [],
   })
   t.check('the fixture dispatch is honestly not-delivered', receipt.state === 'not-delivered', receipt.state)
+
   const raised = (await obl.openObligations({ scope: 'switchboard' })).find(o => o.ref === 'receipt:cmid-wire-1')
   t.check(
     'the failed dispatch RAISED the durable obligation in the switchboard scope (the ring twin; the receipt is the authority, never prose)',

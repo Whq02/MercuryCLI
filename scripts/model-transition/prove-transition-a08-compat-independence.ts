@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
@@ -61,6 +62,7 @@ section('§B reverse fence — profile resolution reads no model facet')
     src.includes(f),
   )
   check('profile.ts (the resolution owner) is model-free', hits.length === 0, hits.join(', '))
+
   const engine = readFileSync(join(ROOT, 'src/services/instructions/engine.ts'), 'utf8')
   const modelImports = engine
     .split('\n')

@@ -3,7 +3,6 @@ import { Box, Text } from '../../ink.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
-
 function railPanelPad(width: number): 0 | 1 {
   return width >= 28 ? 1 : 0
 }
@@ -22,13 +21,17 @@ export function RailPanel({
 }: {
   glyph: string
   label: string
+
   count?: string
   width: number
   children?: React.ReactNode
+
   headerAction?: { id: string; run: () => void }
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+
   const headerHue = tokens.info
+
   const headerText = (hover: boolean): React.ReactNode => (
     <Text wrap="truncate-end">
       <Text color={hover ? 'infoShimmer' : headerHue}>{glyph} </Text>

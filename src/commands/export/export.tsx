@@ -80,6 +80,7 @@ export async function call(
   const content = json ? JSON.stringify(document, null, 2) + '\n' : transcriptExportText(document)
   if (trimmed) {
     try {
+
       const path = resolve(
         connector.workspace().cwd,
         json ? trimmed : forceTxtExtension(trimmed),

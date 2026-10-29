@@ -123,6 +123,7 @@ const freshDoc = (name: string, description = 'Use when testing.') =>
   writeFileSync(path, original)
   const loaded = decodeAgentDocument(original, path)
   const identity = { filePath: path, revision: revisionDigest(original) }
+
   writeFileSync(path, original.replace('v1', 'v2-external'))
   const mine = patchAgentDocument(loaded, { set: { description: 'v2-mine' } })
   try {
@@ -136,6 +137,7 @@ const freshDoc = (name: string, description = 'Use when testing.') =>
   }
   check('external edit untouched after refusal',
     readFileSync(path, 'utf-8').includes('v2-external'))
+
   const reloadedRaw = readFileSync(path, 'utf-8')
   const reloaded = decodeAgentDocument(reloadedRaw, path)
   const saved = await saveAgentDocument(
@@ -230,6 +232,7 @@ const freshDoc = (name: string, description = 'Use when testing.') =>
   const listed = listAgentDrafts()
   check('draft listed', listed.some(d => d.path === draftPath))
   check('draft raw survives', listed.find(d => d.path === draftPath)?.draft.raw === draftRaw)
+
   writeFileSync(join(home, 'agent-drafts', 'zz-damaged.json'), '{not json')
   check('damaged draft tolerated', listAgentDrafts().length === listed.length)
   discardAgentDraft(draftPath)

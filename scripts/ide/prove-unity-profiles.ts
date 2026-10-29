@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -114,7 +115,9 @@ section('§2 · the three shapes (doc-law pinned)')
 
 section('§3 · results-XML convention')
 {
+
   const { PROJECT_HOME_STORES } = await import('../../src/utils/projectHomeStores.js')
+
   const insideProject = (root: string, p: string): boolean => {
     const full = path.resolve(p)
     const top = path.resolve(root)

@@ -56,6 +56,7 @@ function draftIfChanged(questionId: string, live: InterviewQuestionState | undef
   draftAnswer(questionId, value)
 }
 const MIN_CONTENT_WIDTH = 40
+
 const CONTENT_CHROME_OVERHEAD = 15
 
 export function AskUserQuestionPermissionRequest(props: PermissionRequestProps) {
@@ -128,6 +129,7 @@ function AskUserQuestionPermissionRequestBody(
         let maxPreviewBoxHeight = 0
         for (const opt of q.options) {
           if (!opt.preview) continue
+
           const rendered = applyMarkdown(opt.preview, theme, highlight, terminalColumns)
           const previewLines = rendered.split('\n')
           const isTruncated = previewLines.length > maxPreviewContentLines
@@ -165,6 +167,7 @@ function AskUserQuestionPermissionRequestBody(
   const allQuestionsAnswered = questions.every(q => !!answers[q.text])
   const hideSubmitTab = questions.length === 1 && !questions[0]?.multiSelect
   const [isInTextInput, setIsInTextInput] = useState(false)
+
   const editReturnRef = useRef<string | null>(null)
   const [reviewFocusValue, setReviewFocusValue] = useState<string | undefined>(undefined)
 
@@ -229,6 +232,7 @@ function AskUserQuestionPermissionRequestBody(
           .filter(l => l !== OTHER_OPTION_VALUE)
           .map(l => q.options.find(o => o.label === l)?.id)
           .filter((id): id is string => !!id)
+
         const carriesText = !q.multiSelect || labels.includes(OTHER_OPTION_VALUE)
         const freeText = carriesText ? prior?.freeText : undefined
         draftIfChanged(q.id, live, { optionIds, ...(freeText ? { freeText } : {}) })
@@ -244,6 +248,7 @@ function AskUserQuestionPermissionRequestBody(
       if (!q) return
       const isMulti = Array.isArray(label)
       const labels = isMulti ? label : [label]
+
       const live = interviewSnapshot().questions[q.id]
       const typed = textInput ?? live?.draft?.freeText ?? live?.committed?.freeText ?? ''
       const hasImage = session.context.some(
@@ -253,6 +258,7 @@ function AskUserQuestionPermissionRequestBody(
       )
       const { commit, keptDraft } = composeAnswer({ question: q, labels, typed, hasImage })
       commitAnswer(q.id, commit)
+
       if (keptDraft) draftAnswer(q.id, keptDraft)
       const isSingleQuestion = questions.length === 1
       if (!isMulti && isSingleQuestion && shouldAdvance) {
@@ -260,6 +266,7 @@ function AskUserQuestionPermissionRequestBody(
         return
       }
       if (shouldAdvance) {
+
         if (editReturnRef.current === q.text) {
           editReturnRef.current = null
           setReviewFocusValue(q.text)
@@ -384,6 +391,7 @@ function AskUserQuestionPermissionRequestBody(
   if (currentQuestion) {
     const legacyQuestion = toLegacyQuestion(currentQuestion)
     const legacyQuestions = questions.map(toLegacyQuestion)
+
     return (
       <QuestionView
         key={currentQuestion.id}

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -30,9 +31,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const SCREEN_MODEL_SETTING = 'claude-fable-5[1m]'
 const SCREEN_MODEL_LABEL = 'Fable 5 (1M context)'
+
 const SEAT_MODEL = 'gpt-5.6-sol'
 const SEAT_MODEL_LABEL = 'GPT-5.6 Sol'
 const SEAT_MODEL_WIRE_NAME = 'GPT-5.6-Sol'
+
 const SEAT_EFFORT = 'xhigh'
 const SEAT_TITLE = 'Truth Seat'
 
@@ -83,6 +86,7 @@ let seatId = ''
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
+
   sends: [
     `after:${SEAT_TITLE}:2500:\t`,
     `after:${SEAT_TITLE}:4000:\r`,
@@ -100,6 +104,7 @@ const run = await runArtifactArena({
   rows: 40,
   keep: true,
   seedHome: async (configDir, cwd) => {
+
     writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ engine: { model: SCREEN_MODEL_SETTING } }))
     seedFirstRun(configDir, [cwd, work])
     spawnDaemon(configDir)
@@ -130,6 +135,7 @@ try {
   for (let ms = 6000; ms <= 42000; ms += 500) offsets.push(S(ms))
   const grabs = grabScreens(run, 120, 40, offsets)
   const frames = grabs.map(g => ({ atMs: g.atMs, text: g.rows.map(r => r.replace(/\s+$/, '')).join('\n') }))
+
   const distinct = frames.filter((f, i) => i === 0 || f.text !== frames[i - 1]!.text)
   const KEEP_DIR = process.env.SURFACE_TRUTH_CAPTURE_DIR
   if (KEEP_DIR) {
@@ -161,6 +167,7 @@ try {
   const effortRow = effortRows[effortRows.length - 1] ?? ''
   check('P2 the palette painted an /effort row', effortRows.length > 0)
   check(`P2 the /effort value column is the SESSION's effort word (${SEAT_EFFORT})`, effortRows.length > 0 && effortRows.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), effortRow)
+
   const statusRowsOfSeat = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('← back'))
   check(`P2 the status row's effort word is the SESSION's (${SEAT_MODEL_LABEL} · ${SEAT_EFFORT})`, statusRowsOfSeat.length > 0 && statusRowsOfSeat.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), statusRowsOfSeat[0] ?? '')
 

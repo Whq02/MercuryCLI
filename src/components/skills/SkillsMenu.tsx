@@ -67,6 +67,7 @@ function getSourceSubtitle(
   source: SkillSource,
   skills: SkillCommand[],
 ): string | undefined {
+
   if (source === 'mcp') {
     const servers = [
       ...new Set(
@@ -87,6 +88,7 @@ function useSkillGroups(commands: Command[]): {
   skills: SkillCommand[]
   skillsBySource: Record<SkillSource, SkillCommand[]>
 } {
+
   const skills = useMemo(() => commands.filter(isSkillCommand), [commands])
 
   const skillsBySource = useMemo((): Record<SkillSource, SkillCommand[]> => {

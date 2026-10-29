@@ -56,6 +56,7 @@ section('2. partitionByProject')
 
 section('3. the /clear'.concat("'ed-session cache (operator model: cleared = closed on purpose)"))
 {
+
   const prevHome = process.env.MERCURY_CONFIG_DIR
   const home = mkdtempSync(join(tmpdir(), 'cleared-proof-'))
   process.env.MERCURY_CONFIG_DIR = home
@@ -67,13 +68,17 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
     check('marked id reads cleared', isSessionCleared('sess-x') === true)
     check('other ids stay visible', isSessionCleared('sess-y') === false)
     check('null/absent id ⇒ false, never a throw', isSessionCleared(null) === false)
+
     const clear = src('commands', 'clear', 'clear.ts')
     check('/clear parks the focused session and births a fresh one (the one-door law)', clear.includes('clearFocusedSession()'))
+
     const screen = src('components', 'concourse', 'ConcourseRoute.tsx')
     check('the double-x on a PARKED row is the cleared mark\'s writer (the board hides the chat; the transcript stays)', /parkedRow\?\.state === 'parked'\)\s*\{\s*await markParkedCleared\(sessionId\)/.test(screen))
+
     for (const [label, path] of [
       ['the session flip', ['utils', 'sessionFlip.ts']],
       ['RECENT lane', ['components', 'HelmLanesRail.tsx']],
+
       ['/sessions board (the picker core)', ['components', 'mercury-ui', 'screens', 'sessionPickerModel.ts']],
     ] as const) {
       check(`${label} filters cleared sessions`, /isSessionCleared\(/.test(src(...path)))
@@ -92,6 +97,7 @@ section('3. the /clear'.concat("'ed-session cache (operator model: cleared = clo
 
 section('4. every switcher surface applies the scope (source)')
 {
+
   const pickerCore = src('components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
   const manager = src('components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
   check('/sessions manager partitions by project (through the picker core)', /partitionByProject\(/.test(pickerCore))

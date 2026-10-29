@@ -11,6 +11,7 @@ import { SETTLE_LAW, cockpitReadyText, settleCaptureConfig, settleNeedles, settl
 import { HELM_BOTH_RAILS_MIN, HELM_HOME_MIN_COLS } from '../../src/utils/helmGeometry.ts'
 
 const driver = resolveCaptureDriver()
+
 const PYTE_PATH = (() => {
   try {
     return spawnSync(driver.kind === 'posix-pty' ? driver.python : 'python3',
@@ -29,6 +30,7 @@ if (driver.kind !== 'posix-pty') {
   )
   process.exit(2)
 }
+
 {
   const preflight = preflightCaptureDriver(driver, join(import.meta.dir, '..', '..'))
   if (!preflight.ok) {
@@ -43,11 +45,13 @@ function arg(flag: string, def: string): string {
 const name = arg('--scenario', 'resume-2turn')
 const cols = Number(arg('--cols', '120')), rows = Number(arg('--rows', '44'))
 const out = arg('--out', join(driver.tempRoot, `tui-${cols}.png`))
+
 const gridPath = arg('--grid', join(driver.tempRoot, `grid-${cols}.json`))
 
 let cfg = { ...scenario(name, cols, rows), out: gridPath }
 const settleWanted = process.argv.includes('--settle')
 const sceneNeedles = process.argv.flatMap((a, i, all) => (a === '--needle' && all[i + 1] !== undefined ? [all[i + 1]] : []))
+
 {
   const s = (cfg as { sends?: Array<Record<string, unknown>> }).sends
   if (
@@ -64,9 +68,11 @@ const sceneNeedles = process.argv.flatMap((a, i, all) => (a === '--needle' && al
     s[1] = { afterPrevTicks: 3, data: '\r' }
   }
 }
+
 const totalOverride = arg('--total', '')
 if (totalOverride) {
   const n = Number(totalOverride)
+
   if (!Number.isFinite(n) || n <= 0) { console.error(`invalid --total: ${totalOverride}`); process.exit(2) }
   cfg.total = n
 }
@@ -83,15 +89,21 @@ const wallMs = settleWanted
 const cfgPath = gridPath.startsWith(join(driver.tempRoot, 'grid-'))
   ? join(driver.tempRoot, `vshot-${cols}.json`)
   : `${gridPath}.cfg.json`
+
 const relativeToRuntimeCwd = (p: string): string =>
   p === RUNTIME_CWD ? '.' : p.startsWith(RUNTIME_CWD + '/') ? p.slice(RUNTIME_CWD.length + 1) : p
 const recorded = cfg.cwd === RUNTIME_CWD ? { ...cfg, cwd: '.', argv: cfg.argv.map(relativeToRuntimeCwd) } : cfg
 writeFileSync(cfgPath, JSON.stringify(recorded))
+
 let verdict: { ok: boolean; reason: string } = { ok: false, reason: 'capture never ran' }
 for (let attempt = 1; attempt <= 2; attempt++) {
+
   const res = spawnSync(driver.python, [join(import.meta.dir, 'vshot.py'), cfgPath], {
+
     encoding: 'utf-8', timeout: wallMs,
+
     cwd: RUNTIME_CWD,
+
     env: {
       ...process.env,
       ...(PYTE_PATH ? { PYTHONPATH: [PYTE_PATH, process.env.PYTHONPATH].filter(Boolean).join(':') } : {}),

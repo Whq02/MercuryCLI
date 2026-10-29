@@ -70,7 +70,7 @@ export function renderToolResultMessage(
           <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>
         ) : null}
       </Box>
-  
+
       )}
     </WithCardTone>
   );

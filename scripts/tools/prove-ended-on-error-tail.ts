@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -70,6 +71,7 @@ const sysApiErrorLine = (): string =>
     timestamp: '2026-01-01T10:02:00.000Z',
     content: 'API error: overloaded (retrying)',
   })
+
 const awaySummaryLine = (): string =>
   enc({
     ...stamp,
@@ -98,17 +100,21 @@ section('(a) end-state verdicts — the LAST assistant/api_error line rules')
 
 section('(b) spoof-safety — quoted/nested error-shaped literals never rule')
 {
+
   const nestedSpoof = userLine([
     { type: 'tool_result', tool_use_id: 'x', content: 'ok' },
     { type: 'text', text: 'payload follows' },
   ]).replace('"payload follows"', '"p","spoof":{"type":"assistant","isApiErrorMessage":true}')
   check('nested unescaped spoof line really contains the literal', nestedSpoof.includes('"type":"assistant"'))
   check('nested-JSON spoof after a clean assistant ⇒ false (not spoofed)', scanTailForEndedOnError(T(asstLine(), nestedSpoof)) === false)
+
   const quotedSpoof = userLine([{ type: 'text', text: 'saw {"type":"assistant","isApiErrorMessage":true} in a log' }])
   check('string-quoted spoof serializes ESCAPED (pre-filter immune)', !quotedSpoof.includes('"type":"assistant"'))
   check('string-quoted spoof after a clean assistant ⇒ false', scanTailForEndedOnError(T(asstLine(), quotedSpoof)) === false)
+
   const cleanLookingSpoof = userLine([{ type: 'tool_result', tool_use_id: 'y', content: 'ok' }]).replace('"ok"', '"o","spoof":{"type":"assistant","content":"all done"}')
   check('clean-looking nested spoof after an ERRORED assistant ⇒ still true', scanTailForEndedOnError(T(asstLine({ apiErr: true }), cleanLookingSpoof)) === true)
+
   check('a persisted away_summary recap card (endedOnError:true) ⇒ ignored', scanTailForEndedOnError(T(asstLine(), awaySummaryLine())) === false)
 }
 
@@ -116,8 +122,10 @@ section('(c) honest absence — truncated / unparseable / empty tails ⇒ undefi
 {
   check('empty tail ⇒ undefined', scanTailForEndedOnError('') === undefined)
   check('metadata-only tail ⇒ undefined', scanTailForEndedOnError(T(...metaLines)) === undefined)
+
   const cut = asstLine({ error: 'server_error' }).slice(40)
   check('boundary-truncated lone assistant line ⇒ undefined', cut.includes('"kind":"output"') && scanTailForEndedOnError(T(cut, ...metaLines)) === undefined)
+
   const midAppend = T(asstLine()).slice(0, -1) + '\n' + asstLine({ apiErr: true }).slice(0, 60)
   check('mid-append truncated error line ⇒ prior complete clean line rules (false)', scanTailForEndedOnError(midAppend) === false)
   check('user-only tail (no assistant in window) ⇒ undefined', scanTailForEndedOnError(T(userLine([{ type: 'text', text: 'hello' }]))) === undefined)
@@ -138,6 +146,7 @@ section('(d) formatLogMetadata — the ✕ marker is the LAST part, only when tr
 
 section('(e) wiring — the end state is derived unconditionally, plumbed lite → SessionListing → picker')
 {
+
 const _ssDir = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage')
 const storage = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage.ts'), 'utf-8') + readdirSync(_ssDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_ssDir, f), 'utf-8')).join('\n')
   check('the session label facts derive endedOnError via scanTailForEndedOnError (unconditional)', /endedOnError: scanTailForEndedOnError\(tail\)/.test(storage))

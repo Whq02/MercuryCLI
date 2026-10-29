@@ -1,4 +1,3 @@
-
 import { execFile, execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { projectScopePathspec } from '../../utils/projectBoundary.js'
@@ -31,6 +30,7 @@ export function git(root: string, args: string[]): string {
     maxBuffer: MAX_BUFFER,
     timeout: GIT_TIMEOUT_MS,
     env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
+
     stdio: ['ignore', 'pipe', 'pipe'],
   })
 }
@@ -54,6 +54,7 @@ export async function gitAsync(root: string, args: string[]): Promise<string> {
           resolve(stdout)
           return
         }
+
         const status = typeof err.code === 'number' ? err.code : null
         reject(Object.assign(err, { status, stdout, stderr }))
       },
@@ -91,6 +92,7 @@ function tryGit(root: string, args: string[]): string | null {
 }
 
 export function isGitRepo(root: string): boolean {
+
   for (let attempt = 0; attempt < 2; attempt++) {
     const out = tryGit(root, ['rev-parse', '--is-inside-work-tree'])
     if (out === null) return false
@@ -124,8 +126,8 @@ async function classifyAsyncFailure(root: string, failure: string | null, note: 
   return { state: 'unavailable', note: failure ? `${note} (${failure})` : note, ...(failure !== null && { failure }) }
 }
 
-
 const STATUS_ARGS = (root: string): string[] =>
+
   ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', '--untracked-files=all', ...projectScopePathspec(root)]
 
 type ParsedStatus = Pick<GitStatus, 'branch' | 'upstream' | 'ahead' | 'behind' | 'files'>
@@ -149,6 +151,7 @@ function parseStatusV2(raw: string): ParsedStatus {
     } else if (line.startsWith('1 ') || line.startsWith('2 ')) {
       const parts = line.split(' ')
       const xy = parts[1]!
+
       const tail = parts.slice(line.startsWith('2 ') ? 9 : 8).join(' ')
       const [path, origPath] = tail.split('\t')
       files.push({
@@ -204,6 +207,7 @@ export function gitStatus(root: string): GitStatus | GitUnavailable {
   if (raw === null) return notARepo()
   const head = tryGit(root, ['rev-parse', 'HEAD'])?.trim() ?? '(unborn)'
   const parsed = parseStatusV2(raw)
+
   const hasher = createHash('sha1').update(`${head}\n${raw}`)
   for (const f of digestFiles(parsed.files)) {
     try {
@@ -233,7 +237,6 @@ export async function gitStatusAsync(root: string): Promise<GitStatus | GitUnava
   }
   return composeStatus(root, head, parsed, hasher)
 }
-
 
 export function hunkId(file: string, header: string, body: string): string {
   return `gh-${createHash('sha1').update(`${file}\n${header}\n${body}`).digest('hex').slice(0, 12)}`
@@ -294,6 +297,7 @@ export function parseUnifiedDiff(raw: string): { files: GitDiff['files']; hunks:
 
 interface DiffOptions {
   scope: 'worktree' | 'staged' | 'commit' | 'range'
+
   ref?: string
   paths?: string[]
 }
@@ -315,7 +319,6 @@ export function gitDiff(root: string, opts: DiffOptions): GitDiff | GitUnavailab
   const parsed = parseUnifiedDiff(raw)
   return { scope: opts.scope, ...(opts.ref !== undefined && { ref: opts.ref }), ...parsed }
 }
-
 
 export function gitCommitMeta(root: string, sha: string): GitCommitMeta | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
@@ -350,7 +353,6 @@ export function gitMergeBase(root: string, a: string, b: string): string | GitUn
   return raw.trim()
 }
 
-
 export function gitWorktrees(root: string): GitWorktreeInfo[] | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
   const raw = tryGit(root, ['worktree', 'list', '--porcelain'])
@@ -380,7 +382,6 @@ function parseWorktreeList(raw: string): GitWorktreeInfo[] {
   return out
 }
 
-
 export function conflictId(path: string): string {
   return `gc-${createHash('sha1').update(path).digest('hex').slice(0, 10)}`
 }
@@ -402,7 +403,6 @@ export function gitConflicts(root: string): GitConflict[] | GitUnavailable {
   })
 }
 
-
 const MAX_FILE_AT_REF_BYTES = 400_000
 const MAX_TREE_ENTRIES = 500
 const MAX_COMPARE_COMMITS = 20
@@ -412,8 +412,10 @@ interface GitFileAtRef {
   ref: string
   path: string
   text: string
+
   bytes: number
   truncated: boolean
+
   binary: boolean
 }
 
@@ -437,6 +439,7 @@ export function gitFileAtRef(root: string, ref: string, filePath: string): GitFi
   if (!isGitRepo(root)) return notARepo()
   const raw: string | null = tryGit(root, ['show', `${ref}:${filePath}`])
   if (raw === null) {
+
     const refOk = tryGit(root, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`])
     return {
       state: 'unavailable',
@@ -475,6 +478,7 @@ interface GitTreeAtRef {
 export function gitTreeAtRef(root: string, ref: string, subPath?: string): GitTreeAtRef | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
   const spec = subPath ? `${ref}:${subPath}` : ref
+
   const raw = tryGit(root, ['-c', 'core.quotepath=off', 'ls-tree', '-l', spec])
   if (raw === null) {
     return {
@@ -484,6 +488,7 @@ export function gitTreeAtRef(root: string, ref: string, subPath?: string): GitTr
   }
   const lines = raw.split('\n').filter(l => l.length > 0)
   const entries: GitTreeEntry[] = lines.slice(0, MAX_TREE_ENTRIES).map(line => {
+
     const tab = line.indexOf('\t')
     const [mode = '', type = '', , sizeRaw = ''] = line.slice(0, tab).split(/\s+/)
     const name = line.slice(tab + 1)
@@ -503,8 +508,11 @@ interface GitCompare {
   mergeBase: string
   ahead: number
   behind: number
+
   commitsAhead: { sha: string; subject: string }[]
+
   commitsBehind: { sha: string; subject: string }[]
+
   files: { path: string; additions: number; deletions: number }[]
   filesTruncated: boolean
 }

@@ -1,10 +1,10 @@
-
 import {
   controlSockPath,
   currentVersion,
   daemonControlRpc,
   readDaemonState,
 } from './controlSocket.js'
+
 interface FireOutcomeSummary {
   total: number
   byOutcome: Record<string, number>
@@ -22,22 +22,39 @@ import { readdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
+
   daemon: { pid: number; version: string; uptimeSec: number; dir: string; buildTree?: string | null; script?: string } | null
+
   controlSock: string
+
   controlReachable: boolean
+
   controlError?: string
+
   workersLive: number | null
+
   workersTotal: number | null
+
   breakerOpen: boolean | null
+
   maxInflight: number | null
+
   leaseCount: number | null
+
   proto: number | null
+
   degraded: boolean | null
+
   degradedReason?: string
+
   warmRunners: number | null
+
   fireOutcomes: FireOutcomeSummary | null
+
   handshake: DaemonHandshakeVerdict | null
+
   versionLine: string | null
+
   workers: WireRosterEntry[]
   helpers?: HelperRow[]
 }
@@ -74,7 +91,6 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
     workers: [],
   }
 
-
   if (!ping.ok) {
     snapshot.helpers = await helperCensus(record !== null && isProcessAlive(record.pid) ? [{ pid: record.pid, live: null }] : [], [])
     return snapshot
@@ -109,6 +125,7 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
     snapshot.degradedReason = s.degradedReason
     snapshot.warmRunners = s.warmRunners ?? null
   } else if (listReply.ok && listReply.op === 'list') {
+
     const jobs: WireRosterEntry[] = listReply.jobs
     snapshot.workersLive = jobs.filter(j => !j.outcome).length
     snapshot.workersTotal = jobs.length
@@ -176,7 +193,6 @@ function sockPathOrPlaceholder(): string {
   }
 }
 
-
 export function workerRowWords(row: WireRosterEntry): string {
   const pid = row.pid !== undefined ? `pid ${row.pid}` : 'pid not yet recorded'
   const session = row.sessionId.length > 8 ? row.sessionId.slice(0, 8) : row.sessionId
@@ -191,6 +207,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
 
   if (status.daemon) {
     const s = status.daemon
+
     lines.push(
       status.controlReachable
         ? `  daemon:       running · pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`
@@ -232,6 +249,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   if (status.breakerOpen !== null) {
     lines.push(`  breaker:      ${status.breakerOpen ? 'OPEN (dispatch suppressed)' : 'closed'}`)
   }
+
   if (status.warmRunners !== null && status.warmRunners > 0) {
     const boundDir = status.daemon?.dir
     const fold = (p: string): string =>
@@ -244,6 +262,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
         : `  warm:         ${status.warmRunners} warm runner${plural} (pre-booted, unclaimed — bound to ${boundDir}; a session born there starts instantly, this folder boots cold)`,
     )
   }
+
   if (status.degraded) {
     lines.push(`  daemon:       ${GLYPH.warn} DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
   }
@@ -253,6 +272,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   if (status.proto !== null) {
     lines.push(`  proto:        v${status.proto}`)
   }
+
   if (status.versionLine !== null) {
     lines.push(`  version:      ${status.versionLine}`)
   }

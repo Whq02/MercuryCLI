@@ -103,6 +103,7 @@ async function main(): Promise<void> {
       frame.includes('subscribeRuns') && frame.includes('buildRunCapsuleLine'),
     )
     const coordinator = await import('../../src/services/run/runCoordinator.js')
+
     for (let i = 0; i < 100; i++) {
       const unsub = coordinator.subscribeRuns(() => {})
       unsub()

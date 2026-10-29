@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +20,7 @@ section('§1 crash recovery: stale consuming-* absorbed, nothing lost')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-cc1-'))
   mkdirSync(dir, { recursive: true })
+
   writeFileSync(
     join(dir, 'consuming-999-abc.jsonl'),
     JSON.stringify({ ts: new Date(Date.now() - 86_400_000).toISOString(), source: 'crashed-run', text: 'orphaned row', topicHint: 'recovery' }) + '\n',
@@ -41,6 +43,7 @@ section('§2 the consolidator lock: back-off + stale steal')
   const held = maybeConsolidate({ force: true, dir })
   check('held lock ⇒ back-off', !held.consolidated && held.reason.includes('lock held'), held.reason)
   check('buffer untouched on back-off', readBuffer(dir).length === 1)
+
   const old = (Date.now() - 6 * 60 * 1000) / 1000
   utimesSync(join(dir, '.consolidate.lock'), old, old)
   const stolen = maybeConsolidate({ force: true, dir })

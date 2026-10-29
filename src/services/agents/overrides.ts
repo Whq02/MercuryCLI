@@ -19,7 +19,9 @@ type AgentOverridePatch = {
 
 export type AgentOverrideProvenance = AgentOverridePatch & {
   from: AgentOverrideScope
+
   intentModel?: string
+
   intentEffort?: EffortValue
 }
 
@@ -87,6 +89,7 @@ function readOverridesFile(path: string): AgentOverridesFile {
 type LoadedAgentOverrides = {
   user: AgentOverridesFile
   project: AgentOverridesFile
+
   disabledSet: Set<string>
   overrideFor(name: string): AgentOverrideProvenance | undefined
 }

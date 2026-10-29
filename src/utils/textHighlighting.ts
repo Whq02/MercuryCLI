@@ -3,10 +3,11 @@ import { reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalz
 import type { Theme } from './theme.js'
 import type { HexColor } from '../ink/styles.js'
 
-
 export type TextHighlight = {
+
   start: number
   end: number
+
   color?: keyof Theme | HexColor | null | undefined
   dimColor?: boolean
   inverse?: boolean
@@ -16,6 +17,7 @@ export type TextHighlight = {
 
 type TextSegment = {
   text: string
+
   start: number
   highlight?: TextHighlight
 }
@@ -52,6 +54,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
   let tokenIndex = 0
   let visiblePos = 0
   let rawPos = 0
+
   let activeCodes: AnsiCode[] = []
 
   const cutSegment = (targetVisible: number, highlight: TextHighlight | undefined): void => {
@@ -78,6 +81,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
         activeCodes.push(token)
         rawPos += token.code.length
       } else if (token.type === 'control') {
+
         rawPos += token.code.length
       } else {
         visiblePos += token.value.length
@@ -87,6 +91,7 @@ export function segmentTextByHighlights(text: string, highlights: TextHighlight[
     }
 
     const rawSpan = text.slice(segmentRawStart, rawPos)
+
     if (rawSpan === '') return
 
     const leaving = reduceAnsiCodes(activeCodes).filter(code => code.code !== code.endCode)

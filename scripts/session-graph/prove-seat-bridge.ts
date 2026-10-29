@@ -35,6 +35,7 @@ function fixtureChild(fx: Record<string, unknown>): NdjsonChildLike {
       } catch {
         return
       }
+
       if (msg.method === 'initialize') {
         const reply = JSON.parse(JSON.stringify(handshake.receive)) as Record<string, unknown>
         reply.id = msg.id
@@ -125,11 +126,13 @@ t.section('§5 — bridge attach laws')
   bridge._resetSeatBridgeForTesting()
   caps._resetCapabilitiesForTesting()
   const dir = join(scratch, 'bridge-store')
+
   const mkTransport = (): ReturnType<typeof codexSeatTransport> =>
     codexSeatTransport({ spawnImpl: () => fixtureChild(fixture('codex')) })
   const seatA = await bridge.attachExternalSeat(mkTransport(), { displayName: 'Atlas', dir })
   t.check('attach binds a registry identity', /^cw-/.test(seatA.agentId))
   t.check('attach records the capability set', caps.capabilitiesOf(seatA.seatId) !== null)
+
   const seatB = await bridge.attachExternalSeat(mkTransport(), { displayName: 'Atlas', dir })
   t.check('two unproven seats stay distinct agents (no accidental aliasing)', seatB.agentId !== seatA.agentId)
   const before = caps.capabilitiesOf(seatA.seatId)
@@ -238,7 +241,6 @@ t.section('§6 — the dispatch transaction')
   )
   await bridge.detachExternalSeat(seat.seatId)
 }
-
 
 t.section('§8 — wave-A regression pins')
 {
@@ -378,6 +380,7 @@ t.section('§8 — wave-A regression pins')
     refusedCancel.result === 'rejected' && /unknown/.test(refusedCancel.result === 'rejected' ? refusedCancel.reason : ''),
     JSON.stringify(refusedCancel).slice(0, 120),
   )
+
   const dirK2 = join(scratch, 'wavea-cancel-invalidated')
   const cancelDeclared = mkProbe({
     withCancel: true,

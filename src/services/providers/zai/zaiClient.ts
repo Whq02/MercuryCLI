@@ -20,8 +20,10 @@ import {
 
 export const ZAI_CHAT_COMPLETIONS_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 const ZAI_API_BASE_URL = 'https://api.z.ai/api/paas/v4'
+
 export const ZAI_CODING_API_BASE_URL = 'https://api.z.ai/api/coding/paas/v4'
 export type ZaiApiPlan = 'general' | 'coding'
+
 export function zaiApiBase(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {
   const production = plan === 'coding' ? ZAI_CODING_API_BASE_URL : ZAI_API_BASE_URL
   const pinned = (plan === 'coding' ? env['MERCURY_ZAI_CODING_API_BASE']?.trim() : undefined) || env['MERCURY_ZAI_API_BASE']?.trim()
@@ -30,8 +32,8 @@ export function zaiApiBase(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPla
 export function zaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, plan: ZaiApiPlan = 'general'): string {
   return `${zaiApiBase(env, plan)}/chat/completions`
 }
-const TOTAL_TIMEOUT_MS = 50 * 60_000
 
+const TOTAL_TIMEOUT_MS = 50 * 60_000
 
 export type ZaiContentPart =
   | { type: 'text'; text: string }
@@ -42,6 +44,7 @@ export type ZaiContentPart =
 export interface ZaiMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string | null | ZaiContentPart[]
+
   reasoning_content?: string
   tool_calls?: ZaiToolCall[]
   tool_call_id?: string
@@ -69,14 +72,15 @@ export interface ZaiChatRequest {
   model: string
   messages: ZaiWireMessage[]
   tools?: ZaiTool[]
+
   tool_choice?: 'auto'
   max_tokens?: number
   temperature?: number
   thinking?: { type: 'enabled' | 'disabled' }
+
   reasoning_effort?: string
   request_id?: string
 }
-
 
 export type ZaiFinishReason =
   | 'stop'
@@ -97,7 +101,9 @@ export interface ZaiCompletedToolCall {
   index: number
   id: string
   name: string
+
   argumentsRaw: string
+
   arguments?: unknown
   malformed: boolean
 }
@@ -110,6 +116,7 @@ export type ZaiStreamEvent =
   | {
       type: 'finish'
       reason: ZaiFinishReason
+
       rawReason: string
       toolCalls: ZaiCompletedToolCall[]
       stated: boolean
@@ -125,14 +132,16 @@ export interface ZaiFault {
     | 'timeout'
     | 'cancelled'
     | 'transport-error'
+
   code: string
   message: string
   retryable: boolean
+
   status?: number
+
   retryAfterMs?: number
   outage?: OutageCause
 }
-
 
 const RETRYABLE_ZAI_CODES = new Set([1302, 1305, 1113, 1234, 1230])
 
@@ -163,6 +172,7 @@ export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get
   const err = typeof o?.error === 'object' && o.error !== null ? (o.error as Record<string, unknown>) : undefined
   const codeNum = Number(err?.code ?? o?.code)
   const message = String(err?.message ?? o?.message ?? `HTTP ${status}`)
+
   const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined) ?? zaiStatedResetWaitMs(message, nowMs)
   const asked = retryAfterMs !== undefined ? { retryAfterMs } : {}
   if (Number.isFinite(codeNum) && codeNum > 0) {
@@ -185,25 +195,26 @@ export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get
   }
 }
 
-
 interface ZaiStreamOptions {
   apiKey: string
   request: ZaiChatRequest
   signal?: AbortSignal
+
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
   onStreamActivity?: (atMs: number) => void
+
   firstByte?: {
     cold: boolean
     promptTokens: number
+
     model: string
     attempt?: number
     onWait?: (wait: RequestWaitV1 | null) => void
   }
   baseUrl?: string
 }
-
 
 function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): ZaiCompletedToolCall[] {
   const out: ZaiCompletedToolCall[] = []
@@ -247,6 +258,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
 
   try {
     let response: Response
+
     const firstByteBudget = firstByteBudgetMs({
       cold: options.firstByte?.cold === true,
       promptTokens: options.firstByte?.promptTokens ?? 0,
@@ -269,6 +281,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
+
       const fetchImpl = options.fetchImpl ?? getApiFetch()
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {
@@ -287,6 +300,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
       clearTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
       if (!cancelled && firstByteFired) {
+
         yield {
           type: 'stream-fault',
           fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
@@ -332,6 +346,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
+
     const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null })
     idleWatchdog = watchdog
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
@@ -360,6 +375,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
                   retryable: true,
                 },
         }
+
         void reader.cancel().catch(() => {})
         return
       }
@@ -384,6 +400,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
         const payload = item.event.data
         if (payload.trim() === '[DONE]') {
           if (!finished) {
+
             finished = true
             yield { type: 'finish', reason: 'stop', rawReason: 'stop', toolCalls: finalizeToolCalls(toolAcc), stated: false }
           }
@@ -414,6 +431,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
               'network_error',
             ]
             if (failureReasons.includes(event.reason)) {
+
               yield {
                 type: 'stream-fault',
                 fault: {
@@ -446,12 +464,12 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
     clearTimeout(totalTimer)
     idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
+
     controller.abort()
   }
 
   void usageSeen
 }
-
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined

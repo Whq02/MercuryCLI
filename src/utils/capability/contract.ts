@@ -1,4 +1,3 @@
-
 import { TOOL_CAPABILITY_DECLARATIONS } from './declarations.js'
 
 type ToolClass = 'observation' | 'mutation' | 'execution' | 'coordination'
@@ -6,22 +5,35 @@ type ToolClass = 'observation' | 'mutation' | 'execution' | 'coordination'
 type ToolLatency = 'fast' | 'interactive' | 'long-running'
 
 export interface ToolCapability {
+
   intents: string[]
+
   units: string[]
+
   class: ToolClass
+
   operations?: string[]
+
   execution?: {
     kind: string
     representation: 'full-execution-owner' | 'external-projection' | 'child-execution'
   }
+
   transaction?: { kind: string; receipts: boolean }
+
   evidence?: ('change' | 'execution' | 'check' | 'artifact')[]
+
   resources?: string[]
+
   preview?: boolean
+
   cancellation: 'cooperative' | 'kill' | 'not-applicable'
   latency: ToolLatency
+
   gate?: string
+
   conditions?: string[]
+
   proof?: string
   workflows?: boolean
 }

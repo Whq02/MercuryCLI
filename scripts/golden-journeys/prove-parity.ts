@@ -1,4 +1,3 @@
-
 import {
   SIDS,
   FIXTURE_CWD,
@@ -101,7 +100,6 @@ check(
 check('scale agrees (substantial)', work.scale === 'substantial')
 check('identity is the durable run', work.identity.runId === kernel?.runId && work.identity.runId !== null)
 
-
 {
   const { acceptUserRequest } = await import('../../src/services/run/runCoordinator.ts')
   const { makeOwnerKey: mk } = await import('../../src/services/run/ownerKey.ts')
@@ -164,6 +162,7 @@ check('identity is the durable run', work.identity.runId === kernel?.runId && wo
     workflowsDisk: [],
     crew: [],
     gitWorktreeLanes: [],
+
     sources: {
       schema: WORKBENCH_SOURCES_SCHEMA,
       artifacts: healthOf(sourceReady(null)),

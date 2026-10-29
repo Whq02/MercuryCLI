@@ -13,7 +13,6 @@ import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 
-
 export function getDefaultTimeoutMs(): number {
   return getDefaultBashTimeoutMs()
 }
@@ -47,7 +46,6 @@ export const EDITOR_TERMINAL_RESULT_NOTE =
 
 const EDITOR_TERMINAL_PARAGRAPH =
   "Editor terminal: in this session a foreground command from the main conversation runs in a fresh terminal of the editor, in the session folder, not in the shell described above. The working directory and shell variables do not carry to the next call, so a command that needs a directory starts with `cd dir && …` in the same call. A `run_in_background` command and a crewmate's command run in the shell described above."
-
 
 export function getSimplePrompt(offered: ReadonlySet<string> | null = null): string {
   const embedded = hasEmbeddedSearchTools()

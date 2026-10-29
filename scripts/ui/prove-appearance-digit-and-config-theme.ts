@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/ThemePicker.tsx src/commands/appearance/appearance.tsx src/components/Settings/Config.tsx
-// gate-watch: src/components/CustomSelect/use-select-input.ts src/components/design-system/ThemeProvider.tsx
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'

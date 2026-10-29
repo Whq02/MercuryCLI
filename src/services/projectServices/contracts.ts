@@ -1,4 +1,3 @@
-
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -13,6 +12,7 @@ type ServiceLifecycle = 'session' | 'project'
 type RestartPolicy = 'never' | 'on-failure'
 
 export interface ServiceSpec {
+
   name: string
   command: string
   args: string[]
@@ -48,16 +48,21 @@ export interface ServiceRecord {
   spec: ServiceSpec
   state: ServiceState
   pid: number | null
+
   startToken: string | null
   startedAt: number | null
   stoppedAt: number | null
   lastExitCode: number | null
+
   explicitStop: boolean
   restartCount: number
   readiness: ReadinessStatus[]
   logFile: string
+
   ownerSessionId: string | null
+
   logStartByte?: number
+
   stopNote?: string
   updatedAt: number
 }

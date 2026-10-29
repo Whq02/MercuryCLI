@@ -1,6 +1,3 @@
-
-
-
 import { appendFileSync, existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -210,6 +207,7 @@ export function retireFact(input: {
       supersedes: String(input.targetSeq),
     }
     applyRevision(doc, tombstone, heading)
+
     const section = doc.sections.find(s => s.heading === heading)
     if (section) {
       const at = section.entries.findIndex(e => e.seq === newSeq)

@@ -1,4 +1,3 @@
-
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 
 export const BOARD_PANE_MIN_COLS = 80
@@ -23,6 +22,7 @@ export function splitAvailableAt(cols: number, rows: number): boolean {
 interface SplitGeometry {
   boardCols: number
   chatCols: number
+
   dividerCol: number
 }
 
@@ -50,7 +50,6 @@ function splitNeedsFrameLine(cols: number, rows: number): string {
   }
   return `split needs ${splitMinCols()} columns (board ${BOARD_PANE_MIN_COLS} + chat ${CHAT_PANE_MIN_COLS} + the divider) — this frame is ${cols}`
 }
-
 
 let on = false
 let ratio: SplitRatio = 'board-min'

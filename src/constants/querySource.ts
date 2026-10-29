@@ -1,4 +1,3 @@
-
 type MainThreadSource = 'main_thread'
 
 type SdkSource = 'sdk'

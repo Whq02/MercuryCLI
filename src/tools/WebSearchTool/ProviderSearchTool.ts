@@ -14,7 +14,6 @@ import { getProviderSearchPrompt, PROVIDER_SEARCH_TOOL_NAME } from './prompt.js'
 import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
-
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe('The search query to use'),
   allowed_domains: z.array(z.string()).optional().describe('Only include search results from these domains'),
@@ -34,6 +33,7 @@ async function runProviderSearch(
   const mainModel = (context.options.engineModel as string | undefined) || getEngineModel()
   const family = nativeSearchFamilyOf(mainModel)
   if (!family) {
+
     throw new Error(
       `${PROVIDER_SEARCH_TOOL_NAME} is the provider's own search, and this session's model (${mainModel}) belongs to a family whose wire carries none — use WebSearch (the vendored search) instead.`,
     )
@@ -50,6 +50,7 @@ async function runProviderSearch(
   )
   if (!outcome.ok) {
     if (outcome.kind === 'aborted') throw new AbortError()
+
     throw new Error(`${failureLine(outcome)} The vendored WebSearch tool is still available.`)
   }
   const durationSeconds = (performance.now() - started) / 1000
@@ -72,6 +73,7 @@ export const ProviderSearchTool = buildTool({
   maxResultSizeChars: 100_000,
   inputSchema,
   outputSchema: providerSearchOutputSchema,
+
   isEnabled: () => nativeSearchFamilyOf(getEngineModel()) !== undefined,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

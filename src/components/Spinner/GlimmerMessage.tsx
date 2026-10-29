@@ -14,6 +14,7 @@ type Props = {
   glimmerIndex: number
   flashOpacity: number
   shimmerColor: keyof Theme
+
   attentionIntensity?: number
 }
 

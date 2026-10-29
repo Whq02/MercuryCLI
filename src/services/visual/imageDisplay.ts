@@ -1,4 +1,3 @@
-
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { rgbToXterm256 } from '../../ink/cell-grid.js'
@@ -16,6 +15,7 @@ let detected: ImageProtocol | null = null
 export function detectImageProtocol(): ImageProtocol {
   const pin = flagEnv('MERCURY_IMAGE_PROTOCOL')
   if (pin === 'iterm' || pin === 'kitty' || pin === 'sixel' || pin === 'cells') return pin
+
   if (!process.stdout.isTTY || (process.env.NO_COLOR !== undefined && process.env.NO_COLOR !== '')) {
     return 'link'
   }
@@ -38,7 +38,6 @@ export function _resetImageProtocolForTesting(): void {
   detected = null
 }
 
-
 export function encodeItermImage(png: Buffer, name = 'image.png'): string {
   const b64 = png.toString('base64')
   const nameB64 = Buffer.from(name, 'utf8').toString('base64')
@@ -58,7 +57,6 @@ export function encodeKittyImage(png: Buffer): string {
   }
   return chunks.join('')
 }
-
 
 const SIXEL_LEVELS_R = 6
 const SIXEL_LEVELS_G = 7
@@ -128,7 +126,6 @@ export function encodeSixel(rgba: Buffer, width: number, height: number): string
   return `${ESC}P;1;q"1;1;${width};${height}${paletteDefs.join('')}${bands.join('-')}${ESC}\\`
 }
 
-
 type Sharp = typeof import('sharp').default
 let sharpLoad: Promise<Sharp> | null = null
 const loadSharp = (): Promise<Sharp> => {
@@ -138,6 +135,7 @@ const loadSharp = (): Promise<Sharp> => {
 
 export function _setSharpUnavailableForTesting(message = 'sharp native binding unavailable'): void {
   sharpLoad = Promise.reject(new Error(message))
+
   sharpLoad.catch(() => {})
 }
 
@@ -197,9 +195,9 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
   return lines.join('\n')
 }
 
-
 interface RenderedImage {
   protocol: ImageProtocol
+
   payload: string
 }
 
@@ -217,6 +215,7 @@ export async function renderImageForTerminal(
     case 'iterm':
       return { protocol, payload: encodeItermImage(png, path.basename(filePath)) }
     case 'kitty': {
+
       const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47])
       if (png.subarray(0, 4).equals(PNG_MAGIC)) {
         return { protocol, payload: encodeKittyImage(png) }
@@ -249,6 +248,7 @@ export async function renderImageForTerminal(
         return linkFallback(err)
       }
     case 'link':
+
       return linkFallback(new Error('link tier requested'))
   }
 }

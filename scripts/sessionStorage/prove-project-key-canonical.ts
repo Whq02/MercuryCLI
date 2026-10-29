@@ -53,6 +53,7 @@ try {
 
   {
     const { projectSlug, shortProjectHash } = await import(join(ROOT, 'src/utils/sessionStoragePortable.ts'))
+
     const a = join(scratch, 'mercury-site')
     const b = join(scratch, 'mercury_site')
     check(
@@ -74,6 +75,7 @@ try {
       'H-15: the hash is deterministic across calls and sensitive to one byte',
       shortProjectHash(a) === shortProjectHash(a) && shortProjectHash(a) !== shortProjectHash(`${a}x`),
     )
+
     const fresh = join(scratch, 'h15-fresh-project')
     check(
       'H-15: a fresh project keys to the HASHED slug (creation default)',

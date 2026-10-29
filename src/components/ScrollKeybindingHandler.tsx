@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useRef } from 'react'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { settingsPopupRequest } from '../utils/cockpit/settingsPopup.js'
@@ -24,7 +23,6 @@ import { isXtermJs } from '../ink/session/capabilities.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
-
 
 export type WheelAccelState = {
   time: number
@@ -77,6 +75,7 @@ export function computeWheelStep(
   const gap = state.time === 0 ? Number.POSITIVE_INFINITY : now - state.time
 
   if (state.xtermJs) {
+
     if (dir === state.dir && gap < SAME_BATCH_GAP_MS) {
       state.time = now
       return 1
@@ -84,6 +83,7 @@ export function computeWheelStep(
     if (dir !== state.dir || gap > 500) {
       state.dir = dir
       state.time = now
+
       state.mult = 2
       state.frac = 0
       return 2
@@ -109,11 +109,14 @@ export function computeWheelStep(
     const pending = state.pendingFlip
     state.pendingFlip = 0
     if (dir === pending) {
+
       state.dir = pending
       state.mult = state.base
     } else if (now - state.time <= FLIP_WINDOW_MS) {
+
       state.wheelMode = true
     } else {
+
       state.dir = pending
       state.mult = state.base
       state.pendingFlip = dir
@@ -144,6 +147,7 @@ export function computeWheelStep(
     if (gap < SAME_BATCH_GAP_MS) {
       state.burstCount += 1
       if (state.burstCount >= 5) {
+
         state.wheelMode = false
         state.mult = state.base
         state.burstCount = 0
@@ -169,7 +173,6 @@ export function computeWheelStep(
   return Math.floor(state.mult)
 }
 
-
 function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
   const max = Math.max(
     0,
@@ -184,7 +187,6 @@ function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
   handle.scrollTo(Math.max(0, target))
   return false
 }
-
 
 const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu', 'effort-popup', 'health-popup'])
 
@@ -221,8 +223,8 @@ export function dragScrollDirection(
   return 0
 }
 
-
 const PAGE_OVERLAP_ROWS = 2
+
 export const AUTOSCROLL_STEP_ROWS = 2
 export const AUTOSCROLL_TICK_MS = 50
 const AUTOSCROLL_MAX_TICKS = 200
@@ -346,6 +348,7 @@ export function ScrollKeybindingHandler({
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
+
       const tracePath = flagEnv('MERCURY_CONNECTOR_TRACE')
       if (tracePath) {
         try {
@@ -357,6 +360,7 @@ export function ScrollKeybindingHandler({
         }
       }
       if (max <= 0) return false
+
       jumpBy(handle, delta)
       notifyScroll(handle)
       return true
@@ -407,6 +411,7 @@ export function ScrollKeybindingHandler({
             notifyScroll(handle)
           }
         },
+
       'scroll:halfPageUp': () => {
         runScroll(-Math.max(1, Math.floor((activeHandle()?.getViewportHeight() ?? 2) / 2)))
       },
@@ -445,7 +450,9 @@ export function ScrollKeybindingHandler({
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
       if (max <= 0) return
+
       if (wheelState.current === null) {
+
         const xtermJs = isXtermJs()
         wheelState.current = initWheelAccel(xtermJs)
         if (!wheelModelLogged.current) {
@@ -461,6 +468,7 @@ export function ScrollKeybindingHandler({
       const effective = handle.getScrollTop() + handle.getPendingDelta()
       if (dir === -1) {
         if (effective - rows <= 0) {
+
           handle.scrollTo(0)
         } else {
           handle.scrollBy(-rows)
@@ -500,9 +508,11 @@ export function ScrollKeybindingHandler({
   const autoscrollTicksRef = useRef(0)
   useEffect(() => {
     if (!isActive) return
+
     const stopTick = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
       const handle = activeHandle()
       const state = selection.getState()
+
       const dragging = state !== null && state.isDragging
       if (!handle || !state || !dragging) {
         autoscrollDirRef.current = 0
@@ -510,7 +520,9 @@ export function ScrollKeybindingHandler({
         return
       }
       if (autoscrollTicksRef.current > AUTOSCROLL_MAX_TICKS) return
+
       if (handle.getPendingDelta() !== 0) return
+
       if (!state.focus || !state.anchor) return
       const top = handle.getViewportTop()
       const bottom = top + handle.getViewportHeight() - 1
@@ -527,6 +539,7 @@ export function ScrollKeybindingHandler({
           autoscrollDirRef.current !== 0 &&
           (focusRow < top || focusRow > bottom)
         ) {
+
           selection.clearSelection()
           autoscrollDirRef.current = 0
         }
@@ -539,6 +552,7 @@ export function ScrollKeybindingHandler({
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
+
       if (direction === -1) {
         if (offset <= 0) return
         handle.scrollBy(-AUTOSCROLL_STEP_ROWS)

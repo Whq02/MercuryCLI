@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,12 +13,18 @@ const { FIXTURE_API_KEY, seedFirstRun } = await import('../lib/firstRunSeed.ts')
 
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const BOX_HOST = '127.0.0.1'
+
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::'])
+
 const FAMILY_BASE = /^MERCURY_[A-Z0-9]+_(?:[A-Z]+_)*BASE$/
+
 const UPDATE_SEAM = 'MERCURY_UPDATE_API_BASE_URL'
+
 const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL']
+
 const OAUTH_SEAM = 'MERCURY_ANTHROPIC_OAUTH_BASE'
 const INHERITED_GATEWAY = 'https://gateway.example.invalid'
+
 const DEADLINE_BOUND_MS = 15_000
 const INVALID_KEY = /Invalid API key/
 
@@ -124,6 +131,7 @@ function turnScript(opts: { cwd: string; netlog: string; out: string; err: strin
 }
 const readTrim = (p: string): string => (existsSync(p) ? readFileSync(p, 'utf8').trim() : '')
 const censusOf = (p: string): string[] => readTrim(p).split('\n').filter(Boolean)
+
 function outsideOf(lines: string[]): string[] {
   return lines.filter(l => {
     const m = /^\d+ (tcp|dns|fetch) (.+)$/.exec(l)
@@ -149,6 +157,7 @@ const portOf = (base: string): number => {
 const home = join(work, 'config-home')
 const cwd = join(work, 'cwd')
 mkdirSync(cwd, { recursive: true })
+
 seedFirstRun(home, [ROOT, cwd])
 const baseEnv: NodeJS.ProcessEnv = {
   ...process.env,
@@ -160,6 +169,7 @@ const baseEnv: NodeJS.ProcessEnv = {
   ANTHROPIC_API_KEY: ambientKey,
 }
 for (const k of ['NODE_OPTIONS', 'MERCURY_SUITE_TIMEOUT', 'MERCURY_SUITE_TIMEOUT_FLOOR', 'MERCURY_SUITE_CEILING']) delete baseEnv[k]
+
 for (const k of Object.keys(baseEnv)) if (FAMILY_BASE.test(k) || k === 'ANTHROPIC_BASE_URL' || k === UPDATE_SEAM) delete baseEnv[k]
 
 section('§1/§2/§3 — the runner\'s pin, read and probed by a suite; one headless turn under it')
@@ -190,6 +200,7 @@ const shard = spawnSync('bash', ['scripts/gate/ci-shard.sh', '0', '1'], {
     MERCURY_CI_SHARD_SEED_FILE: join(work, 'seed.tsv'),
     MERCURY_CI_SHARD_CEILING_FILE: join(work, 'ceilings.tsv'),
     MERCURY_CI_SHARD_OUT: out,
+
     ANTHROPIC_BASE_URL: INHERITED_GATEWAY,
   },
   encoding: 'utf8',
@@ -253,6 +264,7 @@ console.log(`  · the pinned turn's report: ${pinnedText.replace(/\s+/g, ' ').sl
 
 section('§4 — the sign-in refresh road under the pin: a home seeded expired-with-refresh, one headless turn, the census')
 {
+
   const oauthHome = join(work, 'oauth-home')
   mkdirSync(oauthHome, { recursive: true })
   seedFirstRun(oauthHome, [ROOT, cwd])
@@ -271,6 +283,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
     subscriptionType: 'max',
     rateLimitTier: 'default_claude_max_20x',
   })
+
   const boxDir = join(work, 'box')
   mkdirSync(boxDir, { recursive: true })
   const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })
@@ -292,6 +305,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
     rc: join(work, 'turn-refresh.rc'),
     ms: join(work, 'turn-refresh.ms'),
   }
+
   const boxBase = `http://${BOX_HOST}:${readTrim(portFile)}`
   const env: NodeJS.ProcessEnv = { ...baseEnv, MERCURY_CONFIG_DIR: oauthHome, ANTHROPIC_BASE_URL: boxBase, MERCURY_ANTHROPIC_OAUTH_BASE: boxBase }
   delete env.ANTHROPIC_API_KEY
@@ -308,6 +322,7 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
   check('the census was taken on the refresh road (a signed-in home; lines recorded)', refreshLines.length > 0, refreshText.slice(0, 200))
   check('the refresh road makes no connection, lookup or fetch outside the loopback under the two pins', refreshOutside.length === 0, refreshOutside.slice(0, 5).join(' · '))
   check('the refresh went to the box (the census names its port)', refreshLines.some(l => l.endsWith(`tcp ${BOX_HOST}:${readTrim(portFile)}`)), refreshLines.slice(0, 6).join(' · '))
+
   const ledger = censusOf(`${portFile}.ledger`)
   check('the box answered the token refresh itself (POST /v1/oauth/token in its ledger)', ledger.some(l => l === 'POST /v1/oauth/token'), ledger.join(' · ') || '(empty ledger)')
   const shard = readFileSync(join(ROOT, 'scripts', 'gate', 'ci-shard.sh'), 'utf8')

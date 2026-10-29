@@ -1,10 +1,10 @@
-
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type { ProgressMessage } from '../types/message.js'
 
 const frames = new Map<string, ProgressMessage>()
 const versions = new Map<string, number>()
 const subscribers = new Map<string, Set<() => void>>()
+
 let epoch = 0
 
 function notifyKey(key: string): void {

@@ -44,7 +44,6 @@ import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guard
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
 
-
 export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
 
 const WATCHDOG_POLL_INTERVAL_MS = 5000
@@ -66,7 +65,6 @@ function looksLikePrompt(tail: string): boolean {
   if (lower.includes('continue?') || lower.includes('overwrite?')) return true
   return false
 }
-
 
 export function keepTagClosed(text: string, tag: string): string {
   return text.split(`</${tag}>`).join(`<\\/${tag}>`)
@@ -120,7 +118,6 @@ function enqueueShellNotification(
   })
 }
 
-
 function armStallWatchdog(args: {
   taskId: string
   description: string
@@ -157,6 +154,7 @@ function armStallWatchdog(args: {
           return
         }
         if (!looksLikePrompt(tail.content)) {
+
           lastGrowthAt = Date.now()
           return
         }
@@ -199,7 +197,6 @@ function armStallWatchdog(args: {
   }
 }
 
-
 function artifactPathFor(taskId: string, toolUseId: string | undefined): string {
   if (toolUseId) {
     const durable = getToolResultPath(toolUseId, false)
@@ -224,6 +221,7 @@ async function settleShellTask(args: {
   setAppState: SetAppState
   cancelWatchdog?: () => void
   launch?: ShellLaunchFacts
+
   runCleanupAfterUpdate: boolean
 }): Promise<void> {
   const { taskId, shellCommand, setAppState } = args
@@ -270,6 +268,7 @@ async function settleShellTask(args: {
     agentId = task.agentId
     kind = task.kind
     if (task.status === 'killed') {
+
       wasKilled = true
       killedBy = task.killedBy
       return task
@@ -342,7 +341,6 @@ async function settleShellTask(args: {
   void evictTaskOutput(taskId)
 }
 
-
 export async function spawnShellTask(
   input: LocalShellSpawnInput & { shellCommand: ShellCommand; startTime?: number },
   context: TaskContext,
@@ -383,6 +381,7 @@ export async function spawnShellTask(
 
   const accepted = shellCommand.background(taskId)
   if (!accepted) {
+
     let result: { stdout: string; stderr: string; code: number; interrupted: boolean }
     try {
       result = await shellCommand.result
@@ -622,7 +621,6 @@ export function backgroundAll(getAppState: () => AppState, setAppState: SetAppSt
     backgroundAgentTask(task.id, getAppState, setAppState)
   }
 }
-
 
 export const LocalShellTask: Task = {
   name: 'LocalShellTask',

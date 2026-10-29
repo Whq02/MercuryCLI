@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -99,6 +100,7 @@ async function runArm(
         'claude-opus-4-8',
         '--mode',
         'flow',
+
         ...['--allowed-tools', 'Workflow', ...recon],
       ],
       {
@@ -115,6 +117,7 @@ async function runArm(
     child.stdout.on('data', d => (out += String(d)))
     child.stderr.on('data', d => (errBuf += String(d)))
     const exited = new Promise<void>(res => child.once('exit', () => res()))
+
     let timeboxHandle: ReturnType<typeof setTimeout> | undefined
     const timer = new Promise<'timeout'>(res => {
       timeboxHandle = setTimeout(() => res('timeout'), 30 * 60_000)
@@ -137,6 +140,7 @@ async function runArm(
   } catch (e) {
     error = String(e)
   } finally {
+
     scrubCredentials(cfgDir)
   }
   const wallMs = Date.now() - t0
@@ -162,6 +166,7 @@ async function main(): Promise<void> {
     console.error(`no tasks matched '${tasksArg}' — have: ${pool.map(t => t.id).join(', ')}`)
     process.exit(1)
   }
+
   const h = createHash('sha256')
   for (const t of pool) h.update(t.id).update('\0').update(JSON.stringify(t))
   h.update('\0script\0').update(buildWorkflowScript())

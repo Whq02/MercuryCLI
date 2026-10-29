@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative, sep } from 'node:path'
@@ -192,6 +193,7 @@ section('§A1b — the raw-env census (every child rides the scrubbed base, or i
 
 section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv trap)')
 {
+
   process.env.MERCURY_OAUTH_TOKEN = MARK
   const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.ts')
   const probeJs = 'process.stdout.write((process.env.MERCURY_OAUTH_TOKEN ?? "absent") + "|" + (process.env.LEAK_OVERLAY ?? "none") + "|" + (process.env.PATH ? "path" : "nopath"))'
@@ -207,6 +209,7 @@ section('§A2 — the execa wrapper cannot extend over the raw env (extendEnv tr
 
 section('§A3 — the no-env spawn subset that runs foreign/user code, and the kernel env\'s OTEL gap')
 {
+
   const { buildKernelEnv } = await import('../../src/services/eval/kernelEnv.ts')
   const kernelEnv = buildKernelEnv({
     PATH: '/usr/bin',
@@ -230,6 +233,7 @@ section('§A3 — the no-env spawn subset that runs foreign/user code, and the k
 
 section('§A4 — a secret-bearing prompt never persists onto a schedule (both model doors)')
 {
+
   const MARKED_KEY = `sk-ant-${MARK}`
   const { CronCreateTool } = await import('../../src/tools/ScheduleCronTool/CronCreateTool.ts')
   let cronRefusal = ''
@@ -254,6 +258,7 @@ section('§A4 — a secret-bearing prompt never persists onto a schedule (both m
 
 section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law, driven)')
 {
+
   const { deriveScheduleAccountForModel } = await import('../../src/daemon/saturnAccount.ts')
   const smuggled = {
     subscriber: true,
@@ -305,6 +310,7 @@ section('§A5 — SATURN\'s capture is WHO, never a token (the schema\'s own law
 
 section('§A6 — a headers object is never spelled whole onto a surface (log, confirmation, error)')
 {
+
   const { describeHeadersRedacted } = await import('../../src/utils/redactHeaders.ts')
   const spelled = describeHeadersRedacted({
     authorization: `Bearer ${MARK}`,
@@ -328,6 +334,7 @@ section('§A6 — a headers object is never spelled whole onto a surface (log, c
 
 section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (the crown row)')
 {
+
   const unity = readFileSync(join(ROOT, 'src', 'services', 'unity', 'bridgeFiles.generated.ts'), 'utf-8')
   check('R1 the Unity bridge server binds IPAddress.Loopback', unity.includes('TcpListener(IPAddress.Loopback'))
   const vulcan = readFileSync(join(ROOT, 'src', 'services', 'vulcan', 'addonFiles.generated.ts'), 'utf-8')
@@ -353,6 +360,7 @@ section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (th
       if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('#')) continue
       if (!/\.listen\(/.test(line)) continue
       if (LAWFUL_LISTEN.test(line)) continue
+
       if (file.endsWith('.generated.ts') || file.includes(join('skills', 'bundled'))) continue
       offenders.push(`${file.slice(ROOT.length + 1)}:${i + 1}`)
     }
@@ -367,6 +375,7 @@ section('§R1 — every listening socket binds LOOPBACK-ONLY by construction (th
 
 section('§R2 — no real key ever committed (the fixture sweep, standing)')
 {
+
   const KEY_SHAPES: ReadonlyArray<{ kind: string; re: RegExp }> = [
     { kind: 'anthropic', re: /sk-ant-[A-Za-z0-9_-]{16,}/ },
     { kind: 'aws', re: /\bAKIA[0-9A-Z]{16}\b/ },
@@ -376,6 +385,7 @@ section('§R2 — no real key ever committed (the fixture sweep, standing)')
     { kind: 'private-key-block', re: /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/ },
   ]
   const FIXTURE_MARKER = /fixture|dummy|proof|probe|poison|example|fake|test|redact|momentum|crewrender/i
+
   const KNOWN_SYNTHETIC = [
     'AKIA1234567890ABCDEF',
     'sk-ant-api03-AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLL',
@@ -392,6 +402,7 @@ section('§R2 — no real key ever committed (the fixture sweep, standing)')
     }
     return null
   }
+
   check('R2 classifier: a bare real-shaped key flags', classify('const k = "sk-ant-api03-' + 'A'.repeat(24) + '"') === 'anthropic')
   check('R2 classifier: a self-declared fixture key is lawful', classify("process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-dummy0000000000'") === null)
   check('R2 classifier: a private key block is NEVER lawful', classify('-----BEGIN RSA PRIVATE KEY----- // fixture') === 'private-key-block')
@@ -402,6 +413,7 @@ section('§R2 — no real key ever committed (the fixture sweep, standing)')
     .filter(f => f.length > 0 && !/\.(png|jpg|jpeg|gif|ico|woff2?|ttf|zip|gz|pdf)$/i.test(f))
   const hits: string[] = []
   for (const rel of tracked) {
+
     if (rel === 'scripts/daemon/prove-leak-sweep.ts') continue
     let body: string
     try {
@@ -420,6 +432,7 @@ section('§R2 — no real key ever committed (the fixture sweep, standing)')
 
 section('§A7 — the secret-prose guard is the DAEMON VALIDATOR\'s (one home; every persisting door inherits)')
 {
+
   const MARKED_KEY = `sk-ant-${MARK}`
   const saturn = await import('../../src/daemon/saturn.ts')
   const fire = saturn.validateSaturnSubmission({
@@ -494,6 +507,7 @@ section('§A8 — EVERY spawn passes an explicit env (the product law; an env-le
       const line = lines[i] as string
       if (!callRe.test(line)) continue
       if (rel.includes('skills/bundled/')) continue
+
       let depth = 0
       let end = i
       outer: for (let j = i; j < Math.min(lines.length, i + 60); j++) {
@@ -569,6 +583,7 @@ section('§B — every arm is paired with its release (the class-B lifecycle cen
 
 section('§B4x — two overlapping re-arms leave EXACTLY ONE live watcher (the generation guard, driven through the factory seam)')
 {
+
   const { mkdirSync } = await import('node:fs')
   const home = process.env.MERCURY_CONFIG_DIR as string
   mkdirSync(join(home, 'skills'), { recursive: true })
@@ -585,6 +600,7 @@ section('§B4x — two overlapping re-arms leave EXACTLY ONE live watcher (the g
       },
     }
   }
+
   const previousCwd = process.cwd()
   const ground = join(home, 'b4x-ground')
   mkdirSync(join(ground, '.mercury', 'skills'), { recursive: true })

@@ -179,7 +179,6 @@ function fmtCtx(windowSize: number): string {
   return `${fmtCtxWindow(windowSize)} ctx`
 }
 
-
 function resolveCurrentRowId(models: ModelChoice[], served: string): string {
   if (models.some(m => m.id === served)) return served
   const target = stripContext1m(parseUserSpecifiedModel(served))
@@ -543,6 +542,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
   let ctx = ''
   let ctxBase = ''
   let ctx1m = ''
+
   if (isProviderActionRow(opt.value)) {
     const group = opt.group ?? ANTHROPIC_MODEL_GROUP
     return {
@@ -555,6 +555,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
       ...(opt.catalogueDoor ? { expand: { group, family: opt.catalogueDoor.family, total: opt.catalogueDoor.total } } : {}),
     }
   }
+
   if (opt.unavailable !== undefined && parseGptModelId(opt.value)) {
     return { id: opt.value, name: opt.label, tag: opt.description, ctx: '', group: opt.group ?? ANTHROPIC_MODEL_GROUP, gated: true, gatedReason: opt.unavailable }
   }
@@ -569,20 +570,24 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
     }
   }
   try {
+
     const v = opt.value
     const shown =
       focusedOptionSupports1m(v) && !has1mContext(v)
         ? withContext1m(v)
         : v
+
     const windowProbe = has1mContext(shown)
       ? withContext1m(parseUserSpecifiedModel(stripContext1m(shown)))
       : parseUserSpecifiedModel(shown)
     ctx = fmtCtx(getContextWindowForModel(windowProbe as never, betas))
+
     if (focusedOptionSupports1m(v)) {
       const pairBase = parseUserSpecifiedModel(stripContext1m(v))
       ctxBase = fmtCtx(getContextWindowForModel(pairBase as never, betas))
       ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase) as never, betas))
     }
+
     if (parseGptModelId(opt.value) && liveGptContextCeiling(opt.value) !== undefined) {
       ctxBase = fmtCtx(getContextWindowForModel(withGptServedWindowSuffix(opt.value) as never, betas))
       ctx1m = fmtCtx(getContextWindowForModel(opt.value as never, betas))
@@ -600,6 +605,7 @@ function modelChoiceOf(opt: ModelOption, betas: string[] | undefined): ModelChoi
     ...(ctxBase !== '' ? { ctxBase } : {}),
     ...(ctx1m !== '' ? { ctx1m } : {}),
     group: opt.group ?? ANTHROPIC_MODEL_GROUP,
+
     ...(opt.unavailable !== undefined ? { gated: true, gatedReason: opt.unavailable } : {}),
   }
 }
@@ -865,19 +871,25 @@ function MercuryModelWrapper({
   ask?: ModelNameAsk
 }): React.ReactNode {
   const engineModel = useAppState(s => s.engineModel)
+
   const engineModelForSession = useAppState(s => s.engineModelForSession)
   const effortValue = useAppState(s => s.effortValue)
   const setAppState = useSetAppState()
   const store = useAppStateStore()
   const betas = getSdkBetas()
+
   useCatalogueEpoch()
+
   const focusedModelKey = React.useSyncExternalStore(subscribeFocusedModelFeed, getFocusedModelKey, getFocusedModelKey)
+
   const focusedSeat = focusedSessionModelFacts()
   void focusedModelKey
+
   const servedModel = focusedSeat !== null ? focusedSeat.effective : (engineModelForSession ?? getEngineModel())
 
   const liveModel = servedModel
   const efforts = modelSupportsEffort(liveModel) ? [...selectableEffortLevels(liveModel)] : []
+
   const seatEffort = focusedSeat?.effort != null ? parseEffortValue(focusedSeat.effort) : undefined
   const initialEffort =
     seatEffort !== undefined
@@ -887,6 +899,7 @@ function MercuryModelWrapper({
 
   function handleEffort(mode: string): void {
     setEffort(mode)
+
     unpinAllLaunchEffort()
     const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable !== undefined) {
@@ -925,10 +938,12 @@ function MercuryModelWrapper({
   const listedModels: ModelChoice[] = options.flatMap(opt => hostEndpointChoice(modelChoiceOf(opt, betas)))
   const expandRows = (group: string): ModelChoice[] => expandRowsOf(group, betas)
   const labelOf = (id: string): string => pickLabelOf(options, id)
+
   const current = focusedSeat?.effective ?? engineModelForSession ?? engineModel ?? getEngineModel()
   const currentRowId = resolveCurrentRowId(listedModels, current)
   const models = [...orderedModelChoices(listedModels, currentRowId), ...hostRunModelRows()]
   const topGroup = seatGroupOf(listedModels, currentRowId)
+
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
     focusedSeat !== null
@@ -948,6 +963,7 @@ function MercuryModelWrapper({
   }
 
   const [notice, setNotice] = React.useState<string | undefined>(ask?.notice)
+
   const [transitionConfirm, setTransitionConfirm] = React.useState<{
     value: string
     id: string
@@ -955,6 +971,7 @@ function MercuryModelWrapper({
     refreshed: boolean
     pick: PickRoad
   } | null>(null)
+
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
   useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
@@ -1003,10 +1020,12 @@ function MercuryModelWrapper({
       openSettingsPopup(llmHostPopupRequest(modelDoorRoad(runHostedModel, title)))
       return
     }
+
     if (isCatalogueDoorRow(id)) return
     const otherDoor = door !== undefined && !isProviderActionRow(id) && headings[ANTHROPIC_MODEL_GROUP]?.doors.some(candidate => candidate.door === door && candidate.active !== true)
     const pick: PickRoad = { flip: otherDoor === true, ...(door !== undefined ? { door } : {}) }
     const value = id
+
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
       onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
         nextInput: '/logins anthropic --return=/model',
@@ -1014,6 +1033,7 @@ function MercuryModelWrapper({
       })
       return
     }
+
     if (id === GPT_CONNECT_OPTION_VALUE) {
       const availability = getGptSeatAvailability()
       const why = availability.state === 'disabled' ? availability.why : undefined
@@ -1033,6 +1053,7 @@ function MercuryModelWrapper({
             })
             return
           }
+
           setNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
           const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(() => null)
           setNotice(
@@ -1049,12 +1070,14 @@ function MercuryModelWrapper({
       })
       return
     }
+
     if (id === OPENROUTER_CONNECT_OPTION_VALUE) {
       void (async () => {
         const { getOpenrouterAvailability, refreshOpenrouterCatalogue } = await import(
           '../../services/providers/openrouter/openrouterCatalogue.js'
         )
         const availability = getOpenrouterAvailability()
+
         if (
           availability.state === 'ready' ||
           availability.why === 'catalogue-pending' ||
@@ -1157,6 +1180,7 @@ function MercuryModelWrapper({
       })()
       return
     }
+
     {
       const keyLane = parseKeyConnectValue(id)
       if (keyLane !== undefined) {
@@ -1192,6 +1216,7 @@ function MercuryModelWrapper({
           })()
           return
         }
+
         const keyLaneLabels: Record<Exclude<typeof keyLane, 'compat' | 'moonshot' | `compat/${string}`>, string> = { zai: 'GLM (Z.AI)', deepseek: 'DeepSeek', xai: 'xAI', meta: 'Meta', mistral: 'Mistral', zen: 'OpenCode Zen', minimax: 'MiniMax', together: 'Together AI', cohere: 'Cohere', groq: 'Groq', orcarouter: 'OrcaRouter', melious: 'Melious AI', cerebras: 'Cerebras', fireworks: 'Fireworks', qwen: 'Qwen' }
         onDone(
           `${keyLaneLabels[keyLane as keyof typeof keyLaneLabels] ?? keyLane} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
@@ -1200,6 +1225,7 @@ function MercuryModelWrapper({
         return
       }
     }
+
     const daemonPreview = previewDaemonModelSelection(value)
     if (daemonPreview !== null && 'reason' in daemonPreview) {
       onDone(daemonPreview.reason, { display: 'system' })
@@ -1223,12 +1249,15 @@ function MercuryModelWrapper({
   }
 
   function applySelection(value: string, id: string, pick: PickRoad = { flip: false }): void {
+
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
+
       const factsBefore = focused.modelFacts()
       const messagesBefore = [...focused.records()]
       const choice = persistModelChoice(value)
+
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'refused') {
           choice.restore()
@@ -1243,6 +1272,7 @@ function MercuryModelWrapper({
         }
         noteModelUse(value, pick.door)
         const doorCross = providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
+
         const plan = previewForSelection(messagesBefore, factsBefore.effective, value)
         const lossNote = transitionPlanSummary(plan)
         onDone(
@@ -1255,7 +1285,9 @@ function MercuryModelWrapper({
     }
     const label = labelOf(id)
     const stateNow = store.getState()
+
     const settled = settleModelSelection(stateNow, value, {
+
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
     const slotNote = flipDoorNote(pick)
@@ -1270,6 +1302,7 @@ function MercuryModelWrapper({
       onDone(`Already on ${label} — queued switch cancelled${saved}${slotNote}`)
       return
     }
+
     const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
     const plan = previewForSelection(messages, effectiveFrom, value)
     const lossNote = transitionPlanSummary(plan)
@@ -1296,6 +1329,7 @@ function MercuryModelWrapper({
         toLabel={renderModelName(held.value)}
         refreshed={held.refreshed}
         onConfirm={() => {
+
           const focused = getFocusedSessionConnector()
           const confirmMessages = focused.carrier === 'daemon' ? [...focused.records()] : messages
           const verdict = reconfirmTransitionPlan(held.plan, confirmMessages)
@@ -1341,6 +1375,7 @@ function MercuryModelWrapper({
       onSelect={handleSelect}
       onClose={() =>
         onDone(
+
           focusedSeat === null && engineModelForSession
             ? `Kept model as ${renderModelName(engineModelForSession)} (session override)`
             : `Kept model as ${renderModelName(servedModel)}`,
@@ -1350,7 +1385,6 @@ function MercuryModelWrapper({
     />
   )
 }
-
 
 export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => void; onSignIn?: (family: string | undefined) => void }): React.ReactNode {
   const setAppState = useSetAppStateMaybe()

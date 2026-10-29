@@ -21,14 +21,15 @@ import {
   type OpenrouterKeySource,
 } from './openrouterAccounts.js'
 
-
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
 export interface OpenrouterLiveModel {
+
   id: string
   name?: string
   description?: string
   contextLength?: number
+
   pricing?: {
     prompt?: string
     completion?: string
@@ -40,8 +41,10 @@ export interface OpenrouterLiveModel {
   inputModalities?: readonly string[]
   outputModalities?: readonly string[]
   maxCompletionTokens?: number
+
   expirationDate?: string
   createdAtS?: number
+
   reasoning?: {
     supportedEfforts?: readonly string[]
     defaultEffort?: string
@@ -128,7 +131,6 @@ function decodeModel(raw: unknown): OpenrouterLiveModel | undefined {
   }
 }
 
-
 const OPENROUTER_PAGE_LIMIT = 1000
 const OPENROUTER_MAX_PAGES = 5
 
@@ -137,11 +139,14 @@ export async function fetchOpenrouterLiveModels(opts: {
   headers: Record<string, string>
   fetchImpl?: typeof fetch
 }): Promise<{ models: OpenrouterLiveModel[]; fetchedAtMs: number; incomplete?: string }> {
+
   const fetchImpl = opts.fetchImpl ?? getApiFetch()
   const models: OpenrouterLiveModel[] = []
   let incomplete: string | undefined
+
   let url = `${opts.baseUrl}/models?limit=${OPENROUTER_PAGE_LIMIT}&sort=most-popular`
   for (let page = 0; page < OPENROUTER_MAX_PAGES && url; page++) {
+
     const response = await fetchWithProviderDeadline(fetchImpl, 'openrouter', CATALOGUE_FETCH_TIMEOUT_MS, url, {
       method: 'GET',
       headers: { ...opts.headers, 'user-agent': getProductUserAgent() },
@@ -166,6 +171,7 @@ export async function fetchOpenrouterLiveModels(opts: {
         : undefined
     const next = str(links?.next)
     if (!next && parsed.has_more === true) {
+
       incomplete = 'catalogue page signalled has_more without links.next — rows beyond this page were not fetched'
     }
     url = next ? (next.startsWith('http') ? next : `${opts.baseUrl.replace(/\/api\/v1$/, '')}${next}`) : ''
@@ -174,6 +180,7 @@ export async function fetchOpenrouterLiveModels(opts: {
     incomplete = `catalogue pagination stopped at the ${OPENROUTER_MAX_PAGES}-page bound with pages remaining`
   }
   if (models.length > 0) {
+
     const clean = models.filter(m => {
       const verdict = canonicalWireModelId(`openrouter/${m.id}`)
       return verdict.ok && verdict.healed !== true
@@ -187,14 +194,15 @@ export async function fetchOpenrouterLiveModels(opts: {
   return { models, fetchedAtMs: Date.now(), ...(incomplete ? { incomplete } : {}) }
 }
 
-
 const OPENROUTER_CATALOGUE_TTL_MS = 5 * 60_000
 
 export interface OpenrouterCatalogueSnapshot {
   keySource: OpenrouterKeySource
   models: OpenrouterLiveModel[]
+
   fetchedAtMs: number
   lastAttemptAtMs?: number
+
   lastError?: string
 }
 
@@ -228,6 +236,7 @@ export function refreshOpenrouterCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(keySource, opts?.env)
   const cached = catalogueCache.get(identity)
+
   if (!catalogueTrafficVerdict('openrouter', opts?.env ?? process.env).allowed) {
     return Promise.resolve(cached ?? null)
   }
@@ -260,6 +269,7 @@ export function refreshOpenrouterCatalogue(
         keySource,
         models: result.models,
         fetchedAtMs: result.fetchedAtMs,
+
         ...(result.incomplete ? { lastError: result.incomplete } : {}),
       }
       storeSnapshot(identity, snapshot)
@@ -286,7 +296,6 @@ export function refreshOpenrouterCatalogue(
   return work
 }
 
-
 export type OpenrouterDisabledWhy =
   | 'no-account'
   | 'auth-invalid'
@@ -299,10 +308,13 @@ export type OpenrouterAvailability =
   | { state: 'disabled'; why: OpenrouterDisabledWhy; reason: string }
   | {
       state: 'ready'
+
       ids: string[]
       modelCount: number
+
       source: string
       keySource: OpenrouterKeySource
+
       fetchedAtMs: number
     }
 
@@ -325,6 +337,7 @@ export function getOpenrouterAvailability(
   const snapshot = getCachedOpenrouterCatalogue(keySource)
   const verdict = catalogueTrafficVerdict('openrouter', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) {
+
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
@@ -352,6 +365,7 @@ export function getOpenrouterAvailability(
     }
   }
   if (snapshot.models.length === 0) {
+
     return {
       state: 'disabled',
       why: 'no-models',
@@ -363,6 +377,7 @@ export function getOpenrouterAvailability(
     state: 'ready',
     ids: snapshot.models.map(m => m.id),
     modelCount: snapshot.models.length,
+
     source: overrideBase
       ? `${auth.account.label} · base override ${overrideBase}`
       : auth.account.label,
@@ -370,7 +385,6 @@ export function getOpenrouterAvailability(
     fetchedAtMs: snapshot.fetchedAtMs,
   }
 }
-
 
 export function openrouterModelsForVendor(
   vendor: string,
@@ -383,7 +397,6 @@ export function openrouterModelsForVendor(
   const prefix = `${vendor.toLowerCase().replace(/\/+$/, '')}/`
   return snapshot.models.filter(m => m.id.toLowerCase().startsWith(prefix))
 }
-
 
 export function openrouterListedModel(
   model: string,
@@ -432,9 +445,10 @@ export function openrouterEffortVocabularyFor(
   return listed.supportedParameters?.includes('reasoning') ? OPENROUTER_REASONING_EFFORTS : []
 }
 
-
 export const OPENROUTER_MODEL_GROUP = 'Mercury — OpenRouter models'
+
 export const OPENROUTER_CONNECT_OPTION_VALUE = '__mercury_openrouter_connect__'
+
 export const OPENROUTER_EXPAND_OPTION_VALUE = '__mercury_openrouter_expand__'
 
 const OPENROUTER_PICKER_ROW_BOUND = 24
@@ -491,6 +505,7 @@ export function getOpenrouterModelOptions(
   const snapshot = getCachedOpenrouterCatalogue(availability.keySource, env)
   const models = snapshot?.models ?? []
   if (snapshot?.lastError && snapshot.fetchedAtMs > 0) {
+
     const ageMin = Math.max(1, Math.round((Date.now() - snapshot.fetchedAtMs) / 60_000))
     rows.push({
       value: OPENROUTER_CONNECT_OPTION_VALUE,
@@ -502,6 +517,7 @@ export function getOpenrouterModelOptions(
   }
   rows.push(...openrouterCatalogueRows(models, availability.source, wireReady, OPENROUTER_PICKER_ROW_BOUND))
   if (availability.modelCount > OPENROUTER_PICKER_ROW_BOUND) {
+
     rows.push({
       value: OPENROUTER_EXPAND_OPTION_VALUE,
       label: `OpenRouter — ${availability.modelCount} models live`,
@@ -531,10 +547,12 @@ function openrouterCatalogueRows(
 ): ModelOption[] {
   const rows: ModelOption[] = []
   const pendingReason = 'dispatch wire pending — the provider-wire fold routes OpenRouter turns'
+
   const listedIds = new Set(models.map(m => m.id))
   const byId = new Map(models.map(m => [m.id, m]))
   const emitted = new Set<string>()
   for (const model of models.slice(0, bound)) {
+
     const rawVerdict = canonicalWireModelId(`openrouter/${model.id}`)
     const rowClean = rawVerdict.ok && rawVerdict.healed !== true
     const healed = rowClean ? model.id : healListedCatalogueRowId(model.id, listedIds)

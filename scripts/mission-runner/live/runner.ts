@@ -59,28 +59,35 @@ export interface HelixRunRow {
   incorrectClaim?: boolean
   resultChars?: number
   resultText?: string
+
   selectedProfile?: string
   selectionSource?: string
   selectionReasons?: string[]
   executedAs?: string
   mappingNote?: string
+
   reviewerVerdict?: string
   completionState?: string
   completionDecidedBy?: string
   reviewerDisagreesWithGrader?: boolean
+
   adapterId?: string
   adapterVersion?: string
+
   mutationCalls?: number
   noChangeOutcomes?: number
   maxNoChangeStreak?: number
   callsToFirstCorrectMutation?: number
   mutationFailures?: number
+
   runPhase?: 'interrupted' | 'resumed'
   interruptedAfterSec?: number
   resumedFromSessionId?: string
   workdir?: string
+
   runMode?: 'interactive-pty'
   attentionEvents?: { atMs: number; kind: string; chars: number }[]
+
   effortObserved?: string
 }
 
@@ -152,6 +159,7 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
   let outputTokens = 0
   let cacheRead = 0
   const seenMsgIds = new Set<string>()
+
   const mutationUseById = new Map<string, { name: string; inputJson: string }>()
   let mutationCalls = 0
   let noChangeOutcomes = 0
@@ -163,6 +171,7 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
   let streak = 0
   let recognizedRecords = 0
   const resultsSeenByCallId = new Set<string>()
+
   const vnextUsageByMsg = new Map<string, Record<string, number> | undefined>()
   const seenToolCallIds = new Set<string>()
 
@@ -209,12 +218,14 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
       if (payload.kind === 'output') {
         recognizedRecords += 1
         if (payload.model && payload.model !== '<synthetic>') models.add(payload.model)
+
         const id = payload.providerMessageId
           ? String(payload.providerMessageId)
           : 'anon-' + String(recognizedRecords)
         vnextUsageByMsg.set(id, payload.usage)
         for (const block of blocks) {
           if (block?.kind === 'tool-use' && typeof block.name === 'string') {
+
             const callId = String(block.callId ?? '')
             if (callId && seenToolCallIds.has(callId)) continue
             if (callId) seenToolCallIds.add(callId)
@@ -233,6 +244,7 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
       } else if (payload.kind === 'input') {
         recognizedRecords += 1
       }
+
       for (const block of blocks) {
         if (block?.kind !== 'tool-result') continue
         const callId = String(block.callId ?? '')
@@ -300,12 +312,14 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
       }
     }
   }
+
   for (const usage of vnextUsageByMsg.values()) {
     turns += 1
     inputTokens += usage?.inputTokens ?? 0
     outputTokens += usage?.outputTokens ?? 0
     cacheRead += usage?.cacheReadInputTokens ?? 0
   }
+
   if (recognizedRecords === 0) return {}
   return {
     numTurns: turns,
@@ -332,11 +346,16 @@ interface RunOptions {
   configHome?: string
   outFile?: string
   runIndex?: number
+
   agentCmd?: string
   keepWorkdir?: boolean
+
   rowExtras?: Partial<HelixRunRow>
+
   interruptAfterSec?: number
+
   resumeFrom?: { sessionId: string; workdir: string }
+
   interactive?: {
     tape: InteractiveSend[]
     cols?: number
@@ -346,7 +365,9 @@ interface RunOptions {
 
 interface InteractiveSend {
   atMs: number
+
   text: string
+
   kind: 'primer' | 'brief' | 'nudge' | 'answer' | 'interrupt' | 'control'
 }
 
@@ -360,6 +381,7 @@ export function launchArgs(policy: HelixPolicy, brief: string, resumeSessionId?:
 }
 
 export function findLatestSession(configHome: string, workdir: string, sinceMs: number): string | null {
+
   const candidates = new Set<string>([workdir])
   try {
     candidates.add(realpathSync(workdir))
@@ -441,6 +463,7 @@ export function runTaskWithPolicy(
     ? RESUME_PROMPT
     : (policy.briefPrefix ?? '') + task.brief + (policy.briefSuffix ?? '')
   const ceilingSec = Number(process.env.HELIX_TIME_CEILING_OVERRIDE ?? task.timeCeilingSec)
+
   const interruptSec = options.interruptAfterSec
   const interruptArmed = typeof interruptSec === 'number' && interruptSec > 0 && interruptSec < ceilingSec
   const effectiveTimeoutSec = interruptArmed ? interruptSec : ceilingSec
@@ -451,6 +474,7 @@ export function runTaskWithPolicy(
   let timedOut = false
   let spawnErrored = false
   if (options.interactive) {
+
     const lane = options.interactive
     const chunksPath = join(scratch !== '' ? scratch : workdir, 'pty-chunks.jsonl')
     const tapePath = join(scratch !== '' ? scratch : workdir, 'pty-tape.json')
@@ -483,6 +507,7 @@ export function runTaskWithPolicy(
         env: {
           ...process.env,
           MERCURY_CONFIG_DIR: configHome,
+
           MERCURY_EFFORT_LEVEL: policy.effort,
           CLAUDE_CODE_EFFORT_LEVEL: policy.effort,
           MERCURY_EVOLUTION_LEDGER: '0',
@@ -494,6 +519,7 @@ export function runTaskWithPolicy(
       },
     )
     stdout = result.stdout ?? ''
+
     timedOut =
       result.signal === 'SIGTERM' ||
       result.signal === 'SIGKILL' ||
@@ -526,6 +552,7 @@ export function runTaskWithPolicy(
         env: {
           ...process.env,
           MERCURY_CONFIG_DIR: configHome,
+
           MERCURY_EFFORT_LEVEL: policy.effort,
           CLAUDE_CODE_EFFORT_LEVEL: policy.effort,
           MERCURY_EVOLUTION_LEDGER: '0',
@@ -560,6 +587,7 @@ export function runTaskWithPolicy(
           : 'rejected'
 
   const usage = (parsed.usage ?? {}) as Record<string, number>
+
   const sessionId =
     typeof parsed.session_id === 'string'
       ? parsed.session_id
@@ -625,6 +653,7 @@ export function runTaskWithPolicy(
     ...extras,
   }
   emit(row, options.outFile)
+
   if (!options.keepWorkdir && !interrupted && scratch !== '') {
     rmSync(scratch, { recursive: true, force: true })
   }

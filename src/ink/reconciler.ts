@@ -1,4 +1,3 @@
-
 import { appendFileSync } from 'node:fs'
 import { createContext } from 'react'
 import createReconciler from 'react-reconciler'
@@ -131,7 +130,6 @@ export function noteSlowLayout(
   )
 }
 
-
 type Props = Record<string, unknown>
 type HostContext = { isInsideText: boolean }
 
@@ -182,6 +180,7 @@ function diffProps(oldProps: Props, newProps: Props): Props | null {
 function detachInstance(node: DOMNode, root: DOMElement): void {
   if (node.nodeName === '#text') return
   const element = node as DOMElement
+
   const layout = element.layoutNode
   if (layout) {
     element.layoutNode?.unsetMeasureFunc()
@@ -227,6 +226,7 @@ const reconciler = createReconciler<
     const parent = parentHostContext ?? OUTSIDE_TEXT
     const isInsideText = TEXT_HOST_ELEMENTS.has(type)
     if (isInsideText === parent.isInsideText) {
+
       return parent
     }
     return isInsideText ? INSIDE_TEXT : OUTSIDE_TEXT
@@ -252,6 +252,7 @@ const reconciler = createReconciler<
 
   createTextInstance: (text, _root, hostContext) => {
     if (!(hostContext ?? OUTSIDE_TEXT).isInsideText) {
+
       const head = text.length > 40 ? `${text.slice(0, 40)}…` : text
       throw new Error(
         `Text string "${head}" must be rendered inside a text component.`,
@@ -299,6 +300,7 @@ const reconciler = createReconciler<
         const newStyle = (newProps.style ?? {}) as Styles
         setStyle(instance, newStyle)
         if (instance.layoutNode) {
+
           const styleDiff = diffStyle(
             (oldProps.style ?? {}) as Styles,
             newStyle,
@@ -324,6 +326,7 @@ const reconciler = createReconciler<
   },
 
   hideInstance: instance => {
+
     instance.isHidden = true
     if (instance.layoutNode) {
       applyStyles(instance.layoutNode, { display: 'none' })
@@ -356,8 +359,10 @@ const reconciler = createReconciler<
     }
     noteCommit(lastCommitMs)
     instanceCreations = 0
+
     container.onComputeLayout?.()
     if (process.env.NODE_ENV === 'test') {
+
       if (container.childNodes.length === 0 && container.hasRenderedContent) {
         return
       }
@@ -389,9 +394,11 @@ const reconciler = createReconciler<
     return resolved === NoEventPriority ? DefaultEventPriority : resolved
   },
   resolveEventType: () => dispatcher.currentEvent?.type ?? null,
+
   resolveEventTimeStamp: () => dispatcher.currentEvent?.timeStamp ?? -1.1,
 
   shouldAttemptEagerTransition: () => false,
+
   HostTransitionContext: createContext<null>(
     null,
   ) as unknown as import('react-reconciler').ReactContext<null>,

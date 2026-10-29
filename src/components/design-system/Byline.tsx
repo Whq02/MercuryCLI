@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Text } from '../../ink.js'
 
@@ -21,6 +20,7 @@ export function Byline({
       )
     }
     const key = React.isValidElement(child) && child.key != null ? child.key : position
+
     const wrapped = React.isValidElement(child) ? child : <Text>{child}</Text>
     parts.push(<React.Fragment key={`child-${key}`}>{wrapped}</React.Fragment>)
   })

@@ -49,6 +49,7 @@ export function checkPermissionMode(
 
   const totalCommands = segments.reduce((sum, s) => sum + s.commands.length, 0)
   if (totalCommands > 1) {
+
     let hasNamespaceChange = false
     let hasWrite = false
     let hasSymlink = false
@@ -93,6 +94,7 @@ function checkCommand(command: ParsedCommandElement, _originalCommand: string, d
   if (command.nameType === 'application') return pass(`The command ${command.name} resolves as a file path.`)
 
   if (direct) {
+
     const types = command.elementTypes
     if (types) {
       for (let i = 0; i < command.args.length; i++) {
@@ -127,6 +129,7 @@ export function isSymlinkCreatingCommand(cmd: { name: string; args: string[] }):
     arg = '-' + arg.slice(1)
     const colon = arg.indexOf(':', 1)
     const name = colon === -1 ? arg : arg.slice(0, colon)
+
     const isItemType = /^-it(?:e(?:m(?:t(?:y(?:p(?:e)?)?)?)?)?)?$/i.test(name)
     const isTypeAlias = /^-ty(?:p(?:e)?)?$/i.test(name)
     if (!isItemType && !isTypeAlias) continue

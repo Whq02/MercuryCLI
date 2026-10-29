@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/tools/MemoryTools/UI.tsx
-// gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
-// gate-watch: scripts/streaming/artifactArena.ts scripts/lib/fixtureApi.ts
+
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'

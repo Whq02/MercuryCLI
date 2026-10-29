@@ -133,7 +133,6 @@ import {
   userFacingName,
 } from './UI.js'
 
-
 const ONE_GIB = 1024 * 1024 * 1024
 const HUNK_SPAN_ELISION = '\n...\n'
 
@@ -143,7 +142,6 @@ export type { Output }
 
 export const APPLIED_NO_REREAD_NOTE =
   'The change is applied and its lines count as read (a failed call would have errored); no Read is needed before the next edit.'
-
 
 function decodeFileBuffer(buffer: Buffer): { content: string; encoding: BufferEncoding; lossless: boolean } {
   const encoding: BufferEncoding =
@@ -182,6 +180,7 @@ async function staleAtValidation(
   if (isFullReadEntry(entry)) {
     return entry.content !== currentContent
   }
+
   try {
     const lineOffset = Math.max(0, (entry.offset ?? 1) - 1)
     const window = await readFileInRange(
@@ -193,6 +192,7 @@ async function staleAtValidation(
     )
     return window.content !== entry.content
   } catch {
+
     return true
   }
 }
@@ -726,7 +726,6 @@ function splitLeadingBom(content: string): { bom: string; body: string } {
     : { bom: '', body: content }
 }
 
-
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   strict: true,
@@ -760,6 +759,7 @@ Full usage notes arrive on discovery or first use.`
     return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
   },
   async checkPermissions(input: FileEditInput, context: ToolUseContext) {
+
     return checkWritePermissionForTool(
       {
         name: FILE_EDIT_TOOL_NAME,
@@ -876,6 +876,7 @@ Full usage notes arrive on discovery or first use.`
       }
     }
     if (usingHunks && !hasText(input.expected_anchor)) {
+
       const everyHunkAnchorQualified =
         lineAnchorsEnabled() &&
         (input.hunks ?? []).every(h => parseHashedLinesSpelling(h.lines) !== null)
@@ -968,6 +969,7 @@ Full usage notes arrive on discovery or first use.`
         fileExists = false
       }
     }
+
     if (fileExists && !decodeLossless) {
       return {
         result: false as const,
@@ -1317,7 +1319,9 @@ Full usage notes arrive on discovery or first use.`
       if (!plan.ok) {
         throw new Error(`${plan.message} Nothing was written.${plan.outcomes.length > 1 ? ` Outcomes: ${formatHunkOutcomes(plan.outcomes)}.` : ''}`)
       }
+
       updatedFile = bom + applyHunks(body, plan)
+
       if (
         lineAnchorsEnabled() &&
         (effectiveHunks as EditHunkInput[]).some(h => parseHashedLinesSpelling(h.lines) !== null)
@@ -1596,6 +1600,7 @@ Full usage notes arrive on discovery or first use.`
         tool_use_id: toolUseID,
         type: 'tool_result' as const,
         content: data.readThrough !== undefined ? `${text}\n\n${data.readThrough}` : text,
+
         ...(data.noChange.stop ? { is_error: true } : {}),
       }
     }

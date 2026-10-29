@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import type { Frame } from '../../src/ink/frame.js'
 import { FrameWriter } from '../../src/ink/frame-writer.js'
 import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
@@ -72,10 +73,13 @@ const steps: string[][] = []
     while (transcript.length < n) transcript.push(`line ${transcript.length}`)
     steps.push([...transcript])
   }
+
   const edited = [...transcript]
   edited[edited.length - 1] = 'line edited-tail'
   steps.push(edited)
+
   steps.push(edited.slice(0, 4).map((_, i) => `post-modal ${i}`))
+
   const regrow = steps[steps.length - 1]!.slice()
   for (let i = 0; i < 8; i++) regrow.push(`regrow ${i}`)
   steps.push(regrow)

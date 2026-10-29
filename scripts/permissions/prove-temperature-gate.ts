@@ -7,6 +7,7 @@ const check = (ok: boolean, label: string): void => {
 }
 
 const CASES: Array<[string, boolean, string]> = [
+
   ['claude-opus-4-8', false, 'opus 4.8 — the bench-calibration 400'],
   ['claude-opus-4-8[1m]', false, 'opus 4.8 with the 1m ctx suffix'],
   ['claude-opus-4-7', false, 'opus 4.7 — where sampling params were removed'],
@@ -15,6 +16,7 @@ const CASES: Array<[string, boolean, string]> = [
   ['claude-mythos-5', false, 'mythos 5'],
   ['claude-opus-5', false, 'hypothetical opus 5'],
   ['claude-opus-4-10', false, 'hypothetical opus 4.10 (minor ≥ 7)'],
+
   ['claude-opus-4-6', true, 'opus 4.6 keeps temperature'],
   ['claude-opus-4-5', true, 'opus 4.5'],
   ['claude-opus-4-5-20251101', true, 'opus 4.5 dated snapshot'],
@@ -25,6 +27,7 @@ const CASES: Array<[string, boolean, string]> = [
   ['claude-haiku-4-5-20251001', true, 'haiku 4.5 dated snapshot'],
   ['claude-3-5-sonnet-20241022', true, 'legacy 3.5 id shape (no family match)'],
   ['claude-3-haiku-20240307', true, 'legacy 3.0 id shape'],
+
   ['gpt-4', true, 'non-claude id passes through unchanged'],
   ['', true, 'empty string passes through'],
 ]

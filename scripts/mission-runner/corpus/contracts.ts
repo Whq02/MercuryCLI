@@ -1,4 +1,3 @@
-
 export const CORPUS_SCHEMA_VERSION = 1
 
 export const CORPUS_PREREQUISITES = ['git', 'node>=22', 'python3>=3.9'] as const
@@ -20,7 +19,9 @@ export const HELIX_FAMILIES = {
   14: 'replan-trap',
   15: 'no-change-investigation',
   16: 'collaboration',
+
   17: 'multi-file-change-set',
+
   18: 'topdown-action-game',
   19: 'cli-update-journey',
   20: 'cross-module-change',
@@ -59,30 +60,43 @@ export type BranchOverlay = Record<string, string | null>
 
 export interface HelixRepoSpec {
   id: HelixRepoId
+
   seed: 'apex-fixture' | 'inline'
+
   files?: FileMap
+
   branches?: Record<string, BranchOverlay>
 }
 
 interface HelixCheck {
+
   cmd: string[]
   expectExit: number
+
   timeoutSec?: number
 }
 
 interface HelixGraderSpec {
   checks: HelixCheck[]
+
   mustChange?: string[]
+
   onlyChange?: string[]
+
   mustNotChange?: string[]
+
   zeroDiff?: boolean
+
   requiredTokens?: string[]
+
   forbiddenPatterns?: string[]
 }
 
 export interface HelixSolutionVariant {
   name: string
+
   files?: FileMap
+
   answer?: string
 }
 
@@ -91,18 +105,26 @@ export interface HelixTask {
   family: HelixFamilyId
   title: string
   repo: HelixRepoId
+
   ref: { kind: 'branch'; value: string } | { kind: 'sha'; value: string }
   partition: HelixPartition
+
   brief: string
   timeCeilingSec: number
+
   humanEstimate?: { minutes: number; method: string }
   sourceClass: 'reconstructed-defect' | 'engineering-work' | 'investigation' | 'collaboration'
+
   variability: 'exact' | 'behavioral'
   grader: HelixGraderSpec
+
   reference: HelixSolutionVariant
+
   falsify: HelixSolutionVariant[]
   runner?: {
+
     switchPair?: 'first' | 'second'
+
     collaboration?: boolean
   }
 }
@@ -117,6 +139,7 @@ export interface HelixGradeVerdict {
   taskId: string
   accepted: boolean
   components: HelixGradeComponent[]
+
   changedPaths: string[]
   gradedAtMs: number
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -17,6 +18,7 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.WIF_RENDER_CHILD) {
@@ -30,6 +32,7 @@ if (process.env.WIF_RENDER_CHILD) {
   const { publishContextUsage } = await import(
     '../../src/utils/cockpit/contextUsageLive.js'
   )
+
   publishContextUsage(63, 200_000)
 
   const cols = Number(process.env.WIF_COLS || '120')
@@ -38,6 +41,7 @@ if (process.env.WIF_RENDER_CHILD) {
   void render(
     h(SpinnerAnimationRow, {
       mode: 'tool-use',
+
       reducedMotion: true,
       hasActiveTools: true,
       activeToolCount: 3,
@@ -62,6 +66,7 @@ if (process.env.WIF_RENDER_CHILD) {
   )
   setTimeout(() => process.exit(0), 1500)
 } else if (process.env.OTPS_RENDER_CHILD) {
+
   const React = await import('react')
   const { render } = (await import('../../src/ink.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
@@ -112,6 +117,7 @@ if (process.env.WIF_RENDER_CHILD) {
   setTimeout(() => process.exit(0), 5000)
 } else {
   const captureHome = mkdtempSync(join(CONFIG_HOME, 'spinner-render-'))
+
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
@@ -121,6 +127,7 @@ if (process.env.WIF_RENDER_CHILD) {
     console.error(`vshot.py not found at ${VSHOT} — the render-verify harness (scripts/ui/vshot.py) is required.`)
     process.exit(1)
   }
+
   const EMOJI = /[\u{1F000}-\u{1FAFF}\u{FE0F}]/u
 
   const capture = (cols: number): string => {
@@ -133,10 +140,12 @@ if (process.env.WIF_RENDER_CHILD) {
       rows: 8,
       out: join(captureHome, `wif-${cols}.json`),
     }))
+
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
       timeout: 30000,
       env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME, WIF_RENDER_CHILD: '1', WIF_COLS: String(cols) },
     })
   }
@@ -168,10 +177,12 @@ if (process.env.WIF_RENDER_CHILD) {
       rows: 8,
       out: join(captureHome, `otps-${cols}.json`),
     }))
+
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
       timeout: 30000,
       env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME, OTPS_RENDER_CHILD: '1', WIF_COLS: String(cols) },
     })
   }

@@ -1,4 +1,3 @@
-
 import { PROJECT_CONFIG_DIR_NAMES } from '../../utils/projectConfig.js'
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
@@ -6,20 +5,26 @@ import { homedir } from 'node:os'
 import { z } from 'zod/v4'
 import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
-
 export interface CoordinatorToolReceiptV1 {
   verb: string
   objectRef: string
+
   outcome: 'applied' | 'noop' | 'queued' | 'refused' | 'failed'
   detail?: string
+
   opId?: string
+
   feedEligible?: true
 }
 
 export interface CoordinatorTurnRuntime {
+
   by?: string
+
   onDelta?: (textSoFar: string) => void
+
   onReceipt?: (receipt: CoordinatorToolReceiptV1) => void
+
   crewDir?: string
 }
 
@@ -33,10 +38,11 @@ interface CoordinatorNeedsConfirmationV1 {
 }
 
 export interface CoordinatorToolResult {
+
   content: string
+
   receipts?: CoordinatorToolReceiptV1[]
 }
-
 
 type RpcReply = Record<string, unknown>
 export type CoordinatorRpc = (req: unknown, opts?: { timeoutMs?: number }) => Promise<RpcReply>
@@ -52,6 +58,7 @@ interface WorkerRecordView {
   endedAt?: number
   pausedAt?: number
   workflowsAllowed?: true
+
   attachedAt?: number
   isolation?: string
   branchName?: string
@@ -60,10 +67,13 @@ interface WorkerRecordView {
 }
 
 export interface CoordinatorToolContext {
+
   workspaceRoot: string
+
   by: string
   crewDir?: string
   rpc: CoordinatorRpc
+
   readWorkers: () => Promise<Record<string, WorkerRecordView>>
 }
 
@@ -84,6 +94,7 @@ export function createCoordinatorToolContext(init: {
         const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
         const reply = (await daemonControlRpc(req as never, opts)) as RpcReply
         if (reply.code !== 'ENOCONN') return reply
+
         const { ensureOwnedDaemon } = await import('../switchboard/ensureDaemon.js')
         if (!(await ensureOwnedDaemon())) return reply
         return (await daemonControlRpc(req as never, opts)) as RpcReply
@@ -91,6 +102,7 @@ export function createCoordinatorToolContext(init: {
     readWorkers:
       init.readWorkers ??
       (async () => {
+
         try {
           const sup = await import('../../daemon/concourseWorkers.js')
           return sup.readSessionWorkers() as unknown as Record<string, WorkerRecordView>
@@ -100,7 +112,6 @@ export function createCoordinatorToolContext(init: {
       }),
   }
 }
-
 
 function safeRealpath(p: string): string | null {
   try {
@@ -126,6 +137,7 @@ function nearestRealpath(p: string): string | null {
 
 function expandTildePath(p: string): string {
   if (p === '~') return homedir()
+
   if (/^~[\\/]/.test(p)) return join(homedir(), p.slice(2))
   return p
 }
@@ -142,6 +154,7 @@ export async function knownProjectDirs(): Promise<string[]> {
     }
   }
   try {
+
     const dispatch = await import('../../daemon/concourseDispatch.js')
     for (const rec of Object.values(dispatch.readConcourseDispatches())) addIfDir(rec.workspaceId)
     const sup = await import('../../daemon/concourseWorkers.js')
@@ -149,6 +162,7 @@ export async function knownProjectDirs(): Promise<string[]> {
   } catch {
   }
   try {
+
     const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]
     const roots = [
       homedir(),
@@ -198,6 +212,7 @@ async function resolveSpokenProjectPath(spoken: string, ground: string): Promise
     } catch {
     }
   }
+
   const base = spoken
     .trim()
     .toLowerCase()
@@ -219,7 +234,6 @@ export function resolveReadSandboxPath(workspaceRoot: string, requested: string)
   if (!inside(real, rootLex) && !inside(real, rootReal)) return null
   return absLex
 }
-
 
 const lostReply = (reply: RpcReply): boolean => reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN'
 
@@ -265,6 +279,7 @@ export function finishToolResult(
   } catch {
     parsed = null
   }
+
   if (parsed === null || parsed.ok !== false || parsed.needsConfirmation === true) return { ...out, isError: false }
   const failedReceipt = (out.receipts ?? []).find(r => r.outcome === 'failed')
   const refusedReceipt = (out.receipts ?? []).find(r => r.outcome === 'refused')
@@ -304,7 +319,6 @@ function launchEffortClause(
   }
   return { clause: `@ ${stamped} effort${tierWasAsked ? '' : ' (the default — no tier was asked)'}` }
 }
-
 
 export interface CoordinatorToolDef {
   name: string
@@ -354,14 +368,17 @@ async function launchUnderContract(
     title?: string
     model?: string
     effort?: string
+
     preset?: string
   },
   ctx: CoordinatorToolContext,
 ): Promise<CoordinatorToolResult> {
   const { randomUUID } = await import('../../utils/crypto.js')
+
   const clientMessageId = `coord-launch-${randomUUID()}`
   const titleWord = `"${(args.title ?? args.task.split('\n')[0] ?? args.task).slice(0, 80)}"`
   const receipts: CoordinatorToolReceiptV1[] = []
+
   let born: RpcReply
   try {
     born = await ctx.rpc(
@@ -373,6 +390,7 @@ async function launchUnderContract(
         ...(args.title !== undefined ? { title: args.title } : {}),
         ...(args.model !== undefined ? { model: args.model } : {}),
         ...(args.effort !== undefined ? { effort: args.effort } : {}),
+
         ...(args.preset !== undefined ? { kitPreset: args.preset } : {}),
       },
       { timeoutMs: DISPATCH_TIMEOUT_MS },
@@ -401,6 +419,7 @@ async function launchUnderContract(
       receipts,
     }
   }
+
   let setReply: RpcReply
   try {
     setReply = await ctx.rpc(
@@ -420,6 +439,7 @@ async function launchUnderContract(
       ? `${titleWord} — contract on the record before its first turn; the worker acknowledges in its own words`
       : `${setMiss} · the session is born and gets its task; set_contract retries once it has started`,
   })
+
   let delivered: RpcReply
   try {
     delivered = await ctx.rpc(
@@ -435,9 +455,11 @@ async function launchUnderContract(
   const branchName = str(born.branchName)
   const mainHolderTitle = str(born.mainHolderTitle)
   const launchedModel = str(born.modelDisplayName) ?? str(born.modelId)
+
   const kitSource = str(born.kitSource)
   const presetWorn = str(born.presetName)
   const presetNote = str(born.presetNote)
+
   const bornEffort = str(born.effort)
   let effortClause: string | undefined
   let effortRuns: string | undefined
@@ -448,6 +470,7 @@ async function launchUnderContract(
       modelForTruth !== undefined && isEffortLevel(bornEffort)
         ? resolveStampedEffortTruth(modelForTruth, bornEffort).label
         : undefined
+
     const built = launchEffortClause(bornEffort, truthLabel !== undefined && isEffortLevel(truthLabel) ? truthLabel : undefined, args.effort !== undefined)
     effortClause = built.clause
     effortRuns = built.runs
@@ -583,6 +606,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         }
         let task = str(p.task)?.trim()
         if (task === undefined || task.length === 0) return refusalResult('launch_session needs a task', 'say what the session should do')
+
         const sources = Array.isArray(p.sources) ? p.sources.filter((s): s is string => typeof s === 'string' && s.trim().length > 0) : []
         let sourcesNamed: Array<{ title: string; branch?: string }> = []
         if (sources.length > 0) {
@@ -602,6 +626,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
           task = `${task}\n\n${board.sourcesBriefBlock(resolved.named)}`
         }
         const project = str(p.project)
+
         const workspaceDir =
           project === undefined ? resolve(ctx.workspaceRoot) : await resolveSpokenProjectPath(project, ctx.workspaceRoot)
         if (workspaceDir === null) {
@@ -616,6 +641,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         } catch {
           return refusalResult(`no folder at ${workspaceDir}`, 'give the full path, like /Users/…')
         }
+
         const effortAsked = str(p.effort)?.trim()
         let effort: string | undefined
         if (effortAsked !== undefined && effortAsked.length > 0) {
@@ -628,6 +654,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
             )
           }
         }
+
         const contract = str(p.contract)?.trim()
         if (contract !== undefined && contract.length > 0) {
           return launchUnderContract(
@@ -646,6 +673,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
           )
         }
         const { randomUUID } = await import('../../utils/crypto.js')
+
         const clientMessageId = `coord-launch-${randomUUID()}`
         let reply: RpcReply
         try {
@@ -658,6 +686,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
               ...(str(p.title) !== undefined ? { title: str(p.title) } : {}),
               ...(str(p.model) !== undefined ? { model: str(p.model) } : {}),
               ...(effort !== undefined ? { effort } : {}),
+
               ...(str(p.preset) !== undefined ? { kitPreset: str(p.preset) } : {}),
               by: ctx.by,
             },
@@ -669,13 +698,17 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         const ok = reply.ok === true
         const state = str(reply.state)
         const sessionId = str(reply.sessionId)
+
         const branchName = str(reply.branchName)
         const mainHolderTitle = str(reply.mainHolderTitle)
         const heldReason = str(reply.heldReason)
+
         const launchedModel = str(reply.modelDisplayName) ?? str(reply.modelId)
+
         const kitSource = str(reply.kitSource)
         const presetWorn = str(reply.presetName)
         const presetNote = str(reply.presetNote)
+
         const launchedEffort = str(reply.effort)
         let effortClause: string | undefined
         let effortRuns: string | undefined
@@ -686,12 +719,14 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
             modelForTruth !== undefined && isEffortLevel(launchedEffort)
               ? resolveStampedEffortTruth(modelForTruth, launchedEffort).label
               : undefined
+
           const built = launchEffortClause(launchedEffort, truthLabel !== undefined && isEffortLevel(truthLabel) ? truthLabel : undefined, effort !== undefined)
           effortClause = built.clause
           effortRuns = built.runs
         }
         const appliedDetail = [
           `"${(str(p.title) ?? task.split('\n')[0] ?? task).slice(0, 80)}"`,
+
           launchedModel !== undefined ? `on ${launchedModel}` : undefined,
           effortClause,
           state !== undefined ? state : undefined,
@@ -703,6 +738,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         ]
           .filter((s): s is string => s !== undefined)
           .join(' · ')
+
         const heldOpen = !ok && state === 'queued' && str(reply.heldReason) !== undefined
         const heldTitle = (str(p.title) ?? task.split('\n')[0] ?? task).slice(0, 80)
         const receipts: CoordinatorToolReceiptV1[] = [
@@ -720,6 +756,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         ]
         let workflowsGrant: { outcome: string; detail?: string } | undefined
         if (ok && p.workflows === true && sessionId !== undefined) {
+
           const tag = await grantWorkflowsTag(sessionId, ctx)
           workflowsGrant = tag.grant
           receipts.push(tag.receipt)
@@ -784,6 +821,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
           reply = { ok: false, code: 'ENOCONN', error: e instanceof Error ? e.message : String(e) }
         }
         const ok = reply.ok === true
+
         const heldReason = str(reply.heldReason)
         const held = !ok && heldReason !== undefined
         return {
@@ -849,6 +887,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         const rec = await liveRecordBySession(ctx, sessionId)
         if (rec === undefined) return refusalResult(`no live session ${sessionId} is on the board`, 'check the board — a finished or removed session has nothing left to stop')
         if (rec.workflowsAllowed === true && p.operatorConfirmed !== true) {
+
           const ask: CoordinatorNeedsConfirmationV1 = {
             ok: false,
             needsConfirmation: true,
@@ -871,6 +910,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         }
         let reply: RpcReply
         try {
+
           reply = await ctx.rpc(
             { op: 'sessionControl', action: 'stop', sessionId, by: ctx.by },
             { timeoutMs: CONTROL_TIMEOUT_MS },
@@ -978,6 +1018,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         const p = (input ?? {}) as { sessionId?: unknown; requestId?: unknown; allow?: unknown }
         const sessionId = str(p.sessionId)
         const rawRequestId = str(p.requestId)
+
         const requestId = rawRequestId !== undefined && rawRequestId.startsWith('permission:') ? rawRequestId.slice('permission:'.length) : rawRequestId
         if (sessionId === undefined || requestId === undefined || requestId.length === 0 || typeof p.allow !== 'boolean')
           return refusalResult('answer_permission needs sessionId, requestId and allow', 'take the sessionId and the permission:<requestId> ref from the board’s open questions')
@@ -991,6 +1032,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
           reply = { ok: false, code: 'ENOCONN', error: e instanceof Error ? e.message : String(e) }
         }
         if (reply.ok !== true && !lostReply(reply)) {
+
           try {
             const o = await import('../crew/obligations.js')
             const row = await o.obligationOf(requestId, { scope: 'switchboard', ...(ctx.crewDir !== undefined ? { dir: ctx.crewDir } : {}) })
@@ -1104,6 +1146,7 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
         try {
           const { ripGrepAnswer } = await import('../../utils/ripgrep.js')
           const args = ['-n', '--no-heading', '-m', '50', ...(str(p.glob) !== undefined ? ['-g', str(p.glob) as string] : []), '-e', pattern]
+
           const answer = await ripGrepAnswer(args, target, AbortSignal.timeout(10_000))
           const lines = answer.lines
           const capped = lines.slice(0, 200).map(l => (l.length > 400 ? `${l.slice(0, 400)}…` : l))
@@ -1144,7 +1187,6 @@ export function coordinatorToolSet(): CoordinatorToolDef[] {
     },
   ]
 }
-
 
 async function controlVerb(
   input: unknown,
@@ -1226,7 +1268,6 @@ async function workflowsVerb(
     ],
   }
 }
-
 
 const permissiveToolInput = z.looseObject({})
 export function toolApiDeclarations(defs: readonly CoordinatorToolDef[]): Array<{

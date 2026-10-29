@@ -44,7 +44,6 @@ for (const p of agentSources) {
   )
 }
 
-
 if (failures > 0) {
   console.error(`\n${failures} regression check(s) FAILED`)
   process.exit(1)

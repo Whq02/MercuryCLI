@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -119,6 +120,7 @@ function makeRig(): Rig {
     patchConsole: false,
   })
   instances.set(stdout as never, ink)
+
   const settle = async (): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 130))
   }
@@ -135,10 +137,12 @@ const ESC = '\u001b'
 const BSU = `${ESC}[?2026h`
 const ENTER_ALT = `${ESC}[?1049h`
 const EXIT_ALT = `${ESC}[?1049l`
+
 function stripEsc(w: string): string {
   // eslint-disable-next-line no-control-regex
   return w.replace(/\u001b(?:\[[0-9;?<>=]*[a-zA-Z@`]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()][0-9A-B])/g, '')
 }
+
 function isFrameWrite(w: string): boolean {
   return stripEsc(w).trim().length > 0 || /\u001b\[\d+;\d+H/.test(w) || w === `${ESC}[H` || w.includes(BSU)
 }
@@ -179,6 +183,7 @@ console.log('native-core T6 — renderer-root lifecycle contract')
       React.createElement(Text, null, 'boot line two'),
     ),
   )
+
   await new Promise(resolve => setTimeout(resolve, 20))
   const windowClosesAt = rig.bornAt + BOOT_COALESCE_MS
   const windowFrames = rig.stdout.writes.slice(marker).filter((w, i) => isFrameWrite(w) && rig.stdout.writeAt[marker + i]! < windowClosesAt)
@@ -186,6 +191,7 @@ console.log('native-core T6 — renderer-root lifecycle contract')
   await rig.settle()
   const bootWrites = rig.stdout.writes.slice(marker).filter(isFrameWrite)
   check('coalesce: boot settles to exactly one frame write', bootWrites.length === 1, String(bootWrites.length))
+
   const bootGrid = gridText(rig.stdout.bytes)
   check('commit: the frame carries the content', bootGrid.includes('boot line one') && bootGrid.includes('boot line two'),
     JSON.stringify(bootGrid.split('\n').slice(0, 3)))
@@ -260,6 +266,7 @@ process.exit(0)
   }
   check('teardown: child journey completed', out.includes('<<<T4>>>'), child.stderr.toString().slice(0, 200))
   const suite = seg('<<<T1>>>', '<<<T2>>>')
+
   const at = (needle: string): number => suite.indexOf(needle)
   const mouseOff = at(`${ESC}[?1000l`)
   const scrollOff = at(`${ESC}[?1007l`)
@@ -278,6 +285,7 @@ process.exit(0)
   check('teardown: no EXIT_ALT on a main-screen session', !suite.includes(`${ESC}[?1049l`))
   check('teardown: second unmount is byte-silent on fd 1', seg('<<<T2>>>', '<<<T3>>>') === '')
   const streamWrites = JSON.parse(seg('<<<T3>>>', '<<<T4>>>') || '[]') as string[]
+
   check('teardown: final content reached the stream before teardown',
     gridText(streamWrites.join('')).includes('teardown content'))
   check('teardown: mode suite absent from the stream (fd-1 seam, characterized)',
@@ -359,10 +367,12 @@ process.exit(0)
     React.createElement(AlternateScreen, { mouseTracking: true }, React.createElement(Text, null, 'resize me')),
   )
   await rig.settle()
+
   const mSame = rig.stdout.markerAt()
   rig.stdout.emit('resize')
   await rig.settle()
   check('resize: same-dims resize is byte-silent', rig.stdout.since(mSame) === '', JSON.stringify(rig.stdout.since(mSame).slice(0, 60)))
+
   const NEW_ROWS = 24
   const mReal = rig.stdout.markerAt()
   rig.stdout.columns = 100
@@ -373,6 +383,7 @@ process.exit(0)
   check('resize: a storm WINCH paints a clip-hold, not a clear',
     stormWrites.some(isFrameWrite) && !stormWrites.some(w => w.includes(`${ESC}[2J`)),
     JSON.stringify(stormWrites.map(w => w.slice(0, 24))))
+
   rig.stdout.columns = 90
   rig.stdout.rows = NEW_ROWS
   rig.stdout.emit('resize')
@@ -451,6 +462,7 @@ process.exit(0)
   const epochFrames = rig.stdout.writes.slice(marker).filter(isFrameWrite)
   check('pool-epoch: a pool reset between identical frames is byte-silent', epochFrames.length === 0,
     JSON.stringify(epochFrames.map(f => f.slice(0, 40))))
+
   rig.ink.render(
     React.createElement(
       Box,
@@ -473,6 +485,7 @@ process.exit(0)
   const line = (label: string): React.ReactElement => React.createElement(Text, null, label)
   rig.ink.render(line('pause content A'))
   await rig.settle()
+
   const mPause = rig.stdout.markerAt()
   rig.ink.render(line('pause content B'))
   rig.ink.pause()
@@ -480,10 +493,12 @@ process.exit(0)
   const pauseFrames = rig.stdout.writes.slice(mPause).filter(isFrameWrite)
   check('pause: flushes pending commits and paints exactly once', pauseFrames.length === 1, String(pauseFrames.length))
   check('pause: the flushed frame carries the pending commit', gridText(rig.stdout.bytes).includes('pause content B'))
+
   const mHeld = rig.stdout.markerAt()
   rig.ink.render(line('pause content C'))
   await rig.settle()
   check('pause: byte-silent while paused', rig.stdout.since(mHeld) === '', JSON.stringify(rig.stdout.since(mHeld).slice(0, 40)))
+
   const mResume = rig.stdout.markerAt()
   rig.ink.resume()
   await rig.settle()
@@ -534,12 +549,14 @@ process.exit(0)
     const ref = useDeclaredCursor({ line: 0, column, active })
     return React.createElement(Box, { ref: ref as never, flexDirection: 'column' }, React.createElement(Text, null, label))
   }
+
   rig.ink.render(React.createElement(CursorProbe, { column: 3, active: true, label: 'cursor probe' }))
   await rig.settle()
   const emu1 = new AnsiEmulator(COLS, ROWS, false)
   emu1.feed(rig.stdout.bytes)
   check('commit: the first frame honors the layout-phase cursor declaration',
     emu1.cursorX === 3 && emu1.cursorY === 0, JSON.stringify({ x: emu1.cursorX, y: emu1.cursorY }))
+
   rig.ink.render(React.createElement(CursorProbe, { column: 7, active: true, label: 'cursor probe' }))
   await rig.settle()
   const emu2 = new AnsiEmulator(COLS, ROWS, false)
@@ -547,17 +564,20 @@ process.exit(0)
   check('display-cursor: a declaration move lands with unchanged content',
     emu2.cursorX === 7 && emu2.cursorY === 0, JSON.stringify({ x: emu2.cursorX, y: emu2.cursorY }))
   check('display-cursor: the move never repaints content', gridText(rig.stdout.bytes).includes('cursor probe'))
+
   const mIdle = rig.stdout.markerAt()
   rig.ink.render(React.createElement(CursorProbe, { column: 7, active: true, label: 'cursor probe' }))
   await rig.settle()
   check('display-cursor: unchanged declaration + content is byte-silent', rig.stdout.since(mIdle) === '',
     JSON.stringify(rig.stdout.since(mIdle).slice(0, 40)))
+
   rig.ink.render(React.createElement(CursorProbe, { column: 7, active: false, label: 'cursor probe' }))
   await rig.settle()
   const emu3 = new AnsiEmulator(COLS, ROWS, false)
   emu3.feed(rig.stdout.bytes)
   check('display-cursor: clearing the declaration re-parks at frame.cursor',
     !(emu3.cursorX === 7 && emu3.cursorY === 0), JSON.stringify({ x: emu3.cursorX, y: emu3.cursorY }))
+
   rig.ink.render(React.createElement(CursorProbe, { column: 2, active: true, label: 'cursor moved on' }))
   await rig.settle()
   const grid = gridText(rig.stdout.bytes)
@@ -569,15 +589,18 @@ process.exit(0)
 }
 
 {
+
   const bad = makeRig()
   bad.ink.render(React.createElement(Text, null, React.createElement(Box, null)))
   await bad.settle()
+
   check('host-config: a <Box>-inside-<Text> violation paints the boundary ERROR frame',
     stripEsc(bad.stdout.bytes).includes('ERROR'),
     JSON.stringify(stripEsc(bad.stdout.bytes).slice(0, 80)))
   instances.delete(bad.stdout as never)
 
   const rig = makeRig()
+
   rig.ink.render(
     React.createElement(Text, null, 'outer ', React.createElement(Text, { bold: true }, 'inner')),
   )
@@ -599,6 +622,7 @@ process.exit(0)
   await rig.settle()
   check('host-config: identical-values fresh style + handler identity ⇒ zero bytes', rig.stdout.since(mClean) === '',
     JSON.stringify(rig.stdout.since(mClean).slice(0, 40)))
+
   check('dom-dirty: the no-op pass measures zero text leaves',
     getCellLayoutCounters().measured === 0, String(getCellLayoutCounters().measured))
 
@@ -692,7 +716,6 @@ process.exit(0)
   __fluxProbeResetForTest()
 }
 
-
 {
   type Timer = { at: number; fn: () => void; id: number }
   const makeClock = (): { clock: SchedulerClock; advance: (ms: number) => void; flush: () => void; skipTo: (ms: number) => void } => {
@@ -730,6 +753,7 @@ process.exit(0)
       now = target
       flush()
     }
+
     const skipTo = (ms: number): void => {
       now = ms
     }
@@ -750,6 +774,7 @@ process.exit(0)
     advance(60)
     check('lattice: boot settles to exactly one paint', paints === 1, String(paints))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -774,6 +799,7 @@ process.exit(0)
     const burst = paints - before
     check('lattice: an 80ms/4ms burst paints once per interval', burst >= 5 && burst <= 6, String(burst))
   }
+
   {
     const { clock, advance } = makeClock()
     let paints = 0
@@ -790,6 +816,7 @@ process.exit(0)
     advance(20)
     check('lattice: render entry cancels a pending drain', paints === 1, String(paints))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -806,6 +833,7 @@ process.exit(0)
     advance(100)
     check('lattice: cancel drops trailing + drain edges', paints === 1, String(paints))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -855,6 +883,7 @@ process.exit(0)
     advance(100)
     check('settle: cancel clears the hold and its pending frame', paints === 0, String(paints))
   }
+
   {
     const { clock, advance, flush, skipTo } = makeClock()
     let paints = 0
@@ -871,6 +900,7 @@ process.exit(0)
     check('lattice: an elapsed-window leading absorbs the due trailing timer',
       afterLeading === 2 && paints === 2, JSON.stringify({ afterLeading, paints }))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -887,6 +917,7 @@ process.exit(0)
     advance(8)
     check('lattice: the deferred request lands at the stale boundary', paints === 2, String(paints))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -899,6 +930,7 @@ process.exit(0)
     flush()
     check('lattice: a drain paint opens no throttle window (deliberate)', paints === 2, String(paints))
   }
+
   {
     const { clock, advance, flush } = makeClock()
     let paints = 0
@@ -932,6 +964,7 @@ process.exit(0)
   check('ledger-unit: a deliberate reset syncs the generations', led.frontSeq() === led.deliveredGeneration())
   led.contaminate('stderr-leak')
   check('ledger-unit: external contamination lands', led.contaminationReason() === 'stderr-leak')
+
   const same = new FrameLedger()
   same.commitFrame()
   same.settle(true, null)
@@ -964,9 +997,11 @@ process.exit(0)
   const alt2 = planCursor({ ...base, altScreen: true, needsErase: true })
   check('cursor-plan: the erase arm folds into the sandwich and is consumed',
     bytes(alt2.prelude) === `${ESC}[2J${ESC}[H` && alt2.consumedErase)
+
   const alt3 = planCursor({ ...base, altScreen: true, target: { x: 50, y: 20 } })
   check('cursor-plan: alt declared CUP lands after the park, clamped',
     bytes(alt3.postlude) === `${ESC}[10;1H|${ESC}[10;40H` && alt3.nextParked?.x === 50)
+
   const alt4 = planCursor({ ...base, altScreen: true, hasDiff: false, target: { x: 2, y: 3 } })
   check('cursor-plan: alt empty diff emits no sandwich, only the declared CUP',
     alt4.prelude.length === 0 && bytes(alt4.postlude) === `${ESC}[4;3H`)
@@ -975,15 +1010,19 @@ process.exit(0)
   check('cursor-plan: main preamble restores the writer anchor',
     m1.prelude.length === 1 && m1.postlude.length === 1 && m1.nextParked?.x === 5,
     JSON.stringify({ pre: bytes(m1.prelude), post: bytes(m1.postlude) }))
+
   const m2 = planCursor({ ...base, altScreen: false, hasDiff: false, parked: { x: 5, y: 2 }, target: { x: 5, y: 2 } })
   check('cursor-plan: unchanged park on an empty diff is byte-free',
     m2.prelude.length === 0 && m2.postlude.length === 0 && m2.nextParked === m2.nextParked && m2.nextParked?.x === 5)
+
   const m3 = planCursor({ ...base, altScreen: false, hasDiff: false, parked: { x: 5, y: 2 } })
   check('cursor-plan: cleared declaration restores frameCursor and forgets the park',
     m3.postlude.length === 1 && m3.nextParked === null, bytes(m3.postlude))
+
   const m4 = planCursor({ ...base, altScreen: false, hasDiff: false, parked: { x: 5, y: 2 }, target: { x: 7, y: 2 } })
   check('cursor-plan: a no-diff park move computes from the old park',
     m4.prelude.length === 0 && m4.postlude.length === 1 && m4.nextParked?.x === 7, bytes(m4.postlude))
+
   const m5 = planCursor({ ...base, altScreen: false, target: { x: 0, y: 4 } })
   check('cursor-plan: a zero-delta move emits nothing', m5.postlude.length === 0 && m5.nextParked?.y === 4)
 }
@@ -998,6 +1037,7 @@ process.exit(0)
     resetPointer: () => events.push('<pointer>'),
   })
   const idx = (needle: string): number => events.findIndex(e => e.includes(needle))
+
   check('teardown-seq: sync-update close first', events[0] === `${ESC}[?2026l`)
   check('teardown-seq: alt exit right after the close', events[1] === `${ESC}[?1049l`)
   check('teardown-seq: mouse → pointer → scroll → drain → MOK → kitty → DFE → DBP → cursor → progress',
@@ -1024,6 +1064,7 @@ process.exit(0)
 
 {
   const KITTY_OFF = `${ESC}[<u`
+
   const KITTY_ON = `${ESC}[>5u`
   const MOK_ON = `${ESC}[>4;2m`
   const MOK_OFF = `${ESC}[>4m`
@@ -1065,6 +1106,7 @@ process.exit(0)
   check('session: raw-mode disarm = MOK → kitty → focus → paste',
     rawModeDisarmBytes() === `${MOK_OFF}${KITTY_OFF}${ESC}[?1004l${ESC}[?2004l`,
     JSON.stringify(rawModeDisarmBytes()))
+
   check('session: reassert (main, ext) is extended-keys + the paste/focus heal',
     reassertModesBytes({ extendedKeys: true, altActive: false, mouseTracking: true })
       === `${KITTY_OFF}${KITTY_ON}${MOK_ON}${ESC}[?2004h${ESC}[?1004h`,
@@ -1092,6 +1134,7 @@ process.exit(0)
   let storms = 0
   const sys: DeliverySyscalls = {
     writeSync: (_fd, data) => {
+
       if (storms++ % 3 !== 2) {
         const e = new Error('EAGAIN') as NodeJS.ErrnoException
         e.code = 'EAGAIN'
@@ -1133,6 +1176,7 @@ process.exit(0)
     let cleared = false
     applyOverlayPass({
       altScreen: false,
+
       scrollTranslation: { delta: 2, viewportTop: VT, viewportBottom: VB },
       selection: sel,
       captureScreen: mk(),
@@ -1160,4 +1204,5 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log(`\nnative-core root contract: green (${checks} checks)`)
+
 process.exit(0)

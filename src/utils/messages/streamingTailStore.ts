@@ -1,4 +1,3 @@
-
 import type { TextPhase } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
@@ -6,23 +5,37 @@ import { registerFlushProbe } from '../../ink/root/flush-registry.js'
 const TAIL_INTERVAL_MS = 32
 
 export type StreamingTailStore = {
+
   update(f: (current: string | null) => string | null): void
+
   read(): string | null
+
   reset(value: string | null): void
+
   readSettled(): string | null
+
   readSettledSinceMs(): number | null
+
   dropSettled(): void
+
   setMessageId(id: string | null): void
+
   readIds(): { current: string | null; settled: string | null }
+
   setPhase(phase: TextPhase | null): void
+
   readPhases(): { current: TextPhase | null; settled: TextPhase | null }
+
   subscribe(cb: () => void): () => void
+
   getSnapshot(): string | null
+
   dispose(): void
 }
 
 type StreamingTailStoreOpts = {
   intervalMs?: number
+
   setTimer?: (fn: () => void, ms: number) => unknown
   clearTimer?: (handle: unknown) => void
   now?: () => number
@@ -41,6 +54,7 @@ export function createStreamingTailStore(
   let published: string | null = null
   let settled: string | null = null
   let settledAt: number | null = null
+
   let pendingId: string | null = null
   let currentId: string | null = null
   let settledId: string | null = null
@@ -51,6 +65,7 @@ export function createStreamingTailStore(
   let lastPublishAt = -Infinity
   let disposed = false
   const listeners = new Set<() => void>()
+
   const unregisterProbe = registerFlushProbe({
     name: 'streaming-tail',
     pending: () => (timer !== null ? 1 : 0),
@@ -96,6 +111,7 @@ export function createStreamingTailStore(
       const wasNull = fresh === null
       transition(next)
       if (disposed) return
+
       if (next === null || wasNull) {
         publishNow()
         return

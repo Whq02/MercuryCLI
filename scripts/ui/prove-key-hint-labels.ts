@@ -57,6 +57,7 @@ t.section('§2 — the off-mac words (the registry vocabulary, one spelling per 
 
 t.section('§3 — totality over the LIVE manifest rows + the vocabulary')
 {
+
   const rows: string[] = [
     ...manifest.COORDINATOR_SURFACE_KEYS.map(k => k.keys),
     manifest.CONCOURSE_HELP_KEY.keys,
@@ -83,6 +84,7 @@ t.section('§4 — host-neutral vocabulary passes untouched everywhere')
 
 t.section('§5 — the seams are WIRED product-wide (every painted glyph hint routes through the fold)')
 {
+
   const ALLOW: ReadonlyArray<{ file: string; mark: string }> = [
     { file: 'mercury-ui/glyphs.ts', mark: 'branch:' },
     { file: 'ConcourseLayout.tsx', mark: "keys === '⌃g'" },
@@ -100,6 +102,7 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
   const offenders: string[] = []
   for (const p of files.sort()) {
     const body = await Bun.file(p).text()
+
     let inBlock = false
     const lines = body.split('\n')
     for (let i = 0; i < lines.length; i++) {
@@ -128,6 +131,7 @@ t.section('§5 — the seams are WIRED product-wide (every painted glyph hint ro
         inBlock = true
       }
       if (!MAC_MODIFIER_GLYPHS.some(g => code.includes(g))) continue
+
       const window = lines.slice(Math.max(0, i - 2), i + 1).join('\n')
       if (window.includes('keyHintLabel(')) continue
       if (ALLOW.some(a => p.endsWith(a.file) && code.includes(a.mark))) continue

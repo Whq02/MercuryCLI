@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -43,6 +44,7 @@ const feed = (lines: Array<Record<string, unknown>>): void => {
 const ev = (messageId: string, event: Record<string, unknown>): void => feed(partialRowsOf(scope, messageId, event as never) as never)
 const tail = () => readSessionTail(sid, dir)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+
 const cadence = (): Promise<void> => sleep(400)
 const USAGE = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
 

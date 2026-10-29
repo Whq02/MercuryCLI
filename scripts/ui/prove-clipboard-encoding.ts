@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SET_CLIPBOARD_SCRIPT, windowsClipInput, windowsPowershellEnv, windowsPowershellInput } from '../../src/ink/termio/osc.js'

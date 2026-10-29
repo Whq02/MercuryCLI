@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/handlers/usage.ts src/main.tsx src/components/Settings/usageLine.ts src/services/providers/providerUsage.ts src/services/providers/usageFreshness.ts scripts/providers/lib/usage-plan-world.ts
+
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -157,6 +158,7 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
 
   const irow = readFileSync(join(root, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf8')
   check('the dead activation-explanation promise is DEAD', !list.includes('setNote(reasonUnavailable'))
+
   check('select()/moveTo heal past unavailable rows (skipDisabled)', /const select = [\s\S]{0,600}skipDisabled\(liveIndexRef\.current, idx/.test(list))
   check('rowProps carries the visible WHY', list.includes('reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined'))
   check('InteractiveRow paints the WHY dim + inline', irow.includes('unavailable && reasonUnavailable') && irow.includes('` — ${reasonUnavailable}`'))

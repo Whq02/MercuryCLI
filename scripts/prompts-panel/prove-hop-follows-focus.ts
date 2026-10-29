@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -43,6 +44,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work, work2])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+
 const api = await startFixtureApi([
   { kind: 'text', text: 'alpha-01 settled body.' },
   { kind: 'text', text: 'beta-01 settled body.' },
@@ -88,6 +90,7 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 const ALPHA_PROMPT = 'stream the alpha chain'
 const BETA_PROMPT = 'settle the beta turn'
+
 let alphaSession = ''
 let betaSession = ''
 
@@ -95,6 +98,7 @@ try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [],
+
     sends: [
       'after:Beta probe:2500:\t',
       'after:Beta probe:3300:\r',
@@ -114,6 +118,7 @@ try {
     rows: ROWS,
     keep: true,
     seedHome: async (configDir, cwd) => {
+
       seedFirstRun(configDir, [cwd])
       const { execFileSync } = await import('node:child_process')
       const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'arena', GIT_AUTHOR_EMAIL: 'arena@invalid', GIT_COMMITTER_NAME: 'arena', GIT_COMMITTER_EMAIL: 'arena@invalid' }
@@ -168,6 +173,7 @@ try {
     const offsets = [4000, 6000, 8000, 9000, 10500, 12000, 14500, 16000, 18000, 21500, 22500, 24500, 26000].map(m => S(m))
     const grabs = grabScreens(run, COLS, ROWS, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
+
     for (const g of grabs) writeFileSync(join(CAPTURE_DIR, `L2-hop-frame-${g.atMs}ms-${COLS}x${ROWS}.txt`), text(g) + '\n')
     const kind = (g: { rows: string[] }): string => {
       const t = text(g)

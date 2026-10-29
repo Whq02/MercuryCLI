@@ -20,11 +20,13 @@ type Props = {
   fixedWidth?: boolean
   gap?: number
   paddingX?: number
+
   availableColumns?: number
 }
 
 export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const { dimColor, fixedWidth, gap, paddingX, availableColumns } = props
+
   const cockpitActive = React.useContext(CockpitActiveContext)
 
   const transcriptShortcut = formatShortcut(
@@ -57,6 +59,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const imagePasteShortcut = formatShortcut(
     useShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v'),
   )
+
   const paletteShortcut = formatShortcut(
     useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+x p'),
   )
@@ -66,9 +69,11 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const contentSearchShortcut = formatShortcut(
     useShortcutDisplay('app:contentSearch', 'Global', 'ctrl+x g'),
   )
+
   const sessionsShortcut = formatShortcut(
     useShortcutDisplay('command:sessions', 'Global', 'ctrl+x s'),
   )
+
   const { columns, rows: termRows } = useTerminalSize()
   const availCols = (availableColumns ?? columns) - 2 * (paddingX ?? 0)
 
@@ -88,11 +93,13 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   ]
   const groupChat: HelpRow[] = [
     { key: 'esc', text: 'double tap esc to clear input' },
+
     { key: 'mode', text: `${cycleModeShortcut} for implement mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
     { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
     { key: 'nl', text: getNewlineInstructions() },
   ]
+
   const stripRow = stripKeyMapHint()
   const groupGlobal: HelpRow[] = [
     ...(stripRow !== '' ? [{ key: 'strip', text: stripRow }] : []),

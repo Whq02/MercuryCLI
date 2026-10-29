@@ -1,4 +1,3 @@
-
 import chalk from 'chalk'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
@@ -153,6 +152,7 @@ const NAMED_PAINTERS: Record<string, Painter> = {
 }
 
 const ANSI256_RE = /^ansi256\((\d+)\)$/
+
 const RGB_RE = /^rgb\( ?(\d+), ?(\d+), ?(\d+) ?\)$/
 
 export function colorize(

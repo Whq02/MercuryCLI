@@ -1,4 +1,3 @@
-
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -40,7 +39,6 @@ const ELAPSED_TICK_MS = 960
 const START_STAMP_BOUND = 256
 const INLINE_SUMMARY_MAX_CELLS = 32
 
-
 const toolStartStamps = new Map<string, number>()
 
 function seedStamp(id: string, at: number): void {
@@ -64,15 +62,18 @@ export function RunningToolElapsed({
   running: boolean
   startedAtMs?: number | null
 }): React.ReactNode {
+
   const reducedMotion =
     useAppStateMaybeOutsideOfProvider(
       state => state.settings.view?.reducedMotion,
     ) ?? false
   const focused = useTerminalFocus()
   const ticking = running && focused && !reducedMotion
+
   useNowTick(ticking ? ELAPSED_TICK_MS : null)
 
   if (!running) {
+
     toolStartStamps.delete(id)
     return null
   }
@@ -83,6 +84,7 @@ export function RunningToolElapsed({
   const startedAt = toolStartStamps.get(id) ?? Date.now()
   const elapsedMs = Math.max(0, Date.now() - startedAt)
   if (elapsedMs < ELAPSED_VISIBLE_MS) return null
+
   return <Text dimColor> · {Math.floor(elapsedMs / 1000)}s</Text>
 }
 
@@ -111,7 +113,6 @@ export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactN
   )
 }
 
-
 function editMetaCounts(
   rawResult: unknown,
 ): { added: number; removed: number } | null {
@@ -129,7 +130,6 @@ function editMetaCounts(
   if (added === 0 && removed === 0) return null
   return { added, removed }
 }
-
 
 export function AssistantToolUseMessage({
   param,
@@ -160,13 +160,16 @@ export function AssistantToolUseMessage({
   startedAtMs?: number | null
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
+
   const selectedBg = useSelectedMessageBg()
+
   useFluxMountMark(`tool-row:${param.id}`)
 
   if (!tools || tools.length === 0) {
     logError(new Error('AssistantToolUseMessage rendered with no tools'))
     return null
   }
+
   const tool = findToolForRender(tools, param.name)
 
   const resolved = lookups.resolvedToolUseIDs.has(param.id)
@@ -177,6 +180,7 @@ export function AssistantToolUseMessage({
   const running = inProgress && !resolved
 
   const userFacingName = safeUserFacingName(tool, param.input, param.name)
+
   if (userFacingName === '') return null
 
   if (tool.isTransparentWrapper?.()) {
@@ -215,6 +219,7 @@ export function AssistantToolUseMessage({
     resolved && !errored && !verbose && !isTranscriptMode && rawResult !== undefined
       ? summarizeToolResult(param.name, rawResult)
       : null
+
   const ROW_HEAD_FLOOR = 2 + NAME_MIN_COLUMNS + 20 + 4
   const tailFits = (tailCells: number): boolean => columns >= ROW_HEAD_FLOOR + tailCells
   const summaryInline =
@@ -261,12 +266,14 @@ export function AssistantToolUseMessage({
           columns,
           rows,
           inProgressToolCallCount,
+
           toolUseID: param.id,
         }) ?? null
     } catch (error) {
       logError(error)
       body = null
     }
+
     const totalBody = React.Children.toArray(body).map((child, position) =>
       React.isValidElement(child) ? (
         child
@@ -322,6 +329,7 @@ export function AssistantToolUseMessage({
         <Text wrap="truncate-middle">
           <ToolRowLead family={family} state={leadState} />
           {nameBackground ? (
+
             <Text backgroundColor={nameBackground} color="inverseText" bold>
               {userFacingName}
             </Text>
@@ -340,6 +348,7 @@ export function AssistantToolUseMessage({
           ) : null}
           <RunningToolElapsed id={param.id} running={running && shouldAnimate} startedAtMs={startedAtMs} />
           {editMeta ? (
+
             <Text>
               {' '}
               <Text color="subtle">· </Text>

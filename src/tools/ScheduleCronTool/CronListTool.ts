@@ -13,7 +13,6 @@ import {
 } from './prompt.js'
 import { renderListResultMessage, renderListToolUseMessage } from './UI.js'
 
-
 const inputSchema = lazySchema(() => z.strictObject({}))
 type InputSchema = ReturnType<typeof inputSchema>
 

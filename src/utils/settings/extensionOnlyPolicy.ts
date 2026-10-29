@@ -1,7 +1,6 @@
 import { CUSTOMIZATION_SURFACES } from './types.js'
 import { getSettingsForSource } from './settings.js'
 
-
 type CustomizationSurface = (typeof CUSTOMIZATION_SURFACES)[number]
 
 export function isRestrictedToExtensionsOnly(surface: CustomizationSurface): boolean {

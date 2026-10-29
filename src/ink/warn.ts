@@ -9,6 +9,7 @@ export function ifNotInteger(value: number | undefined, name: string): void {
 }
 
 const onceSeen = new Set<string>()
+
 export function once(message: string): void {
   if (onceSeen.has(message)) return
   onceSeen.add(message)

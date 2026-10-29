@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -18,6 +19,7 @@ for (const key of Object.keys(process.env)) {
   }
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-census-'))
+
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const CENSUS_PORT = 0
@@ -145,6 +147,7 @@ const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFix
 const census = await startFoldFamiliesFixture({ port: CENSUS_PORT })
 const shared = await startCrossfamilyFixture({ port: SHARED_PORT })
 Object.assign(process.env, census.env, shared.env)
+
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
 await refreshLocalDiscovery({ force: true })
 

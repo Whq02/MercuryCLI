@@ -1,8 +1,8 @@
-
 type ChordDeliveryStatus = 'deliverable' | 'aliases-to' | 'unverified'
 
 export interface ChordDelivery {
   status: ChordDeliveryStatus
+
   sibling?: string
   reason: string
 }

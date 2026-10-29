@@ -8,10 +8,10 @@ import { render, useApp } from '../ink.js'
 import { chromeModeLive } from '../hooks/useLayoutTier.js'
 import { railPlan } from './helmGeometry.js'
 
-
 function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
   const { exit } = useApp()
   useLayoutEffect(() => {
+
     let inner: ReturnType<typeof setTimeout> | undefined
     const outer = setTimeout(() => {
       inner = setTimeout(() => exit(), 0)
@@ -34,12 +34,15 @@ export function staticPrintColumns(): number {
 }
 
 export async function renderToAnsiString(node: React.ReactNode, columns?: number): Promise<string> {
+
   const stream = new PassThrough()
   stream.resume()
   const target = stream as unknown as NodeJS.WriteStream
+
   if (columns !== undefined) {
     ;(target as { columns?: number }).columns = columns
   }
+
   const stdinStub = Object.assign(new EventEmitter(), {
     isTTY: true,
     isRaw: false,

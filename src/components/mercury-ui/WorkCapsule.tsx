@@ -4,7 +4,6 @@ import { Box } from '../../ink.js'
 import { TerminalSizeContext } from '../../ink/components/TerminalSizeContext.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
-
 export const WorkCapsuleContext = createContext<boolean>(false)
 
 export function WorkCapsule({
@@ -12,12 +11,15 @@ export function WorkCapsule({
   width,
   children,
 }: {
+
   active: boolean
+
   width: number
   children: React.ReactNode
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const outer = React.useContext(TerminalSizeContext)
+
   const dressed = active && width >= 24
   const innerW = dressed ? width - 4 : width
   const sizeVal = React.useMemo(

@@ -1,4 +1,3 @@
-
 import { chdir } from 'node:process'
 import { z } from 'zod'
 import { getSessionId, setOriginalCwd } from '../../bootstrap/state.js'
@@ -71,6 +70,7 @@ export const EnterWorktreeTool = buildTool({
     return 'Creating worktree'
   },
   async call(input: Input) {
+
     const existing = getCurrentWorktreeSession()
     if (existing) {
       throw new Error(

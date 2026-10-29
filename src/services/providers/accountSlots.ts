@@ -173,25 +173,36 @@ export type SlotRemoval =
   | { route: 'excluded'; note: string }
 
 export interface AccountSlot {
+
   family: string
+
   id: string
+
   name: string
   kind: AccountSlotKind
+
   kindLabel: string
+
   identity: string
   signInEmail?: string
   credits?: import('./providerUsage.js').UsageCreditsView
+
   active: boolean
+
   envPinned: boolean
+
   signedIn: boolean
   expired?: boolean
+
   scope?: AccountScope
+
   stateNote?: string
   removal: SlotRemoval
 }
 
 export interface FamilySlotGroup {
   family: ProviderFamilyPresence
+
   slots: AccountSlot[]
 }
 
@@ -201,11 +212,13 @@ export interface AccountSlotReads {
   anthropicSignInExpired?: () => boolean
   anthropicApiKey?: () => { key: string | null; source: ApiKeySource }
   openaiSubscription?: () => OpenaiAccountRef | undefined
+
   openaiSubscriptionPresence?: () => { state: 'connected' | 'expired' | 'absent'; email?: string; planType?: string }
   openaiActiveAccount?: () => OpenaiAccountRef | undefined
   openaiApiKey?: () => { key: string; source: 'env' | 'stored' } | undefined
   zaiEnvKey?: () => string | undefined
   zaiStoredKey?: () => string | undefined
+
   zaiStoredKeyPlan?: () => 'coding' | undefined
   openrouterEnvKey?: () => string | undefined
   openrouterMintedKey?: () => OpenrouterMintedKey | undefined
@@ -221,6 +234,7 @@ export interface AccountSlotReads {
   moonshotOauth?: () =>
     | { accessToken: string; refreshToken?: string; accessTokenExpiresAtMs?: number }
     | undefined
+
   moonshotOauthRegion?: () => KimiRegion
   deepseekEnvKey?: () => string | undefined
   deepseekStoredKey?: () => string | undefined
@@ -280,7 +294,6 @@ export function familyDisplayName(id: string): string {
   return providerDisplayName(id)
 }
 
-
 const FAMILY_SIGNIN_CEILINGS: Readonly<Record<string, number>> = {
   anthropic: 2,
   openai: 2,
@@ -290,11 +303,11 @@ export function familySigninCeiling(family: string): number | undefined {
   return FAMILY_SIGNIN_CEILINGS[family]
 }
 
-
 export type SlotIdentityRead = ScopeIdentityState | { state: 'checking' }
 export type SlotIdentities = Readonly<Record<string, SlotIdentityRead | undefined>>
 
 export type SlotSigninBasis =
+
   | 'verified-live'
   | 'credential-present'
   | 'checking'
@@ -315,6 +328,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       : { signedIn: false, basis: 'absent' }
   }
   if (slot.scope.foreignHarness) return { signedIn: false, basis: 'excluded' }
+
   if (!slot.signedIn) return { signedIn: false, basis: slot.expired === true ? 'expired' : 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
@@ -354,6 +368,7 @@ export function scopeSlotTail(
       return words(`expired${own !== undefined ? ` — ${own}` : ''}${recorded !== undefined ? ` (${recorded})` : ''}`, 'not signed in', '↵ opens Logins to reauth')
     }
     case 'signed-out':
+
       return snapshot !== undefined
         ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
         : familyAbsentWords(slot.family)
@@ -367,7 +382,6 @@ export function scopeSlotTail(
       return 'credential present'
   }
 }
-
 
 export function familyRouteWords(family: string): string {
   if (family === 'local') return 'Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
@@ -385,9 +399,13 @@ export function familyAbsentWords(family: string): string {
 }
 
 export interface FamilySigninSummary {
+
   signedIn: number
+
   held: number
+
   checking: number
+
   unverified: number
 }
 
@@ -417,7 +435,6 @@ export function familySigninCount(
   return familySigninSummary(slots, identities).held
 }
 
-
 export type MainLoopIdentityBasis =
   | 'verified-live'
   | 'credential-present'
@@ -429,16 +446,23 @@ export type MainLoopIdentityBasis =
   | 'excluded'
 
 export interface MainLoopIdentity {
+
   route: CallModelRoute | 'unrecognised'
+
   family: string
+
   text: string
   basis: MainLoopIdentityBasis
 }
 
 export interface MainLoopIdentityInput {
+
   model: string
+
   presences: readonly ProviderFamilyPresence[]
+
   currentScopeIdentity?: SlotIdentityRead | undefined
+
   currentScopeClaudeFamily?: boolean
 }
 
@@ -462,11 +486,13 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
   if (presence === undefined || !presence.credentialed) return notSignedIn()
   const label = presence.credentialLabel ?? 'credential present'
   if (route !== 'anthropic') {
+
     const words = presenceIdentityWords(presence, true) ?? label
     return route === 'local'
       ? { route, family, text: `${words} · discovered live`, basis: 'discovered-live' }
       : { route, family, text: `${words} · credential present`, basis: 'credential-present' }
   }
+
   if (!label.startsWith('Claude subscription')) {
     return { route, family, text: `${label} · credential present`, basis: 'credential-present' }
   }
@@ -506,6 +532,7 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
       }
     }
     default:
+
       return {
         route,
         family,
@@ -549,6 +576,7 @@ function readAnthropicApiKey(): { key: string | null; source: ApiKeySource } {
 
 function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const scopes = (reads.scanScopes ?? scanAccountScopes)()
+
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const signInEmail = (scope: AccountScope): string | undefined =>
     scope.isCurrent ? anthropicSignInEmail(reads.familyReads) : undefined
@@ -562,6 +590,7 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
       return {
         family: 'anthropic',
         id: scope.dir,
+
         name: 'claude',
         kind: 'oauth' as const,
         kindLabel: 'OAuth',
@@ -585,6 +614,7 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
       }
     })
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
+
   if (apiKey.key !== null || apiKey.source === 'credentials.keyCommand') {
     const subscriber = subscriberSeat
     const env = apiKey.source === 'ANTHROPIC_API_KEY'
@@ -620,6 +650,7 @@ function openaiSlots(reads: AccountSlotReads): AccountSlot[] {
   const key = (reads.openaiApiKey ?? resolveOpenaiApiKey)()
   const active = (reads.openaiActiveAccount ?? resolveOpenaiAccount)()
   const slots: AccountSlot[] = []
+
   if (subscription === undefined) {
     const presence = (reads.openaiSubscriptionPresence ?? openaiSubscriptionPresence)()
     if (presence.state === 'expired') {
@@ -639,6 +670,7 @@ function openaiSlots(reads: AccountSlotReads): AccountSlot[] {
     }
   }
   if (subscription) {
+
     slots.push({
       family: 'openai',
       id: 'openai:subscription',
@@ -956,6 +988,7 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
   }
   if (oauth) {
     const region = (reads.moonshotOauthRegion ?? moonshotLoginRegion)()
+
     const expiredUnrefreshable =
       oauth.accessTokenExpiresAtMs !== undefined &&
       oauth.accessTokenExpiresAtMs <= Date.now() &&
@@ -1224,6 +1257,7 @@ function huggingfaceSlots(reads: AccountSlotReads): AccountSlot[] {
   }
   if (oauth) {
     const identity = (reads.huggingfaceOauthIdentity ?? huggingfaceOauthIdentity)()
+
     const expiredUnrefreshable =
       oauth.accessTokenExpiresAtMs !== undefined &&
       oauth.accessTokenExpiresAtMs <= Date.now() &&
@@ -1399,7 +1433,6 @@ export function deriveFamilySlotGroups(
     })
 }
 
-
 export interface SlotRemovalOwners {
   disconnectOpenaiSubscription?: () => void
   clearStoredOpenaiKey?: () => void
@@ -1435,13 +1468,18 @@ export interface SlotRemovalOwners {
   clearStoredLocalKey?: () => void
   clearStoredNousKey?: () => void
   clearNousSignin?: () => void
+
   clearManagedAnthropicKey?: () => void
+
   signOutAnthropicOauth?: () => void
+
   revokeAnthropicToken?: (refreshToken: string) => Promise<void>
+
   openaiApiKeyAfter?: () => { key: string; source: 'env' | 'stored' } | undefined
 }
 
 export interface AnthropicSlotSignOutIo {
+
   revoke?: (refreshToken: string) => Promise<void>
 }
 
@@ -1474,8 +1512,10 @@ export function signOutAnthropicSlot(
   clearScopeIdentitySnapshot(dir)
   forgetScopeIdentity(dir)
   dropCredentialMemos()
+
   noteCredentialChange()
   resetUserCache()
+
   try {
     const { resetLimitsForCredentialSwitch } =
       require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
@@ -1557,6 +1597,7 @@ function routeSlotRemoval(
         mutated: false,
       }
     case 'anthropic-oauth': {
+
       const snapshot =
         slot.scope !== undefined && (slot.scope.uuid !== undefined || slot.scope.email !== undefined)
       if (!slot.signedIn && !snapshot) {
@@ -1708,7 +1749,6 @@ function routeSlotRemoval(
   }
 }
 
-
 export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): void {
   const steps: Array<[AccountSlot['removal']['route'], () => void]> = [
     ['openai-subscription', owners.disconnectOpenaiSubscription ?? disconnectOpenaiSubscription],
@@ -1753,6 +1793,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
       logError(error)
     }
   }
+
   for (const [family, kind] of [
     ['openai', 'subscription'],
     ['openai', 'api-key'],

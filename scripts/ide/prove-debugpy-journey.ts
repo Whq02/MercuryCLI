@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -50,6 +51,7 @@ if (resolution.state === 'unavailable') {
   console.log(`    ${resolution.reason}`)
   console.log(`    remedy: ${resolution.remedy}`)
   console.log('  The journey cannot run here; readiness and /health report the same truth (verified below).')
+
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
   const owner = makeOwnerKey({ workspace: '/tmp/w', sessionId: 'debugpy-skip-proof', lane: 'main' })
   let refused = ''
@@ -141,6 +143,7 @@ section('(3) readiness agreement — the production consumer reads the same prob
 
 section('(4) ISOLATED artifact — the bundled adapter through the artifact\'s own probe')
 {
+
   const { mkdtempSync: mkTemp, copyFileSync, cpSync, mkdirSync } = await import('node:fs')
   const { spawnSync } = await import('node:child_process')
   const { dirname } = await import('node:path')
@@ -164,6 +167,7 @@ section('(4) ISOLATED artifact — the bundled adapter through the artifact\'s o
           TERM: 'dumb',
         },
       })
+
       check('isolated health --json --deep exits 0|3 (3 = the signed-out auth fault, cert still whole)', r.status === 0 || r.status === 3, (r.stderr || r.stdout).slice(0, 300))
       let pyCheck: { status?: string; evidence?: string } | undefined
       let pyReadiness: { state?: string; detail?: string } | undefined

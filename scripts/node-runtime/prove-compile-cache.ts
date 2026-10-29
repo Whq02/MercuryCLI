@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -49,6 +50,7 @@ section('§1 COMPILE CACHE (synthetic 20MB ESM, the STATE.md §4 recipe)')
   const sizeMb = (statSync(synthetic).size / 1024 / 1024).toFixed(1)
 
   const runOnce = (): number => {
+
     const env = { ...process.env, NODE_COMPILE_CACHE: cacheDir }
     delete (env as Record<string, unknown>).NODE_DISABLE_COMPILE_CACHE
     const t0 = performance.now()
@@ -193,6 +195,7 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
       execFileSync(nodeBin, ['-e', script, '--', cacheDir], { env, stdio: 'pipe', timeout: 60_000, encoding: 'utf8' }).trim().split('\n').pop() ?? '{}',
     ) as Record<string, unknown>
   const childProbe = `cp.execFileSync(process.execPath, ['-e', 'process.stdout.write(String(process.env.NODE_COMPILE_CACHE ?? ""))'], { encoding: 'utf8' })`
+
   const before = probe(`
     const m = require('node:module'); const cp = require('node:child_process');
     const r = m.enableCompileCache(process.argv[1]);
@@ -201,6 +204,7 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
   `)
   check('the runtime enables the cache in-process', before.enabled === true, JSON.stringify(before))
   check('BEFORE: enableCompileCache never exports NODE_COMPILE_CACHE — the child of an env-less boot sees nothing', before.envAfterEnable === null && before.childSees === '', JSON.stringify(before))
+
   const after = probe(`
     const m = require('node:module'); const cp = require('node:child_process');
     const r = m.enableCompileCache(process.argv[1]);
@@ -211,12 +215,14 @@ section('§4 THE EXPORT TO CHILDREN — the API never sets the env; the boot sea
   check('AFTER: the export hands the child the directory the enable took', typeof after.childSees === 'string' && after.childSees !== '' && after.childSees === after.exported, JSON.stringify(after))
   console.log(`  BEFORE: children of an env-less boot inherit no compile cache (every self-spawn re-parses the bundle) · AFTER: they inherit ${String(after.childSees)}`)
   rmSync(SCRATCH, { recursive: true, force: true })
+
   const cli = readFileSync(join(import.meta.dir, '..', '..', 'src', 'entrypoints', 'cli.tsx'), 'utf8')
   const seam = compileCacheSeam(cli)
   check(
     'the seam exports the directory the enable took, gated on the ENABLED status',
     /const enabled = enableCompileCache\(cacheDir\)[\s\S]{0,900}?if \(enabled\.status === moduleConstants\.compileCacheStatus\.ENABLED\) \{\n\s*process\.env\.NODE_COMPILE_CACHE = enabled\.directory \?\? cacheDir\n\s*\}/.test(seam),
   )
+
   const guardAt = cli.indexOf('process.env.NODE_COMPILE_CACHE === undefined')
   const disableGuardAt = cli.indexOf('process.env.NODE_DISABLE_COMPILE_CACHE === undefined')
   const exportAt = cli.indexOf('process.env.NODE_COMPILE_CACHE = enabled.directory')

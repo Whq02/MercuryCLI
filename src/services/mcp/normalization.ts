@@ -1,4 +1,3 @@
-
 const CONNECTOR_NAME_PREFIX = 'claude.ai '
 
 export function normalizeNameForMCP(name: string): string {

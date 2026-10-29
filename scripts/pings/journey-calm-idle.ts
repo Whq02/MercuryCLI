@@ -44,6 +44,7 @@ const aux = join(scratch, 'aux')
 mkdirSync(home, { recursive: true })
 mkdirSync(join(scratch, 'cwd'), { recursive: true })
 mkdirSync(aux, { recursive: true })
+
 const cwd = realpathSync(join(scratch, 'cwd')).normalize('NFC')
 spawnSync('git', ['init', '-q'], { cwd })
 seedFirstRun(home, [cwd])
@@ -138,6 +139,7 @@ log('armed')
 )
 
 section('§0 the tripwire is non-vacuous (poison control: a forced connect logs)')
+
 {
   const poison = spawnSync(
     'node',
@@ -152,6 +154,7 @@ section('§0 the tripwire is non-vacuous (poison control: a forced connect logs)
 const OUT = join(aux, 'captures')
 mkdirSync(OUT, { recursive: true })
 const IDLE_TICKS = 300
+
 const SETTLE_MARGIN_TICKS = 50
 const TOTAL = 460
 
@@ -194,6 +197,7 @@ function drive(cols: number, rows: number): void {
     argv: ['node', DIST, '--resume', SID],
     out: gridPath,
     cwd,
+
     sends: [
       { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 5, data: '', mark: 'settled' },
       { afterPrevTicks: IDLE_TICKS + SETTLE_MARGIN_TICKS + 10, data: '', mark: 'idle-held' },
@@ -216,7 +220,9 @@ function drive(cols: number, rows: number): void {
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_LIVE_CLOCK: '0',
+
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
+
     MERCURY_UPDATE_NOTICE: '0',
     MERCURY_HEALTH_STATE_DIR: join(aux, 'health'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
@@ -257,6 +263,7 @@ function drive(cols: number, rows: number): void {
   const before = teeBytesIn(tee, 0, windowFromTick)
   check('the tee is non-vacuous (the boot painted real bytes before the window)', before.bytes > 1000, `${before.bytes} byte(s)`)
   const netlog = readFileSync(NETLOG, 'utf8')
+
   const windowFrom = receipts[0]!.ts
   const windowTo = receipts[1]!.ts
   const stamps = netlog

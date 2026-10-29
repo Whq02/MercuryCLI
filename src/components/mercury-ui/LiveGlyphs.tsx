@@ -21,14 +21,16 @@ import { AMBER, FAINT, IVORY } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { GLYPH } from './glyphs.js'
 
-
 export function WorkingGlyph({
   color,
   active = true,
   tickMs = WORK_TICK_MS,
 }: {
+
   color: string
+
   active?: boolean
+
   tickMs?: number
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
@@ -47,6 +49,7 @@ export function AttentionPulse({
   bold = false,
 }: {
   children: React.ReactNode
+
   active?: boolean
   bold?: boolean
 }): React.ReactNode {
@@ -70,9 +73,12 @@ export function ValueGlow({
   children,
   ms = VALUE_GLOW_MS,
 }: {
+
   value: unknown
+
   color: string
   children: React.ReactNode
+
   ms?: number
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
@@ -81,6 +87,7 @@ export function ValueGlow({
   const prevRef = React.useRef(value)
   const [glowing, setGlowing] = React.useState(false)
   React.useEffect(() => {
+
     if (Object.is(prevRef.current, value)) {
       setGlowing(false)
       return
@@ -108,13 +115,18 @@ export function ReadyBreath({
   active = true,
   dim = false,
 }: {
+
   deep: string
+
   to: string
   children: React.ReactNode
+
   active?: boolean
+
   dim?: boolean
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
+
   const typing = useTypingPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), READY_TICK_MS)
   const animate = active && !reducedMotion && !typing && tick !== null
@@ -131,11 +143,13 @@ export function TwinkleSpark({
   color,
   active = true,
 }: {
+
   color: string
   active?: boolean
 }): React.ReactNode {
   const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const { accentSoft } = useMercuryTokens()
+
   const typing = useTypingPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), TWINKLE_TICK_MS)
   const animate = active && !reducedMotion && !typing && tick !== null
@@ -151,6 +165,7 @@ export function CursorCell({
   color,
 }: {
   focused: boolean
+
   color: string
 }): React.ReactNode {
   return (

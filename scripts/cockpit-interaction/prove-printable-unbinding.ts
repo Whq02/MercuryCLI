@@ -38,6 +38,7 @@ t.section('§1 — the decision table')
 
 t.section('§2 — the real parse + resolve path (a user null-unbind of space)')
 {
+
   const bindings = parseBindings([
     { context: 'Chat', bindings: { space: 'voice:pushToTalk' } },
     { context: 'Chat', bindings: { space: null } },
@@ -89,6 +90,7 @@ t.section('§3 — every consume site shares the decision, including the interce
   )
   t.check(
     'a chord-suffix MATCH is consumed even when its action has no mounted handler',
+
     /case "match":(?:(?!case ")[^])*?if \(wasInChord\) \{(?:(?!case ")[^])*?event\.stopImmediatePropagation\(\);\s*\n\s*\}\s*\n\s*break bb/.test(setup),
     'the suffix belongs to the chord',
   )

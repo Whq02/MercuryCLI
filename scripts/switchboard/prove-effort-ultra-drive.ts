@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -30,8 +31,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const SEAT_MODEL = 'gpt-6-astra'
 const SEAT_MODEL_LABEL = 'GPT-6 Astra'
+
 const SEAT_EFFORT = 'high'
+
 const LISTED = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
+
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
 const LIST_WORD = 'ultra'
 const TOP = 'max'
@@ -86,6 +90,7 @@ let transcript = ''
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
+
   sends: [
     `after:${SEAT_TITLE}:2500:\t`,
     `after:${SEAT_TITLE}:4000:\r`,

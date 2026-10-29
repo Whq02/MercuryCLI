@@ -12,8 +12,8 @@ import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate
 import { fetchOpenaiLiveModels, type OpenaiLiveModel } from './openaiClient.js'
 import { noteOpenaiSourceIdentity } from './openaiLimitState.js'
 
-
 export const APEX_ARCHITECTURE_EPOCH = 'apex-1'
+
 export const OPENAI_ADAPTER_DIGEST = 'openai-responses-adapter@1:sse-fold@1:stateless-replay'
 
 import {
@@ -40,24 +40,27 @@ export {
 } from './gptPins.js'
 export type { GptDisplayPin, GptModelIdentity } from './gptPins.js'
 
-
 const OPENAI_CATALOGUE_TTL_MS = 5 * 60_000
+
 const OPENAI_ADMISSION_READ_BOUND_MS = 5_000
 
 export interface OpenaiCatalogueSnapshot {
   sourceKind: OpenaiAccountSourceKind
   models: OpenaiLiveModel[]
+
   fetchedAtMs: number
+
   lastAttemptAtMs?: number
+
   lastError?: string
 }
 
 const catalogueCache = new Map<string, OpenaiCatalogueSnapshot>()
 const catalogueInFlight = new Map<string, Promise<OpenaiCatalogueSnapshot | null>>()
+
 function storeSnapshot(identity: string, snapshot: OpenaiCatalogueSnapshot): void {
   catalogueCache.set(identity, snapshot)
 }
-
 
 function catalogueIdentity(sourceKind: OpenaiAccountSourceKind, env?: NodeJS.ProcessEnv): string {
   return `${sourceKind}:${openaiSourceIdentity(sourceKind, env)}`
@@ -77,6 +80,7 @@ export function refreshOpenaiCatalogue(
   const now = opts?.now ?? Date.now
   const identity = catalogueIdentity(sourceKind, opts?.env)
   const cached = catalogueCache.get(identity)
+
   if (!catalogueTrafficVerdict('openai', opts?.env ?? process.env).allowed) {
     return Promise.resolve(cached ?? null)
   }
@@ -199,10 +203,10 @@ export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv =
   }
 }
 
-
 export const APEX_GPT_ROLES = [
   'primary',
   'specialist',
+
   'coordinator',
 ] as const
 export type ApexGptRole = (typeof APEX_GPT_ROLES)[number]
@@ -248,6 +252,7 @@ export function evaluateGptCandidate(
     }
   }
   if (!live) return { ok: false, why: { reason: 'not-in-live-catalogue' } }
+
   const VISIBLE = new Set(['list', 'visible', 'public'])
   if (live.visibility && !VISIBLE.has(live.visibility)) {
     return { ok: false, why: { reason: 'hidden-or-retired', detail: live.visibility } }
@@ -278,6 +283,7 @@ export function qualifiedGptCandidates(
     const evaluated = evaluateGptCandidate(model.id, sourceKind)
     if (evaluated.ok) out.push(evaluated.candidate)
   }
+
   const parsedFirst = (candidate: GptCandidate): number => (candidate.identity.unparsed === true ? 1 : 0)
   out.sort(
     (a, b) =>
@@ -301,7 +307,9 @@ export type GptSeatAvailability =
   | { state: 'disabled'; why: GptSeatDisabledWhy; reason: string }
   | {
       state: 'ready'
+
       ids: string[]
+
       source: string
       sourceKind: OpenaiAccountSourceKind
     }
@@ -309,6 +317,7 @@ export type GptSeatAvailability =
 export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvailability {
   const account = resolveOpenaiAccount()
   if (!account) {
+
     const presence = openaiSubscriptionPresence()
     if (presence.state === 'expired') {
       return {
@@ -326,6 +335,7 @@ export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvail
   const snapshot = getCachedOpenaiCatalogue(account.kind)
   const verdict = catalogueTrafficVerdict('openai')
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) {
+
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
@@ -337,6 +347,7 @@ export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvail
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
+
     if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(() => {})
     if (snapshot.lastError === 'account-source-unavailable') {
       return {
@@ -362,10 +373,12 @@ export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvail
   return { state: 'ready', ids, source: account.label, sourceKind: account.kind }
 }
 
-
 export interface GptReasoningProfile {
+
   wireEffort?: string
+
   source: 'user' | 'model-default' | 'unsupported-fallback'
+
   adjustedFrom?: string
 }
 
@@ -374,6 +387,7 @@ export function resolveGptReasoningProfile(
   live: Pick<OpenaiLiveModel, 'supportedReasoningEfforts' | 'defaultReasoningEffort'>,
 ): GptReasoningProfile {
   const supported = live.supportedReasoningEfforts
+
   if (supported.length === 0) {
     return {
       source: requested ? 'unsupported-fallback' : 'model-default',
@@ -381,6 +395,7 @@ export function resolveGptReasoningProfile(
     }
   }
   if (requested) {
+
     const nearest = nearestSupportedWireEffort(requested, supported)
     if (nearest === requested) return { wireEffort: requested, source: 'user' }
     const fallback = nearest ?? wireEffortForListDefault(live.defaultReasoningEffort, supported)
@@ -416,8 +431,10 @@ function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
 }
 
 function liveGptRow(modelId: string): { kind: OpenaiAccountSourceKind; canonicalId: string; row: OpenaiLiveModel | undefined } | undefined {
+
   const canonicalId = liveGptCanonicalId(modelId)
   if (canonicalId === undefined) return undefined
+
   const discovery = primeOpenaiDiscovery()
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
   if (!account) return undefined

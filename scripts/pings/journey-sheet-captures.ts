@@ -204,7 +204,9 @@ const SIZES: Array<[number, number]> = [
 ]
 
 for (const [cols, rows] of SIZES) {
+
   section(`Leg A ${cols}x${rows} — a session needs you: the badge appears, no bell, the key jumps to the board`)
+
   {
     const w = makeWorld(`a-${cols}x${rows}`)
     sidecar(
@@ -236,12 +238,14 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Ma
       loneBellFrames(c.teePath, settleTick + 10) === 0,
       `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)}`,
     )
+
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
     check('the advertised key jumps to the board', board.includes('SESSIONCONCOURSE'), board.slice(0, 160))
     check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('MayIrunthemigration'), board.slice(0, 240))
   }
 
   section(`Leg B ${cols}x${rows} — the model-switched grey note paints in THAT chat`)
+
   {
     const w = makeWorld(`b-${cols}x${rows}`)
     const factsBase = `{
@@ -252,6 +256,7 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Ma
   skills: [], mcp: [], permissionMode: 'default', queue: [],
   workspace: { cwd: '${w.cwd}', originalCwd: '${w.cwd}', projectRoot: '${w.cwd}', instructionRoots: [] },
 }`
+
     {
       const seed = spawnSync(
         BUN,
@@ -271,10 +276,12 @@ await new Promise(r => setTimeout(r, 400))`,
     sidecar(
       w,
       22_000,
+
       `const s = await import('${ROOT}/src/services/engine-connector/seatProjections.ts')
 s.publishSessionFacts({ ...${factsBase.replace('BUSY', 'false').replace('PENDING', 'null').replace(/EFFECTIVE/g, "'claude-fable-5'")}, modelSettled: { from: 'claude-opus-5', to: 'claude-fable-5', atMs: Date.now() } })
 await new Promise(r => setTimeout(r, 400))`,
     )
+
     mkdirSync(join(w.aux, 'daemon', 'session-facts'), { recursive: true })
     chmodSync(join(w.aux, 'daemon'), 0o555)
     const c = capture(

@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compaction-sizing-home-'))
+
 process.env.NODE_ENV = 'test'
 
 const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.js')

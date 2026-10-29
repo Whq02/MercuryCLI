@@ -5,14 +5,21 @@ import type { HelixFamilyId, HelixTask } from '../corpus/contracts.js'
 export interface HelixPolicy {
   id: string
   description: string
+
   model: string
+
   effort: 'medium' | 'high' | 'xhigh' | 'max'
+
   env: Record<string, string>
   briefPrefix?: string
   briefSuffix?: string
+
   reviewerArmed?: boolean
+
   applicableFamilies?: HelixFamilyId[]
+
   headlessUnavailableReason?: string
+
   collaborationOnly?: boolean
 }
 
@@ -20,6 +27,7 @@ export const HELIX_POLICIES: HelixPolicy[] = [
   {
     id: 'solo',
     description: 'solo-current-default — one normal strong-model Mercury run',
+
     model: 'claude-opus-5',
     effort: 'high',
     env: {},

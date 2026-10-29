@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/MercuryHome.tsx src/components/SwitchboardTagBar.tsx src/components/HelmLanesRail.tsx src/components/FullscreenLayout.tsx
-// gate-watch: src/ink/frame-writer.ts src/ink/root/screen-session.ts scripts/ui/alt-screen-scroll-audit.py
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

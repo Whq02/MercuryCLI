@@ -28,6 +28,7 @@ console.log('============================================================')
 const scratch = mkdtempSync(join(tmpdir(), 'keystab-'))
 const scratchReal = realpathSync(scratch)
 try {
+
   const straddle = join(scratchReal, 'straddle-project')
   mkdirSync(straddle)
   const canonical = realpathSync(straddle).normalize('NFC')
@@ -64,6 +65,7 @@ try {
   check('§3 the shared resolution is the CANONICAL key (the alias never wins its own raw slug)', getProjectDir(aliasTwo) === join(projectsDir, projectSlug(realpathSync(aOrder2).normalize('NFC'))), basename(getProjectDir(aliasTwo)))
 
   const pathsLayer = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
+
   const wAlias = join(scratchReal, 'alias-root', 'wrapper-late-project')
   const wTrue = join(scratchReal, 'real-root', 'wrapper-late-project')
   const wDead = pathsLayer.getProjectDir(wAlias)

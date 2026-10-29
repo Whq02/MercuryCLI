@@ -13,12 +13,18 @@ export type InstructionSourceEntry = {
   path: string
   type: MemoryType
   content: string
+
   parent?: string
+
   globs?: string[]
+
   contentDiffersFromDisk?: boolean
   rawContent?: string
+
   family?: InstructionFamily
+
   origin?: InstructionOrigin
+
   root?: string
 }
 
@@ -34,17 +40,26 @@ export type InstructionOrigin =
 export type InstructionConvention = {
   readonly id: string
   readonly family: InstructionFamily
+
   readonly fallback?: boolean
+
   projectDirFiles(dir: string): string[]
+
   projectRulesDirs(dir: string): string[]
+
   localDirFile(dir: string): string | null
+
   localDirFiles?(dir: string): string[]
+
   userFile(): string | null
   userRulesDir(): string | null
+
   managedFile(): string | null
   managedRulesDir(): string | null
   isExcluded(filePath: string, type: MemoryType): boolean
+
   readonly instructionFileNames: readonly string[]
+
   readonly rulesPathMarkers: readonly string[]
 }
 
@@ -69,6 +84,7 @@ export type InstructionDiagnostic = {
     | 'external-import-blocked'
     | 'unsupported-import-type'
   path: string
+
   parent?: string
   detail?: string
 }
@@ -76,10 +92,15 @@ export type InstructionDiagnostic = {
 export type InstructionBundle = {
   resolution: InstructionProfileResolution
   adapterId: string
+
   entries: InstructionBundleEntry[]
+
   bundleDigest: string
+
   composedCount: number
+
   skippedDuplicates: { path: string; family: InstructionFamily }[]
+
   diagnostics: InstructionDiagnostic[]
 }
 
@@ -88,9 +109,12 @@ export type InstructionBundleEntry = {
   type: MemoryType
   family: InstructionFamily
   origin: InstructionOrigin
+
   contentDigest: string
+
   contentLength: number
   parent?: string
   globs?: string[]
+
   root?: string
 }

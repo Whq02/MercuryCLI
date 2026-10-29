@@ -58,7 +58,6 @@ import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile
 import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
 import { binaryName } from './config.js'
 
-
 export function isAnthropicAuthEnabled(): boolean {
   if (isBareMode()) return false
 
@@ -76,7 +75,6 @@ export function isAnthropicAuthEnabled(): boolean {
   }
   return true
 }
-
 
 export type AnthropicActiveSource = 'subscription' | 'api-key'
 
@@ -128,6 +126,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
   if (
     tokens?.accessToken &&
     shouldUseClaudeAIAuth(tokens.scopes) &&
+
     !subscriptionYieldsToManagedKey()
   ) {
     return wrap('claude.ai')
@@ -147,6 +146,7 @@ export type WireCredentialSource =
 
 export function wireCredentialSource(named?: 'x-api-key' | 'authorization'): WireCredentialSource {
   const bearer = getAuthTokenSource().source
+
   if (named === 'x-api-key') {
     const keyed = keyCredentialSource(bearer)
     if (keyed !== null) return keyed
@@ -169,7 +169,6 @@ function keyCredentialSource(bearer: string): WireCredentialSource | null {
   if (key === '/logins managed key') return { kind: 'managed' }
   return null
 }
-
 
 export type ApiKeySource = 'ANTHROPIC_API_KEY' | 'credentials.keyCommand' | '/logins managed key' | 'none'
 
@@ -201,6 +200,7 @@ export function getAnthropicApiKeyWithSource(opts?: {
     const fromFd = getApiKeyFromFileDescriptor()
     if (fromFd !== null) return { key: fromFd, source: 'ANTHROPIC_API_KEY' }
     const keyVar = process.env.ANTHROPIC_API_KEY
+
     const hasTokenVar = Boolean(
       process.env.MERCURY_OAUTH_TOKEN ||
         process.env.MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR ||
@@ -274,7 +274,6 @@ export function isCustomApiKeyApproved(key: string): boolean {
   return approved.includes(normalizeApiKeyForConfig(key))
 }
 
-
 export function getConfiguredApiKeyHelper(): string | undefined {
   if (isBareMode()) {
     const flag = getSettingsForSource('flagSettings')?.credentials
@@ -306,6 +305,7 @@ type HelperCache = {
   fetchedAt: number
   epoch: number
   inFlight: { promise: Promise<string | null>; isBackground: boolean; startedAt: number } | null
+
   failure: { message: string; at: number } | null
 }
 
@@ -413,12 +413,14 @@ function startHelperExecution(helper: string, isBackground: boolean): void {
     try {
       const value = await executeApiKeyHelper(helper)
       if (helperCache.epoch === epoch) {
+
         helperCache.value = value
         helperCache.fetchedAt = Date.now()
       }
       helperCache.failure = null
       return value
     } catch (error) {
+
       if (getIsNonInteractiveSession()) {
         process.stderr.write(`\x1b[31mcredentials.keyCommand failed: ${errorMessage(error)}\x1b[0m\n`)
       }
@@ -426,12 +428,15 @@ function startHelperExecution(helper: string, isBackground: boolean): void {
       helperCache.failure = { message: errorMessage(error), at: Date.now() }
       if (helperCache.epoch === epoch) {
         if (helperCache.value !== null && helperCache.value !== HELPER_SENTINEL) {
+
           helperCache.fetchedAt = Date.now()
         } else {
+
           helperCache.value = HELPER_SENTINEL
           helperCache.fetchedAt = Date.now()
         }
       }
+
       return helperCache.epoch === epoch ? publicHelperValue(helperCache.value) : null
     } finally {
       if (helperCache.epoch === epoch) helperCache.inFlight = null
@@ -446,7 +451,6 @@ export function prefetchApiKeyFromApiKeyHelperIfSafe(isNonInteractiveSession: bo
   void getApiKeyFromApiKeyHelper(isNonInteractiveSession)
 }
 
-
 let managedKeyMemoStamp: number | null = null
 let signedOutOAuthMemoStamp: number | null = null
 
@@ -458,9 +462,11 @@ export const getApiKeyFromConfigOrMacOSKeychain = memoize((): string | null => {
 
 function readManagedKey(): string | null {
   if (isBareMode()) return null
+
   if (keychainReachable()) {
     const prefetch = getLegacyApiKeyPrefetchResult()
     if (prefetch !== null) {
+
       if (prefetch.stdout) return prefetch.stdout.trim()
       return getGlobalConfig().primaryApiKey ?? null
     }
@@ -486,6 +492,7 @@ export async function saveApiKey(key: string, options?: { workspaceId?: string }
   }
   const workspaceId = options?.workspaceId?.trim() || undefined
   if (workspaceId && !API_KEY_FORMAT_RE.test(workspaceId)) throw new Error('Enter a valid Anthropic workspace ID')
+
   if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
@@ -494,6 +501,7 @@ export async function saveApiKey(key: string, options?: { workspaceId?: string }
       logError(error)
     }
   }
+
   let keychainWritten = false
   if (keychainReachable()) {
     keychainWritten = writeKeychainHexStdin(key)
@@ -504,6 +512,7 @@ export async function saveApiKey(key: string, options?: { workspaceId?: string }
     const approved = responses.approved ?? []
     return {
       ...current,
+
       primaryApiKey: keychainWritten ? undefined : key,
       anthropicApiKeyWorkspace: workspaceId ? { keyFingerprint: createHash('sha256').update(key).digest('hex'), workspaceId } : undefined,
       customApiKeyResponses: {
@@ -512,6 +521,7 @@ export async function saveApiKey(key: string, options?: { workspaceId?: string }
       },
     }
   })
+
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
   if (getApiKeyFromConfigOrMacOSKeychain() !== key || !isCustomApiKeyApproved(key) || getAnthropicApiKeyWorkspaceId(key) !== workspaceId) {
@@ -542,9 +552,9 @@ export async function removeApiKey(): Promise<void> {
   saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined, anthropicApiKeyWorkspace: undefined }))
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
+
   noteCredentialChange()
 }
-
 
 type UnsavedRefresh = { tokens: OAuthTokens; supersedes: string; warning: string; at: number }
 let unsavedRefresh: UnsavedRefresh | null = null
@@ -560,7 +570,9 @@ export function __resetUnsavedRefreshForTest(): void {
 function overlayUnsavedRefresh(stored: OAuthTokens | null): OAuthTokens | null {
   const held = unsavedRefresh
   if (held === null) return stored
+
   if (stored !== null && stored.refreshToken === held.supersedes) return held.tokens
+
   unsavedRefresh = null
   return stored
 }
@@ -570,6 +582,7 @@ function holdUnsavedRefresh(
   superseded: OAuthTokens,
   verdict: { warning?: string; code?: string },
 ): void {
+
   const supersedes =
     unsavedRefresh !== null && superseded === unsavedRefresh.tokens
       ? unsavedRefresh.supersedes
@@ -643,6 +656,7 @@ export function hasStoredOAuthToken(): boolean {
 export function clearOAuthTokenCache(): void {
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearKeychainCache()
+
   const { resetProviderSnapshotMemo } = require('../services/providers/modelRegistry.js') as typeof import('../services/providers/modelRegistry.js')
   resetProviderSnapshotMemo()
   const { resetWalletEntriesMemo } = require('../services/wallet/wallet.js') as typeof import('../services/wallet/wallet.js')
@@ -675,13 +689,16 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       ...current,
       claudeAiOauth: {
         ...tokens,
+
         subscriptionType: tokens.subscriptionType ?? previous?.subscriptionType ?? null,
         rateLimitTier: tokens.rateLimitTier ?? previous?.rateLimitTier ?? null,
       },
     })
+
     clearOAuthTokenCache()
     clearBetasCaches()
     clearToolSchemaCache()
+
     if (result.success) unsavedRefresh = null
     return result
   } catch (error) {
@@ -689,7 +706,6 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
     return { success: false, warning: 'Failed to save credentials to secure storage' }
   }
 }
-
 
 const knownDeadRefreshTokens = new Set<string>()
 
@@ -708,6 +724,7 @@ export function isAnthropicOAuthSignInExpired(): boolean {
   try {
     const tokens = getClaudeAIOAuthTokens()
     if (!tokens) return false
+
     if (getAuthTokenSource().source !== 'claude.ai') return false
     if (isOAuthRefreshKnownDead()) return true
     return isOAuthTokenExpired(tokens.expiresAt) && !tokens.refreshToken
@@ -715,7 +732,6 @@ export function isAnthropicOAuthSignInExpired(): boolean {
     return false
   }
 }
-
 
 function credentialsFilePath(): string {
   return join(getAuthConfigHomeDir(), '.credentials.json')
@@ -732,6 +748,7 @@ export function invalidateOnDiskChange(): void {
     }
     lastCredentialsMtimeMs = mtime
   } catch {
+
     getClaudeAIOAuthTokens.cache?.clear?.()
     lastCredentialsMtimeMs = null
   }
@@ -742,11 +759,11 @@ export function invalidateOnDiskChange(): void {
     clearLegacyApiKeyPrefetch()
   }
   if (signedOutOAuthMemoStamp !== null && stamp !== signedOutOAuthMemoStamp) {
+
     signedOutOAuthMemoStamp = null
     clearOAuthTokenCache()
   }
 }
-
 
 let refreshInFlight: Promise<boolean> | null = null
 
@@ -780,6 +797,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
   clearOAuthTokenCache()
   tokens = await getClaudeAIOAuthTokensAsync()
   if (!tokens?.refreshToken) return false
+
   if (!force && !isOAuthTokenExpired(tokens.expiresAt)) return false
   if (isOAuthRefreshKnownDead()) return false
 
@@ -790,6 +808,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
     release = await lock(lockDir, { realpath: false })
   } catch (error) {
     if ((error as { code?: string }).code === 'ELOCKED') {
+
       if (retryCount < MAX_LOCK_RETRIES) {
         await new Promise(resolvePromise => {
           const timer = setTimeout(resolvePromise, 1000 + randomInt(1000))
@@ -808,6 +827,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
     clearOAuthTokenCache()
     const underLock = await getClaudeAIOAuthTokensAsync()
     if (!underLock?.refreshToken) return false
+
     if (!force && !isOAuthTokenExpired(underLock.expiresAt)) return false
     if (isOAuthRefreshKnownDead()) return false
 
@@ -815,8 +835,10 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
     try {
       const refreshed = await refreshOAuthToken(
         usedRefreshToken,
+
         shouldUseClaudeAIAuth(underLock.scopes) ? {} : { scopes: underLock.scopes },
       )
+
       const saved = saveOAuthTokensIfNeeded(refreshed)
       if (!saved.success) holdUnsavedRefresh(refreshed, underLock, saved)
       clearOAuthTokenCache()
@@ -825,9 +847,11 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
       logError(error)
       clearOAuthTokenCache()
       const nowStored = await getClaudeAIOAuthTokensAsync()
+
       if (nowStored && !isOAuthTokenExpired(nowStored.expiresAt)) return true
       if (isInvalidGrantError(error)) {
         knownDeadRefreshTokens.add(usedRefreshToken)
+
         await blankRefreshTokenOnDisk(usedRefreshToken)
       }
       return false
@@ -853,7 +877,6 @@ async function blankRefreshTokenOnDisk(usedRefreshToken: string): Promise<void> 
   }
 }
 
-
 const in401 = new Map<string, Promise<boolean>>()
 
 export async function handleOAuth401Error(failedAccessToken: string): Promise<boolean> {
@@ -863,6 +886,7 @@ export async function handleOAuth401Error(failedAccessToken: string): Promise<bo
     clearOAuthTokenCache()
     const tokens = await getClaudeAIOAuthTokensAsync()
     if (!tokens?.refreshToken) return false
+
     if (tokens.accessToken !== failedAccessToken) return true
     return checkAndRefreshOAuthTokenIfNeeded(0, true)
   })().finally(() => {
@@ -871,7 +895,6 @@ export async function handleOAuth401Error(failedAccessToken: string): Promise<bo
   in401.set(failedAccessToken, run)
   return run
 }
-
 
 export function getSubscriptionType(): SubscriptionType | null {
   if (!isAnthropicAuthEnabled()) return null
@@ -885,6 +908,7 @@ export function isClaudeAISubscriber(): boolean {
   return (
     tokens !== null &&
     shouldUseClaudeAIAuth(tokens.scopes) &&
+
     !subscriptionYieldsToManagedKey()
   )
 }
@@ -945,6 +969,7 @@ function readScopedOauthAccount(dir: string) {
     const stat = statSync(file)
     stamp = { mtimeMs: stat.mtimeMs, size: stat.size }
   } catch {
+
     scopedAccountIdentityCache.delete(dir)
     return null
   }
@@ -972,6 +997,7 @@ function readScopedOauthAccount(dir: string) {
 
 export function getOauthAccountInfo() {
   if (!isAnthropicAuthEnabled()) return undefined
+
   const scopeDir = getAuthScope()
   if (scopeDir !== undefined) {
     const scoped = readScopedOauthAccount(scopeDir)
@@ -1026,7 +1052,6 @@ function anthropicSignInEmailLazily(): string | undefined {
   return anthropicSignInEmail()
 }
 
-
 type OrgValidationResult = { valid: true } | { valid: false; message: string }
 
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
@@ -1043,6 +1068,7 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
   const actualOrg = profile?.organization?.uuid
   const cli = binaryName()
   if (!actualOrg) {
+
     return {
       valid: false,
       message:
@@ -1073,7 +1099,6 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
       `Run \`${cli} auth login\` with the correct organization.`,
   }
 }
-
 
 export { storeAccount as storeOAuthAccountInfo }
 export { ensureKeychainPrefetchCompleted }

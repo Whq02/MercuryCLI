@@ -48,6 +48,7 @@ section('§3 structural dormancy — the post-migration import law')
   } catch {
     referers = []
   }
+
   const MOUNT_SEAM = /render-engine\/cockpit\/(engineMount|terminalOut)(\.js)?$/
   const offenders: string[] = []
   for (const file of referers) {
@@ -83,6 +84,7 @@ section('§4 the demo refuses to run with the gate off')
     encoding: 'utf8',
     timeout: 30_000,
   })
+
   check(
     'a forced-off gate is honored (demo exits non-zero, names the gate)',
     res.status === 2 && (res.stderr ?? '').includes('MERCURY_RENDER_ENGINE'),

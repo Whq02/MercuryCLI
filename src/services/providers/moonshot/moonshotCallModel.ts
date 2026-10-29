@@ -45,10 +45,12 @@ export const moonshotLaneProfile: CompatLaneProfile = {
   },
   requestUrl: () => moonshotChatCompletionsUrl(),
   wireModelId: modelId => modelId,
+
   onResponseHeaders: () => {
     if (moonshotDispatchSource() === 'kimi-oauth') void refreshKimiManagedUsage()
   },
   buildExtras: buildMoonshotExtras,
+
   keepsReasoningHistory: wireModel => KIMI_PRESERVED_THINKING_MODELS.has(wireModel),
   noteServedModel: (requested, served, credential) => {
     recordMoonshotServedModel(requested, served, { identity: credential.accountIdentity })

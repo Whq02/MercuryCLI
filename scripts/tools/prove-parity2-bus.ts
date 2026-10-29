@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'
@@ -69,6 +70,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const { drainPipedStdoutForExit } = await import('../../src/utils/gracefulShutdown.ts')
   t('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5_000 })).drained)
   t('an empty pipe buffer is already drained', (await drainPipedStdoutForExit({ isTTY: false, writableLength: 0 })).drained)
+
   const shrinking = { isTTY: false, writableLength: 1_000, destroyed: false, writable: true }
   const drainer = setInterval(() => {
     shrinking.writableLength = Math.max(0, shrinking.writableLength - 50)
@@ -97,6 +99,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const rejectedStart = Date.now()
   await quiesceCleanupBeforeExit(Promise.reject(new Error('cleanup failed')))
   t('a rejected cleanup never throws at the cliff and costs nothing', Date.now() - rejectedStart < 50)
+
   const lateStart = Date.now()
   let landed = false
   const late = new Promise<void>(res => setTimeout(() => { landed = true; res() }, 60))
@@ -105,6 +108,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const wedgedStart = Date.now()
   await quiesceCleanupBeforeExit(new Promise(() => {}), 80)
   const wedgedMs = Date.now() - wedgedStart
+
   const TIMER_LEAD_MS = 2
   t('a wedged cleanup is abandoned at the grace, never held forever', wedgedMs >= 80 - TIMER_LEAD_MS && wedgedMs < 500)
   const shutdownSrc = readFileSync(join(process.cwd(), 'src/utils/gracefulShutdown.ts'), 'utf8')
@@ -173,6 +177,7 @@ await gracefulShutdown(0)
   const frames: Array<Record<string, unknown>> = []
   const fakeSpawn = (args: FakeArgs): AsyncGenerator<unknown, void> => {
     async function* run(): AsyncGenerator<unknown, void> {
+
       args.onResolvedIdentity?.({ model: 'claude-sonnet-5', effort: 'max' })
       yield { type: 'assistant', message: { content: [{ type: 'text', text: 'done' }] } }
     }
@@ -230,6 +235,7 @@ await gracefulShutdown(0)
   t('conversation present ⇒ never retired by idleness', reason(decideIdleRetirement({ ...facts({}), hasConversation: true })) === 'has-conversation')
   t('pending work ⇒ kept', reason(decideIdleRetirement({ ...facts({}), hasPendingWork: true })) === 'pending-work')
   t('younger than the threshold ⇒ not yet', reason(decideIdleRetirement(facts({ spawnedAt: now - T + 1 }))) === 'not-idle-long-enough')
+
   t('a blank newborn idle past the threshold is KEPT (the birth grace; poison: the reap of a chat the operator just opened)', reason(decideIdleRetirement(facts({ bornBlankAt: now - 2 * T }))) === 'newborn')
   t('the grace is unbounded by default (no newbornGraceMs ⇒ never)', reason(decideIdleRetirement({ ...facts({ bornBlankAt: now - 100 * T }), newbornGraceMs: 0 })) === 'newborn')
   t('a bounded grace keeps the newborn inside its window', reason(decideIdleRetirement({ ...facts({ bornBlankAt: now - T }), newbornGraceMs: 2 * T })) === 'newborn')
@@ -303,6 +309,7 @@ await gracefulShutdown(0)
   t('the retirement stops the child through the roster', killed.length === 1 && killed[0] === 'concourse-w1')
   const after = readSessionWorkers(daemonDir)
   const w1 = after['concourse-w1']!
+
   t('the sweep requests the stop with the typed retired fact beside the request', w1.stopRequestedAt !== undefined && w1.stopRequestedRetired?.reason === 'idle-empty' && w1.stopRequestedRetired.thresholdMs === T, JSON.stringify(w1))
   const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseWorkers.ts')
   updateConcourseWorkers(workers => {
@@ -323,6 +330,7 @@ await gracefulShutdown(0)
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { buildConcourseSnapshot } = await import('../../src/services/concourse/concourseSnapshot.ts')
+
   const { projectIdentity } = await import('../../src/utils/bootCardFacts.ts')
   const snapshot = await buildConcourseSnapshot({ recordsDir: daemonDir, crewDir, nowMs: Date.now(), project: projectIdentity(ws) })
   const rows = snapshot.groups.flatMap(g => g.rows.map(r => ({ group: g.id, ...r })))

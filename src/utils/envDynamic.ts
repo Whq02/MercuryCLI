@@ -5,7 +5,6 @@ import { memoize } from 'lodash-es'
 import { env } from './env.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 
-
 const getIsDocker = memoize(async (): Promise<boolean> => {
   if (process.platform !== 'linux') return false
   const result = await execFileNoThrow('test', ['-f', '/.dockerenv'])

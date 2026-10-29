@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,6 +32,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+
 const api = await startFixtureApi([
   { kind: 'paced_tool_use', preDeltas: ['stage-01 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo one', description: 'pause one' } }] },
   { kind: 'paced_tool_use', preDeltas: ['stage-02 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 8; echo two', description: 'pause two' } }] },
@@ -72,6 +74,7 @@ try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [],
+
     sends: ['after:running in:1500:\t', 'after:running in:2600:\r', 'after:UNTRUSTED FOLDER:1200:y'],
     seconds: 26,
     cols: 140,
@@ -106,8 +109,10 @@ try {
     const offsets = [2500, 5000, 8000, 11000, 14000, 17000, 20000, 24000].map(m => S(m))
     const grabs = grabScreens(run, 140, 40, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
+
     const doorFrames = grabs.filter(g => text(g).includes('running in') && text(g).includes('OTHER PROJECTS'))
     check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'}`)
+
     const rescoped = grabs.filter(
       g => text(g).includes('Door probe session') && text(g).includes('repo → work') && !text(g).includes('UNTRUSTED FOLDER'),
     )

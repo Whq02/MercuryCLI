@@ -1,4 +1,3 @@
-
 import type { Message } from '../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../services/api/errors.js'
 import type { CacheSafeParams } from '../forkedAgent.js'
@@ -60,8 +59,10 @@ export async function runConsoleAsk({
   question: string
   context: ProcessUserInputContext
   abortController: AbortController
+
   originRef?: string
 }): Promise<ConsoleRunnerResult> {
+
   const slot = resolveSubModel('console')
   if (slot.origin === 'unset') {
     return {
@@ -107,8 +108,10 @@ export async function runConsoleAsk({
     }
   }
   const modelOverride = consoleModelOverride(context.options.engineModel)
+
   const effort = subModelDispatchEffort('console', slot.model)
   if (effort.fallback !== undefined) logForDebugging(`console effort: ${effort.fallback}`)
+
   noteCritterRealActivity()
   let result: Awaited<ReturnType<typeof runSideQuestion>>
   try {

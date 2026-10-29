@@ -32,6 +32,7 @@ function syntheticEvents(n: number): AnyInterviewEvent[] {
 
 t.section('§1 — dedupe work grows ~linearly with history (operation count, not time)')
 {
+
   const contracts = await import('../../src/services/interview/contracts.ts')
   t.check('(premise) the shared-set fold arm exists', typeof contracts.foldInterviewShared === 'function')
   class CountingSet extends Set<string> {

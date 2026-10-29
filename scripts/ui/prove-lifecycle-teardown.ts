@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,6 +21,7 @@ console.log('prove-lifecycle-teardown')
 
 let lastMark = 'boot'
 const mark = (m: string) => { lastMark = m }
+
 const watchdog = setTimeout(() => {
   console.log(`  [FAIL] WATCHDOG: proof wedged after '${lastMark}' (45s)`)
   process.exit(1)
@@ -33,6 +35,7 @@ mark('§1')
     tokens.push(pushOverlay({ id: 'select', modal: true }))
     tokens.push(pushOverlay({ id: 'center:test', modal: true }))
   }
+
   for (let i = 0; i < tokens.length; i += 2) popOverlay(tokens[i]!)
   for (let i = 1; i < tokens.length; i += 2) popOverlay(tokens[i]!)
   check('§1 overlay stack empty after 40 interleaved lifecycles', !anyOverlayActive())
@@ -47,7 +50,6 @@ mark('§2')
   const stats = uiClockStatsForProofs()
   check('§2 zero clock buckets after 30 mixed rounds', Object.keys(stats).length === 0, JSON.stringify(stats))
 }
-
 
 mark('§5')
 {

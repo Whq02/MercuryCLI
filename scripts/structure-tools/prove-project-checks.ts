@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -130,6 +131,7 @@ function gitRepo(files: Record<string, string>): string {
   return dir
 }
 {
+
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }),
     'a.test.mjs': "import { test } from 'node:test'\ntest('t', () => {})\n",
@@ -159,6 +161,7 @@ function gitRepo(files: Record<string, string>): string {
   )
 }
 {
+
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, devDependencies: { vitest: '^1' } }),
     'src/sum.ts': 'export const sum = (a: number, b: number) => a + b\n',

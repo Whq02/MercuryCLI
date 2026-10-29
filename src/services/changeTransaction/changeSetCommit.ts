@@ -1,4 +1,3 @@
-
 import { chmod, mkdir, open, readFile, readdir, rm, stat, unlink } from 'node:fs/promises'
 import { isTransientWin32FsCode, WIN32_RENAME_RETRY_DELAYS_MS } from '../../substrate/durablePublish.js'
 import { dirname, join } from 'node:path'
@@ -48,6 +47,7 @@ interface PayloadTarget {
   tmp: string
   mode: number
   bundleFile: string
+
   kind?: CommitTargetKind
 }
 
@@ -61,10 +61,13 @@ export interface TextChangeSetPayload {
 
 export interface CommitRequest {
   ownerKey: string
+
   source: string
   planDigest: string
+
   targets: CommitTarget[]
   signal?: AbortSignal
+
   journalDir?: string
   bundleRoot?: string
 }
@@ -118,7 +121,6 @@ class ChangeSetCompensationIncomplete extends Error {
     this.name = 'ChangeSetCompensationIncomplete'
   }
 }
-
 
 const pathLocks = new Map<string, Promise<void>>()
 
@@ -190,14 +192,15 @@ async function readOrNull(path: string): Promise<Buffer | null> {
   }
 }
 
-
 export async function runTextChangeSetCommit(req: CommitRequest): Promise<CommitOutcome> {
+
   const targets = [...req.targets].sort((a, b) =>
     a.canonicalPath < b.canonicalPath ? -1 : a.canonicalPath > b.canonicalPath ? 1 : 0,
   )
   if (targets.length === 0) {
     throw new Error('runTextChangeSetCommit requires at least one changed target')
   }
+
   const seenKeys = new Map<string, string>()
   for (const t of targets) {
     const key = canonicalPathKey(t.canonicalPath)
@@ -211,13 +214,16 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
   }
   const journalDir = req.journalDir ?? changeSetJournalDir()
   const bundleRoot = req.bundleRoot ?? changeSetBundleRoot()
+
   const ownerKeyStr =
     typeof req.ownerKey === 'string' ? req.ownerKey : JSON.stringify(req.ownerKey)
   const idempotencyKey = `${ownerKeyStr}#${req.planDigest}`
 
   const release = await acquirePathLocks(targets.map(t => t.canonicalPath))
   const staged: { tmp: string }[] = []
+
   const driftedBeforeRename: string[] = []
+
   let compensationIncomplete: ChangeSetCompensationIncomplete | null = null
   try {
     if (req.signal?.aborted) return { kind: 'cancelled' }
@@ -263,6 +269,7 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i]!
       const kind = t.kind ?? 'write'
+
       const bundleFile = kind === 'create' ? '' : `t${i}.bin`
       if (bundleFile) {
         await durableAtomicPublish(join(bundleDir, bundleFile), t.originalBytes, { mode: 0o600 })
@@ -307,6 +314,7 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
     }
 
     const payload: TextChangeSetPayload = {
+
       v: targets.every(t => (t.kind ?? 'write') === 'write') ? 1 : 2,
       source: req.source,
       planDigest: req.planDigest,
@@ -322,8 +330,10 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
     const compensate = async (): Promise<void> => {
       faultPoint('changeset-before-compensate', journalDir)
       const diverged: string[] = []
+
       const unrestored: Array<{ path: string; reason: string }> = []
       for (const t of [...targets].reverse()) {
+
         if (driftedBeforeRename.includes(t.canonicalPath)) continue
         const kind = t.kind ?? 'write'
         try {
@@ -333,10 +343,12 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
           if (state === 'planned') {
             faultPoint('changeset-during-compensate', t.canonicalPath)
             if (kind === 'create') {
+
               await unlinkQuiet(t.canonicalPath)
               if ((await readOrNull(t.canonicalPath)) !== null) diverged.push(t.canonicalPath)
               continue
             }
+
             await atomicRestoreBytes(t.canonicalPath, t.originalBytes, t.mode)
             const re = await readFile(t.canonicalPath)
             if (sha256Hex(re) !== t.originalDigest) diverged.push(t.canonicalPath)
@@ -368,15 +380,18 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
             const kind = t.kind ?? 'write'
             faultPoint('changeset-before-rename', t.canonicalPath)
             if (beforeRenameHookForProofs !== null) await beforeRenameHookForProofs(t.canonicalPath)
+
             const current = await readOrNull(t.canonicalPath)
             if (classifyDiskState(kind, current, t.originalDigest, t.plannedDigest) === 'other') {
               driftedBeforeRename.push(t.canonicalPath)
               throw new ChangeSetDriftBeforeRename(t.canonicalPath)
             }
             if (kind === 'delete') {
+
               await unlinkWithWin32Retry(t.canonicalPath)
               return { removed: true }
             }
+
             await renameWithWin32Retry(payloadTargets[i]!.tmp, t.canonicalPath)
             return { digest: t.plannedDigest.slice(0, 16) }
           },
@@ -421,8 +436,10 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
       operationId: outcome.operationId,
     }
   } catch (e) {
+
     for (const s of staged) await unlinkQuiet(s.tmp)
     if (driftedBeforeRename.length > 0) {
+
       let othersOriginal = true
       for (const t of targets) {
         if (driftedBeforeRename.includes(t.canonicalPath)) continue
@@ -431,6 +448,7 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
       }
       if (othersOriginal) return { kind: 'stale', stalePaths: [...driftedBeforeRename] }
     }
+
     const failure = (e as Error).message
     const reason =
       compensationIncomplete !== null && compensationIncomplete !== e
@@ -466,7 +484,6 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
     release()
   }
 }
-
 
 function decodePayload(raw: unknown): TextChangeSetPayload | null {
   if (!raw || typeof raw !== 'object') return null
@@ -508,6 +525,7 @@ async function reconcileFromPayload(p: TextChangeSetPayload): Promise<ReconcileV
       note: `unresolved: bytes at ${paths.join(', ')} match neither the original nor the planned output — recovery will not overwrite them; re-read those files and settle by hand (bundle retained: ${p.bundleDir})`,
     }
   }
+
   for (const t of p.targets) {
     if (t.tmp) await unlinkQuiet(t.tmp)
   }
@@ -518,6 +536,7 @@ async function reconcileFromPayload(p: TextChangeSetPayload): Promise<ReconcileV
     const t = p.targets[i]!
     const kind = t.kind ?? 'write'
     if (kind === 'create') {
+
       faultPoint('changeset-during-compensate', t.path)
       await unlinkQuiet(t.path)
       if ((await readOrNull(t.path)) !== null) {
@@ -579,6 +598,7 @@ export async function recoverChangeSetJournal(
     }
     const payload = decodePayload(op.payload)
     if (!payload) {
+
       summary.waiting.push(op.operationId)
       continue
     }
@@ -652,7 +672,6 @@ export async function compactChangeSetBundles(
   }
   return removed
 }
-
 
 export interface VerbatimCommitFile {
   canonicalPath: string

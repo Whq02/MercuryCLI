@@ -13,6 +13,7 @@ export const WHISPER_PACK_PATH = 'vendor/whisper'
 export const WHISPER_ADDON_FILE = 'mercury_whisper.node'
 export const WHISPER_PACK_MANIFEST_FILE = '.vendor-manifest.json'
 export const WHISPER_PACK_NAME = 'mercury-whisper'
+
 export const WHISPER_NATIVE_PATH = 'native/whisper'
 export const WHISPER_ENGINE_NAME = 'whisper.cpp'
 
@@ -40,15 +41,22 @@ export interface WhisperPackCrate {
 
 export interface WhisperPackManifest {
   name: typeof WHISPER_PACK_NAME
+
   version: string
   platform: string
   addon: string
   addonSha256: string
+
   sourceTreeDigest: string
+
   cargo: string
+
   engine: { name: string; version: string }
+
   cpuFloor: string
+
   gpu: string
+
   crates: WhisperPackCrate[]
   fileCount: number
   treeDigest: string
@@ -176,6 +184,7 @@ export function resolveWhisperPackDir(): WhisperPackResolution {
   if (vendoredCheck.state === 'ok') {
     return { state: 'ok', dir: vendored, addonPath: vendoredCheck.addonPath, manifest: vendoredCheck.manifest, source: 'vendored' }
   }
+
   let dir = moduleDir
   for (let i = 0; i < 6; i++) {
     const candidate = whisperPackDirFor(dir, platform)
@@ -193,7 +202,6 @@ export function resolveWhisperPackDir(): WhisperPackResolution {
     note: `no on-device transcriber pack for ${platform}: neither ${WHISPER_PACK_PATH}/${platform} beside the bundle nor the checkout's own`,
   }
 }
-
 
 type CpuFloorRoad = 'architecture' | 'flags' | 'helper'
 
@@ -226,6 +234,7 @@ function reportedCpuFlags(platform: string): Set<string> | null {
       return new Set(line.replace(/^flags\s*:/, '').trim().toLowerCase().split(/\s+/))
     }
     if (platform === 'darwin') {
+
       const res = spawnSync('sysctl', ['-n', 'machdep.cpu.features', 'machdep.cpu.leaf7_features'], { encoding: 'utf8', timeout: 5_000, windowsHide: true, env: subprocessEnv() })
       if (res.status !== 0) return null
       return new Set(res.stdout.toLowerCase().split(/\s+/).filter(f => f !== ''))
@@ -237,10 +246,13 @@ function reportedCpuFlags(platform: string): Set<string> | null {
 
 const FLOOR_MARK = 'MERCURY_WHISPER_FLOOR '
 const FLOOR_ERROR_MARK = 'MERCURY_WHISPER_FLOOR_ERROR '
+
 const ILLEGAL_INSTRUCTION_STATUS = 0xc000001d
+
 export const CPU_FLOOR_HELPER_TIMEOUT_MS = 10_000
 
 interface CpuFloorHelperOptions {
+
   exe?: string
   timeoutMs?: number
 }
@@ -248,6 +260,7 @@ interface CpuFloorHelperOptions {
 export function probeCpuFloorByLoad(addonPath: string, opts: CpuFloorHelperOptions = {}): CpuFloorProbe {
   const exe = opts.exe ?? process.execPath
   const timeout = opts.timeoutMs ?? CPU_FLOOR_HELPER_TIMEOUT_MS
+
   const say = (mark: string, expr: string): string => `process.stdout.write(${JSON.stringify(mark)} + ${expr} + "\\n")`
   const firstLine = 'String(e && e.message || e).split("\\n")[0]'
   const script = [
@@ -276,6 +289,7 @@ export function probeCpuFloorByLoad(addonPath: string, opts: CpuFloorHelperOptio
   const said = out.find(l => l.startsWith(FLOOR_ERROR_MARK))
   if (said !== undefined) return { state: 'unknown', via: 'helper', note: `the helper process could not load the addon: ${said.slice(FLOOR_ERROR_MARK.length).slice(0, 200)}` }
   const stderr = String(res.stderr ?? '')
+
   if (
     res.signal === 'SIGILL' ||
     res.status === ILLEGAL_INSTRUCTION_STATUS ||
@@ -324,15 +338,18 @@ export function seedCpuFloorProbeForTest(probe: CpuFloorProbe | null): void {
   seededProbe = probe
 }
 
-
 interface WhisperTranscribeOptions {
+
   language?: string
+
   threads?: number
+
   prompt?: string
 }
 
 interface WhisperTranscriptAnswer {
   text: string
+
   ms: number
   language: string
   segments: number
@@ -363,6 +380,7 @@ export function loadWhisperAddon(): WhisperAddonLoad {
   if (loaded !== null) return loaded
   const resolution = resolveWhisperPackDir()
   if (resolution.state === 'unavailable') {
+
     return resolution
   }
   const floor = probeCpuFloor({ addonPath: resolution.addonPath })
@@ -372,6 +390,7 @@ export function loadWhisperAddon(): WhisperAddonLoad {
   }
   try {
     const req = createRequire(resolution.addonPath)
+
     const target: string = resolution.addonPath
     const raw = req(target) as Partial<WhisperAddon>
     for (const fn of WHISPER_ADDON_EXPORTS) {

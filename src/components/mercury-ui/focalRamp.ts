@@ -1,4 +1,3 @@
-
 import { shimmerBoostAt, type ShimmerPhase } from '../../utils/cockpit/greetingShimmer.js'
 import { displayWidth } from './glyphs.js'
 
@@ -48,6 +47,7 @@ function sampleAt(stops: string[], parsed: Rgb[] | null, u: number): string {
   const n = stops.length
   const s = Math.min(1, Math.max(0, u)) * (n - 1)
   if (parsed === null) {
+
     return stops[Math.min(n - 1, Math.round(s))] ?? stops[0] ?? ''
   }
   if (Number.isInteger(s)) return stops[s] ?? ''
@@ -73,6 +73,7 @@ export function rampSegments(
   opts?: {
     offsetCells?: number
     totalCells?: number
+
     shimmer?: ShimmerPhase | null
   },
 ): RampSegment[] {
@@ -82,15 +83,19 @@ export function rampSegments(
   const clusters = [...segmenter.segment(text)].map(s => s.segment)
   const widths = clusters.map(c => displayWidth(c))
   const total = widths.reduce((a, b) => a + b, 0)
+
   if (total === 0) return [{ text, color: flat }]
   const offset = opts?.offsetCells ?? 0
+
   const span = opts?.totalCells ?? offset + total
   const parsed = parsedStops(stops)
+
   const shimmer = parsed !== null ? (opts?.shimmer ?? null) : null
   const segments: RampSegment[] = []
   let col = 0
   for (let i = 0; i < clusters.length; i++) {
     const w = widths[i] ?? 0
+
     const center = col + (w > 0 ? w / 2 : 0)
     let u = (offset + center) / span
     if (shimmer !== null) {

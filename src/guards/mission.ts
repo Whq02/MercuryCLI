@@ -20,7 +20,6 @@ import {
 } from '../services/mission/missionCard.js'
 import { engageTurnGuard, disengageTurnGuard } from './guards.js'
 
-
 export const MISSION_CONDITION_MAX_LENGTH = 4000
 
 const DEFAULT_MISSION_MAX_BLOCKS = 12
@@ -39,6 +38,7 @@ export type MissionFeasibility =
 export interface MissionContract {
   outcome: string
   feasibility: MissionFeasibility
+
   evidence?: string
 }
 
@@ -55,12 +55,15 @@ export function compileMissionContract(
   },
 ): MissionContract {
   const text = condition.trim()
+
   if (/\bno observable\b|\bwithout (any )?observable\b|\bcannot be (checked|observed|verified)\b/i.test(text)) {
     return { outcome: text, feasibility: 'unattainable-now', evidence: 'the condition declares itself unobservable' }
   }
+
   if (/simultaneously[^.]*\b(enabled and disabled|disabled and enabled|on and off|true and false|present and absent)\b/i.test(text)) {
     return { outcome: text, feasibility: 'unattainable-now', evidence: 'the condition demands mutually exclusive states at once' }
   }
+
   const fileExists = /\bthe file\s+(\S+)\s+exists\b/i.exec(text)
   if (fileExists?.[1] && probes.fileExists(fileExists[1])) {
     return { outcome: text, feasibility: 'already-met', evidence: `${fileExists[1]} exists` }
@@ -69,14 +72,23 @@ export function compileMissionContract(
 }
 
 export interface ActiveMission {
+
   condition: string
+
   iterations: number
+
   lastReason?: string
+
   met?: boolean
+
   gaveUp?: boolean
+
   setAt: number
+
   hookId: string
+
   contract?: MissionContract
+
   feasibilityBlocked?: boolean
 }
 
@@ -266,6 +278,7 @@ export function setActiveMission(
     setAt,
     hookId: '',
     contract,
+
     ...(contract.feasibility === 'already-met' ? { met: true, lastReason: `already met at compile: ${contract.evidence}` } : {}),
   }
 
@@ -276,13 +289,16 @@ export function setActiveMission(
     timeoutMs: 5000,
     judge: ({ messages }) => {
       const mission = missionsBySession.get(sessionId)
+
       if (!mission || mission.condition !== condition) return { hold: false }
+
       if (mission.met) return { hold: false }
       if (sawMissionMetSentinel(messages)) {
         mission.met = true
         persistCard(sessionId, mission, 'met')
         return { hold: false }
       }
+
       if (mission.contract?.feasibility === 'unattainable-now') {
         if (mission.feasibilityBlocked) {
           mission.gaveUp = true
@@ -296,6 +312,7 @@ export function setActiveMission(
         persistCard(sessionId, mission, 'armed')
         return { hold: true, words }
       }
+
       if (mission.iterations >= maxBlocks) {
         mission.gaveUp = true
         mission.lastReason = `block cap (${maxBlocks}) reached — hook disarmed without the mission being met`
@@ -305,6 +322,7 @@ export function setActiveMission(
         )
         return { hold: false }
       }
+
       const claimed = claimContinuation(
         processMainOwner(),
         turnBoundaryIndex(messages),

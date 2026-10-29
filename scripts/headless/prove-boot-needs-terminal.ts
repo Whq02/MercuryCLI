@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/entrypoints/cli.tsx src/main.tsx
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

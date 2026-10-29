@@ -110,6 +110,7 @@ check('live: daemon.lock intact', existsSync(lockPath))
   )
   check('the receipt names the recycled verdict, not "not running"', recycled.reason.includes('recycled') && recycled.reason.includes('start-token mismatch'), recycled.reason)
   check('recycled sweep: files gone', !existsSync(supPath) && !existsSync(lockPath) && !existsSync(keyPath))
+
   const otherLivePid = process.ppid
   if (otherLivePid && otherLivePid > 1) {
     seedIdentity(otherLivePid)
@@ -120,12 +121,14 @@ check('live: daemon.lock intact', existsSync(lockPath))
     rmSync(lockPath, { force: true })
     rmSync(keyPath, { force: true })
   }
+
   writeFileSync(
     supPath,
     JSON.stringify({ pid: process.pid, version: '0.0.0-proof', origin: 'transient', startedAt: Date.now() - 60_000, dir: projectDir, controlSock: join(daemonScratch, 'control.sock'), startToken: null }),
   )
   const fallbackRecycled = await reconcileDaemonRecords({ projectDir })
   check('a baseline-less record + a process born after its stamp ⇒ the fallback arm judges recycled ⇒ reconciled', fallbackRecycled.state === 'reconciled' && fallbackRecycled.reason.includes('recycled'), JSON.stringify(fallbackRecycled))
+
   writeFileSync(
     supPath,
     JSON.stringify({ pid: process.pid, version: '0.0.0-proof', origin: 'transient', startedAt: Date.now(), dir: projectDir, controlSock: join(daemonScratch, 'control.sock') }),
@@ -167,6 +170,7 @@ check(
 )
 
 console.log('— §3 daemonExitTeardownSync (the sync exit backstop) —')
+
 seedDeadRecords(process.pid)
 controlSocket.daemonExitTeardownSync('proof-exit')
 check('sync teardown removes OWNED daemon.json', !existsSync(supPath))
@@ -207,6 +211,7 @@ check(
   check('the line carries the sweep verdict and the site-naming probe', line.includes('records swept') && line.includes('--trace-exit'))
   const ledgerRows = readFileSync(ledgerPath, 'utf8').trim().split('\n').map(l => JSON.parse(l))
   check('the ledger row keeps the plain reason when the sweep succeeded', ledgerRows.some(r => r.kind === 'daemon' && r.reason === 'exit-before-teardown'))
+
   seedDeadRecords(process.pid, Date.now())
   const writtenQuiet: string[] = []
   ;(process.stderr as unknown as { write: (chunk: unknown) => boolean }).write = (chunk: unknown): boolean => {
@@ -240,6 +245,7 @@ check(
   'shutdown reap ledgers un-observed worker exits (reap rows)',
   mainTs.includes("event: 'reap'"),
 )
+
 check(
   'clean shutdown clears control.key beside the daemon record',
   mainTs.includes('clearControlKey('),

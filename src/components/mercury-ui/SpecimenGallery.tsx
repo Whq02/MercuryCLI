@@ -8,12 +8,12 @@ import { useSessionAccent } from './sessionAccent.js'
 import { type SnapshotState } from './theme.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
-
 export type GalleryItem = {
   key: string
   label: string
   state: SnapshotState
   Component: React.ComponentType<{ onClose: () => void }>
+
   group?: string
 }
 
@@ -33,6 +33,7 @@ export function SpecimenGallery({
   const { accent } = useSessionAccent()
   const [sel, setSel] = useState(0)
   const [open, setOpen] = useState<number | null>(null)
+
   const pastOpenEvent = useOpenEventGate()
 
   useInput(
@@ -54,10 +55,12 @@ export function SpecimenGallery({
 
   return (
     <CommandCenter
+
       specimen={!items.some(it => it.state === 'live')}
       view={view} onClose={onClose} captureInput={false} footer="↑↓ select · ↵ open">
       <SectionHeader>{heading}</SectionHeader>
       {items.map((it, i) => {
+
         const showGroup = it.group != null && it.group !== items[i - 1]?.group
         return (
           <React.Fragment key={it.key}>

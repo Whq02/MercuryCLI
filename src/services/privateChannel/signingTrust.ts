@@ -1,7 +1,9 @@
-
 export interface TrustedSigningKey {
+
   keyId: string
+
   publicKeySpkiB64: string
+
   label: string
 }
 

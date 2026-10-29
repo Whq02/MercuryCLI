@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -55,13 +56,16 @@ type Edit = { range: ReturnType<typeof rangeOf>; newText: string }
 const state = {
   open: new Map<string, string>(),
   notifications: [] as { method: string; params: unknown }[],
+
   diagnostics: new Map<string, { range: ReturnType<typeof rangeOf>; severity: number; message: string; code: number }[]>(),
+
   actionLists: [] as { title: string; kind: string; edit?: { changes: Record<string, Edit[]> } }[][],
   actionFetches: 0,
 }
 const fakeServer = {
   name: 'fake-ts',
   state: 'running',
+
   start: async () => {},
   sendRequest: async (method: string, params: unknown) => {
     const uri = (params as { textDocument?: { uri?: string } })?.textDocument?.uri
@@ -85,6 +89,7 @@ const fakeServer = {
 }
 const manager = {
   getServerForFile: (f: string) => (f.endsWith('.ts') ? fakeServer : undefined),
+
   getServersForFile: (f: string) => (f.endsWith('.ts') ? [fakeServer] : []),
   getAllServers: () => new Map([['fake-ts', fakeServer]]),
   isFileOpen: (f: string) => state.open.has(f),
@@ -98,6 +103,7 @@ const manager = {
       return { kind: 'full', items: state.diagnostics.get(file) ?? [], resultId: `r${Date.now()}` }
     }
     if (method === 'workspace/willRenameFiles') {
+
       const aText = readFileSync(aPath, 'utf8')
       const bText = readFileSync(bPath, 'utf8')
       return {
@@ -205,6 +211,7 @@ section('PR. pathRename — the one-transaction import-updating move')
   writeFileSync(aPath, readFileSync(newPath, 'utf8').replace(`'../lib.js'`, `'./lib.js'`))
   unlinkSync(newPath)
   writeFileSync(bPath, `import { twice } from './a.js'\nconsole.log(twice)\n`)
+
   const originalSendRequest = (manager as { sendRequest: unknown }).sendRequest as Function
   let willRenameCalls = 0
   ;(manager as { sendRequest: unknown }).sendRequest = async (
@@ -231,6 +238,7 @@ section('PR. pathRename — the one-transaction import-updating move')
     drifted.effect.outcome === 'failed' &&
     drifted.result.includes('drift') &&
     existsSync(aPath) && !existsSync(newPath))
+
   writeFileSync(bPath, `import { twice } from './a.js'\nconsole.log(twice)\n`)
 }
 
@@ -302,6 +310,7 @@ section('WD. workspaceDiagnostics — bounded deterministic multi-file pull')
     wd.result.includes('1 error') &&
     /skipped/.test(wd.result),
     `outcome=${wd.effect.outcome} result=${String(wd.result).slice(0, 400)}`)
+
   const bulk = join(dir, 'bulk')
   mkdirSync(bulk)
   for (let i = 0; i < 60; i++) writeFileSync(join(bulk, `f${String(i).padStart(2, '0')}.ts`), 'export {}\n')

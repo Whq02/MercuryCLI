@@ -1,4 +1,3 @@
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync } from 'node:fs'
@@ -35,6 +34,7 @@ function restore(): void {
 }
 
 try {
+
   delete process.env.MERCURY_LSP
   check('unset ⇒ bridge ON', mercuryLspEnabled() === true)
   check('unset ⇒ catalog ON', isLspToolCatalogEnabled() === true)

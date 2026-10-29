@@ -18,7 +18,6 @@ function pass(name: string): void {
   console.log(`  ✓ ${name}`)
 }
 
-
 const CORPUS: Record<string, string> = {
   paragraphs: 'First paragraph of ordinary prose that flows on.\n\nSecond paragraph, still ordinary.\n\nThird one ends the doc.',
   'atx-headings': '# Title\n\nIntro prose under the title.\n\n## Section two\n\nBody of section two.',
@@ -33,6 +32,7 @@ const CORPUS: Record<string, string> = {
   'plain-long': 'plain words with no markdown syntax at all just a very long single paragraph that keeps growing and growing and growing until the stream ends without ever containing a single marker character or blank line'.replace(/-/g, ' '),
   'hr-rule': 'Above the rule.\n\n---\n\nBelow the rule.',
   mixed: '# Doc\n\nProse first.\n\n```py\nprint("hi")\n```\n\n- a\n- b\n\n> quote\n\nFinal words.',
+
   'loose-list-continuation': 'Steps:\n\n- first item\n  its continuation line\n\n- second item\n  more continuation\n\n- third\n\nAfter.',
   'deep-indent-fence': 'Core:\n\n```ts\nclass A {\n  m() {\n    if (x) {\n      deep();\n\n      deeper();\n    }\n  }\n}\n```\n\nAfter the fence.',
 }
@@ -92,7 +92,6 @@ function rowsOf(text: string): string[] {
   return rows
 }
 
-
 function replay(name: string, doc: string, granName: string, expectSettleDivergence: boolean): void {
   const steps = slices(doc, GRANULARITIES[granName]!)
   let boundary = 0
@@ -103,6 +102,7 @@ function replay(name: string, doc: string, granName: string, expectSettleDiverge
 
   for (const text of steps) {
     boundary = advanceStableBoundary(text, boundary)
+
     if (boundary < prevBoundary || boundary > text.length) {
       ok.l1 = false
       detail = `boundary ${prevBoundary}→${boundary} (len ${text.length})`
@@ -111,11 +111,13 @@ function replay(name: string, doc: string, granName: string, expectSettleDiverge
     prevBoundary = boundary
     const stable = text.slice(0, boundary)
     const unstable = text.slice(boundary)
+
     if (stable + unstable !== text) {
       ok.l2 = false
       detail = 'byte loss at the split'
       break
     }
+
     const split = [...tokenSig(marked.lexer(stable)), ...tokenSig(unstable ? marked.lexer(unstable) : [])]
     const whole = tokenSig(marked.lexer(text))
     if (split.join('\u241F') !== whole.join('\u241F')) {
@@ -123,6 +125,7 @@ function replay(name: string, doc: string, granName: string, expectSettleDiverge
       detail = `token divergence at len ${text.length}: split=[${split.slice(0, 4)}] whole=[${whole.slice(0, 4)}]`
       break
     }
+
     const stableFmt = fmt(stable)
     if (!stableFmt.startsWith(prevStableFmt)) {
       ok.l4 = false
@@ -167,6 +170,7 @@ for (const granName of Object.keys(GRANULARITIES)) {
   const a = '# Old\n\nold body text.'
   const b = 'Completely different text.\n\nSecond paragraph.'
   let boundary = advanceStableBoundary(a, 0)
+
   if (!b.startsWith(a.slice(0, boundary))) boundary = 0
   boundary = advanceStableBoundary(b, boundary)
   checks++

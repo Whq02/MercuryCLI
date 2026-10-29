@@ -44,6 +44,7 @@ const outputSchema = lazySchema(() =>
   z.object({
     delaySeconds: z.number(),
     humanSchedule: z.string(),
+
     road: z.enum(['session', 'local']),
   }),
 )
@@ -97,11 +98,13 @@ export const ScheduleWakeupTool = buildTool({
     return buildScheduleWakeupPrompt()
   },
   async call({ delaySeconds, prompt, reason }) {
+
     const secretReason = saturnSecretProseRefusal('prompt', prompt)
     if (secretReason !== null) {
       throw new Error(`ScheduleWakeup: ${secretReason}`)
     }
     const clamped = clampDelaySeconds(delaySeconds)
+
     const nowMs = Date.now()
     const fireAtMs = nextWakeInstantMs(clamped, nowMs)
     const cron = buildOneShotCron(fireAtMs)
@@ -109,6 +112,7 @@ export const ScheduleWakeupTool = buildTool({
     const fired = applyWakeReason(prompt, safeReason)
     const humanSchedule = cronToHuman(cron)
     if (scheduleSeatObserved()) {
+
       const submitted = submitSessionScheduleEdit({
         op: 'add',
         schedule: {
@@ -122,6 +126,7 @@ export const ScheduleWakeupTool = buildTool({
       }
       return { data: { delaySeconds: clamped, humanSchedule, road: 'session' as const } }
     }
+
     if (!localWakeAvailable()) {
       throw new Error(
         `${SCHEDULE_WAKEUP_TOOL_NAME}: this surface has no wake queue — a one-shot run cannot take a later fire.`,

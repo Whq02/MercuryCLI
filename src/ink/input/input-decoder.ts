@@ -17,13 +17,15 @@ import {
   type ParsedInput,
 } from './interpreter.js'
 
-
 export type KeyParseState = {
   mode: 'NORMAL' | 'IN_PASTE'
   incomplete: string
   pasteBuffer: string
+
   pendingBytes?: Buffer
+
   heldCR?: boolean
+
   _scanner?: Scanner
   stringReplyOwed?: () => boolean
 }
@@ -103,6 +105,7 @@ export function parseMultipleKeypresses(
         extractOrphanMouseEvents(token.value, atoms)
       } else {
         let value = token.value.replace(/\r\n/g, '\n')
+
         if (burstCrIsLineBreak()) value = value.replace(/\r(?=[^\r\n])/g, '\n')
         if (
           !isFlush &&
@@ -118,6 +121,7 @@ export function parseMultipleKeypresses(
       }
       continue
     }
+
     if (token.value === PASTE_START && !inPaste) {
       inPaste = true
       pasteBuffer = ''

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -95,6 +96,7 @@ for (const artifact of ['mercury.mjs', 'verify-artifact.mjs']) {
       check(`NOTICE preserved for ${f.pkg}`, notices.includes(`### ${f.pkg} `), 'regenerate: bun run scripts/distribution/generate-third-party-notices.ts')
     }
   }
+
   if (CURRENT_NOTICE_SLOTS.copyrightLine) {
     check('filled copyright slot present at the inventory head', notices.includes(CURRENT_NOTICE_SLOTS.copyrightLine))
   }

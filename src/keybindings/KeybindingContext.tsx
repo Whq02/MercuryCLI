@@ -1,4 +1,3 @@
-
 import React, { createContext, useCallback, useContext, useLayoutEffect, useMemo } from 'react'
 import type { Key } from '../ink/events/input-event.js'
 import { getPlatform } from '../utils/platform.js'
@@ -20,11 +19,14 @@ export type KeybindingContextValue = {
   setPendingChord: (pending: ParsedKeystroke[] | null) => void
   getDisplayText: (action: string, context: KeybindingContextName) => string | undefined
   bindings: ParsedBinding[]
+
   pendingChord: ParsedKeystroke[] | null
   activeContexts: Set<KeybindingContextName>
   registerActiveContext: (context: KeybindingContextName) => void
   unregisterActiveContext: (context: KeybindingContextName) => void
+
   registerHandler: (registration: HandlerRegistration) => () => void
+
   invokeAction: (action: string) => boolean
 }
 

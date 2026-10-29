@@ -1,4 +1,3 @@
-
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
 import { godotExecutablePresence } from '../../services/vulcan/portabilityHealth.js'
@@ -22,7 +21,6 @@ export function godotToolWithholding(): ToolWithholding {
 export function vulcanLiteMode(): boolean {
   return flagEnabled('MERCURY_GODOT_TOOLS_LITE')
 }
-
 
 export function getVulcanSection(): string | null {
   if (!vulcanEnabled()) return null

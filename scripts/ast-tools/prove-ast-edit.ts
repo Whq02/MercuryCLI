@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -95,6 +96,7 @@ section('§3 — apply asks like Edit does; the receipt')
 
 section('§4 — a denied path refuses the whole set; a whole-tool allow rule needs no ask')
 {
+
   const prover = await makeContext(tools, { allow: ['AstEdit'] })
   const dry = await drive(AstEditTool, { pattern: 'normaliseRecord($$$ARGS)', rewrite: 'normalizeRecord($$$ARGS)', path: 'rename' }, prover)
   const token = /plan: (ae-[0-9a-f]{12})/.exec(dry.text)?.[1] ?? ''
@@ -115,6 +117,7 @@ section('§4b — a file changed between the dry run and the apply: refused by n
   const dry = await drive(AstEditTool, { pattern: 'normalizeRecord($$$ARGS)', rewrite: 'normaliseRecord($$$ARGS)', path: 'rename' }, prover)
   const token = /plan: (ae-[0-9a-f]{12})/.exec(dry.text)?.[1] ?? ''
   check('a dry run minted a plan', token !== '', dry.text.slice(0, 200))
+
   const reportPath = join(root, 'rename', 'src', 'report.ts')
   const original = readFileSync(reportPath, 'utf8')
   writeFileSync(reportPath, `${original}// touched after the dry run\n`)
@@ -136,6 +139,7 @@ section('§5 — the layout-keeping lane')
   const applied = await drive(AstEditTool, { pattern: 'function normalizeRecord($$$P) { $$$B }', rewrite: 'function normaliseRecord($$$P) { $$$B }', path: 'rename', apply: true, plan: token }, prover)
   const after = read('rename/src/records.ts')
   check('applied: the body, its indentation and its comment survive', !applied.isError && after.includes('export function normaliseRecord(record: { label: string; value: number }) {\n  // trim the label, keep the value\n  const label = record.label.trim()\n  return { label, value: record.value }\n}'), after)
+
   const back = await drive(AstEditTool, { pattern: 'function normaliseRecord($$$P) { $$$B }', rewrite: 'function normalizeRecord($$$P) { $$$B }', path: 'rename' }, prover)
   const backToken = /plan: (ae-[0-9a-f]{12})/.exec(back.text)?.[1] ?? ''
   await drive(AstEditTool, { pattern: 'function normaliseRecord($$$P) { $$$B }', rewrite: 'function normalizeRecord($$$P) { $$$B }', path: 'rename', apply: true, plan: backToken }, prover)
@@ -210,6 +214,7 @@ section('§9 — /rewind restores the written file from the pre-write snapshot')
   const a = await drive(AstEditTool, { pattern: 'old_name($X)', rewrite: 'new_name($X)', path: 'rewind', apply: true, plan: token }, prover, { messageId: turnId })
   check('applied', !a.isError && read('rewind/r.py').includes('print(new_name(1))'), a.text.slice(0, 200))
   check('the written file is tracked by file history', prover.fileHistory().trackedFiles.has('rewind/r.py'), [...prover.fileHistory().trackedFiles].join(','))
+
   const restored = await fileHistoryRestore(prover.fileHistory(), turnId as never, { dryRun: false, ownerKey: 'ast-edit-prover' })
   check('rewind restores the original bytes', restored.ok && read('rewind/r.py') === original, JSON.stringify({ restored, bytes: read('rewind/r.py') }))
 }

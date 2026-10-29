@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -33,6 +34,7 @@ section('§1 every keychain spawn in src captures the tool\'s stderr')
       if (!/(execFileSync|execFile|spawnSync|spawn|execFileNoThrow)\(\s*['"]security['"]/.test(line)) return
       const rel = relative(ROOT, f)
       spawnSites.push(`${rel}:${i + 1}`)
+
       if (/execFileSync|execSync/.test(line)) {
         const window = lines.slice(i, i + 6).join('\n')
         if (!/stdio\s*:/.test(window)) inherited.push(`${rel}:${i + 1}`)
@@ -58,6 +60,7 @@ if (process.platform !== 'darwin') {
   const log = join(scratch, 'security-invocations.log')
   mkdirSync(bin, { recursive: true })
   mkdirSync(home, { recursive: true })
+
   writeFileSync(
     join(bin, 'security'),
     `#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\necho "security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain." >&2\nexit 44\n`,

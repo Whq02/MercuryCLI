@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -29,16 +30,20 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const SEAT_MARK = 'hdr-seat:'
+
 const NOTE_FILES = 30
 const noteFile = (n: number): string => `hdr-notes-${n}.txt`
 const SEATS = { one: 'hdr-one', two: 'hdr-two', three: 'hdr-three', four: 'hdr-four', five: 'hdr-five' } as const
 type Seat = keyof typeof SEATS
+
 const SCALE = vshotBudgetScale()
 const SEAT_READS: Record<Seat, number> = { one: 30, two: 30, three: Math.ceil(4 * SCALE), four: Math.ceil(4 * SCALE), five: Math.ceil(3 * SCALE) }
 const SEAT_STEP_MS = 2500
+
 const THINK_LONG_STEPS = 40
 const THINK_SHORT_STEPS = 3
 const THINK_STEP_MS = 1000
+
 const FIRST_BYTE_HOLD_MS = 10_000
 const IDLE_BUDGET_MS = 16_000
 const NAP_SECONDS = 8
@@ -57,6 +62,7 @@ const offersTool = (body: unknown, name: string): boolean => {
   const tools = (body as { tools?: unknown[] })?.tools
   return Array.isArray(tools) && tools.some(t => (t as { name?: string })?.name === name)
 }
+
 function answeredTool(items: Item[]): string | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -71,6 +77,7 @@ function answeredTool(items: Item[]): string | null {
   }
   return null
 }
+
 function askOf(items: Item[]): string | null {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!
@@ -83,6 +90,7 @@ function askOf(items: Item[]): string | null {
 }
 const turnAskOf = (items: Item[]): string | null => askOf(items.slice(items.map(i => i.role).lastIndexOf('assistant') + 1))
 const askRoutes = (body: unknown, ask: string | null): boolean => ask !== null && (ask !== 'launch' && ask !== 'launch2' && ask !== 'fore' || offersTool(body, 'Crewmate'))
+
 function seatOf(items: Item[]): Seat | null {
   const userText = items
     .filter(i => i.role === 'user' && !hasToolResult(i.content))
@@ -178,6 +186,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
   let stuckServed = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
+
     let closed = false
     res.on('close', () => {
       closed = true
@@ -255,6 +264,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             return
           case 'launched:launch':
           case 'launched:launch2': {
+
             const steps = route === 'launched:launch' ? THINK_LONG_STEPS : THINK_SHORT_STEPS
             const launchedText = route === 'launched:launch' ? 'HDR-LAUNCHED' : 'HDR-LAUNCHED-2'
             if (!streaming) {
@@ -282,6 +292,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             reply(head(model) + textBlock(0, 'HDR-TOOL-DONE') + tail('end_turn'))
             return
           case 'wait':
+
             await sleep(FIRST_BYTE_HOLD_MS)
             if (!live()) return
             reply(head(model) + textBlock(0, 'HDR-WAITED') + tail('end_turn'))
@@ -295,6 +306,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
               reply(head(model) + textBlock(0, 'HDR-STUCK-DONE') + tail('end_turn'))
               return
             }
+
             if (!streaming) {
               reply(head(model) + textBlock(0, 'HDR-') + textBlock(1, 'late') + tail('end_turn'))
               return
@@ -412,13 +424,16 @@ const GLYPHS = /[◐◓◑◒]/
 const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
 const CREW_CLOCK = /\b(crewmates?|workflows?) thought for \d+[sm]\b/
 const titleRowIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
+
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
+
 const crewClock = (frame: string | undefined): string => (/\b(?:crewmates?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
 const crewClockAdvances = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(b) !== '' && crewClock(a) !== crewClock(b)
 const crewClockStands = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(a) === crewClock(b)
 const noGlyph = (frame: string | undefined): boolean => statusGlyph(frame) === ''
 const statusGlyph = (frame: string | undefined): string => (GLYPHS.exec(statusRow(frame)) ?? [''])[0]!
+
 const berth = (frame: string | undefined): string => rows(frame).slice(1, 12).join('\n')
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
@@ -446,6 +461,7 @@ const ask = (text: string, mark?: string): Record<string, unknown> => ({
   ...(mark ? { mark } : {}),
 })
 const after = (ticks: number, mark: string, data = ''): Record<string, unknown> => ({ data, afterPrevTicks: ticks, mark })
+
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -455,14 +471,18 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 8 },
+
         ask('hdr: launch', 'idle'),
         after(80, 'thinking'),
         after(12, 'thinking+'),
+
         after(2, 'esc', '\x1b'),
         after(1, 'interrupting'),
         after(14, 'after-esc'),
         after(12, 'after-esc+'),
+
         { data: '/crewmates\r', afterPrevTicks: 2 },
         { data: 'x', awaitText: SEATS.one, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew' },
         { data: 'x', afterPrevTicks: 3 },
@@ -472,6 +492,7 @@ try {
         after(12, 'x4', '\x1b'),
         after(10, 'crew-done'),
         after(12, 'crew-done+'),
+
         ask('hdr: launch2'),
         { data: '', awaitText: 'waiting on 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
         after(2, 'esc2', '\x1b'),
@@ -479,6 +500,7 @@ try {
         after(12, 'after-esc-2+'),
         after(70, 'crew-landed'),
         after(12, 'crew-landed+'),
+
         { data: '', awaitText: '[Crewmate] hdr-three · completed', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
         { data: 'hdr: wait\r', awaitText: '[Crewmate] hdr-four · completed', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed-beat' },
         after(25, 'first-byte'),

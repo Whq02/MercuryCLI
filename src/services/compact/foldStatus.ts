@@ -5,18 +5,27 @@ import { formatDuration, formatTokens } from '../../utils/format.js'
 type FoldStage = 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring'
 const FOLD_STAGE_ORDER: readonly FoldStage[] = ['session-memory', 'micro-compaction', 'summarising', 'restoring']
 export type FoldTrigger = 'manual' | 'auto'
+
 export type FoldExit = 'landed' | 'cancelled' | 'failed'
 
 export interface FoldStatusV1 {
   schema: 1
   trigger: FoldTrigger
+
   startedAtMs: number
+
   stages: FoldStage[]
+
   stage: FoldStage | null
+
   fill: number | null
+
   summaryTokens: number
+
   summaryCapTokens: number
+
   attempt: number
+
   exit?: FoldExit
   endedAtMs?: number
   reason?: string
@@ -29,19 +38,25 @@ const FOLD_STAGE_WORDS: Readonly<Record<FoldStage, string>> = {
   summarising: 'summarising',
   restoring: 'restoring',
 }
+
 export const FOLD_EXIT_WORDS: Readonly<Record<FoldExit, string>> = {
   landed: 'compacted',
   cancelled: 'cancelled',
   failed: 'failed',
 }
+
 export const FOLD_BAR_CELLS_PER_STAGE = 3
+
 export const FOLD_EXIT_LINGER_MS = 5000
+
 export const FOLD_STAMP_THROTTLE_MS = 250
 
 export function beginFoldStatus(facts: {
   trigger: FoldTrigger
   startedAtMs: number
+
   sessionMemory: boolean
+
   microcompaction: boolean
 }): FoldStatusV1 {
   const stages: FoldStage[] = []
@@ -77,11 +92,13 @@ export function foldStatusOnEvent(status: FoldStatusV1, event: CompactProgressEv
     case 'compact_start':
       return advanceStage(status, 'summarising')
     case 'summary_progress': {
+
       const summarisingAt = status.stages.indexOf('summarising')
       const currentAt = status.stage === null ? -1 : status.stages.indexOf(status.stage)
       if (currentAt > summarisingAt) return status
       const tokens = Math.max(0, Math.floor(event.chars / 4))
       const measured = status.summaryCapTokens > 0 ? Math.min(1, tokens / status.summaryCapTokens) : 0
+
       const fill = Math.max(status.fill ?? 0, measured)
       const advanced = advanceStage(status, 'summarising')
       return { ...advanced, fill, summaryTokens: tokens }
@@ -178,6 +195,7 @@ export function foldBarCells(status: FoldStatusV1): FoldBarCell[] {
       return
     }
     if (index > current) {
+
       if (live && current === -1 && index === 0) {
         push('pulse', 1)
         push('empty', per - 1)
@@ -186,6 +204,7 @@ export function foldBarCells(status: FoldStatusV1): FoldBarCell[] {
       }
       return
     }
+
     const filled = status.fill === null ? 0 : Math.min(per, Math.round(status.fill * per))
     if (filled === 0) {
       push(live ? 'pulse' : 'empty', 1)

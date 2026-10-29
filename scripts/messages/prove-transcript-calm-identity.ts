@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -45,6 +46,7 @@ section('B. normalize identity — unchanged parent ⇒ the SAME row objects')
     'every row keeps its OBJECT identity across walks (the row memo bails)',
     first.every((r, i) => r === second[i]),
   )
+
   const userTwin = createUserMessage({ content: 'hello there' }) as unknown as Msg
   const third = normalizeMessages([userTwin] as never)
   check('a fresh parent object mints fresh rows (no value-keyed staleness)', third[0] !== first[0])
@@ -52,6 +54,7 @@ section('B. normalize identity — unchanged parent ⇒ the SAME row objects')
 
 section('C. normalize identity — the chain-state variant never replays wrong uuids')
 {
+
   const single = createAssistantMessage({
     content: [{ type: 'text', text: 'one block', citations: [] }],
   }) as unknown as Msg
@@ -72,6 +75,7 @@ section('C. normalize identity — the chain-state variant never replays wrong u
     'chained walk derives a different uuid for the SAME parent object',
     (chained[0] as { uuid?: string }).uuid !== (single as { uuid?: string }).uuid,
   )
+
   const unchainedAgain = normalizeMessages([single] as never)
   const chainedAgain = normalizeMessages([multi, single] as never).slice(-1)
   check('the unchained variant replays ITS rows by identity', unchainedAgain[0] === unchained[0])
@@ -119,13 +123,17 @@ section('E. the coordinator pane merge, DRIVEN in BOTH directions')
   const a = [entry('e1', 'first'), entry('e2', 'second')]
   const first = mergeCoordinatorEntries(null, a)
   check('a cold read takes the rows as-is', first === a)
+
   const again = mergeCoordinatorEntries(first, [entry('e1', 'first'), entry('e2', 'second')])
   check('byte-identical read returns prev ITSELF (nothing repaints)', again === first)
+
   const appended = mergeCoordinatorEntries(first, [entry('e1', 'first'), entry('e2', 'second'), entry('e3', 'third')])
   check('append: prior entries keep their objects', appended[0] === first[0] && appended[1] === first[1] && appended.length === 3)
+
   const changed = mergeCoordinatorEntries(appended, [entry('e1', 'first'), entry('e2', 'second EDITED'), entry('e3', 'third')])
   check('changed bytes: a NEW object carrying the NEW text', changed[1] !== appended[1] && changed[1]!.text === 'second EDITED')
   check('changed bytes: neighbours still reuse', changed[0] === first[0] && changed[2] === appended[2])
+
   const shifted = mergeCoordinatorEntries(changed, [entry('co:compact:x', 'conversation compacted — 1 earlier turn folded away'), entry('e1', 'first'), entry('e2', 'second EDITED')])
   check('a misaligned shift reuses nothing (conservative fresh identities)', shifted[0] !== changed[0] && shifted[1] !== changed[1] && shifted[2] !== changed[2])
   const realCompact = mergeCoordinatorEntries(changed, [entry('co:compact:y', 'conversation compacted — 1 earlier turn folded away'), entry('e2', 'second EDITED'), entry('e3', 'third')])

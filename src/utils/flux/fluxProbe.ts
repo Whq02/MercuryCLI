@@ -1,4 +1,3 @@
-
 import { writeFileSync } from 'node:fs'
 import { isEnvTruthy } from '../envUtils.js'
 import { registerCleanup } from '../cleanupRegistry.js'
@@ -18,6 +17,7 @@ let teeArmed = false
 let teeWritten = false
 function writeProbeTee(path: string): void {
   if (teeWritten) return
+
   const dump = fluxProbeDump()
   if (dump.allMarks.length === 0 && dump.frames.total === 0) return
   teeWritten = true
@@ -30,6 +30,7 @@ function armProbeTee(): void {
   const path = flagEnv('MERCURY_FLUX_PROBE_TEE')
   if (!path || teeArmed) return
   teeArmed = true
+
   process.once('SIGTERM', () => writeProbeTee(path))
   process.once('SIGHUP', () => writeProbeTee(path))
   registerCleanup(async () => writeProbeTee(path))
@@ -113,6 +114,7 @@ type FluxSummary = {
   enabled: boolean
   counters: Record<string, number>
   frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }
+
   recentMarks: FluxMark[]
 }
 
@@ -136,8 +138,10 @@ export function fluxSummary(): FluxSummary {
 }
 
 type FluxProbeDump = FluxSummary & {
+
   allMarks: FluxMark[]
   frameRecords: Array<{ t: number; ms: number }>
+
   epochMinusPerfNow: number
 }
 

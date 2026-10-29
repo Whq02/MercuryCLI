@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -110,6 +111,7 @@ writeFileSync(
     switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 },
   }),
 )
+
 const api = await startFixtureApi([
   { kind: 'paced', deltas: Array.from({ length: 32 }, (_, i) => `tick${i + 1} `), gapMs: 600, whenModel: 'opus' },
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
@@ -143,6 +145,7 @@ const child = spawn(
   {
     cwd,
     env: {
+
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -167,6 +170,7 @@ const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 10
 await driverClosed(child)
 clearTimeout(killer)
 await api.close()
+
 const reaped: number[] = []
 try {
   const wf = join(daemonDir, 'concourse-workers.json')

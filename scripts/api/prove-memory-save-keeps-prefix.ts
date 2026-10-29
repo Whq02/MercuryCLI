@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/constants/prompts.ts src/constants/systemPromptSections.ts src/mneme/mnemeFrontPage.ts src/prompt/recordedComposition.ts src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/anthropic/thinkingBinding.ts src/tools/MemoryTools/MemoryTools.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'

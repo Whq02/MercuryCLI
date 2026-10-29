@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
@@ -118,6 +119,7 @@ console.log('B a proto-2 client\'s old spelling still answers (the real control 
     check('B5 the release door reads runnerId AND the legacy workerId (R2 on the wire)', relNew.ok === true && relOld.ok === true && releaseIds.join(',') === 'concourse-w9,concourse-w8', releaseIds.join(','))
     const admit = await rawRequest(path, { op: 'concourseAdmit', proto: 2, auth: 'k', workspaceDir: '/ws' })
     check('B6 the admit reply carries the workerId MIRROR beside runnerId for proto≤2 readers', admit.ok === true && admit.runnerId === 'concourse-w1' && admit.workerId === 'concourse-w1', JSON.stringify(admit))
+
     const effNew = await rawRequest(path, { op: 'sessionControl', proto: 3, auth: 'k', action: 'set-effort', sessionId: 's-eff', by: 't', effort: 'low' })
     const effOld = await rawRequest(path, { op: 'concourseControl', proto: 2, auth: 'k', action: 'set-effort', sessionId: 's-eff2', by: 't', effort: 'medium' })
     check('B7 set-effort routes WITH its field through both spellings onto the one handler', effNew.ok === true && effOld.ok === true && controlCalls.slice(-2).join(',') === 'set-effort:s-eff:low,set-effort:s-eff2:medium', controlCalls.join(','))
@@ -135,6 +137,7 @@ console.log('E set-effort mirrors set-model at every owner (poison: an effort wr
   check('E1 the action rides the proto-3 union; the effort word crosses as a string the runner validates (one validator, no second enum)', protocolSrc.includes("| 'set-effort'") && protocolSrc.includes('effort?: string') && !/effort\?: '(?:low|medium|high|max)'/.test(protocolSrc))
   check('E2 the router forwards the effort field (bounded), and the requires-string names the action', serverSrc.includes("raw.action === 'set-effort'") && serverSrc.includes('raw.effort.slice(0, 32)') && serverSrc.includes('park-all|set-effort'))
   check('E3 an effort write WITHOUT the field refuses at the one handler (the poison inverted)', mainSrc.includes("detail: 'set-effort requires effort'") && mainSrc.includes('setSessionEffort(sessionId, effort, roster)'))
+
   check('E4 the seat verb validates the value against the ONE effort owner and sends the typed session/set_effort method', seatSrc.includes('normalizeEffortLevelString(effort)') && seatSrc.includes("door.send('session/set_effort', { effort }"))
   check('E5 the busy arm parks on the record and the idle edge forwards it to the runner, which lands it at its turn boundary (the set-model grammar, mirrored)', seatSrc.includes('w.pendingEffort = effort') && seatSrc.includes('if (parkedEffort !== undefined) void forwardEffort(rec, parkedEffort, roster, dir, { parked: true })'))
   check('E6 the spec follows without a bounce (patchSeatEffort beside patchSeatModel)', seatSrc.includes('patchSeatEffort(short: string, effort: string): boolean') && read('src/daemon/roster.ts').includes('patchSeatEffort(short: string, effort: string): boolean'))
@@ -178,6 +181,7 @@ console.log('C the client helper picks the spelling by negotiated proto (both ar
   try {
     sock.forgetDaemonProtoForTesting()
     const first = (await sock.daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId: 's', by: 't' } as never)) as Record<string, unknown>
+
     const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
     check(
       'C6 the EPROTO retry re-spells at the LOWER proto (never the new name at an old router)',

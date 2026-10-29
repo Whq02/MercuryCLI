@@ -1,4 +1,3 @@
-
 export function retainFullscreenScrollback<M extends { uuid: string }>(
   previous: readonly M[],
   preservedHeadUuid: string | undefined,

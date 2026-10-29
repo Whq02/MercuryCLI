@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import {
@@ -25,6 +24,7 @@ export function ModelSelector({
   const byValue = React.useMemo(() => new Map(rows.map(row => [row.value, row])), [rows])
   const options = React.useMemo(() => {
     const catalogueOptions = rows.map(row => {
+
       const detail = row.unavailable ?? row.description
       return {
         value: row.value,
@@ -63,6 +63,7 @@ export function ModelSelector({
         onChange={value => {
           const row = byValue.get(value)
           if (row === undefined) {
+
             onComplete(value)
             return
           }

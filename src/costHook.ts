@@ -6,6 +6,7 @@ import type { FpsMetrics } from './utils/fpsTracker.js'
 export function useCostSummary(
   getFpsMetrics?: () => FpsMetrics | undefined,
 ): void {
+
   useEffect(() => {
     const onExit = (): void => {
       if (is1PApiCustomer()) {

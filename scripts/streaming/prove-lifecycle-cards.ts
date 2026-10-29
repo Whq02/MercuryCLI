@@ -16,10 +16,12 @@ function check(name: string, ok: boolean, detail = ''): void {
 console.log('── FLUX S7b tool-card lifecycle grammar (shipped artifact) ──')
 
 const run = await runArtifactArena({
+
   turns: [
     { kind: 'tool_use', name: 'Bash', input: { command: 'touch lifecycle-probe.txt' }, whenModel: 'opus' },
     { kind: 'text', text: 'ok.', whenModel: 'opus' },
   ],
+
   sends: ['4500:hello', '5300:\\r', 'after:lifecycle-probe:1200:\\x1b'],
   seconds: 16,
   keep: true,
@@ -36,9 +38,11 @@ function screenAt(offsets: number[]): { atMs: number; rows: string[] }[] {
 
 const boot = run.teeLines.find(l => typeof l.ts === 'number')?.ts ?? 0
 const escTs = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === '\x1b')?.sent ?? 0
+
 const askOffsets = [escTs - boot - 400, escTs - boot - 200, escTs - boot - 60]
 const [ask400, ask200, ask60, fin] = screenAt([...askOffsets, -1])
 const duringAsk = [ask400, ask200, ask60].find(s => s !== undefined && /lifecycle-probe/.test(s.rows.join('\n'))) ?? ask400
+
 check('the ask frame and the final frame were both captured', duringAsk !== undefined && fin !== undefined, `escTs=${escTs} boot=${boot}`)
 if (duringAsk === undefined || fin === undefined) {
   console.log(`❌ FLUX lifecycle-cards RED (${failures})`)
@@ -48,6 +52,7 @@ const askFlat = duringAsk.rows.join('\n')
 const finFlat = fin.rows.join('\n')
 
 check('C2 permission card visible before Esc', /lifecycle-probe/.test(askFlat), askFlat.length < 200 ? 'screen empty' : 'command text not on screen')
+
 if (!/lifecycle-probe/.test(askFlat)) {
   const keyed = duringAsk.rows.filter(r => /lifecycle|proceed|Yes|No,|Bash|touch|❯|Allow|permission|ask/i.test(r)).slice(0, 12)
   console.log(`  ── the ask frame (${duringAsk.atMs} ms): ${keyed.length} needle row(s)`)

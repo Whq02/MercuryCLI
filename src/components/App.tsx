@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { FpsMetricsProvider } from '../context/fpsMetrics.js'
 import { StatsProvider, type StatsStore } from '../context/stats.js'

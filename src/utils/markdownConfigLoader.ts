@@ -1,4 +1,3 @@
-
 import { statSync } from 'node:fs'
 import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -28,11 +27,12 @@ type MarkdownFile = {
   baseDir: string
   frontmatter: FrontmatterData
   content: string
+
   rawContent: string
   source: 'policySettings' | 'userSettings' | 'projectSettings'
+
   parseError?: { message: string }
 }
-
 
 export function extractDescriptionFromMarkdown(
   content: string,
@@ -48,7 +48,6 @@ export function extractDescriptionFromMarkdown(
   return defaultDescription
 }
 
-
 function toToolStrings(value: unknown): string[] | undefined {
   if (typeof value === 'string') return [value]
   if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string')
@@ -56,10 +55,13 @@ function toToolStrings(value: unknown): string[] | undefined {
 }
 
 export function parseAgentToolsFromFrontmatter(value: unknown): string[] | undefined {
+
   if (value === undefined) return undefined
   if (value === null || value === '' || (Array.isArray(value) && value.length === 0)) return []
+
   if (value === false) return []
   if (value === true) return undefined
+
   if (typeof value === 'object' && !Array.isArray(value)) {
     const keys = Object.keys(value as Record<string, unknown>).filter(k => k.trim() !== '')
     if (keys.length === 0) return []
@@ -91,7 +93,6 @@ export function parseSlashCommandToolsFromFrontmatter(value: unknown): string[] 
   if (parsed.includes('*')) return ['*']
   return parsed
 }
-
 
 function configDirExists(path: string): boolean {
   try {
@@ -156,15 +157,17 @@ export function getProjectDirsUpToHome(subdir: string, cwd: string): string[] {
   return dirs
 }
 
-
 export const ESTATE_WALK_MAX_ENTRIES = 8_000
 export const ESTATE_WALK_MAX_DEPTH = 12
 const ESTATE_WALK_BUDGET_MS = 3_000
 
 export interface EstateWalk {
+
   files: string[]
+
   complete: boolean
   reason?: string
+
   entries: number
 }
 
@@ -173,7 +176,9 @@ export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
   const visited = new Set<string>()
   const startedAt = Date.now()
   let entries = 0
+
   let stopped: string | undefined
+
   let pruned: string | undefined
   const walk = async (current: string, depth: number): Promise<void> => {
     if (stopped) return
@@ -219,6 +224,7 @@ export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
       if (entry.isDirectory()) {
         await walk(full, depth + 1)
       } else if (entry.isSymbolicLink()) {
+
         try {
           const info = await stat(full)
           if (info.isDirectory()) await walk(full, depth + 1)
@@ -232,6 +238,7 @@ export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
     }
   }
   await walk(dir, 0)
+
   out.sort()
   const reason = stopped ?? pruned
   return reason ? { files: out, complete: false, reason, entries } : { files: out, complete: true, entries }
@@ -252,6 +259,7 @@ async function loadDirectory(
   source: MarkdownFile['source'],
 ): Promise<MarkdownFile[]> {
   const paths = await discoverMarkdownFiles(dir)
+
   const loaded = await mapWithConcurrency(
     paths,
     discoveryPoolWidth() * 4,
@@ -269,6 +277,7 @@ async function loadDirectory(
           ...(parsed.parseError ? { parseError: parsed.parseError } : {}),
         } satisfies MarkdownFile
       } catch (error) {
+
         logForDebugging(`markdownConfigLoader: dropping ${filePath}: ${String(error)}`)
         return null
       }
@@ -276,7 +285,6 @@ async function loadDirectory(
   )
   return loaded.filter((f): f is MarkdownFile => f !== null)
 }
-
 
 async function dedupeByIdentity(files: MarkdownFile[]): Promise<MarkdownFile[]> {
   const identities = await Promise.all(
@@ -317,8 +325,8 @@ async function dedupeByIdentity(files: MarkdownFile[]): Promise<MarkdownFile[]> 
   return out
 }
 
-
 async function loadMarkdownFilesUncached(subdir: string, cwd: string): Promise<MarkdownFile[]> {
+
   const managedRoot = getManagedFilePath()
   const managedDir = join(managedRoot, MERCURY_PROJECT_DIR, subdir)
 

@@ -3,7 +3,6 @@ import { formatFileSize } from './format.js'
 import { imageDimensionsOfBase64, imageLimitsForModel, patchCountOf } from './imageResizer.js'
 import { getEngineModel } from './model/model.js'
 
-
 export type ImageRule = 'bytes' | 'patches' | 'request'
 
 type OversizedImage = { index: number; size: number; width?: number; height?: number; patches?: number; patchPx?: number }

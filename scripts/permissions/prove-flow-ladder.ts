@@ -22,9 +22,13 @@ section('the THREE flow safety floors (decision/wrapper.ts) — force a human as
 {
   const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
   const has = (needle: string) => perms.includes(needle)
+
   check('floor: ask-rule reason → reasonCarriesAskRule', has('function reasonCarriesAskRule') && has('reasonCarriesAskRule(engineDecision.decisionReason)'))
+
   check("floor: org/MCP ask-ceiling (effectiveMaxPermission === 'ask')", has("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
+
   check('floor: Workflow usage-consent → workflowRequiresConsent', has('function workflowRequiresConsent') && has('workflowRequiresConsent(tool.name)'))
+
   check(
     'the three floors converge on ONE guard before the shortcuts',
     has("floorTags.push('ask-rule')") &&
@@ -32,6 +36,7 @@ section('the THREE flow safety floors (decision/wrapper.ts) — force a human as
       has("floorTags.push('workflow-consent')") &&
       has('if (floorTags.length > 0)'),
   )
+
   const engine = src('utils', 'permissions', 'decision', 'engine.ts')
   check(
     'kill-switch is step 0 of the ladder (per-call agentType)',
@@ -44,6 +49,7 @@ section('isReadOnlyAllowlistedTool name gating (readOnlyAllowlist.ts)')
   const cd = src('utils', 'permissions', 'readOnlyAllowlist.ts')
   const has = (needle: string) => cd.includes(needle)
   check('exists + gates read-only tool names on the allowlist SET', has('export function isReadOnlyAllowlistedTool') && has('READ_ONLY_ALLOWLISTED_TOOLS.has(toolName)'))
+
   const safeSetStart = cd.indexOf('const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
   const safeSet = safeSetStart === -1 ? '' : cd.slice(safeSetStart, cd.indexOf('])', safeSetStart))
   check('the safe set carries the read-only tools (positive control)', safeSet.includes('FILE_READ_TOOL_NAME,') && safeSet.includes('GREP_TOOL_NAME,') && safeSet.includes('GLOB_TOOL_NAME,'))
@@ -57,6 +63,7 @@ section('Flow availability is the settings lock alone')
   check('the settings restriction has its reason and its words', ps.includes("if (isFlowDisabledBySettings()) return 'settings'") && ps.includes("return 'Flow is closed by your settings.'"))
   const gnpm = src('utils', 'permissions', 'getNextPermissionMode.ts')
   check('the carousel gates flow SOLELY on canCycleToFlow (unconditional)', gnpm.includes('canCycleToFlow(toolPermissionContext)'))
+
   const apolloBlock = gnpm.slice(gnpm.indexOf("case 'apollo':"), gnpm.indexOf("case 'flow':"))
   const flowIdx = apolloBlock.indexOf("return 'flow'")
   const bypassIdx = apolloBlock.indexOf("return 'sovereign'")
@@ -90,11 +97,15 @@ section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
   } else {
     const present = (needle: string): boolean =>
       execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
+
     check('safety-floor headless-deny message ships', present('This action needs interactive approval, and this session cannot present a prompt'))
+
     check('org/MCP ask-ceiling reason ships', present('Your organization requires approval for this tool'))
+
     check('implement fast-path log ships', present('implement mode would allow this outright'))
     check('read-only set fast-path log ships', present('the read-only tool set'))
     check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
+
     check('capability kill-switch deny message ships', present('capability switched off by operator'))
     check('PowerShell flow interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
   }

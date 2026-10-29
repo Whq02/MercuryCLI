@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -28,6 +29,7 @@ for (const [rel, ok, what] of LIVE) {
 }
 
 section('(2) the stale-claim ratchet (reviewed allowlist, never a rewrite)')
+
 const ALLOW: Array<[string, string]> = [
   ['src/skills/bundled/', 'bundled skill content describes third-party tool requirements, not Mercury (category 7)'],
   ['mercury-skills/', 'the same content at its source (category 7)'],

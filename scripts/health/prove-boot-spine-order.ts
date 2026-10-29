@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync, rmSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,6 +59,7 @@ console.log('— the REVERSED spine in the store (an older build\'s shape): inpu
 
 console.log('— the canonical order (a later boot, distinct pid, appended to the store) —')
 {
+
   const storePath = join(HOME, 'launch-milestones.json')
   const store = JSON.parse(readFileSync(storePath, 'utf8')) as { version: 1; rows: Array<Record<string, unknown>> }
   const canonPid = 999999
@@ -73,6 +75,7 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
     row.status === 'ok' && row.evidence.includes('runtime-entry → route-ready → first-frame → input-live'),
     `${row.status}: ${row.evidence}`,
   )
+
   const again = JSON.parse(readFileSync(storePath, 'utf8')) as { version: 1; rows: Array<Record<string, unknown>> }
   again.rows.push({ schema: 1, pid: canonPid, atMs: base + 10, milestone: 'chat-flipped' }, { schema: 1, pid: canonPid, atMs: base + 11, milestone: 'birth-landed' })
   writeFileSync(storePath, JSON.stringify(again))
@@ -96,6 +99,7 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
 
 console.log('— a headless run after the interactive boot (/health\'s own run road) —')
 {
+
   const storePath = join(HOME, 'launch-milestones.json')
   const store = JSON.parse(readFileSync(storePath, 'utf8')) as { version: 1; rows: Array<Record<string, unknown>> }
   store.rows.push({ schema: 1, pid: 999998, atMs: Date.now(), milestone: 'runtime-entry', boot: 'headless' })

@@ -13,6 +13,7 @@ const cases: Array<[string, Record<string, unknown> | undefined, string | undefi
   ['Bash', { command: '  git   status\n--short  ' }, 'Running git status --short'],
   ['Bash', {}, 'Running a command'],
   ['Read', { file_path: '/a/b/HelmHome.tsx' }, 'Reading HelmHome.tsx'],
+
   ['Read', { file_path: 'C:\\CDay\\deadnight-del\\scene.gd' }, 'Reading scene.gd'],
   ['Grep', { pattern: 'setTimeout' }, 'Searching setTimeout'],
   ['Glob', { pattern: 'src/**/*.tsx' }, 'Globbing src/**/*.tsx'],

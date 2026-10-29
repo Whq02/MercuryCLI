@@ -244,7 +244,6 @@ console.log('S25 §7.2 acceptance battery')
   )
 }
 
-
 {
   check('all → plural agents label', getAgentSourceDisplayName('all').toLowerCase().includes('agents'))
   check('built-in label', getAgentSourceDisplayName('built-in').toLowerCase().includes('built-in'))
@@ -254,7 +253,6 @@ console.log('S25 §7.2 acceptance battery')
     getAgentSourceDisplayName('userSettings') === 'User settings',
   )
 }
-
 
 pin('theme pin flag + member gate (2)', 'components/design-system/ThemeProvider.tsx', [
   "flagEnv('MERCURY_THEME_PIN')",
@@ -365,6 +363,7 @@ pin('tabs: wraparound + inverse only on header focus (40–41)', 'components/des
   'inverse={isSelected && headerFocused}',
   'registerNavOptIn',
 ])
+
 pin('transcript: incremental keys (42)', 'components/VirtualMessageList.tsx', [
   'reconcileItemKeys(keysStateRef.current, messages, itemKey)',
 ])
@@ -436,6 +435,7 @@ pin('worktree dialog: silent path + option values (79–80)', 'components/Worktr
   "'remove-with-tmux'",
   'void keepTheWorktree(hasTmux ? ',
 ])
+
 pin('tool selector: continue-all + headers skipped (83)', 'components/agents/ToolSelector.tsx', [
   'selection.length === candidates.length ? undefined : selection',
   "!isSelectable(items[next]!)",

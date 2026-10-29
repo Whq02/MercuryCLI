@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -106,11 +107,13 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
 }
 
 {
+
   check('the REAL routing law recognizes gemini ids (the fold landed)', geminiDispatchReady() === true)
   check('an injected non-recognizing law flips readiness off (the probe stays live)', geminiDispatchReady(() => null) === false)
   const rows = getGeminiModelOptions()
   check('two chat rows render (the embedding row never reaches the picker)', rows.length === 2 && rows.every(r => r.group === 'Mercury — Gemini models'))
   check('routed rows carry no dispatch-pending refusal', rows.every(r => r.unavailable === undefined || !r.unavailable.includes('dispatch wire pending')))
+
   check('model rows carry no description (the neutral grammar)', rows.every(r => r.description === ''), JSON.stringify(rows.map(r => [r.value, r.description])))
   check('the live row window rides the typed statedContextWindow', rows[0]!.statedContextWindow === 1_048_576, String(rows[0]!.statedContextWindow))
 }

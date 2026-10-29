@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,7 +15,9 @@ if (!existsSync(BIN)) {
 
 const IDLE_S = 75
 const SETTLE_S = 30
+
 const BUDGET_PER_MIN: Record<string, number> = { tui: 600, runner: 200, daemon: 100 }
+
 const CONNECTOR_STATS_PER_MIN = 60
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'store-poll-budget-')))
@@ -84,6 +87,7 @@ const env: Record<string, string | undefined> = {
   MERCURY_LIVE_CLOCK: '0',
   MERCURY_LIVE_GLYPHS: '0',
 }
+
 const pytePath = spawnSync(driver.python, ['-c', 'import pyte,os;print(os.path.dirname(os.path.dirname(pyte.__file__)))'], { encoding: 'utf8' }).stdout.trim()
 if (pytePath) env.PYTHONPATH = pytePath
 
@@ -104,6 +108,7 @@ const status: number = await new Promise(r => {
   })
 })
 const t1 = Date.now()
+
 await new Promise(r => setTimeout(r, 3000))
 const pg = spawnSync('pgrep', ['-f', CFG], { encoding: 'utf8' }).stdout.trim()
 for (const p of pg ? pg.split('\n').filter(Boolean) : []) {
@@ -154,6 +159,7 @@ for (const f of readdirSync(CENSUS)) {
     } catch {
       continue
     }
+
     if (w.t - 10_000 < idleStart || w.t > idleEnd + 10_000) continue
     const role = procs.get(w.pid) ?? 'unknown'
     for (const [k, v] of Object.entries(w.fs)) {
@@ -176,17 +182,24 @@ for (const role of ['tui', 'daemon', 'runner']) {
   const n = perMin(perProc.get(role) ?? 0)
   check(`§1 ${role}: ≤ ${BUDGET_PER_MIN[role]} file operations a minute at idle against the config home and the project`, n <= (BUDGET_PER_MIN[role] ?? 300), `${n}/min`)
 }
+
 const tuiDurable = [...durable].filter(([k]) => k.startsWith('tui '))
 check('§2 the TUI writes nothing durable under the config home at idle', tuiDurable.length === 0, JSON.stringify(tuiDurable))
+
 const connectorStats = [...top]
   .filter(([k]) => k.startsWith('tui: statSync') && (k.includes('/daemon/session-') || (k.includes('/projects/') && k.endsWith('.jsonl'))))
   .reduce((n, [, v]) => n + v, 0)
 const attached = new Set([...top].filter(([k]) => k.startsWith('tui: statSync') && k.includes('/projects/') && k.endsWith('.jsonl')).map(([k]) => k)).size || 1
 check(`§3 the connector stats ≤ ${CONNECTOR_STATS_PER_MIN} a minute per attached connector at idle`, perMin(connectorStats) <= CONNECTOR_STATS_PER_MIN * 2 * attached, `${perMin(connectorStats)}/min over ${attached} transcript(s)`)
+
 const storeReads = [...top].filter(([k]) => /tui: readFile\((p|cb)\) .*(coordinator-receipt-journal|obligations-)/.test(k)).reduce((n, [, v]) => n + v, 0)
+
 check('§4 the receipt journal and the crew obligations are never read by the floor at rest (stats only)', perMin(storeReads) <= 6, `${perMin(storeReads)}/min`)
+
 const homeSweep = [...top].filter(([k]) => k.startsWith('tui: lstat') && k.includes(CFG)).reduce((n, [, v]) => n + v, 0)
+
 check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`)
+
 const presenceRenames = [...top].filter(([k]) => k.startsWith('tui: renameSync') && k.includes('/presence/')).reduce((n, [, v]) => n + v, 0)
 check('§6 the retired presence estate writes nothing (no rename under a presence/ dir)', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`)
 const OTHER_TOOL_DIR = ['.cla', 'ude'].join('')

@@ -14,7 +14,6 @@ import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { restoreOriginalBackground } from './cockpit/warmBackground.js'
 
-
 export function cleanupTerminalModes(): void {
   if (!process.stdout.isTTY) return
   try {
@@ -30,6 +29,7 @@ export function cleanupTerminalModes(): void {
       try {
         inst.unmount()
       } catch {
+
         open = new Set(shutdownReleaseObligations())
         if (open.has('alternate-scroll')) writeSync(1, DISABLE_ALTERNATE_SCROLL)
         writeSync(1, EXIT_ALT_SCREEN)
@@ -43,6 +43,7 @@ export function cleanupTerminalModes(): void {
 
     open = new Set(shutdownReleaseObligations())
     if (open.has('kitty-kbd')) {
+
       writeSync(1, DISABLE_KITTY_KEYBOARD)
       writeSync(1, DISABLE_MODIFY_OTHER_KEYS)
       noteModeSettledEverywhere('kitty-kbd')
@@ -56,6 +57,7 @@ export function cleanupTerminalModes(): void {
       noteModeSettledEverywhere('bracketed-paste')
     }
     if (open.has('mouse-tracking')) {
+
       writeSync(1, DISABLE_MOUSE_TRACKING)
       noteModeSettledEverywhere('mouse-tracking')
     }
@@ -65,11 +67,13 @@ export function cleanupTerminalModes(): void {
     }
 
     restoreOriginalBackground()
+
     if (open.has('progress-ring')) {
       writeSync(1, CLEAR_ITERM2_PROGRESS)
       noteModeSettledEverywhere('progress-ring')
     }
     if (supportsTabStatus()) writeSync(1, wrapForMultiplexer(CLEAR_TAB_STATUS))
+
     if (open.has('terminal-title') && resolveTerminalExperience().terminalTitle.effective) {
       if (process.platform === 'win32') process.title = ''
       else writeSync(1, CLEAR_TERMINAL_TITLE)
@@ -78,7 +82,6 @@ export function cleanupTerminalModes(): void {
   } catch {
   }
 }
-
 
 let resumeHintPrinted = false
 
@@ -102,6 +105,7 @@ export function printResumeHint(): void {
   if (!getIsInteractive()) return
   if (isSessionPersistenceDisabled()) return
   const sessionId = getSessionId()
+
   if (!sessionIdExists(sessionId)) return
   const title = getCurrentSessionTitle(sessionId)
   const argument = resumeHintArgument(title, sessionId)
@@ -111,7 +115,6 @@ export function printResumeHint(): void {
   } catch {
   }
 }
-
 
 export function drainStdinForExit(): void {
   try {

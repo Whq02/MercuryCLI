@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,9 +19,11 @@ if (!existsSync(DIST)) {
 
 let failures = 0
 {
+
   const { readFileSync: readSource } = await import('node:fs')
   const { join: joinPath, resolve: resolvePath } = await import('node:path')
   const svc = readSource(joinPath(resolvePath(import.meta.dir, '..', '..'), 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
+
   const { NOTHING_ACTIVATED_WORDS } = await import('../../src/services/privateChannel/updateService.ts')
   const spellings = svc.match(/nothing was activated/g) ?? []
   const remedies = svc.match(/remedy: [^\n]*(?:activated|NOTHING_ACTIVATED_WORDS)[^\n]*/g) ?? []
@@ -53,6 +56,7 @@ const SLUG = 'fixture-owner/fixture-private-repo'
 
 const FAKE_GH = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')
 const GH_CMD = JSON.stringify(['node', FAKE_GH])
+
 const DEAD_API_BASE = `http://127.0.0.1:${await closedLoopbackPort()}`
 
 const makeFixtures = (name: string, specs: ReleaseFixtureSpec[]): string => mintFixtures(fixturesRoot, name, specs)
@@ -65,6 +69,7 @@ function runCli(
     encoding: 'utf8',
     timeout: 180_000,
     env: {
+
       ...(IS_WIN ? process.env : {}),
       PATH: `${binDir}${IS_WIN ? ';' : ':'}${process.env.PATH ?? ''}`,
       HOME: home,
@@ -285,7 +290,9 @@ console.log('── §4 post-switch smoke failure ⇒ automatic restore ──')
 
 console.log('── §5 access unavailable · concurrent lock · rollback refusals ──')
 {
+
   seedInstalled(V_OLD)
+
   const privateChannel = await spawnFixtureReleaseServer({ fixtures: happyFixtures, visibility: 'private' })
   const r = runCli(['update', '--check'], { fixtures: happyFixtures, env: { GH_SHIM_AUTH: 'fail', MERCURY_UPDATE_API_BASE_URL: privateChannel.url } })
   await privateChannel.close()
@@ -325,6 +332,7 @@ console.log('── §5 access unavailable · concurrent lock · rollback refusa
 
 console.log('── §7 accepted payload shapes — every accepted manifest shape UPDATES ──')
 {
+
   seedInstalled(V_OLD)
   const f = makeFixtures('schema2-single', [{ version: V_OLD }, { version: V_NEW, payload: { shape: 'schema2-single' } }])
   const r = runCli(['update', '--allow-unsigned'], { fixtures: f })
@@ -335,6 +343,7 @@ console.log('── §7 accepted payload shapes — every accepted manifest shap
 
 console.log('── §8 interruption matrix — recovery without hand-cleaning (UPD-08) ──')
 {
+
   seedInstalled(V_OLD)
   const f = makeFixtures('interrupt-promote', [{ version: V_OLD }, { version: V_NEW }])
   const r = runCli(['update', '--allow-unsigned'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'promote-rename' } })
@@ -347,6 +356,7 @@ console.log('── §8 interruption matrix — recovery without hand-cleaning (
   check('user state survives the interrupted-then-recovered journey', existsSync(stateMarker))
 }
 {
+
   seedInstalled(V_OLD)
   const f = makeFixtures('interrupt-pointer', [{ version: V_OLD }, { version: V_NEW }])
   const r = runCli(['update', '--allow-unsigned'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'pointer-write-current' } })
@@ -357,6 +367,7 @@ console.log('── §8 interruption matrix — recovery without hand-cleaning (
   check('rerun after the pointer failure completes', r2.code === 0 && currentPointer() === V_NEW)
 }
 if (!IS_WIN) {
+
   seedInstalled(V_OLD)
   const f = makeFixtures('unreadable-pointer', [{ version: V_OLD }, { version: V_NEW }])
   chmodSync(join(versionsDir, 'current.txt'), 0o000)
@@ -365,6 +376,7 @@ if (!IS_WIN) {
   check('unreadable pointer: update refuses by name, changes nothing', r.code === 1 && all.includes('pointer is unreadable'), all.slice(0, 300))
   chmodSync(join(versionsDir, 'current.txt'), 0o644)
   const status = runCli(['update', '--status'], { fixtures: f, env: { MERCURY_UPDATE_FAULT: 'pointer-read' } })
+
   const statusAll = status.stdout + status.stderr
   check(
     '--status NAMES the unreadable pointer state (and exits 1, agreeing with --check)',

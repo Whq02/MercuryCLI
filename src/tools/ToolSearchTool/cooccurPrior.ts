@@ -4,7 +4,6 @@ import { getMemoryBaseDir } from '../../mneme/paths.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-
 const PAIR_SEP = '\u001f'
 const MAX_PAIRS = 400
 const MAX_BOOST = 3
@@ -78,6 +77,7 @@ export function cooccurBoostFor(candidate: string): number {
 export function recordToolDiscovery(loaded: string[]): void {
   if (!toolSearchCooccurEnabled()) return
   try {
+
     const fresh = loaded.filter(
       n => typeof n === 'string' && n.length > 0 && !sessionDiscovered.has(n),
     )

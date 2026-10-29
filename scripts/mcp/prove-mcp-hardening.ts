@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,6 +59,7 @@ section('(1) urlElicitationVerdict — the SEP-1036 policy matrix')
 
 section('(2) E2E — a real URL elicitation against OUR handler (linked transports)')
 await (async () => {
+
   const makeStore = () => {
     const box = { state: { elicitation: { queue: [] as ElicitationRequestEvent[] } } }
     return {
@@ -70,6 +72,7 @@ await (async () => {
 
   const connectPair = async (serverName: string) => {
     const server = new McpServer({ name: serverName, version: '1.0.0' })
+
     const client = new Client(
       { name: 'mercury-proof', version: '0' },
       { capabilities: { elicitation: { form: {}, url: {} } } },
@@ -104,6 +107,7 @@ await (async () => {
       url: 'https://ok.example/auth',
       elicitationId: 'e-2',
     })
+
     for (let i = 0; i < 100 && store.box.state.elicitation.queue.length === 0; i++) {
       await new Promise(r => setTimeout(r, 10))
     }
@@ -190,6 +194,7 @@ await (async () => {
     check(`${verb} declares outputSchema`, byName.get(verb)?.outputSchema !== undefined)
   }
   check('the server serves the project lease verbs and render_tui, and no crew verb', ['lease_take', 'lease_release', 'lease_list', 'render_tui'].every(v => byName.has(v)) && !byName.has('lease_claim') && !byName.has('brief') && !byName.has('coord_say'), [...byName.keys()].join(','))
+
   const r = await client.callTool({ name: 'lease_list', arguments: {} })
   const sc = r.structuredContent as { ok?: boolean; reason?: string } | undefined
   check('lease_list answers structured {ok:true, leases:[]} on a fresh project', !!sc && sc.ok === true && Array.isArray(sc.leases) && sc.leases.length === 0)
@@ -216,6 +221,7 @@ section('(5) health `mcp` currency — auth summary + protocol-rev seam')
 section('(6) consent surfaces — explicit-open only + posture + attribution')
 {
   const dlg = SRC('src/components/mcp/ElicitationDialog.tsx')
+
   const callSites = [...dlg.matchAll(/openBrowser\(/g)].map(m => m.index ?? 0)
     .filter(i => dlg.slice(Math.max(0, i - 40), i).includes('void '))
   const hookFor = (idx: number): string => {

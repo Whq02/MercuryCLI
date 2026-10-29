@@ -1,4 +1,3 @@
-
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -20,6 +19,7 @@ const SETTLED_RING_CAP = 128
 
 interface OwnerExecutions {
   records: Map<string, ExecutionRecord>
+
   generations: Map<string, number>
   eventSeq: number
 }
@@ -28,6 +28,7 @@ const store = new OwnerScopedStore<OwnerExecutions>({
   name: 'execution-plane',
   create: () => ({ records: new Map(), generations: new Map(), eventSeq: 0 }),
   dispose: (state, owner) => {
+
     for (const record of state.records.values()) {
       emit(owner, { type: 'disposed', record })
     }
@@ -37,7 +38,6 @@ const store = new OwnerScopedStore<OwnerExecutions>({
   cap: 64,
 })
 registerOwnerScopedStore(store)
-
 
 export interface OrderedExecutionEvent {
   owner: OwnerKey
@@ -66,7 +66,6 @@ function emit(owner: OwnerKey, event: ExecutionEvent): void {
   }
 }
 
-
 type ExecutionReconciler = (
   record: ExecutionRecord,
 ) => { state: ExecutionState; outcome?: ExecutionOutcome; reason?: string } | null
@@ -91,7 +90,6 @@ export function registerExecutionDomain(kind: ExecutionKind, hooks: DomainHooks)
 export function executionDomainKinds(): ExecutionKind[] {
   return [...domainHooks().keys()].sort()
 }
-
 
 export class ExecutionRegistrationError extends Error {
   constructor(id: string, state: ExecutionState) {
@@ -124,6 +122,7 @@ export interface RegisterExecutionInput {
   metadata?: Record<string, unknown>
   externalIdentity?: ExecutionExternalIdentity
   outputRef?: string
+
   initialState?: Extract<ExecutionState, 'queued' | 'starting' | 'running' | 'ready'>
 }
 
@@ -164,11 +163,13 @@ export function registerExecution(input: RegisterExecutionInput): ExecutionRecor
 }
 
 export interface TransitionOptions {
+
   generation?: number
   outcome?: ExecutionOutcome
   externalIdentity?: ExecutionExternalIdentity
   outputRef?: string
   evidenceRefs?: string[]
+
   reconciled?: boolean
 }
 
@@ -275,7 +276,9 @@ export function settleExecution(
 interface ReconcileReport {
   owner: OwnerKey
   checked: number
+
   corrected: { id: string; from: ExecutionState; to: ExecutionState }[]
+
   unverifiable: string[]
 }
 
@@ -314,7 +317,6 @@ export function reconcileExecutions(owner: OwnerKey): ReconcileReport {
   }
   return report
 }
-
 
 export function getExecution(owner: OwnerKey, id: string): ExecutionRecord | undefined {
   return store.peek(owner)?.records.get(id)

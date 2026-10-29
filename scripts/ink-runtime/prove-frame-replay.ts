@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Frame } from '../../src/ink/frame.js'
@@ -71,7 +72,6 @@ function emitAltScreen(
   if (diff.length === 0) return { bytes: '', patchCount: 0 }
   return { bytes: CURSOR_HOME + serialize(diff), patchCount: diff.length }
 }
-
 
 const base: SceneNode = {
   kind: 'box',
@@ -219,6 +219,7 @@ for (const pair of PAIRS.slice(0, 3)) {
   })
   const frameA = composeScene(mkScene(0), ctx)
   const frameBRaw = composeScene(mkScene(2), ctx, frameA)
+
   const frameB: Frame = { ...frameBRaw, scrollHint: { top: 0, bottom: 7, delta: 2 } }
   const emu = seedEmulator(frameA)
   const { bytes } = emitAltScreen(log, frameA, frameB)

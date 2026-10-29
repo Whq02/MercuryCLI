@@ -4,11 +4,13 @@ import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 import type { ConcourseSnapshotV1 } from './contracts.js'
 
-
 export interface GitOfferV1 {
+
   requestId: string
   obligationId: string
+
   folder: string
+
   folderHeld?: boolean
 }
 
@@ -16,6 +18,7 @@ export function gitOfferFolderHeld(
   snapshot: Pick<ConcourseSnapshotV1, 'groups' | 'elsewhere'>,
   folder: string,
 ): boolean {
+
   const CLAIM_STATES: ReadonlyArray<string> = ['working', 'needs-you', 'stalled', 'paused', 'ready-to-review', 'attached', 'starting']
   const rowHolds = snapshot.groups.some(g =>
     g.rows.some(r => r.workspaceDir === folder && CLAIM_STATES.includes(r.state)),
@@ -56,18 +59,22 @@ export function GitOfferCard({
   onAnswer,
 }: {
   offer: GitOfferV1
+
   onAnswer: (requestId: string, allow: boolean, obligationId: string) => void
 }): React.ReactNode {
+
   const folderHeld = offer.folderHeld === true
   const options = useMemo<PermissionPromptOption<GitOfferAnswer>[]>(
     () => [
       { label: 'Yes', value: 'yes' },
+
       { label: gitOfferNoLabel(folderHeld), value: 'no' },
     ],
     [folderHeld],
   )
   const answer = (allow: boolean): void => onAnswer(offer.requestId, allow, offer.obligationId)
   return (
+
     <Box flexDirection="column" flexShrink={0}>
       <PermissionDialog title="Start a git repository">
         <Box flexDirection="column" flexShrink={0}>

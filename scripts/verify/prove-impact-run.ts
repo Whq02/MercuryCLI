@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -79,6 +80,7 @@ const repo = join(estate, 'repo')
 mkdirSync(join(repo, 'scripts', 'gate'), { recursive: true })
 const g = (...a: string[]): string => execFileSync('git', a, { cwd: repo, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' } })
 g('init', '-q')
+
 cpSync(join(estate, 'scripts'), join(repo, 'scripts'), { recursive: true })
 mkdirSync(join(repo, 'src', 'a'), { recursive: true })
 writeFileSync(join(repo, 'src/a/x.ts'), '1')

@@ -1,4 +1,3 @@
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -96,11 +95,13 @@ console.log('prove-lsp-lifecycle-config — restartOnCrash + shutdownTimeout are
   let recovered = false
   try {
     await inst.start()
+
     recovered = true
   } catch {
     recovered = false
   }
   check('crash-default: start() after a crash RECOVERS (lazy restart)', recovered, `state=${inst.state}`)
+
   await inst.stop().catch(() => {})
 }
 

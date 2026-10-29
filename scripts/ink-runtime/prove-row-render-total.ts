@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,6 +46,7 @@ const tryRender = async (node: React.ReactNode): Promise<{ ok: boolean; output: 
     await new Promise(resolve => setTimeout(resolve, 30))
     instance.unmount()
     await instance.waitUntilExit().catch(() => {})
+
     const output = text()
     return { ok: !output.includes('RENDER ERROR'), output }
   } catch (error) {

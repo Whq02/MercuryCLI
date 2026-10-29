@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -26,6 +27,7 @@ check(
 )
 
 console.log('§2 — the expiry/eviction denial, worded like the fix, classifies')
+
 const expired = `Permission to use Bash has been denied: nobody answered the permission ask within 5m, so it expired. ${DENIAL_WORKAROUND_GUIDANCE}`
 const evicted = `Permission to use Bash has been denied: the permission ask was dropped unanswered because the switchboard's parked-ask table was full. ${DENIAL_WORKAROUND_GUIDANCE}`
 check('expired ask denial classifies', isDenialResultText(expired))

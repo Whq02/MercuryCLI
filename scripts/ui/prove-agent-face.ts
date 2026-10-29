@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
@@ -39,6 +40,7 @@ const { revisionDigest } = await import('../../src/services/agents/contracts.js'
 
 t.section('§1 — IDENTITY BOTH DIRECTIONS (the extraction law)')
 {
+
   const machineSpellings = [
     'fix the errors above before saving',
     'the file changed outside this draft',
@@ -57,20 +59,24 @@ t.section('§1 — IDENTITY BOTH DIRECTIONS (the extraction law)')
     'precedence decides the winner',
     'Description should say when to delegate',
   ]
+
   const faceSkinSrc = readFileSync(join(repoRoot, 'src/components/BootAgentsScreen.tsx'), 'utf-8')
   for (const s of machineSpellings) {
     t.check(`model owns: "${s.slice(0, 44)}"`, modelSrc.includes(s), s)
     t.check(`skin retains no "${s.slice(0, 40)}"`, !skinSrc.includes(s), s)
     t.check(`face skin retains no "${s.slice(0, 36)}"`, !faceSkinSrc.includes(s), s)
   }
+
   const reactTokens = ["from 'react'", 'from "../../../ink', "from '../../../ink"]
   const hits = reactTokens.filter(tok => modelSrc.includes(tok))
   t.check('the machine module imports neither react nor ink', hits.length === 0, hits.join(','))
+
   t.check(
     'the machine lives in a .ts module (JSX mechanically impossible)',
     existsSync(join(repoRoot, 'src/components/agents/studio/studioEditorModel.ts')) &&
       !existsSync(join(repoRoot, 'src/components/agents/studio/studioEditorModel.tsx')),
   )
+
   t.check(
     'the skin re-exports StudioDraftBase from the model',
     skinSrc.includes("export type { StudioDraftBase } from './studioEditorModel.js'"),
@@ -201,6 +207,7 @@ mkdirSync(join(cwdDir, '.mercury', 'agents'), { recursive: true })
 let existing: never[] = []
 
 {
+
   const h = harness()
   t.check('create opens on the guided destination step', h.snap().view.kind === 'guided' && (h.snap().view as { step: string }).step === 'destination')
   h.machine.guidedDestination('user')
@@ -229,12 +236,14 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   await h.machine.save()
   t.check('save refuses on validation errors with the gate spelling', h.lastNote() === 'fix the errors above before saving' && h.saved.length === 0)
 }
 
 {
+
   const h = harness()
   h.machine.guidedDestination('project')
   h.machine.guidedBack()
@@ -244,6 +253,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   h.machine.setView({ kind: 'review' })
   h.machine.reviewEscape()
@@ -252,6 +262,7 @@ let existing: never[] = []
 }
 
 {
+
   const baseRaw = '---\nname: fixture-scout\ndescription: The base description as discovered on disk today.\n---\nThe base body, long enough to be a lawful system prompt for the walk.\n'
   const h = harness({ base: { raw: baseRaw, filePath: join(cwdDir, '.mercury', 'agents', 'fixture-scout.md') }, saveOutcome: 'conflict' })
   t.check('edit opens on the advanced list over the re-read base bytes', h.snap().view.kind === 'advanced' && h.snap().doc.raw === baseRaw)
@@ -266,6 +277,7 @@ let existing: never[] = []
 }
 
 {
+
   const draftRaw = '---\nname: recovered-scout\ndescription: A draft left behind by a previous session for recovery.\n---\nThe recovered body, long enough to stand as a lawful system prompt.\n'
   const accept = harness({ drafts: [{ path: '/drafts/new.json', draft: { raw: draftRaw } }] })
   t.check('a matching draft is offered once, on entry', accept.snap().recoverOffer !== null)
@@ -277,6 +289,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   h.machine.commit({ set: { name: 'auto-scout' } })
   t.check('a commit arms the autosave debounce at the landed 800ms', h.timers.filter(x => !x.cleared).length === 1 && h.timers[0]!.ms === 800)
@@ -289,6 +302,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   h.machine.guidedDestination('project')
   h.machine.guidedMethod('generate')
@@ -302,6 +316,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness({ generateBehaviour: 'hang' })
   h.machine.guidedDestination('project')
   h.machine.guidedMethod('generate')
@@ -316,6 +331,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   const before = h.snap().doc.raw
   h.machine.loadRaw(before)
@@ -328,6 +344,7 @@ let existing: never[] = []
 }
 
 {
+
   const h = harness()
   h.machine.setView({ kind: 'advanced', cursor: 0, editing: null })
   h.machine.openFieldEditor('maxTurns')
@@ -345,6 +362,7 @@ let existing: never[] = []
 }
 
 {
+
   const doc = freshStudioDocument()
   const v = computeStudioValidation({ doc, existingAgents: [], base: undefined, mode: 'create' })
   t.check('a fresh draft fails validation on the three required fields', !v.canSave && v.errors.length >= 3)
@@ -430,6 +448,7 @@ t.section('§4 — TWO SKINS, ONE MODEL (the face consumes the machine; no secon
   t.check('the face lists through the ONE library projection', faceSrc.includes('buildStudioRows'))
   t.check('the face paints values through the ONE field labeller', faceSrc.includes('fieldValueLabel'))
   t.check('the face validates through the ONE gate', faceSrc.includes('computeStudioValidation'))
+
   const machineSpellings = [
     'fix the errors above before saving',
     'the file changed outside this draft',
@@ -490,6 +509,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
 {
   const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
   const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
+
   const fixture: import('../../src/utils/model/modelOptions.ts').ModelOption[] = [
     { value: '__mercury_anthropic_connect__', label: 'Claude — sign in', description: '↵ runs /logins anthropic' },
     { value: 'fable', label: 'Fable', description: '' },
@@ -505,6 +525,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   ]
   const rows = getAgentModelPickerRows(fixture)
   t.check('inherit leads — the agent grammar\'s own default row', rows[0]?.kind === 'inherit' && rows[0]?.value === 'inherit')
+
   const expected = fixture
   t.check(
     'picker rows contain every eligible catalogue row in order',
@@ -532,6 +553,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('a connect row reads as the door it is', rows.find(r => r.value === '__mercury_connect__:zai')?.kind === 'connect')
   t.check('the anthropic sign-in sentinel is a connect row by SHAPE (the regex arm, no literal list)', rows.find(r => r.value === '__mercury_anthropic_connect__')?.kind === 'connect')
   t.check('a keyless compat model is a plain selectable row (no key ≠ unavailable when the endpoint is auth-free)', rows.find(r => r.value === 'compat/qwen3')?.unavailable === undefined)
+
   {
     const priorPin = process.env.MERCURY_DEFAULT_HAIKU_MODEL
     process.env.MERCURY_DEFAULT_HAIKU_MODEL = 'fastcheap-gw-v1'
@@ -550,6 +572,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
       else process.env.MERCURY_DEFAULT_HAIKU_MODEL = priorPin
     }
   }
+
   t.check('picking a live model commits its value', JSON.stringify(agentModelPickOutcome(rows.find(r => r.value === 'compat/qwen3')!)) === '{"kind":"picked","model":"compat/qwen3"}')
   t.check('picking inherit commits the ABSENT field', JSON.stringify(agentModelPickOutcome(rows[0]!)) === '{"kind":"picked"}')
   t.check('picking an unavailable model routes to sign-in with its reason', agentModelPickOutcome(rows.find(r => r.value === 'gpt-6.2')!).kind === 'needs-sign-in')
@@ -578,6 +601,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   const pickerSrc = readFileSync(join(repoRoot, 'src/utils/model/agentModelPicker.ts'), 'utf-8')
   const code = pickerSrc.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
   t.check('the derivation names no family literal (neutral by construction)', !/['"](?:opus|sonnet|fable|haiku|gpt|gemini|kimi|glm)['"]/.test(code))
+
   for (const surface of [
     'src/components/agents/ModelSelector.tsx',
     'src/components/BootAgentsScreen.tsx',
@@ -611,6 +635,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
 
 t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability truth · the field totality)')
 {
+
   const genSrc = readFileSync(join(repoRoot, 'src/components/agents/generateAgent.ts'), 'utf-8')
   for (const law of [
     'SHORT set of principles, not an enumeration',
@@ -641,12 +666,14 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
   t.check('the chat review wears it', editorSrc2.includes('agentModelAvailabilityNote(doc.fields.model)'))
   t.check('the chat inspector wears it', studioSrc2.includes('agentModelAvailabilityNote(agent.operatorOverride?.model ?? agent.model)'))
   t.check('the face dossier and form wear it', faceSrc3.includes('availabilityNote: string | null = null') && faceSrc3.includes('agentModelAvailabilityNote(snap.doc.fields.model)'))
+
   t.check(
     "the face FORM's runs: line rides the resolved runtime",
     faceSrc3.includes('effectiveStudioRuntime({') &&
       faceSrc3.includes('${effRun.modelIntent} → ${effRun.model}'),
   )
   t.check("availability never joins the save gate (the machine's validation is availability-blind)", !modelSrc.includes('agentModelAvailabilityNote'))
+
   {
     const { decodeAgentDocument: decode } = await import('../../src/services/agents/codec.js')
     const heldRaw = '---\nname: held-agent\ndescription: A held agent for the born-held drive.\nmodel: gpt-6.2\n---\nYou are the held agent, saved while your provider is signed out today.\n'
@@ -702,6 +729,7 @@ t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability
 
 t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a live mount, never needles alone)')
 {
+
   const { EventEmitter } = await import('node:events')
   const { PassThrough } = await import('node:stream')
   const stripAnsi = (await import('strip-ansi')).default
@@ -775,6 +803,7 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
       stdin,
       patchConsole: false,
     })
+
     for (let i = 0; i < 60 && !frameText().includes('n new'); i++) await settle(30)
     t.check('the library mounts under keys', frameText().includes('n new'))
 
@@ -830,6 +859,7 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
 
 t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-trip · dispatch wears it · inherit clears · the face walk)')
 {
+
   const { setAgentOverride, userOverridesPath } = await import('../../src/services/agents/overrides.js')
   const { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides } = await import(
     '../../src/tools/AgentTool/loadAgentsDir.js'
@@ -941,6 +971,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     for (let i = 0; i < targetIdx; i++) await press(DOWN)
     output = ''
     await press('\r')
+
     const landed = await waitUntil(() => {
       try {
         const raw = readFileSync(userOverridesPath(), 'utf-8')
@@ -955,6 +986,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     output = ''
     await press('\r')
     t.check('↵ reopens the dial with the override as current', await waitUntil(() => frameText().includes('model override')))
+
     const UP = `${ESC}[A`
     for (let i = 0; i < targetIdx; i++) await press(UP)
     output = ''
@@ -966,6 +998,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
         return false
       }
     })
+
     let wearGone = false
     let lastPaint = ''
     for (let nudge = 0; nudge < 200 && !wearGone; nudge++) {
@@ -982,6 +1015,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
       output = ''
       await press('\r')
       await waitUntil(() => frameText().includes('model override'))
+
       for (let i = 0; i < unavailIdx; i++) await press(DOWN)
       output = ''
       await press('\r')

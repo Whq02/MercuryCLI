@@ -1,4 +1,3 @@
-
 import { useRef, useState } from 'react'
 import type { Key } from '../ink.js'
 import type { TextInputState, VimInputState } from '../types/textInputTypes.js'
@@ -75,6 +74,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
   const modeRef = useRef<VimMode>('INSERT')
   const insertedTextRef = useRef('')
   const commandStateRef = useRef<CommandState>({ type: 'idle' })
+
   const persistentRef = useRef<PersistentState>(getSessionVimPersistentState())
   const replayingRef = useRef(false)
 
@@ -99,6 +99,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
         text: insertedTextRef.current,
       }
     }
+
     const offset = props.externalOffset
     if (offset > 0 && props.value[offset - 1] !== '\n') {
       props.onOffsetChange(offset - 1)
@@ -154,6 +155,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
   }
 
   const onInput = (rawInput: string, key: Key): void => {
+
     const filtered = inputFilter ? inputFilter(rawInput, key) : rawInput
     const isInsert = modeRef.current === 'INSERT'
 
@@ -208,6 +210,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
       input = isMotionExpectingState(commandState) ? 'h' : ''
     } else if (key.delete) {
       if (commandState.type === 'count') {
+
         return
       }
       input = isMotionExpectingState(commandState) ? 'x' : ''
@@ -216,6 +219,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
     const wasIdle = commandState.type === 'idle'
     const result = transition(commandState, input, makeContext())
     result.execute?.()
+
     if (modeRef.current === 'NORMAL') {
       if (result.next) commandStateRef.current = result.next
       else if (result.execute) commandStateRef.current = { type: 'idle' }

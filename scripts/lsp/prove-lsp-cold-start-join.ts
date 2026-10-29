@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -53,6 +54,7 @@ type Manager = {
   ensureServerStarted(p: string): Promise<{ state: string } | undefined>
   getAllServers(): Map<string, { state: string }>
 }
+
 const keyOf = (manager: Manager, name: string): string =>
   [...manager.getAllServers().keys()].find(k => k === name || k.endsWith(`:${name}`)) ?? name
 const outcome = async (p: Promise<unknown>): Promise<{ ok: boolean; error: string }> =>
@@ -68,6 +70,7 @@ section('§1 two opens during the cold start both succeed, on one spawn')
   const server = manager.getAllServers().get(keyOf(manager, 'fakeslow'))
   check('the fake server is registered', server !== undefined)
   const first = manager.openFile(file('a.fake'), 'x')
+
   await new Promise(resolve => setTimeout(resolve, 150))
   check('precondition: the server is still starting when the second caller arrives', server?.state === 'starting', server?.state)
   const second = manager.openFile(file('b.fake'), 'y')

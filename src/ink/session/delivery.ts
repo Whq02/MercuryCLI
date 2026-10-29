@@ -7,7 +7,6 @@ import { cursorMove, cursorTo, eraseLines } from '../termio/csi.js'
 import { BSU, ESU, HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import { link } from '../termio/osc.js'
 
-
 export type Terminal = {
   stdout: Writable
   stderr: Writable
@@ -15,6 +14,7 @@ export type Terminal = {
 
 export type DeliverySyscalls = {
   writeSync: (fd: number, data: Buffer, offset: number) => number
+
   sleep: (ms: number) => void
 }
 
@@ -135,6 +135,7 @@ export function writeDiffToTerminal(
   const record: FrameDelivery = { seq: ++deliverySeq, bytes: Buffer.byteLength(buffer, 'utf8'), writtenAt: performance.now(), drainedAt: null }
   lastDelivery = record
   if (door !== null && useFd) {
+
     door.enqueue({ kind: 'frame', bytes: buffer })
   } else if (useFd) {
     delivered = writeAllSync(out.fd!, Buffer.from(buffer, 'utf8'), syscalls)

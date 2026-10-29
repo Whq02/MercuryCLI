@@ -14,6 +14,7 @@ export const DEPLOYED_ASSET_PAIRS = [
     homeRel: 'splash.mjs',
     redeploy: 'bash scripts/splash/deploy.sh',
   },
+
   {
     label: 'splash-core',
     repoRel: 'assets/splash/splash-core.mjs',
@@ -31,7 +32,9 @@ interface DeployedAssetsAssessment {
   status: 'ok' | 'warn' | 'stale' | 'info'
   evidence: string
   fix?: string
+
   drifted: Array<{ label: string; redeploy: string }>
+
   cruft: string[]
 }
 

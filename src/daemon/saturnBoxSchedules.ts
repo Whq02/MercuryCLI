@@ -35,6 +35,7 @@ export function boxScheduleProblem(raw: unknown): string | null {
   const sub = validateSaturnSubmission({ when: row.when, action: row.action, ...(row.modelKey !== undefined ? { modelKey: row.modelKey } : {}), ...(row.note !== undefined ? { note: row.note } : {}) })
   if (!sub.ok) return sub.reason
   if (sub.submission.action.kind !== 'birth') return "the box tier takes 'birth' schedules only"
+
   const account = row.account as Record<string, unknown> | undefined
   if (typeof account !== 'object' || account === null) return 'every schedule row requires an account object (family + source)'
   if (
@@ -84,7 +85,6 @@ export function readBoxSchedules(dir?: string): SaturnBoxFileV1 {
     return { version: 1, schedules: [], heldFires: [] }
   }
 }
-
 
 const BOX_LOCK_WAIT_MS = 500
 const BOX_LOCK_STALE_MS = 10_000
@@ -179,7 +179,6 @@ export function holdBoxFire(held: HeldFireV1, dir?: string, requireSchedule = fa
   })
 }
 
-
 export type BoxWriteOutcome = { ok: true; id: string } | { ok: false; reason: string }
 
 export function addBoxSchedule(
@@ -194,10 +193,12 @@ export function addBoxSchedule(
   if (sub.action.kind !== 'birth') {
     return { ok: false, reason: "schedule refused — the box tier takes 'birth' schedules only (a fire belongs to a session)" }
   }
+
   if (sub.modelKey !== undefined && sub.modelKey !== sub.action.birth.modelKey) {
     return { ok: false, reason: 'schedule refused — modelKey must match birth.modelKey (the account preflights the model the birth runs)' }
   }
   const modelKey = sub.action.birth.modelKey
+
   const derived = deps.deriveAccount(modelKey)
   if (!derived.ok) return { ok: false, reason: `schedule refused — ${derived.reason}` }
   const preflightAtWrite = deps.preflight ? deps.preflight(derived.account, saturnNextFireMs(sub.when, Date.now())) : undefined

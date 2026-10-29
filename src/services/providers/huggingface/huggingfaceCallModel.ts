@@ -44,6 +44,7 @@ export const huggingfaceLaneProfile: CompatLaneProfile = {
     return fresh ? { apiKey: fresh } : undefined
   },
   requestUrl: () => huggingfaceChatCompletionsUrl(),
+
   wireModelId: modelId => qualifiedWireId(modelId),
   buildExtras: buildHuggingfaceExtras,
   extraHeaders: () => {
@@ -51,6 +52,7 @@ export const huggingfaceLaneProfile: CompatLaneProfile = {
     return billTo ? { 'X-HF-Bill-To': billTo } : undefined
   },
   toolCapabilityRefusal: wireModel => {
+
     if (huggingfaceLiveSupportsTools(wireModel) === false) {
       return `Hugging Face lists '${wireModel}' without tool-call support on its reachable providers — pick a tool-capable model for tool-bearing roles (the router catalogue marks supports_tools per provider).`
     }

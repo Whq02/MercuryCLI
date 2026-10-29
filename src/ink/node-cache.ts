@@ -1,4 +1,3 @@
-
 import type { DOMElement } from './dom.js'
 
 export type CachedLayout = {
@@ -6,6 +5,7 @@ export type CachedLayout = {
   y: number
   width: number
   height: number
+
   top?: number
 }
 
@@ -24,6 +24,7 @@ export function addPendingClear(
   if (rects) rects.push(rect)
   else pendingClears.set(parent, [rect])
   if (isAbsolute) {
+
     let root: DOMElement = parent
     while (root.parentNode) root = root.parentNode
     absoluteRemovedRoots.add(root)

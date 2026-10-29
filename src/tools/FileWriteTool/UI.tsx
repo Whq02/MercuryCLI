@@ -22,7 +22,6 @@ import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.
 import { FILE_WRITE_TOOL_NAME } from './prompt.js'
 import type { FileWriteToolInput, Output } from './FileWriteTool.js'
 
-
 const CREATE_PREVIEW_LINES = 10
 const CODE_BLOCK_GUTTER = 6
 const REJECTION_SCAN_CAP_BYTES = 1024 * 1024
@@ -56,6 +55,7 @@ export function renderToolUseMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
+
   return (
     <FilePathLink filePath={input.file_path}>
       {getDisplayPath(input.file_path)}
@@ -120,6 +120,7 @@ export function renderToolResultMessage(
     isTranscriptMode,
   }: { verbose: boolean; style?: 'condensed' | 'default'; isTranscriptMode?: boolean },
 ): React.ReactNode {
+
   const verbose = verboseOption || isTranscriptMode === true
   if (output.type === 'no-change') {
     return <NoChangeCard filePath={output.filePath} />
@@ -201,6 +202,7 @@ function WriteRejectionPreview({
         setPreview({ state: 'update', patch, original: existing.content })
       } catch (err) {
         if (cancelled) return
+
         if (err instanceof FileTooLargeError || (err as { code?: string })?.code === 'ENOENT') {
           setPreview({ state: 'create' })
         } else {
@@ -233,6 +235,7 @@ function WriteRejectionPreview({
       />
     )
   }
+
   return (
     <FileEditToolUseRejectedMessage
       file_path={input.file_path}

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -26,6 +27,7 @@ if (!existsSync(DIST)) {
 const ACCESS = 'openai-access-fixture-0000000001'
 const REFRESH = 'openai-refresh-fixture-000000001'
 const b64url = (s: string): string => Buffer.from(s).toString('base64url')
+
 const ID_TOKEN = `${b64url(JSON.stringify({ alg: 'none' }))}.${b64url(
   JSON.stringify({
     'https://api.openai.com/auth': { chatgpt_account_id: 'acct_fixture', chatgpt_plan_type: 'plus' },
@@ -61,6 +63,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && path === '/openai/api/accounts/deviceauth/token') {
       tokenPolls++
       pollsSinceStart++
+
       if (pollsSinceStart === 1) {
         json(res, 404, {})
         return
@@ -69,6 +72,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'POST' && path === '/openai/oauth/token') {
+
       const grant = new URLSearchParams(body).get('grant_type')
       if (grant === 'authorization_code') codeExchanges++
       if (grant === 'refresh_token') refreshGrants++
@@ -114,12 +118,17 @@ async function drive(cols: number, rows: number): Promise<string> {
   const out = join(home, 'grid.json')
   const cfgPath = join(home, 'cfg.json')
   const sends: Send[] = [
+
     { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 4, data: '/submodels\r' },
+
     { requireAwait: true, awaitText: 'sign in — /logins', awaitSettleTicks: 3, data: '\u001b' },
+
     { afterPrevTicks: 4, data: '/logins openai\r' },
     { requireAwait: true, awaitText: 'OpenAI', awaitSettleTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'browser', awaitSettleTicks: 3, data: 'd' },
+
     { requireAwait: true, awaitText: 'MERC-FIXT', awaitSettleTicks: 1, data: ' ' },
+
     { requireAwait: true, awaitText: 'OpenAI connected', awaitSettleTicks: 3, data: '/submodels\r' },
   ]
   writeFileSync(
@@ -152,6 +161,7 @@ async function drive(cols: number, rows: number): Promise<string> {
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_HOME: join(home, 'proof-home'),
     ANTHROPIC_BASE_URL: DEAD,
+
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai`,
     MERCURY_OPENAI_AUTH_BASE: `${base}/openai`,
@@ -235,6 +245,7 @@ for (const cols of [100, 120]) {
   )
   check(`${cols} cols: no secret painted on the final frame`, !grid.includes(ACCESS) && !grid.includes(REFRESH))
 }
+
 check('the fixture saw ONE device-authorization start per drive (2 total)', deviceStarts === 2, `starts=${deviceStarts}`)
 check('the device grant polled pending → authorized in each drive', tokenPolls >= 4, `polls=${tokenPolls}`)
 check('ONE code exchange landed on the pinned issuer per drive', codeExchanges === 2, `code=${codeExchanges} refresh=${refreshGrants}`)

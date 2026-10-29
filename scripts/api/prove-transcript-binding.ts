@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -42,6 +43,7 @@ const { stripThinkingFromIndex, stripSignatureBlocks } = await import('../../src
 const { stripExcessMediaItems } = await import('../../src/services/providers/anthropic/media.ts')
 
 section('§1 the setting table')
+
 {
   const r = binding.resolveThinkingBindingSetting
   const eq = (a: unknown, b: unknown): boolean => j(a) === j(b)
@@ -59,6 +61,7 @@ section('§1 the setting table')
 }
 
 section('§2 applyThinkingBinding — the field and the header ride together')
+
 {
   const apply = binding.applyThinkingBinding
   const H = THINKING_BINDING_CONTROLS_BETA_HEADER
@@ -104,6 +107,7 @@ section('§2 applyThinkingBinding — the field and the header ride together')
 }
 
 section('§3 the reading — input_transformations off a response')
+
 {
   const of = binding.inputTransformationsOf
   const describe = binding.describeInputTransformations
@@ -142,6 +146,7 @@ section('§3 the reading — input_transformations off a response')
 }
 
 section('§4 the strips — from the first edited message onward')
+
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: 'sig-' + text })
 const TEXT = (text: string): Block => ({ type: 'text', text })
@@ -174,6 +179,7 @@ function assistant(content: Block[]): Record<string, unknown> {
     },
   }
 }
+
 const blocksOf = (m: unknown): Block[] => {
   const content = (m as { message?: { content?: unknown } } | undefined)?.message?.content
   return Array.isArray(content) ? (content as Block[]) : []
@@ -218,6 +224,7 @@ const hasThinking = (m: unknown): boolean => blocksOf(m).some(b => b.type === 't
 }
 
 section("§4b the prefix's own movers — the fingerprint source, the persisted rows, the user-context row")
+
 {
   const { extractFirstMessageText, computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.ts')
   const REMINDER = '<system-reminder>\nThe material below is available to you while you answer the user.\n\n# currentDate\nToday.\n</system-reminder>'
@@ -241,6 +248,7 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
   const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
   check('an attachment row persists (a resumed request replays the turns it once sent)', isTranscribable(attachmentRow({ type: 'mcp_instructions_delta', addedNames: ['x'], addedBlocks: ['## x\nhi'], removedNames: [] }) as never) === true)
   check('a progress row still does not persist', isTranscribable({ type: 'progress', data: { type: 'hook_progress' } } as never) === false)
+
   check("a hook's plain text on an event the model does not read stays out", isTranscribable(attachmentRow({ type: 'hook', outcome: 'text', event: 'tool.after', name: 'h', words: 'plain' }) as never) === false)
   check('a hook context row persists (the request renders it)', isTranscribable(attachmentRow({ type: 'hook', outcome: 'context', event: 'turn.start', name: 'h', words: 'ctx' }) as never) === true)
   check("a hook's failed row persists though the model never reads it (the operator's record)", isTranscribable(attachmentRow({ type: 'hook', outcome: 'failed', event: 'turn.start', name: 'h', words: 'x' }) as never) === true)
@@ -276,6 +284,7 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
 }
 
 section('§5 the wire — the real product, consecutive requests, byte-identical prefixes')
+
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {
@@ -301,6 +310,7 @@ if (!existsSync(DIST)) {
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
+
           MERCURY_THINKING_BINDING: 'error',
         },
       }
@@ -319,6 +329,7 @@ if (!existsSync(DIST)) {
         })
       })
     }
+
     function withoutCacheControl(value: unknown): unknown {
       if (Array.isArray(value)) return value.map(withoutCacheControl)
       if (value !== null && typeof value === 'object') {
@@ -349,6 +360,7 @@ if (!existsSync(DIST)) {
     const notePath = join(arena.cwd, 'note.txt')
     writeFileSync(notePath, 'hello-from-the-fixture-file\n')
     ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
+
     const debugFile = (n: number): string => join(arena.home, `turn-${n}.debug.log`)
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
     const r1 = await run(arena, ['run', 'read the note', ...common, '--session-id', SID, '--log-file', debugFile(1)])

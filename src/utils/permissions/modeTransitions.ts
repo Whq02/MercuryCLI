@@ -1,27 +1,39 @@
-
 import type { PermissionMode } from '../../types/permissions.js'
 import { logForDebugging } from '../debug.js'
 
 export const MODE_TRANSITION_ROADS = [
+
   'boot',
+
   'claim',
+
   'control-door',
+
   'carousel',
+
   'screen-mirror',
+
   'review-approval',
+
   'permission-answer',
+
   'bypass-disabled',
+
   'crew-lead',
+
   'unnamed',
 ] as const
 
 export type ModeTransitionRoad = (typeof MODE_TRANSITION_ROADS)[number]
 
 type ModeTransition = {
+
   from: PermissionMode | null
   to: PermissionMode
   road: ModeTransitionRoad
+
   detail?: string
+
   held?: true
   atMs: number
 }
@@ -29,6 +41,7 @@ type ModeTransition = {
 const RECORD_CAP = 200
 
 let record: ModeTransition[] = []
+
 let announced: ModeTransition | null = null
 
 function push(entry: ModeTransition): ModeTransition {

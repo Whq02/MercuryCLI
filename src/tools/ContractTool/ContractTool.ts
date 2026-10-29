@@ -7,7 +7,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SessionContractV1 } from '../../daemon/sessionContract.js'
 import { CONTRACT_TOOL_NAME, CONTRACT_TOOL_PROMPT, DESCRIPTION } from './prompt.js'
 
-
 const inputSchema = lazySchema(() =>
   z.strictObject({
     action: z
@@ -53,6 +52,7 @@ async function contractVerb(op: 'ack' | 'close'): Promise<{ ok: boolean; detail?
       sessionId,
       by: `worker:${sessionId.slice(0, 8)}`,
       contract: { op },
+
       clientOpId: `contract-${op}-${sessionId.slice(0, 8)}-${Date.now().toString(36)}`,
     } as never,
     { timeoutMs: 10_000 },
@@ -108,6 +108,7 @@ export const ContractTool = buildTool({
   async call({ action, restatement, about, proposal, report }) {
     const { contract, title, found } = await readOwnContract()
     if (!found) {
+
       return { data: { message: 'No session record answers for this run — the contract store is unreadable right now. Continue working; nothing gates on it.' } }
     }
     const facts = (c: SessionContractV1): { status: string; text: string; amendments: number } => ({
@@ -164,6 +165,7 @@ export const ContractTool = buildTool({
         if (contract === undefined) return { data: { message: `${NO_CONTRACT} Nothing to amend — if the BRIEF has the gap, ask the user directly.` } }
         const sessionId = getSessionId()
         const { upsertObligation } = await import('../../services/crew/obligations.js')
+
         await upsertObligation({
           ref: `contract-amend:${sessionId}`,
           sessionId,
@@ -184,6 +186,7 @@ export const ContractTool = buildTool({
         const closing = (report ?? '').trim()
         if (closing.length === 0) throw new Error('close-against needs `report` — what was delivered against the contract’s items, what was not, and why.')
         const sessionId = getSessionId()
+
         const { appendSessionReceipt } = await import('../../services/switchboard/sessionReceipts.js')
         const { getTranscriptPath } = await import('../../utils/sessionStorage/paths.js')
         const { dirname } = await import('node:path')

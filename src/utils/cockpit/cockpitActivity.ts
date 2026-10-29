@@ -1,8 +1,8 @@
-
 import { useSyncExternalStore } from 'react'
 import { fluxMark } from '../flux/fluxProbe.js'
 
 export type ActivityState =
+
   | 'calm'
   | 'active'
   | 'waiting'

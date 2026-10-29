@@ -1,4 +1,3 @@
-
 import path from 'node:path'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -20,10 +19,14 @@ type AgentReadState = {
 
 export function useAgentTranscriptView(opts: {
   transcriptDir: string
+
   fallbackDirs?: readonly string[]
   agentId: string | undefined
+
   enabled: boolean
+
   liveState: string | undefined
+
   version: number | undefined
 }): AgentReadState {
   const { transcriptDir, fallbackDirs, agentId, enabled, liveState, version } = opts
@@ -32,6 +35,7 @@ export function useAgentTranscriptView(opts: {
   const pendingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firstReadRef = useRef(true)
   const readVersionRef = useRef(0)
+
   const identityRef = useRef('')
   identityRef.current = `${transcriptDir}|${agentId ?? ''}`
 
@@ -39,6 +43,7 @@ export function useAgentTranscriptView(opts: {
     if (!agentId) return
     const issuedFor = `${transcriptDir}|${agentId}`
     const readVersion = ++readVersionRef.current
+
     const file =
       resolveAgentTranscriptFile([transcriptDir, ...(fallbackDirs ?? [])], agentId) ??
       agentTranscriptFile(transcriptDir, agentId)

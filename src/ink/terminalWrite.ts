@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useRef } from 'react'
 import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
 import { isProgressReportingAvailable } from './session/capabilities.js'
@@ -9,9 +8,10 @@ type TerminalWrite = (data: string) => void
 export const TerminalWriteContext = createContext<TerminalWrite | null>(null)
 export const TerminalWriteProvider = TerminalWriteContext.Provider
 
-
 type TabRing = {
+
   hold(token: symbol, live: boolean): void
+
   release(token: symbol): void
   ringing(): boolean
 }
@@ -22,6 +22,7 @@ export function createTabRing(write: TerminalWrite, available: () => boolean): T
   const emit = (state: number): void => {
     write(wrapForMultiplexer(osc(OSC.ITERM2, ITERM2.PROGRESS, state, 0)))
   }
+
   const settle = (): void => {
     const live = holders.size > 0
     if (live === ringing) return

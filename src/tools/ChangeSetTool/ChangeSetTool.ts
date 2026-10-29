@@ -1,4 +1,3 @@
-
 import { z } from 'zod/v4'
 import { changeViewSearchText } from '../StructureTool/StructureTool.js'
 import { relative } from 'node:path'
@@ -167,9 +166,9 @@ export type Output = {
   outcome: ToolEffectOutcome
   planId?: string
   changeView?: InlineChangeViewData
+
   repetitionStop?: boolean
 }
-
 
 const pathShim = {
   name: CHANGESET_TOOL_NAME,
@@ -230,6 +229,7 @@ interface OpResult {
   changedPaths: string[]
   details?: Record<string, unknown>
   intent?: ChangeIntentProjection
+
   repetitionStop?: boolean
 }
 
@@ -280,6 +280,7 @@ function planContext(
       const whole = entry !== undefined && !entry.isPartialView && (entry.offset === undefined || (entry.offset === 0 && entry.limit === undefined))
       return whole ? entry.content : null
     },
+
     seenLinesCheck: (
       target: { canonicalPath: string; requestedPath: string },
       spans: Parameters<typeof checkSeenLines>[3],
@@ -314,7 +315,6 @@ function planContext(
     },
   }
 }
-
 
 const loweredByPlanId = new Map<string, LoweredPatch>()
 function stashLowered(planId: string, lowered: LoweredPatch): void {
@@ -362,6 +362,7 @@ function rederiveBytes(plan: ChangeSetPlan): { bytes: Map<string, ChangeSetTarge
       stalePaths.push(t.canonicalPath)
       continue
     }
+
     if (t.fileOp === 'move' && t.newPath !== undefined && existsSync(t.newPath)) {
       stalePaths.push(t.newPath)
       continue
@@ -389,7 +390,6 @@ function staleRefusalText(plan: ChangeSetPlan, stalePaths: string[]): string {
   lines.push('Re-read the drifted files, then re-plan with op:"preview" (plans are immutable).')
   return lines.join('\n')
 }
-
 
 function targetLabel(t: ChangeSetPlan['targets'][number]): string {
   if (t.fileOp === 'move' && t.newPath !== undefined) {
@@ -556,6 +556,7 @@ async function runApply(
       }
     }
     if (stored.state === 'applied') {
+
       const drifted: string[] = []
       for (const t of stored.targets.filter(x => x.changed)) {
         let ok = false
@@ -889,6 +890,7 @@ async function runApply(
       const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent, before, owner)
       if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)
     }
+
     const anchor = mintFileAnchor(t.plannedContent)
     freshAnchors.push({ path: landedPath, anchor })
     rememberAnchoredSnapshot(owner, anchor, t.plannedContent, landedPath)
@@ -903,6 +905,7 @@ async function runApply(
       )
     }
   }
+
   const publishedRegisters: string[] = []
   if (lowered) {
     for (const [name, reg] of lowered.registerPublications) {
@@ -1080,7 +1083,6 @@ function runDiscard(input: Input, context: ToolUseContext): OpResult {
   }
 }
 
-
 export const ChangeSetTool = buildTool({
   name: CHANGESET_TOOL_NAME,
   searchHint:
@@ -1181,11 +1183,13 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       }
     }
     if (input.op === 'apply') {
+
       const hasChanges = input.changes != null && input.changes.length > 0
       const hasPatch = typeof input.patch === 'string' && input.patch.length > 0
       const hasPlan = typeof input.plan_id === 'string' && input.plan_id.trim().length > 0
       const given = [hasChanges, hasPatch, hasPlan].filter(Boolean).length
       if (given !== 1) {
+
         const present = [hasChanges && 'changes', hasPatch && 'patch', hasPlan && 'plan_id'].filter(Boolean) as string[]
         const carried =
           present.length === 0
@@ -1233,8 +1237,10 @@ Not this tool (refused by name): file creation (Write) · binary content · note
     const permCtx = context.getAppState().toolPermissionContext
     let paths: string[]
     if (input.patch !== undefined) {
+
       const parsed = parseAnchorPatch(input.patch)
       if (!parsed.ok) {
+
         return { behavior: 'allow', updatedInput: input }
       }
       const set = new Set<string>()
@@ -1253,6 +1259,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       paths = plan?.changedPaths ?? []
     }
     if (paths.length === 0) {
+
       return { behavior: 'allow', updatedInput: input }
     }
     let needsAsk = false
@@ -1260,6 +1267,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
     for (const p of new Set([...paths, ...remotePaths])) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: p }, permCtx)
       if (decision.behavior === 'deny') {
+
         return {
           ...decision,
           message: decision.decisionReason.type === 'rule'
@@ -1314,6 +1322,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
         changedPaths: [],
       }
     }
+
     if (input.op === 'apply') {
       try {
         const { recordEditOutcome } = await import('../../services/changeTransaction/editOutcomeLedger.js')
@@ -1363,6 +1372,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
       tool_use_id: toolUseId,
       type: 'tool_result' as const,
       content: output.result,
+
       ...(output.repetitionStop === true && { is_error: true }),
     }
   },
@@ -1370,6 +1380,7 @@ Not this tool (refused by name): file creation (Write) · binary content · note
   renderToolUseRejectedMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
+
   extractSearchText({ result, changeView }) {
     return changeView ? `${result ?? ''}\n${changeViewSearchText(changeView)}` : (result ?? '')
   },

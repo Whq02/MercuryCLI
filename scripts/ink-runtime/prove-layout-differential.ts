@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createCellLayoutNode } from '../../src/ink/layout/cellLayout.js'
@@ -64,7 +65,9 @@ if (oracleLive) {
   const { createYogaLayoutNode } = await import('../../src/ink/layout/yoga.js')
   const oracleRun = (s: Scene) => runScene(s, createYogaLayoutNode as () => LayoutNode)
   await compareScenes(allScenes(), oracleRun)
+
   await compareScenes(randomScenes(400, 0xce11).map(s => ({ ...s, name: `x${s.name}` })), oracleRun)
+
   await compareScenes(productionScenes(600), oracleRun)
 } else {
   const golden: Record<string, SceneRects[]> = JSON.parse(readFileSync(GOLDEN, 'utf8'))
@@ -83,7 +86,6 @@ check(
   mismatchScenes === 0,
   `${mismatchScenes} scenes diverged`,
 )
-
 
 {
   let calls = 0

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
@@ -174,6 +175,7 @@ for (const file of walkDir(join(ROOT, 'src'))) {
       }
       return '<absent>'
     }
+
     for (const a of call.arguments) {
       if (ts.isIdentifier(a) && literalVars.has(a.text)) {
         const v = hideValueOf(literalVars.get(a.text)!)
@@ -209,6 +211,7 @@ section('(1) the walk — every child_process call site carries explicit windows
   const cpSites = sites.filter(s => s.callee !== 'execa')
   check('the walk found the estate (≥100 call sites — an empty walk is a broken walk, not a green one)', cpSites.length >= 100, `found ${cpSites.length}`)
   const nonTrue = cpSites.filter(s => s.value !== 'true')
+
   const orphans: string[] = []
   for (const s of nonTrue) {
     const admitted = ALLOWLIST.some(r => r.path === s.path && r.callee === s.callee && r.value === s.value)
@@ -229,11 +232,14 @@ for (const row of ALLOWLIST) {
 
 section('(3) the sighting anchors — both operator journeys ride hidden spawns')
 {
+
   const consent = sites.filter(s => s.path === 'src/daemon/concourseWorktrees.ts')
   check('both git wrapper legs are walked (sync probe + async add/prune)', consent.length >= 2, `found ${consent.length}`)
   check('every concourseWorktrees spawn is hidden (git offer + the board beat run HERE)', consent.length > 0 && consent.every(s => s.value === 'true'))
+
   const verif = sites.filter(s => s.path === 'src/utils/verification/verificationState.ts')
   check('every verificationState git spawn is hidden (the per-beat worker road)', verif.length >= 4 && verif.every(s => s.value === 'true'), `found ${verif.length}`)
+
   {
     const { readFileSync } = await import('node:fs')
     for (const rel of ['src/daemon/concourseWorktrees.ts', 'src/utils/verification/verificationState.ts'] as const) {

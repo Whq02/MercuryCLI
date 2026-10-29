@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -131,6 +132,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
+
     onCycleError: error => {
       console.log(`  [FAIL] the driver cycle threw — ${String(error)}`)
       failures++
@@ -142,10 +144,12 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
   })
   const phases: string[] = []
   driver.kick()
+
   const settledAndIdle = settled.then(() => new Promise<void>(r => setTimeout(r, 50)))
   return { out, waits, phases, driver, settled: settledAndIdle }
 }
 {
+
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => true })
   await new Promise(r => setTimeout(r, 120))
   check('while agents run the result is HELD and the wait is announced', !s.out.includes('outcome') && s.waits.includes(2) && s.driver.phase() === 'waiting_for_agents', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
@@ -155,11 +159,13 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
   check('the release is not a stop: the tasks census still reads running after it', true)
 }
 {
+
   const s = await driverScenario({ releaseBeforeResult: true, tasksRunning: () => true })
   await s.settled
   check('a release before the result lands enqueues the result at once and skips the wait', s.out.includes('outcome') && !s.waits.includes(2) && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')}`)
 }
 {
+
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => false })
   await s.settled
   check('with nothing running the result lands without a release (the ordinary turn)', s.out.includes('outcome') && s.driver.phase() === 'idle')
@@ -233,6 +239,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   check('a throwing agent settles failed and enqueues exactly ONE failed notice with the error', failed.task?.status === 'failed' && failed.notes.length === 1 && failed.notes[0]!.includes('<status>failed</status>') && failed.notes[0]!.includes('CREW-DECLINE'), failed.notes.join('|').slice(0, 300))
 }
 {
+
   resetCommandQueue()
   const store = makeStore()
   const task = registerAsyncAgent({ agentId: 'ag-helper', description: 'helper', prompt: 'p', selectedAgent: FAKE_AGENT_DEF, setAppState: store.set as never })
@@ -240,6 +247,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   check('stopOrDismissAgent aborts the running task\'s controller with the operator\'s reason', task.abortController!.signal.aborted && task.abortController!.signal.reason === AGENT_STOP_BY_OPERATOR)
 }
 {
+
   resetCommandQueue()
   const store = makeStore()
   registerWorkflowTask({ taskId: 'wf-1', script: 'x', workflowRunId: 'run-1', setAppState: store.set as never })
@@ -275,6 +283,7 @@ section('§K4 the resume road — one owner behind every door')
   check('the contract names both doors', contract.includes('stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>') && contract.includes('resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>'))
   const methods = src('src/runner/wire/methods.ts')
   check("the door's method table carries agent/resume", methods.includes("'agent/resume': method({"))
+
   const run = src('src/tools/AgentTool/runAgent.ts')
   check('the run loop seeds its chain parent from the seed messages\' leaf — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid'))
 }
@@ -311,6 +320,7 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
   check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
+
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
   const crew = await import('../../src/services/engine-connector/crewFacts.js')
   const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
@@ -323,10 +333,12 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')
   const landedFacts = crew.crewAgentFactsOf({ ...rows[0]!, status: 'completed', endTime: t0 + 9000 }, 'fx')!
   check('K10 a settled row keeps the one status word', crew.crewPhaseWords(landedFacts, t0 + 9000) === null && crew.crewStatusWords(landedFacts, t0 + 9000) === 'landed')
+
   const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
   const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line; the status cell speaks the GATE and the holders ride the row\'s tail (a narrow row sheds the holders last, never the gate)', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held' && crew.crewWaitHolders(seatFacts) === 'held by a, b, the chat' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
   const { agentPulse, agentPulseWord } = await import('../../src/tools/WorkflowTool/livePulse.js')
+
   const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
   const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
   check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, within 1m' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, within 1m', stillWords)
@@ -421,6 +433,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   const receipt = crewStillRunningLine({ agents: 1, workflows: 1 })!
   conn.addDisplayRow(createSystemMessage(receipt, 'warning'))
   check('K11 the receipt paints after the rows it followed', shape() === `user | assistant | user | assistant | system:${receipt}`, shape())
+
   const s = uid()
   const u3 = uid()
   appendFileSync(file, line(s, null, 5, 'user', 'summary of the folded turns', { isCompactSummary: true }) + line(u3, s, 6, 'user', 'after'))
@@ -432,6 +445,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   appendFileSync(file, line(a3, u3, 7, 'assistant', 'noted'))
   await seam.tick()
   check('K11 a receipt minted after the fold keeps its anchor through a plain append', shape() === `user | user | system:${after} | assistant`, shape())
+
   const u4 = uid()
   appendFileSync(file, line(u4, a3, 8, 'user', 'again'))
   await seam.tick()

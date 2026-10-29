@@ -1,4 +1,3 @@
-
 export const COMPOSER_COLUMNS = 96
 
 export const COMPOSER_SLOT_MAX_ROWS = 8

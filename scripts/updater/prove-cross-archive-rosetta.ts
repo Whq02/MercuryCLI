@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -54,6 +55,7 @@ const env = {
   CI: '1',
   TERM: 'dumb',
 }
+
 const x64 = (cmd: string, args: string[], timeout = 180_000) => spawnSync('arch', ['-x86_64', cmd, ...args], { encoding: 'utf8', env, cwd: home, timeout, maxBuffer: 64 * 1024 * 1024 })
 
 try {

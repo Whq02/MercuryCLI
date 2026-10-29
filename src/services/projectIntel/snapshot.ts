@@ -1,4 +1,3 @@
-
 import { statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
@@ -20,6 +19,7 @@ import {
 } from './contracts.js'
 
 const CHANGED_CAP = 200
+
 const NO_DIGEST_TTL_MS = 30_000
 
 interface SnapshotHolder {
@@ -52,6 +52,7 @@ async function gitFactsAsync(workspace: string): Promise<GitFactsRead> {
 }
 
 function gitFactsFrom(status: GitStatus | GitUnavailable): GitFactsRead {
+
   if ('state' in status) {
     return {
       facts: { state: 'unavailable', note: status.note, changed: [], changedTruncated: false, ahead: 0, behind: 0 },
@@ -74,6 +75,7 @@ function gitFactsFrom(status: GitStatus | GitUnavailable): GitFactsRead {
 }
 
 function instructionFacts(workspace: string): InstructionFacts {
+
   const configHomes = projectConfigDirs(workspace)
     .filter(dir => exists(dir))
     .map(dir => basename(dir))
@@ -154,6 +156,7 @@ export function getProjectSnapshot(
   const holder = cache.get(projectOwner(workspace))
   if (holder.snapshot) {
     const gen = holder.snapshot.generation
+
     const currentAsOf = Math.max(gen.scannedAtMs, gen.validatedAtMs ?? 0)
     if (
       opts.maxStaleMs !== undefined &&
@@ -162,6 +165,7 @@ export function getProjectSnapshot(
       return { snapshot: holder.snapshot, from: 'cache-ttl' }
     }
     if (gen.treeDigest !== null) {
+
       const current = computeWorkingTreeDigest(workspace)
       if (current !== null && current === gen.treeDigest) {
         gen.validatedAtMs = Date.now()
@@ -186,6 +190,7 @@ export async function getProjectSnapshotAsync(
   const holder = cache.get(projectOwner(workspace))
   if (holder.snapshot) {
     const gen = holder.snapshot.generation
+
     const currentAsOf = Math.max(gen.scannedAtMs, gen.validatedAtMs ?? 0)
     if (
       opts.maxStaleMs !== undefined &&

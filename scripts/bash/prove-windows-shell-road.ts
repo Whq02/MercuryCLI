@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,10 +15,12 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
+
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
 const ENGINE_PIN = 'MERCURY_SHELL_ENGINE'
+
 const SUB_HOME = mkdtempSync(join(tmpdir(), 'shell-road-sub-home-'))
 
 function roadSubprocess(body: string, env: Record<string, string | undefined>): { status: number | null; stdout: string; stderr: string } {
@@ -44,6 +47,7 @@ const { composeWindowsBashRoad, WINDOWS_BASH_NOTICE, WINDOWS_BASH_NOTICE_NO_PACK
 const { shellEngineArmWords, shellEngineRequest } = await import('../../src/utils/shell/shellEngineArm.ts')
 const { GIT_BASH_REMEDY, findGitBashPath, locateGitBash } = await import('../../src/utils/windowsPaths.ts')
 const { resolveBrushPackDir } = await import('../../src/utils/shell/brushPack.ts')
+
 const PACK_PRESENT = resolveBrushPackDir().state === 'ok'
 console.log(`  (shell engine pack on this tree: ${PACK_PRESENT ? 'present — the road without bash arms the bundled engine' : 'absent — the road without bash is the typed absence'})`)
 

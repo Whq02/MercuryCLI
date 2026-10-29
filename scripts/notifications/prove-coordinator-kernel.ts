@@ -37,6 +37,7 @@ console.log('§1 mode resolution (ONE owner)')
   check('off passes through', resolveCoordinatorMode('off').effective === 'off')
   check('rules-only passes through with NO fallback reason', resolveCoordinatorMode('rules-only').fallbackReason === undefined)
   const assisted = resolveCoordinatorMode('agent-assisted')
+
   check('agent-assisted resolves as ITSELF (the lane exists — A6 lift)', assisted.effective === 'agent-assisted')
   check('…with NO fallback reason at the mode owner (assist validity lives in the composition)', assisted.fallbackReason === undefined)
   check('…and the REQUESTED mode is preserved in the resolution', assisted.requested === 'agent-assisted')
@@ -128,6 +129,7 @@ console.log('§3 idempotent execution (the owners’ own laws)')
 
 console.log('§4 zero provider surface (structural import closure)')
 {
+
   const banned = /services\/providers\/|utils\/model\/|streamModel|run-core\/turn-machine|api\/|anthropic|openai/i
   const seen = new Set<string>()
   const queue = ['src/services/concourse/coordinatorKernel.ts']

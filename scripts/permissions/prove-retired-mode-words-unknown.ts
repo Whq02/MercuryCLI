@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts
-// gate-watch: src/utils/settings/types.ts src/daemon/headlessRun.ts src/services/agents/codec.ts
-// gate-watch: src/main.tsx src/utils/conversationRecovery.ts src/services/acp/acpServer.ts src/tools/AgentTool/AgentTool.tsx
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

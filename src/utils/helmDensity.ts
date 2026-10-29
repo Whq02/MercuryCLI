@@ -1,4 +1,3 @@
-
 import type { ActivityState } from './cockpit/cockpitActivity.js'
 
 export const HELM_COMPACT_ROWS = 30
@@ -9,9 +8,13 @@ type DensityEmphasis = 'identity' | 'work' | 'decision' | 'review'
 
 export type DensityPlan = {
   activity: ActivityState
+
   compact: boolean
+
   keep: readonly string[]
+
   shedOrder: readonly string[]
+
   secondaryRows: number
   emphasis: DensityEmphasis
 }
@@ -22,19 +25,23 @@ const TABLE: Record<
   ActivityState,
   { keep: readonly string[]; shedOrder: readonly string[]; secondaryRows: number; emphasis: DensityEmphasis }
 > = {
+
   calm: { keep: [], shedOrder: CALM_ORDER, secondaryRows: 3, emphasis: 'identity' },
+
   active: {
     keep: ['next'],
     shedOrder: ['workbench', 'recent', 'crew'],
     secondaryRows: 1,
     emphasis: 'work',
   },
+
   waiting: {
     keep: [],
     shedOrder: ['workbench', 'next', 'recent', 'crew'],
     secondaryRows: 0,
     emphasis: 'decision',
   },
+
   review: {
     keep: [],
     shedOrder: ['workbench', 'next', 'crew', 'recent'],

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,7 +34,9 @@ const rows = read('src/components/PromptInput/PromptInputFooterSuggestions.tsx')
 check('suggestion rows: onClick + onMouseEnter on ABSOLUTE indices', /onClick: \(\) => onPick\(absolute\)/.test(rows) && /onMouseEnter: \(\) => onHover\(absolute\)/.test(rows))
 
 const cc = read('src/components/mercury-ui/components.tsx')
+
 check('CommandCenter footer row clicks close (via InteractiveRow directActivate)', /<InteractiveRow id=\{`center:\$\{view\}:close`\} directActivate onActivate=\{closable \? onClose : undefined\}/.test(cc))
+
 const rp = read('src/components/mercury-ui/RailPanel.tsx')
 check('RailPanel header is a function child (no static slab)', /const headerText = \(hover: boolean\)/.test(rp))
 check('RailPanel header hover brightens info → infoShimmer', /hover \? 'infoShimmer' : headerHue/.test(rp))
@@ -42,6 +45,7 @@ const ls = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
 check('`? for shortcuts` is a Box sibling dispatching /help', /onClick=\{\(\) => \{[\s\S]{0,240}requestCommandDispatch\('\/help'\)/.test(ls))
 
 const tr = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
+
 check(
   'vitals rows activate by LABEL (one adapter + ≥6 labeled rows)',
   tr.includes("requestHelmRowActivationByLabel('vitals', label)") &&
@@ -49,6 +53,7 @@ check(
 )
 
 const ink = read('src/ink/ink.tsx')
+
 const sched = read('src/ink/root/render-scheduler.ts')
 check('boot coalesce: window + trailing flush + cancel (unconditional)', /BOOT_COALESCE_MS = 100/.test(sched) && /clock\.now\(\) \+ BOOT_COALESCE_MS/.test(sched) && /clearTimeout\(this\.bootTimer\)/.test(sched))
 

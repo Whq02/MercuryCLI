@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -63,6 +64,7 @@ function fakeTool(i: number, count: number): FakeTool {
   const t: FakeTool = {
     name: `fake-parallel-${i}`,
     promptCalls: 0,
+
     prompt: async () => {
       t.promptCalls++
       pendingNow++

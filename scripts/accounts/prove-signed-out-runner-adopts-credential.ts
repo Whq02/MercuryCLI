@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -9,13 +10,16 @@ const HOME = join(SCRATCH, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 mkdirSync(HOME, { recursive: true })
 delete process.env.MERCURY_HOME
+
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = 'http://127.0.0.1:1'
+
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR
 delete process.env.MERCURY_API_KEY_FILE_DESCRIPTOR
+
 delete process.env.CI
 delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -84,6 +88,7 @@ console.log('============================================================')
 
 section('§1 a scratch home boots signed out')
 {
+
   check('the refresh check on an empty home is a no-op', (await auth.checkAndRefreshOAuthTokenIfNeeded()) === false)
   check('no stored claude.ai sign-in', auth.getClaudeAIOAuthTokens() === null)
   check("the token source is 'none'", auth.getAuthTokenSource().source === 'none', auth.getAuthTokenSource().source)
@@ -95,6 +100,7 @@ section('§1 a scratch home boots signed out')
 section('§2 the managed key lands from another process — the next read adopts it')
 {
   check('the /logins writer landed the key', runWriter('key'))
+
   let adopted: { key: string | null; source: string } | null = null
   const deadline = Date.now() + 8_000
   while (Date.now() < deadline) {
@@ -115,6 +121,7 @@ section('§3 the claude.ai sign-in lands from another process — the next read 
 {
   check('the login writer landed the sign-in', runWriter('oauth'))
   check('the credential file now exists (absent → present)', existsSync(join(HOME, '.credentials.json')))
+
   await auth.checkAndRefreshOAuthTokenIfNeeded()
   const tokens = auth.getClaudeAIOAuthTokens()
   check('THE NEXT READ ADOPTS THE STORED SIGN-IN (the base never cleared on absent → present)', tokens?.accessToken === TOKEN, JSON.stringify(tokens))

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/ripgrep.ts src/services/privateChannel/artifactVerify.ts src/services/privateChannel/installLayout.ts
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'

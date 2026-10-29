@@ -27,6 +27,7 @@ import {
 
 const DDG_HTML_URL = 'https://html.duckduckgo.com/html/'
 const DDG_LITE_URL = 'https://lite.duckduckgo.com/lite/'
+
 const REQUEST_TIMEOUT_MS = 12_000
 
 export function duckduckgoHtmlUrl(): string {
@@ -35,7 +36,6 @@ export function duckduckgoHtmlUrl(): string {
 export function duckduckgoLiteUrl(): string {
   return flagEnv('MERCURY_SEARCH_DDG_LITE_URL')?.trim() || DDG_LITE_URL
 }
-
 
 export type DuckDuckGoPage =
   | { kind: 'results'; hits: SearchHit[] }

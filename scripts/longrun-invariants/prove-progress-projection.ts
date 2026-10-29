@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -78,6 +79,7 @@ section('§B the ephemeral classifier (which frames belong in the store)')
 
 section('§C wiring pins — the transcript never sees an ephemeral frame')
 {
+
   const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'state', 'ephemeralProgressStore.ts'), 'utf8')
   check('the store doors stand (publish + clear still exported for the revival)',
     store.includes('export function publishEphemeralProgress(') && store.includes('export function clearEphemeralProgress('))
@@ -119,6 +121,7 @@ section('§C wiring pins — the transcript never sees an ephemeral frame')
 
 section('§D the F2 rider — retired with the screen-era queue surface')
 {
+
   const importers = ((): string[] => {
     try {
       return execSync(

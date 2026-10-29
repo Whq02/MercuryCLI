@@ -11,6 +11,7 @@ import { isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { logError } from '../../utils/log.js'
 
 export async function setupTokenHandler(root: Root): Promise<void> {
+
   const showExistingCredentialWarning = !isAnthropicAuthEnabled()
   await new Promise<void>(resolve => {
     root.render(

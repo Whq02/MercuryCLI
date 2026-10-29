@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -178,6 +179,7 @@ section('§11 — the descriptions')
 
 section('§12 — the descriptions name only the grammars the build carries')
 {
+
   const { execFileSync } = await import('node:child_process')
   const { GRAMMAR_REGISTRY: registry } = await import(join(REPO, 'src/services/structure/grammarRegistry.ts'))
   const packNames = (registry as Array<{ name: string; source?: string }>).filter(g => g.source === 'grammar-pack').map(g => g.name)
@@ -218,6 +220,7 @@ console.log(JSON.stringify({
   })
   const probe = JSON.parse(out.trim().split('\n').at(-1)!) as { names: string[]; search: string; edit: string; editWithSearch: string; matches: number; trailer: string; single: string; pinned: string }
   check('a vscode-pack-only engine carries exactly the 16 vscode grammars', probe.names.length === vscodeNames.length && vscodeNames.every(n => probe.names.includes(n)), probe.names.join(','))
+
   const advertised = (text: string): string[] => (/this build carries: ([^;]+);/.exec(text)?.[1] ?? '').split(' · ').map(s => s.trim()).filter(Boolean)
   const searchList = advertised(probe.search)
   const editList = advertised(probe.edit)
@@ -227,6 +230,7 @@ console.log(JSON.stringify({
   check('the python file still matches; the json file is skipped as uncarried and the remedy named', probe.matches === 1 && probe.trailer.includes('whose grammar this build does not carry (.json ×1)') && probe.trailer.includes('fetch-grammars'), probe.trailer)
   check('a single uncarried file refuses by name with the remedy', probe.single.includes('this build does not carry the json grammar') && probe.single.includes('fetch-grammars'), probe.single)
   check('a lang pin on an uncarried grammar refuses by name with the remedy', probe.pinned.includes('this build does not carry the json grammar'), probe.pinned)
+
   const here = astLanguageNames() as string[]
   const hereDescription = await AstSearchTool.description()
   const carriedHere = (registry as Array<{ wasm: string }>).filter(g => existsSync(join(engineDir, g.wasm))).length

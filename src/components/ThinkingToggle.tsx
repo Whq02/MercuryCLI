@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { Box, Text } from '../ink.js'
@@ -39,6 +38,7 @@ export function ThinkingToggle({
   useKeybinding(
     'confirm:no',
     () => {
+
       if (isConfirming) {
         setPendingValue(null)
         return
@@ -94,6 +94,7 @@ export function ThinkingToggle({
             defaultFocusValue={current}
             visibleOptionCount={2}
             onChange={choose}
+
             onCancel={onCancel ?? ((): void => {})}
           />
         )}

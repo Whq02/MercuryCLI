@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,6 +13,7 @@ const label = argv.includes('--label') ? argv[argv.indexOf('--label') + 1]! : 'b
 const COLD_REPS = Number(process.env.NC_COLD_REPS ?? 30)
 const ECHO_RUNS = Number(process.env.NC_ECHO_RUNS ?? 3)
 const ECHO_TRIALS = Number(process.env.NC_ECHO_TRIALS ?? 40)
+
 const HONEST_READY = process.env.NC_HONEST_READY === '1'
 const SKIP_FLUX = process.env.NC_SKIP_FLUX === '1'
 
@@ -30,6 +32,7 @@ interface SmoothRun {
 }
 
 function runSmooth(args: string[]): SmoothRun {
+
   const honest = HONEST_READY ? ['--honest-ready'] : []
   const res = spawnSync(
     'python3',
@@ -37,6 +40,7 @@ function runSmooth(args: string[]): SmoothRun {
     { encoding: 'utf8', cwd: REPO, timeout: 180_000 },
   )
   if (res.status !== 0) throw new Error(`smoothness bench failed: ${res.stderr}`)
+
   const lines = res.stdout.trim().split('\n')
   return JSON.parse(lines[lines.length - 1]!) as SmoothRun
 }
@@ -90,6 +94,7 @@ if (SKIP_FLUX) {
     ['run', join(REPO, 'scripts', 'streaming', 'bench-stream-fluidity.ts')],
     { encoding: 'utf8', cwd: REPO, timeout: 600_000, maxBuffer: 64 * 1024 * 1024 },
   )
+
   flux = { raw: out.split('\n').filter(l => l.trim().length > 0) }
 } catch (e) {
   flux = { error: String(e) }

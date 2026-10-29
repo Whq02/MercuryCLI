@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
@@ -104,6 +105,7 @@ section('(2) provenance — winners, contributors, merge detection')
 section('(3) revisions — monotonic, content-keyed')
 {
   const r1 = settingsRevision()
+
   resetSettingsCache()
   const r2 = settingsRevision()
   check('same-content reload keeps the revision', r2 === r1, `${r1} → ${r2}`)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,6 +33,7 @@ const auth = await import('../../src/utils/auth.ts')
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
 
 section('§A the typed ceiling refusal — boundary-exact, family-named')
+
 {
   check('below the ceiling: no refusal (1 of 2)', slots.signinCeilingRefusal('anthropic', 1) === undefined)
   const at = slots.signinCeilingRefusal('anthropic', 2)
@@ -43,6 +45,7 @@ section('§A the typed ceiling refusal — boundary-exact, family-named')
 }
 
 section('§B the structural universe — one scope, replace-on-save')
+
 {
   const scan = scopes.scanAccountScopes()
   check('the anthropic scope universe is EXACTLY the resolved home (1 scope, current)', scan.length === 1 && scan[0]?.isCurrent === true, JSON.stringify(scan.map(s => s.name)))
@@ -64,6 +67,7 @@ section('§B the structural universe — one scope, replace-on-save')
 }
 
 section('§C the sign-in entry enumeration — one flow, headers read the ceiling')
+
 {
   const flow = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   for (const leg of ["'anthropic'", "'openai'", "'openrouter'", "'gemini'", "'huggingface'", "'moonshot'", "'zai'", "'deepseek'"]) {
@@ -76,6 +80,7 @@ section('§C the sign-in entry enumeration — one flow, headers read the ceilin
 }
 
 section('§D masked tails — planted long keys never surface beyond last-four')
+
 {
   const KEY = (name: string): string => `sk-${name}-SECRETBODY-0123456789abcdef-${name}TAIL`
   const reads: import('../../src/services/providers/accountSlots.ts').AccountSlotReads = {
@@ -107,6 +112,7 @@ section('§D masked tails — planted long keys never surface beyond last-four')
 }
 
 section('§E the /accounts health line — the ONE resolver, blockers verbatim')
+
 {
   const board = readFileSync(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('the family header health line reads resolveProviderUsability', board.includes('resolveProviderUsability'))

@@ -1,4 +1,3 @@
-
 import { mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -175,6 +174,7 @@ function outputsCensus(outputPath: string): string {
   const stem = base.slice(0, base.length - ext.length)
   const escaped = stem.replace(/[.*+?^${}()|[\]\\]/g, ch => (ch === '{' || ch === '}' ? ch : `\\${ch}`))
   const withTemplates = escaped.replace(/\{[a-z0-9 _-]+\}/gi, '.*')
+
   const pattern = new RegExp(`^${withTemplates}\\d*${ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`)
   try {
     const hits = readdirSync(dir)
@@ -435,6 +435,7 @@ export const AsepriteTool = buildTool({
         message: `Aseprite create: ${input.output ?? '(output missing)'} (${input.width ?? '?'}x${input.height ?? '?'} ${input.colorMode ?? 'rgb'}) — writes a new sprite file at the named destination`,
       }
     }
+
     return {
       behavior: 'ask' as const,
       message:
@@ -469,6 +470,7 @@ export const AsepriteTool = buildTool({
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
+
   extractSearchText({ result }) {
     return result ?? ''
   },

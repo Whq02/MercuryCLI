@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -28,6 +29,7 @@ const contract = await import('../../src/prompt/mercuryContract.ts')
 const TEXT = contract.MERCURY_CONSTITUTION
 
 section('§1 the constant — the owner’s text, byte-anchored')
+
 {
   const anchors: Array<[string, RegExp]> = [
     ['identity (You are Mercury, the coding agent working in the operator\'s terminal)', /^You are Mercury, the coding agent working in the operator's terminal\./],
@@ -55,6 +57,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
 }
 
 section('§1b the coordinator seat — the same constitution, its seat fact behind it, one identity per seat')
+
 {
   const SEAT = contract.MERCURY_COORDINATOR_SEAT
   check(
@@ -68,6 +71,7 @@ section('§1b the coordinator seat — the same constitution, its seat fact behi
 }
 
 section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every replacing path')
+
 {
   const { buildEffectiveSystemPrompt } = await import('../../src/utils/systemPrompt.ts')
   const ctx = { options: {} } as never
@@ -138,6 +142,7 @@ section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every repl
 }
 
 section('§3 contract sections — no identity or doctrine section; the constitution is static, ungated')
+
 {
   const sections = contract.getMercuryContractSections()
   check('the contract sections carry no identity text and no doctrine', sections.every(s => !s.text.includes('You are') && s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine')))
@@ -145,6 +150,7 @@ section('§3 contract sections — no identity or doctrine section; the constitu
 }
 
 section('§4 composer + renderers — position law, both wires')
+
 {
   const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
   const {
@@ -198,6 +204,7 @@ section('§4 composer + renderers — position law, both wires')
 }
 
 section('§5 subagent doctrine — the constitution LEADS every spawned child')
+
 {
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
   const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
@@ -211,6 +218,7 @@ section('§5 subagent doctrine — the constitution LEADS every spawned child')
 }
 
 section('§6 source pins — the bun-unloadable seats, one line each')
+
 {
   const pins: Array<[string, string, string]> = [
     ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_CONSTITUTION, config.customSystemPrompt]'],

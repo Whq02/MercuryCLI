@@ -7,6 +7,7 @@ export default {
   name: 'logout',
   description: 'Sign out everywhere — credentials and caches cleared',
   isEnabled: () => flagEnabled('MERCURY_LOGOUT_COMMAND'),
+
   get immediate() {
     return shouldNavCommandBeImmediate()
   },

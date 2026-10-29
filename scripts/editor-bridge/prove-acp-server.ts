@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -47,6 +48,7 @@ function deadline<T>(label: string, work: Promise<T>, ms = REQUEST_DEADLINE_MS):
     )
   })
 }
+
 function withRequestDeadlines<A extends { request: (...a: never[]) => unknown }>(agent: A): A {
   return new Proxy(agent, {
     get(target, prop, receiver) {
@@ -76,6 +78,7 @@ if (!existsSync(DIST)) {
 const configHome = mkdtempSync(join(tmpdir(), 'mosaic-acp-config-'))
 const projDir = mkdtempSync(join(tmpdir(), 'mosaic-acp-proj-'))
 const daemonDir = mkdtempSync(join(tmpdir(), 'mosaic-acp-daemon-'))
+
 process.env.MERCURY_CONFIG_DIR = configHome
 const servers: ChildProcess[] = []
 process.on('exit', () => {
@@ -109,6 +112,7 @@ const api = await startFixtureApi([
     preText: 'running the tool',
   },
   { kind: 'text', text: 'tool leg settled' },
+
   {
     kind: 'tool_use',
     name: 'TaskCreate',
@@ -116,8 +120,10 @@ const api = await startFixtureApi([
     preText: 'planning the work',
   },
   { kind: 'text', text: 'task planned' },
+
   { kind: 'text', text: 'sibling session says hi', whenBody: 'sibling still alive?' },
   { kind: 'text', text: 'post-reconnect prompt works', whenBody: 'after the reconnect' },
+
   { kind: 'text', text: 'aux slack 1' },
   { kind: 'text', text: 'aux slack 2' },
   { kind: 'text', text: 'aux slack 3' },
@@ -220,6 +226,7 @@ const init = await h1.agentCtx.request('initialize', {
 check('protocol v1 negotiated', init.protocolVersion === acp.PROTOCOL_VERSION, String(init.protocolVersion))
 check('loadSession capability advertised', init.agentCapabilities?.loadSession === true)
 check('no auth methods demanded', (init.authMethods ?? []).length === 0)
+
 check(
   'agentInfo names mercury with a version',
   init.agentInfo?.name === 'mercury' && typeof init.agentInfo?.version === 'string' && init.agentInfo.version !== '',
@@ -241,6 +248,7 @@ const created = await h1.agentCtx.request('session/new', { cwd: projDir, mcpServ
 const sid1 = created.sessionId
 check('session created with a real Mercury session id', typeof sid1 === 'string' && sid1.length >= 8, sid1)
 check('modes advertised with the permission ladder', created.modes?.availableModes?.some(m => m.id === 'flow') === true)
+
 {
   const opts = (created as unknown as { configOptions?: Array<Record<string, unknown>> }).configOptions
   check(
@@ -262,15 +270,18 @@ section('(3) prompt → streamed text → end_turn')
         type: 'resource',
         resource: { uri: 'file:///proj/selection.ts', text: 'const answer = 42', mimeType: 'text/plain' },
       },
+
       { type: 'image', mimeType: 'image/png', data: IMAGE_B64 },
     ],
   })
   check('stopReason end_turn', res.stopReason === 'end_turn', res.stopReason)
+
   check(
     'agent_message_chunk carried the fixture text EXACTLY ONCE',
     textUpdates(h1, sid1) === 'fixture says hi',
     JSON.stringify(textUpdates(h1, sid1)).slice(0, 120),
   )
+
   const firstBody = JSON.stringify(api.messageRequests()[0]?.body ?? {})
   check('embedded resource context reached the model request', firstBody.includes('const answer = 42') && firstBody.includes('attached-resource'))
   check(
@@ -296,6 +307,7 @@ section('(4) tool + permission loop')
   check('tool_call streamed', toolCalls.length >= 1)
   check('tool_call_update settled it', toolDone.some(u => u.update.status === 'completed'))
   check('the follow-up text landed', textUpdates(h1, sid1).includes('tool leg settled'))
+
   const write = toolCalls.find(u => u.update.title === 'Write')?.update as
     | { kind?: string; locations?: Array<{ path: string }>; content?: Array<Record<string, unknown>> }
     | undefined
@@ -330,6 +342,7 @@ section('(4b) rendezvous C2 — plan · usage updates cross from the child')
     prompt: [{ type: 'text', text: 'plan the work' }],
   })
   check('the task turn settled', res.stopReason === 'end_turn', res.stopReason)
+
   const planSeen = async (): Promise<Record<string, unknown> | undefined> => {
     for (let i = 0; i < 100; i++) {
       const u = h1.updates.find(x => x.update.sessionUpdate === 'plan')
@@ -372,6 +385,7 @@ section('(5b) load honesty — a nonexistent session is refused')
       mcpServers: [],
     })
   } catch (e) {
+
     const err = e as { data?: { details?: string }; message?: string }
     detail = err.data?.details ?? err.message ?? String(e)
     refused = detail.includes('unknown session')
@@ -381,6 +395,7 @@ section('(5b) load honesty — a nonexistent session is refused')
 
 section('(5c) _mercury/artifacts is PROJECT-scoped (same truth as the TUI)')
 {
+
   process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(configHome, 'review-artifacts')
   const { createReviewArtifact } = await import('../../src/utils/artifacts/reviewStore.ts')
   const foreignRoot = join(configHome, 'elsewhere-project')
@@ -391,6 +406,7 @@ section('(5c) _mercury/artifacts is PROJECT-scoped (same truth as the TUI)')
     producer: { sessionId: 'lantern' },
     workspace: { roots: [projDir] },
     body: { kind: 'report', markdown: '# here' },
+
     initialStatus: 'ready-for-review',
   })
   const foreign = createReviewArtifact({
@@ -415,6 +431,7 @@ section('(5c) _mercury/artifacts is PROJECT-scoped (same truth as the TUI)')
 
 section('(5c2) rendezvous C2 — the attention wire crosses from the request\'s own snapshot')
 {
+
   const wb = (await h1.agentCtx.request('_mercury/workbench', {})) as {
     attention?: {
       version: number
@@ -437,6 +454,7 @@ section('(5c2) rendezvous C2 — the attention wire crosses from the request\'s 
 
 section('(5d) _mercury/run exposes a coherent run revision to the client')
 {
+
   const res = (await h1.agentCtx.request('_mercury/run', {})) as {
     revision?: number
     run?: { objective?: string } | null
@@ -462,6 +480,7 @@ section('(5d) _mercury/run exposes a coherent run revision to the client')
 
 section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP process answers for the SAME named owner')
 {
+
   const { saveRunSidecar, runRevision } = await import('../../src/services/run/runSidecar.js')
   const { emptyRunSnapshot } = await import('../../src/services/run/runKernel.js')
   const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
@@ -543,6 +562,7 @@ section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP pro
 
 section('(5f) source-state honesty crosses ACP: ready ≠ unavailable ≠ empty (end to end)')
 {
+
   type ArtifactsRes = { heads?: unknown[]; source?: { state?: string; reason?: string } }
   const reviewDir = join(configHome, 'review-artifacts')
 
@@ -623,6 +643,7 @@ section('(5g) rendezvous C2 — the config-option surface round-trips')
     refused = true
   }
   check('an unknown value is refused, never guessed', refused)
+
   await h1.agentCtx.request('session/set_config_option', {
     sessionId: sid1,
     configId: 'permission-mode',
@@ -657,6 +678,7 @@ section('(6) cancel interrupts a hanging turn (dedicated server + fixture)')
     sessionId: hangSession.sessionId,
     prompt: [{ type: 'text', text: 'this will hang' }],
   })
+
   await untilTrue(() => hangApi.messageRequests().length > hangRequestsBefore, 10_000)
   await hh.agentCtx.notify('session/cancel', { sessionId: hangSession.sessionId })
   const res = await promptPromise
@@ -692,11 +714,13 @@ section('(7) close reaps ONLY its own child')
   check('two children live', before.length >= 2, String(before.length))
   const requestsBeforeClose = api.messageRequests().length
   await h1.agentCtx.request('session/close', { sessionId: sid1 })
+
   await untilTrue(() => childPids(server1.pid!).length === before.length - 1, 10_000)
   const closeRequests = api.messageRequests().slice(requestsBeforeClose)
   check('closing the first session asks once for its note after its last turn', closeRequests.length === 1 && closeRequests.every(isHandoffRequest), JSON.stringify(closeRequests.map(isHandoffRequest)))
   const after = childPids(server1.pid!)
   check('exactly the closed session was reaped', after.length === before.length - 1, `${before.length} → ${after.length}`)
+
   const sibling = await h1.agentCtx.request('session/prompt', {
     sessionId: sid2,
     prompt: [{ type: 'text', text: 'sibling still alive?' }],
@@ -721,6 +745,7 @@ section('(8) reconnect — session/load replays the transcript, never the model'
   const load1 = await h2.agentCtx.request('session/load', { sessionId: sid1, cwd: projDir, mcpServers: [] })
   const requestsAfterLoad = api.messageRequests().length
   check('load made ZERO model requests (no replay)', requestsAfterLoad === requestsBefore, `${requestsBefore} → ${requestsAfterLoad}`)
+
   const replayed = h2.updates.filter(u => u.sessionId === sid1).map(u => u.update)
   const firstUser = replayed.findIndex(u => u.sessionUpdate === 'user_message_chunk')
   const firstAgent = replayed.findIndex(u => u.sessionUpdate === 'agent_message_chunk')
@@ -739,6 +764,7 @@ section('(8) reconnect — session/load replays the transcript, never the model'
     replayed.some(u => u.sessionUpdate === 'tool_call' && u.title === 'Write' && u.kind === 'edit') &&
       replayed.some(u => u.sessionUpdate === 'tool_call_update' && u.status === 'completed'),
   )
+
   const load2 = await h2.agentCtx.request('session/load', { sessionId: sid1, cwd: projDir, mcpServers: [] })
   check(
     'a second load is idempotent (same modes + configOptions, zero replays)',

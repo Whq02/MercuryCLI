@@ -1,4 +1,3 @@
-
 type RefreshingStream = { _refreshSize?: unknown }
 
 export function refreshConsoleSize(stdout: unknown): boolean {

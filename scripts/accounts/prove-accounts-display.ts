@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,6 +9,7 @@ import {
 } from '../../src/utils/accounts/scopeScan.js'
 
 process.env.NODE_ENV = 'test'
+
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -24,6 +26,7 @@ console.log('prove-accounts-display — available accounts, deduped, honestly re
 const home = mkdtempSync(join(tmpdir(), 'accounts-display-'))
 process.env.MERCURY_CONFIG_DIR = home
 try {
+
   mkdirSync(join(home, '.claude'), { recursive: true })
   mkdirSync(join(home, '.claude-account-b'), { recursive: true })
   writeFileSync(join(home, '.claude', '.mercury.json'), id('uuid-user-a', 'user-a@example.com'))
@@ -77,14 +80,18 @@ try {
   console.log('\n── structural: the single-scope universe + board wiring')
   const src = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   const scanSrc = readFileSync(join(import.meta.dir, '../../src/utils/accounts/scopeScan.ts'), 'utf8')
+
   check('the scan universe is the resolved home only (no enumeration)',
     scanSrc.includes('const dir = resolve(getMercuryHome())') && !scanSrc.includes('readdirSync'))
+
   check('a Claude-family resolved home is marked, never billable',
     scanSrc.includes('foreignHarness: isForeignHarnessDir(dir)') && src.includes("another tool's credential scope"))
   check('the board consumes the ONE scan owner (no second copy)',
     src.includes('deriveFamilySlotGroups()') && !src.includes('readdirSync(home'))
+
   check('no credential re-pointing arm survives on the board',
     !src.includes('slotScopeCredential') && !src.includes('writeSelectedAccount'))
+
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
   const oauthArm = slotsSrc.slice(slotsSrc.indexOf("case 'anthropic-oauth': {"), slotsSrc.indexOf("case 'anthropic-managed-key':"))
   check('backspace signs out — the home dir is never deleted',
@@ -92,14 +99,17 @@ try {
       !slotsSrc.includes('rmSync(') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
   check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
     src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
+
   check('the scope row carries no scope facts; the This-session grid does',
     !src.includes("'this session'") && src.includes("{ k: 'scope'") && src.includes('tail = scopeSlotTail(state, id, slot)'))
   check('the absent row paints the one template (no per-family prose survives on the board)',
     src.includes('tail = familyAbsentWords(row.family.id)') && !src.includes('FAMILY_CONNECT_ROUTES') && !src.includes('not connected · ↵ opens Logins'))
+
   const loginSrc = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')
   const flowSrc = readFileSync(join(import.meta.dir, '../../src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   check('/logins huggingface (and hf) pre-focus the Hugging Face row',
     loginSrc.includes("case 'huggingface':") && loginSrc.includes("case 'hf':"))
+
   const rowOwnerSrc = readFileSync(join(import.meta.dir, '../../src/components/loginFamilyRows.ts'), 'utf8')
   check('the flow accepts every family focus through ONE union (huggingface · moonshot · zai · deepseek), no silent drop',
     flowSrc.includes('initialFocus?: LoginFamilyFocus') &&

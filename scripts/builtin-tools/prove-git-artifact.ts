@@ -39,6 +39,7 @@ function runHealth(extraEnv: Record<string, string> = {}): Cert {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: configDir,
+
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? 'proof-key-builtin-tools-not-a-real-key',
       ...extraEnv,
     },

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -55,6 +56,7 @@ seedFirstRun(home, [ground])
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
+
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
 }
@@ -92,13 +94,16 @@ interface Send {
   awaitText?: string
   minTick?: number
   awaitSettleTicks?: number
+
   mark?: string
 }
+
 const markedFrames = new Map<string, string[]>()
 const markOf = (tag: string, label: string): string[] => markedFrames.get(`${tag}:${label}`) ?? []
 function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40): string[] {
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(SCRATCH, `${tag}-cfg.json`)
+
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: ground, sends, total, cols, rows, out }))
   const env: Record<string, string> = { ...(childEnv as Record<string, string>), MERCURY_CONCOURSE: 'always' }
   delete env.MERCURY_CONCOURSE_FIXTURE
@@ -116,15 +121,19 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')
 const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
+
 const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
+
 const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
 const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
 
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
+
 const CTRL_X = '\x18'
+
 const REAP_CHORDS: Send[] = [
   { atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
@@ -133,6 +142,7 @@ const REAP_CHORDS: Send[] = [
   { atTick: 999, awaitText: DELETE_LEGEND, minTick: 2, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
 ]
+
 const enterSelected = (title: string): Send[] => [
   { atTick: 999, awaitText: title, minTick: 5, awaitSettleTicks: 3, data: '\t' },
   { afterPrevTicks: 3, data: '\r' },
@@ -150,12 +160,14 @@ try {
       prompt: `say ${title} is ready`,
       workspaceDir: work,
       title,
+
       model: modelKey,
       effort: 'high',
     } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; error?: string; detail?: string }
     check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d))
     return d.sessionId ?? ''
   }
+
   const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', DEFAULT_OPUS)
   const sidB = await admit('beta probe', ground, 'reap-drive-beta', 'claude-sonnet-5')
   const liveIds = (): string[] =>
@@ -163,6 +175,7 @@ try {
       .filter(r => r.endedAt === undefined)
       .map(r => r.sessionId)
   check('both sessions live on the roster', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','))
+
   const obligations = await import('../../src/services/crew/obligations.ts')
   const askOpen = (sid: string) => async (): Promise<boolean> =>
     (await obligations.openObligations({ scope: 'switchboard' })).some(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:'))
@@ -182,10 +195,13 @@ try {
     owner: 'operator',
     scope: 'switchboard',
   })
+
   const r4 = drive(
     'leak-both-cards',
     [
+
       { atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 3, data: '\u001b[B' },
+
       { atTick: 999, awaitText: 'No — run here as it is', minTick: 2, afterPrevTicks: 6, data: '\r' },
       { afterPrevTicks: 4, data: '2', mark: 'after-first-2' },
     ],
@@ -196,6 +212,7 @@ try {
   check('R4 the pane card ANSWERED (its receipt painted on the strip)', noteLine !== '', r4Answered.filter(l => l.includes('│')).slice(-8).map(l => l.trim().slice(0, 70)).join(' | '))
   check('R4 alpha\'s parked ask is STILL parked (the covered Chat card answered nothing)', await alphaAskOpen())
   check('R4 neither probe\'s Bash ran (no tool result)', !existsSync(join(SCRATCH, 'nothing-here')) && !existsSync(join(SCRATCH, 'nothing-here-beta')) && !r4.some(l => l.includes('Tidied')))
+
   for (const o of await obligations.openObligations({ scope: 'switchboard' })) {
     if (o.ref === 'permission:git-init:deadbeef0001') await obligations.resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard' } as never)
   }
@@ -237,7 +254,9 @@ try {
       ...enterSelected(otherTitle),
       { atTick: 999, awaitText: TAG, minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
       ...REAP_CHORDS,
+
       { afterPrevTicks: 25, data: SHIFT_RIGHT, mark: 'landing' },
+
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'after-right' },
     ],
     180,

@@ -1,4 +1,3 @@
-
 import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -10,7 +9,9 @@ import { type Snapshot, withState } from './types.js'
 
 type AgentStateData = {
   verdict: AgentStateVerdict | null
+
   needsAttention: boolean
+
   ageMs: number | null
 }
 

@@ -37,6 +37,7 @@ export function renderAgentLine(entry: RenderableAgent): string {
   if (definition.model && definition.model !== 'inherit') {
     parts.push(String(definition.model))
   }
+
   if (definition.operatorOverride?.from) {
     parts.push(`override: ${definition.operatorOverride.from}`)
   }
@@ -55,6 +56,7 @@ export function renderAgentLine(entry: RenderableAgent): string {
 
 export async function agentsHandler(): Promise<void> {
   const cwd = getCwd()
+
   const definitions = await getAgentDefinitionsWithOverrides(cwd)
   const diagnostics = await getAgentDefinitionsWithOverrides(cwd)
   const failedFiles = diagnostics.failedFiles ?? []
@@ -67,6 +69,7 @@ export async function agentsHandler(): Promise<void> {
   const byGroup = new Map<AgentSource, RenderableAgent[]>()
   for (const agent of definitions.allAgents) {
     const winner = activeByType.get(agent.agentType)
+
     const shadowedBy =
       winner && winner !== agent
         ? winner.source === agent.source
@@ -100,6 +103,7 @@ export async function agentsHandler(): Promise<void> {
   }
 
   if (failedFiles.length > 0) {
+
     lines.push('Invalid agent definition files:')
     for (const failed of failedFiles) {
       lines.push(`  ${failed.path}: ${failed.error}`)

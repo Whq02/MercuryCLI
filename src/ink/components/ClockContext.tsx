@@ -1,11 +1,13 @@
-
 import React, { createContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { clockPeriodMs, subscribeIdleMotion } from '../../utils/cockpit/motionGovernor.js'
 import { useTerminalFocus } from '../hooks/use-terminal-focus.js'
 
 type Clock = {
+
   subscribe: (onChange: () => void, keepAlive: boolean) => () => void
+
   now: () => number
+
   setInterval: (ms: number) => void
 }
 
@@ -28,6 +30,7 @@ export function createClock(intervalMs: number, timers: ClockTimers = REAL_CLOCK
   let period = intervalMs
   let timer: unknown = null
   let startTime: number | null = null
+
   let snapshot = 0
 
   const elapsed = (): number => {

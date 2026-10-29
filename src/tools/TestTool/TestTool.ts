@@ -1,4 +1,3 @@
-
 import { existsSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { z } from 'zod/v4'
@@ -295,7 +294,9 @@ async function runRunnerOp(
       outcome: 'no-change',
     }
   }
+
   const onOutput = runnerProgress(profile.runner, onProgress)
+
   if (input.changed) {
     const sel = changedRunnerSelection(profile)
     if (sel.state === 'unavailable') {
@@ -348,6 +349,7 @@ async function runOp(
 ): Promise<{ result: string; outcome: ToolEffectOutcome; record?: TestRunRecord }> {
   const signal = context.abortController?.signal
   const anchor = anchorOf(input)
+
   if (input.profile && input.op === 'run') {
     const { profiles } = discoverRunnerProfiles(anchor.from)
     const found = profiles.find(p => p.id === input.profile)
@@ -365,6 +367,7 @@ async function runOp(
     }
     return runRunnerOp(input, anchor, found, signal, onProgress)
   }
+
   const lane = resolveTestLane(anchor.from, input.framework)
   if (lane.lane === 'ambiguous' && (input.op === 'discover' || input.op === 'run')) {
     return { result: ambiguousWords(lane, anchor), outcome: 'no-change' }
@@ -378,6 +381,7 @@ async function runOp(
   if (lane.lane === 'runner' && (input.op === 'discover' || input.op === 'run')) {
     return runRunnerOp(input, anchor, lane.profile, signal, onProgress)
   }
+
   let pythonRecordBelow: string | undefined
   if (input.op === 'rerunFailed') {
     const latest = latestRunHere(anchor.from)
@@ -421,6 +425,7 @@ async function runOp(
       }
     }
     case 'run': {
+
       if (input.changed) {
         const { gitStatus } = await import('../../services/gitGraph/observe.js')
         const s = gitStatus(anchor.from)
@@ -482,6 +487,7 @@ async function runOp(
     }
     case 'debug': {
       if (!input.node) return { result: 'debug needs node (the test id to debug)', outcome: 'failed' }
+
       const debugLane = resolveTestLane(anchor.from, input.framework)
       if (debugLane.lane === 'ambiguous') {
         return { result: ambiguousWords(debugLane, anchor), outcome: 'no-change' }
@@ -568,6 +574,7 @@ async function runOp(
         return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
       }
       if (debugLane.lane === 'runner') {
+
         const jsShim = buildNodeTestDebugShim(input.node, { from: anchor.from })
         if ('state' in jsShim) {
           return { result: `debug unavailable: ${jsShim.reason}\nremedy: ${jsShim.remedy}`, outcome: 'failed' }
@@ -591,6 +598,7 @@ async function runOp(
             stopOnEntry: jsBreakpoints.size === 0,
           })
         } catch (err) {
+
           const missing = adapterUnavailable(err)
           if (missing !== null) return ranWithoutStop(missing.debuggerMissing, missing.remedy)
           return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
@@ -715,9 +723,11 @@ A run whose exit code disagrees with its structured records says so (verdictNote
     return input?.op === 'report'
   },
   async checkPermissions(input: Input) {
+
     if (input.op === 'report') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
+
     let resolved = ''
     if (input.op === 'run') {
       try {
@@ -730,6 +740,7 @@ A run whose exit code disagrees with its structured records says so (verdictNote
           resolved = ` (no single test runner at ${anchor.outside ? anchor.root : 'this root'} — the call names the options and runs nothing)`
         } else if (profile) {
           if (input.changed) {
+
             resolved = ` — will run: ${profile.command.join(' ')} + changed-file focus (targets resolve against the tree at execution)${where}`
           } else {
             const extra = input.node
@@ -808,6 +819,7 @@ A run whose exit code disagrees with its structured records says so (verdictNote
   renderToolUseErrorMessage,
   renderToolUseProgressMessage,
   renderToolResultMessage,
+
   extractSearchText({ result }) {
     return result
   },

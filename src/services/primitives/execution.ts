@@ -1,4 +1,3 @@
-
 import type { OwnerKey } from '../run/ownerKey.js'
 
 export const EXECUTION_CONTRACT_VERSION = 1
@@ -82,6 +81,7 @@ type ExecutionLifecycle = 'owner' | 'session' | 'project'
 
 export interface ExecutionSpec {
   version: typeof EXECUTION_CONTRACT_VERSION
+
   id: string
   owner: OwnerKey
   kind: ExecutionKind
@@ -89,6 +89,7 @@ export interface ExecutionSpec {
   lifecycle: ExecutionLifecycle
   cwd?: string
   startedBy?: string
+
   metadata?: Record<string, unknown>
 }
 
@@ -107,6 +108,7 @@ export interface ExecutionOutcome {
 
 export interface ExecutionRecord {
   spec: ExecutionSpec
+
   generation: number
   state: ExecutionState
   startedAt?: number
@@ -114,7 +116,9 @@ export interface ExecutionRecord {
   settledAt?: number
   externalIdentity?: ExecutionExternalIdentity
   outcome?: ExecutionOutcome
+
   outputRef?: string
+
   evidenceRefs: string[]
 }
 
@@ -128,6 +132,7 @@ export type ExecutionEvent =
       record: ExecutionRecord
       from: ExecutionState
       to: ExecutionState
+
       reconciled?: boolean
     }
   | {

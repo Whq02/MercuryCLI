@@ -1,4 +1,3 @@
-
 type OauthConfig = {
   BASE_API_URL: string
   CONSOLE_AUTHORIZE_URL: string
@@ -38,9 +37,12 @@ export const ANTHROPIC_CLIENT_CONTRACT_AS_OF = '2026-10-27'
 const CLIENT_CONTRACT_VERSION_SHAPE = /^\d+\.\d+\.\d+$/
 
 export type AnthropicClientContract = {
+
   presented: string
   asOf: string
+
   source: 'constant' | 'learned' | 'override'
+
   ignoredOverride?: string
 }
 

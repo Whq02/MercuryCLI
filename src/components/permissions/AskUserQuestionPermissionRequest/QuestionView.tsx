@@ -83,16 +83,20 @@ export function QuestionView(props: Props): React.ReactNode {
     onNotesPasteLarge,
   } = props
   const permissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
+
   const isApolloPoll = permissionMode === 'apollo'
   const [isFooterFocused, setIsFooterFocused] = useState(false)
   const [isOtherFocused, setIsOtherFocused] = useState(false)
+
   const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
+
   const [isNextFocused, setIsNextFocused] = useState(false)
   const editor = getExternalEditor()
   const editorName = editor ? editorDisplayName(editor) : null
 
   const questionText = question.question
   const questionState = questionStates[questionText]
+
   const otherTextRef = useRef<string | null>(null)
   const otherText = (): string => otherTextRef.current ?? questionState?.textInputValue ?? ''
 
@@ -283,6 +287,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 options={options}
                 defaultValue={selectedValue as string[] | undefined}
                 onChange={((values: string[]) => {
+
                   onUpdateQuestionState(questionText, { selectedValue: values }, true)
                   const textInput = values.includes(OTHER_OPTION_VALUE) ? otherText() : undefined
                   onAnswer(questionText, values, textInput, false)

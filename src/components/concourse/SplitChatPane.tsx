@@ -11,7 +11,6 @@ import {
 import type { ConcourseSnapshotV1 } from './contracts.js'
 import { SessionMirror } from './SessionMirror.js'
 
-
 export function SplitChatPane({
   rows,
   width,
@@ -23,13 +22,19 @@ export function SplitChatPane({
 }: {
   rows: number
   width: number
+
   focused: boolean
+
   snapshot: ConcourseSnapshotV1
+
   onEnterFull: () => void
+
   onNewSession: () => void
+
   wheelBand?: [number, number]
 }): React.ReactNode {
   const t = useMercuryTokens()
+
   const focusedId = useSyncExternalStore(
     subscribeFocusedSessionConnector,
     () => (hasFocusedSession() ? getFocusedSessionConnector().sessionId() : ''),
@@ -51,6 +56,7 @@ export function SplitChatPane({
     </Box>
   )
   if (focusedId === '') {
+
     return (
       <Box flexDirection="column" height={rows} width={width} overflow="hidden">
         {header}
@@ -74,6 +80,7 @@ export function SplitChatPane({
     )
   }
   if (row === undefined || row.workspaceDir === undefined) {
+
     return (
       <Box flexDirection="column" height={rows} width={width} overflow="hidden">
         {header}

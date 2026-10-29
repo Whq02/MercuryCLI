@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -26,6 +27,7 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-ladder-top-'))
+
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 const ladderModule = await import('../../src/utils/effortLadder.js')
@@ -119,7 +121,6 @@ const LIST_WORD = 'ultra'
   const novaLive = catalogue.evaluateGptCandidate('gpt-5.6-nova', 'api-key')
   const novaProfile = novaLive.ok ? catalogue.resolveGptReasoningProfile(undefined, novaLive.candidate.live) : undefined
   check("a list DEFAULT above the ladder is never sent: nothing asked sends the convention word 'high', the record keeps the list's own default", aboveDefault.wire === 'high' && aboveDefault.label === 'high' && aboveDefault.providerDefault === LIST_WORD && novaProfile?.wireEffort === 'high' && novaProfile.source === 'model-default', JSON.stringify({ aboveDefault, novaProfile }))
-
 
   const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
   store.recordWireEffortRefusal({ modelId: 'gpt-6-astra', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST })

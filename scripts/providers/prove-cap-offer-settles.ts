@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -80,6 +81,7 @@ section('§A the armed-state owner — an answered offer survives the state/rese
   cap.noteCapOfferAnswered('return', 'openai')
   cap.noteCapWindowObserved('openai', 'unknown')
   check("'unknown' re-arms neither direction (no re-nag on a credential change)", cap.capOfferAnswered('return', 'openai') === true)
+
   cap.noteCapWindowObserved('openai', 'rejected')
   check('the window capping again re-arms the RETURN offer', cap.capOfferAnswered('return', 'openai') === false)
 
@@ -92,12 +94,14 @@ section('§A the armed-state owner — an answered offer survives the state/rese
 section('§B the target is the exact newest frontier MEMBER, never the collapsed base id')
 {
   cap._resetOfferMemoriesForTesting()
+
   check('the config table names the two fable members distinctly', FABLE_51 === 'claude-fable-5-1' && FABLE_5 === 'claude-fable-5' && FABLE_51 !== FABLE_5)
 
   const usability = {
     anthropic: { usable: true, blockers: [] as string[] },
     openai: { usable: true, blockers: [] as string[] },
   }
+
   const derived = cap.deriveCapFailoverCandidates(
     'openai',
     usability,
@@ -120,6 +124,7 @@ section('§B the target is the exact newest frontier MEMBER, never the collapsed
 
 section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop')
 {
+
   const applied = settleModelSelection(
     { engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null },
     FABLE_51,
@@ -148,6 +153,7 @@ section('§C confirm settles through the ONE owner; a no-op is a receipt, never 
 section('§D the neutral candidate law and the decision core are unchanged')
 {
   cap._resetOfferMemoriesForTesting()
+
   const map = {
     anthropic: { usable: true, blockers: [] as string[] },
     openai: { usable: true, blockers: [] as string[] },
@@ -170,6 +176,7 @@ section('§D the neutral candidate law and the decision core are unchanged')
 section('§E the composer answers on the STABLE owner; the exact-id resolver is wired')
 {
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
+
   check('the composer no longer keys the cross-family arm on the volatile state|reset string', !/`\$\{direction\}\|\$\{homeFamily\}\|\$\{window\.state\}/.test(composer))
   check('the composer answers the cross-family offer on the stable owner', /capOfferAnswered\(direction, homeFamily\)/.test(composer))
   check('the composer re-arms on the observed window every commit', /noteCapWindowObserved\(homeFamily, window\.state\)/.test(composer))
@@ -184,6 +191,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
   cap._resetOfferMemoriesForTesting()
   const now = Date.now()
   type Lane = { usable: boolean; blockers: string[]; credential?: 'oauth' | 'api-key' | 'keyless' | 'none' }
+
   const map: Record<string, Lane> = {
     openai: { usable: true, blockers: [], credential: 'oauth' },
     anthropic: { usable: true, blockers: [], credential: 'oauth' },
@@ -191,6 +199,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
     deepseek: { usable: true, blockers: [], credential: 'api-key' },
     gemini: { usable: false, blockers: ['the Gemini usage window is reached — resets later'], credential: 'oauth' },
     huggingface: { usable: false, blockers: ['the Hugging Face usage window is reached'], credential: 'api-key' },
+
     openrouter: { usable: false, blockers: ['no OpenRouter credential — /logins'], credential: 'none' },
   }
   const targets: Record<string, string> = {
@@ -201,6 +210,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
     huggingface: 'huggingface/qwen-3',
     openrouter: 'openrouter/x',
   }
+
   const at: Record<string, number> = { zai: 5000, gemini: 4000, anthropic: 3000, huggingface: 2000 }
   const windows: Record<string, ReturnType<typeof cap.observedFamilyWindow>> = {
     anthropic: { family: 'anthropic', state: 'allowed', basis: 'observed', usedPct: 10, windowName: 'session limit' },
@@ -222,18 +232,23 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
   check('a signed-OUT lane at a stale cap is not listed (no seat to switch to)', !set.listed.some(r => r.route === 'openrouter'))
   check('every row lands on the exact id its family persists', set.listed.every(r => r.model === targets[r.route]) && set.listed.find(r => r.route === 'anthropic')?.model === FABLE_51)
   check('the partition law stands: every non-candidate family is a typed exclusion', set.candidates.length + set.excluded.length === Object.keys(map).length - 1)
+
   const words = Object.fromEntries(set.listed.map(r => [r.route, cap.capUsageWords(r.window, r.route === 'gemini' ? '5:47pm' : null)]))
   check("a family with a live window prints '<pct>% of the <window>'", words.anthropic === '10% of the session limit' && words.deepseek === '72% of the usage window', JSON.stringify(words))
   check("a family that reports no usage prints 'no usage read'", words.zai === 'no usage read')
   check('an at-cap family prints the cap and its reset', words.gemini === 'at its cap — usage window resets 5:47pm' && words.huggingface === 'at its cap — usage window', JSON.stringify(words))
+
   const chosen = set.listed[2] as (typeof set.listed)[number]
   const landed = settleModelSelection({ engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null }, chosen.model, { turnActive: false })
   check('confirming the highlighted row settles on THAT family, not the first', chosen.route === 'deepseek' && landed.kind === 'applied' && landed.receipt.applied === 'deepseek-chat-v3.4')
+
   cap.noteCapOfferAnswered('handoff', 'openai')
   cap.noteCapWindowObserved('openai', 'warning')
   check('the offer disarms for the home family after the choice (a jitter never re-opens it)', cap.capOfferAnswered('handoff', 'openai') === true)
+
   const single = cap.deriveCapFailoverCandidates('openai', { openai: map.openai as Lane, anthropic: map.anthropic as Lane }, r => targets[r], f => at[f], r => windows[r] as ReturnType<typeof cap.observedFamilyWindow>)
   check('exactly one other family ⇒ one candidate and one listed row (the card reads as the single-target card)', single.candidates.length === 1 && single.listed.length === 1 && single.listed[0]?.route === 'anthropic')
+
   const blind = cap.deriveCapFailoverCandidates('openai', map, r => targets[r], f => at[f])
   check('without a window read no lane is at-cap and the list mirrors the candidates', blind.listed.every(r => !r.atCap) && JSON.stringify(blind.listed.map(r => r.route)) === JSON.stringify(blind.candidates.map(c => c.route)))
 }
@@ -242,6 +257,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
 {
   const now = Date.now()
   const poolReset = now + (22 * 3600 + 51 * 60) * 1000
+
   const live = (key: string, label: string, usedPct: number, resetsAtMs: number) => ({ key, label, state: 'live' as const, usedPct, resetsAtMs })
   const reads = {
     now: () => now,
@@ -253,6 +269,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
       live('seven_day_sonnet', 'Sonnet', 5, poolReset),
     ],
   }
+
   const { bindingWindowOf } = await import('../../src/services/providers/providerUsage.ts')
   const ownerPick = bindingWindowOf({ provider: 'anthropic', shape: 'subscription-windows', windows: reads.anthropicWindows(), pools: reads.anthropicPools() }, FABLE_51)
   check("the usage owner picks the Fable pool for a Fable seat and names it in the strip's words ('Fable limit')", ownerPick?.window.key === 'seven_day_fable' && ownerPick?.windowName === 'Fable limit', JSON.stringify(ownerPick))
@@ -269,6 +286,7 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
   check('a seat no pool meters reads the shared windows (allowed, the worst shared utilisation on the usage line)', haikuSeat.state === 'allowed' && haikuSeat.usedPct === 44)
   const noModel = cap.observedFamilyWindow('anthropic', reads)
   check('with no seat model the latch alone decides (the wall-row and auto callers)', noModel.state === 'allowed' && noModel.windowName === undefined && noModel.usedPct === undefined)
+
   const walled = cap.observedFamilyWindow('anthropic', { ...reads, anthropic: () => ({ status: 'rejected' as const, observed: true, resetsAtMs: now + 60_000, windowName: 'weekly limit' }) }, { model: FABLE_51 })
   check("a reached window on the wire outranks the pool warning (the latch's own name)", walled.state === 'rejected' && walled.windowName === 'weekly limit')
   const poolFull = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [live('seven_day_fable', 'Fable', 100, poolReset)] }, { model: FABLE_51 })
@@ -353,6 +371,7 @@ section("§J a band that lands re-runs the offer at once: the OpenAI record's ch
   openai.__resetOpenaiLimitStateForTest()
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
+
   const strip = readFileSync(join(ROOT, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
   check("the strip warning follows both records' versions and re-derives on them", strip.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && strip.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)') && /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(strip))
 }

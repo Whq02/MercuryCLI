@@ -1,6 +1,5 @@
 import { userInfo } from 'node:os'
 
-
 export const MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'
 
 export const WINDOWS_REGISTRY_KEY_PATH_HKLM = 'HKLM\\SOFTWARE\\Policies\\Mercury'

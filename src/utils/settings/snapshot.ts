@@ -1,4 +1,3 @@
-
 import { getEnabledSettingSources, type SettingSource } from './constants.js'
 import { getSettingsForSource, getSettingsWithErrors } from './settings.js'
 import { getSessionSettingsCache } from './settingsCache.js'
@@ -8,14 +7,20 @@ import type { ValidationError } from './validation.js'
 type ProvenanceSource = SettingSource
 
 interface KeyProvenance {
+
   winner: ProvenanceSource
+
   contributors: ProvenanceSource[]
+
   merged: boolean
 }
 
 interface SettingsSnapshot {
+
   settings: Readonly<SettingsJson>
+
   errors: readonly ValidationError[]
+
   revision: number
   provenance: Readonly<Record<string, KeyProvenance>>
 }
@@ -86,6 +91,7 @@ function computeProvenance(
     if (contributors.length === 0) continue
     const winner = contributors[contributors.length - 1]!
     const effectiveValue = valueAtPath(effective, path)
+
     const merged =
       contributors.length > 1 &&
       (Array.isArray(effectiveValue) || isPlainObject(effectiveValue))
@@ -95,6 +101,7 @@ function computeProvenance(
 }
 
 export function getSettingsSnapshot(): SettingsSnapshot {
+
   const sessionCache = getSessionSettingsCache()
   if (lastSnapshot !== null && sessionCache !== null && sessionCache === lastSessionCache) {
     return lastSnapshot

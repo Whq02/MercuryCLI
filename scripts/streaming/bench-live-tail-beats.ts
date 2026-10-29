@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { marked } from 'marked'
 import { advanceStableBoundary, computeSeamRows, pendingRowsOf } from '../../src/components/Markdown.tsx'
 import { configureMarked, formatToken } from '../../src/utils/markdown.ts'
@@ -7,6 +8,7 @@ import { getCliHighlightPromise } from '../../src/utils/cliHighlight.ts'
 
 configureMarked()
 const theme = getTheme()
+
 const highlight = process.env.BEAT_HIGHLIGHT === '1' ? await getCliHighlightPromise() : null
 if (process.env.BEAT_HIGHLIGHT === '1') console.log(`highlighter: ${highlight ? 'loaded' : 'UNAVAILABLE'}`)
 
@@ -123,6 +125,7 @@ function renderedForm(text: string, boundaryRef: { b: number }): string {
           .join('')
           .trim()
   const seam = stable === '' ? 0 : computeSeamRows(stable, theme)
+
   const caretArmed = process.env.BEAT_CARET === '1'
   const headRun = (live.match(/[ \t]*$/)?.[0] ?? '').slice(0, 40)
   const caretOnHeadRow = caretArmed && (/(?:\n[ \t]*)$/.test(live) || live.trim() === '')

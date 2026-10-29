@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import '../lib/hermetic.ts'
 
 import { createHash } from 'node:crypto'
@@ -98,6 +99,7 @@ section('§2 engine resolution, the env pin, and the honest degrade')
     process.env.MERCURY_SHELL_ENGINE = 'brush'
     check('the env pin brush arms even with the system setting', resolveShellEngine('system').engine === 'brush')
     delete process.env.MERCURY_SHELL_ENGINE
+
     const { resetShellEngineResolution } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
     const manifestPath = join(vendored.dir, '.vendor-manifest.json')
     const hidden = `${manifestPath}.hidden`
@@ -113,6 +115,7 @@ section('§2 engine resolution, the env pin, and the honest degrade')
     }
     check('after the restore and a reset, brush arms again', resolveShellEngine('brush').engine === 'brush')
   } else {
+
     const r = resolveShellEngine('brush')
     check('an unavailable pack degrades to system with a named reason',
       r.engine === 'system' && r.requested === 'brush' && r.reason.length > 10, JSON.stringify(r))
@@ -173,10 +176,12 @@ section('§5 the loop script uses only builtins the Windows engine build has')
 {
   const { loopScript } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
   const script: string = loopScript()
+
   check('the loop names no exec', !/(^|[\s;|&(])exec(\s|$)/m.test(script))
   check('the loop opens no numbered descriptor beyond 0-2', !/[<>]&[3-9]/.test(script) && !/(^|\s)[3-9][<>]/.test(script))
   check('the loop never names /dev/null', !script.includes('/dev/null'))
   check("the loop reads newline-delimited frames (no NUL delimiter)", !/read\s[^\n]*-d\s*''/.test(script))
+
   const ALLOWED = new Set(['read', 'eval', 'printf', 'pwd', 'cd', ':', '__brush_run'])
   const words: string[] = []
   const visit = (text: string): void => {

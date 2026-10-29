@@ -1,4 +1,3 @@
-
 import { structuredPatch, type StructuredPatchHunk } from 'diff'
 import type { DiffData } from '../../hooks/useDiffData.js'
 import type { TurnDiff } from '../../hooks/useTurnDiffs.js'
@@ -112,6 +111,7 @@ export function sourceGitSpec(s: WorkspaceDiffSource): GitDiffSpec | null {
     case 'staged':
       return { args: ['--cached'] }
     case 'branch':
+
       return s.spec
     case 'lane':
       return { args: ['HEAD'], cwd: s.worktreePath, includeUntracked: true }
@@ -119,7 +119,6 @@ export function sourceGitSpec(s: WorkspaceDiffSource): GitDiffSpec | null {
       return null
   }
 }
-
 
 function markdownOf(v: ReviewArtifactVersion): string | null {
   return 'markdown' in v.body ? v.body.markdown : null
@@ -131,6 +130,7 @@ export function artifactDiffData(artifactId: string): DiffData {
   const latest = state.versions[state.versions.length - 1]!
 
   if (latest.body.kind === 'diff') {
+
     const hunks = new Map<string, StructuredPatchHunk[]>()
     const files = latest.body.files.map(f => {
       hunks.set(f.path, f.hunks as StructuredPatchHunk[])
@@ -198,7 +198,6 @@ export function artifactDiffData(artifactId: string): DiffData {
   }
 }
 
-
 const MAX_LANE_SOURCES = 4
 const MAX_ARTIFACT_SOURCES = 3
 
@@ -218,6 +217,7 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
       for (const wt of worktrees) {
         if (wt.isMain) continue
         if (laneBudget-- <= 0) break
+
         out.push({
           type: 'lane',
           label: laneDisplayName({ worktreePath: wt.path }).slice(0, 14),
@@ -229,6 +229,7 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
   }
 
   try {
+
     let artifactBudget = MAX_ARTIFACT_SOURCES
     for (const head of listReviewArtifactHeads({ root: getCwd() })) {
       const isDiffKind = head.kind === 'diff'

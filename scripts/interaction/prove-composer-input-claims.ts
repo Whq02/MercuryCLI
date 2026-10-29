@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -71,6 +72,7 @@ console.log('\n── §1 resolver + seed truths ──────────�
   pending.resetPendingInputForTests()
 }
 {
+
   const { danglingReferences } = await import('../../src/history.ts')
   const store = {
     1: { id: 1, type: 'text', content: 'body one' },
@@ -107,6 +109,7 @@ console.log('\n── §2 wiring pinned in source ──────────
     'the Chat boot seed consumes the early-input capture (a hardcoded empty seed discarded boot keystrokes)',
     repl.includes('pendingInput.initSession(conversationIdHere(), consumeEarlyInput())'),
   )
+
   check(
     'the queued notice retires the transition-applied notice (the screen paints no model-switched receipt of its own)',
     prompt.includes("invalidates: ['model-transition-applied']") && !repl.includes("key: 'model-switched'"),
@@ -149,6 +152,7 @@ console.log('\n── §2 wiring pinned in source ──────────
     suggestions.includes('tokens.selectionBand') &&
       !suggestions.includes("selected ? 'selectionBand'"),
   )
+
   const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
   const measurer = read('src/ink/measure-element.ts')
   check(
@@ -175,6 +179,7 @@ function capture(
   sends: Array<Record<string, unknown> & { data: string }>,
   total: number,
 ): string[] | null {
+
   const envBefore = { ...process.env }
   const cfg = scenario(scenarioName, cols, rows)
   const gridPath = `/tmp/input-claims-${tag}-${process.pid}.json`
@@ -204,6 +209,7 @@ function capture(
 }
 
 {
+
   const a = capture(
     'conleak',
     'concourse',
@@ -226,6 +232,7 @@ function capture(
   }
 }
 {
+
   const body = Array.from({ length: 20 }, (_, i) => `const bangRow${i} = ${i}`).join('\n')
   const b = capture(
     'bangpaste',
@@ -257,11 +264,13 @@ function capture(
   }
 }
 {
+
   const c = capture('help-narrow', 'help', 80, 22, [{ atTick: 30, data: '?' }], 46)
   if (c) {
     const saysWhatItCut = c.some(l => l.includes('more · /help lists every shortcut'))
     check('the clipped narrow help overlay says what it cut', saysWhatItCut, c.slice(-8).join(' | '))
     if (!saysWhatItCut) {
+
       console.log('      ┌ the 60×24 frame — no remainder row')
       c.forEach((line, index) => {
         const row = line.trimEnd()

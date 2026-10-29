@@ -30,6 +30,7 @@ import type { ExecResult, ShellCommand } from '../ShellCommand.js'
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
 const ETX = String.fromCharCode(3)
+
 const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color'] as const
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
@@ -138,26 +139,35 @@ export function createEngineCommandProvider(binaryPath: string): ShellProvider {
   }
 }
 
-
 type LiveSession = {
   child: ChildProcess
   nonce: string
   binaryPath: string
+
   buffer: Buffer
+
   reader: (() => void) | null
+
   onExit: ((code: number | null) => void) | null
   exited: boolean
+
   stderrBuf: Buffer
+
   scrubbedSessionEnv: readonly string[]
 }
 
 type OwnerSession = {
   owner: string
+
   live: LiveSession | null
+
   queue: Promise<unknown>
+
   pendingResetNote: string | null
+
   reserved: boolean
 }
+
 const MAIN_OWNER = 'main conversation'
 const sessions = new Map<string, OwnerSession>()
 function sessionFor(owner: string): OwnerSession {
@@ -183,6 +193,7 @@ let releaseWakes: Array<() => void> = []
 function nextRelease(): Promise<void> {
   return new Promise(resolve => releaseWakes.push(resolve))
 }
+
 function announceRelease(): void {
   const wakes = releaseWakes
   releaseWakes = []
@@ -244,18 +255,23 @@ async function admitAgentSession(
     if (onAbort !== undefined) options.signal.removeEventListener('abort', onAbort)
   }
 }
+
 let snapshotPromise: Promise<string | undefined> | null = null
 
 export function loopScript(): string {
   return [
     'IFS= read -r __brush_nonce',
     '__brush_run() { eval "$__brush_cmd"; }',
+
     'while IFS= read -r __brush_esc; do',
+
     '  __brush_probe=$(pwd -P 2>&1) || cd / 2>&1 || :',
     '  __brush_cmd=$(printf %b "$__brush_esc")',
     '  __brush_st=0',
+
     "  __brush_run <<'__BRUSH_STDIN__' 2>&1 || __brush_st=$?",
     '__BRUSH_STDIN__',
+
     "  __brush_cwd=$(pwd -P 2>&1) || __brush_cwd=''",
     `  printf '${SOH}%s %d${STX}%s${ETX}' "$__brush_nonce" "$__brush_st" "$__brush_cwd"`,
     'done',
@@ -317,16 +333,19 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
     live.buffer = live.buffer.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.buffer, chunk])
     live.reader?.()
   })
+
   live.child.stderr?.on('data', (chunk: Buffer) => {
     live.stderrBuf = live.stderrBuf.length === 0 ? Buffer.from(chunk) : Buffer.concat([live.stderrBuf, chunk])
     live.reader?.()
   })
+
   live.child.stdin?.on('error', error => {
     logForDebugging(`engine stdin closed: ${errorMessage(error)}`)
   })
   live.child.once('exit', code => {
     live.exited = true
     live.onExit?.(code)
+
     announceRelease()
   })
   live.child.once('error', () => {
@@ -348,6 +367,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
     live.child.stdin?.write(encodeFrame(seeds.join('\n')))
     await drainOneFrame(live)
   }
+
   if (live.exited) throw new Error('the shell engine ended during its start')
 
   return live
@@ -394,15 +414,17 @@ async function drainOneFrame(live: LiveSession): Promise<void> {
   }
 }
 
-
 type EngineExecOptions = {
   timeout: number
   signal: AbortSignal
+
   onCwd?: (cwd: string) => void
   cwd?: string
   requireCwd?: boolean
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
+
   owner?: string
+
   sessionCeiling?: number
 }
 
@@ -418,6 +440,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   })
   let status: ShellCommand['status'] = 'running'
   let settled = false
+
   let scrubbedSessionEnv: readonly string[] = []
   let releaseInFlight: (() => void) | null = null
 
@@ -434,16 +457,20 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
   })
 
   async function execute(): Promise<void> {
+
     if (options.signal.aborted) {
       settle({ stdout: '', stderr: 'Command was aborted before execution', code: 145, interrupted: true })
       return
     }
+
     if (settled) return
+
     if (owned.live !== null && owned.live.exited) {
       owned.live = null
       owned.pendingResetNote ??=
         'the shell engine session ended between commands and was restarted; variables, functions and shell options set earlier in this session were lost (the working directory is preserved).'
     }
+
     const inheritedNote = owned.pendingResetNote
     owned.pendingResetNote = null
     const withInherited = (stderr: string, interrupted: boolean): string =>
@@ -500,6 +527,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     const frameFromBuffer = (): { code: number; cwd: string } | null => {
       const start = live.buffer.indexOf(marker)
       if (start === -1) {
+
         const lastSoh = live.buffer.lastIndexOf(SOH.charCodeAt(0))
         const tail = lastSoh === -1 ? null : live.buffer.subarray(lastSoh)
         const couldBeMarker = tail !== null && tail.length < marker.length && marker.subarray(0, tail.length).equals(tail)
@@ -533,11 +561,13 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         if (onAbort) options.signal.removeEventListener('abort', onAbort)
         live.reader = null
         live.onExit = null
+
         await new Promise<void>(r => setImmediate(r))
         const externalStderr = live.stderrBuf.toString('utf8')
         live.stderrBuf = Buffer.alloc(0)
         if (externalStderr.length > 0) taskOutput.writeStdout(externalStderr)
         await taskOutput.flush().catch(() => {})
+
         const stdout = await taskOutput.getStdout()
         settle({ stdout, stderr: withInherited(partial.stderr, partial.interrupted), code: partial.code, interrupted: partial.interrupted })
         releaseInFlight = null
@@ -551,6 +581,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
           live.stderrBuf = Buffer.alloc(0)
         }
         if (frame === null) return
+
         if (frame.cwd !== '') {
           const native = recordedCwdToNative(frame.cwd)
           if (native !== null) options.onCwd?.(native)
@@ -560,6 +591,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
 
       live.reader = () => tryComplete()
       live.onExit = code => {
+
         flushUpTo(live.buffer.length)
         owned.live = null
         owned.pendingResetNote =
@@ -578,6 +610,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
       }, options.timeout)
 
       onAbort = () => {
+
         status = 'killed'
         flushUpTo(live.buffer.length)
         void killSession(live)
@@ -611,6 +644,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     if (settled) return
     status = 'killed'
     if (owned.live) {
+
       void killSession(owned.live)
       owned.live = null
       owned.pendingResetNote =
@@ -679,11 +713,13 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     let child: ChildProcess
     try {
       child = spawn(binaryPath, [...ENGINE_FLAGS, '-n', '-c', command], {
+
         env: subprocessEnv(),
         stdio: ['ignore', 'ignore', 'pipe'],
         windowsHide: true,
       })
     } catch (error) {
+
       finish(true, errorMessage(error))
       return
     }
@@ -696,6 +732,7 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
         child.kill('SIGKILL')
       } catch {
       }
+
       finish(true, '')
     }, PARSE_GUARD_TIMEOUT_MS)
     timer.unref?.()
@@ -719,6 +756,7 @@ export async function endEngineSessionFor(owner: string): Promise<void> {
   owned.live = null
   owned.pendingResetNote = null
   owned.reserved = false
+
   announceRelease()
   if (live !== null && !live.exited) await killSession(live)
 }
@@ -728,6 +766,7 @@ export async function endEngineSession(): Promise<void> {
 }
 
 let cleanupRegistered = false
+
 function registerEngineCleanup(): void {
   if (cleanupRegistered) return
   cleanupRegistered = true

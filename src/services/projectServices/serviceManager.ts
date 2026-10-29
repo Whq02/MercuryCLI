@@ -1,4 +1,3 @@
-
 import { spawn, type ChildProcess } from 'node:child_process'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { encodePtyFrame, ptyHostLaunch } from './ptyHost.js'
@@ -43,7 +42,6 @@ const WAIT_REGISTRATION_GRACE_MS = 2_000
 const OUTPUT_POLL_MS = 25
 const OUTPUT_QUIET_MS = 100
 
-
 function projectSlug(cwd: string): string {
   return path.resolve(cwd).replace(/[^a-zA-Z0-9]/g, '-').slice(-80)
 }
@@ -66,6 +64,7 @@ function writeRecord(cwd: string, record: ServiceRecord): void {
     recordPath(cwd, record.spec.name),
     JSON.stringify(record, null, 2),
   )
+
   projectServiceExecution(cwd, record)
 }
 
@@ -101,7 +100,6 @@ function readFileSyncDirNames(dir: string): string[] {
     .map(f => f.slice(0, -5))
 }
 
-
 const liveChildren = new Map<string, ChildProcess>()
 const projectChildren = new Set<string>()
 const restartTimers = new Map<string, ReturnType<typeof setTimeout>>()
@@ -126,6 +124,7 @@ registerCleanup(async () => {
 })
 
 process.once('exit', () => {
+
   for (const [key, child] of liveChildren) {
     if (projectChildren.has(key)) continue
     try {
@@ -135,7 +134,6 @@ process.once('exit', () => {
   }
 })
 
-
 function processAlive(pid: number | null, startToken: string | null): boolean {
   if (!pid) return false
   try {
@@ -144,6 +142,7 @@ function processAlive(pid: number | null, startToken: string | null): boolean {
     return false
   }
   if (startToken) {
+
     const current = getProcessStartTokenCachedOrRefresh(pid)
     if (current !== null && current !== startToken) return false
   }
@@ -206,7 +205,6 @@ installServiceExecutionDomain({
   stop: (cwd, name) => stopService(cwd, name),
 })
 
-
 async function checkCondition(
   cwd: string,
   record: ServiceRecord,
@@ -224,6 +222,7 @@ async function checkCondition(
         } catch {
           return { ...base, detail: `${base.detail} — no log yet` }
         }
+
         const fromThisStart = text.slice(record.logStartByte ?? 0)
         return re.test(fromThisStart)
           ? { ...base, met: true, detail: `${base.detail} — matched` }
@@ -391,7 +390,6 @@ export async function waitForReady(
   }
 }
 
-
 export interface StartOptions {
   spec: ServiceSpec
   sessionId: string
@@ -445,6 +443,7 @@ export async function startService(
 
   mkdirSync(servicesDir(project), { recursive: true })
   const logFile = logPath(project, spec.name)
+
   let logStartByte = 0
   try {
     logStartByte = statSync(logFile, { throwIfNoEntry: false })?.size ?? 0
@@ -469,6 +468,7 @@ export async function startService(
       windowsHide: true,
       cwd: spec.cwd,
       env: { ...subprocessEnv(), ...(spec.env ?? {}) },
+
       stdio: ['pipe', logFd, logFd],
       detached: spec.lifecycle === 'project',
     })
@@ -488,6 +488,7 @@ export async function startService(
     spec,
     state: 'starting',
     pid: child.pid,
+
     startToken: process.platform === 'win32' ? null : getProcessStartToken(child.pid),
     startedAt: Date.now(),
     stoppedAt: null,
@@ -504,6 +505,7 @@ export async function startService(
   liveChildren.set(childKey(project, spec.name), child)
   if (spec.lifecycle === 'project') projectChildren.add(childKey(project, spec.name))
   if (owner !== undefined && spec.lifecycle === 'session') startedBy.set(childKey(project, spec.name), { cwd: project, name: spec.name, owner })
+
   captureStartTokenAsync(project, spec.name, child.pid)
 
   child.on('exit', (code, signal) => {
@@ -523,6 +525,7 @@ export async function startService(
       updatedAt: Date.now(),
     }
     writeRecord(project, exited)
+
     if (
       !explicit &&
       exited.state === 'failed' &&
@@ -597,6 +600,7 @@ export async function stopService(
     clearTimeout(pending)
     restartTimers.delete(childKey(cwd, name))
   }
+
   const marked: ServiceRecord = { ...record, explicitStop: true, state: record.pid ? 'stopping' : 'stopped', updatedAt: Date.now() }
   writeRecord(cwd, marked)
   const clear = (note?: string): { record: ServiceRecord; note?: string } => {
@@ -625,6 +629,7 @@ export async function stopService(
   }
 
   if (process.platform === 'win32') {
+
     await endProcessTree(record.pid, 'SIGKILL')
   } else {
     try {
@@ -632,12 +637,14 @@ export async function stopService(
     } catch {
     }
   }
+
   const deadline = Date.now() + 5_000
   while (Date.now() < deadline) {
     if (!processAlive(record.pid, record.startToken)) break
     await new Promise(r => setTimeout(r, 100))
   }
   if (processAlive(record.pid, record.startToken)) {
+
     const stillOwned = ownedLiveChild(cwd, name, record.pid)
     const stillOurs = decideServiceStrike({
       pid: record.pid,
@@ -669,6 +676,7 @@ export async function restartService(
   const stopped = await stopService(cwd, name)
   if ('error' in stopped) return stopped
   if (stopped.note !== undefined) {
+
     return { error: `restart failed: ${stopped.note}` }
   }
   const started = await startService({ spec: record.spec, sessionId, ...(keeper !== undefined ? { owner: keeper } : {}) })
@@ -710,7 +718,6 @@ export function sendInput(
   else child.stdin.write(text.endsWith('\n') ? text : text + '\n')
   return { ok: true, pty: false }
 }
-
 
 export function logEnd(cwd: string, name: string): number {
   const record = readRecord(cwd, name)
@@ -765,10 +772,12 @@ export async function readLogs(
   const limit = Math.min(opts.limitLines ?? 100, 1000)
   let start = opts.cursor ?? 0
   if (opts.tail && opts.cursor === undefined) {
+
     start = Math.max(0, size - 64 * 1024)
   }
   if (start >= size) return { lines: [], nextCursor: size, eof: true, totalBytes: size }
   const text = await new Promise<string>((resolve, reject) => {
+
     const chunks: Buffer[] = []
     createReadStream(record.logFile, { start, end: Math.min(size - 1, start + 512 * 1024) })
       .on('data', chunk => {
@@ -778,6 +787,7 @@ export async function readLogs(
       .on('error', reject)
   }).catch(() => '')
   let lines = text.split('\n')
+
   const consumedBytes = Buffer.byteLength(text, 'utf8')
   const atEof = start + consumedBytes >= size
   if (!atEof && lines.length > 1) lines.pop()

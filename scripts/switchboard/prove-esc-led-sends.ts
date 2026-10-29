@@ -53,6 +53,7 @@ for (const file of walk(join(REPO, 'scripts'))) {
   if (lines.length > 0) offenders.push(`${file.slice(REPO.length + 1)}:${lines.join(',')}`)
 }
 check(`no scripts source carries a raw C0 control byte (${scanned} files scanned)`, offenders.length === 0, offenders.join(' · '))
+
 const poison = Buffer.concat([Buffer.from("const DOWN = '"), Buffer.from([0x1b]), Buffer.from("[B'\nconst ok = '\\x1b[B'\n")])
 check('poison: a source holding a raw ESC is flagged at its line', JSON.stringify(rawControlLines(poison)) === '[1]', JSON.stringify(rawControlLines(poison)))
 check('control: the escaped spelling is clean', rawControlLines(Buffer.from("const DOWN = '\\x1b[B'\n")).length === 0)
@@ -85,6 +86,7 @@ const whole = roundTrip('whole', [`${ESC}[B`, `${ESC}[A`, `${ESC}[1;2D`])
 check('↓ arrives as 1b5b42 (ESC intact)', whole[0] === '1b5b42', JSON.stringify(whole))
 check('↑ arrives as 1b5b41', whole[1] === '1b5b41', JSON.stringify(whole))
 check('⇧← arrives as 1b5b313b3244', whole[2] === '1b5b313b3244', JSON.stringify(whole))
+
 const bare = roundTrip('bare', ['[B'])
 check("poison: a bare '[B' send arrives as 5b42 — the very signature the class wore", bare[0] === '5b42', JSON.stringify(bare))
 removeScratch(scratch)

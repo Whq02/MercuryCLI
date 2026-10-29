@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,6 +21,7 @@ const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 const PROBE_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-verity-shape-probe'
 
 function seedHome(theme: string): void {
+
   writeFileSync(
     path.join(RUN_HOME, '.mercury.json'),
     JSON.stringify({
@@ -125,6 +125,7 @@ for (const c of MATRIX) {
     reproduced = true
     continue
   }
+
   const payload = JSON.parse(readFileSync(out, 'utf8')) as {
     sendReceipts?: Array<{ atTick: number }>
     grid: Array<Array<{ c: string }>>

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -153,6 +154,7 @@ section('(3) deterministic .vsix build')
   ]) {
     check(`vsix member: ${member}`, listing.includes(member))
   }
+
   const staged = execFileSync('unzip', ['-p', 'dist/mercury-vscode.vsix', 'extension/package.json'], { encoding: 'utf8' })
   const harnessVersion = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version
   check('the staged manifest carries the harness version', (JSON.parse(staged) as { version: string }).version === harnessVersion, `${(JSON.parse(staged) as { version: string }).version} vs ${harnessVersion}`)
@@ -194,6 +196,7 @@ section('(4) mercury bridge status — honest E2E from the dist bundle')
 section('(5) the distribution contract')
 {
   const packager = readFileSync('scripts/release/package.mjs', 'utf8')
+
   const { topAllowlist, readCompatFloor } = await import('../release/payloadContract.mjs')
   const floor = readCompatFloor()
   check(

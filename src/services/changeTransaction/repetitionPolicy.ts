@@ -1,4 +1,3 @@
-
 import { realpathSync } from 'node:fs'
 import { expandPath } from '../../utils/path.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
@@ -12,16 +11,24 @@ export const NO_CHANGE_REPETITION_CEILING = 3
 const PATH_ENTRY_CAP = 128
 
 interface NoChangeObservation {
+
   operation: string
+
   path: string
+
   revision: string
+
   intentDigest: string
+
   displayPath?: string
 }
 
 export interface RepetitionVerdict {
+
   streak: number
+
   atCeiling: boolean
+
   guidance: string
 }
 
@@ -31,6 +38,7 @@ interface PathEntry {
 }
 
 interface RepetitionState {
+
   entries: Map<string, PathEntry>
 }
 
@@ -109,6 +117,7 @@ export function recordNoChangeOutcome(
     )
     const prior = state.entries.get(pathKey)
     const count = prior && prior.key === key ? prior.count + 1 : 1
+
     state.entries.delete(pathKey)
     state.entries.set(pathKey, { key, count })
     if (state.entries.size > PATH_ENTRY_CAP) {
@@ -121,6 +130,7 @@ export function recordNoChangeOutcome(
       guidance: guidanceFor(obs, count),
     }
   } catch {
+
     return { streak: 1, atCeiling: false, guidance: guidanceFor(obs, 1) }
   }
 }

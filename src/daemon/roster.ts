@@ -1,4 +1,3 @@
-
 import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import type { LooseRow } from '../rows/read.js'
@@ -60,7 +59,9 @@ interface RosterEntry {
   pid?: number
   startedAt: number
   cliVersion: string
+
   outcome?: string
+
   via?: string
   cwd?: string
   worktree?: string
@@ -70,27 +71,47 @@ const DELIVERED_ID_CAP = 500
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
 interface LongLivedSeat {
+
   spec: RunnerChildSpec
   cfg: LongLivedRespawnConfig
+
   respawns: number
+
   lifetimeCrashes: number
+
   lastSpawnAt: number
+
   intentionalStop: boolean
+
   respawnTimer?: ReturnType<typeof setTimeout>
+
   reconfiguring?: boolean
+
   pendingReconfigure?: boolean
+
   lastDeliveredAt?: number
+
   contextPct?: number
+
   turnActive?: boolean
+
   turnStartedAt?: number
+
   turnEdges: number
+
   seenDispatchIds?: Set<string>
+
   clearInFlight?: boolean
+
   spawnGeneration: number
+
   lastErrorText?: string
   stderrTail?: Buffer
+
   connection?: RunnerConnection
+
   stormNotified?: boolean
+
   running?: { model: string; effort: string }
   paused?: SeatPause
   ready?: boolean
@@ -101,19 +122,30 @@ type SeatPause = { why: string; words: string; resumesAtMs?: number }
 
 interface WorkerHandle {
   entry: RosterEntry
+
   child?: ChildProcess
+
   done: Promise<void>
+
   longLived?: LongLivedSeat
 }
 
 interface RosterOptions {
+
   dir: string
+
   breaker: DaemonBreaker
+
   maxInflight: number
+
   onDegraded?: (reason: string, short?: string) => void
+
   onIdle?: (short: string) => void
+
   onAsk?: (short: string, params: PermissionRequestParams) => HeldAsk
+
   onRow?: (short: string, row: LooseRow) => void
+
   onApplied?: (short: string, params: SessionAppliedParams) => void
   onScheduleEdit?: (short: string, params: import('../runner/wire/methods.js').ParamsOf<'schedule/edit'>) => import('../runner/wire/methods.js').ResultOf<'schedule/edit'> | Promise<import('../runner/wire/methods.js').ResultOf<'schedule/edit'>>
   onChildRelaunched?: (short: string, pid: number) => void
@@ -126,6 +158,7 @@ interface DispatchOutcome {
   short: string
   pid?: number
   via?: string
+
   code?: 'EALIVE' | 'ENOCONN'
   error?: string
 }
@@ -133,6 +166,7 @@ interface DispatchOutcome {
 export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
   private inFlight = 0
+
   private readonly degradedSeats = new Map<string, string>()
 
   constructor(private readonly opts: RosterOptions) {}
@@ -164,6 +198,7 @@ export class TaskRoster {
       if (h.entry.outcome) continue
       if (h.entry.state === 'retiring') continue
       const longLived = h.longLived !== undefined
+
       const purpose = longLived
         ? `${h.longLived!.spec.role.replace(/^MERCURY_/, '').toLowerCase()} seat`
         : `${h.entry.source} run: ${h.entry.prompt.replace(/\s+/g, ' ').slice(0, 48)}`
@@ -181,6 +216,7 @@ export class TaskRoster {
     return Array.from(this.handles.values()).map(h => {
       const e: WireRosterEntry = { ...h.entry }
       if (h.longLived) {
+
         const wire = deriveWireSpec({
           running: h.longLived.running,
           spec: { model: h.longLived.spec.model, effort: h.longLived.spec.effort },
@@ -201,9 +237,12 @@ export class TaskRoster {
         if (h.longLived.crashedAt !== undefined) e.crashedAt = h.longLived.crashedAt
         const lastError = h.longLived.lastErrorText || lastStderrLine(h.longLived.stderrTail)
         if (lastError !== undefined && lastError !== '') e.lastError = lastError
+
         if (!h.entry.outcome) {
           e.busy = !this.seatIsIdle(h.longLived)
+
           if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
+
           if (e.busy && h.longLived.turnStartedAt !== undefined) {
             e.turnElapsedMs = Math.max(0, Date.now() - h.longLived.turnStartedAt)
           }
@@ -234,6 +273,7 @@ export class TaskRoster {
     const door = h.longLived?.connection
     if (h.longLived === undefined || door === undefined || door.closed) return false
     const ll = h.longLived
+
     const edgesBefore = ll.turnEdges
     ll.turnActive = true
     ll.turnStartedAt = Date.now()
@@ -270,6 +310,7 @@ export class TaskRoster {
     if (!h) return false
     this.degradedSeats.delete(short)
     const respawnPending = h.longLived?.respawnTimer !== undefined && h.entry.state === 'spawning'
+
     if (h.longLived) {
       h.longLived.intentionalStop = true
       if (h.longLived.respawnTimer) clearTimeout(h.longLived.respawnTimer)
@@ -286,6 +327,7 @@ export class TaskRoster {
     }
     h.entry.state = 'retiring'
     try {
+
       if (h.child) killProcessGroup(h.child, signal)
     } catch (e) {
       logForDebugging(`[daemon] kill(${short}) error: ${e}`)
@@ -343,7 +385,9 @@ export class TaskRoster {
     this.handles.set(short, { entry, done: Promise.resolve(), longLived: ll })
     this.degradedSeats.delete(short)
     const pid = this.spawnLongLived(short)
+
     if (pid === undefined) {
+
       ll.intentionalStop = true
       this.handles.delete(short)
       return { ok: false, error: 'spawn failed (no pid)' }
@@ -403,6 +447,7 @@ export class TaskRoster {
   autoClearIfContextFull(short: string): boolean {
     const ll = this.handles.get(short)?.longLived
     if (!ll) return false
+
     if (ll.clearInFlight) return false
     if (!this.seatIsIdle(ll)) return false
     if ((ll.contextPct ?? 0) < AUTO_CLEAR_CONTEXT_PCT) return false
@@ -410,6 +455,7 @@ export class TaskRoster {
     logForDebugging(
       `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
+
     this.reconfigureLongLived(short, {})
     return true
   }
@@ -420,6 +466,7 @@ export class TaskRoster {
     const set = (ll.seenDispatchIds ??= new Set<string>())
     set.add(requestId)
     if (set.size > DELIVERED_ID_CAP) {
+
       const overflow = set.size - DELIVERED_ID_CAP
       let i = 0
       for (const v of set) {
@@ -433,10 +480,12 @@ export class TaskRoster {
     const h = this.handles.get(short)
     if (!h?.longLived) return
     if (h.entry.outcome) {
+
       this.spawnLongLived(short)
       return
     }
     if (h.longLived.respawnTimer) {
+
       return
     }
     h.longLived.reconfiguring = true
@@ -457,6 +506,7 @@ export class TaskRoster {
       return { ok: false, respawned: false, pending: false, error: 'unknown long-lived worker' }
     }
     const ll = h.longLived
+
     const notes: string[] = []
     const prevModel = ll.spec.model
     const prevEffort = ll.spec.effort
@@ -471,10 +521,12 @@ export class TaskRoster {
     }
     ll.spec = next
     const note = notes.length ? notes.join(' · ') : undefined
+
     if (note && next.model === prevModel && next.effort === prevEffort) {
       logForDebugging(`[daemon] reconfigure(${short}) refused: ${note}`)
       return { ok: true, respawned: false, pending: false, note }
     }
+
     if (this.seatIsIdle(ll)) {
       this.respawnForReconfigure(short)
       return { ok: true, respawned: true, pending: false, note }
@@ -547,10 +599,12 @@ export class TaskRoster {
     const h = this.handles.get(short)
     if (!h || !h.longLived) return undefined
     const ll = h.longLived
+
     if (ll.respawnTimer) {
       clearTimeout(ll.respawnTimer)
       ll.respawnTimer = undefined
     }
+
     const cwdGate = assertSpawnCwd(ll.spec.cwd)
     if (!cwdGate.ok) {
       logForDebugging(`[daemon] long-lived ${short} REFUSED — ${cwdGate.reason}`)
@@ -567,6 +621,7 @@ export class TaskRoster {
     }
     let spawned: ReturnType<typeof spawnRunnerChild>
     try {
+
       spawned = spawnRunnerChild(ll.spec, { respawn: ll.spawnGeneration > 0 })
     } catch (e) {
       logForDebugging(`[daemon] long-lived spawn failed for ${short}: ${e}`)
@@ -578,6 +633,7 @@ export class TaskRoster {
     })
     h.child = child
     h.entry.pid = child.pid
+
     if (short.startsWith('concourse-w') && typeof child.pid === 'number') {
       const livePid = child.pid
       void import('./concourseWorkers.js')
@@ -588,11 +644,15 @@ export class TaskRoster {
     h.entry.outcome = undefined
     ll.lastSpawnAt = Date.now()
     ll.spawnGeneration += 1
+
     ll.running = { model: ll.spec.model, effort: ll.spec.effort }
+
     ll.turnActive = false
     ll.turnStartedAt = undefined
+
     ll.contextPct = undefined
     ll.lastDeliveredAt = undefined
+
     ll.clearInFlight = false
     ll.lastErrorText = undefined
     ll.ready = false
@@ -632,6 +692,7 @@ export class TaskRoster {
         logForDebugging(`[daemon] onChildRelaunched(${short}) hook threw (ignored): ${e}`)
       }
     }
+
     this.noteWorkerIdle(short)
     return child.pid
   }
@@ -694,6 +755,7 @@ export class TaskRoster {
       if (pct !== null) ll.contextPct = pct
     }
     if (isTurnOpenRow(frame)) {
+
       ll.turnEdges += 1
       if (!ll.turnActive) {
         ll.turnActive = true
@@ -703,13 +765,16 @@ export class TaskRoster {
     if (isOutcomeRow(frame)) {
       ll.turnEdges += 1
       ll.lastErrorText = errorTextOfOutcome(frame)
+
       ll.turnActive = false
       ll.turnStartedAt = undefined
+
       if (short.startsWith('concourse-w')) {
         void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
       }
+
       this.noteWorkerIdle(short)
     }
   }
@@ -755,11 +820,13 @@ export class TaskRoster {
         ll.connection?.close('the runner exited')
         ll.connection = undefined
       }
+
       if (ll.turnActive && short.startsWith('concourse-w')) {
         void import('./concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
           .catch(() => {})
       }
+
       const ledgerExit = (outcome: string, reason?: string): void =>
         recordSpawnExit({
           kind: 'long-lived',
@@ -775,9 +842,11 @@ export class TaskRoster {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
         ledgerExit('killed')
+
         this.completeIntentionalStop(short)
         return
       }
+
       if (ll.reconfiguring) {
         ll.reconfiguring = false
         ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'settings') } }
@@ -790,12 +859,14 @@ export class TaskRoster {
         ll.respawnTimer.unref?.()
         return
       }
+
       const keptText = ll.lastErrorText || lastStderrLine(ll.stderrTail)
       if (
         Date.now() - ll.lastSpawnAt >
         (ll.cfg.healthyResetMs ?? DEFAULT_HEALTHY_RESET_MS)
       ) {
         ll.respawns = 0
+
         ll.stormNotified = false
       }
       ll.respawns++
@@ -817,6 +888,7 @@ export class TaskRoster {
       console.error(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})${keptText ? ` — ${keptText}` : ''}`,
       )
+
       const stampCrash = (respawning: boolean, detail?: string): void => {
         if (!short.startsWith('concourse-w')) return
         const exitWords = `exit ${code ?? 'none'}${signal ? ` · signal ${signal}` : ''}`
@@ -914,10 +986,12 @@ export class TaskRoster {
 
     this.inFlight++
     let settleChild: ChildProcess | undefined
+
     const headlessPrompt = buildHeadlessPrompt({
       prompt: d.prompt,
       workflow: d.workflow,
     })
+
     const run = runTaskHeadless(
       { id: short, prompt: headlessPrompt, allowedTools: resolveWorkerReconAllow() },
       cwd,
@@ -931,6 +1005,7 @@ export class TaskRoster {
         const failed = DaemonBreaker.isFailureExit(res.code)
         entry.outcome = res.code === null ? 'killed' : failed ? 'failed' : 'ok'
         entry.state = failed ? (res.code === null ? 'retiring' : 'crashed') : 'settled'
+
         if (res.timedOut === true && !DaemonBreaker.timeoutIsFleetFailure()) {
           this.opts.breaker.recordTimeout()
         } else {
@@ -945,6 +1020,7 @@ export class TaskRoster {
       })
       .finally(() => {
         this.inFlight = Math.max(0, this.inFlight - 1)
+
         this.reapSettled(32)
       })
 

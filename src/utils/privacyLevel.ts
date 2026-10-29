@@ -1,6 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 
-
 type PrivacyLevel = 'default' | 'essential-traffic'
 
 const NONESSENTIAL_TRAFFIC_VAR = 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'

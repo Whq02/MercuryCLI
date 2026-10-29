@@ -1,4 +1,3 @@
-
 import { errorMessage } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
@@ -60,12 +59,14 @@ export async function handleRewindFiles(
   return { can_rewind: true }
 }
 
-
 interface RewindSessionContext {
+
   messages: Message[]
   getAppState: () => AppState
   setAppState?: (updater: (prev: AppState) => AppState) => void
+
   drift: RestoreDriftOracle
+
   turnActive: boolean
 }
 
@@ -97,6 +98,7 @@ export async function handleRewindSession(
   }
   const wantsCode = mode === 'code' || mode === 'both'
   const wantsConversation = mode === 'conversation' || mode === 'both'
+
   if (wantsConversation) {
     const boundary = findLastCompactBoundaryIndex(ctx.messages)
     if (boundary !== -1 && turnIndex <= boundary) {
@@ -142,6 +144,7 @@ export async function handleRewindSession(
       await recordTranscript([record], uuid as UUID, ctx.messages)
       await flushSessionStorage()
     } catch (error) {
+
       const landed = receipt.code !== undefined ? `the files were restored (${receipt.code.filesChanged.length}); ` : ''
       return { ...receipt, outcome: 'refused', refusal: 'restore-failed', detail: `${landed}the conversation boundary could not be written to the transcript: ${errorMessage(error)}` }
     }
@@ -149,7 +152,6 @@ export async function handleRewindSession(
   }
   return receipt
 }
-
 
 export async function handleFileRestoreSession(request: ParamsOf<'session/file_restore'>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
   if (ctx.turnActive) return refusedRewind('code', 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
@@ -177,6 +179,7 @@ export async function handleFileRestoreSession(request: ParamsOf<'session/file_r
     return refusedRewind('code', 'restore-failed', `the restore failed: ${errorMessage(error)}`)
   }
 }
+
 export function resolvePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
@@ -197,6 +200,7 @@ function decidePermissionModeTransition(
   if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
     return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
   }
+
   if (mode === 'sovereign') {
     if (isSovereignDisabled()) {
       return {

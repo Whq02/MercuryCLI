@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -187,6 +188,7 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     ['allow rule', makeTool(), makeContext({ allow: ['FakeTool'] }), 'toolAllowRule', 'allow'],
     ['passthrough → ask at resolution', makeTool(), makeContext({}), 'resolution', 'ask'],
     ['tool allow stands at resolution', makeTool({ verdict: { behavior: 'allow' } }), makeContext({}), 'resolution', 'allow'],
+
     ['sovereign × content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }), 'contentAskRule', 'allow'],
     ['sovereign × whole-tool ask rule (carried past the verdict, decided at its road)', makeTool(), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolAskRuleCarried', 'allow'],
     ['sovereign × whole-tool ask rule + a deny verdict → the deny wins', makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolVerdictDeny', 'deny'],

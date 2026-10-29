@@ -22,7 +22,9 @@ export function groundRgb(): readonly [number, number, number] | null {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(ground.color)
   return m ? [parseInt(m[1]!, 16), parseInt(m[2]!, 16), parseInt(m[3]!, 16)] : null
 }
+
 const isTransparent = (a: number): boolean => a < 40
+
 const isNearWhite = (r: number, g: number, b: number): boolean => {
   const mn = Math.min(r, g, b)
   const mx = Math.max(r, g, b)
@@ -81,9 +83,11 @@ export async function spriteToAnsi(
   const meta = await sharp(src).metadata()
   const aspect = (meta.height ?? 1) / (meta.width ?? 1)
   const pxW = Math.max(1, Math.min(cols, 200))
+
   const MAX_ROWS = 200
   const rows = Math.max(1, Math.min(Math.round((pxW * aspect) / 2), MAX_ROWS))
   const pxH = rows * 2
+
   const kernel = (meta.width ?? pxW) > pxW ? 'cubic' : 'nearest'
   const { data, info } = await sharp(src)
     .resize(pxW, pxH, { fit: 'fill', kernel })
@@ -91,7 +95,9 @@ export async function spriteToAnsi(
     .raw()
     .toBuffer({ resolveWithObject: true })
   const ch = info.channels
+
   const outside = buildOutsideMask(data, info.width, info.height, ch)
+
   if (dewhite) {
     const CAP = 188
     for (let i = 0; i < data.length; i += ch) {
@@ -123,6 +129,7 @@ export async function spriteToAnsi(
       const botBg = isBg(x, y * 2 + 1, ba)
       if (topBg && botBg) { row += `${ESC}[0m ` ; continue }
       if (topBg) {
+
         row += `${ground ? bgSgr(...ground) : `${ESC}[49m`}${fgSgr(br, bg2, bb)}▄`
         continue
       }

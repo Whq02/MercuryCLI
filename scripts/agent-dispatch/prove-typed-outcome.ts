@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -62,6 +63,7 @@ section('§2 D11 · THE STRUCTURED RESET FACT')
 section('§3 D08/D09 · TIMING FEEDS THE LEDGER; THE RETRY LAW IS PURE')
 {
   check('the retry-delay law is pure arithmetic (400·attempt)', openaiRetryDelayMs(1) === 400 && openaiRetryDelayMs(2) === 800)
+
   let now = 1_000_000
   const clock = { now: () => now, advance: (ms: number) => (now += ms) }
   const t0 = clock.now()
@@ -84,6 +86,7 @@ section('§3 D08/D09 · TIMING FEEDS THE LEDGER; THE RETRY LAW IS PURE')
   )
   check(
     'the retry backoff rides the pure law (the inline arithmetic lives ONLY in its definition)',
+
     callModel.includes('const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)') &&
       callModel.includes('await sleep(delayMs, signal)') &&
       (callModel.match(/OPENAI_RETRY_BACKOFF_MS \* attempt/g) ?? []).length === 1,

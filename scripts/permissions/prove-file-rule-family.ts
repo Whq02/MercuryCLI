@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

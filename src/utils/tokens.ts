@@ -20,7 +20,6 @@ function usageAnchorForeign(anchor: Message, model: string | undefined): boolean
   return stampedFamily !== null && seatedFamily !== null && stampedFamily !== seatedFamily
 }
 
-
 type ContentBlockLike = {
   type?: string
   text?: string
@@ -59,7 +58,6 @@ export function getTokenUsage(message: Message | undefined): ApiUsage | undefine
   if (isPlaceholderUsage(usage as ApiUsage)) return undefined
   return usage as ApiUsage
 }
-
 
 export function usageAnchorModel(messages: readonly Message[]): string | undefined {
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -147,6 +145,7 @@ function compactUsageFence(
   }
   const rehomed = new Set<string>()
   const segment = boundary.compactMetadata?.preservedSegment
+
   if (segment?.headUuid !== undefined && segment.tailUuid !== undefined && segment.anchorUuid !== boundary.uuid) {
     let inside = false
     for (const message of messages) {
@@ -170,12 +169,14 @@ export function messageContextFill(messages: readonly Message[], model?: string)
   let usageTotal = 0
   for (let index = messages.length - 1; index >= 0; index--) {
     if (fence !== null) {
+
       if (index <= fence.boundaryIndex) break
       const uuid = (messages[index] as { uuid?: string }).uuid
       if (uuid !== undefined && fence.rehomedUuids.has(uuid)) continue
     }
     const usage = getTokenUsage(messages[index])
     if (usage) {
+
       if (usageAnchorForeign(messages[index]!, model)) break
       usageIndex = index
       usageTotal = getTokenCountFromUsage(usage)
@@ -195,6 +196,7 @@ export function messageContextFill(messages: readonly Message[], model?: string)
       const message = messages[index]
       const id =
         message?.type === 'assistant' ? (message as AssistantMessage).message?.id : undefined
+
       if (id === undefined || id === null) continue
       if (id === responseId) {
         anchor = index

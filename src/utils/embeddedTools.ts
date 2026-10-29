@@ -1,6 +1,5 @@
 import { flagEnabled } from '../substrate/flagRegistry.js'
 
-
 const EXCLUDED_ENTRYPOINTS = new Set(['headless', 'local-agent'])
 
 export function hasEmbeddedSearchTools(): boolean {

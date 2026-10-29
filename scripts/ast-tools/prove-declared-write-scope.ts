@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/AstEditTool/AstEditTool.ts src/tools/AstSearchTool/AstSearchTool.ts src/utils/permissions/filesystem.ts src/Tool.ts
-// gate-watch: src/tools/ChangeSetTool/ChangeSetTool.ts src/services/changeTransaction/snapshotAnchor.ts
+
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

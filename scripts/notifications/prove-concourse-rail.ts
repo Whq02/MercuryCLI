@@ -17,7 +17,6 @@ const t = checker()
 scratchRoot('concourse-rail')
 requireDist()
 
-
 const TITLES = ['RAILQONE', 'RAILQTWO', 'RAILQTHREE', 'RAILQFOUR', 'RAILQFIVE'] as const
 
 const fixture = referenceFixtureSnapshot() as { needsYou: unknown; counts: Record<string, unknown> }
@@ -36,11 +35,11 @@ const fixtureDir = mkdtempSync(join(tmpdir(), 'concourse-rail-'))
 const fixturePath = join(fixtureDir, 'concourse-fixture.json')
 writeFileSync(fixturePath, JSON.stringify(fixture))
 
-
 const run: ArenaRun = await runArtifactArena({
   turns: [],
   sends: [
     'after:RAILQONE:1200: ',
+
     'after:RAILQONE:1800:\t',
     'after:RAILQONE:2400:\t',
     'after:RAILQONE:3000:\t',
@@ -64,6 +63,7 @@ const run: ArenaRun = await runArtifactArena({
 
 try {
   const offsets: number[] = []
+
   for (let ms = S(2500); ms <= S(15500); ms += S(400)) offsets.push(ms)
   offsets.push(-1)
   const grabs = grabScreens(run, 142, 38, offsets)
@@ -145,9 +145,11 @@ try {
   t.section('§3 — the ↵-target identity (structural: acted row == rendered-selected row)')
   const screenSrc = readFileSync(join(import.meta.dir, '../../src/components/concourse/ConcourseScreen.tsx'), 'utf8')
   const railSrc = readFileSync(join(import.meta.dir, '../../src/components/concourse/NeedsYouRail.tsx'), 'utf8')
+
   t.check('the screen acts on needsYou[liveRailIdx()] (the FULL-list synchronous index)', screenSrc.includes('snapshot.needsYou[liveRailIdx()]'))
   t.check('the rail renders the paneWindow slice of the SAME list', railSrc.includes('snapshot.needsYou.slice(win.start, win.end)'))
   t.check('the rail marks selected at the absolute index', railSrc.includes('selected={win.start + i === selectedIndex}'))
+
   t.check('the rail windows through the shared paneWindow owner (budget-clamped, RAIL_MAX_ROWS-capped)', railSrc.includes('paneWindow(total, selectedIndex, Math.max(1, Math.min(RAIL_MAX_ROWS, maxRows)))'))
 
   t.section('§4 — window math spot pins (the shared fn answers what §1 rendered)')
@@ -162,7 +164,6 @@ try {
   rmSync(fixtureDir, { recursive: true, force: true })
 }
 
-
 const BURST = 'concourse rail echo!'
 const fixtureDir2 = mkdtempSync(join(tmpdir(), 'concourse-echo-'))
 
@@ -170,6 +171,7 @@ let sidecarState = 'never-fired'
 const erun: ArenaRun = await runArtifactArena({
   turns: [],
   seedHome: configDir => {
+
     const draftPath = join(configDir, 'concourse-draft.json')
     let fired = false
     const fire = (why: string): void => {
@@ -201,10 +203,13 @@ const erun: ArenaRun = await runArtifactArena({
     }, S(18_000))
     ;(fallback as { unref?: () => void }).unref?.()
   },
+
   sends: [
+
     'after:COORDINATOR:1500: ',
     ...BURST.split('').map((ch, i) => `after:COORDINATOR:${2500 + i * 30}:${ch}`),
   ],
+
   seconds: 23,
   cols: 142,
   rows: 38,
@@ -222,6 +227,7 @@ try {
   for (let ms = S(4000); ms <= S(22000); ms += S(400)) offsets.push(ms)
   const grabs = grabScreens(erun, 142, 38, offsets)
   const withBurst = grabs.filter(g => g.rows.some(r => r.includes(BURST)))
+
   const cleared = grabs.filter(
     g => !g.rows.some(r => r.includes(BURST)) && g.rows.some(r => r.includes('COORDINATOR')),
   )
@@ -249,7 +255,6 @@ try {
   rmSync(fixtureDir2, { recursive: true, force: true })
 }
 
-
 const fixture3 = referenceFixtureSnapshot() as { groups: Array<Record<string, unknown>> }
 fixture3.groups.push({
   id: 'paused',
@@ -272,6 +277,7 @@ writeFileSync(fixturePath3, JSON.stringify(fixture3))
 
 const vrun: ArenaRun = await runArtifactArena({
   turns: [],
+
   sends: [
     'after:Audit billing receipts:1200: ',
     ...[1800, 2200, 2600, 3000, 3400, 3800, 4200, 4600].map(ms => `${ms}:\x1b[B`),
@@ -304,6 +310,7 @@ try {
   const o = { projectLabel: 'Moodle', agentLabel: 'Mercury', ageLabel: '3m' }
   const joined = (parts: ReturnType<typeof railTailParts>): string => parts.map(p => p.text).join('')
   const full = railTailParts(o, 500)
+
   t.check('all four parts fit a generous budget, display order kept', full.map(p => p.key).join(',') === 'meta,answer,open,dismiss')
   t.check(
     'the full-fit join is the band-aligned composition (R3 restoration: the meta cluster stands alone at its band — no leading joiner)',
@@ -321,6 +328,7 @@ try {
   t.check("last: 'answer & resume' is the final survivor", answerOnly.map(p => p.key).join(',') === 'answer', joined(answerOnly))
   t.check('a hopeless budget sheds everything whole (no half-truncated affordance)', railTailParts(o, 3).length === 0)
   const railSrc2 = readFileSync(join(import.meta.dir, '../../src/components/concourse/NeedsYouRail.tsx'), 'utf8')
+
   t.check('the component renders the SAME fn against the real remaining budget', railSrc2.includes('railTailParts(o, Math.max(0, width - 4 - titleBand - questionBand), o.foreignProject !== undefined)'))
 }
 

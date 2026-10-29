@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,6 +43,7 @@ function run(verb: string[], env: Record<string, string>): { status: number; jso
   const childEnv: Record<string, string | undefined> = {
     ...process.env,
     MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
+
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1',
@@ -126,6 +128,7 @@ section('§3 anthropic-routed with no credential anywhere: warn, not signed in, 
 
 section('§4 auth status --json: per-family rows, frozen fields, routed exit')
 {
+
   const engineRouted = run(['auth', 'status', '--json'], {
     CI: 'true',
     DEEPSEEK_API_KEY: 'fixture-deepseek-key',

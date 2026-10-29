@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'crypto'
 import type { Principal } from '../../substrate/identity/principal.js'
 
@@ -67,7 +66,6 @@ export function isFrameKindShape(value: unknown): value is string {
   return typeof value === 'string' && FRAME_KIND_SHAPE.test(value)
 }
 
-
 const BODY_CAPS: ReadonlyArray<readonly [prefixOrKind: string, maxBytes: number]> = [
   ['chat.', 8 * 1024],
   ['turn.user', 64 * 1024],
@@ -105,16 +103,26 @@ export function bodyCapViolation(kind: string, body: unknown): string | null {
 }
 
 export interface Frame {
+
   v: number
+
   room: string
+
   seq: number
+
   hlc: string
+
   id: string
+
   author: Principal
   kind: FrameKind
+
   body: unknown
+
   refs?: string[]
+
   sig?: string
+
   c: string
 }
 
@@ -126,7 +134,6 @@ export interface FrameDraft {
   refs?: string[]
   sig?: string
 }
-
 
 const CRC_TABLE: Uint32Array = (() => {
   const table = new Uint32Array(256)
@@ -148,7 +155,6 @@ export function crc32Hex(input: string): string {
   }
   return ((crc ^ 0xffffffff) >>> 0).toString(16).padStart(8, '0')
 }
-
 
 export function canonicalFrameJson(frame: Omit<Frame, 'c'>): string {
   return JSON.stringify({

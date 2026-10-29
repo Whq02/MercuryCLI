@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -52,15 +53,18 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   ])
   const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
   let daemon: ReturnType<typeof spawn> | null = null
+
   const escAt = 4_500
   const run = await runArtifactArena({
     turns: [],
     sends: [
+
       'after:Quiet seat:2500:\t',
       'after:Quiet seat:4000:\r',
       'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
+
       `after:Type a prompt:${escAt + gapMs / vshotBudgetScale()}:\x1b`,
     ],
     seconds: Math.ceil((escAt + gapMs + 20_000) / 1000),
@@ -68,6 +72,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     rows,
     keep: true,
     seedHome: async (configDir, ground) => {
+
       spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: ground })
       spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: ground })
       seedFirstRun(configDir, [ground])
@@ -94,6 +99,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     extraEnv: { MERCURY_CONCOURSE: 'always', MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CACHE_CLOCK: '0' },
   })
   try {
+
     const escSends = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
       .map(s => sendStamp(run, s))

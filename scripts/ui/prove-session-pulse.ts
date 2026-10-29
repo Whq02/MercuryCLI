@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { plugin } from 'bun'
 plugin({
   name: 'stub-color-diff-napi',
@@ -26,6 +27,7 @@ function section(t: string): void {
 const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
 
 const NOW = Date.parse('2026-06-19T12:00:00.000Z')
+
 const at = (agoSec: number): { ts: string; tool: string; surface: string; risk: string } => ({
   ts: new Date(NOW - agoSec * 1000).toISOString(),
   tool: 'Bash',
@@ -48,6 +50,7 @@ section('empty ⇒ honest-zero (never an invented pulse)')
 
 section('binning lands calls in the right minute slot')
 {
+
   const v = aggregateVelocity([at(10), at(20), at(30), at(300)], NOW)
   check('newest bin (idx 13) has the 3 recent calls', v.perMin[13] === 3, `${v.perMin[13]}`)
   check('the 5-min-ago call lands in bin 9', v.perMin[9] === 1, `${v.perMin[9]}`)
@@ -99,6 +102,7 @@ section('wiring: the dead SPARK ramp is now CONSUMED + rendered')
   check('Sparkline primitive exported', /export function Sparkline\(/.test(comp))
   check('Sparkline consumes the SPARK ramp', /SPARK\[/.test(comp) && /from '\.\/glyphs\.js'/.test(comp) && /SPARK/.test(comp))
   const tv = src('components', 'TraceView.tsx')
+
   check('TraceView computes the pulse (aggregateVelocity)', /aggregateVelocity\(records, now\)/.test(tv))
   check('TraceView renders the Sparkline pulse row', /<Sparkline values=\{pulse\.perMin\}/.test(tv))
   check('pulse row is gated on having activity (pulse.total > 0)', /pulse\.total > 0/.test(tv))

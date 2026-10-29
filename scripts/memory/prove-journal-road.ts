@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/journal.ts src/mneme/handoffAsk.ts src/mneme/lineageSession.ts src/mneme/sessionClose.ts src/mneme/ledger.ts
-// gate-watch: src/tools/JournalTool/** src/tools.ts src/run-core/turn-machine.ts src/utils/gracefulShutdown.ts
-// gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

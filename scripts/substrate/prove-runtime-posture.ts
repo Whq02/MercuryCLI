@@ -116,6 +116,7 @@ section('oculus posture (a screen belongs to the session) — one line in plain 
 
 section('boot-state capture — kills + MCP cap render when armed at boot')
 {
+
   const { killCapability, restoreCapability } = await import(
     '../../src/utils/permissions/capabilityGate.js'
   )

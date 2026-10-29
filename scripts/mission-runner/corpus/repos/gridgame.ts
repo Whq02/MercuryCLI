@@ -8,7 +8,6 @@ const PACKAGE_JSON = `{
 }
 `
 
-
 const GRID_BASE = `// Rectangular grid; coords are [x, y] tuples; blocked cells are a Set of
 // 'x,y' keys.
 export function key(x, y) {
@@ -75,7 +74,6 @@ export function oppositeNeighbor(grid, defender, attacker) {
   return [ox, oy]
 }
 `
-
 
 const PATH_BASE = `import { key, neighbors } from './grid.js'
 
@@ -171,7 +169,6 @@ const PATH_FLAT_DIAGONAL = PATH_BASE.replace(
 }`,
 )
 
-
 const RULES_BASE = `import { inBounds, isBlocked, key } from './grid.js'
 
 // Engagement rules. Initiative: faster units act first; fatigue slows a unit
@@ -249,7 +246,6 @@ export function bestAttackCell(grid, attacker, defender, allies, candidates) {
 }
 `
 
-
 const SIM_BASE = `import { key } from './grid.js'
 import { initiative } from './rules.js'
 
@@ -284,7 +280,6 @@ const SIM_MUTATING_SORT = SIM_BASE.replace(
   '    const order = [...state].sort((a, b) => initiative(b) - initiative(a))',
   '    const order = state.sort((a, b) => initiative(b) - initiative(a))',
 )
-
 
 const TEST_GRID = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -497,7 +492,6 @@ const TEST_PATH_NO_UNITS = TEST_PATH.replace(
 `,
   '',
 )
-
 
 const TEST_GRID_OBJECT = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -739,7 +733,6 @@ export function runSim(grid, roster, rounds) {
 }
 `
 
-
 const FLANK_SPEC = `# FLANK.md — the flanking rule (exact contract)
 
 Two additions, spanning the geometry owner and the rules owner:
@@ -830,7 +823,6 @@ test('occupied candidates are never chosen', () => {
   assert.deepEqual(best, [1, 3])
 })
 `
-
 
 const SIM_REST_RAISES_FATIGUE = SIM_BASE.replace(
   '        unit.fatigue = Math.max(0, unit.fatigue - 1)',

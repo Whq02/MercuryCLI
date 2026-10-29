@@ -28,7 +28,6 @@ import { terminalTextCells } from './session/terminalTextCells.js'
 import { stringWidth } from './stringWidth.js'
 import { widestLine } from './widest-line.js'
 
-
 type ClusteredChar = {
   value: string
   width: number
@@ -48,6 +47,7 @@ type WriteOp = {
   x: number
   y: number
   text: string
+
   softWrap?: boolean[]
 }
 type ClipOp = { type: 'clip'; clip: Clip }
@@ -101,6 +101,7 @@ type Options = {
   width: number
   height: number
   stylePool: StylePool
+
   screen: Screen
 }
 
@@ -192,6 +193,7 @@ export default class ComposeBuffer {
         case 'clear':
           continue
         case 'clip':
+
           clips.push(intersectClip(clips.at(-1), op.clip))
           continue
         case 'unclip':
@@ -213,6 +215,7 @@ export default class ComposeBuffer {
           continue
         }
         case 'blit': {
+
           const clip = clips.at(-1)
           const x0 = Math.max(op.x, clip?.x1 ?? 0)
           const y0 = Math.max(op.y, clip?.y1 ?? 0)
@@ -224,6 +227,7 @@ export default class ComposeBuffer {
             blitCells += (y1 - y0) * (x1 - x0)
             continue
           }
+
           let bandStart = y0
           for (let row = y0; row <= y1; row++) {
             const excluded =
@@ -269,7 +273,6 @@ export default class ComposeBuffer {
     return screen
   }
 
-
   private applyWrite(op: WriteOp, clip: Clip | undefined): number {
     let { x, y } = op
     let lines = op.text.split('\n')
@@ -301,6 +304,7 @@ export default class ComposeBuffer {
       if (clipV) {
         const from = y < clip.y1! ? clip.y1! - y : 0
         const to = y + lines.length > clip.y2! ? clip.y2! - y : lines.length
+
         if (op.softWrap && from > 0 && op.softWrap[from] === true) {
           prevContentEnd = -(x + stringWidth(lines[from - 1]!))
         }
@@ -319,6 +323,7 @@ export default class ComposeBuffer {
       const contentEnd = this.writeLine(lines[i]!, x, lineY)
       written += contentEnd - x
       if (op.softWrap) {
+
         swBits[lineY] = op.softWrap[swFrom + i] === true ? prevContentEnd : 0
         prevContentEnd = contentEnd
       }
@@ -331,6 +336,7 @@ export default class ComposeBuffer {
     const hit = this.sliceCache.get(key)
     if (hit !== undefined) return hit
     let sliced = sliceAnsi(line, from, to)
+
     if (lineWidth(sliced) > to - from) {
       sliced = sliceAnsi(line, from, to - 1)
     }
@@ -356,6 +362,7 @@ export default class ComposeBuffer {
 
       if (cp !== undefined && cp <= 0x1f) {
         if (cp === 0x09) {
+
           const stop = 8 - (cx % 8)
           for (let s = 0; s < stop && cx < W; s++) {
             setCellAt(screen, cx, y, {
@@ -367,8 +374,10 @@ export default class ComposeBuffer {
             cx++
           }
         } else if (cp === 0x1b) {
+
           i = skipEscapeSequence(clusters, i)
         }
+
         continue
       }
 
@@ -377,6 +386,7 @@ export default class ComposeBuffer {
 
       const isWide = w >= 2
       if (isWide && cx + 2 > W) {
+
         setCellAt(screen, cx, y, {
           char: ' ',
           styleId: pool.none,
@@ -398,7 +408,6 @@ export default class ComposeBuffer {
     return cx
   }
 }
-
 
 function firstCodeMismatch(a: AnsiCode[], b: AnsiCode[]): number {
   let at = 0

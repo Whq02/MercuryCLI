@@ -1,4 +1,3 @@
-
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -15,13 +14,16 @@ export interface ParsedRef {
     limit?: number
     child?: string
   }
+
   canonical: string
+
   raw: string
 }
 
 export interface ResourceContext {
   owner: OwnerKey
   cwd: string
+
   getAppState?: () => unknown
   engineModel?: string
 }
@@ -37,10 +39,13 @@ export interface Resource {
   kind: string
   title: string
   summary: string
+
   version?: string
   mutable: boolean
   children?: ResourceChild[]
+
   text?: string
+
   structured?: unknown
   sourceRefs?: string[]
   page?: { cursor: number; hasMore: boolean; total?: number }
@@ -55,8 +60,10 @@ export type ResourceResult =
 
 export interface ResourceAdapter {
   kind: string
+
   describe: string
   resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult>
+
   list?(ctx: ResourceContext): Promise<ResourceChild[]>
 }
 
@@ -141,6 +148,7 @@ export function boundedTextView(
   selectors: ParsedRef['selectors'],
   defaultLimit = 200,
   opts?: {
+
     defaultToTail?: boolean
   },
 ): { text: string; page: { cursor: number; hasMore: boolean; total: number } } {

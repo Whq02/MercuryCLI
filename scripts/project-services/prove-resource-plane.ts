@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -7,6 +8,7 @@ import { join } from 'node:path'
 
 const configDir = mkdtempSync(join(tmpdir(), 'vanguard-refs-'))
 process.env.MERCURY_CONFIG_DIR = configDir
+
 delete process.env.MERCURY_REFS
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
@@ -220,6 +222,7 @@ section("W. workflow adapter (manifest fixtures) — runs live beside the sessio
     run.state === 'ok' &&
     run.resource.text?.includes('a1 — completed') === true &&
     run.resource.children?.[0]?.ref.includes('child=a1') === true)
+
   const agent = await resolveResource('mercury://workflow/wf_fixture1?child=a1', ctx as never)
   check('W2 the agent child serves the canonical projection (explicit no-final-text state)',
     agent.state === 'ok' && agent.resource.text?.includes('produced no final text') === true)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -27,6 +28,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const path = (req.url ?? '').split('?')[0] ?? ''
     if (captureFile) {
       try {
+
         let body: unknown = null
         try {
           body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
@@ -37,6 +39,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       }
     }
     if (req.method === 'POST' && path.endsWith('/v1/messages')) {
+
       let echo = ''
       try {
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as {
@@ -55,6 +58,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         }
       } catch {
       }
+
       const replyText = echo === '' ? 'working the standing goal' : `standing reply to [[${echo.slice(0, 60)}]]`
       setTimeout(() => {
         res.writeHead(200, { 'content-type': 'text/event-stream' })

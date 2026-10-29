@@ -8,12 +8,17 @@ import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 export const AGENT_SPEC_VERSION = 1
 
 export type AgentSpecFields = {
+
   name: string
+
   description: string
+
   tools?: string[]
   disallowedTools?: string[]
   skills?: string[]
+
   mcpServers?: unknown[]
+
   hooks?: unknown
   color?: AgentColorName
   model?: string
@@ -25,6 +30,7 @@ export type AgentSpecFields = {
   initialPrompt?: string
   memory?: AgentMemoryScope
   isolation?: 'worktree'
+
   specVersion?: number
 }
 
@@ -53,35 +59,51 @@ type AgentDiagnosticSeverity = 'error' | 'warning' | 'info'
 
 export type AgentDiagnostic = {
   severity: AgentDiagnosticSeverity
+
   code: string
   message: string
+
   line?: number
+
   field?: string
 }
 
 export type FrontmatterEntrySpan = {
   key: string
+
   startLine: number
+
   endLine: number
+
   style: 'scalar' | 'flow-list' | 'block-seq' | 'nested' | 'empty'
 }
 
 export type AgentDocument = {
   raw: string
   newline: '\n' | '\r\n'
+
   hasFrontmatter: boolean
+
   frontmatterStart: number
   frontmatterEnd: number
+
   frontmatterLines: string[]
+
   entries: FrontmatterEntrySpan[]
+
   body: string
+
   fields: AgentSpecFields
+
   unknownKeys: string[]
+
   diagnostics: AgentDiagnostic[]
 }
 
 export type AgentFileIdentity = {
+
   filePath: string
+
   revision: string
 }
 

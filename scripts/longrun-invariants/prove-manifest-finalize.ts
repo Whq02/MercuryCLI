@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -90,6 +91,7 @@ section('§B both attempts failing UNLATCHES — a later attempt is never swallo
 section('§C ordering + non-final semantics preserved')
 {
   const rig = makeRig()
+
   const first = rig.chain.write(snap('running'), false)
   const second = rig.chain.write(snap('killed'), true)
   const [a, b] = await Promise.all([first, second])

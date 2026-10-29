@@ -1,4 +1,3 @@
-
 export {
   AUTO_REJECT_MESSAGE,
   CANCEL_MESSAGE,

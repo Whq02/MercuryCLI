@@ -1,7 +1,8 @@
-
 interface InterruptArityDeclarationV1 {
   arity: 1 | 2
+
   hint?: string
+
   windowMs?: number
 }
 
@@ -59,7 +60,6 @@ export function pressInterrupt(scope: string, nowMs: number = Date.now()): Inter
 export function disarmInterruptGesture(scope: string): void {
   armedAt.delete(scope)
 }
-
 
 export type EscRungV1 = 'idle' | 'in-flight' | 'interrupting' | 'hard-stopping'
 

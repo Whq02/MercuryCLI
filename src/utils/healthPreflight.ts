@@ -1,4 +1,3 @@
-
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
@@ -28,7 +27,7 @@ export function lastPreflightPath(): string {
 }
 
 export function mercuryBootPreflightEnabled(): boolean {
-  
+
   return flagEnv('MERCURY_BOOT_PREFLIGHT') !== '0'
 }
 
@@ -49,6 +48,7 @@ async function runPreflight(): Promise<PreflightSummary> {
   const t0 = Date.now()
   const checks = await Promise.all([
     wrapped('wrapper', () => {
+
       return {
         id: 'wrapper',
         status: 'ok' as const,
@@ -64,6 +64,7 @@ async function runPreflight(): Promise<PreflightSummary> {
       }
       const git = await gitSnapshot()
       const repo = git.state === 'live' ? git.data.git : null
+
       const treeSha = await computeWorkingTreeSha(getCwd())
       const head = repo
         ? { sha: repo.commitHash, dirty: !repo.isClean, treeSha }
@@ -96,11 +97,13 @@ async function runPreflight(): Promise<PreflightSummary> {
   ])
 
   return {
+
     verdict: verdictFromStatuses(checks.map(c => c.status)),
     ranAt: new Date().toISOString(),
     failing: checks
       .filter(c => c.status === 'fail')
       .map(c => ({ id: c.id, evidence: c.evidence })),
+
     degraded: checks
       .filter(c => c.status === 'warn' || c.status === 'stale' || c.status === 'unknown')
       .map(c => ({ id: c.id, status: c.status, evidence: c.evidence })),
@@ -119,6 +122,7 @@ export async function runAndRecordPreflight(): Promise<PreflightSummary> {
   if (bootPreflight !== null) return bootPreflight
   bootPreflight = (async () => {
     const summary = await runPreflight()
+
     try {
       await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
     } catch {

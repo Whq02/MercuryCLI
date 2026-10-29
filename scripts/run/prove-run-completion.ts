@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
 {
   const { setIsInteractive } = await import('../../src/bootstrap/state.js')
   setIsInteractive(true)
@@ -49,12 +50,14 @@ async function main(): Promise<void> {
       { type: 'substantive', at: 2, reason: 'created tasks' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'open' },
     ])
+
     const d1 = evaluateStop({ ...defaults, snapshot: openRun, wordingUnfinished: false })
     check('"done" prose + open deliverable → continue', d1.kind === 'continue', d1.kind)
     check(
       'the continue names the concrete deliverable',
       d1.kind === 'continue' && d1.nextAction.includes('write the parser'),
     )
+
     const doneRun = fold([
       { type: 'substantive', at: 2, reason: 'created tasks' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'done' },
@@ -107,6 +110,7 @@ async function main(): Promise<void> {
     ])
     const d5 = evaluateStop({ ...defaults, snapshot: failedEffect })
     check('failed mutating effect → cannot complete', d5.kind === 'continue', d5.kind)
+
     const healed = kernel.reduceRunEvent(failedEffect, {
       type: 'tool-effected',
       at: 5,
@@ -183,6 +187,7 @@ async function main(): Promise<void> {
 
   section('6. vanished task → deliverable DROPS (the field "orphaned task #6" wedge)')
   {
+
     const { mkdtempSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join } = await import('node:path')
@@ -212,6 +217,7 @@ async function main(): Promise<void> {
         'forward pass records the live task as an open deliverable',
         opened?.deliverables.some(d => d.id === tid && d.state === 'open') === true,
       )
+
       await tasksMod.resetTaskList(listId)
       await coord.syncDeliverablesFromTasks(orphanOwner)
       const after = coord.getRunSnapshot(orphanOwner)
@@ -219,6 +225,7 @@ async function main(): Promise<void> {
       check('vanished task → deliverable transitions to dropped', droppedD?.state === 'dropped', String(droppedD?.state))
       const dAfter = evaluateStop({ ...defaults, snapshot: after!, wordingUnfinished: false })
       check('evaluator completes — no phantom deliverable demanded', dAfter.kind === 'complete', dAfter.kind)
+
       const tid2 = await tasksMod.createTask(listId, {
         subject: 'still live',
         description: 'must not be dropped',
@@ -247,6 +254,7 @@ async function main(): Promise<void> {
       'the fixed-lines grammar module is gone from the tree (the prompt asks for no such lines)',
       !existsSync(join(import.meta.dir, '..', '..', 'src', 'services', 'run', 'blockerDeclaration.ts')),
     )
+
     const blockedAtBudget = kernel.reduceRunEvent(
       fold([{ type: 'substantive', at: 2, reason: 'x' }]),
       {
@@ -266,6 +274,7 @@ async function main(): Promise<void> {
 
   section('8. the blocked lifecycle END-TO-END: no words read → a run event blocks once → surfaced → cleared on the answer')
   {
+
     const { mkdtempSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join } = await import('node:path')
@@ -379,6 +388,7 @@ async function main(): Promise<void> {
             r.detail.some(d => d.includes('operator provides the password')),
         ),
       )
+
       const escVerdict2 = await adapter.evaluateStopAttempt(escMessages, {
         maxBlocks: 3,
         wordingUnfinished: false,
@@ -391,6 +401,7 @@ async function main(): Promise<void> {
         escVerdict2.decision.kind === 'blocked' && escVerdict2.allowStop === true && blockedEvents === 1,
         `events=${blockedEvents}`,
       )
+
       coord.acceptUserRequest(escOwner, { objective: '', rootMessageId: 'u2' })
       const cleared = coord.getRunSnapshot(escOwner)
       check(
@@ -412,6 +423,7 @@ async function main(): Promise<void> {
         resumedVerdict.decision.kind === 'continue' && resumedVerdict.allowStop === true,
         resumedVerdict.decision.kind,
       )
+
       await tasksMod.resetTaskList(listId)
       void tid
     } finally {
@@ -423,6 +435,7 @@ async function main(): Promise<void> {
 
   section('9. the mutation-ledger loop is bounded, applicable, and settleable')
   {
+
     const run = fold([
       { type: 'substantive', at: 2, reason: 'wrote the report' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'report', state: 'done' },
@@ -459,6 +472,7 @@ async function main(): Promise<void> {
       d2.kind === 'complete' && d2.satisfied.some(s => s.includes('UNSETTLED')),
       JSON.stringify(d2),
     )
+
     const d2v = evaluateStop({
       ...defaults,
       snapshot: run,

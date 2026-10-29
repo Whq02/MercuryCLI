@@ -1,4 +1,3 @@
-
 import figures from 'figures'
 import React, {
   useCallback,
@@ -50,7 +49,6 @@ import type {
   RewindReceiptV1,
 } from '../services/engine-connector/types.js'
 
-
 const subscribeFocusedCheckpoints = subscribeThroughFocused((connector, listener) =>
   connector.subscribeCheckpoints(listener),
 )
@@ -60,7 +58,6 @@ function getFocusedCheckpoints(): CheckpointFactsV1 {
 }
 
 type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
-
 
 const COMPLETE_TAG_MARKERS = [
   `<${LOCAL_COMMAND_STDOUT_TAG}>`,
@@ -139,10 +136,8 @@ export function messagesAfterAreOnlySynthetic(
   return true
 }
 
-
 const PREVIEW_CHAR_CAP = 500
 const PREVIEW_LINE_CAP = 4
-
 
 function previewOf(
   message: UserMessage,
@@ -185,7 +180,6 @@ function previewOf(
   }
   return { text, shell: false, command: false }
 }
-
 
 type PatchHunk = { lines?: string[] }
 type EditResult = {
@@ -265,7 +259,6 @@ function describeFiles(files: string[]): string {
   return `${basename(files[0]!)} and ${files.length - 1} others`
 }
 
-
 const VISIBLE_ROWS = 7
 const CURRENT_PROMPT = Symbol('current-prompt')
 const UNDO_REWIND = Symbol('undo-rewind')
@@ -288,6 +281,7 @@ export function MessageSelector({
 }: {
   messages: Message[]
   onPreRestore: () => void
+
   onRestore: (
     message: UserMessage | undefined,
     what: 'both' | 'conversation' | 'code',
@@ -307,6 +301,7 @@ export function MessageSelector({
   ) => Promise<{ ok: true } | { ok: false; reason: string }>
   preselectedMessage?: UserMessage
 }): React.ReactNode {
+
   const [claimed] = useState(() => {
     if (mountClaimed) return false
     mountClaimed = true
@@ -321,6 +316,7 @@ export function MessageSelector({
 
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
+
   const checkpoints = useSyncExternalStore(subscribeFocusedCheckpoints, getFocusedCheckpoints, getFocusedCheckpoints)
   const historyOn = checkpoints.capture === 'on'
   const hasSavedPoint = useCallback((uuid: string): boolean => checkpoints.restorable.has(uuid), [checkpoints])
@@ -405,6 +401,7 @@ export function MessageSelector({
     const anyTimelineAction =
       onViewOnly !== undefined || onRerun !== undefined || onBranchCreated !== undefined
     if (!historyOn && !anyTimelineAction) {
+
       void runRestore('conversation')
       return
     }
@@ -441,6 +438,7 @@ export function MessageSelector({
     },
     { context: 'MessageSelector', isActive: active },
   )
+
   useKeybinding(
     'messageSelector:close',
     () => {
@@ -482,6 +480,7 @@ export function MessageSelector({
       }
       const branch = createBranchSession({
         sourceTranscriptPath: transcriptPath,
+
         forkOrdinal: ordinal + 1,
         boundaryKind: 'fork',
         cwd: getCwd(),

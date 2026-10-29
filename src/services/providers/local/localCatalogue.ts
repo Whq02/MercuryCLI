@@ -9,6 +9,7 @@ import {
 } from './localDiscovery.js'
 
 export const LOCAL_MODEL_PREFIX = 'local/'
+
 export const LOCAL_MODEL_GROUP = 'Mercury — local models'
 
 export function isLocalModelId(model: string): boolean {
@@ -102,6 +103,7 @@ export function getLocalModelOptions(): ModelOption[] {
   if (!snapshot) return []
   const rows: ModelOption[] = []
   const all = cachedLocalModels()
+
   const idCounts = new Map<string, number>()
   for (const record of all) {
     const key = record.id.toLowerCase()

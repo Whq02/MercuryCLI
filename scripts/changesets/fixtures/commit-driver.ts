@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -6,6 +7,7 @@ import { join } from 'node:path'
 const spec = JSON.parse(readFileSync(process.argv[2]!, 'utf8')) as {
   csHome: string
   ownerKey: string
+
   files: { path: string; to: string; from?: string }[]
 }
 process.env.MERCURY_CHANGESET_DIR = spec.csHome

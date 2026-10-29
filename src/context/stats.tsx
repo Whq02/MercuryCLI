@@ -1,4 +1,3 @@
-
 import React, { createContext, useEffect } from 'react'
 import { sessionSawUsage } from '../cost-tracker.js'
 import { saveCurrentProjectConfig } from '../utils/config.js'
@@ -54,6 +53,7 @@ export function createStatsStore(): StatsStore {
       hist.sum += value
       hist.min = Math.min(hist.min, value)
       hist.max = Math.max(hist.max, value)
+
       if (hist.reservoir.length < RESERVOIR_CAP) {
         hist.reservoir.push(value)
       } else {
@@ -104,6 +104,7 @@ export function StatsProvider({
 
   useEffect(() => {
     const flush = (): void => {
+
       if (!sessionSawUsage()) return
       const metrics = live.getAll()
       if (Object.keys(metrics).length === 0) return

@@ -159,6 +159,7 @@ if (matrixPresent) {
     const verdict = VERDICTS.find(v => verdictCell.includes(v))
     if (!verdict) continue
     const anchorCell = cell('Source anchor')
+
     const srcAnchors = [...new Set([...anchorCell.matchAll(/src\/[A-Za-z0-9_\-./]+/g)].map(m => m[0].replace(/[.,]$/, '').replace(/:\d+$/, '')))]
       .filter(a => {
         const pth = join(GRAPH_ROOT, a)
@@ -184,6 +185,7 @@ interface FlagRow {
   consumer: string
   consumerExists: 0 | 1
   consumerReached: 0 | 1
+
   consumerParked: 0 | 1
 }
 const flags: FlagRow[] = FLAG_REGISTRY.map(f => {

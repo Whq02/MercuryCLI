@@ -1,4 +1,3 @@
-
 import { csi } from './csi.js'
 
 export const DEC = {
@@ -27,8 +26,10 @@ function decreset(mode: number): string {
 
 export const BSU = decset(DEC.SYNCHRONIZED_UPDATE)
 export const ESU = decreset(DEC.SYNCHRONIZED_UPDATE)
+
 export const EBP = decset(DEC.BRACKETED_PASTE)
 export const DBP = decreset(DEC.BRACKETED_PASTE)
+
 export const EFE = decset(DEC.FOCUS_EVENTS)
 export const DFE = decreset(DEC.FOCUS_EVENTS)
 export const SHOW_CURSOR = decset(DEC.CURSOR_VISIBLE)
@@ -38,6 +39,7 @@ export const EXIT_ALT_SCREEN = decreset(DEC.ALT_SCREEN_CLEAR)
 
 export const ENABLE_MOUSE_TRACKING =
   MOUSE_TRACKING_MODES.map(decset).join('')
+
 export const DISABLE_MOUSE_TRACKING =
   MOUSE_TRACKING_MODES.map(decreset).reverse().join('')
 

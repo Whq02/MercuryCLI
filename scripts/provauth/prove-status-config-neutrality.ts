@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -69,6 +70,7 @@ const presence = (
 })
 
 {
+
   type Families = Parameters<typeof status.buildProviderAccountBlocks>[0]
   const families = [
     presence('anthropic', true, 'Claude subscription (max)'),
@@ -106,6 +108,7 @@ const presence = (
     activeFor: (provider: string) => entries.find(e => e.provider === provider),
     organization: () => 'Example Org',
     isDemo: false,
+
     usability: () => ({
       openai: { blockers: ['no OpenAI account is signed in — /logins openai'] },
       gemini: { blockers: ['no Gemini credential — /logins gemini (or GEMINI_API_KEY)'] },
@@ -128,6 +131,7 @@ const presence = (
     `openai=${JSON.stringify(byLabel.get('openai'))} gemini=${JSON.stringify(byLabel.get('gemini'))}`,
   )
   {
+
     const fallbackBlocks = status.buildProviderAccountBlocks(
       [presence('openai', false)] as unknown as Families,
       { ...reads, usability: () => ({}) },
@@ -212,6 +216,7 @@ const presence = (
   check('the alias path carries the note exactly once too', count(suffixed) === 1, suffixed)
   const bare = model.renderModelName(model.parseUserSpecifiedModel('fable'))
   check('a bare setting carries no suffix note', count(bare) === 0, bare)
+
   const description = model.getDefaultModelDescription()
   check('default description: at most one suffix note (hermetic decision)', count(description) <= 1, description)
   process.env.MERCURY_DEFAULT_FABLE_MODEL = 'claude-fable-5[1m]'
@@ -222,6 +227,7 @@ const presence = (
 
 console.log('\n5. the headless text reading of a property (auth status on a terminal)')
 {
+
   const React = (await import('react')).default
   const { Text } = await import('../../src/ink.js')
   const el = React.createElement(Text, null, 'Login method', ' ', 'Max', ' Account')

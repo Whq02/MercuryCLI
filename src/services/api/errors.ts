@@ -29,7 +29,6 @@ import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
 import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
-
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 import { providerAskedWaitMs } from './recoveryBudget.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
@@ -146,7 +145,6 @@ const CREDIT_BALANCE_PROVIDER_PHRASE = 'Your credit balance is too low'
 const LONG_CONTEXT_EXTRA_USAGE_PHRASE = 'Extra usage is required for long context'
 const PDF_PAGES_PATTERN = /maximum of \d+ PDF pages/
 
-
 function messageOf(error: unknown): string {
   const message = (error as { message?: unknown } | null)?.message
   return typeof message === 'string' ? message : ''
@@ -183,6 +181,7 @@ function routeOfModel(model: string): string {
   try {
     const { declaredRouteOf } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+
     return declaredRouteOf(model) ?? 'gateway'
   } catch {
     return 'anthropic'
@@ -199,7 +198,6 @@ function providerNameOfModel(model: string): string {
     return route
   }
 }
-
 
 export function getPdfTooLargeErrorMessage(): string {
   const limits = `PDFs are limited to ${API_PDF_MAX_PAGES} pages and ${formatFileSize(PDF_TARGET_RAW_SIZE)}.`
@@ -237,7 +235,6 @@ export function getRequestTooLargeErrorMessage(): string {
   return 'The request is too large for the API (32 MB maximum). Use /rewind (or shift+up) to edit your message and remove or shrink the attached content.'
 }
 
-
 export function isClientContractGateText(text: string): boolean {
   return clientContractGateText(text)
 }
@@ -246,7 +243,6 @@ export function clientContractGateLine(wireText: string, model: string): string 
   const refusal = modelRefusalFromError({ status: 400, message: wireText }, model)
   return `${API_ERROR_MESSAGE_PREFIX} (400): ${refusal?.words ?? `${model} was refused — pick another model with /model.`}`
 }
-
 
 export function streamFaultAfterPartialText(provider: string, code: string, message: string): string {
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`
@@ -353,7 +349,6 @@ export function getPromptTooLongTokenGap(msg: Message): number | undefined {
   return undefined
 }
 
-
 function isManyImageRefusal(raw: string): boolean {
   return /many[- ]images?\b/i.test(raw)
 }
@@ -364,7 +359,6 @@ export function isMediaSizeError(raw: string): boolean {
   if (raw.includes('image dimensions exceed') && raw.includes('max allowed size')) return true
   return PDF_PAGES_PATTERN.test(raw)
 }
-
 
 function extract429Detail(message: string): { text: string; providerSentence: boolean } | null {
   return extractProviderDetail(429, message)
@@ -491,11 +485,13 @@ function composeAssistantMessageFromError(
       }
       const text = getRateLimitErrorMessage(limits, model)
       if (text !== null && text !== '') {
+
         return createAssistantAPIErrorMessage({
           content: `${text}${composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })}`,
           error: 'rate_limit',
         })
       }
+
       return createAssistantAPIErrorMessage({
         content: NO_RESPONSE_REQUESTED,
         error: 'rate_limit',
@@ -609,7 +605,6 @@ function composeAssistantMessageFromError(
     })
   }
 
-
   if (status === 400 && message.includes(DUPLICATE_TOOL_USE_PHRASE)) {
     const base = `${API_ERROR_MESSAGE_PREFIX} (400): a duplicate tool-use id exists in conversation history.`
     return createAssistantAPIErrorMessage({
@@ -693,8 +688,10 @@ function composeAssistantMessageFromError(
         : detail.providerSentence
           ? `${API_ERROR_MESSAGE_PREFIX} (${status}): ${family} says: ${detail.text}`
           : `${API_ERROR_MESSAGE_PREFIX} (${status}): ${detail.text}`
+
     const authSource = getAuthTokenSource().source
     if (isEnvShadowedAuthSource(authSource)) {
+
       const clearVerb =
         process.platform === 'win32'
           ? `clear ${authSource} (PowerShell: Remove-Item Env:\\${authSource} · cmd: set ${authSource}=)`
@@ -774,7 +771,6 @@ function overflowFamilyOfModel(model: string): OverflowFamily {
   }
 }
 
-
 export function classifyAPIError(error: unknown): string {
   const message = messageOf(error)
   const status = statusOf(error)
@@ -782,6 +778,7 @@ export function classifyAPIError(error: unknown): string {
 
   if (message === SDK_REQUEST_ABORTED_MESSAGE) return 'aborted'
   if (isTimeoutError(error)) return 'api_timeout'
+
   if (message.includes(REPEATED_529_ERROR_MESSAGE)) return 'repeated_529'
   if (message.includes(CUSTOM_OFF_SWITCH_MESSAGE)) return 'capacity_off_switch'
   if (status === 429 || isBedrockThrottle(error)) return 'rate_limit'
@@ -807,6 +804,7 @@ export function classifyAPIError(error: unknown): string {
   if (lower.includes('x-api-key')) return 'invalid_api_key'
   if (isRevokedSignInText(message)) return 'token_revoked'
   if (status === 401 || status === 403) return 'auth_error'
+
   if (error instanceof APIError && typeof status === 'number') {
     if (status >= 500) return 'server_error'
     if (status >= 400) return 'client_error'
@@ -817,7 +815,6 @@ export function classifyAPIError(error: unknown): string {
   return 'unknown'
 }
 
-
 export function getErrorMessageIfRefusal(
   stopReason: string | null | undefined,
   model: string,
@@ -825,9 +822,11 @@ export function getErrorMessageIfRefusal(
 ): AssistantMessage | undefined {
   if (stopReason !== 'refusal') return undefined
   const nonInteractive = getIsNonInteractiveSession()
+
   let content = nonInteractive
     ? 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'
     : 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session.'
+
   try {
     const { providerLightFact } =
       require('../../utils/model/providerFrontier.js') as typeof import('../../utils/model/providerFrontier.js')

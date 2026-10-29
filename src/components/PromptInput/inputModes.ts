@@ -1,4 +1,3 @@
-
 import type { HistoryMode } from '../../hooks/useArrowKeyHistory.js'
 
 export const BASH_MODE_CHARACTER = '!'

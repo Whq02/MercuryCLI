@@ -1,4 +1,3 @@
-
 import React, { createContext, useMemo, useSyncExternalStore } from 'react'
 import {
   getTerminalFocused,

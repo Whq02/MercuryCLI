@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -95,6 +96,7 @@ section('interactive: direct passthrough (operator answers the dialog), pending 
   check('pending cleared even on throw', (store.pending()?.size ?? 0) === 0)
 }
 {
+
   const { fn } = makeChannel({ real: () => new Promise<never>(() => {}), timeoutMs: 40 })
   const sentinel = new Promise<'no-timeout'>(res => setTimeout(() => res('no-timeout'), 200))
   const outcome = await Promise.race([
@@ -142,11 +144,13 @@ section('headless: TIMEOUT — the fail-closed core (a blocking prompt-tool)')
   check('pending cleared after timeout', (store.pending()?.size ?? 0) === 0)
 }
 {
+
   const { fn } = makeChannel({ real: () => new Promise<never>(() => {}), timeoutMs: 60 })
   const r = (await fn(TOOL, {}, ctx(false), MSG, 'tu9')) as { behavior: string }
   check('timeout with NO agentId still denies cleanly', r.behavior === 'deny')
 }
 {
+
   const { fn } = makeChannel({ real: () => new Promise<never>(() => {}), controllers: new Map(), timeoutMs: 60 })
   const r = (await fn(TOOL, {}, ctx(false, 'ghost'), MSG, 'tu10')) as { behavior: string }
   check('timeout with unknown agent controller still denies', r.behavior === 'deny')
@@ -264,6 +268,7 @@ section('the ask LABEL: the consent card names the workflow and the agent')
 
 section('mode-follow: workflow agents ride the MAIN session permission mode')
 {
+
   const hooks = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'agentHooks.ts'),
     'utf-8',
@@ -274,6 +279,7 @@ section('mode-follow: workflow agents ride the MAIN session permission mode')
     join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'runAgent.ts'),
     'utf-8',
   )
+
   const posture = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'agentPermissionPosture.ts'),
     'utf-8',

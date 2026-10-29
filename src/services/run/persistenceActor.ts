@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto'
 import {
   serialGenerationLane,
@@ -16,11 +15,16 @@ interface CommitContext {
 }
 
 export interface OwnerPersistence<T> {
+
   accept: (value: T) => number
+
   schedule: (delayMs: number) => void
+
   flush: () => Promise<LaneSettlement>
+
   drain: () => Promise<LaneSettlement>
   settlement: () => LaneSettlement
+
   hasUncommittedWork: () => boolean
   readonly epoch: number
 }
@@ -37,6 +41,7 @@ export function ownerPersistence<T>(opts: OwnerPersistenceOptions<T>): OwnerPers
     commit: async (value, ctx) =>
       opts.commit(opts.owner, value, {
         generation: ctx.generation,
+
         epoch: await writerEpoch(),
         writerId: WRITER_ID,
       }),
@@ -64,6 +69,7 @@ export function ownerPersistence<T>(opts: OwnerPersistenceOptions<T>): OwnerPers
         timer = null
         lane.poke()
       }, delayMs)
+
       timer.unref?.()
     },
     flush: async () => {

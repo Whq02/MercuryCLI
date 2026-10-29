@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -29,10 +30,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const shoot = (name: (typeof FIXTURES)[number]['name'], cols: number, tag: string): { grid: string; htmlPath: string } => {
+
   execFileSync('sleep', ['3'])
   const cfgPath = `/tmp/vs-turn-${tag}.json`
   const out = `/tmp/turn-${tag}.html`
   writeFileSync(cfgPath, JSON.stringify({ ...scenario(name, cols, 42), out, title: `turn-restyle ${tag}` }))
+
   const grid = execFileSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(120000),
@@ -50,11 +53,13 @@ for (const fx of FIXTURES) {
     const tag = `${fx.shows}-${cols}`
     console.log(`\n── ${tag} (scenario ${fx.name}) ──`)
     const { grid, htmlPath } = shoot(fx.name, cols, tag)
+
     const lines = grid.split('\n')
     const body = lines.filter(l => !l.startsWith('===') && !l.startsWith('[wrote'))
     console.log(body.join('\n').replace(/\n{3,}/g, '\n\n'))
     const html = existsSync(htmlPath) ? readFileSync(htmlPath, 'utf-8').toLowerCase() : ''
     if (fx.shows === 'tool-rows') {
+
       check(`[${cols}] muted label tone (${SECOND}) present in render`, new RegExp(`"fg":\\s*"${SECOND.slice(1)}"`).test(html))
     }
     console.log(`  → HTML: ${htmlPath}  (screenshot to confirm hue)`)
@@ -68,4 +73,5 @@ console.log('\n' + '='.repeat(60))
 console.log(failures === 0
   ? ' ✅ turn-restyle rendered; eyeball the HTML for hue + no-fill'
   : ` ⚠ ${failures} soft check(s) — inspect the snapshots/HTML`)
+
 process.exit(0)

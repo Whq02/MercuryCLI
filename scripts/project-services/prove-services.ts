@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -210,6 +211,7 @@ section('C. records never claim a live process')
   })
   const pid = 'record' in started ? started.record.pid : null
   check('C1 live process reconciles as live', reconcileRecord(workDir, 'orphan')?.state === 'starting')
+
   if (pid) process.kill(pid, 'SIGKILL')
   await new Promise(r => setTimeout(r, 500))
   const reconciled = reconcileRecord(workDir, 'orphan')

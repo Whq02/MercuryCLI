@@ -62,6 +62,7 @@ function resetMarkers(): void {
 }
 
 function evidenceRecords(): Array<{ scope: string; coverage: string; ok: boolean }> {
+
   const candidates: string[] = []
   try {
     const verifyRoot = join(scratch, 'config-home', 'verify')
@@ -85,6 +86,7 @@ mkSuite('typecheck', ['# gate-class: pure'], 'exit 0')
 mkSuite('alpha', ['# gate-class: pure', '# gate-watch: lib/alpha/** lib/wide.txt'], marker('alpha'))
 mkSuite('beta', ['# gate-class: pure', '# gate-watch: lib/beta/** lib/wide.txt'], marker('beta'))
 mkSuite('gamma', ['# gate-class: pure', '# gate-watch: lib/wide.txt'], marker('gamma'))
+
 mkSuite('omega', ['# gate-class: pure'], marker('omega'))
 
 mkdirSync(join(scratch, 'scripts', 'gate'), { recursive: true })
@@ -107,6 +109,7 @@ writeFileSync(join(scratch, 'lib/alpha/a.txt'), 'alpha v1\n')
 writeFileSync(join(scratch, 'lib/beta/b.txt'), 'beta v1\n')
 writeFileSync(join(scratch, 'lib/wide.txt'), 'wide v1\n')
 writeFileSync(join(scratch, 'docs/readme.md'), 'ignored\n')
+
 writeFileSync(join(scratch, '.gitignore'), '.mercury/\nmarkers/\nconfig-home/\nproof-home/\n')
 
 sh('git init -q')
@@ -116,6 +119,7 @@ const headSha = sh('git rev-parse HEAD').trim()
 const headTree = sh('git rev-parse HEAD^{tree}').trim()
 
 function writeVerdict(): void {
+
   mkdirSync(join(scratch, '.mercury', 'gate'), { recursive: true })
   writeFileSync(
     join(scratch, '.mercury/gate/verdict.json'),
@@ -142,6 +146,7 @@ writeVerdict()
 resetMarkers()
 
 try {
+
   section('A — clean tree at the anchor: floors only, 0 suites')
   {
     const r = fast([])

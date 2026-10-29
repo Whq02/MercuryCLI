@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -47,10 +48,15 @@ seedFirstRun(TEMPLATE, [CWD])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const MANAGER_FOOTER = 'n new ·'
+
 const WARM_TICKS = 25
+
 const ENTER_BUDGET_TICKS = 3
+
 const ESC = String.fromCharCode(27)
 const SHIFT_LEFT = `${ESC}[1;2D`
 const DOWN = `${ESC}[B`
@@ -139,6 +145,7 @@ function marksOf(c: Capture): Mark[] {
 function markText(c: Capture, label: string): string {
   return (marksOf(c).find(m => m.label === label)?.grid ?? []).map(row => row.map(cell => cell.c).join('')).join('\n')
 }
+
 function enterLatencyMs(c: Capture): number | null {
   const receipts = (c.payload.sendReceipts as Array<{ atTick: number; ts: number }> | undefined) ?? []
   const sent = receipts[receipts.length - 1]
@@ -199,12 +206,14 @@ function reapHome(home: string): void {
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+
 const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const hintRows = (text: string): string => text.split('\n').filter(l => /Concourse|⇧|shift\+|live view/i.test(l)).join(' | ')
 const isFace = (text: string): boolean => text.includes('New Session') && text.includes(READY_LINE)
 const isChat = (text: string): boolean => text.includes(COMPOSER) && !text.includes(READY_LINE)
+
 const isChatWorldFace = (text: string): boolean => text.includes('New Session') && text.includes(CHAT_READY_LINE) && !text.includes('m menu')
 const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
@@ -282,6 +291,7 @@ for (const size of [
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
   check(`${size.id.toUpperCase()} the landing is the face with New Session · Health Check · Sessions · Projects`, isChatWorldFace(landing) && landing.includes('Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
+
   check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
@@ -332,6 +342,7 @@ console.log('P4 — --chat: /crewmates answers the sentence, /sessions opens, /c
       g('Auto-compact', 'Session concourse', { awaitSettleTicks: 4 }),
       g('off this boot (--chat)', DOWN, { awaitSettleTicks: 3 }),
       g('the switch governs', '', { mark: 'config', awaitSettleTicks: 3 }),
+
       { afterPrevTicks: 2, data: ESC },
       g(COMPOSER, '', { mark: 'closed', awaitSettleTicks: 3 }),
     ],
@@ -340,6 +351,7 @@ console.log('P4 — --chat: /crewmates answers the sentence, /sessions opens, /c
   })
   printFrame('p4 (after the three commands)', c.lines)
   const party = markText(c, 'party')
+
   const partyFlat = paneFlat(party)
   check('P4 /crewmates typed in the plain world answers the router\'s sentence (off in this boot (--chat), a plain boot has it)', partyFlat.includes('The /crewmates command opens a Session Concourse surface') && partyFlat.includes('the Session Concourse is off in this boot (--chat)') && partyFlat.includes('a plain mercury boot has it.'), party.split('\n').filter(l => /crewmates|Concourse|this boot/i.test(l)).join(' | ').slice(0, 300))
   check('P4 POISON absent: never "Unknown skill", never the generic enablement line, no crash', !c.text.includes('Unknown skill') && !c.text.includes('exists but is not enabled') && !c.text.includes('Mercury exited on an error'))

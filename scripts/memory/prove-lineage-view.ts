@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/mneme/ledger.ts src/mneme/paths.ts
+
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 

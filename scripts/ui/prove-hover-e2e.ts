@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -18,6 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 const HOVER_BG = ASH_RAISED.slice(1).toLowerCase()
+
 const RAIL_COLS = railPlanAt(120, true).lanesW
 const WORKBENCH_ROW = '  second task —'
 const FILES_ROW = 'or click · browse'
@@ -57,6 +59,7 @@ function capture(
     cfg.readySettleTicks = 3
   }
   if (settled) {
+
     Object.assign(cfg, {
       stableTicks: settled.stableTicks,
       requireStable: true,
@@ -102,6 +105,7 @@ console.log(' hover E2E — one highlight on sweep, none mid-drag')
 console.log('============================================================')
 
 console.log('\n── baseline: anchor two hover-armed rail rows ──────────────')
+
 const base = capture('base', [], 90, [FILES_ROW, WORKBENCH_ROW], 120, 40, {
   stableTicks: 8,
   region: [0, 0, RAIL_COLS, 40],
@@ -122,6 +126,7 @@ if (base) {
 
 if (rowA >= 0 && rowB >= 0) {
   console.log('\n── A. sweep: A then B ⇒ exactly ONE lit row (B) ────────────')
+
   const sweepSends: Send[] = [
     MOUSE_ARM_GATE,
     {
@@ -239,6 +244,7 @@ if (rowA >= 0 && rowB >= 0) {
     ]
     const hovered = capture('hdr-hover', hoverSends, 130, undefined, W, H, { stableTicks: 8, region: [RIGHT_START, 0, W, H] })
     if (hovered) {
+
       const y2 = hovered.lines.findIndex(l => l.includes('WORKFLOW'))
       const x2 = y2 >= 0 ? hovered.lines[y2]!.indexOf('WORKFLOW') : -1
       check('hover: ZERO fill cells in the right-rail band', rightBandFills(hovered.grid).length === 0, `rows=${rightBandFills(hovered.grid).join(',')}`)

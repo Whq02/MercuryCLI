@@ -1,4 +1,3 @@
-
 import React, {
   useCallback,
   useContext,
@@ -58,6 +57,7 @@ export type SpinnerWithVerbProps = {
   overrideColor?: ThemeKey | null
   overrideShimmerColor?: ThemeKey | null
   overrideMessage?: string | null
+
   still?: boolean
   spinnerSuffix?: string | null
   hookWaitKeys?: readonly string[]
@@ -113,12 +113,14 @@ export function SpinnerWithVerb({
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
   const expandedView = useAppState(state => state.expandedView)
   const appEffort = useAppState(state => state.effortValue)
+
   const mission = useFocusedMission()
 
   const effectiveMode: SpinnerMode = mode
 
   const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
   useEffect(() => {
+
     const timer = setInterval(
       () => setWhimsyVerb(sampleSpinnerVerb()),
       WHIMSY_ROTATE_MS,
@@ -137,6 +139,7 @@ export function SpinnerWithVerb({
     chosenVerb = whimsyVerb
   }
   const effectiveVerb = chosenVerb
+
   const message = still || effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
 
   const requesting =
@@ -203,6 +206,7 @@ export function SpinnerWithVerb({
     const head = truncateToWidth(message.replace(/\s+/g, ' '), Math.max(0, columns - stringWidth(detail) - (detail ? 5 : 2)))
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }
+
   const row = (
     <SpinnerAnimationRow
       mode={effectiveMode}
@@ -251,7 +255,6 @@ export function SpinnerWithVerb({
     </Box>
   )
 }
-
 
 const STAR_BASE = ['✶', '✸', '✹', '✺', '✹', '✷']
 const STAR_FRAMES = [...STAR_BASE, ...[...STAR_BASE].reverse()]

@@ -1,37 +1,61 @@
-
 export const TERRA = '#DD4444'
+
 export const IVORY = '#EDE8DD'
+
 export const SECOND = '#A9B4AC'
+
 export const FAINT = '#71807B'
+
 export const TEAL = '#3FBFA0'
+
 export const AMBER = '#DBA13D'
+
 export const CRIMSON = '#E8556A'
+
 export const CLAW = '#7B3232'
+
 export const OASIS = '#3F7E96'
+
 export const BELLY = '#E58484'
+
 export const DUNE = '#2F4B52'
+
 export const SAND = SECOND
 
 export const NIGHT = '#0D181B'
+
 export const NIGHT_SOFT = '#101D21'
+
 export const ASH = '#142327'
+
 export const ASH_RAISED = '#1A2C31'
+
 export const DUNE_FAINT = '#233A40'
 
 export const SURFACE_PANEL = ASH
 
 export const DIFF_ADD_BG = '#082620'
+
 export const DIFF_ADD_WORD = '#0E4036'
+
 export const DIFF_DEL_BG = '#301014'
+
 export const DIFF_DEL_WORD = '#501A20'
+
 export const SURFACE_RAISED = ASH_RAISED
 
 type GroundFamily = {
+
   NIGHT: string
+
   NIGHT_SOFT: string
+
   ASH: string
+
   ASH_RAISED: string
+
   DUNE_FAINT: string
+
   DUNE: string
 }
 

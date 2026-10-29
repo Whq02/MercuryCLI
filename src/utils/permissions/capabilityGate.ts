@@ -1,6 +1,3 @@
-
-
-
 import { getMainThreadAgentType } from '../../bootstrap/state.js'
 import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import type { Tool } from '../../Tool.js'
@@ -79,8 +76,10 @@ export function isCapabilityKilled(
 function setKillsTool(set: Set<string> | undefined, toolName: string): boolean {
   if (!set || set.size === 0) return false
   if (set.has(ALL_TOOLS) || set.has(toolName) || [...set].some(selector => lspFamilyMatches(selector.toUpperCase(), toolName))) return true
+
   const server = mcpServerOfTool(toolName)
   if (server && (set.has(server) || set.has(MCP_PREFIX + server))) return true
+
   if (!toolName.startsWith(MCP_PREFIX)) {
     const folded = toolName.toLowerCase()
     for (const entry of set) {
@@ -117,6 +116,7 @@ export function capabilityKillReason(
     else if (server && set.has(server)) matchedTool = server
     else if (server && set.has(MCP_PREFIX + server)) matchedTool = MCP_PREFIX + server
     else if (!toolName.startsWith(MCP_PREFIX)) {
+
       const folded = toolName.toLowerCase()
       matchedTool = [...set].find(e => !e.startsWith(MCP_PREFIX) && e.toLowerCase() === folded)
     }
@@ -151,6 +151,7 @@ function parseAgentCapPolicyWithRejects(): { policy: Map<string, AgentCapRule>; 
     if (!part) continue
     const colon = part.indexOf(':')
     if (colon === -1) {
+
       rejects.push(part)
       continue
     }
@@ -165,6 +166,7 @@ function parseAgentCapPolicyWithRejects(): { policy: Map<string, AgentCapRule>; 
     const rhs = rule.slice(eq + 1).trim()
     const existing = out.get(agent) ?? {}
     if (lhs === 'max-risk') {
+
       const tokens = rhs.split(',')
       for (const tail of tokens.slice(1)) {
         const t = tail.trim()
@@ -202,6 +204,7 @@ function parseAgentCapPolicyWithRejects(): { policy: Map<string, AgentCapRule>; 
       failClosed(agent, part)
     }
   }
+
   if (out.size === 0 && rejects.length > 0) out.set(ALL_AGENTS, { maxRisk: 'low' })
   return { policy: out, rejects }
 }
@@ -224,7 +227,7 @@ function agentPolicyDenies(
 ): boolean {
   try {
     if (!flagEnv('MERCURY_AGENT_CAP')) return false
-    
+
     const policy = parseAgentCapPolicy()
     if (policy.size === 0) return false
     const key = normalizeAgentType(agentType ?? currentAgentTypeSafe())
@@ -284,6 +287,7 @@ export function isToolKilled(
   for (const alias of tool.aliases ?? []) {
     if (isCapabilityKilled(alias, agentType)) return true
   }
+
   if (agentPolicyDenies(tool, agentType)) return true
   return false
 }
@@ -298,6 +302,7 @@ export function toolKillReason(
     const r = capabilityKillReason(alias, agentType)
     if (r) return r
   }
+
   return agentPolicyReason(tool, agentType)
 }
 
@@ -317,11 +322,13 @@ function seedFromEnv(): void {
   try {
     const raw = flagEnv('MERCURY_KILL')
     if (!raw || typeof raw !== 'string') return
+
     for (const entry of raw.split(/[,;]/)) {
       const trimmed = entry.trim().replace(/^["']+|["']+$/g, '').trim()
       if (!trimmed) continue
       const sep = trimmed.indexOf(':')
       if (sep === -1) {
+
         killCapability(ALL_AGENTS, trimmed)
       } else {
         const agentType = trimmed.slice(0, sep).trim() || ALL_AGENTS

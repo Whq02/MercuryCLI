@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type Server } from 'node:http'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -148,6 +149,7 @@ console.log('[4] the project folder: inert until approved; shadows after')
   check('the installed row reads off · shadowed by the project extension', installedRow?.shadowedBy === 'kitchen-sink@project')
   const set = activeMod.getActiveSet()
   check('exactly ONE kitchen-sink contributes (the project one)', set.active.filter(e => e.manifest.name === 'kitchen-sink').length === 1 && set.active.some(e => e.entry.id === 'kitchen-sink@project'))
+
   writeFileSync(join(folder, 'skills', 'fixture-skill', 'SKILL.md'), '---\nname: fixture-skill\ndescription: edited live\n---\nEdited.\n')
   await swap()
   const editedRow = rosterMod.computeRoster({ cwd }).entries.find(e => e.id === 'kitchen-sink@project')
@@ -158,6 +160,7 @@ console.log('[4] the project folder: inert until approved; shadows after')
   await swap()
   const edited = loadCommands.getExtensionSkills().find(s => s.name === 'kitchen-sink:fixture-skill')
   check('a content edit lands after the re-approval', edited?.description === 'edited live')
+
   const manifest = JSON.parse(readFileSync(join(folder, 'mercury-extension.json'), 'utf8'))
   manifest.contributes.hooks['turn.answer'] = [{ run: 'true' }]
   writeFileSync(join(folder, 'mercury-extension.json'), JSON.stringify(manifest, null, 2))
@@ -233,6 +236,7 @@ console.log('[7] blocked: enabling refused; policy blocks cannot be unblocked he
   check('unblock restores', blocklist.unblock('kitchen-sink@fixture-source').ok)
   await swap()
   check('back on after unblock', contributions().skills.includes('kitchen-sink:fixture-skill'))
+
   const policy = blocklist.matchBlock(['anything'])
   check('nothing is blocked by default', policy === null)
   const un = blocklist.unblock('never-blocked')

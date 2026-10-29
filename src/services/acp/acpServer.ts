@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
 import {
@@ -28,6 +27,7 @@ import { defineStore } from '../../substrate/fileStore.js'
 import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import { resolveWorkbenchSnapshot } from '../workbench/projection.js'
+
 import { workbenchFactsOf } from '../workbench/attentionBridge.js'
 import {
   createComposerDocument,
@@ -89,7 +89,6 @@ async function readSavedMode(cwd: string, sessionId: string): Promise<string | u
   }
 }
 
-
 const TASK_PLAN_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
 export function permissionAskWire(
@@ -142,7 +141,6 @@ function elicitationAnswerOf(result: unknown): ElicitationAnswer {
   if (r?.action === 'decline') return { action: 'decline' }
   return { action: 'cancel' }
 }
-
 
 type AcpToolKind =
   | 'read'
@@ -262,7 +260,6 @@ export function toolOutputContentOf(
   return [{ type: 'content', content: { type: 'text', text: boundedToolText(text) } }]
 }
 
-
 type AcpStopReason = 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled'
 
 export function stopReasonOf(
@@ -281,7 +278,6 @@ export function stopReasonOf(
     error: `the session turn failed${detail ? ` (${detail.status})` : ''}${why ? `: ${why}` : ''}`,
   }
 }
-
 
 export function acpMcpServersToConfig(
   servers: unknown,
@@ -326,7 +322,6 @@ export function acpMcpServersToConfig(
   if (names.length === 0) return null
   return { json: JSON.stringify({ mcpServers }), names, skipped }
 }
-
 
 interface EditorContextWire {
   v: 1
@@ -433,7 +428,6 @@ export function editorContextResource(
   }
 }
 
-
 export function replayUpdatesOf(
   messages: Iterable<Record<string, unknown>>,
 ): Array<Record<string, unknown>> {
@@ -473,6 +467,7 @@ export function replayUpdatesOf(
           updates.push({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: block.thinking } })
         } else if (block.type === 'tool_use' && typeof block.id === 'string') {
           const name = String(block.name ?? 'tool')
+
           updates.push({
             sessionUpdate: 'tool_call',
             toolCallId: block.id,
@@ -491,8 +486,11 @@ export function replayUpdatesOf(
 
 interface AcpPromptMaterial {
   doc: ComposerDocument
+
   bodies: Map<string, string>
+
   images: Map<string, { mimeType: string; data: string }>
+
   layout: Array<{ kind: 'text'; text: string } | { kind: 'item'; id: string }>
 }
 
@@ -511,15 +509,18 @@ export function acpPromptToComposerDocument(
     } else if (item.type === 'resource_link' && typeof item.uri === 'string') {
       const path = String(item.uri).replace(/^file:\/\//, '')
       doc = addShelfItem(doc, { kind: 'file', ref: String(item.uri), label: path })
+
       const fileChip = doc.items.find(i => i.kind === 'file' && i.ref === String(item.uri))!
       layout.push({ kind: 'item', id: fileChip.id })
     } else if (item.type === 'resource') {
       const resource = item.resource as { uri?: string; text?: string } | undefined
+
       if (resource?.text !== undefined) {
         const uri = resource.uri ?? ''
         doc = addShelfItem(doc, {
           kind: 'selection',
           ref: uri,
+
           label: /[^/\\]+$/.exec(uri)?.[0] ?? (uri || 'selection'),
           bytes: resource.text.length,
         })
@@ -620,9 +621,11 @@ interface AttentionWireItem {
 
 interface AttentionWire {
   v: 1
+
   version: number
   atMs: number
   needsYou: number
+
   buckets: Partial<Record<string, AttentionWireItem[]>>
   edges: Array<{
     kind: string
@@ -676,6 +679,7 @@ export function attentionWire(view: {
 export function attentionWireFromSnapshot(snap: {
   threads: unknown[]
   reviewQueue?: unknown[]
+
   refreshedAt: number
   lanes?: unknown[]
 }): AttentionWire {
@@ -698,17 +702,24 @@ interface AcpSessionState {
   modeId: string
   modePath: string
   modeChanges: Promise<void>
+
   turnResolve: ((outcome: 'success' | 'error' | 'cancelled', detail?: TurnEndDetail) => void) | null
   cancelled: boolean
   promptAbort: AbortController | null
+
   editorContext: EditorContextWire | null
+
   toolNames: Map<string, string>
+
   planChain: Promise<void>
+
   planEverSent: boolean
+
   costTotalUsd: number
 }
 
 interface AcpServerOptions {
+
   entry?: { node: string; script: string }
   input?: NodeJS.ReadableStream
   output?: NodeJS.WritableStream
@@ -732,6 +743,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       acpSessionId: string
       resumeSessionId?: string
       modeId?: string
+
       mcpServers?: unknown
     },
   ): AcpSessionState => {
@@ -756,6 +768,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         .then(async () => {
           const listId = state.child.mercurySessionId ?? acpSessionId
           const entries = planEntriesOf(await listTasks(listId))
+
           if (entries.length === 0 && !state.planEverSent) return
           if (entries.length === 0 && !existsSync(getTasksDir(listId))) return
           state.planEverSent = true
@@ -767,6 +780,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         .catch(() => {
         })
     }
+
     const mcp = acpMcpServersToConfig(args.mcpServers)
     if (mcp && mcp.skipped.length > 0) {
       process.stderr.write(`[acp] mcpServers not carried (unsupported shape): ${mcp.skipped.join(', ')}\n`)
@@ -788,6 +802,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       },
       {
         onInit: sessionId => {
+
           if (sessionId !== acpSessionId && !sessions.has(sessionId)) {
             sessions.set(sessionId, state)
           }
@@ -812,6 +827,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         },
         onToolUse: (toolUseId, name, input) => {
           state.toolNames.set(toolUseId, name)
+
           const diffs = toolDiffsOf(name, input)
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
@@ -855,11 +871,13 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
               ...(content !== undefined && { content }),
             },
           })
+
           const name = state.toolNames.get(toolUseId)
           state.toolNames.delete(toolUseId)
           if (name !== undefined && TASK_PLAN_TOOLS.has(name) && !isError) emitPlan()
         },
         onUsage: (lastRoundTrip, model, turnCostUsd) => {
+
           if (turnCostUsd !== undefined) state.costTotalUsd += turnCostUsd
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
@@ -896,6 +914,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             )
             return permissionAnswerOf(result, ask)
           } catch (e) {
+
             return { outcome: 'deny', message: `the editor did not answer the permission request: ${e}` }
           }
         },
@@ -1097,10 +1116,12 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         agentCapabilities: {
           loadSession: true,
           promptCapabilities: { image: true, audio: false, embeddedContext: true },
+
           mcpCapabilities: { http: true, sse: true },
           sessionCapabilities: { list: {} },
         },
         authMethods: [],
+
         agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
       }
     })
@@ -1122,6 +1143,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       const pending = pendingLoads.get(requested)
       if (pending) return pending
       if (sessions.has(requested)) {
+
         const modeId = sessions.get(requested)!.modeId
         return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
       }
@@ -1147,6 +1169,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           process.stderr.write(`[acp] saved permission mode '${modeId}' is not resumed here — resuming in the default mode\n`)
           modeId = 'default'
         }
+
         attachSession(ctx.client, {
           cwd: ctx.params.cwd,
           acpSessionId: requested,
@@ -1200,6 +1223,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       if (state.turnResolve) {
         throw new Error('a prompt turn is already in flight for this session')
       }
+
       const editorResource = editorContextResource(state.editorContext)
       const blocks = composerDocumentBlocks(
         acpPromptToComposerDocument([
@@ -1217,6 +1241,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         const resolveTurn: NonNullable<AcpSessionState['turnResolve']> = (outcome, detail) => resolve({ outcome, detail })
         state.turnResolve = resolveTurn
         state.child.writeUserPrompt(blocks, promptAbort.signal).catch((e: unknown) => {
+
           if (state.turnResolve !== resolveTurn) return
           state.turnResolve = null
           if (promptAbort.signal.aborted) {
@@ -1260,11 +1285,13 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       const state = sessions.get(ctx.params.sessionId)
       if (state) {
         state.promptAbort?.abort()
+
         if (state.turnResolve) {
           const resolveTurn = state.turnResolve
           state.turnResolve = null
           resolveTurn('cancelled')
         }
+
         await state.child.close()
         for (const [key, value] of sessions) {
           if (value === state) sessions.delete(key)
@@ -1274,6 +1301,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     })
     .onNotification('session/cancel', ctx => {
       const state = sessions.get(ctx.params.sessionId)
+
       if (state && state.turnResolve) {
         state.cancelled = true
         state.promptAbort?.abort()
@@ -1289,6 +1317,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     .onRequest('_mercury/workbench', (v: unknown) => (v ?? {}), async () => {
       const snap = await resolveWorkbenchSnapshot()
       if (!snap) {
+
         return {
           threads: [],
           lanes: [],
@@ -1297,6 +1326,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           unavailable: 'the workbench projection is disabled',
         }
       }
+
       return {
         generation: snap.generation,
         nextAction: snap.nextAction,
@@ -1314,10 +1344,12 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         lanes: snap.lanes,
         missions: snap.missions,
         artifactHeads: snap.artifactHeads,
+
         sources: snap.sources,
       }
     })
     .onRequest('_mercury/artifacts', (v: unknown) => (v ?? {}), () => {
+
       const src = listReviewArtifactHeadsSource({ root: getCwd() })
       return {
         heads: valueOr(src, []).map(h => ({
@@ -1328,6 +1360,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           status: h.status,
           openComments: h.openComments,
         })),
+
         source: healthOf(src),
       }
     })
@@ -1362,6 +1395,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       const inbox = deriveInbox(conversations, id => (cursors as Map<string, number>).get(id) ?? 0)
       const labels = new Map((snap?.members ?? []).map(m => [m.agentId as string, m.label]))
       const { foldScopeDecisions } = await import('../../utils/artifacts/reviewContracts.js')
+
       const folioSrc = listReviewArtifactHeadsSource({ root: getCwd() })
       const folioHeads = valueOr(folioSrc, []).slice(0, 40).map(h => {
         const state = readReviewArtifactState(h.id)
@@ -1438,6 +1472,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       else return { error: 'malformed owner key' }
       let snap = getRunSnapshot(owner)
       if (snap === null) {
+
         try {
           const load = await loadRunSidecar(owner)
           if (load.state === 'loaded') snap = load.snapshot
@@ -1462,6 +1497,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           ...(snap.blocker
             ? { blocker: { description: snap.blocker.description, ownedBy: snap.blocker.ownedBy } }
             : {}),
+
           ...(snap.modelState ? { model: snap.modelState } : {}),
         },
       }
@@ -1514,6 +1550,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const connection = app.connect(ndJsonStream(input, output))
   await connection.closed
   transportClosed = true
+
   const closes: Promise<void>[] = []
   for (const state of new Set(sessions.values())) {
     if (state.turnResolve) {

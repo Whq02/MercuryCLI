@@ -29,7 +29,6 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
 import type { Message } from '../types/message.js'
 
-
 type SystemPromptBlock = { text: string; cached: boolean }
 
 const BILLING_HEADER_PREFIX = 'x-anthropic-billing-header'
@@ -54,7 +53,6 @@ export function splitSystemPromptBlocks(systemPrompt: readonly string[]): System
   return blocks
 }
 
-
 export function appendSystemContext(
   systemPrompt: readonly string[],
   context: Record<string, string>,
@@ -75,7 +73,6 @@ export function prependUserContext(
   if (body === null) return messages
   return [createUserMessage({ content: body, isMeta: true }), ...messages]
 }
-
 
 const serializedSchemaKeys = new WeakMap<object, string>()
 
@@ -113,8 +110,10 @@ export async function toolToAPISchema(
     return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   const cache = getToolSchemaCache()
+
   const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
+
   const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
   const pool = options.tools.map(item => item.name).sort().join(',')
   const key = `${toolCacheKey(tool)}@${fingerprint}|${pool}`
@@ -163,6 +162,7 @@ export async function toolToAPISchema(
     if (fineGrainedToolStreamingEnabled()) {
       allowed.add('eager_input_streaming')
     }
+
     if (toolDeferralEnabled() && toolReferenceWireAccepted()) {
       allowed.add('defer_loading')
     }
@@ -197,7 +197,6 @@ function logStrippedFieldsOnce(fields: string[]): void {
   strippedFieldsLogged = true
   logForDebugging(`beta-strip: removed tool schema field(s) ${fields.join(', ')}`)
 }
-
 
 const MARKDOWN_EXTENSIONS = ['.md', '.mdx']
 
@@ -234,9 +233,11 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
       const rebuilt: Record<string, unknown> = { command, description: parsed.description }
       if (parsed.cwd !== undefined) rebuilt.cwd = parsed.cwd
       if (parsed.timeout !== undefined) rebuilt.timeout = parsed.timeout
+
       if ('run_in_background' in parsed && parsed.run_in_background !== undefined) {
         rebuilt.run_in_background = parsed.run_in_background
       }
+
       if (parsed.inherit_session_env !== undefined) {
         rebuilt.inherit_session_env = parsed.inherit_session_env
       }
@@ -256,6 +257,7 @@ export function normalizeToolInput<Input extends Record<string, unknown>>(
         append?: string
         section?: string
       }>(tool, input)
+
       const normalized = normalizeFileEditInput({
         file_path: parsed.file_path,
         edits: [

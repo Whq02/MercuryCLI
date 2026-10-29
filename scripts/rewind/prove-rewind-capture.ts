@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -94,12 +95,14 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
   mkdirSync(configDir, { recursive: true })
   const target = join(cwd, 'note.txt')
   writeFileSync(target, 'ZERO\n')
+
   const fixture: FixtureApi = await startFixtureApi([
     { kind: 'tool_use', name: 'Read', input: { file_path: target }, id: 'toolu_rewind_read_1' },
     { kind: 'tool_use', name: 'Write', input: { file_path: target, content: 'ONE\n' }, id: 'toolu_rewind_write_1' },
     { kind: 'text', text: 'CAP-DONE.' },
   ])
   const nodeBin = Bun.which('node')!
+
   const pinnedSessionId = randomUUID()
   const env: Record<string, string> = {
     HOME: home,
@@ -181,6 +184,7 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
   const transcript = sessionId ? findTranscript(configDir, sessionId) : null
   const records = transcript ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
   const snapshotRows = records.filter(l => l.includes('"file-history-snapshot"'))
+
   const userUuid = ((): string | null => {
     for (const l of records) {
       try {

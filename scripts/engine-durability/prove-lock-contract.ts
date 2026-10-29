@@ -56,6 +56,7 @@ t.section('§2 — a mutation that lost its lock does not publish as though it h
   let ownershipLossSurfaced = false
   try {
     await store.update(current => {
+
       rmSync(`${path}.lock`, { recursive: true, force: true })
       return { next: { n: current.n + 1 }, result: undefined }
     })
@@ -78,6 +79,7 @@ t.section('§2 — a mutation that lost its lock does not publish as though it h
 
 t.section('§3 — a symlinked spelling does not get its own lock')
 {
+
   t.check(
     'the declared lock options do not pin lockfilePath',
     !('lockfilePath' in (STORE_LOCK_OPTIONS as Record<string, unknown>)),

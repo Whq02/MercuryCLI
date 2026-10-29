@@ -1,6 +1,3 @@
-
-
-
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
@@ -53,11 +50,13 @@ export interface MnemeDraftEntry {
   seq: number
   time: string
   source: string
+
   supersedes?: string
 }
 
 export interface MnemeDraftBlock {
   topicSlug: string
+
   summary?: string
   heading?: string
   entries: MnemeDraftEntry[]
@@ -69,6 +68,7 @@ export interface MnemeDraft {
 
 export type MnemeRewriter = (input: {
   rows: readonly AssignedRow[]
+
   catalog: ReadonlyArray<{ id: string; slug: string; summary: string }>
 }) => MnemeDraft
 
@@ -154,6 +154,7 @@ export interface ConsolidateResult {
 }
 
 const LOCK_STALE_MS = 5 * 60 * 1000
+
 const LOCK_DEAD_GRACE_MS = 15 * 1000
 
 function pidAlive(pid: number): boolean {
@@ -287,11 +288,13 @@ function consumeBuffer(dir: string): Consumed {
   if (existsSync(current)) {
     const consuming = join(dir, `consuming-${process.pid}-${Date.now().toString(36)}.jsonl`)
     try {
+
       renameWithWin32RetrySync(current, consuming)
       files.push(consuming)
     } catch {
     }
   }
+
   const landedByHash = new Map<string, ManifestRow>()
   for (const m of staleManifests) {
     try {
@@ -361,6 +364,7 @@ function restoreConsumed(dir: string, files: string[]): void {
       appendFileSync(currentBufferPath(dir), readFileSync(f, 'utf8'), 'utf8')
       unlinkSync(f)
     } catch (e) {
+
       logForDebugging(`mneme restoreConsumed left ${f} in place: ${String(e)}`)
     }
   }
@@ -456,6 +460,7 @@ export function maybeConsolidate(
   const none = (reason: string): ConsolidateResult => ({ consolidated: false, reason, docsTouched: [], entries: 0 })
   if (!mnemeEnabled()) return none('memory off')
   const dir = opts.dir ?? mnemeLibraryDir()
+
   const peek = readBuffer(dir)
   let staleConsuming = false
   try {
@@ -495,6 +500,7 @@ export function maybeConsolidate(
     }
     if (rows.length === 0) {
       if (consumed.landedCount > 0) {
+
         for (const f of [...consumed.files, ...consumed.staleManifests]) {
           try {
             unlinkSync(f)
@@ -523,15 +529,18 @@ export function maybeConsolidate(
     if (rewriter === deterministicRewriter) mergeRestatements(draft, assigned, libraryDocs, pinsBefore)
     const verdict = validateDraft(draft, { rows: assigned, libraryLiveSeqs: libraryLive, userAskedSeqs })
     if (!verdict.ok) {
+
       restoreConsumed(dir, consumed.files)
       return { ...none(`draft refused: ${verdict.reason}`), refusedDraft: verdict.reason }
     }
 
     const nowIso = now.toISOString()
+
     writeLibraryMeta(
       { version: 1, seqCounter: meta.seqCounter + assigned.length, lastConsolidatedAt: nowIso },
       dir,
     )
+
     const manifestPath = join(dir, `batch-${meta.seqCounter + 1}-${meta.seqCounter + assigned.length}.json`)
     const manifestRows: ManifestRow[] = assigned.map(r => ({ seq: r.seq, h: rowHash(r), ...(r.pin === true ? { pin: true as const } : {}), ...(r.pin === true && r.asked === true ? { asked: true as const, ...(r.applicability ? { applicability: r.applicability } : {}) } : {}) }))
     durableAtomicPublishSync(manifestPath, JSON.stringify({ version: 1, rows: manifestRows }))
@@ -558,6 +567,7 @@ export function maybeConsolidate(
         byId.set(block.topicSlug, doc)
       }
       let heading = oneLine(block.heading ?? '').trim() || 'notes'
+
       if (heading.toLowerCase() === HISTORY_HEADING) heading = 'notes'
       for (const e of block.entries) {
         const entry: MnemeEntry = { text: oneLine(e.text).trim(), seq: e.seq, time: e.time, source: sigSafe(e.source).trim(), supersedes: e.supersedes }
@@ -567,6 +577,7 @@ export function maybeConsolidate(
           if (pinnedSeqs.has(t)) pinMoves.push([t, e.seq])
         }
         const handled = new Set(applied.superseded)
+
         for (const t of e.supersedes ? expandSeqRange(e.supersedes) : []) {
           const origin = bySeq.get(t)
           if (origin && supersededBatchSeqs.has(t)) {
@@ -574,6 +585,7 @@ export function maybeConsolidate(
             supersededBatchSeqs.delete(t)
             continue
           }
+
           if (bySeq.has(t) || handled.has(t)) continue
           for (const [otherSlug, other] of [...byId, ...archives]) {
             if (other === doc || !liveSeqs(other).has(t)) continue
@@ -646,12 +658,14 @@ export function maybeConsolidate(
     } catch (e) {
       logForDebugging(`memory tidy-up after the batch failed: ${String(e)}`)
     }
+
     for (const f of consumed.files) {
       try {
         unlinkSync(f)
       } catch {
       }
     }
+
     for (const m of [manifestPath, ...consumed.staleManifests]) {
       try {
         unlinkSync(m)

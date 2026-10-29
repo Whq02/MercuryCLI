@@ -1,4 +1,3 @@
-
 type FreshnessTone = 'fresh' | 'stale'
 
 export function formatFreshness(nowMs: number, atMs: number): string {

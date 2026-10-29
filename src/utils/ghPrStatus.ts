@@ -2,7 +2,6 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import { getDefaultBranch, getBranch, getIsGit } from './git.js'
 import { jsonParse } from './slowOperations.js'
 
-
 export type PrReviewState = 'approved' | 'pending' | 'changes_requested' | 'draft' | 'merged' | 'closed'
 
 type PrStatus = {

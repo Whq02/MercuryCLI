@@ -1,4 +1,3 @@
-
 import { execFile } from 'node:child_process'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -18,6 +17,7 @@ interface RuffProbe {
   ruffPath?: string
   version?: string
   reason?: string
+
   probing?: true
 }
 
@@ -26,10 +26,12 @@ const VERSION_TIMEOUT_MS = 8_000
 
 type VersionResult = { ok: true; version: string } | { ok: false; reason: string }
 interface VersionEntry {
+
   at: number
   result: VersionResult | null
   inflight: Promise<VersionResult> | null
 }
+
 const versionCache = new Map<string, VersionEntry>()
 
 function versionAtLeast(v: string, floor: [number, number, number]): boolean {
@@ -43,6 +45,7 @@ function versionAtLeast(v: string, floor: [number, number, number]): boolean {
 function runVersionProbe(bin: string): Promise<VersionResult> {
   return new Promise(resolve => {
     try {
+
       execFile(
         bin,
         ['--version'],

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -78,6 +79,7 @@ const toolResult = (uuid: string, parentUuid: string, callId: string): Record<st
 })
 
 push(userText(U(2), null, 'build the world generator'))
+
 push(assistant(U(3), U(2), 'gpt-fixture', 'openai_pm-1', { type: 'thinking', thinking: 'planning the reads', signature: '' }))
 push(assistant(U(4), U(3), 'gpt-fixture', 'openai_pm-1', { type: 'text', text: 'Reading the project first.', citations: null }))
 push(assistant(U(5), U(4), 'gpt-fixture', 'openai_pm-1', { type: 'tool_use', id: 'call_A', name: 'Read', input: { file_path: '/tmp/a' } }))
@@ -86,9 +88,11 @@ push(assistant(U(7), U(6), 'gpt-fixture', 'openai_pm-1', { type: 'tool_use', id:
 push(toolResult(U(8), U(7), 'call_A'))
 push(toolResult(U(9), U(8), 'call_B'))
 push(toolResult(U(10), U(9), 'call_C'))
+
 push(assistant(U(11), U(10), 'opus-fixture', 'msg_pm-2', { type: 'thinking', thinking: 'tests next', signature: '' }))
 push(assistant(U(12), U(11), 'opus-fixture', 'msg_pm-2', { type: 'text', text: 'Global classes registered cleanly. Running the logic tests.', citations: null }))
 push(assistant(U(13), U(12), 'opus-fixture', 'msg_pm-2', { type: 'tool_use', id: 'toolu_D', name: 'Bash', input: { command: 'run tests' } }))
+
 push(assistant(U(13), U(12), 'opus-fixture', 'msg_pm-2', { type: 'tool_use', id: 'toolu_D', name: 'Bash', input: { command: 'run tests' } }, 465))
 push(toolResult(U(14), U(13), 'toolu_D'))
 push(assistant(U(15), U(14), 'opus-fixture', 'msg_pm-3', { type: 'text', text: 'All sixteen pass.', citations: null }))

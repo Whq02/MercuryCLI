@@ -1,4 +1,3 @@
-
 type BunGlobal = {
   embeddedFiles?: unknown
 }

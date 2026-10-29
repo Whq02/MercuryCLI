@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -66,6 +67,7 @@ function makeHarness() {
         ctx: ctx as never,
         description: 'fake',
         result: { behavior: 'ask', message: '' } as never,
+
         awaitAutomatedChecksBeforeDialog: true,
         channelCallbacks: undefined,
       },
@@ -78,6 +80,7 @@ const tick = () => new Promise<void>(r => setTimeout(r, 0))
 
 console.log('— behavioral: settle-on-abort is total —')
 {
+
   const h = makeHarness()
   h.start()
   t('ask queued', h.queue.length === 1)
@@ -100,6 +103,7 @@ console.log('— behavioral: settle-on-abort is total —')
   t('no double settlement on repeat abort', h.resolutions.length === 1)
 }
 {
+
   const h = makeHarness()
   h.start()
   const entry = h.queue[0]!
@@ -126,6 +130,7 @@ console.log('— behavioral: settle-on-abort is total —')
   )
 }
 {
+
   const h = makeHarness()
   h.ac.abort()
   h.start()
@@ -134,6 +139,7 @@ console.log('— behavioral: settle-on-abort is total —')
   t('no queue residue for a dead turn', h.queue.length === 0)
 }
 {
+
   const h = makeHarness()
   h.start()
   h.queue[0]!.onReject()
@@ -149,6 +155,7 @@ const cancel = readFileSync('src/hooks/useCancelRequest.ts', 'utf8')
 const connector = readFileSync('src/services/engine-connector/daemonConnector.ts', 'utf8')
 t(
   "the screen's cancel reaches the focused connector's interrupt door (no ask store of its own)",
+
   repl.includes('interruptFocusedTurn()') &&
     cancel.includes('focused.interrupt()') &&
     !repl.includes('getInProcessAsks') &&
@@ -209,6 +216,7 @@ t(
 )
 
 console.log('— the transcript arms carry the focused chat\'s live state only —')
+
 t(
   'every arm carries the empty streaming tool-use set (the live feed owns tool progress)',
   (repl.match(/streamingToolUses=\{NO_STREAMING_TOOL_USES\}/g) ?? []).length === 3,

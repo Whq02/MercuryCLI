@@ -44,6 +44,7 @@ function logoutPreservingOnboarding(): void {
   clearOAuthTokenCache()
   clearApiKeyHelperCache()
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
+
   try {
     const { resetLimitsForCredentialSwitch } =
       require('../../services/anthropicLimits.js') as typeof import('../../services/anthropicLimits.js')
@@ -53,6 +54,7 @@ function logoutPreservingOnboarding(): void {
 }
 
 export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
+
   logoutPreservingOnboarding()
 
   const rawProfile = tokens.profile
@@ -64,6 +66,7 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
       accountUuid: profile.account.uuid,
       emailAddress: profile.account.email,
       organizationUuid: profile.organization.uuid,
+
       ...(profile.account.display_name
         ? { displayName: profile.account.display_name }
         : {}),
@@ -79,6 +82,7 @@ export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
     }
     storeOAuthAccountInfo(account)
   } else if (tokens.tokenAccount) {
+
     storeOAuthAccountInfo({
       accountUuid: tokens.tokenAccount.uuid,
       emailAddress: tokens.tokenAccount.emailAddress,
@@ -128,6 +132,7 @@ export async function authLogin(opts: {
   sso?: boolean
   console?: boolean
 }): Promise<void> {
+
   const forcedMethod = getInitialSettings().credentials?.signInRoute
   const loginWithClaudeAi = forcedMethod
     ? forcedMethod === 'claudeai'
@@ -154,6 +159,7 @@ export async function authLogin(opts: {
         process.exit(1)
       }
       maybeMarkProjectOnboardingComplete()
+
       try {
         writeSync(1, 'Signed in with the environment refresh token\n')
         const shadow = loginShadowWarning()
@@ -214,8 +220,10 @@ export async function authLogin(opts: {
 import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js'
 
 export async function authStatus(opts: { json?: boolean }): Promise<void> {
+
   const readable = opts.json !== true && process.stdout.isTTY === true
   const tokenSource = getAuthTokenSource()
+
   const apiKey = ((): ReturnType<typeof getAnthropicApiKeyWithSource> => {
     try {
       return getAnthropicApiKeyWithSource()
@@ -254,9 +262,11 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     for (const property of properties) {
       const value = property.value
       if (value === null || value === undefined || value === 'none') continue
+
       const rendered = propertyValueToText(value)
       if (!rendered || rendered === 'none') continue
       printed++
+
       try {
         writeSync(1, property.label ? `${property.label}: ${rendered}\n` : `${rendered}\n`)
       } catch {
@@ -268,6 +278,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
       } catch {
       }
     }
+
     const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
     for (const row of others) {
       try {
@@ -304,13 +315,16 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
       payload.orgName = account?.organizationName ?? null
       payload.subscriptionType = subscriptionType ?? null
     }
+
     payload.routedProvider = routed.family
     payload.providers = routed.rows
+
     try {
       writeSync(1, `${jsonStringify(payload, undefined, 2)}\n`)
     } catch {
     }
   }
+
   process.exit(routed.present ? 0 : 1)
 }
 
@@ -360,12 +374,14 @@ function routedProviderRows(anthropicPresent: boolean): {
     const routedRow = rows.find(row => row.id === family)
     return { family, present: (routedRow?.present ?? false) && !routedRow?.refused, rows }
   } catch {
+
     return { family: 'anthropic', present: anthropicPresent, rows: [] }
   }
 }
 
 export async function authLogout(): Promise<void> {
   try {
+
     const { performLogout } = await import('../../commands/logout/logout.js')
     await performLogout()
   } catch (error) {

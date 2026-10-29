@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts
-// gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
-// gate-watch: src/hooks/toolPermission/handlers/interactiveHandler.ts src/hooks/toolPermission/PermissionContext.ts src/cli/headless/runnerAsks.ts
-// gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts
-// gate-watch: src/tools/MemoryTools/prompt.ts docs/MNEME.md
+
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'

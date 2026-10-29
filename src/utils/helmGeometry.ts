@@ -1,4 +1,3 @@
-
 export const HELM_HOME_MIN_COLS = 100
 
 export const HELM_RAIL_W = 24
@@ -12,7 +11,9 @@ export const HELM_RAIL_WIDE = 30
 type RailPlan = {
   lanes: boolean
   vitals: boolean
+
   railW: number
+
   lanesW: number
   vitalsW: number
   centerCols: number
@@ -38,6 +39,7 @@ export function railPlan(columns: number): RailPlan {
 export function railPlanAt(columns: number, bothEngaged: boolean): RailPlan {
   const both = columns - 2 * HELM_RAIL_W - 2
   if (bothEngaged && both >= HELM_CENTER_FLOOR) {
+
     const centerPin = HELM_BOTH_RAILS_MIN - 2 - 2 * HELM_RAIL_W
     const railTotal = Math.max(
       2 * HELM_RAIL_W,
@@ -54,6 +56,7 @@ export function railPlanAt(columns: number, bothEngaged: boolean): RailPlan {
       centerCols: columns - 2 - railTotal,
     }
   }
+
   const railW = Math.max(
     HELM_RAIL_SLIM,
     Math.min(HELM_RAIL_W, columns - 2 - HELM_CENTER_FLOOR),

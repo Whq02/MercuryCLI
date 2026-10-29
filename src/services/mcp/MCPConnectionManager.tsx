@@ -4,7 +4,6 @@ import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed, subscribeDynamicMcpCon
 import type { ScopedMcpServerConfig } from './types.js'
 import { useManageMCPConnections } from './useManageMCPConnections.js'
 
-
 type Connections = ReturnType<typeof useManageMCPConnections>
 
 const MCPConnectionContext = React.createContext<Connections | null>(null)
@@ -18,6 +17,7 @@ export function MCPConnectionManager({
   dynamicMcpConfig: Record<string, ScopedMcpServerConfig> | undefined
   isStrictMcpConfig?: boolean
 }): React.ReactNode {
+
   const connections = useManageMCPConnections(dynamicMcpConfig, isStrictMcpConfig)
   const value: Connections = {
     reconnectMcpServer: connections.reconnectMcpServer,

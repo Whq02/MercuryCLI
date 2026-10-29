@@ -93,6 +93,7 @@ export async function nativeSearch(
         if (block.type === 'server_tool_use') {
           currentToolUseId = block.id
           partialJson = ''
+
           const query = (block.input as { query?: unknown } | undefined)?.query
           if (typeof query === 'string' && query !== '') noteQuery(block.id, query)
         } else if (block.type === 'web_search_tool_result') {
@@ -112,6 +113,7 @@ export async function nativeSearch(
     }
     if (message.type === 'assistant') {
       if (message.isApiErrorMessage === true) {
+
         const errorText = (message.message.content as ContentBlock[])
           .map(block => (block.type === 'text' ? block.text : ''))
           .join('')
@@ -137,6 +139,7 @@ export async function nativeSearch(
         logError(new Error(note))
         sequence.push(note)
       } else {
+
         const hits = filterHitsByDomain(
           block.content.map(hit => ({ title: hit.title, url: hit.url, snippet: '', source_type: 'provider' as const })),
           request.allowedDomains,
@@ -154,6 +157,7 @@ export async function nativeSearch(
       accumulated += block.text
     }
   }
+
   if (accumulated.length > 0) sequence.push(accumulated.trim())
 
   return {

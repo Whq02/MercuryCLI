@@ -97,9 +97,11 @@ try {
   }
 
   console.log('\n── restart honesty: reconcile, never resurrect ──')
+
   const slug = realpathSync(outsideCwd).replace(/[^a-zA-Z0-9]/g, '-').slice(-80)
   const servicesDir = join(configDir, 'services', slug)
   mkdirSync(servicesDir, { recursive: true })
+
   const dead = execFileSync(process.execPath, ['-e', 'console.log(process.pid)'], {
     encoding: 'utf8',
   }).trim()

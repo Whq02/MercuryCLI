@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
@@ -93,12 +94,15 @@ console.log('── 2. collapse walk ──')
     for (const [label, input] of PLACEHOLDERS) {
       never(`[${mode}] getToolSearchOrReadInfo('Bash', ${label})`, () => getToolSearchOrReadInfo('Bash', input, tools))
     }
+
     const streaming = use('call_stream', 'Bash', {}, { isVirtual: true })
     const walked = never(`[${mode}] the walk survives the streaming placeholder row`, () => collapseReadSearchGroups([streaming as never], tools))
     t(`[${mode}] the placeholder row is still in the output`, Array.isArray(walked) && (walked as unknown[]).length === 1)
+
     const noop = [use('call_noop', 'Bash', {}), result('call_noop', 'The required parameter `command` is missing')]
     never(`[${mode}] the walk survives a settled {} no-op call and its result`, () => collapseReadSearchGroups(noop as never, tools))
     never(`[${mode}] the walk survives a null input`, () => collapseReadSearchGroups([use('call_null', 'Bash', null)] as never, tools))
+
     const run = [
       use('g1', 'Grep', { pattern: 'foo', path: 'src' }), result('g1', 'src/a.ts:1:foo'),
       use('r1', 'Read', { file_path: '/tmp/a.ts' }), result('r1', 'contents'),
@@ -206,6 +210,7 @@ console.log('── 6. per-row boundary ──')
   const { RowErrorBoundary } = await import('../../src/components/RowErrorBoundary.js')
   class FakeStdout extends EventEmitter {
     isTTY = true
+
     columns = 260
     rows = 12
     bytes = ''
@@ -237,7 +242,9 @@ console.log('── 6. per-row boundary ──')
       h(Text, null, 'row-after-the-broken-one')),
   )
   await new Promise(resolve => setTimeout(resolve, 200))
+
   const escapes = /\u001b(?:\[[0-9;?<>=]*[a-zA-Z@`]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)|[()][0-9A-B])/g
+
   const painted = stdout.bytes.replace(escapes, '').replace(/\s+/g, '')
   t('the row before the broken one paints', painted.includes('row-before-the-broken-one'))
   t('the row after the broken one paints', painted.includes('row-after-the-broken-one'))

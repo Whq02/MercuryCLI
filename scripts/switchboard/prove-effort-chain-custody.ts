@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,6 +41,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 section('§1 — the daemon admit door: normalize, else refuse typed naming the ladder')
+
 {
   const sup = await import('../../src/daemon/concourseWorkers.ts')
   const admit = sup.makeConcourseAdmitHandler({ roster: () => undefined, dir: join(scratch, 'daemon') })
@@ -50,6 +52,7 @@ section('§1 — the daemon admit door: normalize, else refuse typed naming the 
     junk.ok === false && /low \| medium \| high \| xhigh \| max/.test(junk.error ?? ''),
     junk.ok === false ? junk.error : '',
   )
+
   const spoken = await admit({ workspaceDir: scratch, effort: 'max effort' })
   check(
     "'max effort' passes the effort gate (whatever refuses next, it is not the ladder)",
@@ -59,6 +62,7 @@ section('§1 — the daemon admit door: normalize, else refuse typed naming the 
 }
 
 section('§2 — the set-effort verb door: same normalizer, same typed refusal')
+
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const roster = { has: () => ({ present: false, alive: false }), door: () => undefined } as never
@@ -73,10 +77,12 @@ section('§2 — the set-effort verb door: same normalizer, same typed refusal')
 }
 
 section('§3 — the launch receipt names the effort the session started at')
+
 const tools = await import('../../src/services/concourse/coordinatorTools.ts')
 const defs = tools.coordinatorToolSet()
 const launch = defs.find(d => d.name === 'launch_session')!
 {
+
   const ctx = tools.createCoordinatorToolContext({
     workspaceRoot: scratch,
     by: 'coordinator-seat',
@@ -100,6 +106,7 @@ const launch = defs.find(d => d.name === 'launch_session')!
   check('…with no default-disclaimer (a tier WAS asked)', !/no tier was asked/.test(String(receipt?.detail)), String(receipt?.detail))
 }
 {
+
   const ctx = tools.createCoordinatorToolContext({
     workspaceRoot: scratch,
     by: 'coordinator-seat',
@@ -119,6 +126,7 @@ const launch = defs.find(d => d.name === 'launch_session')!
   check('an unasked launch names the default it landed on', /@ high effort \(the default — no tier was asked\)/.test(String(receipt?.detail)), String(receipt?.detail))
 }
 {
+
   const ctx = tools.createCoordinatorToolContext({
     workspaceRoot: scratch,
     by: 'coordinator-seat',
@@ -141,6 +149,7 @@ const launch = defs.find(d => d.name === 'launch_session')!
 }
 
 section('§4 — junk refuses BEFORE any birth: the rpc never fires')
+
 {
   let rpcCalls = 0
   const ctx = tools.createCoordinatorToolContext({
@@ -160,6 +169,7 @@ section('§4 — junk refuses BEFORE any birth: the rpc never fires')
 }
 
 section('§5 — the tool contract: the ladder named, the relay duty carried')
+
 {
   const schemaText = JSON.stringify(launch.inputJSONSchema)
   check('the effort field names the whole ladder', /low \| medium \| high \| xhigh \| max/.test(schemaText), schemaText.slice(0, 200))

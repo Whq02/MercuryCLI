@@ -58,7 +58,6 @@ export type LoadedFrom =
 const SKILL_FILE_NAME = 'SKILL.md'
 const SKILL_FALLBACK_LABEL = 'skill'
 
-
 export type SkillLoadRefusal = { path: string; error: string; source: string }
 
 const skillLoadRefusals = new Map<string, SkillLoadRefusal>()
@@ -95,11 +94,11 @@ export function skillFrontmatterProblem(frontmatter: Record<string, unknown>): s
   return null
 }
 
-
 export function getProjectSkillsWatchPaths(
   dir: 'skills',
   cwd: string = process.cwd(),
 ): string[] {
+
   return projectConfigCandidatePaths(cwd, dir)
 }
 
@@ -108,6 +107,7 @@ export function getSkillsPath(source: SettingSource | 'extension', dir: string):
     case 'userSettings':
       return join(getMercuryHome(), dir)
     case 'policySettings':
+
       return join(getManagedFilePath(), '.mercury', dir)
     case 'projectSettings':
     case 'localSettings':
@@ -118,7 +118,6 @@ export function getSkillsPath(source: SettingSource | 'extension', dir: string):
       return ''
   }
 }
-
 
 export type ParsedSkillFrontmatterFields = {
   description: string
@@ -219,7 +218,6 @@ function parseSkillPathFilters(frontmatter: Record<string, unknown>): string[] |
   return patterns
 }
 
-
 const SKILL_DIR_TOKEN = /\$\{MERCURY_SKILL_DIR\}/g
 const SESSION_ID_TOKEN = /\$\{MERCURY_SESSION_ID\}/g
 
@@ -243,16 +241,20 @@ export function createSkillCommand(options: {
     context,
   ) => {
     let content = markdownContent
+
     if (baseDir !== undefined) {
       content = `${baseDirLine(baseDir)}${content}`
     }
+
     content = substituteArguments(content, args, true, fields.argNames)
+
     if (baseDir !== undefined) {
       const dirForShell = process.platform === 'win32' ? baseDir.replaceAll('\\', '/') : baseDir
       content = content.replace(SKILL_DIR_TOKEN, dirForShell)
     }
     const sessionId = getSessionId()
     content = content.replace(SESSION_ID_TOKEN, String(sessionId))
+
     if (loadedFrom !== 'mcp') {
       const wrappedContext = wrapContextForSkillSelfAuth(context, fields.allowedTools)
       content = await executeShellCommandsInPrompt(
@@ -262,6 +264,7 @@ export function createSkillCommand(options: {
         fields.shell,
       )
     }
+
     return [{ type: 'text', text: content }]
   }
 
@@ -323,7 +326,6 @@ export function estimateSkillFrontmatterTokens(skill: Command): number {
     [skill.name, skill.description, skill.whenToUse ?? ''].join(' '),
   )
 }
-
 
 type LoadedSkill = { command: Command; filePath: string; source: string }
 
@@ -440,7 +442,6 @@ async function loadSkillsFromDir(
   return results.filter((r): r is LoadedSkill => r !== null)
 }
 
-
 const pendingConditional = new Map<string, Command>()
 const conditionalBases = new Map<string, string>()
 const activatedSkillNames = new Set<string>()
@@ -548,11 +549,12 @@ export function clearSkillCaches(): void {
   activatedSkillNames.clear()
   skillLoadRefusals.clear()
   forgetHiddenCharacters('skill')
+
   pruneDynamicSkillsSync()
 }
 
-
 type DynamicSkillEntry = { name: string; key: string; filePath: string; mtimeMs: number; command: Command }
+
 type DynamicDirRecord =
   | { state: 'missing'; examinedAt: number }
   | { state: 'loaded'; examinedAt: number; entries: DynamicSkillEntry[]; seen: Array<{ name: string; mtimeMs: number }> }
@@ -676,6 +678,7 @@ function applyDynamicDir(
   for (const entry of entries) {
     if (seatDynamicEntry(dir, entry, active.has(entry.name))) changed = true
   }
+
   examinedCandidates.set(dir, seen === null ? { state: 'missing', examinedAt: now } : { state: 'loaded', examinedAt: now, entries, seen })
   return changed
 }
@@ -738,8 +741,10 @@ export async function discoverSkillDirsForPaths(
     while (dir.startsWith(cwdPrefix) && dir !== cwd) {
       for (const home of PROJECT_CONFIG_DIR_NAMES) {
         const candidate = join(dir, home, 'skills')
+
         if (discovered.includes(candidate)) continue
         const record = examinedCandidates.get(candidate)
+
         const inside = touched.startsWith(candidate + sep)
         if (record !== undefined && !inside && now - record.examinedAt < dynamicProbeTtlMs) continue
         if (record?.state === 'loaded') {
@@ -760,11 +765,13 @@ export async function discoverSkillDirsForPaths(
           examinedCandidates.set(candidate, { state: 'missing', examinedAt: now })
           continue
         }
+
         if (await isPathGitignored(dir, cwd)) {
           logForDebugging(`skills: ${candidate} skipped (containing directory is git-ignored)`)
           examinedCandidates.set(candidate, { state: 'missing', examinedAt: now })
           continue
         }
+
         examinedCandidates.set(candidate, { state: 'loaded', examinedAt: now, entries: [], seen: [] })
         discovered.push(candidate)
       }
@@ -826,7 +833,6 @@ export function activateConditionalSkillsForPaths(
   if (activated.length > 0) skillsLoadedSignal.emit()
   return activated
 }
-
 
 export function clearDynamicSkills(): void {
   dynamicSkills.clear()

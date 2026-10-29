@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
@@ -95,6 +96,7 @@ section('§4 retire: nothing stays live; the act is inspectable')
   check('tombstone NOT live', !doc.sections.flatMap(s => s.entries).some(e => e.seq === (r.ok ? r.seq : -1)))
   const again = retireFact({ targetSeq: target, reason: 'again', source: 'operator', dir })
   check('re-retiring → already-superseded', again.ok === false && again.code === 'already-superseded')
+
   const raw = readFileSync(join(dir, 'topic-deploy.md'), 'utf8')
   check('history section serialized with supersedes link', /## history/.test(raw) && raw.includes(`supersedes=${target}`))
 }

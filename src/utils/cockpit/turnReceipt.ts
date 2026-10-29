@@ -1,4 +1,3 @@
-
 import type { CompactMetadata, Message, RenderableMessage, TurnReceiptMessage } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { deriveUUID } from '../messages/identity.js'
@@ -19,10 +18,15 @@ export interface TurnReceiptCounts {
   fetches: number
   commands: number
   browser: number
+
   agents: number
+
   delegatedTokens: number
+
   delegatedCostUSD: number
+
   delegatedUnpriced: number
+
   tools: Record<string, number>
 }
 
@@ -78,6 +82,7 @@ const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch'])
 const FETCH_TOOLS = new Set(['WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const BROWSER_TOOLS = new Set(['Browser'])
+
 const DELEGATE_TOOLS = new Set(['Crewmate'])
 
 export function formatDelegatedTokens(tokens: number): string {
@@ -240,6 +245,7 @@ function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string
   if (!r) return false
   if (countChangeViewResult(r, c, tempRoot)) return c.fileEdits + c.scratchpadEdits > before
   if (typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return false
+
   if (r.noChange !== undefined || r.type === 'no-change') return false
   countFile(r.filePath, c, tempRoot)
   if (r.type === 'create' && r.structuredPatch.length === 0 && typeof r.content === 'string') {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,6 +9,7 @@ import { spawnSync } from 'node:child_process'
 const scratchHome = mkdtempSync(join(tmpdir(), 'stale-ground-home-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 delete process.env.MERCURY_HOME
+
 delete process.env.NODE_ENV
 
 let failures = 0
@@ -72,6 +74,7 @@ const instructions = await import('../../src/services/instructions/engine.js')
 const examples = await import('../../src/utils/exampleCommands.js')
 const extensionsBoot = await import('../../src/extensions/boot.js')
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
+
 globalConfig.enableConfigs()
 
 await detector.initialize()
@@ -181,6 +184,7 @@ await detector.initialize()
     'S10 the hand-rolled trio is GONE from the worktree block (no second owner)',
     !transition.includes('setOriginalCwd(') && !transition.includes('setProjectRoot('),
   )
+
   await ground.applyHarnessGround(worktreeWReal)
   check('S10 the OS cwd lands on the worktree (chdir is part of the move)', realpathSync(process.cwd()).normalize('NFC') === worktreeWReal)
   await ground.applyHarnessGround(repoBReal)

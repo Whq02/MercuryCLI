@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -46,18 +47,27 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const BOARD = 'SESSION CONCOURSE'
 const EMPTY_BOARD = 'no sessions yet'
+
 const TAG = keyHintLabel('⇧← back')
+
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
+
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
+
 const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
+
 const hintRows = (text: string): string => text.split('\n').filter(l => /⇧|shift\+/.test(l)).join(' | ')
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
+
 const WARM_TICKS = 25
 
 type Send = Record<string, unknown>
@@ -101,6 +111,7 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
       ...process.env,
       MERCURY_CONFIG_DIR: opts.home,
       MERCURY_LIVE_GLYPHS: '0',
+
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_SLEEP: '0',
@@ -259,7 +270,9 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18', mark: 'hint' },
       g('removed from the board — the chat held no message', '', { awaitSettleTicks: 2, mark: 'receipt' }),
+
       g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
+
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
       { afterPrevTicks: 3, data: SHIFT_LEFT },

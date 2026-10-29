@@ -28,7 +28,6 @@ import { widthMayDisagree as measuredWidthMayDisagree } from './width-probe-tabl
 import { readTerminalWidthMeasurements } from './session/widthProbe.js'
 import { terminalBidiFrame } from './terminalBidiFrame.js'
 
-
 type Options = {
   isTTY: boolean
   stylePool: StylePool
@@ -95,6 +94,7 @@ class CursorModel {
 
   private rowMove(out: Diff, targetX: number, targetY: number, dy: number): void {
     if (this.alt) {
+
       out.push({ type: 'styleStr', str: cursorPosition(targetY + 1, targetX + 1) })
     } else {
       out.push(CARRIAGE_RETURN)
@@ -123,6 +123,7 @@ class CursorModel {
 
   wrote(cellWidth: number, agreed: boolean): void {
     if (this.x >= this.viewportWidth) {
+
       this.x = cellWidth
       this.y++
       this.exact = false
@@ -180,6 +181,7 @@ function emitCell(
   const cellWidth = cell.width === CellWidth.Wide ? 2 : 1
   const px = cursor.x
   if (cellWidth === 2 && px < viewportWidth && px + 2 > viewportWidth) {
+
     return false
   }
 
@@ -189,6 +191,7 @@ function emitCell(
   const compensate =
     cellWidth === 2 && px + 2 < viewportWidth && widthMayDisagree(cell.char)
   if (compensate) {
+
     out.push({ type: 'cursorTo', col: px + 2 })
     out.push({ type: 'stdout', content: ' ' })
     out.push({ type: 'cursorTo', col: px + 1 })
@@ -221,6 +224,7 @@ function paintRows(
     let gapStart = -1
     let index = y * width
     for (let x = 0; x < columnEnd; x++, index++) {
+
       const cell = visibleCellAtIndex(cells, charPool, hyperlinkPool, index, lastStyleOnLine)
       if (!cell) {
         if (gapStart < 0 && cursor.sitsAt(x, y)) gapStart = x
@@ -239,6 +243,7 @@ function paintRows(
         lastStyleOnLine = cell.styleId
       }
     }
+
     attrs.resetAll(out)
     if (!alt) {
       out.push(CARRIAGE_RETURN)
@@ -247,7 +252,6 @@ function paintRows(
     }
   }
 }
-
 
 function bleedRows(char: string): 0 | 1 | 2 | 3 {
   if (char === '▀') return 1
@@ -294,10 +298,12 @@ function emitDirtyCells(
     ) {
       return
     }
+
     if (added && isEmptyCellAt(next.screen, x, y) && !removed) return
 
     if (y < minRow) {
       if (!alt) {
+
         droppedFrozen++
         return
       }
@@ -316,6 +322,7 @@ function emitDirtyCells(
     if (added) {
       emitCell(out, cursor, attrs, added, next.viewport.width)
     } else if (removed) {
+
       attrs.resetAll(out)
       appendText(out, ' ')
       cursor.wrote(1, true)
@@ -325,6 +332,7 @@ function emitDirtyCells(
     for (const packed of bleedLedger) {
       const y = Math.floor(packed / stride)
       const x = packed - y * stride
+
       if (!cellsEqualAt(prev.screen, next.screen, x, y)) continue
       const cell = cellAt(next.screen, x, y)
       if (cell === undefined) continue
@@ -346,6 +354,7 @@ const describeDamage = (damage: Rectangle | undefined): string =>
   damage === undefined ? 'none' : `${damage.width}x${damage.height} at (${damage.x},${damage.y})`
 
 export class FrameWriter {
+
   private flushedRows = 0
 
   constructor(private readonly options: Options) {}
@@ -419,6 +428,7 @@ export class FrameWriter {
       paintRows(out, cursor, attrs, next, prevHeight, nextHeight, true)
     }
     attrs.resetAll(out)
+
     return out
   }
 
@@ -427,6 +437,7 @@ export class FrameWriter {
     reason: FlickerReason,
   ): Diff {
     const out: Diff = [{ type: 'clearTerminal', reason }]
+
     const cursor = new CursorModel({ x: 0, y: 0 }, next.viewport.width, true)
     const attrs = new AttributeCursor(this.options.stylePool)
     paintRows(out, cursor, attrs, next, 0, next.screen.height, true)
@@ -460,11 +471,13 @@ export class FrameWriter {
       cursor.moveTo(out, 0, clipH)
       out.push({ type: 'stdout', content: eraseToEndOfScreen() })
     }
+
     if (frame.cursor.visible) out.push({ type: 'cursorShow' })
     return out
   }
 
   private renderInline(prev: Frame, next: Frame): Diff {
+
     const widthBroke = prev.viewport.width !== 0 && next.viewport.width !== prev.viewport.width
     const viewportBroke = next.viewport.height < prev.viewport.height || widthBroke
     const shrankBelowFlush =
@@ -473,6 +486,7 @@ export class FrameWriter {
       logForDebugging(
         `[inline epoch] ${viewportBroke ? 'viewport/width break' : 'shrink below flush'}: prevH=${prev.screen.height} nextH=${next.screen.height} flushed=${this.flushedRows}${widthBroke ? ' (width change: zone ceded, no erase)' : ''}`,
       )
+
       return this.inlineEpochRepaint(prev, next, !widthBroke)
     }
 
@@ -514,6 +528,7 @@ export class FrameWriter {
     if (growing) {
       attrs.resetAll(out)
       paintRows(out, cursor, attrs, next, prev.screen.height, next.screen.height, false)
+
       const over = next.screen.height - this.flushedRows - next.viewport.height
       if (over > 0) this.flushedRows += over
     }

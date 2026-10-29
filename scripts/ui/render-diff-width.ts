@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+
 const MARKER = '#'
+
 if (process.env.DIFF_WIDTH_CHILD) {
   ;(globalThis as Record<string, unknown>).MACRO = {
     VERSION: '1.0.0',
     ISSUES_EXPLAINER: '', PACKAGE_URL: '', README_URL: '', IS_DEV: false, MERCURY_DEMO: false,
   }
+
   Bun.plugin({
     name: 'stub-color-diff-napi-echo',
     setup(build) {
@@ -14,6 +17,7 @@ if (process.env.DIFF_WIDTH_CHILD) {
         exports: {
           ColorDiff: class {
             render(_theme: string, width: number, _dim: boolean): string[] {
+
               const out = process.env.DIFF_WIDTH_OUT
               if (out) { try { require('node:fs').appendFileSync(out, width + '\n') } catch {} }
               const line = MARKER.repeat(Math.max(1, width))
@@ -78,6 +82,7 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 if (!existsSync(VSHOT)) {
   console.error('vshot.py missing — the render-verify harness (scripts/ui/vshot.py) is required')
@@ -118,11 +123,13 @@ const capture = (which: string, cols: number, rows: number): { grid: string; wid
     sends: [], total: 15, cols, rows,
     out: `/tmp/diffwidth-${tag}.json`,
   }))
+
   const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(30000),
     env: {
       ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME,
       DIFF_WIDTH_CHILD: '1', DIFF_WIDTH_WHICH: which,
       DIFF_WIDTH_OUT: widthOut, NODE_ENV: 'test',    },
@@ -137,14 +144,17 @@ for (const which of ['write', 'edit']) {
       try {
         const { grid, widthOut } = capture(which, cols, rows)
         const want = expectWidth(which, cols)
+
         const recorded = (() => {
           try { return readFileSync(widthOut, 'utf-8').trim().split('\n').map(Number) } catch { return [] }
         })()
         const allMatch = recorded.length > 0 && recorded.every(w => w === want)
         check(`${tag}: ColorDiff.render width == ${want} (real chain, all hunks)`, allMatch,
           recorded.length ? `recorded ${[...new Set(recorded)].join(',')}` : 'none recorded')
+
         const runs = markerRuns(grid)
         check(`${tag}: diff body rendered in the dialog`, runs.length > 0, `${runs.length} marker rows`)
+
         const lines = grid.split('\n')
         const railRows = lines.filter(l => l[0] === '│').length
         check(`${tag}: dialog rail │ at column 0`, railRows > 0, `${railRows} rows`)

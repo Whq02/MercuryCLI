@@ -1,4 +1,3 @@
-
 import { readFileSync, writeFileSync } from 'node:fs'
 import { metadataRefusal, metadataSafeAddresses } from '../WebFetchTool/privateHost.js'
 import type { ElementHandle, Frame, Page, SerializedAXNode } from 'puppeteer-core'
@@ -219,7 +218,9 @@ export type Output = {
   op: Input['op']
   result: string
   outcome: ToolEffectOutcome
+
   imagePath?: string
+
   inlinePath?: string
   inlineMediaType?: string
 }
@@ -369,6 +370,7 @@ function statusReport(owner: OwnerKey): string {
   const grants = approvedOriginList(owner)
   if (grants.length > 0) lines.push(`approved origins (this session): ${grants.join(' · ')}`)
   lines.push(APPROVAL_RULE_LINE)
+
   const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
   if (others.length > 0) {
     lines.push(
@@ -839,6 +841,7 @@ async function probeEditableTarget(s: LiveSession, requested: ElementHandle<Elem
     const tag = a.tagName.toLowerCase()
     const autocomplete = (a.getAttribute('autocomplete') ?? '').toLowerCase()
     const held = document.hasFocus() && (el === null || el === active || el.contains(active) || (el.shadowRoot?.contains(active) ?? false))
+
     const credAc = ['current-password', 'new-password', 'one-time-code', 'cc-number', 'cc-csc', 'cc-exp'].find(
       t => autocomplete.includes(t),
     )
@@ -869,6 +872,7 @@ function actDetail(input: Input): string {
     case 'click':
       return ` ${input.selector ?? `(${input.x}, ${input.y})`}`
     case 'type':
+
       if (input.secretRef !== undefined) return ` secret ${input.secretRef} into ${input.selector ?? '(focused element)'}`
       return ` ${(input.text ?? '').length} chars into ${input.selector ?? '(focused element)'}`
     case 'scroll':
@@ -1000,6 +1004,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     const refused = input.url === undefined ? null : metadataRefusal(input.url)
     if (refused !== null) return { behavior: 'deny' as const, message: refused, decisionReason: { type: 'other' as const, reason: refused } }
     if (input.op === 'provision') {
+
       try {
         const { installPlanLines, planBrowserInstall } = await import('../../services/browser/browserInstall.js')
         const plan = await planBrowserInstall(input.buildId)
@@ -1019,7 +1024,9 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       }
     }
     if (!ACT_OPS.has(input.op)) return { behavior: 'allow' as const, updatedInput: input }
+
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
+
     const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
       ?.toolPermissionContext as ToolPermissionContext | undefined
     const ruleFor = (content: string): PermissionRule | null => {
@@ -1062,6 +1069,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
         decisionReason: { type: 'other' as const, reason: `origin:${origin} carries a deny rule` },
       }
     }
+
     if (input.op === 'type' && typeof input.secretRef === 'string') {
       if (!origin.startsWith('http')) {
         return {
@@ -1099,6 +1107,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       return { behavior: 'allow' as const, updatedInput: input }
     }
     if (!origin.startsWith('http')) {
+
       if (origin === 'about:' || origin === 'chrome-error:') {
         noteCheckedActOrigin(owner, input.op, origin)
         return { behavior: 'allow' as const, updatedInput: input }
@@ -1119,6 +1128,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     return {
       behavior: 'ask' as const,
       message: `Browser ${input.op}${actDetail(input)} on ${origin} — reached by navigation, not yet approved this session`,
+
       decisionReason: {
         type: 'safetyCheck' as const,
         reason: `${origin} was reached by navigation, not requested by the operator`,
@@ -1209,6 +1219,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
   },
   async call(input: Input, context: ToolUseContext) {
     const startedAt = Date.now()
+
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const releaseActivity = beginBrowserActivity(owner)
     const sessionAtEntry = activeSession(owner)
@@ -1218,6 +1229,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     let imagePath: string | undefined
     let inlinePath: string | undefined
     let inlineMediaType: string | undefined
+
     let secretInPlay: { value: string; ref: string } | null = null
     let life = null as OpLife | null
     const signalFor = (s: LiveSession): AbortSignal => (life ??= openOpLife(s, context.abortController?.signal)).signal
@@ -1261,11 +1273,13 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
+
           approveWebOrigin(owner, input.url!)
           const landed = originOf(s.page.url())
           const status = response === null ? null : response.status()
           const statusBit =
             status === null ? '' : status >= 400 ? ` — HTTP ${status} ${response!.statusText()}` : ` [${status}]`
+
           const textLen = await s.page
             .$eval('body', deepTextOf)
             .then(text => text.trim().length)
@@ -1352,6 +1366,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
+
           if (typeof input.secretRef === 'string') {
             const secretOrigin = (await targetOrigin(s, input.frame))
             const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s), input.frame)
@@ -1403,6 +1418,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               })
               await s.page.keyboard.press('Backspace')
             }
+
             const stillHeld = await probeEditableTarget(s, requested, input.frame)
             if (!stillHeld || !stillHeld.held) {
               result = `type refused mid-act: focus moved to ${stillHeld ? stillHeld.desc : '(nothing)'} before the fill — nothing filled`
@@ -1438,7 +1454,9 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
             const entered = input.enter === true && (resolved.origin === undefined || (await targetOrigin(s, input.frame)) === resolved.origin)
             if (entered) await s.page.keyboard.press('Enter')
+
             approveSecretPairing(owner, input.secretRef, resolved.origin ?? (await targetOrigin(s, input.frame)))
+
             result = `type: filled secret ${input.secretRef} into ${probe.desc}${entered ? ' + Enter' : ''} at ${pageWhere(s)}`
             outcome = 'succeeded'
             break
@@ -1454,6 +1472,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
             await requested.focus()
           }
+
           const probe = await probeEditableTarget(s, requested, input.frame)
           if (input.selector && (!probe || !probe.held)) {
             result = `type refused: focus did not land on ${targetName}${
@@ -1488,6 +1507,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           if (input.clear === true) {
+
             await targetSurface(s, input.frame).evaluate(() => {
               let active: Element | null = document.activeElement
               while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
@@ -1504,6 +1524,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             })
             await s.page.keyboard.press('Backspace')
           }
+
           const credNow = await targetSurface(s, input.frame).evaluate(() => {
             let active: Element | null = document.activeElement
             while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement
@@ -1592,6 +1613,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               : 'navigation'
           try {
             if (input.selector) {
+
               const state = input.state ?? 'visible'
               await targetSurface(s, input.frame).waitForSelector(input.selector, {
                 timeout: deadline,
@@ -1602,6 +1624,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
                 state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
               result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
             } else if (input.text !== undefined) {
+
               await targetSurface(s, input.frame).waitForFunction(
                 (needle: string) => {
                   const norm = (x: string): string => x.replace(/\s+/g, ' ').trim().toLowerCase()
@@ -1612,6 +1635,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               )
               result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${pageWhere(s)}`
             } else if (s.nav.seq > s.nav.seen) {
+
               await s.page
                 .waitForFunction(() => document.readyState !== 'loading', {
                   timeout: deadline,
@@ -1629,6 +1653,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               result = `waitFor navigation: landed ${s.page.url()} after ${Date.now() - t0}ms`
             }
           } catch (err) {
+
             if (isDriverTimeout(err)) {
               result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${pageWhere(s)}`
               outcome = 'failed'
@@ -1654,6 +1679,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           const before = s.page.url()
+
           let response = null
           try {
             response = await s.page.goBack({
@@ -1744,6 +1770,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
+
           let matched = await handle.select(...input.values!)
           let via = 'value'
           if (matched.length === 0) {
@@ -1839,6 +1866,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           break
         }
         case 'provision': {
+
           const { installManagedBrowser, planBrowserInstall } = await import(
             '../../services/browser/browserInstall.js'
           )
@@ -1855,6 +1883,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             outcome = 'failed'
             break
           }
+
           const width = Math.min(Math.max(Math.floor(input.width!), 320), 3840)
           const height = Math.min(Math.max(Math.floor(input.height!), 240), 2160)
           const dsf =
@@ -1874,6 +1903,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           const scope = input.selector ?? 'body'
           const where = input.frame === undefined ? pageWhere(s) : targetSurface(s, input.frame).url()
+
           const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s), input.frame) : null
           if ((input.mode ?? 'text') === 'text') {
             const text = root
@@ -1945,6 +1975,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             await s.page.screenshot({ path: file as `${string}.png`, fullPage: input.fullPage === true })
           }
           imagePath = file
+
           let sizeNote = ''
           if (modelReceivesImageBlocks(getEngineModel())) {
             try {
@@ -1996,6 +2027,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       life?.release()
       releaseActivity()
     }
+
     if (secretInPlay !== null) {
       result = scrubSecretFromText(result!, secretInPlay.value, secretInPlay.ref)
     }
@@ -2027,8 +2059,10 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+
     if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
       try {
+
         const bytes = readFileSync(output.inlinePath ?? output.imagePath)
         const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
         return {
@@ -2058,6 +2092,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
+
   extractSearchText({ result }) {
     return result
   },

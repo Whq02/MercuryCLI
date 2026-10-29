@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -55,6 +56,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === 'POST' && path === '/kimi/oauth/api/oauth/token') {
       tokenPolls++
+
       if (tokenPolls === 1) {
         json(res, 400, { error: 'authorization_pending' })
         return
@@ -103,9 +105,11 @@ const out = join(home, 'grid.json')
 const cfgPath = join(home, 'cfg.json')
 const sends: Send[] = [
   { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 4, data: '\r' },
+
   { requireAwait: true, awaitText: 'Kimi (Moonshot) — device-code sign-in or API key', awaitSettleTicks: 3, data: '\x1b[B' },
   ...Array.from({ length: 5 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
   { afterPrevTicks: 3, data: '\r' },
+
   { requireAwait: true, awaitText: 'A Kimi account signs in with a device code', awaitSettleTicks: 3, data: '\r' },
   { requireAwait: true, awaitText: 'which deployment holds your account', awaitSettleTicks: 3, data: '\r' },
   { requireAwait: true, awaitText: 'KIMI-FIXT', awaitSettleTicks: 1, data: ' ' },

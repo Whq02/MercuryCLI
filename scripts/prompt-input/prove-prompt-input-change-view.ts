@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -34,6 +35,7 @@ function capture(name: string, cols: number): string {
 }
 
 try {
+
   const collapsed = capture('structure-card', 120)
   t('collapsed: state word + counts on one line', collapsed.includes('replace proposed') && collapsed.includes('2 files') && collapsed.includes('2 matches'))
   t('collapsed: honest ± totals', collapsed.includes('+2/−2'))

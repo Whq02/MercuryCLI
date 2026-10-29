@@ -1,7 +1,7 @@
-
 import { type Command, findCommand, isCommandEnabled } from '../../commands.js'
 
 type AgentViewIntent =
+
   | { kind: 'agent-literal'; text: string }
   | { kind: 'session-command'; command: Command }
   | { kind: 'agent-command'; command: Command }

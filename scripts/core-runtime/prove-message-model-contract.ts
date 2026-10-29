@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mock } from 'bun:test'
 
 const realLog = await import('../../src/utils/log.ts')
@@ -97,6 +98,7 @@ const serverTr = (id: string): Block => ({
 
 section('MERGING — string results merge text; array results retain blocks')
 {
+
   const a = [txt('lead'), tr('toolu_l1')]
   const b = [txt('sibling')]
   const out = M.mergeUserContentBlocks(a as never, b as never) as Block[]
@@ -104,6 +106,7 @@ section('MERGING — string results merge text; array results retain blocks')
     'legacy arm: array-content tool_result + text sibling = plain concat',
     out.length === 3 && out[0] === a[0] && out[1] === a[1] && out[2] === b[0],
   )
+
   const a2 = [{ ...tr('toolu_l2'), content: 'out' }]
   const out2 = M.mergeUserContentBlocks(a2 as never, [txt('x'), txt('y')] as never) as Block[]
   check(
@@ -111,6 +114,7 @@ section('MERGING — string results merge text; array results retain blocks')
     out2.length === 1 && out2[0]!.content === 'out\n\nx\n\ny',
     JSON.stringify(out2),
   )
+
   const out3 = M.mergeUserContentBlocks(
     a2 as never,
     [txt('x'), { type: 'image', source: { type: 'base64', data: '', media_type: 'image/png' } }] as never,
@@ -121,6 +125,7 @@ section('MERGING — string results merge text; array results retain blocks')
 section('SEAM — joinTextAtSeam / hoistToolResults / meta-uuid algebra')
 {
   const j = mergeMod.joinTextAtSeam
+
   const a = [txt('<system-reminder>\nnote\n</system-reminder>'), txt('left tail')]
   const b = [txt('right head'), tr('toolu_s1')]
   const out = j(a as never, b as never) as Block[]
@@ -134,9 +139,11 @@ section('SEAM — joinTextAtSeam / hoistToolResults / meta-uuid algebra')
       !(out[1]!.text as string).startsWith('<system-reminder>') &&
       !(out[2]!.text as string).startsWith('<system-reminder>'),
   )
+
   const a2 = [tr('toolu_s2')]
   const out2 = j(a2 as never, b as never) as Block[]
   check('seam: non-text seam is pure concat', out2[0] === a2[0] && out2[1] === b[0])
+
   check('seam: empty right returns left content', (j(a as never, [] as never) as Block[]).length === 2)
   check('seam: empty left returns right content', (j([] as never, b as never) as Block[]).length === 2)
 
@@ -194,6 +201,7 @@ section('NORMALIZE-LATCH — derived-uuid law over random block mixes')
     for (let i = 0; i < n; i++) {
       const roll = rand()
       if (roll < 0.35) {
+
         const r2 = rand()
         if (r2 < 0.34) msgs.push(mkUser(`plain ${iter}-${i}`))
         else {
@@ -265,6 +273,7 @@ section('NORMALIZE-LATCH — derived-uuid law over random block mixes')
         } else if (gotUuid !== msg.uuid) {
           latchViolations++
         }
+
         if (!contentIsString && o.message.content[0] !== blocks[bIdx]) blockIdViolations++
       }
       outIdx += blocks.length
@@ -326,9 +335,11 @@ function genPairingConversation(rand: () => number, iter: number): AnyMsg[] {
       mintedIds.push(id)
       blocks.push(tu(id))
     }
+
     if (rand() < 0.15 && mintedIds.length > 0) {
       blocks.push(tu(pick(rand, mintedIds)))
     }
+
     if (rand() < 0.2) {
       const sid = `srvtoolu_${iter}_${toolSeq++}`
       blocks.push(serverTu(sid))
@@ -339,6 +350,7 @@ function genPairingConversation(rand: () => number, iter: number): AnyMsg[] {
 
     const roll = rand()
     if (roll < 0.15) {
+
       continue
     }
     const resBlocks: Block[] = []
@@ -486,6 +498,7 @@ const elementwiseSame = (a: AnyMsg[], b: AnyMsg[]): boolean =>
 }
 
 {
+
   const rand = lcg(0x57121c7)
   const N = 80
   let strictViolations = 0
@@ -516,6 +529,7 @@ const elementwiseSame = (a: AnyMsg[], b: AnyMsg[]): boolean =>
 }
 
 {
+
   const dupId = 'toolu_cc1212'
   const inputDup = [
     mkAssistant([tu(dupId)]),
@@ -674,6 +688,7 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
         }
       }
     }
+
     if (rand() < 0.4) {
       raw.push(mkAssistant([serverTu(`srvtoolu_lk_${iter}_tail`)], `msg_lk_${iter}_tail`))
     }
@@ -758,6 +773,7 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
       }
     }
     for (const id of seenUses) if (!openUses.has(id)) nResolved.add(id)
+
     const lastRaw = raw.at(-1)
     const exemptId = lastRaw?.type === 'assistant' ? lastRaw.message.id : undefined
     for (const nm of normalized) {
@@ -869,6 +885,7 @@ section('EMPTY-ALIAS — the shared-empties hazard, pinned as current truth')
       M.EMPTY_LOOKUPS.resolvedToolUseIDs.size === 0 &&
       M.EMPTY_LOOKUPS.erroredToolUseIDs.size === 0,
   )
+
   const plain = M.normalizeMessages([mkUser('no tools here')] as never)[0]!
   const bail = M.getSiblingToolUseIDsFromLookup(plain as never, M.EMPTY_LOOKUPS as never)
   check('getSiblingToolUseIDsFromLookup bail-out returns THE EMPTY_STRING_SET', bail === M.EMPTY_STRING_SET)
@@ -878,6 +895,7 @@ section('FACTORY-QUIRKS — the mint table')
 {
   const empty = M.createUserMessage({ content: '' }) as AnyMsg
   check("createUserMessage(''): NO_CONTENT substitution", typeof empty.message.content === 'string' && empty.message.content !== '')
+
   const emptyArr = M.createUserMessage({ content: [] }) as AnyMsg
   check('QUIRK: createUserMessage([]) passes the empty ARRAY through', Array.isArray(emptyArr.message.content) && emptyArr.message.content.length === 0)
 
@@ -911,6 +929,7 @@ section('FACTORY-QUIRKS — the mint table')
 
 section('TEXT-TABLE — extractTag / textForResubmit / wrapCommandText rows')
 {
+
   check('extractTag QUIRK: same-name nesting truncates at the first close', M.extractTag('<a>outer <a>inner</a> tail</a>', 'a') === 'outer <a>inner')
   check(
     'extractTag: depth>0 occurrence skipped, later top-level wins',
@@ -948,6 +967,7 @@ section('TEXT-TABLE — extractTag / textForResubmit / wrapCommandText rows')
 
 section('ORDER — reorderMessagesInUI vs an independent naive oracle')
 {
+
   function naiveReorder(messages: AnyMsg[], synthetics: AnyMsg[]): AnyMsg[] {
     const isUse = (m: AnyMsg): boolean =>
       m.type === 'assistant' && (m.message.content as Block[])[0]?.type === 'tool_use'
@@ -1025,6 +1045,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
   let refViolations = 0
   const N = 60
   for (let iter = 0; iter < N; iter++) {
+
     let seq = 0
     const raw: AnyMsg[] = [mkUser(`prompt ${iter}`)]
     const ids: string[] = []
@@ -1036,6 +1057,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
       if (rand() < 0.8) raw.push(mkUser([tr(id)]))
     }
     let display = M.normalizeMessages(raw as never) as AnyMsg[]
+
     const inserts: AnyMsg[] = []
     for (const id of ids) {
       if (rand() < 0.5) inserts.push(mkHook(id, 'tool.before'))
@@ -1053,6 +1075,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
     const got = M.reorderMessagesInUI(display as never, synthetics as never) as AnyMsg[]
     const want = naiveReorder(display, synthetics)
     if (got.length !== want.length || got.some((m, i) => m !== want[i])) mismatches++
+
     const pool = new Set<AnyMsg>([...display, ...synthetics])
     if (got.some(m => !pool.has(m))) refViolations++
   }
@@ -1119,7 +1142,6 @@ section('SYSMSG — boundary slice reference law + scan predicates')
   check('hasSuccessfulToolCall: most recent succeeded → true', M.hasSuccessfulToolCall(seqMsgs.slice(0, 2) as never, 'Bash') === true)
   check('hasSuccessfulToolCall: call without result → false', M.hasSuccessfulToolCall([seqMsgs[2]] as never, 'Bash') === false)
 }
-
 
 section('ROWS — the projection table (the value laws the row stream carries)')
 {

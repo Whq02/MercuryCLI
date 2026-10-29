@@ -90,6 +90,7 @@ const PROBE_PRELUDE = `
     }
   `)
   check('node child ran the paired live probe', paired.status === 0 && !paired.ok, paired.stderr)
+
   const NO_ROUTE = new Set(['ENETUNREACH', 'EHOSTUNREACH', 'ENETDOWN'])
   if (NO_ROUTE.has(String(paired.code))) {
     console.log(
@@ -125,6 +126,7 @@ const PROBE_PRELUDE = `
 
 console.log('— §2 evidence preservation (N-02) —')
 {
+
   const undiciLeaf = Object.assign(new Error('connect ETIMEDOUT'), {
     code: 'UND_ERR_CONNECT_TIMEOUT',
     errno: -60,

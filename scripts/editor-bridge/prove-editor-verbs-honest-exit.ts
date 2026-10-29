@@ -1,10 +1,12 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
 const EMPTY_BIN = realpathSync(mkdtempSync(join(tmpdir(), 'editor-empty-bin-')))
 process.env.PATH = EMPTY_BIN
 
@@ -48,6 +50,7 @@ section('§1 UNINSTALL, NO CODE CLI')
 
 section('§2 INSTALL, NO CODE CLI, VSIX PRESENT')
 {
+
   const bundleDir = realpathSync(mkdtempSync(join(tmpdir(), 'editor-bundle-')))
   writeFileSync(join(bundleDir, 'mercury-vscode.vsix'), 'fake-vsix')
   const origArgv1 = process.argv[1]

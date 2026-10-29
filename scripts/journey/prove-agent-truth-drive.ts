@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -64,6 +65,7 @@ const offersTool = (body: unknown, name: string): boolean => {
 }
 const resultTextOf = (content: unknown): string =>
   typeof content === 'string' ? content : blocksOf(content).filter(b => typeof b.text === 'string').map(b => b.text as string).join('\n')
+
 function answeredTool(items: Item[]): string | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -78,6 +80,7 @@ function answeredTool(items: Item[]): string | null {
   }
   return null
 }
+
 function answeredResults(items: Item[]): Array<{ name: string; text: string; description: string }> {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return []
@@ -96,6 +99,7 @@ function answeredResults(items: Item[]): Array<{ name: string; text: string; des
   }
   return out
 }
+
 function receiptIdFor(items: Item[], description: string): string | null {
   const ids = new Set<string>()
   for (const item of items) {
@@ -114,6 +118,7 @@ function receiptIdFor(items: Item[], description: string): string | null {
   }
   return null
 }
+
 function seatOf(items: Item[]): Seat | null {
   const userText = items
     .filter(i => i.role === 'user')
@@ -144,6 +149,7 @@ const USAGE = { input_tokens: 900, cache_creation_input_tokens: 0, cache_read_in
 function anthropicHead(model: string): string {
   return `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_truth_${++msgSeq}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...USAGE, output_tokens: 1 } } })}`
 }
+
 function answer(model: string, blocks: Answer[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const parts: string[] = [anthropicHead(model)]
@@ -206,6 +212,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         } catch {
           body = null
         }
+
         if (req.method === 'POST' && url.endsWith('/responses')) {
           const call = ++gptCalls
           hits.push({ route: 'gpt-seat', seat: 'foliage', call, atMs: Date.now(), lastUserText: '', raw, results: [] })
@@ -213,6 +220,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
           res.write(sse({ type: 'response.created', response: { id: rid } }))
           if (raw.includes(DEAD_WORD)) {
+
             const text = 'FOLIAGE-RESUMED-DONE'
             res.write(sse({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: `msg_${rid}`, role: 'assistant', content: [] } }))
             res.write(sse({ type: 'response.output_text.delta', item_id: `msg_${rid}`, output_index: 0, content_index: 0, delta: text }))
@@ -220,6 +228,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             res.end(sse({ type: 'response.completed', response: { id: rid, usage: { input_tokens: 900, output_tokens: 40, input_tokens_details: { cached_tokens: 0 } } } }))
             return
           }
+
           res.write(sse({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: `msg_${rid}`, role: 'assistant', content: [] } }))
           res.write(sse({ type: 'response.output_text.delta', item_id: `msg_${rid}`, output_index: 0, content_index: 0, delta: PARTIAL_TEXT }))
           await sleep(300)
@@ -231,6 +240,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           res.end('{}')
           return
         }
+
         const model = typeof (body as { model?: unknown })?.model === 'string' ? (body as { model: string }).model : 'fixture'
         const items = itemsOf(body)
         const lastUser = [...items].reverse().find(i => i.role === 'user')
@@ -241,13 +251,16 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           hits.push({ route: 'seat', seat, call, atMs: Date.now(), lastUserText, raw, results: [] })
           res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
           if (raw.includes('cut off by a no-progress timeout')) {
+
             res.end(answer(model, [{ type: 'text', text: 'STALL-RESUMED-DONE' }]))
             return
           }
           if (readsOf(items) === 0) {
+
             res.end(answer(model, [{ type: 'tool_use', id: `toolu_truth_stall_read_${++toolSeq}`, name: 'Read', input: { file_path: join(cwd, NOTES_FILE) } }]))
             return
           }
+
           setTimeout(() => {
             res.write(anthropicHead(model))
             held.push(res)
@@ -267,6 +280,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           }, priorReads >= limit ? 0 : SEAT_STEP_MS).unref?.()
           return
         }
+
         const answered = answeredTool(items)
         const results = answeredResults(items)
         const asks: Array<[string, Route]> = [
@@ -487,26 +501,33 @@ try {
       cols: 120,
       rows: 40,
       sends: [
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
         { data: 'agent-truth: fault\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '/crewmates\r', awaitText: 'NOTED-1', requireAwait: true, minTick: 10, awaitSettleTicks: 6, mark: 'after-fault' },
         { data: '\x1b', awaitText: SEATS.foliage, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-fault' },
+
         { data: 'agent-truth: launch\r', afterPrevTicks: 4 },
         { data: '\x1b', awaitText: 'ACK-2', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'lantern-waiting' },
         { data: 'agent-truth: message\r', afterPrevTicks: 8, mark: 'after-lantern-esc' },
         { data: '\x1b', awaitText: 'ACK-3', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'message-id' },
         { data: 'agent-truth: message-name\r', afterPrevTicks: 6 },
         { data: '\x1b', awaitText: 'ACK-4', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'message-name' },
+
         { data: 'agent-truth: message-dead\r', afterPrevTicks: 6 },
         { data: '\x1b', awaitText: 'ACK-5', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'message-dead' },
+
         { data: 'agent-truth: foreground\r', afterPrevTicks: 6 },
         { data: '\x1b', awaitText: SEATS.walker, requireAwait: true, minTick: 5, awaitSettleTicks: 6, mark: 'walker-running' },
         { data: '', afterPrevTicks: 15, mark: 'after-walker-esc' },
+
         { data: 'agent-truth: workflow\r', afterPrevTicks: 4 },
         { data: '', afterPrevTicks: 12, mark: 'workflow-typed' },
         { data: '\r', afterPrevTicks: 8, mark: 'workflow-card' },
         { data: '', afterPrevTicks: 80, mark: 'after-workflow' },
         { data: '\x1b', afterPrevTicks: 2 },
+
         { data: '/crewmates\r', afterPrevTicks: 4 },
         { data: '\x1b', awaitText: SEATS.lantern, requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'crew-end' },
         { data: '', afterPrevTicks: 10, mark: 'end' },
@@ -533,6 +554,7 @@ if (cap !== null) {
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
   for (const label of ['after-fault', 'crew-fault', 'lantern-waiting', 'message-id', 'message-name', 'message-dead', 'walker-running', 'after-walker-esc', 'workflow-typed', 'workflow-card', 'after-workflow', 'crew-end']) dump(label, m[label])
   dump('final', cap.text)
+
   for (const h of fixture.hits.filter(h => h.route === 'note')) {
     const items = itemsOf(JSON.parse(h.raw))
     const shape = items.slice(-2).map(i => `${i.role}:[${blocksOf(i.content).map(b => `${b.type}${b.type === 'text' ? `(${flat(String(b.text ?? '')).slice(0, 60)})` : ''}`).join(',')}]${typeof i.content === 'string' ? `str(${flat(i.content).slice(0, 60)})` : ''}`)
@@ -541,6 +563,7 @@ if (cap !== null) {
 
   const disk = transcripts(home)
   console.log(`  transcripts on disk: ${disk.map(t => `${t.kind}:${t.lines.length}`).join(', ') || 'none'}`)
+
   const session = disk.filter(t => t.kind === 'session').sort((a, b) => b.lines.length - a.lines.length)[0]
   const foliage = disk.find(t => t.kind === 'agent' && t.text.includes(`${SEAT_MARK}foliage`))
   const lanternTranscript = disk.find(t => t.kind === 'agent' && t.text.includes(`${SEAT_MARK}lantern`))

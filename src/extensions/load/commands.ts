@@ -90,12 +90,15 @@ function buildCommand(input: BuildInput): Command {
       if (skill && skillDir) text = `${baseDirLine(skillDir)}${text}`
       text = substituteArguments(text, args, true, argNames)
       text = substituteRootAndData(text, root, id)
+
       text = substituteOptionsInContent(text, ext.options, optionSchema)
       if (skill && skillDir) {
+
         const dir = skillDir.replace(/\\/g, '/')
         text = text.replaceAll('${MERCURY_SKILL_DIR}', dir)
       }
       text = text.replaceAll('${MERCURY_SESSION_ID}', getSessionId())
+
       const toolContext = context as ToolUseContext | undefined
       if (toolContext) {
         const executorContext: ToolUseContext = {

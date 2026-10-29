@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,6 +19,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const read = (p: string): string => (existsSync(p) ? readFileSync(p, 'utf8') : '')
+
 const poison = (p: string): void => mkdirSync(join(p, 'block'), { recursive: true })
 const tag = (words: string): never => ({ type: 'tag', tag: words, sessionId: 'drain-isolation' }) as never
 const sidechain = (agentId: string): never =>

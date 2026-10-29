@@ -1,6 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-
 export type Workload = 'cron' | 'advisor'
 
 export const WORKLOAD_CRON: Workload = 'cron'

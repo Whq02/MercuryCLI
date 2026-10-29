@@ -1,6 +1,3 @@
-
-
-
 import { getMercuryHome } from '../utils/envUtils.js'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -10,16 +7,23 @@ import { flagEnabled, flagEnv, flagSpellings, stampFlagOnEnv } from './flagRegis
 import { addBootNote } from './bootNotes.js'
 
 export interface MenuRow {
+
   env: string
   label: string
+
   group: string
+
   kind: 'toggle' | 'enum' | 'string'
+
   options: readonly string[]
+
   defaultLabel: string
+
   applicationClass?: 'new-session' | 'live'
   defaultFollows?: { env: string; value: string; label: string }
   warnWhenOn?: string
   summary: string
+
   detail?: {
     controls: string
     on: readonly string[]
@@ -28,6 +32,7 @@ export interface MenuRow {
 }
 
 export interface MenuChoice {
+
   value: string | null
   label: string
 }
@@ -53,6 +58,7 @@ export function computerAccessDefaultLabel(sovereignOn: boolean): string {
 }
 
 export const STARTUP_MENU: readonly MenuRow[] = [
+
   {
     env: 'MERCURY_WARDS',
     label: 'Content-rule wards',
@@ -81,6 +87,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['the tool is absent — identical to a build without it'],
     },
   },
+
   {
     env: 'MERCURY_LSP_CPP',
     label: 'C/C++ IDE lane (clangd)',
@@ -95,6 +102,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['C/C++ files fall back to plain-text editing — no language server'],
     },
   },
+
   {
     env: 'MERCURY_SKIP_PERMISSIONS',
     label: 'Sovereign mode',
@@ -153,6 +161,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['no sample can be made: the bridge call, the listener, the rows and /samples are absent', 'identical to a build without samples'],
     },
   },
+
   {
     env: 'MERCURY_SESSION_SUBAGENTS',
     label: 'Crewmates',
@@ -183,6 +192,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['no Workflow tool in the roster; the launch roads answer "workflows are off for this session"', 'the run board (/workflows) stays readable', 'flip it back inside a session with /workflows on'],
     },
   },
+
   {
     env: 'MERCURY_LAUNCH_RIPPLE',
     label: 'Launch animation',
@@ -197,6 +207,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['no animation — the fastest handoff to the session'],
     },
   },
+
   {
     env: 'MERCURY_GODOT',
     label: 'Godot language lanes',
@@ -225,6 +236,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['no Godot tool, no connection, no addon writes — identical to an unarmed build'],
     },
   },
+
   {
     env: 'MERCURY_UNITY',
     label: 'Unity dev lanes',
@@ -267,7 +279,9 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       off: ['no Aseprite surface exists — identical to a build without it'],
     },
   },
+
   {
+
     env: 'MERCURY_CAP_FAILOVER',
     label: 'Cap failover posture',
     group: 'miscellaneous',
@@ -290,6 +304,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       ],
     },
   },
+
   {
     env: 'MERCURY_CONCOURSE',
     label: 'Session Concourse at boot',
@@ -354,7 +369,6 @@ export function menuRowValueLabel(row: MenuRow, saved: string | null, effectiveO
   return choices[0]!.label
 }
 
-
 export const BOOT_ENV_VERSION = 1
 
 export function bootEnvPath(): string {
@@ -362,9 +376,13 @@ export function bootEnvPath(): string {
 }
 
 export interface BootEnvApplyResult {
+
   applied: Array<{ env: string; value: string }>
+
   envWins: string[]
+
   refused: Array<{ key: string; reason: string }>
+
   retired: string[]
 }
 
@@ -433,10 +451,12 @@ export function applyBootMenuEnv(
     result.refused.push({ key: '(file)', reason: `expected {version:${BOOT_ENV_VERSION}, env:{…}}` })
     return surfaced(result, path)
   }
+
   const byEnv = new Map<string, MenuRow>()
   for (const r of allSettingRows()) {
     for (const spelling of flagSpellings(r.env)) byEnv.set(spelling, r)
   }
+
   for (const [spelling, value] of bootEnvSelfApplied(env)) {
     if (env[spelling] === value) delete env[spelling]
   }
@@ -452,6 +472,7 @@ export function applyBootMenuEnv(
       result.refused.push({ key, reason: 'not a startup-menu row (anti-smuggling: unregistered keys are never applied)' })
       continue
     }
+
     if (appliedRows.has(row.env)) continue
     appliedRows.add(row.env)
     if (typeof value !== 'string' || !menuRowChoices(row).some(c => c.value === value)) {
@@ -465,6 +486,7 @@ export function applyBootMenuEnv(
     stampFlagOnEnv(env, row.env, value)
     result.applied.push({ env: row.env, value })
   }
+
   if (result.applied.length > 0) {
     const receipt: Record<string, string> = {}
     for (const a of result.applied) {
@@ -478,13 +500,13 @@ export function applyBootMenuEnv(
 function surfaced(result: BootEnvApplyResult, path: string): BootEnvApplyResult {
   lastApplyResult = result
   if (result.refused.length > 0) {
+
     for (const r of result.refused) {
       addBootNote('warn', `boot-env refused ${r.key} — ${r.reason} · ${path}`)
     }
   }
   return result
 }
-
 
 export function readBootEnvChoices(
   path: string = bootEnvPath(),
@@ -519,6 +541,7 @@ export function writeBootEnvChoice(
       reason: `value ${JSON.stringify(value)} not among the row's declared choices`,
     }
   }
+
   const saved = readBootEnvChoices(path) ?? {}
   const env: Record<string, string> = {}
   for (const r of allSettingRows()) {
@@ -531,13 +554,15 @@ export function writeBootEnvChoice(
   return committed.ok ? { ok: true } : { ok: false, reason: committed.reason }
 }
 
-
 export interface BootDefaultsProfileV1 {
   version: typeof BOOT_ENV_VERSION
   savedAt: string
   env: Record<string, string>
+
   revision: number
+
   digest: string
+
   receipt: string
 }
 
@@ -581,6 +606,7 @@ export function saveBootDefaultsProfile(
   env: Record<string, string>,
   path: string = bootEnvPath(),
   opts?: {
+
     existingSessionsUnchanged?: number
   },
 ): { ok: true; revision: number; digest: string; receipt: string } | { ok: false; reason: string } {
@@ -591,6 +617,7 @@ export function saveBootDefaultsProfile(
       return { ok: false, reason: `value ${JSON.stringify(value)} not among ${row.env}'s declared choices` }
     }
   }
+
   const paired: Record<string, string> = {}
   for (const [key, value] of Object.entries(env)) {
     const row = allSettingRows().find(r => flagSpellings(r.env).includes(key))!
@@ -623,11 +650,13 @@ export function saveBootDefaultsProfile(
   }
 }
 
-
 export interface EffectiveSettingRow {
   env: string
+
   value: string | null
+
   source: 'process-env' | 'profile' | 'default'
+
   applicationClass: 'new-session' | 'live'
 }
 
@@ -688,11 +717,12 @@ export function __resetBootAdmissionSnapshotForTests(): void {
   admissionSnapshot = null
 }
 
-
 export interface ConfigMenuRow {
+
   id: string
   label: string
   group: string
+
   options: readonly string[]
   defaultLabel: string
   summary: string
@@ -712,12 +742,12 @@ export async function writeCoordinatorMenuChoice(
   return switchCoordinatorMode(choice === 'on' ? 'agent-assisted' : 'rules-only')
 }
 
-
 export type ExplicitApplyOutcome = 'applied' | 'queued' | 'refused' | 'no-change'
 
 export interface ExplicitApplyReceipt {
   env: string
   outcome: ExplicitApplyOutcome
+
   target: string | null
   reason: string
 }
@@ -759,6 +789,7 @@ export function evaluateExplicitApply(
         reason: "a session's own switch (application class: live) — lands at the session's next turn boundary through its switch; the tool leaves or rejoins the roster, reasoning restarts on the next turn, a spawn already running finishes",
       } satisfies ExplicitApplyReceipt
     }
+
     return {
       env: row.env,
       outcome: 'refused',

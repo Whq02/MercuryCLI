@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -110,6 +111,7 @@ section('(1) derivation — one slot per signed-in identity, catalogue-driven')
     groups.length === 3 && groups[0]?.family.id === 'anthropic' && groups[2]?.family.id === ('acme' as never))
 
   const anthropic = groups[0]!.slots
+
   check("anthropic: the signed-in scope + the API-key ladder ⇒ 2 slots; a scope with nothing behind it is the family's absent row, never a slot",
     anthropic.length === 2 && !anthropic.some(s => s.id === '/proof-home/.mercury-account-b'), JSON.stringify(anthropic.map(s => s.id)))
   check("ring slot: OAuth kind, identity from the sign-in's own credential, the sign-in's own name (the scope's role name is the This-session grid's fact)",
@@ -157,6 +159,7 @@ section('(2) env pins + shadowing — the shell is named, never edited')
       (openaiKey?.removal as { envVar?: string }).envVar === 'OPENAI_API_KEY')
 
   const zai = groups.find(g => g.family.id === 'zai')
+
   check('no catalogue family ⇒ no group (derivation invents nothing)', zai === undefined)
 
   const withZai = deriveFamilySlotGroups(
@@ -343,6 +346,7 @@ section('(6) the REAL owner path — hermetic home fixture (add-side assertions)
       deepseekApiKey: 'sk-deepseek-fixture-key-mnop',
     }),
   )
+
   writeFileSync(
     join(HOME, '.moonshot-auth.json'),
     JSON.stringify({
@@ -367,6 +371,7 @@ section('(6) the REAL owner path — hermetic home fixture (add-side assertions)
   check('real owners: a GLM Coding Plan key names its plan on the slot (the base it is valid on)',
     zai?.slots.some(s => s.identity.startsWith('GLM Coding Plan key') && s.kindLabel === 'Coding Plan key') === true,
     JSON.stringify(zai?.slots))
+
   const moonshot = groups.find(g => g.family.id === 'moonshot')
   const kimi = moonshot?.slots.find(s => s.id === 'moonshot:oauth')
   const moonshotKey = moonshot?.slots.find(s => s.id === 'moonshot:stored-key')

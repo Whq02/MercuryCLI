@@ -10,6 +10,7 @@ const count = (haystack: string, needle: string): number => haystack.split(needl
 
 section('§1 probe-once outcomes')
 {
+
   {
     const clock = new FakeClock()
     const sink = new SpySink()
@@ -22,6 +23,7 @@ section('§1 probe-once outcomes')
     check('a supporting reply arms', profile.syncOutput === true)
     check('the probe was sent once', count(sink.text(), SYNC_PROBE) === 1)
   }
+
   {
     const clock = new FakeClock()
     const sink = new SpySink()
@@ -32,6 +34,7 @@ section('§1 probe-once outcomes')
     feed!('\x1b[?2026;0$y')
     check('a not-recognized reply leaves off', (await p).syncOutput === false)
   }
+
   {
     const clock = new FakeClock()
     const sink = new SpySink()
@@ -42,6 +45,7 @@ section('§1 probe-once outcomes')
     check('silence past the budget leaves off', profile.syncOutput === false)
     check('the silent path still sent exactly one probe', count(sink.text(), SYNC_PROBE) === 1)
   }
+
   {
     const clock = new FakeClock()
     const sink = new SpySink()
@@ -84,6 +88,7 @@ section('§2 armed wrapping — every frame bracketed, never nested, never open'
     `every EMITTED frame is bracketed (${begins} brackets, ${emitted} emitting frames of ${frames} composed)`,
     begins === emitted && emitted <= frames,
   )
+
   let depth = 0
   let nested = false
   let outside = 0

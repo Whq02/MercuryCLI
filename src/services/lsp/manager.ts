@@ -5,7 +5,6 @@ import { resetLspFailureLedger } from './failureLedger.js'
 import { createLSPServerManager, type LSPServerManager, type LSPShutdownResult } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
 
-
 type InitState = 'not-started' | 'pending' | 'success' | 'failed'
 
 let instance: LSPServerManager | undefined
@@ -16,9 +15,11 @@ let initPromise: Promise<void> | undefined
 let restartPromise: Promise<LSPShutdownResult | undefined> | undefined
 
 export function initializeLspServerManager(): void {
+
   if (isBareMode()) return
   if (initState === 'pending' || (instance !== undefined && initState !== 'failed')) return
   if (initState === 'failed') {
+
     instance = undefined
     initError = undefined
   }
@@ -26,6 +27,7 @@ export function initializeLspServerManager(): void {
   instance = manager
   initState = 'pending'
   const generation = ++initGeneration
+
   initPromise = manager
     .initialize()
     .then(() => {
@@ -38,6 +40,7 @@ export function initializeLspServerManager(): void {
       if (generation !== initGeneration) return
       initState = 'failed'
       initError = err instanceof Error ? err : new Error(String(err))
+
       instance = undefined
       logError(initError)
       logForDebugging(`LSP manager initialisation failed: ${initError.message}`)
@@ -85,6 +88,7 @@ export function isLspToolMounted(): boolean {
 
 export function reinitializeLspServerManager(): Promise<LSPShutdownResult | undefined> {
   if (restartPromise !== undefined) return restartPromise
+
   if (initState === 'not-started') return Promise.resolve(undefined)
   const old = instance
   const initializing = initPromise
@@ -148,6 +152,7 @@ export async function releaseLspDocumentsForContext(reason: string): Promise<num
     logForDebugging(`LSP: document release failed (${reason}): ${String(err)}`)
   }
   try {
+
     const ops = await import('../../tools/LSPTool/mercuryOps.js')
     ops.clearDiagnosticsBaselines()
   } catch (err) {

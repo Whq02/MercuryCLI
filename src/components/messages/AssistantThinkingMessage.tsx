@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box } from '../../ink.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -35,6 +34,7 @@ export function AssistantThinkingMessage({
 
   const expanded = verbose || isTranscriptMode
   if (!expanded) {
+
     return (
       <Box marginTop={addMargin ? 1 : 0}>
         <ThinkingLabel>

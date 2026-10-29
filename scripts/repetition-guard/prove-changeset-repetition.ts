@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
@@ -138,6 +139,7 @@ console.log('── committed-plan replay stays OUT ──')
   )
   check('C9 the real set applied', real.data.outcome === 'succeeded' && readFileSync(aPath, 'utf8') === 'A1-changed\na2\na3\n', real.data.result)
   const planId = real.data.planId
+
   let anyError = false
   for (let i = 0; i < 3; i++) {
     const replay = await callTool({ op: 'apply', plan_id: planId }, ctx)

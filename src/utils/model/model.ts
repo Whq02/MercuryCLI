@@ -30,8 +30,8 @@ import { resolveBareFamilyWord } from './bareFamilyWords.js'
 
 export type ModelShortName = string
 export type ModelName = string
-export type ModelSetting = string | null
 
+export type ModelSetting = string | null
 
 const CONTEXT_SUFFIX_RE = /\[(?:[0-9]+m|served)\]/gi
 const TRAILING_1M_RE = /\[1m\]$/i
@@ -43,7 +43,6 @@ function hasContext1mSuffix(model: string): boolean {
 export function normalizeModelStringForAPI(model: string): string {
   return model.replace(CONTEXT_SUFFIX_RE, '')
 }
-
 
 function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
   return getModelStrings()[key]
@@ -81,7 +80,6 @@ export function getSmallFastModel(): string {
   return process.env.MERCURY_SMALL_FAST_MODEL || getDefaultHaikuModel()
 }
 
-
 export function getBestModel(): string {
   return parseUserSpecifiedModel(frontierOperatorDecision().setting)
 }
@@ -99,7 +97,6 @@ function providerNameOf(): (family: string) => string {
     require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
   return providerDisplayName
 }
-
 
 const RETIRED_LARGE_IDS = new Set([
   'claude-opus-4-20250514',
@@ -136,8 +133,10 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
     case 'fable':
       return reattach(getDefaultFableModel())
     case 'fable51':
+
       return reattach(firstPartyString('fable51'))
     case 'mythos':
+
       return reattach(firstPartyString('mythos5'))
     case 'sonnet5':
       return reattach(firstPartyString('sonnet5'))
@@ -148,6 +147,7 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
     case 'opus55':
       return reattach(firstPartyString('opus55'))
     case 'best':
+
       return getBestModel()
     default:
       break
@@ -182,7 +182,6 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
   return reattach(bare)
 }
 
-
 export function getUserSpecifiedModelSetting(): ModelSetting {
   const override = getEngineModelOverride()
   let setting: ModelSetting
@@ -211,22 +210,25 @@ export function isNonCustomOpusModel(model: string): boolean {
   return getCanonicalName(model).includes('opus')
 }
 
-
 const DECLARED_CANONICALS = (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[])
   .sort((a, b) => b.firstParty.length - a.firstParty.length)
 
 function canonicalMatch(id: string): string {
+
   if (isCarrierShapedId(id)) return id
   const lowered = id.toLowerCase()
   const declared = DECLARED_CANONICALS.find(config => lowered.endsWith(config.firstParty))
   if (declared !== undefined) return declared.canonical ?? declared.firstParty
   const generation = parseFirstPartyGeneration(lowered)
   if (generation !== null) return DECLARED_GENERATION_STEMS.get(generation.stem) ?? generation.stem
+
   if (lowered.includes('3-7-sonnet')) return 'claude-3-7-sonnet'
   if (lowered.includes('3-5-sonnet')) return 'claude-3-5-sonnet'
   if (lowered.includes('3-5-haiku')) return 'claude-3-5-haiku'
+
   const generic = lowered.match(/(claude-[a-z0-9-]+)/)
   if (generic) return generic[1]
+
   return id
 }
 
@@ -239,7 +241,6 @@ export function getCanonicalName(name: string): string {
 export function firstPartyNameToCanonical(name: string): string {
   return canonicalMatch(normalizeModelStringForAPI(name))
 }
-
 
 const ONE_M_TWIN_KEYS = new Set(['fable5', 'fable51', 'mythos5', 'opus55', 'opus5', 'opus48', 'opus47', 'opus46', 'sonnet55', 'sonnet5', 'sonnet46', 'sonnet45', 'sonnet40', 'haiku55'])
 
@@ -285,6 +286,7 @@ export function getPublicModelDisplayName(model: string): string | null {
       return hasSuffix && ONE_M_TWIN_KEYS.has(key) ? `${base} (1M context)` : base
     }
   }
+
   if (/^grok-/i.test(bare)) {
     const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
     return xaiDisplayPin(bare)?.displayName ?? null
@@ -383,9 +385,9 @@ export function modelDisplayString(setting: ModelSetting): string {
   return `${setting} (${renderModelName(resolved)})`
 }
 
-
 const MARKETING_NAMES: Record<string, string> = {
   ...DISPLAY_NAMES,
+
   sonnet37: 'Claude 3.7 Sonnet',
   sonnet35: 'Claude 3.5 Sonnet',
   haiku35: 'Claude 3.5 Haiku',
@@ -401,13 +403,13 @@ export function getMarketingNameForModel(id: string): string | null {
       return hasSuffix && ONE_M_TWIN_KEYS.has(key) ? `${base} (with 1M context)` : base
     }
   }
+
   const gptName = gptDisplayName(bare)
   if (gptName !== undefined) {
     return gptName
   }
   return null
 }
-
 
 export function isDefaultOpusNatively1M(): boolean {
   return getContextWindowForModel(normalizeModelStringForAPI(getDefaultOpusModel())) >= 1_000_000
@@ -420,7 +422,6 @@ export function isDefaultFableNatively1M(): boolean {
 export function isOpus1mMergeEnabled(): boolean {
   return false
 }
-
 
 export function getDefaultModelDescription(): string {
   return describeComputedDefaultRow(computedDefault(), providerNameOf()).slice('Default '.length)

@@ -1,7 +1,6 @@
 import { resolveModelCapabilities } from './model/capabilities.js'
 import { getEngineModel } from './model/model.js'
 
-
 const DOCUMENT_EXTENSIONS: Set<string> = new Set(['pdf'])
 
 function leadingInt(component: string): number | null {

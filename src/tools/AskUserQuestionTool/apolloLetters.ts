@@ -1,4 +1,3 @@
-
 export const APOLLO_OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const
 
 const APOLLO_CUSTOM_LETTER = 'E'

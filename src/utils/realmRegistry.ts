@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -8,10 +7,14 @@ import { binaryName } from './config.js'
 import { getMercuryHome } from './envUtils.js'
 
 export interface RealmEntry {
+
   id: string
+
   name: string
+
   dir: string
   addedAt: string
+
   lastIssuedAt?: string
   issuedCount?: number
 }
@@ -29,6 +32,7 @@ interface RealmRegistryFile {
 }
 
 interface RealmRegistrySnapshot {
+
   state: 'live' | 'unavailable'
   realms: RealmEntry[]
   ledger: RealmLedgerRow[]
@@ -117,6 +121,7 @@ function findRealm(realms: RealmEntry[], key: string): RealmEntry | undefined {
 export function addRealm(rawDir: string): RealmOpResult {
   const dir = resolve(expandHome(rawDir.trim()))
   const home = homedir().normalize('NFC')
+
   if (!isUnderHomeRoot(dir, home)) {
     return { ok: false, reason: `blocked — ${tildify(dir)} is outside your home root; realm trust is home-rooted` }
   }

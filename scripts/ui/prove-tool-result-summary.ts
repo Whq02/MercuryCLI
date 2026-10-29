@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { summarizeToolResult, MAX_INLINE_SUMMARY } from '../../src/utils/toolResultSummary.js'
 
 let fail = 0

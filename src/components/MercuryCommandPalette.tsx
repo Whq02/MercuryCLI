@@ -69,24 +69,29 @@ export function NameHighlight({
   )
 }
 
-
 type PaletteItem = { name: string; desc: string; recent: boolean; score: number; run?: () => void; kind?: ActionKind; keychord?: string; unavailable?: string }
+
 type ActionKind = 'open' | 'insert' | 'toggle' | 'switch'
 type PaletteAction = {
   label: string
   detail?: string
   run: () => void
   kind?: ActionKind
+
   action?: string
   context?: KeybindingContextName
 }
 
 const NAME_WIDTH = 22
 const QUERY_WIDTH = 56
+
 const QUERY_MAX_LENGTH = 200
 const MAX_ROWS = 12
+
 const GRAPH_ROWS = 5
+
 const HEIGHT_RESERVE = 26
+
 const MIN_ROWS = 4
 
 export function MercuryCommandPalette({
@@ -102,11 +107,14 @@ export function MercuryCommandPalette({
   onClose: () => void
   isActive?: boolean
 }): React.ReactNode {
+
   const overlayToken = useRegisterOverlay('command-palette', true, { ownsPageKeys: true });
+
   const tokens = useMercuryTokens()
   const accent = tokens.accent
   const termRows = useTerminalSize().rows
   const cockpitActive = React.useContext(CockpitActiveContext)
+
   const rowCap = viewportRows(termRows, {
     reserve: cockpitActive ? cockpitBottomSlotReserve(termRows) : HEIGHT_RESERVE,
     min: MIN_ROWS,
@@ -114,10 +122,13 @@ export function MercuryCommandPalette({
   })
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
+
   const [unreachable, setUnreachable] = useState<string | null>(null)
+
   useEffect(() => {
     setUnreachable(null)
   }, [query, sel])
+
   const [cursorOffset, setCursorOffset] = useState(0)
 
   const items = useMemo<PaletteItem[]>(() => {
@@ -185,6 +196,7 @@ export function MercuryCommandPalette({
   const filtered = useMemo<PaletteItem[]>(() => {
     const q = query.trim()
     const ql = q.toLowerCase()
+
     const acts = q
       ? actionItems.filter(a => a.name.toLowerCase().includes(ql) || a.desc.toLowerCase().includes(ql))
       : actionItems
@@ -205,6 +217,7 @@ export function MercuryCommandPalette({
       }
     }
     const descHits = items.filter(i => !seen.has(i.name) && i.desc.toLowerCase().includes(ql))
+
     const graphHits = graphItems
       .filter(g => g.name.toLowerCase().includes(ql) || g.desc.toLowerCase().includes(ql))
       .slice(0, GRAPH_ROWS)
@@ -214,8 +227,10 @@ export function MercuryCommandPalette({
   const listRows = filtered.length > rowCap ? Math.max(1, rowCap - 1) : rowCap
   const winStart = paneWindow(filtered.length, sel, listRows).start
   const shown = useMemo(() => filtered.slice(winStart, winStart + listRows), [filtered, winStart, listRows])
+
   const noun = filtered.length === 1 ? 'command' : 'commands'
   const recentCount = query.trim() === '' ? items.filter(i => i.recent).length : 0
+
   const selVerb = filtered[Math.min(sel, Math.max(0, filtered.length - 1))]?.run ? 'run' : 'insert'
   const footer =
     items.length === 0
@@ -241,6 +256,7 @@ export function MercuryCommandPalette({
       if (!isActive) return
       const action = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
       if (action === 'cancel') {
+
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
         event.stopImmediatePropagation()
         onClose()
@@ -314,6 +330,7 @@ export function MercuryCommandPalette({
                 id={`palette:row:${it.name}`}
                 width="100%"
                 selected={here}
+
                 onSelect={() => setSel(abs)}
                 onActivate={() => activateSelected(abs)}
               >

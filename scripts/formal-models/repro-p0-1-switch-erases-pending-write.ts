@@ -38,9 +38,13 @@ t.section('§1 — control: a lone session\'s pending debounced write settles vi
 t.section('§2 — the defect: a session switch inside the debounce window erases the prior identity\'s accepted write')
 {
   store._resetInterviewForProofs()
+
   const a = store.openInterviewSession({ mission: 'prior identity A', atMs: 2 })
+
   const b = store.openInterviewSession({ mission: 'next identity B', atMs: 3 })
+
   await store.flushInterviewLog()
+
   await waitUntil(() => durableSessions()[a] !== undefined, { tries: 80, everyMs: 10 })
   const sessions = durableSessions()
   t.check('the switched-to session B settled durably (premise: persistence itself works)',

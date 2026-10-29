@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -65,6 +66,7 @@ function transportImports(code: string): Set<Entrypoint> {
       if ((ENTRYPOINTS as readonly string[]).includes(bare)) names.add(bare as Entrypoint)
     }
   }
+
   for (const m of code.matchAll(/import\s+(?:type\s+)?\{([^{}]*)\}\s*from\s*'([^']+)'/g)) {
     if (TRANSPORT_SPECIFIER.test(m[2] ?? '')) collect(m[1] ?? '')
   }

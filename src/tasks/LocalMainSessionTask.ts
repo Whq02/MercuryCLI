@@ -17,7 +17,6 @@ import { registerTask } from '../utils/task/framework.js'
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
 import { isLocalAgentTask } from './LocalAgentTask/LocalAgentTask.js'
 
-
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
 
 const TASK_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz'

@@ -1,4 +1,3 @@
-
 import React, {
   memo,
   useCallback,
@@ -127,12 +126,15 @@ export function computeSliceStart(
     } else if (found !== -1) {
       start = found
     } else {
+
       start = Math.min(anchor.idx, Math.max(0, collapsed.length - 1))
     }
   }
+
   if (collapsed.length - start > cap + step) {
     start = collapsed.length - cap
   }
+
   const at = collapsed[start]
   anchorRef.current = at ? { uuid: at.uuid, idx: start, folds } : null
   return start
@@ -192,6 +194,7 @@ export function isAssistantContinuationRow(
     m.type === 'collapsed_read_search'
 
   const stamps = (m: RenderableMessage): boolean => {
+
     if (m.type === 'grouped_tool_use' || m.type === 'collapsed_read_search') {
       return true
     }
@@ -225,6 +228,7 @@ type MessagesProps = {
   streamingThinking?: StreamingThinking | null
   hidePastReasoning?: boolean
   streamingTail?: StreamingTailStore | null
+
   streamingTextSuppressed?: boolean
   tailAnchor?: number
   unseenDivider?: UnseenDivider
@@ -235,6 +239,7 @@ type MessagesProps = {
   scanElement?: (el: DOMElement) => MatchPosition[]
   setPositions?: (state: SearchPositionsState | null) => void
   disableRenderCap?: boolean
+
   ownsCursor?: boolean
   cursorNavRef?: React.MutableRefObject<MessageActionsNav | null>
   renderRange?: readonly [number, number]
@@ -258,6 +263,7 @@ export function composeTranscript(input: {
   inProgressToolUseIDs: Set<string>
 }): TranscriptComposition {
   const { normalized, syntheticStreamingRows, verbose, fullscreen, isTranscriptMode, truncateTranscript, tools, inProgressToolUseIDs } = input
+
   let working: NormalizedMessage[] = normalized
   if (!verbose && !fullscreen) {
     const boundary = findLastCompactBoundaryIndex(working)
@@ -393,9 +399,11 @@ function MessagesInner({
   cursorNavRef,
   renderRange,
 }: MessagesProps): React.ReactNode {
+
   const liveCursor = useMessageCursor()
   const cursor: MessageActionsState | null = ownsCursor ? liveCursor : null
   const setCursor = ownsCursor ? setMessageCursor : undefined
+
   fluxMark('render:messages')
   const { columns } = useTerminalSize()
   const isTranscriptMode = screen === 'transcript'
@@ -406,6 +414,7 @@ function MessagesInner({
   const [virtualEffective] = useState(
     () => resolveTerminalExperience().virtualScroll.effective,
   )
+
   const virtualised = Boolean(scrollRef) && virtualEffective && isFullscreenActive()
 
   const anchor = tailAnchor === undefined ? messages.length : Math.min(Math.max(0, tailAnchor), messages.length)
@@ -1019,6 +1028,7 @@ function areMessagesPropsEqual(
     return false
   }
   if (prev.agentDefinitions !== next.agentDefinitions) return false
+
   if (prev.streamingToolUses.length !== next.streamingToolUses.length) {
     return false
   }
@@ -1030,18 +1040,21 @@ function areMessagesPropsEqual(
       return false
     }
   }
+
   if (prev.inProgressToolUseIDs.size !== next.inProgressToolUseIDs.size) {
     return false
   }
   for (const id of prev.inProgressToolUseIDs) {
     if (!next.inProgressToolUseIDs.has(id)) return false
   }
+
   if (
     prev.unseenDivider?.firstUnseenUuid !== next.unseenDivider?.firstUnseenUuid ||
     prev.unseenDivider?.count !== next.unseenDivider?.count
   ) {
     return false
   }
+
   if (prev.tools.length !== next.tools.length) return false
   for (let i = 0; i < prev.tools.length; i++) {
     if (prev.tools[i]!.name !== next.tools[i]!.name) return false

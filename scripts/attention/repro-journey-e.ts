@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -23,6 +24,7 @@ t.section('Journey E — the attach/detach surface is bound (RV-10)')
 {
   const { readFileSync } = await import('node:fs')
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')
+
   t.check(
     "the Action Graph no longer names 'board:attach' (retired with the WORK panel)",
     !/['"]board:attach['"]/.test(ag),

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,6 +26,7 @@ if (process.argv[2] === '--child-write') {
           ? { n: (raw as { n: number }).n }
           : null,
     })
+
     await tiny(dir).mutate(s => ({ ...s, n: s.n + 1 }))
   }
   process.exit(0)
@@ -57,6 +59,7 @@ async function waitFor(cond: () => boolean, ms: number, step = 50): Promise<bool
 }
 
 const root = mkdtempSync(join(tmpdir(), 'filestore-subscribe-'))
+
 process.env.MERCURY_CONFIG_DIR = root
 
 console.log('============================================================')
@@ -76,6 +79,7 @@ const tiny = defineStore<{ n: number }, [string]>({
 })
 
 try {
+
   {
     const dir = join(root, 'case-a', 'store')
     let n = 0
@@ -88,9 +92,11 @@ try {
     const firesBefore = fires
     const code = await childWrite(dir, 'tiny')
     check('A: child writer exited 0', code === 0)
+
     const delivered = await waitFor(() => n >= 1, 5000)
     check('A: subscribe-before-exist DELIVERS a cross-process write', delivered,
       `fires ${firesBefore}→${fires}, n=${n}`)
+
     const before = fires
     const code2 = await childWrite(dir, 'tiny')
     check('A: second child writer exited 0', code2 === 0)
@@ -105,6 +111,7 @@ try {
     let seen = -1
     const unsub = tiny(dir).subscribe(v => { seen = v.n }, { immediate: true })
     await new Promise(r => setTimeout(r, 300))
+
     let delivered = false
     for (let attempt = 0; attempt < 3 && !delivered; attempt++) {
       const code = await childWrite(dir, 'tiny')

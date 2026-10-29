@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,6 +7,7 @@ import { join } from 'node:path'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'credential-wall-'))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
+
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 delete process.env.NODE_ENV
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -13,6 +15,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.OPENROUTER_API_KEY
+
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
 let failures = 0
@@ -36,6 +39,7 @@ const {
 const { clearOAuthTokenCache, __resetKnownDeadRefreshTokensForTest } = await import('../../src/utils/auth.ts')
 
 const credsPath = join(HOME, '.credentials.json')
+
 const seed = (oauth: Record<string, unknown> | null): void => {
   __resetKnownDeadRefreshTokensForTest()
   clearOAuthTokenCache()
@@ -60,6 +64,7 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
   check('a 429 carrying the phrase is no wall (the status is part of the fact)', classifyCredentialWall(429, 'OAuth token has been revoked') === undefined)
   check('no status ⇒ no wall', classifyCredentialWall(undefined, 'OAuth token has been revoked') === undefined)
   check('the class-string needle reads both spellings and not the expired one', isRevokedSignInText('OAuth access token has been revoked') && isRevokedSignInText('OAuth token has been revoked') && !isRevokedSignInText('OAuth token expired'))
+
   const OPENROUTER_BLOB = '403 {"error":{"message":"Key limit exceeded","code":403}}'
   check("the REAL OpenRouter payload (envelope and all) ⇒ key-limit", classifyCredentialWall(403, OPENROUTER_BLOB) === 'key-limit')
   check('drift: 401 + "access token was revoked" ⇒ sign-in', classifyCredentialWall(401, 'access token was revoked') === 'sign-in')
@@ -73,9 +78,11 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
   check('fence: 401 + "token expired; the refresh token is still valid" is NOT a wall (EXPIRED is the refresh lap\'s word)', classifyCredentialWall(401, 'token expired; the refresh token is still valid') === undefined)
   check('fence: the two words must share one clause — "token" in one sentence and "revoked" in the next is no wall', classifyCredentialWall(401, 'Invalid token. Access to this organization was revoked') === undefined)
   check('fence: a 500 carrying the phrase is no wall', classifyCredentialWall(500, 'OAuth token has been revoked') === undefined)
+
   const retrySrc = read('src/services/api/withRetry.ts')
   check('the retry ladder reads the shared family (no phrase copy of its own)', retrySrc.includes('isRevokedSignInText(errorMessage(error))') && !retrySrc.includes("'OAuth token has been revoked'"))
   check('no second copy of the revoked phrase outside the classifier', !read('src/utils/http.ts').includes('has been revoked') && !read('src/services/mcp/client.ts').includes('has been revoked'))
+
   const errorsSrc = read('src/services/api/errors.ts')
   check('the presenter and the compat seam read the classifier, never a phrase (no copy anywhere)', (errorsSrc.match(/has been revoked/g) ?? []).length === 0 && !errorsSrc.includes('getTokenRevokedErrorMessage') && !read('src/services/providers/openaicompat/compatChatCallModel.ts').includes('has been revoked'))
   const signIn = credentialWallLine('anthropic', 'sign-in')
@@ -94,6 +101,7 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
 {
   const { APIError } = await import('../../src/services/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
+
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
   setIsInteractive(true)
   const textOf = (m: { message: { content: unknown } }): string => {
@@ -122,6 +130,7 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
   seed(null)
   const plain401 = textOf(getAssistantMessageFromError(expired401, 'claude-opus-5') as never)
   check('a plain expired 401 with nothing observed keeps the generic presenter — no false "sign-in expired"', !plain401.includes('sign-in expired'), plain401.slice(0, 120))
+
   check('the generic 401 row carries the provider\'s sentence, attributed, under the recognised prefix', plain401 === `Run /logins. ${API_ERROR_MESSAGE_PREFIX} (401): Anthropic says: OAuth token expired`, plain401)
   check('POISON: the generic tail carries no envelope either', !/[{}"]/.test(plain401) && !plain401.includes('authentication_error'))
   const bare403 = new APIError(403, undefined as never, 'forbidden', undefined as never)
@@ -157,6 +166,7 @@ console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" thr
   check("the client folds the 403 body into a typed fault (message = the provider's sentence, status kept)", fault !== undefined && fault.status === 403 && fault.message === 'Key limit exceeded', JSON.stringify(fault))
   check('the fault classifies as the key-limit wall', fault !== undefined && classifyCredentialWall(fault.status, fault.message) === 'key-limit')
   check('the line the seam paints (POISON: no brace)', credentialWallLine('openrouter', 'key-limit') === KEY_LIMIT_LINE && !KEY_LIMIT_LINE.includes('{'))
+
   const typed = fault === undefined ? 'unknown' : compatFaultToTypedError(fault as never)
   const old = fault === undefined ? '' : compatTerminalFaultText(openrouterLaneProfile, fault, typed as never)
   check('without the wall the seam called the cap a rejected credential — the wall outranks it', old.includes('rejected the credential'), old)
@@ -216,6 +226,7 @@ console.log("§4 — the row receipt: the live composer's gate speaks the identi
   check('a reached cap derives the key-limit line for an openrouter-routed model id', credentialWallLineForModel('openrouter/openai/gpt-x') === KEY_LIMIT_LINE, credentialWallLineForModel('openrouter/openai/gpt-x') ?? 'undefined')
   __resetOpenrouterUsageStateForTest()
   check('nothing observed ⇒ no wall for the same id', credentialWallLineForModel('openrouter/openai/gpt-x') === undefined)
+
   const { recordLaneBillingRefusal, recordLaneTurnSettled, __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
   __resetLaneBillingStateForTest()
   recordLaneBillingRefusal('openrouter', { detail: 'http-403: Key limit exceeded', remedy: KEY_LIMIT_LINE })

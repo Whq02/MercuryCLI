@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -17,9 +18,11 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), '..', 'ui', 'vshot.py')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.AXIOM_CARDS_CHILD) {
+
   const React = await import('react')
   const { render, Box, Text } = (await import('../../src/ink.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
@@ -97,12 +100,15 @@ if (process.env.AXIOM_CARDS_CHILD) {
   console.log('============================================================')
 
   const GLYPH_FOR: Record<string, string> = {
+
     'exec-queued': '◐', 'exec-starting': '◐', 'exec-ready': '●', 'exec-running': '◐',
     'exec-waiting': '◐', 'exec-stopping': '◐', 'exec-stopped': '○', 'exec-succeeded': '●',
     'exec-failed': '✕', 'exec-cancelled': '⦿', 'exec-unavailable': '—', 'exec-indeterminate': '?',
+
     'txn-created': '◐', 'txn-prepared': '◐', 'txn-proposed': '◐', 'txn-authorised': '◐',
     'txn-applying': '◐', 'txn-applied': '◐', 'txn-checking': '◐', 'txn-verified': '●',
     'txn-settled': '●', 'txn-failed': '✕', 'txn-cancelled': '⦿', 'txn-stale': '↻',
+
     'deg-absent': '✕', 'deg-expired': '↻', 'deg-busy': '⦿', 'deg-unavailable': '—',
   }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,6 +36,7 @@ section('§1 the real estimators over the post-compact shape')
   check('THE OLD ESTIMATOR DROPPED THE STRING SUMMARY (the receipt\'s "after" figure omitted it)', oldFigure < summaryAlone / 2, `old=${oldFigure} summary=${summaryAlone}`)
   check('the new figure counts the summary', newFigure >= summaryAlone, `new=${newFigure}`)
   check('…and the kept tail beside it', newFigure > summaryAlone)
+
   const rawSum = summaryAlone + roughTokenCountEstimation('reply: module 5 adjusted. '.repeat(20))
   check('the figure counts the summary AND the tail under the estimator\'s one headroom factor', newFigure >= rawSum && newFigure <= Math.ceil((rawSum * 4) / 3) + 8, `new=${newFigure} raw=${rawSum}`)
 }

@@ -41,6 +41,7 @@ export function describeMoonshotProvider(): ProviderDescription {
       'worktree-authoring',
     ],
     roles: ALL_ROLES,
+
     account: record?.account
       ? record.account.kind === 'kimi-oauth'
         ? { kind: 'provider-oauth', label: record.account.label }
@@ -77,6 +78,7 @@ export function listMoonshotModels(): ProviderModel[] {
 function resolveMoonshotModel(
   _modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
+
   return null
 }
 

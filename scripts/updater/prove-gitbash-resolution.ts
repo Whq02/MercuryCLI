@@ -15,6 +15,7 @@ const GIT_ROOT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe'
 
 console.log('── §1 the mingw64 shadow (the bridge-gate red) ──')
 {
+
   const out = gitBashCandidatePaths(['C:\\Program Files\\Git\\mingw64\\bin\\git.exe'])
   check('the sibling probe is derived first', out[0] === 'C:\\Program Files\\Git\\mingw64\\bin\\bash.exe', out[0] ?? '')
   check('the install-root walk recovers bin\\bash.exe', out[1] === GIT_ROOT_BASH, out[1] ?? '')
@@ -62,6 +63,7 @@ console.log('── §4 the owner is WIRED through the multi-candidate walk ─�
     'findGitBashPath consumes gitBashCandidatePaths(findExecutableCandidates(…))',
     src.includes("gitBashCandidatePaths(findExecutableCandidates('git'))"),
   )
+
   check('the single-candidate derivation is gone', !src.includes('const bashPath = pathWin32.join('))
 }
 

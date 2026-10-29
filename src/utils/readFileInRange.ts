@@ -2,7 +2,6 @@ import { open, readFile, stat } from 'node:fs/promises'
 
 import { formatFileSize } from './format.js'
 
-
 export type ReadFileRangeResult = {
   content: string
   lineCount: number
@@ -106,6 +105,7 @@ export async function readFileInRange(
     throw new Error(`EISDIR: illegal operation on a directory, read '${filePath}'`)
   }
   if (stats.isFile() && stats.size < FAST_PATH_MAX_BYTES) {
+
     if (!truncateMode && maxBytes !== undefined && stats.size > maxBytes) {
       throw new FileTooLargeError(stats.size, maxBytes)
     }
@@ -165,10 +165,12 @@ async function streamingPath(
   statSizeBytes?: number,
 ): Promise<ReadFileRangeResult> {
   const handle = await open(filePath, 'r')
+
   const mtimePromise = handle
     .stat()
     .then(stats => stats.mtimeMs)
     .catch(() => 0)
+
   const lead = Buffer.alloc(2)
   const { bytesRead: leadRead } = await handle.read(lead, 0, 2, 0)
   const encoding = encodingForLeadingBytes(leadRead > 0 ? lead[0] : undefined, leadRead > 1 ? lead[1] : undefined)
@@ -214,6 +216,7 @@ async function streamingPath(
       let text = typeof chunk === 'string' ? chunk : chunk.toString(encoding)
       streamedBytes += Buffer.byteLength(text)
       if (!truncateMode && maxBytes !== undefined && streamedBytes > maxBytes) {
+
         fail(new FileTooLargeError(statSizeBytes ?? streamedBytes, maxBytes))
         return
       }
@@ -229,11 +232,14 @@ async function streamingPath(
         acceptLine(carried.slice(0, newline))
         carried = carried.slice(newline + 1)
       }
+
       if (carried.length > 0) {
         const inRange = lineIndex >= offset && lineIndex < end && !truncated
         if (!inRange) {
+
           carried = ''
         } else if (truncateMode && Buffer.byteLength(carried) + (selected.length > 0 ? 1 : 0) > budgetLeft) {
+
           truncated = true
           carried = ''
         }
@@ -241,6 +247,7 @@ async function streamingPath(
     })
     stream.on('error', err => reject(err))
     stream.on('end', () => {
+
       acceptLine(carried)
       const content = selected.join('\n')
       void mtimePromise.then(mtimeMs => {

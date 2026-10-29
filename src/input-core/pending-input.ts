@@ -26,6 +26,7 @@ export function sanitizeComposerText(raw: string): string {
 
 export type ComposerDraft = {
   text: string
+
   cursorOffset: number
   mode: PromptInputMode
   pastedContents: Record<number, PastedContent>
@@ -39,13 +40,15 @@ export type StashedPrompt = {
 }
 
 export type EditInterceptors = {
+
   interceptSuggestion?: (prev: string, next: string) => boolean
+
   onEmptyToNonempty?: () => void
+
   onActiveChange?: (active: boolean) => void
 }
 
 const PROMPT_SUPPRESSION_MS = 1500
-
 
 let draft: ComposerDraft = {
   text: '',
@@ -57,8 +60,10 @@ let stash: StashedPrompt | undefined
 let restoredPrompt: string | undefined
 let interceptors: EditInterceptors = {}
 let initialized = false
+
 let owningSessionId: string | null = null
 let suppressionTimer: ReturnType<typeof setTimeout> | null = null
+
 let editSeq = 0
 let commitSeq = 0
 
@@ -68,7 +73,6 @@ function commit(): void {
   commitSeq++
   changed.emit()
 }
-
 
 function persistDraft(): void {
   saveDraftDebounced(owningSessionId ?? getSessionId(), {
@@ -98,7 +102,6 @@ export function clearForSubmit(submittedText?: string): void {
 let lastSubmitted: { text: string; at: number } | null = null
 const SUBMITTED_PAGE_WINDOW_MS = 15_000
 
-
 export const subscribePendingInput = changed.subscribe
 
 export function text(): string {
@@ -120,7 +123,6 @@ export function stashedPrompt(): StashedPrompt | undefined {
 export function editGeneration(): number {
   return commitSeq
 }
-
 
 export function initOnce(seed: {
   text: string
@@ -160,9 +162,11 @@ export function initSession(
 
 export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
   const fence = editSeq
+
   const typedWhileLanding = opts?.landing === true ? draft.text : ''
   await flushDraftSaves()
   owningSessionId = sessionId
+
   if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
   let saved = readDraftSync(sessionId)
   if (
@@ -217,7 +221,6 @@ export function resetPendingInputForTests(): void {
   }
 }
 
-
 function armSuppressionTimer(nonempty: boolean): void {
   if (suppressionTimer !== null) {
     clearTimeout(suppressionTimer)
@@ -244,17 +247,18 @@ export function edit(raw: string, options?: { restored?: boolean }): void {
   draft = { ...draft, text: value }
   commit()
   persistDraft()
+
   activityManager.recordUserActivity()
   updateLastInteractionTime(true)
   interceptors.onActiveChange?.(value.trim().length > 0)
   armSuppressionTimer(value.trim().length > 0)
+
   markTypingActivity()
 }
 
 export function append(seed: string): void {
   edit(draft.text + seed)
 }
-
 
 export function setMode(next: PromptInputMode): void {
   if (draft.mode === next) return
@@ -277,7 +281,6 @@ export function reportCursor(offset: number): void {
   draft = { ...draft, cursorOffset: offset }
   persistDraft()
 }
-
 
 export function setStash(next: StashedPrompt | undefined): void {
   stash = next
@@ -309,7 +312,6 @@ export function popStash(): StashedPrompt | undefined {
   return pocket
 }
 
-
 let staged: { text: string; at: number } | null = null
 
 export function stagedSubmit(): { text: string; at: number } | null {
@@ -328,7 +330,6 @@ export function restoreStaged(expectedText?: string): { text: string } | null {
   edit(record.text)
   return { text: record.text }
 }
-
 
 export function shouldAutoRestore(ctx: {
   reason: unknown

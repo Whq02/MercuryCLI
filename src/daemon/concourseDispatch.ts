@@ -33,22 +33,31 @@ import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
 export interface ConcourseDispatchRecordV1 {
   schema: 1
   clientMessageId: string
+
   promptDigest: string
+
   envelopeDigest?: string
   envelopeVersion?: 2
   state: ConcourseSessionState
   stateRevision: number
   acceptedAt: number
+
   workerId?: string
   sessionId?: string
+
   reason?: string
   deliveredAt?: number
+
   heldReason?: string
+
   heldByTitle?: string
+
   title?: string
   workspaceId?: string
+
   by?: string
   contentImageBlocks?: number
+
   heldOp?: HeldOpEnvelopeV1
 }
 
@@ -65,6 +74,7 @@ export interface HeldOpEnvelopeV1 {
   by?: string
   permissionMode?: string
   runnerArgv?: string[]
+
   kitPreset?: string
   kit?: ConcourseAdmitRequest['kit']
   birthKey?: string
@@ -173,6 +183,7 @@ function publishDispatchesAfterReply(dispatches: Record<string, ConcourseDispatc
         try {
           publishDispatches(dispatches, dir)
         } catch (err) {
+
           logForDebugging(`[concourse/dispatch] deferred ledger publish failed for ${path}: ${err}`)
         }
       }
@@ -299,9 +310,9 @@ export function promptDigestOf(prompt: string): string {
   return createHash('sha256').update(prompt, 'utf8').digest('hex')
 }
 
-
 export interface ConcourseControlOpRecordV1 {
   clientOpId: string
+
   action: string
   sessionId: string
   outcome: 'applied' | 'noop' | 'refused'
@@ -400,12 +411,16 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 =
         title: req.title ?? null,
         agentName: req.agentName ?? null,
         seatsMax: req.seatsMax ?? null,
+
         resumeSessionId: req.resumeSessionId ?? null,
+
         mode: req.mode ?? null,
         agentId: req.agentId ?? null,
         priority: req.priority ?? null,
         content: req.content ?? null,
+
         permissionMode: req.permissionMode ?? null,
+
         runnerArgv: req.runnerArgv ?? null,
         ...(version === 2 ? {
           kit: req.kit ?? null,
@@ -423,6 +438,7 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest, version: 1 | 2 =
 }
 
 export async function buildConcoursePromptRow(prompt: string, extras?: ConcoursePromptExtras, groundNote?: string): Promise<InputRow> {
+
   const note = groundNote !== undefined && groundNote.length > 0 && extras?.mode !== 'bash' ? groundNote : undefined
   const id = extras?.identity !== undefined && UUID_SHAPE.test(extras.identity) ? extras.identity : randomUUID()
   if (isOutsideReportOrigin(extras?.origin)) return { type: 'outside-report', sender: extras.origin.sender, content: prompt, id }
@@ -460,6 +476,7 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export interface ConcoursePromptExtras {
   mode?: 'prompt' | 'bash' | 'task-notification'
+
   agentId?: string
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
@@ -497,10 +514,10 @@ function advance(
   Object.assign(rec, patch)
 }
 
-
 export interface ConcoursePreflightRefusal {
   code: 'invalid-workspace' | 'invalid-model' | 'invalid-effort' | 'no-repository' | 'runtime-ceiling' | 'workspace-collision'
   reason: string
+
   moves?: ConcourseMoveV1[]
 }
 
@@ -517,10 +534,13 @@ export async function preflightConcourseDispatch(
   } catch {
   }
   if (!workspaceOk) {
+
     refusals.push({ code: 'invalid-workspace', reason: `project folder not found: ${req.workspaceDir} — pick an existing folder` })
   }
+
   ;(await import('./signInView.js')).refreshSignInReads(true)
   const modelValidated = await (await import('../services/concourse/workerModels.js')).validateWorkerModelChoice(req.modelKey, 'session')
+
   if (req.effort !== undefined) {
     const { normalizeEffortLevelString, EFFORT_LEVELS } = await import('../utils/effort.js')
     if (normalizeEffortLevelString(req.effort) === undefined) {
@@ -528,6 +548,7 @@ export async function preflightConcourseDispatch(
     }
   }
   if (!modelValidated.ok) {
+
     refusals.push({
       code: 'invalid-model',
       reason: `model unavailable (${modelValidated.reason})${modelValidated.detail !== undefined ? ` — ${modelValidated.detail}` : ''}${modelValidated.action !== undefined ? ` · ${modelValidated.action}` : ''}`,
@@ -551,11 +572,13 @@ export async function preflightConcourseDispatch(
             },
       )
     }
+
     const live = Object.values(readSessionWorkers(dir)).filter(
       r =>
         r.endedAt === undefined &&
         ((r.pid !== undefined && isProcessAlive(r.pid)) || r.attachedAt !== undefined),
     )
+
     const resolution = resolveDefaultedAdmission(
       live.map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation })),
       { workspaceId, ...(req.isolation !== undefined ? { isolation: req.isolation } : {}) },
@@ -600,9 +623,13 @@ export function previewDefaultedLaunch(workspaceDir: string, dir?: string): Defa
 export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   clientMessageId: string
   prompt: string
+
   by?: string
+
   targetSessionId?: string
+
   mode?: 'prompt' | 'bash' | 'task-notification'
+
   agentId?: string
   priority?: 'now' | 'next' | 'later'
   content?: unknown[]
@@ -618,15 +645,22 @@ export type ConcourseDispatchResult = {
   runnerId?: string
   sessionId?: string
   error?: string
+
   replay?: 'replayed' | 'edited-replay'
+
   heldReason?: string
   heldByTitle?: string
+
   moves?: ConcourseMoveV1[]
+
   branchName?: string
   mainHolderTitle?: string
+
   modelId?: string
   modelDisplayName?: string
+
   effort?: string
+
   kitSource?: 'carried' | 'derived' | 'preset'
   presetName?: string
   presetNote?: string
@@ -635,6 +669,7 @@ export type ConcourseDispatchResult = {
 export interface ConcourseDispatchDeps {
   admit: (req: ConcourseAdmitRequest) => Promise<ConcourseAdmitResult>
   deliver: (runnerId: string, row: InputRow) => Promise<boolean>
+
   revive?: (sessionId: string) => Promise<{ ok: boolean; error?: string; reason?: ConcourseReviveRefusal }>
   dir?: string
 }
@@ -647,6 +682,7 @@ export interface ConcourseDispatchHandler {
 export function makeConcourseDispatchHandler(
   deps: ConcourseDispatchDeps,
 ): ConcourseDispatchHandler {
+
   const attemptRedirectDelivery = async (
     rec: ConcourseDispatchRecordV1,
     dispatches: Record<string, ConcourseDispatchRecordV1>,
@@ -658,6 +694,7 @@ export function makeConcourseDispatchHandler(
     let targetRec = Object.values(workers).find(w => w.sessionId === target && w.endedAt === undefined)
     const report = isOutsideReportOrigin(extras?.origin)
     if (!report && targetRec && (targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)) {
+
       rec.heldReason = 'session-with-you'
       rec.sessionId = target
       rec.workerId = targetRec.runnerId
@@ -717,6 +754,7 @@ export function makeConcourseDispatchHandler(
       targetRec.attachedAt === undefined &&
       deps.revive !== undefined
     ) {
+
       const rev = await deps.revive(target)
       if (rev.ok) {
         const refreshed = Object.values(readSessionWorkers(deps.dir)).find(
@@ -732,6 +770,7 @@ export function makeConcourseDispatchHandler(
         : reviveRefusal !== undefined
           ? `the session could not be revived: ${reviveRefusal.error}`
           : 'the session has no live runner — a replay revives it and delivers into the same chat'
+
       delete rec.heldReason
       delete rec.heldOp
       advance(rec, 'failed', { reason: why })
@@ -756,6 +795,7 @@ export function makeConcourseDispatchHandler(
     delete rec.heldReason
     delete rec.heldOp
     advance(rec, 'starting', { workerId: targetRec.runnerId, sessionId: target })
+
     if (rec.state !== 'starting') {
       publishDispatches(dispatches, deps.dir)
       return {
@@ -809,6 +849,7 @@ export function makeConcourseDispatchHandler(
           error: 'same clientMessageId with different content — a material edit needs a NEW message identity (the draft is preserved)',
         }
       }
+
       if (existing.heldReason !== undefined && existing.sessionId !== undefined) {
         return attemptRedirectDelivery(existing, dispatches, existing.sessionId, req.prompt, promptExtrasOf(req))
       }
@@ -839,8 +880,10 @@ export function makeConcourseDispatchHandler(
         }
     delete rec.heldReason
     delete rec.heldOp
+
     if (req.title !== undefined && req.title.length > 0) rec.title = partiallySanitizeUnicode(req.title).slice(0, 120)
     rec.workspaceId = canonicalWorkspaceId(req.workspaceDir)
+
     if (req.by !== undefined && req.by.length > 0) rec.by = req.by.slice(0, 64)
     if (Array.isArray(req.content)) {
       const imageBlocks = req.content.filter(b => (b as { type?: string })?.type === 'image').length
@@ -856,6 +899,7 @@ export function makeConcourseDispatchHandler(
     const { clientMessageId: _id, prompt, targetSessionId: _target, ...admitReq } = req
     const admitted = await deps.admit(admitReq)
     if (!admitted.ok) {
+
       const retryable =
         admitted.code === 'runtime-ceiling' ||
         admitted.code === 'workspace-collision' ||
@@ -863,6 +907,7 @@ export function makeConcourseDispatchHandler(
         admitted.code === 'git-unavailable' ||
         admitted.code === 'unborn-head'
       if (retryable) {
+
         rec.heldReason = normalizeHoldReason(admitted.code) ?? 'seat'
         if (rec.heldReason === 'repo-held') {
           const holder = Object.values(readSessionWorkers(deps.dir)).find(
@@ -875,6 +920,7 @@ export function makeConcourseDispatchHandler(
           else delete rec.heldByTitle
         }
         rec.reason = admitted.error
+
         rec.heldOp = {
           prompt: req.prompt,
           workspaceDir: req.workspaceDir,
@@ -902,12 +948,14 @@ export function makeConcourseDispatchHandler(
         }
         publishDispatches(dispatches, deps.dir)
         if ((rec.heldReason === 'no-repository' || rec.heldReason === 'unborn-head') && rec.workspaceId !== undefined) {
+
           const folder = rec.workspaceId
           void import('./permissionAsks.js')
             .then(p => p.mintGitInitAsk(folder))
             .catch(err => logForDebugging(`[concourse/dispatch] git-init ask mint failed: ${err}`))
         }
         if (admitted.gitOfferRefused !== undefined && rec.workspaceId !== undefined) {
+
           const folder = rec.workspaceId
           const refusal = admitted.gitOfferRefused
           void import('./permissionAsks.js')
@@ -927,6 +975,7 @@ export function makeConcourseDispatchHandler(
       }
       advance(rec, 'failed', { reason: admitted.error })
       publishDispatches(dispatches, deps.dir)
+
       if (admitted.code === 'workspace-collision') {
         try {
           const wsId = canonicalWorkspaceId(req.workspaceDir)
@@ -949,6 +998,7 @@ export function makeConcourseDispatchHandler(
           logForDebugging(`[concourse/dispatch] collision-evidence record failed for ${req.clientMessageId}: ${err}`)
         }
       }
+
       void import('../services/concourse/coordinatorKernel.js')
         .then(k =>
           k.runCoordinatorKernel({
@@ -961,6 +1011,7 @@ export function makeConcourseDispatchHandler(
           }),
         )
         .catch(err => {
+
           logForDebugging(`[concourse/dispatch] R1 kernel ride failed for ${req.clientMessageId}: ${err}`)
         })
       return {
@@ -973,6 +1024,7 @@ export function makeConcourseDispatchHandler(
       }
     }
     advance(rec, 'starting', { workerId: admitted.runnerId, sessionId: admitted.sessionId })
+
     for (const other of Object.values(dispatches)) {
       if (other === rec) continue
       if (other.heldReason === undefined || other.sessionId !== undefined) continue

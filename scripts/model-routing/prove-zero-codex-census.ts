@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -57,8 +58,10 @@ check(
 )
 
 const spawnHitsAll = hits(['src'], /(spawn|execFile)[^\n]*codex|['"]codex['"]/)
+
 const CREW_SEAT_ESTATE = /^src[\/\\](services[\/\\]crew|commands[\/\\]crew)[\/\\]/
 const CAPACITY_OBSERVER = /^src[\/\\]services[\/\\]switchboard[\/\\]capacityCheck\.ts$/
+
 const FOREIGN_RECOGNIZER = /^src[\/\\]utils[\/\\]knownAgentClis\.ts$/
 const spawnHits = spawnHitsAll.filter(f => !CREW_SEAT_ESTATE.test(f) && !CAPACITY_OBSERVER.test(f) && !FOREIGN_RECOGNIZER.test(f))
 check(

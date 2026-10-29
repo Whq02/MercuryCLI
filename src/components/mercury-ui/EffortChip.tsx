@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
@@ -59,13 +58,17 @@ export function RecordedEffortChip({ effort, plain = false, maxWidth = Number.PO
 
 export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { model: string; plain?: boolean; maxWidth?: number }): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
+
   const seatEffort = useFocusedServedEffort()
+
   const sentEffort = useFocusedSentEffort()
   const bornEffort = useFocusedBornEffort()
   if (!model || !modelSupportsEffort(model)) return null
+
   const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
   const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
   const sent = typeof sentEffort === 'string' ? parseEffortValue(sentEffort) : undefined
+
   const askedOnly = sentEffort === undefined && stamped !== undefined
   const born = bornEffortValueOf(seatEffort, bornEffort)
   const level =

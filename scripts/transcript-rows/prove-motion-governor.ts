@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -56,8 +57,10 @@ function reset(): void {
 const feed = (costMs: number, n: number): void => {
   for (let i = 0; i < n; i++) noteFrameCost(costMs)
 }
+
 const OVER = Math.ceil(TRIP_RUN_COST_MS / TRIP_RUN) + 10
 const UNDER = FRAME_BUDGET_MS - 8
+
 const MILD = FRAME_BUDGET_MS + 4
 
 console.log('============================================================')
@@ -252,6 +255,7 @@ check('a glyph samples at the slow tick at reduced', glyphTickMs('reduced', WORK
 check('a glyph already slower than the floor keeps its own tick at reduced', glyphTickMs('reduced', DECOR_TICK_MS) === DECOR_TICK_MS)
 check('a glyph does not sample at off', glyphTickMs('off', WORK_TICK_MS) === null)
 {
+
   const commits = (clockMs: number, sampleMs: number): number => {
     const timers = fixtureTimers()
     const clock = createClock(clockMs, timers)

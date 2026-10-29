@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/guards/runStop.ts src/guards/guards.ts src/utils/config/globalConfig.ts
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

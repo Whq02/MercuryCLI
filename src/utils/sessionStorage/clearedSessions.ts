@@ -1,4 +1,3 @@
-
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
@@ -35,6 +34,7 @@ export function markSessionCleared(sessionId: string | null | undefined): void {
   try {
     const map = readMap()
     map[sessionId] = Date.now()
+
     const entries = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, CACHE_MAX)
     mkdirSync(getMercuryHome(), { recursive: true })
     writeFileSync(cachePath(), JSON.stringify(Object.fromEntries(entries), null, 2) + '\n')

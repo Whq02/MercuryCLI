@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -47,7 +48,9 @@ const editsA = JSON.stringify({
 const editsB = JSON.stringify({
   changes: {
     [importsUri]: [
+
       { range: { start: { line: 0, character: 8 }, end: { line: 0, character: 11 } }, newText: 'XXX' },
+
       { range: { start: { line: 1, character: 7 }, end: { line: 1, character: 11 } }, newText: 'BBBB' },
     ],
   },
@@ -157,6 +160,7 @@ console.log('— R. directory rename claims through contained extensions —')
   const r = await drive({ operation: 'pathRename', filePath: dir, newPath: dest, apply: true }, dir)
   check('directory move succeeded', r.effect.outcome === 'succeeded', r.result.slice(0, 300))
   check('the tree moved', !existsSync(dir) && existsSync(path.join(dest, 'inner.yy')))
+
   let c = logLines(logC)
   for (let i = 0; i < 40 && !c.includes('workspace/didRenameFiles'); i++) {
     await new Promise(r => setTimeout(r, 50))

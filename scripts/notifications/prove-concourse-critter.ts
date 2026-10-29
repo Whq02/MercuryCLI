@@ -37,6 +37,7 @@ t.section('§6 — the C shell legend binding')
 t.section('§7 — registration laws + the SEVENTH divergence class')
 {
   t.check('the rotation NEVER grows (4 active)', cd.CRITTER_COUNT === 4, String(cd.CRITTER_COUNT))
+
   t.check(
     'the hermit is NOT key-resolvable (surface-bound, imported directly)',
     !cd.isPoolCritterKey('hermit') &&
@@ -48,6 +49,7 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
     cd.critterDefForKey('hermit crab').name === cd.critterDefForKey(cd.DEFAULT_CRITTER_KEY).name,
     cd.critterDefForKey('hermit crab').name,
   )
+
   const screen = await Bun.file('src/components/concourse/ConcourseScreen.tsx').text()
   t.check(
     'the zero-sessions resident derives from the selection owner (theme-aware, never a fixed creature)',
@@ -64,6 +66,7 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
       !/critterDefForKey\(\s*['"]jellyfish['"]\s*\)/.test(header),
     'selection-derived mark',
   )
+
   t.check(
     'the header mounts the square-dock grid through the square form (named row #1)',
     /<CritterArt def=\{markDef\} square /.test(header) &&
@@ -78,6 +81,7 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
   const seed = await import('./concourseReferenceSeed.ts')
   t.check(
     'CONCOURSE_REFERENCE_DIVERGENCES carries the SEVENTH class (resident-critter) BEFORE any parity prover',
+
     seed.CONCOURSE_REFERENCE_DIVERGENCES.length === 8 && /resident-critter/.test(seed.CONCOURSE_REFERENCE_DIVERGENCES[6] ?? ''),
     String(seed.CONCOURSE_REFERENCE_DIVERGENCES.length),
   )
@@ -95,6 +99,7 @@ t.section('§8 — the crab dome eyes are authored art (the pose-aim seam is gon
 
 t.section('§9 — the header STILL: the square dock at the header, one surface only)')
 {
+
   process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     (await import('node:path')).join((await import('node:os')).tmpdir(), 'concourse-critter-still-'),
   )

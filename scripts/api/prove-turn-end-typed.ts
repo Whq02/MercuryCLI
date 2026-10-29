@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,6 +24,7 @@ process.env.MERCURY_MAX_RETRIES = '1'
 process.env.OPENAI_API_KEY = 'sk-test-turn-end-typed'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const BUDGET_MS = 1500
+
 const KEEPALIVE_SPAN_MS = BUDGET_MS * 2
 
 const guard = setTimeout(() => {
@@ -37,6 +39,7 @@ const named = (event: string, obj: unknown): string => `event: ${event}\n${sse(o
 
 type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'mid-item-silence' | 'keepalive-after-settle' | 'complete'
 let arm: Arm = 'complete'
+
 let holdHeaders = false
 const calls = { openai: 0, anthropic: 0 }
 const holds = new Set<ServerResponse>()
@@ -58,6 +61,7 @@ function responsesBody(res: ServerResponse): void {
   if (arm === 'close-after-settle') return void res.end()
   if (arm === 'hold-after-settle') return void holds.add(res)
   if (arm === 'keepalive-after-settle') {
+
     holds.add(res)
     const startedAt = Date.now()
     const t = setInterval(() => {
@@ -127,6 +131,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         body = {}
       }
       if (body.stream !== true) {
+
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ id: 'msg_ns', type: 'message', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: 'reissued without streaming' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 2 } }))
         return

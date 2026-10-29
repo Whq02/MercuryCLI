@@ -1,15 +1,21 @@
-
 import type { WorkflowProgressEvent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 
 export const WORKFLOW_QUIET_MS = 120_000
 
 export type WorkflowPulse = {
+
   phaseTitle?: string
+
   running: number
+
   settled: number
+
   maxAttempt: number
+
   lastEventAt: number
+
   quietMs: number
+
   moving: boolean
 }
 
@@ -46,6 +52,7 @@ export function workflowPulseFacts(
   events: readonly WorkflowProgressEvent[],
   startTime: number,
 ): WorkflowPulseFacts {
+
   let phaseTitle: string | undefined
   let newestAgentAt = 0
   let newestAgentPhase: string | undefined
@@ -55,6 +62,7 @@ export function workflowPulseFacts(
   let lastEventAt = startTime
   for (const ev of events) {
     if (ev.type === 'workflow_phase') {
+
       phaseTitle = ev.title
       continue
     }
@@ -76,6 +84,7 @@ export function workflowPulseFacts(
       settled++
     }
   }
+
   if (newestAgentPhase !== undefined) phaseTitle = newestAgentPhase
   return {
     ...(phaseTitle !== undefined ? { phaseTitle } : {}),
@@ -86,12 +95,13 @@ export function workflowPulseFacts(
   }
 }
 
-
 export type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
+
   waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
   waitWords?: string
   retryInMs?: number
+
   recoveryTimeoutMs?: number
   retryAttempt?: number
   lastProgressAt?: number
@@ -109,6 +119,7 @@ export type AgentPulse =
       retryInMs?: number
       recoveryTimeoutMs?: number
       retryAttempt?: number
+
       words?: string
     }
   | { kind: 'working'; toolLine?: string }
@@ -121,11 +132,13 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
   if (a.state === 'start') return a.waitWords !== undefined && a.waitWords !== '' ? { kind: 'queued', words: a.waitWords } : { kind: 'queued' }
   if (a.state !== 'progress') return { kind: 'settled' }
   if (a.waiting === 'seat') return { kind: 'seat', words: a.waitWords ?? 'waiting for a seat' }
+
   if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'paused — waiting for the usage window' }
   if (a.waiting === 'operator') return { kind: 'operator-pause', words: a.waitWords ?? 'paused by the operator' }
   const toolLine = a.lastToolName
     ? `${a.lastToolName}(${a.lastToolSummary ?? ''})`
     : undefined
+
   const lastSignal = a.lastProgressAt ?? a.startedAt
   const quietMs = lastSignal !== undefined ? Math.max(0, nowMs - lastSignal) : 0
   if (lastSignal !== undefined && quietMs >= WORKFLOW_QUIET_MS)
@@ -138,6 +151,7 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
       retryAttempt: a.retryAttempt,
       ...(a.waitWords !== undefined && a.waitWords !== '' ? { words: a.waitWords } : {}),
     }
+
   if (a.waiting === 'prefill')
     return a.waitWords !== undefined && a.waitWords !== '' ? { kind: 'first-token', words: a.waitWords } : { kind: 'first-token' }
   return { kind: 'working', toolLine }
@@ -146,13 +160,16 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
 export function agentPulseWord(p: AgentPulse): string {
   switch (p.kind) {
     case 'queued':
+
       return p.words ?? 'starting'
     case 'first-token':
       return p.words ?? 'awaiting first token'
     case 'seat':
       return p.words
     case 'backoff': {
+
       if (p.words !== undefined) return p.words
+
       if (
         (typeof p.retryInMs !== 'number' || p.retryInMs <= 0) &&
         typeof p.recoveryTimeoutMs === 'number' &&

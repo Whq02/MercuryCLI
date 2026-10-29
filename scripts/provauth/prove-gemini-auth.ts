@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -175,6 +176,7 @@ const {
 
 {
   __resetGeminiAccountsForTest()
+
   const mint: typeof fetch = (async () =>
     new Response(
       JSON.stringify({ access_token: 'OLD', refresh_token: 'RT-1', expires_in: -100 }),
@@ -207,6 +209,7 @@ const {
   check('fresh disk tokens adopted with ZERO network', fresh?.accessToken === 'NEW')
 
   __resetGeminiAccountsForTest()
+
   const path = geminiAuthPathForDisplay()
   const file = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
   const t = file.tokens as Record<string, unknown>

@@ -34,6 +34,7 @@ async function main(): Promise<void> {
 
   console.log('\n§1 concurrent FIRST reads of one key all answer the branch')
   {
+
     const branches = await Promise.all(
       Array.from({ length: 6 }, () => fsMod.getCachedBranch()),
     )

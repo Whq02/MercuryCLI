@@ -51,6 +51,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'MCP trust cards', on: true, hint: trustedHint },
       { name: 'Capability manifest', on: true, hint: 'always-on · ToolSearch' },
       { name: 'In-process MCP server (mercury)', on: isMercuryServerEnabled(), hint: isMercuryServerEnabled() ? 'live (opt out =0) · the lease verbs + render_tui' : 'MERCURY_COORDINATION_MCP=0 set' },
+
       {
         name: 'Agent-cap posture',
         on: !!agentCapPosture,
@@ -60,8 +61,10 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
             : `active: ${truncateToWidth(agentCapPosture, 40)}`
           : 'MERCURY_AGENT_CAP=worker:max-risk=low',
       },
+
       {
         name: 'Skill self-auth',
+
         on: !isEnvDefinedFalsy(flagEnv('MERCURY_SKILL_SELF_AUTH')),
         hint:
           !isEnvDefinedFalsy(flagEnv('MERCURY_SKILL_SELF_AUTH'))
@@ -71,9 +74,9 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     ],
   }
 
-
   const cronOn = isSaturnSchedulingEnabled()
   const breakerFails = (flagEnv('MERCURY_DAEMON_BREAKER_FAILS') ?? '').trim() || '5'
+
   const daemon = daemonSnapshot()
   const daemonLive = daemon.state === 'live'
   const autonomy: SubstrateSection = {
@@ -93,6 +96,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     title: 'Observability / perf',
     rows: [
       { name: 'Invocation trace', on: traceOn, hint: traceOn ? 'live · /trace (opt out MERCURY_SUBSTRATE=0)' : 'MERCURY_TRACE=1 · /trace' },
+
       {
         name: 'Compact advance + breaker',
         on: ctxOn,
@@ -103,6 +107,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
             : 'MERCURY_CTX_COMPACTION=1',
       },
       { name: 'Agent needs-you', on: agentNeedsYouOn, hint: agentNeedsYouOn ? 'live (opt out =0) · heuristic' : 'MERCURY_AGENT_NEEDS_YOU=0 set' },
+
       {
         name: 'ctx autocompact forecast',
         on: ctxForecastEnabled(),
@@ -118,6 +123,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'MercuryFrame statusbar', on: true, hint: 'always-on' },
       { name: '/trace', on: true, hint: 'always-on' },
       { name: 'Persistent deck pane', on: deckPaneOn, hint: deckPaneOn ? 'live · fullscreen (opt out MERCURY_SUBSTRATE=0)' : 'MERCURY_DECK_PANE=1 · fullscreen' },
+
       {
         name: 'Warm terminal background',
         on: isEnvTruthy(flagEnv('MERCURY_WARM_BG')),

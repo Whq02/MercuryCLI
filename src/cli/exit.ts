@@ -1,4 +1,3 @@
-
 export function cliError(msg?: string): never {
   if (msg !== undefined) {
     console.error(msg)

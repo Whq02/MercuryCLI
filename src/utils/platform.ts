@@ -6,7 +6,6 @@ import { memoize } from 'lodash-es'
 
 import { logError } from './log.js'
 
-
 export type Platform = 'macos' | 'windows' | 'wsl' | 'linux' | 'unknown'
 
 export const getPlatform = memoize((): Platform => {
@@ -35,6 +34,7 @@ export const getWslVersion = memoize((): string | undefined => {
     const version = readFileSync('/proc/version', 'utf8')
     const explicit = /WSL(\d+)/i.exec(version)
     if (explicit) return explicit[1]
+
     if (version.toLowerCase().includes('microsoft')) return '1'
     return undefined
   } catch (err) {

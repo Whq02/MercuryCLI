@@ -1,4 +1,3 @@
-
 import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'

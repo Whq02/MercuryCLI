@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -138,6 +139,7 @@ section('S4 — per seat: two budgets never share a spend')
 section('S5 — Retry-After: both spellings name the wait')
 {
   check('the seconds form', retry.getRetryDelay(3, '2') === 2_000, String(retry.getRetryDelay(3, '2')))
+
   const now = Math.floor(Date.now() / 1000) * 1000
   const date = new Date(now + 30_000).toUTCString()
   const dated = retry.getRetryDelay(3, date)

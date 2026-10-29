@@ -11,6 +11,7 @@ type ValidationReport = {
   ok: boolean
   errors: string[]
   warnings: string[]
+
   summary: string[]
 }
 

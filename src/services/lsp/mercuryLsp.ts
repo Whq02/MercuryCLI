@@ -1,8 +1,7 @@
-
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function mercuryLspEnabled(): boolean {
-  
+
   return flagEnv('MERCURY_LSP') !== '0'
 }
 

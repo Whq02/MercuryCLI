@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/MercuryHome.tsx src/components/SwitchboardTagBar.tsx src/components/BootSplashScreen.tsx
-// gate-watch: src/utils/accounts/sessionSignIn.ts src/hooks/useSessionSignInGate.ts src/services/wallet/wallet.ts assets/splash/splash-core.mjs
+
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { firstOutputTs, firstPtyVisibility, grabScreens, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'

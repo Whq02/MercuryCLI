@@ -4,7 +4,6 @@ import type { ContentBlockParam, ImageBlockParam, MessageParam, TextBlockParam }
 import { compressImageBlock } from './imageResizer.js'
 import { logError } from './log.js'
 
-
 const MCP_TOKEN_COUNT_THRESHOLD_FACTOR = 0.5
 const IMAGE_TOKEN_ESTIMATE = 1600
 

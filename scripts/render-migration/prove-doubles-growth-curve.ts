@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -327,14 +328,18 @@ class UiSession {
 function projectRenderables(transcript: AnyMsg[]): AnyMsg[] {
   const normalized = normalizeMessages(transcript as never).filter(isNotEmptyMessage as never) as AnyMsg[]
   let working = normalized
+
   void findLastCompactBoundaryIndex
+
   working = working.filter(message => {
     if (message.type === 'progress') return false
     if (message.type === 'attachment' && isNullRenderingAttachment(message as never)) return false
     if (message.type === 'user' && !shouldShowUserMessage(message as never, false)) return false
     return true
   })
+
   working = reorderMessagesInUI(working as never, [] as never) as AnyMsg[]
+
   let collapsed = applyGrouping(working as never, TOOLS as never, false).messages as AnyMsg[]
   collapsed = injectTurnReceipts(collapsed as never) as AnyMsg[]
   collapsed = collapseReadSearchGroups(collapsed as never, TOOLS as never) as AnyMsg[]
@@ -387,6 +392,7 @@ async function driveLane(lane: string, model: string, foldOn: boolean): Promise<
   if (foldOn) ui.fold = new RecordFold()
   let capturedSettlement: AnyRunEvent | null = null
   const deps = productionDeps()
+
   const ledgerViolations: string[] = []
   const ledger = new CockpitLedger(120, { onViolation: d => ledgerViolations.push(d) })
   let worstOffence: { turn: number; needleTurn: number; layer: string; count: number } | null = null
@@ -434,6 +440,7 @@ async function driveLane(lane: string, model: string, foldOn: boolean): Promise<
       let r = await gen.next()
       while (!r.done) {
         const runEvent = r.value as AnyRunEvent
+
         if (
           t === argTurns &&
           runEvent.kind === 'assistant_settled' &&
@@ -559,6 +566,7 @@ const laneFilter = ((): string[] | null => {
 
 for (const { lane, model } of LANES) {
   if (laneFilter && !laneFilter.some(f => lane.includes(f))) continue
+
   await driveLane(lane, model, false)
   await driveLane(lane, model, true)
 }

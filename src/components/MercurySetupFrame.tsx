@@ -10,7 +10,6 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { InteractiveDisclosure } from './mercury-ui/InteractiveDisclosure.js'
 import type { BootNote } from '../substrate/bootNotes.js'
 
-
 export interface SetupRailStep {
   key: string
   label: string
@@ -44,7 +43,9 @@ export function MercurySetupFrame({
   bootNotes = [],
   children,
 }: {
+
   title: string
+
   stepTag?: string
   steps: SetupRailStep[]
   tone?: 'brand' | 'trust'
@@ -55,6 +56,7 @@ export function MercurySetupFrame({
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
+
   const designOn = useFirstRunCardsCentred()
   const centred = firstRunCard && designOn
   const trustTone = centred ? tokens.cardBrown : tokens.warning
@@ -62,6 +64,7 @@ export function MercurySetupFrame({
   const width = Math.max(Math.min(columns - 2, 100), 40)
   const inner = width - 4
   const [notesOpen, setNotesOpen] = useState(false)
+
   const frameCap = Math.max(8, rows - 1)
   const fullRows = rows >= 28
   const gap = fullRows ? 1 : 0
@@ -83,6 +86,7 @@ export function MercurySetupFrame({
     if (s.state === 'current') return <Text color={tokens.success}>◐</Text>
     return <Text color={tokens.textMuted}>○</Text>
   }
+
   const railLabels = inner >= 74 - 4
 
   const stationCard = (

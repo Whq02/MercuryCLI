@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -20,6 +21,7 @@ const prev = process.env.MERCURY_POINTER_SHAPE
 delete process.env.MERCURY_POINTER_SHAPE
 
 try {
+
   check('text shape bytes', ps.pointerShapeSeq('text') === '\x1b]22;text\x07')
   check('default (arrow) shape bytes', ps.pointerShapeSeq('default') === '\x1b]22;default\x07')
   check('reset = empty-param OSC 22', ps.POINTER_SHAPE_RESET === '\x1b]22;\x07')
@@ -60,6 +62,7 @@ try {
   check('/mouse off resets the shape', /if \(!on\) resetPointerShape/.test(ink))
   const altScreen = ink.slice(ink.indexOf('setAltScreenActive(active: boolean'), ink.indexOf('isMouseTrackingEnabled(): boolean'))
   check('alt-screen exit resets the shape', /\} else \{[\s\S]*?resetPointerShape\(s => termWrite\(this\.options\.stdout, s, 'mode'\)\)[\s\S]*?this\.repaintMainScreen\(\)/.test(altScreen))
+
   const teardown = readFileSync(join(import.meta.dir, '../../src/ink/root/teardown.ts'), 'utf8')
   check('signal-exit unmount resets the shape (synchronous fd-1 teardown step)',
     ink.includes('resetPointer: resetPointerShape') &&

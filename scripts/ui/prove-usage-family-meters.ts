@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -57,6 +58,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 section('§1 — the seam: the armed payload stands in for the wire, whole')
+
 {
   const { mockUtilizationPayload } = await import('../../src/services/mockRateLimits.ts')
   const armed = mockUtilizationPayload()
@@ -77,7 +79,9 @@ section('§1 — the seam: the armed payload stands in for the wire, whole')
 }
 
 section('§2 — the one owner walks the full per-family vocabulary; the panel reads it')
+
 {
+
   const { anthropicPoolWindowViews } = await import('../../src/services/providers/providerUsage.ts')
   const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/anthropicLimits.ts')
   check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet')
@@ -89,6 +93,7 @@ section('§2 — the one owner walks the full per-family vocabulary; the panel r
   check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'))
 
   const src = readFileSync(join(import.meta.dir, '../../src/components/Settings/Usage.tsx'), 'utf8')
+
   const poisonChain = ['data.seven_day_opus ', '?? data.seven_day_sonnet'].join('')
   check('the family-subset ??-chain is GONE from the panel', !src.includes(poisonChain))
   check('the panel reads the pools through the owner\'s pool view', src.includes('anthropicPoolWindowViews()'))
@@ -98,6 +103,7 @@ section('§2 — the one owner walks the full per-family vocabulary; the panel r
 }
 
 section('§3 — the seeded subscriber passes the fetch gate')
+
 {
   const auth = await import('../../src/utils/auth.ts')
   check('the seeded home reads as a claude.ai subscriber', auth.isClaudeAISubscriber() === true)

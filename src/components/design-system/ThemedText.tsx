@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext } from 'react'
 import Text from '../../ink/components/Text.js'
 import type { Color, Styles } from '../../ink/styles.js'
@@ -37,6 +36,7 @@ export default function ThemedText({
   children,
 }: Props): React.ReactNode {
   const [themeName] = useTheme()
+
   useSessionAccent()
   const hoverColor = useContext(TextHoverColorContext)
   const theme = getTheme(themeName)

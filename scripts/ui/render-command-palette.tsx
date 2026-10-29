@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -17,9 +18,11 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.PALETTE_RENDER_CHILD) {
+
   const React = await import('react')
   const ink = (await import('../../src/ink.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
@@ -28,6 +31,7 @@ if (process.env.PALETTE_RENDER_CHILD) {
   const { NameHighlight } = await import('../../src/components/MercuryCommandPalette.js')
   const { TERRA, IVORY, SECOND } = await import('../../src/components/mercuryPalette.js')
   const h = React.createElement
+
   const row = (name: string, query: string, here: boolean) =>
     h(NameHighlight, {
       name,
@@ -49,6 +53,7 @@ if (process.env.PALETTE_RENDER_CHILD) {
   )
   setTimeout(() => process.exit(0), 1800)
 } else {
+
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
@@ -72,12 +77,15 @@ if (process.env.PALETTE_RENDER_CHILD) {
       out,
     }),
   )
+
   const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {
     encoding: 'utf-8',
     timeout: 30000,
     env: { ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME, PALETTE_RENDER_CHILD: '1' },
   })
+
   type Cell = { c: string; bold: boolean }
   const cells: Cell[] = existsSync(out)
     ? (JSON.parse(readFileSync(out, 'utf-8')) as { grid: Cell[][] }).grid.flat()
@@ -90,11 +98,13 @@ if (process.env.PALETTE_RENDER_CHILD) {
 
   check('the three names render', /color/.test(grid) && /cockpit/.test(grid) && /compact/.test(grid))
   check('NO emoji in the grid', !EMOJI.test(grid))
+
   check("matched 'c' is BOLD", bold('c'))
   check("matched 'o' is BOLD (color/co)", bold('o'))
   check("matched 'k' is BOLD (cockpit/ckpt)", bold('k'))
   check("matched 'p' is BOLD (cockpit/ckpt)", bold('p'))
   check("matched 't' is BOLD (cockpit/ckpt)", bold('t'))
+
   check("non-matched 'l' is NOT bold", !bold('l'))
   check("non-matched 'r' is NOT bold", !bold('r'))
 

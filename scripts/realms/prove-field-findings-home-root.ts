@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isUnderHomeRoot } from '../../src/utils/realmRegistry.ts'
@@ -14,6 +15,7 @@ const check = (name: string, ok: boolean): void => {
 }
 
 console.log('§1 the guard admits native win32 folders under the home root')
+
 check(
   'a native backslash folder under home is INSIDE (the S1 repro)',
   isUnderHomeRoot('C:\\Users\\name\\projects\\anything', 'C:\\Users\\name', 'win32'),

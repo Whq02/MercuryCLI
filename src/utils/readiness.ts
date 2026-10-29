@@ -1,4 +1,3 @@
-
 import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate/flagRegistry.js'
 import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
@@ -50,7 +49,6 @@ import { mcpGauge } from './cockpit/mcpGauge.js'
 import { whichSync } from './which.js'
 import { withheldTools } from './withheldTools.js'
 
-
 type ReadinessState =
   | 'ready'
   | 'starting'
@@ -64,15 +62,21 @@ type ReadinessState =
 export type ReadinessKind = 'tool' | 'mcp' | 'lane' | 'engine' | 'extension' | 'skill' | 'env'
 
 export interface ReadinessRecord {
+
   id: string
   kind: ReadinessKind
   label: string
   state: ReadinessState
+
   detail: string
+
   remedy?: string
+
   source: string
   lastCheckedAt: number
+
   latencyMs?: number
+
   restartRequired?: boolean
 }
 
@@ -80,7 +84,6 @@ interface ReadinessReport {
   records: ReadinessRecord[]
   collectedAt: number
 }
-
 
 function bounded(text: string, max: number): string {
   const oneLine = text.replace(/\s+/g, ' ').trim()
@@ -114,7 +117,6 @@ function guardedSection(
     ]
   }
 }
-
 
 function toolRecords(): ReadinessRecord[] {
   const records: ReadinessRecord[] = []
@@ -260,7 +262,6 @@ function computerToolRecord(): ReadinessRecord {
   }
 }
 
-
 function injectionNote(): string {
   return ' (runtime-injected)'
 }
@@ -279,6 +280,7 @@ function mcpRow(
   const injected = connection !== undefined && runtimeInjected ? injectionNote() : ''
 
   if (connection === undefined) {
+
     if (isMcpServerDisabled(name)) {
       return {
         ...base,
@@ -330,6 +332,7 @@ function mcpRow(
 
 function mcpRecords(): ReadinessRecord[] {
   const records: ReadinessRecord[] = []
+
   const gauge = mcpGauge()
 
   let oauthTail = ''
@@ -375,7 +378,6 @@ function mcpRecords(): ReadinessRecord[] {
   }
   return records
 }
-
 
 function lspLaneRecords(): ReadinessRecord[] {
   const records: ReadinessRecord[] = []
@@ -481,6 +483,7 @@ function lspLaneRecords(): ReadinessRecord[] {
         remedy: 'reload extensions to re-initialize, or fix the server binary/config it names',
       })
     } else {
+
       records.push({ ...base, state: 'configured', detail: 'registered — not running (lazy start on the first matching file)' })
     }
   }
@@ -521,6 +524,7 @@ function pythonLaneRecord(): ReadinessRecord {
   } else {
     parts.push('python LSP lanes off (MERCURY_LSP_PYTHON=0)')
   }
+
   const remedies: string[] = []
   if (pythonLspOn && pyright !== null && !pyright.available && pyright.reason !== undefined) {
     remedies.push(pyright.reason)
@@ -528,6 +532,7 @@ function pythonLaneRecord(): ReadinessRecord {
   if (pythonLspOn && ruff !== null && !ruff.available && ruff.reason !== undefined) {
     remedies.push(ruff.reason)
   }
+
   if (pythonLspOn && pyright !== null && !pyright.available) {
     return {
       ...base,
@@ -540,6 +545,7 @@ function pythonLaneRecord(): ReadinessRecord {
     ...base,
     state: 'ready',
     detail: parts.join(' · '),
+
     ...(remedies.length > 0 ? { remedy: remedies.join(' — and: ') } : {}),
   }
 }
@@ -571,6 +577,7 @@ function cppLaneRecord(): ReadinessRecord {
     }
   }
   const db = probeCompileDb()
+
   return {
     ...base,
     state: 'configured',
@@ -596,6 +603,7 @@ function dapLaneRecords(): ReadinessRecord[] {
   }
 
   const t0 = Date.now()
+
   const python = projectPythonDebugAdapter()
   if (python.state === 'ok') {
     const prov = python.provenance
@@ -696,6 +704,7 @@ function dapLaneRecords(): ReadinessRecord[] {
           lastCheckedAt: Date.now(),
         },
   )
+
   const jsDebug = resolveJsDebugServer()
   records.push(
     jsDebug !== null
@@ -709,6 +718,7 @@ function dapLaneRecords(): ReadinessRecord[] {
           lastCheckedAt: Date.now(),
         }
       : (() => {
+
           const pinnedJsDebug = flagEnv('MERCURY_JS_DEBUG_DAP')
           return pinnedJsDebug && pinnedJsDebug.length > 0
             ? {
@@ -772,6 +782,7 @@ function dapLaneRecords(): ReadinessRecord[] {
       remedy: ELIXIR_DEBUG_ADAPTER_HINT,
     },
   ]
+
   if (mercuryUnityEnabled()) {
     const unity = resolveUnityDebugAdapter()
     records.push(
@@ -833,6 +844,7 @@ function browserLaneRecord(): ReadinessRecord {
     source: 'browser resolver (pin > installed > managed cache)',
     lastCheckedAt: Date.now(),
   }
+
   if (!flagEnabled('MERCURY_BROWSER')) {
     return { ...base, state: 'disabled', detail: 'MERCURY_BROWSER=0 — Browser tool absent from the catalog' }
   }
@@ -856,6 +868,7 @@ function browserLaneRecord(): ReadinessRecord {
       latencyMs: Date.now() - t0,
     }
   }
+
   return {
     ...base,
     state: 'configured',
@@ -870,7 +883,9 @@ function laneRecords(): ReadinessRecord[] {
   records.push(pythonLaneRecord())
   records.push(cppLaneRecord())
   records.push(...dapLaneRecords())
+
   records.push(...serverCatalogueRecords())
+
   records.push(...unityLaneReadinessRecords())
   records.push(...unityBridgeReadinessRecords())
   records.push(...blenderLaneReadinessRecords())
@@ -878,7 +893,6 @@ function laneRecords(): ReadinessRecord[] {
   records.push(browserLaneRecord())
   return records
 }
-
 
 function idePlaneRecord(): ReadinessRecord {
   const base = {
@@ -895,6 +909,7 @@ function idePlaneRecord(): ReadinessRecord {
       detail: 'MERCURY_IDE_LOOP=0 — Transaction tool absent, no records written',
     }
   }
+
   const parts: string[] = ['closed-loop transaction plane armed']
   try {
     const record: TxRecord | null = latestTransaction()
@@ -1004,6 +1019,7 @@ function backendRecords(): ReadinessRecord[] {
   const records: ReadinessRecord[] = []
   for (const routeModel of BACKEND_ROUTE_PROBES) {
     const backend = resolvePrimaryAgentBackend(routeModel)
+
     if (backend === null) continue
     const receipt = backend.readiness()
     const base = {
@@ -1014,6 +1030,7 @@ function backendRecords(): ReadinessRecord[] {
       lastCheckedAt: Date.now(),
     }
     if (receipt.state === 'ready') {
+
       records.push({ ...base, state: 'ready', detail: bounded(receipt.detail, 200) })
     } else if (receipt.state === 'configured') {
       records.push({ ...base, state: 'configured', detail: bounded(receipt.detail, 200) })
@@ -1033,7 +1050,6 @@ function backendRecords(): ReadinessRecord[] {
 function engineRecords(): ReadinessRecord[] {
   return [idePlaneRecord(), workflowsRecord(), ...backendRecords()]
 }
-
 
 function extensionRecords(): ReadinessRecord[] {
   return extensionReadinessRows().map(row => ({ ...row, lastCheckedAt: Date.now() }))
@@ -1057,7 +1073,6 @@ function skillRecords(): ReadinessRecord[] {
   ]
 }
 
-
 function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   const effective = flagEnv(spec.env)
   const source =
@@ -1070,6 +1085,7 @@ function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   let state: ReadinessState
   let detail: string
   if (spec.kind === 'default-on' || spec.kind === 'opt-in') {
+
     const on = flagEnabled(spec.env)
     if (on) {
       state = 'ready'
@@ -1109,7 +1125,6 @@ function envReadinessProjection(): ReadinessRecord[] {
   })
   return rows.map(row => row.record)
 }
-
 
 export function collectReadiness(opts?: { includeEnv?: boolean }): ReadinessReport {
   const records: ReadinessRecord[] = [

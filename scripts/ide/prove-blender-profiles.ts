@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -49,6 +50,7 @@ section('§2 · render shapes (THE ORDER LAW by index)')
 {
   restore()
   process.env.MERCURY_BLENDER = '1'
+
   const shimBin = path.join(scratch, 'shim-blender')
   writeFileSync(shimBin, '#!/bin/sh\necho "Blender 5.2.1"\nexit 0\n')
   process.env.MERCURY_BLENDER_BIN = shimBin

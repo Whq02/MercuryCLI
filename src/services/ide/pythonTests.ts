@@ -1,4 +1,3 @@
-
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { spawn, spawnSync } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
@@ -41,6 +40,7 @@ export interface TestRunRecord {
   schema: 1
   id: string
   framework: TestFramework | RunnerFramework | EngineFramework
+
   selection: string
   command: string[]
   cwd: string
@@ -48,14 +48,19 @@ export interface TestRunRecord {
   startedAt: number
   durationMs: number
   counts: { passed: number; failed: number; skipped: number; errored: number }
+
   cases: TestCaseResult[]
   casesTruncated?: number
+
   failures: string[]
+
   outputArtifactRef?: string
   outputTail: string[]
   exitCode: number | null
+
   verdict?: 'no-match' | 'zero-run' | 'uncollected'
   verdictNote?: string
+
   diagnosticsNote?: string
 }
 
@@ -66,7 +71,6 @@ type TestRunOutcome =
 const CASE_CAP = 200
 const OUTPUT_TAIL_LINES = 40
 const RUN_TIMEOUT_MS = 300_000
-
 
 let pytestProbeCache: { at: number; key: string; result: { available: boolean; version?: string; detail: string } } | null = null
 
@@ -81,6 +85,7 @@ export function probePytest(from: string = getCwd()): { available: boolean; vers
   }
   let result: { available: boolean; version?: string; detail: string }
   try {
+
     const r = spawnSync(selection.command, ['-c', 'import pytest; print(pytest.__version__)'], {
       windowsHide: true,
       timeout: 10_000,
@@ -193,7 +198,6 @@ function realpathOrSelf(p: string): string {
     return p
   }
 }
-
 
 const PYTEST_PLUGIN_SOURCE = `
 import json, os, time
@@ -415,8 +419,8 @@ if __name__ == "__main__":
     sys.exit(5 if missing else 0)
 `
 
-
 export function testRunsDir(root: string): string {
+
   return projectHomeStore(root, 'test-runs')
 }
 
@@ -477,7 +481,6 @@ export function listRuns(from: string = getCwd()): Array<{ id: string; startedAt
   }
 }
 
-
 interface NdjsonEvent {
   t: string
   id?: string
@@ -524,6 +527,7 @@ async function spawnCollecting(
     }
     child.stdout.on('data', push)
     child.stderr.on('data', push)
+
     void settleChildRun(child, { timeoutMs: RUN_TIMEOUT_MS, ...(signal ? { signal } : {}) }).then(settlement => {
       if (settlement.spawnError !== undefined) output.push(`spawn failed: ${settlement.spawnError}`)
       if (settlement.timedOut) output.push(`the run timed out after ${Math.round(RUN_TIMEOUT_MS / 1000)}s — its process tree was ended`)
@@ -565,6 +569,7 @@ export async function discoverPythonTests(opts?: {
   let output: string[]
   if (framework === 'pytest') {
     writeFileSync(path.join(scratch, 'mercury_report_plugin.py'), PYTEST_PLUGIN_SOURCE)
+
     const pluginEnv: NodeJS.ProcessEnv = {
       ...subprocessEnv(),
       PYTHONPATH: `${scratch}${path.delimiter}${process.env.PYTHONPATH ?? ''}`,
@@ -578,6 +583,7 @@ export async function discoverPythonTests(opts?: {
     )
     exitCode = r.exitCode
     output = r.output
+
     if (readNdjson(report).length === 0 && r.output.some(l => l.includes('mercury_report_plugin'))) {
       const retry = await spawnCollecting(
         selection.command,
@@ -624,6 +630,7 @@ export async function discoverPythonTests(opts?: {
 interface RunOptions {
   from?: string
   framework?: TestFramework
+
   selection?: string[]
   selectionLabel?: string
   signal?: AbortSignal
@@ -808,6 +815,7 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
   const latest = latestRun(from)
   if (!latest) return { state: 'nothing-to-rerun', note: 'no recorded run yet — run the suite first' }
   if (latest.framework !== 'pytest' && latest.framework !== 'unittest') {
+
     return {
       state: 'unavailable',
       reason: `latest run ${latest.id} is a ${latest.framework} run, not a python run`,
@@ -832,7 +840,6 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
     ...(opts?.signal ? { signal: opts.signal } : {}),
   })
 }
-
 
 interface DebugShim {
   framework: TestFramework

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-gen' }
 
 import { writeFileSync } from 'node:fs'

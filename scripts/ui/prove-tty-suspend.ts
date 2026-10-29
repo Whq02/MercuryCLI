@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
@@ -140,6 +141,7 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
       if (!/\.(ts|tsx)$/.test(name)) continue
       if (SPELLS_BY_NAME.some(file => full.endsWith(file))) continue
       const text = readFileSync(full, 'utf8')
+
       if (mouseLiteral.test(text)) offenders.push(full.slice(ROOT.length + 1))
     }
   }
@@ -168,6 +170,7 @@ const run = runJobControlHost({
     { sleep: 1.5 },
     { observe: 'cockpit' },
     { mark: 'pre-stop' },
+
     { signal: 'SIGTSTP' },
     { await_state: 'T', timeout: 8 },
     { sleep: 1.0 },
@@ -182,6 +185,7 @@ const run = runJobControlHost({
     { wait: 'typed after resume', timeout: 10 },
     { observe: 'typed' },
     { mark: 'typed' },
+
     { send: '\x1a' },
     { await_state: 'T', timeout: 8 },
     { sleep: 1.0 },
@@ -195,6 +199,7 @@ const run = runJobControlHost({
     { wait: 'typed after resume again', timeout: 10 },
     { observe: 'typed-2' },
     { mark: 'typed-2' },
+
     { signal: 'SIGTERM' },
     { sleep: 2.0 },
     { typeline: 'echo done-$((40+2))' },

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -8,9 +9,11 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), '../ui/vshot.py')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.IROW_CHILD) {
+
   process.env.NODE_ENV = 'test'
   ;(globalThis as Record<string, unknown>).MACRO = {
     VERSION: '1.0.0',
@@ -32,6 +35,7 @@ if (process.env.IROW_CHILD) {
   const { ThemeProvider } = await import(
     '../../src/components/design-system/ThemeProvider.js'
   )
+
   const wrapTheme = (node: React.ReactNode): React.ReactNode =>
     process.env.IROW_THEME
       ? h(
@@ -47,6 +51,7 @@ if (process.env.IROW_CHILD) {
     function RowsFixture(): React.ReactNode {
       const [sel, setSel] = React.useState<string>('none')
       const [acts, setActs] = React.useState(0)
+
       ink.useInput(() => {})
       return h(
         ink.Box,
@@ -101,6 +106,7 @@ if (process.env.IROW_CHILD) {
       ])
       ink.useInput(input => {
         if (input === 'z') {
+
           setOrder(o => [o[3]!, o[0]!, o[1]!, o[2]!])
         }
       })
@@ -124,6 +130,7 @@ if (process.env.IROW_CHILD) {
   }
   setTimeout(() => process.exit(0), 30_000)
 } else {
+
   const { DEFAULT_THEME_SETTING } = await import('../../src/utils/systemTheme.ts')
   const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
   const HOVER_BG = resolveMercuryTokens(DEFAULT_THEME_SETTING, '#DD4444').surface2.replace(/^#/, '').toLowerCase()
@@ -139,7 +146,9 @@ if (process.env.IROW_CHILD) {
   }
 
   type Cell = { c: string; bg?: string }
+
   const READY_NEEDLE: Record<'panes' | 'rows', string> = { panes: 'row-gamma', rows: 'ROW-alpha' }
+
   const READY_TICK = 3
   const SLACK = 30
   type Timeline = Array<{ atTick: number; data: string }>
@@ -283,6 +292,7 @@ if (process.env.IROW_CHILD) {
 
   console.log('\n── D. hover paint + unavailable inertness (raw rows) ────────')
   {
+
     const base = capture('d0', 'rows', [], 24, 80, 22)
     let aRow = -1
     let oRow = -1
@@ -333,6 +343,7 @@ if (process.env.IROW_CHILD) {
   console.log('\n── E. semantic adaptation — hover paint per theme family ────')
   {
     const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
+
     const gridForm = (v: string): string => {
       const rgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(v)
       if (rgb) {
@@ -342,6 +353,7 @@ if (process.env.IROW_CHILD) {
           .join('')
       }
       if (v.startsWith('ansi:')) {
+
         const name = v.slice(5).toLowerCase()
         return name.endsWith('bright') ? `bright${name.slice(0, -'bright'.length)}` : name
       }

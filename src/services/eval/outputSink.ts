@@ -1,4 +1,3 @@
-
 import {
   EVAL_HEAD_BYTES,
   EVAL_MAX_LINE_CHARS,
@@ -48,6 +47,7 @@ export class BoundedStreamSink {
       const room = this.headLimit - this.headBytes
       let take = chunk
       if (Buffer.byteLength(chunk, 'utf8') > room) {
+
         let end = Math.min(chunk.length, room)
         while (end > 0 && Buffer.byteLength(chunk.slice(0, end), 'utf8') > room) end--
         take = trimTrailingSurrogate(chunk.slice(0, end))
@@ -63,6 +63,7 @@ export class BoundedStreamSink {
 
   private pushTail(chunk: string): void {
     this.tail += chunk
+
     while (Buffer.byteLength(this.tail, 'utf8') > this.tailLimit) {
       const cutAt = this.tail.indexOf('\n', 1)
       if (cutAt > 0 && Buffer.byteLength(this.tail.slice(cutAt + 1), 'utf8') <= this.tailLimit * 2) {

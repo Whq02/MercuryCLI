@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -64,16 +65,20 @@ console.log('Q1 the quit story: the screen dies, the estate parks, the next boot
   check('newborn ⇒ released (nothing to bring back)', receipt.released.join(',') === 'concourse-w3' && rec('concourse-w3')?.endedAt !== undefined)
   check("stopped ⇒ untouched (the operator's own state)", receipt.skipped.join(',') === 'concourse-w4' && rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w4')?.parkedAt === undefined)
   check('the drain set names the mid-turn runners', sup.pendingParkRequests(dir).sort().join(',') === 'concourse-w2,concourse-w5')
+
   sup.updateConcourseWorkers(ws => { ws['concourse-w2']!.lastTurnSettledAt = now }, dir)
   check("the runner's own turn-settled edge completes the park (killed, parked, the request cleared)", sup.completeRequestedPark('concourse-w2', roster, dir) && killed.includes('concourse-w2') && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.parkRequestedAt === undefined)
   check('the drain set shrinks to the one still working', sup.pendingParkRequests(dir).join(',') === 'concourse-w5')
+
   const cut = sup.parkConcourseSession(sid('5'), 'daemon:owner-orphaned', roster, dir, { afterTurn: false, reason: sup.PARK_DRAIN_CUT_REASON })
   check('a request still standing at the ceiling is cut: parked now, the row says so', cut.outcome === 'applied' && killed.includes('concourse-w5') && rec('concourse-w5')?.parkReason === 'parked — turn cut at the drain ceiling' && sup.pendingParkRequests(dir).length === 0)
+
   sup.updateConcourseWorkers(ws => { for (const w of Object.values(ws)) if (w.endedAt === undefined) w.pid = DEAD_PID }, dir)
   const reconcile = sup.reconcileConcourseWorkers(new Set(), dir)
   const onBoard = Object.values(sup.readSessionWorkers(dir)).filter(r => r.endedAt === undefined)
   check('the next boot finds every closed chat PARKED — no crash rows, nothing released', reconcile.settled.length === 0 && reconcile.parked.sort().join(',') === 'concourse-w1,concourse-w2,concourse-w5' && onBoard.every(r => r.crash === undefined), JSON.stringify(reconcile))
   check("the stopped row keeps the operator's stop; the newborn stays released", rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w3')?.endedAt !== undefined)
+
   seed([{ runnerId: 'concourse-w9', sessionId: sid('9'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }])
   const hard = sup.reconcileConcourseWorkers(new Set(), dir)
   check("POISON CONTROL: a hard death (no park written) still paints the crash row — the crash-row law stands", hard.settled.includes('concourse-w9') && rec('concourse-w9')?.crash !== undefined && rec('concourse-w9')?.parkedAt === undefined)
@@ -105,6 +110,7 @@ console.log('Q3 the one close path')
   check('a newborn closed reads as released; a mid-turn close as draining', closeBody.includes("startsWith('released') ? 'released'") && closeBody.includes("parked.outcome === 'draining' ? 'draining'"))
   const clearAt = hop.indexOf('export async function clearFocusedSession(')
   const clearBody = hop.slice(clearAt)
+
   check('/clear births FIRST (the slot swaps whole, riding the seat-swap hint), then parks the OLD session by id — never a release', clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') !== -1 && clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') < clearBody.indexOf('parkSessionById(oldSessionId)') && clearBody.includes("action: 'park', sessionId, by: `operator:${process.pid}`") && !clearBody.includes("op: 'sessionRelease'") && !clearBody.includes("action: 'stop'") && !clearBody.includes('closeFocusedChat('))
 }
 
@@ -146,6 +152,7 @@ console.log('Q6 a refused chat-forward birth lands the face directly')
   handover.retractExplicitBootJourney()
   check('the retraction clears it (the resolver lands the Boot face)', !handover.bootJourneyIsExplicit())
   const main = read('src/main.tsx')
+
   const birthAt = main.indexOf('const birth = bornSession({ workspaceDir: getCwd(), model: null })')
   const block = birthAt === -1 ? '' : main.slice(birthAt, main.indexOf('await launchChat(', birthAt))
   check('main.tsx starts the chat-forward birth', birthAt !== -1)

@@ -1,4 +1,3 @@
-
 import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../../src/services/lsp/godotLane.js'
 import { vulcanEnabled, vulcanLiteMode } from '../../src/utils/vulcan/vulcanGates.js'
 import { presenceNudge, probeVulcanEditorPresence } from '../../src/services/vulcan/editorPresence.js'
@@ -13,8 +12,11 @@ type GodotProviderState =
   | 'no-project'
 
 interface GodotProviderRow {
+
   id: 'vulcan' | 'godot-lsp' | 'godot-dap'
+
   source: string
+
   endpoint: string
   capabilities: string[]
   state: GodotProviderState

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
@@ -158,7 +159,6 @@ export function composeHealth(
   return placed
 }
 
-
 function fixtureLog(over: Partial<SessionListing> & { sessionId: string; modifiedMs: number; title?: string }): SessionListing {
   const { modifiedMs, title, ...rest } = over
   return {
@@ -179,6 +179,7 @@ function fixtureLog(over: Partial<SessionListing> & { sessionId: string; modifie
 }
 
 const MIN = 60_000
+
 export const RESUME_FIXTURE_LOGS: SessionListing[] = [
   fixtureLog({ sessionId: 'a1', modifiedMs: FIXED_NOW - 2 * MIN, title: 'the tool-loop fold' }),
   fixtureLog({ sessionId: 'a2', modifiedMs: FIXED_NOW - 3 * 60 * MIN, title: 'concourse polish' }),
@@ -211,6 +212,7 @@ export function composeResume(
     cleared?: string[]
     logs?: SessionListing[]
     pendingMore?: number
+
     prune?: { answer: 'no' | 'yes' } | { receipt: PruneReceipt }
   } = {},
 ): string[] {
@@ -261,17 +263,21 @@ export function composeResume(
 }
 
 export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
+
   { id: 'health-120x40', compose: () => composeHealth(120, 40, { view: 'list', sel: 2 }) },
   { id: 'health-80x24', compose: () => composeHealth(80, 24, { view: 'list', sel: 2 }) },
   { id: 'health-64x12', compose: () => composeHealth(64, 12, { view: 'list', sel: 2 }) },
+
   { id: 'health-120x40-trail', compose: () => composeHealth(120, 40, { view: 'trail', sel: 2 }) },
   { id: 'health-80x24-trail', compose: () => composeHealth(80, 24, { view: 'trail', sel: 2 }) },
   { id: 'health-120x40-fix', compose: () => composeHealth(120, 40, { view: 'fix', sel: 3 }) },
+
   { id: 'resume-120x40', compose: () => composeResume(120, 40, { scope: 'all', sel: 1 }) },
   { id: 'resume-80x24', compose: () => composeResume(80, 24, { scope: 'all', sel: 1 }) },
   { id: 'resume-64x12', compose: () => composeResume(64, 12, { scope: 'all', sel: 1 }) },
   { id: 'resume-120x40-project', compose: () => composeResume(120, 40, { scope: 'project', sel: 0 }) },
   { id: 'resume-120x40-empty', compose: () => composeResume(120, 40, { scope: 'all', logs: [] }) },
+
   { id: 'resume-120x40-prune-card', compose: () => composeResume(120, 40, { scope: 'all', logs: PRUNE_FIXTURE_LOGS, prune: { answer: 'no' } }) },
   {
     id: 'resume-120x40-prune-receipt',

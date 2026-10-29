@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/api/errors.ts src/services/providers/callModelRouter.ts src/services/providers/catalogueAdmission.ts src/services/providers/credentialWall.ts src/services/providers/anthropic/anthropicCatalogue.ts
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'

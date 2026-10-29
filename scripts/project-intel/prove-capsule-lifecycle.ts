@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { rmSync } from 'node:fs'
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
   const intel = await import('../../src/services/projectIntel/snapshot.js')
 
   const dir = materializeFixture('ts')
+
   const bootstrap = await import('../../src/bootstrap/state.js')
   const setOriginalCwd = (bootstrap as unknown as { setOriginalCwd?: (p: string) => void }).setOriginalCwd
   if (typeof setOriginalCwd === 'function') setOriginalCwd(dir)
@@ -124,6 +126,7 @@ async function main(): Promise<void> {
   const line = producer.capsuleContinuationLine(mainOwner)
   check('line present after a main-thread attach', typeof line === 'string' && line.includes('context capsule') && line.includes(a2.digest), line ?? 'null')
   check('line names primary paths', (line ?? '').includes('src/util/validate.ts'))
+
   const contSrc = await import('node:fs').then(fs =>
     fs.readFileSync('src/services/run/runContinuationCapsule.ts', 'utf8'),
   )
@@ -139,6 +142,7 @@ async function main(): Promise<void> {
   const { computeWorkingTreeDigest, computeWorkingTreeDigestAsync } = await import(
     '../../src/utils/verification/verificationState.js'
   )
+
   const fs = await import('node:fs')
   const copyA = `${dir}-digest-eq-a`
   const copyB = `${dir}-digest-eq-b`
@@ -149,6 +153,7 @@ async function main(): Promise<void> {
   check('async digest ≡ sync digest over identical trees', dSync !== null && dSync === dAsync, `${dSync} vs ${dAsync}`)
   fs.rmSync(copyA, { recursive: true, force: true })
   fs.rmSync(copyB, { recursive: true, force: true })
+
   const producerSrc = fs.readFileSync('src/utils/attachments/contextCapsule.ts', 'utf8')
   check('producer rides getProjectSnapshotAsync', producerSrc.includes('getProjectSnapshotAsync(') && !/const read = getProjectSnapshot\(/.test(producerSrc))
   const orchSrc = fs.readFileSync('src/utils/attachments/orchestrator.ts', 'utf8')

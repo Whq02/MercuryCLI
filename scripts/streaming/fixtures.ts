@@ -1,15 +1,20 @@
-
 type TimedDelta = {
+
   atMs: number
+
   text: string | null
   toolJson?: string
 }
 
 type StreamFixture = {
   name: string
+
   deltas: TimedDelta[]
+
   sentinels: Map<string, number>
+
   fullText: string
+
   hasToolBlock: boolean
 }
 
@@ -77,6 +82,7 @@ function schedule(
       text.length - off,
       opts.minChunk + Math.floor(rnd() * (opts.maxChunk - opts.minChunk + 1)),
     )
+
     if (text.startsWith('⟦', off)) {
       const close = text.indexOf('⟧', off)
       if (close !== -1) n = Math.max(n, close + 1 - off)
@@ -103,6 +109,7 @@ function sentinelTimes(
   deltas: TimedDelta[],
   sentinelOffsets: Map<string, number>,
 ): Map<string, number> {
+
   const out = new Map<string, number>()
   let off = 0
   for (const d of deltas) {
@@ -167,6 +174,7 @@ function fromDoc(name: string, doc: string, opts: Parameters<typeof schedule>[2]
 export function buildFixture(name: string): StreamFixture {
   switch (name) {
     case 'fast-tiny': {
+
       const rnd = lcg(0xf1)
       const built = buildProse(rnd, 4600, 320, 0)
       const text = built.text + ' ' + FIN
@@ -174,6 +182,7 @@ export function buildFixture(name: string): StreamFixture {
       return { name, deltas, sentinels: sentinelTimes(deltas, built.sentinelOffsets), fullText: text, hasToolBlock: false }
     }
     case 'slow-visible': {
+
       const rnd = lcg(0xf2)
       const built = buildProse(rnd, 380, 90, 10)
       const text = built.text + ' ' + FIN
@@ -181,6 +190,7 @@ export function buildFixture(name: string): StreamFixture {
       return { name, deltas, sentinels: sentinelTimes(deltas, built.sentinelOffsets), fullText: text, hasToolBlock: false }
     }
     case 'bursty': {
+
       const rnd = lcg(0xf3)
       const built = buildProse(rnd, 2600, 340, 20)
       const text = built.text + ' ' + FIN
@@ -192,6 +202,7 @@ export function buildFixture(name: string): StreamFixture {
     case 'code-fence':
       return fromDoc(name, CODE_DOC, { minChunk: 4, maxChunk: 6, gapMs: 6 }, 0xf5)
     case 'mixed-tools': {
+
       const rnd = lcg(0xf6)
       const built = buildProse(rnd, 3000, 300, 30)
       const text = built.text + ' ' + FIN

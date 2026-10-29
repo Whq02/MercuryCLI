@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,6 +11,7 @@ const TEMPLATE = join(SCRATCH, 'home-template')
 const WORK = join(SCRATCH, 'work')
 for (const d of [TEMPLATE, WORK]) mkdirSync(d, { recursive: true })
 writeFileSync(join(WORK, 'README.md'), '# work\n')
+
 {
   const run = (args: string[]): boolean => spawnSync('git', args, { cwd: WORK, stdio: 'ignore' }).status === 0
   run(['init', '-q']) &&
@@ -59,11 +61,17 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [WORK])
 
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const CONSENT_ACCEPT = 'Yes, I accept'
+
 const BOARD_EMPTY = 'no sessions running'
+
 const CONTRACT_OFFER = 'Start with a contract?'
+
 const WARM_TICKS = 25
+
 const SHIFT_TAB = '\x1b[Z'
 
 type Send = Record<string, unknown>
@@ -217,20 +225,25 @@ function bandModeOf(frame: string | null): string {
   const m = BAND_RE.exec(frame)
   return m ? m[1]!.replace(' mode', '') : 'default'
 }
+
 const factsModeOf = (mode: string | null): string => (mode === 'dontAsk' ? "don't ask" : (mode ?? '(no facts)'))
 
 const acceptConsent = (): Send[] => [
   { atTick: 90, awaitText: CONSENT_ACCEPT, minTick: 3, awaitSettleTicks: 2, data: '\x1b[B' },
   { afterPrevTicks: 2, data: '\r', mark: 'consent' },
 ]
+
 const awaitFace = (first: boolean): Send => (first ? { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' } : { afterPrevTicks: 120, awaitText: READY_LINE, awaitSettleTicks: 3, data: '', mark: 'face' })
+
 const faceDoor = (): Send[] => [{ afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }]
+
 const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },
   { afterPrevTicks: 40, awaitText: BOARD_EMPTY, awaitSettleTicks: 3, data: '\t', mark: 'board' },
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
   { afterPrevTicks: 30, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]
+
 const chatAndCycle = (presses: number): Send[] => {
   const out: Send[] = [{ afterPrevTicks: 80, awaitText: COMPOSER, awaitSettleTicks: 10, data: '', mark: 'chat' }]
   for (let k = 1; k <= presses; k++) {
@@ -255,6 +268,7 @@ for (const run of RUNS) {
   console.log(`\n${run.id.toUpperCase()} — ${run.title}`)
   const home = freshHome(run.id)
   if (run.row) {
+
     writeFileSync(join(home, 'boot-env.json'), JSON.stringify({ version: 1, savedAt: 0, env: { MERCURY_SKIP_PERMISSIONS: '1' } }, null, 2) + '\n')
   }
   const sends: Send[] = [
@@ -279,12 +293,14 @@ for (const run of RUNS) {
   console.log(`  [COUNT] ${run.id}: ${distinct} distinct station(s) across the birth + ${run.presses} presses (exit status ${c.status})`)
   const live = Object.values(liveRecords(home))
   console.log(`  [RECORDS] ${run.id}: ${live.length} live — ${JSON.stringify(live.map(r => ({ short: r.runnerId, sessionId: r.sessionId })))}`)
+
   const sessionId = live[0]?.sessionId
   const trueMode = sessionId !== undefined ? factsModeOf(await runnerTrueMode(home, sessionId)) : '(no session)'
   const lastBand = stations[stations.length - 1] ?? '(none)'
   console.log(`  [TRUTH] ${run.id}: the band's last station=${lastBand} · the runner's facts say=${trueMode}`)
   const log = daemonLogLines(home)
   for (const l of log) console.log(`  [DAEMON] ${l}`)
+
   const warmRoad = log.some(l => /warm claim acked/i.test(l)) && !log.some(l => /claim refused|claim failed|spawning cold/i.test(l))
   if (run.bornSovereign) {
     check(`${run.id} the born session RUNS sovereign (the band says so at the chat's first paint)`, stations[0] === 'sovereign', `born=${stations[0]}`)

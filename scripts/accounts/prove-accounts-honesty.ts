@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -153,11 +154,13 @@ section('§1 slotSigninState — one answer per slot')
   check('an in-flight probe is not a sign-in yet (checking)', !checking.signedIn && checking.basis === 'checking')
   const unstarted = slotSigninState(authed, {})
   check('a probe that has not started reads checking, never the scan’s existence bit', !unstarted.signedIn && unstarted.basis === 'checking', JSON.stringify(unstarted))
+
   const outlived = scopeSlot(false)
   const cachedVerified = slotSigninState(outlived, { [SCOPE_DIR]: { state: 'verified', email: 'stale@fixture.example' } })
   check('no stored login + a cached VERIFIED read ⇒ signed out (the presence owner outranks the cache)', !cachedVerified.signedIn && cachedVerified.basis === 'signed-out', JSON.stringify(cachedVerified))
   const pending = slotSigninState(outlived, {})
   check("no stored login + no probe yet ⇒ signed out, never 'checking'", !pending.signedIn && pending.basis === 'signed-out')
+
   const staleSnapshot: AccountSlot = {
     ...outlived,
     identity: 'stale@fixture.example',
@@ -170,6 +173,7 @@ section('§1 slotSigninState — one answer per slot')
         'snapshot stale@fixture.example — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot',
     scopeSlotTail(staleState, { state: 'verified', email: 'stale@fixture.example' }, staleSnapshot))
   check("no login, no snapshot ⇒ the family's absent words (the one template)", scopeSlotTail(pending, undefined, outlived) === 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY', scopeSlotTail(pending, undefined, outlived))
+
   const template = /^(not signed in|no server discovered) · ↵ names the route — .+$/
   const expected: Record<string, string> = {
     anthropic: 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY',

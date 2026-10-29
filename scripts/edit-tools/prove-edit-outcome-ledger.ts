@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -44,6 +45,7 @@ section('§1 ledger math, the health projection, model attribution')
   ledger.recordEditOutcome(ownerA, 'model-alpha', 'edit', 'error-11')
   ledger.recordEditOutcome(ownerA, 'model-alpha', 'edit', 'error-13')
   ledger.recordEditOutcome(ownerA, 'model-alpha', 'changeset', 'stale-anchor')
+
   ledger.recordEditOutcome(ownerA, 'model-beta', 'edit', 'applied')
   const rows = ledger.editOutcomeRows(ownerA)
   check(
@@ -106,6 +108,7 @@ section('§4 the ChangeSet chokepoint through the REAL tool')
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
   } as never
   const parent = { uuid: '00000000-0000-0000-0000-000000000004', message: { id: 'msg_fixture' } }
+
   await (ChangeSetTool as { call: Function }).call(
     { op: 'apply', changes: [{ file_path: target, expected_anchor: 'fa:0000000000000000', hunks: [{ lines: '2', replace: 'LINE TWO' }] }] },
     ctx,
@@ -119,6 +122,7 @@ section('§4 the ChangeSet chokepoint through the REAL tool')
     afterRefusal.length === 1 && afterRefusal[0]!.model === 'model-chokepoint' && afterRefusal[0]!.surface === 'changeset' && afterRefusal[0]!.outcome !== 'failed' && afterRefusal[0]!.count === 1,
     JSON.stringify(afterRefusal),
   )
+
   const { mintFileAnchor } = await import('../../src/services/changeTransaction/snapshotAnchor.ts')
   const content = readFileSync(target, 'utf8')
   readFileState.set(target, { content, timestamp: Date.now() + 60_000, offset: undefined, limit: undefined })

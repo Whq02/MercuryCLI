@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { BASH_BACKGROUND_TASK_TAG, BASH_DURATION_MS_TAG, BASH_EXIT_CODE_TAG } from '../../constants/xml.js'
@@ -29,6 +28,7 @@ export function UserBashOutputMessage({
   verbose: boolean
 }): React.ReactNode {
   let stdout = extractTag(content, 'bash-stdout') ?? ''
+
   const stderr = unescapeXml(extractTag(content, 'bash-stderr') ?? '')
   const persisted = extractTag(stdout, 'persisted-output')
   if (persisted !== null) stdout = persisted

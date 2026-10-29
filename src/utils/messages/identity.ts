@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import type { UUID } from 'crypto'
 

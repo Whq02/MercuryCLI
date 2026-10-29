@@ -19,11 +19,13 @@ export function managedPolicyPresent(): boolean {
 }
 
 export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
+
   const policyPath = managedPolicyPath()
   let raw: string
   try {
     raw = getFsImplementation().readFileSync(policyPath, { encoding: 'utf8' })
   } catch (error) {
+
     const code = (error as NodeJS.ErrnoException).code
     if (code === 'ENOENT' || code === 'ENOTDIR') return []
     return [
@@ -61,6 +63,7 @@ export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
     }
     return []
   } catch {
+
     return []
   }
 }

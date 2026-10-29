@@ -1,4 +1,3 @@
-
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { EngineDispatch } from './engineDispatch.js'
 import { classifyModelRoute, laneLabelForVerdict, providerDisplayName } from '../../services/providers/routeLaw.js'
@@ -14,19 +13,28 @@ import {
 import { reasonForRule, refusalWithReason, ruleSentence } from '../permissions/ruleReason.js'
 
 export type AgentLaunchPlanInput = {
+
   requestedType?: string
+
   activeAgents: readonly AgentDefinition[]
+
   allowedAgentTypes?: readonly string[]
   toolPermissionContext: ToolPermissionContext
+
   defaultAgentType: string
+
   engineModel: string
   modelParam?: ModelAlias
   resolvedModel?: string
   permissionMode?: PermissionMode
+
   isolationParam?: 'worktree' | 'remote'
+
   runInBackground?: boolean
   backgroundTasksDisabled: boolean
+
   forceAsync: boolean
+
   engineDispatch?: {
     backend: EngineDispatch['backend']
     model: string
@@ -35,13 +43,20 @@ export type AgentLaunchPlanInput = {
 }
 
 export type AgentLaunchPlan = {
+
   agentType: string
   definition: AgentDefinition
+
   model: string
+
   modelNote?: string
+
   isolation?: string
+
   shouldRunAsync: boolean
+
   workerPermissionMode: PermissionMode
+
   engineBackend?: EngineDispatch['backend']
 }
 
@@ -58,6 +73,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
   )
   const found = agents.find(agent => agent.agentType === effectiveType)
   if (!found) {
+
     const agentExistsButDenied = allAgents.find(
       agent => agent.agentType === effectiveType,
     )
@@ -112,12 +128,14 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     definition,
     model,
     modelNote: `engine: ${laneLabelForVerdict(classifyModelRoute(model), { rode: true })} (${model}) via the native in-process transport`,
+
     isolation: i.isolationParam ?? definition.isolation,
     shouldRunAsync:
       (i.runInBackground === true ||
         definition.background === true ||
         i.forceAsync) &&
       !i.backgroundTasksDisabled,
+
     workerPermissionMode: definition.permissionMode ?? 'implement',
   }
 }

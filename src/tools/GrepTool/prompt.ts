@@ -1,5 +1,3 @@
-
-
 export const GREP_TOOL_NAME = 'Grep'
 
 function steeringSuffix(offered: ReadonlySet<string> | null): string {

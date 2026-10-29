@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { windowSourceUsages, type ActiveUsageReads } from '../../src/services/providers/providerUsage.ts'

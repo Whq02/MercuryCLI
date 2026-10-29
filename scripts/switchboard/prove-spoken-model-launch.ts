@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'spoken-model-'))
 delete process.env.MERCURY_HOME
+
 process.env.NODE_ENV = 'test'
+
 process.env.ANTHROPIC_API_KEY = 'sk-ant-spoken-model-pin'
 
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
@@ -29,6 +32,7 @@ const check = (n: string, c: boolean, detail = ''): void => {
   check('the exact id stays a passthrough', v.ok === true && v.entry.modelId === 'claude-sonnet-5')
 }
 {
+
   const v = await validateWorkerModelChoice('sonnnet 9', 'session')
   check(
     'a family-less unknown refuses not-runnable:unrecognised',

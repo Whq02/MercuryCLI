@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -38,6 +39,7 @@ const PROJECTS = getProjectDir(RUNTIME_CWD)
 type Cell = { c: string }
 type Grid = { grid: Cell[][]; endReason?: string }
 const text = (g: Grid): string => g.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+
 const flat = (s: string): string => s.replace(/[│╭╮╰╯─▔]/g, ' ').replace(/\s+/g, ' ')
 const painted = (g: Grid): number => g.grid.reduce((n, r) => n + r.filter(c => c.c && c.c !== ' ').length, 0)
 
@@ -119,6 +121,7 @@ function clearSavedPrompts(): void {
 }
 function seedSavedPrompts(drafts: Array<{ id: string; text: string }>): string {
   mkdirSync(savedPromptsDir, { recursive: true })
+
   const file = join(savedPromptsDir, `${projectSlug(RUNTIME_CWD.normalize('NFC'))}.json`)
   writeFileSync(
     file,
@@ -176,8 +179,10 @@ function capture(
 const then = (awaitText: string, data: string, settle = 2): Send => ({ atTick: 999, awaitText, minTick: 5, awaitSettleTicks: settle, data })
 const after = (ticks: number, data: string): Send => ({ afterPrevTicks: ticks, data })
 const OPEN_PANEL: Send[] = [then('? for shortcuts', '/workbench'), then('/workbench', ENTER)]
+
 const OPEN_PANEL_BARE: Send[] = [
   then('New Session', ENTER),
+
   then('Type a prompt', '/workbench'),
   then('/workbench', ENTER),
 ]
@@ -265,6 +270,7 @@ for (const [cols, rows] of SIZES) {
           then('written', 'a'),
           then('new saved prompt', 'write the release notes for 1.5.8'),
           after(2, ENTER),
+
           then('release notes', DOWN),
           after(2, '['),
         ],
@@ -311,6 +317,7 @@ for (const [cols, rows] of SIZES) {
     } else {
       check(`[${size}] L7c on disk: one per-project file`, false, files.join(', '))
     }
+
     seedSavedPrompts([
       { id: 'cc33dd', text: 'write the release notes for 1.5.8' },
       { id: 'dd44ee', text: 'audit the retry ladder — MUST name file:line' },
@@ -341,6 +348,7 @@ for (const [cols, rows] of SIZES) {
 
   {
     const band = (s: string): string => s.split('\n').map(l => l.slice(0, 26)).join('\n')
+
     const berth = cols >= 120
     const gp = band(text(capture('L11-rail-populated', cols, rows, { transcript: POPULATED, sends: [], readyText: 'ship it', total: 90 })))
     const cardShown = /WORKBENCH/.test(gp) && /ship it/.test(gp)
@@ -354,6 +362,7 @@ for (const [cols, rows] of SIZES) {
       check(`[${size}] L11 the card stands without the retired notepad or the retired SEAT box`, !/TABULA/.test(gp) && !/SEAT ·/.test(gp))
     }
     const ge = band(text(capture('L11-rail-empty', cols, rows, { transcript: 'none', sends: [then('New Session', ENTER)], readyText: 'type a prompt', total: 110 })))
+
     const emptyShown = /WORKBENCH/.test(ge) && /no prompts sent/.test(ge)
     const emptyPointer = /more: [^\n]*\/workbench/.test(ge)
     if (berth) {

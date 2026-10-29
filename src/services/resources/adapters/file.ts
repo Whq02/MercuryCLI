@@ -1,4 +1,3 @@
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
@@ -21,6 +20,7 @@ export const fileAdapter: ResourceAdapter = {
   describe: 'files and directories (mercury://file/<path>?lines=A-B&q=…)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (!ref.id) return { state: 'absent', note: 'file refs need a path: mercury://file/<path>' }
+
     const candidates = path.isAbsolute(ref.id)
       ? [ref.id]
       : [...new Set([path.resolve(ctx.cwd, ref.id), path.resolve(getOriginalCwd(), ref.id)])]

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,6 +12,7 @@ const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'crash-visible-'))
 const daemonDir = join(SCRATCH, 'daemon')
+
 let work = join(SCRATCH, 'work-alpha')
 let workB = join(SCRATCH, 'work-beta')
 for (const d of [daemonDir, work, workB]) mkdirSync(d, { recursive: true })
@@ -111,6 +113,7 @@ const workerPids = (): Array<{ runnerId: string; pid?: number }> => {
 console.log('leg A — live-daemon crash paints NEEDS YOU + reason (no vanish, no ready-to-review lie)')
 let alphaId = ''
 let betaId = ''
+
 const killLeg = (async () => {
   await untilAsync(() => workerPids().filter(w => w.pid !== undefined).length >= 2, 60_000)
   await new Promise(r => setTimeout(r, 9_000))
@@ -142,6 +145,7 @@ const run = await runArtifactArena({
   seedHome: async (configDir, _cwd) => {
     work = _cwd
     workB = _cwd
+
     execSync('git init -q && git -c user.email=crashvis@proof.invalid -c user.name=crashvis commit -q --allow-empty -m seed', {
       cwd: work,
       env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
@@ -216,6 +220,7 @@ await killLeg
 }
 
 console.log('leg B — reboot reconcile keeps the rows as NEEDS YOU; only release removes')
+
 if (daemon?.pid !== undefined) {
   try {
     process.kill(daemon.pid, 'SIGKILL')
@@ -245,6 +250,7 @@ check(
   }, 30_000),
   JSON.stringify(Object.values(sup.readSessionWorkers(daemonDir)).map(r => ({ w: r.runnerId, crash: r.crash?.reason, endedAt: r.endedAt }))),
 )
+
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
@@ -254,10 +260,12 @@ const boardRows = snap.groups.flatMap((g: { rows: Array<{ sessionId: string; sta
 const crashedRows = boardRows.filter(r => r.sessionId === alphaId || r.sessionId === betaId)
 check('the reboot board carries BOTH sessions', crashedRows.length === 2, JSON.stringify(boardRows.map(r => r.sessionId)))
 check(
+
   'both paint NEEDS YOU with a crash reason line',
   crashedRows.every(r => r.state === 'needs-you' && /crashed/.test(r.nowLabel ?? '')),
   JSON.stringify(crashedRows.map(r => ({ state: r.state, now: r.nowLabel }))),
 )
+
 const victimWorker = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === alphaId)
 check('release (the operator\'s x x) settles the row', victimWorker !== undefined && sup.settleConcourseWorker(victimWorker.runnerId, daemonDir) === true)
 const snap2 = await snapshot.buildConcourseSnapshot({ recordsDir: daemonDir, project: projectIdentity(work) })
@@ -265,6 +273,7 @@ const after = snap2.groups.flatMap((g: { rows: Array<{ sessionId: string; state:
 const alphaAfter = after.filter(r => r.sessionId === alphaId)
 const betaAfter = after.filter(r => r.sessionId === betaId)
 check(
+
   '…and only then does alpha\'s crash claim clear (row may park, never NEEDS YOU) — beta stays crashed',
   alphaAfter.every(r => r.state !== 'needs-you') && betaAfter.length >= 1 && betaAfter.every(r => r.state === 'needs-you'),
   JSON.stringify(after.map(r => ({ id: r.sessionId.slice(0, 8), state: r.state }))),

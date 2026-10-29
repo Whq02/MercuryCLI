@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -14,6 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
+
 function ordered(hay: string, a: string, b: string): boolean {
   const ia = hay.indexOf(a)
   const ib = hay.indexOf(b)
@@ -59,6 +61,7 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
     'the list legend teaches space as the mark (on the rows space is the mark and nothing else)',
     CONCOURSE_REGION_KEYS.list.some(k => k.keys === 'space' && k.label === 'mark'),
   )
+
   const SPACE_GUARD = "if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {"
   const spaceAt = screen.indexOf(SPACE_GUARD)
   check(
@@ -67,6 +70,7 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
       ordered(screen, "if (region === 'list') {", SPACE_GUARD) &&
       ordered(screen, SPACE_GUARD, "if (region === 'chat') {"),
   )
+
   const COMPOSER_GATE = "if (region !== 'coordinator' && region !== 'live') {"
   check(
     'POISON (a mid-sentence space toggling a mark): typing never reaches the rows’ grammar — the composer-focus gate keeps every non-composer region out of the type-through, and the mark verb never yields to a draft',
@@ -91,6 +95,7 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
     "the marks' home is SCREEN state beside the arm (a ReadonlySet in useState)",
     screen.includes("const [markedIds, setMarkedIds] = useState<ReadonlySet<string>>(() => new Set())"),
   )
+
   check(
     'POISON (item 1): the presentation capsule carries NO marks — the capture line is the landed six fields',
     screen.includes('capsuleRef.current = { region, filtering, filter, boardSel, railSel, boardScroll, managerMode: managerArmed }') &&
@@ -102,11 +107,13 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
       !/writeCoordinatorComposerDraft\([^)]*marked/.test(screen) &&
       !/persistDraft\([^)]*marked/.test(screen),
   )
+
   check(
     'esc clears all marks as its own layer (after the peek close, before exitToChat)',
     ordered(escLadder, 'setRowPeekOpen(false)\n        return', 'if (markedIdsRef.current.size > 0) {') &&
       ordered(escLadder, 'if (markedIdsRef.current.size > 0) {', ESC_EXIT),
   )
+
   const projClear = screen.slice(
     screen.indexOf('const markProjectRef = useRef(snapshot.context.projectLabel)'),
     screen.indexOf("}, [snapshot.context.projectLabel])"),
@@ -116,12 +123,14 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
     projClear.includes('if (markProjectRef.current === snapshot.context.projectLabel) return') &&
       projClear.includes('setMarkedIds(new Set())'),
   )
+
   check(
     'the row wears the visible mark glyph (GLYPH.check in the accent, from the handed-down set)',
     layout.includes("markedIds?.has(r.sessionId) === true ? (") &&
       layout.includes('<Text color={t.info}>{GLYPH.check} </Text>') &&
       screen.includes('markedIds={markedIds}'),
   )
+
   check(
     'the counts and the fan derive from the board intersection (stale ids inert)',
     screen.includes('sessionRows.filter(r => markedIds.has(r.sessionId))') &&
@@ -138,6 +147,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
     broadcastFaceOf(2)?.placeholder ?? '(null)',
   )
   check('the placeholder counts the marks (7 names 7)', broadcastFaceOf(7)?.placeholder === 'message 7 sessions · ↵↵ sends to all marked')
+
   check(
     'the rest hint speaks the face first, then the landed gate',
     ordered(screen, 'const face = broadcastFaceOf(markedRows.length)', ': liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)'),
@@ -150,6 +160,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
     'typing never single-arms the selection under the face',
     screen.includes('if (broadcastFaceOf(markedRowsOf().length) !== null) return\n'),
   )
+
   const fanAt = screen.indexOf('const marked = markedRowsOf()')
   const fanEnd = screen.indexOf('const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)', fanAt)
   const fan = screen.slice(fanAt, fanEnd)
@@ -188,6 +199,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
       !fan.includes('executeKernelDecision') &&
       !screen.includes('executeKernelDecision'),
   )
+
   const kernel = read('src/services/concourse/coordinatorKernel.ts')
   check(
     "POISON (item 2's handshake law): NO new daemon verb — the kernel union carries no broadcast spelling",
@@ -203,6 +215,7 @@ console.log('§2 — the fan (item 2): the counted placeholder; ↵ arms naming 
     'the fan clears the draft once, after the loop (one message, spoken once)',
     ordered(fan, 'setLiveNote({ tone: sent > 0', 'clearLiveDraft()'),
   )
+
   const screenCode = screen.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
   check(
     'the compose contexts branch BEFORE the fan (answer · rename are their own delivery); the contract context is GONE (L25)',
@@ -218,6 +231,7 @@ console.log('§3 — honest partial delivery (item 3): the ONE gate types every 
     liveComposerGateOf(r, ask) as { ok: boolean; line?: string }
   check('parked skips with its line (never force-woken — the rule)', gate(row({ state: 'parked' })).ok === false && gate(row({ state: 'parked' })).line === 'parked — ↵ brings it back; a sleeping chat takes no queue')
   check('queued (a held reservation) skips with its line', gate(row({ sessionId: 'dispatch:abc' })).ok === false && gate(row({ sessionId: 'dispatch:abc' })).line === 'queued — m stacks a message for its start')
+
   check(
     'POISON (gate-vs-fixture): a queued row by STATE with a plain id skips with the same line — the gate keys on the typed state, not only the id spelling',
     gate(row({ state: 'queued' })).ok === false && gate(row({ state: 'queued' })).line === 'queued — m stacks a message for its start',
@@ -230,6 +244,7 @@ console.log('§3 — honest partial delivery (item 3): the ONE gate types every 
   check('a working row DELIVERS (the fan’s ok side)', gate(row({})).ok === true)
   check('a PAUSED row DELIVERS — the valve holds typed words for resume (the redirect contract, not a skip)', gate(row({ state: 'paused' })).ok === true)
   check('ready-to-review and starting DELIVER (live targets of the landed gate)', gate(row({ state: 'ready-to-review' })).ok === true && gate(row({ state: 'starting' })).ok === true)
+
   const fanAt = screen.indexOf('const marked = markedRowsOf()')
   const fan = screen.slice(fanAt, screen.indexOf('const sel = sessionRows.find', fanAt))
   check(
@@ -248,6 +263,7 @@ console.log('§4 — the lock (item 4): an open ask skips, both truths; the answ
   check('POISON (the L17 grammar): a WORKING row with an OPEN ask is a skip — the lock outranks liveness', locked.ok === false && (locked as { line: string }).line === 'needs you · ↵↵ to answer')
   const byState = liveComposerGateOf(row({ state: 'needs-you' }), false)
   check('the needs-you state skips too (both truths — the row and the obligation)', byState.ok === false)
+
   check(
     "the fan's wrapper derives the ask from the snapshot (the lock can never go stale — derived, never stored)",
     screen.replace(/\s+/g, ' ').includes('liveComposerGateOf( sel, sel !== undefined && snapshot.needsYou.some(o => o.sessionId === sel.sessionId), noteRegion, sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined, )'),
@@ -291,6 +307,7 @@ console.log('§6 — the plain world (item 5): the reduced stage keeps space dea
 
 console.log('§7 — redirect replay identity (R7 C-HIGH-2 under the fan): one identity slot per target, never one slot for the whole board')
 {
+
   const route = read('src/components/concourse/ConcourseRoute.tsx')
   const at = route.indexOf('const redirectIdRef = useRef<')
   check('the redirect identity is a MAP keyed by the target session (one slot per target)', at !== -1 && route.slice(at, at + 160).includes('useRef<Map<string, { instruction: string; id: string }>>(new Map())'))

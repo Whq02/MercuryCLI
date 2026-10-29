@@ -1,10 +1,7 @@
-
 export const PY_RUNNER_SOURCE: string = `# Mercury eval kernel runner (generated; do not edit in place)
 import ast, base64, io, json, os, queue, signal, sys, threading, traceback, types
 
-
 _PROTOCOL_PORT = [None]
-
 
 def _open_protocol():
     if "--protocol-port" in sys.argv:
@@ -16,7 +13,6 @@ def _open_protocol():
         return sock.makefile("w", buffering=1, encoding="utf-8")
     return os.fdopen(3, "w", buffering=1, encoding="utf-8")
 
-
 _PROTO = _open_protocol()
 _PROTO_LOCK = threading.Lock()
 _TOKEN = [None]
@@ -27,7 +23,6 @@ _BRIDGE_SEQ = [0]
 _BRIDGE_WAITS = {}
 _QUEUE = queue.Queue()
 _STDIN_FD = os.dup(sys.stdin.fileno())
-
 
 def _check_floor_path(raw_path, writing=False):
     if not _CURRENT_CELL[0] or not isinstance(raw_path, (str, bytes, os.PathLike)):
@@ -74,7 +69,6 @@ def _check_floor_path(raw_path, writing=False):
                 if any(c == f"{uh}/{f}" for f in (".netrc", ".pgpass", ".npmrc", ".pypirc", ".git-credentials")) or any(c == f"{uh}/{d}" or c.startswith(f"{uh}/{d}/") for d in (".ssh", ".aws", ".gnupg", ".kube", ".docker", ".azure", ".config/gh", ".config/gcloud", "library/keychains", ".local/share/keyrings")):
                     raise PermissionError(f"Writing {p} is refused: {c} is a protected system or credential path.")
 
-
 def _audit_hook(event, args):
     if not _CURRENT_CELL[0]:
         return
@@ -87,16 +81,13 @@ def _audit_hook(event, args):
         _check_floor_path(args[0], True)
         _check_floor_path(args[1], True)
 
-
 sys.addaudithook(_audit_hook)
-
 
 def _emit(frame):
     frame["token"] = _TOKEN[0]
     with _PROTO_LOCK:
         _PROTO.write(json.dumps(frame, default=str) + "\\n")
         _PROTO.flush()
-
 
 def _leave(code):
     try:
@@ -111,10 +102,8 @@ def _leave(code):
     finally:
         os._exit(code)
 
-
 def _term_handler(signum, frame):
     _leave(0)
-
 
 def _safe_str(obj):
     try:
@@ -125,13 +114,11 @@ def _safe_str(obj):
         except BaseException:
             return "<unprintable>"
 
-
 def _safe_format_exc():
     try:
         return traceback.format_exc()
     except BaseException:
         return ""
-
 
 class _RejectingStdin(io.TextIOBase):
     def readable(self):
@@ -146,7 +133,6 @@ class _RejectingStdin(io.TextIOBase):
     read = _refuse
     readline = _refuse
     readlines = _refuse
-
 
 def _take_line(raw):
     try:
@@ -170,7 +156,6 @@ def _take_line(raw):
             w["event"].set()
     elif t == "bye":
         _QUEUE.put(msg)
-
 
 def _reader():
     # Raw reads on a duplicate of fd 0: the thread blocks in the kernel's
@@ -197,7 +182,6 @@ def _reader():
                 pass
     _QUEUE.put({"t": "bye"})
 
-
 def _bridge(kind, payload):
     _BRIDGE_SEQ[0] += 1
     bid = "b%d" % _BRIDGE_SEQ[0]
@@ -222,7 +206,6 @@ def _bridge(kind, payload):
         raise error
     return wait.get("value")
 
-
 def _attempt(name, tool_input):
     # The error as a value: {"ok": True, "value": ...} or {"ok": False,
     # "error": ...}, so a batch of calls finishes and reports each outcome.
@@ -232,7 +215,6 @@ def _attempt(name, tool_input):
         raise
     except BaseException as e:
         return {"ok": False, "error": str(e)[:2000]}
-
 
 class _ToolProxy:
     def __call__(self, name, tool_input=None):
@@ -250,7 +232,6 @@ class _ToolProxy:
 
         return call
 
-
 def display(obj, mime=None):
     if mime is not None:
         _emit({"t": "display", "id": _CURRENT_CELL[0] or "", "mime": mime, "data": str(obj)})
@@ -261,10 +242,8 @@ def display(obj, mime=None):
         return
     _emit({"t": "display", "id": _CURRENT_CELL[0] or "", "mime": "text/plain", "data": repr(obj)})
 
-
 def display_markdown(text):
     _emit({"t": "display", "id": _CURRENT_CELL[0] or "", "mime": "text/markdown", "data": str(text)})
-
 
 def display_json(obj):
     _emit({
@@ -274,7 +253,6 @@ def display_json(obj):
         "data": json.dumps(obj, default=str),
     })
 
-
 def display_image(data, mime="image/png"):
     if isinstance(data, (bytes, bytearray)):
         payload = base64.b64encode(bytes(data)).decode("ascii")
@@ -282,9 +260,7 @@ def display_image(data, mime="image/png"):
         payload = str(data)
     _emit({"t": "display", "id": _CURRENT_CELL[0] or "", "mime": mime, "data": payload, "b64": True})
 
-
 tool = _ToolProxy()
-
 
 def agent(prompt, agent_type=None, label=None, schema=None, strict=True, worktree=False):
     return _bridge("agent", {
@@ -296,14 +272,12 @@ def agent(prompt, agent_type=None, label=None, schema=None, strict=True, worktre
         "worktree": bool(worktree),
     })
 
-
 def sample(spec=None, **kwargs):
     if spec is None:
         spec = kwargs
     elif isinstance(spec, dict):
         spec = {**spec, **kwargs}
     return _bridge("sample", spec)
-
 
 def completion(prompt, system=None, model=None, tier=None, schema=None):
     return _bridge("completion", {
@@ -313,7 +287,6 @@ def completion(prompt, system=None, model=None, tier=None, schema=None):
         "tier": tier,
         "schema": schema,
     })
-
 
 def parallel(thunks, width=None, settled=False):
     from concurrent.futures import ThreadPoolExecutor
@@ -345,22 +318,18 @@ def parallel(thunks, width=None, settled=False):
                 print("Parallel failed indices (0-based): " + ", ".join(failed) + "; results remain in parallel.results.")
         return results
 
-
 def pipeline(items, *stages, width=None):
     current = list(items)
     for stage in stages:
         current = parallel([(lambda it=it, s=stage: s(it)) for it in current], width=width)
     return current
 
-
 def read_file(path, **kwargs):
     value = _bridge("read_file", {"file_path": os.path.abspath(path), **kwargs})
     return base64.b64decode(value) if kwargs.get("bytes") else value
 
-
 def write_file(path, content):
     return _bridge("tool", {"name": "Write", "input": {"file_path": os.path.abspath(path), "content": content}})
-
 
 def _matplotlib_flush(cell_id):
     if "matplotlib" not in sys.modules:
@@ -383,10 +352,8 @@ def _matplotlib_flush(cell_id):
     except Exception:
         pass
 
-
 def _interrupt_handler(signum, frame):
     raise KeyboardInterrupt()
-
 
 _NS = {
     "__name__": "__main__",
@@ -403,7 +370,6 @@ _NS = {
     "read_file": read_file,
     "write_file": write_file,
 }
-
 
 def _run_cell(cell_id, code):
     _CURRENT_CELL[0] = cell_id
@@ -466,14 +432,12 @@ def _run_cell(cell_id, code):
         _CURRENT_CELL[0] = None
     _emit({"t": "done", "id": cell_id, "status": status, "cancelled": cancelled})
 
-
 def _ignore_sigint():
     if hasattr(signal, "SIGINT"):
         try:
             signal.signal(signal.SIGINT, signal.SIG_IGN)
         except BaseException:
             pass
-
 
 def _end_marks(cell_id):
     # The cell's end mark on fd 1 AND fd 2, written after the flush and
@@ -487,7 +451,6 @@ def _end_marks(cell_id):
             os.write(fd, mark)
         except Exception:
             pass
-
 
 def main():
     if hasattr(signal, "SIGINT"):
@@ -513,7 +476,6 @@ def main():
             _run_cell(str(msg.get("id")), str(msg.get("code")))
         elif t == "bye":
             _leave(0)
-
 
 if __name__ == "__main__":
     code = 0

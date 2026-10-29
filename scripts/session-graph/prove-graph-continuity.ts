@@ -68,6 +68,7 @@ t.section('§2 — the session graph: canonical ids, extended edge vocabulary')
       (graph.GRAPH_EDGE_KINDS as readonly string[]).includes(k),
     ),
   )
+
   const main = await identity.ensureAgentIdentity({
     displayName: 'Mercury',
     binding: { bindingKind: 'principal', bindingId: 'agent-mercury' },
@@ -133,6 +134,7 @@ t.section('§4 — the review mirror: folios reach the inbox + the activity feed
   })
   t.check('the fixture artifact created ready-for-review', created.ok === true)
   const artifactId = created.ok ? created.value.id : ''
+
   let openEvent = false
   for (let i = 0; i < 200 && !openEvent; i++) {
     const c = await conversations.conversationOf(conversations.MAIN_CONVERSATION_ID)

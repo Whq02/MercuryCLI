@@ -1,11 +1,8 @@
-
-
 type TextCitation = { type: string }
 
 type CitationLocation = { type: string }
 
 type ToolCaller = { type: string; tool_id?: string }
-
 
 export type TextPhase = 'commentary' | 'final_answer'
 
@@ -145,7 +142,6 @@ export type ContentBlock =
   | CompactionBlock
   | FallbackBlock
 
-
 type CacheCreation = {
   ephemeral_1h_input_tokens: number
   ephemeral_5m_input_tokens: number
@@ -165,6 +161,7 @@ export type ApiUsage = {
   cache_creation_input_tokens: number | null
   cache_read_input_tokens: number | null
   inference_geo: string | null
+
   iterations: unknown[] | null
   output_tokens_details: OutputTokensDetails | null
   server_tool_use: ServerToolUsage | null
@@ -200,10 +197,13 @@ export type ApiMessage = {
   stop_reason: StopReason | null
   stop_sequence: string | null
   usage: ApiUsage
+
   container: unknown | null
+
   context_management: unknown | null
   diagnostics?: unknown | null
   stop_details?: RefusalStopDetails | null
+
   input_transformations?: InputTransformation[] | null
 }
 
@@ -212,7 +212,6 @@ export type InputTransformation = {
   path: string
   reason: string
 }
-
 
 type ApiTextDelta = { type: 'text_delta'; text: string }
 type ApiInputJsonDelta = { type: 'input_json_delta'; partial_json: string }
@@ -288,7 +287,6 @@ export type ApiStreamEvent =
   | ApiContentBlockStartEvent
   | ApiContentBlockDeltaEvent
   | ApiContentBlockStopEvent
-
 
 type CacheControlEphemeral = {
   type: 'ephemeral'
@@ -489,7 +487,6 @@ export type MessageParam = {
   content: string | Array<ContentBlockParam>
 }
 
-
 export type JsonOutputFormat = {
   type: 'json_schema'
   schema: { [key: string]: unknown }
@@ -547,9 +544,14 @@ export type ApiRequestParams = {
 }
 
 export type StreamCapabilityAdvertisement = {
+
   textDelta: boolean
+
   reasoningDelta: boolean
+
   toolArgsDelta: boolean
+
   usage: boolean
+
   timing: boolean
 }

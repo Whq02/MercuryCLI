@@ -26,11 +26,13 @@ export class RowErrorBoundary extends React.Component<Props, State> {
 
   override componentDidCatch(error: unknown, errorInfo: React.ErrorInfo): void {
     logError(error)
+
     persistCrashReport(error, errorInfo, this.props.origin ?? 'message-boundary')
   }
 
   override render(): React.ReactNode {
     if (this.state.hasError) {
+
       return (
         <Text color={FAINT}>
           {GLYPH.warn} a part of this view could not be rendered · crash report: {crashReportDirDisplay()}

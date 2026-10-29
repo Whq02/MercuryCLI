@@ -9,6 +9,7 @@ export function validateInputForSettingsFileEdit(
   if (!isSettingsFilePath(filePath)) return null
   const before = validateSettingsFileContent(originalContent)
   if (!before.isValid) return null
+
   const after = validateSettingsFileContent(getUpdatedContent())
   if (after.isValid) return null
   return {

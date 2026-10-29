@@ -22,6 +22,7 @@ type AnthropicUsageReadFailure = {
   host: string
   detail: string
   atMs: number
+
   retryAfterMs?: number
   refresh?: 'refused' | 'unanswered'
 }
@@ -31,14 +32,18 @@ type SignInRenewal = 'fresh' | 'renewed' | 'refused' | 'unanswered'
 interface AnthropicUsageReadStatus {
   lastAttemptAtMs?: number
   lastOkAtMs?: number
+
   failure?: AnthropicUsageReadFailure
   consecutiveFailures: number
+
   retryAtMs?: number
   inFlight: boolean
+
   requests: number
 }
 
 const READ_TIMEOUT_S = 5
+
 const FAILURE_BACKOFF_CADENCES = 4
 
 let lastAttemptAtMs: number | undefined
@@ -48,7 +53,9 @@ let consecutiveFailures = 0
 let retryAtMs: number | undefined
 let requests = 0
 let inFlight: Promise<AnthropicUsageReadStatus> | null = null
+
 let generation = 0
+
 let observedCredential = 'none'
 
 function currentCredential(): string {
@@ -126,6 +133,7 @@ export const SERVER_WAIT_CEILING_MS = 15 * 60_000
 function failedWords(f: AnthropicUsageReadFailure): string {
   switch (f.kind) {
     case 'http':
+
       if (isServerWait(f)) {
         const past = f.retryAfterMs! > SERVER_WAIT_CEILING_MS ? ` — past Mercury's ${Math.round(SERVER_WAIT_CEILING_MS / 60_000)}-minute hold, r asks again` : ''
         return `the usage endpoint asked us to wait ${formatUsageAge(f.retryAfterMs!)} (HTTP 429, ${f.host})${past}`
@@ -193,7 +201,6 @@ export function anthropicUsageReaderNote(now: number = Date.now(), style: 'prose
   return `${failedWords(failure)} · ${retryWords(now)}`
 }
 
-
 const RECORD_FILE = 'usage-reader.json'
 
 interface UsageReaderEpisodeRecord {
@@ -202,6 +209,7 @@ interface UsageReaderEpisodeRecord {
   host: string
   detail: string
   failedAtMs: number
+
   retryAfterMs?: number
   recoveredAtMs?: number
 }
@@ -257,7 +265,6 @@ export function usageReaderRecordWords(configHome?: string): string | undefined 
   return `last usage read failure: ${what} from ${record.host} at ${clock(record.failedAtMs)} · ${tail}`
 }
 
-
 let currentEpisode: UsageReaderEpisodeRecord | undefined
 
 let operatorAdmitted = false
@@ -268,10 +275,12 @@ function noteFailure(next: AnthropicUsageReadFailure, now: number): void {
   if (fresh) operatorAdmitted = false
   failure = next
   consecutiveFailures += 1
+
   const backoffMs = FAILURE_BACKOFF_CADENCES * ttl
   const waitMs = next.retryAfterMs !== undefined ? Math.max(next.retryAfterMs, 0) : backoffMs
   retryAtMs = now + waitMs
   if (!fresh) return
+
   const nextTry = formatUsageAge(waitMs)
   logForDebugging(
     next.retryAfterMs !== undefined
@@ -346,8 +355,10 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
   }
   if (!subscriber) return Promise.resolve(anthropicUsageReadStatus())
   const at = now()
+
   if (reason === 'operator') {
     if (isServerWait(failure) && retryAtMs !== undefined && at < retryAtMs) {
+
       const heldFor = at - failure!.atMs
       if (heldFor < SERVER_WAIT_CEILING_MS || operatorAdmitted) return Promise.resolve(anthropicUsageReadStatus())
       operatorAdmitted = true
@@ -355,6 +366,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
   }
   if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
+
     if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < usagePollTtlMs()) return Promise.resolve(anthropicUsageReadStatus())
   }
   const issued = generation
@@ -365,6 +377,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
     const host = endpointHost()
     const request = requests
     const started = Date.now()
+
     const trace = (outcome: string): void => {
       logForDebugging(`[usage] read #${request} (${reason}) GET ${host}/api/oauth/usage → ${outcome} in ${Date.now() - started} ms`)
     }
@@ -373,6 +386,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
       if (renewal !== 'fresh') logForDebugging(`[usage] read #${request} (${reason}): the sign-in token was expired — refresh grant ${renewal}`)
       if (renewal === 'renewed' && issued === generation) observedCredential = currentCredential()
       const answer = await fetchUtilization()
+
       if (issued !== generation) {
         trace('settled after the account moved (discarded)')
         return anthropicUsageReadStatus()
@@ -399,7 +413,9 @@ export function refreshAnthropicUsage(opts?: { reason?: 'open' | 'operator' | 's
       trace(`${failed.detail}${failed.retryAfterMs !== undefined ? ` · retry-after ${Math.round(failed.retryAfterMs / 1000)} s` : ''}`)
       if (issued === generation) noteFailure(failed, now())
     } finally {
+
       if (issued === generation) inFlight = null
+
       noteUsageRecordChanged()
     }
     return anthropicUsageReadStatus()

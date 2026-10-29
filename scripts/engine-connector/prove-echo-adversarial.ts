@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -163,6 +164,7 @@ section('B4 — a display row anchored beyond a shrunk record array paints once,
     displayRows: Array<{ row: unknown; anchor: number }>
     paint: () => void
   }
+
   g.displayRows = [{ row: createUserMessage({ content: 'the stranded notice' }) as never, anchor: g.rawRecords.length + 10 }]
   g.paint.call(rig.c)
   const painted = rig.paintedJson()

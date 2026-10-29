@@ -1,4 +1,3 @@
-
 import { useEffect, useRef } from 'react'
 import type { UUID } from 'node:crypto'
 import type { Message } from '../types/message.js'
@@ -48,6 +47,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
   const firstUuidRef = useRef<string | undefined>(undefined)
   const parentHintRef = useRef<UUID | undefined>(undefined)
   const lastFlushAtRef = useRef(Date.now())
+
   const seqRef = useRef(0)
 
   useEffect(() => {
@@ -63,6 +63,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
     let slice: Message[]
     let incremental: boolean
     if (firstRender || headChanged || sameHeadShrink) {
+
       slice = messages
       incremental = false
     } else {
@@ -90,6 +91,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
       if (headChanged && returnedParent !== null && seq === seqRef.current) {
         parentHintRef.current = returnedParent
       }
+
       const now = Date.now()
       if (
         slice.some(isTurnBoundaryRow) ||

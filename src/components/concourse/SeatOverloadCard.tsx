@@ -4,7 +4,6 @@ import { describeSeatReading } from '../../services/switchboard/capacityCheck.js
 import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 
-
 export function needsSeatOverloadAsk(live: number, ceiling: number): boolean {
   return live >= ceiling
 }
@@ -16,8 +15,10 @@ export function SeatOverloadCard({
   ceiling,
   onAnswer,
 }: {
+
   live: number
   ceiling: number
+
   onAnswer: (allowed: boolean) => void
 }): React.ReactNode {
   const options = useMemo<PermissionPromptOption<SeatOverloadAnswer>[]>(

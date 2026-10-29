@@ -26,10 +26,14 @@ import {
 } from './resumeSnapshot.js'
 
 const WINDOW_BYTES = 4096
+
 const RECENT_MAX = 2
+
 const SNAPSHOT_REFRESH_BYTES = 1024 * 1024
+
 const BACKWARD_WINDOW_BYTES = 64 * 1024
 const FORWARD_WINDOW_BYTES = 1024 * 1024
+
 const FRAGMENT_SCAN_MAX = 16 * 1024 * 1024
 const NEWLINE = 0x0a
 const EMPTY = Buffer.alloc(0)
@@ -38,9 +42,10 @@ function transcriptReaderEnabled(): boolean {
   return flagEnabled('MERCURY_TRANSCRIPT_READER')
 }
 
-
 interface TranscriptReaderIo {
+
   statSync(path: string): { size: number; ino: number } | null
+
   readRangeSync(path: string, start: number, end: number): Buffer
 }
 
@@ -66,6 +71,7 @@ export const nodeTranscriptReaderIo: TranscriptReaderIo = {
         if (n === 0) break
         read += n
       }
+
       return buf.subarray(0, read)
     } finally {
       closeSync(fd)
@@ -79,12 +85,12 @@ export function setTranscriptReaderIoForTesting(next: TranscriptReaderIo | null)
   io = next ?? nodeTranscriptReaderIo
 }
 
-
 export type TranscriptLoadDegradation = {
   path: string
   malformed: number
   invalid: number
   totalLines: number
+
   refusal: string | null
 }
 
@@ -134,7 +140,6 @@ export const transcriptReaderCensus = {
   chainDerivations: 0,
 }
 
-
 type TranscriptReadPolicy = 'resume' | 'all'
 
 interface TranscriptReadAccounting {
@@ -146,14 +151,19 @@ interface TranscriptReadAccounting {
 interface TranscriptRead {
   kind: 'cold' | 'growth' | 'none'
   accounting: TranscriptReadAccounting
+
   refusal: string | null
 }
 
 interface TranscriptView {
   path: string
+
   generation: number
+
   offset: number
+
   size: number
+
   fold: TranscriptFoldState
   read: TranscriptRead
   refusal: string | null
@@ -175,7 +185,9 @@ interface ReaderState {
   size: number
   ino: number
   window: Buffer
+
   fold: TranscriptFoldState
+
   pruned: boolean
   refusal: string | null
   bytesSinceSnapshot: number
@@ -239,9 +251,11 @@ export async function readTranscript(
     const cold = await coldRead(path, policy)
     return viewOf(cold.state, cold.read)
   }
+
   const prev = inflight.get(path) ?? Promise.resolve()
   const run = prev.catch(() => undefined).then(async (): Promise<TranscriptView> => {
     const existing = states.get(path)
+
     const servable = existing !== undefined && existing.offset > 0 && (existing.policy === policy || existing.policy === 'all')
     if (servable) {
       const growth = growthRead(existing)
@@ -290,20 +304,24 @@ function growthRead(state: ReaderState): TranscriptRead | null {
   if (st === null) return reset(state, 'the file is gone')
   if (st.ino !== state.ino) return reset(state, 'the file was replaced')
   if (st.size < state.offset) return reset(state, 'the file was truncated')
+
   if (st.size === state.offset) return none(state, st.size)
   const W = state.window.length
   const buf = io.readRangeSync(state.path, state.offset - W, st.size)
   transcriptReaderCensus.bytesRead += buf.length
+
   if (buf.length < W) return none(state, state.size)
   if (!buf.subarray(0, W).equals(state.window)) return reset(state, 'the covered prefix was rewritten')
   const delta = buf.subarray(W)
   const lastNl = delta.lastIndexOf(NEWLINE)
+
   if (lastNl === -1) return none(state, st.size)
   const complete = delta.subarray(0, lastNl + 1)
   transcriptReaderCensus.growthReads++
   let accounting: TranscriptReadAccounting = ZERO_ACCOUNTING
   if (state.refusal === null) {
     const decoded = decodeTranscriptBuffer<Entry>(complete)
+
     if (decoded.refusal) return reset(state, 'a line outside the record format landed')
     const malformed = decoded.malformed.length
     for (const entry of decoded.entries) {
@@ -395,6 +413,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   }
   const absent: TranscriptRead = { kind: 'none', accounting: ZERO_ACCOUNTING, refusal: null }
   const st = io.statSync(path)
+
   if (st === null) return { state, read: absent }
   state.ino = st.ino
   state.size = st.size
@@ -411,6 +430,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
     if (hit) {
       const decodedTail = decodeTranscriptBuffer<Entry>(hit.tail)
       if (decodedTail.refusal) {
+
         logError(new Error(`${decodedTail.refusal}: ${path} (snapshot tail — reloading the file whole)`))
       } else {
         state.fold = hit.fold
@@ -433,6 +453,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
         transcriptReaderCensus.bytesRead += hit.tail.length
         state.degradedSinceSnapshot = degraded
         state.bytesSinceSnapshot = hit.tail.length
+
         if (!degraded && hit.tail.length > SNAPSHOT_REFRESH_BYTES) {
           writeResumeSnapshot(path, state.fold, hit.fileSize)
           wroteSnapshot = true
@@ -442,6 +463,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   }
 
   if (!snapshotCovered) {
+
     let buf: Buffer | null = null
     let metadataLines: string[] | null = null
     let hasPreservedSegment = false
@@ -450,6 +472,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
       buf = scan.postBoundaryBuf
       hasPreservedSegment = scan.hasPreservedSegment
       transcriptReaderCensus.bytesRead += st.size
+
       if (scan.boundaryStartOffset > 0) {
         metadataLines = await scanPreBoundaryMetadata(path, scan.boundaryStartOffset)
       }
@@ -464,20 +487,25 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
       const nl = buf.lastIndexOf(NEWLINE)
       fragment = buf.length === 0 || nl === buf.length - 1 ? null : buf.subarray(nl + 1)
     }
+
     if (policy === 'resume' && !hasPreservedSegment && buf.length > SKIP_PRECOMPACT_THRESHOLD) {
       const before = buf
       buf = pruneRecordBranchesBeforeParse(buf)
       state.pruned = buf !== before
     }
+
     if (metadataLines && metadataLines.length > 0) {
       const metaEntries = parseJSONL<Entry>(Buffer.from(metadataLines.join('\n')))
       for (const entry of metaEntries) {
+
         if (PRE_BOUNDARY_METADATA_KINDS.has(entry.type)) applyTranscriptEntry(state.fold, entry)
       }
     }
+
     const decoded = decodeTranscriptBuffer<Entry>(buf)
     if (decoded.refusal) {
       logError(new Error(`${decoded.refusal}: ${path}`))
+
       noteLoadDegradation({ path, malformed: 0, invalid: 0, totalLines: decoded.totalLines, refusal: decoded.refusal })
       state.refusal = decoded.refusal
       state.fold = emptyFoldState()
@@ -516,6 +544,7 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   if (state.refusal === null) {
     finishTranscriptFold(state.fold)
     if (!state.degradedSinceSnapshot) clearLoadDegradation(path)
+
     if (!snapshotCovered && policy === 'resume' && resumeSnapshotEnabled() && offset >= SNAPSHOT_MIN_BYTES) {
       writeResumeSnapshot(path, state.fold, offset)
       wroteSnapshot = true
@@ -526,7 +555,6 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
 
   return { state, read: { kind: 'cold', accounting, refusal: state.refusal } }
 }
-
 
 const rowOfSource = new WeakMap<TranscriptMessage, SerializedMessage>()
 const rowTokens = new WeakMap<object, string>()
@@ -563,9 +591,13 @@ export interface TranscriptChainCursor {
 }
 
 interface TranscriptChainSince {
+
   rows: readonly SerializedMessage[]
+
   since: number
+
   appended: readonly SerializedMessage[]
+
   rewound: boolean
   cursor: TranscriptChainCursor
   view: TranscriptView
@@ -605,15 +637,18 @@ export async function readTranscriptChainSince(
   }
 }
 
-
 interface TranscriptByteCursor {
+
   offset: number
+
   carry: string
 }
 
 interface TranscriptBytesAfter {
+
   text: string
   cursor: TranscriptByteCursor
+
   rewound: boolean
   size: number
 }
@@ -765,6 +800,7 @@ export function scanTranscriptLinesBackward(path: string, visit: (line: string) 
     transcriptReaderCensus.bytesRead += buf.length
     if (buf.length < len) return
     const region = buf.subarray(0, visitedFrom - from)
+
     const firstNl = from > 0 ? region.indexOf(NEWLINE) : -1
     const whole = from > 0 ? (firstNl === -1 ? EMPTY : region.subarray(firstNl + 1)) : region
     const pieces = whole.toString('utf8').split('\n')
@@ -841,7 +877,6 @@ function decodeLineByLine(whole: Buffer): DecodedTranscript<Entry> {
   return { entries, malformed, invalid, totalLines }
 }
 
-
 export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set<UUID> {
   return transcriptRows(messages).resumeLeaves()
 }
@@ -861,7 +896,6 @@ export function _resetTranscriptReaderForTesting(): void {
 export function _transcriptReaderRetentionForTesting(): { states: string[]; retained: string[]; recent: string[] } {
   return { states: [...states.keys()], retained: [...retained.keys()], recent: [...recent] }
 }
-
 
 function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | null {
   if (carry === null || carry.length === 0) return chunkBuf
@@ -895,6 +929,7 @@ function hasMetadataMarker(buf: Buffer, from = 0, to = buf.length): boolean {
 
 function collectMetadataLines(buf: Buffer, into: string[]): Buffer {
   if (!hasMetadataMarker(buf)) {
+
     const lastNl = buf.lastIndexOf(NEWLINE)
     return lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
   }
@@ -922,8 +957,10 @@ async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Pro
         continue
       }
       carry = collectMetadataLines(buf, metadataLines)
+
       if (carry.length > 64 * 1024) carry = null
     }
+
     if (carry !== null && carry.length > 0 && hasMetadataMarker(carry)) metadataLines.push(carry.toString('utf-8'))
   } finally {
     await handle.close()
@@ -931,12 +968,13 @@ async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Pro
   return metadataLines
 }
 
-
 const RECORD_LINE_PREFIX = Buffer.from('{"schemaVersion":1,"recordId":"')
 const PRUNE_KIND_NEEDLE = Buffer.from('"payload":{"kind":"')
 const PRUNE_PARENT_NEEDLE = Buffer.from('"parentId":"')
 const PRUNE_MESSAGE_ID_NEEDLE = Buffer.from('"providerMessageId":"')
+
 const PRUNE_KIND_BOUND = 600
+
 const PRUNE_CHAIN_KINDS = new Set(['input', 'output', 'attachment', 'notice', 'boundary', 'progress'])
 
 export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
@@ -1028,6 +1066,7 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
     if (parent === null) break
     const slots = idToSlots.get(parent)
     if (!slots || slots.length === 0) break
+
     cur = decodeSlot(slots[slots.length - 1]!)
   }
   if (liveIds.size === 0) return buf
@@ -1134,8 +1173,11 @@ const METADATA_TYPE_MARKERS = [
   '"metaKind":"pr-link"',
 ]
 const METADATA_MARKER_BUFS = METADATA_TYPE_MARKERS.map(m => Buffer.from(m))
+
 const RECORD_CARRY_PREFIX = Buffer.from('{"schemaVersion":')
+
 const PRE_BOUNDARY_METADATA_KINDS = new Set(
   METADATA_TYPE_MARKERS.map(m => /"metaKind":"([^"]+)"/.exec(m)![1]!),
 )
+
 const METADATA_PREFIX_BOUND = 25

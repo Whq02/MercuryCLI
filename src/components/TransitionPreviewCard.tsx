@@ -41,7 +41,9 @@ type Props = {
   plan: TransitionPlan
   fromLabel: string
   toLabel: string
+
   refreshed?: boolean
+
   targetUsability?: ProviderUsability
   onConfirm: () => void
   onCancel: () => void

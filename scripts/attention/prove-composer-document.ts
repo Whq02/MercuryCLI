@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -17,6 +18,7 @@ if (!m) {
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
+
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rv-scoped-'))
   const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/utils/promptDraft.ts')
   let doc = C.createComposerDocument('dispatch')
@@ -162,6 +164,7 @@ t.section('§5 — restart restore: the scoped-docs store round-trip')
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
+
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'rv-scoped-'))
   const { saveScopedDoc, readScopedDocsSync, flushScopedDocSaves } = await import('../../src/utils/promptDraft.ts')
   let doc = C.createComposerDocument('dispatch')

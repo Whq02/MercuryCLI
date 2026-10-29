@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -47,6 +48,7 @@ const byId = new Map((profile?.checks ?? []).map(c => [c.id, c]))
   check('crew-launch says crewmates run inside this session', !!c && c.evidence.includes("inside this session's runner"))
   check('crew-launch links the crew surface', c?.link === '/crewmates')
 }
+
 check('the health run never mutated the boot preference', JSON.stringify(menu.readBootEnvChoices()) === bootBefore)
 const { existsSync, readdirSync } = await import('node:fs')
 check('the health run never created a crew', !existsSync(join(SCRATCH, 'crews')) || readdirSync(join(SCRATCH, 'crews')).length === 0)
@@ -62,4 +64,5 @@ rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL PROFILE-SECTION PROOFS PASS')
 else console.log(`❌ ${failures} PROFILE-SECTION PROOF(S) FAILED`)
+
 process.exit(failures === 0 ? 0 : 1)

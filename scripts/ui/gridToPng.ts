@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import sharp from 'sharp'
 
 const CELL_W = 8, CELL_H = 16, FONT = 13
+
 const BG = process.env.VSHOT_BG ?? '#0d181b', FG = process.env.VSHOT_FG ?? '#e8e0d8'
+
 const NAMED: Record<string, string> = {
   black: '#000000', red: '#c0392b', green: '#27ae60', yellow: '#d4a017', brown: '#d4a017',
   blue: '#2e6da4', magenta: '#9b59b6', cyan: '#3f7e96', white: '#ccd6d0',
@@ -26,6 +28,7 @@ export async function gridToPng(gridJsonPath: string, outPng: string) {
     const fg = hex(cell.rev ? cell.bg : cell.fg, FG)
     if (bg !== BG) rects += `<rect x="${x * CELL_W}" y="${y * CELL_H}" width="${CELL_W}" height="${CELL_H}" fill="${bg}"/>`
     const ch = cell.c
+
     if (ch === '▀') {
       if (fg !== BG) rects += `<rect x="${x * CELL_W}" y="${y * CELL_H}" width="${CELL_W}" height="${CELL_H / 2}" fill="${fg}"/>`
     } else if (ch === '▄') {

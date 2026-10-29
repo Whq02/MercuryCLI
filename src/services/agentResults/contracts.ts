@@ -1,4 +1,3 @@
-
 import { z } from 'zod/v4'
 
 export const AGENT_ENVELOPE_VERSION = 1
@@ -17,17 +16,23 @@ export interface AgentResultEnvelope {
   agentId: string
   agentType?: string
   status: 'completed' | 'failed' | 'stopped' | 'paused'
+
   summary: string
   findings: string[]
+
   changedPaths: string[]
+
   failedAttempts: number
   artifacts: string[]
   checks: EnvelopeCheck[]
   unresolved: string[]
   recommendedNextAction?: string
   usage?: { totalTokens?: number; toolUseCount?: number; durationMs?: number }
+
   fullOutputRef: string
+
   evidenceRefs?: string[]
+
   malformedDeclarationRef?: string
 }
 
@@ -37,6 +42,7 @@ export const declaredEnvelopeSchema = z
     findings: z.array(z.string().max(500)).max(20).optional(),
     unresolved: z.array(z.string().max(500)).max(20).optional(),
     recommendedNextAction: z.string().max(500).optional(),
+
     checks: z.array(z.string().max(200)).max(20).optional(),
   })
   .strict()

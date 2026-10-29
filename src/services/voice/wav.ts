@@ -1,4 +1,3 @@
-
 export const VOICE_SAMPLE_RATE = 16_000
 const VOICE_CHANNELS = 1
 const VOICE_BITS_PER_SAMPLE = 16
@@ -34,7 +33,9 @@ interface WavHeader {
   sampleRate: number
   channels: number
   bitsPerSample: number
+
   dataOffset: number
+
   dataBytes: number
 }
 
@@ -70,6 +71,7 @@ export function readWav(buf: Buffer): WavRead {
         pcm: buf.subarray(bodyAt, bodyAt + dataBytes),
       }
     }
+
     at = bodyAt + declared + (declared % 2)
   }
   return { ok: false, reason: 'no data chunk' }

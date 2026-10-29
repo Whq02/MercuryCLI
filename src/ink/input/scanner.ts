@@ -1,7 +1,6 @@
 import { C0, ESC, ESC_TYPE, isEscFinal } from '../termio/ansi.js'
 import { isCSIFinal, isCSIIntermediate, isCSIParam } from '../termio/csi.js'
 
-
 export type TokenKind =
   | 'text'
   | 'csi'
@@ -25,6 +24,7 @@ type ScanState =
   | 'apc'
 
 type ScannerOptions = {
+
   x10Mouse?: boolean
   stringReplyOwed?: () => boolean
 }
@@ -49,6 +49,7 @@ export function createScanner(options?: ScannerOptions): Scanner {
   const stringReplyOwed = options?.stringReplyOwed
   let state: ScanState = 'ground'
   let carry = ''
+
   let sealedFlushes = 0
   let fedSinceFlush = false
   let flushedHead = ''
@@ -81,6 +82,7 @@ export function createScanner(options?: ScannerOptions): Scanner {
       fedSinceFlush = false
     } else {
       fedSinceFlush = true
+
       if (state === 'ground') sealedFlushes = 0
     }
     return result.tokens
@@ -177,6 +179,7 @@ function scan(
   let i = 0
   let textStart = 0
   let seqStart = 0
+
   let seqKind: TokenKind = KIND_OF_STATE[initial] ?? 'esc'
   let terminatorOwed = policy.terminatorOwed
   let terminatorOwedNow = false
@@ -192,6 +195,7 @@ function scan(
 
   const emit = (kind: TokenKind): void => {
     const value = data.slice(seqStart, i)
+
     if (value) {
       if (value === ESC + '\\' && (terminatorOwed || terminatorOwedNow)) {
         terminatorOwed = false
@@ -300,6 +304,7 @@ function scan(
             i++
             break
           }
+
           emit('esc')
           seqStart = i
           seqKind = 'esc'
@@ -322,6 +327,7 @@ function scan(
         break
 
       case 'csi':
+
         if (x10Mouse && code === 0x4d  && i - seqStart === 2) {
           const payloadEnd = Math.min(i + 4, data.length)
           let control = -1
@@ -404,7 +410,9 @@ function scan(
   if (!flush) {
     return { tokens, state, carry: remaining, terminatorOwed: owed, heldRun }
   }
+
   if (remaining && (state === 'osc' || state === 'dcs' || state === 'apc')) {
+
     if (remaining.length <= 2 && remaining.charCodeAt(0) === C0.ESC) {
       tokens.push({ kind: 'esc', value: remaining })
       return { tokens, state: 'ground', carry: '', flushedHead: remaining, terminatorOwed: owed }

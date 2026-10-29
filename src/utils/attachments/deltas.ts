@@ -1,4 +1,3 @@
-
 import type { Message } from 'src/types/message.js'
 import type { Tools } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
@@ -30,8 +29,10 @@ export function getDeferredToolsDeltaAttachment(
   messages: Message[] | undefined,
   scanContext?: DeferredToolsDeltaScanContext,
 ): Attachment[] {
+
   if (!isToolSearchEnabledOptimistic() || !supportsToolDeferral(model)) return []
   const form = deferralWireFormFor(model).form
+
   if (form === 'block' && !modelSupportsToolReference(model)) return []
   if (!isToolSearchToolAvailable(tools)) return []
   const delta = getDeferredToolsDelta(tools, messages ?? [], scanContext, model)

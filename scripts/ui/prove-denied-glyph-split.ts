@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -53,6 +54,7 @@ const ORDINARY: Array<[string, string]> = [
   ['generic fail', 'Tool execution failed'],
   ['invalid params', 'Invalid tool parameters'],
   ['empty', ''],
+
   ['bare-denied-noise', 'the request was denied by the upstream API'],
 ]
 for (const [name, text] of ORDINARY) {

@@ -1,7 +1,6 @@
 import { detectFileEncoding, needsPowerShellBom } from './file.js'
 import { getFsImplementation } from './fsOperations.js'
 
-
 const MAX_ENTRIES = 1000
 
 type CacheEntry = {
@@ -18,8 +17,10 @@ function readFile(path: string): { content: string; encoding: BufferEncoding } {
   let mtimeMs: number
   let size: number
   try {
+
     ;({ mtimeMs, size } = fsImpl.statSync(path))
   } catch (err) {
+
     entries.delete(path)
     throw err
   }
@@ -27,8 +28,10 @@ function readFile(path: string): { content: string; encoding: BufferEncoding } {
   if (cached && cached.mtimeMs === mtimeMs && cached.size === size) {
     return { content: cached.content, encoding: cached.encoding }
   }
+
   const encoding = detectFileEncoding(path)
   let content = fsImpl.readFileSync(path, { encoding }).replaceAll('\r\n', '\n')
+
   if (needsPowerShellBom(path) && content.startsWith('\uFEFF')) {
     content = content.slice(1)
   }

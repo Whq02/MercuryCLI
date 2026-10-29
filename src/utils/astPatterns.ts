@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
@@ -29,18 +28,24 @@ import { compileFor, discoverPolyglotFiles } from '../services/structure/polyglo
 import { applyEdits, digestOf, lineExtendedRange, type Edit } from '../services/structure/transform.js'
 import { clipWithEllipsis } from './stringUtils.js'
 
-
 export const AST_BOUNDS = {
+
   defaultLimit: 50,
+
   maxLimit: 200,
+
   matchCap: 2000,
+
   maxFileBytes: 2_000_000,
+
   maxFilesParsed: 500,
+
   editMaxFiles: 100,
+
   editMaxMatches: 500,
+
   diffLinesPerFile: 160,
 } as const
-
 
 const availabilityByEngineDir = new Map<string, Set<string>>()
 
@@ -110,22 +115,29 @@ export const PATTERN_EXAMPLES: readonly string[] = [
   'function $NAME($$$ARGS) { $$$BODY }',
 ]
 
-
 export interface AstScopeFile {
   abs: string
+
   rel: string
   lang: PolyglotLanguage
 }
 
 export interface AstScope {
+
   root: string
+
   target: string
+
   display: string
   singleFile: boolean
   files: AstScopeFile[]
+
   skippedNoGrammar: Array<[ext: string, count: number]>
+
   skippedUncarried: Array<[ext: string, count: number]>
+
   skippedDenied: number
+
   truncatedWalk: boolean
   glob?: string
   lang?: PolyglotLanguage
@@ -191,6 +203,7 @@ export function resolveAstScope(opts: {
   glob?: string
   lang?: string
   cwd: string
+
   readable?: (abs: string) => boolean
 }): AstScope | AstRefusal {
   let lang: PolyglotLanguage | undefined
@@ -251,6 +264,7 @@ export function resolveAstScope(opts: {
   for (const f of discovered.files) {
     const abs = path.join(target, f.rel)
     if (!isCarried(f.lang)) {
+
       const ext = path.extname(f.rel).toLowerCase() || path.basename(f.rel)
       uncarried.set(ext, (uncarried.get(ext) ?? 0) + 1)
       continue
@@ -284,10 +298,11 @@ export function describeSkipped(skipped: ReadonlyArray<[string, number]>, cap = 
   return `${shown.join(', ')}${more}`
 }
 
-
 export interface AstCapture {
+
   key: string
   text: string
+
   startIndex: number
   endIndex: number
 }
@@ -298,25 +313,34 @@ export interface AstMatch {
   lang: string
   startIndex: number
   endIndex: number
+
   startLine: number
   startCol: number
   endLine: number
   endCol: number
   nodeType: string
+
   text: string
   captures: AstCapture[]
 }
 
 export interface AstSearchResult {
   matches: AstMatch[]
+
   capped: boolean
   filesParsed: number
   filesWithMatches: number
+
   parseFailures: Array<{ rel: string; message: string }>
+
   patternRefusals: Array<{ lang: string; files: number; note: string }>
+
   captureNamesByLang: Map<string, string[]>
+
   skippedLarge: number
+
   truncatedParse: boolean
+
   languagesSearched: Array<[lang: string, files: number]>
 }
 
@@ -379,6 +403,7 @@ export async function searchAstPattern(
       truncatedParse = true
       break
     }
+
     const compiled = await compileFor(engine, file.lang, encoded, compileCache)
     if ('state' in compiled) {
       const entry = refusedLangs.get(file.lang.name) ?? { files: 0, note: compiled.note }
@@ -451,7 +476,6 @@ export function patternErrorText(pattern: string, result: AstSearchResult): stri
   ].join('\n')
 }
 
-
 export interface AstRewriteFile {
   rel: string
   abs: string
@@ -461,8 +485,10 @@ export interface AstRewriteFile {
   after: string
   digestBefore: string
   digestAfter: string
+
   diff: string
   diffOmittedLines: number
+
   hunks: BoundedDiffHunk[]
   omittedHunks: number
   changedLines: number
@@ -470,14 +496,18 @@ export interface AstRewriteFile {
 }
 
 export interface AstRewritePlan {
+
   token: string
+
   files: AstRewriteFile[]
+
   matchCount: number
+
   unchangedMatches: number
+
   inPlaceMatches: number
   search: AstSearchResult
 }
-
 
 function normalisedText(node: TSNode): string {
   return node.text.replace(/\s+/g, '')
@@ -492,6 +522,7 @@ function sameShape(p: TSNode, r: TSNode): boolean {
   const rk = significantChildren(r)
   if (pk.length !== rk.length) return false
   if (pk.length === 0) {
+
     if (p.childCount === 0 && r.childCount === 0) return true
     return normalisedText(p) === normalisedText(r)
   }
@@ -521,6 +552,7 @@ function alignEdits(p: TSNode, r: TSNode, c: TSNode, captures: AstCapture[], out
         if (!cap) return false
         while (ci < ck.length && cap.endIndex > cap.startIndex && ck[ci]!.startIndex >= cap.startIndex && ck[ci]!.endIndex <= cap.endIndex) ci++
       } else {
+
         const rest = pk.slice(pi + 1)
         if (rest.some(x => metavarOf(x)?.kind === 'multi')) return false
         const take = ck.length - ci - rest.length
@@ -629,6 +661,7 @@ export async function planAstRewrite(
       refused: `More than ${AST_BOUNDS.editMaxMatches} matches in one edit — narrow the scope (path or glob) or the pattern, then run again. Nothing was written.`,
     }
   }
+
   const byFile = new Map<string, AstMatch[]>()
   for (const m of search.matches) {
     const list = byFile.get(m.rel) ?? []
@@ -731,6 +764,7 @@ export async function planAstRewrite(
           }
         }
         if (substituted === '') {
+
           const r = lineExtendedRange(before, m.startIndex, m.endIndex)
           edits.push({ start: r.start, end: r.end, newText: '' })
           continue
@@ -741,6 +775,7 @@ export async function planAstRewrite(
           if (codeNode && alignEdits(shape.pat, shape.rw, codeNode, m.captures, local)) {
             local.sort((a, b) => a.start - b.start)
             const nodeText = before.slice(m.startIndex, m.endIndex)
+
             const guardEdits = [...local, ...uncapturedCommentSpans(codeNode, m.captures)]
               .map(e => ({ start: e.start - m.startIndex, end: e.end - m.startIndex, newText: e.newText }))
               .sort((a, b) => a.start - b.start)
@@ -778,6 +813,7 @@ export async function planAstRewrite(
     const after = applyEdits(before, edits)
     if (after === before) continue
     {
+
       const reparsed = await parsePolyglot(engine, lang, after)
       if ('state' in reparsed) {
         releaseCompiled()
@@ -823,7 +859,6 @@ export async function planAstRewrite(
     search,
   }
 }
-
 
 const MATCH_TEXT_LINES = 4
 const MATCH_LINE_CHARS = 160

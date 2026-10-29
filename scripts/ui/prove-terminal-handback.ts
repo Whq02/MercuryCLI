@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { closeSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -103,6 +104,7 @@ section('U · the owner: compare, reclaim once, never throw; the descriptor; the
     },
   })
   delete process.env[TERMINAL_HANDBACK_FLAG]
+
   const injectedFd = openSync(join(scratch, 'descriptor'), 'w')
   setTerminalHandbackDescriptorForTest(injectedFd)
 
@@ -201,6 +203,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
     const at = text.indexOf(call)
     check(`${rel} calls it BEFORE the renderer re-arms (${rearms.join(' / ')})`, at >= 0 && rearms.every(re => text.indexOf(re, at) > at), `call at ${at}`)
   }
+
   const headless: Record<string, string> = {
     'src/cli/editorBridge.ts': 'a headless verb (mercury bridge …) — the process ends with the child; no renderer returns to the terminal',
     'src/cli/lspVerb.ts': 'a headless verb (mercury lsp install …) — the install command runs with the terminal attached and the process ends after it; no renderer returns to the terminal',
@@ -224,6 +227,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
     }
   }
   walk(join(ROOT, 'src'), (rel, text) => {
+
     if (!/stdio:[^\n]*'inherit'/.test(text)) return
     if (text.includes('reclaimTerminalAfterChild(') || headless[rel]) return
     offenders.push(rel)
@@ -293,6 +297,7 @@ const journeyEnv = (extra: Record<string, string | undefined>): NodeJS.ProcessEn
   delete env.VISUAL
   delete env.MERCURY_VOICE_PACK_DIR
   delete env[TERMINAL_HANDBACK_FLAG]
+
   for (const [k, v] of Object.entries(extra)) {
     if (v === undefined) delete env[k]
     else env[k] = v
@@ -301,9 +306,11 @@ const journeyEnv = (extra: Record<string, string | undefined>): NodeJS.ProcessEn
 }
 
 const RECLAIM_BUDGET_MS = 200
+
 const EDITOR_RECLAIM_BUDGET_MS = 2000
 const withStat = (samples: HostSample[]): HostSample[] => samples.filter(s => s.stat !== null)
 const neverStopped = (samples: HostSample[]): boolean => withStat(samples).every(s => !s.stat!.startsWith('T'))
+
 const reclaimLatency = (r: HostReport, killMs: number, untilMs: number): { first: HostSample | undefined; ms: number } => {
   const first = withStat(samplesBetween(r, killMs, untilMs)).find(s => s.foreground === true)
   return { first, ms: first ? first.ms - killMs : Number.POSITIVE_INFINITY }
@@ -312,6 +319,7 @@ const staysForegroundAfter = (r: HostReport, fromMs: number, toMs: number | null
   const s = withStat(samplesBetween(r, fromMs, toMs))
   return s.length > 0 && s.every(x => x.foreground === true)
 }
+
 const childHeldTerminal = (s: HostSample | undefined): boolean =>
   s !== undefined && s.foreground === false && s.tree.some(row => row.pid !== s.pid && row.pgid === s.tpgid)
 
@@ -462,6 +470,7 @@ if (!packPresent) {
   skip('A/C (need the native pack)', cargoPresent ? 'build it: bun run scripts/vendor/build-voice.ts' : 'no cargo on this box')
 } else {
   const openEditor = [{ send: '\x18' }, { sleep: 0.3 }, { send: '\x05' }]
+
   const run = runJobControlHost({
     tag: 'handback-editor',
     argv: base.argv,

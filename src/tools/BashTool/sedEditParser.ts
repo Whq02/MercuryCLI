@@ -28,6 +28,7 @@ export function parseSedEditCommand(command: string): SedEditInfo | null {
     const word = words[i] as string
     if (word === '-i' || word === '--in-place') {
       inPlace = true
+
       const next = words[i + 1]
       if (next !== undefined && !next.startsWith('-') && (next === '' || next.startsWith('.'))) {
         i++
@@ -35,6 +36,7 @@ export function parseSedEditCommand(command: string): SedEditInfo | null {
       continue
     }
     if (word.startsWith('-i')) {
+
       if (word.startsWith('--in-place=')) return null
       inPlace = true
       continue
@@ -57,6 +59,7 @@ export function parseSedEditCommand(command: string): SedEditInfo | null {
       continue
     }
     if (word.startsWith('-')) return null
+
     if (program === null) {
       program = word
     } else if (filePath === null) {
@@ -82,6 +85,7 @@ function parseSubstitutionProgram(program: string): { pattern: string; replaceme
   for (let i = 2; i < program.length; i++) {
     const ch = program[i] as string
     if (ch === '\\' && i + 1 < program.length) {
+
       const pair = ch + (program[i + 1] as string)
       if (state === 'pattern') pattern += pair
       else if (state === 'replacement') replacement += pair
@@ -107,7 +111,6 @@ function parseSubstitutionProgram(program: string): { pattern: string; replaceme
 export function isSedInPlaceEdit(command: string): boolean {
   return parseSedEditCommand(command) !== null
 }
-
 
 const WHOLE_MATCH_MARKER = '\x00MERCURY_SED_WHOLE_MATCH\x00'
 const REPLACEMENT_MARKER = /\x00MERCURY_SED_(?:WHOLE_MATCH|GROUP_([1-9]))\x00/g
@@ -153,8 +156,10 @@ export function applySedSubstitution(content: string, sedInfo: SedEditInfo): str
 }
 
 function translatePattern(pattern: string, extendedRegex: boolean): string {
+
   let out = pattern.replace(/\\\//g, '/')
   if (extendedRegex) return out
+
   let result = ''
   for (let i = 0; i < out.length; i++) {
     const ch = out[i] as string
@@ -201,6 +206,7 @@ function translateReplacement(replacement: string): string {
       result += WHOLE_MATCH_MARKER
       continue
     }
+
     result += ch
   }
   return result

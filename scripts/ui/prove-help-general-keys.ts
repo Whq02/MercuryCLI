@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/HelpV2/HelpV2.tsx src/components/design-system/Tabs.tsx
+
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, KEY, type Mounted } from '../lib/settingsPopupHarness.ts'

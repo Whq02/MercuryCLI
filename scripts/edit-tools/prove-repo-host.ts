@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -89,6 +90,7 @@ const emptyPath = mkdtempSync(join(tmpdir(), 'anvil-s5-nopath-'))
 const REAL_PATH = process.env.PATH!
 const withShim = `${shimDir}:${REAL_PATH}`
 const withBroken = `${brokenShimDir}:${REAL_PATH}`
+
 const gitOnlyDir = mkdtempSync(join(tmpdir(), 'anvil-s5-gitonly-'))
 symlinkSync(execFileSync('which', ['git'], { encoding: 'utf8' }).trim(), join(gitOnlyDir, 'git'))
 const noGh = `${emptyPath}:${gitOnlyDir}`

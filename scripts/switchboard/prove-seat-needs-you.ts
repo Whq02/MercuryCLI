@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -105,6 +106,7 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work])
+
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify(askRule))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -112,6 +114,7 @@ try {
         op: 'concourseDispatch',
         clientMessageId: 'seat-needs-you',
         prompt: 'tidy the scratch folder',
+
         workspaceDir: cwd,
         title: N,
         modelKey: DEFAULT_OPUS,
@@ -139,6 +142,7 @@ try {
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const boardWithAsk = grabs.filter(g => text(g).includes('SESSION CONCOURSE') && text(g).includes('NEEDS YOU'))
     check('N1 the board shows the ask on its NEEDS YOU rail (as today)', boardWithAsk.length > 0, `frames: ${boardWithAsk.map(g => g.atMs).join(',') || 'none'}`)
+
     const hoppedFrames = grabs.filter(
       g =>
         !text(g).includes('SESSION CONCOURSE') &&
@@ -147,6 +151,7 @@ try {
           text(g).includes('⇧← back') ||
           text(g).includes('Do you want to proceed?')),
     )
+
     const cardFrames = hoppedFrames.filter(
       g => text(g).includes('Bash command') && text(g).includes('Do you want to proceed?') && text(g).includes('rm -f'),
     )
@@ -155,6 +160,7 @@ try {
       cardFrames.some(g => /1\. Yes/.test(text(g)) && /2\. No/.test(text(g)) && text(g).includes('tab amend')),
       `hopped frames: ${hoppedFrames.map(g => g.atMs).join(',') || 'none'}; with the card: ${cardFrames.map(g => g.atMs).join(',') || 'none'}`,
     )
+
     check(
       'N2 …and the card explains the ask as the boot session\'s card does (the rule Bash(rm *) + the /permissions hint)',
       cardFrames.some(
@@ -163,6 +169,7 @@ try {
           text(g).includes('Rules live in /permissions'),
       ),
     )
+
     const cardBelowTranscript = cardFrames.some(g => {
       const rows = g.rows
       const cardRow = rows.findIndex(r => r.includes('Bash command'))
@@ -175,12 +182,14 @@ try {
     check('N3 the child ran the tool and its reply landed in the session\'s file', await untilAsync(async () => logText().includes('Tidied after your allow.'), 20_000))
     const answered = hoppedFrames.filter(g => text(g).includes('Tidied after your allow.'))
     check('N3 the reply painted inside the focused chat', answered.length > 0, `frames: ${answered.map(g => g.atMs).join(',') || 'none'}`)
+
     const dispatch = await import('../../src/daemon/concourseDispatch.ts')
     const rows = Object.values(dispatch.readConcourseDispatches(daemonDir))
     const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const mine = rows.find(r => r.sessionId === sid && r.promptDigest === dispatch.promptDigestOf(WORDS))
     check('N4 the typed words rode the dispatch ledger to the session — the row keyed by the ONE identity (a bare uuid), carrying the words\' digest and the operator\'s attribution', mine !== undefined && UUID_SHAPE.test(mine.clientMessageId) && mine.by === 'operator' && (mine.state === 'working' || mine.state === 'settled' || mine.state === 'starting'), `row=${mine ? `${mine.clientMessageId} ${mine.state} by=${mine.by ?? ''}` : 'none'}; ids=${rows.map(r => `${r.clientMessageId}:${r.state}`).join(' ')}`)
     check("N4 the session's file gained the operator's row", await untilAsync(async () => logText().includes(WORDS), 20_000))
+
     const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
     const userRowUuids = async (): Promise<string[]> => {
       const chain = await reader.readTranscriptChainSince(log, null)

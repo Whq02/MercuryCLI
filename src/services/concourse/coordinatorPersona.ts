@@ -1,4 +1,3 @@
-
 export const COORDINATOR_PERSONA_VERSION = 10
 
 export const COORDINATOR_PERSONA = `Your seat is the Mercury switchboard: one terminal, an operator, and their Mercury sessions

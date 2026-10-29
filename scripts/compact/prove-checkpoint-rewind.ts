@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -44,6 +45,7 @@ function liveCheckpointHistory(): Message[] {
 }
 
 section('§A the scan — stateless reconstruction, one-active-max')
+
 {
   const history = liveCheckpointHistory()
   const active = cr.findActiveCheckpoint(history)
@@ -69,6 +71,7 @@ section('§A the scan — stateless reconstruction, one-active-max')
 }
 
 section('§B the tools — typed refusals, context-only contract')
+
 {
   const context = (messages: Message[]): never => ({ messages }) as never
   const nested = await CheckpointTool.call({ goal: 'again' } as never, context(liveCheckpointHistory())).then(
@@ -96,6 +99,7 @@ section('§B the tools — typed refusals, context-only contract')
 }
 
 section('§C the record + the projection')
+
 {
   const history = liveCheckpointHistory()
   const record = cr.buildRewindRecordIfSettled(
@@ -142,6 +146,7 @@ section('§C the record + the projection')
 }
 
 section('§D the machine + registry pins (structural)')
+
 {
   const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   const guardAt = machine.indexOf('if (!checkpointSettleWarned) {')

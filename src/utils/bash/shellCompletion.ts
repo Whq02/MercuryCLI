@@ -7,6 +7,7 @@ import { quote, tryParseShellCommand } from './shellQuote.js'
 export type ShellCompletionType = 'command' | 'variable' | 'file'
 
 const RESULT_CAP = 15
+
 const COMPLETION_TIMEOUT_MS = 1000
 
 const COMMAND_OPERATORS: ReadonlySet<string> = new Set(['|', '||', '&&', ';'])
@@ -28,6 +29,7 @@ function typeByShape(token: string): ShellCompletionType {
 }
 
 function parseCompletionContext(textBeforeCursor: string): CompletionContext {
+
   const varMatch = /\$[A-Za-z_][A-Za-z0-9_]*$/.exec(textBeforeCursor)
   if (varMatch) {
     return { prefix: varMatch[0], type: 'variable' }
@@ -35,6 +37,7 @@ function parseCompletionContext(textBeforeCursor: string): CompletionContext {
 
   const parseResult = tryParseShellCommand(textBeforeCursor)
   if (!parseResult.success) {
+
     const words = textBeforeCursor.split(/\s+/).filter(w => w.length > 0)
     const last = words[words.length - 1] ?? ''
     const onlyToken = words.length === 1 && !/\s/.test(textBeforeCursor.trimStart() ? textBeforeCursor : '')
@@ -49,12 +52,14 @@ function parseCompletionContext(textBeforeCursor: string): CompletionContext {
     return { prefix: '', type: 'command' }
   }
   if (/\s$/.test(textBeforeCursor)) {
+
     return { prefix: '', type: 'file' }
   }
 
   const lastToken = stringTokens[stringTokens.length - 1] as string
   let type = typeByShape(lastToken)
   if (type === 'command') {
+
     const isFirst = stringTokens.length === 1
     const beforeLast = findTokenBefore(parseResult.tokens, lastToken)
     const followsOperator = beforeLast !== null && COMMAND_OPERATORS.has(beforeLast)
@@ -90,6 +95,7 @@ function buildCompletionCommand(shellType: 'bash' | 'zsh', context: CompletionCo
     }
     return `compgen -c ${quote([prefix])} 2>/dev/null`
   }
+
   if (type === 'variable') {
     const name = prefix.startsWith('$') ? prefix.slice(1) : prefix
     return `print -rl -- \${(k)parameters[(I)${quote([`${name}*`])}]} 2>/dev/null`

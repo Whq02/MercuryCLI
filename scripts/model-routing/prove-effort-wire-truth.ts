@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -123,6 +124,7 @@ const GEMINI_PAGE = {
   ],
 }
 const geminiFetch: typeof fetch = (async () => jsonResponse(GEMINI_PAGE)) as unknown as typeof fetch
+
 const OLLAMA_CAPS: Record<string, string[]> = {
   'qwen3:8b': ['completion', 'tools', 'thinking'],
   'llama3.2:latest': ['completion', 'tools'],
@@ -281,6 +283,7 @@ section('§2 the GPT wire: reasoning.effort of the built request ≡ the owner a
 
 section('§3 the GLM wire: reasoning_effort of the built chat request ≡ the owner, per model')
 {
+
   const glmWire = (model: string, request: Level | undefined): string | undefined => {
     const requested = effort.resolveWireRequestedEffort(model, request)
     const vocabulary = glmPins.glmEffortsFor(model)
@@ -352,6 +355,7 @@ section('§5 thinking off: DeepSeek sends nothing (its thinking object spells of
 {
   thinking.noteSessionThinkingConfig({ type: 'disabled' })
   const off = (wireModel: string, request: Level, model = wireModel) => ({ wireModel, effortValue: effort.resolveWireRequestedEffort(model, request), thinkingEnabled: false, maxOutputTokensOverride: undefined })
+
   const orVocabulary = openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro')
   const gated: Array<{ model: string; sent: string | undefined; floor: string | undefined }> = [
     { model: 'deepseek-flash', sent: (wire.buildDeepseekExtras(off('deepseek-flash', 'high')) as { reasoning_effort?: string }).reasoning_effort, floor: undefined },
@@ -387,6 +391,7 @@ section('§5 thinking off: DeepSeek sends nothing (its thinking object spells of
   check('thinking back on: DeepSeek resolves its dial again', effort.resolveEffortTruth('deepseek-flash', 'high').wire === 'high')
   const explicit = effort.resolveEffortTruth('deepseek-flash', 'high', { thinkingEnabled: false })
   check('a caller with its own thinking-off call context suppresses regardless of the session latch', explicit.suppressedBy === 'thinking-off' && explicit.wire === undefined)
+
   const detail = coordinatorModels.coordinatorEffortDetail
   check('coordinator detail · DeepSeek: saved, not sent', String(detail('deepseek-flash', 'high')).includes('not sent'))
   check('coordinator detail · kimi-k3 medium: runs high (the step Kimi documents, 2026-10-28)', String(detail('kimi-k3', 'medium')).includes('runs high'))

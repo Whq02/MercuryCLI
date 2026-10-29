@@ -26,6 +26,7 @@ type CatalogueGateVerdict =
   | {
       allowed: false
       why: 'no-credential' | 'traffic-off'
+
       reason: string
     }
 

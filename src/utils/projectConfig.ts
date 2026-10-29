@@ -11,6 +11,7 @@ export function projectConfigDirs(root: string): [string] {
 }
 
 export function apolloSpecDirectory(projectRoot: string): string {
+
   return projectLocalPath(projectRoot, 'apollo')
 }
 

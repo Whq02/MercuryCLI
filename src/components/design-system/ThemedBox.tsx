@@ -1,4 +1,3 @@
-
 import React from 'react'
 import Box, { type Props as BaseBoxProps } from '../../ink/components/Box.js'
 import type { DOMElement } from '../../ink/dom.js'
@@ -67,6 +66,7 @@ export default function ThemedBox({
   ...rest
 }: React.PropsWithChildren<Props>): React.ReactNode {
   const [themeName] = useTheme()
+
   useSessionAccent()
   const theme = getTheme(themeName)
   return (

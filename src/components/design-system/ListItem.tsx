@@ -1,4 +1,3 @@
-
 import figures from 'figures'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import React from 'react'
@@ -13,8 +12,10 @@ type ListItemProps = {
   description?: string
   showScrollDown?: boolean
   showScrollUp?: boolean
+
   styled?: boolean
   disabled?: boolean
+
   declareCursor?: boolean
 }
 
@@ -30,6 +31,7 @@ export function ListItem({
   declareCursor = true,
 }: ListItemProps): React.ReactNode {
   const tokens = useMercuryTokens()
+
   const cursorRef = useDeclaredCursor({
     line: 0,
     column: 0,

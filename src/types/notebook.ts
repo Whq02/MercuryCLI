@@ -1,12 +1,14 @@
-
 export type NotebookCellType = 'code' | 'markdown' | 'raw'
 
 export interface NotebookCell {
   cell_type: NotebookCellType
+
   id?: string
   source: string | string[]
   metadata: Record<string, unknown>
+
   execution_count?: number | null
+
   outputs?: NotebookCellOutput[]
 }
 
@@ -18,6 +20,7 @@ export type NotebookCellOutput =
 
 interface NotebookStreamOutput {
   output_type: 'stream'
+
   name?: string
   text: string | string[]
 }
@@ -45,7 +48,9 @@ interface NotebookErrorOutput {
 export type NotebookMimeBundle = Record<string, string | string[]>
 
 export interface NotebookOutputImage {
+
   image_data: string
+
   media_type: 'image/png' | 'image/jpeg'
 }
 
@@ -71,7 +76,9 @@ interface NotebookKernelSpec {
 export interface NotebookContent {
   cells: NotebookCell[]
   metadata: NotebookMetadata
+
   nbformat: number
+
   nbformat_minor: number
 }
 
@@ -84,8 +91,11 @@ export interface NotebookCellSourceOutput {
 export interface NotebookCellSource {
   cellType: NotebookCellType
   source: string
+
   execution_count?: number
   cell_id: string
+
   language?: string
+
   outputs?: NotebookCellSourceOutput[]
 }

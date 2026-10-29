@@ -78,6 +78,7 @@ function ghArgv(): string[] {
 
 interface GhSpawnOptions {
   timeoutMs?: number
+
   cwd?: string
   maxBuffer?: number
 }

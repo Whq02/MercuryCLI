@@ -1,6 +1,5 @@
 import { execFileNoThrow } from './execFileNoThrow.js'
 
-
 export async function openPath(path: string): Promise<boolean> {
   try {
     const opener =
@@ -33,6 +32,7 @@ export async function openBrowser(url: string): Promise<boolean> {
         const result = await execFileNoThrow(browserEnv, [url])
         return result.code === 0
       }
+
       const result = await execFileNoThrow('rundll32', ['url,OpenURL', url], {})
       return result.code === 0
     }

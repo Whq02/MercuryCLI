@@ -9,6 +9,7 @@ export class FpsTracker {
   private lastRecordMs: number | null = null
 
   record(durationMs: number): void {
+
     const now = performance.now()
     if (this.firstRecordMs === null) this.firstRecordMs = now
     this.lastRecordMs = now

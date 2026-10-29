@@ -1,9 +1,9 @@
-
 import type { RowIdentity } from './contracts.js'
 import type { SettledRowLedger } from './ledger.js'
 
 export interface RecordRow {
   readonly identity: RowIdentity
+
   readonly foldKey: string
   readonly text: string
 }
@@ -18,6 +18,7 @@ export interface UnsettledTurn {
 }
 
 export interface Projection {
+
   readonly identities: readonly RowIdentity[]
 }
 

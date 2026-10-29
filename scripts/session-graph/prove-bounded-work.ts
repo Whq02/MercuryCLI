@@ -146,6 +146,7 @@ t.section('§4 — reconnect work scales with the DELTA, not the history')
 {
   const feedTen = foldStream(fxTen.activityStream)
   const before = new Map(feedTen.rows)
+
   const delta = fxTen.activityStream.slice(0, 50).map((input, i) => ({
     ...input,
     event: { ...input.event, sourceEventId: `delta-${i}`, payload: replaceToolId(input.event.payload, Math.floor(i / 2)) },
@@ -170,6 +171,7 @@ t.section('§4 — reconnect work scales with the DELTA, not the history')
   t.check('the 25 new pairs add exactly 25 new rows, one per pair (start and terminal collapse into ONE row)', added.length === 25 && added.every(id => deltaIds.has(id)), `${added.length} added`)
   t.check('every new row folded its terminal (no pair left running after its result was folded)', added.every(id => after.rows.get(id)?.phase !== 'running'), added.slice(0, 3).map(id => `${id}:${after.rows.get(id)?.phase}`).join(','))
   t.check('the window bound survives the delta', after.order.length <= activity.ACTIVITY_FEED_CAP)
+
   const replayBefore = after.rows.size
   const replayOrder = after.order
   let replayed = after

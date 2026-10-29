@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -140,6 +141,7 @@ for (const code of ['EPERM', 'EBUSY', 'EACCES'] as const) {
 
 section('§3 THE VERIFY LAW (DR-02)')
 {
+
   const stillOurs = await releasePidLock(join(HOME, 'delete-pending.lock'), 'me', {
     platform: 'win32',
     readRaw: async () => ({ kind: 'ok', raw: JSON.stringify({ owner: 'me', pid: 4242 }) }),
@@ -207,6 +209,7 @@ section('§5 RECONCILIATION PINS (DR-06/07)')
   const deadPath = join(HOME, 'dead-holder.lock')
   const got = await acquirePidLock(deadPath, 'dead-owner', { liveness: 'assume-dead' })
   check('setup: acquired for the dead-holder fixture', got.held)
+
   const { writeFileSync } = await import('node:fs')
   writeFileSync(deadPath, JSON.stringify({ owner: 'dead-owner', pid: 1, acquiredAt: 1 }))
   const probed = await probePidLock(deadPath, { liveness: 'assume-dead', reclaimStale: true })
@@ -224,7 +227,9 @@ section('§6 WIRING (DR-08)')
   const control = src('src/daemon/controlSocket.ts')
   const tasks = src('src/utils/tasks.ts')
   check('the daemon lock release consumes the receipt', control.includes('noteLockRelease('))
+
   check('task-lock release consumes the receipt', tasks.includes('noteLockRelease('))
+
   const bare = [control, tasks].some(s =>
     s.split('\n').some(
       line =>

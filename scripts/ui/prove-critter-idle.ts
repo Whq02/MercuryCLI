@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import {
   BLINK_CYCLE,
@@ -32,11 +33,13 @@ console.log(' critter-idle — living-splash timing + gate (render-free)')
 console.log('============================================================')
 
 section('blink SCHEDULE — lid shut only in its brief windows')
+
 check('phase 0 → lid SHUT', pupilForTime(0) === EYE_SHUT)
 check('phase just inside lid → SHUT', pupilForTime(LID_MS - 10) === EYE_SHUT)
 check('phase past the lid → OPEN', pupilForTime(LID_MS + 10) === EYE_OPEN)
 check('mid-cycle → OPEN (forward gaze)', pupilForTime(BLINK_CYCLE / 2) === EYE_OPEN)
 check('end of cycle → OPEN', pupilForTime(BLINK_CYCLE - 1) === EYE_OPEN)
+
 check(
   'plain cycle: no second blink at SECOND_LID_AT',
   pupilForTime(SECOND_LID_AT + 10) === EYE_OPEN,
@@ -45,6 +48,7 @@ const c3 = BLINK_CYCLE * 3
 check('4th cycle: first lid SHUT', pupilForTime(c3 + 10) === EYE_SHUT)
 check('4th cycle: gap between lids OPEN', pupilForTime(c3 + (LID_MS + SECOND_LID_AT) / 2) === EYE_OPEN)
 check('4th cycle: SECOND lid SHUT', pupilForTime(c3 + SECOND_LID_AT + 10) === EYE_SHUT)
+
 let shut = 0
 for (let t = 0; t < BLINK_CYCLE; t += 20) if (pupilForTime(t) === EYE_SHUT) shut++
 const shutFrac = shut / (BLINK_CYCLE / 20)
@@ -71,6 +75,7 @@ check('wave is continuous (no jump > 0.1 per tick)', (() => {
 })())
 
 section('derived-value EDGE RATE — the idle home must not commit per tick')
+
 const SIM_MS = 60_000
 let pupilEdges = 0
 let prevPupil = pupilForTime(0)
@@ -106,6 +111,7 @@ check('fork + no opt-out → idle ENABLED', critterIdleEnabled() === true)
 process.env.MERCURY_CRITTER_IDLE = '0'
 check('MERCURY_CRITTER_IDLE=0 → DISABLED (static)', critterIdleEnabled() === false)
 delete process.env.MERCURY_CRITTER_IDLE
+
 setStamp(false)
 check('bare stamp → STILL enabled (stamp-independence)', critterIdleEnabled() === true)
 setStamp(true)

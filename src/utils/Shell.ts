@@ -29,7 +29,6 @@ import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/wind
 
 export type { ExecResult } from './ShellCommand.js'
 
-
 const SHELL_FALLBACK_DIRECTORIES = ['/bin', '/usr/bin', '/usr/local/bin', '/opt/homebrew/bin']
 
 function namesSupportedShell(path: string): boolean {
@@ -57,6 +56,7 @@ async function isExecutableShell(path: string): Promise<boolean> {
 
 async function findSuitableShell(): Promise<string> {
   const loginShell = process.env.SHELL
+
   const prefersBash = loginShell !== undefined && loginShell.includes('bash')
   const preferredName = prefersBash ? 'bash' : 'zsh'
   const otherName = prefersBash ? 'zsh' : 'bash'
@@ -89,7 +89,6 @@ async function findSuitableShell(): Promise<string> {
   throw new Error(message)
 }
 
-
 type ShellConfig = {
   provider: ShellProvider
 }
@@ -113,7 +112,6 @@ const PROVIDER_TABLE: Record<ShellType, () => Promise<ShellProvider>> = {
   powershell: () => getPsProvider(),
 }
 
-
 export function setCwd(path: string, base?: string): void {
   const fs = getFsImplementation()
   const resolved = isAbsolute(path) ? path : resolvePath(base ?? fs.cwd(), path)
@@ -126,6 +124,7 @@ export function setCwd(path: string, base?: string): void {
     }
     throw error
   }
+
   setCwdState(physical)
 }
 
@@ -170,12 +169,12 @@ function directoryResolves(path: string): boolean {
   }
 }
 
-
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000
 
 type ExecOptions = {
   cwd?: string
   timeout?: number
+
   onProgress?: (
     recentLines: string,
     allLines: string,
@@ -185,9 +184,13 @@ type ExecOptions = {
   ) => void
   preventCwdChanges?: boolean
   shouldAutoBackground?: boolean
+
   backgroundIntent?: boolean
+
   onStdout?: (chunk: string) => void
+
   owner?: string
+
   inheritSessionEnv?: boolean
 }
 
@@ -326,9 +329,11 @@ export async function exec(
       cwd,
       env: childEnv,
       stdio,
+
       detached: provider.detached,
       windowsHide: true,
     })
+
     try {
       child.stdin?.end()
     } catch {
@@ -344,10 +349,12 @@ export async function exec(
     shellCommand.scrubbedSessionEnv = base.scrubbed
 
     if (outputFd !== undefined) {
+
       await new Promise<void>(resolveTick => setImmediate(resolveTick))
       try {
         closeSync(outputFd)
       } catch (closeError) {
+
         logForDebugging(`failed to close task output descriptor: ${errorMessage(closeError)}`)
       }
       outputFd = undefined
@@ -376,22 +383,28 @@ export async function exec(
   }
 
   void shellCommand.result.then(result => {
+
     const cwdFilePath =
       getPlatform() === 'windows' ? posixPathToWindowsPath(built.cwdFilePath) : built.cwdFilePath
 
     try {
       if (result && !options.preventCwdChanges && cwdOverride === undefined && result.backgroundTaskId === undefined) {
+
         const record = readFileSync(cwdFilePath, 'utf8')
+
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }
         if ('refused' in recorded) {
+
           logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
+
           recordShellCwd(recorded.path, cwdBefore)
           invalidateSessionEnvCache()
         }
       }
     } catch (error) {
+
       logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
     }
 

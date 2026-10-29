@@ -6,7 +6,6 @@ import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { whichSync } from './which.js'
 
-
 export function globalConfigFileIn(home: string): string {
   const preSuffixPath = join(home, '.config.json')
   if (existsSync(preSuffixPath)) return preSuffixPath
@@ -105,10 +104,12 @@ const DIGITALOCEAN_APP_DOMAIN = 'ondigitalocean.app'
 
 export const detectDeploymentEnvironment = memoize((): string => {
   const envVars = process.env
+
   if (isEnvTruthy(envVars.CODESPACES)) return 'codespaces'
   if (envVars.GITPOD_WORKSPACE_ID) return 'gitpod'
   if (envVars.REPL_ID || envVars.REPL_SLUG) return 'replit'
   if (envVars.PROJECT_DOMAIN) return 'glitch'
+
   if (isEnvTruthy(envVars.VERCEL)) return 'vercel'
   if (envVars.RAILWAY_ENVIRONMENT_NAME || envVars.RAILWAY_SERVICE_NAME) return 'railway'
   if (isEnvTruthy(envVars.RENDER)) return 'render'
@@ -131,11 +132,13 @@ export const detectDeploymentEnvironment = memoize((): string => {
   if (envVars.AZURE_FUNCTIONS_ENVIRONMENT) return 'azure-functions'
   if (envVars.APP_URL?.includes(DIGITALOCEAN_APP_DOMAIN)) return 'digitalocean-app-platform'
   if (envVars.SPACE_CREATOR_USER_ID) return 'huggingface-spaces'
+
   if (isEnvTruthy(envVars.GITHUB_ACTIONS)) return 'github-actions'
   if (isEnvTruthy(envVars.GITLAB_CI)) return 'gitlab-ci'
   if (envVars.CIRCLECI) return 'circleci'
   if (envVars.BUILDKITE) return 'buildkite'
   if (isEnvTruthy(envVars.CI)) return 'ci'
+
   if (envVars.KUBERNETES_SERVICE_HOST) return 'kubernetes'
   try {
     if (existsSync(DOCKER_MARKER)) return 'docker'
@@ -168,6 +171,7 @@ export const env = {
   nodeVersion: process.version,
   terminal: detectTerminal(),
   isSSH: isSshSession,
+
   getPackageManagers: memoize(async (): Promise<string[]> => {
     const managers: string[] = []
     for (const candidate of ['npm', 'yarn', 'pnpm']) {

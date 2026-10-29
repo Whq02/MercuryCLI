@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   boundPatchForRender,
   DIFF_LINE_MARKER_SLACK,

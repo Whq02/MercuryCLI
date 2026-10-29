@@ -9,7 +9,6 @@ import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 import { providerAskedWaitMs, providerWaitIsWindow } from './api/recoveryBudget.js'
 
-
 export type RateLimitType =
   | 'five_hour'
   | 'seven_day'
@@ -88,8 +87,8 @@ export function getRateLimitDisplayName(type: string): string {
   return DISPLAY_NAMES[type] ?? type
 }
 
-
 type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
+
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
 export const WEEKLY_POOL_CLAIMS: readonly WeeklyPoolClaim[] = ['seven_day_fable', 'seven_day_opus', 'seven_day_sonnet']
 type RawUtilization = { five_hour?: RawWindow; seven_day?: RawWindow } & Partial<Record<WeeklyPoolClaim, RawWindow>>
@@ -106,6 +105,7 @@ let rawUtilization: RawUtilization = {}
 
 let usageRecordVersion = 0
 const usageRecordListeners = new Set<() => void>()
+
 export function noteUsageRecordChanged(): void {
   usageRecordVersion++
   for (const listener of usageRecordListeners) {
@@ -115,9 +115,11 @@ export function noteUsageRecordChanged(): void {
     }
   }
 }
+
 export function getUsageRecordVersion(): number {
   return usageRecordVersion
 }
+
 export function subscribeUsageRecord(listener: () => void): () => void {
   usageRecordListeners.add(listener)
   return () => {
@@ -181,9 +183,11 @@ function recomputeRawUtilization(headers: Headers): void {
     const resetsAt = Number(resetRaw)
     if (!Number.isFinite(utilization) || !Number.isFinite(resetsAt)) continue
     if (utilization < 0 || resetsAt < 0) continue
+
     next[key] = { utilization, resets_at: resetsAt, source: 'headers', observedAtMs: Date.now() }
   }
   rawUtilization = next
+
   observedOwner = resolveOwner()
   noteUsageRecordChanged()
 }
@@ -301,24 +305,29 @@ export function foldUtilizationFromEndpoint(
   issuedEpoch?: number,
   observedAtMs: number = Date.now(),
 ): void {
+
   if (issuedEpoch !== undefined && issuedEpoch !== usageCredentialEpoch) return
   const next: RawUtilization = {}
+
   const stamp = (w: RawWindow): RawWindow => ({ ...w, source: 'endpoint', observedAtMs })
   const fiveHour = normalizeEndpointWindow(u.five_hour)
   const sevenDay = normalizeEndpointWindow(u.seven_day)
   if (fiveHour) next.five_hour = stamp(fiveHour)
   if (sevenDay) next.seven_day = stamp(sevenDay)
+
   for (const claim of WEEKLY_POOL_CLAIMS) {
     const pool = normalizeEndpointWindow(u[claim])
     if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next
   endpointExtraUsage = decodeAnthropicExtraUsage(u, observedAtMs)
+
   observedOwner = resolveOwner()
   noteUsageRecordChanged()
 }
 
 export function getRawUtilization(): RawUtilization {
+
   const ownerStands = observedOwner === null || observedOwner === resolveOwner()
   const live = ownerStands ? rawUtilization : {}
   const endpoint = ownerStands ? endpointUtilization : {}
@@ -327,6 +336,7 @@ export function getRawUtilization(): RawUtilization {
     return live
   }
   const copy: RawUtilization = { ...live }
+
   const fresher = (header: RawWindow | undefined, polled: RawWindow | undefined): RawWindow | undefined => {
     if (header === undefined) return polled
     if (polled === undefined || header.observedAtMs === undefined) return header
@@ -336,6 +346,7 @@ export function getRawUtilization(): RawUtilization {
   copy.seven_day = fresher(live.seven_day, endpoint.seven_day)
   if (copy.five_hour === undefined) delete copy.five_hour
   if (copy.seven_day === undefined) delete copy.seven_day
+
   for (const claim of WEEKLY_POOL_CLAIMS) {
     const pool = endpoint[claim]
     if (pool !== undefined) copy[claim] = pool
@@ -346,6 +357,7 @@ export function getRawUtilization(): RawUtilization {
     if (!match) continue
     const key = match[1] === '5h' ? 'five_hour' : 'seven_day'
     if (copy[key] !== undefined) continue
+
     copy[key] = {
       utilization: Number(match[2]),
       resets_at: match[3] !== undefined ? Number(match[3]) : Math.floor(Date.now() / 1000) + SEED_DEFAULT_TTL_SECONDS,
@@ -354,7 +366,6 @@ export function getRawUtilization(): RawUtilization {
   }
   return copy
 }
-
 
 function headerValue(headers: Headers, name: string): string | undefined {
   const value = headers.get(name)
@@ -399,6 +410,7 @@ function detectEarlyWarning(headers: Headers, fallbackAvailable: boolean): Early
 
 export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
   const statusRaw = headerValue(headers, 'anthropic-ratelimit-unified-status')
+
   const status = (statusRaw === undefined || statusRaw === '' ? 'allowed' : statusRaw) as QuotaStatus
   const resetRaw = headerValue(headers, 'anthropic-ratelimit-unified-reset')
   const resetsAt = resetRaw !== undefined && resetRaw !== '' ? Number(resetRaw) : undefined
@@ -431,6 +443,7 @@ export function computeNewLimitsFromHeaders(headers: Headers): AnthropicLimits {
   if (overageDisabledReason !== undefined && overageDisabledReason !== '') {
     record.overageDisabledReason = overageDisabledReason as OverageDisabledReason
   }
+
   const overageResetsAt =
     overageResetRaw !== undefined && overageResetRaw !== '' ? Number(overageResetRaw) : undefined
   if (overageResetsAt) record.overageResetsAt = overageResetsAt
@@ -449,7 +462,6 @@ function limitsEqual(a: unknown, b: unknown): boolean {
       limitsEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
   )
 }
-
 
 let usageCredentialEpoch = 0
 
@@ -667,6 +679,7 @@ export function extractQuotaStatusFromHeaders(headers: Headers, startedAtMs: num
   const effective = processRateLimitHeaders(headers)
   recomputeRawUtilization(effective)
   const next = computeNewLimitsFromHeaders(effective)
+
   windowObserved = true
   stampVerdictOwner(startedAtMs)
   if (!limitsEqual(next, currentLimits)) {
@@ -707,7 +720,6 @@ export function extractQuotaStatusFromError(error: unknown): void {
   }
 }
 
-
 export function __setRawUtilizationForTest(record: RawUtilization): void {
   rawUtilization = record
   noteUsageRecordChanged()
@@ -719,8 +731,10 @@ export function resetLimitsForCredentialSwitch(): void {
   observedOwner = null
   verdictOwner = null
   verdictObservedAtMs = null
+
   endpointUtilization = {}
   endpointExtraUsage = null
+
   windowObserved = false
   noteUsageRecordChanged()
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {

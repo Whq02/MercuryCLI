@@ -1,8 +1,8 @@
 import { getIsInteractive } from '../bootstrap/state.js'
 import { getPerformance } from './profilerBase.js'
 
-
 const MARK_PREFIX = 'mercury_headless:'
+
 const sampled = Math.random() < 0.05
 const active = sampled
 

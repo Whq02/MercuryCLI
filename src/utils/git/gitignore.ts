@@ -8,7 +8,6 @@ import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
 import { dirIsInGitRepo } from '../git.js'
 import { logError } from '../log.js'
 
-
 export async function isPathGitignored(filePath: string, cwd: string): Promise<boolean> {
   const result = await execFileNoThrowWithCwd('git', ['check-ignore', filePath], { cwd })
   return result.code === 0
@@ -21,7 +20,9 @@ function getGlobalGitignorePath(): string {
 export async function addFileGlobRuleToGitignore(filename: string, cwd: string = getCwd()): Promise<void> {
   try {
     if (!(await dirIsInGitRepo(cwd))) return
+
     const entry = `**/${filename.split('\\').join('/')}`
+
     const probePath = filename.endsWith('/') ? `${entry}sample-file` : entry
     if (await isPathGitignored(probePath, cwd)) return
 

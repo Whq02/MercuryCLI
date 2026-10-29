@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -80,6 +81,7 @@ section("§1 the age: '↻12s' live · 'stale ↻2m' past twice the cadence · o
   check("the block words: 'read 12 s ago' · 'stale · last read 2 h 5 min ago'", fresh.usageAgeWords(at, NOW) === 'read 12 s ago' && fresh.usageAgeWords({ ...at, observedAtMs: NOW - 2 * HOUR - 5 * MIN }, NOW) === 'stale · last read 2 h 5 min ago', `${fresh.usageAgeWords(at, NOW)} | ${fresh.usageAgeWords({ ...at, observedAtMs: NOW - 2 * HOUR - 5 * MIN }, NOW)}`)
   check('an unstamped figure and a seed carry no age (never a fabricated age)', fresh.usageAgeTail({ source: 'endpoint' }, NOW) === undefined && fresh.usageAgeTail({ source: 'seed', observedAtMs: NOW - HOUR }, NOW) === undefined && fresh.usageAgeWords({}, NOW) === undefined)
   check('the stale-only tail keeps its contract for the credits line (nothing while live)', fresh.usageStaleTail(at, NOW) === undefined && fresh.usageStaleTail({ ...at, observedAtMs: NOW - 3 * ttl }, NOW) === '↻3m')
+
   process.env.MERCURY_USAGE_POLL_MS = '5000'
   check('the seam shortens the cadence (5 s) and the horizon with it (10 s)', fresh.usagePollTtlMs() === 5_000 && fresh.usageStaleAfterMs() === 10_000)
   process.env.MERCURY_USAGE_POLL_MS = '10'
@@ -87,6 +89,7 @@ section("§1 the age: '↻12s' live · 'stale ↻2m' past twice the cadence · o
   process.env.MERCURY_USAGE_POLL_MS = 'soon'
   check('junk is ignored', fresh.usagePollTtlMs() === 60_000)
   delete process.env.MERCURY_USAGE_POLL_MS
+
   limits.resetLimitsForCredentialSwitch()
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: 36, resets_at: hoursOn(1) }, seven_day: { utilization: 44, resets_at: hoursOn(24) }, seven_day_fable: { utilization: 87, resets_at: hoursOn(24) } }, undefined, NOW - 30_000)
   const views = [...owner.anthropicWindowViews(), ...owner.anthropicPoolWindowViews()]
@@ -133,6 +136,7 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   const note = reader.anthropicUsageReaderNote(NOW)
   check("the prose note: 'usage endpoint answered HTTP 500 (host) · retry in 4 min'", note === `usage endpoint answered HTTP 500 (${host}) · retry in 4 min`, note)
   check("the compact note fits a rail row: 'read failed · HTTP 500'", reader.anthropicUsageReaderNote(NOW, 'compact') === 'read failed · HTTP 500', reader.anthropicUsageReaderNote(NOW, 'compact'))
+
   const view = owner.usageForProvider('anthropic')
   const failedWords = `usage endpoint answered HTTP 500 (${host})`
   check('the owner\'s view carries both spellings and the last figure still stands (5h 66%)', view.readerNote?.startsWith(`${failedWords} · retry`) === true && view.readerNoteCompact === 'read failed · HTTP 500' && Math.round(view.windows[0]?.usedPct ?? -1) === 66, JSON.stringify({ note: view.readerNote, compact: view.readerNoteCompact, pct: view.windows[0]?.usedPct }))
@@ -153,6 +157,7 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   const again = (record().families as Record<string, Record<string, unknown>>).anthropic
   check('a repeat inside the episode rewrites nothing (the record keeps its first stamp)', again?.failedAtMs === first?.failedAtMs, JSON.stringify(again))
   check('the note names the new retry', reader.anthropicUsageReaderNote(NOW) === `usage endpoint answered HTTP 500 (${host}) · retry in 4 min`)
+
   api.usage.mode = 'ok'
   NOW += 4 * ttl + 1_000
   status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
@@ -192,6 +197,7 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   api.usage.next = undefined
   api.usage.status = 500
   api.usage.payload = () => ({ five_hour: { utilization: 50, resets_at: hoursOn(2) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } })
+
   api.usage.rateLimit = { limit: 1, windowMs: 30_000, retryAfterS: 30 }
   NOW += 10 * ttl
   let s = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
@@ -211,6 +217,7 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   NOW += 20_000
   await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   check('…and the operator is still held at 20 s (inside the 30 s the server asked)', api.usageRequests.length === held)
+
   api.usage.rateLimit = undefined
   NOW += 11_000
   s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
@@ -229,6 +236,7 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   const opBefore = reader.anthropicUsageReadStatus().requests
   s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   check("…and the operator's ask is NOT held by an ordinary back-off (it fires)", s.requests === opBefore + 1, `${s.requests - opBefore} operator request(s)`)
+
   check('the Retry-After parser: seconds → ms', reader.retryAfterMsOf('30', NOW) === 30_000 && reader.retryAfterMsOf(45, NOW) === 45_000)
   check('the Retry-After parser: an HTTP date → ms from now', reader.retryAfterMsOf(new Date(NOW + 90_000).toUTCString(), NOW) !== undefined && Math.abs((reader.retryAfterMsOf(new Date(NOW + 90_000).toUTCString(), NOW) ?? 0) - 90_000) <= 1_000)
   check('the Retry-After parser: absent/junk/negative → undefined', reader.retryAfterMsOf(undefined, NOW) === undefined && reader.retryAfterMsOf('soon', NOW) === undefined && reader.retryAfterMsOf('-5', NOW) === undefined)
@@ -238,6 +246,7 @@ section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence o
   await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
+
   api.usage.payload = (n: number) => ({
     five_hour: { utilization: 26 + 10 * n, resets_at: hoursOn(2) },
     seven_day: { utilization: 44, resets_at: hoursOn(6 * 24) },
@@ -253,6 +262,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   check('refreshProviderUsage(anthropic) is the reader (one request through the door)', reader.anthropicUsageReadStatus().requests === before + 1)
   const door = src('src/services/providers/providerUsage.ts')
   check('…by source: the door requires the reader, never the raw fetch', door.includes("require('./anthropic/anthropicUsageState.js')") && !door.includes('await fetchUtilization()'))
+
   limits.resetLimitsForCredentialSwitch()
   limits.__setRawUtilizationForTest({ five_hour: { utilization: 0.11, resets_at: NOW / 1000 + 3600, source: 'headers', observedAtMs: NOW } })
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: 36, resets_at: hoursOn(1) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } }, undefined, NOW + 1_000)
@@ -266,6 +276,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   raw = limits.getRawUtilization()
   check('a bare header record (no stamp — a proof seam) keeps the header precedence', Math.round((raw.five_hour?.utilization ?? 0) * 100) === 13)
   limits.resetLimitsForCredentialSwitch()
+
   const painters = [
     ['src/utils/cockpit/helmVitalsModel.ts', 'usageAgeTail(w, readNow)'],
     ['src/components/MercuryFrame.tsx', 'usageAgeTail(first, usageNow)'],
@@ -280,6 +291,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   }
   const rail = src('src/utils/cockpit/helmVitalsModel.ts')
   check('the rail paints the reader\'s compact note under the meters', rail.includes('usage.readerNoteCompact') && rail.includes("key: 'usage:reader'"))
+
   check('isServerWait is the reader\'s one exported predicate (a 429 with Retry-After; never a bare 429 or a 500)', reader.isServerWait({ kind: 'http', status: 429, retryAfterMs: 5000 }) && reader.isServerWait({ status: 429, retryAfterMs: 1 }) && !reader.isServerWait({ kind: 'http', status: 429 }) && !reader.isServerWait({ kind: 'http', status: 500, retryAfterMs: 5000 }) && !reader.isServerWait(undefined))
   check('the operator\'s hold has a ceiling (the usage poll\'s horizon) and is admitted once past it', typeof reader.SERVER_WAIT_CEILING_MS === 'number' && reader.SERVER_WAIT_CEILING_MS === 15 * 60_000 && src('src/services/providers/anthropic/anthropicUsageState.ts').includes('if (heldFor < SERVER_WAIT_CEILING_MS || operatorAdmitted)'))
   const usageDoor = src('src/services/providers/providerUsage.ts')
@@ -295,6 +307,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   for (const surface of ['src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx', 'src/components/HelmLanesRail.tsx']) {
     check(`${surface} reads its meter on show through the one hook`, src(surface).includes('useProviderUsageOnShow('))
   }
+
   process.env.MERCURY_USAGE_POLL_MS = '3000'
   reader._resetAnthropicUsageReaderForTesting()
   const asked = api.usageRequests.length
@@ -331,6 +344,7 @@ section('§4 the subscription window: the OAuth account\'s windows and pools rid
   check('the 5h/7d pair and the Fable pool fold from the one answer with one stamp and one horizon', view.windows.length === 2 && view.pools.length === 1 && stamps.size === 1, JSON.stringify([...stamps]))
   check('the view is the subscription\'s own (Claude Max · Anthropic usage)', view.sourceKind === 'subscription-oauth' && view.tier === 'Claude Max' && view.label === 'Anthropic usage')
   check("every window's age words come from the one composer ('endpoint-fed · read 0 s ago')", fresh.usageSourceWords(view.windows[0]!, view.windows[0]!.observedAtMs!) === 'endpoint-fed · read 0 s ago')
+
   rmSync(join(scratch, '.credentials.json'), { force: true })
   auth.dropCredentialMemos()
   const asked = api.usageRequests.length
@@ -355,6 +369,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     subscriptionType: 'max' as const,
     rateLimitTier: null,
   })
+
   const signIn = (name: 'A' | 'B'): void => {
     storeOAuthAccountInfo({ accountUuid: `account-${name}`, emailAddress: `${name.toLowerCase()}@example.invalid` })
     const saved = saveOAuthTokensIfNeeded(tokensFor(name))
@@ -362,6 +377,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     clearOAuthTokenCache()
     recordSignIn('anthropic', 'oauth')
   }
+
   const removeSignIn = (): void => {
     signOutAnthropicSlot(scratch, { revoke: async () => undefined })
     noteCredentialChange()
@@ -376,6 +392,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     const w = owner.anthropicWindowViews()[0]!
     return { ...(w.usedPct !== undefined ? { pct: Math.round(w.usedPct) } : {}), ...(w.observedAtMs !== undefined ? { at: w.observedAtMs } : {}), state: w.state }
   }
+
   const bearers: string[] = []
   api.usage.mode = 'ok'
   api.usage.next = undefined
@@ -385,6 +402,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
     if (bearer === 'Bearer fixture-token-B') return { five_hour: { utilization: 77, resets_at: hoursOn(3) }, seven_day: { utilization: 12, resets_at: hoursOn(24) } }
     return {}
   }
+
   removeSignIn()
   reader._resetAnthropicUsageReaderForTesting()
   limits.resetLimitsForCredentialSwitch()
@@ -426,10 +444,12 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   check("the account moved while an ask hung: the new account's ask answered at once (5h 36% for A)", view.state === 'live' && view.pct === 36, JSON.stringify(view))
   await hung
   check('…and the hung ask settled into nothing — no failure, no backoff, the figure untouched', reader.anthropicUsageReadStatus().failure === undefined && reader.anthropicUsageReadStatus().retryAtMs === undefined && fiveHour().pct === 36, JSON.stringify(reader.anthropicUsageReadStatus()))
+
   removeSignIn()
   await settled()
   view = fiveHour()
   check('a removal with no successor paints the blank and asks nothing', view.state === 'unavailable' && reader.anthropicUsageReadStatus().requests === asksBefore + 4 && reader.anthropicUsageReadStatus().inFlight === false, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+
   signIn('A')
   await settled()
   check("A is back and read (5h 36%)", fiveHour().pct === 36 && bearers.at(-1) === 'Bearer fixture-token-A')
@@ -437,11 +457,13 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   if (!saved.success) throw new Error('the fixture swap did not save')
   const before = reader.anthropicUsageReadStatus().requests
   recordSignIn('anthropic', 'oauth')
+
   await Promise.resolve()
   const dropped = fiveHour()
   await settled()
   view = fiveHour()
   check("a bump whose road forgot the reset: the reader dropped A's figure at once (the blank on the bump) and painted B's (5h 77%)", dropped.state === 'unavailable' && view.pct === 77 && bearers.at(-1) === 'Bearer fixture-token-B' && reader.anthropicUsageReadStatus().requests === before + 1, JSON.stringify({ dropped, view }))
+
   const standing = reader.anthropicUsageReadStatus().requests
   recordSignIn('openai', 'api-key')
   const held = fiveHour()

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -31,7 +32,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
   if (!cond) failures = 1
 }
-
 
 const T0 = Date.parse('2026-08-25T09:00:00.000Z')
 const STEP = 30_000
@@ -121,7 +121,6 @@ const modelSwitch = (tag: string, previous: string, applied: string): Row => ({
   isMeta: true,
 })
 
-
 const SID1 = 'aaaaaaaa-1111-4000-8000-000000000001'
 const APEX_TURN = {
   provider: 'openai',
@@ -186,7 +185,6 @@ const f1 = chainRows(SID1, [
 ])
 const F1_LAST_TS = T0 + STEP * (clock - 1)
 
-
 const SID2 = 'bbbbbbbb-2222-4000-8000-000000000002'
 const AGENT_RECORD_USAGE = {
   status: 'completed',
@@ -222,6 +220,7 @@ const f2 = chainRows(SID2, [
   toolResult('f2r3b', 'pg', 'no matches', { mode: 'content', numFiles: 0, filenames: [], numLines: 0 }),
   asst('f2a4', 'gpt-5.6-sol', [use('w1', 'Crewmate', { description: 'verify estate', prompt: 'verify the estate' })]),
   toolResult('f2r4', 'w1', 'agent done', AGENT_RECORD_USAGE),
+
   user('f2cont', 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.', { isMeta: true }),
   asst('f2sent', SYNTHETIC_MODEL, [{ type: 'text', text: 'No response requested.' }]),
   asst('f2a5', 'gpt-5.6-sol', [use('w2', 'Crewmate', { description: 'sweep estate', prompt: 'sweep the estate' })]),
@@ -235,7 +234,6 @@ const f1Path = join(scratch, `${SID1}.jsonl`)
 const f2Path = join(scratch, `${SID2}.jsonl`)
 writeFileSync(f1Path, f1.map(r => encodeTranscriptLine(f1Path, r).line).join(''))
 writeFileSync(f2Path, f2.map(r => encodeTranscriptLine(f2Path, r).line).join(''))
-
 
 const loaded1 = await loadConversationForResume('fixture-1', f1Path)
 const loaded2 = await loadConversationForResume('fixture-2', f2Path)
@@ -311,6 +309,7 @@ console.log('\n§2 · dialect fields survive verbatim; absent stays absent')
     a2?.apexProviderTurn?.providerUsage?.inputTokensTotal === 1200 &&
       a2?.apexProviderTurn?.providerUsage?.cachedInputTokens === 200,
   )
+
   const sortedJson = (v: unknown): string =>
     JSON.stringify(v, v && typeof v === 'object' ? Object.keys(v as object).sort() : undefined)
   check('the canonical usage envelope survives beside it', sortedJson(a2?.message?.usage) === sortedJson(CANON_USAGE))

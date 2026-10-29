@@ -91,17 +91,18 @@ import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '.
 
 export type { BashProgress }
 
-
 const QUIET_WINDOW_MS = 2_000
+
 const SOFT_TIMEOUT_MS = 30_000
+
 const PERSIST_THRESHOLD_CHARS = 30_000
+
 const MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 
 const BACKGROUND_TASKS_DISABLED = false
 
 const NEVER_AUTO_BACKGROUND = new Set(['sleep'])
 const SLEEP_TIMEOUT_WHY = 'A command whose first word is `sleep` is killed at its timeout instead of moving to the background; to wait longer, pass a larger `timeout` or use the Sleep tool.'
-
 
 function buildModelSchema() {
   return z.strictObject({
@@ -123,7 +124,6 @@ type ModelInput = z.infer<ReturnType<typeof buildModelSchema>>
 type BashToolInput = ModelInput & {
   _simulatedSedEdit?: { filePath: string; newContent: string; beforeBytes: string }
 }
-
 
 type BackgroundLifetime = 'session' | 'turn' | 'crewmate'
 
@@ -149,11 +149,11 @@ export type Out = {
   persistedOutputSize?: number
   structuredContent?: ToolResultBlockParam['content']
   rawOutputPath?: string
+
   scrubbedSessionEnv?: readonly string[]
   sessionEnvNotice?: string
   outputBudgetNotice?: string
 }
-
 
 const NEUTRAL_COMMANDS = new Set(['echo', 'printf', 'true', 'false', ':'])
 const SEARCH_COMMANDS = new Set(['find', 'grep', 'rg', 'ag', 'ack', 'locate', 'which', 'whereis'])
@@ -207,6 +207,7 @@ function isSilentCommand(command: string): boolean {
     }
     const base = part.trim().split(/\s+/)[0]
     if (!base) continue
+
     if (precededBy === '||' && NEUTRAL_COMMANDS.has(base)) continue
     sawReal = true
     if (!SILENT_COMMANDS.has(base)) return false
@@ -217,7 +218,6 @@ function isSilentCommand(command: string): boolean {
 function isBashReadOnly(input: BashToolInput): boolean {
   return preparedBashReadsOnly(input)
 }
-
 
 async function preparePermissionMatcher(input: BashToolInput): Promise<(pattern: string) => boolean> {
   const parsed = await parseForSecurity(input.command)
@@ -238,19 +238,19 @@ function matchGlob(pattern: string, text: string): boolean {
   return new RegExp(`^${body}$`).test(text)
 }
 
-
 function userFacingName(input: Partial<BashToolInput> | undefined): string {
   const command = stringInputField(input, 'command')
   if (!command) return BASH_TOOL_NAME
   if (isSedInPlaceEdit(command)) {
     const info = parseSedEditCommand(command)
     if (info) {
+
       return fileEditUserFacingName({ file_path: info.filePath, old_string: '' })
     }
   }
+
   return BASH_TOOL_NAME
 }
-
 
 async function runSimulatedSedEdit(
   input: BashToolInput,
@@ -284,7 +284,6 @@ async function runSimulatedSedEdit(
   return { stdout: '', stderr: '', interrupted: false }
 }
 
-
 async function* runBash(
   input: BashToolInput,
   context: ToolUseContext,
@@ -298,6 +297,7 @@ async function* runBash(
   const setTaskState = context.setAppStateForTasks ?? context.setAppState
 
   const requestedTimeout = input.timeout
+
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
   const timeoutClampNotice =
     requestedTimeout !== undefined && requestedTimeout > getMaxTimeoutMs()
@@ -307,6 +307,7 @@ async function* runBash(
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
   const creations = snapshotCreations(input.command, cwd)
+
   const launchedAt = Date.now()
   let progressResolve: (() => void) | null = null
   let latest: { recent: string; all: string; lines: number; bytes: number; incomplete: boolean } = {
@@ -378,6 +379,7 @@ async function* runBash(
 
   const startBackgrounding = async (fromTrigger?: (id: string) => void): Promise<void> => {
     if (foregroundTaskId !== null) {
+
       const converted = backgroundExistingForegroundTask(
         foregroundTaskId,
         shellCommand,
@@ -408,6 +410,7 @@ async function* runBash(
         setAppState: setTaskState,
       },
     )
+
     if (handle.accepted === false) return
     backgroundId = handle.taskId
     progressResolve?.()
@@ -438,6 +441,7 @@ async function* runBash(
       },
     )
     if (handle.accepted === false) {
+
       const result = await shellCommand.result
       shellCommand.cleanup()
       return await postProcess(result)
@@ -460,6 +464,7 @@ async function* runBash(
     },
   })
   try {
+
   const completed = shellCommand.result.then(() => 'done' as const)
   if (context.shellInputId !== undefined) {
     foregroundTaskId = registerForeground(
@@ -607,6 +612,7 @@ async function* runBash(
           ...(latest.incomplete ? { totalBytes: latest.bytes } : {}),
           taskId: foregroundTaskId ?? undefined,
           ...(requestedTimeout ? { timeoutMs: effectiveTimeout } : {}),
+
           budgetMs: effectiveTimeout,
         },
       }
@@ -619,8 +625,8 @@ async function* runBash(
     unregisterRun()
   }
 
-
   async function postProcess(result: ExecResult): Promise<Out> {
+
     if (result.backgroundTaskId === undefined) {
       trackGitOperations(input.command, result.code, result.stdout)
       settleCreations(creations, result.code)
@@ -628,6 +634,7 @@ async function* runBash(
 
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
+
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
     if (editorTerminalNote !== undefined) accumulator.append(editorTerminalNote + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
@@ -669,6 +676,7 @@ async function* runBash(
     let persistedOutputPath: string | undefined
     let persistedOutputSize: number | undefined
     if (result.outputFilePath && result.outputTaskId) {
+
       try {
         const stats = await stat(result.outputFilePath)
         persistedOutputSize = stats.size
@@ -723,7 +731,6 @@ async function* runBash(
   }
 }
 
-
 function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam {
   if (output.structuredContent) {
     return { tool_use_id: toolUseID, type: 'tool_result', content: output.structuredContent }
@@ -734,6 +741,7 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
   }
   let stdout = stripAnsi(output.stdout).replace(/^\s*\n/g, '').trimEnd()
   if (output.persistedOutputPath) {
+
     const { preview, hasMore } = generatePreview(stdout, PREVIEW_SIZE_CHARS, output.persistedOutputSize)
     stdout = buildLargeToolResultMessage({
       filepath: output.persistedOutputPath,
@@ -787,7 +795,6 @@ function backgroundNoticeFor(output: Out): string {
   return `Running in the background (ID: ${id}). Output: ${outputPath}.${pid}${lifetime}${stop}`
 }
 
-
 export const BashTool = buildTool({
   name: BASH_TOOL_NAME,
   shellCommandOf: (input: unknown) => stringInputField(input, 'command'),
@@ -805,6 +812,7 @@ export const BashTool = buildTool({
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
   strict: true,
   straightQuoteInputs: ['command'],
+
   isEnabled: () => bashToolAvailable(),
   async description(input: BashToolInput): Promise<string> {
     return input?.description ?? 'Run a shell command'
@@ -883,6 +891,7 @@ export const BashTool = buildTool({
   extractSearchText(output: Out): string {
     return output.stderr ? `${output.stdout}\n${output.stderr}` : output.stdout
   },
+
   isResultTruncated(output: Out): boolean {
     return isOutputLineTruncated(output.stdout) || isOutputLineTruncated(output.stderr)
   },

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -16,6 +17,7 @@ const section = (t: string): void => {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
+
 await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
@@ -76,6 +78,7 @@ function transcript(finalRound: 'valid' | 'invalid-errored' | 'none'): Message[]
 }
 
 section('§A the ONE validation owner — the bound tool')
+
 {
   const bound = getSchemaBoundStructuredOutputTool(SCHEMA)
   check('a valid schema binds to a live tool', bound.tool !== undefined && bound.error === undefined)
@@ -92,6 +95,7 @@ section('§A the ONE validation owner — the bound tool')
 }
 
 section('§B the capture')
+
 {
   const spec = { structuredSpec: { mode: 'permissive' as const, source: 'dispatch' as const } }
   const valid = finalizeAgentTool(transcript('valid'), 'a1', { ...META, ...spec })
@@ -102,6 +106,7 @@ section('§B the capture')
 }
 
 section('§C the modes')
+
 {
   const strict = { structuredSpec: { mode: 'strict' as const, source: 'agent-definition' as const } }
   const missing = finalizeAgentTool(transcript('none'), 'a3', { ...META, ...strict })
@@ -114,6 +119,7 @@ section('§C the modes')
 }
 
 section('§D the plumbing pins (structural)')
+
 {
   const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   check('the dispatch fields exist (output_schema + schema_mode)', tool.includes('output_schema:') && tool.includes("schema_mode: z\n      .enum(['permissive', 'strict'])"))

@@ -9,17 +9,24 @@ import {
 } from '../../utils/permissions/PermissionMode.js'
 
 interface AgentPromptPostureFacts {
+
   isAsync: boolean
+
   canShowPermissionPrompts: boolean | undefined
+
   definitionMode: PermissionMode | undefined
+
   parentAvoidsPrompts: boolean
+
   parentNonInteractive: boolean | undefined
+
   parentHostHoldsAsks?: boolean | undefined
 }
 
 interface AgentPromptPosture {
   avoidPrompts: boolean
   isNonInteractiveSession: boolean
+
   hostHoldsAsks: boolean | undefined
 }
 

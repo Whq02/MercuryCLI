@@ -20,10 +20,12 @@ const DEFAULTS = {
   reloadDebounce: 300,
   chokidarInterval: 2000,
   selfWriteWindowMs: 2500,
+
   rootProbeIntervalMs: 30_000,
 }
 
 let overrides: Partial<typeof DEFAULTS> | null = null
+
 export function setAgentWatchTimingForTests(
   next: Partial<typeof DEFAULTS> | null,
 ): void {
@@ -36,6 +38,7 @@ function timing(): typeof DEFAULTS {
 let watcher: FSWatcher | null = null
 let watchedCwd: string | null = null
 let reloadTimer: ReturnType<typeof setTimeout> | null = null
+
 let stopRootLadder: (() => void) | null = null
 let missingRoots: string[] = []
 let pendingHadForeignWrite = false
@@ -93,6 +96,7 @@ function scheduleEmit(): void {
   if (reloadTimer) clearTimeout(reloadTimer)
   reloadTimer = setTimeout(() => {
     reloadTimer = null
+
     clearAgentDefinitionsCache()
     if (pendingHadForeignWrite) {
       pendingHadForeignWrite = false
@@ -102,6 +106,7 @@ function scheduleEmit(): void {
 }
 
 function handleChange(path: string): void {
+
   if (!path.toLowerCase().endsWith('.md')) return
   if (!isRecentSelfWrite(path)) {
     pendingHadForeignWrite = true
@@ -210,6 +215,7 @@ export async function startAgentWatch(cwd: string): Promise<void> {
         : ''),
   )
   if (missingRoots.length > 0) armMissingRootLadder(t.rootProbeIntervalMs)
+
   watcher = chokidar.watch(roots.map(resolveWatchRoot), {
     persistent: true,
     ignoreInitial: true,

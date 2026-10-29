@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
@@ -23,6 +24,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')
+
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { createProgressTracker, getProgressUpdate, updateProgressFromMessage } = await import(
@@ -47,6 +49,7 @@ type UsageBits = Partial<{
   cache_creation_input_tokens: number
 }>
 let seq = 0
+
 const assistant = (id: string, model: string, usage: UsageBits, toolNames: string[] = []): never =>
   ({
     type: 'assistant',
@@ -283,6 +286,7 @@ console.log('— T4 the Crew view painted off-screen —')
   check('T4 after landing: the count label reads none running', landed.includes(crew.crewCountLabel(landedFacts)) && crew.crewCountLabel(landedFacts).startsWith('0 running'))
   const empty = await paint([])
   check('T4 the empty state says so and names the door (the chat delegates; no spawn key)', empty.includes(crew.CREW_EMPTY_LINE) && empty.includes(crew.CREW_EMPTY_DOOR) && !empty.includes('press n'))
+
   setFocusedSessionConnector(fakeConnector({ rows, mission: [] }))
   let card = ''
   try {
@@ -376,7 +380,6 @@ console.log('— T6 the source pins —')
   )
 }
 
-
 console.log('— T7 the status vocabulary and the transcript card —')
 {
   const stateOf = (status: string) => crew.crewStateOf({ status })
@@ -403,6 +406,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
     crew.crewAgentByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewAgentByToolUse(agents, 'tu-none') === null,
   )
   check('T7 the row line speaks the vocabulary', crew.crewRowLine(agents.find(a => a.id === 'ag4')!, t0).includes(' · landed · '))
+
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
   const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(
@@ -410,6 +414,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
   const ui = await import('../../src/tools/AgentTool/UI.tsx')
+
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')
   const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>

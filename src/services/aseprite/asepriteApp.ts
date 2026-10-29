@@ -1,4 +1,3 @@
-
 import { readdirSync, statSync, type Dirent } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -24,7 +23,9 @@ function isFile(p: string): boolean {
 }
 
 interface SpriteDiscovery {
+
   files: string[]
+
   total: number
   truncated: number
 }
@@ -66,6 +67,7 @@ interface AsepriteLocation {
 
 interface AsepriteCensus {
   aseprite?: AsepriteLocation
+
   pinError?: string
 }
 
@@ -129,6 +131,7 @@ export function locateAseprite(testOpts?: {
       pinError: `MERCURY_ASEPRITE_BIN is set to ${pin}, which does not exist`,
     }
   }
+
   if (flagEnv('MERCURY_ASEPRITE_NO_DISCOVERY') === '1') return {}
   if (!testOpts?.skipPathProbe) {
     const onPath = whichSync('aseprite')
@@ -218,7 +221,9 @@ interface AsepriteRunResult {
   code: number
   stdout: string
   stderr: string
+
   error?: string
+
   truncated: boolean
 }
 

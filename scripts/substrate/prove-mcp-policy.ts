@@ -42,6 +42,7 @@ check('readOnlyHint:"yes" (truthy non-bool) ⇒ NOT low (medium)', classifyMcpTo
 check('readOnlyHint:1 ⇒ NOT low (medium)', classifyMcpToolRisk({ readOnlyHint: 1 }) === 'medium')
 // @ts-expect-error
 check('readOnlyHint:{} ⇒ NOT low (medium)', classifyMcpToolRisk({ readOnlyHint: {} }) === 'medium')
+
 // @ts-expect-error
 check('destructive + readOnly:"true"(string) ⇒ high (no downgrade)', classifyMcpToolRisk({ destructiveHint: true, readOnlyHint: 'true' }) === 'high')
 
@@ -80,6 +81,7 @@ delete process.env.MERCURY_MCP_MAX_RISK
 
 section('per-server max-risk — MERCURY_MCP_MAX_RISK=default + server:risk overrides')
 {
+
   process.env.MERCURY_MCP_MAX_RISK = 'low'
   check('bare value: getMaxExposedRisk default = low', getMaxExposedRisk() === 'low')
   check('bare value: every server resolves to the default (low)', getMaxExposedRiskForServer('anything') === 'low')
@@ -89,9 +91,11 @@ section('per-server max-risk — MERCURY_MCP_MAX_RISK=default + server:risk over
   check('trusted server resolves to high (the default)', getMaxExposedRiskForServer('github') === 'high')
   check('untrusted server clamped to low (override wins)', getMaxExposedRiskForServer('untrusted-srv') === 'low')
   check('server match is case-insensitive', getMaxExposedRiskForServer('Untrusted-SRV') === 'low')
+
   check('high-risk tool ALLOWED on trusted server', mcpToolAllowed('github', 'create_issue', { destructiveHint: true }) === true)
   check('high-risk tool DENIED on the clamped server', mcpToolAllowed('untrusted-srv', 'rm', { destructiveHint: true }) === false)
   check('low-risk tool still allowed on the clamped server', mcpToolAllowed('untrusted-srv', 'read', { readOnlyHint: true }) === true)
+
   check('deny reason cites the per-server max (low)', mcpPolicyDenyReason('untrusted-srv', 'rm', { destructiveHint: true }).includes('low'))
 
   process.env.MERCURY_MCP_MAX_RISK = 'low,scratch:medium,ci:high'
@@ -112,13 +116,16 @@ section('untrusted-server HARDENING — DEFAULT-OFF opt-in (MERCURY_MCP_UNTRUSTE
     if (on) (globalThis as Record<string, unknown>)[MACRO_KEY] = { VERSION: '1.0.0' }
     else delete (globalThis as Record<string, unknown>)[MACRO_KEY]
   }
+
   delete process.env.MERCURY_MCP_MAX_RISK
   delete process.env.MERCURY_MCP_TRUSTED_SERVERS
 
   setStamp(true)
   delete process.env.MERCURY_MCP_UNTRUSTED_HARDENING
   check('stamped build + env unset ⇒ hardening OFF', isUntrustedMcpHardeningOn() === false)
+
   check('OFF ⇒ describe names the off state (honest, not empty)', describeUntrustedMcpHardening() === 'untrusted-hardening off')
+
   check('OFF ⇒ high-risk untrusted tool ALLOWED (byte-identical to bare gate)',
     mcpToolAllowed('rando', 'wipe', { destructiveHint: true }) === true)
   process.env.MERCURY_MCP_UNTRUSTED_HARDENING = 'true'
@@ -129,6 +136,7 @@ section('untrusted-server HARDENING — DEFAULT-OFF opt-in (MERCURY_MCP_UNTRUSTE
   process.env.MERCURY_MCP_UNTRUSTED_HARDENING = '1'
   check('stamped build + env="1" ⇒ hardening ON', isUntrustedMcpHardeningOn() === true)
   check('ON ⇒ describe names the third-party gate', describeUntrustedMcpHardening().includes('untrusted'))
+
   check('ON ⇒ high-risk untrusted tool DENIED (the real effect)',
     mcpToolAllowed('rando', 'wipe', { destructiveHint: true }) === false)
   check('ON ⇒ open-world untrusted tool DENIED',
@@ -137,6 +145,7 @@ section('untrusted-server HARDENING — DEFAULT-OFF opt-in (MERCURY_MCP_UNTRUSTE
     mcpToolAllowed('rando', 'do', {}) === true)
   check('ON ⇒ unverified readOnlyHint floored to medium but still ALLOWED (ceiling=medium)',
     mcpToolAllowed('rando', 'peek', { readOnlyHint: true }) === true)
+
   {
     const reason = mcpPolicyDenyReason('rando', 'wipe', { destructiveHint: true })
     check('ON deny reason cites the hardening switch + trust list',

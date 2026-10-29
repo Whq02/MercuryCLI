@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -101,6 +102,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
+
       record({ kind: 'anthropic', body, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(

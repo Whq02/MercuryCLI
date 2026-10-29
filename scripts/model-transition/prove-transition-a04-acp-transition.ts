@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -75,6 +76,7 @@ section('§A the kernel fold — durable, merging, additive')
 
 section('§B the seam + projection anchors')
 {
+
   const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   const kernel = readFileSync(join(ROOT, 'src/services/run/runKernel.ts'), 'utf8')
   check(

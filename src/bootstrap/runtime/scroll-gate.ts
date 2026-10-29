@@ -1,4 +1,3 @@
-
 const SCROLL_DRAIN_IDLE_MS = 150
 
 type ScrollTimers = {

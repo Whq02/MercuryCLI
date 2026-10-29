@@ -8,13 +8,21 @@ interface LandingWords {
 }
 
 export interface BootBirthFacts {
+
   title: string | null
+
   model: string | null
+
   effort: string | null
+
   permissionMode: PermissionMode | null
+
   runnerArgv: readonly string[]
+
   kit: SessionKitV1 | null
+
   presetKit: { name: string; kit: SessionKitV1 } | null
+
   bypassConsent: boolean
   landing: LandingWords | null
 }

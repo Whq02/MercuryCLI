@@ -1,4 +1,3 @@
-
 export const RELEASE_TARGETS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64', 'windows-x64', 'windows-arm64'] as const
 export type ReleaseTarget = (typeof RELEASE_TARGETS)[number]
 
@@ -60,7 +59,9 @@ export function ripgrepPackageFor(platform: string, arch: string): string {
 interface BuildTargetRecord {
   platform: string
   arch: string
+
   release: ReleaseTarget | null
+
   host: string
 }
 

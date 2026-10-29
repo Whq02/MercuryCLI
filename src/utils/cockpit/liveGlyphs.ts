@@ -1,7 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-
 export const WORK_FRAMES = ['◐', '◓', '◑', '◒'] as const
+
 export const WORK_TICK_MS = 160
 
 export const FOCAL_TICK_MS = 80
@@ -14,10 +14,13 @@ export function workGlyphForTime(time: number): string {
 }
 
 export const ATTENTION_PERIOD = 1800
+
 export const ATTENTION_TICK_MS = 160
+
 export const ATTENTION_BUCKETS = 5
 
 export const READY_PERIOD = 3400
+
 export const READY_TICK_MS = 160
 export const READY_BUCKETS = 4
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -45,23 +46,34 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [FOLDER])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
+
 const CARD_FIELD = 'Paste code here if prompted >'
 const CARD_HINT = 'press c to copy the URL'
 const CARD_ACK = 'Copied to clipboard'
+
 const FACE_HINT = 'c copies the URL'
 const FACE_ACK = 'copied to clipboard'
+
 const OPENAI_FIELD = 'or paste the redirected URL:'
+
 const HANDLES_WAY_OUT = 'c copy · d device · esc cancel'
 const HANDLES_EMPTY_PASTE = 'paste: ▌'
+
 const FACE_ROWS = 80
+
 const WARM_TICKS = 25
+
 const LOGINS_ROW_DOWNS = 6
 const DOWN = '\x1b[B'
 const ESC = '\x1b'
 const ENTER = '\r'
+
 const NO_BROWSER = existsSync('/usr/bin/true') ? '/usr/bin/true' : '/bin/true'
+
 const PROVIDER_KEYS = [
   'ANTHROPIC_API_KEY',
   'OPENAI_API_KEY',
@@ -119,6 +131,7 @@ async function capture(opts: { id: string; home: string; keyed: boolean; sends: 
       ANTHROPIC_BASE_URL: api.url,
       ...(opts.keyed ? { ANTHROPIC_API_KEY: 'fixture-key-000' } : {}),
       BROWSER: NO_BROWSER,
+
       SSH_CONNECTION: 'proof',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -161,10 +174,12 @@ function fieldAfter(frame: string, label: string): string | null {
   if (line === undefined) return null
   return line.slice(line.indexOf(label) + label.length).replace(/[\s│]+$/, '').trim()
 }
+
 function fieldLength(frame: string, label: string): number | null {
   const held = fieldAfter(frame, label)
   return held === null ? null : held.length
 }
+
 function marksLanded(c: Capture, labels: string[]): boolean {
   const seen = new Set(marksOf(c).map(m => m.label))
   return labels.every(l => seen.has(l))
@@ -196,6 +211,7 @@ function report(id: string, c: Capture, needles: string[], red: boolean): void {
 }
 
 const recordsOf = (home: string): ReturnType<typeof readSessionWorkers> => readSessionWorkers(join(home, 'daemon'))
+
 function reapHome(home: string): void {
   for (const rec of Object.values(recordsOf(home))) {
     if (rec.pid !== undefined) {
@@ -216,6 +232,7 @@ function reapHome(home: string): void {
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
+
 const COPY_BEAT = (): Send[] => [
   { afterPrevTicks: 3, data: '', mark: 'after-c' },
   { afterPrevTicks: 12, data: 'a', mark: 'ack-gone' },
@@ -223,15 +240,18 @@ const COPY_BEAT = (): Send[] => [
   { afterPrevTicks: 1, data: 'c' },
   { afterPrevTicks: 3, data: '', mark: 'typed' },
 ]
+
 const QUIT: Send[] = [
   { afterPrevTicks: 3, data: '\x03' },
   { afterPrevTicks: 2, data: '\x03' },
 ]
+
 const FACE_TO_ROSTER = (): Send[] => [
   g(READY_LINE, '', { mark: 'face' }),
   ...Array.from({ length: LOGINS_ROW_DOWNS }, (): Send => ({ afterPrevTicks: 2, data: DOWN })),
   { afterPrevTicks: 3, data: ENTER, mark: 'logins-row' },
 ]
+
 const FACE_TO_CARD = (family: string): Send[] => [
   g(READY_LINE, '', { mark: 'face' }),
   { afterPrevTicks: WARM_TICKS, data: ENTER },
@@ -288,6 +308,7 @@ console.log('L2 — the face’s logins layer: c copies and the masked draft sta
     rows: FACE_ROWS,
     sends: [
       ...FACE_TO_ROSTER(),
+
       g(ROSTER_LEGEND, DOWN, { mark: 'roster', awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: ENTER },
       g('Anthropic API key — usage-based billing', ENTER, { mark: 'pick', awaitSettleTicks: 3 }),
@@ -363,6 +384,7 @@ console.log('L4 — the face’s OpenAI browser leg: c copies and the masked pas
     rows: FACE_ROWS,
     sends: [
       ...FACE_TO_ROSTER(),
+
       g(ROSTER_LEGEND, ENTER, { mark: 'roster', awaitSettleTicks: 3 }),
       g('ChatGPT subscription — browser sign-in', ENTER, { mark: 'pick' }),
       g(HANDLES_EMPTY_PASTE, 'c', { mark: 'wait' }),

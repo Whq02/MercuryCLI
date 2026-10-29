@@ -18,8 +18,11 @@ type ModelTransitionDecision =
   | { kind: 'defer-pending'; crossProvider: boolean }
 
 interface ModelTransitionInput {
+
   currentSetting: string | null
+
   nextSetting: string | null
+
   turnActive: boolean
 }
 
@@ -38,14 +41,18 @@ export function decideModelTransition(i: ModelTransitionInput): ModelTransitionD
   return { kind: 'apply-now', crossProvider }
 }
 
-
 export interface ModelTransitionReceipt {
+
   previous: string | null
+
   requested: string | null
+
   applied: string | null
   resolution: 'applied' | 'cancelled-pending'
+
   boundary: 'idle' | 'turn-boundary'
   crossProvider: boolean
+
   cacheDisposition: 'keyed-sections-recompute-once' | 'none'
 }
 
@@ -90,6 +97,7 @@ export function settleModelSelection(
     turnActive: opts.turnActive,
   })
   if (decision.kind === 'no-op-same') {
+
     if (prev.pendingModelSwitch !== null) {
       const receipt: ModelTransitionReceipt = {
         previous: current,
@@ -181,7 +189,6 @@ export function crossProviderNote(next: string | null): string {
   return ` · cross-provider: turns move to the ${providerDisplayName(family)} transport`
 }
 
-
 export type TransitionDispositionClass =
   | 'carried-exact'
   | 'tool-results-exact'
@@ -198,6 +205,7 @@ export const MEANINGFUL_LOSS_CLASSES: readonly TransitionDispositionClass[] = [
 ]
 
 export type TransitionPlanItem = {
+
   ref: string
   disposition: TransitionDispositionClass
   detail?: string
@@ -217,17 +225,23 @@ export type TransitionWindowFact = {
 
 export type TransitionPlan = {
   v: 1
+
   planDigest: string
   from: string | null
   to: string | null
   crossProvider: boolean
   targetRoute: ProviderFamily
+
   sourceRevision: string
+
   capabilityEpoch: string
+
   counts: Record<TransitionDispositionClass, number>
+
   items: TransitionPlanItem[]
   itemsTruncated: boolean
   window?: TransitionWindowFact
+
   needsChoice: boolean
   computedAt: string
 }

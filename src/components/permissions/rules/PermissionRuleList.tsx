@@ -121,6 +121,7 @@ function RulesTabContent({
         )
 
   const options = [
+
     ...(query === '' ? [{ label: 'Add a new rule…', value: ADD_VALUE }] : []),
     ...filtered.map(rule => ({
       label: permissionRuleValueToString(rule.ruleValue),
@@ -142,6 +143,7 @@ function RulesTabContent({
     const index = filtered.findIndex(rule => ruleKey(rule) === value)
     const rule = filtered[index]
     if (!rule) return
+
     const next =
       filtered.length <= 1
         ? null

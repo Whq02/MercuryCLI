@@ -1,4 +1,3 @@
-
 import chalk from 'chalk'
 import React, { useContext, useLayoutEffect, useRef, useState } from 'react'
 import { Box, measureElement, type DOMElement } from '../ink.js'
@@ -16,19 +15,23 @@ import { color } from './design-system/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
 type Props = BaseTextInputProps & {
+
   selectionRange?: () => { start: number; end: number } | null | undefined
   onSelectionConsumed?: () => void
   onBeforeRangeEdit?: () => void
   selectionHighlight?: { start: number; end: number } | null
+
   viewportStartRef?: React.MutableRefObject<number | undefined>
 }
 
 export default function TextInput(props: Props): React.ReactNode {
   const [themeName] = useTheme()
   const terminalFocused = useTerminalFocus()
+
   const [accessibility] = useState(
     () => resolveTerminalExperience().accessibility.effective,
   )
+
   useClipboardImageHint(terminalFocused, Boolean(props.onImagePaste))
 
   const [, caretPhaseOn] = useBlink(

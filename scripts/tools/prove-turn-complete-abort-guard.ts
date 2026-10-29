@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -80,6 +81,7 @@ check(
   /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
     /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{/.test(engine) && parsed.parseErrors.length === 0 && completedIsInsideGate,
 )
+
 check(
   'the completed outcomes are the closed two (local command · the gated settlement)',
   (engine.match(/endTurn\((?:refused \? 'refused' : )?'completed'/g) ?? []).length === 2,

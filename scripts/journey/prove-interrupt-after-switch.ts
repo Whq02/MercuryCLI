@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -30,6 +31,7 @@ if (!existsSync(DIST)) {
 
 const GPT_REPLY = 'sol answers from the fixture'
 const LONG_THINK_ASK = 'think long please'
+
 const TEARDOWN_BUDGET_MS = 1_000
 
 const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-interruptlive-${process.pid}`)
@@ -44,10 +46,12 @@ writeFileSync(
     lastOnboardingVersion: '99.0.0',
     numStartups: 10,
     theme: 'dark',
+
     projects: { [FIXTURE_CWD]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),
 )
+
 writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { mode: 'flow' } }))
 writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# interrupt drive fixture\n')
 
@@ -79,6 +83,7 @@ const reap = (): void => {
     fixture.kill('SIGTERM')
   } catch {
   }
+
   if (failures === 0) {
     try {
       rmSync(RUN_HOME, { recursive: true, force: true })
@@ -99,11 +104,17 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol'],
   cwd: FIXTURE_CWD,
   sends: [
+
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+
     { atTick: 80, minTick: 20, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'hello sol\r', mark: 'hello-sent' },
+
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
+
     { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
+
     { atTick: 260, minTick: 10, awaitText: 'ready · Opus 5 ·', requireAwait: true, awaitSettleTicks: 2, data: `${LONG_THINK_ASK}\r`, mark: 'think-sent' },
+
     { afterPrevTicks: 20, atTick: 320, data: '\x1b', mark: 'esc-sent' },
   ],
   readyText: ['Interrupted'],
@@ -135,6 +146,7 @@ const childEnv: NodeJS.ProcessEnv = {
 }
 delete childEnv.NODE_ENV
 delete childEnv.ANTHROPIC_AUTH_TOKEN
+
 delete childEnv.MERCURY_DAEMON_PERMISSION_MODE
 
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
@@ -153,6 +165,7 @@ if (existsSync(out)) {
     marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }>
   }
   gridText = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+
   receipts = (payload.sendReceipts ?? []) as Array<{ atTick?: number; ts?: number }>
   markGrids = new Map((payload.marks ?? []).map(m => [m.label, m.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')]))
 }
@@ -203,6 +216,7 @@ section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
   const before = markGrids.get('esc-sent') ?? ''
   check("the turn was LIVE at the esc (the status row said thinking, the way-back hint offered esc)", /thinking/.test(before) && /esc interrupts/.test(before), before.split('\n').slice(-8).join('\n'))
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), gridText.split('\n').slice(-12).join('\n'))
+
   check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("the status row reads ready — no 'interrupting' left standing", /ready · [^\n]*← back/.test(gridText) && !/interrupting —/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("no 'thinking' stands over a stream that ended", !/thinking for|· thinking/.test(gridText), gridText.split('\n').slice(-8).join('\n'))

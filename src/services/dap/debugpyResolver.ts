@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
@@ -11,12 +10,16 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
 
 export interface PythonDebuggerProvenance {
+
   interpreter?: string
   interpreterVersion?: string
   adapterSource: 'bundled' | 'environment' | 'none'
   debugpyVersion?: string
+
   adapterPath?: string
+
   bundleState: 'vendored' | 'absent'
+
   lastProbe: string
 }
 
@@ -41,7 +44,6 @@ const UNAVAILABLE_REMEDY =
   'rebuild the artifact with the pinned adapter (bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts), ' +
   'or install debugpy into the interpreter (pip install debugpy)'
 
-
 let pycachePrefixMemo: string | null | undefined
 function pycachePrefix(): string | null {
   if (pycachePrefixMemo !== undefined) return pycachePrefixMemo
@@ -57,6 +59,7 @@ function pycachePrefix(): string | null {
     const parent = path.join(envPaths('mercury').cache, 'pycache')
     const root = path.join(parent, buildKey)
     mkdirSync(root, { recursive: true })
+
     try {
       for (const entry of readdirSync(parent)) {
         if (entry !== buildKey) rmSync(path.join(parent, entry), { recursive: true, force: true })
@@ -111,13 +114,17 @@ function vendoredVersion(root: string): string | undefined {
 
 export function defaultInterpreterCandidates(): string[] {
   const out = ['python3', 'python']
+
   if (process.platform === 'win32') out.push('py')
+
   if (process.platform === 'darwin') out.push('/usr/bin/python3')
   return out
 }
 
 export interface ResolveOptions {
+
   candidates?: string[]
+
   exclusive?: boolean
 }
 
@@ -137,6 +144,7 @@ function probeInterpreter(interpreter: string, vendorRoot: string | null): Probe
     'import debugpy._vendored.force_pydevd\n' +
     'print("%d.%d.%d" % sys.version_info[:3], debugpy.__version__)\n'
   try {
+
     const r = spawnSync(interpreter, ['-c', script], {
       windowsHide: true,
       timeout: PROBE_TIMEOUT_MS,
@@ -180,6 +188,7 @@ export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterR
   let result: PythonAdapterResolution | null = null
 
   for (const interpreter of candidates) {
+
     if (vendorRoot) {
       const probe = probeInterpreter(interpreter, vendorRoot)
       if (probe.ok) {
@@ -201,6 +210,7 @@ export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterR
       }
       failures.push(probe.detail)
     }
+
     const envProbe = probeInterpreter(interpreter, null)
     if (envProbe.ok) {
       result = {
@@ -223,10 +233,12 @@ export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterR
   }
 
   if (!result) {
+
     const reason =
       failures.length > 0
         ? `no viable Python debug interpreter${opts?.exclusive ? ` (explicit pin ${candidates[0]})` : ''} — ${failures.slice(0, 3).join(' | ')}`
         : `no Python interpreter found (tried ${candidates.join(', ')})`
+
     const vendorDiag = debugpyVendorDiagnosis()
     const remedy = vendorDiag.pinBroken
       ? `MERCURY_DEBUGPY_VENDOR_DIR points at ${vendorDiag.pin}, which holds no debugpy adapter${

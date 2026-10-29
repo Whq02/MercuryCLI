@@ -68,11 +68,11 @@ export function useManageMCPConnections(
   }
   const registry = registryRef.current
 
-
   const pendingUpdatesRef = React.useRef<PendingUpdate[]>([])
   const flushTimerRef = React.useRef<NodeJS.Timeout | null>(null)
 
   const flushUpdates = React.useCallback((): void => {
+
     if (flushTimerRef.current !== null) {
       clearTimeout(flushTimerRef.current)
       flushTimerRef.current = null
@@ -101,6 +101,7 @@ export function useManageMCPConnections(
           if (nextResources.length > 0) {
             resources = { ...resources, [name]: nextResources }
           } else {
+
             resources = { ...resources, ...excludeResourcesByServer(resources, name) }
           }
         }
@@ -119,13 +120,13 @@ export function useManageMCPConnections(
   const queueUpdate = React.useCallback(
     (update: PendingUpdate): void => {
       pendingUpdatesRef.current.push(update)
+
       if (flushTimerRef.current === null) {
         flushTimerRef.current = setTimeout(flushUpdates, BATCH_WINDOW_MS)
       }
     },
     [flushUpdates],
   )
-
 
   const admittedToolsetHashesRef = React.useRef(new Map<string, string>())
 
@@ -135,6 +136,7 @@ export function useManageMCPConnections(
         const liveHash = toolsetHash(refetched as never)
         const admittedHash = admittedToolsetHashesRef.current.get(serverName)
         if (!needsReadmission(admittedHash, liveHash)) {
+
           return refetched
         }
         const admitted = readmitTools(serverName, refetched as never) as Tool[]
@@ -146,6 +148,7 @@ export function useManageMCPConnections(
         admittedToolsetHashesRef.current.set(serverName, toolsetHash(admitted as never))
         return admitted
       } catch (error) {
+
         logForDebugging(
           `${HOOK_LABEL}: re-admission gate failed for "${serverName}" (${String(error)}); exposing the refetched set unchanged`,
         )
@@ -155,12 +158,12 @@ export function useManageMCPConnections(
     [],
   )
 
-
   const wireConnectedClient = React.useCallback(
     (client: ConnectedMCPServer): void => {
       registerElicitationHandler(client.client, client.name, setAppState)
 
       client.client.onclose = () => {
+
         clearServerCache(client.name, client.config).catch(error => {
           logForDebugging(`${HOOK_LABEL}: cache invalidation on close failed: ${String(error)}`)
         })
@@ -193,7 +196,9 @@ export function useManageMCPConnections(
           logForDebugging(`${HOOK_LABEL}: prompts/list_changed from "${client.name}"`)
           void (async () => {
             try {
+
               fetchCommandsForClient.cache.delete(client.name)
+
               const [prompts, skills] = await Promise.all([
                 fetchCommandsForClient(client),
                 Promise.resolve([] as Command[]),
@@ -231,7 +236,6 @@ export function useManageMCPConnections(
     [gateRefetchedTools, registry, setAppState],
   )
 
-
   React.useEffect(() => {
     const unsubscribe = registry.subscribe((event: McpRegistryEvent) => {
       if (event.cause === 'stale-drop' || event.cause === 'shutdown') return
@@ -257,6 +261,7 @@ export function useManageMCPConnections(
     })
     return () => {
       unsubscribe()
+
       registry.shutdown()
       if (flushTimerRef.current !== null) {
         flushUpdates()
@@ -265,11 +270,10 @@ export function useManageMCPConnections(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once wiring
   }, [])
 
-
   const publishResolutionErrors = React.useCallback((notices: McpResolutionNotice[]): void => {
+
     for (const notice of notices) logForDebugging(`mcp: ${notice.message}`)
   }, [])
-
 
   const sessionId = getSessionId()
 
@@ -277,9 +281,11 @@ export function useManageMCPConnections(
     let cancelled = false
     void (async () => {
       try {
+
         const strict = isStrictMcpConfig === true
         const skipConnectors = strict || doesEnterpriseMcpConfigExist()
         if (!skipConnectors) clearAnthropicConnectorsCache()
+
         const connectorFetch = skipConnectors
           ? Promise.resolve({} as Record<string, ScopedMcpServerConfig>)
           : fetchAnthropicConnectorsIfEligible()
@@ -353,8 +359,8 @@ export function useManageMCPConnections(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the documented re-run set
   }, [sessionId, authVersion, extensionReloadCounter, dynamicMcpConfig, isStrictMcpConfig])
 
-
   React.useEffect(() => {
+
     if (!isLocalChannelBusEnabled()) return
     const bus = startLocalChannelBus()
     return () => {
@@ -362,7 +368,6 @@ export function useManageMCPConnections(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session
   }, [])
-
 
   const reconnectMcpServer = React.useCallback(
     async (
@@ -374,6 +379,7 @@ export function useManageMCPConnections(
       }
       const outcome = await registry.connect(name, current.config, 'reconnect-manual')
       if (outcome === null) {
+
         const record = registry.get(name)
         return {
           client: record ?? current,
@@ -387,6 +393,7 @@ export function useManageMCPConnections(
   )
 
   const toggleMcpServer = React.useCallback(
+
     (name: string): Promise<void> => registry.toggle(name),
     [registry],
   )

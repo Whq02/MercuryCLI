@@ -3,6 +3,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { join } from 'path'
 
 interface EpochRecord {
+
   epoch: number
 }
 
@@ -15,6 +16,7 @@ const epochStore = defineStore<EpochRecord, []>({
       ? { epoch: (raw as { epoch: number }).epoch }
       : null,
   empty: () => ({ epoch: 0 }),
+
   onReadFailure: 'throw',
 })()
 
@@ -34,6 +36,7 @@ export function writerEpoch(): Promise<number> {
       return next
     })
     .catch(() => {
+
       resolved = FALLBACK_EPOCH
       return FALLBACK_EPOCH
     })

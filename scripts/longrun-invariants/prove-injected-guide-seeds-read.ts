@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -13,7 +14,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ===')
 {
+
   process.env.NODE_ENV = 'test'
+
   const fixtureProject = mkdtempSync(join(tmpdir(), 'vigil-seed-project-'))
   const nativeGuide = join(fixtureProject, 'MERCURY.md')
   writeFileSync(nativeGuide, '# fixture guide\n\nseeding-law fixture content.\n')
@@ -42,6 +45,7 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
     { readFileState: cache, getAppState: () => appState } as never,
   )
   check('FileWriteTool.validate PASSES on the seeded file (no forced Read)', verdict.result === true, JSON.stringify(verdict))
+
   const scratch = mkdtempSync(join(tmpdir(), 'vigil-blind-write-'))
   const blindPath = join(scratch, 'existing.txt')
   writeFileSync(blindPath, 'original\n')
@@ -65,6 +69,7 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
   } catch (err) {
     refusal = err instanceof Error ? err.message : String(err)
   }
+
   check('an UNSEEDED existing file still refuses a blind CHANGING Write at call() (the gate stands)', /prior read of the current content is required/.test(refusal), refusal || 'settled?!')
   check('nothing was written on the refusal', readFileSync(blindPath, 'utf8') === 'original\n')
 }

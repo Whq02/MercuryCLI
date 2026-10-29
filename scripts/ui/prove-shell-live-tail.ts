@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/shell/liveShellTail.ts src/components/shell/ShellLiveTail.tsx src/utils/messages/normalize.ts src/types/message.ts
+
 import { deepStrictEqual, strictEqual } from 'node:assert'
 import stripAnsi from 'strip-ansi'
 import { shellLiveTailBudget, shellLiveTailLines } from '../../src/components/shell/liveShellTail.ts'

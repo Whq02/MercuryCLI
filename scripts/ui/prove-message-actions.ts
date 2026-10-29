@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -21,6 +22,7 @@ console.log(' MESSAGE_ACTIONS — fork-enabled (shift+up message cursor)')
 console.log('============================================================')
 
 section('1. keybindings: BOTH gates carry the stamp arms')
+
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
 const shipped = shippedKeyForms()
 const gateShiftUp = formsMissing(shipped, 'Chat', 'shift+up', 'chat:messageActions').length === 0
@@ -38,6 +40,7 @@ const repl = read('src', 'screens', 'Chat.tsx')
 check('messageActionsDisabled is false unconditionally (no feature flag)', /const messageActionsDisabled = false;/.test(repl))
 check('the MessageActionsKeybindings render gates on the one disabled flag', /isActive=\{!messageActionsDisabled && focusedInputDialog === undefined\}/.test(repl))
 check('the onMessageActionsEnter handler gates on the one disabled flag', /onMessageActionsEnter=\{messageActionsDisabled \? undefined : messageActions\.enter\}/.test(repl))
+
 check('exactly one feature(MESSAGE_ACTIONS) in Chat (the messageActionsEnabled def)', (repl.match(/feature\('MESSAGE_ACTIONS'\)/g) ?? []).length === 0)
 check('the gate lives in the hand-written Chat() (no _c slot patched)', /export function Chat\(/.test(repl) && !/const \$ = _c\([\s\S]{0,4000}messageActionsDisabled/.test(repl))
 

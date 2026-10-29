@@ -1,4 +1,3 @@
-
 const MAX_PULSES = 400
 
 interface UsagePulse {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -30,13 +31,14 @@ const REPO = path.resolve(HERE, '..', '..')
 const DIST = path.join(REPO, 'dist', 'mercury.mjs')
 
 const MODEL = 'claude-fable-5-1'
+
 const OTHER_MODEL = 'claude-opus-5'
 const TOOL_SEARCH = 'ToolSearch'
 const FORBIDDEN_HEAD_WORDS = ['<available-deferred-tools>', '</available-deferred-tools>']
 const BASH = 'Bash'
 const SUMMARY_TEXT = 'Summary of the session so far: five fixture turns — two tool lookups, one shell command, one plain turn — nothing left open.'
-const PREFERRED_LOOKUPS = ['WebFetch', 'NotebookEdit', 'WebSearch', 'Monitor', 'StructureTool']
 
+const PREFERRED_LOOKUPS = ['WebFetch', 'NotebookEdit', 'WebSearch', 'Monitor', 'StructureTool']
 
 type Block = Record<string, unknown>
 type Row = { role?: string; content?: unknown }
@@ -216,6 +218,7 @@ function validate(body: WireBody, betaHeader: string): string | null {
   for (let k = 0; k < messages.length; k++) {
     const row = messages[k]!
     const content = row.content
+
     if (row.role === 'system' && Array.isArray(content) && content.length === 0 && (row as { output_config?: unknown }).output_config !== undefined) {
       if (!isFable(model)) return `messages.${k}.output_config: Extra inputs are not permitted`
       continue
@@ -366,6 +369,7 @@ function serve(captureFile: string, mainModel: string): void {
       const id = `msg_wt_${seq}`
       const headers = keptHeaders(req.headers as Record<string, string | string[] | undefined>)
       const side = isSideRequest(body)
+
       const refusal = validate(body, headers['anthropic-beta'] ?? '')
       if (refusal !== null) {
         record({ kind: 'request', seq, at, url, model, headers, body, response: { status: 400, error: refusal, model, ms: 0 } })
@@ -380,6 +384,7 @@ function serve(captureFile: string, mainModel: string): void {
         res.end(renderReply({ kind: 'text', text: 'fixture side reply', thinking: null }, { id, model, usage, drops: [], signature: '' }))
         return
       }
+
       const drops = dropsFor(body)
       const verdict = previous === null ? null : comparePrefix(previous, body)
       const prefixBytes = previous === null ? 0 : Buffer.byteLength(canonicalPrefix(previous))
@@ -431,7 +436,6 @@ if (process.argv[2] === '--serve') {
   await drive()
 }
 
-
 type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
 type Grid = Array<Array<{ c: string }>>
 type Payload = { grid: Grid; sendReceipts?: Array<{ atTick?: number }>; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
@@ -448,6 +452,7 @@ type Leg = {
   finalGrid: string
   markGrid(label: string): string
 }
+
 function gridText(grid: Grid): string {
   return grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
 }
@@ -487,10 +492,12 @@ async function drive(): Promise<void> {
       lastOnboardingVersion: '99.0.0',
       numStartups: 10,
       theme: 'dark',
+
       projects: { [FIXTURE_CWD]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
       customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
     }),
   )
+
   writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(echo *)'] } }))
   writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# wire prefix drive fixture\n')
 
@@ -502,6 +509,7 @@ async function drive(): Promise<void> {
       } catch {
       }
     }
+
     if (failures === 0 && !REPORT) {
       try {
         rmSync(RUN_HOME, { recursive: true, force: true })
@@ -519,6 +527,7 @@ async function drive(): Promise<void> {
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_API_KEY: PROBE_KEY,
+
     MERCURY_THINKING_BINDING: 'drop_block',
     MERCURY_TOOL_SEARCH: 'on',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -609,6 +618,7 @@ async function drive(): Promise<void> {
   const driveReport = (leg: Leg, sends: Send[]): void => {
     check(`${leg.name}: vshot exited 0 with a grid`, leg.status === 0 && leg.payload !== null, `status=${leg.status} stderr=${leg.stderr.slice(-400)}`)
     console.log(`  ${leg.name}: sends fired at ticks ${leg.fired.join(', ')} (deadlines ${leg.deadlines.join(', ')}); ended: ${leg.payload?.endReason ?? '?'} after ${leg.seconds}s`)
+
     for (let i = 1; i < sends.length; i++) {
       const send = sends[i]!
       check(`${leg.name}: send ${i} delivered`, leg.fired[i]! > 0, `fired at ${leg.fired[i]}`)
@@ -669,7 +679,9 @@ async function drive(): Promise<void> {
     { atTick: 700, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 3: find another deferred tool\r', mark: 't1' },
     { atTick: 880, minTick: 10, awaitText: 'TURN-3-DONE', awaitSettleTicks: 4, data: `/model ${OTHER_MODEL}\r`, mark: 't3' },
     { atTick: 900, afterPrevTicks: 8, data: 'continue\r', mark: 'switched-opus' },
+
     { atTick: 1120, minTick: 5, awaitText: 'OPUS-CONTINUED', awaitSettleTicks: 4, data: '\x1b[Z', mark: 'opus-continue' },
+
     { atTick: 1160, afterPrevTicks: 6, data: '\x1b[Z', mark: 'to-default' },
     { atTick: 1260, minTick: 5, awaitText: 'implement mode on', awaitSettleTicks: 3, data: 'wire-prefix turn 4: on the other model\r', mark: 'implement' },
     { atTick: 1440, minTick: 10, awaitText: 'OPUS-TURN-4-DONE', awaitSettleTicks: 4, data: `/model ${MODEL}\r`, mark: 'opus-t4' },

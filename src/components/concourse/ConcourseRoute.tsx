@@ -46,7 +46,6 @@ import { SessionWaitingRoom } from './SessionWaitingRoom.js';
 import { ConcourseLockup } from './ConcourseHeader.js';
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js';
 
-
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
 
 export function makeCoalescedRebuild(
@@ -74,17 +73,21 @@ export function makeCoalescedRebuild(
 
 function useConcourseSnapshot(): {
   snapshot: ConcourseSnapshotV1 | null
+
   failing: boolean
   setPeek: (sessionId: string) => void
   noteResident: (state: 'wink' | 'refused' | 'held', reason?: string) => void
   refresh: () => void
 } {
   const [snapshot, setSnapshot] = useState<ConcourseSnapshotV1 | null>(lastCoherentSnapshot)
+
   const [failing, setFailing] = useState(false)
   const peekRef = useRef<string | undefined>(undefined)
   const residentRef = useRef<'wink' | 'refused' | 'held' | undefined>(undefined)
+
   const residentReasonRef = useRef<string | undefined>(undefined)
   const alive = useRef(true)
+
   const buildSeq = useRef(0)
   const rebuild = useMemo(
     () =>
@@ -111,6 +114,7 @@ function useConcourseSnapshot(): {
       }, () => alive.current),
     [],
   )
+
   useEffect(() => {
     alive.current = true
     rebuild()
@@ -121,14 +125,18 @@ function useConcourseSnapshot(): {
       { scope: 'switchboard' },
     )
     const unsubDraft = subscribeConcourseDraft(rebuild)
+
     const unsubProject = subscribeCurrentProject(rebuild)
+
     const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())
+
     let watcher: import('node:fs').FSWatcher | null = null
     let lastDelta = ''
     void Promise.all([import('../../daemon/concourseWorkers.js'), import('node:fs')])
       .then(([sup, fs]) => {
         if (!alive.current) return
         const deltaPath = sup.concourseDeltaPath()
+
         const dir = dirname(deltaPath)
         const name = basename(deltaPath)
         try {
@@ -145,6 +153,7 @@ function useConcourseSnapshot(): {
             }
             rebuild()
           })
+
           watcher.on('error', () => {
             try {
               watcher?.close()
@@ -191,6 +200,7 @@ function readFixtureSnapshot(): ConcourseSnapshotV1 | null {
     if (!path) return null
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as ConcourseSnapshotV1
     if (parsed.schema !== 1) return null
+
     const floor = <T extends { title: string }>(r: T): T => ({ ...r, title: sanitizeLabel(r.title) })
     return {
       ...parsed,
@@ -233,16 +243,20 @@ async function restFocusedSlotAfterRelease(
 function LiveConcourse(): React.ReactNode {
   const fixture = useMemo(() => readFixtureSnapshot(), [])
   const { snapshot: liveSnapshot, failing, setPeek, noteResident: noteLiveResident, refresh } = useConcourseSnapshot()
+
   const { columns: termCols, rows: termRows } = useTerminalSize()
   const termColsRef = useRef(termCols)
   termColsRef.current = termCols
+
   const termRowsRef = useRef(termRows)
   termRowsRef.current = termRows
   const splitFrameStands = useCallback(
     (): boolean => splitViewOn() && splitAvailableAt(termColsRef.current, termRowsRef.current),
     [],
   )
+
   const [controlNotes, setControlNotes] = useState<Readonly<Record<string, ControlNoteState>>>({})
+
   const noteSeqRef = useRef(0)
   const noteIdentityRef = useRef<Record<string, number>>({})
   const noteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
@@ -253,12 +267,14 @@ function LiveConcourse(): React.ReactNode {
     },
     [],
   )
+
   const rowReceiptClock = (): string => {
     const d = new Date()
     const p = (n: number): string => String(n).padStart(2, '0')
     return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
   }
   const rowReceipt = (what: string): string => `${what} — you · ${rowReceiptClock()}`
+
   const noteFromReceipt = (receipt: { outcome?: string; detail?: string }): ControlNoteState =>
     receipt.outcome === 'applied'
       ? 'applied'
@@ -273,6 +289,7 @@ function LiveConcourse(): React.ReactNode {
           : {
               state: 'refused',
               ...(receipt.detail !== undefined ? { reason: receipt.detail } : {}),
+
               next: 'the draft is kept · ↵ retries',
             }
   const noteControl = useCallback((control: string, state: ControlNoteState): void => {
@@ -284,8 +301,10 @@ function LiveConcourse(): React.ReactNode {
       clearTimeout(stale)
       delete noteTimersRef.current[control]
     }
+
     const kind = controlNoteOf(state).state
     if (kind !== 'pending') {
+
       const timer = setTimeout(() => {
         if (noteIdentityRef.current[control] !== mySeq) return
         delete noteTimersRef.current[control]
@@ -299,7 +318,9 @@ function LiveConcourse(): React.ReactNode {
       noteTimersRef.current[control] = timer
     }
   }, [])
+
   const redirectIdRef = useRef<Map<string, { instruction: string; id: string }>>(new Map())
+
   const controlOpIdRef = useRef<Map<string, { id: string; mintedAtMs: number }>>(new Map())
   const CONTROL_RETRY_WINDOW_MS = 15_000
   const mintControlOpId = useCallback((key: string, fresh: string): string => {
@@ -308,7 +329,9 @@ function LiveConcourse(): React.ReactNode {
     controlOpIdRef.current.set(key, { id, mintedAtMs: held?.id === id ? held.mintedAtMs : Date.now() })
     return id
   }, [])
+
   const peekOpInFlight = useRef<Set<string>>(new Set())
+
   const [residentNote, setResidentNote] = useState<
     { state: 'wink' | 'refused' | 'held'; reason?: string } | undefined
   >(undefined)
@@ -334,6 +357,7 @@ function LiveConcourse(): React.ReactNode {
       : liveSnapshot
   const snapshotRef = useRef<typeof snapshot>(null)
   snapshotRef.current = snapshot
+
   const stopAwaitingStampRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     const waiting = stopAwaitingStampRef.current
@@ -344,12 +368,15 @@ function LiveConcourse(): React.ReactNode {
       noteControl('strip:composer', { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` })
     }
   }, [snapshot, noteControl])
+
   const enterOpRef = useRef<{ sessionId: string; gen: number } | null>(null)
+
   const [waitingRoom, setWaitingRoom] = useState<{
     dispatchId: string
     title: string
     project: string
   } | null>(null)
+
   const drainQueuedStack = useCallback(async (dispatchId: string, sessionId: string): Promise<void> => {
     try {
       const store = await import('../../services/concourse/concourseSnapshot.js')
@@ -370,12 +397,14 @@ function LiveConcourse(): React.ReactNode {
         if (reply.ok === true) {
           await store.removeConcourseQueuedStackEntry(dispatchId, entry.clientMessageId)
         } else if (reply.refusal === 'edited-replay') {
+
           await store.removeConcourseQueuedStackEntry(dispatchId, entry.clientMessageId)
         } else {
           break
         }
       }
     } catch (e) {
+
       logForDebugging(`[concourse] queued-stack drain failed (replayed next pump): ${e}`)
     }
   }, [])
@@ -394,17 +423,21 @@ function LiveConcourse(): React.ReactNode {
         return
       }
       if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
+
         noteControl(noteKey, { state: 'refused', reason: 'the older chats unfold on the board — ↵ on the line opens them' })
         return
       }
       void markSessionSeen(sessionId).catch(() => {})
+
       const row = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
       const rowParked = row?.state === 'parked' ? { transcriptPath: row.transcriptPath, title: row.title } : undefined
       const parked = opts?.parkedFact ?? rowParked
       const op = { sessionId, gen: surfaceGeneration() }
       enterOpRef.current = op
       noteControl(noteKey, { state: 'pending', reason: parked !== undefined ? 'bringing it back…' : 'opening…' })
+
       armEntryWarmth(sessionId, row?.title ?? parked?.title, hasFocusedSession() ? getFocusedSessionConnector().sessionId() : undefined)
+
       const landing = withLanding(
         (async () => {
           const hops = await import('../../services/switchboard/hopIntoSession.js')
@@ -413,6 +446,7 @@ function LiveConcourse(): React.ReactNode {
             : await hops.hopIntoBoardSession(sessionId)
         })(),
       )
+
       const settled = opts?.entry === 'settled'
       const split = splitFrameStands() && opts?.fullChat !== true
       let flippedGen: number | null = null
@@ -428,6 +462,7 @@ function LiveConcourse(): React.ReactNode {
           const hop = await landing
           if (!hop.ok) {
             noteControl(noteKey, { state: 'refused', reason: hop.reason })
+
             if (flippedGen !== null && surfaceGeneration() === flippedGen) returnToConcourse()
             return
           }
@@ -436,6 +471,7 @@ function LiveConcourse(): React.ReactNode {
             noteControl(noteKey, split ? { state: 'applied', reason: 'in the chat pane' } : 'applied')
             return
           }
+
           if (surfaceGeneration() === op.gen) {
             if (splitFrameStands() && opts?.fullChat !== true) {
               noteControl(noteKey, { state: 'applied', reason: 'in the chat pane' })
@@ -449,6 +485,7 @@ function LiveConcourse(): React.ReactNode {
           noteControl(noteKey, { state: 'failed', reason: 'the session could not be opened', next: '↵ retries' })
           if (flippedGen !== null && surfaceGeneration() === flippedGen) returnToConcourse()
         } finally {
+
           settleEntryWarmth(sessionId)
           if (enterOpRef.current === op) enterOpRef.current = null
         }
@@ -462,6 +499,7 @@ function LiveConcourse(): React.ReactNode {
         await drainQueuedStack(dispatchId, sessionId)
         setWaitingRoom(null)
         setPeek(sessionId)
+
         attachAndEnter(sessionId, 'board:open', { entry: 'settled' })
       })()
     },
@@ -469,14 +507,18 @@ function LiveConcourse(): React.ReactNode {
   )
   const callbacks = useMemo<ConcourseCallbacks>(
     () => ({
+
       noteControl,
       enterSession: sessionId => {
+
         if (!sessionId.startsWith('dispatch:')) setPeek(sessionId)
         attachAndEnter(sessionId, 'board:open')
       },
+
       resumeOlderChat: (sessionId, transcriptPath, title) => {
         attachAndEnter(sessionId, 'board:open', { parkedFact: { transcriptPath, title } })
       },
+
       openQueuedRoom: sessionId => {
         if (!sessionId.startsWith('dispatch:')) return
         const row = snapshotRef.current?.groups
@@ -493,12 +535,14 @@ function LiveConcourse(): React.ReactNode {
         setPeek(sessionId)
       },
       answerObligation: (obligationId, answer) => {
+
         noteControl('strip:composer', 'pending')
         void (async () => {
           try {
             const o = await import('../../services/crew/obligations.js')
             const row = await o.obligationOf(obligationId, { scope: 'switchboard' })
             if (!row || row.status !== 'open') {
+
               noteResident('refused', 'this question already settled elsewhere')
               noteControl('strip:composer', {
                 state: 'refused',
@@ -513,6 +557,7 @@ function LiveConcourse(): React.ReactNode {
               verb: 'obligation.answer',
               obligationId,
               sessionId: row.sessionId,
+
               clientMessageId: `obl-answer:${obligationId}`,
               answer,
               by: 'operator',
@@ -530,6 +575,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       answerPermission: (requestId, allow, obligationId) => {
         void (async () => {
           try {
@@ -565,12 +611,14 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       stopSession: sessionId => {
         void (async () => {
           try {
             const { ensureOwnedDaemon } = await import('../../services/switchboard/ensureDaemon.js')
             const daemonUp = await ensureOwnedDaemon()
             if (!daemonUp) {
+
               const workers = await import('../../daemon/concourseWorkers.js')
               const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
               const rec = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
@@ -596,6 +644,7 @@ function LiveConcourse(): React.ReactNode {
               { op: 'concourseControl', action: 'stop', sessionId, by: 'operator' } as never,
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+
             const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
             if (reply.ok === true && reply.outcome === 'applied' && !acknowledged && reply.detail !== undefined) stopAwaitingStampRef.current.add(sessionId)
             noteControl(
@@ -613,6 +662,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       archiveSession: sessionId => {
         void (async () => {
           try {
@@ -654,6 +704,7 @@ function LiveConcourse(): React.ReactNode {
         void (async () => {
           try {
             if (sessionId.startsWith('dispatch:')) {
+
               const clientMessageId = sessionId.slice('dispatch:'.length)
               let gone = false
               try {
@@ -677,7 +728,9 @@ function LiveConcourse(): React.ReactNode {
               refresh()
               return
             }
+
             if (sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
+
               noteControl('strip:composer', { state: 'applied', reason: 'the older chats stay — ↵ opens them; clear one at a time from there' })
               return
             }
@@ -710,23 +763,28 @@ function LiveConcourse(): React.ReactNode {
             if (daemonUp) {
               const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
               reply = (await daemonControlRpc(
+
                 { op: 'sessionRelease', runnerId: rec.runnerId } as never,
                 { timeoutMs: 15_000 },
               )) as typeof reply
             } else {
+
               const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
               const runnerAlive = rec.pid !== undefined && isProcessAlive(rec.pid)
               reply = runnerAlive
                 ? { ok: false, error: `the daemon that hosts sessions is not reachable and the runner is alive — ${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` }
                 : { ok: true, settled: workers.settleConcourseWorker(rec.runnerId) }
             }
+
             if (reply.ok === true && reply.settled !== false) {
               await markParkedCleared(sessionId).catch(() => {})
               removePrefixRecord(sessionId)
             }
+
             if (reply.ok === true && reply.settled !== false) {
               await restFocusedSlotAfterRelease(sessionId, snapshotRef.current?.groups.flatMap(g => g.rows) ?? [])
             }
+
             noteControl(
               'strip:composer',
               reply.ok === true && reply.settled !== false
@@ -745,6 +803,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       renameSession: (sessionId, title) => {
         noteControl('strip:composer', 'pending')
         void (async () => {
@@ -769,6 +828,7 @@ function LiveConcourse(): React.ReactNode {
       openObligation: obligationId => {
         void import('../../services/crew/obligations.js').then(async o => {
           const row = await o.obligationOf(obligationId, { scope: 'switchboard' })
+
           const subject = row ? `'${(row.question ?? row.sessionId).slice(0, 40)}'` : 'a settled question'
           if (!row) {
             noteControl('peek:enter-full-session', {
@@ -778,6 +838,7 @@ function LiveConcourse(): React.ReactNode {
             return
           }
           if (row.sessionId.startsWith('dispatch:')) {
+
             const boardRow = snapshotRef.current?.groups
               .flatMap(g => g.rows)
               .find(r => r.sessionId === row.sessionId)
@@ -789,9 +850,11 @@ function LiveConcourse(): React.ReactNode {
             return
           }
           void subject
+
           attachAndEnter(row.sessionId, 'board:open', { fullChat: true, entry: 'settled' })
         })
       },
+
       withdrawObligation: obligationId => {
         void (async () => {
           try {
@@ -824,6 +887,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       pauseAfterTurn: sessionId => {
         if (peekOpInFlight.current.has('row:pause')) return
         peekOpInFlight.current.add('row:pause')
@@ -832,6 +896,7 @@ function LiveConcourse(): React.ReactNode {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
             const kernel = await import('../../services/concourse/coordinatorKernel.js')
+
             const clientOpId = mintControlOpId(`pause:${sessionId}`, `concourse-op-${randomUUID()}`)
             const receipt = await kernel.executeKernelDecision({
               verb: 'session.pause',
@@ -846,6 +911,7 @@ function LiveConcourse(): React.ReactNode {
             }
             const feed = await import('../../services/concourse/coordinatorReceipts.js')
             feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator', opId: clientOpId }])
+
             noteControl(
               `board:row-control:${sessionId}`,
               receipt.outcome === 'applied'
@@ -890,6 +956,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       interruptSession: sessionId => {
         if (peekOpInFlight.current.has('row:interrupt')) return
         peekOpInFlight.current.add('row:interrupt')
@@ -904,6 +971,7 @@ function LiveConcourse(): React.ReactNode {
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
             if (reply.ok !== true) {
+
               if (reply.code !== 'ETIMEOUT' && reply.code !== 'ENOCONN') controlOpIdRef.current.delete(`interrupt:${sessionId}`)
               noteControl(`board:row-control:${sessionId}`, {
                 state: reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN' ? 'failed' : 'refused',
@@ -929,6 +997,7 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         })()
       },
+
       setSessionModel: (sessionId, modelId, displayName) => {
         if (peekOpInFlight.current.has('row:model')) return
         peekOpInFlight.current.add('row:model')
@@ -969,6 +1038,7 @@ function LiveConcourse(): React.ReactNode {
           try {
             const { randomUUID } = await import('../../utils/crypto.js')
             const kernel = await import('../../services/concourse/coordinatorKernel.js')
+
             const minted = redirectIdRef.current.get(sessionId)
             const clientMessageId =
               minted !== undefined && minted.instruction === instruction ? minted.id : `concourse-redirect-${randomUUID()}`
@@ -985,6 +1055,7 @@ function LiveConcourse(): React.ReactNode {
               redirectIdRef.current.delete(sessionId)
             const feed = await import('../../services/concourse/coordinatorReceipts.js')
             feed.ingestCoordinatorReceipts([{ ...receipt, actorAgentId: 'operator' }])
+
             const held = (receipt.detail ?? '').startsWith('session-paused') || receipt.outcome === 'failed'
             noteResident(receipt.outcome === 'applied' ? 'wink' : held ? 'held' : 'refused', receipt.detail)
             noteControl(
@@ -995,12 +1066,14 @@ function LiveConcourse(): React.ReactNode {
             )
           } catch (e) {
             logForDebugging(`[concourse] redirect failed: ${e}`)
+
             noteResident('held', 'the daemon was unreachable')
             noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: '↵ retries' })
           }
           refresh()
         })()
       },
+
       setSessionEffort: (sessionId, effort) => {
         if (peekOpInFlight.current.has('row:effort')) return
         peekOpInFlight.current.add('row:effort')
@@ -1038,6 +1111,7 @@ function LiveConcourse(): React.ReactNode {
         void writeConcourseDraft(text)
       },
       setDraftSeed: patch => {
+
         seedWriteChain.current = seedWriteChain.current.then(() => writeConcourseSeedOverride(patch))
       },
       submitSessionDraft: () => {
@@ -1047,8 +1121,10 @@ function LiveConcourse(): React.ReactNode {
         return enterBootSettings().ok
       },
       exitToChat: () => {
+
         if (!enterRootChat().ok) enterBootSettings()
       },
+
       switchCoordinatorModel: async modelId => {
         const models = await import('../../services/concourse/coordinatorModels.js')
         const receipt = await models.switchCoordinatorAssistModel(modelId)
@@ -1061,14 +1137,17 @@ function LiveConcourse(): React.ReactNode {
         refresh()
         return receipt
       },
+
       switchCoordinatorEffort: async effortWord => {
         const models = await import('../../services/concourse/coordinatorModels.js')
         const receipt = await models.switchCoordinatorEffort(effortWord)
         refresh()
         return receipt
       },
+
       sendCoordinatorMessage: async (text, clientMessageId, onAccepted, opts) => {
         const lane = await import('../../services/concourse/coordinatorLane.js')
+
         await lane.runOperatorMessageTurn(text, {}, {
           ...(clientMessageId !== undefined ? { clientMessageId } : {}),
           ...(onAccepted !== undefined ? { onAccepted } : {}),
@@ -1079,10 +1158,15 @@ function LiveConcourse(): React.ReactNode {
     }),
     [setPeek, noteResident, refresh, noteControl, attachAndEnter],
   )
+
   const submitInFlight = useRef(false)
+
   const seedWriteChain = useRef<Promise<unknown>>(Promise.resolve())
+
   const birthInFlightRef = useRef(false)
+
   const submitIdRef = useRef<{ key: string; id: string } | null>(null)
+
   useEffect(() => {
     void import('../../services/concourse/concourseSnapshot.js').then(async s => {
       if (submitIdRef.current !== null) return
@@ -1091,6 +1175,7 @@ function LiveConcourse(): React.ReactNode {
         submitIdRef.current = { key: held.envelopeKey, id: held.clientMessageId }
     })
   }, [])
+
   const daemonOfferRef = useRef<{ draft: string } | null>(null)
   const submitDraft = useCallback(
     (draft: string): void => {
@@ -1100,14 +1185,17 @@ function LiveConcourse(): React.ReactNode {
         try {
           const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
           const { randomUUID } = await import('../../utils/crypto.js')
+
           await seedWriteChain.current
           const seeds = await readConcourseSeedOverrides()
+
           const si = dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())
           const envelopeKey = `${draft}\u0000${JSON.stringify(si)}`
           const minted = submitIdRef.current
           const clientMessageId =
             minted !== null && minted.key === envelopeKey ? minted.id : `concourse-ui-${randomUUID()}`
           submitIdRef.current = { key: envelopeKey, id: clientMessageId }
+
           const opInputs: Record<string, unknown> = {
             workspaceDir: si.workspaceDir,
             ...(si.modelKey !== undefined ? { model: si.modelKey } : {}),
@@ -1133,6 +1221,7 @@ function LiveConcourse(): React.ReactNode {
             await snapshotStore.writeConcourseHeldDispatch(null)
             await writeConcourseDraft('')
             noteResident('wink')
+
             const okr = reply as { branchName?: string; mainHolderTitle?: string }
             const landedIn = basename(si.workspaceDir) || si.workspaceDir
             noteControl(
@@ -1145,6 +1234,7 @@ function LiveConcourse(): React.ReactNode {
                 : { state: 'applied', reason: `started in ${landedIn}` },
             )
           } else {
+
             const r = reply as {
               state?: string
               heldReason?: string
@@ -1169,6 +1259,7 @@ function LiveConcourse(): React.ReactNode {
                 next: r.moves?.[0]?.label ?? '↵ again replays the same request',
               })
             } else if (r.code === 'ETIMEOUT' || r.code === 'ENOCONN') {
+
               await snapshotStore.writeConcourseHeldDispatch({
                 clientMessageId,
                 envelopeKey,
@@ -1176,6 +1267,7 @@ function LiveConcourse(): React.ReactNode {
                 op: opInputs,
               })
               if (r.code === 'ENOCONN') {
+
                 daemonOfferRef.current = { draft }
                 noteResident('held', 'the daemon that hosts background sessions is not running')
                 noteControl('strip:composer', {
@@ -1193,6 +1285,7 @@ function LiveConcourse(): React.ReactNode {
               }
             } else {
               submitIdRef.current = null
+
               await snapshotStore.writeConcourseHeldDispatch(null)
               const reason = r.detail ?? r.error ?? 'the dispatch was refused'
               noteResident('refused', reason)
@@ -1204,10 +1297,12 @@ function LiveConcourse(): React.ReactNode {
             }
           }
         } catch (e) {
+
           logForDebugging(`[concourse] dispatch failed: ${e}`)
           noteResident('held', 'the daemon was unreachable')
           noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: '↵ retries' })
         } finally {
+
           setTimeout(() => {
             submitInFlight.current = false
           }, 500)
@@ -1217,6 +1312,7 @@ function LiveConcourse(): React.ReactNode {
     },
     [noteResident, refresh, noteControl],
   )
+
   const answerDaemonOffer = useCallback(
     (yes: boolean): void => {
       const offer = daemonOfferRef.current
@@ -1243,9 +1339,11 @@ function LiveConcourse(): React.ReactNode {
           })
           return
         }
+
         for (let i = 0; i < 40; i++) {
           const probe = (await daemonControlRpc({ op: 'concourseList' } as never, { timeoutMs: 500 })) as { code?: string }
           if (probe.code !== 'ENOCONN') {
+
             submitDraft(offer.draft)
             return
           }
@@ -1260,6 +1358,7 @@ function LiveConcourse(): React.ReactNode {
     },
     [noteControl, submitDraft],
   )
+
   const bootGroundApplied = useRef(false)
   useEffect(() => {
     if (fixture !== null || bootGroundApplied.current) return
@@ -1275,6 +1374,7 @@ function LiveConcourse(): React.ReactNode {
       }
     })()
   }, [fixture, refresh])
+
   const pumpBusyRef = useRef(false)
   useEffect(() => {
     if (fixture !== null) return
@@ -1287,12 +1387,14 @@ function LiveConcourse(): React.ReactNode {
         const store = await import('../../services/concourse/concourseSnapshot.js')
         const dispatchMod = await import('../../daemon/concourseDispatch.js')
         const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+
         try {
           const attachedMod = await import('../../services/switchboard/attachedSession.js')
           const marker = await store.readConcoursePendingHandback()
           let handedBack = 0
           if (
             marker !== null &&
+
             (await attachedMod.completeHandback(marker.kind, marker.sessionId, {
               mintedAtMs: marker.mintedAtMs,
             }))
@@ -1309,6 +1411,7 @@ function LiveConcourse(): React.ReactNode {
           }
         } catch {
         }
+
         const deliveries = await store.readConcourseHeldDeliveries()
         const deliveryIds = Object.keys(deliveries)
         if (deliveryIds.length > 0) {
@@ -1337,11 +1440,13 @@ function LiveConcourse(): React.ReactNode {
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; heldReason?: string }
             if (dreply.ok === true || dreply.heldReason === undefined) {
+
               await store.writeConcourseHeldDelivery(sessionId, null)
               refresh()
             }
           }
         }
+
         try {
           const rowsNY = snap.needsYou ?? []
           if (rowsNY.length > 0) {
@@ -1354,6 +1459,7 @@ function LiveConcourse(): React.ReactNode {
             for (const ny of rowsNY.slice(0, 12)) {
               const sid = ny.sessionId
               if (sid === hostId || sid.startsWith('folder:')) continue
+
               let stale = false
               if (sid.startsWith('dispatch:')) {
                 const drow = ledger[sid.slice('dispatch:'.length)]
@@ -1379,6 +1485,7 @@ function LiveConcourse(): React.ReactNode {
         const rec = dispatchMod.readConcourseDispatches()[held.clientMessageId]
         if (rec === undefined) return
         if (rec.sessionId !== undefined && rec.state !== 'queued' && rec.state !== 'failed') {
+
           await drainQueuedStack(held.clientMessageId, rec.sessionId)
           await store.writeConcourseHeldDispatch(null)
           return
@@ -1427,14 +1534,17 @@ function LiveConcourse(): React.ReactNode {
           refresh()
         }
       } catch (e) {
+
         logForDebugging(`[concourse] admission pump beat failed (next refresh retries): ${e}`)
       } finally {
         pumpBusyRef.current = false
       }
     })()
   }, [liveSnapshot, fixture, drainQueuedStack, noteControl, refresh])
+
   if (!snapshot) return <ConcourseAssemblingShell failing={failing} onRetry={refresh} />
   if (waitingRoom !== null) {
+
     return (
       <SessionWaitingRoom
         dispatchId={waitingRoom.dispatchId}
@@ -1445,12 +1555,14 @@ function LiveConcourse(): React.ReactNode {
       />
     )
   }
+
   const screenCallbacks: ConcourseCallbacks = {
     ...callbacks,
     startSessionDraft: (text: string, caret?: number) => void writeConcourseDraft(text, undefined, caret),
     setDraftSeed: patch => {
       seedWriteChain.current = seedWriteChain.current.then(() => writeConcourseSeedOverride(patch))
       if ('projectDir' in patch) {
+
         void import('../../services/switchboard/harnessGround.js')
           .then(m =>
             m.applyHarnessGround(
@@ -1461,6 +1573,7 @@ function LiveConcourse(): React.ReactNode {
           })
       }
     },
+
     newSession: (opts?: { contractText?: string }) => {
       if (birthInFlightRef.current) return
       birthInFlightRef.current = true
@@ -1476,6 +1589,7 @@ function LiveConcourse(): React.ReactNode {
             noteControl('board:new-session', { state: 'refused', reason: born.reason, next: 'n retries' })
             return
           }
+
           let contractNote = ''
           const contractText = opts?.contractText?.trim() ?? ''
           if (contractText.length > 0) {
@@ -1493,6 +1607,7 @@ function LiveConcourse(): React.ReactNode {
             }
           }
           if (surfaceGeneration() === gen) {
+
             if (splitFrameStands()) {
               noteControl('board:new-session', { state: 'applied', reason: `${born.title} — in the chat pane${contractNote}` })
             } else {
@@ -1531,6 +1646,7 @@ function LiveConcourse(): React.ReactNode {
       callbacks={screenCallbacks}
       degraded={failing}
       controlNotes={controlNotes}
+
       reducedStage={chatOnlyBoot()}
     />
   )
@@ -1539,6 +1655,7 @@ function LiveConcourse(): React.ReactNode {
 function ConcourseAssemblingShell({ failing, onRetry }: { failing: boolean; onRetry: () => void }): React.ReactNode {
   const t = useMercuryTokens()
   const { rows: termRows } = useTerminalSize()
+
   const escLabel = chatPresent() ? 'esc focused chat' : 'esc boot face'
   useInput((input, key, event) => {
     if (key.escape) {

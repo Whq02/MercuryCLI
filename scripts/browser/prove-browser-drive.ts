@@ -20,6 +20,7 @@ const { resolveBrowser } = await import('../../src/services/browser/browserResol
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { activeSession } = await import('../../src/services/browser/browserSession.ts')
 const { processOwnerForLane } = await import('../../src/services/run/resolveOwner.ts')
+
 const OWNER = processOwnerForLane(null)
 type ToolInput = Parameters<typeof BrowserTool.call>[0]
 
@@ -581,6 +582,7 @@ console.log('§16 engine-chain truth')
   const underToolAllow = await decideToolPermission(BrowserTool as never, clickB, engineCtx({ allow: ['Browser'] }) as never)
   check('a WHOLE-TOOL allow rule cannot cover the crossing act (safetyCheck floor)', underToolAllow.decision.behavior === 'ask', JSON.stringify(underToolAllow.decision.behavior))
   const underSovereign = await decideToolPermission(BrowserTool as never, clickB, engineCtx({ mode: 'sovereign' }) as never)
+
   const sovReason = (underSovereign.decision as { decisionReason?: { type?: string } }).decisionReason
   check('a bypass mode covers the crossing act and names the road that would have asked', underSovereign.decision.behavior === 'allow' && sovReason?.type === 'bypassedAsk', JSON.stringify({ behavior: underSovereign.decision.behavior, reason: sovReason }))
   const originRule = `Browser(origin:${B})`
@@ -640,8 +642,10 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
   const { approvedOriginList, noteCheckedActOrigin, consumeCheckedActOrigin } = await import(
     '../../src/services/browser/browserSession.ts'
   )
+
   const askB = await permB({ op: 'open', url: `${A}/` })
   check('owner B asks for an origin owner A already approved (grants never cross owners)', askB.behavior === 'ask', JSON.stringify(askB))
+
   const mainUrlBefore = page().url()
   const openedB = await runB({ op: 'open', url: `${B}/` })
   check('owner B opens its OWN session', openedB.outcome === 'succeeded' && openedB.result.includes('drive-fixture-b'), openedB.result)
@@ -649,16 +653,20 @@ async function permB(input: Partial<ToolInput>): Promise<{ behavior: string; mes
   const pidA = activeSession(OWNER)!.browser.process()?.pid
   const pidB = activeSession(OWNER_B)!.browser.process()?.pid
   check('two owners = two real browser children (distinct pids)', typeof pidA === 'number' && typeof pidB === 'number' && pidA !== pidB, `A=${pidA} B=${pidB}`)
+
   const typedB = await runB({ op: 'type', selector: '#bfield', text: 'beta-owner' })
   const clickedA = await run({ op: 'click', x: 5, y: 5 })
   check("interleaved acts: B types into B's page, A clicks A's page, both land", typedB.outcome === 'succeeded' && clickedA.outcome === 'succeeded', `${typedB.result} | ${clickedA.result}`)
   const grantsB = approvedOriginList(OWNER_B)
   check("B's grant ledger is its own: exactly the origin B visited", grantsB.length === 1 && grantsB[0] === B, grantsB.join(' · '))
+
   const ringB = await runB({ op: 'console' })
   check("B's console ring is B's own (no alpha-page entries)", !ringB.result.includes('alpha loaded'), ringB.result.split('\n').slice(0, 3).join(' | '))
+
   noteCheckedActOrigin(OWNER, 'click', 'http://one-shot-fixture.test')
   check("A's judged origin is NOT consumable by owner B", consumeCheckedActOrigin(OWNER_B, 'click') === null)
   check("…and stays consumable by owner A (one-shot, own lane)", consumeCheckedActOrigin(OWNER, 'click') === 'http://one-shot-fixture.test')
+
   const statusA = await run({ op: 'status' })
   const statusB = await runB({ op: 'status' })
   check('status (A) names the other live session', statusA.result.includes('other live sessions: 1'), statusA.result.split('\n').slice(-1).join(''))
@@ -715,6 +723,7 @@ console.log('§19 the children cap')
   )
   const mainStill = await run({ op: 'open', url: `${A}/two` })
   check("the cap gates NEW children, never a live owner's navigation", mainStill.outcome === 'succeeded', mainStill.result)
+
   process.env.MERCURY_BROWSER_MAX_SESSIONS = '2'
   const OWNER_R1 = processOwnerForLane('fixture-racer-1')
   const OWNER_R2 = processOwnerForLane('fixture-racer-2')
@@ -744,6 +753,7 @@ console.log('§19b same-owner launch single-flight')
   check('two parallel ensures from ONE owner land the SAME session (object identity)', okBoth && s1 === s2, `pids ${pid1}/${pid2}`)
   check('the owner holds exactly one live child (census)', liveBrowserSessionCensus().filter(r => r.owner === OWNER_S).length === 1)
   await disposeBrowserOwner(OWNER_S)
+
   for (const pid of [pid1, pid2]) {
     if (pid === undefined) continue
     try {
@@ -760,6 +770,7 @@ console.log('§20 the secretRef credential road')
   const SECRET_VALUE = 'fixture-hunter2-9QzX'
   process.env.MERCURY_BROWSER_SECRET_TEST_LOGIN = SECRET_VALUE
   await run({ op: 'open', url: `${A}/` })
+
   const ask = (await BrowserTool.checkPermissions({ op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' }, ctx)) as {
     behavior: string
     message?: string
@@ -776,6 +787,7 @@ console.log('§20 the secretRef credential road')
     ask.decisionReason?.type === 'safetyCheck' && ask.decisionReason?.operatorOnly === true,
     JSON.stringify(ask.decisionReason),
   )
+
   const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const engineCtx = (opts: { allow?: string[] }) => {
@@ -811,26 +823,32 @@ console.log('§20 the secretRef credential road')
     engineCtx({ allow: [`Browser(secret:TEST_LOGIN@${A})`] }) as never,
   )
   check('the EXACT pairing rule covers the fill', rightPairing.decision.behavior === 'allow', String(rightPairing.decision.behavior))
+
   const filled = await run({ op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' })
   const landed = await page().evaluate(() => (document.getElementById('pw') as HTMLInputElement).value)
   check('the secret fill LANDS in the password field (page-side census)', filled.outcome === 'succeeded' && landed === SECRET_VALUE, filled.result)
   check('the result names the REF, never the value and never a length readback', filled.result.includes('TEST_LOGIN') && !filled.result.includes(SECRET_VALUE) && !filled.result.includes('value now'), filled.result)
+
   const ring = await run({ op: 'console' })
   check('the console ring never carries the value', !ring.result.includes(SECRET_VALUE))
+
   check('the approved pairing rides (no re-ask this session)', (await perm({ op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' })).behavior === 'allow')
   check("the pairing is the MAIN owner's own, not owner B's", secretPairingApproved(OWNER, 'TEST_LOGIN', A) && !secretPairingApproved(OWNER_B, 'TEST_LOGIN', A))
+
   const wrongShape = await run({ op: 'type', selector: '#field', secretRef: 'TEST_LOGIN' })
   check('secretRef refuses a NON-credential target by name', wrongShape.outcome === 'failed' && wrongShape.result.includes('credential-shaped'), wrongShape.result)
   const fieldUntouched = await page().evaluate(() => (document.getElementById('field') as HTMLInputElement).value)
   check('…and nothing was filled', fieldUntouched === '')
   const plainIntoPw = await run({ op: 'type', selector: '#pw', text: 'not-a-secret', clear: true })
   check('plain text STILL refuses the credential field (the standing law kept)', plainIntoPw.outcome === 'failed' && plainIntoPw.result.includes('credential field'), plainIntoPw.result)
+
   await perm({ op: 'type', selector: '#pw', secretRef: 'TEST_LOGIN' })
   await page().goto(`${B}/`)
   const drifted = await run({ op: 'type', selector: '#bfield', secretRef: 'TEST_LOGIN' })
   check('a page that moved after the pairing check refuses by name, nothing filled', drifted.outcome === 'failed' && drifted.result.includes('moved'), drifted.result)
   check('the drifted-to origin gained NO pairing', (await perm({ op: 'type', selector: '#bfield', secretRef: 'TEST_LOGIN' })).behavior === 'ask')
   await run({ op: 'open', url: `${A}/` })
+
   await perm({ op: 'type', selector: '#pw', secretRef: 'NO_SUCH_SECRET' })
   const missing = await run({ op: 'type', selector: '#pw', secretRef: 'NO_SUCH_SECRET' })
   check(
@@ -844,10 +862,12 @@ console.log('§20 the secretRef credential road')
   check('text and secretRef together refuse', bothForms.result === false)
   const noSelector = await BrowserTool.validateInput!({ op: 'type', secretRef: 'TEST_LOGIN' } as ToolInput, ctx)
   check('secretRef without a selector refuses (never aimed at "whatever is focused")', noSelector.result === false)
+
   check(
     'the error-text scrub replaces every value occurrence with a named marker',
     scrubSecretFromText(`boom ${SECRET_VALUE} and ${SECRET_VALUE}`, SECRET_VALUE, 'TEST_LOGIN') === 'boom [redacted:TEST_LOGIN] and [redacted:TEST_LOGIN]',
   )
+
   const secretsDir = mkdtempSync(join(tmpdir(), 'mercury-browser-secrets-'))
   const secretsFile = join(secretsDir, 'browser-secrets.json')
   writeFileSync(secretsFile, JSON.stringify({ FILE_SECRET: 'file-road-value-77' }), { mode: 0o600 })
@@ -992,6 +1012,7 @@ console.log('DRILL-PID ' + s.browser.process()?.pid)
 console.log('§15 structural teeth')
 {
   const toolSrc = await Bun.file(join(ROOT, 'src', 'tools', 'BrowserTool', 'BrowserTool.ts')).text()
+
   check(
     'the act-op set is spelled exactly',
     toolSrc
@@ -1002,6 +1023,7 @@ console.log('§15 structural teeth')
   check('the first-visit ask names itself', toolSrc.includes('first visit to'))
   check('the crossing ask names itself', toolSrc.includes('reached by navigation'))
   check('the credential refusal is a named law', toolSrc.includes('credential field'))
+
   check('text waits poll the frame signal, never clock spins', toolSrc.includes("polling: 'raf'") && !toolSrc.includes('waitForTimeout'))
   check('the tool names its own deadline on a miss', toolSrc.includes('deadline ${deadline}ms exceeded'))
   check('the crossing ask is bypass-immune by reason (safetyCheck, the operator alone)', toolSrc.includes('operatorOnly: true'))
@@ -1011,6 +1033,7 @@ console.log('§15 structural teeth')
   check('the Browser card is ROUTED (the fallback whole-tool card no longer answers)', routerSrc.includes('BrowserPermissionRequest'))
   check('extract truncation names its cap', toolSrc.includes('TRUNCATED to ${EXTRACT_CAP}'))
   const sessionSrc = await Bun.file(join(ROOT, 'src', 'services', 'browser', 'browserSession.ts')).text()
+
   check('grants wipe on EVERY dead-session road (owner-scoped)', sessionSrc.split('.approvedOrigins.clear()').length === 5)
   check('the per-owner store joins the owner-disposal registry', sessionSrc.includes('registerOwnerScopedStore(ownerStates)'))
   check(
@@ -1023,6 +1046,7 @@ console.log('§15 structural teeth')
     "agent teardown reaps the agent's own browser child (the leak-repair seam)",
     runAgentSrc.includes('disposeOwnerProcesses(processOwnerForLane(agentId))'),
   )
+
   check('secret pairings wipe on EVERY dead-session road', sessionSrc.split('.approvedSecretPairings.clear()').length === 5)
   check('the error-text scrub is INSTALLED on the result rail', toolSrc.includes('scrubSecretFromText(result'))
   check('the fill-only-credential complement is a named law', toolSrc.includes('secretRef fills only credential-shaped targets'))

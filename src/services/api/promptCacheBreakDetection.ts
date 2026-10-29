@@ -16,7 +16,6 @@ import {
   type PrefixFingerprint,
 } from './prefixFingerprint.js'
 
-
 const CACHE_TTL_1HOUR_MS = 60 * 60 * 1000
 const CACHE_TTL_5MIN_MS = 5 * 60 * 1000
 
@@ -95,6 +94,7 @@ type PromptCacheBreakReceipt = {
   model: string
   previousModel?: string
   callCount: number
+
   cacheReadPrev: number
   cacheReadNow: number
   cacheCreationTokens: number
@@ -168,10 +168,11 @@ const TRACKED_SOURCE_PREFIXES = ['main_thread', 'sdk', 'agent:custom', 'agent:de
 const laneStates = new Map<string, LaneState>()
 const receipts: PromptCacheBreakReceipt[] = []
 
-
 function trackingKey(querySource: string, agentId?: string): string | null {
+
   if (querySource === 'compact') return 'main_thread'
   if (!TRACKED_SOURCE_PREFIXES.some(prefix => querySource.startsWith(prefix))) return null
+
   return agentId ?? querySource
 }
 
@@ -179,8 +180,10 @@ function fastHash(value: string): number {
   const bun = (globalThis as { Bun?: { hash?: (input: string) => number | bigint } }).Bun
   if (typeof bun?.hash === 'function') {
     const hashed = bun.hash(value)
+
     return typeof hashed === 'bigint' ? Number(BigInt.asUintN(32, hashed)) : hashed
   }
+
   return djb2Hash(value)
 }
 
@@ -198,6 +201,7 @@ function hashToolSchemas(tools: NeutralToolSchema[]): number {
 }
 
 function hashCacheControls(system: NeutralSystemBlock[]): number {
+
   return fastHash(jsonStringify(system.map(block => block.cache_control ?? null)) ?? '')
 }
 
@@ -220,6 +224,7 @@ function systemTextLength(system: NeutralSystemBlock[]): number {
 }
 
 function buildPromptRendering(snapshot: PromptStateSnapshot): () => string {
+
   let cached: string | null = null
   return () => {
     if (cached !== null) return cached
@@ -246,7 +251,6 @@ function betasEqual(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false
   return a.every((value, index) => value === b[index])
 }
-
 
 export function recordPromptState(snapshot: PromptStateSnapshot): void {
   try {
@@ -275,6 +279,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
 
     const existing = laneStates.get(key)
     if (existing === undefined) {
+
       while (laneStates.size >= MAX_TRACKED_LANES) {
         const oldest = laneStates.keys().next().value
         if (oldest === undefined) break
@@ -285,6 +290,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         toolsHash,
         cacheControlHash,
         toolNames,
+
         perToolHashes: perToolHashes(snapshot.toolSchemas),
         systemTextLength: textLength,
         model: snapshot.model,
@@ -416,7 +422,6 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
   }
 }
 
-
 function ageOfLastAssistantMessage(messages: Message[]): number | null {
   for (let index = messages.length - 1; index >= 0; index--) {
     const message = messages[index] as { type?: string; timestamp?: unknown } | undefined
@@ -453,10 +458,12 @@ function buildReason(pending: PendingChanges): string {
       `global cache strategy changed (${pending.previousStrategy || 'none'} → ${pending.newStrategy || 'none'})`,
     )
   }
+
   if (pending.cacheControlChanged && !pending.strategyChanged && !pending.systemPromptChanged) {
     parts.push('cache_control changed (scope or TTL)')
   }
   if (pending.betasChanged) {
+
     const additions = pending.addedBetas.length > 0 ? `+${pending.addedBetas.join(',')}` : ''
     const removals = pending.removedBetas.length > 0 ? `-${pending.removedBetas.join(',')}` : ''
     const detail = [additions, removals].filter(part => part !== '').join(' ')
@@ -475,6 +482,7 @@ function buildReason(pending: PendingChanges): string {
 }
 
 function classifyByElapsedTime(ageMs: number | null): string {
+
   if (ageMs !== null && ageMs > CACHE_TTL_1HOUR_MS) {
     return 'possible 1h TTL expiry (prompt unchanged)'
   }
@@ -599,7 +607,6 @@ export async function checkResponseForCacheBreak(
     logError(err)
   }
 }
-
 
 export function notifyCacheDeletion(querySource: string, agentId?: string): void {
   const key = trackingKey(querySource, agentId)

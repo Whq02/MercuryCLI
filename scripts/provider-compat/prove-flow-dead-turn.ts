@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -179,6 +180,7 @@ function toolTurn(calls: Array<{ id: string; name: string; input: Record<string,
   m.message.stop_reason = 'tool_use'
   return m
 }
+
 const partialThenFault = (partial: string): Step[] => [
   y(textTurn(partial)),
   y(
@@ -236,6 +238,7 @@ const userTexts = (msgs: unknown[]): string[] => {
   }
   return out
 }
+
 const toolResults = (msgs: unknown[]): Array<{ id: string; isError: boolean; text: string }> => {
   const out: Array<{ id: string; isError: boolean; text: string }> = []
   for (const m of msgs as AnyMsg[]) {
@@ -446,6 +449,7 @@ section('S7 — the wire heal folds split turns: a grouped round is ONE turn, ne
 {
   const pairing = await import('../../src/utils/messages/pairing.ts')
   const { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } = await import('../../src/utils/messages/rejectionText.ts')
+
   const asst = (id: string, blocks: unknown[]): unknown => {
     const m = createAssistantMessage({ content: blocks as never })
     ;(m.message as { id: string }).id = id

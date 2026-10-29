@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,6 +31,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t('task notifications earn nothing', queuedCommandHistoryEntry({ value: '<task-notification/>', mode: 'task-notification' }) === null)
   t('block-content values earn nothing', queuedCommandHistoryEntry({ value: [{ type: 'text', text: 'x' }], mode: 'prompt' }) === null)
   const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
+
   t('the submit-time write happens once, when the composer is taken (structural)', /const takeComposer = \(\): void => \{[\s\S]{0,700}addToHistory\(\{ display: seatMode === 'bash' \? `!\$\{input\}` : input, pastedContents: seatPastes \}\);/.test(repl))
   t('the face holds no drain-time history write (the runner drains its own queue)', !repl.includes('queuedCommandHistoryEntry('))
 }
@@ -122,6 +124,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   const { Select } = await import('../../src/components/CustomSelect/select.js')
   const { AppStateProvider } = await import('../../src/state/AppState.js')
   const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.js')
+
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   let written = ''

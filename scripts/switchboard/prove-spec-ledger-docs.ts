@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -9,6 +10,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 const root = join(import.meta.dir, '..', '..')
+
 const doc = readFileSync(join(root, 'docs', 'SESSIONS.md'), 'utf8').replace(/\s+/g, ' ')
 const screen = readFileSync(join(root, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
 const route = readFileSync(join(root, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
@@ -26,6 +28,7 @@ console.log('============================================================')
 }
 
 {
+
   const toothA = ['own', 'session list'].join(' ')
   const toothB = ['in the chat', 'frame'].join(' ')
   check('the doc never says the ↵ opens the session list in the chat frame', !(doc.includes(toothA) && doc.includes(toothB)))

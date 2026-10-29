@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execSync, spawnSync } from 'node:child_process'
@@ -73,6 +74,7 @@ check('subsequent edit → stale again', vs.verificationSummary(cwd, { skipDiges
   vs.observeCompletedToolCall('Edit', { file_path: 'src/failed.ts' }, false, cwd)
   const after = vs.verificationSummary(cwd, { skipDigest: true }).mutationsSinceEvidence
   check('a failed Edit does not mark a mutation', before === after)
+
   vs.observeCompletedToolCall('LSP', { operation: 'rename', apply: true }, true, cwd)
   const applied = vs.verificationSummary(cwd, { skipDigest: true }).mutationsSinceEvidence
   check('an LSP apply INPUT no longer marks a mutation (effects own it)', applied === after)
@@ -108,6 +110,7 @@ console.log('\n— the shared vocabulary (generic families + exit-propagation) �
   check('npm test 2>&1 mints (fd-redirect never splits)', c('npm test 2>&1')?.scope === 'test')
   check('npm test && git push mints (&&-to-end: failure propagates)', c('npm test && git push')?.scope === 'test')
   check('a QUOTED verify word never mints: git commit -m "npm test fixed"', c('git commit -m "npm test fixed"') === null)
+
   check('REACHABILITY: [ -d node_modules ] || npm ci never mints (skipped on success)', c('[ -d node_modules ] || npm ci') === null)
   check('REACHABILITY: grep -q done .status || npm test never mints', c('grep -q done .status || npm test') === null)
   check('TREE BINDING: npm test && sed -i s/a/b/ f.ts never mints (post-suite mutation)', c("npm test && sed -i 's/a/b/' f.ts") === null)
@@ -134,6 +137,7 @@ console.log('\n— demandedReadBackPaths (the item-1 contract store) —')
   vs.observeCompletedToolCall('Write', { file_path: changed }, true, docs)
   const demanded = vs.demandedReadBackPaths(docs)
   check('a mutation in a NON-verifiable workspace lists its read-back debt', demanded.has(vs.canonicalEvidencePath(changed)), [...demanded].join(','))
+
   vs.observeCompletedToolCall('Read', { file_path: changed, offset: 1, limit: 1 }, true, docs)
   check('a RANGED Read does NOT pay the debt', vs.demandedReadBackPaths(docs).size === 1)
   vs.observeCompletedToolCall('Read', { file_path: changed }, true, docs)

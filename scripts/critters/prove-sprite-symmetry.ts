@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   CRITTERS,
   heroContentBounds,
@@ -11,7 +12,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
-
 
 type AxisKind = 'content' | 'grid'
 
@@ -46,7 +46,6 @@ function rowVerdict(row: string, mirror: (c: number) => number): RowVerdict {
   return { outline, anatomy, full }
 }
 
-
 type Gesture = { reason: string; rows: readonly number[] }
 
 const GESTURES: Readonly<Record<string, Gesture>> = {}
@@ -59,7 +58,6 @@ const FULL_MIRROR = new Set<string>([
   'jellyfish · square dock',
   'clam · square dock',
 ])
-
 
 function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind): void {
   if (!art || art.length === 0) {
@@ -74,6 +72,7 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
   const gesture = GESTURES[name]
   const exempt = new Set(gesture?.rows ?? [])
   const verdicts = art.map(row => rowVerdict(row, mirror))
+
   console.log(
     `  · ${name}: ${art.length} rows × ${width} wide · axis ${kind} [${s},${e}) centre ${((s + e - 1) / 2).toFixed(1)}` +
       ` · outline ${verdicts.filter(v => v.outline).length}/${art.length} · anatomy ${verdicts.filter(v => v.anatomy).length}/${art.length}` +
@@ -101,6 +100,7 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
     )
   }
   if (gesture) {
+
     const stale = gesture.rows.filter(i => verdicts[i]?.outline && verdicts[i]?.anatomy)
     check(`${name}: no STALE gesture registration (a registered row is still asymmetric)`, stale.length === 0, `rows ${stale.join(',')} mirror now — prune them`)
   }
@@ -156,6 +156,7 @@ console.log('poison controls')
   check('poison: the pre-compact clam hero mirrors in ANATOMY on every row (grooves, notches, ribs, eyes)', v.every(x => x.anatomy))
   const leaning = v.map((x, i) => (!x.full ? i : -1)).filter(i => i >= 0)
   check('poison: §3 TRIPS on the pre-compact clam hero — its shading leans (the class the operator saw)', leaning.length >= 10, `leaning rows: ${leaning.join(',')}`)
+
   const LOPSIDED = LEANING_CLAM_HERO.map((r, i) => (i === 3 ? '....LMMMMCMCCMCMMMmmM...' : r))
   const lv = LOPSIDED.map(r => rowVerdict(r, mirrorOf(LOPSIDED, 'content')))
   check('poison: §1 TRIPS on a lopsided outline row', lv.some(x => !x.outline))

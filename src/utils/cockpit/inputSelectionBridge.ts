@@ -1,4 +1,3 @@
-
 type InputSelectionRange = { start: number; end: number }
 
 type InputSelectionOwner = {
@@ -20,6 +19,7 @@ export function peekInputSelectionRange(): InputSelectionRange | null {
   try {
     return owner?.range() ?? null
   } catch {
+
     return null
   }
 }

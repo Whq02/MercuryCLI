@@ -1,14 +1,20 @@
 import { isOutcome, mainThreadStep, outcomeErrorText, outcomeFailed, turnOpened, type LooseRow } from '../rows/read.js'
 
 export interface LongLivedRespawnConfig {
+
   maxRespawns: number
+
   backoffBaseMs: number
+
   backoffCapMs: number
+
   healthyResetMs?: number
+
   maxLifetimeCrashes?: number
 }
 
 export const DEFAULT_HEALTHY_RESET_MS = 5 * 60 * 1000
+
 export const DEFAULT_MAX_LIFETIME_CRASHES = 20
 
 export const DEFAULT_LONG_LIVED_CONFIG: LongLivedRespawnConfig = {
@@ -55,7 +61,6 @@ export function decideRespawn(
   return { action: 'respawn', delayMs: longLivedBackoffMs(respawns, cfg), respawns }
 }
 
-
 export const DEFAULT_RECONFIGURE_IDLE_MS = 15_000
 
 export function workerIsIdle(
@@ -70,6 +75,7 @@ export type RowUsage = {
   input_tokens: number
   cache_creation_input_tokens: number
   cache_read_input_tokens: number
+
   output_tokens: number
 }
 
@@ -88,10 +94,11 @@ export function occupancyOfRow(row: LooseRow | null): RowUsage | null {
   }
 }
 
-
 export type WireSpecView = {
+
   model: string
   effort: string
+
   pendingModel?: string
   pendingEffort?: string
 }
@@ -112,7 +119,6 @@ export function deriveWireSpec(args: {
     ...(owed && args.spec.effort !== effort ? { pendingEffort: args.spec.effort } : {}),
   }
 }
-
 
 export const DEFAULT_MAX_TURN_MS = 20 * 60 * 1000
 

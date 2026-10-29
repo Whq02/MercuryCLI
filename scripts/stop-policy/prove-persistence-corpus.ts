@@ -100,6 +100,7 @@ async function main(): Promise<void> {
 
   section('class 1 — an unattainable objective settles only at the operator budget, never on a repetition count')
   {
+
     const grind = fold('produce a photo of the finished UI', [
       { type: 'substantive', at: 2, reason: 'attempting the ask' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'produce the photo', state: 'open' },
@@ -110,6 +111,7 @@ async function main(): Promise<void> {
       d3.kind === 'continue' && !d3.nextAction.includes('REPLAN'),
       `third zero-progress stop attempt → ${d3.kind}`,
     )
+
     let issued = 0
     let finalKind = ''
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -184,6 +186,7 @@ async function main(): Promise<void> {
       { type: 'substantive', at: 2, reason: 'implementation' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'land the refactor', state: 'open' },
     ]
+
     for (let h = 1; h <= 6; h++) {
       productiveEvents.push(
         { type: 'tool-effected', at: h * HOUR, toolName: 'Edit', toolUseId: `e${h}`, operation: 'edit', outcome: 'succeeded', changedPaths: [`src/slice${h}.ts`] },
@@ -254,6 +257,7 @@ async function main(): Promise<void> {
         const allow = await cb6(transcript6)
         if (allow === false) {
           blocks6++
+
           transcript6.push({ type: 'assistant', message: { content: [{ type: 'text', text: `try ${i}` }] } })
         } else break
       }

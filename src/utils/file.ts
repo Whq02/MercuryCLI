@@ -27,7 +27,6 @@ import { fileReadCache } from './fileReadCache.js'
 import { logError } from './log.js'
 import { expandPath } from './path.js'
 
-
 export type File = {
   filename: string
   content: string
@@ -344,6 +343,7 @@ export function writeFileAndFlushAtomically(
         logError(refusal)
         throw refusal
       }
+
       let oldBytes: Buffer
       try {
         oldBytes = readFileSync(target)
@@ -408,6 +408,7 @@ export function getAbsoluteAndRelativePaths(path: string | undefined): {
 }
 
 export function getDisplayPath(filePath: string): string {
+
   if (typeof filePath !== 'string') {
     return filePath === undefined || filePath === null ? '' : String(filePath)
   }
@@ -458,6 +459,7 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
     const rebuilt = join(resolvedParent, basename(requestedPath))
     const cwd = getCwd()
     const cwdParent = dirname(cwd)
+
     const parentPrefix = cwdParent.endsWith(sep) ? cwdParent : cwdParent + sep
     const underParent = rebuilt.startsWith(parentPrefix)
     const underCwd = rebuilt === cwd || rebuilt.startsWith(cwd + sep)

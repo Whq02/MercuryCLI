@@ -1,4 +1,3 @@
-
 export function isKimiModelId(model: string): boolean {
   const m = model.trim().toLowerCase()
   return m === 'kimi' || m.startsWith('kimi-') || m.startsWith('moonshot-')
@@ -32,8 +31,10 @@ type KimiThinkingRule = 'always-on' | 'opt-in'
 export interface KimiDisplayPin {
   id: string
   displayName: string
+
   observedAt: string
   source?: string
+
   contextWindow?: number
   outputMax?: number
   efforts?: readonly string[]
@@ -95,6 +96,7 @@ export const KIMI_DISPLAY_PINS: readonly KimiDisplayPin[] = [
     displayName: 'Kimi K3',
     observedAt: '2026-08-21',
     contextWindow: 1_048_576,
+
     outputMax: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
     defaultEffort: 'max',

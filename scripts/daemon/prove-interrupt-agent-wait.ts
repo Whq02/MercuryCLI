@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -62,6 +63,7 @@ console.log('\nA1 the driver announces the agent wait and its end')
     turnIdOf: () => 't-aw',
     openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-aw' }) as never,
     onTurnSettled: () => {},
+
     hasWaitableBackgroundTasks: () => {
       polls++
       if (polls === 3) running = 2

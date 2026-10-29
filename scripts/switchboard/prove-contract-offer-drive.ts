@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,6 +38,7 @@ writeFileSync(
     switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 },
   }),
 )
+
 const FIRST_ANSWER = 'The first session answered with a sentence long enough that only a transcript paints its tail whole.'
 const TRANSCRIPT_TAIL = /paints its tail whole/
 const api = await startFixtureApi([
@@ -55,6 +57,7 @@ const sends = [
   after(8000, '\t'),
   after(8800, 'n'),
   after(10200, ESC),
+
   after(13600, `${ESC}[1;2D`),
   after(15400, 'n'),
   after(16600, '\r'),
@@ -71,6 +74,7 @@ const child = spawn(
   {
     cwd,
     env: {
+
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -142,13 +146,16 @@ if (sendRecs.length === sends.length) {
   if (process.env.CONTRACT_OFFER_DUMP === '1') for (const [label, frame] of Object.entries({ afterEsc, fieldFrame, typedFrame, afterBirth, fin })) console.log(`\n═══ ${label}\n${frame}`)
   check('§0 the transcript needle paints in the first chat (the sibling-transcript poison is never vacuous)', TRANSCRIPT_TAIL.test(firstChat!), firstChat!.split('\n').find(r => /answered/.test(r))?.trim().slice(0, 110) ?? '')
   check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!))
+
   check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterEsc!) && /Type a prompt/.test(afterEsc!) && /ready · [^\n]*← back/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!))
+
   check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
   check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
   check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
   check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
   check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!))
+
   check('§5 ↵ births under the words — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterBirth!) && /Type a prompt/.test(afterBirth!) && /ready · [^\n]*← back/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!))
   check('§2b/§5c the rows join the board (the final frame after returning to it)', /SESSION CONCOURSE/.test(fin!) && /3 live/.test(fin!))

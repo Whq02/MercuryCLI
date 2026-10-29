@@ -16,7 +16,6 @@ import { clearAgentPauseRecord } from './LocalAgentTask/pauseCarry.js'
 import { isLocalShellTask, type LocalShellTaskState } from './LocalShellTask/guards.js'
 import { findTaskOutcome, type TaskOutcomeEnvelope, type TaskOutcomeState } from './taskOutcomeEnvelope.js'
 
-
 export function resolveStopTargetId(raw: string, state: Pick<AppState, 'tasks' | 'agentNameRegistry'>): string {
   const tasks = state.tasks ?? {}
   if (tasks[raw] !== undefined) return raw
@@ -218,6 +217,7 @@ export async function stopTask(
   }
 
   const killReturn = await implementation.kill(taskId, context.setAppState)
+
   const settlement =
     typeof killReturn === 'object' &&
     killReturn !== null &&
@@ -226,6 +226,7 @@ export async function stopTask(
       : undefined
 
   if (isLocalShellTask(task)) {
+
     let flippedHere = false
     updateTaskState(taskId, context.setAppState, current => {
       if (current.notified) return current

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -59,6 +60,7 @@ for (const cols of [120, 100]) {
     'collapsed row leaked the prose',
   )
   check(
+
     `[${cols}] answer prose renders beneath`,
     body.includes('lock-step'),
   )

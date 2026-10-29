@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -101,6 +102,7 @@ for (const family of families) {
   check(`${family}: the wire's own sentence rides detail, bounded`, typeof signal?.detail === 'string' && signal.detail.length > 0 && signal.detail.length <= 240)
 }
 {
+
   const fault = mapOpenaiHttpFailure(400, { error: { message: "This model's maximum context length is 128000 tokens. However, your messages resulted in 135000 tokens. Please reduce the length of the messages.", type: 'invalid_request_error', param: 'messages', code: 'context_length_exceeded' } })
   const signal = classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.message })
   check('openai (chat sentence): code word + numbers', signal?.shape === 'context-length-exceeded' && signal.actualTokens === 135_000 && signal.limitTokens === 128_000, JSON.stringify(signal))
@@ -117,17 +119,21 @@ for (const family of families) {
     'Please reduce the length of the input prompt',
     metaBody.error.message.replace('Please reduce the length of the input prompt', 'Unsupported parameter: tools'),
   ]) check('partial input-budget words do not turn an unrelated 400 into overflow', classifyOverflowFault({ family: 'meta', status: 400, message }) === null, message)
+
   const err413 = new APIError(413, { type: 'error', error: { type: 'request_too_large', message: 'Request entity too large' } } as never, undefined, undefined as never)
   const minted413 = getAssistantMessageFromError(err413, 'claude-opus-4-8')
   check('anthropic 413: the body cap is its own overflow shape', overflowSignalOf(minted413)?.shape === 'request-too-large', JSON.stringify(overflowSignalOf(minted413)))
+
   const zaiFinish = classifyOverflowFault({ family: 'zai', code: 'finish:model_context_window_exceeded', message: 'stream terminated by the provider: model_context_window_exceeded' })
   check('zai finish reason model_context_window_exceeded → context-window-exceeded', zaiFinish?.shape === 'context-window-exceeded' && zaiFinish.family === 'zai', JSON.stringify(zaiFinish))
+
   const lm = mapCompatHttpFailure(400, { error: 'Trying to keep the first 4097 tokens when context the overflows. However, the model is loaded with context length of only 4096 tokens, which is not enough. Try to load the model with a larger context length, or provide a shorter input.' })
   const lmSig = classifyOverflowFault({ family: 'local', status: lm.status, code: lm.code, message: lm.message })
   check('local (LM Studio sentence): context-size with the loaded window', lmSig?.shape === 'context-size' && lmSig.limitTokens === 4096, JSON.stringify(lmSig))
   const ol = mapCompatHttpFailure(400, { error: 'the prompt is longer than the context length currently available to the model; shorten the prompt, adjust the context length in settings, or use a model with a longer context length' })
   const olSig = classifyOverflowFault({ family: 'local', status: ol.status, code: ol.code, message: ol.message })
   check('local (Ollama truncate:false sentence, HTTP 400): context-size, no numbers fabricated (the base classifies nothing here)', olSig?.shape === 'context-size' && olSig.source === 'provider' && olSig.actualTokens === undefined && olSig.limitTokens === undefined, JSON.stringify(olSig))
+
   const gw = new APIError(400, { error: { message: "This model's maximum context length is 65536 tokens. However, you requested 70000 tokens (69000 in the messages, 1000 in the completion)." } } as never, undefined, undefined as never)
   const mintedGw = getAssistantMessageFromError(gw, 'stranger/gateway-model')
   const gwSig = overflowSignalOf(mintedGw)
@@ -204,12 +210,14 @@ for (const { lane, model, dialect } of OVERFLOW_LANES) {
   check(`${lane}: the runtime's API-error message carries the signal`, stamped !== null, JSON.stringify(r.errors.map(m => ({ text: JSON.stringify(m.message).slice(0, 160), sig: (m as { overflowSignal?: unknown }).overflowSignal }))))
   check(`${lane}: family + shape on the stamp`, stamped?.family === lane && stamped.shape === shape.expect.shape, JSON.stringify(stamped))
   if (shape.expect.actual !== undefined) check(`${lane}: numbers on the stamp`, stamped?.actualTokens === shape.expect.actual && stamped.limitTokens === shape.expect.limit, JSON.stringify(stamped))
+
   const poison = NON_OVERFLOW_400[dialect]!
   fixture.script([{ error: { status: poison.status, body: poison.body } }])
   const p = await callLane(model)
   check(`${lane}: a non-overflow refusal yields an error WITHOUT a stamp`, p.errors.length > 0 && p.errors.every(m => overflowSignalOf(m as never) === null), JSON.stringify(p.errors.map(m => (m as { overflowSignal?: unknown }).overflowSignal)))
 }
 {
+
   fixture.script([{ text: 'partial answer before the window ran out', finishReason: 'model_context_window_exceeded' }])
   const r = await callLane('glm-5.2')
   const stamped = r.errors.map(m => overflowSignalOf(m as never)).find(s => s !== null) ?? null
@@ -246,6 +254,7 @@ section('S5 the fold\'s own retry reads every family — truncation by a stamped
     { type: 'assistant', uuid: `00000000-0000-4000-a000-0000000000${String(10 + i)}`, requestId: `r${i}`, message: { id: `msg_${i}`, type: 'message', role: 'assistant', model: 'fixture', content: [{ type: 'text', text: `reply ${i} ${'y'.repeat(400)}` }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 100, output_tokens: 50 } } },
   ]
   const messages = [...round(0), ...round(1), ...round(2), ...round(3), ...round(4)]
+
   const stamped = createAssistantAPIErrorMessage({
     content: 'API Error: OpenRouter stream failed (http-400) — This endpoint\'s maximum context length is 1000 tokens. However, you requested about 1250 tokens',
     error: 'invalid_request',

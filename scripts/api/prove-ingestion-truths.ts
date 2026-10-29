@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -38,6 +39,7 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: small.toString('base64') } },
     ],
   }
+
   const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
   await clampToolResultImageBlocks(block, { limits: ANTHROPIC_IMAGE_LIMITS, model: 'claude-sonnet-5' })
   const clamped = block.content[1] as { source: { data: string } }
@@ -81,6 +83,7 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
   )
 
   const wire = src('src/services/tools/toolExecution.ts')
+
   check(
     'the clamp rides the ONE tool-settlement boundary (after the map, before use)',
     /mapToolResultToToolResultBlockParam\([\s\S]{0,400}?clampToolResultImageBlocks\(mappedBlock/.test(wire),
@@ -176,6 +179,7 @@ section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
   )
   check(
     'the LSP ops delegate to pathInAllowedWorkingPath',
+
     /!pathInAllowedWorkingPath\((abs|endpoint), permissionContext\)/.test(lspOps),
   )
   check(

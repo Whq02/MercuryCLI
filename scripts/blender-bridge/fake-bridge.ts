@@ -1,4 +1,3 @@
-
 import * as net from 'node:net'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -21,11 +20,17 @@ type FakeBridgeMode =
 
 interface FakeBlenderBridgeOpts {
   token?: string
+
   protocolVersion?: number
+
   helloResultVersion?: number
+
   renderDurationMs?: number
+
   renderCancels?: boolean
+
   pythonTruncates?: boolean
+
   blendFile?: string
   mode?: FakeBridgeMode
 }
@@ -37,6 +42,7 @@ interface FakeBlenderBridge {
   setMode: (m: FakeBridgeMode) => void
   setDirty: (dirty: boolean) => void
   renderInFlight: () => boolean
+
   openBlendExternally: (blendPath: string) => void
   close: () => Promise<void>
 }
@@ -117,6 +123,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
     const emit = (event: string, data: unknown) => {
       reply({ event, data })
     }
+
     const renderGuard = (id: unknown): boolean => {
       if (!state.renderInFlight) return false
       fail(id, 'RENDER_ACTIVE', 'a render job is running', 'wait for render_finished (or read render_state); mutate/exec verbs refuse during renders, reads stay free')
@@ -155,6 +162,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
             return
           }
           authed = true
+
           if (current && current !== socket) current.destroy()
           current = socket
           emitToCurrent = emit
@@ -220,6 +228,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
             }
             let total = 0
             let kept = 0
+
             const walk = (n: BlenderBridgeObjectNode): BlenderBridgeObjectNode | null => {
               total++
               const keep = kept < cap
@@ -253,6 +262,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
               fail(id, 'BLEND_DIRTY', 'the open file has unsaved changes', 'save it in Blender first (File > Save) — the bridge never discards unsaved work')
               break
             }
+
             state.blendFile = p
             reply({ id, ok: true, result: { opened: p } })
             break
@@ -288,6 +298,7 @@ export function startFakeBlenderBridge(opts: FakeBlenderBridgeOpts = {}): Promis
             setTimeout(() => {
               state.renderInFlight = false
               if (opts.renderCancels) {
+
                 emit('render_finished', { outputPath, frame: frame_, ok: false, cancelled: true, durationMs: Date.now() - t0 })
               } else {
                 mkdirSync(path.dirname(outputPath), { recursive: true })

@@ -42,10 +42,11 @@ import {
 
 export type { StudioDraftBase } from './studioEditorModel.js'
 
-
 type Props = {
   mode: 'create' | 'edit'
+
   base?: StudioDraftBase
+
   cwd: string
   tools: Tools
   existingAgents: AgentDefinition[]
@@ -175,6 +176,7 @@ export function StudioEditor({
         return
       }
       if (view.kind === 'advanced' && view.editing !== null) {
+
         if (key.escape) machine.closeFieldEditor()
         return
       }
@@ -285,6 +287,7 @@ export function StudioEditor({
 
   if (view.kind === 'review') {
     const { changed, diffLines } = buildReviewFacts(doc, base)
+
     const availability = agentModelAvailabilityNote(doc.fields.model)
     return (
       <Box flexDirection="column">
@@ -410,7 +413,6 @@ export function StudioEditor({
     </Box>
   )
 }
-
 
 function GuidedStepView(props: {
   step: GuidedStep
@@ -566,7 +568,6 @@ function GuidedStepView(props: {
   }
 }
 
-
 function FieldEditor(props: {
   field: FieldId
   doc: AgentDocument
@@ -652,7 +653,9 @@ function FieldEditor(props: {
         />
       )
     case 'effort': {
+
       const previewModel = doc.fields.model && doc.fields.model !== 'inherit' ? doc.fields.model : props.parentModel
+
       const stops = resolveEffortTruth(previewModel, undefined).selectable
       const options = stops.map(l => ({ label: l, value: l }))
       return (

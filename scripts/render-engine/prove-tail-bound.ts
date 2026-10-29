@@ -58,6 +58,7 @@ section('§2 damage only')
   })
   clock.advance(50)
   const baseline = sink.text().length
+
   engine.updateTail({ toolRows: ['[ spinner ⠙ ]'] })
   clock.advance(50)
   const delta = sink.text().slice(baseline)

@@ -47,24 +47,33 @@ interface WarmRunnerEntry {
   workspaceId: string
   pid?: number
   spawnedAt: number
+
   lastKeptAt: number
+
   bootModelKey: string
+
   snapshotId: string
+
   kit: SessionKitV1
+
   bypassConsent: boolean
 }
 
 const pool = new Map<string, WarmRunnerEntry>()
 
 interface TrailingEnsure {
+
   requestedKit: SessionKitV1 | undefined
+
   requestedConsent: boolean
   deps: WarmRunnerDeps
   waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
 }
 
 interface EnsureFlight {
+
   requestedKit: SessionKitV1 | undefined
+
   requestedConsent: boolean
   run: Promise<WarmEnsureOutcome>
   trailing: TrailingEnsure | null
@@ -83,6 +92,7 @@ export interface WarmRosterPort {
   registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
   door(short: string): RunnerDoor | undefined
   kill(short: string): boolean
+
   patchSeatClaim(
     short: string,
     patch: { model: string; effort: string; respawnExtraArgv: readonly string[]; permissionMode: SeatPermissionMode },
@@ -91,7 +101,9 @@ export interface WarmRosterPort {
 
 export interface WarmRunnerDeps {
   roster: () => WarmRosterPort | undefined
+
   dir?: string
+
   onWarmSpawned?: (short: string, workspaceId: string, pid: number | undefined) => void
 }
 
@@ -161,7 +173,9 @@ export async function ensureWarmRunner(
     workspaceDir: string
     retiring?: string
     bootCarriesRunnerOptions?: boolean
+
     kit?: SessionKitV1
+
     bypassConsent?: boolean
   },
   deps: WarmRunnerDeps,
@@ -169,6 +183,7 @@ export async function ensureWarmRunner(
   if (!warmRunnerPoolEnabled()) {
     return { state: 'refused', detail: 'the warm pool is off (MERCURY_WARM_RUNNER=0)' }
   }
+
   if (args.bootCarriesRunnerOptions === true) {
     return { state: 'refused', detail: 'this boot carries runner-side options the pool cannot serve — its sessions spawn cold with them' }
   }
@@ -180,12 +195,14 @@ export async function ensureWarmRunner(
   } catch {
     return { state: 'refused', detail: `workspace does not resolve: ${args.workspaceDir}` }
   }
+
   if (args.retiring !== undefined) {
     try {
       retireWarmRunner(canonicalWorkspaceId(args.retiring), 'workspace-switch', deps)
     } catch {
     }
   }
+
   const consent = args.bypassConsent === true
   const inFlight = ensureFlights.get(workspaceId)
   if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, consent, deps)
@@ -246,6 +263,7 @@ async function ensureWarmRunnerFlight(
 ): Promise<WarmEnsureOutcome> {
   const roster = deps.roster()
   if (!roster) return { state: 'refused', detail: 'daemon roster not ready' }
+
   const kit = carriedKit ?? deriveSessionKitForWorkspace(workspaceId)
   const existing = pool.get(workspaceId)
   if (existing !== undefined) {
@@ -255,6 +273,7 @@ async function ensureWarmRunnerFlight(
         existing.lastKeptAt = Date.now()
         return { state: 'kept', detail: existing.short, short: existing.short }
       }
+
       retireWarmRunner(
         workspaceId,
         sameKit(existing.kit, kit) ? 'consent drift — the launch consent changed since the warm boot' : 'kit drift — the menu moved since the warm boot',
@@ -271,19 +290,23 @@ async function ensureWarmRunnerFlight(
     return { state: 'refused', detail: `workspace does not exist: ${workspaceId}` }
   }
   if (!stat.isDirectory()) return { state: 'refused', detail: `workspace is not a directory: ${workspaceId}` }
+
   const ceiling = effectiveSeatCeiling()
   const seatsHeld = liveSeatCount(deps.dir, roster) + livePoolEntries(roster).length
   if (seatsHeld + 1 > ceiling) {
     return { state: 'refused', detail: `seat reading: ${seatsHeld} held of ${ceiling} — no headroom for a warm runner` }
   }
+
   ;(await import('./signInView.js')).refreshSignInReads(true)
   const validated = await validateWorkerModelChoice(undefined, 'session')
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
   }
+
   if (validated.keyless === true) {
     return { state: 'refused', detail: 'keyless home — nothing to warm; the next birth spawns cold on no model' }
   }
+
   const appeared = pool.get(workspaceId)
   if (appeared !== undefined) {
     const state = roster.has(appeared.short)
@@ -301,7 +324,9 @@ async function ensureWarmRunnerFlight(
     modelKey: validated.entry.modelId,
     effort: 'high',
     warm: true,
+
     ...(bypassConsent ? { bypassConsent: true as const } : {}),
+
     kit,
     kind: 'oculus',
   })
@@ -333,8 +358,11 @@ export async function claimWarmRunner(
     modelKey: string
     effort: string
     permissionMode: string
+
     bypassConsent?: boolean
+
     kit: SessionKitV1
+
     resume?: true
     restartReason?: string
     answerDeadlineMs?: number
@@ -350,18 +378,22 @@ export async function claimWarmRunner(
     pool.delete(args.workspaceId)
     return { claimed: false, reason: 'the warm runner died' }
   }
+
   if (currentSnapshotId(args.workspaceId) !== entry.snapshotId) {
     retireWarmRunner(args.workspaceId, 'settings-drift', deps)
     return { claimed: false, reason: 'effective settings changed since the warm boot' }
   }
+
   if (!sameKit(args.kit, entry.kit)) {
     retireWarmRunner(args.workspaceId, 'kit drift — the warm runner booted a different kit than this admission carries', deps)
     return { claimed: false, reason: 'the menu kit changed since the warm boot' }
   }
+
   if (entry.bypassConsent !== (args.bypassConsent === true)) {
     retireWarmRunner(args.workspaceId, 'consent drift — the warm runner booted a different launch consent than this admission carries', deps)
     return { claimed: false, reason: 'the launch consent differs from the warm boot' }
   }
+
   const openaiAccount = resolveOpenaiAccount()
   const openaiSnapshot = openaiAccount ? getCachedOpenaiCatalogue(openaiAccount.kind) : null
   const openaiCatalogue =
@@ -380,6 +412,7 @@ export async function claimWarmRunner(
     return { claimed: false, reason: 'the warm runner has no live runner door' }
   }
   const deadlineMs = args.answerDeadlineMs ?? claimAnswerDeadlineMs(entry.spawnedAt, Date.now())
+
   const pulse = new AbortController()
   const liveness = setInterval(() => {
     const live = roster.has(entry.short)
@@ -406,6 +439,7 @@ export async function claimWarmRunner(
     )
   clearInterval(liveness)
   if (!outcome.ok) {
+
     retireWarmRunner(args.workspaceId, `claim failed (${outcome.error})`, deps)
     return { claimed: false, reason: outcome.error }
   }
@@ -417,6 +451,7 @@ export async function claimWarmRunner(
     permissionMode: args.permissionMode as SeatPermissionMode,
   })
   if (spec === null) {
+
     roster.kill(entry.short)
     return { claimed: false, reason: 'the claimed seat vanished before the spec patch' }
   }

@@ -73,6 +73,7 @@ async function main(): Promise<void> {
     const results = await Promise.all(
       Array.from({ length: 10 }, (_, i) => client.request('hierarchy_read', { maxNodes: i + 1 })),
     )
+
     const allMatch = results.every((r, i) => {
       if (!r.ok) return false
       const h = r.result as { nodeCount: number; truncatedNodes: number }
@@ -277,6 +278,7 @@ async function main(): Promise<void> {
     const a = new UnityBridgeClient({ port: srv.port, token: 'tok', ...FAST })
     await a.request('play_state')
     check('A ready', a.status() === 'ready')
+
     await new Promise<void>(resolve => {
       const probe = net.connect({ host: '127.0.0.1', port: srv.port }, () => {
         probe.destroy()

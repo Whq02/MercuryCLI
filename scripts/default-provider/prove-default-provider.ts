@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -72,6 +73,7 @@ const readStored = (): string | undefined => {
 const ledgerFile = join(home, SIGN_IN_LEDGER_FILE)
 
 section('§1 — the registered field')
+
 {
   check("isGlobalConfigKey('defaultProvider')", isGlobalConfigKey('defaultProvider'))
   check(
@@ -83,6 +85,7 @@ section('§1 — the registered field')
 }
 
 section('§2 — /defaultprovider is a sign-in of its own kind in the ledger')
+
 {
   check('a fresh home has no legacy record and no ledger', configuredDefaultProvider() === undefined && !existsSync(ledgerFile))
   check('an unknown family is refused, nothing written', switchDefaultProvider('not-a-family') === false && !existsSync(ledgerFile))
@@ -94,6 +97,7 @@ section('§2 — /defaultprovider is a sign-in of its own kind in the ledger')
 }
 
 section('§3 — set, never heal-repainted')
+
 {
   saveGlobalConfig(config => ({ ...config, defaultProvider: 'acme-cloud' }) as never)
   const before = readFileSync(configFile, 'utf8')
@@ -107,6 +111,7 @@ section('§3 — set, never heal-repainted')
 }
 
 section('§4 — the legacy record is the untimed tiebreak (pure)')
+
 {
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local']
   const led = orderCredentials({ credentials: [{ family: 'openrouter', at: null }, { family: 'deepseek', at: null }], recordedDefaultProvider: 'deepseek', registryOrder: REG })
@@ -118,6 +123,7 @@ section('§4 — the legacy record is the untimed tiebreak (pure)')
 }
 
 section('§5 — the live wiring (a legacy home: config deepseek + two env keys, no ledger)')
+
 {
   const model = await import('../../src/utils/model/model.ts')
   const { keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
@@ -166,6 +172,7 @@ section('§5 — the live wiring (a legacy home: config deepseek + two env keys,
 }
 
 section('§6 — the command vocabulary')
+
 {
   const { parseDefaultProviderWord } = await import(
     '../../src/commands/defaultprovider/defaultprovider.tsx'

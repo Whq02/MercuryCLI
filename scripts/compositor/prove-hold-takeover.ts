@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,6 +19,7 @@ const FRAMES = argAfter('--frames')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const COCKPIT_READY = '❯ Type a prompt'
 const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? REPO).normalize('NFC')
+
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = getProjectDir(RUNTIME_CWD)
 
@@ -79,6 +81,7 @@ function runCapture(
     rows?: number
     tee?: boolean
     readyText?: string[]
+
     inline?: boolean
   },
 ): { grid: Grid; text: string[]; tee: Buffer } {
@@ -96,9 +99,11 @@ function runCapture(
   }
   const cfgPath = join(SCRATCH, `${leg}.cfg.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
+
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
+
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',
@@ -106,12 +111,14 @@ function runCapture(
     MERCURY_LIVE_GLYPHS: '0',
   }
   delete env.VSHOT_ACTIVE
+
   delete env.MERCURY_FULLSCREEN
   if (opts.inline) env.MERCURY_FULLSCREEN = '0'
   if (opts.tee) env.VSHOT_TEE = teePath
   else delete env.VSHOT_TEE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(120_000), stdio: 'pipe' })
   if (res.status !== 0) {
+
     let frame = ''
     try {
       if (existsSync(gridPath)) {
@@ -141,6 +148,7 @@ function staleGradientCells(grid: Grid): number {
 }
 
 function teeBytes(tee: Buffer): Buffer {
+
   const chunks: Buffer[] = []
   let off = 0
   while (off + 8 <= tee.length) {
@@ -203,6 +211,7 @@ function writeFixture(): void {
     }),
   ]
   mkdirSync(PROJECTS, { recursive: true })
+
   writeFileSync(join(PROJECTS, `${FIX_SID}.jsonl`), encodeSeedTranscript(lines, FIX_SID))
 }
 function cleanupFixture(): void {
@@ -214,6 +223,7 @@ function cleanupFixture(): void {
 
 console.log('launcher-hold takeover transaction (built binary, PTY + cell grid)')
 try {
+
   writeFixture()
 
   {
@@ -264,6 +274,7 @@ try {
     check('L3 direct picker paints inline', text.some(l => l.includes('Mercury · resume')))
     check('L3 direct picker never enters the alt screen', count(raw, '\x1b[?1049h') === 0)
     check('L3 direct picker never erases (inline charter)', count(raw, '\x1b[2J') === 0)
+
     const bgCells = grid.grid.flat().filter(c => c.bg !== 'default')
     const bgColors = new Set(bgCells.map(c => c.bg))
     const bgRows = new Set<number>()
@@ -286,6 +297,7 @@ try {
       tee: true,
       sends: [
         { atTick: 60, awaitText: 'Mercury · resume', minTick: 10, data: NONCE },
+
         { atTick: 100, awaitText: NONCE, minTick: 14, awaitSettleTicks: 6, data: '\r' },
         { atTick: 110, afterPrevTicks: 4, data: '\r' },
       ],
@@ -303,6 +315,7 @@ try {
       count(raw, '\x1b[?1049l') === 0,
       `${count(raw, '\x1b[?1049l')} exits`,
     )
+
     const erases = count(raw, '\x1b[2J')
     check('L4 the erase fired for takeover AND nested swap (≥3 incl. the fixture 2J)', erases >= 3, `${erases} erases`)
     check('L4 no stale hold text in the final cockpit', !text.some(l => l.includes('starting…')))

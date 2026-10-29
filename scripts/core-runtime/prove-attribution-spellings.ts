@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -51,6 +52,7 @@ check('a foreign-spelled count contributes NOTHING (0)', restored.fileStates.get
 check('no rehydrated entry carries a foreign key', ![...restored.fileStates.values()].some(e => 'claudeContribution' in e))
 
 section('§2 WRITE — trackers sum onto restored counts; snapshots emit ONLY the one key')
+
 const tracked = trackFileModification(restored, 'notes.txt', 'aaaa', 'aaaabbb', false, 2)
 check('tracker sums restored + new (44)', tracked.fileStates.get('notes.txt')?.mercuryContribution === 44)
 const emitted = JSON.stringify(stateToSnapshotMessage(tracked, '00000000-0000-0000-0000-000000000002'))

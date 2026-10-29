@@ -9,7 +9,6 @@ const PACKAGE_JSON = `{
 }
 `
 
-
 const ID_BASE = `// Note id minting. Ids are namespace-prefixed base36 counters, zero-padded
 // to six digits so lexicographic order matches mint order.
 export function mintId(ns, seq) {
@@ -42,7 +41,6 @@ export function idFromKey(text) {
   return { ns: text.slice(0, at), key: text.slice(at + 1) }
 }
 `
-
 
 const STORE_BASE = `import { mintId } from './id.js'
 
@@ -110,7 +108,6 @@ const STORE_STALE_INDEX = STORE_BASE.replace(
   `  store.notes[at] = next
   return next`,
 )
-
 
 const PARSE_BASE = `// parseNote(text): the first line is the title; #tags may appear anywhere in
 // the title line. Quoted tags keep their spaces: #"project x". Tags are
@@ -181,7 +178,6 @@ const PARSE_NO_CASEFOLD = PARSE_BASE.replace(
         i = j`,
 )
 
-
 const RENDER_BASE = `import { getNote } from './store.js'
 
 export function renderNote(store, id) {
@@ -224,7 +220,6 @@ export function renderList(store) {
   return lines.join('\\n')
 }
 `
-
 
 const CLI_BASE = `import { addNote, getNote } from './store.js'
 import { parseNote } from './parse.js'
@@ -347,7 +342,6 @@ export function load(json) {
   return store
 }
 `
-
 
 const TEST_ID = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -494,7 +488,6 @@ test('unknown command exits 2', () => {
 })
 `
 
-
 const TEST_ID_STRUCTURED = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { idFromKey, idKey, mintId } from '../src/id.js'
@@ -597,7 +590,6 @@ test('unknown command still exits 2', () => {
   assert.equal(runCommand(store, ['frobnicate']).code, 2)
 })
 `
-
 
 const TEST_PIN = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -766,7 +758,6 @@ const CLI_FLAGS = CLI_BASE.replace(
   if (cmd === 'list') {`,
 )
 
-
 const STORE_SERIALIZE_DROPS_SEQ = STORE_BASE.replace(
   `export function serialize(store) {
   return JSON.stringify({ ns: store.ns, seq: store.seq, notes: store.notes })
@@ -916,7 +907,6 @@ test('list rows show a tag count when tags exist', () => {
 })
 `
 
-
 const BASE_FILES: FileMap = {
   'package.json': PACKAGE_JSON,
   'src/id.js': ID_BASE,
@@ -961,6 +951,7 @@ export const NOTEDECK_REPO: HelixRepoSpec = {
   id: 'notedeck',
   seed: 'inline',
   files: BASE_FILES,
+
   branches: { ...BRANCHES, ...MF_BRANCHES },
 }
 

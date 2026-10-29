@@ -1,4 +1,3 @@
-
 export type TtlChoice = '5m' | '1h'
 export type CacheClockClass = 'worker' | 'interactive' | 'headless'
 
@@ -15,16 +14,22 @@ export const CACHE_COST = {
 } as const
 
 const PRIOR_GAP_SHARE_THRESHOLD = 0.4
+
 const PRIOR_MIN_SESSIONS = 3
 
 export interface CadencePrior {
+
   sessions: number
+
   gapSessions: number
 }
 
 interface DecisionInput {
+
   enabled: boolean
+
   pin: TtlChoice | null
+
   eligible: boolean
   cls: CacheClockClass
   prior: CadencePrior
@@ -32,11 +37,13 @@ interface DecisionInput {
 
 export interface Decision {
   ttl: TtlChoice
+
   escalation: boolean
 }
 
 export function decideInitialTtl(i: DecisionInput): Decision | null {
   if (!i.enabled) return null
+
   if (i.pin !== null) return { ttl: i.pin, escalation: false }
   if (!i.eligible) return null
   if (i.cls === 'worker') return { ttl: '1h', escalation: false }
@@ -65,7 +72,6 @@ export function classifyGap(gapMs: number): 'none' | 'over5m' | 'over1h' {
   return 'none'
 }
 
-
 export interface SimCacheState {
   prefixTokens: number
   lastUseAtMs: number | null
@@ -79,7 +85,9 @@ export function newSimCacheState(ttl: TtlChoice): SimCacheState {
 interface SimStepResult {
   readTokens: number
   writtenTokens: number
+
   costUnits: number
+
   coldRewrite: boolean
 }
 
@@ -114,7 +122,6 @@ export function stepCache(
   }
 }
 
-
 export interface SessionRollup {
   v: 1
   sessionId: string
@@ -126,6 +133,7 @@ export interface SessionRollup {
   gapsOver5m: number
   gapsOver1h: number
   tokens: { read: number; w5m: number; w1h: number; uncached: number }
+
   costUnits: { actual: number; baseline5m: number }
   updatedIso: string
 }

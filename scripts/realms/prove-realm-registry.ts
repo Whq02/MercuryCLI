@@ -23,6 +23,7 @@ const reg = (await import('../../src/utils/realmRegistry.js')) as typeof import(
 
 try {
   check(homedir() === homeScratch, 'the account home is the fixture, not the invoking account')
+
   const outside = mkdtempSync(join(tmpdir(), 'realm-outside-'))
   const rOutside = reg.addRealm(outside)
   check(!rOutside.ok && /blocked/.test(rOutside.ok ? '' : rOutside.reason), 'outside-home dir REFUSED (blocked)')
@@ -47,6 +48,7 @@ try {
   check(cmdA.startsWith(`cd `) && cmdA.includes(realmA.replace(homedir(), '~')), 'launch cd-s into the realm')
   const cmdB = reg.realmLaunchCommand(rB.ok ? rB.realm : (undefined as never))
   check(!cmdB.includes('MERCURY_CONFIG_DIR='), 'no realm ever derives a config-dir override')
+
   {
     const raw = JSON.parse(readFileSync(reg.realmRegistryPath(), 'utf8')) as { realms: Record<string, unknown>[] }
     raw.realms[1] = { ...raw.realms[1], accountId: 'account-b' }

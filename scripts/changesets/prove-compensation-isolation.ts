@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -51,6 +52,7 @@ const nonTerminalOps = async (): Promise<number> =>
 const noStrayTemps = (): boolean => readdirSync(dir).every(n => !n.endsWith('.tmp'))
 
 console.log('── C1 a throwing restore on the MIDDLE target leaves only that target ──')
+
 process.env.MERCURY_FAULT_INJECT = `changeset-during-reread@${paths[2]}:throw;changeset-during-compensate@${paths[1]}:eperm`
 let out: { kind: string; landedPaths?: string[]; divergedPaths?: string[]; reason?: string }
 try {

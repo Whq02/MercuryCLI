@@ -120,6 +120,7 @@ t.section('§2 — the response Mercury parses is the documented stream')
     { choices: [{ delta: { reasoning_content: 'thinking…' } }] },
     { choices: [{ delta: { content: 'Hello' } }] },
     { choices: [{ delta: { content: ' world' } }] },
+
     { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call-9', function: { name: 'Read', arguments: '{"file' } }] } }] },
     { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '_path":"a.ts"}' } }] } }] },
     { usage: { prompt_tokens: 11, completion_tokens: 7, prompt_tokens_details: { cached_tokens: 4 } } },
@@ -250,6 +251,7 @@ t.section('§4 — the keyless lane refuses with ZERO provider I/O')
   )
   t.check(
     'while still declaring the catalogue it WOULD serve — an honest unavailable, not a blank',
+
     describe.catalogue.length > 0 && describe.catalogue.every(c => isGlmModelId(c.id)),
     describe.catalogue.map(c => c.id).join(','),
   )

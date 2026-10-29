@@ -3,7 +3,6 @@ import { Text } from '../../ink.js'
 import { FAINT } from '../mercuryPalette.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 
-
 const CLOCK_SLOT = '         '
 
 export function MercuryStreamingNameplate(): React.ReactNode {

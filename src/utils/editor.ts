@@ -11,7 +11,6 @@ import { logForDebugging } from './debug.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { hostLookupWorld, resolveExecutable, whichSync, type LookupWorld } from './which.js'
 
-
 const EDITOR_CANDIDATES = ['code', 'nano', 'vi']
 
 const WINDOWS_DEFAULT_EDITOR = 'notepad'
@@ -153,6 +152,7 @@ export function classifyGuiEditor(editor: string): string | undefined {
 }
 
 function parseEditorCommand(editor: string): { executable: string; args: string[] } {
+
   const invocation = parseLegacyCommandString(editor)
   if (invocation.executablePath.length > 0) {
     return { executable: invocation.executablePath, args: invocation.args }
@@ -185,18 +185,22 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
   const guiFamily = classifyGuiEditor(editor)
 
   if (guiFamily !== undefined) {
+
     const targetArgs = gotoLineArgs(guiFamily, filePath, line)
     let child
     if (process.platform === 'win32') {
+
       const commandString =
         editor.includes(' ') && existsSync(editor)
           ? [quoteForWindowsShell(editor), ...targetArgs.map(quoteForWindowsShell)].join(' ')
           : [quoteForWindowsShell(executable), ...args.map(quoteForWindowsShell), ...targetArgs.map(quoteForWindowsShell)].join(' ')
       child = spawn(commandString, { windowsHide: true, shell: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
     } else {
+
       child = spawn(executable, [...args, ...targetArgs], { windowsHide: true, detached: true, stdio: 'ignore', env: subprocessEnv() })
     }
     child.on('error', err => {
+
       logForDebugging(`editor spawn failed: ${String(err)}`, { level: 'error' })
     })
     child.unref()
@@ -211,6 +215,7 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
   try {
     let result
     if (process.platform === 'win32') {
+
       const commandString = [editor, ...lineArgs, quoteForWindowsShell(filePath)].join(' ')
       result = spawnSync(commandString, { shell: true, windowsHide: false, stdio: 'inherit', env: subprocessEnv() })
     } else {
@@ -222,6 +227,7 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
     }
     return true
   } finally {
+
     reclaimTerminalAfterChild('external editor')
     instance.exitAlternateScreen()
   }

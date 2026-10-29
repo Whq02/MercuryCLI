@@ -1,4 +1,3 @@
-
 import type { CapabilityKind, CapabilityState } from '../capabilities.js'
 import type {
   ExternalSeatTransport,
@@ -24,6 +23,7 @@ function acpDeclaredCapabilities(
   const caps = init.agentCapabilities ?? {}
   const prompt = caps.promptCapabilities ?? {}
   return {
+
     'start-turn': { state: 'unknown', source: 'acp:session/prompt exists in v1 — not yet implemented by this transport' },
     'hold-next': { state: 'unknown', source: 'acp:no queued-delivery vocabulary — Mercury-local holds are a separate fact' },
     'steer-current': { state: 'unsupported', source: 'acp:no mid-turn injection method in v1' },
@@ -49,6 +49,7 @@ function acpDeclaredCapabilities(
 }
 
 interface AcpSeatOptions {
+
   command: [cmd: string, ...args: string[]]
   cwd?: string
   spawnImpl?: SpawnImpl
@@ -62,6 +63,7 @@ export function acpSeatTransport(
   let child: NdjsonChildLike | null = null
   const eventListeners = new Set<(evt: SeatEvent) => void>()
   const lifecycleListeners = new Set<(s: 'connected' | 'disconnected' | 'exited') => void>()
+
   let eventSeq = 0
 
   const ensureChild = (): NdjsonChildLike => {
@@ -88,6 +90,7 @@ export function acpSeatTransport(
       }
     })
     c.onExit(() => {
+
       if (child === c) child = null
       for (const l of [...lifecycleListeners]) l('exited')
     })
@@ -139,6 +142,7 @@ export function acpSeatTransport(
       return () => lifecycleListeners.delete(listener)
     },
     async detach(): Promise<void> {
+
       const c = child
       child = null
       if (c) await (c.killAndWait?.() ?? Promise.resolve(c.kill()))

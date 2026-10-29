@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -49,6 +50,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
 {
   const base = { isAsync: false, canShowPermissionPrompts: undefined, definitionMode: undefined, parentAvoidsPrompts: false, parentNonInteractive: false as boolean | undefined }
   const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; hostHoldsAsks?: boolean } }> = [
+
     { label: "a background agent of a hosted seat asks through the seat's own door", facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
     { label: 'a foreground agent of a hosted run inherits that road', facts: { ...base, parentNonInteractive: true, parentHostHoldsAsks: true }, want: { avoidPrompts: false, isNonInteractiveSession: true, hostHoldsAsks: true } },
     { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentHostHoldsAsks: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
@@ -74,11 +76,14 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
 section('§2 the ladder — the agent\'s Bash answers from the stage the main thread\'s does')
 
 const READ_ONLY = 'git rev-parse --short HEAD'
+
 const WRITING = 'git commit --allow-empty -q -m agent-bash-probe && git rev-parse --short HEAD'
+
 const ASKING = 'git commit --allow-empty -q -m agent-bash-probe'
 const ALLOW_RULES = ['Bash(git commit *)']
 const DENY_RULES = ['Bash(git commit *)']
 const ASK_RULES = ['Bash(git commit *)']
+
 const ASK_TOOL_RULES = ['Bash']
 
 const bashTool = {
@@ -91,6 +96,7 @@ const bashTool = {
 type Rules = 'none' | 'allow' | 'deny' | 'ask' | 'ask-tool'
 type Mode = 'default' | 'flow' | 'sovereign' | 'dontAsk'
 type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print' | 'main-seat' | 'bg-agent-of-seat'
+
 const PEER: Record<Subject, Subject> = {
   main: 'main',
   'fg-agent': 'main',
@@ -100,6 +106,7 @@ const PEER: Record<Subject, Subject> = {
   'main-print': 'main-print',
   'fg-agent-of-print': 'main-print',
   'bg-agent-of-print': 'main-print',
+
   'main-seat': 'main-seat',
   'bg-agent-of-seat': 'main-seat',
 }
@@ -188,20 +195,25 @@ interface Row {
   mode: Mode
   rules: Rules
   command: string
+
   main: Partial<Cell>
   headless?: Partial<Cell>
   print?: Partial<Cell>
+
   seat?: Partial<Cell>
 }
 
 const ROWS: Row[] = [
+
   { label: 'default · no rule · read-only command → the read-only lane allows in the engine', mode: 'default', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
   { label: 'flow · no rule · read-only command → the engine allows', mode: 'flow', rules: 'none', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
+
   { label: 'default · allow rule · writing command → the rule allows in the engine', mode: 'default', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
   { label: 'flow · allow rule · writing command → the rule allows', mode: 'flow', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'resolution' } },
   { label: 'default · deny rule · writing command → the rule denies in the engine', mode: 'default', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny' } },
   { label: 'flow · deny rule · writing command → the rule denies', mode: 'flow', rules: 'deny', command: WRITING, main: { behavior: 'deny', wrapper: 'engine', engine: 'toolVerdictDeny' } },
   { label: 'sovereign · deny rule → bypass-immune deny', mode: 'sovereign', rules: 'deny', command: WRITING, main: { behavior: 'deny', engine: 'toolVerdictDeny' } },
+
   {
     label: 'default · no rule · writing command → an ASK for the operator; a prompt-less parent denies; a run hands the ask to its executor',
     mode: 'default',
@@ -222,9 +234,11 @@ const ROWS: Row[] = [
     print: { behavior: 'allow', wrapper: 'flowHeadless' },
     seat: { behavior: 'ask', wrapper: 'engine' },
   },
+
   { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture' } },
   { label: 'dontAsk · no rule · writing command → the ask converts to a deny', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion' } },
   { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine' } },
+
   {
     label: 'default · ask rule · simple command → the content ask road asks the operator; a prompt-less parent denies',
     mode: 'default',

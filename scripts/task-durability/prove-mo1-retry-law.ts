@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -139,6 +140,7 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
   ok(typeof err?.elapsedMs === 'number' && err.elapsedMs >= 0, '§4 elapsedMs always reported')
   ok(readFileSync(p, 'utf8') === 'previous-good', '§4 previously committed file available THROUGHOUT')
   ok(tempsIn(dir).length === 0, '§4 the prepared replacement was cleaned after final failure')
+
   const r = await durableAtomicPublish(p, 'after-clear')
   ok(r.attempts === 1 && readFileSync(p, 'utf8') === 'after-clear', '§4 next publish after the condition clears lands cleanly')
 }
@@ -171,6 +173,7 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
   const dir = join(tmp, 's6')
   const p = join(dir, 'compat.json')
   await durableAtomicPublish(p, 'base')
+
   inject('rename@compat.json:throw')
   let caught: unknown = null
   try {
@@ -182,6 +185,7 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
     caught instanceof DurablePublishError && caught.phase === 'rename' && caught.fsCode === undefined,
     '§6 bare `throw` grammar unchanged (no errno attached)',
   )
+
   inject('rename@compat.json:eperm#2')
   if (IS_WIN) {
     const r = await durableAtomicPublish(p, 'y')
@@ -203,6 +207,7 @@ console.log(`── mo1 retry law (async owner) — live platform: ${process.pla
     ok(f1 && f2 && r.attempts === 1, '§6 POSIX: #2 bound = exactly two failing publishes, then clean success')
   }
   ok(readFileSync(p, 'utf8') === 'y', '§6 the bounded injection ended with the complete new value')
+
   inject('rename@some-other-file.json:eperm')
   const r2 = await durableAtomicPublish(p, 'z')
   inject(null)

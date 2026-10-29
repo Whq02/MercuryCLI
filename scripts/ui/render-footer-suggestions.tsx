@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs'
 import { basename, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
+
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 let failures = 0
@@ -57,6 +59,7 @@ const capture = (cols: number, rows: number): string => {
     cfg,
     JSON.stringify({
       argv: ['node', BIN, '--resume', SID],
+
       sends: [{ atTick: 32, data: '/' }],
       total: 70,
       cols,
@@ -64,9 +67,11 @@ const capture = (cols: number, rows: number): string => {
       out: `/tmp/slash-${cols}x${rows}.json`,
     }),
   )
+
   return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
     encoding: 'utf-8',
     timeout: 60000,
+
     env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME },
   })
 }
@@ -80,12 +85,16 @@ try {
     const grid = capture(cols, rows)
     const countRow = grid.split('\n').find(l => /\b\d+ of \d+\b/.test(l)) ?? ''
     console.log(`  ${cols}x${rows} count row: ${countRow.trim() || '(none)'}`)
+
     check(`${cols}x${rows}: a dim "X of Y" overflow count row is rendered`, /\b\d+ of \d+\b/.test(grid))
+
     const m = countRow.match(/\b(\d+) of (\d+)\b/)
     check(`${cols}x${rows}: the count's total >> the visible window (a real overflow signal)`, !!m && parseInt(m[2]!, 10) > 6, m ? `total=${m[2]}` : '')
+
     check(`${cols}x${rows}: the prompt input caret/line stays visible (not clipped)`, /❯\s*\//.test(grid))
   }
 } finally {
+
   try {
     rmSync(join(PROJECTS, `${SID}.jsonl`))
   } catch {

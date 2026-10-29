@@ -81,11 +81,13 @@ section('(e) getSystemPrompt wiring — spliced after the wrapper, reconcile-tai
   const p = src('constants', 'prompts.ts')
   check('imports the section function', p.includes("import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'"))
   check('computes antiSycSections ONCE, frozen per conversation through the section cache (splice + reconcile agree)', p.includes("systemPromptSection('anti-sycophancy', () => {") && p.includes("const antiSycSections = typeof antiSycFrozen === 'string' ? [antiSycFrozen] : []"))
+
   const composer = src('prompt', 'composer.ts')
   check(
     'prompts.ts hands modeSections + antiSycSections to the owned composer',
     /composeSystemPrompt\(\{[\s\S]{0,900}modeSections,[\s\S]{0,200}antiSycSections,/.test(p),
   )
+
   const behaviourContract = src('prompt', 'behaviourContract.ts')
   check(
     'composer orders ...modeSections → ...antiSycSections, the arm last (no identity tail follows it)',
@@ -94,6 +96,7 @@ section('(e) getSystemPrompt wiring — spliced after the wrapper, reconcile-tai
     ) && !new RegExp(J('reconcile', 'TailSections')).test(behaviourContract) && /renderAnthropicSections\(contract\)/.test(composer),
   )
   check('no identity tail is re-emitted behind the arm: one identity, in the constitution', !new RegExp([J('MERCURY_IDENTITY', '_RECONCILE'), J('reconcile', 'TailSections')].join('|')).test(p))
+
   const md = src('utils', 'antiSycophancy.ts')
   check('the section module does NOT read/import the bridge .txt (pure constant + gate)', !md.includes('readFileSync') && !md.includes('require(') && !/import[^\n]*append/.test(md))
 }

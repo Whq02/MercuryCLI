@@ -1,8 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/cockpit/crewmateWords.ts src/components/concourse/controlManifest.ts src/components/concourse/ConcourseRoute.tsx
-// gate-watch: src/tasks/taskOutcomeEnvelope.ts src/tasks/LocalShellTask/killShellTasks.ts src/tasks/LocalShellTask/LocalShellTask.tsx
-// gate-watch: src/utils/sdkEventQueue.ts src/services/switchboard/spawnSwitches.ts src/components/messages/AssistantTextMessage.tsx
-// gate-watch: src/components/HelmLanesRail.tsx src/components/concourse/ConcourseStrips.tsx
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'

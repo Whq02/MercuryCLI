@@ -1,4 +1,3 @@
-
 import { useContext } from 'react'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import type { Theme } from '../../utils/theme.js'
@@ -30,6 +29,7 @@ export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
   const standalone = useAppState(
     (state: AppState) => state.standaloneAgentContext,
   )
+
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
   )

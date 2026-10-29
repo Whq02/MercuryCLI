@@ -20,7 +20,6 @@ import {
   isNullRenderingSystemRow,
 } from '../messages/nullRenderingAttachments.js'
 
-
 const RECORD_CAP = 500
 
 export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageType | null {
@@ -33,6 +32,7 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
       return null
     }
   } else {
+
     return null
   }
   const r = rec as {
@@ -43,11 +43,13 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
   }
   if (r.type !== 'user' && r.type !== 'assistant' && r.type !== 'system') return null
   if (r.type !== 'system' && (!r.message || typeof r.message !== 'object')) return null
+
   const uuid = typeof r.uuid === 'string' && r.uuid.length > 0 ? r.uuid : fallbackUuid
   const out: Record<string, unknown> = { ...(rec as Record<string, unknown>), uuid }
   if (typeof r.timestamp !== 'string') out.timestamp = new Date(0).toISOString()
   if (r.type === 'assistant') {
     const msg = r.message as { content?: unknown }
+
     if (typeof msg.content === 'string') {
       out.message = { ...(r.message as Record<string, unknown>), content: [{ type: 'text', text: msg.content }] }
     } else if (!Array.isArray(msg.content)) {
@@ -100,6 +102,7 @@ export function useWorkerTranscriptFold(
     let watcher: import('node:fs').FSWatcher | null = null
     let armTimer: ReturnType<typeof setInterval> | null = null
     let heartbeat: ReturnType<typeof setInterval> | null = null
+
     const liftSeq = { n: 0 }
     const foldRecords = (records: unknown[], rewound: boolean, newlyMalformed: number): void => {
       const folded: MessageType[] = []
@@ -110,6 +113,7 @@ export function useWorkerTranscriptFold(
       if (folded.length === 0 && !rewound && newlyMalformed === 0) return
       setFold(prev => {
         const base = rewound || prev === null ? [] : prev.messages
+
         const all = mergeFoldedMessages(base, folded)
         const shedNow = Math.max(0, all.length - RECORD_CAP)
         return {
@@ -125,6 +129,7 @@ export function useWorkerTranscriptFold(
     ]).then(
       ([wt, fs]) => {
         if (cancelled) return
+
         const path = wt.workerTranscriptPath({ sessionId, workspaceId })
         const drain = (): void => {
           if (cancelled) return
@@ -146,6 +151,7 @@ export function useWorkerTranscriptFold(
         const arm = (): boolean => {
           try {
             watcher = fs.watch(path, () => drain())
+
             watcher.on('error', () => {
               try {
                 watcher?.close()
@@ -161,6 +167,7 @@ export function useWorkerTranscriptFold(
         }
         drain()
         if (!arm()) {
+
           armTimer = setInterval(() => {
             drain()
             if (arm() && armTimer) {
@@ -170,6 +177,7 @@ export function useWorkerTranscriptFold(
           }, 1000)
           armTimer.unref?.()
         }
+
         heartbeat = setInterval(drain, 5000)
         heartbeat.unref?.()
       },
@@ -206,6 +214,7 @@ export function useCoordinatorAttribution(
     void import('../../daemon/concourseDispatch.js').then(d => {
       if (cancelled) return
       try {
+
         const st = statSync(d.concourseDispatchesPath())
         const stamp = `${sessionId}:${st.mtimeMs}:${st.size}`
         if (stamp === ledgerStampRef.current) return
@@ -230,6 +239,7 @@ export function useCoordinatorAttribution(
       cancelled = true
     }
   }, [sessionId, fold])
+
   const digestMemoRef = useRef<Map<string, string>>(new Map())
   return useCallback(
     (m: { type?: string }): 'user' | 'coordinator' => {

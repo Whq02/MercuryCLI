@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -22,6 +23,7 @@ if (driver.kind !== 'posix-pty') {
 
 const WINDOW_SKIP_MS = 2_000
 const WINDOW_MS = Number(process.env.MEASURE_WINDOW_S ?? '30') * 1000
+
 const INTERPRETED_FLAGS = ['--no-opt', '--no-maglev', '--no-sparkplug']
 type Variant = { nodeFlags: string[]; cols: number; rows: number; env?: Record<string, string> }
 const VARIANTS: Record<string, Variant> = {
@@ -111,6 +113,7 @@ async function capture(
   await new Promise<void>((resolve, reject) => {
     const child = spawn(driver.python, [VSHOT, cfgPath], { env: { ...process.env, ...env }, stdio: ['ignore', 'ignore', 'pipe'] })
     const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(budgetMs))
+
     const meter = setInterval(() => {
       if (pid === null && existsSync(pidPath)) {
         const n = Number(readFileSync(pidPath, 'utf8').trim())
@@ -172,12 +175,14 @@ for (const { variant, spec, setting } of boots) {
   rmSync(tee, { force: true })
   rmSync(`${tee}.raw`, { force: true })
   rmSync(pidPath, { force: true })
+
   const settleTicks = 50
   const total = 12 * 5 + settleTicks + Math.ceil((WINDOW_SKIP_MS + WINDOW_MS) / 200) + 25
   let cap: Awaited<ReturnType<typeof capture>> | null = null
   try {
     cap = await capture(
       {
+
         argv: ['/bin/sh', '-c', 'echo $$ > "$0" && exec node "$@"', pidPath, ...flags, BIN],
         cwd,
         cols: COLS,

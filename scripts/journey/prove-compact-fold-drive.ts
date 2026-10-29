@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -34,9 +35,11 @@ const SID = {
   refuse: '00000000-0000-4000-8000-00000000c0a3',
   auto: '00000000-0000-4000-8000-00000000c0a4',
 } as const
+
 const FOLD_NEEDLE = 'Reply with prose only'
 const SUMMARY_CHUNKS = 48
 const SUMMARY_CHUNK_MS = 160
+
 const RESTORE_HOLD_S = 1.5
 const AUTO_PCT = '1.5'
 const MANUAL_PCT = '10'
@@ -46,6 +49,7 @@ const { ERROR_MESSAGE_USER_ABORT: CANCELLED_LINE } = await import('../../src/ser
 const FAILED_LINE = 'Error during compaction'
 const AUTO_ASK = 'station 61: survey the ledger row and report'
 const POST_FOLD_ASK = 'station 31: survey the ledger row and report'
+
 const READ_ASK = 'station 0: read the notes files and report'
 const READ_DONE = 'READ-DONE'
 const NOTES = ['notes-a.txt', 'notes-b.txt'] as const
@@ -81,6 +85,7 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'fold-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'fold-cwd-')))
   writeFileSync(join(cwd, 'README.md'), '# the fold fixture\n')
+
   for (const name of NOTES) {
     const lines: string[] = []
     for (let i = 1; i <= 40; i++) lines.push(`${name} line ${i}: the survey notes hold steady against the recorded baseline along the marked stations.`)
@@ -93,12 +98,14 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
   for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 3, 900))
+
   writeFileSync(join(projDir, `${SID.auto}.jsonl`), seedRows(SID.auto, cwd, 60, 6, 16_000))
   return { home, cwd }
 }
 
 type Hit = { route: 'fold' | 'chat' | 'read' | 'read-done' | 'side'; atMs: number; endMs: number; model: string; refused: boolean }
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
+
 const USAGE = { input_tokens: 1200, cache_creation_input_tokens: 0, cache_read_input_tokens: 800 }
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content
@@ -120,6 +127,7 @@ function summaryText(): string {
   return `<analysis>The conversation is a station-by-station survey of a ledger; every station was surveyed and reported in turn, the rows held steady against the recorded baseline, and nothing outstanding remains.</analysis>\n<summary>\n${sections.join('\n')}\n</summary>`
 }
 let msgSeq = 0
+
 let foldMode: 'stream' | 'refuse' = 'stream'
 function startFixture(port: number, fixtureCwd: string): Promise<{ base: string; hits: Hit[]; close(): Promise<void> }> {
   const hits: Hit[] = []
@@ -142,7 +150,9 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
       const model = typeof body.model === 'string' ? body.model : 'fixture'
       const lastUser = [...(body.messages ?? [])].reverse().find(m => m.role === 'user')
       const lastText = lastUser ? textOf(lastUser.content) : ''
+
       const lastBlocks = Array.isArray(lastUser?.content) ? (lastUser!.content as Array<{ type?: string }>) : []
+
       const asks = (body.messages ?? []).filter(m => m.role === 'user').map(m => textOf(m.content)).flatMap(t => t.split('\n')).filter(line => line.startsWith('station '))
       const ask = asks.length > 0 ? asks[asks.length - 1]! : ''
       const route: Hit['route'] = lastText.includes(FOLD_NEEDLE)
@@ -178,6 +188,7 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
         res.end()
       }
       if (route === 'read') {
+
         res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'reading the notes' } })}`)
         res.write(`event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`)
         NOTES.forEach((name, i) => {
@@ -196,10 +207,12 @@ function startFixture(port: number, fixtureCwd: string): Promise<{ base: string;
         finish(4)
         return
       }
+
       const text = summaryText()
       const step = Math.ceil(text.length / SUMMARY_CHUNKS)
       let at = 0
       const tick = (): void => {
+
         if (res.destroyed || res.writableEnded) {
           hit.endMs = Date.now()
           return
@@ -307,6 +320,7 @@ function foldRowOf(frame: string | undefined): string | null {
   const rows = rowsWith(frame, ROW_HEAD).filter(r => r.includes('└'))
   return rows.length > 0 ? flat(rows[0]!) : null
 }
+
 function rowFacts(row: string): { stage: string | null; filled: number; tokens: number | null; seconds: number | null; head: string } {
   const bar = /([█◐░]+)/.exec(row)
   const filled = bar ? (bar[1]!.match(/█/g) ?? []).length : 0
@@ -317,6 +331,7 @@ function rowFacts(row: string): { stage: string | null; filled: number; tokens: 
   const head = row.includes(`${ROW_HEAD} (auto)`) ? `${ROW_HEAD} (auto)` : ROW_HEAD
   return { stage, filled, tokens: tok, seconds: seconds ? Number(seconds[1]) : null, head }
 }
+
 function stripOf(frame: string | undefined): { glyph: string; words: string } | null {
   const rows = rowsWith(frame, /│ [✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒] [a-z]/).filter(r => !r.includes('└'))
   const row = rows.find(r => /compacting|thinking|Thinking/.test(r)) ?? null
@@ -324,9 +339,11 @@ function stripOf(frame: string | undefined): { glyph: string; words: string } | 
   const m = /│ ([✶✦✧✳✻✽✸✹✺✷·●◐◓◑◒]) ([^│]*)│/.exec(row)
   return m ? { glyph: m[1]!, words: flat(m[2]!) } : null
 }
+
 function belowChat(frame: string | undefined): string[] {
   const lines = (frame ?? '').split('\n')
   const border = lines.map((l, i) => (/^\s+╰─+╯\s*$/.test(l) ? i : -1)).filter(i => i >= 0).pop() ?? Math.max(0, lines.length - 7)
+
   return lines.slice(border).map(l => l.replace(/\d+m\b|\d+s\b|\d\d:\d\d:\d\d|⤳\d+|auto-compact: \d+%/g, '#').replace(/ for #\s*/, ' ').replace(/\s+(esc interrupts)/, ' $1'))
 }
 
@@ -345,6 +362,7 @@ async function scene(label: string, sid: string, world: { home: string; cwd: str
         cols: SIZE.cols,
         rows: SIZE.rows,
         sends: [
+
           { data: '', awaitText: 'ype a prompt', minTick: 5, atTick: 100, awaitSettleTicks: 5, mark: 'chat' },
           ...sends,
         ],
@@ -437,6 +455,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
 {
   const hitsBefore = fixture.hits.length
   const cap = await scene('fold', SID.fold, world, fixture.base, [
+
     { data: `${READ_ASK}\r`, afterPrevTicks: 2 },
     { data: '', awaitText: READ_DONE, minTick: 2, atTick: 300, awaitSettleTicks: 5, mark: 'read-done' },
     ...[41, 42, 43, 44, 45, 46].map(n => ({ data: `station ${n}: survey the ledger row and report\r`, afterPrevTicks: 9 })),
@@ -444,6 +463,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     { data: '/compact\r', afterPrevTicks: 2, mark: 'before-send' },
     ...frames('fold', FOLD_FRAMES),
     { data: '', awaitText: CARD, minTick: 2, atTick: 700, awaitSettleTicks: 4, mark: 'card' },
+
     { data: `${POST_FOLD_ASK}\r`, afterPrevTicks: 4, mark: 'post-fold-send' },
     { data: '', awaitText: AUTO_REPLY, minTick: 2, atTick: 760, awaitSettleTicks: 4, mark: 'post-fold' },
     { data: '', afterPrevTicks: 4, mark: 'end' },
@@ -468,6 +488,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const withCard = foldMarks('fold').filter(k => rowsWith(m[k], CARD).length > 0)
     if (live.length > 0) dump(`fold · ${live[Math.min(live.length - 1, 4)]!.key} (summarising)`, m[live[Math.min(live.length - 1, 4)]!.key])
     if (live.length > 0) dump(`fold · ${live[live.length - 1]!.key} (the last live frame)`, m[live[live.length - 1]!.key])
+
     const blank = foldMarks('fold').find(k => m[k] !== undefined && foldRowOf(m[k]) === null && rowsWith(m[k], CARD).length === 0 && firstLive !== undefined && cap.markMs[k]! > cap.markMs[firstLive.key]!)
     if (blank !== undefined) dump(`fold · ${blank} (a frame with neither the row nor the card)`, m[blank])
     dump('fold · the card', m['card'])
@@ -489,6 +510,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const strips = live.map(l => stripOf(m[l.key])).filter((s): s is { glyph: string; words: string } => s !== null)
     check('F3 [fold] the working strip never says thinking while the fold runs', strips.every(s => !/thinking/i.test(s.words)), strips.map(s => s.words).slice(0, 3).join(' | '))
     check('F3 [fold] the working strip\'s glyph stands still through the fold', strips.length >= 3 && new Set(strips.map(s => s.glyph)).size === 1, strips.map(s => s.glyph).join(''))
+
     const liveTurn = live.filter(l => l.facts.stage !== 'compacted' && stripOf(m[l.key]) !== null)
     const below = liveTurn.map(l => belowChat(m[l.key]).join('\n'))
     const variants = [...new Set(below)]
@@ -498,6 +520,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
       const rel = sent ? `+${row.at - sent.ts} ms` : '?'
       console.log(`  wire #${row.seq} ${row.url} ${row.model} at ${rel} · first byte ${row.response.firstByteMs ?? '?'} ms · total ${row.response.ms} ms · usage ${JSON.stringify(row.response.usage ?? {})} · ${row.response.stop_reason ?? row.response.error ?? '?'}`)
     }
+
     const postFold = wireRows(world.home).filter(r => r.model !== 'fixture' && !r.model.includes('haiku')).at(-1)
     const postFoldReply = rowsWith(m['post-fold'], AUTO_REPLY).length > 0
     check('F7 [fold] the first request after the fold landed its reply', postFoldReply, rowsWith(m['post-fold'], /station 31|surveyed/).map(flat).join(' | ').slice(0, 200))

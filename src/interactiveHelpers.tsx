@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { appendFileSync } from 'fs'
 import { Box, Text } from './ink.js'
@@ -64,7 +63,6 @@ import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
 import { onChangeAppState as defaultOnChangeAppState } from './state/onChangeAppState.js'
 import type { AppState } from './state/AppStateStore.js'
 
-
 function completeOnboarding(): void {
   const version =
     typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
@@ -74,7 +72,6 @@ function completeOnboarding(): void {
     lastOnboardingVersion: version,
   }))
 }
-
 
 function SetupGroundFill({ children }: { children: React.ReactNode }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -133,6 +130,7 @@ export async function exitWithMessage(
     plainLines?: boolean
   },
 ): Promise<never> {
+
   releaseLauncherAltHoldNow()
   if (options?.plainLines === true) {
     root.unmount()
@@ -147,6 +145,7 @@ export async function exitWithMessage(
   }
   await options?.beforeExit?.()
   gracefulShutdownSync(options?.exitCode ?? 1)
+
   return new Promise<never>(() => {})
 }
 
@@ -167,13 +166,13 @@ export async function renderAndRun(
   element: React.ReactNode,
 ): Promise<void> {
   profileCheckpoint('render_and_run_start')
+
   void isWarmBackgroundEnabled
   root.render(element)
   profileCheckpoint('render_and_run_after_render')
   await root.waitUntilExit()
   await gracefulShutdown(0)
 }
-
 
 export async function showSetupScreens(
   root: Root,
@@ -183,6 +182,7 @@ export async function showSetupScreens(
   devChannels?: unknown,
 ): Promise<boolean> {
   void devChannels
+
   if (process.env.NODE_ENV === 'test') return false
   if (process.env.MERCURY_DEMO) return false
 
@@ -231,6 +231,7 @@ export async function showSetupScreens(
     const trustedThroughTheProject = !isPathTrusted(cwd) && trustedBefore
     if (trustedThroughTheProject) setPathTrusted(cwd)
     if (!trustedThroughTheProject && !isPathTrusted(cwd)) {
+
       const steps: SetupRailStep[] =
         onboardingShown && onboardingRail !== null
           ? [...onboardingRail, { key: 'trust', label: 'trust', state: 'current' }]
@@ -259,13 +260,17 @@ export async function showSetupScreens(
       clearCommandMemoizationCaches()
       if (commands !== undefined) commands.splice(0, commands.length, ...await getCommands(cwd))
     }
+
     registerBackgroundNode('setup:prefetch-system-context', async () => {
+
       await import('./utils/queryContext.js')
     })
+
     const { errors } = getSettingsWithAllErrors()
     if (errors.length === 0) {
       await handleProjectMcpServerApprovals(root)
     }
+
     try {
       if (await shouldShowExternalInstructionIncludesWarning()) {
         const includes = getExternalInstructionIncludes(await getInstructionFiles(true))
@@ -315,6 +320,7 @@ export async function showSetupScreens(
   try {
     recordPermissionPosture({
       bypassArmed,
+
       envArmed: isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')),
       flagArmed: allowDangerouslySkipPermissions,
       dialogSuppressed,
@@ -326,7 +332,6 @@ export async function showSetupScreens(
   return onboardingShown
 }
 
-
 const FLICKER_GATE_MS = 1000
 
 export function getRenderContext(exitOnCtrlC: boolean): {
@@ -336,6 +341,7 @@ export function getRenderContext(exitOnCtrlC: boolean): {
 } {
   const tracker = new FpsTracker()
   const stats = createStatsStore()
+
   setStatsStore(stats)
   const frameLogPath = flagEnv('MERCURY_FRAME_TIMING_LOG')
   let lastFlickerSeenAt = 0
@@ -343,12 +349,14 @@ export function getRenderContext(exitOnCtrlC: boolean): {
   const onFrame = (event: FrameEvent): void => {
     tracker.record(event.durationMs)
     stats.observe('frame_ms', event.durationMs)
+
     recordFrameTrace({
       durationMs: event.durationMs,
       phases: event.phases,
       flickers: event.flickers,
     })
     if (frameLogPath) {
+
       try {
         appendFileSync(
           frameLogPath,
@@ -362,6 +370,7 @@ export function getRenderContext(exitOnCtrlC: boolean): {
       } catch {
       }
     }
+
     if (!syncOutputSupportedNow()) {
       const real = event.flickers.filter(record => record.reason !== 'resize')
       if (real.length > 0) {

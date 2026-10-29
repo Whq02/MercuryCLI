@@ -13,6 +13,7 @@ import type {
   QueuePriority,
 } from '../types/textInputTypes.js'
 import { type PastedContent } from '../utils/config.js'
+
 import { extractTextContent } from '../utils/messages/text.js'
 import { objectGroupBy } from '../utils/objectGroupBy.js'
 import { recordQueueOperation } from '../utils/sessionStorage.js'
@@ -21,8 +22,8 @@ import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } f
 
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
-
 const queue: QueuedCommand[] = []
+
 let snapshot: readonly QueuedCommand[] = Object.freeze([])
 const queueChanged = createSignal()
 
@@ -35,7 +36,6 @@ function commit(): void {
   snapshot = Object.freeze([...queue])
   queueChanged.emit()
 }
-
 
 export type QueueConsumptionEvent = {
   kind: 'dequeued' | 'removed' | 'cleared' | 'popped'
@@ -101,13 +101,11 @@ function bestIndexByPriority(
   return bestIdx
 }
 
-
 export const subscribeToCommandQueue = queueChanged.subscribe
 
 export function getCommandQueueSnapshot(): readonly QueuedCommand[] {
   return snapshot
 }
-
 
 export function getCommandQueue(): QueuedCommand[] {
   return [...queue]
@@ -174,6 +172,7 @@ export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { la
   const nextKey = sessionId ?? getSessionId()
   owningSessionId = sessionId
   if (nextKey === prevKey) return
+
   if (opts?.landing === true) {
     const returning = parkedQueues.get(nextKey)
     if (returning !== undefined) {
@@ -186,6 +185,7 @@ export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { la
     return
   }
   let moved = false
+
   const parked: QueuedCommand[] = []
   for (let i = queue.length - 1; i >= 0; i--) {
     if (!drainingNow.has(queue[i]!)) parked.unshift(queue.splice(i, 1)[0]!)
@@ -196,6 +196,7 @@ export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { la
     else parkedQueues.set(prevKey, parked)
     moved = true
   }
+
   const returning = parkedQueues.get(nextKey)
   if (returning !== undefined) {
     parkedQueues.delete(nextKey)
@@ -213,7 +214,6 @@ export function peek(
   const idx = bestIndexByPriority(filter)
   return idx === -1 ? undefined : queue[idx]
 }
-
 
 export function enqueue(command: QueuedCommand): void {
   const stamped: QueuedCommand = {
@@ -336,7 +336,6 @@ export function remove(commandsToRemove: QueuedCommand[]): void {
   emitConsumption('removed', removed)
 }
 
-
 const TAKEN_MEMORY = 256
 const takenUuids: string[] = []
 function rememberTaken(commands: readonly QueuedCommand[]): void {
@@ -379,7 +378,6 @@ export function resetCommandQueue(): void {
   takenUuids.length = 0
   wordsWaitForTurnEnd = false
 }
-
 
 export function isSlashCommand(cmd: QueuedCommand): boolean {
   return (

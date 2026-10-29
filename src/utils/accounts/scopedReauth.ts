@@ -1,4 +1,3 @@
-
 import { createHash, randomBytes } from 'node:crypto'
 import {
   buildAuthUrl,
@@ -95,6 +94,7 @@ export async function completeScopedReauth(
     if (!saved.success) {
       return { ok: false, reason: saved.warning ?? 'credential save failed (keychain locked?)' }
     }
+
     recordSignIn('anthropic', 'oauth')
   } finally {
     if (prevScope === undefined) clearAuthScope()

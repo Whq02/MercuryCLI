@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -17,6 +18,7 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
+
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.CONSENT_RENDER_CHILD) {
@@ -82,6 +84,7 @@ if (process.env.CONSENT_RENDER_CHILD) {
   )
   setTimeout(() => process.exit(0), 1500)
 } else {
+
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
@@ -111,6 +114,7 @@ if (process.env.CONSENT_RENDER_CHILD) {
       timeout: 30000,
       env: {
         ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME,
         CONSENT_RENDER_CHILD: '1',
         CONSENT_MODE: mode,

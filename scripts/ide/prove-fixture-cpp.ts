@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -33,6 +34,7 @@ const clangd = probeBuiltinClangd()
 const clang = spawnSync('clang', ['--version'], { encoding: 'utf8', env: { ...process.env } })
 const lldbDap = spawnSync('xcrun', ['-f', 'lldb-dap'], { encoding: 'utf8', env: { ...process.env } })
 const lldbPath = lldbDap.status === 0 ? lldbDap.stdout.trim() : null
+
 const devMode =
   process.platform === 'darwin'
     ? spawnSync('DevToolsSecurity', ['-status'], { encoding: 'utf8', env: { ...process.env } })
@@ -51,6 +53,7 @@ if (!clangd.available || clang.status !== 0 || !lldbPath || !debugAuthorized) {
 
 const proj = mkdtempSync(path.join(tmpdir(), 'fixture-cpp-'))
 const srcC = path.join(proj, 'tally.c')
+
 writeFileSync(
   srcC,
   '#include <stdio.h>\n' +
@@ -209,6 +212,7 @@ try {
       const stack = await session.request('stackTrace', { threadId, startFrame: 0, levels: 3 })
       const frameId = (stack.stackFrames as Array<{ id: number }>)[0]!.id
       const evald = await session.request('evaluate', { expression: 'total', frameId, context: 'repl' })
+
       check('the running total at i==3 is 25 (10 + 3*5)', String(evald.result).includes('= 25') || String(evald.result) === '25', JSON.stringify(evald).slice(0, 120))
       session.lastStopped = null
       await session.request('continue', { threadId })

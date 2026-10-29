@@ -14,7 +14,6 @@ import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
 import { cooccurBoostFor, recordToolDiscovery, toolSearchCooccurEnabled } from './cooccurPrior.js'
 import { getPrompt, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
 
-
 const inputSchema = z.object({
   query: z
     .string()
@@ -31,6 +30,7 @@ const outputSchema = z.object({
   query: z.string(),
   total_deferred_tools: z.number(),
   pending_mcp_servers: z.array(z.string()).optional(),
+
   match_lines: z.array(z.string()).optional(),
   unresolved: z.array(z.string()).optional(),
   resolved: z.array(z.string()).optional(),
@@ -171,6 +171,7 @@ export async function searchToolsWithKeywords(
   const requiredTerms = rawTerms
     .filter(term => term.startsWith('+') && term.length > 1)
     .map(term => term.slice(1))
+
   const optionalTerms = rawTerms.filter(term => !(term.startsWith('+') && term.length > 1))
   const scoringTerms = requiredTerms.length > 0 ? [...requiredTerms, ...optionalTerms] : rawTerms
 
@@ -237,6 +238,7 @@ export async function searchToolsWithKeywords(
       if (description && patternFor(term).test(description)) score += 2
     }
     score += intentBoost(tool, queryTokens)
+
     if (score > 0 && toolSearchCooccurEnabled()) score += cooccurBoostFor(tool.name)
     if (score === 0) continue
     scored.push({ name: tool.name, score, enabled: probeEnabled(tool) })
@@ -259,6 +261,7 @@ const SELECT_FORM = /^select:(.+)$/i
 async function runSearch(input: Input, context: ToolUseContext): Promise<Output> {
   const { query, max_results = 5 } = input
   const allTools = context.options.tools ?? []
+
   const searchPermissionMode = context.getAppState().toolPermissionContext.mode
   const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, context.options.engineModel, searchPermissionMode, context.messages))
   maybeInvalidateCache(deferredTools)
@@ -272,6 +275,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
     const found: string[] = []
     const unresolved: string[] = []
     for (const name of requested) {
+
       const tool = findToolByName(deferredTools, name) ?? findToolByName(allTools, name)
       if (tool) {
         if (!found.includes(tool.name)) found.push(tool.name)
@@ -365,6 +369,7 @@ export const ToolSearchTool = buildTool({
   isEnabled: () => isToolSearchEnabledOptimistic(),
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
+
   async description(): Promise<string> {
     return getPrompt(deferralWireFormFor(getEngineModel()).form)
   },
@@ -384,6 +389,7 @@ export const ToolSearchTool = buildTool({
       }
       return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text }
     }
+
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,

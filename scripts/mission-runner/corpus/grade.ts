@@ -31,6 +31,7 @@ function reflogBaseSha(workdir: string): string | null {
       encoding: 'utf8',
     })
     const lines = raw.split('\n').filter(l => l.trim() !== '')
+
     for (const line of [...lines].reverse()) {
       const m = /^([0-9a-f]{40}) checkout: moving from /.exec(line)
       if (m) return m[1]
@@ -68,6 +69,7 @@ function observedChanges(
   })
   for (const line of raw.split('\n')) {
     if (line.trim() === '') continue
+
     const body = line.slice(3)
     const arrow = body.indexOf(' -> ')
     const paths = arrow >= 0 ? [body.slice(0, arrow), body.slice(arrow + 4)] : [body]

@@ -36,7 +36,6 @@ import {
   isShellCommandTargetingMemory,
 } from './memoryFileDetection.js'
 
-
 type SearchOrReadResult = {
   isCollapsible: boolean
   isSearch: boolean
@@ -95,6 +94,7 @@ export function getToolSearchOrReadInfo(
   const isBash = toolName === BASH_TOOL_NAME
   const isCollapsible =
     flags.isSearch || flags.isRead || Boolean(flags.isList) || (fullscreen && isBash)
+
   const mcpServerName =
     tool.isMcp && tool.mcpInfo?.serverName ? tool.mcpInfo.serverName : undefined
   return {
@@ -108,7 +108,6 @@ export function getToolSearchOrReadInfo(
     mcpServerName,
   }
 }
-
 
 type ToolUseMember = { toolUseId: string; input: unknown }
 
@@ -155,7 +154,6 @@ function toolResultBlocks(message: NormalizedUserMessage): Array<{ tool_use_id: 
   return blocks
 }
 
-
 const MAX_HINT_LENGTH = 300
 
 function formatCommandHint(command: string): string {
@@ -169,7 +167,6 @@ function formatCommandHint(command: string): string {
   }
   return hint
 }
-
 
 type OpenGroup = {
   messages: CollapsibleMessage[]
@@ -194,6 +191,7 @@ type OpenGroup = {
   prs: Array<{ number: number; url?: string; action: PrAction }>
   relevantMemories: Array<{ path: string; content: string; mtimeMs: number }>
   deferred: RenderableMessage[]
+
   deferredStatusToolUseIds: Set<string>
 }
 
@@ -270,6 +268,7 @@ function absorbToolUse(
     if (command !== undefined) {
       const label = extractBashCommentLabel(command)
       group.latestDisplayHint = label !== undefined ? label : formatCommandHint(command)
+
       for (const member of described.members) {
         group.bashCommandsByToolUseId.set(member.toolUseId, command)
       }
@@ -303,6 +302,7 @@ function absorbToolUse(
     }
     return
   }
+
   for (const member of described.members) {
     const filePath = inputField(member.input, 'file_path')
     if (filePath !== undefined) {
@@ -313,6 +313,7 @@ function absorbToolUse(
         group.latestDisplayHint = getDisplayPath(filePath)
       }
     } else {
+
       group.readOperationCount += 1
       const command = inputField(member.input, 'command')
       if (command !== undefined) {
@@ -329,6 +330,7 @@ function buildCollapsedRow(group: OpenGroup): CollapsedReadSearchGroup {
   const totalReadCount =
     group.readFilePaths.size > 0 ? group.readFilePaths.size : group.readOperationCount
   const reportedReadCount = Math.max(0, totalReadCount - group.memoryReadPaths.size)
+
   const memoryReadCount = group.memoryReadPaths.size + group.relevantMemories.length
   const reportedSearchCount = Math.max(0, group.searchCount - group.memorySearchCount)
   const nonMemoryReadPaths = [...group.readFilePaths].filter(
@@ -420,7 +422,6 @@ function scanForGitOperations(group: OpenGroup, message: NormalizedUserMessage):
   }
 }
 
-
 export function collapseReadSearchGroups(
   messages: RenderableMessage[],
   tools: Tools,
@@ -462,6 +463,7 @@ export function collapseReadSearchGroups(
           group.messages.push(message as CollapsibleMessage)
           absorbToolUse(group, info, described)
         } else if (groupOpen() && message.type === 'assistant' && isStatusUpdateTool(described.toolName)) {
+
           group.deferred.push(message)
           for (const id of toolUseIdsOfAssistant(message)) group.deferredStatusToolUseIds.add(id)
         } else {
@@ -475,6 +477,7 @@ export function collapseReadSearchGroups(
         else out.push(message)
         continue
       }
+
       flush()
       out.push(message)
       continue
@@ -499,6 +502,7 @@ export function collapseReadSearchGroups(
     if (message.type === 'attachment') {
       const attachment = message.attachment as { type?: string }
       if (attachment.type === 'nested_memory' && groupOpen()) {
+
         out.push(message)
         continue
       }
@@ -516,7 +520,6 @@ export function collapseReadSearchGroups(
   flush()
   return out
 }
-
 
 type MemoryCounts = {
   memorySearchCount?: number
@@ -551,6 +554,7 @@ export function getSearchReadSummaryText(
     }
     const memorySearches = memoryCounts.memorySearchCount ?? 0
     if (memorySearches > 0) {
+
       addClause('Searching', 'Searched', 'memories', true)
     }
     const memoryWrites = memoryCounts.memoryWriteCount ?? 0
@@ -581,7 +585,6 @@ export function getSearchReadSummaryText(
   const text = clauses.join(', ')
   return isActive ? `${text}…` : text
 }
-
 
 export function getToolUseIdsFromCollapsedGroup(message: CollapsedReadSearchGroup): string[] {
   const ids: string[] = []

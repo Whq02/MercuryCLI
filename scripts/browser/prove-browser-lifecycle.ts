@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { join } from 'node:path'
 import type { Browser as DriverBrowser } from 'puppeteer-core'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
+
 process.env.MERCURY_BROWSER_PATH = process.execPath
 process.env.MERCURY_BROWSER ??= '1'
 delete process.env.MERCURY_BROWSER_MAX_SESSIONS

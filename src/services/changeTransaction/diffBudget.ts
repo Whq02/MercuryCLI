@@ -1,4 +1,3 @@
-
 import { structuredPatch } from 'diff'
 
 export interface BoundedDiffHunk {

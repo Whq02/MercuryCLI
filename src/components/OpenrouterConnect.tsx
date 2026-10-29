@@ -23,7 +23,6 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-
 export function OpenrouterConnect({
   onResult,
 }: {
@@ -33,6 +32,7 @@ export function OpenrouterConnect({
   const { compact } = usePopupCompact()
   const [leg, setLeg] = useState<'choice' | 'browser' | 'headless' | 'key'>('choice')
   const [paste, setPasteState] = useState('')
+
   const pasteRef = useRef('')
   const setPaste = (next: string): void => {
     pasteRef.current = next
@@ -53,6 +53,7 @@ export function OpenrouterConnect({
   }
 
   const finishConnected = async (ref: OpenrouterAccountRef): Promise<void> => {
+
     const outcome = await finishOpenrouterConnect(ref)
     settle(outcome.receipt, outcome.ok)
   }
@@ -95,6 +96,7 @@ export function OpenrouterConnect({
       phase !== 'exchanging' &&
       authorizeUrl
     ) {
+
       event.stopImmediatePropagation()
       void setClipboard(authorizeUrl).then(sequence => {
         if (sequence) process.stdout.write(sequence)
@@ -201,12 +203,14 @@ function OpenrouterKeyLeg({
   const submit = (raw: string): void => {
     const value = raw.trim()
     if (!value) return
+
     const guard = keyPasteGuardNote(value, { stores: 'an OpenRouter key (sk-or-…)' })
     if (guard !== null) {
       setNote(guard)
       return
     }
     setStoring(true)
+
     void storeOpenrouterApiKeyLogin(value).then(outcome => {
       if (!outcome.stored) {
         setStoring(false)

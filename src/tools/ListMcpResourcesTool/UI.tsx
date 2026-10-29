@@ -8,7 +8,6 @@ import { Box, Text } from '../../ink.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './ListMcpResourcesTool.js'
 
-
 export function renderToolUseMessage(input?: { server?: string }): React.ReactNode {
   return input?.server ?? 'all'
 }

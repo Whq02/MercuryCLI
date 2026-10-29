@@ -1,4 +1,3 @@
-
 import { resolveMotion } from './motions.js'
 import {
   executeIndent,
@@ -96,6 +95,7 @@ function sharedNormalInput(
     case 'P':
       return { execute: () => executePaste(false, effective, ctx) }
     case 'D':
+
       return { execute: () => executeOperatorMotion('delete', '$', 1, ctx) }
     case 'C':
       return { execute: () => executeOperatorMotion('change', '$', 1, ctx) }
@@ -188,7 +188,9 @@ export function transition(
       if (/^[1-9]$/.test(input)) {
         return { next: { type: 'count', count: Number(input) } }
       }
+
       const handled = sharedNormalInput(input, 0, ctx)
+
       return handled ?? {}
     }
 
@@ -202,6 +204,7 @@ export function transition(
 
     case 'operator': {
       if (isDigit(input)) {
+
         return {
           next: {
             type: 'operatorCount',
@@ -223,11 +226,13 @@ export function transition(
           },
         }
       }
+
       const effective = (state.count || 1) * state.motionCount
       return operatorInput(state.operator, effective, effective, input, ctx)
     }
 
     case 'operatorFind':
+
       return {
         execute: () =>
           executeOperatorFind(state.operator, state.findType, input, state.count || 1, ctx),
@@ -287,6 +292,7 @@ export function transition(
     }
 
     case 'replace': {
+
       if (input === '') return { next: IDLE }
       return { execute: () => executeReplace(input, state.count || 1, ctx) }
     }

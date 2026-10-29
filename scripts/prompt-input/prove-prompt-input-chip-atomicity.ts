@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,6 +26,7 @@ const composerOf = (rows: string[]): string => {
 }
 
 function capture(tag: string, sends: unknown[], total: number): string {
+
   writeSyntheticSession('short', SID)
   const out = join(home, `${tag}.json`)
   const cfgPath = join(home, `${tag}-cfg.json`)
@@ -50,6 +52,7 @@ const prefix = [
 ]
 
 try {
+
   const a = capture('a', [
     ...prefix,
     { atTick: 50, data: LEFT, afterPrevTicks: 4 },

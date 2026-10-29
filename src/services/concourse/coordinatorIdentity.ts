@@ -1,4 +1,3 @@
-
 import {
   ensureAgentIdentity,
   linkAgentRole,

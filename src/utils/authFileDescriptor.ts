@@ -23,6 +23,7 @@ function resolveCredential(config: {
 
   const fdRaw = process.env[config.envVar]
   if (fdRaw === undefined) {
+
     config.setSlot(null)
     return null
   }
@@ -44,6 +45,7 @@ function resolveCredential(config: {
     config.setSlot(content)
     return content
   } catch (error) {
+
     logForDebugging(`${config.tokenName}: fd read failed (${String(error)})`)
     config.setSlot(null)
     return null

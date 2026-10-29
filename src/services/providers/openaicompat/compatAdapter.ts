@@ -80,6 +80,7 @@ function listCompatModels(): ProviderModel[] {
 function resolveCompatModel(
   _modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
+
   return null
 }
 

@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import * as path from 'node:path'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -36,10 +35,10 @@ const VULCAN_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Godot control surface (VULCAN)") or MERCURY_GODOT_TOOLS=1'
 
 const VULCAN_OP_TIMEOUT_MS = 8_000
+
 const GODOT_SCENE_PROFILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
 const SKIP_DIRS = new Set(['.godot', '.git', '.import', 'node_modules'])
-
 
 type GodotLaneArming =
   | { state: 'armed' }
@@ -49,16 +48,21 @@ type GodotProjectResult =
   | {
       state: 'ok'
       root: string
+
       name?: string
+
       mainScene?: string
+
       mainScenePath?: string
     }
   | { state: 'absent'; detail: string }
 
 interface GodotLspState {
+
   registered: boolean
   port: number
   detail: string
+
   live?: { state: string; healthy: boolean; restartCount: number }
 }
 
@@ -71,9 +75,11 @@ interface GodotDapSessionRow {
 }
 
 interface GodotDapState {
+
   adapterRegistered: boolean
   port: number
   detail: string
+
   sessions: GodotDapSessionRow[]
 }
 
@@ -95,7 +101,9 @@ type GodotEditorTruth =
 
 interface GodotIdeSession {
   project: GodotProjectResult
+
   godotLane: GodotLaneArming
+
   vulcanLane: GodotLaneArming
   lsp: GodotLspState
   dap: GodotDapState
@@ -106,17 +114,20 @@ interface GodotIdeSession {
 
 interface GodotLaunchProfile {
   kind: 'main' | 'current' | 'scene'
+
   scene: string
+
   path?: string
   label: string
 }
 
 interface GodotLaunchDiscovery {
   profiles: GodotLaunchProfile[]
+
   sceneCount: number
+
   truncatedScenes: number
 }
-
 
 interface ParsedProjectGodot {
   name?: string
@@ -171,7 +182,6 @@ function resolveResPath(root: string, scene: string): string | undefined {
   return existsSync(abs) ? abs : undefined
 }
 
-
 function laneArming(armed: boolean, armSurface: string): GodotLaneArming {
   return armed ? { state: 'armed' } : { state: 'disarmed', armSurface }
 }
@@ -188,6 +198,7 @@ function collectLspState(): GodotLspState {
   if (!mercuryGodotEnabled()) {
     return { registered: false, port, detail: `disarmed — ${GODOT_LANES_ARM_SURFACE}` }
   }
+
   const configs = builtinGodotServer()
   const config = configs[MERCURY_GODOT_SERVER_NAME]
   if (!config) {
@@ -214,6 +225,7 @@ function collectLspState(): GodotLspState {
 
 function collectDapState(owner: OwnerKey): GodotDapState {
   const port = godotDapPort()
+
   const sessions: GodotDapSessionRow[] = listDapSessions(owner)
     .filter(({ session }) => session.adapterKey === GODOT_DAP_ADAPTER_KEY)
     .map(({ id, session }) => ({
@@ -343,7 +355,6 @@ async function collectEditorTruth(
   return { state: 'ok', errors, currentScene, runningScene }
 }
 
-
 export async function buildGodotIdeSession(
   owner: OwnerKey,
   from: string = getCwd(),
@@ -378,7 +389,6 @@ export async function buildGodotIdeSession(
     collectedAt: Date.now(),
   }
 }
-
 
 function walkScenes(root: string): { scenes: string[]; total: number } {
   const scenes: string[] = []

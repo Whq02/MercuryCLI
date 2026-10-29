@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -73,6 +74,7 @@ section('§3 WIRING')
   const helpers = src('src/interactiveHelpers.tsx')
   check(
     'the boot dialog decision records the posture (both branches — shown AND suppressed)',
+
     /recordPermissionPosture\(\{[\s\S]*?dialogSuppressed,[\s\S]*?\}\)/.test(helpers),
   )
   check(

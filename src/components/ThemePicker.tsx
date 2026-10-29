@@ -1,4 +1,3 @@
-
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { Box, Text } from '../ink.js'
@@ -92,6 +91,7 @@ export function ThemePicker({
   const app = useApp()
 
   useRegisterKeybindingContext('ThemePicker')
+
   const exitState = useExitOnCtrlCDWithKeybindings(
     skipExitHandling ? noop : undefined,
   )
@@ -131,6 +131,7 @@ export function ThemePicker({
       updateSettingsForSource('userSettings', {
         view: { syntaxOff: next },
       })
+
       setAppState(prev => ({
         ...prev,
         settings: { ...prev.settings, view: { ...prev.settings.view, syntaxOff: next } },

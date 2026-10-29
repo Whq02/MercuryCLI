@@ -1,4 +1,3 @@
-
 import { subscribeRoomStatusFeed } from './statusFeed.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { BURST_WINDOW_MS } from './statusFeed.js'
@@ -12,10 +11,14 @@ import {
 
 export interface AttentionViewV1 {
   v: 1
+
   version: number
   atMs: number
+
   attention: AttentionState
+
   relations: RelationState
+
   needsYou: number
 }
 
@@ -65,6 +68,7 @@ function schedule(kind: string | null): void {
 export function subscribeAttentionView(cb: () => void): () => void {
   listeners.add(cb)
   if (!storeUnsub) {
+
     storeUnsub = subscribeAttentionStore(() => schedule(null))
   }
   if (!feedUnsub) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -52,6 +53,7 @@ section('§A runWithCwdOverride reaches a spawned agent (the descendants law)')
     seedPhaseTitles: [],
     args: undefined,
     spawnSubagentStream: (async function* () {
+
       seenCwds.push(getCwd())
       yield {
         type: 'assistant',

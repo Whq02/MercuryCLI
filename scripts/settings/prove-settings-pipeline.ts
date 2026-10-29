@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -108,6 +109,7 @@ section('(2) flag settings (file + inline) and policy sit above local')
   )
 
   setMdmSettingsCache({ settings: { engine: { model: 'policy-model' } }, errors: [] }, { settings: {}, errors: [] })
+
   state.setAllowedSettingSources([
     'userSettings',
     'projectSettings',
@@ -157,6 +159,7 @@ section('(3) Mercury value acceptance (the R1c widening class)')
       j(r.errors),
     )
   }
+
   writeAll({ user: { guardrails: { mode: 'bogus' } } })
   const bogus = getSettingsWithErrors()
   check(
@@ -168,6 +171,7 @@ section('(3) Mercury value acceptance (the R1c widening class)')
 
 section('(4) invalid-file taxonomy')
 {
+
   writeFileSync(userPath, '{ not json')
   resetSettingsCache()
   const parsed = parseSettingsFile(userPath)
@@ -288,6 +292,7 @@ section('(8) merge customizer unit (the exported seam)')
 }
 
 console.log('\n============================================================')
+
 {
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
   const lockOf = (value: unknown): unknown => {

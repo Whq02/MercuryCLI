@@ -1,6 +1,3 @@
-
-
-
 export * from './turnCut.js'
 import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultText } from './turnCut.js'
 
@@ -10,7 +7,6 @@ export const DENIAL_WORKAROUND_GUIDANCE =
 
 export const CANCEL_MESSAGE =
   'The operator stopped this action before it ran; nothing was changed. Stop what you are doing and wait for the operator to say how to proceed.'
-
 
 export const REJECT_MESSAGE =
   `The operator declined this tool call; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
@@ -51,10 +47,12 @@ export function UNANSWERED_ASK_REJECT_MESSAGE(toolName: string, cause: string): 
 }
 
 export function isDenialResultText(raw: string): boolean {
+
   const text = unwrapToolUseError(raw)
   return (
     text.includes(INTERRUPT_MESSAGE) ||
     text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE) ||
+
     isInterruptedResultText(text) ||
     /^Cut off(?: by|:) /.test(text) ||
     text === CANCEL_MESSAGE ||

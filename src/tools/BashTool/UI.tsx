@@ -26,7 +26,6 @@ type BashInput = {
   description?: string
 }
 
-
 export function renderToolUseMessage(
   input: Partial<BashInput>,
   { verbose }: { theme?: unknown; verbose: boolean; commands?: unknown },

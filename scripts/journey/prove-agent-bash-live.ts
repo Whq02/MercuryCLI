@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -31,9 +32,12 @@ const READ_ONLY_COMMAND = 'git rev-parse --short HEAD'
 const PROBE_COMMIT = 'agent-bash-probe'
 const WRITING_COMMAND = `git commit --allow-empty -q -m ${PROBE_COMMIT} && git rev-parse --short HEAD`
 const CARD_WORDS = 'Do you want to proceed?'
+
 const BLOCK_REASON = 'agent-bash: the fixture safety check blocks the probe commit'
+
 const CARD_BLOCK_WORDS = "Flow's safety check blocked this"
 const GPT_MODEL = 'gpt-5.6-sol'
+
 const FIXTURE_API_KEY = 'fixture-key-000'
 
 type Dialect = 'anthropic' | 'openai'
@@ -252,6 +256,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
     req.on('data', c => chunks.push(c as Buffer))
     req.on('end', () => {
       const url = (req.url ?? '').split('?')[0] ?? ''
+
       if (req.method === 'GET' && url.includes('/openai/') && url.endsWith('/models')) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ object: 'list', data: [gptModel], models: [gptModel] }))
@@ -325,6 +330,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+
   const address = server.address()
   const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
@@ -350,6 +356,7 @@ function seedWorld(settings: Record<string, unknown>): World {
     return r.stdout.trim()
   }
   git(['init', '-q'])
+
   git(['config', 'user.name', 'probe'])
   git(['config', 'user.email', 'probe@example.invalid'])
   writeFileSync(join(cwd, 'README.md'), 'the shell probe repository\n')
@@ -371,6 +378,7 @@ function driveEnv(home: string, fixtureBase: string, openai = false): Record<str
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+
     ...(openai ? { OPENAI_API_KEY: 'fixture-openai-key', MERCURY_OPENAI_API_BASE: `${fixtureBase}/openai/v1` } : { OPENAI_API_KEY: '' }),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
@@ -478,10 +486,13 @@ const COLS = 160
 const ROWS = 44
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
+
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
   { data: ask, atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'typed' },
   { data: '\r', afterPrevTicks: 4, mark: 'sent' },
 ]
+
 const cardSend = (mark: string): Record<string, unknown> => ({ data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark })
 
 function dump(label: string, frame: string | undefined): void {
@@ -505,6 +516,7 @@ interface PtyLeg {
   background: boolean
   settings: Record<string, unknown>
   argv: string[]
+
   sends: Array<Record<string, unknown>>
   total: number
 }
@@ -527,9 +539,11 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     argv: [],
     sends: [
       cardSend('card'),
+
       { data: '/crewmates', afterPrevTicks: 6 },
       { data: '\r', afterPrevTicks: 4 },
       { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Crewmates \\(1\\)', mark: 'crew-landed' },
+
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
       { data: '\r', afterPrevTicks: 4 },
     ],
@@ -539,6 +553,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     name: 'flow-fg',
     port: 0,
     background: false,
+
     settings: {},
     argv: ['--mode', 'flow'],
     sends: [cardSend('card')],
@@ -548,6 +563,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     name: 'flow-bg',
     port: 0,
     background: true,
+
     settings: {},
     argv: ['--mode', 'flow'],
     sends: [
@@ -586,6 +602,7 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
         cwd: world.cwd,
         argv: ['node', DIST, ...leg.argv],
         sends: [...bootSends(ASK), ...leg.sends],
+
         readyText: ['agent-bash: reported sha='],
         stableTicks: 6,
       },
@@ -638,6 +655,7 @@ function headlessEnv(world: World, fixtureBase: string): NodeJS.ProcessEnv {
     PATH: process.env.PATH ?? '/usr/bin:/bin',
     TERM: 'dumb',
     ...driveEnv(world.home, fixtureBase, false),
+
     MERCURY_THINKING_BINDING: 'drop_block',
   }
 }
@@ -723,6 +741,7 @@ async function runHeadlessStdio(): Promise<void> {
       ['--model', 'claude-opus-5'],
       [
         { prompt: ASK },
+
         { prompt: FOLLOW_UP, awaitRoute: 'seat-done' },
       ],
     )

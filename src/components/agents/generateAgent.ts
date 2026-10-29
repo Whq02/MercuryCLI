@@ -1,4 +1,3 @@
-
 import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
@@ -18,6 +17,7 @@ type GeneratedAgent = {
 }
 
 function draftingSystemPrompt(): string[] {
+
   const sections = [
     `You are an expert architect of agent configurations. Given a description of
 what an agent should do, you design a complete, high-quality configuration
@@ -130,6 +130,7 @@ export async function generateAgent(
   try {
     parsed = JSON.parse(text)
   } catch {
+
     const first = text.indexOf('{')
     const last = text.lastIndexOf('}')
     if (first === -1 || last === -1 || last <= first) {

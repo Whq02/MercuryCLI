@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   appendChildNode,
   createNode,
@@ -80,6 +81,7 @@ class ComposeSession {
       terminalRows: ROWS,
       altScreen: true,
       prevFrameContaminated: false,
+
       regionScrollUsable: true,
     })
     this.back = this.front
@@ -176,6 +178,7 @@ console.log('native-core T3 — frame composition contract (live-tree journeys)'
   spec.lines[1]!.text = 'BETA ROW TWO'
   setTextNodeValue(texts[1]!, 'BETA ROW TWO')
   const dirty = session.step()
+
   const boxArea = COLS * 6
   check(
     'dirty-narrow: writes bounded to the dirty box',
@@ -213,6 +216,7 @@ function buildScrollTree(spec: ScrollSpec): {
   const row = createNode('ink-box')
   applySceneStyle(row, { flexDirection: 'row', flexGrow: 0, flexShrink: 1 })
   if (!spec.fullWidth) {
+
     const rail = createNode('ink-box')
     applySceneStyle(rail, { width: 8, flexDirection: 'column', flexGrow: 0, flexShrink: 0 })
     const railText = createNode('ink-text')
@@ -220,6 +224,7 @@ function buildScrollTree(spec: ScrollSpec): {
     appendChildNode(rail, railText)
     appendChildNode(row, rail)
   }
+
   const scrollBox = createNode('ink-box')
   applySceneStyle(scrollBox, {
     flexDirection: 'column',
@@ -251,6 +256,7 @@ function freshScrollCompose(spec: ScrollSpec, scrollTop: number): { screen: Scre
 }
 
 {
+
   const spec: ScrollSpec = {
     items: Array.from({ length: 30 }, (_, i) => `item ${String(i).padStart(2, '0')} content`),
     fullWidth: true,
@@ -663,6 +669,7 @@ function checkOverlayStep(
     readonly charPool = new CharPool()
     readonly hyperlinkPool = new HyperlinkPool()
     readonly selection: SelectionState = createSelectionState()
+
     readonly emu = new AnsiEmulator(COLS, ROWS, true)
     readonly glassFaults: string[] = []
     cleared = 0
@@ -709,6 +716,7 @@ function checkOverlayStep(
         },
         record,
       })
+
       const vacated = glass ? glass.rect() : null
       if (vacated) {
         frame.screen.damage = frame.screen.damage ? unionRect(frame.screen.damage, vacated) : vacated
@@ -724,6 +732,7 @@ function checkOverlayStep(
       this.glass = record.size > 0 ? record : null
       return frame
     }
+
     highlighted(): Map<number, string> {
       const out = new Map<number, string>()
       const screen = this.front.screen

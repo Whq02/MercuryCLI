@@ -1,4 +1,3 @@
-
 import { useRef } from 'react'
 import stripAnsi from 'strip-ansi'
 import { useNotifications } from '../context/notifications.js'
@@ -30,36 +29,45 @@ import { EXIT_CHORD_WINDOW_MS, useDoublePress } from './useDoublePress.js'
 const ESCAPE_CLEAR_NOTIFICATION_KEY = 'escape-again-to-clear'
 
 export type UseTextInputProps = {
+
   viewportStartRef?: React.MutableRefObject<number | undefined>
+
   value: string
   onChange: (value: string) => void
   externalOffset: number
   onOffsetChange: (offset: number) => void
   columns: number
+
   onSubmit?: (value: string) => void
   onExit?: () => void
+
   onEscape?: () => void
   onExitMessage?: (show: boolean, chordLabel?: string) => void
   onHistoryUp?: () => void
   onHistoryDown?: () => void
   onHistoryReset?: () => void
   onClearInput?: () => void
+
   cursorChar?: string
   mask?: string
   invert?: (text: string) => string
   dim?: (text: string) => string
   maxVisibleLines?: number
   inlineGhostText?: InlineGhostText
+
   multiline?: boolean
   disableCursorMovementForUpDownKeys?: boolean
   disableEscapeDoublePress?: boolean
   disablePageKeyCursorMovement?: boolean
+
   suppressEnterSubmit?: boolean
+
   inputFilter?: (input: string, key: Key) => string
   selectionRange?: () => { start: number; end: number } | null | undefined
   onBeforeRangeEdit?: () => void
   onSelectionConsumed?: () => void
   selectionPaint?: SelectionPaint | null
+
   focus?: boolean
   highlightPastedText?: boolean
   themeText?: (text: string) => string
@@ -137,6 +145,7 @@ export function useTextInput({
   const handleCtrlD = useDoublePress(
     show => onExitMessage?.(show, 'Ctrl-D'),
     () => {
+
       if (value === '') onExit?.()
     },
     undefined,
@@ -187,6 +196,7 @@ export function useTextInput({
     if (multiline) {
       const logical = cursor.upLogicalLine()
       if (!logical.equals(cursor)) {
+
         const noNewlineBefore = !value.slice(0, cursor.offset).includes('\n')
         if (onHistoryUp && logical.offset === 0 && noNewlineBefore) {
           onHistoryUp()
@@ -232,7 +242,6 @@ export function useTextInput({
     return next
   }
 
-
   function handleRawDelBytes(cursor: Cursor, rawInput: string): void {
     resetKillAccumulation()
     resetYankState()
@@ -251,10 +260,12 @@ export function useTextInput({
 
   function handleEnter(cursor: Cursor, key: Key): Cursor | null {
     if (multiline && isBackslashContinuation(value, cursor.offset)) {
+
       markBackslashReturnUsed()
       return cursor.backspace().insert('\n')
     }
     if (key.meta || key.shift) return cursor.insert('\n')
+
     if (suppressEnterSubmit) return null
     onSubmit?.(value)
     return null
@@ -266,6 +277,7 @@ export function useTextInput({
     rawInput: string,
     key: Key,
   ): Cursor | null {
+
     if (key.return) return handleEnter(cursor, key)
 
     if (key.escape) {
@@ -292,6 +304,7 @@ export function useTextInput({
 
     if (key.home) return cursor.startOfLine()
     if (key.end) return cursor.endOfLine()
+
     if (rawInput === '\x1b[H' || rawInput === '\x1b[1~') return cursor.startOfLine()
     if (rawInput === '\x1b[F' || rawInput === '\x1b[4~') return cursor.endOfLine()
 
@@ -313,6 +326,7 @@ export function useTextInput({
     }
 
     if (key.pageUp || key.pageDown) {
+
       if (isFullscreenEnvEnabled() || disablePageKeyCursorMovement) return null
       return key.pageUp ? cursor.startOfLine() : cursor.endOfLine()
     }
@@ -396,6 +410,7 @@ export function useTextInput({
 
   const onInput = (rawInput: string, key: Key): void => {
     const filtered = inputFilter ? inputFilter(rawInput, key) : rawInput
+
     if (inputFilter && filtered === '' && rawInput !== '') return
 
     const { value: liveValue, offset: liveOffset } = liveRef.current
@@ -484,6 +499,7 @@ export function useTextInput({
     inlineGhostText && dim && inlineGhostText.insertPosition === offset
       ? { text: inlineGhostText.text, dim }
       : undefined
+
   const localViewportStartRef = useRef<number | undefined>(undefined)
   const bandRef = viewportStartRef ?? localViewportStartRef
   const viewportStartLine = renderCursor.getViewportStartLine(maxVisibleLines, bandRef.current)

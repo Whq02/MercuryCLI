@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -24,7 +25,6 @@ const guard = setTimeout(() => {
   process.exit(1)
 }, 60_000)
 guard.unref?.()
-
 
 function makeInput(): {
   iterable: AsyncIterable<string>
@@ -75,11 +75,13 @@ function makeHarness(): Harness {
   const io = new StructuredIO(input.iterable, text => refused.push(text))
   const received: Array<Record<string, unknown>> = []
   const outbound: Array<Record<string, unknown>> = []
+
   void (async () => {
     for await (const m of io.structuredInput) {
       received.push(m as Record<string, unknown>)
     }
   })()
+
   void (async () => {
     for await (const m of io.outbound) {
       outbound.push(m as Record<string, unknown>)
@@ -106,6 +108,7 @@ section('S1/S2 — line framing across blocks · prepend ordering · trailing li
   const h = makeHarness()
   h.io.prependUserMessage('prepended first')
   const userMsg = (text: string) => JSON.stringify({ type: 'prompt', content: text })
+
   const whole = userMsg('split across blocks')
   h.pushRaw(whole.slice(0, 25))
   await h.settle()
@@ -115,11 +118,13 @@ section('S1/S2 — line framing across blocks · prepend ordering · trailing li
   const users = () => h.received.filter(m => m.type === 'prompt').map(m => j(m))
   check('the PREPENDED message yielded FIRST', users()[0]?.includes('prepended first') === true, j(users()))
   check('the split message reassembled exactly once', users().filter(u => u.includes('split across blocks')).length === 1, j(users()))
+
   h.io.prependUserMessage('prepended mid-stream')
   h.push({ type: 'prompt', content: 'after mid-prepend' })
   await h.settle()
   const u = users()
   check('a mid-stream prepend lands before the next input message', u.indexOf(u.find(x => x.includes('prepended mid-stream'))!) < u.indexOf(u.find(x => x.includes('after mid-prepend'))!), j(u))
+
   h.pushRaw(userMsg('trailing no newline'))
   h.end()
   await h.settle()

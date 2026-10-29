@@ -1,4 +1,3 @@
-
 import type { StructuredPatchHunk } from 'diff'
 import { randomUUID } from 'node:crypto'
 import { enqueue } from '../../input-core/command-queue.js'
@@ -19,7 +18,6 @@ import {
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { getCwd } from '../../utils/cwd.js'
 import type { DiffData } from '../../hooks/useDiffData.js'
-
 
 export function buildAnchorForHunk(
   path: string,
@@ -68,7 +66,6 @@ export function buildAnchorForHunk(
   return firstContext
 }
 
-
 const sourceArtifacts = new Map<string, string>()
 
 export function diffDataToBodyFiles(diffData: DiffData): DiffBodyFile[] {
@@ -91,6 +88,7 @@ export function diffDataToBodyFiles(diffData: DiffData): DiffBodyFile[] {
 }
 
 function boundKey(sourceKey: string): string {
+
   return `${getCwd()}::${sourceKey}`
 }
 
@@ -108,6 +106,7 @@ export async function ensureDiffArtifact(args: {
   if (files.length === 0) {
     return { ok: false, reason: 'nothing to review — this source has no hunks' }
   }
+
   let treeDigest: string | null = null
   try {
     treeDigest = await computeWorkingTreeDigestAsync(getCwd())
@@ -136,12 +135,13 @@ export function _resetReviewLayerForTesting(): void {
   sourceArtifacts.clear()
 }
 
-
 interface FileReviewMarks {
+
   byHunk: Map<number, ReviewComment[]>
   open: number
   resolved: number
   outdated: number
+
   olderVersion: number
 }
 
@@ -189,7 +189,6 @@ export function artifactReviewCounts(artifactId: string | null): {
   return counts
 }
 
-
 export function annotateHunk(args: {
   artifactId: string
   path: string
@@ -197,6 +196,7 @@ export function annotateHunk(args: {
   hunkIndex: number
   body: string
   author?: string
+
   currentDiffData?: DiffData
   producerSessionId?: string
 }): { ok: true; commentId: string } | { ok: false; reason: string } {
@@ -212,6 +212,7 @@ export function annotateHunk(args: {
     body: args.body,
   })
   if (added.ok) return { ok: true, commentId: added.value.commentId }
+
   if (args.currentDiffData && added.reason.includes('anchor does not validate')) {
     const files = diffDataToBodyFiles(args.currentDiffData)
     if (files.length > 0) {
@@ -256,7 +257,6 @@ export function resolveHunkComments(args: {
   }
   return n
 }
-
 
 const SEND_MAX_COMMENTS = 24
 const SEND_MAX_BODY = 400

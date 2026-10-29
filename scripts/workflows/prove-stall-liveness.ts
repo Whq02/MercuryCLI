@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -30,6 +31,7 @@ type FakeArgs = {
   prompt?: string
 }
 type FakeSpec = {
+
   behaviors: Array<(args: FakeArgs) => AsyncGenerator<unknown, void>>
 }
 
@@ -80,6 +82,7 @@ function makeRig(spec: FakeSpec): {
 }
 const abortSignalOf = (args: FakeArgs): AbortSignal | undefined =>
   args.toolUseContext?.abortController?.signal
+
 const hangUntilAbort = async (args: FakeArgs): Promise<never> => {
   await new Promise<void>(resolve => {
     const sig = abortSignalOf(args)
@@ -123,6 +126,7 @@ section('(a) a declared backoff LONGER than stallMs does not kill the attempt')
   const { hooks, calls, frames } = makeRig({
     behaviors: [
       async function* (args) {
+
         args.onQueryProgress?.({ type: 'stream_event' })
         args.onQueryProgress?.(apiError(600))
         await sleep(600)
@@ -147,6 +151,7 @@ section('(b) a genuine wedge still dies at stallMs and exhausts the ladder')
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
+
         await hangUntilAbort(args)
       },
     ],
@@ -177,6 +182,7 @@ section('(c) deterministic-400 fails immediately — no retry, no recovery wait'
         }
         args.onQueryProgress?.(msg)
         yield msg
+
         await hangUntilAbort(args)
       },
     ],
@@ -194,6 +200,7 @@ section('(e) refusals past the retry budget settle typed — no ladder, no 45s t
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
+
         args.onQueryProgress?.(apiError(700_000, 529))
         args.onQueryProgress?.(apiError(700_000, 529))
         args.onQueryProgress?.(apiError(700_000, 529))
@@ -215,6 +222,7 @@ section('(e2) a fault past the budget is not a refusal: honoured whole, the budg
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
+
         args.onQueryProgress?.(apiError(300, 503))
         args.onQueryProgress?.(apiError(300, 503))
         args.onQueryProgress?.(apiError(300, 503))
@@ -236,6 +244,7 @@ section('(e2) a fault past the budget is not a refusal: honoured whole, the budg
 
 section('(f) resume semantics: balanced prefix continues; unpaired tool_use restarts fresh')
 {
+
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
@@ -268,12 +277,14 @@ section('(f) resume semantics: balanced prefix continues; unpaired tool_use rest
   check('the resume runs under the SAME agent id as the cut attempt (the same transcript, the same prefix key)', calls[0]?.agentId !== undefined && calls[1]?.agentId === calls[0]?.agentId, `${calls[0]?.agentId} → ${calls[1]?.agentId}`)
 }
 {
+
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
         const msg = assistantToolUse('toolu_dangling')
         args.onQueryProgress?.(msg)
         yield msg
+
         await sleep(50)
         args.onQueryProgress?.({ type: 'stream_event' })
         await hangUntilAbort(args)
@@ -348,6 +359,7 @@ section('source locks — the forward stays live and honest')
 
 section("(g) a fast tool round then silence: the round's end un-parks the watchdog, throttle or not")
 {
+
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {
@@ -355,6 +367,7 @@ section("(g) a fast tool round then silence: the round's end un-parks the watchd
         args.onQueryProgress?.(call)
         yield call
         await sleep(2)
+
         args.onQueryProgress?.({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_fast', content: 'ok' }] } })
         await hangUntilAbort(args)
       },
@@ -378,6 +391,7 @@ section("(g) a fast tool round then silence: the round's end un-parks the watchd
 
 section("(h) a tool round with progress ticks, then silence: a tool's own progress never un-parks the watchdog; the round's end does")
 {
+
   const { hooks, calls } = makeRig({
     behaviors: [
       async function* (args) {

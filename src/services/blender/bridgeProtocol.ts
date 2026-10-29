@@ -1,4 +1,3 @@
-
 export const BLENDER_BRIDGE_PROTOCOL_VERSION = 1
 
 export const BLENDER_BRIDGE_DEFAULT_PORT = 6012
@@ -15,7 +14,6 @@ export const BLENDER_PYTHON_RUN_NO_SANDBOX_SENTENCE =
   'python_run claims NO sandbox: the code runs inside Blender with full bpy authority — it can modify or delete scene data and write files as you; the permission ask is the fence.'
 export const BLENDER_PYTHON_RUN_NO_PREEMPTION_SENTENCE =
   'python_run has NO preemption: bpy cannot abort a running script — a runaway script blocks Blender until it finishes (the client times out; the server cannot cancel).'
-
 
 export const BLENDER_BRIDGE_SERVER_ERROR_CODES = [
   'AUTH_FAILED',
@@ -49,12 +47,12 @@ export type BlenderBridgeResult =
   | { ok: true; result: unknown }
   | { ok: false; error: BlenderBridgeError }
 
-
 type BlenderBridgeVerbClass = 'read' | 'mutate' | 'exec'
 
 export interface BlenderBridgeVerbSpec {
   cls: BlenderBridgeVerbClass
   summary: string
+
   args: Readonly<Record<string, string>>
 }
 
@@ -127,17 +125,21 @@ export function blenderBridgeVerbNames(): BlenderBridgeVerb[] {
   return Object.keys(BLENDER_BRIDGE_VERBS) as BlenderBridgeVerb[]
 }
 
-
 export interface BlenderBridgeHelloInfo {
   version: number
+
   bridge: string
+
   blender: string
+
   blendFile: string
+
   background: boolean
 }
 
 export interface BlenderBridgeObjectNode {
   name: string
+
   type: string
   visible: boolean
   children: BlenderBridgeObjectNode[]
@@ -147,13 +149,13 @@ export type BlenderReportSeverity = 'debug' | 'info' | 'warning' | 'error'
 export interface BlenderReportEntry {
   severity: BlenderReportSeverity
   message: string
+
   source: string
+
   at: number
 }
 
-
 export const BLENDER_BRIDGE_EVENTS = ['render_finished', 'blend_changed'] as const
-
 
 export function buildBlenderBridgeHelloFrame(token: string): string {
   return (

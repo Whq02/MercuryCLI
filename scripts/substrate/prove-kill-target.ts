@@ -62,6 +62,7 @@ section('regression: WebFetch.url → hostname, *.command → first line ≤60')
   check('command keeps only the FIRST line', extractTarget('Bash', { command: 'echo a\necho b' }) === 'echo a')
   const long = 'echo ' + 'x'.repeat(200)
   check('command capped at 60 chars', extractTarget('Bash', { command: long })?.length === 60)
+
   check('PowerShell command → first line (shared command branch)', extractTarget('PowerShell', { command: 'Get-Item C:\\x' }) === 'Get-Item C:\\x')
 }
 
@@ -79,6 +80,7 @@ section('new: any other risky tool → first SAFE scalar arg (capped, never a se
 {
   check('MCP tool with a string arg → that arg', extractTarget('mcp__db__query', { query: 'DROP TABLE users' }) === 'DROP TABLE users')
   check('MCP tool with a numeric arg → stringified', extractTarget('mcp__svc__scale', { replicas: 9000 }) === '9000')
+
   check('fallback SKIPS a secret-shaped key (token) → picks the next safe arg', extractTarget('mcp__x__call', { token: 'sk-deadbeef', name: 'job-7' }) === 'job-7')
   check('fallback yields no target when ONLY secret-shaped keys exist', extractTarget('mcp__x__call', { api_key: 'sk-1', password: 'p' }) === undefined)
   check('boolean-only input → no target (booleans are not scalars we surface)', extractTarget('mcp__x__flag', { enabled: true }) === undefined)
@@ -87,6 +89,7 @@ section('new: any other risky tool → first SAFE scalar arg (capped, never a se
 
 section('best-effort: a malformed arg never throws (returns no target)')
 {
+
   check('WebFetch with a non-URL url → caught, no target', extractTarget('WebFetch', { url: 'not a url' }) === undefined)
   check('empty-string file_path → collapses to undefined (target || undefined)', extractTarget(FILE_READ_TOOL_NAME, { file_path: '' }) === undefined)
 }

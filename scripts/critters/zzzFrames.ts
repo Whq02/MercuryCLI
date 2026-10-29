@@ -1,15 +1,17 @@
-
 type ZzzFrame = {
   critter: string
   form: 'mini'
+
   state: 'awake' | 'z0' | 'z1' | 'z2'
   grid: string[]
   plain: string
   ansi: string
+
   zTint: string
 }
 
 type ZzzFixture = {
+
   base: string
   composedBy: string
   frames: ZzzFrame[]
@@ -34,11 +36,13 @@ export async function composeZzzFrames(root: string, critters?: readonly string[
       for (const state of ['awake', 'z0', 'z1', 'z2'] as const) {
         const asleep = state !== 'awake'
         const sleepPhase = asleep ? Number(state.slice(1)) : null
+
         const pose = asleep ? cd.sleepPoseFor(def, form) : null
         const flowDepth = pose ? pose.flow : cd.flowDepthFor(def, form)
         const base: string[] = pose ? pose.art : cd.miniArtFor(def.name)
         const breathed = pose ? cd.sleepBreathArt(base, 0) : base
         let grid: string[] = cd.swayRows(breathed, flowDepth, 0)
+
         if (sleepPhase !== null) grid = cd.sleepZzzArt(grid, sleepPhase)
         const props: Record<string, unknown> = {
           def: renderDef,

@@ -1,6 +1,5 @@
 import { CLAW, IVORY, OASIS, TERRA } from '../../components/mercuryPalette.js'
 
-
 export type ArtForm = 'mini' | 'square'
 
 type CoreArtForm = 'mini'
@@ -11,18 +10,23 @@ export type CritterDef = {
   name: string
   hue: string
   hueDeep: string
+
   mark: { pre: string; core: string; post: string }
+
   mini: string[]
+
   squareDock: string[]
+
   sleep: Record<CoreArtForm, SleepPose> & Partial<Record<'square', SleepPose>>
+
   flow?: Partial<Record<ArtForm, number>>
+
   settle?: Partial<Record<ArtForm, number>>
+
   sleepGlyphs?: string
 }
 
-
 export const CR_COLS = 13
-
 
 export const EYE_BG = '#EDE8DD'
 export const PUPIL = OASIS
@@ -33,6 +37,7 @@ export const JELLYFISH_HUE = '#6FC7E8'
 export const JELLYFISH_HUE_DEEP = '#3F7E96'
 export const CLAM_HUE = '#16D8B0'
 export const CLAM_HUE_DEEP = '#0E9377'
+
 export const EMBER_HUE = '#CE352A'
 export const EMBER_HUE_DEEP = '#771A12'
 
@@ -66,6 +71,7 @@ export function cellColor(def: CritterDef, ch: string | undefined): string | und
     case '%':
       return hexMix(def.hue, IVORY, 0.45)
     case SLEEP_CELL:
+
       return hexMix(def.hue, IVORY, 0.45)
     case 'E':
     case 'P':
@@ -74,7 +80,6 @@ export function cellColor(def: CritterDef, ch: string | undefined): string | und
       return undefined
   }
 }
-
 
 export const SLEEP_CELL = 'z'
 
@@ -102,7 +107,6 @@ export function sleepGlyphAt(def: Pick<CritterDef, 'sleepGlyphs'>, slots: readon
   const i = slots.indexOf(c)
   return ladder[i >= 0 ? i : ladder.length - 1]!
 }
-
 
 const CRAB_MINI: string[] = [
   '...MMMMM...',
@@ -264,7 +268,6 @@ const CLAM: CritterDef = {
   sleepGlyphs: CLAM_SLEEP_GLYPHS,
 }
 
-
 export const CRITTERS: CritterDef[] = [CRAB, OCTOPUS, JELLYFISH, CLAM]
 
 export const CRITTER_COUNT = CRITTERS.length
@@ -303,7 +306,6 @@ export function sleepPoseFor(def: Pick<CritterDef, 'name'>, form: ArtForm): Slee
   return BY_KEY[def.name]?.sleep[form] ?? null
 }
 
-
 const BOUNDS_BY_GRID = new WeakMap<readonly string[], [number, number]>()
 
 export function heroContentBounds(art: string[]): [number, number] {
@@ -329,7 +331,6 @@ export const SQUARE_DOCK_ART_LINES: number = CRITTERS.reduce(
   0,
 )
 
-
 export function heroBlinkRows(art: string[]): string[] {
   return art.map((row, i) =>
     row.includes('K') || (art[i ^ 1]?.includes('K') ?? false)
@@ -338,10 +339,8 @@ export function heroBlinkRows(art: string[]): string[] {
   )
 }
 
-
 const SWAY_OFFSETS: readonly number[] = [0, 0, 1, 1, 0, 0, -1, -1]
 export const SWAY_PHASES = SWAY_OFFSETS.length
-
 
 function shiftRowLossless(row: string, off: number): string {
   if (off === 0) return row
@@ -369,7 +368,6 @@ export function flowDepthFor(def: CritterDef, form: ArtForm): number {
   return def.flow?.[form] ?? 0
 }
 
-
 export function settleDepthFor(def: CritterDef, form: ArtForm): number {
   return def.settle?.[form] ?? 0
 }
@@ -393,6 +391,7 @@ export function effectiveSwayPhase(def: CritterDef, form: ArtForm, asleep: boole
   if (asleep) {
     const pose = sleepPoseFor(def, form)
     if (pose !== null) {
+
       return pose.flow > 0 ? p : p % SLEEP_BREATH_FRAMES
     }
   }
@@ -400,7 +399,6 @@ export function effectiveSwayPhase(def: CritterDef, form: ArtForm, asleep: boole
   if (settleDepthFor(def, form) > 0) return SWAY_OFFSETS[p]! > 0 ? SETTLE_PHASE : 0
   return 0
 }
-
 
 export function sleepZzzSlots(art: string[], count: number = SLEEP_PHASES): number[] {
   const top = art[0]
@@ -425,6 +423,7 @@ export function sleepZzzArt(art: string[], phase: number, count: number = SLEEP_
   const slots = sleepZzzSlots(art, count)
   if (slots.length === 0) return art.slice()
   const p = ((phase % SLEEP_PHASES) + SLEEP_PHASES) % SLEEP_PHASES
+
   const lit = new Set<number>()
   const n = slots.length
   const litCount = Math.min(n, Math.max(p + 1, n - (SLEEP_PHASES - 1 - p)))

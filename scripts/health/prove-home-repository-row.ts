@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -103,6 +104,7 @@ console.log("\n§1b Mercury's own holders of the repository are named: live runn
   mkdirSync(join(HOME_FX, '.git', 'objects'), { recursive: true })
   writeFileSync(join(HOME_FX, '.git', 'objects', 'tmp_obj_abc123'), '')
   const r = await report.homeRepositoryCheck()
+
   const spanOf = (dir: string): string => {
     const start = r.evidence.indexOf(`${dir} is a git repository`)
     if (start < 0) return ''

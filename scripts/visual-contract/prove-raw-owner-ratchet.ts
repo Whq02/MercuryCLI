@@ -55,6 +55,7 @@ for (const root of ['src', 'assets']) {
       continue
     }
     if (!PATTERN.test(src)) continue
+
     if (
       file.startsWith('src/skills/bundled/') &&
       src.includes('export const SKILL_FILES: Record<string, string> = {')
@@ -113,6 +114,7 @@ t.section('§3 — the splash activation gate is present at the source (CN-03)')
     splash.includes("const isEnter = s === '\\r' || s === '\\n' || s === '\\r\\n'"),
     'the CN-03 gate line',
   )
+
   const lockup = splash.slice(
     splash.indexOf("if (view === 'lockup') {"),
     splash.indexOf("if (s === '\\x1b') { view = 'lockup'; paintView(); return }"),

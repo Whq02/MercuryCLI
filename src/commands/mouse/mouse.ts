@@ -5,7 +5,6 @@ import type {
 } from '../../types/command.js'
 import { saveGlobalConfig } from '../../utils/config.js'
 
-
 export const call = async (
   rawArg: string,
   _context: LocalJSXCommandContext,

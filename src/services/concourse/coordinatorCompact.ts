@@ -1,12 +1,13 @@
-
 import { coordinatorDeadlineExpired, coordinatorDeadlineWords } from './coordinatorCall.js'
 import type { CoordinatorConversationEntryV1 } from './coordinatorConversation.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { overflowWhoClause } from '../compact/overflowRecovery.js'
 
 const COORDINATOR_COMPACT_KEEP = 8
+
 export const COORDINATOR_COMPACT_WALL_MS = 60_000
 const COORDINATOR_SUMMARY_MAX_CHARS = 4000
+
 const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
 const FOLD_ENTRY_CLIP = 600
 
@@ -16,6 +17,7 @@ type CoordinatorCompactTrigger = 'manual' | 'context-threshold' | 'store-cap' | 
 
 interface CoordinatorCompactResult {
   compacted: number
+
   refused?: string
 }
 
@@ -162,8 +164,11 @@ export async function summarizeCoordinatorConversation(opts: {
   keep?: number
   dir?: string
   trigger?: CoordinatorCompactTrigger
+
   summarize?: CoordinatorSummarizer
+
   modelId?: string
+
   overflow?: OverflowSignal
 } = {}): Promise<CoordinatorCompactResult> {
   const keep = opts.keep ?? COORDINATOR_COMPACT_KEEP

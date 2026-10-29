@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,7 +51,9 @@ try {
       { atTick: 45, cols: 80, rows: 30 },
       { atTick: 70, cols: 100, rows: 38 },
       { atTick: 90, cols: 120, rows: 44 },
+
       { atMs: 21_000, cols: 110, rows: 40 },
+
       { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
       { afterPrevMs: 80 / vshotBudgetScale(), cols: 90, rows: 32 },
       { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
@@ -62,6 +65,7 @@ try {
     readyText: [NEEDLE],
     stableTicks: 8,
   }
+
   const SETTLED_CHANGES = 3
   const cfgPath = join(SCRATCH, 'walk.cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
@@ -69,6 +73,7 @@ try {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     VSHOT_TEE: teePath,
+
     MERCURY_SPLASH: 'off',
   }
   delete env.VSHOT_ACTIVE
@@ -122,6 +127,7 @@ try {
         `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
       )
     } else {
+
       check(`G5 burst event ${i - SETTLED_CHANGES + 1} (${stage.cols}x${stage.rows}) never stacks the station`, n <= 1, `${n} copies`)
     }
   })
@@ -141,6 +147,7 @@ try {
     const burst = bytesIn(burstStart, null)
     check('G5 the burst holds at most ONCE (one holding paint, not one per event)', countOf(burst, '\x1b[?25l') <= 1, `${countOf(burst, '\x1b[?25l')} holds`)
   }
+
   const afterFirst = bytesIn(changeTicks[0] ?? 45, null)
   check('G6 not one line feed after the first change (a bottom-row LF would scroll the buffer)', countOf(afterFirst, '\n') === 0, `${countOf(afterFirst, '\n')} line feeds`)
   const finalCount = needleCount(payload.grid)

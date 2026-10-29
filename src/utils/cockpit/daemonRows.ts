@@ -13,8 +13,11 @@ interface DaemonWorkerRow {
   ctx: string
   respawns: number
   busy: boolean
+
   elapsed: string
+
   stalled: boolean
+
   outcome?: string
 }
 
@@ -35,7 +38,6 @@ interface DaemonRows {
   version: string | null
 }
 
-
 function fmtDur(ms: number): string {
   const s = Math.floor(ms / 1000)
   if (s < 60) return `${s}s`
@@ -54,6 +56,7 @@ const OUTCOME_ORDER = [
 ]
 
 export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows {
+
   if (status === null || status.daemon === null) {
     return {
       badge: 'off',
@@ -75,6 +78,7 @@ export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows
 
   const s = status.daemon
   const reachable = status.controlReachable
+
   const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')) * 0.5)
   const workers: DaemonWorkerRow[] = (status.workers ?? []).map(w => {
     const busy = w.busy === true
@@ -99,6 +103,7 @@ export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows
   if (f && f.total > 0) {
     const rate = f.usefulRate !== null ? ` · useful-rate ${Math.round(f.usefulRate * 100)}%` : ''
     fireLine = `fires ${f.total}${rate}${f.last ? ` · last ${f.last.outcome}` : ''}`
+
     if (f.total > f.recentWindow && f.recentWindow > 0) {
       const parts = OUTCOME_ORDER.filter(k => f.recentByOutcome[k]).map(
         k => `${k} ${f.recentByOutcome[k]}`,
@@ -126,6 +131,7 @@ export function deriveDaemonRows(status: MercuryDaemonStatus | null): DaemonRows
     fireLine,
     recentLine,
     empty: null,
+
     version: status.handshake !== null && status.handshake.state !== 'matched' ? status.versionLine : null,
   }
 }

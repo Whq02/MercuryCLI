@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -41,10 +42,12 @@ check('unset + MERCURY_HOME → MERCURY_HOME', probe(true, undefined, '/tmp/merc
 const envlessDefault = probe(true, undefined, undefined)
 check('unset → ~/.mercury (the one default, whatever else exists beside it)', envlessDefault === mercuryDefault, envlessDefault)
 check("unset → never the default's ~/.claude", envlessDefault !== join(home, '.claude').normalize('NFC'), envlessDefault)
+
 check('bare stamp + unset → the same default (stamp-independence)', probe(false, undefined, undefined) === envlessDefault)
 check('memoize keys on BOTH env inputs (flip MERCURY_HOME re-resolves)', probe(true, undefined, '/tmp/mh2') === '/tmp/mh2')
 
 console.log('\nkeychain identity follows the RESOLVED home (fork)')
+
 const kc = await import('../../src/utils/secureStorage/macOsKeychainHelpers.js')
 const svc = (fork: boolean, ccd: string | undefined, mh: string | undefined): string => {
   probe(fork, ccd, mh)
@@ -55,10 +58,12 @@ const envlessSvc = svc(true, undefined, undefined)
 check('launcher (env=resolved default) and env-less fork share ONE service', launcherSvc === envlessSvc, `${launcherSvc} vs ${envlessSvc}`)
 check('the Mercury service is suffixed (never the foreign bare entry)', /-[0-9a-f]{8}$/.test(envlessSvc), envlessSvc)
 check('an explicit foreign-named home is hashed like every other home (no bare service anywhere)', /-[0-9a-f]{8}$/.test(svc(true, join(home, '.claude'), undefined)))
+
 check('bare stamp env-less service is Mercury\'s (suffixed, stamp-independence)', svc(false, undefined, undefined) === envlessSvc)
 check('bare stamp + an explicit foreign-named home is hashed too (resolved-home keying)', /-[0-9a-f]{8}$/.test(svc(false, join(home, '.claude'), undefined)))
 
 console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a split)')
+
 {
   probe(true, undefined, undefined)
   envUtils.setAuthScope(join(home, '.claude'))
@@ -71,9 +76,11 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
   } finally {
     envUtils.clearAuthScope()
   }
+
   const restAuthHome = envUtils.getAuthConfigHomeDir()
   check('at rest the auth home is the resolved session home', restAuthHome === envUtils.getMercuryHome())
   check('at rest the env-less service is suffixed (the split test still bites on a bare one)', /-[0-9a-f]{8}$/.test(kc.getMacOsKeychainStorageServiceName()))
+
   const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf-8')
   check('health config-home keys the keychain test on getAuthConfigHomeDir()', healthSrc.includes('const authHome = getAuthConfigHomeDir()') && healthSrc.includes('UN-suffixed for the auth home'))
   check('/health carries no foreign-home arm', !healthSrc.includes(".claude')"))
@@ -81,9 +88,12 @@ console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a s
 }
 
 console.log('\nstore-plane agreement — every inline resolver follows the ONE resolver')
+
 const controlSocketSrc = readFileSync(join(ROOT, 'src', 'daemon', 'controlSocket.ts'), 'utf-8')
 check('daemon controlSocket configHome delegates to getMercuryHome', /function configHome\(\): string \{\s*\n\s*return getMercuryHome\(\)/.test(controlSocketSrc))
+
 const envSrc = readFileSync(join(ROOT, 'src', 'utils', 'env.ts'), 'utf-8')
+
 check('getGlobalMercuryFile env-less defaults into the resolved home (Mercury-named)', envSrc.includes('globalConfigFileIn(getMercuryHome())') && envSrc.includes("join(home, '.mercury.json')"))
 const envUtilsSrc = readFileSync(join(ROOT, 'src', 'utils', 'envUtils.ts'), 'utf-8')
 check('envUtils source carries no ~/.claude default arm', !envUtilsSrc.includes(".claude').normalize"))
@@ -92,6 +102,7 @@ const accountViewSrc = readFileSync(join(ROOT, 'src', 'components', 'mercury-ui'
 check('/accounts scope row keys on the RESOLVED home, not env presence', accountViewSrc.includes('tildify(getMercuryHome(), home)') && !accountViewSrc.includes('process.env.MERCURY_CONFIG_DIR'))
 
 console.log('\nthe ONE-HOME law — no other config-home spelling survives')
+
 const RETIRED_HOME = new RegExp(['\\.', 'her', 'mes\\b', '|', 'HER', 'MES_HOME'].join(''), 'i')
 const SWEEP_SCOPES = [
   'src',
@@ -125,12 +136,14 @@ for (const path of trackedFiles) {
   }
 }
 check(`no other config-home spelling in ${trackedFiles.length} swept files`, homeHits.length === 0, homeHits.slice(0, 10).join(' · '))
+
 const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf-8')
 check('the flag registry carries no alias field', !/\blegacy\??:/.test(registrySrc))
 check('flagEnv reads the registered spelling and nothing else', /return process\.env\[spec\.env\]\n\}/.test(registrySrc) && !registrySrc.includes('formerly'))
 
 console.log('\nharness pins — one home for bun writers + dist children')
 const gateUnit = readFileSync(join(ROOT, 'scripts', 'gate', 'run-suite.sh'), 'utf-8')
+
 check(
   'gate unit pins an explicit home for every suite (inherited pin, else its own seeded scratch)',
   gateUnit.includes('if [ -z "${MERCURY_CONFIG_DIR:-}" ]; then') &&
@@ -142,6 +155,7 @@ check(
   'gate unit pins the scratch home on the ONE spelling (MERCURY_HOME)',
   gateUnit.includes('export MERCURY_HOME="${MERCURY_HOME:-') && !/export [A-Z]+_HOME="\$MERCURY_HOME"/.test(gateUnit),
 )
+
 const renderTui = readFileSync(join(ROOT, 'scripts', 'ui', 'render-tui.ts'), 'utf-8')
 check('render-tui pins an explicit home for the vshot child (inherited pin, else the proof home)', renderTui.includes('MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR || CONFIG_HOME'))
 check('render-tui takes that home from renderScenarios', /import \{[^}]*\bCONFIG_HOME\b[^}]*\} from '\.\/renderScenarios\.ts'/.test(renderTui))
@@ -163,16 +177,19 @@ if (process.platform !== 'win32') {
   const { mkdtempSync, rmSync, statSync: st, mkdirSync: mkd, chmodSync: chm } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const scratchRoot = mkdtempSync(join(tmpdir(), 'cfg-home-priv-'))
+
   const freshHome = join(scratchRoot, 'fresh-home')
   probe(true, freshHome, undefined)
   envUtils.ensurePrivateConfigHome()
   check('fresh home created 0700', (st(freshHome).mode & 0o777) === 0o700)
+
   const looseHome = join(scratchRoot, 'loose-home')
   mkd(looseHome)
   chm(looseHome, 0o755)
   probe(true, looseHome, undefined)
   envUtils.ensurePrivateConfigHome()
   check('existing 0755 home tightened to 0700', (st(looseHome).mode & 0o777) === 0o700)
+
   const mainSrc = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf-8')
   check('main() calls ensurePrivateConfigHome at boot', mainSrc.includes('ensurePrivateConfigHome()'))
   rmSync(scratchRoot, { recursive: true, force: true })

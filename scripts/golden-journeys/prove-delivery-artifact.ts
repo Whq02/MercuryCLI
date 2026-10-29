@@ -1,4 +1,3 @@
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -30,6 +29,7 @@ const { mintDeliveryArtifact, _resetDeliveryLatchForTesting, headlessMintAllowed
 )
 const { listReviewArtifactHeads } = await import('../../src/utils/artifacts/reviewStore.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+
 setIsInteractive(true)
 
 let failures = 0

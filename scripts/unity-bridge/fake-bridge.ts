@@ -1,4 +1,3 @@
-
 import * as net from 'node:net'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -23,13 +22,19 @@ type FakeBridgeMode =
 
 interface FakeUnityBridgeOpts {
   token?: string
+
   protocolVersion?: number
+
   helloResultVersion?: number
   willReloadOnPlay?: boolean
+
   reloadDropDelayMs?: number
   testRunDurationMs?: number
+
   testsXmlPath?: string
+
   testCounts?: { passed: number; failed: number; skipped: number; inconclusive: number }
+
   projectRoot?: string
   mode?: FakeBridgeMode
 }
@@ -173,6 +178,7 @@ export function startFakeUnityBridge(opts: FakeUnityBridgeOpts = {}): Promise<Fa
             return
           }
           authed = true
+
           if (current && current !== socket) current.destroy()
           current = socket
           reply({
@@ -213,6 +219,7 @@ export function startFakeUnityBridge(opts: FakeUnityBridgeOpts = {}): Promise<Fa
               fail(id, 'PLAY_MODE_ACTIVE', 'already in play mode')
               break
             }
+
             reply({ id, ok: true, result: { willReload: state.playState.willReloadOnPlay } })
             state.playState = { ...state.playState, isPlaying: true, isPlayingOrWillChangePlaymode: true }
             if (state.playState.willReloadOnPlay) {
@@ -285,6 +292,7 @@ export function startFakeUnityBridge(opts: FakeUnityBridgeOpts = {}): Promise<Fa
             const scenes = hierarchyFixture().filter(s => !wanted || s.path === wanted)
             let total = 0
             let kept = 0
+
             const walk = (n: UnityBridgeHierarchyNode): UnityBridgeHierarchyNode | null => {
               total++
               const keep = kept < cap

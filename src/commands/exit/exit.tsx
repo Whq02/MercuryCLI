@@ -46,6 +46,7 @@ export async function call(
   onDone: LocalJSXCommandOnDone,
   context: { getAppState?: () => AppState; setAppState?: SetAppState },
 ): Promise<React.ReactNode> {
+
   if (getCurrentWorktreeSession()) {
     return <ExitFlow onDone={message => onDone(message ?? undefined)} showWorktree={true} />
   }
@@ -53,6 +54,7 @@ export async function call(
   if (context.setAppState) settleOwnerlessTasks(context.setAppState)
   const counts = liveWorkAtExit(context.getAppState?.().tasks)
   if (counts.total > 0) {
+
     return <ExitWithNote liveWords={liveWorkWords(counts)} onDone={onDone} />
   }
 

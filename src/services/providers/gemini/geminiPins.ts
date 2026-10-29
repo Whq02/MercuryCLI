@@ -1,17 +1,23 @@
-
 interface GeminiPriceTier {
+
   costInPerMtok: number
   costOutPerMtok: number
+
   cachedInPerMtok?: number
 }
 
 const GEMINI_PRICING_PAGE = 'https://ai.google.dev/gemini-api/docs/pricing'
 
 interface GeminiPricePin extends GeminiPriceTier {
+
   id: string
+
   observedAt: string
+
   source: string
+
   longPrompt?: GeminiPriceTier & { promptTokensAbove: number }
+
   announced?: GeminiPriceTier & { effectiveOn: string }
 }
 

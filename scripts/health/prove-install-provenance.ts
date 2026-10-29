@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,6 +42,7 @@ const gather = (entry: string, versionsDir: string, platform: NodeJS.Platform = 
 
 section('§1 THE FIXTURE BATTERY (IP-15)')
 {
+
   const r1 = join(SCRATCH, 'managed-1')
   const e1 = makeManaged(r1, '1.5.3-beta.1')
   const p1 = gather(e1, join(r1, 'versions'))
@@ -230,6 +232,7 @@ section('§3 WIRING (IP-01/10/12/16)')
     "/health carries the install-provenance row consuming the same snapshot (IP-10)",
     src('src/utils/healthReport.ts').includes("id: 'install-provenance'"),
   )
+
   check(
     'IP-14 rides the update verb estate (structural cite)',
     src('src/cli/update.ts').includes('performUpdate'),

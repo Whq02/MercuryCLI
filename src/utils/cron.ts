@@ -1,4 +1,3 @@
-
 type CronFields = {
   minute: number[]
   hour: number[]
@@ -56,6 +55,7 @@ function expandField(field: string, range: FieldRange): number[] | null {
       addValue(bare)
       continue
     }
+
     return null
   }
   if (values.size === 0) return null

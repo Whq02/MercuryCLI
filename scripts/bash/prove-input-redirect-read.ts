@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts src/tools/BashTool/pathValidation.ts
-// gate-watch: src/tools/BashTool/bashCommandHelpers.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/Tool.ts
+
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

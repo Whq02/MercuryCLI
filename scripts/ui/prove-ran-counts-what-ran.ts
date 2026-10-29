@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/messages/rejectionText* src/components/messages/CollapsedReadSearchContent*
-// gate-watch: src/utils/collapseReadSearch* src/utils/messages/lookups*
-// gate-watch: src/components/messages/* src/utils/messages/*
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,7 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
 
-// gate-watch: src/utils/sessionStoragePortable* src/utils/wards/wards*
 const CANARY_ROOT = realpathSync(mkdtempSync(join(tmpdir(), 'ran-count-')))
 const PROJECT = join(CANARY_ROOT, 'Users', 'proof', 'hunt')
 mkdirSync(join(PROJECT, 'scratch-dir', 'zzz-test'), { recursive: true })

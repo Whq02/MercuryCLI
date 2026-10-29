@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -61,6 +62,7 @@ const sup = await import('../../src/daemon/concourseWorkers.ts')
   check('C3 the declined decision stores NO number', onDisk !== undefined && onDisk.allowed === false && onDisk.recommendedSeats === undefined, JSON.stringify(onDisk))
   check('C3 the resolved ceiling is the machine reading', cap.resolveSeatCeiling() === cap.heldMachineSeatReading(), `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()}`)
   check('C3 the effective ceiling is the same one derivation', sup.effectiveSeatCeiling() === cap.resolveSeatCeiling())
+
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: false, recommendedSeats: 5 } }))
   check('C3 a declined record that still carries a number reads the machine (no cap survives an upgrade)', cap.resolveSeatCeiling() === cap.heldMachineSeatReading() && cap.seatCeilingFacts().source === 'machine', `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()} · source ${cap.seatCeilingFacts().source}`)
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: false, recommendedSeats: 1 } }))

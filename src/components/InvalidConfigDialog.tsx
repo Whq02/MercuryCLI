@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { copyFileSync, mkdirSync, writeFileSync, writeSync } from 'fs'
 import { basename, join } from 'path'
@@ -21,9 +20,11 @@ function InvalidConfigDialogInner({
   onChoice,
 }: {
   error: ConfigParseError
+
   backupPath: string | null
   onChoice: (choice: Choice) => void
 }): React.ReactNode {
+
   const tokens = useMercuryTokens()
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={tokens.failure} paddingX={1} gap={1}>
@@ -64,6 +65,7 @@ export function showInvalidConfigDialog({
 }: {
   error: ConfigParseError
 }): Promise<void> {
+
   let backupPath: string | null = null
   try {
     backupPath = findMostRecentBackup(error.filePath)
@@ -71,6 +73,7 @@ export function showInvalidConfigDialog({
     backupPath = null
   }
   return new Promise<void>(() => {
+
     render(
       <AppStateProvider>
         <KeybindingSetup>
@@ -104,6 +107,7 @@ export function showInvalidConfigDialog({
                   return
                 }
                 if (choice === 'reset') {
+
                   let quarantinePath: string | null = null
                   try {
                     const dir = getConfigBackupDir()
@@ -121,6 +125,7 @@ export function showInvalidConfigDialog({
                     )
                   } catch (writeError) {
                     logError(writeError)
+
                     try {
                       writeSync(
                         2,

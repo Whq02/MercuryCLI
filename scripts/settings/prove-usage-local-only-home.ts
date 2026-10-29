@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/cli/handlers/usage.ts src/components/Settings/usageLine.ts src/services/providers/local/localAccounts.ts src/services/providers/local/localAdapter.ts
+
 import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

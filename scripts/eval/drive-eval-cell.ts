@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { runArtifactArena, requireDist, grabScreens } from '../streaming/artifactArena.js'
 
@@ -26,6 +27,7 @@ const run = await runArtifactArena({
   sends: [
     'after:? for shortcuts:1500:run the demo cell',
     'after:run the demo cell:800:\r',
+
     'after:kernel demo:900:\r',
   ],
   seconds: 45,

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import {
   appendFileSync,
@@ -27,11 +28,13 @@ const ON_NAMES = ['deploy-kit', 'notes-sync', 'quiet-notes', 'review-tools', ...
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-extui-surface-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
 const CWD = join(SCRATCH, 'project')
+
 const CWD_FRESH = join(SCRATCH, 'project-fresh')
 mkdirSync(TEMPLATE, { recursive: true })
 mkdirSync(CWD, { recursive: true })
 mkdirSync(CWD_FRESH, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = TEMPLATE
+
 process.env.MERCURY_RENDER_CWD = CWD
 delete process.env.NODE_ENV
 delete process.env.CI
@@ -43,6 +46,7 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+
 const scenarios = await import('../ui/renderScenarios.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const core = {
@@ -125,6 +129,7 @@ async function seedTemplate(): Promise<void> {
     name: 'deploy-kit',
     version: '0.4.1',
     description: 'deploy runbooks for the platform crew',
+
     needs: { binaries: ['missing-bin-fx'] },
   })
   writeExtension(join(SRC, 'notes-sync'), { name: 'notes-sync', version: '2.0.0', description: 'sync your notes folder' })
@@ -145,11 +150,14 @@ async function seedTemplate(): Promise<void> {
     const approved = core.install.approve(`${name}@${label}`)
     if (!approved.ok) throw new Error(`fixture approve ${name} failed: ${approved.reason}`)
   }
+
   const blocked = core.blocklist.block(`sketchy@${label}`)
   if (!blocked.ok) throw new Error(`fixture block failed: ${blocked.error}`)
+
   const notesRecord = core.records.installedOrEmpty()[`notes-sync@${label}`]
   if (!notesRecord) throw new Error('fixture: notes-sync record missing')
   appendFileSync(join(notesRecord.path, 'mercury-extension.json'), '\n')
+
   writeExtension(join(SRC, 'review-tools'), REVIEW_13)
   writeFileSync(join(SRC, 'mercury-extensions.json'), catalogueJson('1.3.0'))
 
@@ -180,6 +188,7 @@ async function seedTemplate(): Promise<void> {
   )
 
   seedFirstRun(TEMPLATE, [CWD])
+
   scenarios.writeSyntheticSession('short')
 }
 
@@ -190,6 +199,7 @@ type Drive = {
   rows: number
   theme?: 'dark'
   freshHome?: boolean
+
   prepare?: (home: string) => void
   sends: Send[]
   ready: string
@@ -202,6 +212,7 @@ function g(needle: string, data: string, extra: Send = {}): Send {
 }
 
 const openBoard: Send[] = [
+
   { atTick: 140, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/extensions' },
   { afterPrevTicks: 6, data: '\r' },
 ]
@@ -217,6 +228,7 @@ if (driver.kind !== 'posix-pty') {
 function runDrive(drive: Drive): Promise<{ text: string; lines: string[]; status: number; tail: string }> {
   const home = join(SCRATCH, `home-${drive.id}`)
   if (drive.freshHome) {
+
     mkdirSync(home, { recursive: true })
     seedFirstRun(home, [CWD_FRESH])
     const from = getProjectDir(CWD)
@@ -378,6 +390,7 @@ for (const [cols, rows] of [
     sends: [
       ...openBoard,
       g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))),
+
       g(INSTALLED, ' '),
     ],
     ready: 'turned off · r reloads',
@@ -395,11 +408,13 @@ for (const [cols, rows] of [
       has(id, text, '○ off')
       has(id, text, 'not approved · i approves')
       has(id, text, '◇ found')
+
       has(id, text, cols >= 120 ? '.mercury/extensions · i i' : '.mercury/extensions · i installs')
       has(id, text, 'proposed · i fetches')
       has(id, text, '◉ blocked')
       has(id, text, 'b unblocks')
       has(id, text, '↑ 1.3.0 available')
+
       has(id, text, 'space on')
       has(id, text, 'x uninstall')
       has(id, text, 'r reload')
@@ -457,8 +472,10 @@ for (const [cols, rows] of [
     sends: [
       ...openBoard,
       g(INSTALLED, '\t'),
+
       g('↻ stale', DOWN),
       g('↻ stale', '\r'),
+
       g('spare-tool', DOWN + DOWN + DOWN + DOWN + DOWN + DOWN),
     ],
     ready: 'spare-tool',
@@ -483,6 +500,7 @@ for (const [cols, rows] of [
     sends: [
       ...openBoard,
       g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
+
       g(INSTALLED, '\r'),
     ],
     ready: 'tool.after',
@@ -516,12 +534,14 @@ for (const [cols, rows] of [
       g('spare-tool', DOWN),
       g('spare-tool', DOWN),
       g('spare-tool', DOWN),
+
       g('spare-tool', 'i'),
     ],
     ready: 'nothing above runs until you approve',
     total: 520,
     assert: text => {
       const id = `card-plain-${sz}`
+
       const parsed = core.manifest.parseManifestValue(SPARE)
       check(`${id}: the fixture manifest parses`, parsed.ok)
       if (parsed.ok) {
@@ -575,6 +595,7 @@ for (const [cols, rows] of [
       has(id, text, 'turn.answer')
       has(id, text, '(60s)')
       has(id, text, '↵ approve')
+
       has(id, text, 'k keep 1.2.0 (removes the fetched 1.3.0)')
       has(id, text, 'esc back (same as k)')
       hasNot(id, text, 'p approve for this project only', 'an update carries the existing switch')
@@ -648,6 +669,7 @@ for (const [cols, rows] of [
       ...openBoard,
       g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('review-tools'))),
       g(INSTALLED, '\r'),
+
       g('tool.after', ESC),
       g(INSTALLED, ESC),
     ],
@@ -680,6 +702,7 @@ drives.push({
     const id = 'rebind-single-120x40'
     has(id, text, '◐ reload')
     has(id, text, 'turned off · r reloads')
+
     has(id, text, 't on')
   },
 })
@@ -696,6 +719,7 @@ drives.push({
   sends: [
     ...openBoard,
     g(INSTALLED, DOWN.repeat(ON_NAMES.indexOf('quiet-notes'))),
+
     g(INSTALLED, ' '),
   ],
   ready: 'single keys',
@@ -725,6 +749,7 @@ await seedTemplate()
     states.has('on') && states.has('off') && states.has('found') && states.has('blocked'),
     [...states].join(','),
   )
+
   check('seed: seven fixture entries plus shipped bundles (the proposal joins in the drives)', entries.length === 7 + BUNDLED_NAMES.length, String(entries.length))
 }
 
@@ -757,6 +782,7 @@ console.log('\n── the keybinding context (05 §2.3)')
     for (const [chord, action] of Object.entries(wanted)) {
       check(`default '${chord}' → ${action}`, block.bindings[chord] === action)
     }
+
     const { resolveExtensionsBindings } = await import('../../src/components/extensions/bindings.ts')
     const resolved = resolveExtensionsBindings()
     for (const [chord, action] of Object.entries(wanted)) {

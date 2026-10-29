@@ -49,6 +49,7 @@ function writeTranscript(sessionId: string): string {
     { type: 'assistant', uuid: 'a2', timestamp: T(3), sessionId, message: { content: [
       { type: 'tool_use', id: 'tu-write', name: 'Write', input: { file_path: join(WS, 'b.ts'), content: 'zz' } },
     ] } },
+
     { type: 'user', uuid: 'u3', timestamp: T(4), sessionId, sourceToolUseID: 'tu-write', message: { role: 'user', content: [
       { type: 'tool_result', tool_use_id: 'tu-write', content: 'permission denied', is_error: true },
     ] } },
@@ -70,10 +71,12 @@ function writeTranscript(sessionId: string): string {
     { type: 'user', uuid: 'u6', timestamp: T(10), sessionId, sourceToolUseID: 'tu-commit', message: { role: 'user', content: [
       { type: 'tool_result', tool_use_id: 'tu-commit', content: '[main abc1234] landed' },
     ] } },
+
     { schemaVersion: 1, recordId: 'r-env-1', sessionId, threadId: 't-1', creationOrdinal: 12, updateOrdinal: 12, occurredAt: T(11), actor: { role: 'assistant', model: 'm' }, source: { channel: 'sdk' }, annotations: { uuid: 'a-env', timestamp: T(11) }, payload: { kind: 'output', model: 'm', content: [
       { kind: 'tool-use', callId: 'tu-nb', name: 'NotebookEdit', input: { notebook_path: join(WS, 'nb.ipynb') } },
     ], usage: {}, outcome: { result: 'completed' } } },
     { schemaVersion: 1, recordId: 'r-env-2', sessionId, threadId: 't-1', creationOrdinal: 13, updateOrdinal: 13, occurredAt: T(12), actor: { role: 'system' }, source: { channel: 'sdk' }, payload: { kind: 'tool-settlement', callId: 'tu-nb', outcome: 'ok', result: 'edited' } },
+
     { type: 'user', uuid: 'u7', timestamp: T(13), sessionId, isMeta: true, message: { role: 'user', content: 'caveat' } },
     { type: 'user', uuid: 'u8', timestamp: T(14), sessionId, isCompactSummary: true, message: { role: 'user', content: 'summary of it all' } },
     { type: 'custom-title', customTitle: 'the work', sessionId },
@@ -81,6 +84,7 @@ function writeTranscript(sessionId: string): string {
     { type: 'assistant', uuid: 'a9', timestamp: T(16), sessionId, message: { content: [
       { type: 'text', text: 'All landed. The edit is in and typecheck is green.' },
     ] } },
+
     { type: 'assistant', uuid: 'a10', timestamp: T(17), sessionId, isApiErrorMessage: true, message: { content: [{ type: 'text', text: 'boom' }] } },
   ]
   const path = join(home, `${sessionId}.jsonl`)
@@ -127,6 +131,7 @@ console.log('B — one park trail, one settle trail, never doubled, never both f
   check('the park floor says park, and its by is the daemon; the close carries the agent\'s name', machineFloorDetailsOf(entries[0]!)?.closedBy === 'park' && entries[0]!.by === 'daemon' && entries[1]!.by === 'tester')
   const rePark = workers.parkConcourseSession(S, 'operator:test', undefined, DAEMON_DIR)
   check('POISON: a re-park noops and writes nothing (still 2 entries)', rePark.outcome === 'noop' && readSessionReceipts(getProjectDir(WS), S).length === 2)
+
   workers.updateConcourseWorkers(w => {
     const rec = w[RUNNER]!
     delete rec.parkedAt
@@ -178,6 +183,7 @@ console.log('C — born blank and never messaged ⇒ no receipts file is ever bo
 
 console.log('D — a torn tail is carried unread, never parsed, never fatal')
 {
+
   const S = sid('b02')
   const receiptsPath = join(getProjectDir(WS), `${S}.receipts.jsonl`)
   appendFileSync(receiptsPath, '{"at":"2026-08-28T10:00:00.000Z","ki')

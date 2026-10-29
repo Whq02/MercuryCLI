@@ -1,4 +1,3 @@
-
 import {
   hasProse,
   SIDS,
@@ -62,6 +61,7 @@ writeRunSidecar(
 
 const walker = new JourneyWalker(sid, 'j1')
 const glance = walker.glance()
+
 check('the closing report is on screen', hasProse(glance, 'check.sh reports PASS'))
 check('the resume recap card renders', hasProse(glance, 'resumed clean'))
 

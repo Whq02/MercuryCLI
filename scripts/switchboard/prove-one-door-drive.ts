@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -47,8 +48,11 @@ seedFirstRun(TEMPLATE, [CWD])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+
 const COMPOSER = 'Type a prompt'
+
 const WARM_TICKS = 25
+
 const ENTER_BUDGET_TICKS = 3
 
 type Send = Record<string, unknown>
@@ -243,6 +247,7 @@ console.log('L4 — --concourse-off persists across boots; --concourse-on turns 
   const b = await boot('l4b-bare-after-off', [])
   printFrame('l4b (bare boot after the switch)', b.lines)
   check('L4b the OFF state SURVIVED the restart: a bare boot\'s face says "live view only — concourse off"', b.text.includes('live view only') && b.text.includes('concourse off'), b.lines.filter(l => /concourse|live view/i.test(l)).join(' | '))
+
   check('L4b B1: the projects row is not dimmed with the concourse off (the row stays a plain row)', b.text.includes('Projects') || b.text.includes('Recent Project'))
   const cfg = JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as Record<string, unknown>
   check('L4b the persisted field is the registered one', cfg['concourseEnabled'] === false)
@@ -264,6 +269,7 @@ console.log('L5 — /clear parks the old session and births a fresh one')
   const c = await capture({
     id: 'l5-clear-births',
     home,
+
     sends: [
       g(READY_LINE, ''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },

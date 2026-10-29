@@ -16,18 +16,26 @@ type EdgeKind =
   | 'type-import'
 
 interface RawEdge {
+
   from: string
+
   spec: string
   kind: EdgeKind
+
   resolved: string | null
 }
 
 interface ImportGraph {
   root: string
+
   files: string[]
+
   entries: string[]
+
   edges: RawEdge[]
+
   reached: Set<string>
+
   stubMap: Record<string, string>
 }
 

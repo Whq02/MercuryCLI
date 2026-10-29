@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStateStore } from '../state/AppState.js'
 import { LogSelector } from '../components/LogSelector.js'
@@ -137,6 +136,7 @@ export function ResumeConversation({
     null,
   )
   const logCountRef = useRef(0)
+
   const [useAltScreenHost] = useState(
     () => launcherAltHoldPending() || isFullscreenEnvEnabled(),
   )
@@ -212,6 +212,7 @@ export function ResumeConversation({
       const gen = ++resumeGenRef.current
       const cross = checkCrossProjectResume(log, showAllProjects, worktreePaths)
       if (cross.isCrossProject && !cross.isSameRepoWorktree) {
+
         let copied = false
         try {
           const sequence = await setClipboard(cross.command)
@@ -227,6 +228,7 @@ export function ResumeConversation({
         )
         return
       }
+
       const sessionId = sessionIdOfListing(log)
       if (!sessionId) {
         setIsResuming(false)
@@ -234,17 +236,21 @@ export function ResumeConversation({
         return
       }
       if (forkSession) {
+
         setIsResuming(false)
         setResumeRefusal('--fork is not available here — pick the session without the flag; it resumes as itself')
         return
       }
 
       initializeSurfaceRoute(ROOT_CHAT_ROUTE);
+
       const { focusResumedSession } = await import('../services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(String(sessionId), log.fullPath, {
         title: log.customTitle ?? log.agentName,
+
         permissionMode: store.getState().toolPermissionContext.mode,
       })
+
       if (gen !== resumeGenRef.current) return
       if (!outcome.ok) {
         setIsResuming(false)
@@ -310,6 +316,7 @@ export function ResumeConversation({
       <LogSelector
         logs={filteredLogs}
       onSelect={log => {
+
         void onSelect(log).catch(error => {
           logError(error)
           setIsResuming(false)
@@ -325,6 +332,7 @@ export function ResumeConversation({
       initialSearchQuery={initialSearchQuery}
       onLogsChanged={isCustomTitleEnabled() ? () => void load(showAllProjects) : undefined}
       onLogRenamed={(sessionId, title) => {
+
         const patch = (rows: SessionListing[]): SessionListing[] =>
           rows.map(l => (String(l.sessionId) === sessionId ? { ...l, customTitle: title } : l))
         setLogs(patch)

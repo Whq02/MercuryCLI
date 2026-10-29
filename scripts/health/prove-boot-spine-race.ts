@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/substrate/launchMilestones.ts src/context/surfaceRoute.ts
+
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'

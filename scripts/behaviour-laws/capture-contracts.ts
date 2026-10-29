@@ -102,6 +102,7 @@ async function main(): Promise<void> {
       scope: s.scope,
       chars: s.text.length,
     })),
+
     texts: contract.sections.map(s => s.text),
   }
   console.log(JSON.stringify(record))

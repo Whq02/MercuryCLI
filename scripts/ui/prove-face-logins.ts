@@ -55,6 +55,7 @@ function beatBed(): {
     },
     run() {
       const fired: Array<{ ms: number }> = []
+
       const batch = armed.splice(0, armed.length)
       for (const entry of batch) {
         if (entry === null) continue
@@ -141,6 +142,7 @@ function fakeDeps(
         },
       }
     },
+
     saveTokens: tokens => {
       world.saved.push({ accessToken: tokens.accessToken })
       return { success: true }
@@ -197,6 +199,7 @@ function machineOf(
 
 t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · beats; fakes only)')
 {
+
   const bed = beatBed()
   const { m, world, states } = machineOf(bed)
   t.check('born idle with no forced method', m.snapshot().flow.name === 'idle')
@@ -367,6 +370,7 @@ t.section('§2 — ONE MACHINE, MANY SKINS (identity both directions; provider-o
   t.check('the model carries the mint law sentence', model.includes('the server accepted the API key request but returned no key'))
   t.check('the model carries the exchange retry sentence and the SSL remedy', model.includes('The token exchange failed — try again.') && model.includes('NODE_EXTRA_CA_CERTS'))
   t.check("the model carries the success notice ('login-success' · Signed in)", model.includes("key: 'login-success'") && model.includes("text: 'Signed in'"))
+
   t.check('the skin retains NO flow sentence', !skin.includes('not the full code') && !skin.includes('returned no key') && !skin.includes('token exchange failed') && !skin.includes('login-success'), 'a sentence is spelled twice')
 
   t.check('the skin consumes the one machine', skin.includes("from './mercury-ui/screens/anthropicLoginModel.js'") && skin.includes('useAnthropicLoginModel('))
@@ -515,6 +519,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check("the walk's sign-in-later row is structurally absent", !arms.some(a => (a.row.value as string) === 'later'))
 
   const facts = mixedFacts()
+
   t.check('a signed-in arm wears its slot identity', loginsRowStateOf(claudeArm, facts).chip === 'op@example.com' && loginsRowStateOf(claudeArm, facts).signedIn === true)
   t.check('the Anthropic row lists the empty key slot beside the signed-in subscription in its detail, honestly absent', loginsDetailLines(claudeArm, facts).some(line => line.startsWith('· claude.ai sign-in — op@example.com')) && loginsDetailLines(claudeArm, facts).some(line => line.startsWith('· API key — present · not signed in')))
   t.check('absence is a DEFAULT tone, never loud', loginsRowStateOf(geminiArm, facts).loud === false)
@@ -564,6 +569,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
       }
     }
   }
+
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · pgup/pgdn page · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
@@ -599,13 +605,16 @@ t.section('§5 — THE REAL MOUNT (staticRender with injected facts; the route c
   const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage', 'enterConcourse']
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('the logins layer module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
+
   t.check('the module imports the row owner and the two truth owners', screenSrc.includes("from './loginFamilyRows.js'") && screenSrc.includes('deriveFamilySlotGroups') && screenSrc.includes('resolveProviderUsability'))
   t.check('no second enumeration: the module never spells a family list literal', !/'anthropic',\s*'openai'/.test(screenSrc) && !screenSrc.includes("['anthropic'"))
+
   t.check('the layer needs no notification queue and no AppState provider', !screenSrc.includes('context/notifications') && !screenSrc.includes('useAppState('))
 }
 
 t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset totality; masked drafts; never stranded)')
 {
+
   const bed = beatBed()
   const m = machineOf(bed)
   m.m.start(true)
@@ -651,6 +660,7 @@ t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset total
   const strandable = states.filter(flow => {
     const lines = anthropicFlowPaneLines(snapOf(flow), 0).join('\n')
     const legend = anthropicFlowLegendOf(snapOf(flow), 0)
+
     return !(lines.includes('esc') || lines.includes('↵ done') || legend.includes('esc') || legend.includes('↵'))
   })
   t.check('NO flow state exists without a painted way out', strandable.length === 0, JSON.stringify(strandable))
@@ -661,9 +671,11 @@ t.section('§6 — THE ANTHROPIC PANES (A4: the machine on the face; reset total
   t.check('the status words track the flow', anthropicFlowStatusOf(waiting) === 'waiting on the browser sign-in' && anthropicFlowStatusOf(snapOf({ name: 'creating-key' })) === 'minting the usage-based key')
 
   const src = read('src/components/BootLoginsScreen.tsx')
+
   t.check('the roster parks under an open flow (list + pointer)', src.includes('active: flow === null') && src.includes('flow === null && arms[entryIdx] !== undefined'))
   t.check('↵ rides the when-gate over loginsFlowReady', src.includes('when: a => loginsFlowReady(a.row.value)'))
   t.check('a settled flow RE-READS the owners (never an optimistic flip); injected facts never re-read live', src.includes('if (given === undefined) setFacts(collectLoginsScreenFacts());'))
+
   t.check('the flow keys are consumed above every owner beneath (picks own their own)', src.includes("{ isActive: flow !== null && flow.kind !== 'pick' },"))
 }
 
@@ -688,6 +700,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const { anthropicArmPickRows, openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — usage-based billing']))
   t.check('the Anthropic pick keeps subscription, Console and key paste distinct', JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify(anthropicArmPickRows) && JSON.stringify(loginsPickOptions('anthropic')) === JSON.stringify([{ label: 'Claude subscription — browser sign-in', value: 'claudeai' }, { label: 'Anthropic Console — browser sign-in', value: 'console' }, { label: 'Anthropic API key — usage-based billing', value: 'key' }]))
+
   const consoleFlowSrc = read('src/components/ConsoleOAuthFlow.tsx')
   t.check(
     'the in-chat pick renders the row owner by construction (ConsoleOAuthFlow spreads openaiArmPickRows and anthropicArmPickRows; walk + card mount it)',
@@ -741,6 +754,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('the status words track the sub-view', loginsFlowStatusOf({ kind: 'pick', pick: 'zai', pickSel: 0 }) === 'which Z.AI key is this?' && loginsFlowStatusOf({ kind: 'receipt', receipt: 'r', ok: false }) === 'not connected — ↵ returns to the roster')
 
   const src = read('src/components/BootLoginsScreen.tsx')
+
   t.check('the esc edges ride the landed back topology', src.includes("if (leg === 'openai-key') openPick('openai');") && src.includes("else if (leg === 'zai-general' || leg === 'zai-coding') openPick('zai');") && src.includes('else closeFlow();'))
   t.check('a storing prompt holds its esc (no half-stored abandon)', src.includes('if (!current.storing) keyEscape(current.leg);'))
 
@@ -800,6 +814,7 @@ t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks
   t.check('the browser opens on the first waiting event only', src.includes('if (event.polls === 0 && uri !== undefined) void openBrowser(uri);'))
   t.check('a device esc backs to the family choice (never strands, never loses the roster)', src.includes('deviceRunRef.current += 1;') && src.includes('openPick(current.device.family);'))
   t.check('every pick opens through the cursor-resetting opener; the region seeds the remembered answer', src.includes('const openPick = (pick: LoginsPickId, cursor = 0): void => {') && src.includes("openPick('kimi-region', moonshotStoredRegion() === 'mainland-cn' ? 1 : 0);"))
+
   t.check('the device landings ride the drivers (never a re-implemented poll)', src.includes('void runKimiDeviceLogin({ region: region ?? ') && src.includes('void runHuggingfaceDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);') && !src.includes('pollMoonshotDeviceToken') && !src.includes('pollHuggingfaceDeviceToken'))
 }
 
@@ -860,6 +875,7 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
 
   const openaiWait = { leg: 'openai-browser' as const, phase: 'waiting' as const, authorizeUrl: 'https://auth.openai.test/' + 'q'.repeat(50), copied: false }
   const wait = handlesWaitPaneLines(openaiWait, 5)
+
   t.check('the openai wait pane: loopback sentence · url whole · masked paste · c and d withheld while a draft is typed', wait.join(' ').includes('Finish signing in in the browser.') && wait.join('').includes('q'.repeat(50)) && wait.some(l => l === 'paste: •••••▌') && wait[wait.length - 1] === 'esc cancel' && wait.every(l => l.length <= 38))
   const untouched = handlesWaitPaneLines(openaiWait, 0)
   t.check('…and offers c and d on an empty paste', untouched[untouched.length - 1] === 'c copy · d device · esc cancel' && handlesWaitPaneLines({ ...openaiWait, authorizeUrl: undefined }, 0).at(-1) === 'd device · esc cancel' && handlesWaitPaneLines({ ...openaiWait, leg: 'openrouter-browser' }, 0).at(-1) === 'c copy url · esc cancel' && handlesWaitPaneLines({ ...openaiWait, copied: true }, 0).at(-1) === 'copied to clipboard')
@@ -890,10 +906,12 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
 
 t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the LIVE store · the chip epoch · the settle)')
 {
+
   const handover = await import('../../src/substrate/splashHandover.js')
   handover.armFaceDoorDeepLink('logins')
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
   const handoverSrc = read('src/substrate/splashHandover.ts')
+
   t.check("the union carries 'logins' (and the sign-in wall's 'model' door, no wire word: a process-local arm only); ACTIONS gained the logins wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents' | 'model'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
   const sourceFiles = (dir: string): string[] =>
     readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap(entry =>
@@ -922,9 +940,12 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   routeStore._resetSurfaceRouteForTesting()
 
   const face = read('src/components/BootSplashScreen.tsx')
+
   t.check('the face seeds the layer from the one-shot and parks the list under it', face.includes("useState(faceDoor === 'logins')") && face.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
   t.check('the layer mounts with esc-home wiring and the chip epoch bump', face.includes('<BootLoginsScreen') && face.includes('setLoginsOpen(false);') && face.includes('setPresenceEpoch(e => e + 1);'))
+
   t.check('the account chip re-reads on the presence epoch', face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
+
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))
 
   const screen = read('src/components/BootLoginsScreen.tsx')
@@ -1030,6 +1051,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean, opened?: GeminiGuideOpenState): string[]'))
   t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number, backToPicker = false): string[]'))
   t.check('the handles pane signature takes draftLen, never the draft', screen.includes('export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[]'))
+
   t.check("the c and d handlers fire on an empty paste only (c with a URL), and the hint composer gates on the same", screen.includes("h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined") && screen.includes("h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === ''") && screen.includes('lines.push(handlesWaitWayOut(h, draftLen));') && screen.includes("const copy = draftLen === 0 && h.authorizeUrl !== undefined;"))
 }
 
@@ -1131,6 +1153,7 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
 
 t.section('§15 — THE CLASSIC FRAME CLAMP (no entry row overruns the columns; the legend keeps the way out)')
 {
+
   const { loginsMenuModelOf, lateSettleNotice } = await import('../../src/components/BootLoginsScreen.js')
   const { createSplashCore } = (await import('../../assets/splash/splash-core.mjs')) as never as {
     createSplashCore: (o: { nocolor: boolean; truecolor: boolean; accent: string }) => {
@@ -1185,6 +1208,7 @@ t.section('§15 — THE CLASSIC FRAME CLAMP (no entry row overruns the columns; 
       'notice absence is byte-identical (null and unset compose the same classic frame)',
       JSON.stringify(core.composeBootMenu(64, 16, bare).lines) === JSON.stringify(core.composeBootMenu(64, 16, withNull).lines),
     )
+
     const longM = loginsMenuModelOf(mixedFacts(), {
       selIdx: 0,
       environment,

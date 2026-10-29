@@ -5,7 +5,6 @@ import { Select } from './CustomSelect/index.js';
 import { CommandCenter } from './mercury-ui/components.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 
-
 type CrashResumeAction = 'resume' | 'dismiss';
 
 type Props = {
@@ -14,6 +13,7 @@ type Props = {
   message: string;
   sessionId: string;
   cwd: string | null;
+
   moreCount: number;
   onDone: (action: CrashResumeAction) => void;
 };

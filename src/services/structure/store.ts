@@ -1,4 +1,3 @@
-
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -13,6 +12,7 @@ interface OwnerStructure {
   queryOrder: string[]
   previews: Map<string, StructurePreview>
   previewOrder: string[]
+
   evicted: Set<string>
 }
 

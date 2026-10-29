@@ -11,17 +11,24 @@ interface WorkflowFixtureHit {
 
 interface WorkflowAgentFixtureOpts {
   port: number
+
   reasoning?: { chat?: boolean; responses?: boolean }
+
   throttle?: { lane: WorkflowFixtureLane; times: number; retryAfterSec?: number }
+
   latencyMs?: Partial<Record<WorkflowFixtureLane, number>>
+
   gptId?: string
+
   gptReasoningLevels?: readonly string[]
 }
 
 interface WorkflowAgentFixture {
   base: string
   captured: WorkflowFixtureHit[]
+
   throttled: Record<string, number>
+
   env: Record<string, string>
   close(): Promise<void>
 }
@@ -87,6 +94,7 @@ function responsesToolTurn(command: string, reasoning: boolean): string {
   const id = `resp_wf_${nextRespSeq()}`
   const parts: string[] = [sse({ type: 'response.created', response: { id } })]
   if (reasoning) {
+
     parts.push(
       sse({ type: 'response.reasoning_summary_text.delta', delta: WF_FIXTURE_REASONING('responses') }),
       sse({ type: 'response.output_item.done', item: { type: 'reasoning', id: `rs_wf_${nextRespSeq()}`, summary: [{ type: 'summary_text', text: WF_FIXTURE_REASONING('responses') }], encrypted_content: 'wf-fixture-opaque' } }),

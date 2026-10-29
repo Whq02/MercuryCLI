@@ -15,9 +15,13 @@ type SessionAccountWords =
 type PresenceWords = Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'>
 
 export interface SessionAccountReads {
+
   modelSetting?: () => string | null
+
   decision?: () => Pick<ComputedDefault, 'source' | 'provider' | 'considered'>
+
   presences?: () => readonly (PresenceWords & { id: string })[]
+
   anthropic?: () => PresenceWords
 }
 

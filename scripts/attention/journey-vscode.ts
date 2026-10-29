@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -41,6 +42,7 @@ if (version !== '') t.check(`the code CLI answers --version (${version})`, true)
 {
   let loaded: Record<string, unknown> | null = null
   try {
+
     const Module = await import('node:module')
     const original = (Module.default as unknown as { _load: (...a: unknown[]) => unknown })._load
     ;(Module.default as unknown as { _load: (...a: unknown[]) => unknown })._load = (

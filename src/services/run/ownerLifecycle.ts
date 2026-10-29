@@ -1,4 +1,3 @@
-
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import type { OwnerKey } from './ownerKey.js'
 
@@ -6,7 +5,9 @@ type StoreLike = {
   name: string
   readonly live?: true
   dispose(owner: OwnerKey): void
+
   disposeAsync?(owner: OwnerKey): Promise<void>
+
   drainPending?(): Promise<void>
   clearAllForShutdown(): void
   readonly size: number
@@ -60,10 +61,12 @@ async function disposeOwnerIn(owner: OwnerKey, chosen: (store: StoreLike) => boo
       }
     }
   }
+
   const draining: Array<Promise<void>> = []
   for (const store of stores) {
     if (!chosen(store)) continue
     try {
+
       if (store.disposeAsync) draining.push(store.disposeAsync(owner))
       else store.dispose(owner)
     } catch {
@@ -80,6 +83,7 @@ export async function disposeAllOwnersForShutdown(): Promise<void> {
     } catch {
     }
   }
+
   for (const store of stores) {
     try {
       await store.drainPending?.()

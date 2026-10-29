@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -82,6 +83,7 @@ const kill1 = await new Promise<{ exit: number | null; signal: string | null; st
   const hardDeadline = setTimeout(() => {
     try { process.kill(-child.pid!, 'SIGKILL') } catch {  }
   }, 60_000)
+
   const durablyUnderway = (): boolean => {
     if (fixture.messageRequests().length < 1) return false
     for (const f of transcriptFiles()) {

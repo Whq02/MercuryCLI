@@ -1,4 +1,3 @@
-
 import { lineWidth } from './line-width-cache.js'
 
 export function widestLine(string: string): number {

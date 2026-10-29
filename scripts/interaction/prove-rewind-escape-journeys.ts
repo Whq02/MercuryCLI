@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
@@ -10,6 +11,7 @@ const VSHOT = join(dirname(SELF), '../ui/vshot.py')
 const ESC = String.fromCharCode(27)
 
 if (process.env.REWESC_CHILD) {
+
   process.env.NODE_ENV = 'test'
   ;(globalThis as Record<string, unknown>).MACRO = {
     VERSION: '1.0.0',
@@ -42,17 +44,20 @@ if (process.env.REWESC_CHILD) {
 
   function Fixture(): React.ReactNode {
     const [closed, setClosed] = React.useState(false)
+
     ink.useInput(() => {})
     if (closed) return h(ink.Text, {}, 'SELECTOR-CLOSED')
     return h(MessageSelector as React.ComponentType<Record<string, unknown>>, {
       messages,
       onPreRestore: () => {},
+
       onRestore:
         mode === 'error'
           ? () => Promise.reject(new Error('fixture boom'))
           : () => new Promise(() => {}),
       onSummarize: () => {},
       onClose: () => setClosed(true),
+
       onViewOnly: () => {},
     })
   }
@@ -66,6 +71,7 @@ if (process.env.REWESC_CHILD) {
   )
   setTimeout(() => process.exit(0), 30_000)
 } else {
+
   const { CONFIG_HOME, scenario, cleanupScenario } = await import('../ui/renderScenarios.ts')
 
   let failures = 0
@@ -112,6 +118,7 @@ if (process.env.REWESC_CHILD) {
       env: {
         ...process.env,
         MERCURY_FULLSCREEN: '1',
+
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_CONFIG_DIR: CONFIG_HOME,
@@ -153,9 +160,13 @@ if (process.env.REWESC_CHILD) {
 
   const UP = '\x1b[A'
   const PICK_TITLE = 'Rewind'
+
   const PICK_FOOTER = 'esc close'
+
   const CONFIRM_MARKER = 'Restore conversation'
+
   const CONFIRM_SETTLED = 'The files are unchanged.'
+
   const SETTLE = { requireAwait: true, awaitStableTicks: 2 } as const
 
   section('R1 · esc-esc opens the rewind list; ONE esc closes it (the incident journey)')
@@ -164,7 +175,9 @@ if (process.env.REWESC_CHILD) {
       'open-close',
       [
         { atTick: 60, minTick: 8, awaitText: '❯', data: ESC },
+
         { afterPrevTicks: 2, data: ESC },
+
         { ...SETTLE, awaitText: PICK_FOOTER, data: ESC, mark: 'open' },
       ],
       120,
@@ -191,7 +204,9 @@ if (process.env.REWESC_CHILD) {
         { afterPrevTicks: 2, data: ESC },
         { ...SETTLE, awaitText: PICK_FOOTER, data: UP },
         { afterPrevTicks: 1, data: '\r' },
+
         { ...SETTLE, awaitText: CONFIRM_SETTLED, data: ESC, mark: 'confirm' },
+
         { ...SETTLE, awaitText: PICK_FOOTER, data: ESC, mark: 'pick-again' },
       ],
       160,
@@ -215,8 +230,10 @@ if (process.env.REWESC_CHILD) {
       [
         { atTick: 60, minTick: 8, awaitText: '❯', data: ESC },
         { afterPrevTicks: 2, data: ESC },
+
         { ...SETTLE, awaitText: PICK_FOOTER, data: UP },
         { afterPrevTicks: 1, data: '\r' },
+
         { ...SETTLE, awaitText: CONFIRM_SETTLED, data: '\r', mark: 'confirm' },
       ],
       160,
@@ -242,6 +259,7 @@ if (process.env.REWESC_CHILD) {
         { ...SETTLE, awaitText: PICK_FOOTER, data: UP },
         { afterPrevTicks: 1, data: '\r' },
         { ...SETTLE, awaitText: CONFIRM_SETTLED, data: '\r' },
+
         { ...SETTLE, awaitText: 'Restoring', data: ESC, mark: 'restoring' },
       ],
       90,

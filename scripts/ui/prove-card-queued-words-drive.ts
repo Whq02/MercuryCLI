@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/permissions/CardQueuedWords* src/utils/cockpit/composerSeed* src/screens/Chat*
+
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'

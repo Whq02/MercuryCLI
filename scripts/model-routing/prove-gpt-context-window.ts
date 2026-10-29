@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -32,6 +33,7 @@ for (const key of [
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gpt-ctx-'))
+
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
@@ -51,6 +53,7 @@ const fixtureFetch: typeof fetch = (async () =>
         { slug: 'gpt-5.6-sol', display_name: 'GPT-5.6-Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'low', context_window: 272000, max_context_window: 272000 },
         { slug: 'gpt-5.6-terra', display_name: 'GPT-5.6-Terra', visibility: 'list', priority: 2, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh'], default_reasoning_level: 'medium', context_window: 272000, max_context_window: 272000 },
         { slug: 'gpt-5.4', display_name: 'GPT-5.4', visibility: 'list', priority: 5, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium', context_window: 272000, max_context_window: 1000000 },
+
         { slug: 'gpt-5.7-nova', display_name: 'GPT-5.7 Nova', visibility: 'list', priority: 6, supported_reasoning_levels: ['low', 'high'], default_reasoning_level: 'low', context_window: 272000 },
       ],
     }),
@@ -58,6 +61,7 @@ const fixtureFetch: typeof fetch = (async () =>
   )) as unknown as typeof fetch
 
 section('1 · the decoder keeps BOTH source numbers (max_context_window)')
+
 {
   process.env.OPENAI_API_KEY = 'prover-key'
   __resetOpenaiCatalogueForTest()
@@ -76,12 +80,14 @@ section('1 · the decoder keeps BOTH source numbers (max_context_window)')
 }
 
 section('2 · liveGptContextCeiling — larger-only, never a second flat number')
+
 {
   check('Sol default window = the SERVED 272,000 (not the model page 1,050,000)', liveGptContextWindow('gpt-5.6-sol') === 272_000)
   check('Sol reports NO ceiling — the source states max == default', liveGptContextCeiling('gpt-5.6-sol') === undefined)
   check('gpt-5.4 reports the declared 1,000,000 ceiling', liveGptContextCeiling('gpt-5.4') === 1_000_000)
   check('a ceiling-less row reports no ceiling', liveGptContextCeiling('gpt-5.7-nova') === undefined)
   check('an id absent from the catalogue reports neither', liveGptContextWindow('gpt-5.6-luna') === undefined && liveGptContextCeiling('gpt-5.6-luna') === undefined)
+
   const solPinWindow = gptDisplayPin('gpt-5.6-sol')?.contextWindow
   check(
     'the ceiling never falls back to the display pin (pin recorded ≠ fixture-served, ceiling stays absent)',
@@ -92,13 +98,16 @@ section('2 · liveGptContextCeiling — larger-only, never a second flat number'
 }
 
 section('3 · the BUDGET rides the source-DECLARED window (item C ruling)')
+
 {
+
   check('Sol (flat row) budgets the served 272,000', getContextWindowForModel('gpt-5.6-sol') === 272_000)
   check(
     'gpt-5.4 budgets its DECLARED 1,000,000 ceiling (the item C unclamp)',
     getContextWindowForModel('gpt-5.4') === 1_000_000,
     `got ${getContextWindowForModel('gpt-5.4')}`,
   )
+
   check(
     'gpt-5.4[served] budgets the SERVED 272,000 (the toggle opt-down, resolver-effective)',
     getContextWindowForModel('gpt-5.4[served]') === 272_000,
@@ -115,11 +124,13 @@ section('3 · the BUDGET rides the source-DECLARED window (item C ruling)')
 }
 
 section('4 · unfetched falls back to the PIN, unchanged')
+
 {
   __resetOpenaiCatalogueForTest()
   delete process.env.OPENAI_API_KEY
   check('unfetched: no live window is claimed', liveGptContextWindow('gpt-5.6-sol') === undefined)
   check('unfetched: no live ceiling is claimed', liveGptContextCeiling('gpt-5.6-sol') === undefined)
+
   check(
     'unfetched: the last-observed pin drives the budget (derived, not restated)',
     getContextWindowForModel('gpt-5.6-sol') === gptDisplayPin('gpt-5.6-sol')?.contextWindow,
@@ -134,7 +145,9 @@ section('4 · unfetched falls back to the PIN, unchanged')
 }
 
 section('5 · the LIVE router catalogue carries the SERVED window, not the pin')
+
 {
+
   const providerSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiAdapter.ts'), 'utf8')
   check(
     'the live row prefers the source-served window',
@@ -155,6 +168,7 @@ section('5 · the LIVE router catalogue carries the SERVED window, not the pin')
 }
 
 section('6 · the picker row states only the ACTIVE source (structural)')
+
 {
   const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
   check(
@@ -165,6 +179,7 @@ section('6 · the picker row states only the ACTIVE source (structural)')
     'the row reads the source-declared ceiling accessor',
     picker.includes('liveGptContextCeiling'),
   )
+
   check(
     'the toggle copy names the declared-max state with the served default beside it',
     picker.includes('ctx active · default ${fmtCtx(focusedGptWindow.served)}'),
@@ -185,6 +200,7 @@ section('6 · the picker row states only the ACTIVE source (structural)')
     'the retired always-fixed copy is GONE (a two-window row is never "not a toggle")',
     !picker.includes('(declared max; default '),
   )
+
   check(
     'the row no longer compares the live window against the static pin',
     !picker.includes('focusedGptWindow.pin'),
@@ -192,7 +208,9 @@ section('6 · the picker row states only the ACTIVE source (structural)')
 }
 
 section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
+
 {
+
   process.env.OPENAI_API_KEY = 'prover-key'
   __resetOpenaiCatalogueForTest()
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fixtureFetch })
@@ -300,7 +318,9 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
 }
 
 section('8 · the toggle PERSISTS on the id and re-opens true (structural)')
+
 {
+
   const picker = readFileSync(join(ROOT, 'src/components/MercuryModelPicker.tsx'), 'utf8')
   check(
     'commit maps the toggle onto the id: bare = declared max, [served] = the opt-down',
@@ -326,7 +346,9 @@ section('8 · the toggle PERSISTS on the id and re-opens true (structural)')
 }
 
 section('9 · the /model GPT group is the FULL lineup; availability = the resolver')
+
 {
+
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
   const { OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
   const options = getModelOptions()
@@ -346,6 +368,7 @@ section('9 · the /model GPT group is the FULL lineup; availability = the resolv
     ),
     `gpt rows: ${gptRows.map(o => String(o.value)).join(', ')}`,
   )
+
   check(
     'a lineup id the account does not serve is unavailable with the resolver reason',
     byValue.get('gpt-5.6-luna')?.unavailable === 'not served by the connected OpenAI API key' &&

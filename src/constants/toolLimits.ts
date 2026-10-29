@@ -1,4 +1,3 @@
-
 export const DEFAULT_MAX_RESULT_SIZE_CHARS = 50_000
 
 export const MAX_TOOL_RESULTS_PER_MESSAGE_CHARS = 200_000
@@ -12,6 +11,7 @@ export function toolResultBudgetsForWindow(tokens?: number): { resultChars: numb
     messageChars: Math.max(MAX_TOOL_RESULTS_PER_MESSAGE_CHARS, Math.floor(tokens * 4 * 0.3)),
   }
 }
+
 export const TOOL_SUMMARY_MAX_LENGTH = 50
 
 export const REPEATED_RESULT_MIN_CHARS = 512

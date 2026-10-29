@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/components/ScrollKeybindingHandler.tsx src/components/mercury-ui/InteractiveRow.tsx src/components/mercury-ui/navSemantics.ts src/components/CrewViewSlot.tsx src/utils/cockpit/crewView.ts src/components/CustomSelect/popup-list.tsx
+
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

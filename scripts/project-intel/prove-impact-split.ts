@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -22,6 +23,7 @@ guard.unref?.()
 
 async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
+
   const home = mkdtempSync(join(tmpdir(), 'project-intel-s4-home-'))
   process.env.MERCURY_CONFIG_DIR = home
 

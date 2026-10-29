@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -53,6 +54,7 @@ for (const { writers, perWriter } of RUNGS) {
       stdio: ['ignore', 'ignore', 'inherit'],
     }),
   )
+
   while (readdirSync(barrier).filter(f => f.startsWith('ready-')).length < writers) {
     await new Promise(r => setTimeout(r, 20))
   }

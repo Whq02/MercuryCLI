@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box } from '../../ink.js'
 import type {
@@ -37,6 +36,7 @@ export function GroupedToolUseContent({
         .filter((id): id is string => id !== undefined),
     [message.messages],
   )
+
   useEphemeralProgressVersion(memberIds)
 
   const tool = findToolByName(tools, message.toolName)

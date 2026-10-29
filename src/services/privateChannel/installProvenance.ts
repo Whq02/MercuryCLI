@@ -1,4 +1,3 @@
-
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { resolveLayoutRoots } from './installLayout.js'
@@ -20,27 +19,39 @@ export interface InstallProvenanceV1 {
   kind: InstallProvenanceKind
   version: string
   buildSha?: string
+
   activeRoot: string
   invokedPath: string
+
   updateOwner: 'private-channel' | 'homebrew' | 'npm' | 'source-build' | 'release-archive' | 'none-known'
+
   evidence: string[]
+
   disagreements: string[]
+
   managedCoResident?: { root: string; current: string | null }
 }
 
 export interface InstallProbeFacts {
   invokedPath: string
   isWindows: boolean
+
   entryVersionDir: string | null
   entryVersion: string | null
+
   currentPointer: string | null
   currentPointerState: 'ok' | 'missing' | 'unreadable'
+
   pointerTargetExists: boolean
   homebrewKeg: string | null
   npmPackageDir: string | null
+
   entryManifestPresent: boolean
+
   entryLaunchersPresent: boolean
+
   devMarkersPresent: boolean
+
   managedCoResident: { root: string; current: string | null } | null
   version: string
   buildSha?: string
@@ -55,6 +66,7 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
   }
 
   if (f.entryVersionDir !== null) {
+
     if (!f.entryManifestPresent) {
       return {
         ...base,
@@ -243,6 +255,7 @@ export function gatherInstallProbeFacts(overrides?: {
   let entryVersionDir: string | null = null
   let entryVersion: string | null = null
   if (invokedPath && containedIn(versionsDir, invokedPath, isWindows)) {
+
     const rel = resolve(invokedPath).slice(resolve(versionsDir).length).replace(/^[/\\]+/, '')
     const seg = rel.split(/[/\\]/)[0]
     if (seg && seg !== 'current.txt' && seg !== 'previous.txt') {

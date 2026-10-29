@@ -20,6 +20,7 @@ export interface LaunchMilestoneRowV1 {
   launchId?: string
   milestone: LaunchMilestone
   atMs: number
+
   boot?: LaunchBootKind
   beforeLaunch?: true
 }
@@ -89,6 +90,7 @@ export function recordLaunchMilestone(milestone: LaunchMilestone, opts?: { boot?
     writeRows(rows)
   } catch {
   }
+
   const held = heldUntil.get(milestone)
   if (held !== undefined) {
     heldUntil.delete(milestone)

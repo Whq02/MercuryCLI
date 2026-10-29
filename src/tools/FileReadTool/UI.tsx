@@ -19,13 +19,13 @@ import { plural } from '../../utils/stringUtils.js'
 import { resultResolvedNames, type Input, type Output } from './FileReadTool.js'
 import { FILE_READ_TOOL_NAME } from './prompt.js'
 
-
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,20}$/
 
 function agentOutputTaskId(filePath: string | undefined): string | null {
   if (!filePath) return null
   try {
     const outputDir = getTaskOutputDir()
+
     if (!isPathInside(filePath, outputDir)) return null
     const base = filePath.split(/[\\/]/).pop() ?? ''
     const withoutSuffix = base.endsWith('.output') ? base.slice(0, -'.output'.length) : base
@@ -52,6 +52,7 @@ export function renderToolUseMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
+
   if (agentOutputTaskId(input.file_path) !== null) return ''
   const trailers: string[] = []
   if (input.pages !== undefined) {
@@ -62,6 +63,7 @@ export function renderToolUseMessage(
       input.limit !== undefined ? `lines ${start}-${start + input.limit - 1}` : `from line ${start}`,
     )
   }
+
   const displayPath = verbose ? input.file_path : getDisplayPath(input.file_path)
   return (
     <Text>
@@ -123,6 +125,7 @@ function ReadResultSummary({ output }: { output: Output }): React.ReactNode {
 }
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
+
   return (
     <MessageResponse height={1}>
       <ReadResultSummary output={output} />
@@ -146,6 +149,7 @@ export function renderToolUseErrorMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!verbose && typeof result === 'string') {
+
     if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
       return <ShortErrorLine text="File not found" />
     }

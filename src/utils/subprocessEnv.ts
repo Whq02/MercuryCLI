@@ -3,9 +3,10 @@ import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credenti
 import { isEnvTruthy } from './envUtils.js'
 import { AGENT_CLI_SESSION_ENV_VARS, AGENT_CLI_TOKEN_FD_ENV_VARS } from './knownAgentClis.js'
 
-
 export const ALWAYS_STRIP_TOKEN_VARS: readonly string[] = [
+
   'MERCURY_OAUTH_TOKEN',
+
   ...AGENT_CLI_SESSION_ENV_VARS,
 ]
 
@@ -16,8 +17,10 @@ export const STORED_TOKEN_SCRUB_VARS: readonly string[] = [
 ]
 
 const CI_SCRUB_VARS: readonly string[] = [
+
   ...ALL_PROVIDER_CREDENTIAL_ENV_VARS,
   'MERCURY_OAUTH_TOKEN',
+
   ...AGENT_CLI_SESSION_ENV_VARS,
   'ANTHROPIC_FOUNDRY_API_KEY',
   'MERCURY_PROVIDER_HEADERS',
@@ -138,6 +141,7 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean } = 
   const env = process.env
   const scrubForCI = isEnvTruthy(process.env.MERCURY_SUBPROCESS_ENV_SCRUB)
   const isolateCredentials = options.stripProviderCredentials === true || isEnvTruthy(process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION)
+
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
   const hasOtelVar = Object.keys(env).some(key => nameKey(key).startsWith('OTEL_'))
   const hasBrowserSecret = Object.keys(env).some(key => nameKey(key).startsWith(BROWSER_SECRET_PREFIX))
@@ -150,6 +154,7 @@ export function subprocessEnv(options: { stripProviderCredentials?: boolean } = 
   for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
   deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS)
   for (const key of Object.keys(clone)) {
+
     const folded = nameKey(key)
     if (folded.startsWith('OTEL_') || folded.startsWith(BROWSER_SECRET_PREFIX)) delete clone[key]
   }

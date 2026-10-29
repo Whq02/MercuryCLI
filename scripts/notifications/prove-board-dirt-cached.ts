@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -56,6 +57,7 @@ git(repo, 'add', '-A')
 git(repo, 'commit', '-qm', 'seed')
 const wt = await import('../../src/daemon/concourseWorktrees.ts')
 const { projectScopePathspec } = await import('../../src/utils/projectBoundary.ts')
+
 const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
 const BOUNDED = gitArgs(['-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)], repo).join(' ')
 

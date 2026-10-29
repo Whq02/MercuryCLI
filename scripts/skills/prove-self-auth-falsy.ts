@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,6 +33,7 @@ console.log("§1 the card's spelling matrix")
   for (const v of ['0', 'false', 'no', 'off', 'FALSE', 'disabled' === 'x' ? 'x' : ' 0', '0 ']) {
     check(`'${v}' turns self-auth OFF`, withVar(v) === false)
   }
+
   check("'disabled' stays at the default (outside the one falsy vocabulary)", withVar('disabled') === true)
 }
 

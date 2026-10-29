@@ -109,6 +109,7 @@ t.section('§3 — ACP shapes (opencode/goose fixtures)')
 t.section('§4 — truthful unknown')
 {
   const codexEvents = fixture('codex').events as Array<Record<string, unknown>>
+
   t.check('the codex fixture carries at least one replayable notification', codexEvents.length > 0, String(codexEvents.length))
   if (codexEvents.length > 0) {
     const row = activity.classifyActivity(
@@ -158,6 +159,7 @@ t.section('§5 — in-place collapse preserves identity facts')
 t.section('§6 — the bounded feed drops oldest TERMINAL rows first')
 {
   let feed = activity.emptyActivityFeed()
+
   const live = activity.classifyActivity(toolCall('tc-live', { kind: 'edit', title: 'src/live.ts' }))
   feed = activity.foldActivity(feed, live)
   for (let i = 0; i < activity.ACTIVITY_FEED_CAP + 5; i++) {
@@ -198,6 +200,7 @@ t.section('§7 — ingest + the line form')
 
 t.section('§8 — seat-scoped keys and chunk coalescing')
 {
+
   const seatA: ActivityInput = {
     event: { sourceEventId: 'sA-1', kind: 'session/update', payload: { update: { sessionUpdate: 'tool_call', toolCallId: 'tc-1', kind: 'read', status: 'completed' } }, atMs: 1 },
     agentId: 'cw-00000000000a' as never,

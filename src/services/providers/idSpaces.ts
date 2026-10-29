@@ -28,15 +28,20 @@ export type CallModelRoute =
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
+
   qualifiedPrefix?: string
+
   barePrefixes?: readonly string[]
+
   bareAliases?: readonly string[]
+
   innerGrammar?: 'segments-2' | 'segments-1-or-2' | 'named'
 }
 
 export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'openai-compat', qualifiedPrefix: 'compat/', innerGrammar: 'named' },
   { route: 'openrouter', qualifiedPrefix: 'openrouter/', innerGrammar: 'segments-2' },
+
   { route: 'huggingface', qualifiedPrefix: 'huggingface/', innerGrammar: 'segments-2' },
   { route: 'local', qualifiedPrefix: 'local/', innerGrammar: 'named' },
   { route: 'zai', barePrefixes: ['glm-'], bareAliases: ['glm'] },
@@ -128,7 +133,6 @@ export function isCarrierShapedId(model: string): boolean {
   return model.includes('/') || qualifiedIdSpaceOf(model) !== undefined
 }
 
-
 export const FIRST_PARTY_ID_MARK = 'claude-'
 
 const FIRST_PARTY_ALIASES: ReadonlySet<string> = new Set([
@@ -153,6 +157,7 @@ export const FIRST_PARTY_MODEL_ENV_PINS = [
 const ANNOTATION_RE = /\[(?:[0-9]+m|served)\]/gi
 
 export type ModelIdRecognition =
+
   | { kind: 'declared'; route: Exclude<CallModelRoute, 'anthropic'> }
   | { kind: 'first-party'; why: 'claude-mark' | 'alias' | 'env-pin'; envPin?: string }
   | { kind: 'carrier-shaped' }
@@ -185,7 +190,6 @@ export function recognizeModelId(
   if (lowered.includes(FIRST_PARTY_ID_MARK)) return { kind: 'first-party', why: 'claude-mark' }
   return { kind: 'unrecognised' }
 }
-
 
 export type ModelRouteVerdict =
   | { kind: 'route'; route: CallModelRoute; why?: 'claude-mark' | 'alias' | 'env-pin' }

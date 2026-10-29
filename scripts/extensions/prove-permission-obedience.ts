@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -85,6 +86,7 @@ if (connection.type === 'connected') {
 
 console.log('[2] the decision chain per mode; the twin-server equivalence')
 if (readTool && writeTool && config) {
+
   const twinConfig = { ...(config as Record<string, unknown>), scope: 'local' } as never
   delete (twinConfig as Record<string, unknown>)['extensionSource']
   const twin = await connectToServer('twin-fixture', twinConfig)
@@ -111,6 +113,7 @@ if (readTool && writeTool && config) {
   check('sovereign: allowed by mode', r.behavior === 'allow' && r.decisionReason?.type === 'mode', JSON.stringify(r))
   r = await decide(writeTool, 'dontAsk')
   check('dontAsk: the ask converts to a deny', r.behavior === 'deny', JSON.stringify(r))
+
   process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
   r = (await hasPermissionsToUseTool(writeTool as never, { value: 'wipe the fixture' }, makeContext('flow', [writeTool]).context as never, ASSISTANT, 'toolu_flow')) as never
   check('flow with the classifier unreachable: a block becomes an ASK (fail-closed, never silent)', r.behavior === 'ask', JSON.stringify(r))
@@ -137,6 +140,7 @@ const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'k
 {
   const fireSrc = await import('node:fs').then(fs => fs.readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'hooks', 'fire.ts'), 'utf8'))
   check('the fire consults NO permission mode (structural: approval is the standing consent; the mode is read once, into the payload)', fireSrc.split('toolPermissionContext.mode').length === 2 && fireSrc.includes('permission_mode: permissionMode') && !fireSrc.includes('hasPermissionsToUseTool'), 'fire.ts decides on the mode')
+
   const outDir = join(scratch, 'hook-out')
   mkdirSync(outDir, { recursive: true })
   const marker = join(outDir, 'ran.txt')
@@ -197,6 +201,7 @@ console.log('[6] allowed-tools authorises only the expansion, on a COPY of the s
       agentType: undefined,
       options: {},
     }
+
     const copyProbe = {
       ...context,
       getAppState: () => {

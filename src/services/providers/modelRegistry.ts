@@ -45,10 +45,13 @@ export interface ProviderSnapshot {
     id: ProviderFamilyId
     available: boolean
     reason?: string
+
     transport: ProviderTransport
     description: ProviderDescription
   }>
+
   resolve(modelClass: ProviderModelClass): ProviderModelRef | null
+
   resolveExact(pin: string): ProviderModelRef | null
   listAvailable(): ProviderModel[]
 }
@@ -57,8 +60,10 @@ const PROVIDER_ADAPTERS: readonly ProviderAdapter[] = [
   anthropicProviderAdapter,
   openaiProviderAdapter,
   zaiProviderAdapter,
+
   openrouterProviderAdapter,
   geminiProviderAdapter,
+
   moonshotProviderAdapter,
   deepseekProviderAdapter,
   xaiProviderAdapter,

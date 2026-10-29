@@ -31,7 +31,9 @@ import readmeTemplateText from '../../docs/templates/extension-source-README.md'
 type CliIo = {
   out: (line: string) => void
   err: (line: string) => void
+
   interactive: boolean
+
   ask?: (question: string) => Promise<boolean>
 }
 
@@ -48,7 +50,6 @@ const defaultIo: CliIo = {
     return /^y(es)?$/i.test(answer.trim())
   },
 }
-
 
 function stateCell(entry: RosterEntry, health: ReturnType<typeof healthLine> | null): string {
   const state = trustStateOf(entry)
@@ -166,7 +167,6 @@ export function sourceRows(): SourceJsonRow[] {
 function pad(text: string, width: number): string {
   return text.length >= width ? text : text + ' '.repeat(width - text.length)
 }
-
 
 export async function listVerb(options: { json?: boolean; source?: string }, io: CliIo = defaultIo): Promise<CliResult> {
   if (options.source) {
@@ -460,6 +460,7 @@ export async function updateVerb(target: string | undefined, options: { all?: bo
       io.out(`${id}: ${outcome.from} → ${outcome.to} (approval carried over) — r reloads`)
       continue
     }
+
     const previous = outcome.oldManifest && outcome.record.path ? { manifest: outcome.oldManifest, root: outcome.record.path, version: outcome.from } : null
     const card = approvalCardLines({
       manifest: outcome.newManifest,
@@ -544,7 +545,6 @@ export async function validateVerb(path: string, options: { json?: boolean }, io
   for (const warning of report.warnings) io.out(`  ${warning}`)
   return { exit: report.ok ? 0 : 1 }
 }
-
 
 function readmeTemplate(): string {
   return readmeTemplateText

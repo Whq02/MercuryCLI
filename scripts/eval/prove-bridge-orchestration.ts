@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { z } from 'zod/v4'
 import { check, cleanup, finish, loadEval, makeContext, section, setup, within } from './lib.js'
@@ -62,6 +63,7 @@ Object.assign(process.env, {
   ANTHROPIC_AUTH_TOKEN: 'fixture-token',
   MERCURY_ZAI_API_BASE: `${base}/zai/v4`,
   ZAI_API_KEY: 'fixture-zai-key',
+
   MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
   MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/chatgpt`,
   MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth`,
@@ -101,6 +103,7 @@ const AgentDouble = buildTool({
   },
   async call(input: { prompt: string }) {
     agentCalls.push({ prompt: input.prompt })
+
     if (input.prompt.includes('JSON Schema')) {
       if (input.prompt.includes('answer-badly')) {
         return { data: '{"count": "not-a-number"}' }

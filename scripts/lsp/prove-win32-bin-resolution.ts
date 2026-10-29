@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,6 +59,7 @@ section('§3 the project-local probe picks the .cmd sibling under win32')
   const root = mkdtempSync(join(tmpdir(), 'win32-bin-resolution-'))
   const bin = join(root, 'node_modules', '.bin')
   mkdirSync(bin, { recursive: true })
+
   writeFileSync(join(bin, 'svelteserver'), '#!/bin/sh\nexec node "$(dirname "$0")/../svelte-language-server/bin/server.js" "$@"\n')
   chmodSync(join(bin, 'svelteserver'), 0o755)
   writeFileSync(join(bin, 'svelteserver.cmd'), '@ECHO off\r\nnode "%~dp0\\..\\svelte-language-server\\bin\\server.js" %*\r\n')

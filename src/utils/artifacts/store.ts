@@ -1,11 +1,9 @@
-
-
-
 import { flagEnvLoose } from '../../substrate/flagRegistry.js'
 import {
   createHash,
   randomBytes,
 } from 'node:crypto'
+
 import {
   mkdir,
   open,
@@ -34,7 +32,6 @@ const DEFAULT_KEEP = envInt('MERCURY_ARTIFACT_KEEP', 200)
 
 const ORPHAN_GRACE_MS = 60_000
 
-
 function slug(s: string, fallback: string): string {
   const out = String(s ?? '')
     .replace(/[^a-zA-Z0-9._-]+/g, '_')
@@ -44,6 +41,7 @@ function slug(s: string, fallback: string): string {
 }
 
 export function scopeSlugForDir(dir: string): string {
+
   const d = String(dir ?? '')
   const hash = createHash('sha256').update(d).digest('hex').slice(0, 8)
   return slug(d, 'default').slice(0, 80) + '-' + hash
@@ -56,7 +54,6 @@ export function getArtifactsRootDir(): string {
 export function getArtifactScopeDir(scope: string): string {
   return join(getArtifactsRootDir(), slug(scope, 'default'))
 }
-
 
 const SENSITIVE_KEY =
   /(api[-_]?key|secret|token|password|passwd|credential|authorization|bearer|cookie|private[-_]?key|access[-_]?key|client[-_]?secret)/i
@@ -76,6 +73,7 @@ function redactValue(v: unknown, parentSensitive: boolean): unknown {
     return out
   }
   if (parentSensitive) return REDACTED
+
   if (typeof v === 'string') return redactSecrets(v)
   return v
 }
@@ -90,23 +88,35 @@ export function redactMetadata(meta: unknown): Record<string, unknown> {
   }
 }
 
-
 export interface ArtifactMeta {
+
   id: string
+
   name: string
+
   kind: string
+
   createdAt: string
+
   sizeBytes: number
+
   sha256: string
+
   truncated?: boolean
+
   metadata: Record<string, unknown>
 }
 
 export interface StoreArtifactInput {
+
   scope: string
+
   name: string
+
   content: string
+
   kind?: string
+
   metadata?: Record<string, unknown>
 }
 
@@ -137,8 +147,10 @@ export async function storeArtifact(
 
     let content =
       typeof input.content === 'string' ? input.content : String(input.content ?? '')
+
     content = redactSecrets(content)
     let truncated = false
+
     let buf = Buffer.from(content, 'utf8')
     if (buf.length > MAX_CONTENT_BYTES) {
       buf = buf.subarray(0, MAX_CONTENT_BYTES)
@@ -190,6 +202,7 @@ export async function storeArtifact(
     try {
       await durableAtomicPublish(metaPath, JSON.stringify(meta, null, 2), { mode: 0o600 })
     } catch {
+
       await rm(blobPath, { force: true }).catch(() => {})
       return { id: null, path: null }
     }
@@ -201,6 +214,7 @@ export async function storeArtifact(
 
     return { id, path: blobPath }
   } catch {
+
     return { id: null, path: null }
   }
 }
@@ -224,6 +238,7 @@ export async function listArtifacts(scope: string): Promise<ArtifactMeta[]> {
       } catch {
       }
     }
+
     metas.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
     return metas
   } catch {
@@ -252,6 +267,7 @@ export async function getArtifact(
 ): Promise<RetrievedArtifact | null> {
   try {
     if (typeof id !== 'string' || !id) return null
+
     if (!/^[A-Za-z0-9._-]+$/.test(id) || id.includes('..')) return null
     const dir = getArtifactScopeDir(scope)
     const metaPath = join(dir, `${id}${META_SUFFIX}`)

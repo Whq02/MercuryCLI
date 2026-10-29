@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -73,6 +74,7 @@ if (record) {
     bucket.modules.push(...additions)
     bucket.modules.sort()
   }
+
   for (const [name, g] of Object.entries(inv.groups)) {
     g.modules = g.modules.filter(m => modules.has(m))
     if (g.modules.length === 0) delete inv.groups[name]

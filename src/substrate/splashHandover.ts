@@ -1,4 +1,3 @@
-
 import { readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { deleteFlagEnv, flagEnv } from './flagRegistry.js'
@@ -7,6 +6,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
 let pendingKitManagerDeepLink = false
+
 export function consumeKitManagerDeepLink(): boolean {
   const armed = pendingKitManagerDeepLink
   pendingKitManagerDeepLink = false
@@ -24,12 +24,14 @@ export function armFaceDoorDeepLink(door: FaceDoorDeepLink, opener?: FaceDoorOpe
   pendingFaceDoorDeepLink = door
   pendingFaceDoorOpener = opener ?? null
 }
+
 export function peekFaceDoorDeepLink(): FaceDoorDeepLink | null {
   return pendingFaceDoorDeepLink
 }
 export function peekFaceDoorOpener(): FaceDoorOpenerV1 | null {
   return pendingFaceDoorOpener
 }
+
 export function consumeFaceDoorDeepLink(): FaceDoorDeepLink | null {
   const v = pendingFaceDoorDeepLink
   pendingFaceDoorDeepLink = null
@@ -44,6 +46,7 @@ let explicitBootJourney = false
 export function markExplicitBootJourney(): void {
   explicitBootJourney = true
 }
+
 export function retractExplicitBootJourney(): void {
   explicitBootJourney = false
 }
@@ -64,6 +67,7 @@ export function _setBootSurfaceIntentForTesting(v: BootSurfaceIntent | null): vo
 const FRESH_MS = 120_000
 
 interface SplashReceiptDecision {
+
   apply: { chdir?: string; spliceArg?: string } | null
   reason:
     | 'applied'
@@ -108,6 +112,7 @@ export function decideSplashReceipt(
   }
   if (Math.abs(now - receipt.ts) >= FRESH_MS) return { apply: null, reason: 'stale' }
   if (receipt.action === undefined) {
+
     return { apply: null, reason: 'screen-only' }
   }
   if (typeof receipt.action !== 'string' || !ACTIONS.has(receipt.action)) {
@@ -118,6 +123,7 @@ export function decideSplashReceipt(
     typeof receipt.dir === 'string' && receipt.dir && dirExists(receipt.dir)
       ? receipt.dir
       : undefined
+
   if (receipt.action === 'concourse') pendingBootSurfaceIntent = 'concourse'
   else if (receipt.action === 'continue') pendingBootSurfaceIntent = 'repl'
   else if (receipt.action === 'health') pendingFaceDoorDeepLink = 'health'
@@ -131,6 +137,7 @@ export function decideSplashReceipt(
       ? '--continue'
       : undefined
   if (dir === undefined && spliceArg === undefined) {
+
     return { apply: null, reason: 'applied' }
   }
   return {
@@ -163,6 +170,7 @@ export function consumeSplashHandover(): void {
       return false
     }
   }, ownLaunchId)
+
   if (decision.reason !== 'foreign-launch') {
     for (const f of [receiptPath, join(home, 'splash-action.txt')]) {
       try {

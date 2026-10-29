@@ -2,7 +2,6 @@ import { z } from 'zod'
 
 import { buildTool } from '../../Tool.js'
 
-
 const TESTING_PERMISSION_TOOL_NAME = 'TestingPermission'
 
 const inputSchema = z.strictObject({})
@@ -31,6 +30,7 @@ export const TestingPermissionTool = buildTool({
     return { data: `${TESTING_PERMISSION_TOOL_NAME} executed successfully` }
   },
   mapToolResultToToolResultBlockParam(output: string, toolUseID: string) {
+
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: output }
   },
   renderToolUseMessage: () => null,

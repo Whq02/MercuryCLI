@@ -1,4 +1,3 @@
-
 import { actionFingerprint } from '../run/progressModel.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -19,19 +18,21 @@ import type { CoordinatorBoardV1 } from './coordinatorBoard.js'
 import type { CoordinatorTurnRuntime } from './coordinatorTools.js'
 import { decodeManagerAsk, decodeManagerPlan, type ManagerAskV1, type ManagerPlanV1 } from './managerMode.js'
 
-
 export const COORDINATOR_CONTRACT_VERSION = COORDINATOR_PERSONA_VERSION
 export const COORDINATOR_CONTRACT = COORDINATOR_PERSONA
 
 export function coordinatorContractDigest(): string {
+
   return `cc${COORDINATOR_CONTRACT_VERSION}-${COORDINATOR_CONTRACT.length}`
 }
 
-
 interface EffectiveCoordinator {
   resolution: CoordinatorModeResolution
+
   assistModelId?: string
+
   assistModelLabel?: string
+
   assistModelAvailability?: import('./coordinatorModels.js').CoordinatorModelAvailability
   assistModelStatus?: string
 }
@@ -55,6 +56,7 @@ export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinato
       },
     }
   }
+
   const status = coordinatorModelStatusLabel(validated.entry)
   return {
     resolution: { requested: 'agent-assisted', effective: 'agent-assisted' },
@@ -64,7 +66,6 @@ export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinato
   }
 }
 
-
 type CoordinatorTurnBoard = CoordinatorBoardV1
 
 export interface CoordinatorTurnInput {
@@ -72,7 +73,9 @@ export interface CoordinatorTurnInput {
   contract: string
   event: KernelEventV1
   board: CoordinatorTurnBoard
+
   conversation?: ReadonlyArray<import('./coordinatorReplay.js').CoordinatorReplayRowV1>
+
   manager?: true
 }
 
@@ -92,7 +95,9 @@ const RECEIPT_VERB_WORDS: Record<string, string> = {
 
 export function compactRefusalWhy(detail: string | undefined): string {
   if (detail === undefined || detail.trim().length === 0) return 'no reason came back'
+
   detail = detail.replace(/\s*\r?\n+\s*/g, ' · ')
+
   const bareId = /^[a-z0-9][\w./:-]*$/i
   const folded: Array<{ text: string; roll: boolean }> = []
   for (const raw of detail.split(' · ')) {
@@ -110,6 +115,7 @@ export function compactRefusalWhy(detail: string | undefined): string {
     }
     folded.push({ text: c, roll: false })
   }
+
   const hasFix = folded.some(f => !f.roll && /did you mean/i.test(f.text))
   const out: string[] = []
   const seen = new Set<string>()
@@ -141,6 +147,7 @@ export function receiptLabelOf(
 ): string {
   const verbWord = RECEIPT_VERB_WORDS[r.verb] ?? r.verb
   const title = titleOf(r.objectRef)
+
   const opaqueRef = /^coord-[a-z]+-[0-9a-f-]{8,}$/i.test(r.objectRef)
   const subject =
     title !== undefined
@@ -154,27 +161,38 @@ export function receiptLabelOf(
     return `${verbWord}${subject !== null ? ` ${subject}` : ''} ${r.outcome} — ${compactRefusalWhy(r.detail)}`.slice(0, 220)
   }
   const detail = r.detail !== undefined && r.detail.length > 0 ? ` — ${r.detail}` : ''
+
   return `${verbWord}${subject !== null ? ` ${subject}` : ''}: ${r.outcome}${detail}`.slice(0, 400)
 }
 
 export interface CoordinatorTurnProposal {
   decisions: KernelDecisionV1[]
+
   smallestQuestion?: string
+
   reply?: string
+
   turnUsage?: { contextTokens: number }
+
   ask?: ManagerAskV1
+
   plan?: ManagerPlanV1
 }
 
 interface CoordinatorLaneDeps extends KernelDeps {
+
   callModel?: (
     input: CoordinatorTurnInput,
     modelId: string,
     runtime?: CoordinatorTurnRuntime,
   ) => Promise<CoordinatorTurnProposal>
+
   board?: CoordinatorTurnInput['board']
+
   manager?: boolean
+
   managerModelId?: string
+
   summarizeForCompact?: import('./coordinatorCompact.js').CoordinatorSummarizer
 }
 
@@ -184,14 +202,18 @@ interface AssistedTurnReceipt {
   contractDigest: string
   modelId?: string
   receipts: KernelReceiptV1[]
+
   refusedProposals?: number
+
   smallestQuestion?: string
+
   reply?: string
+
   receiptLabels?: Array<{ verb: string; outcome: string; label: string }>
+
   ask?: ManagerAskV1
   plan?: ManagerPlanV1
 }
-
 
 export const COORDINATOR_REPLY_CAP = 8000
 const REPLY_CLIP_MARKER = '\n\n[reply clipped — it ran past the surface cap; the receipt rows are complete]'
@@ -200,7 +222,6 @@ export function clipCoordinatorReply(raw: string): string {
   if (raw.length <= COORDINATOR_REPLY_CAP) return raw
   return raw.slice(0, COORDINATOR_REPLY_CAP - REPLY_CLIP_MARKER.length) + REPLY_CLIP_MARKER
 }
-
 
 const MAX_REMEMBERED = 64
 const seenTriggers: string[] = []
@@ -218,6 +239,7 @@ function triggerKeyOf(event: KernelEventV1): string {
     case 'worker-settled':
       return actionFingerprint(`settled:${event.sessionId}`)
     case 'operator-message':
+
       return actionFingerprint(`msg:${event.messageId}`)
   }
 }
@@ -253,6 +275,7 @@ export function validateProposal(d: unknown): d is KernelDecisionV1 {
     const r = d as Record<string, unknown>
     return typeof r.obligationId === 'string' && typeof r.reason === 'string' && r.reason.length <= 500
   }
+
   if (v === 'session.pause') {
     const r = d as Record<string, unknown>
     return (
@@ -290,16 +313,17 @@ export function validateProposal(d: unknown): d is KernelDecisionV1 {
 
 const MAX_PROPOSALS_PER_TURN = 5
 
-
 export async function runAssistedTurn(
   event: KernelEventV1,
   deps: CoordinatorLaneDeps,
 ): Promise<AssistedTurnReceipt> {
   const contractDigest = coordinatorContractDigest()
+
   if (event.kind !== 'operator-message') {
     const receipts = await runCoordinatorKernel(event, { ...deps, mode: 'rules-only' })
     return { outcome: 'executed', contractDigest, receipts }
   }
+
   const effective: EffectiveCoordinator =
     deps.manager === true && deps.managerModelId !== undefined
       ? { resolution: { requested: 'agent-assisted', effective: 'agent-assisted' }, assistModelId: deps.managerModelId }
@@ -312,6 +336,7 @@ export async function runAssistedTurn(
       receipts: [],
     }
   }
+
   const trigger = triggerKeyOf(event)
   if (seenTriggers.includes(trigger)) {
     return { outcome: 'deduped', reason: 'equivalent trigger already coordinated', contractDigest, receipts: [] }
@@ -321,6 +346,7 @@ export async function runAssistedTurn(
   try {
     return await runAssistedTurnGoverned(event, deps, effective.assistModelId, contractDigest)
   } catch (err) {
+
     const at = seenTriggers.indexOf(trigger)
     if (at >= 0) seenTriggers.splice(at, 1)
     const reason = `coordinator turn failed — ${err instanceof Error ? err.message : String(err)}`
@@ -352,6 +378,7 @@ async function runAssistedTurnGoverned(
   const callId = `coordinator:${triggerKeyOf(event)}`
   const permit = await governor.acquireModelPermit({ lane: 'coordinator', callId })
   try {
+
     const board: CoordinatorTurnInput['board'] =
       deps.board ??
       (await (await import('./coordinatorBoard.js'))
@@ -368,20 +395,24 @@ async function runAssistedTurnGoverned(
       board.sessions.find(s => s.sessionId === objectRef)?.title
     const callModel =
       deps.callModel ?? (await import('./coordinatorCall.js')).liveCoordinatorCallModel
+
     const conv = await import('./coordinatorConversation.js')
     const { buildCoordinatorReplay } = await import('./coordinatorReplay.js')
     const conversation =
       event.kind === 'operator-message'
         ? buildCoordinatorReplay(await conv.readCoordinatorConversation(), Date.now())
         : undefined
+
     const { coordinatorAgentId } = await import('./coordinatorIdentity.js')
     const actor = await coordinatorAgentId(
       deps.crewDir !== undefined ? { dir: deps.crewDir } : undefined,
     ).catch(() => 'coordinator-unresolved' as never)
     const feed = await import('./coordinatorReceipts.js').catch(() => null)
+
     const messageId = event.kind === 'operator-message' ? event.messageId : undefined
     const toolReceipts: KernelReceiptV1[] = []
     const partialRows: Array<{ verb: string; outcome: string; label: string }> = []
+
     let settledSegments = ''
     let segmentText = ''
     let partialText = ''
@@ -405,6 +436,7 @@ async function runAssistedTurnGoverned(
         .catch(() => undefined)
     }
     const scheduleFlush = (): void => {
+
       if (turnClosed || messageId === undefined || flushTimer !== undefined) return
       flushTimer = setTimeout(() => {
         flushTimer = undefined
@@ -417,6 +449,7 @@ async function runAssistedTurnGoverned(
       ...(deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {}),
       onDelta: text => {
         if (segmentText.length > 0 && !text.startsWith(segmentText)) {
+
           settledSegments = settledSegments === '' ? segmentText : `${settledSegments}\n\n${segmentText}`
         }
         segmentText = text
@@ -424,6 +457,7 @@ async function runAssistedTurnGoverned(
         scheduleFlush()
       },
       onReceipt: r => {
+
         const stamped = { ...r, actorAgentId: actor } as unknown as KernelReceiptV1
         toolReceipts.push(stamped)
         partialRows.push({
@@ -453,6 +487,7 @@ async function runAssistedTurnGoverned(
       try {
         proposal = await callModel(inputFor(conversation), assistModelId, runtime)
       } catch (err) {
+
         const overflow = coordinatorOverflowOf(err)
         if (overflow === null || event.kind !== 'operator-message') throw err
         if (!flagEnabled('MERCURY_COMPACT')) throw new Error(coordinatorOverflowRefusal(overflow, 'compaction-off'))
@@ -476,6 +511,7 @@ async function runAssistedTurnGoverned(
         }
       }
     } finally {
+
       turnClosed = true
       if (flushTimer !== undefined) {
         clearTimeout(flushTimer)
@@ -483,6 +519,7 @@ async function runAssistedTurnGoverned(
       }
       await appendChain
     }
+
     if (proposal.turnUsage !== undefined) {
       await conv
         .stampCoordinatorGauge({
@@ -492,11 +529,13 @@ async function runAssistedTurnGoverned(
         })
         .catch(() => undefined)
     }
+
     const shaped = proposal.decisions.filter(validateProposal)
     const validated = shaped.slice(0, MAX_PROPOSALS_PER_TURN)
     const vocabularyRefused = proposal.decisions.length - shaped.length
     const capDropped = shaped.length - validated.length
     const refusedProposals = vocabularyRefused + capDropped
+
     const smallestQuestion =
       typeof proposal.smallestQuestion === 'string' && proposal.smallestQuestion.length > 0
         ? proposal.smallestQuestion.slice(0, 500)
@@ -511,9 +550,11 @@ async function runAssistedTurnGoverned(
       } catch {
       }
     }
+
     const batch = batchKeyOf(validated)
     if (validated.length > 0 && failedBatches.includes(batch)) {
       const reason = 'an equivalent proposal batch already failed — a genuinely changed strategy is required'
+
       try {
         await (await import('./coordinatorReceipts.js')).ingestCoordinatorTurnRefusal({
           reason,
@@ -531,9 +572,12 @@ async function runAssistedTurnGoverned(
         refusedProposals,
       }
     }
+
     const decisionReceipts: KernelReceiptV1[] = []
     for (const d of validated) {
+
       try {
+
         const stamped = 'by' in d ? ({ ...d, by: actor } as typeof d) : d
         decisionReceipts.push({ ...(await executeKernelDecision(stamped, deps)), actorAgentId: actor })
       } catch (err) {
@@ -548,9 +592,11 @@ async function runAssistedTurnGoverned(
     }
     if (validated.length > 0 && decisionReceipts.some(r => r.outcome === 'refused'))
       remember(failedBatches, batch)
+
     try {
       if (feed !== null) {
         feed.ingestCoordinatorReceipts(decisionReceipts, deps.crewDir !== undefined ? { crewDir: deps.crewDir } : {})
+
         if (vocabularyRefused > 0) {
           await feed.ingestCoordinatorTurnRefusal({
             reason: `${vocabularyRefused} proposal(s) outside the closed vocabulary — refused, not executed`,
@@ -572,6 +618,7 @@ async function runAssistedTurnGoverned(
       }
     } catch {
     }
+
     const streamedWhole = partialText.trim()
     const proposalReply =
       typeof proposal.reply === 'string' && proposal.reply.trim().length > 0
@@ -587,11 +634,13 @@ async function runAssistedTurnGoverned(
           : undefined
     const reply = rawReply !== undefined ? clipCoordinatorReply(rawReply) : undefined
     const receipts = [...toolReceipts, ...decisionReceipts]
+
     for (const r of receipts) {
       if ((r.outcome === 'refused' || r.outcome === 'failed') && r.detail !== undefined && r.detail.length > 0) {
         logForDebugging(`[coordinator/receipt] ${r.verb} ${r.objectRef} ${r.outcome} — ${r.detail}`)
       }
     }
+
     const managerAsk = proposal.ask !== undefined ? decodeManagerAsk(proposal.ask) : null
     const managerPlan = proposal.plan !== undefined ? decodeManagerPlan(proposal.plan) : null
     return {
@@ -611,15 +660,16 @@ async function runAssistedTurnGoverned(
   }
 }
 
-
 interface SelfManagedLaunchSignal {
   kind: 'self-managed-launch'
+
   text: string
 }
 
 export async function runOperatorMessageTurn(
   text: string,
   deps: CoordinatorLaneDeps,
+
   opts: { clientMessageId?: string; onAccepted?: () => void; manager?: boolean } = {},
 ): Promise<AssistedTurnReceipt | SelfManagedLaunchSignal> {
   const conv = await import('./coordinatorConversation.js')
@@ -627,8 +677,10 @@ export async function runOperatorMessageTurn(
   const messageId = opts.clientMessageId ?? randomUUID()
   const bounded = text.slice(0, 4000)
   const now = Date.now()
+
   const prior = await conv.readCoordinatorConversation()
   if (prior.some(e => e.id === `co:${messageId}`)) {
+
     opts.onAccepted?.()
     return {
       outcome: 'deduped',
@@ -641,6 +693,7 @@ export async function runOperatorMessageTurn(
     await conv.appendCoordinatorConversation({ id: `op:${messageId}`, role: 'operator', text: bounded, ts: now })
   opts.onAccepted?.()
   const effective = await resolveEffectiveCoordinator()
+
   const managerModel =
     opts.manager === true && effective.resolution.effective !== 'agent-assisted'
       ? await (await import('./managerMode.js')).resolveManagerModel()
@@ -656,19 +709,23 @@ export async function runOperatorMessageTurn(
     return { outcome: 'not-assisted', reason: managerModel.line, contractDigest: coordinatorContractDigest(), receipts: [] }
   }
   if (effective.resolution.effective !== 'agent-assisted' && managerModel === null) {
+
     const { getGlobalConfig, saveGlobalConfig } = await import('../../utils/config.js')
     if (getGlobalConfig().hasSeenCoordinatorOffHint !== true) {
       saveGlobalConfig(c => ({ ...c, hasSeenCoordinatorOffHint: true }))
       await conv.appendCoordinatorConversation({
         id: 'co:hint:coordinator-off',
         role: 'coordinator',
+
         text: 'coordinator is off — messages here start sessions directly · turn it on in the boot menu',
         ts: Date.now(),
+
         harness: true,
       })
     }
     return { kind: 'self-managed-launch', text: bounded }
   }
+
   {
     const modelForTurn =
       managerModel !== null && managerModel.ok
@@ -701,13 +758,16 @@ export async function runOperatorMessageTurn(
   const receiptLines =
     receipt.receiptLabels ??
     receipt.receipts.map(r => ({ verb: r.verb, outcome: r.outcome, label: receiptLabelOf(r) }))
+
   if (receipt.outcome === 'deduped') return receipt
+
   let replyText: string
   let harnessSpoken = false
   if (receipt.reply !== undefined) {
     replyText = receipt.reply
   } else if (receipt.outcome === 'executed') {
     if (receipt.ask !== undefined) {
+
       replyText =
         receipt.ask.options.length > 0
           ? `${receipt.ask.question}\n${receipt.ask.options.map((option, index) => `  ${index + 1}. ${option}`).join('\n')}`
@@ -719,6 +779,7 @@ export async function runOperatorMessageTurn(
       replyText = 'Done — the receipts below are what executed.'
       harnessSpoken = true
     } else if (receipt.smallestQuestion !== undefined) {
+
       replyText = receipt.smallestQuestion
     } else {
       replyText = 'The turn ended without a reply — nothing was changed. Ask again and I will answer from the board.'

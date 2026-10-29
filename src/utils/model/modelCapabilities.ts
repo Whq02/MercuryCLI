@@ -1,4 +1,3 @@
-
 type ModelCapability = {
   id: string
   max_input_tokens?: number

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
@@ -151,9 +152,11 @@ function drive(
   }
   const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
   const grid = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+
   for (const m of payload.marks ?? []) {
     writeFileSync(path.join(world.home, `mark-${name}-${m.label}.txt`), m.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n'))
   }
+
   if (readyText.length > 0 && !readyText.some(t => grid.includes(t))) {
     console.log(`  [vshot ${name}] ${String(res.stderr ?? '').trim().replace(/\s+/g, ' ').slice(-700)}`)
   }
@@ -217,8 +220,11 @@ console.log('============================================================')
 
 const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
+
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+
   { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
+
   { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/mission ${GOAL}\r` },
 ]
 
@@ -243,7 +249,9 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
+
       { atTick: 140, minTick: 15, awaitText: '← back', awaitSettleTicks: 3, data: '/mission\r' },
+
       { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
     ['Standing mission'],
     240,
@@ -251,6 +259,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
   const asked = markText(world, `resume-${argvTail[0]!.replace(/^--/, '')}`, 'after-mission')
   const shown = `${grid}\n${asked}`
   const after = debugText(world)
+
   check(
     'the debug log records the RE-ARM',
     !before.includes('[mission] re-armed from card') && after.includes('[mission] re-armed from card'),
@@ -332,6 +341,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       'turns',
       [],
       [
+
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${TURNS[0]}\r` },
         { atTick: 180, minTick: 30, awaitText: 'reply to [[continuity turn one', data: `${TURNS[1]}\r` },
@@ -349,6 +359,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     )
 
     section('WORLD 3 — stage B: --continue restores the rows and the wire carries them')
+
     const gridB = drive(
       world,
       'continue-transcript',
@@ -388,6 +399,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
         .filter(r => r.path.endsWith('/v1/messages'))
     } catch {
     }
+
     const resumedBodies = wireRows
       .map(r => JSON.stringify(r.body ?? null))
       .filter(s => s.includes('continuity turn four delta-crane'))
@@ -422,6 +434,7 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       360,
       { base: fastBase, rows: 44 },
     )
+
     const transcript4 = (() => {
       const dir = path.join(world4.home, 'projects')
       const found: string[] = []

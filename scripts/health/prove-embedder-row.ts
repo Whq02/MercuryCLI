@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/healthReport.ts src/mneme/embedModels.ts src/mneme/embedPack.ts
+
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

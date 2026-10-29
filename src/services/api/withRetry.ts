@@ -34,7 +34,6 @@ import { jitterRetryDelay } from './retryJitter.js'
 import { APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 
-
 const BASE_DELAY_MS = 500
 
 const MAX_DELAY_MS = 32_000
@@ -100,11 +99,11 @@ export class FallbackTriggeredError extends Error {
 function getDefaultMaxRetries(): number {
   const env = process.env.MERCURY_MAX_RETRIES
   if (env !== undefined && env !== '') {
+
     return Number.parseInt(env, 10)
   }
   return 10
 }
-
 
 function errorMessage(error: unknown): string {
   const message = (error as { message?: unknown } | null)?.message
@@ -131,6 +130,7 @@ function isRevokedTokenError(error: unknown): boolean {
 }
 
 export function isRetryableError(error: unknown): boolean {
+
   if (isMockRateLimitError(error)) return false
   const status = statusOf(error)
   if (status === 401) {
@@ -138,9 +138,12 @@ export function isRetryableError(error: unknown): boolean {
     return false
   }
   if (isRevokedTokenError(error)) return false
+
   if (providerWaitIsWindow(providerAskedWaitMs(error))) return false
+
   if (errorMessage(error).includes(OVERLOADED_TYPE_MARKER)) return true
   if (parseMaxTokensContextOverflowError(error) !== undefined) return true
+
   const shouldRetry = headerValue(errorHeaders(error), 'x-should-retry')
   if (shouldRetry === 'false') return false
   if (shouldRetry === 'true' && (!isClaudeAISubscriber() || isEnterpriseSubscriber())) return true
@@ -150,12 +153,12 @@ export function isRetryableError(error: unknown): boolean {
   if (status !== undefined && status >= 500) return true
   if (isBedrockThrottle(error)) return true
   if (status === 429) {
+
     if (isClaudeAISubscriber() && !isEnterpriseSubscriber() && isSpentUsageWindowAnswer(error)) return false
     return true
   }
   return false
 }
-
 
 const OVERFLOW_SUBSTRING = 'input length and `max_tokens` exceed context limit'
 const OVERFLOW_PATTERN =
@@ -177,18 +180,17 @@ function parseMaxTokensContextOverflowError(
   }
 }
 
-
 export function getRetryDelay(
   attempt: number,
   retryAfterHeader?: string | null,
   maxDelayMs: number = MAX_DELAY_MS,
 ): number {
+
   const asked = retryAfterHeaderMs(retryAfterHeader)
   if (asked !== undefined) return Math.min(asked, MAX_RETRY_AFTER_MS)
   const base = Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), maxDelayMs)
   return jitterRetryDelay(base)
 }
-
 
 type WithRetryOptions = {
   maxRetries?: number
@@ -365,6 +367,7 @@ export async function* withRetry<T>(
         const FLOOR = OUTPUT_FIT_FLOOR_TOKENS
         const available = Math.max(0, overflow.contextLimit - overflow.inputTokens - OUTPUT_FIT_HEADWAY_TOKENS)
         if (available < FLOOR) {
+
           logError(
             new Error(
               `max_tokens overflow unrecoverable: available context ${available} is under the ${FLOOR} floor`,

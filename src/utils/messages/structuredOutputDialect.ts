@@ -1,4 +1,3 @@
-
 type SchemaNode = { [key: string]: unknown }
 
 function isRecord(v: unknown): v is SchemaNode {
@@ -18,6 +17,7 @@ function nullable(node: unknown): unknown {
     const hasNull = arms.some(a => isRecord(a) && a.type === 'null')
     if (!hasNull) out.anyOf = [...arms, { type: 'null' }]
   }
+
   if (Array.isArray(out.enum) && !out.enum.includes(null)) {
     out.enum = [...out.enum, null]
   }

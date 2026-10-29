@@ -5,7 +5,6 @@ import type {
   UserMessage,
 } from '../types/message.js'
 
-
 export function tagMessagesWithToolUseID<
   M extends UserMessage | AttachmentMessage | SystemMessage,
 >(messages: M[], toolUseID?: string): M[] {

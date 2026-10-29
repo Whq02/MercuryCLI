@@ -47,7 +47,6 @@ import { useInteractiveList } from '../useInteractiveList.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 import { GLYPH } from '../glyphs.js'
 
-
 type BoardRow =
   | { type: 'slot'; slot: AccountSlot }
   | { type: 'absent'; family: ProviderFamilyPresence }
@@ -72,13 +71,17 @@ type Identities = SlotIdentities
 export function AccountView({
   onClose,
 }: {
+
   onClose: (value?: string, options?: { nextInput?: string; submitNextInput?: boolean }) => void
 }): React.ReactNode {
   const accent = useSessionAccent().accent
   const home = homedir()
+
   const tailWidth = Math.max(24, useTerminalSize().columns - 36)
+
   const [version, setVersion] = useState(0)
   const [identities, setIdentities] = useState<Identities>({})
+
   const armedRemovalRef = useRef<{ id: string; at: number } | null>(null)
 
   useEffect(() => {
@@ -127,6 +130,7 @@ export function AccountView({
   }, [scopeDirsKey, version])
 
   const acct = getGlobalConfig().oauthAccount
+
   const servedModel = useFocusedServedModel()
   const sessionModel = useAppState(state => state.engineModelForSession ?? state.engineModel)
   const engineModel = servedModel ?? sessionModel ?? getEngineModel()
@@ -147,6 +151,7 @@ export function AccountView({
     if (s.foreignHarness) {
       return "another tool's credential scope — Mercury never bills through it; run under your Mercury home (no config-dir pin) to sign in"
     }
+
     if (s.isCurrent) return rerouteToLogins('anthropic', `opening Logins for the ${s.name} sign-in`)
     return `this login belongs to ${s.name} — run mercury there (MERCURY_CONFIG_DIR=${s.dir}) and /logins; ⌫ here signs it out`
   }
@@ -154,6 +159,7 @@ export function AccountView({
   const activateSlot = (slot: AccountSlot): string => {
     if (slot.scope) return activateScopeSlot(slot)
     if (slot.family === 'openai') {
+
       return rerouteToLogins('openai', 'opening Logins for the OpenAI sign-in')
     }
     if (slot.envPinned) {
@@ -182,6 +188,7 @@ export function AccountView({
         hint: 'opens Logins to sign in / re-login',
         run: row => {
           if (!row) return 'no accounts found — r rescans'
+
           if (row.type === 'absent') return familyRouteNote(row.family.id)
           return activateSlot(row.slot)
         },
@@ -190,6 +197,7 @@ export function AccountView({
         key: 'r',
         hint: 'rescan',
         run: () => {
+
           forgetScopeIdentity()
           setVersion(v => v + 1)
           setIdentities({})
@@ -204,6 +212,7 @@ export function AccountView({
           if (row.type === 'absent') {
             return `nothing to remove — ${familyDisplayName(row.family.id)} has no login · ${familyRouteWords(row.family.id)}`
           }
+
           const removable =
             row.slot.removal.route !== 'excluded' &&
             row.slot.removal.route !== 'owner' &&
@@ -218,8 +227,10 @@ export function AccountView({
             return `⌫ again removes ${familyDisplayName(row.slot.family)} · ${what} (signs it out and drops the stored credential) — any other row keeps it`
           }
           armedRemovalRef.current = null
+
           const outcome = executeSlotRemoval(row.slot)
           if (outcome.mutated) {
+
             setIdentities(prev => {
               const next = { ...prev }
               delete next[row.slot.id]
@@ -241,6 +252,7 @@ export function AccountView({
     currentScopeClaudeFamily: billingSlot?.scope?.foreignHarness ?? false,
   })
   const mainLoopText = `${mainLoop.family} · ${renderModelName(engineModel)} · ${mainLoop.text}`
+
   const orgText =
     mainLoop.route === 'anthropic' && mainLoop.basis === 'verified-live' && acct?.organizationName
       ? `${acct.organizationName} (snapshot)`
@@ -254,6 +266,7 @@ export function AccountView({
     let kindLabel: string
     let tail: string
     if (row.type === 'absent') {
+
       glyph = '⦿'
       color = AMBER
       name = row.family.id
@@ -264,6 +277,7 @@ export function AccountView({
       name = slot.name
       kindLabel = slot.kindLabel
       if (slot.scope) {
+
         const id = identities[slot.id]
         const state = slotSigninState(slot, identities)
         glyph = state.basis === 'excluded' ? '⊘' : state.signedIn ? '●' : '⦿'
@@ -356,6 +370,7 @@ export function AccountView({
       <KeyValueGrid
         keyWidth={10}
         rows={[
+
           { k: 'scope', v: tildify(getMercuryHome(), home), tone: IVORY, fit: 'middle' as const },
           { k: 'main loop', v: mainLoopText, tone: IVORY, fit: 'end' as const },
           ...(orgText !== undefined ? [{ k: 'org', v: orgText, tone: SECOND, fit: 'end' as const }] : []),
@@ -363,11 +378,13 @@ export function AccountView({
       />
 
       {groupViews.map(({ group, start }) => {
+
         const signedIn = familySigninSummary(group.slots, identities).signedIn
         const rowsOfGroup: BoardRow[] =
           group.slots.length > 0
             ? group.slots.map((slot): BoardRow => ({ type: 'slot', slot }))
             : [{ type: 'absent', family: group.family }]
+
         const localSel = Math.min(Math.max(0, sel - start), rowsOfGroup.length - 1)
         const winStart =
           rowsOfGroup.length > MAX_ROWS_SHOWN
@@ -376,7 +393,9 @@ export function AccountView({
         const shown = rowsOfGroup.slice(winStart, winStart + MAX_ROWS_SHOWN)
         const hiddenAbove = winStart
         const hiddenBelow = Math.max(0, rowsOfGroup.length - winStart - shown.length)
+
         const ceiling = familySigninCeiling(group.family.id)
+
         const health = usabilityFor(group.family.id)
         const healthLine =
           health === undefined || (health.usable && (require('../../../services/capFailover.js') as typeof import('../../../services/capFailover.js')).observedFamilyWindow(group.family.id).state !== 'warning')
@@ -388,6 +407,7 @@ export function AccountView({
           <React.Fragment key={group.family.id}>
             <SectionHeader {...(ceiling === undefined ? { count: signedIn } : {})}>{`${familyDisplayName(group.family.id)} accounts`}</SectionHeader>
             {healthLine !== null ? (
+
               <Box paddingLeft={2}>
                 <Text color={AMBER}>{`${GLYPH.warn} ${healthLine}`}</Text>
               </Box>

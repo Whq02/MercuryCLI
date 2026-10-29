@@ -23,6 +23,7 @@ async function main(): Promise<void> {
     live.publishContextUsage(42, 200_000, 90, B)
     check('owner A reads its own 40%', live.getLiveContextUsage(A).usedPct === 40)
     check('owner B reads its own 42%', live.getLiveContextUsage(B).usedPct === 42)
+
     live.publishContextUsage(55, 200_000, 90)
     check(
       'the default main slot is its own owner',
@@ -34,12 +35,14 @@ async function main(): Promise<void> {
   {
     const fc = await import('../../src/utils/cockpit/ctxForecast.js')
     fc.resetCtxForecastForTest()
+
     fc.recordCtxSample(40, A)
     fc.noteCtxTurnBoundary(A)
     fc.recordCtxSample(42, A)
     fc.noteCtxTurnBoundary(A)
     fc.recordCtxSample(44, A)
     fc.noteCtxTurnBoundary(A)
+
     fc.recordCtxSample(43, B)
     fc.noteCtxTurnBoundary(B)
     const estA = fc.estimateTurnsToCompact(44, 90, A)
@@ -50,6 +53,7 @@ async function main(): Promise<void> {
       estB === null,
       `B=${estB}`,
     )
+
     fc.recordCtxSample(80, B)
     fc.noteCtxTurnBoundary(B)
     check(

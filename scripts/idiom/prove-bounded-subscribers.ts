@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,6 +20,7 @@ function section(t: string): void {
 
 section('§A fast producer + slow sink: frame-bounded commits, byte-exact final')
 {
+
   let pending: (() => void) | null = null
   let commits = 0
   let lastSeen = ''
@@ -113,6 +115,7 @@ section('§C 200 rapid settlements collapse in-queue; final state lands intact')
   setSessionFileForTesting(file)
   const msg = createAssistantMessage({ content: 'streaming turn' })
   await recordTranscript([msg] as never)
+
   for (let i = 1; i <= 200; i++) {
     ;(msg.message.usage as { output_tokens: number }).output_tokens = i
     await settleTranscriptMessage(msg as never)
@@ -120,6 +123,7 @@ section('§C 200 rapid settlements collapse in-queue; final state lands intact')
   await getProject().flush()
   const lines = readFileSync(file, 'utf8').split('\n').filter(l => l.includes(msg.uuid))
   check(`intermediates collapsed: ${lines.length} line(s) for 200 settlements (≤2)`, lines.length <= 2, String(lines.length))
+
   const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
   const entries = decodeTranscriptBuffer<{ uuid?: string; message?: { usage?: { output_tokens?: number } } }>(
     readFileSync(file),

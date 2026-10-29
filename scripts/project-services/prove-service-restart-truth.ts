@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -31,6 +32,7 @@ const { readRecord, servicesDir, startService, stopService, restartService } = m
 const decideServiceStrike = (manager as Rec).decideServiceStrike as
   | ((facts: { pid: number | null; startToken: string | null; currentToken: string | null; ownedHandle?: boolean }) => string)
   | undefined
+
 function writeRecord(cwd: string, record: Rec): void {
   const name = (record.spec as { name: string }).name
   writeFileSync(join(servicesDir(cwd), `${name}.json`), JSON.stringify(record, null, 2))
@@ -89,6 +91,7 @@ section('§1 decideServiceStrike — a held child is a strike without a probe')
 
 section('§2 a restart whose stop cannot prove the pid FAILS and starts nothing')
 {
+
   const bystander = spawn(NODE, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore', windowsHide: true, env: { ...process.env } })
   await sleep(400)
   check('the bystander is running', bystander.pid !== undefined && alive(bystander.pid))
@@ -119,6 +122,7 @@ section('§3 a service this session spawned with no token on its record is stopp
   const first = readRecord(workDir, 'mine')
   const firstPid = Number(first?.pid)
   check('the service is running', Number.isInteger(firstPid) && firstPid > 0 && alive(firstPid))
+
   writeRecord(workDir, { ...(first as Rec), startToken: null })
   check('the record carries no token (the fixture)', readRecord(workDir, 'mine')?.startToken === null)
 
@@ -149,6 +153,7 @@ section('§3 a service this session spawned with no token on its record is stopp
 
 section('§4 the token backfill retries a probe that could not answer')
 {
+
   const emptyDir = join(workDir, 'empty-path')
   mkdirSync(emptyDir, { recursive: true })
   const savedPath = process.env.PATH
@@ -157,6 +162,7 @@ section('§4 the token backfill retries a probe that could not answer')
   try {
     started = await startService({ sessionId: SESSION, spec: spec(workDir, 'late') })
   } finally {
+
     setTimeout(() => {
       process.env.PATH = savedPath
     }, 300).unref?.()

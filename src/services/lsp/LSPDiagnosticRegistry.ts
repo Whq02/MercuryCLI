@@ -8,7 +8,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 
-
 type Lane = OwnerKey | null
 
 type PendingLSPDiagnostic = {
@@ -29,6 +28,7 @@ const MAX_BASELINE_TEXT_CHARS = 10_000_000
 const BASELINE_DIFF_TIMEOUT_MS = 5_000
 const MAX_ROOT_CLAIMS = 64
 const AWAITING_WRITE_MAX_AGE_MS = 60_000
+
 export const MAX_PENDING_PUBLISHES = 500
 
 export function foldDriveCase(path: string): string {
@@ -302,6 +302,7 @@ export function registerPendingLSPDiagnostic({
     try {
       listener({ serverName, files })
     } catch (err) {
+
       logForDebugging(`LSP diagnostics: publish listener threw: ${String(err)}`)
     }
   }
@@ -313,7 +314,6 @@ export function subscribeLSPDiagnosticPublish(cb: PublishListener): () => void {
     publishListeners.delete(cb)
   }
 }
-
 
 const lastReports = new LRUCache<string, { file: DiagnosticFile; at: number }>({
   max: MAX_TRACKED_FILES,
@@ -530,9 +530,11 @@ export function checkForLSPDiagnostics(owner?: OwnerKey): Array<{ serverName: st
   try {
     deduped = dedupe(gatheredFiles, lane)
   } catch (err) {
+
     logForDebugging(`LSP diagnostics: dedup failed, delivering undeduplicated: ${String(err)}`)
     deduped = gatheredFiles
   }
+
   for (const id of gatheredIds) {
     const entry = pending.get(id)
     if (entry !== undefined) entry.attachmentSent = true

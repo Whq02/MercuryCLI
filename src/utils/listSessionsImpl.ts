@@ -16,7 +16,6 @@ import {
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
 
-
 type SessionInfo = {
   sessionId: string
   summary: string
@@ -32,8 +31,10 @@ type SessionInfo = {
 
 type ListSessionsOptions = {
   dir?: string
+
   limit?: number
   offset?: number
+
   includeWorktrees?: boolean
 }
 
@@ -48,6 +49,7 @@ function lineIndicatesSidechain(line: string): boolean {
 
 function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, projectPath?: string): SessionInfo | null {
   const headLines = lite.head.split('\n')
+
   const probeLine = (headLines[0] ?? '').includes(MERCURY_HEADER_MARKER) ? (headLines[1] ?? '') : (headLines[0] ?? '')
   if (lineIndicatesSidechain(probeLine)) return null
 
@@ -71,6 +73,7 @@ function parseSessionInfoFromLite(sessionId: string, lite: LiteSessionFile, proj
     extractLastJsonStringField(lite.tail, 'lastPrompt') ??
     extractLastJsonStringField(lite.tail, 'summary') ??
     firstPrompt
+
   if (!summary) return null
 
   const gitBranch = extractLastJsonStringField(lite.tail, 'gitBranch') ?? extractJsonStringField(lite.head, 'gitBranch')
@@ -115,6 +118,7 @@ async function readCandidate(candidate: Candidate, statRan: boolean): Promise<Se
   if (!lite) return null
   const info = parseSessionInfoFromLite(candidate.sessionId, lite, candidate.projectPath)
   if (!info) return null
+
   if (statRan && candidate.mtime > 0) info.lastModified = candidate.mtime
   return info
 }
@@ -178,6 +182,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
 
   const results: Candidate[][] = []
   const seen = new Set<string>()
+
   const ownDir = await findProjectDir(canonical)
   if (ownDir) {
     results.push(await listCandidates(ownDir, doStat, canonical))
@@ -193,6 +198,7 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
       continue
     }
     for (const { path, form } of worktreeForms) {
+
       const matches =
         entryKey === form || (form.length >= MAX_SANITIZED_LENGTH && entryKey.startsWith(form) && entryKey[form.length] === '-')
       if (matches) {
@@ -210,8 +216,10 @@ export async function listSessionsImpl(options: ListSessionsOptions = {}): Promi
   const paginated = limit !== null || offset > 0
 
   if (!paginated) {
+
     const candidates = await gatherCandidates(options, false)
     const reads = await Promise.all(candidates.map(candidate => readCandidate(candidate, false).then(info => ({ candidate, info }))))
+
     const bySession = new Map<string, SessionInfo>()
     for (const { info } of reads) {
       if (!info) continue
@@ -225,6 +233,7 @@ export async function listSessionsImpl(options: ListSessionsOptions = {}): Promi
 
   const candidates = (await gatherCandidates(options, true)).sort(byMtimeThenIdDesc)
   const collected: SessionInfo[] = []
+
   const seenIds = new Set<string>()
   let discarded = 0
   for (let start = 0; start < candidates.length; start += READ_BATCH) {

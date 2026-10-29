@@ -19,7 +19,6 @@ import {
   openaiConnectFailedReceipt,
 } from '../services/providers/openai/openaiLogin.js'
 
-
 export function OpenaiConnect({
   mode,
   onDone,
@@ -28,12 +27,15 @@ export function OpenaiConnect({
 }: {
   mode: 'browser' | 'device'
   onDone: (receipt: string) => void
+
   onResult?: (result: { ok: boolean; receipt: string }) => void
+
   onSwitchToDevice?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { compact } = usePopupCompact()
   const [paste, setPasteState] = useState('')
+
   const pasteRef = useRef('')
   const setPaste = (next: string): void => {
     pasteRef.current = next
@@ -48,6 +50,7 @@ export function OpenaiConnect({
   )
   const handlesRef = useRef<OpenaiConnectHandles | undefined>(undefined)
   const settledRef = useRef(false)
+
   const switchingRef = useRef(false)
 
   const settle = (receipt: string, ok = false): void => {
@@ -58,6 +61,7 @@ export function OpenaiConnect({
   }
 
   const finishConnected = async (ref: OpenaiAccountRef): Promise<void> => {
+
     const outcome = await finishOpenaiSubscriptionConnect(ref)
     settle(outcome.receipt, outcome.ok)
   }
@@ -88,6 +92,7 @@ export function OpenaiConnect({
     handles.result
       .then(ref => void finishConnected(ref))
       .catch(error => {
+
         if (switchingRef.current) return
         settle(openaiConnectFailedReceipt(error, 'browser'))
       })
@@ -105,10 +110,12 @@ export function OpenaiConnect({
         handlesRef.current?.cancel('cancelled from the connect surface')
         settle(OPENAI_CONNECT_STOPPED_RECEIPT)
       } else {
+
         settle(OPENAI_DEVICE_STOPPED_RECEIPT)
       }
       return
     }
+
     if (input === 'c' && !key.ctrl && !key.meta && pasteRef.current === '' && phase !== 'exchanging') {
       const value = mode === 'browser' ? authorizeUrl : device?.userCode
       if (!value) return
@@ -120,6 +127,7 @@ export function OpenaiConnect({
       })
       return
     }
+
     if (
       input === 'd' &&
       !key.ctrl && !key.meta &&

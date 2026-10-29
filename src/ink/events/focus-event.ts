@@ -1,4 +1,3 @@
-
 import { TerminalEvent, type EventTarget } from './terminal-event.js'
 
 export class FocusEvent extends TerminalEvent {

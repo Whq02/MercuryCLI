@@ -36,6 +36,7 @@ const KEY = (over: Partial<Key> = {}): Key =>
 
 const defaults = parseBindings(DEFAULT_BINDINGS)
 const DEFAULT_COUNT = defaults.length
+
 const OPTS = { defaultCount: DEFAULT_COUNT, platform: 'linux' } as const
 const user = (blocks: { context: string; bindings: Record<string, string | null> }[]) => [
   ...defaults,
@@ -95,6 +96,7 @@ t.section('§1 — the effective table is derived from the live bindings')
   t.check(
     'every graph action reaches the table, and no (context, chord) row repeats',
     (() => {
+
       const seen = new Set<string>()
       const rowKeys = new Set<string>()
       let rows = 0
@@ -148,6 +150,7 @@ t.section('§2 — the reverse lookup runs the runtime resolver')
     return explainResolution(input, key, ['Chat', 'Global'], bindings, pending, result, {
       defaultCount: DEFAULT_COUNT,
       platform: 'linux',
+
       passesThroughToEditor: !unboundConsumes(input, key),
     })
   }
@@ -203,8 +206,10 @@ t.section('§3 — a lookup is a table read: nothing is stored, logged or sent')
   )
   const panel = readFileSync('src/components/MercuryInputAtlas.tsx', 'utf8')
   t.check('the panel logs no keystroke', !panel.includes('logEvent'), 'ok')
+
   t.check(
     'and releases the keyboard on every terminal outcome',
+
     (panel.match(/setPending\(null\)\n\s*setMode\('browse'\)/g) ?? []).length >= 2,
     'single-answer capture in both callbacks',
   )
@@ -212,8 +217,10 @@ t.section('§3 — a lookup is a table read: nothing is stored, logged or sent')
 
 t.section('§4 — the write half produces exact, deterministic bytes')
 {
+
   const wb = readFileSync('src/keybindings/writeBindings.ts', 'utf8')
   t.check(
+
     'the rebind write is ATOMIC (published through the durable owner)',
     wb.includes("from '../substrate/durablePublish.js'") && wb.includes('await durableAtomicPublish(path, next.content)'),
   )
@@ -242,6 +249,7 @@ t.section('§4 — the write half produces exact, deterministic bytes')
       t.check('one block still', p2.bindings.length === 1, `${p2.bindings.length}`)
       t.check('with both bindings', Object.keys(p2.bindings[0]!.bindings).length === 2, 'alt+j + alt+k')
     }
+
     const again = applyBindingEdit(null, { context: 'Chat', chord: 'alt+j', action: 'app:toggleTasks' })
     t.check('the same edit is byte-identical', again.ok && again.content === fresh.content, 'deterministic')
   }
@@ -330,18 +338,22 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
     spawnSync(process.execPath, ['run', 'scripts/lib/firstRunSeed.ts', home, process.cwd()], {
       env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
     })
+
     writeFileSync(
       join(home, 'keybindings.json'),
       JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'alt+j': 'app:toggleTasks' } }] }),
     )
+
     const expectChord = process.platform === 'darwin' ? 'opt+j' : 'alt+j'
     const out = join(scratch, 'keys.json')
     const cfg = {
       cols: 120, rows: 40, total: 200,
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
+
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/keys\r' },
+
         { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 8, data: 'toggleTa' },
       ],
       readyText: expectChord, readySettleTicks: 4,

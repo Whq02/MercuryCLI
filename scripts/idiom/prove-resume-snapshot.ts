@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { appendFileSync, mkdtempSync, readFileSync, statSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -56,8 +57,10 @@ const normalize = (r: Awaited<ReturnType<typeof loadTranscriptFile>>): string =>
 
 section('§A equality — snapshot path ≡ full parse')
 {
+
   const first = await loadTranscriptFile(FILE)
   check('the write-behind snapshot exists after the first load', statSync(snapshotPathFor(FILE)).size > 0)
+
   const appended = line(1200, 1199) + line(1201, 1200)
   appendFileSync(FILE, appended)
   const hitLoad = await loadTranscriptFile(FILE)
@@ -87,6 +90,7 @@ section('§B O(tail) — the hit hands the fold exactly the appended bytes')
 
 section('§C invalidation — truncation, rewrite, corruption each fall back')
 {
+
   const preTrunc = await tryLoadResumeSnapshot(FILE)
   check('pre-truncation hit (sanity)', preTrunc !== null)
   truncateSync(FILE, (preTrunc?.byteCursor ?? 1000) - 200)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,6 +17,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const dir = mkdtempSync(join(tmpdir(), 'worker-identity-'))
 const stranger = Bun.spawn([process.execPath, '-e', 'setTimeout(() => {}, 30_000)'], { stdout: 'ignore', stderr: 'ignore' })
 const strangerToken = await ownerWatch.getProcessStartTokenAsync(stranger.pid)
+
 ownerWatch.getProcessStartTokenCachedOrRefresh(stranger.pid)
 const tokenDeadline = Date.now() + 5_000
 while (ownerWatch.getProcessStartTokenCachedOrRefresh(stranger.pid) === null && Date.now() < tokenDeadline) {
@@ -34,6 +36,7 @@ const baseRecord = (runnerId: string, extra: Record<string, unknown>): Record<st
 })
 
 try {
+
   console.log('L1 the respawn stamp carries the token')
   {
     workers.updateConcourseWorkers((workers: Record<string, unknown>) => {

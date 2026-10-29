@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -18,6 +19,7 @@ t('§1 the overlay region opens on the external-editor return (the first return 
 t('§1 that return appears exactly once', lines.filter(l => l.includes(MARKER)).length === 1)
 
 if (markerAt >= 0) {
+
   let end = lines.length
   for (let i = markerAt + 1; i < lines.length; i++) {
     if (/^\}/.test(lines[i] ?? '')) { end = i; break }

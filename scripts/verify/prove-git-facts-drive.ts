@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,7 +25,9 @@ const FACE_TICKS = Number(process.env.MERCURY_GIT_DRIVE_FACE_TICKS ?? 600)
 const IDLE_TICKS = Number(process.env.MERCURY_GIT_DRIVE_IDLE_TICKS ?? 200)
 const SETTLE_TICKS = 100
 const TOUCH_TICKS = 25
+
 const BOUND_TICKS = 175
+
 const IDLE_CEILING_PER_120S = 2
 
 const REAL_GIT = spawnSync('which', ['git'], { encoding: 'utf8' }).stdout.trim()
@@ -71,6 +74,7 @@ writeFileSync(
   ].join('\n'),
 )
 chmodSync(join(SHIM_DIR, 'git'), 0o755)
+
 const PRELOAD = join(SCRATCH, 'sync-census.cjs')
 writeFileSync(
   PRELOAD,
@@ -143,6 +147,7 @@ type Surface = {
   after: { count: number; size: number }
   endReason: unknown
   status: string
+
   syncBoot: number
   syncIdle: number
   syncTouch: number
@@ -176,7 +181,9 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const syncLog = join(SCRATCH, `sync-${surface}.log`)
   writeFileSync(syncLog, '')
   const idleTicks = surface === 'face' ? FACE_TICKS : IDLE_TICKS
+
   const warmTicks = surface === 'face' ? 0 : WARM_TICKS + 60
+
   const idle: Send[] = [
     { afterPrevTicks: SETTLE_TICKS, data: '', mark: 'surface' },
     { afterPrevTicks: idleTicks + BOUND_TICKS + warmTicks, data: '', mark: 'surface-end' },
@@ -218,6 +225,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   let tail = ''
   child.stdout.on('data', d => (tail = (tail + String(d)).slice(-600)))
   child.stderr.on('data', d => (tail = (tail + String(d)).slice(-600)))
+
   const touchAtMs = await new Promise<number | null>(resolvePromise => {
     const delay = (BOUND_TICKS + warmTicks + SETTLE_TICKS + idleTicks) * 200
     const timer = setTimeout(() => {
@@ -258,6 +266,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
       const [start = '0', ppid = '', cwd = '', ...argv] = l.split('\t')
       return { start: Number(start), ppid, cwd, argv: gitSubcommandArgv(argv.join(' ').split(' ')).join(' ') }
     })
+
   const idleEnd = touchAtMs ?? winEnd
   const idleRows = winStart !== undefined && idleEnd !== undefined ? all.filter(r => r.start >= winStart && r.start < idleEnd) : []
   const idleMinutes = winStart !== undefined && idleEnd !== undefined ? (idleEnd - winStart) / 60000 : 0
@@ -273,6 +282,7 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const syncBoot = syncRows.length
   const syncIdle = winStart !== undefined && winEnd !== undefined ? syncRows.filter(r => r.ts >= winStart && r.ts <= winEnd).length : 0
   const syncTouch = touchAtMs !== null ? syncRows.filter(r => r.ts >= touchAtMs && r.ts <= touchAtMs + 4_000).length : 0
+
   try {
     git(FIX, 'reset', '-q', '--', 'outside.txt')
     rmSync(join(FIX, 'outside.txt'), { force: true })

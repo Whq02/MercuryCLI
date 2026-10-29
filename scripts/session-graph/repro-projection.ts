@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -40,18 +41,21 @@ t.check(
 t.section('CS-05 — the projection FEEDS every surface (the journey-final pins)')
 {
   const { readFileSync } = await import('node:fs')
+
   const acp = readFileSync('src/services/acp/acpServer.ts', 'utf8')
   t.check(
     'the ACP server registers the `_mercury/crew` wire (M8)',
     /_mercury\/crew/.test(acp),
     'no crew wire on the editor bridge yet',
   )
+
   const crewCmd = readFileSync('src/commands/crew/index.ts', 'utf8')
   t.check(
     'the crew projection keeps a production consumer after the board retired (/crew)',
     /resolveCrewSnapshot/.test(crewCmd),
     'the crew projection lost its surface',
   )
+
   let picker = false
   try {
     picker = /crew\/projection|useCrew|resolveCrewSnapshot|cachedCrewSnapshot/.test(

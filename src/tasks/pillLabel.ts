@@ -1,7 +1,6 @@
 import { plural } from '../utils/stringUtils.js'
 import type { BackgroundTaskState } from './types.js'
 
-
 const DIAMOND_OPEN = '◇'
 
 export function getPillLabel(tasks: BackgroundTaskState[]): string {

@@ -1,4 +1,3 @@
-
 import { colorize } from '../ink/colorize.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getSessionAccent } from '../components/mercury-ui/sessionAccent.js'
@@ -17,7 +16,6 @@ import {
   SAND,
   TEAL,
 } from '../components/mercuryPalette.js'
-
 
 export type Theme = {
   autoAccept: string
@@ -102,7 +100,6 @@ export function isMonochromeTheme(themeName: ThemeName): boolean {
   return themeName === MONO_THEME_NAME
 }
 
-
 export function lerpHex(from: string, to: string, t: number): string {
   const channel = (offset: number): string => {
     const a = parseInt(from.slice(offset, offset + 2), 16)
@@ -120,7 +117,6 @@ export function themeColorToAnsi(themeColor: string): string {
   const idx = painted.indexOf(sentinel)
   return idx <= 0 ? '' : painted.slice(0, idx)
 }
-
 
 const CARD_BROWN = 'rgb(200, 168, 130)'
 
@@ -201,14 +197,15 @@ const BASE_PALETTES: Record<string, Theme> = {
   [MONO_THEME_NAME]: DARK,
 }
 
-
 function mercuryWarmInkOverlay(base: Theme, themeName: string): Theme {
   const accent = getSessionAccent().accent
   const accentShimmer = lerpHex(accent, IVORY, 0.4)
   const companionShimmer = lerpHex(OASIS, IVORY, 0.4)
+
   const ground = groundFamilyFor(themeName)
   return {
     ...base,
+
     brand: accent,
     suggestion: accent,
     permission: accent,
@@ -218,6 +215,7 @@ function mercuryWarmInkOverlay(base: Theme, themeName: string): Theme {
     brandShimmer: accentShimmer,
     permissionShimmer: accentShimmer,
     promptBorderShimmer: accentShimmer,
+
     info: OASIS,
     infoShimmer: companionShimmer,
     systemSpinner: OASIS,
@@ -230,20 +228,25 @@ function mercuryWarmInkOverlay(base: Theme, themeName: string): Theme {
     background: OASIS,
     professionalBlue: OASIS,
     chromeYellow: OASIS,
+
     autoAccept: AMBER,
+
     success: TEAL,
     error: CRIMSON,
     warning: AMBER,
     warningShimmer: lerpHex(AMBER, IVORY, 0.4),
+
     text: IVORY,
     subtle: SAND,
     inactive: FAINT,
     inactiveShimmer: lerpHex(FAINT, IVORY, 0.4),
+
     selectionBg: ground.ASH,
     userMessageBackground: ground.ASH_RAISED,
     userMessageBackgroundHover: ground.DUNE_FAINT,
     messageActionsBackground: ground.DUNE,
     promptBorderResting: DUNE,
+
     diffAdded: DIFF_ADD_BG,
     diffRemoved: DIFF_DEL_BG,
     diffAddedWord: DIFF_ADD_WORD,

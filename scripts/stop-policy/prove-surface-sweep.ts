@@ -16,6 +16,7 @@ const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 section("§1 3.2 · the turn-guard family census — zero unclassified pushers")
 {
+
   const registrants: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {
@@ -80,6 +81,7 @@ section('§2 3.2 · the four per-surface laws — one floor each, cited')
 
 section('§3 3.3 · SC-1..5 class censuses')
 {
+
   let sc1 = 0
   const sc1Files: string[] = []
   const walk1 = (dir: string): void => {
@@ -101,6 +103,7 @@ section('§3 3.3 · SC-1..5 class censuses')
     }
   }
   walk1(join(ROOT, 'src'))
+
   const SC1_KNOWN = new Set<string>(sc1Files)
   check(
     `SC-1 census: ${sc1} new-Promise+write pairing(s) in ${sc1Files.length} file(s) — enumerated (bounded the splash lane; survivors are the adjudicated set)`,
@@ -109,7 +112,9 @@ section('§3 3.3 · SC-1..5 class censuses')
   console.log(`      SC-1 survivors: ${sc1Files.join(' · ') || '(none)'}`)
 
   console.log('  [CENSUS] SC-2: the known class members (splash escape, daemon-reconcile) were closed earlier; no generic grep exists — all-clear note stands with those fixes as the class record')
+
   console.log('  [CENSUS] SC-3: ledger-flush deaths made visible; residual bare catch{} population stands as the bounded census (746 at 1.5.2) — burn-down feeds Stage 5')
+
   console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only self-stop route (SIGTSTP into the stop owner) is win32-gated) — all-clear')
 }
 

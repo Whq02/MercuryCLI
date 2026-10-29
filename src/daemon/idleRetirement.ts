@@ -57,6 +57,7 @@ type IdleRetirementFacts = {
   hasPendingWork: boolean
   nowMs: number
   thresholdMs: number
+
   newbornGraceMs?: number
 }
 
@@ -68,6 +69,7 @@ export function decideIdleRetirement(f: IdleRetirementFacts): IdleRetirementDeci
   const { rec } = f
   if (!(f.thresholdMs > 0)) return { retire: false, reason: 'disabled' }
   if (rec.endedAt !== undefined) return { retire: false, reason: 'ended' }
+
   if (rec.parkedAt !== undefined) return { retire: false, reason: 'parked' }
   if (rec.stoppedAt !== undefined) return { retire: false, reason: 'stopped' }
   if (!f.alive) return { retire: false, reason: 'not-live' }
@@ -76,6 +78,7 @@ export function decideIdleRetirement(f: IdleRetirementFacts): IdleRetirementDeci
   const delivered = rec.lastDeliveryAt ?? 0
   const settled = rec.lastTurnSettledAt ?? 0
   if (delivered > 0 && delivered > settled) return { retire: false, reason: 'turn-in-flight' }
+
   if (rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined) {
     const grace = f.newbornGraceMs ?? 0
     if (!(grace > 0) || f.nowMs - rec.bornBlankAt < grace) return { retire: false, reason: 'newborn' }
@@ -123,6 +126,7 @@ export function transcriptHasConversation(rec: { sessionId: string; workspaceId:
   try {
     const size = statSync(path).size
     if (size === 0) return false
+
     if (size > CONVERSATION_PROBE_BYTES) return true
     const buf = Buffer.alloc(size)
     const fd = openSync(path, 'r')
@@ -133,6 +137,7 @@ export function transcriptHasConversation(rec: { sessionId: string; workspaceId:
     }
     return transcriptTextHasConversation(buf.toString('utf8'))
   } catch {
+
     return true
   }
 }
@@ -168,6 +173,7 @@ export function sweepIdleEmptyConcourseSessions(
     const decision = decideIdleRetirement({
       rec,
       alive,
+
       hasConversation: alive ? transcriptHasConversation(rec) : false,
       hasPendingWork: alive ? sessionHasPendingWork(rec.sessionId, opts.dir) : false,
       nowMs,

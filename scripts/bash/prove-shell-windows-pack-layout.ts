@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -9,6 +10,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
+
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 
 console.log('── §1 the hosted probe workflow ──')
@@ -63,6 +65,7 @@ console.log('── §3 the win-x64 layout ──')
   } else {
     console.log('  [SKIP] vendor/brush.lock.json is not on this tree — the version pin is the probe\'s default alone')
   }
+
   let packPlatform = 'win-x64'
   let binaryName = 'brush.exe'
   let ownerDecode: ((dir: string) => { source?: string } | null) | null = null

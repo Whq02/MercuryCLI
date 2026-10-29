@@ -1,4 +1,3 @@
-
 import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -78,6 +77,7 @@ function walk(dir: string, depth: number, state: ScanState, inTestTree: boolean)
     const p = join(dir, name)
     let st
     try {
+
       st = lstatSync(p)
     } catch {
       continue
@@ -160,12 +160,16 @@ export interface RepoSurfaceFacts {
   headline: string | null
   pkg: PkgFacts | null
   topDirs: string[]
+
   topLangs: Array<[string, number]>
+
   markerLabels: string[]
+
   markerFiles: string[]
   docs: string[]
   ci: number
   testFiles: number
+
   testDirs: string[]
   visited: number
   truncated: boolean

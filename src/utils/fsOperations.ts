@@ -6,7 +6,6 @@ import { getErrnoCode } from './errors.js'
 import { slowLogging } from './slowOperations.js'
 import { uncPathRisk } from './permissions/uncPath.js'
 
-
 export interface FsOperations {
   cwd(): string
   existsSync(path: string): boolean
@@ -39,6 +38,7 @@ export interface FsOperations {
   rmSync(path: string, options?: { recursive?: boolean; force?: boolean }): void
   createWriteStream(path: string, options?: Parameters<typeof fs.createWriteStream>[1]): fs.WriteStream
   readFileBytes(path: string, maxBytes?: number): Promise<Buffer>
+
   readFileChunks?(path: string, chunkBytes: number, onChunk: (chunk: Buffer) => void): Promise<void>
 }
 
@@ -80,6 +80,7 @@ const NodeFsOperations: FsOperations = {
   readFileBytesSync: path => withSlowLog(`readFileBytesSync ${path}`, () => fs.readFileSync(path)),
   readSync: (path, options) =>
     withSlowLog(`readSync ${path} (${options.length} bytes)`, () => {
+
       const fd = fs.openSync(path, 'r')
       try {
         const buffer = Buffer.alloc(options.length)
@@ -92,6 +93,7 @@ const NodeFsOperations: FsOperations = {
   appendFileSync: (path, data, options) =>
     withSlowLog(`appendFileSync ${path} (${data.length} chars)`, () => {
       if (options?.mode !== undefined) {
+
         try {
           fs.writeFileSync(path, data, { flag: 'wx', mode: options.mode })
           return
@@ -108,6 +110,7 @@ const NodeFsOperations: FsOperations = {
   symlinkSync: (target, path, type) =>
     withSlowLog(`symlinkSync ${path}`, () => fs.symlinkSync(target, path, type)),
   readlinkSync: path => withSlowLog(`readlinkSync ${path}`, () => fs.readlinkSync(path)),
+
   realpathSync: path => withSlowLog(`realpathSync ${path}`, () => fs.realpathSync(path).normalize('NFC')),
   mkdirSync: (path, options) =>
     withSlowLog(`mkdirSync ${path}`, () => {
@@ -120,6 +123,7 @@ const NodeFsOperations: FsOperations = {
   readdirSync: path => withSlowLog(`readdirSync ${path}`, () => fs.readdirSync(path, { withFileTypes: true })),
   readdirStringSync: path => withSlowLog(`readdirStringSync ${path}`, () => fs.readdirSync(path)),
   isDirEmptySync(path) {
+
     return withSlowLog(`isDirEmptySync ${path}`, () => activeFs.readdirStringSync(path).length === 0)
   },
   rmdirSync: path => withSlowLog(`rmdirSync ${path}`, () => fs.rmdirSync(path)),
@@ -138,6 +142,7 @@ const NodeFsOperations: FsOperations = {
         if (bytesRead === 0) break
         offset += bytesRead
       }
+
       return offset === wanted ? buffer : buffer.subarray(0, offset)
     } finally {
       await handle.close()
@@ -174,7 +179,6 @@ export function setOriginalFsImplementation(): void {
   activeFs = NodeFsOperations
 }
 
-
 function isUncLikePath(path: string): boolean {
   return uncPathRisk(path).risky || /^(\\\\|\/\/)/.test(path)
 }
@@ -201,7 +205,6 @@ export function safeResolvePath(
     return { resolvedPath: filePath, isSymlink: false, isCanonical: false }
   }
 }
-
 
 function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: string): string | undefined {
   const tail: string[] = []
@@ -288,13 +291,13 @@ export function getPathsForPermissionCheck(inputPath: string, baseDir?: string):
       if (isUncLikePath(target)) return [...results]
       current = target
     }
+
     const { resolvedPath, isSymlink } = safeResolvePath(fsImpl, path)
     if (isSymlink && resolvedPath !== path) results.add(resolvedPath)
   } catch {
   }
   return [...results]
 }
-
 
 export type ReadFileRangeResult = {
   content: string

@@ -42,7 +42,6 @@ async function isLastCleanupSentinelFresh(): Promise<boolean> {
   }
 }
 
-
 interface CycleState {
   legacyDone: boolean
   legacyErrors: number
@@ -113,6 +112,7 @@ export function startBackgroundHousekeeping(): void {
 }
 
 export function startCleanupCycleLoop(): void {
+
   let sentinelChecked = false
   let cycleSettled = false
 
@@ -121,6 +121,7 @@ export function startCleanupCycleLoop(): void {
   }
 
   function armNextCycle(): void {
+
     sentinelChecked = false
     cycleSettled = false
     resetCycle()
@@ -128,6 +129,7 @@ export function startCleanupCycleLoop(): void {
   }
 
   async function runVerySlowOps(): Promise<void> {
+
     if (getIsInteractive() && getLastInteractionTime() > seams.now() - 1000 * 60) {
       armTick(SLOW_OPS_DELAY_MS)
       return
@@ -147,11 +149,13 @@ export function startCleanupCycleLoop(): void {
     try {
       const outcome = await runCleanupCycleStep()
       if (outcome === 'continue') {
+
         armTick(SLOW_OPS_DELAY_MS)
         return
       }
       cycleSettled = true
       if (outcome === 'cycle-complete') {
+
         await stampSentinel()
       } else {
         logForDebugging(

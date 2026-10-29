@@ -27,6 +27,7 @@ const repo = join(import.meta.dir, '..', '..')
 
 section('1. gate polarity')
 {
+
   check('gate is unconditionally ON (no env seam)', isMcpInstructionsDeltaEnabled() === true)
 
   const savedMacro = (globalThis as Record<string, unknown>).MACRO
@@ -80,6 +81,7 @@ section('3. wiring (structural) — the gate still guards both channels')
     'prompts.ts mcp_instructions section is gate-guarded: null with the delta on, the uncached builder only with it off (FN-020 row 2)',
     /'mcp_instructions',[\s\S]{0,800}?\(\) => \(isMcpInstructionsDeltaEnabled\(\) \? null : buildMcpInstructionsSection\(mcpClients \?\? \[\]\)\),/.test(uncachedBlock),
   )
+
   const attachments = readFileSync(join(repo, 'src/utils/attachments.ts'), 'utf8') + readdirSync(join(repo, 'src/utils/attachments')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repo, 'src/utils/attachments', f), 'utf8')).join('\n')
   check(
     'attachments.ts registers the mcp_instructions_delta producer',
@@ -97,6 +99,7 @@ section('3. wiring (structural) — the gate still guards both channels')
 
 section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical with or without instruction-bearing servers; the row carries the section\'s exact text')
 {
+
   const home = mkdtempSync(join(tmpdir(), 'mcp-instr-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'mcp-instr-cwd-'))
   process.env.MERCURY_CONFIG_DIR = home
@@ -111,6 +114,7 @@ section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical w
   const without = (await prompts.getSystemPrompt(tools, 'claude-sonnet-5', [])).join('\n\n')
   check('the system prompt with two instruction-bearing servers is byte-identical to the one with none', withServers === without, `${withServers.length} vs ${without.length}`)
   check('…and spells no MCP server instructions block (the second copy is gone)', !withServers.includes('# MCP server instructions') && !withServers.includes('use tool X first'))
+
   const oracle = `# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n## alpha\nuse tool X first\n\n## beta\nnever call Y twice`
   const delta = getMcpInstructionsDelta([alpha, beta], [] as never[], [])
   const rendered = delta ? normalizeAttachmentForAPI({ type: 'mcp_instructions_delta', ...delta } as never) : []

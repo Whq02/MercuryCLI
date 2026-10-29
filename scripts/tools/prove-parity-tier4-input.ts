@@ -43,6 +43,7 @@ t(
 
 const { retainFullscreenScrollback } = await import('../../src/utils/messages/fullscreenScrollback.ts')
 const m = (id: string) => ({ uuid: id })
+
 const prev = [m('a1'), m('b1-boundary'), m('a2'), m('b2-boundary'), m('tail1'), m('tail2')]
 const keptAll = retainFullscreenScrollback(prev, undefined)
 t('with no re-yielded tail, the FULL history is kept', keptAll.length === prev.length)

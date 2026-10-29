@@ -19,6 +19,7 @@ export function evaluateLaunchAuthority(
 ): LaunchAuthority {
   const sessionSwitch = probe?.spawnSwitch ?? spawnSwitch(kind)
   if (!sessionSwitch.on) return { allowed: false, reason: spawnSwitchOffReceipt(kind), cause: 'session-switch' }
+
   const backgroundChild = probe?.roleEnvOn ?? flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   if (!backgroundChild) return { allowed: true, posture: 'attached-or-plain' }
   const sessionId = probe?.sessionId ?? String(getSessionId())
@@ -26,6 +27,7 @@ export function evaluateLaunchAuthority(
     const rec = Object.values(readSessionWorkers(probe?.dir)).find(
       r => r.sessionId === sessionId && r.endedAt === undefined,
     )
+
     if (rec?.focusedAt !== undefined) {
       const seatPid = stampedTerminalPid(rec.focusedBy)
       if (seatPid !== undefined && isProcessAlive(seatPid)) return { allowed: true, posture: 'focused' }

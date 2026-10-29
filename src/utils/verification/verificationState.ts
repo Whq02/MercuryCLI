@@ -1,4 +1,3 @@
-
 import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
@@ -37,11 +36,16 @@ export interface EvidenceRecord {
   command: string
   ok: boolean
   scope: VerificationScope
+
   coverage: string
   ranAt: number
+
   treeDigest: string | null
+
   seq: number
+
   gateId?: string
+
   minRuns?: number
 }
 
@@ -63,9 +67,11 @@ interface OwnerVerificationState {
   lastMutationAt: number | null
   sessionRecords: EvidenceRecord[]
   persistedLoaded: boolean
+
   pendingReadBack: Set<string>
   unreadChanges: Set<string>
   pendingUnknownMutation: boolean
+
   evidenceDemands: number
   unscoredVerification?: string
 }
@@ -124,35 +130,48 @@ export function _verificationOwnerCountForTesting(): number {
 const digestCache = new Map<string, { digest: string | null; at: number }>()
 
 const HARNESS_DIRS = ['.mercury'] as const
+
 const EXCLUDE_HARNESS = HARNESS_DIRS.map(d => `:(exclude,glob)**/${d}/**`)
+
 const SLOW_SCAN_MS = 2_000
 const SCAN_INTERVAL_FLOOR_MS = 30_000
 const SCAN_INTERVAL_CAP_MS = 600_000
 const DEFAULT_SCAN_TIMEOUT_MS = 30_000
+
 const STALE_INDEX_LOCK_MS = 60_000
 const MAX_GIT_OUTPUT = 16 * 1024 * 1024
+
 const SHAPE_PROBE = ['rev-parse', '--show-prefix', '--git-path', 'objects', '--absolute-git-dir']
+
 const REPOSITORY_WATCH_MS = 250
+
 const COUNT_PROBE = ['ls-files', '-z', '-c', '-o', '--exclude-standard', '--', '.']
 
 export type TreeScanFault = { kind: 'timeout' | 'error'; detail: string; at: number }
 
 export interface TreeScanRecord {
+
   prefix: string
   indexFile: string
   objectsDir: string
   repoObjects: string
+
   gitDir: string
   repoToken: string
+
   fileCount: number
   aboveCeiling: boolean
   scans: number
   lastScanAt: number
   lastScanMs: number
+
   minIntervalMs: number
+
   lastDigest: string | null | undefined
   fault: TreeScanFault | null
+
   notice: string | null
+
   road: 'exclude' | 'reset'
 }
 
@@ -204,6 +223,7 @@ class RepositoryGoneError extends Error {
 }
 
 const activeChildren = new Map<string, Set<ChildProcess>>()
+
 const goneChildren = new WeakSet<ChildProcess>()
 
 type RepositoryWatch = { cwd: string; gitDir: string }
@@ -258,6 +278,7 @@ export async function invalidateTreeScans(cwd: string): Promise<void> {
 
 function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): string {
   try {
+
     return execFileSync(gitExe(), gitArgs(args, cwd), {
       windowsHide: true,
       cwd,
@@ -547,6 +568,7 @@ function accountScan(rec: TreeScanRecord, ms: number, digest: string | null): vo
   rec.lastScanMs = ms
   rec.lastDigest = digest
   rec.fault = null
+
   if (ms > SLOW_SCAN_MS && rec.scans > 1) {
     rec.minIntervalMs = Math.min(SCAN_INTERVAL_CAP_MS, Math.max(SCAN_INTERVAL_FLOOR_MS, rec.minIntervalMs * 2))
     noticeOnce(rec, `tree scan took ${fmtCount(ms)} ms over ${fmtCount(rec.fileCount)} files — the fingerprint now refreshes at most every ${fmtInterval(rec.minIntervalMs)}`)
@@ -563,6 +585,7 @@ function recordFault(rec: TreeScanRecord, err: unknown): void {
   rec.lastScanAt = Date.now()
   rec.lastDigest = null
   rec.minIntervalMs = Math.min(SCAN_INTERVAL_CAP_MS, Math.max(SCAN_INTERVAL_FLOOR_MS, rec.minIntervalMs * 2))
+
   if (!e.timedOut) rmSync(rec.indexFile, { force: true })
   noticeOnce(rec, `tree unmeasured — ${detail}`)
 }
@@ -600,7 +623,9 @@ export function treeScanNote(cwd: string): string | null {
 
 export function markTreeSuspectAfterTurn(): void {
   digestCache.clear()
+
   for (const [cwd, rec] of treeScanRecords) if (rec === null) treeScanRecords.delete(cwd)
+
   markGitTreeSuspect('tree')
 }
 
@@ -612,6 +637,7 @@ export function computeWorkingTreeDigest(cwd: string, opts?: { fresh?: boolean }
     digestCache.set(cwd, { digest: null, at: Date.now() })
     return null
   }
+
   if (!repositoryStillThere(rec)) {
     forgetRepository(cwd)
     return null
@@ -627,6 +653,7 @@ export function computeWorkingTreeDigest(cwd: string, opts?: { fresh?: boolean }
     return digest
   }
   if (!opts?.fresh && withinBudget(rec)) return rec.lastDigest ?? null
+
   if (digestInFlight.has(cwd)) return opts?.fresh ? scanTreePrivateSync(cwd, rec) : (rec.lastDigest ?? null)
   const t0 = Date.now()
   let digest: string | null
@@ -654,6 +681,7 @@ export function computeWorkingTreeDigestAsync(cwd: string, opts?: { fresh?: bool
         digestCache.set(cwd, { digest: null, at: Date.now() })
         return null
       }
+
       if (!repositoryStillThere(rec)) {
         forgetRepository(cwd)
         return null
@@ -703,6 +731,7 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
   if (state.persistedLoaded) return
   state.persistedLoaded = true
   try {
+
     let raw: string
     try {
       raw = readFileSync(evidencePath(cwd), 'utf8')
@@ -711,6 +740,7 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
     }
     const parsed = JSON.parse(raw) as { schema?: number; records?: EvidenceRecord[] }
     if (parsed.schema === EVIDENCE_SCHEMA && Array.isArray(parsed.records)) {
+
       state.sessionRecords = parsed.records.slice(-MAX_RECORDS).map(r => ({ ...r, seq: 0 }))
     }
   } catch {
@@ -719,6 +749,7 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
 
 function persist(cwd: string, state: OwnerVerificationState): void {
   try {
+
     const payload = JSON.stringify({ schema: EVIDENCE_SCHEMA, records: state.sessionRecords.slice(-MAX_RECORDS) }, null, 2)
     durableAtomicPublishSync(evidencePath(cwd), payload)
     if (workspaceEvidenceOptIn()) {
@@ -748,12 +779,14 @@ export function markMutation(
   changedPaths?: readonly string[],
   cwd?: string,
   opts?: {
+
     digestReceipted?: boolean
   },
 ): void {
   const state = ownerStates.get(effectiveOwner(owner))
   state.mutationSeq++
   state.lastMutationAt = Date.now()
+
   if (changedPaths && changedPaths.length > 0) {
     for (const p of changedPaths) state.unreadChanges.add(canonicalEvidencePath(p))
     if (!opts?.digestReceipted) {
@@ -763,11 +796,15 @@ export function markMutation(
     state.pendingUnknownMutation = true
   }
   state.evidenceDemands = 0
+
   if (cwd !== undefined) digestCache.delete(cwd)
   else digestCache.clear()
+
   if (cwd !== undefined && treeScanRecords.get(cwd) === null) treeScanRecords.delete(cwd)
+
   if (cwd !== undefined) verifiableCache.delete(cwd)
   else verifiableCache.clear()
+
   markGitTreeSuspect('tree')
   notify()
 }
@@ -782,6 +819,7 @@ export function observeCompletedToolCall(
   ok: boolean,
   cwd: string,
   owner?: OwnerKey,
+
   lifecycle?: 'terminal' | 'launch',
   shellOutcome?: { code: number; pipelineStatus?: number[] },
 ): void {
@@ -793,6 +831,7 @@ export function observeCompletedToolCall(
       markMutation(owner, filePath ? [filePath] : undefined, cwd)
       return
     }
+
     if (ok && toolName === 'Read') {
       const inp = input as { file_path?: unknown; offset?: unknown; limit?: unknown } | undefined
       if (typeof inp?.file_path === 'string' && inp.offset === undefined && inp.limit === undefined) {
@@ -801,8 +840,10 @@ export function observeCompletedToolCall(
       return
     }
     if (toolName === 'Bash' || toolName === 'PowerShell') {
+
       if (lifecycle === 'launch') return
       const command = String((input as { command?: unknown } | undefined)?.command ?? '')
+
       if (ok && /(^|[\s;&|(])git\s/.test(command)) markGitTreeSuspect('git')
       recordShellCommandOutcome(command, shellOutcome?.code ?? (ok ? 0 : 1), cwd, owner, shellOutcome?.pipelineStatus)
     }
@@ -810,12 +851,13 @@ export function observeCompletedToolCall(
   }
 }
 
-
 const verifiableCache = new Map<string, { verdict: boolean; at: number }>()
 const VERIFIABLE_TTL_MS = 60_000
+
 const VERIFIABLE_NEGATIVE_TTL_MS = 5_000
 
 export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
+
   const state = ownerStates.peek(effectiveOwner(owner))
   if (state?.sessionRecords.some(r => r.scope !== 'read-back')) return true
   const cached = verifiableCache.get(cwd)
@@ -836,6 +878,7 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
       }
     }
     if (has('scripts/run-all-suites.sh')) verdict = true
+
     if (!verdict && loadDeclaredGates(cwd).length > 0) verdict = true
     if (!verdict && has('project.godot')) verdict = true
     if (!verdict && has('package.json')) {
@@ -907,7 +950,6 @@ export function noteEvidenceDemandIssued(owner?: OwnerKey): void {
 export function evidenceDemandCount(owner?: OwnerKey): number {
   return ownerStates.peek(effectiveOwner(owner))?.evidenceDemands ?? 0
 }
-
 
 export function stripQuotedShellArgs(text: string): string {
   return text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""')
@@ -1032,11 +1074,14 @@ export function classifyVerifySegment(
 ): VerifyClassification | null {
   const c = stripVerificationPrefixes(segment)
   if (!c || NOOP_COMMAND_HEADS.has(leadingShellCommandToken(c))) return null
+
   if (cwd !== undefined) {
     const declared = matchDeclaredGate(c, cwd)
     if (declared) return declared
   }
+
   if (/run-all-suites\.sh/.test(c)) {
+
     const m = c.match(/run-all-suites\.sh\s+([a-z0-9 _-]+)/)
     return m?.[1]?.trim()
       ? { scope: 'suite', coverage: `gate subset: ${m[1].trim()}` }
@@ -1050,12 +1095,14 @@ export function classifyVerifySegment(
   const proof = c.match(/(prove-[a-z0-9-]+\.ts)/)
   if (proof?.[1]) return { scope: 'proof', coverage: proof[1] }
   if (/scripts\/verify\/fast\.ts|bun run verify:fast\b/.test(c)) {
+
     return { scope: 'fast', coverage: 'verify:fast (slice rung)' }
   }
   if (/bun run verify\b/.test(c)) return { scope: 'full-gate', coverage: 'full gate (bun run verify)' }
   if (/bun run artifact:smoke\b/.test(c)) return { scope: 'artifact-smoke', coverage: 'isolated artifact smoke' }
   if (/bun run build\.ts|bun run build\b/.test(c)) return { scope: 'build', coverage: 'real artifact build' }
   if (/\bbun\s+(run\s+)?test\b|\bvitest\b(?! --version)/.test(c)) return { scope: 'test', coverage: 'test run' }
+
   const npm = c.match(NPM_VERB_RE)
   if (npm?.[1] && npm[2]) {
     return { scope: verbScope(npm[2]), coverage: `${npm[1].toLowerCase()} ${npm[2].toLowerCase()}` }
@@ -1073,6 +1120,7 @@ export function classifyVerifySegment(
   if (/\bnode\s+--test\b/i.test(c)) return { scope: 'test', coverage: 'node --test' }
   const just = c.match(JUST_VERB_RE)
   if (just?.[1]) return { scope: verbScope(just[1]), coverage: `just ${just[1].toLowerCase()}` }
+
   const gradle = c.match(/\bgradlew?\s+(test|check|build)\b/i)
   if (gradle?.[1]) return { scope: verbScope(gradle[1]), coverage: `gradle ${gradle[1].toLowerCase()}` }
   const mvn = c.match(/\bmvn\s+(?:-\S+\s+)*(test|verify|package)\b/i)
@@ -1085,6 +1133,7 @@ export function classifyVerifySegment(
   if (/\brake\s+(test|spec)\b/i.test(c)) return { scope: 'test', coverage: 'rake test' }
   if (/\bmix\s+test\b/i.test(c)) return { scope: 'test', coverage: 'mix test' }
   if (/\btox\b(?!\S)/i.test(c)) return { scope: 'test', coverage: 'tox' }
+
   if (/\bgodot[\w.-]*(\s|$)/i.test(c)) {
     const script = c.match(/(?:--script|-s)\s+(\S+)/i)
     if (/--headless\b/i.test(c) && script?.[1]) {
@@ -1095,6 +1144,7 @@ export function classifyVerifySegment(
     }
   }
   if (/\bgreen-?gate\b/i.test(c)) return { scope: 'check', coverage: 'green-gate runner' }
+
   const script = c.match(/^\s*(?:bash|sh)\s+(\S*(?:test|check|verify|gate|suite|ci|lint)\S*)/i)
     ?? c.match(/^\s*(\.\/\S*(?:test|check|verify|gate|suite|ci|lint)\S*)/i)
   if (script?.[1]) return { scope: 'check', coverage: `project script ${script[1]}` }
@@ -1110,6 +1160,7 @@ export function isVerifySegment(segment: string, cwd?: string): boolean {
 const SAFE_TAIL_HEADS = new Set(['git', 'echo', 'printf', 'true', ':'])
 
 function safeTailSegment(segment: string): boolean {
+
   if (/(^|\s)>>?\s/.test(segment) && !/>{1,2}\s*['"]?\/(?:dev|proc)\//.test(segment)) {
     return false
   }
@@ -1199,6 +1250,7 @@ function verifyExitPropagates(
     const op = segments[j]!.opBefore
     if (op === 'pipe' && pipefail) continue
     if (op !== '&&') return false
+
     if (!classifyVerifySegment(segments[j]!.text) && !safeTailSegment(segments[j]!.text)) {
       return false
     }
@@ -1234,9 +1286,11 @@ export function recordEvidence(
   const record: EvidenceRecord = {
     ...e,
     ranAt: Date.now(),
+
     treeDigest: computeWorkingTreeDigest(cwd, { fresh: true }),
     seq: state.mutationSeq,
   }
+
   delete state.unscoredVerification
   if (e.ok) state.evidenceDemands = 0
   state.pendingReadBack.clear()
@@ -1291,6 +1345,7 @@ export function verificationSummary(
   opts?: { skipDigest?: boolean; owner?: OwnerKey },
 ): VerificationSnapshot {
   const snapshot = summarize(cwd, opts)
+
   const note = treeScanNote(cwd)
   return note === null ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${note}` }
 }
@@ -1333,6 +1388,7 @@ function summarize(
       lastMutationAt: state.lastMutationAt,
     }
   }
+
   if (last.ok && last.gateId !== undefined && (last.minRuns ?? 1) > 1) {
     const need = last.minRuns ?? 1
     let got = 0
@@ -1352,7 +1408,9 @@ function summarize(
       }
     }
   }
+
   if (!opts?.skipDigest && last.treeDigest !== null) {
+
     const current = computeWorkingTreeDigest(cwd, { fresh: true })
     if (current !== null && current !== last.treeDigest) {
       return {

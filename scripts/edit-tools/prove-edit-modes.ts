@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
@@ -210,6 +211,7 @@ section('K. read knowledge keyed to content')
   const unseen = await edit({ file_path: shown, old_string: 'const a = 1', new_string: 'const a = 10' }, makeContext())
   check('K5 a line never shown, after the file changed outside the tool at equal size in the same instant, still refuses and leads with the change, carrying no line of the file', !unseen.ok && unseen.error.startsWith('Read the file before editing it — it changed after the lines you read') && !/\n\d+\t/.test(unseen.error) && !unseen.error.includes('const a = 1'), unseen.ok ? 'edited' : unseen.error)
   check('K5w …and writes nothing', readFileSync(shown, 'utf8') === rewritten)
+
   writeFileSync(shown, 'const a = 1\nconst b = 2\nconst c = 300\n')
   const past = new Date(Date.now() - 120_000)
   utimesSync(shown, past, past)

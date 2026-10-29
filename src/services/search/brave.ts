@@ -17,6 +17,7 @@ import {
 
 const BRAVE_WEB_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search'
 const REQUEST_TIMEOUT_MS = 15_000
+
 const BRAVE_MAX_COUNT = 20
 
 function braveSearchUrl(): string {
@@ -42,6 +43,7 @@ export function decodeBraveWebSearch(body: unknown): BraveDecode {
   const web = typeof o.web === 'object' && o.web !== null ? (o.web as Record<string, unknown>) : undefined
   const results = Array.isArray(web?.results) ? web.results : undefined
   if (results === undefined) {
+
     if (o.type === 'search' && web === undefined) return { kind: 'results', hits: [] }
     return { kind: 'unrecognised', reason: 'no web.results array in the body' }
   }

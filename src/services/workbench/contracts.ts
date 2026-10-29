@@ -1,4 +1,3 @@
-
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SourceHealth } from '../../substrate/sourceState.js'
@@ -23,24 +22,33 @@ export type WorkbenchThreadKind =
   | 'job'
 
 export interface WorkbenchThreadRow {
+
   id: string
   kind: WorkbenchThreadKind
   title: string
   parentId?: string
+
   model?: string
   effortOverride?: string
+
   phase: string
+
   state: string
   laneId?: string
+
   agentId?: string
   worktreePath?: string
   startedAt?: number
   updatedAt: number
+
   changedPaths: string[]
   totalChangedPaths?: number
+
   verification?: string
+
   blocker?: string
   latestResultRef?: string
+
   refs: string[]
 }
 
@@ -50,14 +58,17 @@ type WorkbenchLaneSource =
 
 export interface WorkbenchLaneRow {
   laneId: string
+
   displayName: string
   source: WorkbenchLaneSource
+
   status: string
   worktreePath?: string
   ownerThreadId?: string
   branch?: string
   baseSha?: string
   headSha?: string
+
   dirty?: boolean
   refs: string[]
 }
@@ -88,6 +99,7 @@ interface WorkbenchArtifactHead {
   kind: string
   title: string
   status: string
+
   stale?: boolean
 }
 
@@ -97,18 +109,26 @@ interface WorkbenchReviewItem {
 }
 
 export interface WorkbenchSnapshot {
+
   version: number
+
   gatherGeneration?: number
   refreshedAt: number
   projectRoot: string
   generation: WorkbenchGeneration
   root: WorkbenchThreadRow
+
   threads: WorkbenchThreadRow[]
   lanes: WorkbenchLaneRow[]
   missions: WorkbenchMissionRow[]
+
   artifactHeads: WorkbenchArtifactHead[]
+
   reviewQueue: WorkbenchReviewItem[]
+
   nextAction: string | null
+
   attention?: import('../../services/attention/viewModel.js').AttentionViewV1
+
   sources: WorkbenchSources
 }

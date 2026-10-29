@@ -1,11 +1,13 @@
-
 import { operatorPrincipal } from './identity.js'
 import { ensureOperatorKey } from './operatorKey.js'
 import type { Principal } from './principal.js'
 
 export interface OperatorAccountFact {
+
   id: string
+
   credentialed: boolean
+
   label?: string
 }
 
@@ -26,6 +28,7 @@ export async function operatorAccountFacts(): Promise<OperatorAccountFacts> {
 
 export interface OperatorIdentityView {
   principal: Principal
+
   publicKey: string
   createdAt: number
   accounts: OperatorAccountFacts

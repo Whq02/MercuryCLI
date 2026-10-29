@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,6 +82,7 @@ console.log(`── mo2 sync twin + helpers — live platform: ${process.platfor
     '§1 beyond-budget: phase/fsCode/attempts/elapsedMs/tempCleanup all reported',
     err ? `attempts=${err.attempts} elapsed=${err.elapsedMs} temp=${err.tempCleanup}` : String(caught),
   )
+
   inject('rename@sync.json:eisdir')
   let caught2: unknown = null
   try {
@@ -99,6 +101,7 @@ console.log(`── mo2 sync twin + helpers — live platform: ${process.platfor
 {
   const dir = join(tmp, 's2')
   mkdirSync(dir, { recursive: true })
+
   writeFileSync(join(tmp, 's2.seed'), 'move-me')
   const seeded = join(tmp, 's2.seed')
   const dest = join(dir, 'moved.txt')

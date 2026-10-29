@@ -1,10 +1,15 @@
-
 export interface GrammarRegistryEntry {
+
   name: string
+
   wasm: string
+
   extensions: string[]
+
   basenames?: string[]
+
   source?: 'vscode-pack' | 'grammar-pack'
+
   fragile?: { reason: string }
 }
 
@@ -22,9 +27,12 @@ export const GRAMMAR_REGISTRY: GrammarRegistryEntry[] = [
   { name: 'java', wasm: 'tree-sitter-java.wasm', extensions: ['.java'] },
   { name: 'php', wasm: 'tree-sitter-php.wasm', extensions: ['.php'] },
   { name: 'ruby', wasm: 'tree-sitter-ruby.wasm', extensions: ['.rb'] },
+
   { name: 'powershell', wasm: 'tree-sitter-powershell.wasm', extensions: ['.ps1', '.psm1', '.psd1'] },
   { name: 'ini', wasm: 'tree-sitter-ini.wasm', extensions: ['.ini'] },
+
   { name: 'regex', wasm: 'tree-sitter-regex.wasm', extensions: ['.regex'] },
+
   { name: 'c', wasm: 'tree-sitter-c.wasm', extensions: ['.c', '.h'], source: 'grammar-pack' },
   { name: 'html', wasm: 'tree-sitter-html.wasm', extensions: ['.html', '.htm'], source: 'grammar-pack' },
   { name: 'json', wasm: 'tree-sitter-json.wasm', extensions: ['.json'], source: 'grammar-pack' },

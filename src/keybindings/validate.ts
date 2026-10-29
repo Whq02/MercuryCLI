@@ -1,4 +1,3 @@
-
 import { chordToString } from './parser.js'
 import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShortcuts.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
@@ -56,7 +55,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-
 function validateKeystroke(keystroke: string, context?: string): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
   const withContext = (w: KeybindingWarning): KeybindingWarning =>
@@ -105,7 +103,6 @@ function validateKeystroke(keystroke: string, context?: string): KeybindingWarni
   }
   return warnings
 }
-
 
 function validateBlock(block: unknown, index: number): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
@@ -203,13 +200,13 @@ export function validateUserConfig(userBlocks: unknown): KeybindingWarning[] {
   return warnings
 }
 
-
 export function checkDuplicateKeysInJson(jsonString: string): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
   const bindingsRe = /"bindings"\s*:\s*\{/g
   let match: RegExpExecArray | null
   while ((match = bindingsRe.exec(jsonString)) !== null) {
     const objectStart = match.index + match[0].length
+
     let depth = 1
     let i = objectStart
     let inString = false
@@ -282,7 +279,6 @@ function checkDuplicates(blocks: KeybindingBlock[]): KeybindingWarning[] {
   return warnings
 }
 
-
 export function checkReservedShortcuts(bindings: ParsedBinding[]): KeybindingWarning[] {
   const warnings: KeybindingWarning[] = []
   const reserved = getReservedShortcuts().map(entry => ({
@@ -306,7 +302,6 @@ export function checkReservedShortcuts(bindings: ParsedBinding[]): KeybindingWar
   }
   return warnings
 }
-
 
 function userBindingsForValidation(blocks: KeybindingBlock[]): ParsedBinding[] {
   const out: ParsedBinding[] = []

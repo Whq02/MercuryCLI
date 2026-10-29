@@ -17,7 +17,6 @@ import { MercurySetupFrame } from './MercurySetupFrame.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 
-
 const RERESOLVE_TICK_MS = 150
 const RERESOLVE_TICKS = 8
 
@@ -146,6 +145,7 @@ export function TerminalProfileCard({
           ) : null}
         </Box>
         {inventory !== null || process.platform === 'win32' ? (
+
           <Box flexDirection="column">
             <Text color={tokens.textMuted}>on this machine:</Text>
             {inventoryLines(
@@ -167,6 +167,7 @@ export function TerminalProfileCard({
         {note ? <Text color={tokens.textSecondary}>{note}</Text> : null}
         <Select
           options={[
+
             { label: 'Continue anyway (the screen will not be the complete design)', value: 'continue' },
             { label: 'Exit — relaunch in a supported terminal', value: 'exit' },
             ...actions.map(a => ({ label: a.label, value: a.id })),

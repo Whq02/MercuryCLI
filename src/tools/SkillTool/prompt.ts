@@ -8,12 +8,14 @@ import type { Command } from '../../types/command.js'
 import { truncateToWidth } from '../../utils/format.js'
 import { MAX_LISTING_DESC_CHARS, SKILL_TOOL_NAME } from './constants.js'
 
-
 const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
+
 const CHARS_PER_TOKEN = 4
+
 const DEFAULT_CHAR_BUDGET = 8_000
 
 const MIN_DESCRIPTION_ALLOWANCE = 20
+
 const NAME_OVERHEAD = 4
 
 function getCharBudget(contextWindowTokens?: number): number {
@@ -49,8 +51,11 @@ function isBundled(command: ListingCommand): boolean {
 }
 
 type SkillListingTruncation = {
+
   budgetChars: number
+
   nameOnly: number
+
   withheld: number
 }
 
@@ -83,6 +88,7 @@ export function formatCommandsWithinBudgetDetailed(
   const allowance = Math.floor(remaining / nonBundled.length)
 
   if (allowance >= MIN_DESCRIPTION_ALLOWANCE) {
+
     const lines = entries.map(entry => {
       if (isBundled(entry.command)) return entryLine(entry.name, entry.description)
       return entryLine(entry.name, clipDescription(entry.description, allowance, true))

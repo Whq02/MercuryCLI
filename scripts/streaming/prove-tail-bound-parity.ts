@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -129,6 +130,7 @@ function oracleOpenFence(prefix: string): string | null {
 }
 
 type Bound = { text: string; truncated: boolean; openFence: string | null }
+
 function disagreement(text: string, rows: number, columns: number): string {
   const live = boundTailForInline(text, rows, columns) as Bound
   const ref = oracleBound(text, rows, columns)
@@ -167,6 +169,7 @@ section('P3 · a long multi-tick stream: the carried fold agrees at every publis
   check('cuts landed inside open fences along the way (the carry carried real state)', fencedTicks > 20, String(fencedTicks))
   const lineCount = text.split('\n').length
   const visited = after.lines - before.lines
+
   check(
     `O(delta): the fold visited ${visited} lines over a ${lineCount}-line stream — near the line count, never ticks × lines`,
     visited <= 2 * lineCount + 2 * TICKS && visited * 8 < TICKS * lineCount,

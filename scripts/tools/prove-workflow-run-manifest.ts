@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -49,6 +50,7 @@ section('buildAgentSummaries — projection of coalesced workflow_agent events')
       tokens: 512,
       toolCalls: 7,
       durationMs: 9000,
+
       agentId: 'a1b2c3',
       agentType: 'workflow-subagent',
       model: 'sonnet',
@@ -140,6 +142,7 @@ section('isRunOrphaned — truth table')
   check('running + fresh heartbeat → NOT orphaned (regardless of pid)', !isRunOrphaned({ status: 'running', ownerPid: 1 }, fresh, now, dead))
   check('running + stale + dead pid → ORPHANED', isRunOrphaned({ status: 'running', ownerPid: 1 }, stale, now, dead))
   check('running + stale + live pid → not orphaned (slow writer, honest)', !isRunOrphaned({ status: 'running', ownerPid: 1 }, stale, now, alive))
+
   check('paused + stale + dead pid → NOT orphaned (settled on purpose)', !isRunOrphaned({ status: 'paused', ownerPid: 1 }, stale, now, dead))
   check('completed + stale → never orphaned', !isRunOrphaned({ status: 'completed', ownerPid: 1 }, stale, now, dead))
   check('pidAlive throwing → treated as orphaned (fail-honest)', isRunOrphaned({ status: 'running', ownerPid: 1 }, stale, now, () => { throw new Error('x') }))
@@ -182,10 +185,12 @@ section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'WorkflowTool.tsx'), 'utf-8')
   check('initial manifest write at launch', /const writeManifest = \(/.test(src) && /if \(!\(await writeManifest\(\)\)\) \{/.test(src))
   check('flush path re-stamps, throttled', /RUN_MANIFEST_WRITE_THROTTLE_MS\)\s*\{\s*writeManifest\(\)/.test(src))
+
   check('a flush inside the throttle schedules the trailing write for the throttle\'s end', /trailingManifestWrite = setTimeout\(/.test(src) && /RUN_MANIFEST_WRITE_THROTTLE_MS - sinceLast/.test(src))
   check('the trailing write is cleared with the heartbeat', /clearInterval\(manifestHeartbeat\)\s*\n\s*if \(trailingManifestWrite !== null\) clearTimeout\(trailingManifestWrite\)/.test(src))
   check('heartbeat interval while running', /setInterval\(\s*\(\) => writeManifest\(\),\s*RUN_MANIFEST_HEARTBEAT_MS,?\s*\)/.test(src))
   check('heartbeat cleared in finally', /finally \{(?:\s*closeControl\?\.\(\))?\s*clearInterval\(manifestHeartbeat\)/.test(src))
+
   check(
     "abort path finalizes 'paused' vs 'killed' by the LIVE status",
     /await writeManifest\(\{\s*status: pausedLive \? 'paused' : 'killed',/.test(src),
@@ -198,12 +203,14 @@ section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
     "crash path never stamps a paused run 'failed' (awaited terminal write — WS3)",
     /live\?\.status === 'paused'\) \{\s*\n\s*await writeManifest\(\{ status: 'paused' \}\)/.test(src),
   )
+
   check("failed path finalizes with the error", /await settleRun\(\s*\{ status: terminal\.status, \.\.\.\(terminalError !== undefined \? \{ error: terminalError \} : \{\}\) \},/.test(src) && /await writeManifest\(\{\s*status: verdict\.status,\s*\.\.\.\(verdict\.error !== undefined \? \{ error: verdict\.error \} : \{\}\),/.test(src))
   check(
     'completed path finalizes with the DERIVED terminal status',
     /deriveWorkflowTerminalStatus\(\{/.test(src) && /await settleRun\(\s*\{ status: terminal\.status,/.test(src),
   )
   check('crash path finalizes too', /await settleRun\(\s*\{ status: 'failed', error: msg \},/.test(src))
+
   check('straggler heartbeats cannot overwrite the terminal snapshot', /if \(manifestChain\.finalized\(\)\) return/.test(src))
   check('transcriptDir joined from sessionStorage (restart-safe join)', /getWorkflowTranscriptDir\(runId\)/.test(src))
 }

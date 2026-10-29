@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -61,6 +62,7 @@ section('§23 the effort toast\'s glyph follows the applied tier')
 {
   const { getEffortNotificationText } = await import('../../src/components/EffortIndicator.ts')
   const figures = await import('../../src/constants/figures.ts')
+
   const medium = getEffortNotificationText('medium', 'kimi-k3') ?? ''
   check("medium on kimi-k3 (applied high, the step Kimi documents): the HIGH glyph beside the word high (the base paired the medium glyph with 'low')", medium.startsWith(`${figures.EFFORT_HIGH} effort: high`), medium)
   const xhigh = getEffortNotificationText('xhigh', 'glm-5.3') ?? ''

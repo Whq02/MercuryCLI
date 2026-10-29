@@ -15,7 +15,6 @@ import { needsYouCount } from '../../utils/needsYouCount.js';
 import { controlNoteOf, type ConcourseSnapshotV1 } from './contracts.js';
 import { caretLens, draftLines, draftWindow, type LineDraft } from './lineDraft.js';
 
-
 export function ConcourseComposer({
   width,
   bandRows,
@@ -32,17 +31,28 @@ export function ConcourseComposer({
   minimal = false,
   foot = true,
 }: {
+
   width: number
+
   bandRows: number
   focused: boolean
+
   draft: LineDraft
+
   pending: boolean
+
   note: { tone: 'muted' | 'warning'; text: string } | null
+
   restHint: string
+
   contextLine?: { tone: 'warning' | 'info'; text: string } | null
+
   onComposerClick?: (visibleRow: number, col: number) => void
+
   composerNote?: import('./contracts.js').ControlNoteState
+
   modeBand?: { symbol: string; label: string }
+
   keysHint?: string
   minimal?: boolean
   foot?: boolean
@@ -51,7 +61,9 @@ export function ConcourseComposer({
   const [theme] = useTheme()
   const { rows: termRows } = useTerminalSize()
   const empty = draft.text.length === 0
+
   const [, caretPhaseOn] = useBlink(focused)
+
   const borderRole = composerBorderRole(empty)
   const borderColor = focused
     ? ((theme as unknown as Record<string, string>)[borderRole] ?? t.info)
@@ -83,6 +95,7 @@ export function ConcourseComposer({
       overflow="hidden"
     >
       {modeBand !== undefined ? (
+
         <Box height={1} flexShrink={0} overflow="hidden">
           <Text color={t.infoText} wrap="truncate-end">
             {modeBand.symbol} {modeBand.label}
@@ -107,6 +120,7 @@ export function ConcourseComposer({
           const isCaretLine = li === lines.caretLine
           const lead =
             li === 0 ? (
+
               <ReadyBreath deep={t.accentSoft} to={t.accent} active={focused && empty && !pending}>
                 <Text color={t.accent}>{GLYPH.prompt} </Text>
               </ReadyBreath>
@@ -169,6 +183,7 @@ export function ConcourseComposer({
             </Text>
           </Box>
         ) : composerNote !== undefined ? (
+
           (() => {
             const n = controlNoteOf(composerNote)
             const why = n.reason !== undefined ? ` — ${n.reason.slice(0, 64)}` : ''
@@ -237,19 +252,25 @@ export function ConcourseStatusRail({
 }: {
   snapshot: ConcourseSnapshotV1
   width: number
+
   onOpenModel?: () => void
   modelPickerOpen?: boolean
+
   onOpenGround?: () => void
   groundPickerOpen?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens();
+
   const mark = critterDefForKey('jellyfish').mark;
   const { isCompact } = useLayoutChrome();
   const counts = snapshot.counts;
+
   const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
   const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}`;
   const chipBudget = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
+
   const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
+
   const coordinatorRun =
     snapshot.coordinator.fallbackReason !== undefined
       ? {

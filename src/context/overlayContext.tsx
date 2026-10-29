@@ -22,9 +22,12 @@ export function useRegisterOverlay(
   opts?: { onFocusReturn?: () => void; ownsPageKeys?: boolean },
 ): number | null {
   const enabled = t0 === undefined ? true : t0;
+
   const [token] = useState(() => reserveOverlayToken());
+
   const focusReturnRef = useRef(opts?.onFocusReturn);
   focusReturnRef.current = opts?.onFocusReturn;
+
   const ownsPageKeysRef = useRef(opts?.ownsPageKeys);
   ownsPageKeysRef.current = opts?.ownsPageKeys;
 
@@ -41,6 +44,7 @@ export function useRegisterOverlay(
     });
     return () => {
       popOverlay(token);
+
       instances.get(process.stdout)?.invalidatePrevFrame();
     };
   }, [id, enabled, token]);

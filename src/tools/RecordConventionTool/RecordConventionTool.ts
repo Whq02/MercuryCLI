@@ -71,6 +71,7 @@ export const RecordConventionTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
+
   capability: {
     intents: [
       'record a user-stated project convention',
@@ -78,6 +79,7 @@ export const RecordConventionTool = buildTool({
     ],
     units: ['text-mutation'],
     class: 'mutation',
+
     transaction: { kind: 'file', receipts: true },
     evidence: ['change'],
     cancellation: 'not-applicable',
@@ -96,6 +98,7 @@ export const RecordConventionTool = buildTool({
     return input?.rule ? 'Recording a project convention' : 'Recording'
   },
   async checkPermissions(input, context) {
+
     return checkWritePermissionForTool(
       {
         name: RECORD_CONVENTION_TOOL_NAME,
@@ -130,6 +133,7 @@ export const RecordConventionTool = buildTool({
       replaces: input.replaces,
     })
     const output = toOutput(result)
+
     const wrote = result.action === 'recorded' || result.action === 'updated'
     return {
       data: output,

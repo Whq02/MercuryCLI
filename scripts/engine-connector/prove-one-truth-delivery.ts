@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -77,6 +78,7 @@ section('T1 — the pen is gone (class members, files, vocabulary)')
   ]) {
     check(`${dead} does not exist`, !existsSync(join(REPO, dead)))
   }
+
   const placeholder = readFileSync(join(REPO, 'src/components/PromptInput/usePromptInputPlaceholder.ts'), 'utf8')
   check('placeholder carries no steer/queue sentence', !placeholder.includes('steers this turn') && !placeholder.includes('queued messages back'))
   const tagBar = readFileSync(join(REPO, 'src/components/SwitchboardTagBar.tsx'), 'utf8')
@@ -127,6 +129,7 @@ async function rigConnector(rows: Record<string, unknown>[], sends: SeatSendSeed
   for (const s of sends) {
     g.echoRows.set(s.clientMessageId, createUserMessage({ content: s.text }) as never)
   }
+
   g.attached = true
   await g.tick.call(c)
   g.attached = false
@@ -159,6 +162,7 @@ section('T2 — identity retirement: user-row uuid AND queued_command source_uui
         } as never) as unknown as Record<string, unknown>),
         timestamp: nowIso,
       },
+
       { ...(createAssistantMessage({ content: 'carrying on' }) as unknown as Record<string, unknown>), timestamp: nowIso },
     ],
     [
@@ -182,6 +186,7 @@ section('T3 — a non-UUID identity never retires against OLD history')
   const oblId = 'obl-answer:some-question'
   const rig = await rigConnector(
     [
+
       { ...(createUserMessage({ content: 'yes, and the old yes stands' }) as unknown as Record<string, unknown>), timestamp: oldIso },
     ],
     [{ clientMessageId: oblId, text: 'yes', sentAtMs: now - 2000, state: 'delivered', mode: 'prompt' }],

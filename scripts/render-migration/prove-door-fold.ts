@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { Writable } from 'node:stream'
 import {
   bindTerminalDoor,
@@ -64,6 +65,7 @@ console.log('door fold laws')
     [{ type: 'stdout', content: 'FRAME-ONE' }],
     true,
   )
+
   termWrite(stream, 'MODE-B', 'mode')
   check('D2 the frame seam reports delivered (whole-unit FIFO construction)', delivered === true)
   check('D4 owed counts both queued units while the kernel refuses', terminalOwedBytes() === 'FRAME-ONE'.length + 'MODE-B'.length, String(terminalOwedBytes()))

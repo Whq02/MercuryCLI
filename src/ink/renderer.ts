@@ -1,4 +1,3 @@
-
 import { appendFileSync } from 'node:fs'
 import { charInCellAt, type Screen, type StylePool } from './cell-grid.js'
 import ComposeBuffer, { lastComposeCounts } from './compose-buffer.js'
@@ -14,13 +13,17 @@ import { applyRecessPass } from './recessLayer.js'
 import { logForDebugging } from '../utils/debug.js'
 
 type RenderOptions = {
+
   frontFrame: Frame
+
   backFrame: Frame
   isTTY: boolean
   terminalWidth: number
   terminalRows: number
   altScreen: boolean
+
   prevFrameContaminated: boolean
+
   regionScrollUsable?: boolean
 }
 

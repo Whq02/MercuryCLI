@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/run-core/turn-machine.ts src/services/providers/anthropic/streamCore.ts src/services/api/outputFit.ts src/query/transitions.ts scripts/compact/overflowFixture.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'

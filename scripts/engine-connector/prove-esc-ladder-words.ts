@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -102,11 +103,13 @@ section('L5 — the latch belongs to the turn it interrupted')
   check('no prompt row at all keeps it (the turn\'s row not landed yet)', latch.interruptLatchRelease(pressed, busy(null)) === null)
   check('a prompt row that started after the press releases it — a later turn', latch.interruptLatchRelease(pressed, busy(1_000_500)) === 'later-turn')
   check('a prompt row born in the press\'s own millisecond counts as after it', latch.interruptLatchRelease(pressed, busy(1_000_000)) === 'later-turn')
+
   const stale = latch.interruptLatchRelease(pressed, busy(1_002_000))
   const rung = arity.escRungOf({ inFlight: true, interrupting: stale === null, hardStopping: false })
   check('over the next turn the rung reads in-flight, never interrupting', rung === 'in-flight' && arity.escRungHint(rung) === 'esc interrupts')
   const frameNext = frame(live('tool'), status({ interrupting: stale !== null ? false : true }))
   check('the row over the next turn carries "esc interrupts", never "esc again forces a stop"', frameNext.includes('esc interrupts') && !frameNext.includes('esc again forces a stop'), frameNext)
+
   check('the release is one verdict for both facts (the hard stop rides the same key)', latch.interruptLatchRelease({ pressedAtMs: 1_000_000 }, busy(1_000_001)) === 'later-turn')
 }
 

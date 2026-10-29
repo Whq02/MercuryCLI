@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
@@ -14,6 +15,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 function buildSkill(frontmatter: Record<string, unknown>): Record<string, unknown> {
+
   const markdownContent = 'Follow the conditional instructions.'
   const merged = { name: 'cond-skill', description: 'a conditional skill', ...frontmatter }
   const fields = parseSkillFrontmatterFields(merged, markdownContent, 'cond-skill')
@@ -29,6 +31,7 @@ function buildSkill(frontmatter: Record<string, unknown>): Record<string, unknow
 
 console.log('L1 a paths-filtered skill auto-allows')
 {
+
   const frontmatter = { name: 'cond-skill', description: 'a conditional skill' }
   const markdownContent = 'Follow the conditional instructions.'
   const fields = parseSkillFrontmatterFields(frontmatter, markdownContent, 'cond-skill')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -39,6 +40,7 @@ for (const key of [
 const home = mkdtempSync(join(tmpdir(), 'authhard-usage-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_AUTH_SCOPE_DIR = home
+
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -56,7 +58,9 @@ const NOW = Date.now()
 const RESET_EPOCH = Math.floor(NOW / 1000) + 3600
 
 section('§1 anthropic: headers + endpoint + pools — precedence, equality, the claim-vocabulary warning')
+
 {
+
   limits.__setRawUtilizationForTest({ seven_day: { utilization: 0.93, resets_at: RESET_EPOCH } })
   limits.foldUtilizationFromEndpoint(
     {
@@ -115,6 +119,7 @@ section('§1 anthropic: headers + endpoint + pools — precedence, equality, the
       refolded.seven_day_fable === undefined,
     JSON.stringify(refolded),
   )
+
   limits.resetLimitsForCredentialSwitch()
   limits.foldUtilizationFromEndpoint(
     { five_hour: { utilization: 77, resets_at: new Date(RESET_EPOCH * 1000).toISOString() } },
@@ -127,6 +132,7 @@ section('§1 anthropic: headers + endpoint + pools — precedence, equality, the
 }
 
 section('§2 openrouter: the credit cap — equality, the warning, the typed facts')
+
 {
   const observed = {
     usage: {
@@ -165,6 +171,7 @@ section('§2 openrouter: the credit cap — equality, the warning, the typed fac
 }
 
 section('§3 the Kimi sign-in: managed windows — equality, the warning')
+
 {
   const managed = {
     observedAtMs: NOW,
@@ -195,6 +202,7 @@ section('§3 the Kimi sign-in: managed windows — equality, the warning')
 }
 
 section('§4 openai subscription: observed bands — equality, the warning')
+
 {
   const observed = {
     primary: { usedPct: 82, windowMinutes: 300, resetsAtMs: NOW + 600_000, observedAtMs: NOW },
@@ -225,6 +233,7 @@ section('§4 openai subscription: observed bands — equality, the warning')
 }
 
 section('§5 the coordinator fold: the runner fact wins; null/absent fall through; one producer')
+
 {
   const fromRunner = { provider: 'openai', text: 'OpenAI: 82% of the 5h window used' }
   const local = { provider: 'anthropic', text: 'Anthropic: 71% of session limit used' }
@@ -235,6 +244,7 @@ section('§5 the coordinator fold: the runner fact wins; null/absent fall throug
       preferSessionLimitWarning(undefined, local) === local &&
       preferSessionLimitWarning(null, null) === null,
   )
+
   const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/cli/run.ts'), 'utf8')
   check(
     'the session-facts producer rides providerLimitWarning (one owner, pinned at the source)',
@@ -243,6 +253,7 @@ section('§5 the coordinator fold: the runner fact wins; null/absent fall throug
 }
 
 section('§6 vocabulary honesty: no borrowed family words on any lane')
+
 {
   const lanes: Array<{ family: string; reads: UsageReads; forbidden: RegExp }> = [
     {
@@ -285,6 +296,7 @@ section('§6 vocabulary honesty: no borrowed family words on any lane')
       spoken,
     )
   }
+
   const keyLane = usage.activeSourceUsage({
     model: 'zai-fixture',
     reads: { route: () => 'zai' as never, zaiKeyPresent: () => true, spend: () => ZERO_SPEND },
@@ -293,7 +305,9 @@ section('§6 vocabulary honesty: no borrowed family words on any lane')
 }
 
 section('§7 scheduled spend: Saturn fires replay session envelopes — the one ledger counts them')
+
 {
+
   const ticker = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/saturnTicker.ts'), 'utf8')
   check(
     'the fire road is the envelope replay (no model dispatch in the ticker)',
@@ -307,6 +321,7 @@ section('§7 scheduled spend: Saturn fires replay session envelopes — the one 
 }
 
 section('§8 the REAL cache: equality holds THROUGH the live 2s activeUsageCache, and the model key invalidates')
+
 {
   const { writeFileSync } = await import('node:fs')
   const { clearOAuthTokenCache } = await import('../../src/utils/auth.js')
@@ -342,6 +357,7 @@ section('§8 the REAL cache: equality holds THROUGH the live 2s activeUsageCache
     other !== first && back !== first,
     `otherShape=${other.shape}`,
   )
+
   const beforeSwitch = usage.activeSourceUsage({ model: MODEL })
   limits.resetLimitsForCredentialSwitch()
   const afterSwitch = usage.activeSourceUsage({ model: MODEL })

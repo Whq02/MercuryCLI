@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -39,6 +40,7 @@ const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
 for (const d of [configDir, daemonDir, work]) mkdirSync(d, { recursive: true })
 writeFileSync(join(work, 'README.md'), '# first-byte fixture\n')
+
 for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=fixture@example.invalid', '-c', 'user.name=fixture', 'commit', '-q', '-m', 'fixture']]) {
   const r = spawnSync('git', args, { cwd: work, stdio: 'ignore', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1' } })
   if (r.status !== 0) {
@@ -163,6 +165,7 @@ const dispatch = async (id: string, prompt: string, modelKey: string, sessionId?
   check(`${id}: dispatched`, reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   return reply.sessionId ?? sessionId ?? ''
 }
+
 const watchWaits = async (sid: string, ms: number, stopWhen: () => boolean): Promise<{ firstByte: ReturnType<typeof decodeRequestWait>; retry: ReturnType<typeof decodeRequestWait> }> => {
   let firstByte: ReturnType<typeof decodeRequestWait> = null
   let retry: ReturnType<typeof decodeRequestWait> = null
@@ -211,6 +214,7 @@ try {
   {
     const nonesuch = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-nonesuch', prompt: 'hello', workspaceDir: work, title: 'nonesuch', model: 'nonesuch-9', effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }
     check('an id no family declares refuses typed (not-runnable:unrecognised, the way out named) — never a substitute', nonesuch.ok === false && /not-runnable:unrecognised/.test(nonesuch.error ?? '') && /model picker/.test(nonesuch.error ?? ''), JSON.stringify(nonesuch))
+
     const aliased = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-aliased', prompt: 'hello', workspaceDir: work, title: 'aliased', modelKey: 'nonesuch-9', effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }
     check('a dispatch spelling the model as `modelKey` is READ (an unknown id under it refuses typed) — never the registry default in silence', aliased.ok === false && /not-runnable:unrecognised/.test(aliased.error ?? ''), JSON.stringify(aliased))
     const twoSpelt = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-two-spelt', prompt: 'hello', workspaceDir: work, title: 'two spelt', model: 'claude-opus-5', modelKey: 'claude-sonnet-5', effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }

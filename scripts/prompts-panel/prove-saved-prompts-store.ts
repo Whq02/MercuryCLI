@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -82,6 +83,7 @@ try {
   mkdirSync(dirname(corruptPath), { recursive: true })
   writeFileSync(corruptPath, '{"drafts": [ this is not json')
   check('a corrupt file reads as EMPTY (declared policy), never a throw', (await store.listSavedPrompts(corruptProject)).length === 0)
+
   store._resetSavedPromptsCacheForProofs()
   const stopCorrupt = store.subscribeSavedPrompts(corruptProject, () => {})
   await new Promise(r => setTimeout(r, 500))
@@ -182,6 +184,7 @@ try {
 
   section('§7 — the injective slug (FC-008: punctuation siblings, legacy adopt)')
   {
+
     const dotProj = '/Users/example/dev/wb.proj'
     const underscoreProj = '/Users/example/dev/wb_proj'
     const dotPath = store.savedPromptsPath(dotProj)

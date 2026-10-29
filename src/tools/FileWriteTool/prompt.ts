@@ -1,7 +1,6 @@
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 
-
 export const FILE_WRITE_TOOL_NAME = 'Write'
 
 export const DESCRIPTION = 'Put content on disk at a path, replacing what was there.'

@@ -78,7 +78,6 @@ async function main(): Promise<void> {
     )
   }
 
-
   section('3. owner lifecycle: 400 create/dispose cycles return to baseline')
   {
     const ok = await import('../../src/services/run/ownerKey.js')

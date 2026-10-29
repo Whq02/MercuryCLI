@@ -22,9 +22,11 @@ export function oasisBgEnabled(
   isTTY: boolean = Boolean(process.stdout.isTTY),
   theme: ThemeName = concreteTheme(),
 ): boolean {
+
   if (flagEnv('MERCURY_OASIS_BG') === '0') return false
   if (!isTTY || shouldHonorNoColor()) return false
   if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
+
   if (!isDarkThemeFamily(theme)) return false
   return true
 }
@@ -42,11 +44,17 @@ function oasisBgSet(spec: string): string {
 }
 
 let painted = false
+
 let paintedSpec: string | undefined
+
 let paintedBy: 'oasis' | 'warm' | null = null
+
 let exactOriginal: string | undefined
+
 let paintedAtQuerySend: boolean | undefined
+
 let exitRestored = false
+
 let channelHealed = false
 
 export type TerminalGround =
@@ -97,6 +105,7 @@ export function noteOriginalGroundReply(
   if (!spec || shouldHonorNoColor() || /^(dumb|linux)$/.test(process.env.TERM || '') || concreteTheme() === 'mono') return
   if (paintedAtQuerySend !== false) return
   if (exactOriginal === undefined && !launcherHeldAtBoot()) {
+
     exactOriginal = spec
   }
   if (!painted) {
@@ -122,11 +131,13 @@ export function syncOasisBgToTheme(
       write(oasisBgSet(spec))
       groundChanged()
     } else if (paintedBy === 'oasis' && paintedSpec !== spec) {
+
       paintedSpec = spec
       write(oasisBgSet(spec))
       groundChanged()
     }
   } else if (painted && paintedBy === 'oasis') {
+
     painted = false
     paintedBy = null
     paintedSpec = undefined

@@ -15,6 +15,7 @@ export const PROVIDER_DISCOVERY_TTL_MS = 5 * 60_000
 export interface OpenaiDiscovery {
   provider: 'openai'
   probedAtMs: number
+
   account?: OpenaiAccountRef
 }
 
@@ -23,6 +24,7 @@ export interface ZaiDiscovery {
   probedAtMs: number
   keyPresent: boolean
   keySource?: 'env' | 'stored'
+
   keyPlan?: 'coding'
 }
 
@@ -36,6 +38,7 @@ export interface OpenrouterDiscovery {
 export interface GeminiDiscovery {
   provider: 'gemini'
   probedAtMs: number
+
   account?: { kind: 'oauth' | 'api-key' | 'plan'; label: string }
 }
 
@@ -44,6 +47,7 @@ export interface MoonshotDiscovery {
   probedAtMs: number
   keyPresent: boolean
   keySource?: 'env' | 'stored'
+
   account?: MoonshotAccountRef
 }
 
@@ -143,9 +147,11 @@ export interface QwenDiscovery {
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
+
   configured: boolean
   keyPresent: boolean
   keySource?: 'env' | 'stored'
+
   label?: string
 }
 
@@ -154,18 +160,22 @@ export interface HuggingfaceDiscovery {
   probedAtMs: number
   keyPresent: boolean
   keySource?: 'env' | 'oauth' | 'stored'
+
   accountLabel?: string
 }
 
 export interface LocalDiscovery {
   provider: 'local'
+
   probed: boolean
+
   probedAtMs: number
   serverPresent: boolean
   keyPresent: boolean
   keySource?: 'env' | 'stored'
   serverCount: number
   modelCount: number
+
   label?: string
 }
 
@@ -201,6 +211,7 @@ export interface DiscoveryIo {
 
 function defaultIo(): DiscoveryIo {
   return {
+
     env: { ...process.env },
     now: () => Date.now(),
   }
@@ -302,7 +313,6 @@ export function primeGeminiDiscovery(io?: DiscoveryIo): GeminiDiscovery | null {
   cache.set('gemini', record)
   return record
 }
-
 
 function probeMoonshot(io: DiscoveryIo): MoonshotDiscovery {
   const {
@@ -519,9 +529,11 @@ export function refreshProviderDiscovery(
   const existing = inFlight.get(id)
   if (existing) return existing
   const work = (async (): Promise<ProviderDiscovery | null> => {
+
     await Promise.resolve()
     try {
       if (id === 'local') {
+
         const { refreshLocalDiscovery } =
           require('./local/localDiscovery.js') as typeof import('./local/localDiscovery.js')
         await refreshLocalDiscovery({ ...(opts?.force ? { force: true } : {}), env: io.env as NodeJS.ProcessEnv }).catch(() => undefined)

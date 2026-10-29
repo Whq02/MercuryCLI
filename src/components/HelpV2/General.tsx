@@ -4,6 +4,7 @@ import { useModalOrTerminalSize } from '../../context/modalContext.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { PromptInputHelpMenu } from '../PromptInput/PromptInputHelpMenu.js';
 export function General() {
+
   const term = useTerminalSize();
   const { columns } = useModalOrTerminalSize(term);
   let t0;

@@ -3,6 +3,7 @@ import type { RunRecord } from './runner.ts'
 interface ErrorRow {
   tool: string
   text: string
+
   namesFix: boolean
   probe: boolean
 }
@@ -19,7 +20,9 @@ export interface Score {
   toolResultChars: number
   toolResultTokensEst: number
   imageChars: number
+
   injectedTokensEst: number
+
   subagentResultTokensEst: number
   asks: number
   denials: number
@@ -46,11 +49,13 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
   let probesSeen = 0
   const probeQueue = probeSteps.filter(p => p.probe)
   const pushError = (tool: string, text: string): void => {
+
     const next = probeQueue[probesSeen]
     const probe = next !== undefined && next.tool === tool
     if (probe) probesSeen++
     errors.push({ tool, text: text.slice(0, 600), namesFix: text.length > 24 && FIX_RE.test(text), probe })
   }
+
   const ordered: Array<{ at: number; tool: string; text: string }> = []
   const resultIndex = new Map<string, number>()
   run.envelopes.forEach((e, i) => {
@@ -59,6 +64,7 @@ export function scoreRun(run: RunRecord, verdict: { pass: boolean | null; detail
     if (e.type === 'text' && typeof e.text === 'string' && REFUSAL_NOTE_RE.test(e.text)) {
       const tool = /malformed tool call \(([^)]+)\)|unknown tool \(([^)]+)\)|catalog \(([^)]+)\)|tool call \(([^)]+)\)/i.exec(e.text)
       const name = tool?.[1] ?? tool?.[2] ?? tool?.[3] ?? tool?.[4] ?? '?'
+
       if (!ordered.some(o => o.text === e.text)) ordered.push({ at: i, tool: name, text: e.text })
     }
   })

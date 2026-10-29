@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -35,6 +36,7 @@ async function play(args: { tap: boolean; heartbeats: boolean; abortAfterPings?:
   const body = new ReadableStream<Uint8Array>({
     start(sink) {
       const send = (event: string, data: unknown): void => sink.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+
       controller.signal.addEventListener(
         'abort',
         () => {

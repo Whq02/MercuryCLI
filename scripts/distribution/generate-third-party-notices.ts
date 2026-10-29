@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -113,6 +114,7 @@ const preservedNotices = sweepNoticeFiles()
 const lines: string[] = []
 lines.push('# Third-party notices — Mercury')
 lines.push('')
+
 if (CURRENT_NOTICE_SLOTS.copyrightLine) lines.push(CURRENT_NOTICE_SLOTS.copyrightLine, '')
 if (CURRENT_NOTICE_SLOTS.licensePointer) lines.push(CURRENT_NOTICE_SLOTS.licensePointer, '')
 lines.push(
@@ -148,6 +150,7 @@ lines.push(
 lines.push(
   `- **pyright** ${pyright.version ?? '(not vendored on this checkout)'} — Microsoft, ${pyright.license ?? 'MIT'} (${pyright.url ?? 'https://github.com/microsoft/pyright'}). Receipt: vendor/pyright.lock.json; licence text ships at dist/vendor/pyright/LICENSE.txt (+ typeshed LICENSE).`,
 )
+
 lines.push(
   `- **js-debug** ${jsDebug.version ?? '(not vendored on this checkout)'} — Microsoft, ${jsDebug.license ?? 'MIT'} (${jsDebug.url ?? 'https://github.com/microsoft/vscode-js-debug'}). Receipt: vendor/js-debug.lock.json; licence text ships at dist/vendor/js-debug/LICENSE.`,
 )
@@ -158,6 +161,7 @@ lines.push(
   `- **tree-sitter WASM engine + grammars** (${treeSitterMeta.name} ${treeSitterMeta.version}) — Microsoft, ${treeSitterMeta.license} (https://github.com/microsoft/vscode-tree-sitter-wasm). Licence text ships at dist/vendor/treesitter/LICENSE.`,
 )
 {
+
   const grammarsLockPath = join(ROOT, 'vendor', 'grammars.lock.json')
   if (existsSync(grammarsLockPath)) {
     const gl = JSON.parse(readFileSync(grammarsLockPath, 'utf8')) as {
@@ -172,15 +176,18 @@ lines.push(
     )
   }
 }
+
 lines.push(
   `- **Node.js runtime** ${nodeRuntime.version ?? '(not vendored on this checkout)'} — OpenJS Foundation and Node.js contributors, ${nodeRuntime.license ?? 'MIT'} (https://nodejs.org/dist/v${nodeRuntime.version ?? '<version>'}/). Receipt: vendor/node.lock.json (one official nodejs.org archive + sha256 per platform, every digest from that release's SHASUMS256.txt); the release archive ships the platform's runtime binary and Node's own LICENSE at dist/vendor/node/ — that LICENSE carries the notices of the components Node bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest).`,
 )
 {
+
   lines.push(
     `- **voice capture pack** (\`dist/vendor/voice/<platform>/mercury_voice.node\`) — Mercury's own Node-API addon, built from the repository's native/voice sources with cargo (never fetched). It statically links the Rust crates it depends on, chiefly cpal (Apache-2.0 / MIT, https://github.com/RustAudio/cpal) and napi-rs (MIT, https://github.com/napi-rs/napi-rs); the full per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every linked crate's licence text under \`licenses/<crate>-<version>/\`.`,
   )
 }
 {
+
   lines.push(
     `- **on-device transcriber pack** (\`dist/vendor/whisper/<platform>/mercury_whisper.node\`) — Mercury's own Node-API addon, built from the repository's native/whisper sources with cargo (never fetched). It statically links whisper.cpp and ggml (The ggml authors, MIT, https://github.com/ggml-org/whisper.cpp) through whisper-rs (Unlicense, https://codeberg.org/tazz4843/whisper-rs) and napi-rs (MIT, https://github.com/napi-rs/napi-rs); the per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every licence text under \`licenses/<crate>-<version>/\` and whisper.cpp's LICENSE (it covers ggml) under \`licenses/whisper.cpp-<version>/\`.`,
   )
@@ -202,11 +209,13 @@ lines.push(
   )
 }
 {
+
   const sharpMeta = pkgMeta('sharp')
   lines.push(
     `- **image-processor pack** (\`dist/vendor/image-processor/<platform>/node_modules/@img/\`) — sharp's prebuilt binding (@img/sharp-<platform> ${sharpMeta.version}, ${sharpMeta.license}, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.`,
   )
 }
+
 lines.push(
   `- **shell engine pack** (\`dist/vendor/brush/<platform>/brush\`, \`brush.exe\` on Windows) — brush, a bash-compatible shell written in Rust, ${brush.license ?? 'MIT'} (${brush.repository ?? 'https://github.com/reubeno/brush'}). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published \`<archive>.sha256\` asset; for win-x64, where upstream publishes no binary, the published crate \`brush-shell\` at the same version and its crate archive's sha256). A macOS or Linux archive ships the platform's engine binary and upstream's own \`LICENSE\` + \`THIRD_PARTY_LICENSES.html\` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/; the Windows archive ships the binary built from that crate with \`NOTICES.json\` (every linked crate: name, version, licence, repository) and \`licenses/<crate>-<version>/\` (each crate's own licence text) beside it, and carries the pack on every Windows install, since a box with no bash runs the Bash tool through it.`,
 )

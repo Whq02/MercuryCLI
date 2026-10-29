@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type Server } from 'node:net'
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -55,11 +56,13 @@ section('§1 the two sentences: timed out ≠ cancelled')
   const loginSrc = readFileSync(join(REPO, 'src/commands/login/login.tsx'), 'utf8')
   t("§1 the operator's own close keeps its own sentence at /logins", loginSrc.includes('/logins closed — no credential changed'))
   t('§1 the two sentences share no words that could blur them', !deadline.deadlineBreachLine('x', 1000).includes('closed') && !'/logins closed — no credential changed'.includes('timed out'))
+
   const openaiAccountsSrc = readFileSync(join(REPO, 'src/services/providers/openai/openaiAccounts.ts'), 'utf8')
   t('§1 the OpenAI device wait says EXPIRED for a code the operator never approved', openaiAccountsSrc.includes('OpenAI sign-in expired before the code was approved — retry from /logins openai'))
   t('§1 …and no longer wears the timeout word for it', !openaiAccountsSrc.includes('device authorization timed out'))
   const moonshotLoginSrc = readFileSync(join(REPO, 'src/services/providers/moonshot/moonshotLogin.ts'), 'utf8')
   t('§1 the Kimi wait speaks the same three facts (cancelled · expired)', moonshotLoginSrc.includes('Kimi sign-in cancelled — nothing stored.') && moonshotLoginSrc.includes('Kimi sign-in expired before the code was entered'))
+
   const oauth = await import(join(REPO, 'src/services/oauth/client.ts'))
   const { AxiosError } = await import('axios')
   const timeout = new AxiosError('timeout of 15000ms exceeded', 'ECONNABORTED')
@@ -93,6 +96,7 @@ section('§2 the door ends a black-holed request within the bound')
 section('§2b caller cancel stays a cancel; a breach beside a quiet caller signal stays a timeout')
 {
   const { getApiFetch } = await import(join(REPO, 'src/utils/proxy.ts'))
+
   {
     const { server, port } = await listenBlackHole()
     const caller = new AbortController()
@@ -114,6 +118,7 @@ section('§2b caller cancel stays a cancel; a breach beside a quiet caller signa
     t('§2b the caller abort ends the request promptly', wall < 2_000, `${wall}ms`)
     t('§2b the cancel is NOT reported as a timeout', !line.includes('timed out after'), line)
   }
+
   {
     const { server, port } = await listenBlackHole()
     const caller = new AbortController()
@@ -154,6 +159,7 @@ section('§3 the openrouter catalogue against the black hole (15s bound)')
 
 section('§3b the OpenAI catalogue against the black hole (15s bound)')
 {
+
   const { server, port } = await listenBlackHole()
   const { fetchOpenaiLiveModels } = await import(join(REPO, 'src/services/providers/openai/openaiClient.ts'))
   const started = Date.now()
@@ -213,6 +219,7 @@ section('§4 source census — the deadline at every login/catalogue site')
     ['deepseek balance probe', 'src/services/providers/deepseek/deepseekUsageState.ts', 1],
     ['local discovery probe', 'src/services/providers/local/localDiscovery.ts', 1],
     ['openai token + device auth', 'src/services/providers/openai/openaiAccounts.ts', 3],
+
     ['openai catalogue', 'src/services/providers/openai/openaiClient.ts', 1],
     ['openrouter key probe', 'src/services/providers/openrouter/openrouterUsageState.ts', 1],
   ]
@@ -221,6 +228,7 @@ section('§4 source census — the deadline at every login/catalogue site')
     const uses = (src.match(/fetchWithProviderDeadline\(/g) ?? []).length
     t(`§4 ${label} rides the door (${minUses}+ site(s))`, uses >= minUses, `${uses} uses`)
   }
+
   {
     const { readdirSync } = await import('node:fs')
     const offenders: string[] = []
@@ -236,6 +244,7 @@ section('§4 source census — the deadline at every login/catalogue site')
     walk(join(REPO, 'src/services/providers'))
     t('§4 no provider site carries a bare AbortSignal.timeout', offenders.length === 0, offenders.join(', '))
   }
+
   {
     const accounts = readFileSync(join(REPO, 'src/services/providers/gemini/geminiAccounts.ts'), 'utf8')
     const catalogue = readFileSync(join(REPO, 'src/services/providers/gemini/geminiCatalogue.ts'), 'utf8')

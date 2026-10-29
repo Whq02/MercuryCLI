@@ -134,6 +134,7 @@ export function toolCallRefusalDiagnostic(refusal: RefusedToolCall): string {
 }
 
 interface ToolCallGateHints {
+
   deferredUnadmitted?: (name: string) => boolean
   straightenQuotes?: boolean
 }
@@ -180,6 +181,7 @@ export function gateToolCall(tools: Tools, call: IncomingToolCall, hints?: ToolC
     const verdict = tool.inputSchema.safeParse(input)
     if (!verdict.success) {
       const reason = formatZodValidationError(tool.name, verdict.error, tool.inputJSONSchema)
+
       const unadmitted = hints?.deferredUnadmitted?.(tool.name) === true
       return refused(call, 'schema', unadmitted ? `${reason}\n${schemaNotSentSentence(tool.name)}` : reason)
     }
@@ -230,6 +232,7 @@ export function toolCallRefusalNote(lane: string, refusal: RefusedToolCall): str
   const name = refusal.name.trim() === '' ? 'unnamed' : displayToolName(refusal.name)
   switch (refusal.code) {
     case 'unknown-tool':
+
       return `[${lane}] No such tool available: ${name} — it is not in this session's tool list, so it was not executed. Call one of the tools you were given${offeredToolNamesClause((refusal.offered ?? []).map(offered => ({ name: offered })))} (a ToolSearch query loads a deferred tool when one is offered).`
     case 'missing-id':
       return `[${lane}] the provider emitted a malformed tool call (${name}): it carried no call id, so it was not executed.`

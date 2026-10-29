@@ -1,4 +1,3 @@
-
 import * as M from '../../src/utils/messages.ts';
 import type { Message } from '../../src/types/message.ts';
 
@@ -43,6 +42,7 @@ const progress = (n: number, toolUseID: string, data: object): Message =>
   }) as Message;
 
 export const CORPUS: Record<string, Message[]> = {
+
   basic: [user('hello world'), assistant('hi there — what can I do?')],
 
   toolTurn: [

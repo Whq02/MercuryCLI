@@ -5,26 +5,39 @@ import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { claimHover, releaseHover, useHoverOwned } from './useHoverOwned.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
-
 type InteractiveRowProps = {
+
   id: string
+
   selected?: boolean
+
   focused?: boolean
+
   unavailable?: boolean
+
   reasonUnavailable?: string
+
   onSelect?: () => void
+
   onActivate?: () => void
+
   directActivate?: boolean
+
   selectionBand?: boolean
+
   actionLabel?: string
   tint?: string
+
   rowRef?: React.Ref<DOMElement>
   width?: number | string
   height?: number
   flexDirection?: 'row' | 'column'
   flexShrink?: number
+
   flexGrow?: number
+
   hoverStyle?: 'chrome-ink' | 'row-fill'
+
   children: React.ReactNode | ((hover: boolean) => React.ReactNode)
 }
 
@@ -57,6 +70,7 @@ export function InteractiveRow({
     if (typeof rowRef === 'function') rowRef(node)
     else if (rowRef) (rowRef as React.MutableRefObject<DOMElement | null>).current = node
   }, [cursorRef, rowRef])
+
   const bandPainted =
     selectionBand &&
     selected &&

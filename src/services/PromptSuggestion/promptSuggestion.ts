@@ -12,11 +12,9 @@ import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
 
-
 export type PromptVariant = 'user_intent' | 'stated_intent'
 
 const ACTIVE_VARIANT: PromptVariant = 'user_intent'
-
 
 type SuppressReason =
   | 'disabled'
@@ -58,7 +56,6 @@ function getParentCacheSuppressReason(
   return undefined
 }
 
-
 const SUGGESTION_PROMPT = `You are in suggestion mode: propose the single line this user would most likely type next in this conversation.
 
 Rules:
@@ -76,7 +73,6 @@ Examples:
 - The user asked what a config flag does; you explained it. -> enable it in staging
 - The user said "run the linter" and it finished clean. -> looks done, ship it`
 
-
 async function generateSuggestion(
   abortController: AbortController,
   promptId: PromptVariant,
@@ -87,6 +83,7 @@ async function generateSuggestion(
   const result = await runForkedAgent({
     promptMessages: [instruction],
     cacheSafeParams,
+
     canUseTool: async () => ({
       behavior: 'deny',
       message: 'tools are unavailable while generating a suggestion',
@@ -137,7 +134,6 @@ async function generateSuggestion(
   if (suggestion === undefined) return undefined
   return { suggestion, ...(requestId === undefined ? {} : { requestId }) }
 }
-
 
 const ALLOWED_SINGLE_WORDS = new Set([
   'yes',
@@ -261,7 +257,6 @@ function shouldFilterSuggestion(suggestion: string): boolean {
   return true
 }
 
-
 async function tryGenerateSuggestion(
   abortController: AbortController,
   messages: unknown[],
@@ -318,7 +313,6 @@ async function tryGenerateSuggestion(
   }
 }
 
-
 let inFlightController: AbortController | null = null
 
 function isAbortShapedError(error: unknown): boolean {
@@ -329,6 +323,7 @@ function isAbortShapedError(error: unknown): boolean {
 }
 
 export async function executePromptSuggestion(context: TurnAnswerContext): Promise<void> {
+
   if (context.querySource === undefined || !context.querySource.startsWith('main_thread')) {
     return
   }
@@ -365,6 +360,7 @@ export async function executePromptSuggestion(context: TurnAnswerContext): Promi
     }
     logError(error)
   } finally {
+
     if (inFlightController === controller) {
       inFlightController = null
     }

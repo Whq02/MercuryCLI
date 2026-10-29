@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,8 +8,10 @@ import { Readable } from 'node:stream'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
+
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-drag-coalesce-'))
 mkdirSync(join(SCRATCH, 'config'), { recursive: true })
+
 writeFileSync(join(SCRATCH, 'config', '.mercury.json'), JSON.stringify({ copyOnSelect: false, hasCompletedOnboarding: true }))
 process.env.HOME = SCRATCH
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'config')
@@ -38,6 +41,7 @@ const { lastComposeCounts } = await import(`${ROOT}/src/ink/compose-buffer.js`)
 const { AppStateProvider } = await import(`${ROOT}/src/state/AppState.js`)
 const { default: ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/components/ScrollKeybindingHandler.js`)
 const { subscribeUiClock } = await import(`${ROOT}/src/utils/cockpit/uiClock.js`)
+
 const countTicks = (): { ticks: () => number; stop: () => void } => {
   let n = 0
   const stop = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
@@ -118,6 +122,7 @@ function flushGlass(): void {
     glassFault ||= e instanceof Error ? e.message : String(e)
   }
 }
+
 function visibleKey(ch: string, st: SgrState | null): string {
   const s = st ?? defaultSgr()
   if (ch === ' ') return ` |${s.bg}|${s.inverse}|${s.underline}|${s.strike}`
@@ -131,6 +136,7 @@ function snapshot(): string[] {
 function glassRowText(y: number): string {
   return glass.rowText(y)
 }
+
 function rowWith(needle: string): number {
   for (let y = 0; y < ROWS; y++) if (glassRowText(y).includes(needle)) return y
   return -1
@@ -148,12 +154,14 @@ function Tail(): unknown {
   setTailText = setText
   return h(Text as never, { color: 'cyan' }, text)
 }
+
 let setStreamedRows: ((n: number) => void) | null = null
 function Streamed(): unknown {
   const [n, setN] = React.useState(0)
   setStreamedRows = setN
   return h(React.Fragment as never, {}, ...Array.from({ length: n }, (_, i) => h(Text as never, { key: `s${i}` }, `streamed line ${i} arrives under the selection`)))
 }
+
 let keyLanded: ((input: string, atMs: number) => void) | null = null
 function RawModeHolder(): null {
   useInput(input => {
@@ -172,6 +180,7 @@ const rail = (tag: string): unknown =>
     { width: 24, flexShrink: 0, flexDirection: 'column', borderStyle: 'round' },
     ...Array.from({ length: 30 }, (_, i) => h(Text as never, { key: `${tag}${i}`, dimColor: i % 3 === 0 }, `${tag} row ${i} · steady`)),
   )
+
 const scrollRef = React.createRef<ScrollHandle>()
 const tree = h(
   AppStateProvider as never,
@@ -186,6 +195,7 @@ const tree = h(
         Box as never,
         { flexDirection: 'row', flexGrow: 1 },
         rail('left'),
+
         h(Box as never, { flexGrow: 1, flexDirection: 'column', borderStyle: 'round' }, h(ScrollBox as never, { ref: scrollRef, flexGrow: 1, flexDirection: 'column', stickyScroll: true }, ...transcript)),
         rail('right'),
       ),
@@ -222,6 +232,7 @@ type Cell = { col: number; row: number }
 const sgr = (b: number, c: Cell, release = false): string => `\x1b[<${b};${c.col + 1};${c.row + 1}${release ? 'm' : 'M'}`
 const LEFT = 0
 const MOTION = 0x20
+
 const PANE_C0 = 26
 const PANE_C1 = 94
 const tailRow = (() => {
@@ -229,6 +240,7 @@ const tailRow = (() => {
   return -1
 })()
 check('the transcript tail is on the glass', tailRow > 0, `tailRow=${tailRow}; fault=${glassFault}`)
+
 const ANCHOR: Cell = { col: 30, row: Math.max(1, tailRow - 8) }
 function focusAt(k: number): Cell {
   const perRow = PANE_C1 - PANE_C0 + 1
@@ -246,6 +258,7 @@ const pct = (xs: number[], p: number): number => {
 }
 
 async function pressAt(c: Cell): Promise<number> {
+
   await settle(600)
   const f0 = frames
   push(sgr(LEFT, c))
@@ -364,6 +377,7 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   flushGlass()
   const vacated = focusAt(30)
   check('the vacated cell carries no highlight after the shrink', styleKey(vacated) !== styleKey(focusAt(5)), `vacated ${styleKey(vacated)} vs selected ${styleKey(focusAt(5))}`)
+
   push(Array.from({ length: 700 }, (_, k) => sgr(LEFT | MOTION, focusAt(k))).join(''))
   await twoTicks()
   check('the selection reaches the tail row', ink.selection.focus?.row === tailRow, JSON.stringify(ink.selection.focus))
@@ -389,6 +403,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   const viewportTop = handle?.getViewportTop() ?? 1
   const paneRows = handle?.getViewportHeight() ?? 0
   check('the pane fills the transcript box', paneRows > 20 && viewportTop >= 1, `viewportTop=${viewportTop} height=${paneRows}`)
+
   const plainKey = styleKey({ col: 40, row: tailRow })
   const highlightedRows = (): number[] => {
     const rows: number[] = []
@@ -407,6 +422,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   flushGlass()
   console.log(`  at entry: ${facts()}`)
   console.log(`  glass tail rows: ${tailRows()}`)
+
   const TEXT_C0 = 25
   const lineStart = (y: number): boolean => /^\d{3} /.test(glassRowText(y).slice(TEXT_C0, TEXT_C0 + 4))
   let anchorRowB = viewportTop + 2
@@ -434,6 +450,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   console.log(`  after the hold: ${facts()}`)
   const heldStill = top0 - scrollTop()
   check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`)
+
   const top1 = scrollTop()
   const moving = countTicks()
   for (let k = 0; k < 30; k++) {
@@ -444,6 +461,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   moving.stop()
   const heldMoving = top1 - scrollTop()
   check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks`)
+
   const top2 = scrollTop()
   const blocked = countTicks()
   await settle(60)
@@ -466,6 +484,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
   check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
   const copied = (ink as unknown as { copySelectionNoClear: () => string }).copySelectionNoClear()
+
   check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`)
   const clipboardFile = join(SCRATCH, 'clipboard.txt')
   check('the copy went to the fixture clipboard file, never the machine\'s clipboard', existsSync(clipboardFile) && readFileSync(clipboardFile, 'utf8') === copied, existsSync(clipboardFile) ? `${readFileSync(clipboardFile, 'utf8').length} bytes in the file vs ${copied.length} copied` : 'no clipboard file')
@@ -492,6 +511,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   check('four streamed lines scrolled the pane (the tail moved up)', rowWith(TAIL_MARK) === tailBefore - 4, `tail ${tailBefore} → ${rowWith(TAIL_MARK)}`)
   check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}`)
   await clearAll()
+
   flushGlass()
   const tail2 = rowWith(TAIL_MARK)
   await pressAt({ col: ANCHOR.col, row: tail2 - 2 })
@@ -536,6 +556,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
     queueSamples.push(pendingBytes / atomBytes)
     push(sgr(LEFT | MOTION, { col: 40 + (k % 40), row: 0 }))
     if (k % 62 === 61) {
+
       keyPushedAt = performance.now()
       keyPushedFrame = frames
       push('\x1bx')

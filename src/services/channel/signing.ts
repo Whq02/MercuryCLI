@@ -1,4 +1,3 @@
-
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 import { canonicalFrameJson, type Frame } from './frame.js'
 import {
@@ -28,7 +27,6 @@ export function verifyFrameSig(frame: Frame, secret: string): boolean {
   if (a.length !== b.length || a.length === 0) return false
   return timingSafeEqual(a, b)
 }
-
 
 export const OPERATOR_SIG_PREFIX = 'op1:'
 

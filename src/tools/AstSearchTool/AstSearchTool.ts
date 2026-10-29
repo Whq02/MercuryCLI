@@ -40,7 +40,6 @@ import {
   renderToolUseMessage,
 } from './UI.js'
 
-
 const inputSchema = z.strictObject({
   pattern: z
     .string()
@@ -75,6 +74,7 @@ type Output = {
   mode: 'matches' | 'count'
   pattern: string
   scope: string
+
   text: string
   matchCount: number
   fileCount: number
@@ -140,11 +140,13 @@ export const AstSearchTool = buildTool({
   },
   inputSchema,
   outputSchema,
+
   isEnabled() {
     return structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
   },
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
+
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     return checkReadPermissionForTool(AstSearchTool, input, context.getAppState().toolPermissionContext)
   },
@@ -155,6 +157,7 @@ export const AstSearchTool = buildTool({
     return input?.pattern ? `Searching for the shape ${input.pattern}` : 'Searching structurally'
   },
   getPath(input: Partial<Input> | undefined): string {
+
     return input?.path || getCwd()
   },
   async description(): Promise<string> {
@@ -230,6 +233,7 @@ Full grammar and usage notes arrive on discovery or first use.`
       readable: abs => mercurySecretPath(abs) === null && matchingRuleForInput(abs, permCtx, 'read', 'deny') === null,
     })
     if (isAstRefusal(scope)) throw new Error(scope.refused)
+
     scope.display = input.path === undefined || input.path === '' ? '.' : input.path
 
     const limit = clampLimit(input.limit)
@@ -237,6 +241,7 @@ Full grammar and usage notes arrive on discovery or first use.`
     const result = await searchAstPattern(scope, {
       pattern: input.pattern,
       signal: context.abortController.signal,
+
       matchCap: mode === 'count' ? AST_BOUNDS.matchCap : Math.min(AST_BOUNDS.matchCap, Math.max(offset + limit + 1, AST_BOUNDS.maxLimit * 2)),
     })
     if (isAstRefusal(result)) throw new Error(result.refused)

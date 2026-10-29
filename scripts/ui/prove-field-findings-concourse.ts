@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -18,6 +19,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 console.log('§1 ⌃s wide-twin latch (settings owner never arms without a home)')
 {
+
   check(
     'the ⌃s branch carries the reduced-stage guard',
     screen.includes("if (key.ctrl && input === 's' && !reducedStage) {"),
@@ -27,14 +29,17 @@ console.log('§1 ⌃s wide-twin latch (settings owner never arms without a home)
     !screen.includes("if (key.ctrl && input === 's') {"),
     'an unguarded ⌃s arms the owner from the plain live view',
   )
+
   check(
     'the arm door refuses on the reduced stage (close always allowed)',
     screen.includes('setSettingsOpen(v => (v ? false : !reducedStage))'),
   )
+
   check(
     'the sideways-strand disarm effect exists',
     screen.includes('if (reducedStage && settingsOpen) setSettingsOpen(false)'),
   )
+
   check(
     "the wide pane mount stands (settingsOpen && geo.profile === 'wide')",
     screen.includes("settingsOpen={settingsOpen && geo.profile === 'wide'}"),
@@ -68,6 +73,7 @@ console.log('§2 applied-filter esc layer (the zero-match hint is true)')
     'the zero-match board still teaches the key it now honors',
     layout.includes('esc clears the filter'),
   )
+
   check(
     'filter-edit esc and the ↵/tab apply-commit are unchanged',
     screen.includes('setFiltering(false)\n        setFilter({ text: \'\', caret: 0 })') &&
@@ -82,11 +88,13 @@ console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
   check('no atlas section reads a raw region table any more', !atlasBody.includes('CONCOURSE_REGION_KEYS.'))
   check('the COORDINATOR section is stage-gated (the plain world is not taught ⌃s)', atlasBody.includes("...(reducedStage ? [] : [{ title: 'COORDINATOR (its composer)'"))
   check('the SPLIT section rides the split’s own width gate (one gate, one truth)', atlasBody.includes('!reducedStage && splitAvailableAt(cols, rows)'))
+
   check('the atlas takes the live split fact (splitOn rides splitActive)', screen.includes('splitOn={splitActive}') && atlasBody.includes('splitOn = false'))
   check("split OFF teaches the toggle only ('s split view' — no divider, no way-back)", atlasBody.includes("{ title: 'SPLIT VIEW (s toggles)', keys: [{ keys: 's', label: 'split view' }] }"))
   check('split ON keeps the pane grammar (the way back + divider stay taught there)', atlasBody.includes("? { title: 'SPLIT VIEW (s toggles)', keys: regionKeysFor('chat', { ...stage, chatSession: chat }) }"))
 }
 {
+
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const reducedList = regionKeysFor('list', { newSession: false })
   check(
@@ -101,11 +109,14 @@ console.log('§3 the ? atlas reads the resolver, stage- and width-honest')
 console.log('§3b the atlas reads the frame and clamps to it')
 {
   const atlasBody = screen.slice(screen.indexOf('function ConcourseKeyAtlas'))
+
   check('the atlas mounts on the frame width (termCols), never the pane cols', screen.includes('<ConcourseKeyAtlas cols={termCols}'))
+
   check('the panel height clamps to the frame (a true-height budget exists)', atlasBody.includes('const maxHeight = Math.max(7, rows - 2)'))
   check('shedding is explicit — the counted marker row', atlasBody.includes('— grow the window'))
   check('…and whole trailing sections fold, never silent row loss', atlasBody.includes('shown = shown.slice(0, -1)'))
   const markerAt = atlasBody.indexOf('— grow the window')
+
   const footerAt = atlasBody.lastIndexOf('esc close')
   check('the footer paints AFTER the marker (esc close survives every height)', markerAt !== -1 && footerAt !== -1 && markerAt < footerAt)
 }

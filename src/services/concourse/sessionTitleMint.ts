@@ -1,4 +1,3 @@
-
 import { basename, dirname } from 'node:path'
 import { closeSync, openSync, readSync } from 'node:fs'
 import { concourseDeltaPath, readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
@@ -13,6 +12,7 @@ const SWEEP_CAP = 12
 
 interface HeadFacts {
   assistantTurns: number
+
   description: string
 }
 
@@ -91,6 +91,7 @@ async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal
 
 interface TitleMintHandle {
   dispose(): void
+
   _attemptedForTesting(): ReadonlyMap<string, number>
 }
 
@@ -111,6 +112,7 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
           if (!alive) break
           const last = attempted.get(rec.sessionId)
           if (last !== undefined && Date.now() - last < RETRY_MS) continue
+
           if (!shouldMintTitle(rec, Number.POSITIVE_INFINITY)) continue
           const facts = transcriptHeadFacts(rec)
           if (!shouldMintTitle(rec, facts.assistantTurns)) continue

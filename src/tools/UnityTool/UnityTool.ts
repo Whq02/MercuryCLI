@@ -1,4 +1,3 @@
-
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
@@ -37,6 +36,7 @@ export type Output = {
 }
 
 const LOCAL_OPS = new Set(['unity_status', 'unity_bridge_install', 'unity_bridge_uninstall'])
+
 const LOCAL_MUTATES = new Set(['unity_bridge_install', 'unity_bridge_uninstall'])
 
 let pendingBridgeRun: { mode: 'EditMode' | 'PlayMode'; selection: string } | null = null
@@ -111,6 +111,7 @@ async function runOp(input: Input): Promise<string> {
   if (!client) {
     return `the Unity bridge is not available here (flag off or no Unity project from cwd) — op:"unity_status" explains`
   }
+
   let args = input.args
   if (input.op === 'tests_run' && (!args || typeof args.resultsPath !== 'string')) {
     const root = findUnityProjectRoot()
@@ -136,6 +137,7 @@ async function runOp(input: Input): Promise<string> {
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
+
   const events = client.drainEvents()
   if (events.length > 0) {
     const shown = events.slice(-8)
@@ -184,6 +186,7 @@ export const UnityTool = buildTool({
       }
     }
     const spec = unityBridgeVerb(input.op)
+
     if (!spec || spec.cls === 'read') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
@@ -197,6 +200,7 @@ export const UnityTool = buildTool({
         }`,
       }
     }
+
     return {
       behavior: 'ask' as const,
       message: `Unity mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open scene (no undo step; refuses with SCENE_DIRTY if there are unsaved changes)`,
@@ -228,6 +232,7 @@ export const UnityTool = buildTool({
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
+
   extractSearchText({ result }) {
     return result ?? ''
   },

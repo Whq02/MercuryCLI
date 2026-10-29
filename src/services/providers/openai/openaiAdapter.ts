@@ -36,7 +36,9 @@ function staticPinCatalogue(): ProviderCatalogueEntry[] {
     id: pin.id,
     displayLabel: pin.displayName,
     modelClass: 'gpt' as const,
+
     ...(pin.contextWindow !== undefined ? { contextWindow: pin.contextWindow } : {}),
+
     efforts: [],
     roles: ALL_ROLES,
   }))
@@ -53,6 +55,7 @@ function liveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: numb
       id: candidate.identity.canonicalId,
       displayLabel: candidate.displayName,
       modelClass: 'gpt',
+
       ...(candidate.live.contextWindow !== undefined
         ? { contextWindow: candidate.live.contextWindow }
         : candidate.pin && candidate.pin.contextWindow !== undefined
@@ -93,6 +96,7 @@ export function describeOpenaiProvider(): ProviderDescription {
 }
 
 export function openaiStatus(): ProviderStatus {
+
   if (!activeAccount()) return { available: false, reason: 'no-account:openai' }
   return { available: true }
 }
@@ -107,6 +111,7 @@ export function listOpenaiModels(): ProviderModel[] {
       model: entry.id,
       modelClass: 'gpt' as const,
       effort: 'high' as const,
+
       contextWindow: entry.contextWindow ?? gptDisplayPin(entry.id)?.contextWindow ?? 0,
     },
     displayLabel: entry.displayLabel,
@@ -116,6 +121,7 @@ export function listOpenaiModels(): ProviderModel[] {
 export function resolveOpenaiModel(
   modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
+
   if (modelClass !== 'gpt') return null
   if (!openaiStatus().available) return null
   const account = activeAccount()
@@ -127,11 +133,13 @@ export function resolveOpenaiModel(
     model: head.identity.canonicalId,
     modelClass: 'gpt',
     effort: 'high',
+
     contextWindow: head.live.contextWindow ?? head.pin?.contextWindow ?? 0,
   }
 }
 
 export function buildOpenaiLaunchPatch(ref: ProviderModelRef): { model: string; effort: string } {
+
   return { model: ref.model, effort: ref.effort }
 }
 

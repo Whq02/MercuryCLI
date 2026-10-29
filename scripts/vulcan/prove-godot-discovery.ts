@@ -36,6 +36,7 @@ console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'godot-disc-'))
 try {
+
   section('1. the process census — one owner, fixed argv, pure parsers')
   const MAC_APP = '/Users/sam/Downloads/Godot 2.app/Contents/MacOS/Godot'
   const MAC_PROJ = '/Users/sam/Projects/My Game'

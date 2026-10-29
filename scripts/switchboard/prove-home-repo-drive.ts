@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -36,6 +37,7 @@ if (driver.kind !== 'posix-pty') {
   console.error(`prove-home-repo-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
   process.exit(1)
 }
+
 const userSite = spawnSync(driver.python, ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' }).stdout.trim()
 
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
@@ -43,6 +45,7 @@ const COMPOSER = 'Type a prompt'
 const OFFER_TITLE = 'Start a git repository'
 const RECEIPT = 'no git offer for'
 const WARM_TICKS = 25
+
 const LEG = process.env.MERCURY_HOMEREPO_LEG ?? 'both'
 type Send = Record<string, unknown>
 const QUIT: Send[] = [

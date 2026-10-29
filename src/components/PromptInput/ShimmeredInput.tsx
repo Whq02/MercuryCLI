@@ -9,6 +9,7 @@ import { ShimmerChar } from '../Spinner/ShimmerChar.js'
 type Props = {
   text: string
   highlights: TextHighlight[]
+
   baseColor?: string
 }
 
@@ -23,6 +24,7 @@ export function HighlightedInput({
   highlights,
   baseColor,
 }: Props): React.ReactNode {
+
   const { lines, hasShimmer, sweepStart, cycleLength } = React.useMemo(() => {
     const segments = segmentTextByHighlights(text, highlights)
 

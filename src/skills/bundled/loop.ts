@@ -26,6 +26,7 @@ import {
 const DEFAULT_INTERVAL = '10m'
 
 const INTERVAL_TOKEN_RE = /^\d+\s*[smhd]$/i
+
 const EVERY_CLAUSE_RE =
   /^every\s+\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/i
 
@@ -175,6 +176,7 @@ export function loopPromptForInput(args: string): string {
   const isBareInterval = INTERVAL_TOKEN_RE.test(input) || EVERY_CLAUSE_RE.test(input)
   const dynamic = isDynamicLoopEnabled()
   if ((isEmpty || isBareInterval) && isLoopDefaultPromptEnabled()) {
+
     const cadence = cadenceForInterval(isEmpty ? DEFAULT_INTERVAL : input)!
     return defaultPromptBody(isEmpty && dynamic, cadence)
   }

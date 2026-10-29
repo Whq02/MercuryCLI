@@ -1,12 +1,14 @@
-
 export type SeatNarrowing =
   | { by: 'profile'; band: 1 | 2; profileId: string }
   | { by: 'operator'; lanes: number }
   | null
 
 export interface SeatWaitFacts {
+
   width: number
+
   holders: readonly string[]
+
   narrowing: SeatNarrowing
 }
 

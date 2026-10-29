@@ -39,11 +39,11 @@ import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
 
-
 export function PinnedCritterBerth(): React.ReactNode {
   const tok = useMercuryTokens()
   const sa = useSessionAccent()
   const rawDef = critterDefForKey(sa.key)
+
   const dockDef = React.useMemo(
     () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
     [rawDef, sa.accent, sa.accentDeep],
@@ -52,6 +52,7 @@ export function PinnedCritterBerth(): React.ReactNode {
     () => ({ ...dockDef, hue: tok.accentSoft }),
     [dockDef, tok.accentSoft],
   )
+
   return (
     <InteractiveRow
       id="berth:critter"
@@ -91,9 +92,11 @@ function MercuryHeroBody(): React.ReactNode {
 
 export function MercuryBrandRow(): React.ReactNode {
   const tok = useMercuryTokens()
+
   const { rows, columns } = useTerminalSize()
   const banner = wordmarkForm(columns, rows) === 'banner'
   return (
+
     <Box paddingX={1} marginTop={1} flexShrink={0}>
       {banner ? (
         <BigWordmark />
@@ -131,9 +134,11 @@ function useMemoryAtStartRow(): string | null {
 
 function MercuryHomeBody(): React.ReactNode {
   const tok = useMercuryTokens()
+
   const model = useDisplayedSessionModel().label
   const servedModel = useFocusedServedModel()
   const signInGate = useSessionSignInGate(servedModel ?? getEngineModel())
+
   const cwd = useCwdState()
   const dir = pathTailLabel(cwd)
   const memoryRow = useMemoryAtStartRow()
@@ -141,7 +146,9 @@ function MercuryHomeBody(): React.ReactNode {
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   const [fleet, setFleet] = useState<Snapshot<{ data: FleetData }> | null>(null)
   const [trace, setTrace] = useState<Snapshot<{ data: TraceData }> | null>(null)
+
   const [projectScopeEmpty, setProjectScopeEmpty] = useState(false)
+
   const isProjectCwd = useMemo((): boolean => {
     try {
       return findGitRoot(cwd) !== null
@@ -170,14 +177,18 @@ function MercuryHomeBody(): React.ReactNode {
 
   const substrate = substrateSnapshot()
   const daemon = daemonSnapshot()
+
   const helmHome = useContext(CockpitActiveContext)
+
   const deckPresent = isDeckPaneActive() && !helmHome
 
   const sa = useSessionAccent()
   const accent = sa.accent
+
   const { rows: termRows, columns: termCols } = useTerminalSize()
   const bigHero = wordmarkForm(termCols, termRows) === 'banner'
   const critterLabel = sa.name.charAt(0).toUpperCase() + sa.name.slice(1)
+
   const rowClick = (key: string, command: string): { id: string; directActivate: true; onActivate: () => void } => ({
     id: `home:row:${key}`,
     directActivate: true,

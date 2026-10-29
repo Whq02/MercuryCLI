@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -27,6 +28,7 @@ console.log('============================================================')
 
 section('(1) the seam ratchet — no direct parser imports in the entry consumers')
 {
+
   const RATCHETED = [
     'src/utils/permissions/permissions.ts',
     'src/utils/permissions/decision/engine.ts',
@@ -37,6 +39,7 @@ section('(1) the seam ratchet — no direct parser imports in the entry consumer
     'src/utils/permissions/shellRuleMatching.ts',
     'src/tools/BashTool/bashPermissions.ts',
     'src/tools/PowerShellTool/powershellPermissions.ts',
+
     'src/tools/BashTool/modeValidation.ts',
     'src/tools/BashTool/pathValidation.ts',
     'src/tools/BashTool/sedValidation.ts',
@@ -56,6 +59,7 @@ section('(1) the seam ratchet — no direct parser imports in the entry consumer
     const text = readFileSync(join(ROOT, rel), 'utf8')
     check(`${rel} routes through the provider`, !PARSER_IMPORT.test(text))
   }
+
   const { readdirSync } = await import('node:fs')
   for (const dir of ['src/tools/BashTool', 'src/tools/PowerShellTool']) {
     for (const entry of readdirSync(join(ROOT, dir))) {

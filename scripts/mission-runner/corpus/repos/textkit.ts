@@ -8,7 +8,6 @@ const PACKAGE_JSON = `{
 }
 `
 
-
 const WRAP_BASE = `// Greedy word wrap at a column width; a word longer than the width stands
 // alone on its own line.
 export function wrap(text, width) {
@@ -34,7 +33,6 @@ const WRAP_OFF_BY_ONE = WRAP_BASE.replace(
   '    } else if (line.length + 1 + word.length <= width) {',
   '    } else if (line.length + 1 + word.length < width) {',
 )
-
 
 const NORMALIZE_BASE = `import { RULES } from './rules/index.js'
 
@@ -62,7 +60,6 @@ const NORMALIZE_EATS_INDENT = NORMALIZE_BASE.replace(
   "  return text.replace(/(?<=\\S)[ \\t]+/g, ' ').replace(/[ \\t]+$/gm, '')",
   "  return text.replace(/[ \\t]+/g, ' ').replace(/[ \\t]+$/gm, '')",
 )
-
 
 const DIFFISH_BASE = `// Line-replacement hunks: { start, count, lines } replaces 'count' lines of
 // the BEFORE text at line 'start' (0-based) with 'lines'.
@@ -117,7 +114,6 @@ export function merge(hunks) {`,
 export function mergeHunks(hunks) {`,
 )
 
-
 const PATCH_BASE = `import { apply, compute, merge } from './diffish.js'
 import { collapseSpaces } from './normalize.js'
 
@@ -151,7 +147,6 @@ const PATCH_RENAMED = PATCH_BASE.replace(
 }`,
 )
 
-
 const MDLITE_BASE = `// Tiny inline markdown: **bold** and _italic_ only.
 export function inline(text) {
   return text
@@ -164,7 +159,6 @@ const MDLITE_GREEDY = MDLITE_BASE.replace(
   "    .replace(/\\*\\*([^*]+)\\*\\*/g, '<b>$1</b>')",
   "    .replace(/\\*\\*(.+)\\*\\*/g, '<b>$1</b>')",
 )
-
 
 const TABLE_BASE = `// render(rows, aligns): pad cells per column ('l' left, 'r' right), join
 // cells with ' | '.
@@ -197,7 +191,6 @@ const TABLE_SWAPPED = TABLE_BASE.replace(
   "          return aligns[i] === 'r' ? text.padStart(widths[i]) : text.padEnd(widths[i])",
   "          return aligns[i] === 'r' ? text.padEnd(widths[i]) : text.padStart(widths[i])",
 )
-
 
 const RULE_SPACES = `// spaces: non-breaking spaces become plain spaces.
 export const name = 'spaces'
@@ -385,7 +378,6 @@ const NORMALIZE_TYPED = NORMALIZE_BASE.replace(
   return out
 }`,
 )
-
 
 const TEST_WRAP = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -625,7 +617,6 @@ test('normalizeText rides the typed pipeline', () => {
   assert.equal(normalizeText('a -> b ... done'), 'a \\u2192 b \\u2026 done')
 })
 `
-
 
 const RULE_DASHES_REVERSED = RULE_DASHES.replace(
   "  return text.split('---').join('\\u2014').split('--').join('\\u2013')",

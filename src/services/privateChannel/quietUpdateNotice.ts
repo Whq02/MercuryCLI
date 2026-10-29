@@ -10,8 +10,11 @@ import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
+
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
+
 export const UPDATE_NOTICE_FIRST_DELAY_MS = 8_000
+
 export const UPDATE_NOTICE_CHECK_LIMIT_MS = 20_000
 export const UPDATE_NOTICE_STAY_MS = 5 * 60 * 1000
 export const UPDATE_NOTICE_KEY = 'update-available'
@@ -19,6 +22,7 @@ export const UPDATE_NOTICE_KEY = 'update-available'
 export interface UpdateNoticeCacheV1 {
   schema: 1
   checkedAtMs: number
+
   runningVersion: string
   available?: { version: string; tag: string }
   faceAnnounced?: string
@@ -165,6 +169,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
     deps.writeCache({ schema: 1, checkedAtMs, runningVersion: deps.runningVersion, ...carried })
     return 'current'
   }
+
   logForDebugging(`update notice: check unavailable (${outcome.state}) — silent`)
   return 'failed'
 }

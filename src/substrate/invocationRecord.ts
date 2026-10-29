@@ -9,6 +9,7 @@ interface InvocationCapabilityRecordV1 {
   pid: number
   recordedAtMs: number
   platform: NodeJS.Platform
+
   argv0: string
   execBasename: string
   stdinTTY: boolean
@@ -27,6 +28,7 @@ const MAX_ROWS = 10
 
 export function classifyShellHint(env: NodeJS.ProcessEnv = process.env, platform: NodeJS.Platform = process.platform): ShellHint {
   if (platform === 'win32') {
+
     if (typeof env.PSModulePath === 'string' && env.PSModulePath.length > 0) return 'powershell'
     if (typeof env.ComSpec === 'string') return 'cmd'
     return 'unknown'

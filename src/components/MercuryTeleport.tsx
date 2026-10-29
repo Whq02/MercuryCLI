@@ -4,6 +4,7 @@ import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
 export function MercuryTeleport({pct=60}:{pct?:number}){
+
   const f=Math.max(0,Math.min(14,Math.round(pct/100*14)))
   return (<Box flexDirection="column" borderStyle="round" borderColor={OASIS} paddingX={1}>
     <Text><Text color={OASIS}>{'⌗'}</Text> <Text bold color={IVORY}>teleport</Text> <Text color={FAINT}>syncing worktree{'…'}</Text></Text>

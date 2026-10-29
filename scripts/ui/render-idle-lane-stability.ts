@@ -20,6 +20,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   timeout: vshotBudgetMs(90000),
   env: {
     ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     INK_COMPOSED_TEE: composed,
     INK_YOGA_TRACE: yogaTrace,
@@ -52,7 +53,9 @@ check(laneFlips.length === 0, `center-lane ≥100-wide flips: ${laneFlips.length
 if (laneFlips.length > 0) for (const r of laneFlips.slice(0, 4)) console.log(`    ${r}`)
 
 const PLAN = railPlan(120)
+
 const SLOT = 120 - PLAN.railW * (PLAN.vitals ? 2 : 1)
+
 const commitLines = readFileSync(commits, 'utf8').trim().split('\n').map(l => JSON.parse(l))
 const badCommits = commitLines.filter(l =>
   (l.inner ?? []).some((r: string) => {

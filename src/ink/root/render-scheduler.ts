@@ -16,6 +16,7 @@ const REAL_CLOCK: SchedulerClock = {
 }
 
 const BOOT_COALESCE_MS = 100
+
 const PROBE_HOLD_STEP_MS = 16
 const PROBE_HOLD_BUDGET_MS = 64
 
@@ -33,15 +34,19 @@ export class RenderScheduler {
 
   private windowOpenedAt = -Infinity
   private trailingTimer: ReturnType<typeof setTimeout> | null = null
+
   private readonly bootUntil: number
   private bootTimer: ReturnType<typeof setTimeout> | null = null
+
   private drainTimer: ReturnType<typeof setTimeout> | null = null
+
   private settleHeld = false
   private pendingWhileHeld = false
 
   constructor(
     paint: () => void,
     clock: SchedulerClock = REAL_CLOCK,
+
     private readonly probeHold?: () => boolean,
   ) {
     this.clock = clock
@@ -66,6 +71,7 @@ export class RenderScheduler {
   }
 
   private invoke = (): void => {
+
     if (
       !this.everInvoked &&
       this.probeHold?.() &&
@@ -80,6 +86,7 @@ export class RenderScheduler {
       }
       return
     }
+
     const engine = this.engine()
     if (engine?.choked() && this.chokeTimer === null) {
       engine.noteDeferral('choke')
@@ -141,11 +148,13 @@ export class RenderScheduler {
       }
       return
     }
+
     const engine = this.engine()
     const inputPriority = engine?.consumeInputPriority() ?? false
     if (this.queuedPaint !== null) return
     const windowMs = this.windowMs(inputPriority)
     if (now - this.windowOpenedAt >= windowMs) {
+
       if (this.trailingTimer !== null) {
         this.clock.clearTimeout(this.trailingTimer)
         this.trailingTimer = null
@@ -156,6 +165,7 @@ export class RenderScheduler {
     if (engine !== null && !inputPriority && windowMs > FRAME_INTERVAL_MS) {
       engine.noteDeferral('floor')
     }
+
     const dueAt = this.windowOpenedAt + windowMs
     if (this.trailingTimer !== null && inputPriority) {
       this.clock.clearTimeout(this.trailingTimer)

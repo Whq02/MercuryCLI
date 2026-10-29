@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -121,6 +122,7 @@ function script(path: string, body: Body): string {
     const last = messages.at(-1)
     return last?.role === 'user' && JSON.stringify(last?.content ?? '').includes('tool_result')
   })()
+
   if (!isParentBody(body, path)) {
     if (raw.includes('SUBTASK-SLOW')) {
       if (answered) return isResponses ? responsesFinal('sub-slow-done') : anthropicFinal('sub-slow-done')
@@ -128,6 +130,7 @@ function script(path: string, body: Body): string {
     }
     return isResponses ? responsesFinal('sub-probe-done') : anthropicFinal('sub-probe-done')
   }
+
   if (answered) return isResponses ? responsesFinal('parent-settled') : anthropicFinal('parent-settled')
   let best: { at: number; m: 'T1 ' | 'T2 ' | 'T3 ' } | null = null
   for (const m of ['T1 ', 'T2 ', 'T3 '] as const) {
@@ -330,16 +333,19 @@ check("sub B's result returned into the parent's follow-up round", parentT2.some
 
 section('BG · a background subagent in flight across an applied switch keeps its spawn model')
 {
+
   slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: null }
   const bgHistory: Message[] = [createUserMessage({ content: 'T3 spawn the slow background probe' }) as Message]
   const t3 = await driveTurn(bgHistory, slice.engineModel!, undefined)
   const launched = t3.threw === undefined && t3.terminal.reason === 'completed'
   check('the background-launch turn settled while the sub still runs', launched, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)}`)
   if (launched) {
+
     const idle = settleModelSelection(slice, 'gpt-5.6-sol', { turnActive: false })
     const appliedAt = Date.now()
     check('the idle pick applied during the sub flight', idle.kind === 'applied')
     if (idle.kind === 'applied') slice = { ...slice, ...idle.patch } as Slice
+
     const deadline = Date.now() + 12_000
     let late: Captured[] = []
     while (Date.now() < deadline) {

@@ -1,4 +1,3 @@
-
 import {
   useCallback,
   useDeferredValue,
@@ -25,7 +24,9 @@ function pinTrace(entry: Record<string, unknown>): void {
 const UNMEASURED_ESTIMATE_ROWS = 3
 const OVERSCAN_ROWS = 80
 const COLD_START_COUNT = 30
+
 const SCROLL_BIN_ROWS = OVERSCAN_ROWS / 2
+
 const PESSIMISTIC_ROWS = 1
 
 export function scaleHeightForWidth(height: number, ratio: number): number {
@@ -36,6 +37,7 @@ const MAX_MOUNTED_ITEMS = 300
 const SLIDE_BUDGET_MS = 8
 const SLIDE_MIN_ITEMS = 8
 const SLIDE_MAX_ITEMS = 60
+
 const INITIAL_MS_PER_ITEM = SLIDE_BUDGET_MS / 25
 const MOUNT_COST_SAMPLE_MIN = 3
 const MOUNT_COST_CLAMP_MIN_MS = 0.02
@@ -48,6 +50,7 @@ type VirtualScrollResult = {
   bottomSpacer: number
   measureRef: (key: string) => (el: DOMElement | null) => void
   spacerRef: (el: DOMElement | null) => void
+
   offsets: ArrayLike<number>
   getItemTop: (index: number) => number
   getItemElement: (index: number) => DOMElement | null
@@ -88,7 +91,9 @@ export function useVirtualScroll(
   const freezeRendersRef = useRef(0)
   const prevScrollAtCommitRef = useRef(0)
   const msPerItemEmaRef = useRef(INITIAL_MS_PER_ITEM)
+
   const contentPinRef = useRef<ContentPin | null>(null)
+
   const lastWrittenTopRef = useRef<number | null>(null)
   const keyIndexRef = useRef<{ keys: readonly string[] | null; map: Map<string, number>; indexed: number }>({
     keys: null,
@@ -96,8 +101,10 @@ export function useVirtualScroll(
     indexed: 0,
   })
   const minChangedIndexRef = useRef(Number.POSITIVE_INFINITY)
+
   const reflowHoldRef = useRef(false)
   const outOfLayoutRef = useRef(false)
+
   const laidOutRef = useRef(false)
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
@@ -109,6 +116,7 @@ export function useVirtualScroll(
       ki.keys = keys
       ki.indexed = keys.length
     } else if (ki.indexed < keys.length) {
+
       for (let i = ki.indexed; i < keys.length; i++) ki.map.set(keys[i]!, i)
       ki.indexed = keys.length
     }
@@ -123,6 +131,7 @@ export function useVirtualScroll(
       cache.set(key, scaleHeightForWidth(height, ratio))
     }
     offsetsVersionRef.current += 1
+
     measurementSkipRef.current = true
     freezeRendersRef.current = 2
     reflowHoldRef.current = true
@@ -203,6 +212,7 @@ export function useVirtualScroll(
   const viewportHeight = box?.getViewportHeight() ?? 0
   let scrollTop = box?.getScrollTop() ?? NaN
   const pendingDelta = box?.getPendingDelta() ?? 0
+
   const sticky = box ? box.isSticky() : true
 
   if (
@@ -220,19 +230,23 @@ export function useVirtualScroll(
       committedTop !== lastWrittenTopRef.current &&
       !reflowHoldRef.current
     ) {
+
       pinTrace({ act: 'cancel', committed: committedTop, lastWritten: lastWrittenTopRef.current, pin: contentPinRef.current, origin })
       contentPinRef.current = null
       lastWrittenTopRef.current = null
     }
     if (sticky) {
+
       contentPinRef.current = null
       lastWrittenTopRef.current = null
     } else {
       {
         const pin = contentPinRef.current
         if (!pin && committedTop - origin > offs[itemCount]!) {
+
           lastWrittenTopRef.current = committedTop
         } else if (!pin) {
+
           const pos = Math.max(0, Math.min(committedTop - origin, offs[itemCount]!))
           let lo = 0
           let hi = itemCount
@@ -277,12 +291,15 @@ export function useVirtualScroll(
   let end: number
   const frozen = freezeRendersRef.current > 0
   const prevRange = prevRangeRef.current
+
   let movedDown = false
 
   if (frozen && prevRange) {
+
     start = Math.min(prevRange[0], itemCount)
     end = Math.min(prevRange[1], itemCount)
   } else if (viewportHeight <= 0 || Number.isNaN(scrollTop)) {
+
     start = Math.max(0, itemCount - COLD_START_COUNT)
     end = itemCount
   } else if (sticky) {
@@ -293,6 +310,7 @@ export function useVirtualScroll(
       start--
       accumulated += bestKnownHeight(start)
     }
+
     let coverage = 0
     for (let i = start; i < end; i++) coverage += realHeight(i)
     while (
@@ -310,8 +328,10 @@ export function useVirtualScroll(
     const target = scrollTop + pendingDelta
     let low = Math.min(committed, target)
     let high = Math.max(committed, target)
+
     const maxSpan = 3 * viewportHeight
     if (high - low > maxSpan) high = low + maxSpan
+
     low -= origin
     high -= origin
     if (low < 0) low = 0
@@ -381,6 +401,7 @@ export function useVirtualScroll(
         const cappedStart = Math.max(start, prevRange[0] - slide)
         let cappedEnd = Math.min(end, prevRange[1] + slide)
         if (cappedEnd <= cappedStart) {
+
           cappedEnd = Math.min(itemCount, cappedStart + slide)
         }
         start = cappedStart
@@ -399,6 +420,7 @@ export function useVirtualScroll(
   const deferredRange = useDeferredValue(immediateRange)
   let effectiveStart = Math.max(immediateRange[0], deferredRange[0])
   let effectiveEnd = Math.min(immediateRange[1], deferredRange[1])
+
   const inverted = effectiveStart > effectiveEnd
   if (inverted || sticky) {
     effectiveStart = immediateRange[0]
@@ -447,12 +469,14 @@ export function useVirtualScroll(
     const handle = scrollRef.current
     if (!handle) return
     if (sticky) {
+
       handle.setClampBounds(undefined, undefined)
       return
     }
     const origin = listOriginRef.current
     const min = effectiveStart === 0 ? 0 : topSpacer + origin
     if (effectiveEnd >= itemCount) {
+
       handle.setClampBounds(min, undefined)
       return
     }
@@ -463,22 +487,26 @@ export function useVirtualScroll(
   })
 
   useLayoutEffect(() => {
+
     const spacer = spacerElementRef.current
     if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
       listOriginRef.current = spacer.layoutNode.getComputedTop()
       laidOutRef.current = true
       if (outOfLayoutRef.current) {
+
         outOfLayoutRef.current = false
         reflowHoldRef.current = true
         forceResolve()
       }
     } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
+
       outOfLayoutRef.current = true
       reflowHoldRef.current = true
     }
     if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
     if (measurementSkipRef.current) {
       measurementSkipRef.current = false
+
       if (reflowHoldRef.current) forceResolve()
       return
     }
@@ -496,6 +524,7 @@ export function useVirtualScroll(
           minChangedIndexRef.current = Math.min(minChangedIndexRef.current, idx ?? 0)
         }
       } else if (width > 0) {
+
         if (cache.get(key) !== 0) {
           cache.set(key, 0)
           offsetsVersionRef.current += 1
@@ -504,6 +533,7 @@ export function useVirtualScroll(
         }
       }
     }
+
     if (offsetsVersionRef.current !== offsetsBuiltVersionRef.current) {
       const changedFrom = minChangedIndexRef.current
       if (contentPinRef.current && Number.isFinite(changedFrom)) {
@@ -516,9 +546,11 @@ export function useVirtualScroll(
       if (freezeRendersRef.current > 0) {
         forceResolve()
       } else if (offsetsVersionRef.current !== offsetsBuiltVersionRef.current) {
+
         forceResolve()
       } else if (outOfLayoutRef.current) {
       } else {
+
         reflowHoldRef.current = false
       }
     }
@@ -533,6 +565,7 @@ export function useVirtualScroll(
             elementsRef.current.set(key, el)
             return
           }
+
           const previous = elementsRef.current.get(key)
           if (previous?.layoutNode && !measurementSkipRef.current) {
             const height = previous.layoutNode.getComputedHeight()
@@ -592,6 +625,7 @@ export function useVirtualScroll(
 
   const scrollToIndex = useCallback(
     (index: number): void => {
+
       const handle = scrollRef.current
       if (!handle) return
       const keys = prevItemKeysRef.current

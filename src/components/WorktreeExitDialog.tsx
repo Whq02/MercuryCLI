@@ -1,4 +1,3 @@
-
 import { GLYPH } from './mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
@@ -31,6 +30,7 @@ type Phase =
   | { kind: 'done' }
 
 async function recordWorktreeExit(): Promise<void> {
+
   const { saveWorktreeState } = await import('../utils/sessionStorage/logs.js')
   saveWorktreeState(null)
 }
@@ -159,6 +159,7 @@ export function WorktreeExitDialog({
       if (!alive) return
       statusRef.current = { changedFiles, commits: commits ?? 0 }
       if (status.code === 0 && changedFiles === 0 && commits === 0) {
+
         setPhase({ kind: 'removing' })
         try {
           await cleanupWorktree()
@@ -180,6 +181,7 @@ export function WorktreeExitDialog({
 
   const session = sessionRef.current
   if (!session) {
+
     if (!reportedRef.current) {
       reportedRef.current = true
       onDone('No worktree session to exit.', { displayMode: 'system' })

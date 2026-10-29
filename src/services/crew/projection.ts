@@ -1,4 +1,3 @@
-
 import { useSyncExternalStore } from 'react'
 import { subscribeRoomStatusFeed } from '../../services/attention/statusFeed.js'
 import { cachedAttentionView, subscribeAttentionView } from '../../services/attention/viewModel.js'
@@ -50,30 +49,38 @@ export type CrewLifecycle = (typeof LIFECYCLE_STATES)[number]
 export interface CrewMemberV1 {
   agentId: CrewAgentId
   displayName: string
+
   label: string
   visualToken: string
+
   presence: { state: CrewPresence; source: string; observedAt: number }
+
   lifecycle?: { state: CrewLifecycle; source: string }
+
   focus?: { label: string; source: string; ref?: string }
   roles: AgentRoleLinkV1[]
+
   sessions: AgentSessionV1[]
   worktreeRef?: string
   latestActivity?: { label: string; atMs: number; source: string }
+
   refs: string[]
 }
 
 export interface CrewSnapshotV1 {
   v: 1
+
   version: number
   refreshedAt: number
   members: CrewMemberV1[]
+
   sources: {
     identity: SourceHealth
     workbench: SourceHealth
   }
+
   attention?: AttentionViewV1
 }
-
 
 const THREAD_LIFECYCLE: Partial<Record<string, CrewLifecycle>> = {
   running: 'working',
@@ -85,7 +92,6 @@ const THREAD_LIFECYCLE: Partial<Record<string, CrewLifecycle>> = {
   failed: 'failed',
   killed: 'failed',
 }
-
 
 interface CrewSources {
   identity: SourceState<AgentIdentityV1[]>
@@ -110,6 +116,7 @@ type SourceName = 'identity' | 'workbench'
 
 const STICKY_FAULT_LIMIT = 1
 const sourceFaults: Record<SourceName, number> = { identity: 0, workbench: 0 }
+
 const lastReady: { identity?: SourceState<AgentIdentityV1[]>; workbench?: SourceState<WorkbenchSnapshot> } = {}
 const injectedFaults: Record<SourceName, number> = { identity: 0, workbench: 0 }
 
@@ -143,6 +150,7 @@ async function gatherSources(): Promise<CrewSources> {
   } catch (e) {
     identity = keepLastObservation('identity', lastReady.identity, `identity store unreadable: ${String(e).slice(0, 80)}`)
   }
+
   let workbench: SourceState<WorkbenchSnapshot>
   try {
     if (takeInjectedFault('workbench')) throw new Error('injected workbench fault')
@@ -198,6 +206,7 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
     const adapterBinding = bindings.find(b => b.bindingKind === 'adapter')
 
     if (isMain) {
+
       member.presence = { state: 'online', source: 'session', observedAt: Date.now() }
       const root = wb?.root
       if (root) {
@@ -206,6 +215,7 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
         else if (mapped) member.lifecycle = { state: mapped, source: 'workbench:root.state' }
         if (root.title) member.focus = { label: root.title, source: 'workbench:root', ref: root.refs[0] }
         if (root.worktreePath) member.worktreeRef = root.worktreePath
+
         const previous = snapshot?.members.find(p => p.agentId === member.agentId)?.latestActivity
         const unchanged = previous !== undefined && previous.source === 'workbench:root' && previous.label === root.phase
         member.latestActivity = {
@@ -215,6 +225,7 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
         }
       }
     } else if (seatBinding) {
+
       member.presence = { state: 'offline', source: 'seat:retired', observedAt: Date.now() }
     } else if (subagentBinding) {
       const row = threadsByAgent.get(subagentBinding.bindingId)
@@ -231,6 +242,7 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
         member.presence = { state: 'offline', source: 'workbench:no-live-thread', observedAt: Date.now() }
       }
     } else if (adapterBinding) {
+
       member.presence = { state: 'unknown', source: `adapter:${adapterBinding.adapterKind ?? 'external'}:unobserved`, observedAt: Date.now() }
     }
 
@@ -265,6 +277,7 @@ function crewSig(s: CrewSnapshotV1): string {
       m.worktreeRef ?? '',
       m.latestActivity?.label ?? '',
       m.latestActivity?.atMs ?? 0,
+
       m.roles.length,
       m.roles.filter(r => r.activeUntil === undefined).length,
       m.sessions.length,
@@ -295,6 +308,7 @@ function armEngine(): void {
   coalescer = serialCoalescer(refresh, 'crew-projection')
   const poke = (): void => coalescer?.poke()
   unsubs = [
+
     subscribeCrewIdentity(poke),
     subscribeWorkbench(poke),
     subscribeAttentionView(poke),
@@ -356,7 +370,6 @@ export function _resetCrewProjectionForTesting(): void {
   listeners.clear()
   snapshot = null
 }
-
 
 export async function __continuityLawsForProof(): Promise<{
   sameAgentIdEverySurface: boolean

@@ -1,4 +1,3 @@
-
 export type ProviderFamilyId =
   | 'anthropic'
   | 'openai'
@@ -51,7 +50,6 @@ export type ProviderModelClass =
   | 'qwen'
 export type ProviderEffortLevel = 'high' | 'xhigh' | 'max'
 
-
 export type ProviderTransport =
   | 'anthropic-messages'
   | 'openai-responses'
@@ -99,6 +97,7 @@ export interface ProviderCatalogueEntry {
   displayLabel: string
   modelClass: ProviderModelClass
   contextWindow?: number
+
   efforts: readonly string[]
   roles: readonly SpecialistRole[]
 }
@@ -106,18 +105,22 @@ export interface ProviderCatalogueEntry {
 export interface ProviderDescription {
   transport: ProviderTransport
   capabilities: readonly ProviderCapabilityKey[]
+
   roles: readonly SpecialistRole[]
   account: ProviderAccountView
   catalogue: readonly ProviderCatalogueEntry[]
+
   catalogueSource: 'static-pin' | 'live-discovery'
   discoveredAtMs?: number
 }
 
 export interface ProviderModelRef {
   provider: ProviderFamilyId
+
   model: string
   modelClass: ProviderModelClass
   effort: ProviderEffortLevel
+
   contextWindow: number
 }
 
@@ -133,10 +136,16 @@ export interface ProviderStatus {
 
 export interface ProviderAdapter {
   id: ProviderFamilyId
+
   transport: ProviderTransport
+
   status(): ProviderStatus
+
   describe(): ProviderDescription
+
   listModels(): ProviderModel[]
+
   resolveModel(modelClass: ProviderModelClass): ProviderModelRef | null
+
   buildLaunchPatch(ref: ProviderModelRef): { model: string; effort: string }
 }

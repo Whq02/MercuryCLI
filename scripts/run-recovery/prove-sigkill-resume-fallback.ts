@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import {
   existsSync,
@@ -127,6 +128,7 @@ function isConversationLine(line: string): boolean {
       payload?: { kind?: string }
     }
     if (o.type === 'user' || o.type === 'assistant') return true
+
     return (
       typeof o.schemaVersion === 'number' &&
       (o.payload?.kind === 'input' || o.payload?.kind === 'output')
@@ -230,6 +232,7 @@ console.log('\n-- leg 0: the source pin — the pump flushes before an outcome r
 }
 
 console.log('\n-- leg A: kill at marker — the transcript is ahead of the print --')
+
 {
   const w = await killRun('A', 'a3e70000-0000-4000-8000-0000000000b1')
   const records = jsonlConversationRecords(w.arena, w.sid)
@@ -239,6 +242,7 @@ console.log('\n-- leg A: kill at marker — the transcript is ahead of the print
 }
 
 console.log('\n-- leg A2: the metadata-only-jsonl world, pinned deterministically --')
+
 {
   const sid = 'a3e70000-0000-4000-8000-0000000000b2'
   const fixture = await startFixtureApi([

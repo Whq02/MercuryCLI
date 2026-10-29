@@ -20,7 +20,6 @@ import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from '
 import { declaredRouteOf } from './providers/routeLaw.js'
 import { withTokenCountVCR } from './vcr.js'
 
-
 const THINKING_BUDGET_TOKENS = 1024
 const PLACEHOLDER_MESSAGES = [{ role: 'user' as const, content: 'hi' }]
 export const COUNT_RETRY_BUDGET_MS = 15_000
@@ -154,7 +153,6 @@ export async function countTokensWithAPI(content: string): Promise<number | null
   return countMessagesTokensWithAPI([message], [])
 }
 
-
 type LooseBlock = Record<string, unknown>
 
 function stripToolSearchFields(
@@ -211,6 +209,7 @@ export async function countTokensViaHaikuFallback(
   )
   const usage = (response as unknown as { usage?: Record<string, number | undefined> }).usage
   if (!usage || typeof usage.input_tokens !== 'number') return null
+
   try {
     const [{ addToTotalSessionCost }, { calculateUSDCost }, { EMPTY_USAGE }] = await Promise.all([
       import('../cost-tracker.js'),
@@ -234,7 +233,6 @@ export async function countTokensViaHaikuFallback(
     (usage.cache_read_input_tokens ?? 0)
   )
 }
-
 
 const DEFAULT_BYTES_PER_TOKEN = 4
 const MEDIA_BLOCK_TOKENS = 2000

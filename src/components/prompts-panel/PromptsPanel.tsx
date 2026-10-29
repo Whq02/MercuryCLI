@@ -37,7 +37,6 @@ import {
   type PromptRow,
 } from './rows.js'
 
-
 type SavedRow = { kind: 'saved'; key: string; n: number; draft: SavedPromptV1 }
 type Row = PromptRow | CrewTrafficRow | SavedRow
 
@@ -64,10 +63,12 @@ function processStartedAtIso(): string {
 export function PromptsPanel({
   onClose,
 }: {
+
   onClose: (nextInput?: string) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const connector = useSessionConnector()
+
   const subscribeRecords = useCallback((cb: () => void) => connector.subscribeRecords(cb), [connector])
   const readRecords = useCallback(() => connector.records(), [connector])
   const records = useSyncExternalStore(subscribeRecords, readRecords, readRecords)
@@ -80,6 +81,7 @@ export function PromptsPanel({
     useCallback(() => getSavedPromptsSnapshot(project), [project]),
     useCallback(() => getSavedPromptsSnapshot(project), [project]),
   )
+
   const problem = useSyncExternalStore(
     useCallback((cb: () => void) => subscribeSavedPrompts(project, cb), [project]),
     useCallback(() => getSavedPromptsProblem(project), [project]),
@@ -204,6 +206,7 @@ export function PromptsPanel({
         key: 'time',
         header: 'time',
         width: 6,
+
         cell: row => <Text color={tokens.textMuted}>{row.kind === 'prompt' ? (row.queued ? 'queued' : clockOf(row.at)) : ''}</Text>,
       },
       {
@@ -302,6 +305,7 @@ export function PromptsPanel({
         },
       },
       {
+
         key: 'c',
         label: 'clear',
         when: row => row.kind === 'saved',
@@ -323,6 +327,7 @@ export function PromptsPanel({
 
   useInput(
     (input, key) => {
+
       if (key.ctrl || key.meta) return
       if (input === 'a') openAdd()
     },
@@ -522,10 +527,12 @@ export function PromptsPanel({
       composerSlot={{
         active: editor !== null,
         node: composerNode,
+
         onInput: (_input, key) => {
           if (editor?.kind === 'confirm-clear' && key.return) confirmClear()
         },
         onEscape: () => setEditor(null),
+
         rows:
           editor?.kind === 'confirm-clear'
             ? 1

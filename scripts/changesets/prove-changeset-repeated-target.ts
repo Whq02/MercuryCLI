@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -45,6 +46,7 @@ const { runTextChangeSetCommit, commitPlanDigest } = await import(
 const { sha256Hex } = await import('../../src/services/changeTransaction/changeSetPlan.ts')
 
 section('§1 the commit core refuses a repeated target by name — never a wedge')
+
 {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'repeated-target-files-')))
   const file = path.join(dir, 'a.ts')
@@ -105,7 +107,9 @@ section('§1 the commit core refuses a repeated target by name — never a wedge
 }
 
 section('§2 the LSP apply folds two spellings of one document into one target')
+
 {
+
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
@@ -114,6 +118,7 @@ section('§2 the LSP apply folds two spellings of one document into one target')
   const target = path.join(dir, 'target.ts')
   writeFileSync(target, 'const abc = 1\nconst def = abc\n')
   const plain = pathToFileURL(target).href
+
   const encoded = plain.replace(/target\.ts$/, 't%61rget.ts')
   check('the fixture really spells one file two ways', encoded !== plain && encoded.endsWith('t%61rget.ts'))
   const line0 = { range: { start: { line: 0, character: 6 }, end: { line: 0, character: 9 } }, newText: 'xyz' }
@@ -133,6 +138,7 @@ section('§2 the LSP apply folds two spellings of one document into one target')
     getServerForFile: () => undefined,
     getDocumentVersion: () => undefined,
     sendRequest: async (_file: string, method: string) => {
+
       if (method === 'textDocument/rename') return { changes: { [plain]: [line0], [encoded]: [line1, line0] } }
       return undefined
     },

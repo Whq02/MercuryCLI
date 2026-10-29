@@ -23,10 +23,12 @@ function section(title: string): void {
 const frame = readFileSync(join(ROOT, 'src', 'components', 'MercuryFrame.tsx'), 'utf8')
 
 section('§1 the badge is the ruled shape on the one strip')
+
 check(
   'the badge speaks the ruled grammar through the ONE count owner ({FLAG_ICON} needsYouCount(N))',
   frame.includes('{FLAG_ICON} {needsYouCount(attentionView.needsYou)}'),
 )
+
 {
   const { needsYouCount } = await import('../../src/utils/needsYouCount.js')
   check('needsYouCount(1) = "1 needs you"', needsYouCount(1) === '1 needs you', needsYouCount(1))
@@ -49,6 +51,7 @@ check(
 )
 
 section('§2 the advertised chord is the resolver’s own display')
+
 check(
   "the advert rides useShortcutDisplay('app:openSurfaceSwitcher', 'Global', …)",
   /useShortcutDisplay\('app:openSurfaceSwitcher',\s*'Global'/.test(frame),
@@ -72,6 +75,7 @@ check(
 )
 
 section('§3 the advertised action is real and reaches the board')
+
 check(
   'app:openSurfaceSwitcher exists in the action graph (the atlas row)',
   'app:openSurfaceSwitcher' in ACTION_GRAPH,

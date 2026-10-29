@@ -22,6 +22,7 @@ if (!existsSync(BIN)) {
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-profile-card-'))
 const home = join(scratch, 'home')
+
 const FIXTURE_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-fixture-profile-card'
 spawnSync(process.execPath, ['run', join(REPO, 'scripts', 'lib', 'firstRunSeed.ts'), home, REPO], {
   cwd: REPO,
@@ -50,6 +51,7 @@ function capture(
   }
   const cfgPath = join(scratch, `${name}.cfg.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
+
   const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {
     cwd: REPO,
     env: {
@@ -59,6 +61,7 @@ function capture(
       ANTHROPIC_API_KEY: FIXTURE_KEY,
       MERCURY_BOOT_PREFLIGHT: '0',
       MERCURY_LIVE_GLYPHS: '0',
+
       MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     },
@@ -94,6 +97,7 @@ t.section('leg 1 — TERM=dumb boots the requirement card, not the cockpit')
     'choices',
   )
   t.check('the card wears the setup frame (step rail present)', r.text.includes('terminal · 1/1'), 'stepTag')
+
   const rows = r.text.split('\n')
   const rowOf = (needle: string): number => rows.findIndex(row => row.includes(needle))
   t.check(
@@ -105,6 +109,7 @@ t.section('leg 1 — TERM=dumb boots the requirement card, not the cockpit')
 
 t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 {
+
   const r = capture('exit', 'dumb', {
     sends: [
       { atTick: 40, requireAwait: true, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
@@ -120,7 +125,9 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 
 t.section('leg 3 — CONTROL: a capable TERM boots straight to the composer')
 {
+
   const r = capture('control', 'xterm-256color', {
+
     sends: [{ atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' }],
     readyText: ['❯', '? for shortcuts'],
     readySettleTicks: 3,

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,6 +15,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCase()
 const CREAM = norm(EYE_BG)
+
 const PUPIL_HEX = norm(cellColor(CRITTERS[0]!, 'K'))
 
 type GridCell = { c: string; fg: string; bg: string }
@@ -30,8 +32,10 @@ function capture(tag: string, sends: Array<{ atTick: number; data: string }>, to
     env: {
       ...process.env,
       MERCURY_AWAY_SUMMARY: '0',
+
       MERCURY_CRITTER_GAZE: '1',
       MERCURY_CRITTER_IDLE: '1',
+
       MERCURY_CRITTER: 'crab',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
@@ -83,6 +87,7 @@ console.log(' critter gaze — live binary, synthetic SGR motion')
 console.log('============================================================')
 
 try {
+
   const neutral = captureWithRetry('neutral', [])
   t('neutral: ≥2 eye clusters found', neutral.eyes.length >= 2, `${neutral.eyes.length}`)
   const neutralCentered = neutral.eyes.every(

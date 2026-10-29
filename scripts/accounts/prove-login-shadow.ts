@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import {
   isEnvShadowedAuthSource,
@@ -43,6 +44,7 @@ t(
     auth.includes('loginShadowWarningFor(getAuthTokenSource().source)'),
 )
 for (const file of [
+
   'src/commands/login/login.tsx',
   'src/components/mercury-ui/screens/anthropicLoginModel.ts',
 ] as const) {
@@ -55,6 +57,7 @@ t(
   (cli.match(/loginShadowWarning\(\)/g) ?? []).length === 2,
 )
 {
+
   const flow = readFileSync('src/components/mercury-ui/screens/anthropicLoginModel.ts', 'utf8')
   const earlyReturn = flow.indexOf('arm(() => options.onDone(), TOKEN_FINISH_MS)')
   const shadowRead = flow.indexOf('shadowWarning = deps.shadowWarning()')

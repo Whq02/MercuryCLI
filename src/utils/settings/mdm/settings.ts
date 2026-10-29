@@ -20,7 +20,6 @@ import { recordMdmProbeOutcome } from './probeMemo.js'
 
 export { mdmBootAwaitsRawRead } from './probeMemo.js'
 
-
 export type MdmTierResult = { settings: SettingsJson; errors: ValidationError[] }
 
 const EMPTY_TIER: MdmTierResult = Object.freeze({
@@ -128,10 +127,12 @@ function startMdmSettingsLoad(): void {
     const { mdm, hkcu } = parseTiers(raw)
     mdmCache = mdm
     hkcuCache = hkcu
+
     recordMdmProbeOutcome(raw)
     const durationMs = Date.now() - startedAt
     logForDebugging(`MDM settings load completed in ${durationMs}ms`)
     if (Object.keys(mdm.settings).length > 0) {
+
       logForDebugging(`MDM policy keys: ${Object.keys(mdm.settings).join(', ')}`)
       try {
         logForDiagnosticsNoPII('info', 'mdm_settings_loaded', {

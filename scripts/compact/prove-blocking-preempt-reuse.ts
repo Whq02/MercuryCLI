@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -105,6 +106,7 @@ section('R3 · the wiring reads the carried count first (source pins)')
     auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed') && auto.includes('shouldAutoCompact([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model, querySource, snipTokensFreed, raw => {'),
   )
   const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
+
   check(
     'the blocking preempt reuses the carried count, recounts only as fallback, and credits the prune receipt of this iteration against either (never below zero)',
     /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*Math\.max\(\s*0,\s*\(measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.engineModel\)\) -\s*prunedTokensFreed,\s*\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),

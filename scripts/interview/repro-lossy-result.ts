@@ -27,6 +27,7 @@ const mkResult = (answer: string) => ({
 
 t.section('§1 — distinct selections stay distinguishable on the wire (the PRODUCTION shape)')
 {
+
   const { encodeAnswerValue } = await import('../../src/services/interview/controller.ts')
   const q = {
     id: 'iq_features',
@@ -72,6 +73,7 @@ t.section('§2 — the output contract carries a typed outcome')
 
 t.section('§3 — the decision record is consumed by planning (the IN-14 gap)')
 {
+
   const { existsSync } = await import('node:fs')
   t.check(
     'a planning consumer of the decision record exists',

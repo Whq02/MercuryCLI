@@ -121,6 +121,7 @@ t.section('§4 — GENERIC SECTIONS (whatever the certificate carries appears)')
   }
   const placed = composeHealth(120, 40, { view: 'list', cert: foreign }).join('\n')
   t.check('an unseen section title renders with its rows (nothing here knows the roster)', placed.includes('UNITY & BLENDER') && placed.includes('Unity bridge'))
+
   const rosterTokens = ['RUNTIME', 'PROVIDERS', "'runtime'", "'providers'", 'agent-definitions', 'env-limits', 'version-locks']
   const hits = rosterTokens.filter(tok => screenSrc.includes(tok))
   t.check('POISON absent: the screen source names no section roster', hits.length === 0, hits.join(','))
@@ -181,6 +182,7 @@ t.section('§6 — THE STILLS (byte-compare against the written fixtures)')
 
 t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
 {
+
   process.env['MERCURY_CONFIG_DIR'] = (await import('node:fs')).mkdtempSync(
     join((await import('node:os')).tmpdir(), 'face-doors-prove-'),
   )
@@ -192,6 +194,7 @@ t.section('§7 — THE REAL MOUNT (staticRender with an injected certificate)')
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
   const { BootHealthScreen } = await import('../../src/components/BootHealthScreen.js')
+
   const frame = await renderToString(
     React.createElement(BootHealthScreen, { certificate: FIXED_CERT, fullScene: { columns: 120, rows: 40 } } as never),
     120,
@@ -257,17 +260,23 @@ t.section('§9 — THE RESUME MOUNT (staticRender with an injected model; the la
 t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; the armed road survives for Continue alone)')
 {
   const face = read('src/components/BootSplashScreen.tsx')
+
   const healthCase = face.slice(face.indexOf("case 'health':"), face.indexOf("case 'concourse':"))
   t.check("the Health row opens the face's health layer and arms NOTHING", healthCase.includes('setHealthOpen(true)') && !healthCase.includes('armRootCommand') && !healthCase.includes('enterRootChat'), healthCase.slice(0, 120))
+
   const resumeCase = face.slice(face.indexOf("case 'sessions':"), face.indexOf('}\n    return null;'))
   t.check("the Sessions · Projects row opens the face's picker layer and arms NOTHING", resumeCase.includes('setResumeOpen(true)') && !resumeCase.includes('armRootCommand') && !resumeCase.includes('enterRootChat'), resumeCase.slice(0, 120))
+
   t.check('the health layer mounts with the esc-home wiring', face.includes('<BootHealthScreen') && face.includes('onClose={() => setHealthOpen(false)}'))
   t.check('the resume layer mounts with the esc-home wiring', face.includes('<BootResumeScreen') && face.includes('onClose={() => setResumeOpen(false)}'))
+
   t.check('the face list parks while a layer owns the screen', face.includes('!settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
+
   t.check('the armed bridge entry is GONE from the face', !face.includes('armedRootCommand'))
   t.check('the arming helper is GONE from the face', !face.includes('armRootCommand') && !face.includes('initialMessage'))
   t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))
   t.check('a project resume returns its refusal before entering chat', /const outcome = await hop\.focusResumedSession\(p\.sessionId,[^\n]+\n\s*if \(!outcome\.ok\) return outcome\.reason;/.test(face))
+
   const route = read('src/context/surfaceRoute.ts')
   t.check('the route owner carries NO armed exception (enterRootChat refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootChat(): ChatEntry {'))
   const launcher = read('src/chatLauncher.tsx')
@@ -335,8 +344,11 @@ t.section('§12 — THE SPLASH ROAD (C5, Way A): the face-door deep-link outrank
   process.env['MERCURY_FULLSCREEN'] = '1'
 
   const face = read('src/components/BootSplashScreen.tsx')
+
   t.check('the face consumes the face door ONCE at mount and seeds the layers from it', face.includes('useState(() => consumeFaceDoorDeepLink())') && face.includes("useState(faceDoor === 'health')") && face.includes("useState(faceDoor === 'resume')") && face.includes("useState(faceDoor === 'agents')"))
+
   const handoverSrc = read('src/substrate/splashHandover.ts')
+
   t.check('the receipt vocabulary is the adjudicated closed set (saturn · logins · agents joined by ruling)', handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])"))
   unregConcourse()
   unregFace()

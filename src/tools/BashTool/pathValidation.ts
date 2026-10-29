@@ -29,7 +29,6 @@ import { stripSafeWrappers } from './bashPermissions.js'
 import { sedCommandIsAllowedByAllowlist } from './sedValidation.js'
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 
-
 export type PathCommand =
   | 'cd' | 'ls' | 'find' | 'mkdir' | 'touch' | 'rm' | 'rmdir' | 'mv' | 'cp'
   | 'cat' | 'head' | 'tail' | 'sort' | 'uniq' | 'wc' | 'cut' | 'paste' | 'column'
@@ -52,7 +51,6 @@ export const COMMAND_OPERATION_TYPE: Record<PathCommand, FileOperationType> = {
   mkdir: 'create', touch: 'create', tee: 'create', dd: 'create',
   rm: 'write', rmdir: 'write', mv: 'write', cp: 'write', sed: 'write',
 }
-
 
 function extractBaseline(args: string[]): string[] {
   const operands: string[] = []
@@ -321,6 +319,7 @@ function extractAwkOperands(args: string[]): string[] {
 function extractFindOperands(args: string[]): string[] {
   const operands: string[] = []
   let i = 0
+
   while (i < args.length) {
     const arg = args[i] as string
     if (arg === '--') break
@@ -332,9 +331,11 @@ function extractFindOperands(args: string[]): string[] {
     operands.push(arg)
     i++
   }
+
   for (; i < args.length; i++) {
     const arg = args[i] as string
     if (arg === '--') {
+
       for (i++; i < args.length; i++) operands.push(args[i] as string)
       break
     }
@@ -411,6 +412,7 @@ function extractSedOperands(args: string[]): string[] {
         scriptSeen = true
         continue
       }
+
       if (arg.includes('e') || arg.includes('f')) scriptSeen = true
       continue
     }
@@ -424,12 +426,12 @@ function extractSedOperands(args: string[]): string[] {
 }
 
 function extractGitOperands(args: string[]): string[] {
+
   if (args[0] !== 'diff') return []
   if (!args.includes('--no-index')) return []
   const rest = args.slice(1).filter(a => a !== '--no-index')
   return extractBaseline(rest).slice(0, 2)
 }
-
 
 const ARGV_WRAPPERS = new Set(['time', 'nohup', 'timeout', 'nice', 'stdbuf', 'env'])
 const TIMEOUT_VALUE = /^[A-Za-z0-9_.+-]+$/
@@ -561,7 +563,6 @@ function stripEnv(rest: string[]): string[] | null {
   return rest.slice(i)
 }
 
-
 const COMMAND_ACTION: Record<PathCommand, string> = {
   cd: 'enter the directory', ls: 'list', find: 'search', mkdir: 'create the directory',
   touch: 'create', rm: 'remove', rmdir: 'remove the directory', mv: 'move', cp: 'copy',
@@ -611,6 +612,7 @@ function runPathChecker(
       decisionReason: { type: 'other', reason: `${command} with flags requires manual approval` },
     }
   }
+
   if (compoundCommandHasCd && operationType !== 'read') {
     return {
       behavior: 'ask',
@@ -618,6 +620,7 @@ function runPathChecker(
       decisionReason: { type: 'other', reason: 'A directory change combined with a write cannot be validated' },
     }
   }
+
   const operands = PATH_EXTRACTORS[command](args)
   const flowRead = (context.mode === 'flow' || context.probedFrom === 'flow') && operationType === 'read' && command !== 'cd'
   const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
@@ -759,11 +762,11 @@ function composedMessage(
   }
   const operation = COMMAND_OPERATION_TYPE[command]
   if (operation === 'write' || operation === 'create') {
+
     return `For security: ${composeWriteRefusal(context, resolvedPath, COMMAND_ACTION[command])}`
   }
   return `Mercury needs permission to ${COMMAND_ACTION[command]} ${resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}).`
 }
-
 
 function checkDangerousRemoval(command: PathCommand, args: string[], cwd: string): PermissionResult {
   const operands = PATH_EXTRACTORS[command](args)
@@ -806,6 +809,7 @@ function attachSuggestions(result: PermissionResult, operationType: FileOperatio
     if (readRule) suggestions.push(readRule)
   }
   if (operationType === 'write' || operationType === 'create') {
+
     const editRule = createEditRuleSuggestion(containingDir, 'localSettings')
     if (editRule) suggestions.push(editRule)
   }
@@ -817,7 +821,6 @@ export function checkShellCwd(input: { cwd?: string }, context: ToolPermissionCo
   const result = createPathChecker('cd')([`"${resolveShellCwd(input.cwd)}"`], getShellCwd(), context)
   return result.behavior === 'passthrough' ? null : result
 }
-
 
 export function checkPathConstraints(
   input: { command: string },
@@ -862,6 +865,7 @@ function convertAstRedirects(redirects: Redirect[]): string[] {
     if (op === '>' || op === '>|' || op === '&>' || op === '>>' || op === '&>>') {
       targets.push(redirect.target)
     } else if (op === '>&') {
+
       if (!/^\d+$/.test(redirect.target)) targets.push(redirect.target)
     }
   }
@@ -931,6 +935,7 @@ function sourcedEnvFile(argv: string[], cwd: string, context: ToolPermissionCont
 }
 
 function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: string, action: string): string {
+
   if (pathInAllowedWorkingPath(resolvedPath, context)) {
     return (
       `Mercury needs approval to ${action} ${resolvedPath}: this permission mode does not ${action} files on its own ` +
@@ -947,6 +952,7 @@ function validateRedirections(
   compoundCommandHasCd: boolean,
 ): PermissionResult {
   if (targets.length === 0) return { behavior: 'passthrough', message: 'No redirections.' }
+
   if (compoundCommandHasCd) {
     return {
       behavior: 'ask',

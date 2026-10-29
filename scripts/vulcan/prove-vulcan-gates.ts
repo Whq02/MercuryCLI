@@ -69,6 +69,7 @@ section('§2 · ARMED — tool + seams')
   resetGodotPresence()
   check('gate ON', gates.vulcanEnabled())
   check('Godot tool present inside a project', runWithCwdOverride(proj, () => hasGodot()))
+
   check('Godot tool present outside a project too (the flag seats it; the project is answered at call time)', runWithCwdOverride(scratch, () => hasGodot()))
   process.env.MERCURY_GODOT_EXECUTABLE = path.join(scratch, 'no-such-godot')
   resetGodotPresence()
@@ -160,6 +161,7 @@ section('§5 · installer honesty on a fixture project')
   const refreshed = await installer.applyVulcanInstall(p2)
   check('reinstall refreshes the out-of-date copy, saying so', refreshed.includes('addon files') && refreshed.includes(' — refreshed an out-of-date copy') && installer.vulcanInstallStatus(p2).digestMatch, refreshed.split('\n')[0])
   check('status after the refresh: up to date again', /^addon: installed, up to date · plugin enabled$/m.test(await installer.describeVulcanStatus(p2)))
+
   writeFileSync(
     path.join(p2, 'project.godot'),
     readFileSync(path.join(p2, 'project.godot'), 'utf8') +

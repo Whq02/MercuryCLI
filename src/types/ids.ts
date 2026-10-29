@@ -1,4 +1,3 @@
-
 import type { UUID } from 'crypto'
 
 declare const sessionIdBrand: unique symbol

@@ -6,7 +6,6 @@ import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt
 import { getMercuryHome } from './envUtils.js'
 import { posixPathToWindowsPath, windowsPathToPosixPath } from './windowsPaths.js'
 
-
 const isWindows = process.platform === 'win32'
 
 function comparable(path: string): string {
@@ -22,7 +21,6 @@ function underDirectory(path: string, directory: string): boolean {
   const dir = comparable(directory).replace(/\/+$/, '')
   return path === dir || path.startsWith(`${dir}/`)
 }
-
 
 function detectSessionFileType(filePath: string): 'session_memory' | 'session_transcript' | null {
   const path = comparable(filePath)
@@ -41,7 +39,6 @@ function detectSessionPatternType(pattern: string): 'session_memory' | 'session_
   if (normalized.includes('projects') && normalized.includes('*.jsonl')) return 'session_transcript'
   return null
 }
-
 
 export function isMnemeFile(filePath: string): boolean {
   if (!isMnemeEnabled()) return false
@@ -80,7 +77,6 @@ export function isMemoryDirectory(dirPath: string): boolean {
   if (isMnemeEnabled() && withSlash.includes('/memory/')) return true
   return false
 }
-
 
 function toMingw(path: string): string {
   const posix = windowsPathToPosixPath(path) as string

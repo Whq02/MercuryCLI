@@ -1,13 +1,10 @@
-
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { BLACK_CIRCLE } from '../../constants/figures.js'
 
-
 export function toolCardCountColor(): string | undefined {
   return 'text'
 }
-
 
 export function ToolCardMarker(): React.ReactNode {
   return <Text color="success">{BLACK_CIRCLE} </Text>

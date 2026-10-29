@@ -1,6 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-
 export const GAZE_DEAD_ZONE = 3
 
 export const GAZE_MIN_COS = 0.55
@@ -8,14 +7,18 @@ export const GAZE_MIN_COS = 0.55
 const GAZE_STICKY_COS = 0.08
 
 export function critterGazeEnabled(): boolean {
+
   return flagEnv('MERCURY_CRITTER_GAZE') === '0' ? false : true
 }
 
 type Cell = { r: number; c: number }
 
 type EyeCluster = {
+
   rest: Cell
+
   cells: Cell[]
+
   cx: number
   cy: number
 }
@@ -45,6 +48,7 @@ function scanEyeClusters(art: readonly string[]): EyeCluster[] {
       if (row[c] !== 'K' || claimed.has(`${r}:${c}`)) continue
       const top = r & ~1
       const rows = [top, top + 1].filter(rr => rr < art.length)
+
       const eyeAt = (col: number): boolean =>
         rows.some(rr => isEyeChar(art[rr]?.[col]))
       let lo = c
@@ -129,6 +133,7 @@ export function gazeKeyForPointer(
   const prev = offsetOfPrevKey(clusters, prevKey)
   let target = GAZE_REST
   if (px != null && py != null && shared.length > 0) {
+
     const fx = clusters.reduce((s, cl) => s + cl.cx, 0) / clusters.length
     const fy = clusters.reduce((s, cl) => s + cl.cy, 0) / clusters.length
     const vx = px - fx
@@ -144,7 +149,9 @@ export function gazeKeyForPointer(
         const olen = Math.hypot(o.dc, o.dr)
         const proj = (o.dc * ux + o.dr * uy) / olen
         const isPrev = o.dr === prev.dr && o.dc === prev.dc
+
         if (proj < (isPrev ? GAZE_MIN_COS - GAZE_STICKY_COS : GAZE_MIN_COS)) continue
+
         const score = proj + (isPrev ? GAZE_STICKY_COS : 0)
         const strength = o.dc * ux + o.dr * uy
         if (

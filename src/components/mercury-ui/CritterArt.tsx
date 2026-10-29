@@ -24,7 +24,6 @@ import {
   type CritterDef,
 } from '../../utils/cockpit/critterData.js'
 
-
 function cellAt(art: string[], r: number, c: number): string {
   return art[r]?.[c] ?? '.'
 }
@@ -46,14 +45,15 @@ function glowMix(base: string, toward: string, t: number): string {
   return `#${ch(a[0], b[0])}${ch(a[1], b[1])}${ch(a[2], b[2])}`
 }
 
-
 type FrameCache = {
   lines: Map<string, React.ReactElement>
   roots: Map<string, React.ReactElement>
 }
 
 const LINES_MAX = 96
+
 const ROOTS_MAX = 48
+
 const CONTEXTS_MAX = 4
 
 const FRAME_CACHES = new WeakMap<CritterDef, Map<string, FrameCache>>()
@@ -106,6 +106,7 @@ function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonl
 }
 
 type CritterFrameOpts = {
+
   square?: boolean
   pupil?: string
   gazeKey?: string
@@ -134,14 +135,22 @@ export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { 
 
 type CritterArtProps = {
   def: CritterDef
+
   pupil?: string
+
   gazeKey?: string
+
   swayPhase?: number
+
   sleepPhase?: number | null
   square?: boolean
+
   chunky?: boolean
+
   legendOverride?: Readonly<Record<string, string>>
+
   glowToward?: string
+
   lineBg?: (line: number) => string | undefined
 }
 
@@ -163,6 +172,7 @@ export function paintCritterArt({
   lineBg,
   ground,
 }: CritterArtProps & { ground?: string }): React.ReactNode {
+
   const { art, sleepSlots } = composeCritterFrame(def, { square, pupil, gazeKey, swayPhase, sleepPhase })
   const groundInk = colorStripped() ? '' : (ground ?? groundSnapshot())
   const colorOf = (ch: string | undefined): string | undefined =>
@@ -202,12 +212,14 @@ export function paintCritterArt({
       for (let c = 0; c < gridCols; c++) {
         const ch = cellAt(art, r, c)
         if (ch === SLEEP_CELL) {
+
           cells.push(
             <Text key={c} color={paint(SLEEP_CELL, c)}>{`${sleepGlyphAt(def, sleepSlots, c)} `}</Text>,
           )
           continue
         }
         if (ch === 'P') {
+
           cells.push(
             <Text key={`${c}L`} backgroundColor={EYE_BG} color={PUPIL}>▐</Text>,
           )
@@ -271,6 +283,7 @@ export function paintCritterArt({
     for (let c = 0; c < gridCols; c++) {
       const top = cellAt(art, r, c)
       const bot = cellAt(art, r + 1, c)
+
       if (top === 'P' && bot === 'P') {
         cells.push(
           <Text key={c} color={PUPIL} backgroundColor={EYE_BG}>
@@ -279,6 +292,7 @@ export function paintCritterArt({
         )
         continue
       }
+
       if (top === SLEEP_CELL && bot === SLEEP_CELL) {
         const zc = paint(SLEEP_CELL, c)
         cells.push(

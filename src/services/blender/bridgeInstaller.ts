@@ -1,4 +1,3 @@
-
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'

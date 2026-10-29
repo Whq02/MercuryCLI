@@ -1,4 +1,3 @@
-
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -29,12 +28,19 @@ export type StructureSelect = (typeof STRUCTURE_SELECTS)[number]
 
 export interface StructureQuery {
   select?: StructureSelect
+
   name?: string
+
   callee?: string
+
   module?: string
+
   value?: string
+
   within?: string
+
   files?: string[]
+
   limit?: number
 }
 
@@ -46,57 +52,75 @@ export interface StructureRange {
 }
 
 export interface StructureMatch {
+
   id: string
+
   file: string
   range: StructureRange
+
   kind: string
+
   text: string
+
   context: string
+
   anchor: string
+
   language?: string
 }
 
 export interface StructureQueryResult {
+
   id: string
   query: StructureQuery
   root: string
+
   scanned: number
   parsed: number
   parseFailures: { file: string; message: string }[]
   matches: StructureMatch[]
+
   truncated: boolean
   elapsedMs: number
 }
 
 export type StructureTransform =
   | {
+
       action: 'replace'
       replacement: string
     }
   | {
+
       action: 'rename'
       to: string
     }
   | {
+
       action: 'remove'
     }
   | {
+
       action: 'replace-import'
       module: string
     }
   | {
+
       action: 'replace-callee'
       to: string
     }
   | {
+
       action: 'set-value'
       value: string
     }
   | {
+
       action: 'insert-before'
       text: string
     }
   | {
+
       action: 'insert-after'
       text: string
     }
@@ -111,12 +135,16 @@ export interface StructureDiffHunk {
 
 export interface StructureFileEdit {
   file: string
+
   edits: { start: number; end: number; newText: string }[]
   before: string[]
   after: string[]
+
   digest: string
+
   anchor: string
   changedLines: number
+
   hunks?: StructureDiffHunk[]
   omittedHunks?: number
 }
@@ -124,6 +152,7 @@ export interface StructureFileEdit {
 export type PreviewState = 'proposed' | 'applied' | 'stale' | 'cancelled' | 'failed'
 
 export interface StructurePreview {
+
   id: string
   lane?: 'select' | 'polyglot'
   createdAt: number
@@ -135,11 +164,15 @@ export interface StructurePreview {
   files: StructureFileEdit[]
   matchCount: number
   totalChangedLines: number
+
   diagnosticsPlanned: string[]
+
   appliedAt?: number
   changedPaths?: string[]
+
   transactionRef?: string
   receiptRef?: string
   evidenceRefs?: string[]
+
   note?: string
 }

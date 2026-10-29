@@ -112,6 +112,7 @@ check('detach on unattached is a noop', detachRespawnConcourseSession(sid2, 'ope
 
 console.log('LAW 4b — no kill, no recorded death (the unverified-teardown class):')
 {
+
   const sid4 = '550e8400-e29b-41d4-a716-446655440004'
   const sid5 = '550e8400-e29b-41d4-a716-446655440005'
   const { spawnSync } = await import('node:child_process')
@@ -151,6 +152,7 @@ check('grant after revoke applies elsewhere', grantConcourseWorkflows(sid3, 'ope
 
 console.log('LAW 6 — the launch-authority valve:')
 check('interactive process (no role env) may launch', evaluateLaunchAuthority('workflows', { roleEnvOn: false }).allowed === true)
+
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_CONCOURSE_WORKER
 check('the unprobed read is lawful for the value-kind role flag', evaluateLaunchAuthority('workflows').allowed === true)
@@ -203,6 +205,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   mkdirSync(windowDir, { recursive: true })
   const fsid = 'aaaaaaaa-1111-4222-8333-444444444444'
   const fpath = join(windowDir, `${fsid}.jsonl`)
+
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.js')
   const line = (uuid: string, parentUuid: string | null, role: 'user' | 'assistant', text: string, ts: string): string =>
     encodeTranscriptLine(fpath, {
@@ -236,6 +239,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
     )
   const bytesBefore = readFileSync(fpath)
   const treeBefore = snapshotTree()
+
   const seat = await import('../../src/services/engine-connector/daemonConnector.js')
   const slot = await import('../../src/services/engine-connector/focusedConnector.js')
   const focusedLens: number[] = []
@@ -253,6 +257,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   })
   check('the hop re-points the focused slot at the session', slot.getFocusedSessionConnector() === connector && connector.sessionId() === fsid)
   check('the first paint delivered the hydrated chain through the connector', connector.records().length === 2, `records=${connector.records().length}`)
+
   appendFileSync(
     fpath,
     line('33333333-3333-4333-8333-333333333333', '22222222-2222-4222-8222-222222222222', 'user', 'second prompt', '2026-08-16T13:00:02.000Z') +
@@ -265,6 +270,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
     await new Promise(r => setTimeout(r, 50))
   }
   check('a growing file repaints (the records are never static)', connector.records().length === 4, `record lengths seen=${JSON.stringify(focusedLens)}`)
+
   await new Promise(r => setTimeout(r, 900))
   check('the session\'s transcript is byte-identical after the paints', readFileSync(fpath).equals(bytesGrown))
   check('no file appeared or grew anywhere under the scratch home', snapshotTree() === treeGrown, `${treeBefore} -> ${snapshotTree()}`)
@@ -277,12 +283,15 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
     return !connector.isAttached()
   })())
   unsubscribe()
+
   const replSrc = readFileSync(join(import.meta.dirname, '../../src/screens/Chat.tsx'), 'utf8')
+
   check('the screen holds no transcript writer', !replSrc.includes('useLogMessages'))
   check('the Chat renders the focused records and no engine lane', replSrc.includes('const messages = useFocusedTranscript();') && !replSrc.includes('useEngineTranscriptMessages'))
   check('the cancel handler reaches the focused turn', replSrc.includes('focusedTurnActive: seatLive.inFlight,'))
   check('no engine dialog of the screen\'s own exists to hold off-screen (the sandbox queue is the session runner\'s)', !replSrc.includes('sandboxPermissionQueue'))
   check('the consent card is the FOCUSED chat\'s', replSrc.includes('toolUseConfirmQueueLength: toolUseConfirmQueue.length'))
+
   check('the dead transcript store is gone (no screen-side engine lane exists)', !existsSync(join(import.meta.dirname, '../../src/state/transcriptStore.ts')))
   const busSrc = readFileSync(join(import.meta.dirname, '../../src/state/vitalsBus.ts'), 'utf8')
   check('the vitals bus rides the focused records door (never a lane nothing writes)', busSrc.includes('subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))') && !busSrc.includes('transcriptStore'))
@@ -297,18 +306,23 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
 {
   const replSrc = readFileSync(join(import.meta.dirname, '../../src/screens/Chat.tsx'), 'utf8')
   const seatSrc = readFileSync(join(import.meta.dirname, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
+
   check('the connector paints the LIVE deserializer (no resume synthesis)', seatSrc.includes('deserializeLiveMessages(') && !seatSrc.includes('deserializeMessages('))
   check('the connector folds the ONE thinking lift from its records (the incremental fold over its own chain)', seatSrc.includes('createLiveTurnFold()') && seatSrc.includes('this.liveFold.fold(this.rawRecords, chain.since)'))
   check('the Chat paints the lift from the focused connector (the one loading truth)', replSrc.includes('const isLoading = seatLive.inFlight;') && replSrc.includes('viewInProgressToolUseIDs'))
+
   check('the hop carries model + effort from the record', seatSrc.includes('modelKey?: string') && seatSrc.includes('effort?: string'))
   check("the frame band names the focused session's model", replSrc.includes('<MercuryFrame model={focusedEffectiveModel} />'))
+
   const railSrc = readFileSync(join(import.meta.dirname, '../../src/components/HelmLanesRail.tsx'), 'utf8')
   check("the rail's spend glance reads the FOCUSED connector's own usage", railSrc.includes('const focusedUsage = getFocusedSessionConnector().usage()') && railSrc.includes('focusedUsage.totalCostUSD'))
   check("the rail's spend glance no longer prints the process ledger's number", !railSrc.includes('glanceUsage.spend.costUSD.toFixed'))
   const hopSrc = readFileSync(join(import.meta.dirname, '../../src/services/switchboard/hopIntoSession.ts'), 'utf8')
   const routeSrc = readFileSync(join(import.meta.dirname, '../../src/components/concourse/ConcourseRoute.tsx'), 'utf8')
   check('the hop hands the record model/effort to the connector', hopSrc.includes('{ modelKey: rec.modelKey }') && hopSrc.includes('{ effort: rec.effort }'))
+
   check('the enter never yields the runner (no attach RPC on the enter path)', !routeSrc.includes("action: 'attach'") && !hopSrc.includes("action: 'attach'"))
+
   const supSrc = readFileSync(join(import.meta.dirname, '../../src/daemon/concourseWorkers.ts'), 'utf8')
   const yieldStart = supSrc.indexOf('export function attachYieldConcourseSession(')
   const yieldBody = supSrc.slice(yieldStart, supSrc.indexOf('\n}\n', yieldStart))
@@ -322,8 +336,10 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   check('concourseRecordState never paints PAUSED from the enter valve', !stateCode.includes('attachRequestedAt') && stateCode.includes("rec.pausedAt !== undefined"))
   const dispSrc = readFileSync(join(import.meta.dirname, '../../src/daemon/concourseDispatch.ts'), 'utf8')
   check('the delivery valve holds with-you on the enter valve too', dispSrc.includes("(targetRec.attachedAt !== undefined || targetRec.attachRequestedAt !== undefined)"))
+
   const kernelSrc = readFileSync(join(import.meta.dirname, '../../src/services/concourse/coordinatorKernel.ts'), 'utf8')
   check('the merge-back brief names the worktree path + commit state', kernelSrc.includes('worktree ${r.worktreePath}') && kernelSrc.includes('uncommitted file(s) in the worktree'))
+
   const laneSrc = readFileSync(join(import.meta.dirname, '../../src/services/concourse/coordinatorLane.ts'), 'utf8')
   const boardSrc = readFileSync(join(import.meta.dirname, '../../src/services/concourse/coordinatorBoard.ts'), 'utf8')
   const countsAt = boardSrc.indexOf('counts.sessions = ')
@@ -334,6 +350,7 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   check('the empty-reply fallback is honest (no fabricated "nothing needed doing")', !laneSrc.includes("'Nothing needed doing — the board already reflects that.'"))
   const callSrc = readFileSync(join(import.meta.dirname, '../../src/services/concourse/coordinatorCall.ts'), 'utf8')
   check('the tool loop keeps a closing text round after the last tool call', callSrc.includes('round <= COORDINATOR_TURN_MAX_TOOL_CALLS + 1'))
+
   const mirrorSrc = readFileSync(join(import.meta.dirname, '../../src/components/concourse/SessionMirror.tsx'), 'utf8')
   check('the mirror paints a WORKING session\'s life (glyph + activity) beside the title', mirrorSrc.includes("state === 'working'") && mirrorSrc.includes('<WorkingGlyph'))
 }

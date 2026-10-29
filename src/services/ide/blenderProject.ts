@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { readdirSync, statSync, type Dirent } from 'node:fs'
@@ -33,7 +32,9 @@ function isDir(p: string): boolean {
 }
 
 interface BlendDiscovery {
+
   files: string[]
+
   total: number
   truncated: number
 }
@@ -75,6 +76,7 @@ interface BlenderLocation {
 
 interface BlenderCensus {
   blender?: BlenderLocation
+
   pinError?: string
 }
 
@@ -156,6 +158,7 @@ export function probeBlenderVersion(bin: string): BlenderVersionProbe {
   }
   let result: BlenderVersionProbe
   try {
+
     const r = spawnSync(bin, ['--version'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: { ...subprocessEnv() } })
     const firstLine = (r.stdout ?? '').split('\n')[0] ?? ''
     const m = firstLine.match(/Blender\s+(\d+\.\d+(?:\.\d+)?)/)
@@ -181,8 +184,10 @@ export interface BlenderContextProfile {
   from: string
   blendFiles: BlendDiscovery
   blender?: BlenderLocation
+
   version?: string
   pinError?: string
+
   detail: string
 }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -58,14 +59,17 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
   const home = join(OUT_DIR, `home-${tag}`)
   process.env.ANTHROPIC_API_KEY = 'proof-key-scripted-stream'
   seedFirstRun(home, [FIX, FIX_REAL])
+
   const cfgFile = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgFile, 'utf8')) as Record<string, unknown>
   cfg.theme = theme
   writeFileSync(cfgFile, JSON.stringify(cfg, null, 2))
+
   writeFileSync(
     join(home, 'settings.json'),
     JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }),
   )
+
   writeFileSync(
     join(home, 'critter-profile.json'),
     JSON.stringify({
@@ -90,11 +94,15 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
       rows,
       total: 220,
       sends: [
+
         { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+
         { atTick: 999, requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 1, data: '' },
         { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'idle' },
+
         { afterPrevTicks: 1, requireAwait: true, awaitText: '← back', data: 'parity drive prompt' },
         { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ parity drive prompt', data: '\r' },
+
         { atTick: 999, requireAwait: true, awaitText: 'Scripted stream settled', minTick: 20, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'settled' },
       ],
       out: gridPath,
@@ -102,6 +110,7 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
   )
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
+
     ANTHROPIC_API_KEY: 'proof-key-scripted-stream',
     MERCURY_SCRIPTED_STREAM: 'slow-text',
     MERCURY_LIVE_GLYPHS: '0',
@@ -147,6 +156,7 @@ for (const { cols, rows } of CELLS) {
     for (const mark of ['idle', 'settled']) {
       check(`both legs reached the '${mark}' instant`, mark in off.marks && mark in on.marks, `off=${Object.keys(off.marks)} on=${Object.keys(on.marks)}`)
     }
+
     check('the settled reply text is on screen (OFF)', gridText(off.final).includes('Scripted stream settled'))
     check('the settled reply text is on screen (ON)', gridText(on.final).includes('Scripted stream settled'))
 

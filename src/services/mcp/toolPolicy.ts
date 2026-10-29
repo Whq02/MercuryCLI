@@ -1,6 +1,3 @@
-
-
-
 import { isTrustedMcpServer } from './toolCard.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -19,7 +16,7 @@ function floorRisk(risk: McpRisk, floor: McpRisk): McpRisk {
 const UNTRUSTED_HARDENING_ENV = 'MERCURY_MCP_UNTRUSTED_HARDENING'
 
 export function isUntrustedMcpHardeningOn(): boolean {
-  
+
   return flagEnv(UNTRUSTED_HARDENING_ENV) === '1'
 }
 
@@ -34,6 +31,7 @@ export type McpToolAnnotations =
 
 export function classifyMcpToolRisk(annotations: McpToolAnnotations): McpRisk {
   if (!annotations || typeof annotations !== 'object') return 'medium'
+
   if (
     annotations.readOnlyHint === true &&
     annotations.destructiveHint !== true &&
@@ -102,6 +100,7 @@ export function isMcpPolicyActive(): boolean {
 
 export function describeMcpPolicy(): string {
   const { fallback, perServer, rejects } = parseRiskPolicy()
+
   const rejected = rejects.length
     ? ` · REJECTED: ${rejects.map(t => JSON.stringify(t)).join(', ')}`
     : ''
@@ -127,6 +126,7 @@ function effectiveExposureCeiling(serverName: string): McpRisk {
   const configured = getMaxExposedRiskForServer(serverName)
   if (!isUntrustedMcpHardeningOn() || isTrustedMcpServer(serverName))
     return configured
+
   const { perServer } = parseRiskPolicy()
   const hasOverride = perServer.has(
     (typeof serverName === 'string' ? serverName : '').trim().toLowerCase(),
@@ -148,11 +148,13 @@ export function mcpToolAllowed(
 ): boolean {
   const risk = effectiveToolRisk(serverName, annotations)
   const max = effectiveExposureCeiling(serverName)
+
   return RISK_RANK[risk] <= RISK_RANK[max]
 }
 
 type UrlElicitationVerdict = {
   refuse: boolean
+
   posture: string
 }
 

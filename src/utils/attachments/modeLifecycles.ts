@@ -1,4 +1,3 @@
-
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getApolloModeSections } from '../../prompt/apolloMode.js'
@@ -33,7 +32,6 @@ export function getCapsuleDateChange(
     : []
 }
 
-
 function latestModePack(messages: readonly Message[]): 'apollo' | null {
   let current: 'apollo' | null = null
   for (const message of messages) {
@@ -55,6 +53,7 @@ export function getModePackAttachments(
   if (wanted === current) return []
   const out: Attachment[] = []
   if (current !== null) {
+
     const exit = lastModeTransitionFrom(current)
     out.push({
       type: 'mode_pack_exit',

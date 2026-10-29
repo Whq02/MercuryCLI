@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -82,6 +83,7 @@ const origin = createServer((req, res) => {
       res.end(JSON.stringify(path.endsWith('/models') ? CATALOGUE : {}))
       return
     }
+
     if (Buffer.concat(chunks).toString('utf8').includes('"stream":true')) {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const message = { id: 'msg_fixture', type: 'message', role: 'assistant', content: [], model: 'fixture', stop_reason: null, stop_sequence: null, usage: { input_tokens: 7, output_tokens: 1 } }
@@ -246,6 +248,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
     homeLaneAdmissionRefusal('anthropic/claude-opus-5', { ...firstParty, firstPartyBaseUrl: () => false }) === null)
   check('the wire-id law precedes recognition: a slug refuses as junk, not as unrecognised',
     typeof slug === 'string' && !/any provider family declares/.test(slug))
+
   seedHome(HOME_MODEL)
   process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-gateway-token'
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
@@ -274,6 +277,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
         skipCacheWrite: true,
       },
     } as never)
+
     await Promise.race([
       (async () => {
         for await (const message of stream) seen.push(String((message as { type?: string }).type))
@@ -351,6 +355,7 @@ section("§7 the surfaces name the session's family — never the first-party on
     loginFamilyFocusFor('openrouter') === 'openrouter' && loginFamilyFocusFor('anthropic') === 'anthropic' && loginFamilyFocusFor(undefined) === undefined && loginFamilyFocusFor('local') === undefined)
   const rows = loginFamilyRows({ engineLegs: true })
   const consoleRow = anthropicArmPickRows.find(r => r.value === 'console')
+
   check('the usage-based door is purely Anthropic (OS-AUTH-1 split — a revived two-vendor door reds)', /Anthropic Console/.test(consoleRow?.label ?? '') && !/OpenAI/.test(consoleRow?.label ?? ''), consoleRow?.label)
   const openaiRow = rows.find(r => r.value === 'openai')
   check("…and the OpenAI key's home is the OpenAI family's own row", /OpenAI/.test(openaiRow?.label ?? '') && /API key/.test(openaiRow?.label ?? ''), openaiRow?.label)
@@ -369,6 +374,7 @@ section("§7 the surfaces name the session's family — never the first-party on
 section("§8 the operator's sighting: a fresh box's New Session is born keyless; a spelled-out id keeps its family's door, spoken to the operator")
 {
   const wm = await import('../../src/services/concourse/workerModels.js')
+
   const ruled = wm.noAccountRefusal('no-credential:anthropic', undefined, false)
   check('no default recorded + nothing signed in ⇒ the ruled door sentence', ruled !== undefined && ruled.reason === 'no-credential:any' && ruled.action === '/logins to choose an account or connect an API key', JSON.stringify(ruled))
   check('…and no family word rides it', ruled !== undefined && !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(`${ruled.detail} ${ruled.action}`), JSON.stringify(ruled))
@@ -409,6 +415,7 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.js')
   const spoken = operatorFacingBirthReason(`model refused (${faced.ok ? '' : faced.reason}) · ${faced.ok ? '' : faced.action ?? ''} — ${faced.ok ? '' : faced.detail ?? ''} (got "${facedId}")`)
   check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the door kept", !/ask the operator/.test(spoken) && /\/logins to choose an account/.test(spoken), spoken)
+
   const otherEntry = facedRegistry.entries.find(e => e.modelId !== facedId && e.session.availability !== 'available')
   if (otherEntry !== undefined) {
     const named = await wm.validateWorkerModelChoice(otherEntry.modelId, 'session')
@@ -420,6 +427,7 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   const chosen = await wm.validateWorkerModelChoice(undefined, 'session')
   check("LIVE: with only an OpenRouter key and /model naming nemotron:free, the unnamed launch lands ON the operator's chosen model (base: the lane's first catalogue row)",
     chosen.ok && chosen.entry.modelId === HOME_MODEL, chosen.ok ? chosen.entry.modelId : freshLine)
+
   rmSync(join(home, 'settings.json'), { force: true })
   resetSettingsCache()
   const keyOnly = await wm.validateWorkerModelChoice(undefined, 'session')

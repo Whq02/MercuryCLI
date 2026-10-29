@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { RenderScheduler, type SchedulerClock } from '../../src/ink/root/render-scheduler.ts'
 import {
   installCockpitEngineForTest,
@@ -31,6 +32,7 @@ class TestClock implements SchedulerClock {
   queueMicrotask = (fn: () => void): void => {
     this.micro.push(fn)
   }
+
   run(untilMs: number): void {
     const end = this.t + untilMs
     for (;;) {

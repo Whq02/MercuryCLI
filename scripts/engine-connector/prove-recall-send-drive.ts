@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -52,6 +53,7 @@ const composerHolds = (frame: string, words: string): boolean =>
 const composerEmpty = (frame: string): boolean => frame.split('\n').some(line => /^│❯\s*│$/.test(line))
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const queuedRow = (frame: string, words: string): boolean => new RegExp(`queued\\s+\\[sam\\] ❯ ${escapeRe(words)}`).test(frame)
+
 const transcriptRows = (frame: string, words: string): number => frame.split('\n').filter(line => new RegExp(`\\[sam\\] ❯ ${escapeRe(words)}`).test(line)).length
 
 async function drive(scene: Scene): Promise<void> {
@@ -103,29 +105,38 @@ async function drive(scene: Scene): Promise<void> {
   }
 
   const out = path.join(RUN_HOME, 'grid.json')
+
   const boot = [
+
     { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
+
     { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: `${words}\r`, mark: 'tool-running' },
   ]
   const rest =
     scene === 'race'
       ? [
+
           { afterPrevTicks: 8, data: ESC, mark: 'queued' },
           { afterPrevTicks: 4, data: UP, mark: 'esc-landed' },
           { afterPrevTicks: 5, data: '', mark: 'after-up' },
+
           { afterPrevTicks: 10, data: ESC, mark: 'next-turn' },
           { afterPrevTicks: 20, data: '', mark: 'settled' },
         ]
       : [
+
           { afterPrevTicks: 8, data: UP, mark: 'queued' },
           { afterPrevTicks: 5, data: '', mark: 'after-up' },
+
           { afterPrevTicks: 2, data: ESC, mark: 'before-esc' },
           { afterPrevTicks: 20, data: '', mark: 'settled' },
+
           { afterPrevTicks: 2, data: '\r', mark: 'resend' },
           { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 5, data: '', mark: 'answered' },
         ]
   const sends = [...boot, ...rest]
+
   const readyText = scene === 'race' ? 'ready · ' : REPLY
   const cfg = {
     argv: ['node', DIST, '--model', 'claude-opus-4-8', ...(scene === 'chat' ? ['--chat'] : [])],
@@ -200,6 +211,7 @@ async function drive(scene: Scene): Promise<void> {
   } catch {
   }
   const interrupts = ledger.filter(r => r.action === 'interrupt')
+
   let trace: Array<Record<string, unknown>> = []
   try {
     trace = readFileSync(path.join(RUN_HOME, 'connector-trace.jsonl'), 'utf8')
@@ -209,6 +221,7 @@ async function drive(scene: Scene): Promise<void> {
       .filter(e => ['facts', 'interrupt', 'send', 'send-landed', 'withdraw', 'withdrawn'].includes(String(e.ev)))
   } catch {
   }
+
   let census: CensusRow[] = []
   try {
     census = readFileSync(censusPath, 'utf8')
@@ -242,6 +255,7 @@ async function drive(scene: Scene): Promise<void> {
 
   if (scene === 'race') {
     section(`${scene} — R2: a line the runner took is never withdrawn`)
+
     const refused = at('after-up').includes(REFUSAL) && composerEmpty(at('after-up'))
     const history = !at('after-up').includes(REFUSAL) && composerHolds(at('after-up'), ASK)
     console.log(`  [record] ↑ after the take met: ${refused ? 'the refusal line (taken, still tracked)' : history ? 'history (taken and retired)' : 'neither'}`)
@@ -252,6 +266,7 @@ async function drive(scene: Scene): Promise<void> {
     check(`${scene}: the fixture served the sleep twice — the ask and the drained turn, never a third`, sleepSteps.length === 2, JSON.stringify(conversation.map(c => [c.n, c.arm, c.step])))
     check(`${scene}: the applied-ops ledger holds two plain interrupts`, interrupts.length === 2 && interrupts.every(r => r.outcome === 'applied' && (r.detail ?? '').startsWith('interrupt ')), JSON.stringify(interrupts))
     section(`${scene} — R4: the census: two deliveries of the words (the ask, the queued line), no second road`)
+
     check(`${scene}: the connector delivered the words exactly twice — the ask and the queued line; ↑ delivered nothing`, wordRows.filter(r => r.site === 'connector-deliver').length === 2, wordRows.map(r => r.site).join(' ') || 'no rows')
     check(`${scene}: no other writer submitted the words (the recall added no road)`, wordRows.every(r => r.site === 'repl-onSubmit' || r.site === 'connector-deliver'), wordRows.map(r => r.site).join(' '))
   } else {
@@ -263,6 +278,7 @@ async function drive(scene: Scene): Promise<void> {
     check(`${scene}: the composer still holds the words when esc ends the turn`, composerHolds(at('before-esc'), words), tail(at('before-esc')))
     section(`${scene} — R3: the wire: no drained turn, the re-send carried once`)
     check(`${scene}: the sleep was served once — no drained turn ran behind the interrupt`, sleepSteps.length === 1, JSON.stringify(conversation.map(c => [c.n, c.arm, c.step])))
+
     const resendAt = carrying[0]?.at ?? 0
     const escAt = interrupts[0]?.atMs ?? 0
     check(`${scene}: exactly one request carries the words — the re-send, after the interrupt`, carrying.length === 1 && resendAt > escAt, `${carrying.length} carrying · resend ${resendAt} · esc ${escAt}`)

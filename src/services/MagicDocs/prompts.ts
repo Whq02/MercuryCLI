@@ -3,7 +3,6 @@ import { join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-
 const DEFAULT_TEMPLATE = `This message is an automated maintenance instruction. It is not part of the user conversation, and the document must never reference it.
 
 You maintain the self-maintaining document at {{docPath}} (title: "{{docTitle}}"). Its current contents:
@@ -35,6 +34,7 @@ async function loadTemplate(): Promise<string> {
   try {
     return await readFile(join(getMercuryHome(), 'magic-docs', 'prompt.md'), 'utf8')
   } catch {
+
     return DEFAULT_TEMPLATE
   }
 }

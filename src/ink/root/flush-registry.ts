@@ -1,6 +1,6 @@
-
 type FlushProbe = {
   name: string
+
   pending(): number
 }
 

@@ -1,4 +1,3 @@
-
 import type { ToolEffectOutcome } from '../../Tool.js'
 import type { OwnerKey } from './ownerKey.js'
 import {
@@ -28,6 +27,7 @@ export type RunLifecycle =
 export type DeliverableState = 'open' | 'in-progress' | 'done' | 'dropped'
 
 export interface RunDeliverable {
+
   id: string
   title: string
   state: DeliverableState
@@ -35,6 +35,7 @@ export interface RunDeliverable {
 
 export interface RunBlocker {
   description: string
+
   ownedBy: 'operator' | 'agent'
   resumeCondition: string
   at: number
@@ -107,6 +108,7 @@ export type RunEvent =
   | { type: 'failed'; at: number; reason: string }
   | { type: 'completed'; at: number; satisfied: string[] }
   | {
+
       type: 'model-transition'
       at: number
       current: string | null
@@ -129,6 +131,7 @@ export interface RunSnapshot {
   startedAt: number
   updatedAt: number
   lifecycle: RunLifecycle
+
   substantive: boolean
   phase: string
   phaseReason: string
@@ -136,10 +139,13 @@ export interface RunSnapshot {
   lastAction: string
   nextAction: string
   blocker: RunBlocker | null
+
   changedPaths: string[]
   totalChangedPaths: number
   recentEffects: RunToolEffectRecord[]
+
   pendingTools: Array<{ toolName: string; toolUseId: string | undefined; at: number }>
+
   unresolvedBadEffects: number
   verification: { state: 'verified' | 'stale' | 'failed' | 'unverified'; detail: string }
   contextEpoch: number
@@ -147,9 +153,12 @@ export interface RunSnapshot {
   ideFeedback: { state: IdeFeedbackState; detail: string; at: number | null }
   continuationCount: number
   lastStopDecision: { decision: string; detail: string; at: number } | null
+
   progress?: RunProgressState
+
   recentEvents: RunEvent[]
   totalEvents: number
+
   modelState?: {
     current: string | null
     pendingNext: string | null
@@ -214,6 +223,7 @@ function isMutatingEffect(e: { outcome: ToolEffectOutcome; changedPaths: string[
 }
 
 function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
+
   const progress = prev.progress ?? emptyProgressState()
   const base: RunSnapshot = {
     ...prev,
@@ -224,6 +234,7 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
   }
   switch (event.type) {
     case 'request-accepted':
+
       return {
         ...base,
         objective: event.objective || prev.objective,
@@ -314,6 +325,7 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
             : succeeded && mutating
               ? 0
               : prev.unresolvedBadEffects,
+
         progress:
           succeeded && event.changedPaths.length > 0
             ? foldEligibleProgress(progress)
@@ -353,6 +365,7 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
         modelState: {
           current: event.current,
           pendingNext: event.pendingNext,
+
           ...(event.last
             ? { last: event.last }
             : prev.modelState?.last

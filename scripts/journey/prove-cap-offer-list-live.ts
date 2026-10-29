@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -43,6 +44,7 @@ const FABLE_REPLY = 'fable picked up the handoff'
 const REFUSAL_WORDS = "Anthropic says this account's"
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
+
 const ZAI_ROW = 'glm-5.3'
 const DEEPSEEK_ROW = 'deepseek-v4-pro'
 const FABLE_51 = 'claude-fable-5-1'
@@ -70,6 +72,7 @@ function seedWorld(name: string, opts: { openaiSubscription: boolean; claudeSubs
   )
   writeFileSync(path.join(home, 'settings.json'), JSON.stringify({}))
   if (opts.openaiSubscription) {
+
     writeFileSync(
       path.join(home, '.openai-auth.json'),
       JSON.stringify({
@@ -87,6 +90,7 @@ function seedWorld(name: string, opts: { openaiSubscription: boolean; claudeSubs
     )
   }
   if (opts.claudeSubscription) {
+
     writeFileSync(
       path.join(home, '.credentials.json'),
       JSON.stringify({
@@ -172,6 +176,7 @@ function baseEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_ZAI_API_BASE: `${base}/zai/api/paas/v4`,
     DEEPSEEK_API_KEY: 'sk-deepseek-fixture-key',
     MERCURY_DEEPSEEK_API_BASE: `${base}/deepseek`,
+
     MERCURY_MOCK_LIMITS: '1',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -224,6 +229,7 @@ const markGrid = (payload: Payload | null, label: string): string => {
 }
 const receiptTick = (payload: Payload | null, index: number): number => payload?.sendReceipts?.[index]?.atTick ?? -1
 const tail = (text: string, n = 14): string => lines(text).slice(-n).join('\n')
+
 const rowLine = (grid: string, family: string): string | undefined =>
   lines(grid).find(l => l.includes(` ${family} ⇄ `))
 
@@ -231,11 +237,13 @@ const listWorld = seedWorld('list', { openaiSubscription: true, claudeSubscripti
 const listEnv = {
   ...baseEnv(listWorld.home),
   ANTHROPIC_BASE_URL: `${base}/refused`,
+
   MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
     five_hour: { utilization: 12, resets_at: new Date(Date.now() + 3600_000).toISOString() },
     seven_day: { utilization: 100, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
   }),
 }
+
 const PROBE_GAP = 60
 const list = ONLY.has('list') ? drive(
   'list',
@@ -322,12 +330,14 @@ const poolResetIso = new Date(Date.now() + (22 * 3600 + 51 * 60) * 1000).toISOSt
 const poolEnv = {
   ...baseEnv(poolWorld.home),
   ANTHROPIC_BASE_URL: `${base}/refused`,
+
   MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
     five_hour: { utilization: 36, resets_at: new Date(Date.now() + 3600_000).toISOString() },
     seven_day: { utilization: 44, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
     seven_day_fable: { utilization: 100, resets_at: poolResetIso },
   }),
 }
+
 const pool = ONLY.has('pool') ? drive(
   'pool',
   poolWorld,
@@ -367,6 +377,7 @@ if (pool !== null) {
   const settledTick = receiptTick(p, 3)
   const probeTick = receiptTick(p, 4)
   check('the offer never re-paints after the settlement (the probe fired on its deadline)', settledTick > 0 && probeTick >= settledTick + PROBE_GAP - 1, `probe at tick ${probeTick} (pickup at ${settledTick}, gap ${PROBE_GAP})`)
+
   check('no false way-home card after the switch (the home window is read for the seat\'s own model)', !finalGrid.includes('window reset — return?') && !markGrid(p, 'probe').includes('window reset — return?'), tail(finalGrid, 10))
 }
 

@@ -1,4 +1,3 @@
-
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
@@ -54,6 +53,7 @@ export function recoverStaleHunks(opts: {
 }): StaleRecoveryOutcome {
   const parsed = parseAnchor(opts.staleAnchor)
   if (!parsed) return { ok: false, reason: 'the stale anchor does not parse' }
+
   const snapshotBase = parsed.kind === 'range' ? parsed.startLine : 1
   const snapLines = opts.snapshotContent.split('\n')
   if (opts.snapshotContent.endsWith('\n')) snapLines.pop()
@@ -65,6 +65,7 @@ export function recoverStaleHunks(opts: {
     const h = opts.hunks[i]!
     const span = parseLineSpelling(h.lines)
     if (!span) return { ok: false, reason: `hunk ${i + 1}: '${h.lines}' does not parse` }
+
     const relStart = span.start - snapshotBase
     const relEnd = span.end - snapshotBase
     if (relStart < 0 || relEnd >= snapLines.length) {

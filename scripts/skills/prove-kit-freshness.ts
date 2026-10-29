@@ -77,6 +77,7 @@ section('§2 the ground-move half: the watch roots follow the ground (the frozen
   const unsubscribe = detector.subscribe(() => {
     signalCount += 1
   })
+
   const { realpathSync } = await import('node:fs')
   const realA = realpathSync(GROUND_A)
   const realB = realpathSync(GROUND_B)

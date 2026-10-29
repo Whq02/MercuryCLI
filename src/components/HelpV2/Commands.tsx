@@ -14,6 +14,7 @@ type Props = {
   columns: number
   title: string
   onCancel: () => void
+
   onPick: (commandName: string) => void
   emptyMessage?: string
 }
@@ -30,9 +31,11 @@ export function Commands({
   const { headerFocused, focusHeader, blurHeader } = useTabHeaderFocus()
   const [pageFocus, setPageFocus] = useState<string | undefined>()
   const maxWidth = Math.max(1, columns - 10)
+
   const visibleCount = Math.max(1, Math.floor((maxHeight - 13) / 2))
 
   const options = useMemo(() => {
+
     const seen = new Set<string>()
     const deduped = commands.filter(cmd => {
       if (seen.has(cmd.name)) return false
@@ -44,6 +47,7 @@ export function Commands({
       value: cmd.name,
       description: truncate(formatDescriptionWithSource(cmd), maxWidth, true),
     })
+
     return groupCommandsByDomain(deduped).flatMap((group): OptionWithDescription[] => [
       {
         label: <Text dimColor bold>{`─ ${group.label} ─`}</Text>,

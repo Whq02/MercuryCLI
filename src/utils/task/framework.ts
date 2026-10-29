@@ -6,8 +6,8 @@ import { emitTaskStarted } from '../sdkEventQueue.js'
 import { getTaskOutputDelta } from './diskOutput.js'
 import { projectTaskExecution } from './executionProjection.js'
 
-
 export const POLL_INTERVAL_MS = 1000
+
 export const PANEL_GRACE_MS = 30_000
 
 type TaskAppStateSetter = (updater: (prevState: AppState) => AppState) => void
@@ -82,7 +82,6 @@ function pruneAgentNameRegistry(
   for (const name of staleNames) pruned.delete(name)
   return pruned
 }
-
 
 export function taskOwnerGone(task: TaskState): string | null {
   if (task.status !== 'running') return null
@@ -193,6 +192,7 @@ export async function generateTaskAttachments(state: AppState): Promise<{
       }
       if (task.status !== 'running') continue
     } else if (task.status !== 'running') {
+
       continue
     }
     const delta = await getTaskOutputDelta(task.id, task.outputOffset)

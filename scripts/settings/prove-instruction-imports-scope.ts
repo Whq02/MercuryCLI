@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -61,6 +62,7 @@ section('§1 FC-030 — a parent file imports its own sibling')
     !diagnostics.some(d => d.kind === 'external-import-blocked'),
     JSON.stringify(diagnostics),
   )
+
   const strangerDir = realpathSync(mkdtempSync(join(tmpdir(), 'imports-scope-stranger-')))
   writeFileSync(join(strangerDir, 'outside.md'), 'OUTSIDE-SENTENCE\n')
   writeFileSync(join(ROOT, 'MERCURY2.md'), `Second file.\n\n@${join(strangerDir, 'outside.md')}\n`)
@@ -96,7 +98,9 @@ section('§2 FC-031 — the exclude matcher folds case on windows')
 
 section('§3 FN-015 rank 44 — an @import spelled with Windows separators composes, or says why not')
 {
+
   const { parseInstructionFileContent } = await import('../../src/services/instructions/sourceText.ts')
+
   const base = join(ROOT, 'MERCURY.md')
   const parsed = parseInstructionFileContent(
     'Rules.\n\n@docs\\style.md\n@.\\docs\\other.md\n@C:\\shared\\rules.md\n@notes\\ with\\ space.md\n@./posix.md\n',

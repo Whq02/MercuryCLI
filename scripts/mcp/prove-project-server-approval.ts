@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/mcp/utils.ts src/services/mcp/config.ts src/services/mcp/liveConfig.ts src/cli/handlers/mcp.tsx src/cli/run.ts src/rows/vocabulary.ts src/services/mcpServerApproval.tsx
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'

@@ -1,8 +1,8 @@
-
 import { stringWidth } from '../../ink/stringWidth.js'
 import { truncateToWidth as rigorousTruncateToWidth } from '../../utils/truncate.js'
 
 export const GLYPH = {
+
   sep: '│',
   dot: '·',
   branch: '⌥',
@@ -15,52 +15,73 @@ export const GLYPH = {
   conflict: '⨯',
   fail: '✕',
   ok: '●',
+
   warn: '▲',
   info: '○',
+
   read: '◌',
+
   handoff: '⇄',
   trace: '⟡',
+
   spark: '✶',
   star: '★',
   sparkBright: '✦',
   sparkFaint: '✧',
+
   cloud: '⊛',
+
   cursor: '▸',
+
   tokens: '◈',
+
   pending: '○',
   inProgress: '◐',
   done: '●',
   idle: '·',
   busy: '◐',
   drifting: '◓',
+
   check: '✓',
+
   typing: '✎',
   circledBullet: '◉',
   fisheye: '⦿',
   diamond: '◇',
   squareOpen: '□',
+
   circledDash: '⊝',
   circledSlash: '⊘',
   uptri: '▲',
+
   barFull: '█',
   barEmpty: '░',
+
   ownSubstrate: '◆',
   ownUpstream: '·',
   ownHybrid: '⊞',
+
   chevronDown: '⌄',
+
   chevronRight: '›',
+
   modeDefault: '◦',
+
   modeImplement: '±',
+
   modeFlow: '✦',
+
   modeDontAsk: '¬',
+
   modeSovereign: '⊠',
+
   modeScribe: '✎',
+
   modeApollo: '◇',
   modeManager: '∷',
 } as const
 
 export const SPARK = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'] as const
-
 
 export function charWidth(ch: string): number {
   return stringWidth(ch)

@@ -60,9 +60,11 @@ export function daemonSnapshot(): Snapshot {
           upSec != null
             ? `running · pid ${rec.pid} · v${ver} (up ${upSec}s)`
             : `running · pid ${rec.pid} · v${ver}`
+
         const fresh = pingVerdict && Date.now() - pingVerdict.at <= PING_TTL_MS
         if (!fresh) kickPing()
         if (fresh && !pingVerdict!.ok) {
+
           return {
             state: 'unavailable',
             reason: `pid ${rec.pid} alive but control socket unresponsive — wedged? (restart: \`${thisMercuryCommand()} daemon\`)`,
@@ -75,6 +77,7 @@ export function daemonSnapshot(): Snapshot {
           source: 'daemon',
         }
       }
+
       return {
         state: 'unavailable',
         reason: `stale record · pid ${rec.pid} not running (run \`${thisMercuryCommand()} daemon\` to restart)`,

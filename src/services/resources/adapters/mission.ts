@@ -1,4 +1,3 @@
-
 import { missionEnabled } from '../../mission/contracts.js'
 import { buildMissionRow, gatherMissionView } from '../../mission/projection.js'
 import { registerResourceAdapter } from '../registry.js'

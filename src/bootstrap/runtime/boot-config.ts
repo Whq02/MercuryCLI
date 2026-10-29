@@ -17,9 +17,14 @@ export class BootConfigOwner {
   sessionIngressToken: string | null | undefined = undefined
   oauthTokenFromFd: string | null | undefined = undefined
   apiKeyFromFd: string | null | undefined = undefined
+
   sessionExtensions: Array<string> = []
+
   allowedChannels: ChannelEntry[] = []
+
   hasDevChannels = false
+
   mainThreadAgentType: string | undefined = undefined
+
   directConnectServerUrl: string | undefined = undefined
 }

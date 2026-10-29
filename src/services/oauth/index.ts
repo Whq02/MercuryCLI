@@ -25,6 +25,7 @@ type OAuthFlowOptions = {
 type AuthUrlHandler = (autoUrl: string, manualUrl: string) => void | Promise<void>
 
 export class OAuthService {
+
   private readonly codeVerifier = generateCodeVerifier()
   private readonly listener = new AuthCodeListener()
   private pendingManualResolve:
@@ -103,6 +104,7 @@ export class OAuthService {
                 tokenAccount: {
                   uuid: response.account.uuid,
                   emailAddress: response.account.email_address,
+
                   ...(response.organization?.uuid === undefined
                     ? {}
                     : { organizationUuid: response.organization.uuid }),

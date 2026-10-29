@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -66,6 +67,7 @@ section('§3 THE WIRE OPTION')
     capabilities: { tools: true, prompts: true, resources: true },
     config: { type: 'stdio', command: 'scripted' },
     client: {
+
       request: async (req: { method: string }, options?: { timeout?: number }) => {
         seen[req.method] = options?.timeout
         return { tools: [], prompts: [], resources: [] }
@@ -100,4 +102,5 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log('\nprove-headless-mcp-launch-budget: all green')
+
 process.exit(0)

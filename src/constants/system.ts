@@ -5,6 +5,7 @@ import { getAnthropicClientContractVersion } from './oauth.js'
 const ATTESTATION_PLACEHOLDER = ''
 
 export function getAttributionHeader(fingerprint: string): string {
+
   const version = getAnthropicClientContractVersion()
   const entrypoint = process.env.MERCURY_ENTRYPOINT || 'unknown'
   const workload = getWorkload()

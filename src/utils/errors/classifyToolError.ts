@@ -1,8 +1,11 @@
-
 type ClassifiedToolError = {
+
   firstLine: string
+
   bodyLines: string[]
+
   stackFrameCount: number
+
   hint?: string
 }
 
@@ -27,6 +30,7 @@ const DEFAULT_BODY_CAP = 9
 export function classifyToolError(
   text: string,
   cap: number = DEFAULT_BODY_CAP,
+
   platform: NodeJS.Platform = process.platform,
 ): ClassifiedToolError {
   let stackFrameCount = 0

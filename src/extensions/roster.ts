@@ -16,7 +16,6 @@ import type { RosterEntry, RosterSummary, TrustState } from './types.js'
 
 export { blockReason }
 
-
 export type ActiveSnapshot = Map<string, { version: string; contributionsHash: string }>
 let activeSnapshot: ActiveSnapshot | null = null
 
@@ -24,15 +23,16 @@ export function setActiveSnapshot(snapshot: ActiveSnapshot | null): void {
   activeSnapshot = snapshot
 }
 
-
 type RosterInput = {
   cwd?: string
   sessionPaths?: string[]
+
   skipDriftHash?: boolean
 }
 
 export type RosterResult = {
   entries: RosterEntry[]
+
   problems: string[]
 }
 
@@ -97,6 +97,7 @@ function applySwitch(entry: RosterEntry, defaultOn: boolean | null): void {
     entry.switchScope = sw.scope
     return
   }
+
   if (sw.committedProposal !== null && entry.approved) {
     entry.switchedOn = sw.committedProposal
     entry.switchScope = 'project'
@@ -123,6 +124,7 @@ export function trustStateOf(entry: RosterEntry): TrustState {
   if (entry.home === 'project' && entry.record === null) return 'found'
   if (entry.pending !== null) return 'pending'
   if (isActiveByRecords(entry) && entry.shadowedBy === null) return 'on'
+
   if (
     entry.switchedOn &&
     entry.shadowedBy === null &&
@@ -136,7 +138,6 @@ export function trustStateOf(entry: RosterEntry): TrustState {
 }
 
 const HOME_RANK: Record<RosterEntry['home'], number> = { session: 0, project: 1, installed: 2, proposal: 3, bundled: 4 }
-
 
 export function computeRoster(input: RosterInput = {}): RosterResult {
   const cwd = input.cwd ?? getOriginalCwd()
@@ -163,6 +164,7 @@ export function computeRoster(input: RosterInput = {}): RosterResult {
   for (const [id, record] of Object.entries(installed)) {
     if (record.label === 'mercury') continue
     if (record.label === 'project') {
+
       continue
     }
     const source = sources[record.label] ?? null

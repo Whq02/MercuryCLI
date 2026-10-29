@@ -37,18 +37,22 @@ export async function createBashShellProvider(
   shellPath: string,
   options?: { skipSnapshot?: boolean },
 ): Promise<ShellProvider> {
+
   let snapshotPath: string | undefined
   if (!options?.skipSnapshot) {
     snapshotPath = await createAndSaveSnapshot(shellPath).catch(() => undefined)
   }
+
   let usedSnapshotThisExecution = false
 
   const provider: ShellProvider = {
     type: 'bash',
     shellPath,
+
     detached: getPlatform() !== 'windows',
 
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
+
       let snapshot = snapshotPath
       if (snapshot && !existsSync(snapshot)) {
         logForDebugging(`shell snapshot ${snapshot} vanished; falling back to login shell`)
@@ -63,6 +67,7 @@ export async function createBashShellProvider(
       const cwdFileInShell = isWindows
         ? posixPath.join(windowsPathToPosixPath(nativeTmp), name)
         : posixPath.join(nativeTmp, name)
+
       const cwdFileForEngine = isWindows ? cwdFileInShell : join(nativeTmp, name)
 
       const raw = rewriteWindowsNullRedirect(command)
@@ -72,6 +77,7 @@ export async function createBashShellProvider(
       const normalised = pipelineStatusPath === undefined ? raw : `${raw}\n__mercury_status=$? __mercury_pipeline=("${statuses}")\nprintf '%s\\n' "\${__mercury_pipeline[@]}" >| ${quote([pipelineFileInShell])}\n(exit "$__mercury_status")`
       const addStdin = shouldAddStdinRedirect(normalised)
       let quotedCommand = quoteShellCommand(normalised, addStdin)
+
       if (addStdin && normalised.includes('|')) {
         quotedCommand = rearrangePipeCommand(normalised)
       }
@@ -85,8 +91,10 @@ export async function createBashShellProvider(
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
       parts.push(`eval ${quotedCommand}`)
+
       parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       if (isWindows) {
+
         parts.push(`{ pwd -W >> ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       }
 
@@ -98,6 +106,7 @@ export async function createBashShellProvider(
     },
 
     getSpawnArgs(commandString: string): string[] {
+
       const script = getPlatform() === 'windows' ? protectBackslashRunsFromMsysArgv(commandString) : commandString
       if (!usedSnapshotThisExecution) {
         logForDebugging('no shell snapshot in use; adding the login flag')

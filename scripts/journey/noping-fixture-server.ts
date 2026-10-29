@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import http from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -62,6 +63,7 @@ async function streamAnthropic(res: http.ServerResponse): Promise<void> {
     connection: 'keep-alive',
   })
   await sleep(TTFB_MS)
+
   sseNamed(res, 'message_start', {
     type: 'message_start',
     message: {

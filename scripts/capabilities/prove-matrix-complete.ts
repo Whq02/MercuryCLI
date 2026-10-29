@@ -1,6 +1,3 @@
-
-
-
 import { existsSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -17,6 +14,7 @@ const VERDICTS = new Set([
   'DEAD_VENDORED',
   'BROKEN',
   'UNKNOWN',
+
   'DELETED',
 ])
 
@@ -27,6 +25,7 @@ const REASON_OK_VERDICTS = new Set(['PARKED_INTENTIONAL', 'DEAD_VENDORED', 'UNKN
 type Row = { cells: Record<string, string>; lineNo: number; raw: string }
 
 function splitRow(line: string): string[] {
+
   const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '')
   return trimmed.split('|').map(c => c.trim())
 }
@@ -36,6 +35,7 @@ function isSeparator(cells: string[]): boolean {
 }
 
 function existingFileAnchors(cell: string): string[] {
+
   const re = /`?([A-Za-z0-9_./-]+\.[A-Za-z0-9]+)(?::\d+(?:-\d+)?)?`?/g
   const found: string[] = []
   let m: RegExpExecArray | null
@@ -96,6 +96,7 @@ function main(): void {
     const cells = splitRow(line)
     if (isSeparator(cells)) continue
     if (!headers) {
+
       const capability = findExact(cells, 'capability')
       const verdict = findExact(cells, 'verdict')
       const source = findColumn(cells, 'source', 'anchor')
@@ -111,6 +112,7 @@ function main(): void {
       }
       continue
     }
+
     const rec: Record<string, string> = {}
     headers.forEach((h, idx) => (rec[h] = cells[idx] ?? ''))
     rows.push({ cells: rec, lineNo: i + 1, raw: line })

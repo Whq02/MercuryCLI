@@ -1,4 +1,3 @@
-
 /* eslint-disable */
 
 export const DEEP_RESEARCH_WORKFLOW_SCRIPT = `export const meta = {

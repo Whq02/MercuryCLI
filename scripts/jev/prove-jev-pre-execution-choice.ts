@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/JevEvalTool/jevEvalRequest.ts src/tools/JevEvalTool/jevEvalEvidence.ts src/tools/JevEvalTool/jevEvalResult.ts
+
 import { mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

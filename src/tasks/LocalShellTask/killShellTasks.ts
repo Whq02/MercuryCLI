@@ -9,7 +9,6 @@ import { updateTaskState } from '../../utils/task/framework.js'
 import type { LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 
-
 const KILL_SETTLEMENT_GRACE_MS = 3000
 
 const TREE_RECEIPT_BOUND_MS = 1500
@@ -29,6 +28,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
   updateTaskState<LocalShellTaskState>(taskId, setAppState, task => {
     if (!isLocalShellTask(task) || task.status !== 'running') return task
     killed = true
+
     resultPromise = task.shellCommand ? task.shellCommand.result : null
     handleToKill = task.shellCommand
     cleanupToRun = task.unregisterCleanup
@@ -111,6 +111,7 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
         resolve({ settled: true, exitCode: result.code, interrupted: result.interrupted, ...counts })
       },
       () => {
+
         if (done) return
         done = true
         clearTimeout(timer)

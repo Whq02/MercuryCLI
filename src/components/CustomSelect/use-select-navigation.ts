@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useReducer, useRef } from 'react'
 import OptionMap, {
   isInputOption,
@@ -23,6 +22,7 @@ export function focusSeedAfterOptionsChange<T>(input: {
 
 export type NavigationState<T> = {
   optionMap: OptionMap<T>
+
   visibleOptionCount: number
   focusedValue: OptionValue<T> | undefined
   visibleFromIndex: number
@@ -54,6 +54,7 @@ export function createNavigationState<T>({
   initialFocusValue,
   currentViewport,
 }: CreateStateInput<T>): NavigationState<T> {
+
   const visible =
     typeof visibleOptionCount === 'number'
       ? Math.min(visibleOptionCount, options.length)
@@ -82,6 +83,7 @@ export function createNavigationState<T>({
       to = index + 1
       from = to - visible
     }
+
     from = Math.max(0, Math.min(from, options.length - 1))
     to = Math.min(options.length, Math.max(to, visible))
   }
@@ -144,6 +146,7 @@ export function reduceNavigation<T>(
       let next = current.next
       while (next && next.disabled) next = next.next
       if (!next) {
+
         const landing = firstEnabled(optionMap)
         if (!landing || landing.value === focusedValue) return state
         return {
@@ -155,6 +158,7 @@ export function reduceNavigation<T>(
       }
       if (next.value === focusedValue) return state
       if (next.index >= state.visibleToIndex) {
+
         const to = Math.min(
           size,
           Math.max(next.index + 1, state.visibleToIndex + 1),
@@ -176,6 +180,7 @@ export function reduceNavigation<T>(
       let previous = current.previous
       while (previous && previous.disabled) previous = previous.previous
       if (!previous) {
+
         const landing = lastEnabled(optionMap)
         if (!landing || landing.value === focusedValue) return state
         return {
@@ -206,6 +211,7 @@ export function reduceNavigation<T>(
         focusedValue !== undefined ? optionMap.get(focusedValue) : undefined
       if (!current) return state
       const target = Math.min(current.index + visibleOptionCount, size - 1)
+
       let landing: OptionMapItem<T> | undefined
       for (let i = target; i < size; i++) {
         const item = itemAt(optionMap, i)
@@ -224,6 +230,7 @@ export function reduceNavigation<T>(
         }
       }
       if (!landing) return state
+
       const to = Math.min(size, Math.max(landing.index + 1, visibleOptionCount))
       return {
         ...state,
@@ -238,6 +245,7 @@ export function reduceNavigation<T>(
         focusedValue !== undefined ? optionMap.get(focusedValue) : undefined
       if (!current) return state
       const target = Math.max(current.index - visibleOptionCount, 0)
+
       let landing: OptionMapItem<T> | undefined
       for (let i = target; i >= 0; i--) {
         const item = itemAt(optionMap, i)
@@ -256,6 +264,7 @@ export function reduceNavigation<T>(
         }
       }
       if (!landing) return state
+
       const from = Math.max(0, Math.min(landing.index, size - visibleOptionCount))
       return {
         ...state,
@@ -275,6 +284,7 @@ export function reduceNavigation<T>(
       ) {
         return { ...state, focusedValue: item.value }
       }
+
       let from: number
       let to: number
       if (item.index < state.visibleFromIndex) {
@@ -305,26 +315,34 @@ function itemAt<T>(
   index: number,
 ): OptionMapItem<T> | undefined {
   if (index < 0 || index >= map.size) return undefined
+
   let item = map.first
   while (item && item.index !== index) item = item.next
   return item
 }
 
 type UseSelectNavigationProps<T> = {
+
   visibleOptionCount?: number
   options: OptionWithDescription<T>[]
+
   initialFocusValue?: T
+
   focusValue?: T
+
   onFocus?: (value: T) => void
 }
 
 export type SelectNavigation<T> = {
+
   focusedValue: T | undefined
+
   focusedIndex: number
   visibleFromIndex: number
   visibleToIndex: number
   visibleOptions: Array<OptionWithDescription<T> & { index: number }>
   options: OptionWithDescription<T>[]
+
   isInInput: boolean
   focusNextOption: () => void
   focusPreviousOption: () => void
@@ -349,6 +367,7 @@ export function useSelectNavigation<T>({
       createNavigationState({
         options,
         visibleOptionCount,
+
         initialFocusValue: focusValue ? focusValue : initialFocusValue,
       }),
   )
@@ -389,6 +408,7 @@ export function useSelectNavigation<T>({
   const onFocusRef = useRef(onFocus)
   onFocusRef.current = onFocus
   const lastNotifiedRef = useRef<T | undefined>(undefined)
+
   const hasNotifiedRef = useRef(false)
   useEffect(() => {
     if (validatedFocusedValue === undefined) return

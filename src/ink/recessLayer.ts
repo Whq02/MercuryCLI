@@ -98,6 +98,7 @@ export function applyRecessPass(screen: Screen, stylePool: StylePool): number {
     const rect = nodeCache.get(el)
     if (rect) rects.push(rect)
   }
+
   if (rects.length === 0) return 0
   stylePool.setRecessTransform(target)
   return remapStylesOutside(screen, rects, id => stylePool.withRecess(id))

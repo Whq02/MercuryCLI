@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -131,6 +132,7 @@ interface Capture {
   headers: Record<string, string>
   body: Body
   bodyBytes: number
+
   probe: boolean
 }
 const captured: Capture[] = []
@@ -198,6 +200,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         for (const [k, v] of Object.entries(req.headers)) {
           if (typeof v === 'string') headers[k.toLowerCase()] = v
         }
+
         const owner: Route = route === 'anthropic-gateway' ? activeGatewayLeg : route === 'openai' ? activeOpenaiLeg : route
         captured.push({ route: owner, url: path, headers, body, bodyBytes: Buffer.byteLength(raw, 'utf8'), probe: isProbeBody(body) })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -279,11 +282,14 @@ const mcpSchemaBytes = fixtureMcpSchemaBytes(mcpTools as never)
 interface Leg {
   route: Route
   model: string
+
   env: Record<string, string | undefined>
 }
 const LEGS: Leg[] = [
   { route: 'anthropic', model: 'claude-sonnet-5', env: { ANTHROPIC_API_KEY: 'fixture-anthropic-key', ANTHROPIC_BASE_URL: undefined } },
+
   { route: 'anthropic-gateway-unprobed', model: 'claude-sonnet-5', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-token', ANTHROPIC_BASE_URL: base, MERCURY_TOOL_DEFER_PROBE: undefined } },
+
   { route: 'anthropic-gateway', model: 'claude-sonnet-5', env: { ANTHROPIC_AUTH_TOKEN: 'fixture-token', ANTHROPIC_BASE_URL: base, MERCURY_TOOL_DEFER_PROBE: '1' } },
   { route: 'openai', model: 'gpt-5.6-sol', env: {} },
   { route: 'openai-native', model: 'gpt-5.6-sol', env: {} },
@@ -354,6 +360,7 @@ interface Measure {
   announcementPresent: boolean
   announcementBytes: number
   announcedNames: number
+
   deltaRowNames: number
   deltaRowBytes: number
   declaredTools: number
@@ -362,7 +369,9 @@ interface Measure {
   betaHeader: string
   bodyBytes: number
   toolsDigest: string
+
   bodyDigest: string
+
   probes: number
   error?: string
 }
@@ -542,6 +551,7 @@ for (const leg of LEGS) {
     else process.env[k] = v
   }
   process.env.MERCURY_MODEL = leg.model
+
   const pool = assembleToolPool(permissionContext, mcpTools)
   if (admittedNames.length === 0) {
     const builtins = pool.filter(t => isDeferredTool(t) && !t.isMcp).slice(0, 2).map(t => t.name)

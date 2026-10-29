@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -34,6 +35,7 @@ const { APEX_ARCHITECTURE_EPOCH, OPENAI_ADAPTER_DIGEST } = await import(
 )
 
 section('1 · mint + persist + replace + no secrets')
+
 {
   const first = recordLiveQualification({
     modelId: 'gpt-5.6-sol',
@@ -60,6 +62,7 @@ section('1 · mint + persist + replace + no secrets')
 }
 
 section('2 · digest tie — drift expires, with the reason named')
+
 {
   const current = readQualificationReceipts()[0]!.receipt
   const staleAdapter = receiptCurrency({ ...current, adapterDigest: 'openai-responses-adapter@0:old' })
@@ -73,6 +76,7 @@ section('2 · digest tie — drift expires, with the reason named')
 }
 
 section('3 · live-only minting (source wiring)')
+
 {
   const src = readFileSync(
     joinPath(import.meta.dir, '../../src/services/providers/openai/openaiCallModel.ts'),
@@ -85,6 +89,7 @@ section('3 · live-only minting (source wiring)')
 }
 
 section('4 · role digests are distinct')
+
 {
   const roles = ['primary', 'specialist', 'coordinator'] as const
   const digests = roles.map(r => roleCapabilityDigest(r))

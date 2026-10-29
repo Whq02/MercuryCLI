@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -144,6 +145,7 @@ async function drive(): Promise<void> {
   writeFileSync(path.join(RUN_HOME, 'settings.json'), j({ guardrails: { allow: ['Bash(echo *)', 'Bash(git *)', 'Bash(rm *)', 'Bash(printf *)', 'Bash(sh *)'] } }))
   writeFileSync(path.join(CWD, 'README.md'), '# prefix frozen drive fixture\n')
   writeFileSync(path.join(CWD, 'MERCURY.md'), '# project\nbe brief\n')
+
   const slowServer = path.join(RUN_HOME, 'slow-mcp-server.mjs')
   writeFileSync(slowServer, `#!/usr/bin/env node
 import { createInterface } from 'node:readline'
@@ -160,6 +162,7 @@ rl.on('line', line => {
 })
 process.stdin.on('end', () => process.exit(0))
 `)
+
   const mcpConfig = j({ mcpServers: { slowsrv: { type: 'stdio', command: 'node', args: [slowServer], env: { MCP_SLOW_TOOLS_MS: '20000' } } } })
 
   const fixtures: ChildProcess[] = []
@@ -187,6 +190,7 @@ process.stdin.on('end', () => process.exit(0))
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_API_KEY: PROBE_KEY,
+
     MERCURY_THINKING_BINDING: 'error',
     MERCURY_TOOL_SEARCH: 'on',
     MERCURY_MCP_TIMEOUT_MS: '60000',
@@ -272,6 +276,7 @@ process.stdin.on('end', () => process.exit(0))
     tools: sha(j(withoutCacheControl(boundTools((body.tools ?? []) as unknown[], (body.messages ?? []) as unknown[])))),
     messages: ((body.messages ?? []) as unknown[]).map(m => sha(j(withoutCacheControl(m)))),
   })
+
   const pairVerdicts = (rows: CaptureRow[]): Array<{ pair: string; held: boolean; where: string }> => {
     const out: Array<{ pair: string; held: boolean; where: string }> = []
     for (let i = 1; i < rows.length; i++) {
@@ -318,8 +323,10 @@ process.stdin.on('end', () => process.exit(0))
 
   const CYCLE: Send[] = Array.from({ length: 7 }, (_, i) => ({ atTick: 700 + i * 4, afterPrevTicks: 4, data: '\x1b[Z', mark: `mode-${i + 1}` }))
   const sends1: Send[] = [
+
     { atTick: 120, minTick: 3, awaitText: 'Yes, I accept', awaitSettleTicks: 2, data: '\x1b[B\r', mark: 'consent' },
     { atTick: 300, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
+
     { atTick: 540, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'drive turn 1\r', mark: 'chat' },
     { atTick: 680, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: '', mark: 't1' },
     ...CYCLE,
@@ -364,6 +371,7 @@ process.stdin.on('end', () => process.exit(0))
   const landed = rows1.some(r => Array.isArray(r.body.tools) && (r.body.tools as Array<{ name?: string }>).some(t => t.name === 'mcp__slowsrv__slow_ping'))
   const firstTools = (rows1[0]!.body.tools as Array<{ name?: string }>).map(t => t.name)
   console.log(`  leg 1: the late MCP tool ${landed ? 'joined the tools array mid-session (deferred, unreferenced — outside the bound prefix)' : 'never reached a request'}; first request carried ${firstTools.length} tools`)
+
   check('leg 1: the slow MCP server\'s tool rode the tools array deferred (outside the bound prefix) and every pair held', landed && verdicts1.every(v => v.held), landed ? 'a pair broke' : 'never landed')
   const notices1 = transcriptNotices()
   check('leg 1: no receipt written, no ledger line, no health row', notices1.length === 0 && !debugText(leg1.debugFile).includes('prefix ledger names') && !existsSync(path.join(RUN_HOME, 'preserved-thinking.json')), notices1.join(' | ').slice(0, 300))
@@ -377,6 +385,7 @@ process.stdin.on('end', () => process.exit(0))
   ]
   for (const f of sessionFiles()) rmSync(f, { force: true })
   const leg2 = await runLeg('induced', sends2, 600, 'NEVER-PAINTS', { MERCURY_PREFIX_INDUCE_EDIT: 'system' }, [])
+
   check('leg 2: the capture ended with a grid (a budget end after the refusal)', leg2.payload !== null && (leg2.status === 0 || leg2.status === 3), `status=${leg2.status} stderr=${leg2.stderr.slice(-300)}`)
   const rows2 = conversation(readCapture(leg2.captureFile))
   const refused2 = rows2.filter(r => r.response.refusal !== null)

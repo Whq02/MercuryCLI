@@ -1,7 +1,6 @@
 import type { ApiTool } from '../types/wire.js'
 import type { Tools } from '../Tool.js'
 
-
 const toolSchemaCache = new Map<string, ApiTool>()
 
 export function getToolSchemaCache(): Map<string, ApiTool> {

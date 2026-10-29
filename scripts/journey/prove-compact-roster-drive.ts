@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -80,6 +81,7 @@ function answeredTools(items: Item[]): string[] {
   return names
 }
 function seatOf(items: Item[]): Seat | null {
+
   const userText = items
     .filter(i => i.role === 'user')
     .map(i => textOf(i.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, ''))
@@ -350,11 +352,17 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
+
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+
         { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'confirm' },
+
         { data: '\x1b', awaitText: 'waiting on', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
+
         { data: '/compact\r', afterPrevTicks: 8, mark: 'after-esc' },
+
         { data: `${AFTER}\r`, afterPrevTicks: 45, mark: 'folded' },
         { data: '', afterPrevTicks: 20, mark: 'after' },
         { data: '', afterPrevTicks: 60, mark: 'end' },

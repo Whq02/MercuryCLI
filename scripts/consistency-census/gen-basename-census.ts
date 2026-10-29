@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -55,6 +56,7 @@ const walk = (dir: string): void => {
     const rel = relative(ROOT, full)
     const lines = codeOnlyLines(rel, readFileSync(full, 'utf8'))
     for (const text of lines) {
+
       const trimmed = text.trim()
       for (const needle of BASENAMES) {
         if (text.includes(needle)) {
@@ -165,6 +167,7 @@ const out = {
   counts,
   sites: classified.sort((a, b) => a.file.localeCompare(b.file)),
 }
+
 const outPath = argValue('--out') ?? join(ROOT, 'scripts/consistency-census/basename-census.json')
 writeFileSync(outPath, JSON.stringify(out, null, 2) + '\n')
 if (REGISTERS) registerGeneratedAsset(ROW)

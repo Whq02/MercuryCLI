@@ -9,10 +9,15 @@ export const TRANSCRIPT_FORMAT_REFUSAL =
   'this session file uses a retired format and cannot be opened'
 
 export type DecodedTranscript<T> = {
+
   entries: T[]
+
   malformed: MalformedLine[]
+
   invalid: InvalidShape[]
+
   totalLines: number
+
   refusal?: string
 }
 
@@ -78,9 +83,11 @@ function classifyInvalid(values: unknown[]): { valid: unknown[]; invalid: Invali
       continue
     }
     if (!isRecordLine(v as Record<string, unknown>)) {
+
       invalid.push({ index: i, kind: 'not-a-record', reason: 'line is not a MercuryRecord envelope' })
       continue
     }
+
     const validated = validateRecord(v)
     if (!validated.ok) {
       invalid.push({
@@ -102,6 +109,7 @@ function classifyInvalid(values: unknown[]): { valid: unknown[]; invalid: Invali
       })
       continue
     }
+
     try {
       v = recordToEntry(validated.record)
     } catch (e) {
@@ -112,6 +120,7 @@ function classifyInvalid(values: unknown[]): { valid: unknown[]; invalid: Invali
       })
       continue
     }
+
     const o = v as Record<string, unknown>
     if (typeof o.type !== 'string') {
       invalid.push({ index: i, kind: 'untyped', reason: 'record carries no string `type`' })

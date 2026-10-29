@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
@@ -195,7 +196,6 @@ section('§2 the seam ratchet — the rule road never learns the engine')
     /export function bashToolHasPermission\(\s*input: BashInput,\s*context: ToolPermissionContext,\s*prefixFn: PrefixFn = pinnedCommandAnalysis\.getCommandSubcommandPrefix,\s*\): Promise<PermissionResult>/.test(entry),
   )
 }
-
 
 console.log('\n============================================================')
 if (failures === 0) console.log(` ✅ ALL RULE-PARITY PROOFS PASS (${engine})`)

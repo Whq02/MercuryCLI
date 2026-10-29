@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync, readFileSync } from 'node:fs'
 
@@ -9,6 +10,7 @@ if (!captureFile) {
 }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
+
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const FABLE_REPLY = 'fable picked up the handoff'
@@ -163,6 +165,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'POST' && url.endsWith('/chat/completions')) {
+
       const lane = url.includes('/zai/') ? 'zai' : url.includes('/deepseek/') ? 'deepseek' : url.includes('/xai/') ? 'xai' : url.includes('/meta/') ? 'meta' : 'compat'
       record({ kind: lane, url, body, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })

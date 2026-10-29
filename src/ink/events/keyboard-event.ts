@@ -1,4 +1,3 @@
-
 import type { ParsedKey } from '../input/input-decoder.js'
 import { TerminalEvent } from './terminal-event.js'
 

@@ -1,4 +1,3 @@
-
 import { stringWidth } from '../../ink/stringWidth.js'
 import { packHints } from './geometry.js'
 

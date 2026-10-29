@@ -1,4 +1,3 @@
-
 export interface Greeting {
   message: string
   emphatic: boolean

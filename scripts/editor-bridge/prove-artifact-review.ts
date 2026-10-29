@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -285,6 +286,7 @@ section('(6) the mercury://artifact adapter forms')
   check('head resolves ok', head.state === 'ok', head.state !== 'ok' ? head.note : '')
   if (head.state === 'ok') {
     check('head is versioned + lists version children', head.resource.version === 'v2' && (head.resource.children?.length ?? 0) >= 3)
+
     check('nonexistent recorded root ⇒ NO staleness claim either way', head.resource.text?.includes('STALE') === false)
     const realRooted = createReviewArtifact({
       kind: 'plan',
@@ -347,6 +349,7 @@ section('(7) workbench projection surfaces artifacts + review queue')
   check('artifact heads projected', snap.artifactHeads.length === heads.length)
   check('older-tree heads visibly stale', snap.artifactHeads.every(h => h.stale === true))
   check('open comments enqueue review work', snap.reviewQueue.some(r => r.note.includes('open comment')))
+
   check('a STALE ready-for-review head no longer enqueues the nudge', !snap.reviewQueue.some(r => r.note.includes('awaits review')))
   check('next action is the review queue head', snap.nextAction?.startsWith('review:') === true)
   const currentTree = composeWorkbenchSnapshot(
@@ -358,6 +361,7 @@ section('(7) workbench projection surfaces artifacts + review queue')
 
 section('(8) verify-wave fixes — fence · ordinal · damaged≠absent · CRLF identity')
 {
+
   const raceArt = createReviewArtifact({
     kind: 'plan',
     title: 'race target',

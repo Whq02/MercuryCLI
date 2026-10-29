@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execSync } from 'node:child_process'
@@ -58,6 +59,7 @@ const mkUser = (blocks: unknown[]): Message =>
   ({ type: 'user', message: { content: blocks } }) as unknown as Message
 
 console.log('\n=== A. the read-back demand is satisfiable through the ONE contract store (field L429→L434) ===')
+
 {
   vs._resetVerificationStateForTesting()
   const docs = join(scratch, 'docs-ws')
@@ -97,6 +99,7 @@ console.log('\n=== A. the read-back demand is satisfiable through the ONE contra
 }
 
 console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
+
 {
   vs._resetVerificationStateForTesting()
   const repo = join(scratch, 'avs-repo')
@@ -139,7 +142,9 @@ console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
 }
 
 console.log('\n=== C. preview truth: the 181.5 KB chain + the base64 line ===')
+
 {
+
   const warnings = Array.from({ length: 1615 }, (_, i) => `WARN canon/urban/settlement-${i}.md: soft-link target missing`).join('\n')
   const tailTruth = '[main 6cdd57a] docs(meta): reconcile the ledgers with the 07-08..11 arc\n 11 files changed, 214 insertions(+)'
   const chain = `${warnings}\n> avs validate: 1615 warnings, 0 errors\n68 passing\n${tailTruth}`

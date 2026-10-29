@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync, spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -107,6 +108,7 @@ console.log('L4 the writer serializes')
     console.log('  [SKIP] the racing-writers drill — no lock in this src (pre-fix tree)')
   } else {
     const { home, project } = scratch()
+
     const pathProbe = runIn(home, project, 'out.localPath = localPath')
     const localPath = String(pathProbe.localPath)
     const child = (n: number): Promise<number> =>

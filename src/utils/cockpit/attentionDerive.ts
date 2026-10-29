@@ -1,20 +1,26 @@
-
 export const ATTENTION_KINDS = new Set<string>([
   'tool_permission_request',
   'clarifying_question',
 ])
 
 export interface NeedsInputItem {
+
   status?: string
+
   kind?: string
+
   sessionId?: string
   [extra: string]: unknown
 }
 
 export interface AttentionCount {
+
   count: number
+
   permissions: number
+
   questions: number
+
   unknown: boolean
 }
 
@@ -28,6 +34,7 @@ const EMPTY: AttentionCount = { count: 0, permissions: 0, questions: 0, unknown:
 export function deriveAttentionCount(
   items: readonly NeedsInputItem[] | null | undefined,
 ): AttentionCount {
+
   if (!Array.isArray(items)) return UNKNOWN
   if (items.length === 0) return EMPTY
 
@@ -37,6 +44,7 @@ export function deriveAttentionCount(
   let anonQuestions = 0
 
   for (const it of items) {
+
     if (!isObj(it) || it.status !== 'pending') continue
     const kind = isStr(it.kind) ? it.kind : ''
     if (!ATTENTION_KINDS.has(kind)) continue
@@ -45,6 +53,7 @@ export function deriveAttentionCount(
       if (sid) permSessions.add(sid)
       else anonPerms += 1
     } else {
+
       if (sid) qSessions.add(sid)
       else anonQuestions += 1
     }

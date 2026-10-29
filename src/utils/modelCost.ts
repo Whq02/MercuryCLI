@@ -22,7 +22,6 @@ import { qwenDisplayPin, qwenPriceTierFor } from '../services/providers/qwen/qwe
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
-
 export type ModelCosts = {
   inputTokens: number
   outputTokens: number
@@ -55,6 +54,7 @@ const COST_TIER_3_15: ModelCosts = tierFromInputOutput(3, 15)
 const COST_TIER_15_75: ModelCosts = tierFromInputOutput(15, 75)
 export const COST_TIER_5_25: ModelCosts = tierFromInputOutput(5, 25)
 export const COST_TIER_10_50: ModelCosts = tierFromInputOutput(10, 50)
+
 export const COST_FABLE_5_1: ModelCosts = {
   ...COST_TIER_10_50,
   promptCacheReadTokens: 0.25,
@@ -252,6 +252,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   openrouter: model => openrouterCataloguePricing(model),
   huggingface: model => huggingfaceFloorPricing(model),
   local: () => ({ costs: COST_LOCAL_SERVER, basis: 'recorded' }),
+
   'openai-compat': () => undefined,
   mistral: model => recorded(engineTier(mistralDisplayPin(model))),
   nous: model => nousCataloguePricing(model),

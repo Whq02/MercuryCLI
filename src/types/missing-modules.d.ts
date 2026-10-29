@@ -1,5 +1,3 @@
-
-
 declare module 'color-diff-napi' {
   export type SyntaxTheme = any;
   export const ColorDiff: any;
@@ -19,9 +17,9 @@ declare module 'src/tasks/MonitorMcpTask/MonitorMcpTask.js' {
   export type MonitorMcpTaskState = any;
 }
 
-
 declare module 'image-processor-napi' { const m: any; export = m; }
 declare module 'url-handler-napi' { const m: any; export = m; }
+
 declare module 'cli-highlight' {
   export const highlight: any;
   export const supportsLanguage: any;

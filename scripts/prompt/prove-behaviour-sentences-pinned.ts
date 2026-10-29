@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/constants/prompts.ts src/utils/cockpit/runtimePosture.ts src/utils/cockpit/harnessMap.ts
-// gate-watch: src/mneme/mnemeFrontPage.ts src/services/agentResults/contracts.ts src/constants/subagentDoctrine.ts
-// gate-watch: scripts/prompt/fixtures/prompt-ablation/**
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'

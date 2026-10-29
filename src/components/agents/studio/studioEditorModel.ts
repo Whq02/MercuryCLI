@@ -32,7 +32,6 @@ import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
 import { truncateToWidth } from '../../mercury-ui/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
 
-
 export type StudioDraftBase = {
   identity: AgentFileIdentity
   agent: AgentDefinition
@@ -99,7 +98,6 @@ export type StudioValidation = {
   warnings: string[]
   canSave: boolean
 }
-
 
 export function freshStudioDocument(): AgentDocument {
   return decodeAgentDocument(
@@ -273,7 +271,9 @@ export function effectiveStudioRuntime(args: {
 }
 
 type StudioReviewFacts = {
+
   changed: string[]
+
   diffLines: string[]
 }
 
@@ -309,7 +309,6 @@ export function buildReviewFacts(
   return { changed, diffLines }
 }
 
-
 export interface StudioEditorSnapshot {
   doc: AgentDocument
   baseRevision: string | undefined
@@ -341,6 +340,7 @@ function liveDeps(): StudioEditorDeps {
     saveDraft: saveAgentDraft,
     listDrafts: listAgentDrafts,
     discardDraft: discardAgentDraft,
+
     generate: async (prompt, model, existingIdentifiers, signal) =>
       (await import('../generateAgent.js')).generateAgent(prompt, model, existingIdentifiers, signal),
     setTimer: (fn, ms) => setTimeout(fn, ms),
@@ -350,8 +350,10 @@ function liveDeps(): StudioEditorDeps {
 
 interface StudioEditorOptions {
   mode: 'create' | 'edit'
+
   base?: StudioDraftBase
   cwd: string
+
   getExistingAgents: () => readonly AgentDefinition[]
   getParentModel: () => string
   onSaved: (message: string) => void
@@ -362,15 +364,22 @@ const STUDIO_AUTOSAVE_DEBOUNCE_MS = 800
 
 export interface StudioEditorMachine {
   snapshot(): StudioEditorSnapshot
+
   commit(edit: Parameters<typeof patchAgentDocument>[1]): boolean
+
   loadRaw(content: string): void
+
   commitTextField(field: FieldId, raw: string): void
+
   openFieldEditor(field: FieldId): void
   closeFieldEditor(): void
+
   setView(view: EditorView): void
   setTextBuffer(value: string): void
   setTextCursor(offset: number): void
+
   setScope(scope: 'user' | 'project'): void
+
   guidedDestination(scope: 'user' | 'project'): void
   guidedMethod(method: 'generate' | 'manual'): void
   guidedDescribe(prompt: string): void
@@ -380,12 +389,14 @@ export interface StudioEditorMachine {
   guidedTools(tools: string[] | undefined): void
   guidedModel(model?: string): void
   guidedBack(): void
+
   reviewEscape(): void
   save(): Promise<void>
   mergeOntoTheirs(): void
   clearConflict(): void
   acceptRecover(): void
   declineRecover(): void
+
   abortGeneration(): boolean
   dispose(): void
 }
@@ -400,6 +411,7 @@ export function createStudioEditorMachine(
 
   let doc: AgentDocument = (() => {
     if (base) {
+
       try {
         return decodeAgentDocument(deps.readFile(base.identity.filePath), base.identity.filePath)
       } catch {
@@ -420,6 +432,7 @@ export function createStudioEditorMachine(
   let conflict: { currentRaw: string } | null = null
   let textBuffer = ''
   let textCursor = 0
+
   let recoverOffer: { path: string; raw: string } | null = (() => {
     const drafts = deps.listDrafts()
     const match = drafts.find(d =>

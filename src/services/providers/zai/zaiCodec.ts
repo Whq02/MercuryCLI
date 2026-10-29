@@ -16,7 +16,6 @@ import type {
   ZaiWireMessage,
 } from './zaiClient.js'
 
-
 export interface ApiShapedTool {
   name: string
   description?: string
@@ -161,6 +160,7 @@ export function mapMessagesToZai(
           toolCalls!.push({ id: item.call_id, type: 'function', function: { name: item.tool, arguments: JSON.stringify(item.input ?? {}) } })
         } else if (item.type === 'reasoning' && !item.redacted && keepReasoning) thinkingTexts.push(item.text)
       }
+
       out.push({
         role: 'assistant',
         content: texts.length > 0 ? texts.join('\n') : toolCalls!.length > 0 ? null : thinkingTexts.length > 0 ? '' : ASSISTANT_THINKING_ONLY_ROW,
@@ -169,6 +169,7 @@ export function mapMessagesToZai(
       })
       continue
     }
+
     const toolRows: ZaiMessage[] = []
     const declarationRows: ZaiWireMessage[] = []
     const userParts: string[] = []
@@ -237,7 +238,6 @@ export function buildZaiChatRequest(i: BuildZaiRequestInput): ZaiChatRequest {
   }
 }
 
-
 type ZaiStopReason = 'end_turn' | 'tool_use' | 'max_tokens'
 
 interface ZaiAssembledToolUse {
@@ -250,9 +250,11 @@ interface ZaiAssembledTurn {
   thinking: string
   text: string
   toolUses: ZaiAssembledToolUse[]
+
   malformedToolCalls: ZaiCompletedToolCall[]
   stopReason: ZaiStopReason
   usage?: ZaiUsage
+
   fault?: ZaiFault
 }
 

@@ -1,6 +1,5 @@
 import { parse as parseShellQuote } from 'shell-quote'
 
-
 export function parseArguments(args: string): string[] {
   if (!args || args.trim() === '') return []
   try {

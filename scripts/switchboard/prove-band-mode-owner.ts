@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -142,20 +143,25 @@ section("§4 every revive road boots the record's posture and consent; the react
   check('(a) the auto-revive road revives a dead sovereign+consented record', a.outcome === 'applied', JSON.stringify(a))
   check("(a) …booting the RECORD's posture: the skip flag on the argv, the consent on the spec", lastSpec()?.permissionMode === 'sovereign' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(SKIP), argvOf(lastSpec()).filter(x => /permission|dangerously/.test(x)).join(' '))
   check('(a) …and the record keeps its stamp', recordNow()?.permissionMode === 'sovereign' && recordNow()?.bypassConsent === true)
+
   seed({ permissionMode: 'sovereign', bypassConsent: true, stoppedAt: Date.now() - 1_000, stoppedBy: 'operator' })
   const b = concourse.reviveConcourseWorker(sid, 'operator:resume', roster, { allowStopped: true }, dir)
   check("(b) the resume verb's road revives a stopped record", b.outcome === 'applied', JSON.stringify(b))
   check("(b) …booting the RECORD's posture and consent", lastSpec()?.permissionMode === 'sovereign' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(SKIP))
+
   seed({ permissionMode: 'implement' })
   const c = concourse.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
   check("(c) an implement record without consent revives in implement, no consent flag", c.outcome === 'applied' && lastSpec()?.permissionMode === 'implement' && lastSpec()?.allowBypass === undefined && !argvOf(lastSpec()).includes(ALLOW) && !argvOf(lastSpec()).includes(SKIP), argvOf(lastSpec()).filter(x => /permission|dangerously|implement/.test(x)).join(' '))
+
   seed({ permissionMode: 'sovereign', bypassConsent: true })
   const d = concourse.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, clearCrash: true, permissionMode: 'default', bypassConsent: false }, dir)
   check("(d) the reactivate's carried posture (default, no consent) outranks the record's", d.outcome === 'applied' && lastSpec()?.permissionMode === 'default' && lastSpec()?.allowBypass === undefined && !argvOf(lastSpec()).includes(SKIP) && !argvOf(lastSpec()).includes(ALLOW))
   check("(d) …and the record is RESTAMPED: default, the old consent dropped", recordNow()?.permissionMode === 'default' && recordNow()?.bypassConsent === undefined, JSON.stringify({ permissionMode: recordNow()?.permissionMode, bypassConsent: recordNow()?.bypassConsent }))
+
   seed({ permissionMode: 'default' })
   const e = concourse.reviveConcourseWorker(sid, 'operator', roster, { allowStopped: true, permissionMode: 'default', bypassConsent: true }, dir)
   check("(e) a consented door's revive carries the allow flag and stamps the consent", e.outcome === 'applied' && lastSpec()?.allowBypass === true && argvOf(lastSpec()).includes(ALLOW) && recordNow()?.bypassConsent === true)
+
   seed({})
   const f = concourse.reviveConcourseWorker(sid, 'auto-revive', roster, undefined, dir)
   const own = getHeadlessPermissionMode(concourse.seatInitialPermissionMode())
@@ -188,6 +194,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
   const stand = standInRunner({ autoAnswer: { 'session/facts': {} } })
   const roster = stand.roster({ list: () => [{ short }] })
   const REFUSAL = 'Cannot set permission mode to sovereign because the session was not launched with --sovereign'
+
   const pa = seat.setSessionPermissionMode(sid, 'sovereign', roster, dir, { deadlineMs: 2_000 })
   const reqA = await stand.nextRequest('session/set_mode')
   check('(a) the verb rides a session/set_mode request naming the mode', reqA.method === 'session/set_mode' && (reqA.params as { mode: string }).mode === 'sovereign', JSON.stringify(reqA.params))
@@ -195,6 +202,7 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
   const a = await pa
   check("(a) the runner's refusal comes back as 'refused' with ITS sentence verbatim", a.outcome === 'refused' && a.detail === REFUSAL, JSON.stringify(a))
   check('(a) the answer re-asks the facts at once (the band follows the runner)', stand.requests.some(r => r.method === 'session/facts'))
+
   const pb = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 2_000 })
   ;(await stand.nextRequest('session/set_mode')).answer({ mode: 'implement' })
   const b = await pb
@@ -240,6 +248,7 @@ section('§6 the carousel lists every station the seat may hold, Sovereign in a 
   check("an unconsented ring is the same less Sovereign", plain.join(',') === 'implement,apollo,flow,default', plain.join(' → '))
   check("a consented seat's ring includes Sovereign from the FIRST station (born sovereign, the walk returns through it)", walk(true, 'sovereign').includes('sovereign') && walk(true, 'implement').includes('sovereign'))
   check('Sovereign never appears without consent from any start', (['default', 'implement', 'apollo', 'flow'] as PermissionMode[]).every(m => !walk(false, m).includes('sovereign')))
+
   process.env.MERCURY_CONCOURSE_WORKER = '1'
   const refusedConsented = consented.filter(m => !resolvePermissionModeTransition(m as never, ctx('default', true)).ok)
   const refusedPlain = plain.filter(m => !resolvePermissionModeTransition(m as never, ctx('default', false)).ok)

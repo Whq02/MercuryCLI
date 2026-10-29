@@ -1,9 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeGates.ts src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts
-// gate-watch: src/mneme/mnemeConsolidate.ts src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
-// gate-watch: src/services/mcp/coordinationServer.ts src/utils/capability/declarations.ts src/query/stopHooks.ts
-// gate-watch: src/mneme/** src/tools/MemoryTools/** src/components/memory/** src/commands/memory/** src/utils/capability/**
-// gate-watch: src/utils/cockpit/** src/services/mcp/** src/substrate/** src/query/** src/utils/attachments/**
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'

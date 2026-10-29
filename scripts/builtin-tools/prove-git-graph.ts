@@ -149,6 +149,7 @@ try {
     writeFileSync(join(root2, 'split.txt'), body)
     sh(['add', '.'], root2)
     sh(['commit', '--quiet', '-m', 'base'], root2)
+
     writeFileSync(
       join(root2, 'split.txt'),
       body.replace('line-2', 'line-2-EDITED-TOP').replace('line-28', 'line-28-EDITED-BOTTOM'),

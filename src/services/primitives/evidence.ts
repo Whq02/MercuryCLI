@@ -1,4 +1,3 @@
-
 import type { OwnerKey } from '../run/ownerKey.js'
 
 export const EVIDENCE_CONTRACT_VERSION = 1
@@ -28,10 +27,13 @@ export interface EvidenceRecord {
   owner: OwnerKey
   kind: EvidenceKind
   origin: EvidenceOrigin
+
   claim: string
   state: EvidenceState
   observedAt: number
+
   refs: string[]
+
   details?: Record<string, unknown>
 }
 

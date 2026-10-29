@@ -1,4 +1,3 @@
-
 import type { AnthropicClientOptions as ClientOptions } from './anthropicClient.js'
 import {
   APIConnectionError,
@@ -238,12 +237,15 @@ export type Options = {
   getToolPermissionContext: () => Promise<ToolPermissionContext>
   model: string
   toolChoice?: BetaToolChoiceTool | BetaToolChoiceAuto | BetaToolChoiceNone | undefined
+
   isNonInteractiveSession: boolean
   extraToolSchemas?: ApiToolUnion[]
+
   nativeWebSearch?: NativeWebSearchRequest
   maxOutputTokensOverride?: number
   fallbackModel?: string
   onStreamingFallback?: () => void
+
   onWait?: (wait: RequestWaitV1 | null) => void
   onStreamActivity?: (atMs: number) => void
   querySource: QuerySource
@@ -260,9 +262,11 @@ export type Options = {
   hasPendingMcpServers?: boolean
   callChain?: ToolCallChain
   agentId?: AgentId
+
   ownerKey?: string
   outputFormat?: JsonOutputFormat
   addNotification?: (notif: Notification) => void
+
   callReference?: ModelCallReference
 }
 
@@ -374,7 +378,9 @@ export async function* executeNonStreamingRequest(
   paramsFromContext: (context: RetryContext) => BetaMessageStreamParams,
   onAttempt: (attempt: number, start: number, maxOutputTokens: number) => void,
   captureRequest: (params: BetaMessageStreamParams) => void,
+
   originatingRequestId?: string | null,
+
   afterSilence?: { idleMs: number; model: string },
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
   const timeout = getNonstreamingFallbackTimeoutMs()
@@ -482,6 +488,7 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
+
     latchKey: rosterOwnerKey,
   })
   const useToolSearch = plan.enabled
@@ -491,6 +498,7 @@ async function* queryModel(
   if (!useToolSearch) {
     logForDebugging('Tool search disabled for this request (the payload plan)')
   }
+
   if (plan.restoredMissingTools.length > 0) {
     declareLawfulPrefixChange(
       rosterOwnerKey,
@@ -539,6 +547,7 @@ async function* queryModel(
   if (!useToolSearch) {
     messagesForAPI = messagesForAPI.map(withoutToolSearchFields)
   } else if (!blockForm) {
+
     messagesForAPI = renderAdmissionRecordsAsText(messagesForAPI).map(msg =>
       msg.type === 'assistant' ? stripCallerFieldFromAssistantMessage(msg) : msg,
     )
@@ -566,6 +575,7 @@ async function* queryModel(
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
 
   messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
+
   if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
 
   const fingerprint = computeFingerprintFromMessages(messages)
@@ -584,6 +594,7 @@ async function* queryModel(
 
   const extraToolSchemas = [...(options.extraToolSchemas ?? [])]
   if (options.nativeWebSearch) {
+
     const { allowedDomains, blockedDomains, maxUses } = options.nativeWebSearch
     extraToolSchemas.push({
       type: 'web_search_20250305',
@@ -593,8 +604,8 @@ async function* queryModel(
       max_uses: maxUses,
     })
   }
-  const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
 
+  const allTools = [...toolSchemas, ...extraToolSchemas] as unknown as BetaToolUnion[]
 
   const cacheEditingHeaderLatched = getCacheEditingHeaderLatched() === true
 
@@ -602,6 +613,7 @@ async function* queryModel(
 
   const startIncludingRetries = Date.now()
   let start = Date.now()
+
   let settledNormally = false
   let stream: AnthropicStream | undefined = undefined
   let streamRequestId: string | null | undefined = undefined
@@ -677,10 +689,12 @@ async function* queryModel(
 
     if (hasThinking && modelSupportsThinking(options.model)) {
       if (modelSupportsAdaptiveThinking(options.model)) {
+
         thinking = {
           type: 'adaptive',
         } satisfies BetaMessageStreamParams['thinking']
       } else {
+
         const thinkingBudget = Math.min(maxOutputTokens - 1, plannedThinkingBudget)
         thinking = {
           budget_tokens: thinkingBudget,
@@ -746,6 +760,7 @@ async function* queryModel(
       system: wireParts.system as typeof system,
       tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
+
       ...(sendBetas && { betas: betasParams }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
@@ -756,6 +771,7 @@ async function* queryModel(
         output_config: outputConfig,
       }),
     }, { ...ANTHROPIC_IMAGE_LIMITS, maxImagesPerRequest: getContextWindowForModel(options.model) <= 200_000 ? 100 : ANTHROPIC_IMAGE_LIMITS.maxImagesPerRequest }).request
+
     const verdict = judgeAndRecordPrefix(rosterOwnerKey, prefixKey, {
       system: params.system,
       tools: params.tools,
@@ -772,6 +788,7 @@ async function* queryModel(
   let ttftMs = 0
   let partialMessage: BetaMessage | undefined = undefined
   const contentBlocks: (BetaContentBlock | ConnectorTextBlock)[] = []
+
   const stoppedBlockIndices = new Set<number>()
   let usage: NonNullableUsage = EMPTY_USAGE
 
@@ -785,10 +802,12 @@ async function* queryModel(
   }
   const pricingModel = (): string => servedModel ?? resolvedModel
   let stopReason: BetaStopReason | null = null
+
   let ledgerSettled = false
   let didFallBackToNonStreaming = false
   let fallbackMessage: AssistantMessage | undefined
   let maxOutputTokens = 0
+
   let preFirstEventStreamRetryUsed = false
   let streamCutRetryUsed = false
   let emptyStreamEnds = 0
@@ -799,6 +818,7 @@ async function* queryModel(
   ): AssistantMessage => ({
     message: {
       ...base,
+
       ...(servedModel && { model: servedModel }),
       content: normalizeContentFromAPI(blocks, tools),
     },
@@ -846,6 +866,7 @@ async function* queryModel(
         roughTokenCountEstimation(streamedText),
       ),
     }
+
     addToTotalSessionCost(
       calculateUSDCost(pricingModel(), settled),
       settled,
@@ -875,7 +896,9 @@ async function* queryModel(
 
   const heldWaitDoor = options.agentId !== undefined ? (wait: HeldBusyRetryWait): void => options.onWait?.(wait) : undefined
   try {
+
     streamingPass: for (;;) {
+
     let noteTransportActivity: (() => void) | null = null
     let transportSawByte = false
     const firstByte: { wait: Extract<RequestWaitV1, { kind: 'first-byte' }> | null } = { wait: null }
@@ -935,7 +958,9 @@ async function* queryModel(
               { ...params, stream: true },
               {
                 signal,
+
                 timeout: wait.budgetMs,
+
                 fetchOptions: streamActivityFetchOptions(() => {
                   transportSawByte = true
                   noteTransportActivity?.()
@@ -950,12 +975,14 @@ async function* queryModel(
         try {
           result = await dispatch()
         } catch (sent) {
+
           if (!signal.aborted && isFirstByteTimeout(sent)) {
             logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
             throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait), requestDeadline: (sent as { requestDeadline?: unknown }).requestDeadline === true })
           }
           throw sent
         }
+
         options.onWait?.(null)
         streamRequestId = result.request_id
         streamResponse = result.response
@@ -1007,10 +1034,14 @@ async function* queryModel(
     const STREAM_IDLE_TIMEOUT_MS = streamIdleTimeoutMsForRoute('anthropic')
     const STREAM_IDLE_WARNING_MS = streamIdleWarningMsOf(STREAM_IDLE_TIMEOUT_MS)
     let streamIdleAborted = false
+
     let streamedToolUse = false
+
     let sawFirstStreamEvent = false
     let streamEventCount = 0
+
     let streamWatchdogFiredAt: number | null = null
+
     let sawMessageStop = false
     const modelWords = getPublicModelDisplayName(options.model) ?? options.model
     const preEventSilenceWords = (): string => {
@@ -1057,6 +1088,7 @@ async function* queryModel(
       noteTransportActivity = null
       streamIdleWatchdog.stop()
     }
+
     function settledTailStands(): boolean {
       if (!partialMessage || newMessages.length === 0 || stopReason !== null || streamedToolUse) return false
       let last: (typeof contentBlocks)[number] | undefined
@@ -1068,6 +1100,7 @@ async function* queryModel(
       }
       return last !== undefined && last.type === 'text'
     }
+
     function* settleTypedEnd(end: StreamEndV1) {
       const lastMsg = newMessages.at(-1)
       if (!lastMsg) return
@@ -1137,6 +1170,7 @@ async function* queryModel(
             break
           }
           case 'content_block_start':
+
             if (part.content_block == null) {
               throw new Error(malformedStreamFrameText('content_block_start', 'content_block'))
             }
@@ -1156,17 +1190,21 @@ async function* queryModel(
               case 'text':
                 contentBlocks[part.index] = {
                   ...part.content_block,
+
                   text: '',
                 }
                 break
               case 'thinking':
                 contentBlocks[part.index] = {
                   ...part.content_block,
+
                   thinking: '',
+
                   signature: '',
                 }
                 break
               default:
+
                 contentBlocks[part.index] = { ...part.content_block }
                 break
             }
@@ -1177,11 +1215,13 @@ async function* queryModel(
             if (!contentBlock) {
               throw new RangeError('Content block not found')
             }
+
             if (delta == null) {
               throw new Error(malformedStreamFrameText('content_block_delta', 'delta'))
             }
             switch (delta.type) {
               case 'citations_delta':
+
                 break
               case 'input_json_delta':
                 if (
@@ -1240,6 +1280,7 @@ async function* queryModel(
             ] as BetaContentBlock[])
             stoppedBlockIndices.add(part.index)
             if (contentBlock.type === 'tool_use') {
+
               streamedToolUse = true
             }
             newMessages.push(m)
@@ -1247,6 +1288,7 @@ async function* queryModel(
             break
           }
           case 'message_delta': {
+
             if (part.delta == null) {
               throw new Error(malformedStreamFrameText('message_delta', 'delta'))
             }
@@ -1256,6 +1298,7 @@ async function* queryModel(
 
             const lastMsg = newMessages.at(-1)
             if (lastMsg) {
+
               lastMsg.message.usage = usage as AssistantMessage['message']['usage']
               lastMsg.message.stop_reason = stopReason
               void settleTranscriptMessage(lastMsg)
@@ -1297,6 +1340,7 @@ async function* queryModel(
             }
 
             if (stopReason === 'model_context_window_exceeded') {
+
               yield {
                 ...createAssistantAPIErrorMessage({
                   content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
@@ -1310,6 +1354,7 @@ async function* queryModel(
           }
           case 'message_stop':
             sawMessageStop = true
+
             setLastApiCompletionTimestamp(Date.now())
             break
         }
@@ -1319,8 +1364,10 @@ async function* queryModel(
           event: part,
           ...(part.type === 'message_start' ? { ttftMs } : undefined),
         }
+
         if (sawMessageStop) break
       }
+
       clearStreamIdleTimers()
 
       if (signal.aborted) {
@@ -1330,6 +1377,7 @@ async function* queryModel(
       }
 
       if (streamIdleAborted) {
+
         const exitDelayMs =
           streamWatchdogFiredAt !== null
             ? Math.round(performance.now() - streamWatchdogFiredAt)
@@ -1341,8 +1389,10 @@ async function* queryModel(
         logForDebugging(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
         )
+
         streamWatchdogFiredAt = null
         if (settledTailStands()) {
+
           yield* settleTypedEnd({
             reason: 'silent-after-last-item',
             provider: 'Anthropic',
@@ -1362,6 +1412,7 @@ async function* queryModel(
         )
         throw new Error(NO_EVENTS_MESSAGE)
       }
+
       if (stopReason === null && settledTailStands()) {
         yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
       }
@@ -1414,12 +1465,14 @@ async function* queryModel(
       }
 
       if (streamingError instanceof APIUserAbortError) {
+
         if (signal.aborted) {
           logForDebugging(
             `Streaming aborted by user: ${errorMessage(streamingError)}`,
           )
           throw streamingError
         } else {
+
           logForDebugging(
             `Streaming timeout (SDK abort): ${streamingError.message}`,
             { level: 'error' },
@@ -1465,6 +1518,7 @@ async function* queryModel(
         !preFirstEventStreamRetryUsed
       ) {
         preFirstEventStreamRetryUsed = true
+
         resetApiConnectionPool()
         logForDiagnosticsNoPII('info', 'cli_stream_preevent_streaming_retry')
         logForDebugging(
@@ -1512,12 +1566,14 @@ async function* queryModel(
         `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
         { level: 'error' },
       )
+
       if (streamIdleAborted) resetApiConnectionPool()
       if (cut !== null) resetApiConnectionPool()
       didFallBackToNonStreaming = true
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
       }
+
       const fallbackWaitWords = `waiting up to ${patienceSeconds(getNonstreamingFallbackTimeoutMs())} for ONE non-streamed completion (no tokens stream while it runs; esc abandons it)`
       const noticeError = streamIdleAborted
         ? Object.assign(
@@ -1542,6 +1598,7 @@ async function* queryModel(
 
       logForDiagnosticsNoPII('info', 'cli_nonstreaming_fallback_started')
       const result = yield* executeNonStreamingRequest(
+
         { model: options.model, source: options.querySource, fetchOverride: options.fetchOverride },
         {
           model: options.model,
@@ -1573,10 +1630,12 @@ async function* queryModel(
     } finally {
       clearStreamIdleTimers()
     }
+
     break
     }
     settledNormally = true
   } catch (errorFromRetry) {
+
     if (errorFromRetry instanceof FallbackTriggeredError) {
       throw errorFromRetry
     }
@@ -1588,6 +1647,7 @@ async function* queryModel(
       errorFromRetry.originalError.status === 404
 
     if (is404StreamCreationError) {
+
       const failedRequestId =
         (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
       logForDebugging(
@@ -1598,6 +1658,7 @@ async function* queryModel(
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
       }
+
       yield createSystemAPIErrorMessage(
         errorFromRetry.originalError as APIError,
         0,
@@ -1633,6 +1694,7 @@ async function* queryModel(
         yield m
 
       } catch (fallbackError) {
+
         if (fallbackError instanceof FallbackTriggeredError) {
           throw fallbackError
         }
@@ -1687,15 +1749,18 @@ async function* queryModel(
     }
   } finally {
     stopSessionActivity('api_call')
+
     releaseStreamResources()
 
     settleUnpricedAttempt()
+
     if (!settledNormally) logAPIDuration({ start, startIncludingRetries })
 
     if (fallbackMessage) {
       const fallbackUsage = fallbackMessage.message.usage
       usage = updateUsage(EMPTY_USAGE, fallbackUsage)
       stopReason = fallbackMessage.message.stop_reason
+
       const fallbackCost = calculateUSDCost(
         pricingModel(),
         fallbackUsage as NonNullableUsage,

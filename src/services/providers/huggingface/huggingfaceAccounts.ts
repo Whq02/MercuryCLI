@@ -10,7 +10,6 @@ import { getUserAgent } from '../../../utils/http.js'
 import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
-
 const HF_HUB_BASE_URL = 'https://huggingface.co'
 const HF_ROUTER_BASE_URL = 'https://router.huggingface.co/v1'
 const HF_OAUTH_DEVICE_PATH = '/oauth/device'
@@ -18,12 +17,16 @@ const HF_OAUTH_TOKEN_PATH = '/oauth/token'
 const HF_OAUTH_REGISTER_PATH = '/oauth/register'
 const HF_WHOAMI_PATH = '/api/whoami-v2'
 const DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
+
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
 export const HF_OAUTH_SCOPE = 'openid profile inference-api write-endpoints'
 const HF_CLIENT_NAME = 'Mercury'
+
 const DEVICE_DEFAULT_INTERVAL_SEC = 5
+
 const REFRESH_MARGIN_MS = 15 * 60 * 1000
+
 const WHOAMI_TIMEOUT_MS = 10_000
 
 export function huggingfaceHubBase(env: NodeJS.ProcessEnv = process.env): string {
@@ -38,13 +41,14 @@ export function huggingfaceChatCompletionsUrl(env: NodeJS.ProcessEnv = process.e
 export function huggingfaceModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${huggingfaceRouterBase(env)}/models`
 }
+
 export function huggingfaceOauthClientIdPin(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return env['MERCURY_HUGGINGFACE_OAUTH_CLIENT_ID']?.trim() || undefined
 }
+
 export function huggingfaceBillTo(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return env['MERCURY_HUGGINGFACE_BILL_TO']?.trim() || undefined
 }
-
 
 const HF_AUTH_VERSION = 1
 const AUTH_FILE_NAME = '.huggingface-auth.json'
@@ -52,6 +56,7 @@ const AUTH_FILE_NAME = '.huggingface-auth.json'
 export interface HuggingfaceStoredTokens {
   accessToken: string
   refreshToken?: string
+
   accessTokenExpiresAtMs?: number
   scope?: string
   clientId?: string
@@ -66,8 +71,11 @@ export interface HuggingfaceIdentity {
 interface HuggingfaceAuthFile {
   version: number
   tokens?: HuggingfaceStoredTokens
+
   identity?: HuggingfaceIdentity
+
   tokenIdentity?: HuggingfaceIdentity & { keyTail: string }
+
   registeredClient?: { clientId: string; hubBase: string; issuedAtMs: number; scope?: string }
   lastRefreshMs?: number
   [k: string]: unknown
@@ -98,6 +106,7 @@ function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFil
     chmodSync(path, 0o600)
   } catch {
   }
+
   noteCredentialChange()
 }
 
@@ -154,7 +163,6 @@ export function huggingfaceStoredTokenIdentity(key: string | undefined): Hugging
   return stored.keyTail === huggingfaceKeyTail(key) ? stored : undefined
 }
 
-
 export interface HuggingfaceOauthIo {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
@@ -172,6 +180,7 @@ async function postForm(
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const fetchImpl = oauthFetch(io)
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
+
   const response = await fetchWithProviderDeadline(fetchImpl, 'huggingface', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
     method: 'POST',
     headers: {
@@ -204,6 +213,7 @@ export async function registerHuggingfaceOauthClient(io?: HuggingfaceOauthIo): P
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   let response: Response
   try {
+
     response = await fetchWithProviderDeadline(fetchImpl, 'huggingface', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
       method: 'POST',
       headers: {
@@ -257,7 +267,6 @@ export async function resolveHuggingfaceOauthClientId(io?: HuggingfaceOauthIo): 
   return registerHuggingfaceOauthClient(io)
 }
 
-
 export interface HuggingfaceDeviceAuthStart {
   deviceCode: string
   userCode: string
@@ -265,6 +274,7 @@ export interface HuggingfaceDeviceAuthStart {
   verificationUriComplete?: string
   intervalSec: number
   expiresAtMs: number
+
   clientId: string
 }
 
@@ -384,7 +394,6 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
   return refreshing
 }
 
-
 export type HuggingfaceIdentityProbe =
   | { state: 'confirmed'; identity: HuggingfaceIdentity }
   | { state: 'refused'; status: number }
@@ -398,6 +407,7 @@ export async function fetchHuggingfaceIdentity(
   const fetchImpl = oauthFetch(io)
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   try {
+
     const response = await fetchWithProviderDeadline(
       fetchImpl,
       'huggingface',
@@ -426,13 +436,14 @@ export async function fetchHuggingfaceIdentity(
   }
 }
 
-
 export type HuggingfaceKeySource = 'env' | 'oauth' | 'stored'
 
 export interface HuggingfaceAccountRef {
   kind: 'oauth' | 'api-key'
+
   label: string
   keySource: HuggingfaceKeySource
+
   username?: string
 }
 
@@ -490,6 +501,7 @@ export async function resolveHuggingfaceDispatchCredential(
       if (oauth.refreshToken) {
         const fresh = await refreshHuggingfaceTokens(io)
         if (fresh) return { apiKey: fresh.accessToken }
+
         const remaining = huggingfaceStoredTokens()
         if (remaining) {
           if (remaining.accessTokenExpiresAtMs === undefined || remaining.accessTokenExpiresAtMs > now) {

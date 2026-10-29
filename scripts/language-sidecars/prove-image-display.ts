@@ -71,6 +71,7 @@ function withTtyStdout<T>(fn: () => T): T {
   check('kitty advertises → kitty', withEnv({ ...BLANK, TERM: 'xterm-kitty' }, () => withTtyStdout(detectImageProtocol)) === 'kitty')
   check('sixel-advertising TERM → sixel', withEnv({ ...BLANK, TERM: 'foot' }, () => withTtyStdout(detectImageProtocol)) === 'sixel')
   check('the pin wins outright', withEnv({ ...BLANK, TERM_PROGRAM: 'iTerm.app', MERCURY_IMAGE_PROTOCOL: 'cells' }, () => withTtyStdout(detectImageProtocol)) === 'cells')
+
   check('non-TTY stdout → link BEFORE detection (FC-043)', process.stdout.isTTY !== true && withEnv({ ...BLANK, TERM_PROGRAM: 'iTerm.app' }, () => detectImageProtocol()) === 'link')
   check('NO_COLOR on a TTY → link (FC-043)', withEnv({ ...BLANK, TERM_PROGRAM: 'iTerm.app', NO_COLOR: '1' }, () => withTtyStdout(detectImageProtocol)) === 'link')
   check('…and the explicit pin outranks even the FC-043 fold', withEnv({ ...BLANK, MERCURY_IMAGE_PROTOCOL: 'iterm', NO_COLOR: '1' }, () => detectImageProtocol()) === 'iterm')
@@ -152,6 +153,7 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
     _setSharpUnavailableForTesting,
     _resetSharpForTesting,
   } = await import('../../src/services/visual/imageDisplay.ts')
+
   async function withEnvAsync<T>(
     env: Record<string, string | undefined>,
     fn: () => Promise<T>,
@@ -173,6 +175,7 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
       _resetImageProtocolForTesting()
     }
   }
+
   const pngB64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
   const dir = mkdtempSync(join(tmpdir(), 'image-link-'))
@@ -193,10 +196,12 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
       )
       check(`${tier} link payload is plain text (no escapes)`, !r.payload.includes(ESC))
     }
+
     const iterm = await withEnvAsync({ MERCURY_IMAGE_PROTOCOL: 'iterm' }, () =>
       renderImageForTerminal(fixture),
     )
     check('iterm tier stays NATIVE without sharp (whole-file base64)', iterm.protocol === 'iterm' && iterm.payload.startsWith(`${ESC}]1337;File=`))
+
     const kitty = await withEnvAsync({ MERCURY_IMAGE_PROTOCOL: 'kitty' }, () =>
       renderImageForTerminal(fixture),
     )
@@ -204,11 +209,13 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
   } finally {
     _resetSharpForTesting()
   }
+
   const healthy = await withEnvAsync({ MERCURY_IMAGE_PROTOCOL: 'cells' }, () =>
     renderImageForTerminal(fixture),
   )
   check('healthy sharp: cells tier decodes again after reset', healthy.protocol === 'cells' && /[▀▄]/.test(healthy.payload))
   check('imageLinkLine is pure + truthful for arbitrary paths', imageLinkLine('/x/y.png', 'why').includes('/x/y.png') && imageLinkLine('/x/y.png', 'why').includes('why'))
+
   const srcOf = (p: string) => require('node:fs').readFileSync(join(ROOT, p), 'utf8')
   check(
     'the protocol enum + render entry carry the link outcome',

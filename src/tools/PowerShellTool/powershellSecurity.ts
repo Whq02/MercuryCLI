@@ -46,24 +46,28 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
   const has = (name: string): boolean => names.includes(name)
 
   if (has('invoke-expression')) return ASK('The command can execute arbitrary code via Invoke-Expression.')
+
   for (const command of commands) {
     if (command.elementType !== 'Command') continue
     const type = command.elementTypes?.[0]
     if (type === undefined) continue
     if (type !== 'StringConstant') return ASK('The command name is computed at runtime and cannot be validated.')
   }
+
   for (const command of commands) {
     if (isPsExecutable(command.name)) {
       if (hasParam(command, '-encodedcommand', '-e')) return ASK('The command uses parameters that obscure its intent (an encoded command).')
       return ASK('The command spawns a nested PowerShell process that cannot be validated.')
     }
   }
+
   const DOWNLOADERS = new Set(['invoke-webrequest', 'iwr', 'invoke-restmethod', 'irm', 'new-object', 'start-bitstransfer'])
   const EVALS = new Set(['invoke-expression', 'iex'])
   const rawNames = commands.map(c => c.name.toLowerCase())
   if (names.some(n => DOWNLOADERS.has(n)) && names.some(n => EVALS.has(n))) {
     return ASK('The command downloads and executes remote code.')
   }
+
   if (has('start-bitstransfer')) return ASK('The command downloads a file via BITS.')
   for (const command of commands) {
     const lower = command.name.toLowerCase()
@@ -74,13 +78,16 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       return ASK('The command transfers a file via bitsadmin.')
     }
   }
+
   if (has('add-type')) return ASK('The command compiles and loads .NET code via Add-Type.')
+
   for (const command of commands) {
     if (resolveToCanonical(command.name) !== 'new-object') continue
     if (hasParam(command, '-comobject', '-com')) return ASK('The command instantiates a COM object, which may have execution capabilities.')
     const typeName = extractNewObjectType(command)
     if (typeName !== null && !isClmAllowedType(typeName)) return ASK(`The command instantiates a type outside the allowlist: ${typeName}.`)
   }
+
   for (const command of commands) {
     if (!FILEPATH_EXECUTION_CMDLETS.has(resolveToCanonical(command.name))) continue
     if (hasParam(command, '-filepath', '-f') || hasParam(command, '-literalpath', '-l')) return ASK('The command executes a script file.')
@@ -89,7 +96,9 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       return ASK('The command executes a script file (positional path).')
     }
   }
+
   if (has('invoke-item')) return ASK('Invoke-Item opens files with the default handler; on an executable this runs arbitrary code.')
+
   const SCHED = new Set(['register-scheduledtask', 'new-scheduledtask', 'new-scheduledtaskaction', 'set-scheduledtask'])
   for (const command of commands) {
     if (SCHED.has(resolveToCanonical(command.name))) return ASK(`${command.name} creates or modifies a scheduled task (a persistence primitive).`)
@@ -98,6 +107,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       return ASK('The command creates or changes a scheduled task.')
     }
   }
+
   for (const command of commands) {
     if (resolveToCanonical(command.name) !== 'foreach-object') continue
     if (hasParam(command, '-membername', '-m')) return ASK('ForEach-Object invokes a method by string name, which cannot be validated.')
@@ -106,6 +116,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       return ASK('ForEach-Object invokes a method by string name, which cannot be validated.')
     }
   }
+
   for (const command of commands) {
     const lower = command.name.toLowerCase()
     if (lower !== 'start-process' && lower !== 'saps' && lower !== 'start') continue
@@ -116,29 +127,36 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
       return ASK('The command launches an unvalidatable nested PowerShell.')
     }
   }
+
   if (flags.hasScriptBlocks) {
     const SAFE_BLOCK = new Set(['where-object', 'sort-object', 'select-object', 'group-object', 'format-table', 'format-list', 'format-wide', 'format-custom'])
     if (names.some(n => DANGEROUS_SCRIPT_BLOCK_CMDLETS.has(n))) return ASK('A script block contains a dangerous cmdlet that may execute arbitrary code.')
     if (!names.every(n => SAFE_BLOCK.has(n))) return ASK('The command contains a script block that may execute arbitrary code.')
   }
+
   if (flags.hasSubExpressions) return ASK('The command contains sub-expressions.')
   if (flags.hasExpandableStrings) return ASK('The command embeds expressions inside string literals.')
   if (flags.hasSplatting) return ASK('The command uses splatting, which obscures arguments.')
   if (flags.hasStopParsing) return ASK('The command uses the stop-parsing token (--%), which stops PowerShell parsing the rest of the line.')
   if (flags.hasMemberInvocations) return ASK('The command invokes .NET methods.')
+
   for (const type of parsed.typeLiterals ?? []) {
     if (!isClmAllowedType(type)) return ASK(`The command uses a type literal outside the allowlist: ${type}.`)
   }
+
   const ENV_WRITE = new Set(['set-item', 'si', 'new-item', 'ni', 'remove-item', 'ri', 'del', 'rm', 'rd', 'rmdir', 'erase', 'clear-item', 'cli', 'set-content', 'add-content', 'ac'])
   if (getVariablesByScope(parsed, 'env').length > 0 && (rawNames.some(n => ENV_WRITE.has(n)) || flags.hasAssignments)) {
     return ASK('The command modifies environment variables.')
   }
+
   if (names.some(n => MODULE_LOADING_CMDLETS.has(n))) return ASK('The command loads, installs, or downloads a module, which can execute arbitrary code.')
+
   const STATE = new Set(['set-alias', 'sal', 'new-alias', 'nal', 'set-variable', 'sv', 'new-variable', 'nv'])
   for (const command of commands) {
     const stripped = command.name.toLowerCase().replace(/^[\w.]+\\/, '')
     if (STATE.has(stripped)) return ASK('The command creates or modifies an alias or variable, affecting future command resolution.')
   }
+
   const WMI = new Set(['invoke-wmimethod', 'iwmi', 'invoke-cimmethod'])
   for (const command of commands) {
     if (WMI.has(resolveToCanonical(command.name))) return ASK(`${command.name} can spawn arbitrary processes through WMI/CIM.`)
@@ -149,6 +167,7 @@ export function powershellCommandIsSafe(_command: string, parsed: ParsedPowerShe
 function extractNewObjectType(command: ParsedCommandElement): string | null {
   const VALUE_PARAMS = new Set(['-argumentlist', '-comobject', '-property'])
   const SWITCHES = new Set(['-strict'])
+
   for (let i = 0; i < command.args.length; i++) {
     let arg = normArg(command.args[i] as string).toLowerCase()
     const colon = arg.indexOf(':', 1)
@@ -158,6 +177,7 @@ function extractNewObjectType(command: ParsedCommandElement): string | null {
       return command.args[i + 1] ?? null
     }
   }
+
   for (let i = 0; i < command.args.length; i++) {
     let arg = normArg(command.args[i] as string).toLowerCase()
     if (!arg.startsWith('-')) return command.args[i] as string

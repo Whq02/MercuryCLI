@@ -1,17 +1,28 @@
-
 export interface BoardModalFactsV1 {
+
   capacityAsk: boolean
+
   trustAsk: boolean
+
   settingsOpen: boolean
+
   groundPickerOpen: boolean
+
   rowPick: boolean
+
   seatAsk: boolean
   forkAsk?: boolean
+
   gitOffer: boolean
+
   contractAsk: boolean
+
   managerSeatAsk: boolean
+
   managerCardArmed: boolean
+
   coordinatorFocused: boolean
+
   helpOpen?: boolean
   modelDefault?: boolean
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   createAssistantMessage,
   createUserMessage,
@@ -162,6 +163,7 @@ function roundsPaired(rows: Row[]): boolean {
 }
 
 {
+
   const steer = {
     attachment: {
       type: 'queued_command',
@@ -185,6 +187,7 @@ function roundsPaired(rows: Row[]): boolean {
 }
 
 {
+
   const rows = heal([
     userText('go'),
     asst('mX', [use('A')]),
@@ -220,6 +223,7 @@ function roundsPaired(rows: Row[]): boolean {
     const answer = rows.find(r => r.type === 'user' && Array.isArray((r as UserMessage).message.content) && ((r as UserMessage).message.content as Array<{ type: string }>).some(b => b.type === 'tool_result')) as UserMessage | undefined
     return ((answer?.message.content ?? []) as Array<{ type: string; tool_use_id?: string }>).map(b => (b.type === 'tool_result' ? String(b.tool_use_id) : b.type))
   }
+
   const arrival = heal([
     userText('go'),
     asst('mO', [use('A'), use('B'), use('C')]),
@@ -228,6 +232,7 @@ function roundsPaired(rows: Row[]): boolean {
     createUserMessage({ content: [trBlock('B')] as never }),
   ])
   t('O1 results that arrived C·A·B replay as A·B·C', idsOf(arrival).join(',') === 'A,B,C', idsOf(arrival).join(','))
+
   const feedback = heal([
     userText('go'),
     asst('mO2', [use('A'), use('B'), use('C')]),
@@ -237,6 +242,7 @@ function roundsPaired(rows: Row[]): boolean {
   ])
   t('O2 a sibling feedback block: results first in the assistant\'s order, the feedback after', idsOf(feedback).join(',') === 'A,B,C,text', idsOf(feedback).join(','))
   t('O2 the feedback text survives the reorder', json(feedback).includes('feedback beside A'))
+
   const direct = orderToolResultsByUse([
     asst('mO3', [use('X'), use('Y')]),
     createUserMessage({ content: [trBlock('Y'), { type: 'text', text: 'tail' }, trBlock('X')] as never }),

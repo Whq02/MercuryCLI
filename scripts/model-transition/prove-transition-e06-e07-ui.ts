@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -51,6 +52,7 @@ section('§B E06 — keyboard completeness + mouse polish')
       /<Dialog[\s\S]{0,200}?onCancel=\{onDismiss\}/.test(cap),
   )
   const multi = read('src/components/CustomSelect/SelectMulti.tsx')
+
   check('the multi-select INPUT row (the 5th option) engages by CLICK through its own door (pointer activation)', /isInputOption\(option\)[\s\S]{0,800}onClick=\{[\s\S]{0,200}state\.activateInputValue\(optionValueOf\(option\), 'pointer'\)/.test(multi))
   check('…and its checkbox renders the REAL selection state (matching the text rows)', /isInputOption\(option\)[\s\S]{0,1800}\{checkbox\(isChecked\)\}/.test(multi) && multi.includes('const checkbox = (checked: boolean)'))
   const state = read('src/components/CustomSelect/use-multi-select-state.ts')
@@ -71,6 +73,7 @@ section('§C E07 — the layout/colour estate')
   const layout = read('src/components/FullscreenLayout.tsx')
   check('the pill reserves its row (no content destruction under the overlay)', layout.includes('<Box height={1} flexShrink={0} />') && layout.includes('position="absolute" bottom={0}'))
   check('brand accent stays the token import, not a literal wave', !/(#DD4444)/.test(read('src/components/MercuryModelPicker.tsx')))
+
   check('the windows-ui lane stands for parity at close', existsSync(join(ROOT, '.github/workflows/windows-ui.yml')))
 }
 

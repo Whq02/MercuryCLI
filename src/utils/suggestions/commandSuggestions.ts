@@ -5,7 +5,6 @@ import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { requiresArgument } from '../../skills/argumentHint.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 
-
 type MidInputSlashCommand = {
   token: string
   startPos: number
@@ -16,6 +15,7 @@ type CommandSuggestionItem = {
   id: string
   displayText: string
   tag?: string
+
   value?: string
   description?: string
   metadata?: unknown
@@ -48,6 +48,7 @@ type CommandLike = Command & {
 function suggestionIdentifier(command: CommandLike): string {
   const name = getCommandName(command)
   if (command.type === 'prompt') {
+
     const repository = (command as { extensionInfo?: { id?: string } }).extensionInfo?.id
     return `${name}-${command.source ?? 'unknown'}${repository !== undefined ? `-${repository}` : ''}`
   }
@@ -59,6 +60,7 @@ function toSuggestionItem(
   typedQuery: string,
 ): CommandSuggestionItem {
   const name = getCommandName(command)
+
   let value: string | undefined
   if (command.currentValue !== undefined) {
     try {
@@ -67,6 +69,7 @@ function toSuggestionItem(
       value = undefined
     }
   }
+
   let aliasSuffix = ''
   if (typedQuery !== '') {
     const matchedAlias = (command.aliases ?? []).find(
@@ -201,6 +204,7 @@ function rankResults(
     if (a.tier === 2 || a.tier === 3) {
       if (a.tieBreak !== b.tieBreak) return a.tieBreak - b.tieBreak
     }
+
     if (Math.abs(a.fuzzyScore - b.fuzzyScore) < 0.1) {
       return getSkillUsageScore(getCommandName(b.command)) - getSkillUsageScore(getCommandName(a.command))
     }
@@ -213,6 +217,7 @@ export function generateCommandSuggestions(
   input: string,
   commands: Command[],
 ): CommandSuggestionItem[] {
+
   if (!isCommandInput(input)) return []
   if (hasCommandArgs(input)) return []
 
@@ -230,9 +235,11 @@ export function generateCommandSuggestions(
     )
     const alreadyPresent = items.some(item => item.id === suggestionIdentifier(hiddenExact))
     if (!visibleSameName && !alreadyPresent) {
+
       items = [toSuggestionItem(hiddenExact, query), ...items]
     }
   }
+
   return items
 }
 
@@ -242,9 +249,11 @@ export function findMidInputSlashCommand(input: string, cursorOffset: number): M
   if (!match || match.index === undefined) return null
   const slashPos = match.index + 1
   if (slashPos === 0) return null
+
   let end = cursorOffset
   while (end < input.length && !/\s/.test(input[end] as string)) end++
   const token = input.slice(slashPos, end)
+
   if (cursorOffset > slashPos + token.length) return null
   return { token, startPos: slashPos, partialCommand: (match[1] as string).slice(1) }
 }
@@ -291,6 +300,7 @@ export function applyCommandSuggestion(
     command = (commands as CommandLike[]).find(cmd => getCommandName(cmd) === suggestion)
   } else {
     const metadata = suggestion.metadata as CommandLike | undefined
+
     if (metadata === undefined || typeof metadata !== 'object' || typeof metadata.type !== 'string') return
     command = metadata
   }

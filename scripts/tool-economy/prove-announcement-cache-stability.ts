@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -82,6 +83,7 @@ const NON_DEFERRED = ['Read', 'Edit', 'Bash', 'Glob'].map(n => fixtureTool(n))
 const DEFERRED_BUILTINS = ['WebFetch', 'NotebookEdit', 'Browser'].map(n => fixtureTool(n, { defer: true, params: ['url', 'count'] }))
 const MCP_A = ['read_file', 'write_file', 'list_directory'].map(n => fixtureTool(n, { mcp: 'filesys', params: ['path', 'pattern'] }))
 const MCP_B = ['create_issue', 'list_issues'].map(n => fixtureTool(n, { mcp: 'github', params: ['owner', 'repo'] }))
+
 const MCP_C = ['search_issues', 'get_board'].map(n => fixtureTool(n, { mcp: 'jira', params: ['project', 'query'] }))
 const POOL: Tool[] = [...NON_DEFERRED, ToolSearchTool as never, ...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B]
 const POOL_GROWN: Tool[] = [...POOL, ...MCP_C]
@@ -134,6 +136,7 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
 }
 
 interface CapturedBody { messages: unknown[]; system: unknown; tools: unknown[] }
+
 async function captureFirstParty(tools: Tools, messages: Message[]): Promise<CapturedBody | null> {
   let body: CapturedBody | null = null
   const fetchOverride = (async (_input: unknown, init?: RequestInit) => {
@@ -239,6 +242,7 @@ let rowBytes = 0
 
 section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between requests moves no byte of the head')
 {
+
   const convo = fresh()
   const firstBody = await captureFirstParty(POOL, convo)
   const grownBody = await captureFirstParty(POOL_GROWN, convo)
@@ -251,6 +255,7 @@ section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between re
     check('tools term: the frozen array is byte-identical — every entry the first request sent, in its order, with its mark', JSON.stringify(grownTerm.slice(0, firstTerm.length)) === JSON.stringify(firstTerm))
     check("the new server's tools join at the END, deferred (an unreferenced deferred tool is not part of the prefix)", grownTerm.slice(firstTerm.length).map(t => t.name).join(',') === MCP_C.map(t => t.name).join(',') && grownTerm.slice(firstTerm.length).every(t => t.defer_loading === true), grownTerm.slice(firstTerm.length).map(t => `${t.name}:${String(t.defer_loading)}`).join(','))
   }
+
   const model = ROUTE_MODELS.anthropic
   const first = deltaRow(POOL, model, fresh())
   const persisted: Message[] = first ? [...fresh(), createAttachmentMessage(first) as Message] : fresh()
@@ -259,6 +264,7 @@ section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between re
   const bothPersisted: Message[] = second ? [...persisted, createAttachmentMessage(second) as Message] : persisted
   check('…and the transcript is then quiet again', getDeferredToolsDeltaAttachment(POOL_GROWN, model, bothPersisted).length === 0)
   check('the grown request still carries no minted head', requestHeadIsPlain('anthropic') && grownBody !== null && textsOf(grownBody.messages).every(text => FORBIDDEN_HEAD_WORDS.every(word => !text.includes(word))))
+
   const shrunk = deltaRow(POOL, model, bothPersisted)
   check('a server dropping appends a removal row (never a head rewrite)', shrunk !== null && shrunk.type === 'deferred_tools_delta' && shrunk.removedNames.join(',') === MCP_C.map(t => t.name).sort().join(',') && shrunk.addedNames.length === 0)
 }

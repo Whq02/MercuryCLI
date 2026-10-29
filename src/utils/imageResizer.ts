@@ -13,7 +13,6 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
 
-
 export class ImageResizeError extends Error {
   constructor(message: string) {
     super(message)
@@ -30,6 +29,7 @@ export type ImageDimensions = {
 
 type ResizeResult = {
   buffer: Buffer
+
   mediaType: string
   dimensions?: ImageDimensions
 }
@@ -41,12 +41,14 @@ type DetectedFormat = 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
 export type ImageRole = 'input' | 'tool-result'
 
 export interface ResizeOptions {
+
   limits?: ImageLimits
+
   model?: string
+
   imagesInRequest?: number
   role?: ImageRole
 }
-
 
 export function imageLimitFamilyForRoute(route: string | undefined): ImageLimitFamily {
   if (route === 'anthropic') return 'anthropic'
@@ -79,9 +81,12 @@ async function engineModel(): Promise<string | undefined> {
 
 type Caps = {
   limits: ImageLimits
+
   sidePx: number | null
+
   longEdgePx: number | null
   patches: ImageLimits['maxPatchesPerImage']
+
   rawBytes: number
 }
 
@@ -113,7 +118,6 @@ async function resolveCaps(options: ResizeOptions | undefined): Promise<Caps> {
   const base64Ceiling = limits.maxBase64Bytes ?? limits.maxRequestBytes
   return { limits, sidePx, longEdgePx, patches: limits.maxPatchesPerImage, rawBytes: Math.floor((base64Ceiling / 4) * 3) }
 }
-
 
 export function detectImageFormatFromBuffer(buffer: Buffer): DetectedFormat {
   if (buffer.length < 4) return 'image/png'
@@ -152,7 +156,6 @@ function normalizeSubtype(name: string): string {
   return name === 'jpg' ? 'jpeg' : name
 }
 
-
 type Encoding = { kind: 'source' } | { kind: 'png'; palette: boolean } | { kind: 'jpeg'; quality: number } | { kind: 'webp'; quality: number }
 
 async function attempt(
@@ -185,6 +188,7 @@ function fitDimensions(width: number, height: number, caps: Caps): { width: numb
     scale = Math.min(scale, Math.sqrt((caps.patches.patchPx * caps.patches.patchPx * caps.patches.count) / (width * height)))
   }
   if (scale >= 1) return null
+
   const at = (factor: number): { width: number; height: number } => ({ width: Math.max(1, Math.round(width * factor)), height: Math.max(1, Math.round(height * factor)) })
   let target = at(scale)
   if (caps.patches !== null) {
@@ -225,17 +229,20 @@ export async function maybeResizeAndDownsampleImageBuffer(
   ext: string,
   options?: ResizeOptions,
 ): Promise<ResizeResult> {
+
   if (imageBuffer.length === 0) {
     throw new ImageResizeError('Image resizing failed: the image buffer is empty.')
   }
   const caps = await resolveCaps(options)
   const role: ImageRole = options?.role ?? 'input'
   const sharp = await getImageProcessor()
+
   const sourceSubtype = normalizeSubtype(imageDimensionsFromHeader(imageBuffer)?.format ?? ext)
   const dims = await readDimensions(sharp, imageBuffer)
   const fitsBytes = (bytes: number): boolean => bytes <= caps.rawBytes
 
   if (dims === null) {
+
     if (fitsBytes(originalSize)) return { buffer: imageBuffer, mediaType: sourceSubtype }
     throw new ImageResizeError(
       `The image is ${formatFileSize(originalSize)} (${formatFileSize(base64LengthOf(originalSize))} as base64), over ${limitWords(caps, role)}, and its format could not be decoded here to shrink it.`,
@@ -254,6 +261,7 @@ export async function maybeResizeAndDownsampleImageBuffer(
     try {
       const produced = await attempt(sharp, imageBuffer, sourceSubtype, dimensions, encoding)
       if (!fitsBytes(produced.length)) return null
+
       const shown = imageDimensionsFromHeader(produced) ?? dimensions ?? { width, height }
       return {
         buffer: produced,
@@ -267,15 +275,18 @@ export async function maybeResizeAndDownsampleImageBuffer(
   }
 
   const javascriptRoad = (await imageProcessorState()).road === 'javascript'
+
   const rungs: Array<{ dimensions: { width: number; height: number } | null; encoding: Encoding }> = []
   const base = target ?? { width, height }
   if (target !== null) rungs.push({ dimensions: target, encoding: { kind: 'source' } })
+
   if (!javascriptRoad) {
     rungs.push({ dimensions: target, encoding: { kind: 'png', palette: true } })
     for (const quality of [80, 60, 40]) rungs.push({ dimensions: target, encoding: { kind: 'jpeg', quality } })
   } else if (target === null) {
     rungs.push({ dimensions: null, encoding: { kind: 'png', palette: false } })
   }
+
   for (const scale of [0.75, 0.5, 0.35, 0.25, 0.15]) {
     const step = { width: Math.max(1, Math.floor(base.width * scale)), height: Math.max(1, Math.floor(base.height * scale)) }
     rungs.push({ dimensions: step, encoding: { kind: 'png', palette: !javascriptRoad } })
@@ -298,7 +309,6 @@ export async function maybeResizeAndDownsampleImageBuffer(
     `The image is ${sizeWords}; even the smallest encoding tried (${last.width}x${last.height} px ${javascriptRoad ? 'PNG' : 'JPEG'}) is over ${limitWords(caps, role)}.`,
   )
 }
-
 
 export async function maybeResizeAndDownsampleImageBlock(
   imageBlock: ImageBlockParam,
@@ -636,7 +646,6 @@ export async function fitImagesToRequestCap<M extends RequestRow>(
   return { messages: settled.messages, firstEdited: settled.firstEdited, images, sized, leftOut, sidePx }
 }
 
-
 async function compressImageBuffer(
   imageBuffer: Buffer,
   maxBytes: number,
@@ -702,7 +711,6 @@ export async function compressImageBlock(imageBlock: ImageBlockParam, maxBytes: 
     },
   }
 }
-
 
 export function createImageMetadataText(
   dims: ImageDimensions,

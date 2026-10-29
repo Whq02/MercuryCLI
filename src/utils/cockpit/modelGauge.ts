@@ -1,4 +1,3 @@
-
 import { getSdkBetas } from '../../bootstrap/state.js'
 import { catalogueEpoch, subscribeCatalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import {
@@ -12,13 +11,19 @@ import { renderModelName, type ModelName } from '../model/model.js'
 import { withState, type Snapshot } from './types.js'
 
 export type ModelData = {
+
   name: string
+
   model: string
+
   window: number
   windowSource: ContextResolution['source']
+
   windowReason?: string
   outputReserve: number
+
   provider: ProviderId | 'unrecognised'
+
   usability: Pick<ProviderUsability, 'usable' | 'credential' | 'limit' | 'blockers'> | null
 }
 
@@ -38,6 +43,7 @@ export function modelGauge(model: ModelName): Snapshot<{ data: ModelData }> {
     const provider = declaredRouteOf(model) ?? 'unrecognised'
     let usability: ModelData['usability'] = null
     try {
+
       const u = provider === 'unrecognised' ? undefined : resolveProviderUsability()[provider]
       usability = u ? { usable: u.usable, credential: u.credential, limit: u.limit, blockers: u.blockers } : null
     } catch {

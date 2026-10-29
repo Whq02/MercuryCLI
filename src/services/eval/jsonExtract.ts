@@ -1,4 +1,3 @@
-
 export function extractJsonValue(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
   const direct = tryParse(text.trim())
   if (direct.ok) return direct

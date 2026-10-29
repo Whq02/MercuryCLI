@@ -1,4 +1,3 @@
-
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-rc.1

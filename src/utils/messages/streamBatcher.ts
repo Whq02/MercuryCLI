@@ -1,10 +1,13 @@
-
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
 
 export type StreamBatcherOpts<T> = {
+
   sink: (value: T) => void
+
   intervalMs?: number
+
   flushNow?: (prev: T, next: T) => boolean
+
   setTimer?: (fn: () => void, ms: number) => unknown
   clearTimer?: (handle: unknown) => void
 }
@@ -13,12 +16,14 @@ export class StreamBatcher<T> {
   private value: T
   private timer: unknown = null
   private disposed = false
+
   private silentDirty = false
   private readonly sink: (value: T) => void
   private readonly intervalMs: number
   private readonly flushNow?: (prev: T, next: T) => boolean
   private readonly setTimer: (fn: () => void, ms: number) => unknown
   private readonly clearTimer: (handle: unknown) => void
+
   sinkCalls = 0
 
   private unregisterProbe: () => void
@@ -30,6 +35,7 @@ export class StreamBatcher<T> {
     this.flushNow = opts.flushNow
     this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms))
     this.clearTimer = opts.clearTimer ?? (h => clearTimeout(h as ReturnType<typeof setTimeout>))
+
     this.unregisterProbe = registerFlushProbe({
       name: 'stream-batcher',
       pending: () => (this.timer !== null ? 1 : 0),

@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -32,6 +31,7 @@ interface InterviewDecisionRecord {
   mission: string
   createdAtMs: number
   decisions: DecisionEntry[]
+
   unresolved: string[]
 }
 
@@ -92,7 +92,6 @@ export function buildDecisionRecord(
   }
 }
 
-
 function projectKey(): string {
   return createHash('sha256').update(getCwd()).digest('hex').slice(0, 16)
 }
@@ -103,6 +102,7 @@ function recordPath(): string {
 
 export function persistDecisionRecord(record: InterviewDecisionRecord): void {
   try {
+
     durableAtomicPublishSync(recordPath(), JSON.stringify(record, null, 1))
   } catch (e) {
     logError(`interview decision-record persist failed: ${e}`)

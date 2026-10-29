@@ -1,4 +1,3 @@
-
 import { mkdtempSync, rmSync } from 'node:fs'
 import { gitArgs } from './git/spawnArgs.js'
 
@@ -13,6 +12,7 @@ export function sweepProbeDir(
       remover(dir)
       return true
     } catch (error) {
+
       const code = (error as NodeJS.ErrnoException).code
       const transient = isTransientWin32FsCode(code) || code === 'ENOTEMPTY'
       if (!transient || attempt === attempts) {
@@ -79,6 +79,7 @@ export async function probeRunKernel(): Promise<CheckResult> {
     if (loaded.state !== 'loaded' || loaded.snapshot.deliverables.length !== 1) {
       return { status: 'fail', evidence: `sidecar round trip broke: ${loaded.state}` }
     }
+
     const { writeFileSync } = await import('node:fs')
     writeFileSync(sidecar.runSidecarPath(owner), '{"schema":1,"snaps', 'utf8')
     const torn = await sidecar.loadRunSidecar(owner)
@@ -474,6 +475,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
   const journal = join(dir, 'journal')
   const priorFaultSpec = flagEnv('MERCURY_FAULT_INJECT')
   try {
+
     const a = join(dir, 'a.json')
     const b = join(dir, 'b.json')
     const outcome = await runJournaledOperation<{ done: boolean }>({
@@ -490,6 +492,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
     if (outcome.outcome !== 'committed' || !existsSync(a) || !existsSync(b)) {
       return { status: 'fail', evidence: `journaled commit broke (${outcome.outcome})` }
     }
+
     const replay = await runJournaledOperation<{ done: boolean }>({
       journalDir: journal,
       ownerKey: 'health-probe',
@@ -508,6 +511,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
     if (replay.outcome !== 'replayed') {
       return { status: 'fail', evidence: `idempotent replay broke (${replay.outcome})` }
     }
+
     const deadPid = spawnSync(process.execPath, ['-e', ''], { windowsHide: true, timeout: 10_000 }).pid ?? 999999
     const orphan = join(dir, 'orphan.json')
     await durableAtomicPublish(orphan, '{"half":true}')
@@ -544,6 +548,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
         evidence: `died-writer recovery broke (compensated=${compensated}, state=${deadOp?.state}, orphanGone=${!existsSync(orphan)})`,
       }
     }
+
     setFlagEnv('MERCURY_FAULT_INJECT', 'flush-file@health-txn-probe:throw')
     let typedFailure = false
     try {
@@ -593,13 +598,13 @@ export async function probeLspLiveLane(): Promise<CheckResult> {
       evidence: 'live lane not exercised — no language server RUNNING right now (servers start lazily on first file use)',
     }
   }
+
   const server = servers[0]!
   return {
     status: 'ok',
     evidence: `live lane running: ${server.name} generation ${server.generation} — real operations flow through this process (typed effects since slice 4)`,
   }
 }
-
 
 export async function probeChangeTransaction(): Promise<CheckResult> {
   const { changeTransactionEnabled } = await import(
@@ -766,6 +771,7 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'axiom')
   try {
+
     P.registerExecution({ owner, id: 'probe-exec', kind: 'process', label: 'probe', lifecycle: 'owner' })
     P.transitionExecution(owner, 'probe-exec', 'starting')
     P.transitionExecution(owner, 'probe-exec', 'running')
@@ -774,6 +780,7 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
     if (exec?.state !== 'succeeded' || exec.generation !== 1) {
       return { status: 'fail', evidence: `execution lifecycle broke: ${exec?.state}` }
     }
+
     observeToolTerminal({
       owner,
       toolName: 'Edit',
@@ -801,10 +808,12 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
     if (!change || !settle) {
       return { status: 'fail', evidence: `evidence spine missing rows (${evidence.length} total)` }
     }
+
     const res = await resolveResource('mercury://owner', { owner, cwd: '/tmp' })
     if (res.state !== 'ok' || !res.resource.children?.some(c => c.ref === 'mercury://execution/probe-exec')) {
       return { status: 'fail', evidence: `owner→execution traversal broke (${res.state})` }
     }
+
     const state = P.newAnthropicProjectionState()
     const events = [
       { type: 'message_start', message: { model: 'fixture' } },
@@ -815,6 +824,7 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
     if (events.map(e => e.type).join(',') !== 'response.started,text.delta,response.completed') {
       return { status: 'fail', evidence: `canonical stream fixture drifted: ${events.map(e => e.type).join(',')}` }
     }
+
     await disposeOwner(owner)
     if (P.listExecutions(owner).length !== 0 || P.transactionsFor(owner).length !== 0 || P.evidenceFor(owner).length !== 0) {
       return { status: 'fail', evidence: 'owner disposal left primitive records behind' }
@@ -885,6 +895,7 @@ export async function probeStructureLoop(): Promise<CheckResult> {
     if (applied.evidenceRefs.length < 2) {
       return { status: 'fail', evidence: 'canonical change+check evidence missing' }
     }
+
     const query2 = runStructureQuery(root, { select: 'call', callee: 'audit.log' })
     if ('state' in query2) return { status: 'fail', evidence: query2.note }
     const preview2 = buildPreview(owner, query2, undefined, { action: 'remove' })
@@ -968,6 +979,7 @@ export async function probeGitGraph(): Promise<CheckResult> {
         return { status: 'fail', evidence: `per-commit transaction not settled with observed effect (${c.transactionId})` }
       }
     }
+
     fs.appendFileSync(pathMod.join(root, 'a.ts'), 'export const a3 = 3\n')
     const plan2 = preparePlan(owner, root, [{ files: ['a.ts'], message: 'feat: a3' }])
     if ('reason' in plan2) return { status: 'fail', evidence: plan2.reason }

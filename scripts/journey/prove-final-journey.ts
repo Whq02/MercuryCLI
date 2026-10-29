@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -11,6 +12,7 @@ const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, '../ui/vshot.py')
 const FIX = join(REPO, '.mercury', 'proof-fixtures', 'journey', 'jx')
+
 const { resolveProofHome } = await import('../lib/proofHome.ts')
 const CONFIG_HOME = resolveProofHome([FIX], { keep: Boolean(process.env.JOURNEY_KEEP_FIXTURE) })
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -57,6 +59,7 @@ const SATURN_RECORDS = () => {
   }
 }
 function seedSchedules(daemonDir: string): void {
+
   mkdirSync(daemonDir, { recursive: true })
   writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify(SATURN_RECORDS()))
 }
@@ -89,6 +92,7 @@ function writeSessions(): void {
     a({ parentUuid: '00000000-0000-4000-a000-000000000002', type: 'user',
       uuid: '00000000-0000-4000-a000-000000000003',
       message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_j_edit1', content: 'ok' }] },
+
       toolUseResult: {
         filePath: join(FIX, 'file-1.ts'), oldString: 'export const v1 = 1', newString: 'export const v1 = 10',
         originalFile: 'export const v1 = 1\nexport const w1 = 1\n',
@@ -107,6 +111,7 @@ function writeSessions(): void {
     a({ parentUuid: '00000000-0000-4000-a000-000000000004', type: 'user',
       uuid: '00000000-0000-4000-a000-000000000005',
       message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_j_agent1', content: [{ type: 'text', text: AGENT_REPORT_LINE }] }] },
+
       toolUseResult: {
         status: 'completed', agentId: 'journeyagent1', agentType: 'Explore',
         content: [{ type: 'text', text: AGENT_REPORT_LINE }],
@@ -135,6 +140,7 @@ function writeSessions(): void {
         stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
       timestamp: '2026-06-19T12:00:02.000Z' }),
   ]
+
   writeFileSync(join(PROJ_DIR, `${SID_A}.jsonl`), encodeSeedTranscript(linesA, SID_A))
   writeFileSync(join(PROJ_DIR, `${SID_B}.jsonl`), encodeSeedTranscript(linesB, SID_B))
 }
@@ -147,6 +153,7 @@ function buildFixture(): void {
   git('config', 'user.email', 'fixture@mercury.local')
   git('config', 'user.name', 'fixture')
   writeFileSync(join(FIX, '.gitignore'), '.mercury/\n')
+
   const multiBase = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a-multi`).join('\n')
   writeFileSync(join(FIX, 'a-multi.ts'), multiBase + '\n')
   writeFileSync(join(FIX, 'file-1.ts'), 'export const v1 = 1\nexport const w1 = 1\n')
@@ -166,9 +173,12 @@ type Cell = { c: string }
 const SCRATCH = (name: string) => join(tmpdir(), `mercury-journey-${name}-${process.pid}`)
 
 const READY = '❯'
+
 const READY_TICK = 5
+
 const SLACK = 30
 type Timeline = Array<{ atTick: number; data: string; awaitText?: string; awaitSettleTicks?: number; targetText?: string; targetDx?: number }>
+
 function anchored(sends: Timeline, total: number, ready: string | null): Record<string, unknown> {
   let prev = 0
   const out = sends.map((s, i) => {
@@ -197,6 +207,7 @@ function capture(
   const gridPath = `/tmp/journey-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/journey-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({
+
     argv: ['node', BIN, '--resume', sid, ...(process.env.JOURNEY_DEBUG === '1' ? ['--debug'] : [])],
     cwd: FIX, ...anchored(sends, total, ready), cols, rows, out: gridPath,
   }))
@@ -209,6 +220,7 @@ function capture(
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_TURN_RECEIPT: '0',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
+
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_HOME: SCRATCH('home'),
       VISUAL: '',
@@ -221,6 +233,7 @@ function capture(
   }
   const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Cell[][] }).grid
   const lines = grid.map(r => r.map(c => c.c).join(''))
+
   const inkCells = lines.join('').replace(/\s/g, '').length
   check(`${tag}: frame is painted (no all-blank grid)`, inkCells > 400, `${inkCells} ink cells`)
   return lines
@@ -229,6 +242,7 @@ function capture(
 const click = (x: number, y: number): string => `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`
 const rowOf = (lines: string[], needle: string): number => lines.findIndex(l => l.includes(needle))
 const countRows = (lines: string[], needle: string): number => lines.filter(l => l.includes(needle)).length
+
 const promptRow = (lines: string[]): number => lines.reduce((acc, l, i) => (l.includes('❯') ? i : acc), -1)
 
 console.log('============================================================')
@@ -237,6 +251,7 @@ console.log('============================================================')
 buildFixture()
 
 console.log('\n── J1 · cold start to home ─────────────────────────────────')
+
 const j1 = capture('j1-home', [], 80)
 let promptY0 = -1
 if (j1) {
@@ -306,6 +321,7 @@ if (dragY > 0) {
 }
 
 console.log('\n── J4 · durable draft restore + disclosure toggle ──────────')
+
 writeSessions()
 const j4a = capture('j4-restore', [], 58, { ready: 'polish the omega handler' })
 let agentY4 = -1
@@ -314,10 +330,12 @@ if (j4a) {
   check('relaunch: the omega draft RESTORED from the durable store', rowOf(j4a, 'polish the omega handler') >= 0)
   check('relaunch: multiline shape intact', rowOf(j4a, 'then rerun the suite') >= 0)
   agentY4 = rowOf(j4a, 'Done (3 tool uses')
+
   agentX4 = agentY4 >= 0 ? (j4a[agentY4] ?? '').indexOf('Done (') + 3 : -1
   check('relaunch: agent card present for the toggle leg', agentY4 >= 0)
 }
 if (agentY4 >= 0) {
+
   const j4b = capture('j4-toggle', [
     { atTick: 58, awaitText: 'polish the omega handler', data: click(agentX4, agentY4 + 1) },
     { atTick: 70, targetText: 'Done (3 tool uses', targetDx: 2, data: '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m' },
@@ -343,6 +361,7 @@ if (j5a) {
 const j5b = capture('j5-carry', [
   ...DIFF_OPEN,
   { atTick: 50, data: '\x1b[B' },
+
   { atTick: 56, data: '\x1b[C' },
   { atTick: 60, data: '\x1b[C' },
   { atTick: 64, data: '\x1b[C' },
@@ -382,6 +401,7 @@ const SATURN_OPEN = [
 ]
 const j6a = capture('j6-board', SATURN_OPEN, 60, { cols: 140, ready: 'b2c3d4e5' })
 if (j6a) {
+
   check('board: all three schedules painted', rowOf(j6a, 'b2c3d4e5') >= 0 && rowOf(j6a, 'c3d4e5f6') >= 0 && rowOf(j6a, 'a1b2c3d4') >= 0)
   check('board: the verb floor is armed (x delete · n run-now · r refresh)', rowOf(j6a, 'x delete') >= 0 && rowOf(j6a, 'n run-now') >= 0 && rowOf(j6a, 'r refresh') >= 0)
   check('board: the owning session is named on its rows', rowOf(j6a, 'journey session') >= 0)
@@ -437,6 +457,7 @@ if (flipOut?.some(l => l.includes('standing by in bravo'))) {
     check('flip back: the multiline draft RESTORED into the composer', rowOf(j7c, 'session alpha draft line one') >= 0 && rowOf(j7c, 'line two of the draft') >= 0)
     check('flip back: no duplicate settled ± card after the round-trip', countRows(j7c, '· +1/-1') === 1, `rows=${countRows(j7c, '· +1/-1')}`)
   }
+
   const draftsFile = join(CONFIG_HOME, 'drafts', `${createHash('sha256').update(FIX).digest('hex').slice(0, 16)}.json`)
   let durable = ''
   try { durable = readFileSync(draftsFile, 'utf8') } catch {  }
@@ -459,6 +480,7 @@ if (j8) {
 
 console.log('\n── source contracts ─────────────────────────────────────────')
 {
+
   const pending = readFileSync(join(REPO, 'src/input-core/pending-input.ts'), 'utf8')
   const rekeyAt = pending.indexOf('export async function rekeyToSession(')
   const rekey = rekeyAt === -1 ? '' : pending.slice(rekeyAt, pending.indexOf('\n}\n', rekeyAt))

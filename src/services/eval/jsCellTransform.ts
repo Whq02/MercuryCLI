@@ -1,7 +1,8 @@
-
 interface TransformedCell {
   code: string
+
   persistedNames: string[]
+
   capturesResult: boolean
 }
 
@@ -127,6 +128,7 @@ function* codePositions(source: string, everyDepth: boolean): Generator<number> 
       case 'code':
         break
     }
+
     if (c === '/' && next === '/') {
       mode = 'line'
       i += 2
@@ -166,6 +168,7 @@ function* codePositions(source: string, everyDepth: boolean): Generator<number> 
     }
     if (c === ')' || c === ']' || c === '}') {
       depth = Math.max(0, depth - 1)
+
       if (
         c === '}' &&
         templateDepths.length > 0 &&
@@ -349,6 +352,7 @@ function rewriteImport(statement: string): { code: string; names: string[] } | n
   const bindings: string[] = []
   const names: string[] = []
   let rest = clause
+
   const defaultMatch = /^([A-Za-z_$][\w$]*)\s*(,)?\s*/.exec(rest)
   if (defaultMatch && !rest.startsWith('{') && !rest.startsWith('*')) {
     const name = defaultMatch[1]!
@@ -407,6 +411,7 @@ function isCapturableExpression(segment: string, leadingGroupSafe: boolean): boo
   if (/^[.+\-*/%&|^<>?:,)\]}]/.test(trimmed)) return false
   if (!leadingGroupSafe && /^[([]/.test(trimmed)) return false
   try {
+
     // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     new Function(`return async () => (${trimmed}\n);`)
     return true
@@ -448,6 +453,7 @@ function transformJsCell(source: string): TransformedCell {
       lastCodeIndex = i
     }
   }
+
   const prev = prevCodeIndex >= 0 ? segments[prevCodeIndex]!.text.trim() : ''
   const prevEndsCleanly =
     prevCodeIndex < 0 ||
@@ -464,6 +470,7 @@ function transformJsCell(source: string): TransformedCell {
     const leading = LEADING_TRIVIA.exec(text)![0]
     const trimmed = text.slice(leading.length).trim()
     if (trimmed.startsWith('export ')) {
+
       const afterExport = trimmed.slice('export '.length)
       if (/^(?:const|let|var|function|class|async\s+function)\b/.test(afterExport)) {
         text = leading + afterExport
@@ -505,6 +512,7 @@ function transformJsCell(source: string): TransformedCell {
     out.push(text)
   }
   const unique = [...new Set(names)].filter(n => /^[A-Za-z_$][\w$]*$/.test(n) && parsesCell(`let ${n};`))
+
   const persist = unique
     .map(
       n =>

@@ -1,4 +1,3 @@
-
 import React, { useCallback, useMemo, useRef, useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../ink.js'
@@ -61,6 +60,7 @@ export function ModelPicker({
   const setAppState = useSetAppState()
   const appStateEffort = useAppState((s: AppState) => s.effortValue)
   const options = useMemo(() => {
+
     const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !isCatalogueDoorRow(o.value))
     if (
       !resolvesToExistingOption(catalogue, initial) &&
@@ -68,6 +68,7 @@ export function ModelPicker({
       !resolvesToExistingOption(catalogue, stripContext1m(initial)) &&
       !catalogue.some(option => option.value === stripContext1m(initial))
     ) {
+
       const appended: ModelOption = {
         value: initial,
         label: getPublicModelDisplayName(initial) ?? initial,
@@ -129,6 +130,7 @@ export function ModelPicker({
     if (key.leftArrow) cycleEffort('left')
     else if (key.rightArrow) cycleEffort('right')
     else if (input === 'c' && !key.ctrl && !key.meta && focusedSupports1m) {
+
       setContextToggle(previous => !previous)
     }
   })
@@ -146,6 +148,7 @@ export function ModelPicker({
 
       if (!skipSettingsWrite) {
         if (effortToggled) {
+
           unpinAllLaunchEffort()
         }
         const persisted = resolvePickerEffortPersistence(
@@ -157,6 +160,7 @@ export function ModelPicker({
         if (persisted !== undefined) {
           updateSettingsForSource('userSettings', { engine: { effort: persisted } })
         }
+
         setAppState((previous: AppState) => ({
           ...previous,
           effortValue: persisted as EffortValue | undefined,

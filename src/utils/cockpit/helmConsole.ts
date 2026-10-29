@@ -1,11 +1,9 @@
-
 import { errorMessage } from '../errors.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function consoleEnabled(): boolean {
   return flagEnv('MERCURY_HELM_CONSOLE') !== '0'
 }
-
 
 type ConsoleUsage = {
   in: number
@@ -22,12 +20,15 @@ export type ConsoleEntry = {
   answer?: string
   error?: string
   usage?: ConsoleUsage
+
   originRef?: string
+
   conversationId?: string
 }
 
 export type ConsoleRunnerResult = {
   response: string | null
+
   originRef?: string
   usage?: {
     input_tokens?: number
@@ -42,9 +43,7 @@ export type ConsoleRunner = (
   abortController: AbortController,
 ) => Promise<ConsoleRunnerResult>
 
-
 const ENTRIES_MAX = 24
-
 
 let entries: ConsoleEntry[] = []
 let entrySeq = 0
@@ -54,6 +53,7 @@ let pendingAsk: {
   startedAt: number
   controller: AbortController
 } | null = null
+
 let pendingPublic: { question: string; startedAt: number } | null = null
 
 let version = 0
@@ -117,7 +117,6 @@ export function getConsoleVersion(): number {
   return version
 }
 
-
 export function getConsolePending(): { question: string; startedAt: number } | null {
   return pendingPublic
 }
@@ -125,7 +124,6 @@ export function getConsolePending(): { question: string; startedAt: number } | n
 export function getConsoleEntries(): readonly ConsoleEntry[] {
   return entries
 }
-
 
 function normalizeUsage(u: ConsoleRunnerResult['usage']): ConsoleUsage | undefined {
   if (!u) return undefined
@@ -138,6 +136,7 @@ function normalizeUsage(u: ConsoleRunnerResult['usage']): ConsoleUsage | undefin
 }
 
 function settle(id: number, res: ConsoleRunnerResult | undefined, err: unknown): void {
+
   if (pendingAsk?.id !== id) return
   const startedAt = pendingAsk.startedAt
   pendingAsk = null
@@ -188,6 +187,7 @@ function startAsk(question: string, run: ConsoleRunner): boolean {
   if (!consoleEnabled()) return false
   const q = question.trim()
   if (!q) return false
+
   if (reliefVerb(q)) return true
   if (pendingAsk) return false
   const id = ++entrySeq
@@ -222,7 +222,6 @@ export function consoleClear(): boolean {
   if (had) notify()
   return had
 }
-
 
 export function resetConsoleForTest(): void {
   entries = []

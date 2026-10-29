@@ -167,6 +167,7 @@ section('6. parseUnityBridgeFrame — total over hostile input, never throws')
   )
   const evt = parseUnityBridgeFrame('{"event":"test_run_finished","data":{"passed":3}}')
   check('event data rides through intact', evt.kind === 'event' && (evt.data as { passed: number }).passed === 3)
+
   check('a non-numeric-id ok frame is not a response', parseUnityBridgeFrame('{"ok":true,"id":null}').kind === 'hello-reply')
 }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -7,6 +8,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'submodels-proof-'))
 delete process.env.MERCURY_CONSOLE_MODEL
+
 for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR']) {
   delete process.env[key]
 }
@@ -144,6 +146,7 @@ section('2 · signed-out routing — the row IS the route to the attach home')
 
 section('3 · ONE catalogue — no serve law, no tier (ruled)')
 {
+
   const registry = composeSubModelRegistry(reads)
   check(
     'no row is refused for a serve reason (the container decides nothing)',
@@ -175,6 +178,7 @@ section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the ope
     "the hint is the ruling's words, verbatim",
     SUB_MODEL_UNSET_HINT === 'use /submodels to pin one of the available model catalogues',
   )
+
   const priorModel = process.env.MERCURY_MODEL
   for (const main of [
     'claude-fable-5',
@@ -339,10 +343,12 @@ section('5 · the console dispatch read — override only on a real difference, 
 
 section('6 · the frontier row — an ordinary tier row of the SHARED catalog (ruled)')
 {
+
   const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/utils/model/modelOptions.ts')
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const real = getModelOptions()
   const fables = real.filter(o => typeof o.value === 'string' && /fable/i.test(o.value))
+
   const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
   const newestFable = ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty
@@ -392,6 +398,7 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
 
 section('7 · the ONE credential truth — the REAL owner chain across sign-in/out (no injection)')
 {
+
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   for (const key of [
@@ -491,6 +498,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       },
     }),
   )
+
   noteCredentialChange()
   check('signed in: the owner resolves the subscription', resolveOpenaiAccount()?.kind === 'chatgpt-subscription')
   {
@@ -596,6 +604,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
 
 section("8 · CATALOGUE EQUALITY — both containers list exactly the main picker's rows, carriers included")
 {
+
   const { getModelOptions, isProviderActionRow } = await import(
     '../../src/utils/model/modelOptions.ts'
   )
@@ -678,6 +687,7 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     registrySelectable.has('openrouter/fixture-vendor/ox-alpha') &&
       registrySelectable.has('openrouter/fixture-vendor/hummingbird:free'),
   )
+
   const again = composeSubModelRegistry({
     options: () => getModelOptions(false, { anthropicCredentialed: () => true }),
     presences: presencesWithCarrier,
@@ -687,6 +697,7 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
     'a second derivation is identical row for row',
     JSON.stringify(again.entries) === JSON.stringify(registry.entries),
   )
+
   const carrierReads = {
     options: () => getModelOptions(false, { anthropicCredentialed: () => true }),
     presences: presencesWithCarrier,

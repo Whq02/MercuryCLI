@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -201,6 +202,7 @@ section('§4 · the version probe (shim fake)')
   const foreign = shim('foreign-aseprite', '#!/bin/sh\necho "something else"\nexit 0\n')
   v = await probeAsepriteVersion(foreign)
   check('foreign output ⇒ reason, never a throw', v.version === undefined && (v.reason ?? '').includes('unparseable'), v.reason)
+
   _resetAsepriteVersionProbeForTesting()
   const flip = shim('flip-aseprite', '#!/bin/sh\necho "Aseprite 9.9.9"\nexit 0\n')
   v = await probeAsepriteVersion(flip)
@@ -217,6 +219,7 @@ section('§5 · catalog-gate truth table')
   writeFileSync(path.join(spriteTree, 'hero.aseprite'), '')
   const bareTree = path.join(scratch, 'gate-bare')
   mkdirSync(bareTree, { recursive: true })
+
   process.env.MERCURY_ASEPRITE_NO_DISCOVERY = '1'
 
   process.env.MERCURY_ASEPRITE = '1'

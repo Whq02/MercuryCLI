@@ -72,7 +72,9 @@ type InstructionCompositionState = {
   adapterId: string
   fallbackComposed: boolean
   skippedDuplicates: { path: string; family: InstructionFamily }[]
+
   diagnostics: InstructionDiagnostic[]
+
   loadReason: string
 }
 
@@ -167,6 +169,7 @@ async function walkConventions(
         'managed',
       )
     }
+
     const managedRulesDir = convention.managedRulesDir()
     if (managedRulesDir) {
       push(
@@ -251,12 +254,14 @@ async function walkConventions(
     const outerFirst = dirs.reverse()
     const composeChain = async (set: InstructionConvention[]): Promise<void> => {
       for (const dir of outerFirst) {
+
         const skipProject =
           isNestedWorktree &&
           pathInWorkingPath(dir, canonicalRoot) &&
           !pathInWorkingPath(dir, gitRoot)
 
         for (const convention of set) {
+
           if (isSettingSourceEnabled('projectSettings') && !skipProject) {
             for (const projectPath of convention.projectDirFiles(dir)) {
               push(
@@ -382,7 +387,6 @@ export const getInstructionFiles = memoize(
   },
 )
 
-
 export type InstructionsLoadReason = 'session_start' | 'compact'
 
 let nextEagerLoadReason: InstructionsLoadReason = 'session_start'
@@ -407,8 +411,10 @@ export function onInstructionCacheInvalidated(listener: () => void): () => void 
 }
 
 export function clearInstructionFileCaches(): void {
+
   getInstructionFiles.cache?.clear?.()
   forgetHiddenCharacters('instruction')
+
   clearExcludeResolutionMemo()
   for (const listener of cacheInvalidationListeners) {
     try {
@@ -522,6 +528,7 @@ export async function getInstructionFilesForNestedDirectory(
     lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dir])
       ? [...active.filter(c => c.fallback), ...primary]
       : primary
+
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
 
   for (const convention of conventions) {
@@ -602,6 +609,7 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
 ): Promise<InstructionSourceEntry[]> {
   if (untrustedWorkspaceHeadless()) return []
   const results: InstructionSourceEntry[] = []
+
   const composedDigests = new Set<string>()
   for (const convention of activeConventions()) {
     for (const rulesDir of convention.projectRulesDirs(dir)) {
@@ -710,7 +718,6 @@ export async function seedFileKnowledgeFromInjectedInstructions(
   } catch {
   }
 }
-
 
 function sha256(content: string): string {
   return createHash('sha256').update(content).digest('hex')

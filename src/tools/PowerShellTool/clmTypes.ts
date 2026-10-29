@@ -1,5 +1,5 @@
-
 const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
+
   'alias', 'allowemptycollection', 'allowemptystring', 'allownull',
   'argumentcompleter', 'argumentcompletions', 'array', 'bigint', 'bool', 'byte',
   'char', 'cimclass', 'cimconverter', 'ciminstance', 'cimtype', 'cmdletbinding',
@@ -17,6 +17,7 @@ const CLM_ALLOWED_TYPES: ReadonlySet<string> = new Set([
   'validatepattern', 'validaterange', 'validatescript', 'validateset',
   'validatetrusteddata', 'validateuserdrive', 'version', 'void', 'wildcardpattern',
   'x500distinguishedname', 'x509certificate', 'xml',
+
   'system.array', 'system.boolean', 'system.byte', 'system.char',
   'system.datetime', 'system.decimal', 'system.double', 'system.guid',
   'system.int16', 'system.int32', 'system.int64', 'system.numerics.biginteger',

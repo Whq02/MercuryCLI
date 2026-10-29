@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -16,6 +17,7 @@ const section = (t: string): void => {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
+
 process.env.MERCURY_TIME_BASED_MC = '1'
 const law = await import('../../src/services/compact/pruneProtections.ts')
 const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
@@ -23,9 +25,11 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 type Message = import('../../src/types/message.ts').Message
 
 section('§A the predicate')
+
 {
   check('Skill results are protected', law.isProtectedFromPruning('Skill'))
   check('a skill-file Read is protected by its path', law.isProtectedFromPruning('Read', { file_path: '/repo/mercury-skills/deploy/SKILL.md' }) && law.isProtectedFromPruning('Read', { file_path: '/Users/x/.mercury/skills/review/SKILL.md' }))
+
   check(
     'a skill-file Read spelled with Windows separators is protected',
     law.isProtectedFromPruning('Read', { file_path: 'C:\\Users\\x\\.mercury\\skills\\review\\SKILL.md' }) &&
@@ -43,17 +47,20 @@ section('§A the predicate')
 }
 
 section('§B the floor')
+
 {
   check('at/below the floor: never blank', law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS) && law.isBelowPlaceholderFloor(1))
   check('above the floor: blanking may pay', !law.isBelowPlaceholderFloor(law.PLACEHOLDER_COST_FLOOR_TOKENS + 1))
 }
 
 section('§C the clearing path honours both laws')
+
 {
   const OLD = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()
   const stamp = (m: Message): Message => ({ ...m, timestamp: OLD }) as Message
   const big = 'x'.repeat(36_000)
   const huge = 'x'.repeat(80_000)
+
   const fillers = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'bash_recent']
   const history: Message[] = [
     stamp(createUserMessage({ content: 'go' }) as Message),
@@ -100,6 +107,7 @@ section('§C the clearing path honours both laws')
 }
 
 section('§D the consumers (structural)')
+
 {
   const micro = readFileSync(join(ROOT, 'src/services/compact/microCompact.ts'), 'utf8')
   check('the clearing path imports the law', micro.includes("from './pruneProtections.js'") && micro.includes('isProtectedFromPruning(') && micro.includes('isBelowPlaceholderFloor('))

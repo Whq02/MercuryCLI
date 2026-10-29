@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,6 +51,7 @@ const drive = async (
 
 section('§1 DAMAGED POINTER — STATUS SPEAKS THE VERDICT')
 {
+
   mkdirSync(join(HOME, 'versions', 'current.txt'), { recursive: true })
   const r = await drive({ status: true })
   check('--status exits 1 on the unreadable pointer', r.code === 1, `code=${r.code}`)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
@@ -73,6 +74,7 @@ retainItems(
   { session: 'reflect' },
 )
 maybeConsolidate({ dir: mnemeLibraryDir(), force: true })
+
 const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
 const citableSeqs = recallQuery('release', { limit: 12 })
   .hits.map(h => /^seq:(\d+)$/.exec(h.id)?.[1])
@@ -103,6 +105,7 @@ check('refused to recall-only', invented.data.mode === 'recall-only', invented.d
 check('the invented id is named', (invented.data.degradedReason ?? '').includes('seq 777'), invented.data.degradedReason)
 
 section('a doc frontmatter/heading line is NOT citable grounding → refused')
+
 scripted.push('Everything about releases is in the summary [doc:release:3].')
 const docOnly = await ReflectTool.call({ query: 'release' } as never, context)
 check('a doc-only citation is refused to recall-only', docOnly.data.mode === 'recall-only', docOnly.data.mode)
@@ -110,6 +113,7 @@ check('the refusal names the grounding law', (docOnly.data.degradedReason ?? '')
 check('the raw recall (incl. doc lines) still rides along', docOnly.data.recall.hits.some(h => h.id.startsWith('doc:')), JSON.stringify(docOnly.data.recall.hits.map(h => h.id)))
 
 section('no usable seat for the model → TYPED degradation to recall-with-notice')
+
 delete process.env.ZAI_API_KEY
 const glmContext = {
   options: { engineModel: 'glm-5.2', tools: [], mcpClients: [], isNonInteractiveSession: true },

@@ -49,6 +49,7 @@ export function decodeRows(text: string): HelixRunRow[] {
     if (typeof raw.taskId !== 'string' || typeof raw.policyId !== 'string' || typeof raw.status !== 'string') {
       throw new Error('undecodable run row: ' + line.slice(0, 120))
     }
+
     if (raw.status === 'accepted' && raw.graderComponents?.some(c => !c.pass)) {
       throw new Error('row claims accepted over a failing grader component: ' + raw.taskId)
     }

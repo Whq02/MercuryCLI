@@ -91,6 +91,7 @@ async function main(): Promise<void> {
       check('parent breakpoint UNVERIFIED (a multi-session parent binds nothing)', rootBps[0]?.verified === false)
       const childBps = child.breakpoints.get('/tmp/demo.js') ?? []
       check('child breakpoint VERIFIED (the child is the verifier)', childBps[0]?.verified === true)
+
       const { executionAdapter } = await import('../../src/services/resources/adapters/execution.ts')
       const planeRead = await executionAdapter.resolve(
         { kind: 'execution', id: 'debug:walk', selectors: {}, canonical: 'mercury://execution/debug:walk' } as never,
@@ -110,6 +111,7 @@ async function main(): Promise<void> {
       await removeDapSession(OWNER, 'walk')
       check('dispose reaps the registry entry', getDapSession(OWNER, 'walk') === undefined)
       check('the child died with the tree', child.alive === false)
+
       const settledRead = await executionAdapter.resolve(
         { kind: 'execution', id: 'debug:walk', selectors: {}, canonical: 'mercury://execution/debug:walk' } as never,
         { owner: OWNER, cwd: process.cwd() } as never,
@@ -160,6 +162,7 @@ async function main(): Promise<void> {
 
   section('2b. runtimeArgs pass-through: on the standard body VERBATIM when given, no key otherwise')
   {
+
     clearKnobs()
     const withRt = await createDapSession({
       owner: OWNER,
@@ -411,6 +414,7 @@ async function main(): Promise<void> {
       !readiness.includes('PARTIAL: js-debug is a multi-session debugger'),
     )
     check(
+
       'the js row speaks multi-session + provenance, with liveness left to the deep probe',
       readiness.includes('multi-session (resolution only; health --deep boots it)') &&
         readiness.includes('MERCURY_JS_DEBUG_DAP > vendored bundle > ~/.js-debug'),

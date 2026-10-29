@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,6 +24,7 @@ console.log('============================================================')
   check('Sonnet 5 appears in the xhigh copy (catalog: supportsXHigh)', xhigh.includes('Sonnet 5'), xhigh)
   check('the max copy covers the Sonnet tier honestly', /Sonnet 4\.6\+|Sonnet 5/.test(max), max)
   check('Fable appears in both', xhigh.includes('Fable') && max.includes('Fable'))
+
   check(
     'copy agrees with the predicates for Sonnet 5',
     modelSupportsXHighEffort('claude-sonnet-5') === xhigh.includes('Sonnet 5') &&

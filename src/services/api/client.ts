@@ -24,7 +24,6 @@ import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
 import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
 
-
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
 
 const DEFAULT_API_TIMEOUT_MS = 600_000
@@ -67,8 +66,10 @@ function buildFetchWrapper(
   injectCorrelationId: boolean,
   source: string | undefined,
 ): typeof globalThis.fetch {
+
   const baseFetch = wrapFetchWithWireDump(fetchOverride ?? getApiFetch(), source)
   return async (input, init) => {
+
     const headers = new Headers((init as { headers?: HeadersInit } | undefined)?.headers)
     let correlationId: string | undefined
     if (injectCorrelationId && !headers.has(CLIENT_REQUEST_ID_HEADER)) {
@@ -91,9 +92,11 @@ function buildFetchWrapper(
     }
     try {
       const answered = await baseFetch(input, { ...init, headers })
+
       const note = streamActivityNoteOf(init)
       return note === null ? answered : observeStreamActivity(answered, note)
     } catch (err) {
+
       try {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
         recordTransportFailure(err, url)
@@ -162,6 +165,7 @@ export async function getAnthropicClient(options: GetClientOptions): Promise<Ant
     timeout,
     dangerouslyAllowBrowser: true,
     fetch: buildFetchWrapper(fetchOverride, injectCorrelationId, source),
+
     fetchOptions: getProxyFetchOptions({ forAnthropicAPI: true }),
   }
 

@@ -15,7 +15,6 @@ import { buildSubagentLookups } from '../../utils/messages.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './SkillTool.js'
 
-
 const VISIBLE_PROGRESS_TAIL = 3
 const EMPTY_SET: Set<string> = new Set()
 
@@ -30,6 +29,7 @@ export function renderToolUseMessage(input?: { skill?: string }): React.ReactNod
 
 export function renderToolResultMessage(output: Output): React.ReactNode {
   if (output.status === 'forked') {
+
     return (
       <MessageResponse height={1}>
         <Byline>Done</Byline>

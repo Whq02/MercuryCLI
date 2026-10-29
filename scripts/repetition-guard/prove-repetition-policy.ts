@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -70,6 +71,7 @@ console.log('── P. pure policy laws ──')
   recordNoChangeOutcome(owner, obs())
   const vB = recordNoChangeOutcome(owner, obs({ path: join(fixtures, 'q.ts') }))
   check('P7 different paths independent', vB.streak === 1)
+
   check('P8 path A streak continues after path B', recordNoChangeOutcome(owner, obs()).streak === 3)
 
   const vO = recordNoChangeOutcome('sp-owner-b' as never, obs())
@@ -215,6 +217,7 @@ function mapResult(data: Record<string, unknown>) {
 }
 
 {
+
   _resetRepetitionPolicyForTesting()
   const p = join(fixtures, 't-owner.ts')
   const original = 'o1\no2\n'

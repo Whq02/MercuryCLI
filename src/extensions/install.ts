@@ -23,7 +23,6 @@ import { folderSize, hashTree } from './tree.js'
 
 export type SwitchScope = 'everywhere' | 'project'
 
-
 export type InstallOutcome =
   | { ok: true; id: string; record: InstalledRecord; manifest: ExtensionManifest; warnings: string[]; root: string; alreadyInstalled: boolean }
   | { ok: false; reason: string }
@@ -133,7 +132,6 @@ export async function installFromSource(label: string, name: string, options: { 
   return { ok: true, id, record, manifest: manifest.manifest, warnings: manifest.warnings, root: destination, alreadyInstalled: false }
 }
 
-
 export type ApproveOutcome = { ok: true; id: string; record: InstalledRecord } | { ok: false; reason: string }
 
 export function approve(id: string, options: { scope?: SwitchScope; root?: string; switchOn?: boolean } = {}): ApproveOutcome {
@@ -178,7 +176,6 @@ export function approve(id: string, options: { scope?: SwitchScope; root?: strin
   }
   return { ok: true, id, record: next }
 }
-
 
 export type SwitchOutcome = { ok: true } | { ok: false; reason: string }
 
@@ -268,6 +265,7 @@ function pruneEmptySettings(sources: Iterable<SwitchHome>): void {
     if (Object.keys(prune).length > 0) updateSettingsForSource(source, { extensions: prune } as never)
     const after = getSettingsForSource(source)?.extensions
     if (after && Object.keys(after).length === 0) updateSettingsForSource(source, { extensions: undefined } as never)
+
     removeSettingsFileIfEmpty(source)
   }
 }
@@ -291,7 +289,6 @@ function removeSwitchFromKnownProjects(id: string): string[] {
   }
   return touched
 }
-
 
 export type UninstallOutcome = { ok: true; steps: string[]; dataKept: boolean } | { ok: false; reason: string }
 
@@ -347,7 +344,6 @@ export function uninstall(id: string, options: { keepData?: boolean } = {}): Uni
   return { ok: true, steps, dataKept: options.keepData === true }
 }
 
-
 export type UpdateOutcome =
   | { ok: true; outcome: 'current'; id: string }
   | { ok: true; outcome: 'carried'; id: string; from: string; to: string; record: InstalledRecord }
@@ -372,6 +368,7 @@ export async function update(id: string, options: { progress?: (line: string) =>
   if (entry.version === record.version && !changedOnDisk(record, read.root, entry)) return { ok: true, outcome: 'current', id }
 
   const progress = options.progress ?? (() => {})
+
   let destination: string
   try {
     destination = getInstalledVersionDir(id, entry.version)
@@ -406,6 +403,7 @@ export async function update(id: string, options: { progress?: (line: string) =>
     return { ok: false, reason: manifest.manifest.name !== entry.name ? `catalogue says ${entry.name}, manifest says ${manifest.manifest.name}` : `catalogue says ${entry.version}, manifest says ${manifest.manifest.version}` }
   }
   if (resolve(destination) === resolve(record.path)) {
+
     const previous = `${destination}.previous`
     rmSync(previous, { recursive: true, force: true })
     renameSync(record.path, previous)

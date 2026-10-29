@@ -11,7 +11,6 @@ import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import type { SessionListing } from '../types/logs.js'
 import { formatFileSize } from '../utils/format.js'
 
-
 const TITLE_WIDTH = 34
 const DATE_WIDTH = 12
 const MAX_ROWS = 12
@@ -34,6 +33,7 @@ export function MercuryResume({
   isActive?: boolean
 }): React.ReactNode {
   const accent = useSessionAccent().accent
+
   const all = Array.isArray(sessions) ? sessions : []
   const shown = useMemo(() => all.slice(0, MAX_ROWS), [all])
 
@@ -49,6 +49,7 @@ export function MercuryResume({
   useInput(
     (input, key, event) => {
       if (!isActive) return
+
       const action = decodeNavKey(input, key, { orientation: 'vertical' })
       if (action === 'cancel') {
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return

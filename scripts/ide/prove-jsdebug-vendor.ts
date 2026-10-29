@@ -107,6 +107,7 @@ if (existsSync(DIST_MANIFEST)) {
     check('vendored version matches the lock', m.jsDebug.version === lock.version)
     check('vendored sha512 matches the lock', m.jsDebug.sha512 === lock.sha512)
     check("degraded[] carries no 'js-debugger'", !m.degraded.includes('js-debugger'))
+
     const fencePath = join(DIST_VENDOR, 'package.json')
     check('the module-class fence ships ({"type":"commonjs"})', existsSync(fencePath) && (JSON.parse(readFileSync(fencePath, 'utf8')) as { type?: string }).type === 'commonjs')
     const repoPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { type?: string }

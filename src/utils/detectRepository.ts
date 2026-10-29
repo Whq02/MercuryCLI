@@ -21,6 +21,7 @@ function looksLikeRealHostname(host: string): boolean {
 }
 
 export function parseGitRemote(input: string): ParsedRepository | null {
+
   const trimmed = input.trim()
   const sshMatch = /^git@([^:]+):([^/]+)\/([^/]+?)(?:\.git)?$/.exec(trimmed)
   if (sshMatch) {
@@ -54,6 +55,7 @@ async function detectCurrentRepositoryWithHost(): Promise<ParsedRepository | nul
 
     let remoteUrl = await getRemoteUrl()
     if (!remoteUrl) {
+
       const result = await execFileNoThrowWithCwd(
         gitExe(),
         ['config', '--get', 'remote.origin.url'],
@@ -61,6 +63,7 @@ async function detectCurrentRepositoryWithHost(): Promise<ParsedRepository | nul
       )
       remoteUrl = result.code === 0 && result.stdout.trim() !== '' ? result.stdout.trim() : null
     }
+
     logForDebugging(`detectRepository: remote url = ${redactGitRemoteCredentials(remoteUrl ?? undefined) ?? 'none'}`)
     if (!remoteUrl) {
       logForDebugging('detectRepository: no remote url found')

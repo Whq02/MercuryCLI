@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Ansi, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -24,6 +23,7 @@ export function Divider({
   const total = Math.max(0, (width ?? columns) - padding)
 
   if (title !== undefined && title !== '') {
+
     const titleWidth = stringWidth(stripAnsi(title)) + 2
     const remainder = Math.max(0, total - titleWidth)
     const left = Math.floor(remainder / 2)

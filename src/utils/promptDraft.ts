@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
@@ -14,6 +13,7 @@ interface PromptDraft {
   cursorOffset: number
   mode: string
   pastedContents: Record<number, PastedContent>
+
   missingPastes?: string[]
   savedAt: number
 }
@@ -21,6 +21,7 @@ interface PromptDraft {
 type DraftFile = Record<string, PromptDraft>
 
 const MAX_DRAFTS = 20
+
 const MAX_DRAFT_BYTES = 262_144
 const SAVE_DEBOUNCE_MS = 400
 
@@ -162,17 +163,20 @@ async function flushPending(): Promise<void> {
         return current
       }
       next[p.sessionId] = bounded
+
       const keys = Object.keys(next).sort((a, b) => (next[b]?.savedAt ?? 0) - (next[a]?.savedAt ?? 0))
       for (const k of keys.slice(MAX_DRAFTS)) delete next[k]
       return next
     })
   } catch (e) {
+
     logForDebugging(`[promptDraft] flush failed for ${p.sessionId.slice(0, 8)}: ${String(e)}`, { level: 'warn' })
   }
 }
 
 export function saveDraftDebounced(sessionId: string | null | undefined, draft: Omit<PromptDraft, 'savedAt'>): void {
   if (!sessionId) return
+
   if (pending && pending.sessionId !== sessionId) void flushPending()
   pending = { sessionId, draft: { ...draft, savedAt: Date.now() }, filePath: draftFilePath() }
   if (timer) clearTimeout(timer)
@@ -215,7 +219,6 @@ export function readDraftSync(sessionId: string | null | undefined): PromptDraft
     return null
   }
 }
-
 
 import type { ComposerDocument } from '../input-core/composer-document.js'
 
@@ -283,6 +286,7 @@ async function flushScopedPending(): Promise<void> {
           changed = true
         }
       }
+
       if (!changed) return { next: cur, result: undefined }
       const touched = { ...((next._touched as Record<string, number> | undefined) ?? {}) }
       if (Object.keys(scopes).length === 0) {
@@ -292,6 +296,7 @@ async function flushScopedPending(): Promise<void> {
         next[pending.sessionId] = scopes
         touched[pending.sessionId] = Date.now()
       }
+
       const sids = Object.keys(next).filter(k => k !== '_touched')
       if (sids.length > MAX_SCOPED_SESSIONS) {
         sids
@@ -306,6 +311,7 @@ async function flushScopedPending(): Promise<void> {
       return { next, result: undefined }
     })
   } catch (e) {
+
     const { logForDebugging } = await import('./debug.js')
     logForDebugging(`[promptDraft] scoped-doc save failed (kept in memory): ${e}`)
   }

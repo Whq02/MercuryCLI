@@ -1,6 +1,5 @@
 import { Buffer } from 'buffer'
 
-
 function leadLength(b: number): number {
   if (b >= 0xf0) return 4
   if (b >= 0xe0) return 3

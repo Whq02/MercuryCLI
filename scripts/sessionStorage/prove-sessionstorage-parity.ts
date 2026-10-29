@@ -1,4 +1,3 @@
-
 import { mkdirSync, mkdtempSync, realpathSync as realpathAtBoot, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -11,10 +10,12 @@ const PRIVATE_CWD = join(PRIVATE_ROOT, 'cwd')
 process.env.MERCURY_CONFIG_DIR = PRIVATE_HOME
 mkdirSync(PRIVATE_HOME, { recursive: true })
 mkdirSync(PRIVATE_CWD, { recursive: true })
+
 process.chdir(PRIVATE_CWD)
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+
 const S = await import('../../src/utils/sessionStorage.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const { recordOrVerify, snap, clone } = await import('../lib/goldenReplay.ts')
@@ -31,6 +32,7 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
 }
 
 const atParityCwd = <T,>(fn: () => T): T => runWithCwdOverride(PRIVATE_CWD, fn)
+
 const { realpathSync } = await import('node:fs')
 const { basename } = await import('node:path')
 const PARITY_CWD_SLUG = basename(S.getProjectDir(realpathSync(PRIVATE_CWD)))
@@ -150,7 +152,9 @@ const SKIPPED: Record<string, string> = Object.fromEntries(
     'clearAgentTranscriptSubdir', 'getTranscriptPath', 'resetProjectFlushStateForTesting',
     'resetProjectForTesting', 'setSessionFileForTesting', 'recordTranscript',
     'recordSidechainTranscript', 'recordQueueOperation', 'removeTranscriptMessage',
+
     'registerAgentTranscriptDestination',
+
     'transcriptCensus',
     'recordFileHistorySnapshot', 'recordAttributionSnapshot', 'recordContentReplacement',
     'resetSessionFilePointer', 'adoptResumedSessionFile', 'recordContextCollapseCommit',

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -81,6 +82,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   check('idle, no crew: "ready"', bar.statusLine(live('idle', false), status(), none) === 'ready')
   check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'crewmates thought for 28m')
   check('idle, the crew settled: "ready" (the landed rows keep their time in the CREW box)', bar.statusLine(live('idle', false), status(), receipt) === 'ready')
+
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
   check('the first-byte wait outranks the crew\'s clock, and speaks its budget in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
   check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 crewmates')
@@ -88,6 +90,7 @@ section('§2 the row\'s words per state, with and without a crew, at three width
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
   check('the second press outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'interrupting again — the request is torn down once more; x on its row stops the runner')
+
   const fixed = 2 + stringWidth('a chat') + stringWidth(' · proj') + 3 + 2 + stringWidth('esc interrupts · ⇧← back')
   const both = 'crewmates thought for 28m · workflow thought for 12m'
   for (const cols of [100, 110, 120]) {
@@ -115,6 +118,7 @@ section('§4 structure: the clock is gone; the glyph reads the crew')
   const registry = readFileSync('src/substrate/flagRegistry.ts', 'utf8')
   check('the clock\'s flag left the registry with its reader', !registry.includes('MERCURY_LIVE_CLOCK'))
   const tag = readFileSync('src/components/SwitchboardTagBar.tsx', 'utf8')
+
   check('the bottom row paints no glyph and no session name (the title row alone names the session)', !tag.includes('<WorkingGlyph') && !tag.includes('{title}') && !/seatDisplayTitle\(status\)/.test(tag))
   check('the model and its effort lead the bottom row in every state; the state words follow them; the project never leads', !tag.includes('{status.projectLabel}') && tag.includes("const resting = daemonBuild === '' && held === null && line === 'ready'") && tag.includes("const head = [signedOut !== null ? [signedOut, modelWords].filter(Boolean).join(' · ') : resting ? restingStatusWords(shownModel, shownEffort) : modelWords, motionWords].filter(Boolean).join(' · ')") && tag.includes("const rest = held ?? (resting ? '' : line)"))
   check('the resting row reads ready · the model · the effort (the one display-label owner, the chip\'s own effort word, no asked mark)', bar.restingStatusWords('Opus 5', 'high') === 'ready · Opus 5 · high' && bar.restingStatusWords('GLM-5.3', null) === 'ready · GLM-5.3' && bar.restingStatusWords('', 'high') === 'ready' && tag.includes('useDisplayedSessionModel().compact') && tag.includes('focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false)'))

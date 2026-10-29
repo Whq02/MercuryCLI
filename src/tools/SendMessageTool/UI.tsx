@@ -4,7 +4,6 @@ import { MessageResponse } from '../../components/MessageResponse.js'
 import { Text } from '../../ink.js'
 import type { Input, SendMessageToolOutput } from './SendMessageTool.js'
 
-
 export function renderToolUseMessage(_input?: Partial<Input>): React.ReactNode {
   return null
 }

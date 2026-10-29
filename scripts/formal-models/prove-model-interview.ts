@@ -32,8 +32,10 @@ function durable(): Record<string, RawEntry> {
 }
 
 interface Model {
+
   sessions: Map<string, Ev[]>
   live: string | null
+
   drainedClean: Set<string>
   counter: number
 }
@@ -76,6 +78,7 @@ class DuplicateAppendCmd implements fc.AsyncCommand<Model, Real> {
     return m.live !== null && (m.sessions.get(m.live)?.length ?? 0) > 1
   }
   async run(m: Model): Promise<void> {
+
     const log = m.sessions.get(m.live!)!
     const before = store.interviewEvents().length
     store.appendInterviewEvent(log[log.length - 1]! as never)
@@ -97,6 +100,7 @@ class DrainCmd implements fc.AsyncCommand<Model, Real> {
       throw new Error(`drain degraded: ${JSON.stringify(receipt.settlements)} (durable file ${logPath})`)
     }
     for (const id of m.sessions.keys()) m.drainedClean.add(id)
+
     const disk = durable()
     const listed = await store.listInterviewSessions()
     for (const [id, log] of m.sessions) {
@@ -117,16 +121,19 @@ class RestartCmd implements fc.AsyncCommand<Model, Real> {
     return true
   }
   async run(m: Model): Promise<void> {
+
     store._resetInterviewForProofs()
     const disk = durable()
     for (const [id] of m.sessions) {
       if (!m.drainedClean.has(id)) {
+
         if (!disk[id]) {
           m.sessions.delete(id)
           continue
         }
       }
     }
+
     const listed = await store.listInterviewSessions()
     for (const [id] of [...m.sessions]) {
       if (m.drainedClean.has(id)) continue
@@ -135,6 +142,7 @@ class RestartCmd implements fc.AsyncCommand<Model, Real> {
         m.sessions.delete(id)
         continue
       }
+
       m.sessions.delete(id)
     }
     m.live = null
@@ -185,6 +193,7 @@ t.section('§1 — generated command sequences against the reference model (fixe
           store._resetInterviewForProofs()
           const model: Model = { sessions: new Map(), live: null, drainedClean: new Set(), counter: 0 }
           await fc.asyncModelRun(() => ({ model, real: {} as Real }), cmds)
+
           await new DrainCmd().run(model)
         },
       ),
@@ -216,6 +225,7 @@ t.section('§2 — deterministic interleavings: concurrent drains + appends neve
           accepted.push(id)
         }
         appendOne()
+
         s.schedule(Promise.resolve(), 'drain-1').then(() => store.flushInterviewLog())
         s.schedule(Promise.resolve(), 'append-burst').then(() => {
           appendOne()
@@ -223,6 +233,7 @@ t.section('§2 — deterministic interleavings: concurrent drains + appends neve
         })
         s.schedule(Promise.resolve(), 'drain-2').then(() => store.flushInterviewLog())
         await s.waitAll()
+
         const receipt = await store.flushInterviewLog()
         if (!receipt.allSettled) throw new Error(`terminal drain degraded: ${JSON.stringify(receipt.settlements)}`)
         const entry = durable()[a]

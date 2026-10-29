@@ -1,9 +1,9 @@
-
 export const FAILURE_CLASSES = [
   'FC2-sidecar-temp-collision',
   'FC3-runrecord-surface-split',
   'FC5-corrupt-store-empty-overwrite',
   'FC6-task-epoch-resurrection',
+
   'FC8-subscriber-revision-blind',
   'FC9-changeset-partial-commit',
 ] as const
@@ -13,7 +13,9 @@ export const STATE_CLASSES = ['authority', 'append-only', 'projection', 'immutab
 export type StateClass = (typeof STATE_CLASSES)[number]
 
 export interface DurableOperationRow {
+
   id: string
+
   domain:
     | 'filestore'
     | 'tasks'
@@ -23,25 +25,42 @@ export interface DurableOperationRow {
     | 'stores'
     | 'changes'
     | 'lifecycle'
+
   stateClass: StateClass
+
   authorityArtifact?: string
+
   schemaOrEpoch: string
+
   migrated?: true
+
   operation: string
+
   ownerKey: string
+
   files: string[]
+
   projections: string[]
+
   lockOwner: string
+
   writeOrder: string
+
   idempotencyKey: string
+
   publication: string
+
   recovery: string
+
   interruptionWindows: string[]
+
   failureClass: FailureClass[]
+
   source: string[]
 }
 
 export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
+
   {
     id: 'filestore-write',
     schemaOrEpoch: 'per-store schemaVersion stamped as _v (fileStore VERSION_KEY); decoders own every prior version',
@@ -88,6 +107,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     failureClass: ['FC8-subscriber-revision-blind'],
     source: ['src/substrate/fileStore.ts:317', 'src/substrate/fileStore.ts:420'],
   },
+
   {
     id: 'task-outcome-envelope',
     schemaOrEpoch: 'AgentResultEnvelope v1 (task-outcomes.json)',
@@ -109,6 +129,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     interruptionWindows: [
       'W1: crash between the terminal state flip and the publish — the outcome exists only in the transcript notification (the pre-envelope status quo, never worse)',
     ],
+
     failureClass: ['FC3-runrecord-surface-split'],
     source: ['src/tasks/taskOutcomeEnvelope.ts:118'],
   },
@@ -182,6 +203,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     failureClass: ['FC6-task-epoch-resurrection'],
     source: ['src/utils/tasks.ts:150'],
   },
+
   {
     id: 'run-sidecar-save',
     schemaOrEpoch: 'run.json manifest v1 (per-owner monotonic writeSeq + operationId)',
@@ -225,6 +247,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     failureClass: ['FC2-sidecar-temp-collision'],
     source: ['src/services/run/runCoordinator.ts:323'],
   },
+
   {
     id: 'store-prompt-drafts',
     schemaOrEpoch: 'prompt-draft _v-stamped fileStore shape',
@@ -244,6 +267,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     failureClass: ['FC5-corrupt-store-empty-overwrite', 'FC8-subscriber-revision-blind'],
     source: ['src/utils/promptDraft.ts'],
   },
+
   {
     id: 'lifecycle-startup-sweeps',
     schemaOrEpoch: 'n/a — sweeps re-derive from the swept owners\' schemas',
@@ -265,6 +289,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     failureClass: ['FC6-task-epoch-resurrection'],
     source: ['src/substrate/recoveryOrchestrator.ts', 'src/chatLauncher.tsx'],
   },
+
   {
     id: 'text-change-set',
     schemaOrEpoch: 'ChangeSet journal op v1 (prepared→…→committed) + immutable byte bundles + manifest.json',
@@ -352,14 +377,18 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
   },
 ] as const
 
-
 export interface ResourceBoundRow {
   id: string
+
   structure: string
   writer: string
+
   bound: string
+
   reaper: string
+
   preserves: string
+
   proof: string
 }
 

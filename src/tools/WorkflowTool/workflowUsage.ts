@@ -1,16 +1,22 @@
 import { getSpentTokensFromUsage } from '../../utils/tokenUsage.js'
 
 export type WorkflowUsageRollup = {
+
   inputTokens: number
   outputTokens: number
+
   cacheReadTokens: number
   cacheCreationTokens: number
+
   apiTurns: number
+
   unsettledTurns: number
 }
 
 export type WorkflowRunUsage = WorkflowUsageRollup & {
+
   agentsReporting: number
+
   agentsUnreported: number
 }
 

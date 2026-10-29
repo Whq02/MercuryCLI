@@ -83,6 +83,7 @@ const { KEYED_DOOR_REMEDY } = await import('../../src/services/search/searchCont
 function seedHome(model: string): void {
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
   resetSettingsCache()
+
   process.env.MERCURY_MODEL = model
 }
 
@@ -161,6 +162,7 @@ section("§1 NATIVE-ANTHROPIC — ProviderSearch on the session's own wire; the 
   check('the model commentary folded as a string entry', (run.output?.results ?? []).some(e => typeof e === 'string' && e.includes('fixture-native-commentary')), j(run.output?.results))
   check('the model-facing text names the door and keeps the REMINDER', run.output !== undefined && modelText(run.output, ProviderSearchTool).includes('via Anthropic web search (native)') && modelText(run.output, ProviderSearchTool).includes('cite relevant URLs'), run.output ? modelText(run.output, ProviderSearchTool).slice(0, 200) : '')
   fixture.reset()
+
   const vendored = await runTool('claude-opus-4-8', { query: QUERY })
   check('WebSearch on an anthropic home answers from its own native account first',
     vendored.output?.via === 'anthropic-native' && (vendored.perLane['anthropic'] ?? 0) === 1 && (vendored.perLane['ddg-html'] ?? 0) === 0, j({ via: vendored.output?.via, lanes: vendored.perLane }))
@@ -188,6 +190,7 @@ section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees 
   const groups = (run.output?.results ?? []).filter((e): e is Exclude<ToolOutput['results'][number], string> => typeof e !== 'string')
   check('the url_citation folded into the hit group', groups.length === 1 && groups[0]?.content[0]?.url === 'https://example.org/openai-hit' && groups[0]?.content[0]?.title === 'OpenAI Fixture Hit', j(groups))
   check('the answer text folded as commentary', (run.output?.results ?? []).some(e => typeof e === 'string' && e.includes('gpt-native-commentary')), j(run.output?.results))
+
   seedHome('gpt-5.5')
   check('a gpt home lists BOTH tools', WebSearchTool.isEnabled() === true && ProviderSearchTool.isEnabled() === true)
   seedHome('claude-opus-4-8')
@@ -211,6 +214,7 @@ section('§3 THE SOVEREIGN HOME — the cross-account poison: keyless nemotron:f
 {
   const run = await runTool(NEMOTRON, { query: QUERY })
   check('the tool call resolves with NO credential anywhere', run.output !== undefined && run.error === undefined, (run.error?.stack ?? '').slice(0, 400))
+
   check('the WHOLE request census is EXACTLY one ddg-html POST (zero on the spy, the openai lanes, the keyed doors, anything else pinned)',
     j(run.perLane) === j({ 'ddg-html': 1 }), j(run.perLane))
   const ddgHit = fixture.hitsOn('ddg-html').at(-1)
@@ -286,6 +290,7 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   run = await runTool(NEMOTRON, { query: QUERY })
   check('a changed page shape throws the parse-failed line — no result was guessed',
     run.output === undefined && /shape Mercury does not recognise/.test(run.error?.message ?? '') && /no result was guessed/.test(run.error?.message ?? ''), run.error?.message)
+
   fixture.modes.ddgHtml = 'entity-poison'
   fixture.modes.ddgLite = 'entity-poison'
   run = await runTool(NEMOTRON, { query: QUERY })
@@ -377,6 +382,7 @@ section('§8 KEY AT REST — the stored key: mode 600 in the engines\' store, re
 
 section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on any family')
 {
+
   const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
   const fetchDuring = async (url: string): Promise<{ error?: Error; anthropic: number }> => {
     const before = fixture.hitsOn('anthropic').length
@@ -582,6 +588,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         MERCURY_CREDENTIAL_STORE: 'file',
         MERCURY_DAEMON_DIR: join(homeDir, 'daemon'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none',
+
         MERCURY_TOOL_SEARCH: '0',
         MERCURY_SEARCH_KEYLESS: '1',
         MERCURY_SEARCH_BACKEND: 'duckduckgo',

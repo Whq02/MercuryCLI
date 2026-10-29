@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -22,6 +23,7 @@ console.log(' Mercury file quick-open (ctrl+x f)')
 console.log('============================================================')
 
 section('1. keybinding: action + FLAG-GATED ctrl+x f binding')
+
 const graph = read('src', 'keybindings', 'actionGraph.ts')
 check("KEYBINDING_ACTIONS includes 'app:fileOpen'", /'app:fileOpen'/.test(graph))
 check('ctrl+x f binds app:fileOpen', DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x f'] === 'app:fileOpen')
@@ -40,9 +42,11 @@ section('3. SAFETY invariants (insert @path, no auto-run, never overflows, lazy 
 const fo = read('src', 'components', 'MercuryFileOpen.tsx')
 check('component file exists', existsSync(join(root, 'src', 'components', 'MercuryFileOpen.tsx')))
 check('↵ inserts `@path ` (the @-mention launcher contract)', /onPick\(`@\$\{it\.displayText\} `\)/.test(fo))
+
 check('NEVER calls the composer submit (submitInput)', !/submitInput/.test(fo))
 check('↵ routes through onPick insertion only', /onSubmit=\{\(\) => \{[\s\S]{0,160}onPick\(`@\$\{it\.displayText\} `\)/.test(fo))
 check('the PromptInput onPick path inserts at cursor (no buffer clobber → no data loss)', /onPick=\{text =>[\s\S]{0,160}insertAtomic/.test(pi))
+
 check('visible rows are clamped to terminal height (never overflows the alt-screen)', /reserve: cockpitActive \? cockpitBottomSlotReserve\(termRows\) : HEIGHT_RESERVE/.test(fo))
 check('count/recency live in the always-pinned footer (no clippable header row)', /footer=\{footer\}/.test(fo))
 check('the list is bounded with a +N more', /\+\{\(results\?\.length \?\? 0\) - shown\.length\} more/.test(fo))

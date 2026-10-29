@@ -77,20 +77,27 @@ const run = await runArtifactArena({
   sends: [
     '8000:design the cache layer',
     '8800:\r',
+
     '12500:\x1b[B',
     '12900:\r',
+
     '13400: ',
     '13800:\x1b[B',
     '14200: ',
     '14700:\t',
+
     '15300:\x1b[B',
     '15600:\x1b[B',
     '16100:orchard_cache',
     '16900:\r',
+
     '17400:\r',
+
     '18500:\r',
+
     '19000:\x1b[B',
     '19300:\r',
+
     '19900:\x1b[B',
     '20200:\x1b[B',
     '20500:\x1b[B',
@@ -106,6 +113,7 @@ const run = await runArtifactArena({
 
 try {
   void firstOutputTs(run)
+
   const offsets: number[] = []
   for (let ms = S(11_000); ms <= S(25_000); ms += S(300)) offsets.push(ms)
   const timeline = grabScreens(run, 120, 44, offsets)
@@ -119,6 +127,7 @@ try {
     })
 
   t.section('§1 — the modes advance in presentation order, one commit each')
+
   const tReview = firstSeen('Review your answers')
   const firstSeenLive = (needle: string): number =>
     timeline.find(s => (tReview < 0 || s.atMs < tReview) && textOf(s).includes(needle))?.atMs ?? -1
@@ -148,6 +157,7 @@ try {
   const returned = screensWith('Review your answers', 'File-based').find(s => s.atMs > (tBack?.atMs ?? Infinity))
   t.check('the revision landed and review repainted', returned !== undefined, `@${returned?.atMs}`)
   if (returned) {
+
     const titleRow = findRows(returned.rows, 'Review your answers')[0] ?? 0
     const pointerRows = findRows(returned.rows, '❯').filter(r => r >= titleRow)
     const q1Rows = findRows(returned.rows, `${GLYPH.check} Cache`).filter(r => r >= titleRow)

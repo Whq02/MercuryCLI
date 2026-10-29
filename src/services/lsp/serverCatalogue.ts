@@ -1,4 +1,3 @@
-
 import { existsSync, readdirSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
@@ -7,15 +6,23 @@ import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 
 interface CatalogueEntry {
+
   id: string
   label: string
+
   languages: string[]
+
   binaries: string[]
+
   args?: string[]
+
   extensionToLanguage: Record<string, string>
+
   rootMarkers: string[]
+
   diagnosticsOnly?: boolean
   initializationOptions?: unknown
+
   remedy: string
   remedyWin32?: string
 }
@@ -63,8 +70,11 @@ export const SERVER_CATALOGUE: CatalogueEntry[] = [
 
 interface CatalogueProbe {
   entry: CatalogueEntry
+
   binaryPath?: string
+
   binarySource?: 'project-local' | 'path'
+
   rootMatched: boolean
 }
 
@@ -122,6 +132,7 @@ export function catalogueServerConfigs(): Record<string, ScopedLspServerConfig> 
   const cwdEntries = listCwdEntries(cwd)
   const out: Record<string, ScopedLspServerConfig> = {}
   for (const entry of SERVER_CATALOGUE) {
+
     const probe = probeCatalogueEntry(entry, cwd, cwdEntries, 'when-root-matched')
     if (!probe.binaryPath || !probe.rootMatched) continue
     out[`catalogue:${entry.id}`] = {

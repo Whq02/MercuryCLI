@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -21,14 +22,18 @@ console.log('============================================================')
 
 section('source: spawnOwnedDaemon scrubs the pinned auth vars (guarded by a fallback)')
 check('scrub is GATED on hasStoredOAuthToken() (a confirmed keychain fallback)', /const storedTokenAtSpawn = hasStoredOAuthToken\(\)[\s\S]{0,240}if \(storedTokenAtSpawn\) \{[\s\S]{0,160}delete env\[k\]/.test(owned))
+
 const FOREIGN = ['CLAUDE', 'CODE'].join('_')
+
 check('the one-home strip set carries session vars + own FD + the table-derived foreign FDs', /export const STORED_TOKEN_SCRUB_VARS[\s\S]{0,240}\.\.\.ALWAYS_STRIP_TOKEN_VARS,\s*\n?\s*'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR',\s*\n?\s*\.\.\.AGENT_CLI_TOKEN_FD_ENV_VARS/.test(subEnv))
 check('spawnOwnedDaemon consumes the one-home set', owned.includes('for (const k of STORED_TOKEN_SCRUB_VARS)'))
 check('hasStoredOAuthToken reads the keychain (secureStorage), NOT the env var', /export function hasStoredOAuthToken\(\)[\s\S]{0,160}getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth\?\.accessToken/.test(auth))
+
 const foreignTable = readFileSync(join(ROOT, 'src', 'utils', 'knownAgentClis.ts'), 'utf-8')
 check('ALWAYS_STRIP_TOKEN_VARS is exported + carries the OAuth token (own spelling + the table-derived foreign spellings)', /export const ALWAYS_STRIP_TOKEN_VARS[\s\S]{0,240}MERCURY_OAUTH_TOKEN/.test(subEnv) && subEnv.includes('...AGENT_CLI_SESSION_ENV_VARS') && foreignTable.includes(`'${FOREIGN}_OAUTH_TOKEN'`))
 
 section('source: auth resolution has an env→keychain fallback (so scrub is safe)')
+
 check('getClaudeAIOAuthTokens checks MERCURY_OAUTH_TOKEN env first', /if \(process\.env\.MERCURY_OAUTH_TOKEN\)/.test(auth))
 check('…then falls back to the keychain (secureStorage.read().claudeAiOauth)', /getSecureStorage\(\)\.read\(\)\?\.claudeAiOauth/.test(auth))
 
@@ -64,11 +69,13 @@ section('the restart successor door: the SAME gated scrub, receipted')
 
 section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
 {
+
   const oauthClient = readFileSync(join(ROOT, 'src', 'services', 'oauth', 'client.ts'), 'utf-8')
   check(
     'the sign-in landing calls restartOwnedDaemonForFreshSignin (fire-and-forget, catch armed)',
     oauthClient.includes('restartOwnedDaemonForFreshSignin()') && /void import\('\.\.\/\.\.\/daemon\/ownedDaemon\.js'\)[\s\S]{0,120}\.catch\(\(\) => \{\}\)/.test(oauthClient),
   )
+
   const { mkdtempSync, writeFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const savedHome = { config: process.env.MERCURY_CONFIG_DIR, auth: process.env.MERCURY_AUTH_SCOPE_DIR }
@@ -85,10 +92,13 @@ section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
     asks.push(req)
     return { ok: true, op: 'restart-when-idle', state: 'armed', live: 1 }
   }
+
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: false, spawnLabel: 'daemon' })
   check('no env-kept record ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0)
+
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: true, spawnLabel: 'daemon' })
   check('env-kept record without a landed store ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0)
+
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -103,7 +113,9 @@ section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
       asks[0]!.by === 'fresh sign-in after an env-kept spawn — the successor re-runs the credential scrub',
     JSON.stringify(asks),
   )
+
   check('a second landing never asks again (one-shot latch)', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1)
+
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: true, spawnLabel: null })
   check('a session that spawned no daemon ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1)
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ spawnLabel: null })

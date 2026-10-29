@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/** src/constants/prompts.ts src/constants/subagentDoctrine.ts src/commands.ts
-// gate-watch: src/services/instructions/engine.ts src/services/instructions/sourceText.ts src/utils/memory/types.ts
-// gate-watch: src/substrate/flagRegistry.ts src/tools/AgentTool/agentMemory.ts src/utils/attachments/orchestrator.ts
+
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

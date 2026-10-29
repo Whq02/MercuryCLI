@@ -1,6 +1,4 @@
-
 import type { TSNode } from './grammarFacility.js'
-
 
 const MV_SINGLE = /^__MV_([A-Za-z0-9_]*?)__$/
 const MV_MULTI = /^__MVM_([A-Za-z0-9_]*?)__$/
@@ -13,6 +11,7 @@ export function encodePattern(pattern: string): string {
 
 interface MetavarInfo {
   kind: 'single' | 'multi'
+
   name: string | null
 }
 
@@ -29,9 +28,10 @@ export function metavarOf(node: TSNode): MetavarInfo | null {
   return null
 }
 
-
 export interface CompiledPattern {
+
   root: TSNode
+
   captureNames: string[]
 }
 
@@ -50,6 +50,7 @@ const PATTERN_CONTEXTS: Record<string, string[]> = {
   php: ['<?php\n<P>\n'],
   bash: [],
   css: [],
+
   ini: ['[mercury_ctx]\n<P>\n'],
 }
 
@@ -63,7 +64,9 @@ function quotePlaceholders(encoded: string): string {
 
 interface PatternCandidate {
   text: string
+
   offset: number
+
   length: number
 }
 
@@ -126,8 +129,8 @@ export function compilePatternRoot(patternNode: TSNode): CompiledPattern {
   return { root: patternNode, captureNames: [...names].sort() }
 }
 
-
 export interface CaptureSpan {
+
   key: string
   startIndex: number
   endIndex: number
@@ -167,6 +170,7 @@ function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
   const mv = metavarOf(pat)
   if (mv) {
     if (mv.kind === 'multi') {
+
       return mv.name === null || bindCapture(state, `$$$${mv.name}`, code.startIndex, code.endIndex, code.text)
     }
     return mv.name === null || bindCapture(state, `$${mv.name}`, code.startIndex, code.endIndex, code.text)
@@ -175,6 +179,7 @@ function matchNodePair(pat: TSNode, code: TSNode, state: MatchState): boolean {
   const patKids = significantChildren(pat)
   const codeKids = significantChildren(code)
   if (patKids.length === 0 && codeKids.length === 0) {
+
     if (pat.childCount === 0 && code.childCount === 0) {
       return pat.text.trim() === code.text.trim()
     }
@@ -189,6 +194,7 @@ function matchSequence(pats: TSNode[], codes: TSNode[], state: MatchState): bool
     const pat = pats[pi]!
     const mv = metavarOf(pat)
     if (mv?.kind === 'multi') {
+
       for (let take = 0; ci + take <= codes.length; take++) {
         const snapshot = new Map(state.captures)
         let ok = true
@@ -234,6 +240,7 @@ export function findPatternMatches(
   const matches: PatternMatch[] = []
   let capped = false
   const stack: TSNode[] = [codeRoot]
+
   while (stack.length > 0) {
     if (matches.length >= cap) {
       capped = true
@@ -252,7 +259,6 @@ export function findPatternMatches(
   }
   return { matches, capped }
 }
-
 
 interface RewriteRefusal {
   refuse: string

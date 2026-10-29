@@ -1,6 +1,5 @@
 import type { PermissionMode } from '../types/permissions.js'
 
-
 type SessionState = 'idle' | 'running' | 'requires_action'
 
 export type RequiresActionDetails = {
@@ -13,7 +12,6 @@ export type RequiresActionDetails = {
 
 let currentState: SessionState = 'idle'
 let permissionModeListener: ((mode: PermissionMode) => void) | null = null
-
 
 export function setPermissionModeChangedListener(listener: ((mode: PermissionMode) => void) | null): void {
   permissionModeListener = listener

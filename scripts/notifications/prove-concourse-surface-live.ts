@@ -7,10 +7,12 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'sg4-concourse-live-'))
 const home = join(scratch, 'home')
 mkdirSync(home, { recursive: true })
+
 writeFileSync(
   join(home, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
 )
+
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
@@ -49,6 +51,7 @@ function seedWorkers(records: ConcourseWorkerRecordV1[]): void {
 }
 
 const NOW = Date.now()
+
 const PROJECT = projectIdentity(join(scratch, 'ws-a'))
 const build = (opts: Parameters<typeof buildConcourseSnapshot>[0]): ReturnType<typeof buildConcourseSnapshot> =>
   buildConcourseSnapshot({ project: PROJECT, ...opts })
@@ -83,6 +86,7 @@ console.log('§2 draft subscribe')
     fired += 1
   }, draftDir)
   await writeConcourseDraft('draft v2', draftDir)
+
   await new Promise(r => setTimeout(r, 10))
   check('a write fires the subscriber', fired >= 1, `fired=${fired}`)
   unsub()
@@ -105,6 +109,7 @@ console.log('§3 builder honesty rules')
   const snap = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
   const byId = new Map(snap.groups.flatMap(g => g.rows).map(r => [r.sessionId, r]))
   check('pid-alive worker → working', byId.get('s-alive')?.state === 'working')
+
   check('dead-pid worker → needs-you (the client-derived death)', byId.get('s-dead')?.state === 'needs-you')
   check("…and its cell says what happened, never a climbing-age tail", byId.get('s-dead')?.nowLabel === 'its process is gone')
   check(
@@ -117,6 +122,7 @@ console.log('§3 builder honesty rules')
     [...byId.values()].every(r => r.seats === null),
   )
   check('needsYou rail carries the obligation', snap.needsYou.length === 1 && snap.needsYou[0]?.sessionId === 's-asked')
+
   const LIVE_STATES = ['working', 'needs-you', 'stalled', 'paused', 'ready-to-review', 'attached', 'starting']
   const seatRows = [...byId.values()].filter(
     r => LIVE_STATES.includes(r.state) && (r.state === 'attached' || r.state === 'starting' || r.sessionId !== 's-dead'),
@@ -191,6 +197,7 @@ console.log('§5 peek selection, resident states, wired-only actions')
 {
   seedWorkers([
     rec({ runnerId: 'concourse-w1', sessionId: 's-alive', workspaceId: join(scratch, 'ws-a') }),
+
     rec({ runnerId: 'concourse-w2', sessionId: 's-molt', pid: undefined }),
   ])
   const picked = await build({ recordsDir, crewDir, draftDir, peekSessionId: 's-molt', nowMs: NOW })
@@ -233,18 +240,22 @@ console.log('§7 surface: preflight preview, typed collision scope, plain-folder
 {
   const { recordCollisionEvidence, canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { ...c.switchboardCapacity, operatorSeats: 5 } }))
+
   await writeConcourseDraft('ship the parser fix', draftDir)
   seedWorkers([])
   const okSnap = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
   check('a drafted request previews preflight OK on a quiet board', okSnap.newSession.preflight?.ok === true, JSON.stringify(okSnap.newSession.preflight))
+
   seedWorkers([1, 2, 3, 4, 5].map(n =>
     rec({ runnerId: `concourse-w${n}`, sessionId: `s-full-${n}`, workspaceId: join(scratch, `full-${n}`), pid: process.pid })))
   const fullSnap = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
   check(
     'a full board previews the CEILING refusal before any provider use',
+
     fullSnap.newSession.preflight?.ok === false && fullSnap.newSession.preflight.refusals.some(r => /every seat is taken|ceiling/.test(r)),
     JSON.stringify(fullSnap.newSession.preflight),
   )
+
   await writeConcourseDraft('', draftDir)
   const undrafted = await build({ recordsDir, crewDir, draftDir, nowMs: NOW })
   check('no draft ⇒ no preflight claim (the preview binds to a real request)', undrafted.newSession.preflight === undefined)

@@ -78,6 +78,7 @@ export function permissionRuleExtractPrefix(rule: string): string | null {
 
 const LITERAL_STAR = '\x00MERCURY_STAR\x00'
 const LITERAL_BACKSLASH = '\x00MERCURY_BS\x00'
+
 const WILDCARD_MARK = '\x00MERCURY_WILD\x00'
 
 const compiledCache = new Map<string, RegExp>()

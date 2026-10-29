@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -197,6 +198,7 @@ section('D1 — teardown at the queued_command yield: consumed, never re-drained
     if (r.done) break
     if (isQueuedCommandAttachment(r.value)) {
       sawAttachment = true
+
       await gen.return({} as never)
       break
     }
@@ -242,6 +244,7 @@ section('D3 — words sent mid-tool-round reach the very next model call')
   let r = await gen.next()
   while (!r.done) {
     yields.push(r.value)
+
     if (!enqueued && r.value.type === 'user') {
       enqueued = true
       enqueueSteer('steer words D3')
@@ -263,6 +266,7 @@ section('D4 — teardown before any drain: the words stay queued (nothing was de
   queueStore.resetCommandQueue()
   enqueueSteer('steer words D4')
   const { gen } = makeGen(i => (i === 0 ? toolTurn('EchoTool', { text: 'round one' }) : textTurn('done')))
+
   await gen.next()
   await gen.return({} as never)
   await new Promise(resolve => setTimeout(resolve, 25))

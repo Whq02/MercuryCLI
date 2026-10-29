@@ -4,7 +4,9 @@ type PacedDoor = SearchBackendId | `searxng:${string}` | 'jina-reader'
 
 export interface SearchClock {
   now(): number
+
   random(): number
+
   sleep(ms: number, signal?: AbortSignal): Promise<void>
 }
 
@@ -30,6 +32,7 @@ export const liveSearchClock: SearchClock = {
 const COOL_DOWN_BASE_MS = 30_000
 export const COOL_DOWN_CAP_MS = 10 * 60_000
 const COOL_DOWN_JITTER = 0.25
+
 const STREAK_DECAY_MS = 2 * COOL_DOWN_CAP_MS
 
 const RETRY_BACKOFF_MIN_MS = 1_500
@@ -84,7 +87,6 @@ export function secondsLeftLabel(ms: number): string {
   return rest === 0 ? `${minutes}m` : `${minutes}m ${rest}s`
 }
 
-
 interface CachedSearch {
   via: SearchBackendId
   tier: SearchTier
@@ -116,6 +118,7 @@ export function takeCachedSearch(request: SearchRequest, now: number): CachedSea
     cache.delete(key)
     return undefined
   }
+
   cache.delete(key)
   cache.set(key, entry)
   return entry
@@ -136,7 +139,6 @@ export function cachedAnswerNote(doorLabel: string): string {
   return `answered from this session's search cache — the same query landed via ${doorLabel} within the last ${SEARCH_CACHE_TTL_MS / 60_000} minutes; no door was knocked`
 }
 
-
 let keyedDoorHintSpent = false
 
 export function takeKeyedDoorHint(): string | undefined {
@@ -144,7 +146,6 @@ export function takeKeyedDoorHint(): string | undefined {
   keyedDoorHintSpent = true
   return KEYED_DOOR_REMEDY
 }
-
 
 let groupSeq = 0
 

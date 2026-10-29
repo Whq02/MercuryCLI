@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/ripgrep.ts src/main.tsx src/components/MercuryContentSearch.tsx src/services/privateChannel/artifactVerify.ts src/services/privateChannel/installLayout.ts
+
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -12,6 +13,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 console.log('signature boundaries — home authority')
 
 {
+
   delete process.env.MERCURY_CONFIG_DIR
   delete process.env.MERCURY_HOME
   process.env.MERCURY_HOME = '/tmp/sig-proof-home'

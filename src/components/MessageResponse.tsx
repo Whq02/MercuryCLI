@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext } from 'react'
 import { Box, NoSelect, Text } from '../ink.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
@@ -14,6 +13,7 @@ export function MessageResponse({
   height?: number
 }): React.ReactNode {
   const nested = useContext(MessageResponseContext)
+
   const total = React.Children.toArray(children).map((child, position) =>
     React.isValidElement(child) ? (
       child
@@ -21,6 +21,7 @@ export function MessageResponse({
       <Text key={`total-${position}`}>{child}</Text>
     ),
   )
+
   if (nested) return <>{total}</>
 
   const row = (

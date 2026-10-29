@@ -31,6 +31,7 @@ console.log('============================================================')
 
 console.log('\n── the tool-round attachment pass ──')
 check('the turn machine calls getAttachmentMessages on tool rounds', /getAttachmentMessages\(/.test(q))
+
 check('tool-round attachments yield THEN push into toolResults (next round carries them)', /for await \(const attachment of getAttachmentMessages\([\s\S]{0,900}?yield [^\n]*attachment[^\n]*\n\s*toolResults\.push\(attachment\)/.test(q))
 
 console.log('\n── abort plumbing ──')

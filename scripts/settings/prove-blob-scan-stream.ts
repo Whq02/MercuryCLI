@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,7 +28,9 @@ const reset = (): void => {
 }
 
 const CHUNK = 4 * 1024 * 1024
+
 const TOTAL = Math.floor(13.5 * 1024 * 1024)
+
 const buf = Buffer.alloc(TOTAL, ' '.repeat(199) + '\n')
 const expected = new Set<string>()
 const plant = (offset: number, name: string, sep = '/'): void => {

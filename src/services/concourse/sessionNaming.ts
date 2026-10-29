@@ -1,4 +1,3 @@
-
 import { projectDisplayName } from '../../utils/bootCardFacts.js'
 
 export const UNNAMED_SESSION_WORD = 'new session'

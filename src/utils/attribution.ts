@@ -1,6 +1,4 @@
-
 import { getInitialSettings } from './settings/settings.js'
-
 
 type AttributionTexts = {
   commit: string

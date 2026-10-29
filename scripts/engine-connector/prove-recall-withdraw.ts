@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -85,6 +86,7 @@ section('C1 recallableSend: the latest untaken composer line')
   seed(older, 'the older words', 'queued', 1000)
   seed(latest, 'the latest words [Pasted text #1 +3 lines]', 'queued', 2000, { source: { text: 'the latest words [Pasted text #1 +3 lines]', mode: 'prompt', pastedContents: PASTES } })
   seed(takenId, 'the taken words', 'taken', 3000)
+
   g.sends = [...g.sends, { clientMessageId: 'notice:abc', text: 'A background crewmate completed a task', sentAtMs: 4000, state: 'queued', mode: 'prompt' }]
   const r = connector.recallableSend()
   check('the latest untaken composer line is the one ↑ pulls back (not the older, not the taken, not the notice)', r?.clientMessageId === latest && r?.text === 'the latest words [Pasted text #1 +3 lines]', j(r))
@@ -165,6 +167,7 @@ section('C8 a pending dispatch is awaited before the runner is asked')
   const pending = connector.withdrawSend(id)
   await new Promise(r => setTimeout(r, 30))
   check('while the dispatch is pending the runner is not asked', asked.length === 0)
+
   g.sends = g.sends.map(s => (s.clientMessageId === id ? { ...s, state: 'queued' } : s))
   g.noteSettled(id)
   const r = await pending

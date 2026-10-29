@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -47,6 +48,7 @@ section('§A the guarded reset: a task created in the await window survives')
   check('…and the list is empty', (await listTasks(LIST)).length === 0)
 
   await createTask(LIST, baseTask('done-three', 'completed') as never)
+
   const freshId = await createTask(LIST, baseTask('fresh-window-task', 'pending') as never)
   const wiped2 = await resetTaskList(LIST, { onlyIfAllCompleted: true })
   check('a live task ABORTS the guarded wipe', wiped2 === false)
@@ -105,6 +107,7 @@ section('§D the guard sits where the law says')
 {
   const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'tasks.ts'), 'utf8')
   check('the guard re-verifies UNDER the lock (order: lock, then list)',
+
     /withLock\(listLockPath\(taskListId\),[^\n]*async \(\) => \{\s*\n\s*if \(opts\?\.onlyIfAllCompleted\)/.test(store))
 }
 

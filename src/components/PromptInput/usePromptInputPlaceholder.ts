@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo } from 'react'
 import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
@@ -22,6 +21,7 @@ export function usePromptInputPlaceholder({
   cockpitActive?: boolean
   compact?: boolean
 }): string | undefined {
+
   const onboardingHint =
     input === '' && submitCount === 0 && !viewingAgentName
       ? projectOnboardingHint()
@@ -35,18 +35,22 @@ export function usePromptInputPlaceholder({
 
   return useMemo(() => {
     if (input !== '') return undefined
+
     if (viewingAgentName) {
       return crewmatePlaceholder(truncateToWidth(viewingAgentName, AGENT_NAME_MAX_COLUMNS))
     }
+
     if (onboardingHint !== undefined) {
       return onboardingHint
     }
+
     if (compact && submitCount < 2) {
       return 'Type a prompt, or start a slash command'
     }
     if (cockpitActive && submitCount < 2) {
       return 'Type a prompt, start a slash command, or Tab to focus the rails'
     }
+
     if (submitCount === 0 && suggestionsEnabled) {
       return getExampleCommandFromCache()
     }

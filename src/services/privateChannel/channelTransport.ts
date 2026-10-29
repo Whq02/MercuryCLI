@@ -11,7 +11,9 @@ import { projectReleases, rateLimitResetMinutes, resolveChannelRepo, type Channe
 import { downloadReleaseAssets, ghRepoAccess, ghSignIn, listReleases as ghListReleases, type DownloadResult } from './ghRelease.js'
 
 const DEFAULT_API_BASE_URL = 'https://api.github.com'
+
 const LISTING_SILENCE_MS = 30_000
+
 const DOWNLOAD_SILENCE_MS = 90_000
 const MAX_LISTING_BYTES = 20 * 1024 * 1024
 
@@ -31,7 +33,6 @@ function channelApiBaseUrl(): string {
   const pinned = flagEnv('MERCURY_UPDATE_API_BASE_URL')?.trim()
   return (pinned && /^https?:\/\//.test(pinned) ? pinned : DEFAULT_API_BASE_URL).replace(/\/+$/, '')
 }
-
 
 export type ChannelRoadName = 'gh' | 'anonymous'
 
@@ -65,7 +66,6 @@ async function roadAfterRefusal(road: ChannelRoad, access: ChannelAccessRefusal)
 export function describeChannelRoad(road: ChannelRoadName): string {
   return road === 'gh' ? 'read through your signed-in GitHub CLI' : 'read anonymously — no sign-in needed'
 }
-
 
 export type ChannelAccess =
   | { state: 'ok'; road: ChannelRoadName }
@@ -126,7 +126,6 @@ function describeFetchError(error: unknown): string {
   if (cause && typeof cause.message === 'string') return cause.message.slice(0, 120)
   return error instanceof Error ? error.message.slice(0, 120) : String(error).slice(0, 120)
 }
-
 
 const anonymousHeaders = (accept: string): Record<string, string> => ({
   accept,
@@ -237,6 +236,7 @@ export async function checkChannelAccess(slug: string): Promise<ChannelAccess> {
   const retry = await roadAfterRefusal(road, probed)
   if (retry === null) return probed
   if (retry.road === 'gh') return ghChannelAccess(slug)
+
   return probed.state === 'not-visible' ? notVisible(slug, retry) : probed
 }
 
@@ -266,7 +266,6 @@ async function anonymousChannelAccess(slug: string, road: Extract<ChannelRoad, {
   }
 }
 
-
 type ChannelListing = { state: 'ok'; road: ChannelRoadName; releases: ChannelRelease[] } | { state: 'refused'; access: ChannelAccessRefusal }
 
 export async function listChannelReleases(slug: string): Promise<ChannelListing> {
@@ -289,6 +288,7 @@ export async function listChannelReleases(slug: string): Promise<ChannelListing>
 
 interface ChannelAsset {
   name: string
+
   url: string | null
 }
 

@@ -64,6 +64,7 @@ export function SurfaceFaultInjection({ kind }: { kind: string }): React.ReactNo
 }
 
 function SurfaceCrashCard({ kind }: { kind: string }): React.ReactElement {
+
   const moves = [stripKeyMapHint(), exitChordNoticeText(null)].filter(s => s !== '').join(' · ');
   return (
     <Box flexDirection="column" flexGrow={1} alignItems="center" justifyContent="center" gap={1}>
@@ -88,6 +89,7 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   const liveSizeCtx = useContext(LiveTerminalSizeContext);
   const baseSizeCtx = useContext(TerminalSizeContext);
   const liveSize = liveSizeCtx ?? baseSizeCtx;
+
   return (
     <>
       {
@@ -114,6 +116,7 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
 }
 
 function SurfaceOverlayClaim({ kind }: { kind: string }): React.ReactNode {
+
   useRegisterOverlay(`surface:${kind}`, true, { ownsPageKeys: true });
   return null;
 }
@@ -129,9 +132,12 @@ function RouteSurfaceHost({
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize();
   const elevatedRef = useElevatedSurface();
+
   const model = useEngineModel();
+
   const t = useMercuryTokens();
   const ground = estateGroundBg(t);
+
   const [exitChordArmed, setExitChordArmed] = useState(false);
   const hostLiveSize = useContext(LiveTerminalSizeContext);
   const hostBaseSize = useContext(TerminalSizeContext);
@@ -166,6 +172,7 @@ registerRouteSurface('boot-settings', {
   render: () => <BootSplashScreen />,
 });
 import './concourse/ConcourseRoute.js';
+
 registerChatPresence({
   present: () => hasFocusedSession() || landingInFlight(),
   subscribe: subscribeFocusedSessionConnector,

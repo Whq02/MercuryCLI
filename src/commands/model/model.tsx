@@ -55,6 +55,7 @@ function effortParenthetical(
   const liveSetting = override ?? base
   const normalised =
     liveSetting === null ? getDefaultEngineModel() : parseUserSpecifiedModel(liveSetting)
+
   if (normalised) {
     const truth = resolveEffortTruth(normalised, effortValue)
     if (!truth.supportsEffort) {
@@ -92,6 +93,7 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
   useEffect(() => {
     if (ranRef.current) return
     ranRef.current = true
+
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const facts = focused.modelFacts()
@@ -125,6 +127,7 @@ export function previewDaemonModelSelection(target: ModelSetting): { plan: Trans
   const sessionMessages = [...focusedForPlan.records()]
   return { plan: previewForSelection(sessionMessages, sessionFacts.effective, target) }
 }
+
 function ModelSet({
   target,
   raw,
@@ -132,7 +135,9 @@ function ModelSet({
   messages,
   onDone,
 }: {
+
   target: ModelSetting
+
   raw: string
   words?: string
   messages: Message[]
@@ -164,6 +169,7 @@ function ModelSet({
       const cross = landed.crossProvider ? crossProviderNote(target) : ''
       return `Model switch queued: ${label}${saved} — takes effect when the current turn settles, the running turn keeps its model.${cross}${lossNote}`
     }
+
     const cross = landed.receipt.crossProvider ? crossProviderNote(target) : ''
     return `Model set to ${label}${saved}${cross}${lossNote}`
   }
@@ -171,8 +177,10 @@ function ModelSet({
   const applyNow = async (plan: TransitionPlan | null): Promise<void> => {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
+
       const factsBefore = focused.modelFacts()
       const choice = persistModelChoice(target)
+
       const receipt = await focused.setModel(target, words !== undefined && words !== target ? words : undefined)
       if (receipt.state === 'refused') choice.restore()
       const moved = receipt.state === 'applied' || receipt.state === 'queued'
@@ -185,6 +193,7 @@ function ModelSet({
       onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
       return
     }
+
     let landed = {
       kind: 'no-op',
       patch: null,
@@ -200,6 +209,7 @@ function ModelSet({
   }
 
   useEffect(() => {
+
     if (ranRef.current) return
     ranRef.current = true
     void (async () => {
@@ -217,6 +227,7 @@ function ModelSet({
         return
       }
       if (target !== null) {
+
         if (
           lowered.includes('opus') &&
           lowered.includes('[1m]') &&
@@ -229,6 +240,7 @@ function ModelSet({
           )
           return
         }
+
         if (
           (lowered.includes('sonnet[1m]') || lowered.includes('sonnet-4-6[1m]')) &&
           !checkSonnet1mAccess()
@@ -239,6 +251,7 @@ function ModelSet({
           )
           return
         }
+
         if (!isModelAlias(lowered)) {
           try {
             const verdict = await validateModel(raw)
@@ -254,6 +267,7 @@ function ModelSet({
           }
         }
       }
+
       const daemonPreview = previewDaemonModelSelection(target)
       if (daemonPreview !== null) {
         if ('reason' in daemonPreview) {
@@ -268,6 +282,7 @@ function ModelSet({
         void applyNow(plan)
         return
       }
+
       const probe = settleModelSelection(
         {
           engineModel: base,
@@ -288,12 +303,14 @@ function ModelSet({
         void applyNow(plan)
         return
       }
+
       void applyNow(null)
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (held) {
+
     const heldIsDaemon = getFocusedSessionConnector().carrier === 'daemon'
     const effective = override ?? base
     const fromModel = heldIsDaemon ? held.plan.from : effective
@@ -305,6 +322,7 @@ function ModelSet({
         refreshed={held.refreshed}
         targetUsability={usabilityForRoute(held.plan.targetRoute)}
         onConfirm={() => {
+
           const confirmMessages =
             getFocusedSessionConnector().carrier === 'daemon'
               ? [...getFocusedSessionConnector().records()]

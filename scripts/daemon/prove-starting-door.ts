@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import net from 'node:net'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -76,6 +77,7 @@ async function startServer(opts: { ready: () => boolean; whenReady?: () => Promi
   const handle = await server.startControlServer(deps as unknown as Parameters<typeof server.startControlServer>[0])
   return handle
 }
+
 const sockPathOf = (_dir: string): string => sock.controlSockPath()
 
 console.log('\n── A · a dispatch issued during adoption is admitted once ready ──')

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,7 +38,9 @@ const DEFAULT_SCENARIOS = [
   'resume-picker',
   'agents-studio-rich',
 ]
+
 const READ_MARK: Record<string, string> = { 'keys-escape': 'atlas-open', 'boot-face': 'face' }
+
 const ROOT_KEYMAP: Record<string, RegExp> = {
   'boot-face': /↵ start\s+·\s+m menu/,
   'boot-settings': /↵ start\s+·\s+m menu|esc back/,
@@ -67,6 +70,7 @@ if (!existsSync(BIN)) {
   console.error('dist/mercury.mjs missing — bun run build.ts first')
   process.exit(2)
 }
+
 const PYTE_PATH = (() => {
   try {
     return spawnSync(driver.python, ['-c', 'import pyte, os; print(os.path.dirname(os.path.dirname(pyte.__file__)))'], { encoding: 'utf8' }).stdout?.trim() || ''
@@ -93,6 +97,7 @@ async function capture(job: Job): Promise<Result> {
   const tag = `${name}-${cols}x${rows}`
   const gridPath = join(outDir, `${tag}.json`)
   const cfgPath = join(outDir, `${tag}.cfg.json`)
+
   const saved: Record<string, string | undefined> = { ...process.env }
   let cfg: Record<string, unknown>
   try {
@@ -133,6 +138,7 @@ async function capture(job: Job): Promise<Result> {
   const findings: Finding[] = []
   for (const [label, rows] of frames) {
     dump.push(`──── ${tag} · ${label} ────`, ...rows, '')
+
     if (mark !== undefined && label !== `mark:${mark}`) continue
     for (const f of inspect(rows, cols, ROOT_KEYMAP[name])) findings.push({ kind: f.kind, detail: `${label}: ${f.detail}` })
   }

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { describeTransportFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')

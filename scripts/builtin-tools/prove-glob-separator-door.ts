@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -86,6 +87,7 @@ if (process.platform === 'win32') {
     const escaped = door.normalizeGlobPattern('a\\[1\\].ts')
     const hits = await ripGrep(['--files', '--glob', escaped], fixture, new AbortController().signal)
     check("'a\\[1\\].ts' still names the literal file a[1].ts (escape kept)", hits.length === 1 && /a\[1\]\.ts$/.test(hits[0] ?? ''), JSON.stringify(hits))
+
     const deep = await ripGrep(['--files', '--glob', door.normalizeGlobPattern('**/sub/**/*.ts')], fixture, new AbortController().signal)
     check("'**/sub/**/*.ts' finds sub/c.ts through the door", deep.length === 1 && /sub\/c\.ts$/.test(deep[0] ?? ''), JSON.stringify(deep))
   } catch (e) {

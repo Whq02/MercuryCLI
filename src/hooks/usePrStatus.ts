@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react'
 import { fetchPrStatus, type PrReviewState } from '../utils/ghPrStatus.js'
 import { getLastInteractionTime } from '../bootstrap/state.js'
@@ -31,6 +30,7 @@ export function usePrStatus(
   const disabledForSessionRef = useRef(false)
 
   useEffect(() => {
+
     if (!enabled || disabledForSessionRef.current) return
     let cancelled = false
     let timer: NodeJS.Timeout | null = null
@@ -65,6 +65,7 @@ export function usePrStatus(
               lastUpdatedAt: Date.now(),
             }
           : { ...EMPTY }
+
         if (
           prev.number === next.number &&
           prev.reviewState === next.reviewState
@@ -78,6 +79,7 @@ export function usePrStatus(
 
     const schedule = (): void => {
       if (cancelled || disabledForSessionRef.current) return
+
       const sinceLast = Date.now() - lastFetchAtRef.current
       const delay = Math.max(0, POLL_INTERVAL_MS - sinceLast)
       timer = setTimeout(() => void poll(), delay)

@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import type { KeybindingContextName } from '../keybindings/types.js'

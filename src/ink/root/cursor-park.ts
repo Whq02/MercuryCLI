@@ -5,21 +5,32 @@ export type CursorPoint = { x: number; y: number }
 
 type CursorPlanInput = {
   altScreen: boolean
+
   hasDiff: boolean
+
   needsErase: boolean
+
   parkPatch: Patch
+
   target: CursorPoint | null
+
   parked: CursorPoint | null
+
   prevCursor: CursorPoint
+
   frameCursor: CursorPoint
   rows: number
   cols: number
 }
 
 type CursorPlan = {
+
   prelude: Patch[]
+
   postlude: Patch[]
+
   nextParked: CursorPoint | null
+
   consumedErase: boolean
 }
 
@@ -61,10 +72,12 @@ export function planCursor(input: CursorPlanInput): CursorPlan {
 
   if (target !== null) {
     if (altScreen) {
+
       const row = Math.min(Math.max(target.y + 1, 1), rows)
       const col = Math.min(Math.max(target.x + 1, 1), cols)
       postlude.push({ type: 'stdout', content: cursorPosition(row, col) })
     } else {
+
       const from = !hasDiff && parked !== null ? parked : frameCursor
       const dx = target.x - from.x
       const dy = target.y - from.y

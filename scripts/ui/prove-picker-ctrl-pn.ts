@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -9,6 +10,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, 'vshot.py')
+
 const CTRL_N = String.fromCharCode(0x0e)
 const CTRL_P = String.fromCharCode(0x10)
 const ENTER = String.fromCharCode(0x0d)
@@ -41,8 +43,10 @@ writeFileSync(
   JSON.stringify({
     argv: ['node', DIST, '--chat'],
     sends: [
+
       { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
       { atTick: 110, awaitText: 'Type a prompt', minTick: 50, awaitSettleTicks: 4, requireAwait: true, data: '/model' + ENTER },
+
       { atTick: 160, awaitText: 'Mercury · model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },
       { afterPrevTicks: 4, mark: 'after-ctrl-n', data: CTRL_P },
       { afterPrevTicks: 4, mark: 'after-ctrl-p', data: ARROW_DOWN },

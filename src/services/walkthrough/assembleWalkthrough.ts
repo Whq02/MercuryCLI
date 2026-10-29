@@ -1,4 +1,3 @@
-
 import { getCwd } from '../../utils/cwd.js'
 import {
   createReviewArtifact,
@@ -15,7 +14,6 @@ import { evidenceFor } from '../primitives/evidencePlane.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { getRunSnapshot } from '../run/runCoordinator.js'
 import { getJourney, listJourneys } from '../journeys/runner.js'
-
 
 interface WalkthroughReceiptFact {
   id: string
@@ -54,7 +52,6 @@ interface WalkthroughInputs {
   limitations: string[]
 }
 
-
 export function composeWalkthroughBody(inputs: WalkthroughInputs): {
   markdown: string
   claims: WalkthroughClaim[]
@@ -83,6 +80,7 @@ export function composeWalkthroughBody(inputs: WalkthroughInputs): {
   lines.push('', '## Changed areas (observed)', '')
   const allPaths = new Map<string, { count: number; refs: Set<string> }>()
   const areaOf = (p: string): string => {
+
     const segs = p.replace(/\\/g, '/').split('/').filter(Boolean)
     if (segs.length <= 1) return '(root)'
     return segs.slice(-3, -1).join('/') || '(root)'
@@ -125,6 +123,7 @@ export function composeWalkthroughBody(inputs: WalkthroughInputs): {
   }
 
   if (inputs.reviewDecisions.length > 0) {
+
     lines.push('', '## Review decisions (operator-stated)', '')
     for (const d of inputs.reviewDecisions) lines.push(`- [stated] ${d}`)
   }
@@ -183,7 +182,6 @@ export function composeWalkthroughBody(inputs: WalkthroughInputs): {
 
   return { markdown: lines.join('\n'), claims }
 }
-
 
 const RECEIPTS_MAX = 60
 const CHECKS_MAX = 40
@@ -271,7 +269,6 @@ function gatherWalkthroughInputs(args: {
   }
 }
 
-
 export function createWalkthroughArtifact(args: {
   owner: OwnerKey
   sessionId: string
@@ -304,7 +301,6 @@ export function createWalkthroughArtifact(args: {
     initialStatus: 'ready-for-review',
   })
 }
-
 
 export function createVisualJourneyArtifact(args: {
   owner: OwnerKey

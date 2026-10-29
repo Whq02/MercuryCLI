@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -40,6 +41,7 @@ console.log('§1 — one owner at a time, in the paint order (topmost first)')
   for (const [fact, owner] of order) {
     check(`${String(fact)} alone owns as '${owner}'`, boardModalOwner(facts({ [fact]: true } as Partial<Facts>)) === owner)
   }
+
   let pairsHeld = 0
   for (let a = 0; a < order.length; a++) {
     for (let b = a + 1; b < order.length; b++) {

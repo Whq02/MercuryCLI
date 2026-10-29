@@ -24,6 +24,7 @@ const { EXECUTION_DOMAIN_CENSUS } = await import(
 const { isMutationOperation } = await import(
   '../../src/services/changeTransaction/contracts.ts'
 )
+
 const { resourceAdapterKinds } = await import('../../src/services/resources/registry.ts')
 
 console.log('── arsenal census drift gate ──')

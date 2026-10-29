@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -170,6 +171,7 @@ console.log('\n§4 warmth covers the slow fold; the landed truth replaces it')
     'the truth replaced the hint at the paint selection',
     JSON.stringify(w.paintedTranscriptOf([...connector.records()], w.enteringWarmth())).includes('the durable truth'),
   )
+
   const before = connector.records()
   void w.paintedTranscriptOf([...connector.records()], w.enteringWarmth(), sid)
   void w.paintedTranscriptOf([], w.enteringWarmth(), sid)

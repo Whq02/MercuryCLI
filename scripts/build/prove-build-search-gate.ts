@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -72,6 +73,7 @@ section('(B) no rg + MERCURY_BUILD_ALLOW_NO_RG=1 → loud degraded build, honest
 
 section('(C) runtime catalog agreement — source self-sufficiency · the unavailable arm · system preference')
 {
+
   const savedPath = process.env.PATH ?? ''
   process.env.MERCURY_BUILTIN_RIPGREP = '1'
   process.env.PATH = ''

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -34,8 +35,10 @@ guard.unref?.()
 
 type Mode = 'drop-after-content' | 'complete'
 let mode: Mode = 'drop-after-content'
+
 let held: ServerResponse | null = null
 let backstop: ReturnType<typeof setTimeout> | null = null
+
 let sectionStart = Date.now()
 const timeline: string[] = []
 const mark = (what: string): void => {
@@ -74,8 +77,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   req.on('end', () => {
     const path = (req.url ?? '').split('?')[0] ?? ''
     hits.push({ method: req.method ?? '', path })
+
     mark(`${req.method ?? ''} ${path} arrived (client port ${String(req.socket.remotePort ?? '?')})`)
     if (req.method === 'GET' && path.endsWith('/models')) {
+
       res.writeHead(200, { 'content-type': 'application/json', connection: 'close' })
       res.end(path.includes('/openai/') ? JSON.stringify(MODELS_BODY) : JSON.stringify({ object: 'list', data: [] }))
       return
@@ -103,6 +108,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
     }
+
     held = res
     mark('response held open after the content chunk')
     if (backstop !== null) clearTimeout(backstop)
@@ -161,6 +167,7 @@ async function drive(model: string): Promise<Drive> {
       const item = event as { type?: string; event?: { type?: string; delta?: { type?: string; text?: string } } }
       const deltaText = item.event?.type === 'content_block_delta' && item.event.delta?.type === 'text_delta' ? (item.event.delta.text ?? '') : undefined
       mark(`consumer saw ${item.type ?? '?'}${item.event?.type !== undefined ? `/${item.event.type}` : ''}${deltaText !== undefined ? ` "${deltaText.slice(0, 24)}"` : ''}`)
+
       if (mode === 'drop-after-content' && deltaText !== undefined && deltaText.includes('partial words')) dropHeld('consumer')
     }
   } catch (e) {
@@ -192,11 +199,12 @@ for (const lane of LANES) {
   const d = await drive(lane.model)
   check('the routed call ended without throwing (the honest-settlement contract)', d.thrown === null, d.thrown ?? '')
   check('the partial words reached the consumer', assistantText(d).includes('partial words that streamed'), assistantText(d).slice(0, 160))
-  const usage = d.usage ?? ledger.getModelUsage()[Object.keys(ledger.getModelUsage())[0] ?? ''] 
+  const usage = d.usage ?? ledger.getModelUsage()[Object.keys(ledger.getModelUsage())[0] ?? '']
   check('THE LEDGER HOLDS THE FAULTED REQUEST (the base recorded nothing)', usage !== undefined, JSON.stringify(ledger.getModelUsage()))
   check('…with the prompt as sent estimated on the input side', (usage?.inputTokens ?? 0) > 200, String(usage?.inputTokens))
   check('…and the streamed words estimated on the output side', (usage?.outputTokens ?? 0) >= 10, String(usage?.outputTokens))
   check('…priced (a recorded pin, or the flagged fallback — never $0.00 for a billed request)', d.cost > 0, String(d.cost))
+
   const starts = d.yielded.filter(e => e.type === 'stream_event' && (e as { event?: { type?: string } }).event?.type === 'message_start').length
   const posts = hits.filter(h => h.method === 'POST').length
   const spent = d.yielded.some(e => JSON.stringify(e).includes('did not reconnect'))
@@ -205,6 +213,7 @@ for (const lane of LANES) {
     check('the lane ran exactly ONE attempt (one message_start reached the consumer — no retry after content)', starts === 1, `message_start ×${starts}`)
     check('exactly one request reached the wire (no retry after content)', posts === 1, JSON.stringify(hits))
   }
+
   console.log(`  timeline (${lane.model}):\n    ${timeline.join('\n    ')}`)
   check("the API-duration ledger holds the turn's provider time (FN-018 rank 11: these lanes never wrote it)", d.apiMs > 0, String(d.apiMs))
 }

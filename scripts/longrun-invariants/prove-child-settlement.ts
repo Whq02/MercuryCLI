@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,6 +38,7 @@ section('§A a settled parent leaves no in-flight child words (the store seam)')
 type Store = { state: { tasks: Record<string, unknown> } & Record<string, unknown> }
 function makeStore(): Store & { set: (fn: (prev: never) => never) => void } {
   const store: Store & { set: (fn: (prev: never) => never) => void } = {
+
     state: { tasks: {}, speculation: { status: 'idle' } },
     set(fn) {
       store.state = (fn as (p: unknown) => Store['state'])(store.state)
@@ -86,12 +88,14 @@ function settleCase(
   check(`${name}: queued child (start) projected 'stopped'`, states.get(1) === 'stopped', String(states.get(1)))
   check(`${name}: running child (progress) projected 'stopped'`, states.get(2) === 'stopped', String(states.get(2)))
   check(`${name}: settled child (done) untouched`, states.get(3) === 'done', String(states.get(3)))
+
   const rows = buildAgentSummaries(task.workflowProgress)
   check(
     `${name}: buildAgentSummaries carries the projection (no in-flight rows)`,
     rows.every(r => r.state !== 'start' && r.state !== 'progress'),
     JSON.stringify(rows.map(r => [r.index, r.state])),
   )
+
   updateWorkflowProgressBatch(taskId, [agentFrame(2, 'done')], store.set as never)
   const after = store.state.tasks[taskId] as LocalWorkflowTaskState
   const post = after.workflowProgress.find(
@@ -106,6 +110,7 @@ settleCase('fail', (id, set) => void failWorkflowTask(id, 'boom', 3, [], set), '
 settleCase('complete', (id, set) => void completeWorkflowTask(id, { ok: true }, 3, [], set), 'completed')
 
 {
+
   const store = makeStore()
   registerWorkflowTask({
     taskId: 'wf-task-clean',
@@ -169,6 +174,7 @@ section('§B operator skip settles the frame as skipped (executor seam)')
   }
 
   const pending = hooks.agent('long job', { stallMs: 60_000 })
+
   while (controllers.size === 0) await new Promise(r => setTimeout(r, 10))
   const [, ctrl] = [...controllers.entries()][0]!
   ctrl.abort('user-skip')

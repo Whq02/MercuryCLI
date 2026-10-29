@@ -1,4 +1,3 @@
-
 import { spawn } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -22,13 +21,17 @@ import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, ty
 export type RunnerKind = 'test' | 'check' | 'build'
 
 export interface RunnerProfile {
+
   id: string
   runner: RunnerFramework
   kind: RunnerKind
   title: string
+
   source: string
   root: string
+
   command: string[]
+
   selection: 'node-pattern' | 'file' | 'cargo-filter' | 'go-pattern' | 'none'
   availability:
     | { state: 'ok' }
@@ -79,7 +82,6 @@ export function resolveRunnerBinary(
 function which(bin: string): string | null {
   return resolveRunnerBinary(bin)
 }
-
 
 export function findRunnerRoot(from: string = getCwd()): string | null {
   let dir = path.resolve(from)
@@ -201,6 +203,7 @@ function jsProfiles(root: string): RunnerProfile[] {
       title: 'node --test',
       source: 'package.json',
       root,
+
       command: ['node', '--test', '--test-reporter', 'tap'],
       selection: 'node-pattern',
       availability: binaryAvailability('node', 'install Node.js ≥ 20'),
@@ -250,6 +253,7 @@ function cargoProfiles(root: string): RunnerProfile[] {
     availability,
   })
   return [
+
     mk('test', ['cargo', 'test'], 'cargo test', 'cargo-filter'),
     mk('check', ['cargo', 'check', '-q'], 'cargo check', 'none'),
     mk('build', ['cargo', 'build', '-q'], 'cargo build', 'none'),
@@ -318,7 +322,6 @@ export function discoverSubPackages(root: string): SubPackage[] {
 export function subPackageTestRunners(sub: SubPackage): string[] {
   return [...new Set(sub.profiles.filter(p => p.kind === 'test').map(p => p.runner))]
 }
-
 
 let runSeq = 0
 
@@ -412,13 +415,13 @@ function readReporter(profile: RunnerProfile, reporterFile: string | null, combi
   return null
 }
 
-
 const CASE_PARSE_CAP = 50
 
 function relIfUnder(root: string, p: string): string {
   if (!path.isAbsolute(p)) return p
   const rel = path.relative(root, p)
   if (!rel.startsWith('..')) return rel
+
   try {
     const realRel = path.relative(require('node:fs').realpathSync(root), p)
     if (!realRel.startsWith('..')) return realRel
@@ -484,6 +487,7 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
       return cases
     }
     case 'cargo': {
+
       const sections = out.split(/^---- (\S+) stdout ----$/m)
       for (let i = 1; i + 1 < sections.length; i += 2) {
         const name = sections[i]!
@@ -505,6 +509,7 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
       return cases
     }
     case 'go': {
+
       const lines = out.split('\n')
       for (let i = 0; i < lines.length; i++) {
         const m = /^\s*--- FAIL: (\S+)/.exec(lines[i]!)
@@ -527,6 +532,7 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
       return cases
     }
     case 'vitest': {
+
       const lines = out.split('\n')
       for (let i = 0; i < lines.length; i++) {
         const m = /^\s*(?:×|✕|FAIL)\s+(\S+\.[cm]?[jt]sx?) > (.+)$/.exec(lines[i]!.replace(/\x1b\[[0-9;]*m/g, ''))
@@ -543,6 +549,7 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
       return cases
     }
     case 'jest': {
+
       const clean = out.replace(/\x1b\[[0-9;]*m/g, '')
       const lines = clean.split('\n')
       for (let i = 0; i < lines.length; i++) {
@@ -576,7 +583,6 @@ export function parseRunnerCases(runner: RunnerFramework, out: string, root: str
   }
 }
 
-
 export type ChangedSelection =
   | { state: 'ok'; argv: string[]; label: string; changedCount: number }
   | { state: 'unavailable'; reason: string; remedy: string }
@@ -589,6 +595,7 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
     if ('state' in s) {
       return { state: 'unavailable', reason: s.note, remedy: 'changed-file selection needs a git repository' }
     }
+
     changed = s.files.map(f => f.path).filter(p => existsSync(path.join(profile.root, p)))
   } catch (err) {
     return { state: 'unavailable', reason: `git status failed: ${(err as Error).message}`, remedy: 'check the repository state' }
@@ -599,6 +606,7 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
   const bin = profile.command[0]!
   switch (profile.runner) {
     case 'vitest': {
+
       const sources = changed.filter(f => /\.[cm]?[jt]sx?$/.test(f))
       if (sources.length === 0) {
         return { state: 'unavailable', reason: 'no changed JS/TS files', remedy: 'run the full profile instead' }
@@ -613,6 +621,7 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
       return { state: 'ok', argv: [bin, '--findRelatedTests', ...sources.slice(0, 40)], label: 'changed', changedCount: sources.length }
     }
     case 'node-test': {
+
       const testFiles = changed.filter(f => /\.test\.(m?[jt]s|[jt]sx)$/.test(f))
       if (testFiles.length === 0) {
         return {
@@ -648,13 +657,18 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
 
 export interface RunnerRunOptions {
   from?: string
+
   selection?: string
   selectionKind?: 'node' | 'path'
   selectionLabel?: string
+
   argvOverride?: string[]
+
   onOutput?: (view: { tail: string; lines: number }, elapsedMs: number) => void
   signal?: AbortSignal
+
   timeoutMs?: number
+
   env?: Record<string, string>
 }
 
@@ -690,6 +704,7 @@ export async function runRunnerProfile(
   let argv = [...profile.command]
   let selectionLabel = 'all'
   if (opts.argvOverride) {
+
     argv = [...opts.argvOverride]
     selectionLabel = opts.selectionLabel ?? 'changed'
   } else if (opts.selection) {
@@ -738,6 +753,7 @@ export async function runRunnerProfile(
   const startedAt = Date.now()
   const id = `run-${startedAt}-rp${++runSeq}`
   const bin = argv[0]!
+
   const HEAD_CAP = MAX_OUTPUT_BYTES / 4
   const TAIL_CAP = MAX_OUTPUT_BYTES - HEAD_CAP
   const timeoutMs = opts.timeoutMs ?? RUN_TIMEOUT_MS
@@ -768,6 +784,7 @@ export async function runRunnerProfile(
           droppedBytes += dropped.length
         }
       }
+
       opts.onOutput?.(
         { tail: chunk.subarray(Math.max(0, chunk.length - 2048)).toString('utf8'), lines: lineCount },
         Date.now() - startedAt,
@@ -775,6 +792,7 @@ export async function runRunnerProfile(
     }
     child.stdout?.on('data', append)
     child.stderr?.on('data', append)
+
     const settlement = await settleChildRun(child, {
       timeoutMs,
       ...(opts.signal ? { signal: opts.signal } : {}),
@@ -790,6 +808,7 @@ export async function runRunnerProfile(
           : settlement.signal
             ? `killed by ${settlement.signal}`
             : undefined
+
     const code = settlement.timedOut || settlement.aborted ? null : settlement.code
     return {
       combined:
@@ -882,7 +901,6 @@ export async function runRunnerProfile(
   return { state: 'ok', record }
 }
 
-
 export type TestLane =
   | { lane: 'python'; framework?: 'pytest' | 'unittest' }
   | { lane: 'runner'; profile: RunnerProfile }
@@ -949,6 +967,7 @@ export async function rerunRunnerFailures(
   if (!profile) {
     return { state: 'stale-profile', reason: `no ${record.framework} test profile in the current discovery`, profiles }
   }
+
   const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const joined = record.failures.map(name => profile.runner === 'vitest' || profile.runner === 'jest'
     ? jsTestNamePattern(profile.runner, name, record.cases.find(c => c.id === name)?.nameParts)
@@ -983,10 +1002,11 @@ export async function rerunRunnerFailures(
   }
 }
 
-
 export interface NodeTestDebugShim {
   framework: 'node-test'
+
   program: string
+
   runtimeArgs: string[]
   cwd: string
   note: string

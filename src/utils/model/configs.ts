@@ -1,4 +1,3 @@
-
 export type ModelConfig = {
   firstParty: string
   canonical?: string

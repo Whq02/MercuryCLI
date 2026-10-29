@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -46,6 +47,7 @@ section('§A a settled agent outlives the registry (disk probe on miss)')
       message: { content: [{ type: 'text', text: `line-${i + 1}` }] },
     }),
   )
+
   writeFileSync(file, rows.join('\n'))
 
   const hit = await resolve(`mercury://agent/${id}`)

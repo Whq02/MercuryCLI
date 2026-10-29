@@ -13,7 +13,6 @@ import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { truncate } from '../../utils/format.js'
 import { extractTag } from '../../utils/messages.js'
 
-
 type GrepRenderOutput = {
   mode?: 'content' | 'files_with_matches' | 'count'
   numFiles: number
@@ -33,11 +32,15 @@ function labelForCount(count: number, pluralLabel: string): string {
 
 type SearchResultSummaryProps = {
   count: number
+
   label: string
   secondaryCount?: number
   secondaryLabel?: string
+
   body?: string
+
   verbose: boolean
+
   trailer?: string
 }
 
@@ -120,6 +123,7 @@ export function renderToolResultMessage(
   _progressMessages: unknown,
   { verbose, isTranscriptMode }: { verbose: boolean; isTranscriptMode?: boolean },
 ): React.ReactNode {
+
   const revealed = verbose || isTranscriptMode === true
   switch (output.mode) {
     case 'content':

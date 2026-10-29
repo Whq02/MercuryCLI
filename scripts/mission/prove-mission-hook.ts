@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   sawMissionMetSentinel,
   MISSION_MET_SENTINEL,
@@ -22,6 +23,7 @@ const asst = (text: string) =>
   ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } }) as never
 const user = (text: string) =>
   ({ type: 'user', message: { role: 'user', content: text } }) as never
+
 const meta = (text: string) =>
   ({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } }) as never
 
@@ -41,6 +43,7 @@ check(
 check('empty transcript ⇒ NOT met', sawMissionMetSentinel([]) === false)
 
 section('THE FIX: a stale sentinel from a prior mission does NOT satisfy a new mission')
+
 const twoMissions = [
   user('/mission fix the bug'),
   asst(`fixed it\n${MISSION_MET_SENTINEL}`),
@@ -69,6 +72,7 @@ check(
 check('buildMissionDirective opens with MISSION_DIRECTIVE_HEADER (boundary coupling, no drift)', buildMissionDirective('g').startsWith(MISSION_DIRECTIVE_HEADER))
 
 section('final-line discrimination + the snapshot-mission clause (the hardening)')
+
 check(
   'header-quoting ack + genuine final sentinel in ONE message ⇒ met',
   sawMissionMetSentinel([
@@ -78,10 +82,12 @@ check(
     ),
   ]) === true,
 )
+
 check(
   'quoting the whole directive (embedded example sentinel) ⇒ NOT met',
   sawMissionMetSentinel([user('/mission g'), asst(`the mission says:\n${buildMissionDirective('g')}`)]) === false,
 )
+
 check(
   'sentinel mid-message with trailing prose ⇒ NOT met',
   sawMissionMetSentinel([user('/mission g'), asst(`${MISSION_MET_SENTINEL}\nstill more to do though`)]) === false,
@@ -90,6 +96,7 @@ check(
   'trailing blank lines after the final sentinel are tolerated',
   sawMissionMetSentinel([user('/mission g'), asst(`done.\n${MISSION_MET_SENTINEL}\n\n`)]) === true,
 )
+
 check(
   'buildMissionDirective teaches the snapshot-condition rule',
   /progress snapshot/.test(buildMissionDirective('g')) &&

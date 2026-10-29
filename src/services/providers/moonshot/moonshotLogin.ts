@@ -28,7 +28,9 @@ export type KimiDeviceLoginEvent =
 export interface KimiDeviceLoginArgs {
   region: KimiRegion
   io?: MoonshotOauthIo & MoonshotUsageIo
+
   sleep?: (ms: number) => Promise<void>
+
   cancelled?: () => boolean
   onEvent?: (event: KimiDeviceLoginEvent) => void
 }
@@ -39,6 +41,7 @@ export type KimiDeviceLoginOutcome =
       receipt: string
       region: KimiRegion
       usage: KimiManagedUsage | null
+
       settledAfterCancel?: true
     }
   | {
@@ -76,6 +79,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
   const env = io?.env ?? process.env
   const now = (): number => io?.now?.() ?? Date.now()
   onEvent?.({ phase: 'starting' })
+
   try {
     writeMoonshotRegion(region)
   } catch {
@@ -108,6 +112,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
     polls += 1
     const result = await pollMoonshotDeviceToken(start, { ...io, region })
     if (result.state === 'unreachable') {
+
       note = `the Kimi host did not answer (${result.message}) — still trying until the code expires`
       onEvent?.({ phase: 'waiting', start, polls, note })
       continue
@@ -140,6 +145,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
       }
     }
     onEvent?.({ phase: 'finishing' })
+
     const approvedAfterCancel = cancelled()
     try {
       writeMoonshotTokens(result.tokens, region)
@@ -150,6 +156,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
         receipt: `Kimi authorized but the tokens could not be stored: ${errorMessageWithCause(error)} — retry from /logins moonshot.`,
       }
     }
+
     recordSignIn('moonshot', 'oauth')
     if (approvedAfterCancel) {
       return {
@@ -160,8 +167,10 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
         receipt: KIMI_SETTLED_AFTER_CANCEL_RECEIPT,
       }
     }
+
     const probe = await fetchKimiManagedUsage(result.tokens.accessToken, region, io)
     const usage = probe.state === 'confirmed' ? probe.usage : null
+
     if (cancelled()) {
       return { ok: true, settledAfterCancel: true, region, usage, receipt: KIMI_SETTLED_AFTER_CANCEL_RECEIPT }
     }
@@ -185,6 +194,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
 
 export interface MoonshotKeyLoginOutcome {
   ok: boolean
+
   stored: boolean
   receipt: string
 }

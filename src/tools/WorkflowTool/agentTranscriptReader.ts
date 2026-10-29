@@ -1,4 +1,3 @@
-
 import { existsSync } from 'node:fs'
 import { readFile, stat, open } from 'node:fs/promises'
 import path from 'node:path'
@@ -10,6 +9,7 @@ import { turnCutOfText, turnCutResultText } from '../../utils/messages/turnCut.j
 import { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
 
 export const PROMPT_CAP_CHARS = 8_000
+
 export const ACTIVITY_LAST_N = 40
 export const ACTIVITY_INPUT_SUMMARY_CHARS = 120
 export const ACTIVITY_RESULT_PREVIEW_CHARS = 200
@@ -23,6 +23,7 @@ const TAIL_READ_BYTES = 2 * 1024 * 1024
 
 export type AgentToolCallView = {
   name: string
+
   inputSummary: string
   resultPreview?: string
   isError?: boolean
@@ -35,31 +36,41 @@ export type AgentUsageRollup = {
   cacheReadTokens: number
   cacheCreationTokens: number
   contextTokens: number
+
   apiTurns: number
 }
 
 export type AgentTranscriptView = {
+
   prompt?: string
   promptTruncated?: boolean
+
   toolCalls: AgentToolCallView[]
   toolCallsTotal: number
+
   reasoning: string[]
   reasoningTotal: number
+
   unreadableReasoningTotal: number
+
   finalText?: string
   finalTextTruncated?: boolean
   model?: string
   usage?: AgentUsageRollup
   entryCount: number
+
   truncatedRead?: boolean
+
   end: AgentTranscriptEnd
 }
 
 export type AgentTranscriptEnd = {
   kind: 'completed' | 'failed' | 'stopped' | 'cut'
+
   words: string
 }
 const OPEN_END: AgentTranscriptEnd = { kind: 'cut', words: 'cut off mid-turn' }
+
 const NO_ROWS_END: AgentTranscriptEnd = { kind: 'cut', words: 'no readable rows' }
 const COMPLETED_END: AgentTranscriptEnd = { kind: 'completed', words: 'completed' }
 const FAILED_END: AgentTranscriptEnd = { kind: 'failed', words: 'failed' }
@@ -148,6 +159,7 @@ export async function readAgentTranscript(
         const tail = Buffer.alloc(TAIL_READ_BYTES)
         await fh.read(head, 0, HEAD_READ_BYTES, 0)
         await fh.read(tail, 0, TAIL_READ_BYTES, st.size - TAIL_READ_BYTES)
+
         const headStr = head.toString('utf8')
         const tailStr = tail.toString('utf8')
         raw = `${headStr.slice(0, headStr.lastIndexOf('\n') + 1)}${tailStr.slice(
@@ -181,6 +193,7 @@ export async function readAgentTranscript(
   }
   const seenUsageIds = new Set<string>()
   const seenToolUseIds = new Set<string>()
+
   let end: AgentTranscriptEnd = OPEN_END
 
   for (const e of entries) {
@@ -238,6 +251,7 @@ export async function readAgentTranscript(
       usage.outputTokens += n(u.output_tokens)
       usage.cacheReadTokens += n(u.cache_read_input_tokens)
       usage.cacheCreationTokens += n(u.cache_creation_input_tokens)
+
       usage.contextTokens = getTokenCountFromUsage({
         input_tokens: n(u.input_tokens),
         output_tokens: n(u.output_tokens),
@@ -255,6 +269,7 @@ export async function readAgentTranscript(
       if (block.type === 'tool_use') {
         opensCall = true
         const id = typeof block.id === 'string' ? block.id : undefined
+
         if (id !== undefined) {
           if (seenToolUseIds.has(id)) continue
           seenToolUseIds.add(id)

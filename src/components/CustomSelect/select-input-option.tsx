@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import useInput from '../../ink/hooks/use-input.js'
@@ -20,15 +19,22 @@ type SelectInputOptionProps<T = string> = {
   option: InputOption<T>
   isFocused: boolean
   isSelected?: boolean
+
   value: string
+
   onChange: (value: string) => void
+
   onSubmit: (value: string) => void
+
   reservedIndexWidth: number
+
   index: number
+
   showLabelWithValue?: boolean
   layout?: 'compact' | 'expanded' | 'compact-vertical'
   shouldShowDownArrow?: boolean
   shouldShowUpArrow?: boolean
+
   children?: React.ReactNode
   onOpenEditor?: (value: string, setValue: (value: string) => void) => void
   onImagePaste?: (
@@ -68,7 +74,9 @@ export function SelectInputOption<T>({
   onSelectImage,
   onExitImageSelection,
 }: SelectInputOptionProps<T>): React.ReactNode {
+
   const [offset, setOffset] = useState(value.length)
+
   const { columns: termCols } = useTerminalSize()
   const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))
   const keystrokeRef = useRef(false)
@@ -169,6 +177,7 @@ export function SelectInputOption<T>({
     },
     { context: 'Attachments', isActive: isFocused && isImageSelectionMode },
   )
+
   useInput(
     (_input, key, event) => {
       if (key.upArrow) {
@@ -178,6 +187,7 @@ export function SelectInputOption<T>({
     },
     { isActive: isFocused && isImageSelectionMode },
   )
+
   useEffect(() => {
     if (!isFocused && isImageSelectionMode) onExitImageSelection?.()
   }, [isFocused, isImageSelectionMode, onExitImageSelection])

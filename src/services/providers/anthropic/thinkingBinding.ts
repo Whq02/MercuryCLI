@@ -105,7 +105,6 @@ export function describeInputTransformations(list: readonly InputTransformation[
   return `Preserved thinking: the API dropped ${count} ${noun} (${[...reasons].join(', ')}; first at ${first.path}); the model re-plans without that reasoning this turn.`
 }
 
-
 type LawfulPrefixChange =
   | 'compaction'
   | 'model-switch'
@@ -121,12 +120,14 @@ interface PrefixMark {
   compactBoundary: string | null
   modelTransition: string | null
   rosterTransition: string | null
+
   rosterChange: string | null
   model: string
   settings: string
   build?: string
   buildTree?: string
   thinkingClearActive: boolean
+
   contextEditActive: boolean
 }
 
@@ -171,6 +172,7 @@ export function describeSettingsMove(previous: string, current: string): string 
   const moved: string[] = []
   for (const [key, value] of after) {
     const was = before.get(key)
+
     if (was === undefined || was === '?' || value === '?' || was === value) continue
     moved.push(`${SETTING_LABELS[key] ?? key} (${was} → ${value})`)
   }
@@ -229,13 +231,18 @@ type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
+
   detail: string | null
+
   rosterChange: string | null
+
   consecutive: number
   count: number
   path: string | null
   reason: string | null
+
   paint: boolean
+
   part: string | null
   behind?: number
 }
@@ -244,7 +251,9 @@ interface OwnerDropState {
   mark: PrefixMark
   kind: DropKind
   consecutive: number
+
   defectNoticed: boolean
+
   editNoticed: boolean
 }
 
@@ -294,10 +303,12 @@ export function classifyThinkingDrops(
   owner: string,
   list: readonly InputTransformation[],
   mark: PrefixMark,
+
   opts?: { byteMoved?: boolean },
 ): DropOutcome {
   const dropped = list.filter(entry => entry.type === 'thinking_dropped')
   const previous = priorDropState(owner)
+
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
     holdDropState(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false, editNoticed: previous?.editNoticed ?? false })
@@ -327,7 +338,9 @@ export function classifyThinkingDrops(
     }
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
+
   if (reasons.size === 1 && reasons.has('model_binding_mismatch')) lawful = 'model-switch'
+
   if (lawful === null && opts?.byteMoved !== true) {
     if (mark.contextEditActive) lawful = 'context-edited'
     else if (mark.thinkingClearActive) lawful = 'thinking-cleared'
@@ -344,6 +357,7 @@ export function classifyThinkingDrops(
     kind = 'first'
     consecutive = 1
   }
+
   const isSelfEdit = lawful === 'thinking-cleared' || lawful === 'context-edited'
   const defectNoticed = previous?.defectNoticed ?? false
   const editNoticed = previous?.editNoticed ?? false
@@ -386,6 +400,7 @@ function describePathTurn(path: string | null, turn: number | null): string {
   const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
   if (match === null) return 'an earlier turn'
   if (turn !== null) return turn <= 1 ? 'the first turn' : `turn ${turn}`
+
   return Number(match[1]) <= 1 ? 'the first turn' : 'an earlier turn'
 }
 
@@ -423,6 +438,7 @@ function issuesUrl(): string {
 export function describeThinkingDrops(
   list: readonly InputTransformation[],
   outcome: DropOutcome,
+
   turn: number | null = null,
 ): string | null {
   if (outcome.kind === 'none' || !outcome.paint) return null
@@ -457,10 +473,10 @@ export function describeThinkingDrops(
     case 'first':
       return `${describeInputTransformations(list) ?? ''}${ledgerClause(outcome)}`
     case 'recurrent':
+
       return null
   }
 }
-
 
 export function deadMarksFromDrops(
   list: readonly InputTransformation[],
@@ -478,6 +494,7 @@ export function deadMarksFromDrops(
     const dead = existing.get(messageId)
     let original = sentIndex
     if (dead !== undefined && dead.size > 0) {
+
       let seen = -1
       original = -1
       for (let index = 0; index < sentIndex + dead.size + 1; index++) {
@@ -498,6 +515,7 @@ export function deadMarksFromDrops(
 export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
   const marks = new Map<string, Set<number>>()
   for (const message of messages) {
+
     const dead =
       message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dead_thinking'
         ? (message.attachment as { dead?: unknown }).dead
@@ -548,7 +566,6 @@ export function stripDeadThinking<M extends Message>(messages: M[], marks: Reado
   return changed ? result : messages
 }
 
-
 export function isSameModel(a: string, b: string): boolean {
   return getCanonicalName(a) === getCanonicalName(b)
 }
@@ -581,10 +598,10 @@ export function modelSwitchReceipt(
   }
 }
 
-
 interface ThinkingDropLedger {
   last: {
     at: string
+
     kind: Exclude<DropKind, 'none'> | 'rewrite'
     lawful: LawfulPrefixChange | null
     detail?: string | null
@@ -593,9 +610,11 @@ interface ThinkingDropLedger {
     count: number
     consecutive: number
     model: string
+
     part?: string | null
     behind?: number
   }
+
   longestRun: number
   session?: {
     id: string
@@ -631,6 +650,7 @@ export function recordThinkingDropLedger(
   if (outcome.kind === 'none') return
   try {
     const previous = readThinkingDropLedger()
+
     if (outcome.part === null && outcome.kind === 'recurrent' && typeof previous?.last.part === 'string' && previous.last.kind !== 'lawful') {
       outcome.part = previous.last.part
     }

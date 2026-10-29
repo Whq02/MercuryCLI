@@ -105,6 +105,7 @@ function boardSessionsOf(body: unknown): Array<{ sessionId?: string; title?: str
     }
     if (v !== null && typeof v === 'object') for (const x of Object.values(v)) walk(x)
   })(body)
+
   for (let i = texts.length - 1; i >= 0; i--) {
     const t = texts[i]!
     const tagAt = t.lastIndexOf('<switchboard')
@@ -148,20 +149,30 @@ function routeOf(serialized: string): Op {
 
 interface CrossfamilyFixtureOpts {
   port: number
+
   seatStyle?: 'instant' | 'paced'
+
   seatSleepSeconds?: number
+
   launchProjects?: { plain?: string; glm?: string; gpt?: string; haiku?: string; nemotron?: string; pairOne?: string; pairTwo?: string }
+
   gptId?: string
+
   gptDisplayName?: string
+
   gptReasoningLevels?: readonly string[]
+
   nemotronId?: string
+
   captureLog?: string
 }
 
 interface CrossfamilyFixture {
   base: string
   captured: FixtureHit[]
+
   env: Record<string, string>
+
   refuseNextAnthropicSeat(status: number, message: string): void
   close(): Promise<void>
 }
@@ -189,6 +200,7 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
     if (op === 'ack') return emit({ final: `cma-${dialect}-ack: done.` })
     if (op === 'launch') return emit({ tool: { name: 'launch_session', input: { task: 'seat-task-alpha: work the alpha brief', title: 'CMA Alpha' } } })
     if (op === 'launch-pair') {
+
       return emit({
         tools: [
           { name: 'launch_session', input: { task: 'seat-task-pair-one: work the first pair brief', title: 'CMA Pair One', ...(opts.launchProjects?.pairOne !== undefined ? { project: opts.launchProjects.pairOne } : {}) } },
@@ -327,6 +339,7 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
         return
       }
       if (req.method === 'POST' && path === '/openai/v1/responses') {
+
         const isCoordinator = raw.includes('<switchboard')
         record({ lane: isCoordinator ? 'openai' : 'openai-seat', path, model: String(body.model ?? ''), body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -360,6 +373,7 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
     })
   })
   await new Promise<void>(resolve => server.listen(opts.port, '127.0.0.1', resolve))
+
   const address = server.address()
   const bound = typeof address === 'object' && address !== null ? address.port : opts.port
   const base = `http://127.0.0.1:${bound}`

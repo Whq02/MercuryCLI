@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -137,6 +138,7 @@ const clearAll = (): void => {
 
 console.log('§M2 held-schedule adjudication overlap')
 {
+
   seedRecord()
   const T0 = Date.parse('2026-01-15T12:00:30Z')
   const birthEveryMin = {
@@ -501,6 +503,7 @@ console.log('§M1 the burst cap has one truth')
     queue: [],
     pendingScheduleEdits: pending,
   }
+
   seatMod.onFactsAnswer('concourse-m1', sessionFactsToWire(answer as never), fixtureRoster as never, DAEMON_DIR)
   const pausedCount = scheduleRows().filter(s => s.paused === true).length
   check(
@@ -528,6 +531,7 @@ console.log('§M8 the birth derivation key')
       return { ok: true as const, account: { ...FIXTURE_ACCOUNT } }
     },
   }
+
   const birthSub = (topModel?: string) => ({
     when: { kind: 'at', atMs: Date.parse('2026-02-01T09:00:00Z') },
     action: { kind: 'birth', birth: { workspaceDir: WORKSPACE, modelKey: 'claude-fable-5', presence: 'headless' } },
@@ -584,6 +588,7 @@ console.log('§M10 the id mint collision guard')
 console.log('§L1 clock adversity')
 {
   seedRecord()
+
   const T0 = Date.parse('2026-01-25T12:00:30Z')
   const id1 = addVia({ when: { kind: 'every', cron: '* * * * *' }, action: { kind: 'fire', prompt: 'steady' } })
   backdate(id1, T0 - 120_000)

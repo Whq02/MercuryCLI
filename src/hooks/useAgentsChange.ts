@@ -37,7 +37,6 @@ export async function reloadAgentDefinitionsIntoAppState(
   })
 }
 
-
 export function useAgentsChange(cwd: string | undefined): void {
   const setAppState = useSetAppState()
 
@@ -52,6 +51,7 @@ export function useAgentsChange(cwd: string | undefined): void {
 
   useEffect(() => {
     if (!cwd) return
+
     const arm = setTimeout(() => {
       void startAgentWatch(cwd).catch(error => logError(toError(error)))
     }, 1500)

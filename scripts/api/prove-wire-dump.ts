@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -48,6 +49,7 @@ async function waitForRows(file: string, n: number): Promise<Row[]> {
 }
 
 section('§1 the seam — the fetch wrapper records a row, scrubs, and never touches the stream')
+
 {
   const { wrapFetchWithWireDump, wireDumpPath, scrubCredentials, createWireResponseReader } = await import('../../src/services/api/dumpPrompts.ts')
   const file = wireDumpPath(PURE_DIR)
@@ -68,6 +70,7 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
       if (body.includes('"refuse"')) {
         return new Response(j({ type: 'error', error: { type: 'invalid_request_error', message: 'temperature: `temperature` is deprecated for this model' } }), { status: 400, headers: { 'content-type': 'application/json' } })
       }
+
       const parts = [sse.slice(0, 120), sse.slice(120, 400), sse.slice(400)]
       const stream = new ReadableStream<Uint8Array>({
         async pull(controller) {
@@ -178,6 +181,7 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   check('a models-list GET lands as a catalogue row: the served rows, never a header', catalogue?.kind === 'catalogue' && catalogue.url === '/backend-api/codex/models' && catalogue.source === 'openai' && catalogue.response.status === 200 && !j(catalogue).includes('never-written-token') && typeof catalogue.response.firstByteMs === 'number', catalogue ? j(catalogue).slice(0, 300) : 'no row')
   const served = catalogue?.response.models ?? []
   check("each served row reads to its id and the facts beside it (window · ceiling · ladder · default · modalities · rank · visibility · api); a row without an id is skipped", served.length === 2 && served[0]?.id === 'gpt-6-astra' && served[0].display_name === 'GPT-6 Astra' && served[0].context_window === 1_050_000 && served[0].max_context_window === 1_050_000 && j(served[0].efforts) === j(['low', 'max']) && served[0].default_effort === 'high' && j(served[0].input_modalities) === j(['text', 'image']) && served[0].priority === 1 && served[0].visibility === 'list' && served[0].supported_in_api === true && served[1]?.id === 'gpt-5.6-sol' && j(served[1].efforts) === j([]) && served[1].context_window === 272_000, j(served))
+
   await (await wrappedOpenai('https://api.openai.com/v1/models', { method: 'GET' })).json()
   rows = await waitForRows(file, 6)
   const bare = rows[5] as unknown as CatalogueRow | undefined
@@ -235,6 +239,7 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   }
   rows = await waitForRows(file, 8)
   check('the caller aborts the connection at the end event: the caller sees its abort, the row still carries the usage and no fault', abortedFault.includes('abort') && rows[7]?.response.usage?.cached_tokens === 1024 && rows[7].response.stop_reason === 'completed' && rows[7].response.error === undefined, `${abortedFault} ${j(rows[7]?.response)}`)
+
   const octetFetch: typeof globalThis.fetch = async () =>
     new Response(new TextEncoder().encode(responsesSse), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
   const octet = await wrapFetchWithWireDump(octetFetch, 'openai')('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody })
@@ -277,6 +282,7 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
 }
 
 section('§1b the replay tool reads Responses rows in the prefix law\'s terms')
+
 {
   const { writeFileSync } = await import('node:fs')
   const { normalizeWireBody, messageRows: rowsOfMessages, printReport, formatPairLine } = await import('./wire-prefix-replay.ts')
@@ -317,6 +323,7 @@ section('§1b the replay tool reads Responses rows in the prefix law\'s terms')
 }
 
 section('§2 the wire — the built bundle with the dump armed, read back by the replay tool')
+
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {

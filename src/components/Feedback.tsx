@@ -63,19 +63,22 @@ import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 
-
 export function redactSensitiveInfo(text: string): string {
   let result = text
+
   result = result.replace(/["']sk-ant[A-Za-z0-9_-]{24,}["']/g, '[REDACTED_API_KEY]')
   for (const pass of CREDENTIAL_VALUE_PASSES) {
     result = result.replace(new RegExp(pass.pattern.source, pass.pattern.flags), pass.marker)
   }
+
   result = result.replace(/AWS[ _-]?key["'\s:=]+["']AWS[A-Z0-9]{20,}["']/gi, '[REDACTED_AWS_KEY]')
   result = result.replace(/(?<![A-Za-z0-9])AKIA[A-Z0-9]{16}(?![A-Za-z0-9])/g, '[REDACTED_AWS_KEY]')
+
   result = result.replace(
     /[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com/g,
     '[REDACTED_GCP_SERVICE_ACCOUNT]',
   )
+
   result = result.replace(
     /(x-api-key["'\s:=]+)["']?[A-Za-z0-9_-]+["']?/gi,
     '$1[REDACTED]',
@@ -84,15 +87,18 @@ export function redactSensitiveInfo(text: string): string {
     /(authorization["'\s:=]+)["']?(?:bearer\s+)?[A-Za-z0-9._-]+["']?/gi,
     '$1[REDACTED]',
   )
+
   result = result.replace(/(AWS[_-][A-Z_-]*["'\s:=]+)["']?[^\s"']+["']?/gi, '$1[REDACTED_AWS_VALUE]')
   result = result.replace(
     /(GOOGLE[_-][A-Z_-]*["'\s:=]+)["']?[^\s"']+["']?/gi,
     '$1[REDACTED_GCP_VALUE]',
   )
+
   result = result.replace(
     /((?:API[_-]?KEY|TOKEN|SECRET|PASSWORD)["'\s:=]+)["']?[^\s"'[]+["']?/gi,
     '$1[REDACTED_TOKEN]',
   )
+
   const home = homedir()
   if (home.length > 1) {
     const spellings = new Set([home, ...(process.platform === 'win32' ? [home.replace(/\\/g, '/')] : [])])
@@ -102,7 +108,6 @@ export function redactSensitiveInfo(text: string): string {
   }
   return result
 }
-
 
 const GENERIC_TITLE = 'Bug report from Mercury'
 
@@ -149,6 +154,7 @@ async function generateTitle(
   outer.addEventListener('abort', onOuter, { once: true })
   const timer = setTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
   try {
+
     const answer = await Promise.race([
       routedCallModelSettled({
         messages: [createUserMessage({ content: description })],
@@ -161,6 +167,7 @@ async function generateTitle(
           model: sessionSmallFastModel(),
           maxOutputTokensOverride: 100,
           isNonInteractiveSession: false,
+
           querySource: 'feedback',
           agents: [],
           hasAppendSystemPrompt: false,
@@ -190,7 +197,6 @@ async function generateTitle(
     outer.removeEventListener('abort', onOuter)
   }
 }
-
 
 function productVersion(): string {
   return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
@@ -233,6 +239,7 @@ function installLine(): string {
 
 function modelFacts(): { family: string; model: string } {
   try {
+
     const model = focusedSessionModelFacts()?.effective ?? getEngineModel()
     const route = providerFamilyOfSetting(model)
     return { family: route === 'unrecognised' ? 'Not sure' : providerDisplayName(route), model }
@@ -240,7 +247,6 @@ function modelFacts(): { family: string; model: string } {
     return { family: 'Not sure', model: '(unknown)' }
   }
 }
-
 
 type RecentError = { error: string; timestamp: string }
 
@@ -334,7 +340,6 @@ function draftJson(record: Record<string, unknown>): string {
   return `${JSON.stringify(record, null, 2)}\n`
 }
 
-
 function wrapLine(line: string, width: number): string[] {
   if (line.length <= width) return [line]
   const out: string[] = []
@@ -356,7 +361,6 @@ function bodyLines(body: string, width: number): string[] {
 function bodyByteCount(body: string): number {
   return Buffer.byteLength(body, 'utf8')
 }
-
 
 type Step =
   | 'kind'
@@ -401,6 +405,7 @@ export function Feedback({
       messages?: Message[]
     }
   }
+
   kind?: IssueKind
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -477,6 +482,7 @@ export function Feedback({
         model: facts.model,
         health,
       }
+
       const composed = redactSensitiveInfo(composeIssueBody(form, { values, recentErrors: gathered.errors }))
       const fullTitle = fullIssueTitle(form, redactSensitiveInfo(generated))
       const p = draftPaths(form.kind)
@@ -506,6 +512,7 @@ export function Feedback({
         return
       }
       if (reach.state !== 'ok') {
+
         const url = issueFormUrl(form, {
           slug,
           title: fullTitle,
@@ -514,6 +521,7 @@ export function Feedback({
           ),
         })
         setFormUrl(url)
+
         recordRef.current = { ...record, issue_form_url: url }
         writeDraftFile(written.json, draftJson(recordRef.current))
         doneMessageRef.current = `${keptMessage(written)} The prefilled issue form (copy the link if no browser opened; it is also in the draft): ${url}`
@@ -539,6 +547,7 @@ export function Feedback({
     setStep('filing')
     const result = await fileIssue({ slug: slugRef.current, title, bodyFile: paths.body })
     if (result.state === 'filed') {
+
       if (recordRef.current !== null) {
         writeDraftFile(paths.json, draftJson({ ...recordRef.current, issue_url: result.url }))
       }
@@ -602,6 +611,7 @@ export function Feedback({
         return
       }
       if (step === 'unavailable') {
+
         if (key.return && formUrl !== null) void openBrowser(formUrl)
         finish(doneMessageRef.current)
       }

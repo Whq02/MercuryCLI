@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/AgentTool/AgentTool.tsx src/types/permissions.ts src/Tool.ts src/bootstrap/state.ts src/utils/permissions/decision/engine.ts docs/CREW.md
+
 import '../lib/hermetic.ts'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

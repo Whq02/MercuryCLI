@@ -16,7 +16,6 @@ import {
   setActiveMission,
 } from '../../guards/mission.js'
 
-
 type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'gaveUp'> & { seat?: boolean }
 
 function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
@@ -24,6 +23,7 @@ function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactN
     mission.iterations === 0
       ? 'not yet evaluated'
       : `${mission.iterations} ${plural(mission.iterations, 'turn')}`
+
   const stateLine = mission.met
     ? '✓ Mission met — stops are allowed; a new /mission replaces it'
     : mission.gaveUp
@@ -53,10 +53,12 @@ export async function call(
   const arg = args.trim()
 
   if (arg === '') {
+
     const { conversationIdHere, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
     const hosted = hasFocusedSession()
     const mission = hosted ? undefined : getActiveMission()
     if (!mission) {
+
       try {
         const { readMissionCard } = await import('../../services/mission/missionCard.js')
         const card = readMissionCard(conversationIdHere())

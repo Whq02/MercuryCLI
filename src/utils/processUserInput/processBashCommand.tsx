@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Box } from '../../ink.js'
 import type { SetToolJSXFn } from '../../Tool.js'
@@ -28,6 +27,7 @@ function echoedCommandMessage(
   precedingInputBlocks: ContentBlockParam[],
   uuid?: string,
 ): UserMessage {
+
   const wrapped = `<${BASH_INPUT_TAG}>${inputString}</${BASH_INPUT_TAG}>`
   if (precedingInputBlocks.length === 0) {
     return createUserMessage({ content: wrapped, ...(uuid ? { uuid } : {}) })
@@ -45,6 +45,7 @@ function settledShell(code: number | undefined, startedAt: number): SettledShell
 }
 
 function outputMessage(stdout: string, stderr: string, settled: SettledShell | null, backgroundTaskId?: string): UserMessage {
+
   const exit =
     settled === null
       ? ''
@@ -96,6 +97,7 @@ export async function processBashCommand(
         </Box>
       ),
       shouldHidePromptInput: false,
+
       deferIfLocalJSX: true,
     })
   }
@@ -168,6 +170,7 @@ export async function processBashCommand(
       shouldQuery: false,
     }
   } finally {
+
     setToolJSX({ jsx: null, shouldHidePromptInput: false, clearUnlessLocalJSX: true })
   }
 }

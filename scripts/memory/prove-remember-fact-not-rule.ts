@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/MemoryTools/prompt.ts src/tools/RecordConventionTool/RecordConventionTool.ts src/tools/RecordConventionTool/prompt.ts docs/MNEME.md
-// gate-watch: src/cli/headless/runnerAsks.ts
+
 import { proofHome } from '../lib/hermetic.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'

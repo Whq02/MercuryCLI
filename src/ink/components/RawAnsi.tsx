@@ -1,8 +1,9 @@
-
 import React from 'react'
 
 type Props = {
+
   readonly lines: readonly string[]
+
   readonly width: number
 }
 

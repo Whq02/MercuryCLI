@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -163,27 +164,33 @@ console.log('\nI4b the operator-turn predicates exclude the summary row (the pre
 
 console.log('\nI5 THE FOCUS LAW — /compact applies to the FOCUSED session (operator rider)')
 {
+
   const { commandSeat } = await import('../../src/commands.ts')
   const compactCommand = (await import('../../src/commands/compact/index.ts')).default
   check('F1 /compact is a session-seat command (the one dispatch rule routes it to the focused chat)', commandSeat(compactCommand as never) === 'session')
 
   const root = join(import.meta.dir, '..', '..')
   const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf8')
+
   check(
     'F2 the submit captures the focused connector and delivers through it',
     repl.includes('const focusedNow = getFocusedSessionConnector()') && repl.includes('focusedNow\n        .sendWords(text'),
   )
+
   const connector = readFileSync(join(root, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   check(
     "F3 the connector targets its own record's session (targetSessionId: this.record.sessionId)",
     connector.includes('targetSessionId: this.record.sessionId'),
   )
+
   const seat = readFileSync(join(root, 'src/daemon/sessionSeat.ts'), 'utf8')
   check("F4 the seat publishes the tail under the seat's own session id", seat.includes('sessionId: seat.sessionId'))
   check("F4 the connector reads its own record's tail", connector.includes('readSessionTail(this.record.sessionId)'))
   check('F4 the Chat paints the FOCUSED live view', repl.includes('subscribeFocusedSeatLive'))
+
   const blank = readFileSync(join(root, 'src/services/engine-connector/noSessionConnector.ts'), 'utf8')
   check('F5 the blank chat refuses the send (REFUSED_NO_CHAT) — no global fold exists', /sendWords\(\): Promise<SendReceiptV1> \{\s*\n\s*return REFUSED_NO_CHAT/.test(blank))
+
   const helmConsole = readFileSync(join(root, 'src/utils/cockpit/helmConsole.ts'), 'utf8')
   check('F6 the console /compact truth is production-consumed', helmConsole.includes('CONSOLE_COMPACT_TRUTH') && helmConsole.includes('answer: CONSOLE_COMPACT_TRUTH'))
   console.log('  [NOTE] the concourse SessionMirror strip carries no composer road in this tree — the one typing road into a session is the focused chat composer (F2); the coordinator pane folds its OWN store (prove-coordinator-compact-clear / prove-coordinator-auto-compact are the landed ground).')

@@ -34,6 +34,7 @@ interface InstallPlan {
   cacheDir: string
   pinned: boolean
   downloadBytes: number | null
+
   consentLine: string
 }
 
@@ -81,7 +82,6 @@ export async function planBrowserInstall(pinnedBuildId?: string): Promise<Instal
   }
   return plan
 }
-
 
 export const INSTALL_PLAN_TTL_MS = 10 * 60 * 1000
 

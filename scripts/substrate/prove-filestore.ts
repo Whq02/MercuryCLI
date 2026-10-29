@@ -11,6 +11,7 @@ const ok = (cond: boolean, label: string) => {
 }
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-filestore-'))
+
 process.env.MERCURY_CONFIG_DIR = tmp
 const CHILD = join(import.meta.dir, 'helpers', 'fsStoreChild.ts')
 const BUN = process.execPath
@@ -37,6 +38,7 @@ const counterAt = (p: string) =>
   const onDisk = JSON.parse(readFileSync(join(tmp, 's1.json'), 'utf8'))
   ok(onDisk[VERSION_KEY] === 3, '§1 schemaVersion stamped as additive _v')
   ok(onDisk.n === 7, '§1 data intact beside the stamp')
+
   writeFileSync(join(tmp, 's1-legacy.json'), '{"n": 42}')
   const legacy = counterAt(join(tmp, 's1-legacy.json'))
   ok((await legacy.read()).n === 42, '§1 legacy unstamped shape decodes')
@@ -147,6 +149,7 @@ const counterAt = (p: string) =>
       })
       child.on('exit', () => resolve())
     })
+
     await new Promise(r => setTimeout(r, 40 + Math.random() * 120))
     child.kill('SIGKILL')
     await new Promise<void>(r => child.on('exit', () => r()))
@@ -171,6 +174,7 @@ const counterAt = (p: string) =>
   await s.write({ n: 2 })
   await new Promise(r => setTimeout(r, 150))
   ok(seen.includes(2), '§6 in-process publish emits to subscriber')
+
   const before = seen.length
   let deliveredValue = 0
   for (let attempt = 0; attempt < 3 && deliveredValue === 0; attempt++) {
@@ -185,6 +189,7 @@ const counterAt = (p: string) =>
   }
   ok(deliveredValue !== 0, `§6 cross-process write emits via watcher (value ${deliveredValue || 'never'})`)
   ok(seen.length > before, '§6 watcher delivered at least one event')
+
   const countAt9 = seen.length
   await publishAtomic(path, readFileSync(path, 'utf8'))
   await new Promise(r => setTimeout(r, 200))

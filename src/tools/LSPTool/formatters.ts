@@ -9,7 +9,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getCwd } from '../../utils/cwd.js'
 
-
 type Position = { line: number; character: number }
 type Range = { start: Position; end: Position }
 type Location = { uri: string; range: Range }
@@ -53,7 +52,6 @@ export type Locationish = Location | LocationLink
 
 const UNKNOWN_LOCATION = '<unknown location>'
 
-
 const SYMBOL_KINDS: Record<number, string> = {
   1: 'File',
   2: 'Module',
@@ -87,9 +85,9 @@ function symbolKindName(kind: number): string {
   return SYMBOL_KINDS[kind] ?? 'Unknown'
 }
 
-
 export function uriToPath(uri: string): string {
   let path = uri.startsWith('file://') ? uri.slice('file://'.length) : uri
+
   try {
     path = decodeURIComponent(path)
   } catch {
@@ -135,7 +133,6 @@ function validLocations(locations: Locationish[]): Locationish[] {
   }
   return valid
 }
-
 
 export function boundWorkspaceSymbols(
   symbols: SymbolInformation[],
@@ -287,6 +284,7 @@ export function formatDocumentSymbolResult(
   if (!result || result.length === 0) {
     return 'No symbols found. The file may be empty, the server may not support document symbols, or the file may not be indexed yet.'
   }
+
   const first = result[0] as SymbolInformation & DocumentSymbol
   if (first.location !== undefined) {
     return formatWorkspaceSymbolResult(result as SymbolInformation[], workingDirectory)

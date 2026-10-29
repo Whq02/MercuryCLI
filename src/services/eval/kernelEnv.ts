@@ -1,4 +1,3 @@
-
 import { credentialEnvNames } from '../providers/providerSecrets.js'
 
 const SECRET_SUFFIX = /(_API_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS?)$/i
@@ -8,6 +7,7 @@ const EXTRA_DENY = new Set(['GH_TOKEN', 'GITHUB_TOKEN', 'AWS_SECRET_ACCESS_KEY',
 export function isDeniedKernelEnvName(name: string): boolean {
   if (EXTRA_DENY.has(name)) return true
   if (credentialEnvNames().includes(name)) return true
+
   if (name.startsWith('OTEL_')) return true
   return SECRET_SUFFIX.test(name)
 }

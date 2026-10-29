@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,6 +11,7 @@ import { logForDebugging } from '../../utils/debug.js'
 export const AGENT_IDENTITY_SCHEMA = 1 as const
 
 export type CrewAgentId = string & { readonly __brand: 'CrewAgentId' }
+
 export type CrewSessionId = string & { readonly __brand: 'CrewSessionId' }
 
 export type ActorRefV1 =
@@ -23,11 +23,14 @@ export type AgentBindingKind = (typeof AGENT_BINDING_KINDS)[number]
 
 export const AGENT_ROLES = [
   'main',
+
   'party-seat',
   'workflow',
+
   'scribe',
   'implementer',
   'worker',
+
   'coordinator',
 ] as const
 export type AgentRole = (typeof AGENT_ROLES)[number]
@@ -35,7 +38,9 @@ export type AgentRole = (typeof AGENT_ROLES)[number]
 export interface AgentIdentityV1 {
   schema: typeof AGENT_IDENTITY_SCHEMA
   agentId: CrewAgentId
+
   displayName: string
+
   visualToken: string
   createdAt: number
   updatedAt: number
@@ -44,6 +49,7 @@ export interface AgentIdentityV1 {
 export interface AgentBindingV1 {
   agentId: CrewAgentId
   bindingKind: AgentBindingKind
+
   bindingId: string
   adapterKind?: string
   observedRevision?: string
@@ -53,6 +59,7 @@ export interface AgentBindingV1 {
 export interface AgentRoleLinkV1 {
   agentId: CrewAgentId
   role: AgentRole
+
   ownerRef: string
   activeFrom: number
   activeUntil?: number
@@ -72,12 +79,14 @@ export interface AgentSessionV1 {
 interface IdentityMigrationReceiptV1 {
   schema: typeof AGENT_IDENTITY_SCHEMA
   migratedAt: number
+
   sources: Record<string, number>
   notes: string[]
 }
 
 interface CrewIdentityFile {
   agents: Record<string, AgentIdentityV1>
+
   bindings: Record<string, AgentBindingV1>
   roles: AgentRoleLinkV1[]
   sessions: Record<string, AgentSessionV1>
@@ -180,6 +189,7 @@ export interface EnsureAgentArgs {
     observedRevision?: string
   }
   visualToken?: string
+
   dir?: string
 }
 
@@ -192,6 +202,7 @@ export async function ensureAgentIdentity(args: EnsureAgentArgs): Promise<AgentI
     if (bound) {
       const existing = current.agents[bound.agentId]
       if (existing) return { next: current, result: existing }
+
       const repaired: AgentIdentityV1 = {
         schema: AGENT_IDENTITY_SCHEMA,
         agentId: bound.agentId as CrewAgentId,
@@ -336,6 +347,7 @@ export async function linkAgentRole(
     const link: AgentRoleLinkV1 = { agentId, role, ownerRef, activeFrom: Date.now() }
     let roles = [...current.roles, link]
     if (roles.length > MAX_ROLES) {
+
       let toDrop = roles.length - MAX_ROLES
       const dropSet = new Set<AgentRoleLinkV1>()
       for (const l of roles) {
@@ -391,6 +403,7 @@ export async function registerAgentSession(
     const existing = current.sessions[args.sessionId]
     if (existing) {
       if (existing.endedAt === undefined) return { next: current, result: existing }
+
       const { endedAt: _closed, ...reopened } = existing
       return {
         next: { ...current, sessions: { ...current.sessions, [args.sessionId]: reopened } },
@@ -411,6 +424,7 @@ export async function registerAgentSession(
     const ids = Object.keys(current.sessions)
     let sessions = { ...current.sessions, [args.sessionId]: session }
     if (ids.length + 1 > MAX_SESSIONS) {
+
       const byAge = Object.values(sessions).sort((a, b) => a.startedAt - b.startedAt)
       let toDrop = byAge.length - MAX_SESSIONS
       const dropSet = new Set<AgentSessionV1>()
@@ -501,7 +515,6 @@ export function displayLabelsOf(agents: readonly AgentIdentityV1[]): Map<CrewAge
   return out
 }
 
-
 export async function migrateLegacyIdentities(opts?: {
   dir?: string
 }): Promise<IdentityMigrationReceiptV1> {
@@ -539,7 +552,6 @@ export async function readIdentityMigrationReceipt(opts?: {
   return state.migration ?? null
 }
 
-
 let bootPromise: Promise<void> | null = null
 
 async function refreshCrewSessionRegistration(args: {
@@ -562,6 +574,7 @@ async function refreshCrewSessionRegistration(args: {
     agentId: main.agentId,
     ...(args.worktreeRef !== undefined ? { worktreeRef: args.worktreeRef } : {}),
   })
+
   try {
     const { publishSessionDescriptor } = await import('./descriptor.js')
     await publishSessionDescriptor({
@@ -589,6 +602,7 @@ export async function bootCrewIdentity(args: {
     if (!registered) return
     const main = { agentId: registered.agentId }
     await migrateLegacyIdentities()
+
     try {
       const { mintConversation, MAIN_CONVERSATION_ID } = await import('./conversations.js')
       const { operatorPrincipal } = await import('../../substrate/identity/identity.js')
@@ -605,6 +619,7 @@ export async function bootCrewIdentity(args: {
     } catch (e) {
       logForDebugging(`[crew/identity] main conversation mint failed (non-blocking): ${e}`)
     }
+
     const { registerCleanup } = await import('../../utils/cleanupRegistry.js')
     registerCleanup(async () => endAgentSession(args.sessionId))
   })().catch(e => {
@@ -621,7 +636,6 @@ export function subscribeCrewIdentity(cb: () => void, opts?: { dir?: string }): 
 export function _resetCrewIdentityBootForTesting(): void {
   bootPromise = null
 }
-
 
 export async function __identityLawsForProof(): Promise<{
   renamePreservesId: boolean

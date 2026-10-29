@@ -91,6 +91,7 @@ t.section('§3 — legacy artifacts stay inert')
   })
   t.check('a pre-migration EMPTY lock file reclaims through the confirmed clobber', typeof got.release === 'function')
   await got.release()
+
   const body = join(root, 'locks', 'task-7.json')
   writeFileSync(guardWrite(root, body), '{}')
   mkdirSync(join(root, 'locks', 'task-7.json.lock'), { recursive: true })
@@ -121,6 +122,7 @@ t.section('§4 — the migrated task operations work end-to-end')
 
 t.section('§5 — same-process contenders mutually exclude (the close review\'s material find)')
 {
+
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/tasks.ts'), 'utf8')
   t.check(
     'tasks mints a per-acquisition owner (never a process-scoped one)',

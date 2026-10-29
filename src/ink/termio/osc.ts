@@ -1,4 +1,3 @@
-
 import { CLIPBOARD_FILE_ROUTE, writeClipboardFile } from '../../utils/clipboardFile.js'
 import { env } from '../../utils/env.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
@@ -6,6 +5,7 @@ import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
 
 const OSC_PREFIX = `${ESC}]`
+
 const ST = `${ESC}\\`
 
 function terminator(): string {
@@ -25,7 +25,6 @@ export function wrapForMultiplexer(sequence: string): string {
   }
   return sequence
 }
-
 
 export const OSC = {
   SET_TITLE_AND_ICON: 0,
@@ -65,7 +64,6 @@ export const PROGRESS = {
 const belTerminated = (...parts: (string | number)[]): string => `${OSC_PREFIX}${parts.join(SEP)}${BEL}`
 export const CLEAR_ITERM2_PROGRESS = belTerminated(OSC.ITERM2, ITERM2.PROGRESS, PROGRESS.CLEAR, '')
 export const CLEAR_TERMINAL_TITLE = belTerminated(OSC.SET_TITLE_AND_ICON, '')
-
 
 type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'
 
@@ -204,10 +202,13 @@ export function terminalDropsOsc52(env: NodeJS.ProcessEnv = process.env): boolea
 }
 
 export interface ClipboardReceipt {
+
   sequence: string
+
   settled: Array<NativeRoute | 'tmux-buffer' | typeof CLIPBOARD_FILE_ROUTE>
   osc52Emitted: boolean
   noRoad: boolean
+
   confirmation: string
 }
 
@@ -270,7 +271,6 @@ export async function setClipboardWithReceipt(text: string): Promise<ClipboardRe
 export async function setClipboard(text: string): Promise<string> {
   return (await setClipboardWithReceipt(text)).sequence
 }
-
 
 export function parseOscColor(spec: string): Color | null {
   const hex = /^#([0-9a-fA-F]{6})$/.exec(spec)
@@ -369,7 +369,6 @@ export function parseOSC(content: string): Action | null {
   }
 }
 
-
 function linkId(url: string): string {
   let hash = 2166136261
   for (let i = 0; i < url.length; i++) {
@@ -389,7 +388,6 @@ export function link(url: string, params?: Record<string, string>): string {
 }
 
 export const LINK_END = osc(OSC.HYPERLINK, '', '')
-
 
 export const CLEAR_TAB_STATUS = osc(OSC.TAB_STATUS, 'indicator=;status=;status-color=')
 

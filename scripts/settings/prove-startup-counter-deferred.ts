@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -329,6 +330,7 @@ section('D5 wiring — the boot band and the background node')
   check('the config barrel exports the deferred door and its flush', barrel.includes('saveGlobalConfigDeferred,') && barrel.includes('flushDeferredGlobalConfigSaves,'))
   const store = readFileSync(join(SRC, 'utils/config/globalConfig.ts'), 'utf8')
   check('both save branches fold the pending updates before applying the caller\'s updater', store.includes('mergeFn(file === getGlobalMercuryFile()') && store.includes('foldPendingUpdaters(currentConfig as GlobalConfig)') && store.includes('updater(foldPendingUpdaters(currentConfig))'))
+
   check('a landed write clears the pending list on both branches', (store.match(/pendingDeferredUpdaters = \[\]/g) ?? []).length === 2)
 }
 

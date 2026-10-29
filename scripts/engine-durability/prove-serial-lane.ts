@@ -202,6 +202,7 @@ t.section('§5 — release finishes in-flight work and reports post-release acce
 
 t.section('§6 — a settle() with nothing to do leaves the lane usable')
 {
+
   const commits: number[] = []
   const lane = serialGenerationLane<number>({
     name: 'keel-idle-pump',

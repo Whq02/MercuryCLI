@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import { StatusIcon } from './design-system/StatusIcon.js'

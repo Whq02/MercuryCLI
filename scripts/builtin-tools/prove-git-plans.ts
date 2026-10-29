@@ -25,6 +25,7 @@ const {
 const { transactionById } = await import('../../src/services/primitives/transactionPlane.ts')
 const { resolveResource } = await import('../../src/services/resources/registry.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
+
 await import('../../src/services/resources/adapters/git.ts')
 
 const owner = processMainOwner()
@@ -135,10 +136,12 @@ try {
   )
 
   console.log('── partial-hunk planning ──')
+
   const lines = readFileSync(join(root, 'hunky.txt'), 'utf8').split('\n')
   lines[2] = 'line-2 EDITED-TOP'
   lines[27] = 'line-27 EDITED-BOTTOM'
   writeFileSync(join(root, 'hunky.txt'), lines.join('\n'))
+
   const absorb = preparePlan(owner, root, [
     { files: ['core.ts', 'docs.md', 'leftover.txt'], message: 'chore: absorb' },
   ])

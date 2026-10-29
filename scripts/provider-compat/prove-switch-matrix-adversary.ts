@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -108,6 +109,7 @@ function wantsToolRound(path: string, body: Body): boolean {
     return raw.includes('T1 ')
   }
   const messages = (body.messages as Array<Record<string, unknown>> | undefined) ?? []
+
   const isCall = (m: Record<string, unknown>): boolean =>
     m.role === 'assistant' &&
     ((Array.isArray(m.tool_calls) && m.tool_calls.length > 0) || JSON.stringify(m.content ?? '').includes('"tool_use"'))
@@ -313,6 +315,7 @@ function strictViolations(lane: Lane, body: Body): string[] {
   if (lane.dialect === 'responses') return parseResponsesStrict(body)
   return parseChatStrict(body, { preservedThinking: false })
 }
+
 function leakViolations(lane: Lane, body: Body): string[] {
   const raw = JSON.stringify(body)
   const v: string[] = []
@@ -490,6 +493,7 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
 }
 
 function crossExpected(a: Lane, b: Lane): boolean {
+
   return a.key !== b.key
 }
 
@@ -507,6 +511,7 @@ section('rogue leg — a direct mid-turn slice write cannot re-model the flight'
   const history: Message[] = [createUserMessage({ content: 'T1 run the probe tool and report' }) as Message]
   let rogueSlice: Slice = { engineModel: a.setting, engineModelForSession: null, pendingModelSwitch: null }
   const t1 = await driveTurn(history, rogueSlice.engineModel!, () => {
+
     rogueSlice = { ...rogueSlice, engineModel: b.setting }
   })
   check('the rogue drive settled', t1.threw === undefined && t1.terminal.reason === 'completed', String(t1.threw))

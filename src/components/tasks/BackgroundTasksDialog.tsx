@@ -1,4 +1,3 @@
-
 import figures from 'figures'
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput } from '../../ink.js'
@@ -84,9 +83,12 @@ import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
 const LEAD_ROW_ID = 'lead'
+
 const WINDOW = 10
+
 const MISSION_IN_PROGRESS_CAP = 4
 const MISSION_PENDING_CAP = 6
+
 const WORKFLOW_DETAIL_GRACE_MS = 5000
 
 type RowKind =
@@ -101,6 +103,7 @@ type BoardItem = {
   id: string
   kind: RowKind
   task?: TaskState
+
   work?: WorkRowV1
   sample?: SampleRowV1
 }
@@ -227,6 +230,7 @@ export function RosterWorkDetail({
   )
   const crew = crewAgentFactsOf(work, null)
   const rows: KVRow[] = [
+
     { k: 'state', v: crew !== null ? crewStateLabel(crew) : work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
     { k: 'started', v: `${formatDuration(Math.max(0, now - work.startTime))} ago`, tone: tokens.textMuted },
   ]
@@ -236,11 +240,14 @@ export function RosterWorkDetail({
     const toolUses = crewToolUsesLabel(crew)
     if (toolUses !== null) rows.push({ k: 'tools', v: toolUses, tone: tokens.textPrimary })
     if (crew.activity !== null) rows.push({ k: 'doing', v: crew.activity, tone: tokens.textSecondary })
+
     if (crew.stopReason !== null) rows.push({ k: 'why', v: crew.stopReason, tone: tokens.warning })
+
     const phase = crewPhaseWords(crew, now)
     if (phase !== null) rows.push({ k: 'phase', v: phase, tone: tokens.textSecondary })
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
     if (crew.crew !== null) rows.push({ k: 'crew', v: crew.crew, tone: tokens.textPrimary })
+
     const crewTokens = crewTokensLabel(crew)
     if (crewTokens !== null) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}`, tone: tokens.textPrimary })
     const crewSpend = crewSpendLabel(crew)
@@ -248,6 +255,7 @@ export function RosterWorkDetail({
       const breakdown = crewTokensBreakdown(crew)
       rows.push({ k: 'spent', v: `${GLYPH.tokens} ${crewSpend}${breakdown !== null ? ` (${breakdown})` : ''}`, tone: tokens.textPrimary })
     }
+
     const spend = crewCostLabel(crew)
     if (spend !== null && getFocusedSessionConnector().identity().consoleBilling) {
       rows.push({ k: 'spend', v: spend, tone: tokens.textPrimary })
@@ -305,6 +313,7 @@ export function BackgroundTasksDialog({
   const overlayToken = useRegisterOverlay('compact-work', summaryEntry, { ownsPageKeys: true })
   const pastOpen = useOpenEventGate()
   const ownsInputNow = (): boolean => !summaryEntry || (compactControls?.read() === 'detail' && overlayToken !== null && isTopOverlayNow(overlayToken))
+
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()
   const presence = React.useMemo(() => focusedRunnerPresence(), [roster])
@@ -312,6 +321,7 @@ export function BackgroundTasksDialog({
     (state: AppState) => state.viewingAgentTaskId,
   )
   const setAppState = useSetAppState()
+
   const missionTasks: ReadonlyArray<{ id: string; subject: string; activeForm?: string; status: string }> = roster.mission
   const bootRecovery = useSyncExternalStore(
     subscribeBootRecovery,
@@ -322,6 +332,7 @@ export function BackgroundTasksDialog({
   const manageable = Object.values(tasks)
     .filter(isManageableTask)
     .filter(task => {
+
       if (isLocalAgentTask(task) && task.id === viewingAgentTaskId) return false
       return true
     })
@@ -375,6 +386,7 @@ export function BackgroundTasksDialog({
   const stableId = selectedIdRef.current
   let selectedIndex = flat.findIndex(i => i.id === stableId)
   if (selectedIndex < 0) {
+
     selectedIndex = Math.max(0, Math.min(cursor, flat.length - 1))
   }
   selectedIdRef.current = flat[selectedIndex]?.id ?? null
@@ -403,6 +415,7 @@ export function BackgroundTasksDialog({
   })
   const detailTask =
     detailTaskId !== undefined ? tasks[detailTaskId] : undefined
+
   const detailWork =
     detailTaskId !== undefined && detailTask === undefined
       ? roster.rows.find(w => w.id === detailTaskId)
@@ -422,6 +435,7 @@ export function BackgroundTasksDialog({
     if (detailTaskId === undefined) return
     const task = tasks[detailTaskId]
     if (task !== undefined && (isManageableTask(task) || isLocalShellTask(task))) return
+
     if (task === undefined && roster.rows.some(w => w.id === detailTaskId)) return
     if (task !== undefined && isLocalWorkflowTask(task)) {
       const timer = setTimeout(() => {
@@ -482,6 +496,7 @@ export function BackgroundTasksDialog({
         killWorkflowTask(task.id, setAppState)
         return
       case 'monitor':
+
         ;(task as { abortController?: AbortController }).abortController?.abort()
         return
       default:
@@ -525,6 +540,7 @@ export function BackgroundTasksDialog({
       return
     }
     if (e.key === 'r' && selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)) {
+
       e.stopImmediatePropagation()
       void getFocusedSessionConnector().resumeAgent(selected.work.id)
       return
@@ -544,6 +560,7 @@ export function BackgroundTasksDialog({
       }
       const task = selected.task
       if (task === undefined) return
+
       if (task.type === 'local_agent') {
         enterCrewmateView(task.id, setAppState)
         onDone()

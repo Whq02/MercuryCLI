@@ -1,27 +1,34 @@
 import { useRef } from 'react'
 import type { SpinnerMode } from './types.js'
 
-
 const MID_STREAM_STILL_WAITING_MS = 10_000
 
 export const STILL_WAITING_MAX_INTENSITY = 0.5
 
 type StallViewInput = {
+
   mode: SpinnerMode
+
   suppressed: boolean
+
   lastEventAt: number | null
+
   now: number
 }
 
 type StallView = {
+
   stillWaiting: boolean
+
   targetIntensity: number
 }
 
 function computeStallView(a: StallViewInput): StallView {
   const calm: StallView = { stillWaiting: false, targetIntensity: 0 }
   if (a.suppressed) return calm
+
   if (a.mode !== 'responding') return calm
+
   if (a.lastEventAt === null) return calm
   const gap = a.now - a.lastEventAt
   if (gap < MID_STREAM_STILL_WAITING_MS) return calm
@@ -65,6 +72,7 @@ export function useStalledAnimation(
   stillWaiting: boolean
   attentionIntensity: number
 } {
+
   const lastLenRef = useRef(currentResponseLength)
   const lastGrowthAtRef = useRef<number | null>(null)
   if (currentResponseLength > lastLenRef.current) {

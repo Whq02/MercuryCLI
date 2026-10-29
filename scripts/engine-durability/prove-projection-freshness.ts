@@ -52,6 +52,7 @@ if (typeof coalescer?.serialCoalescer === 'function') {
   })
   c.poke()
   await hasEntered
+
   for (let i = 0; i < 100; i++) c.poke()
   await barrier.microturns()
   t.check('the burst did not fan out into concurrent runs', runs === 1, `runs=${runs}`)

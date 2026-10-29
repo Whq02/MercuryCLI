@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -43,6 +44,7 @@ const FULL_EXTRA: Cell[] = [
   { tag: 'tall24', cols: 80, rows: 24, msgLines: 12, mix: false, presses: 10 },
   { tag: 'mix24', cols: 80, rows: 24, msgLines: 3, mix: true, presses: 10 },
 ]
+
 const OVERLAP_ROWS = 2
 
 function seedSession(home: string, cell: Cell): void {
@@ -84,6 +86,7 @@ function seedSession(home: string, cell: Cell): void {
     })
     prevUuid = aUuid
   }
+
   writeFileSync(join(projDir, `${sid}.jsonl`), encodeSeedTranscript(lines, sid))
 }
 
@@ -99,10 +102,12 @@ function analyze(cell: Cell, payload: {
   endDrift: number | null
   delivered: number
   unmeasured: string[]
+
   viewport: number
 } {
   const parityKey = (turn: number): string => (cell.mix ? String(turn % 2) : 'all')
   const grids: Grid[] = [...(payload.marks ?? []).map(m => m.grid), payload.grid]
+
   const viewport = regionOf((payload.marks ?? []).filter(m => /^p\d+$/.test(m.label)).map(m => m.grid))
   const edgeModes = new Map<string, Map<number, number>>()
   for (const g of grids) {
@@ -167,6 +172,7 @@ function analyze(cell: Cell, payload: {
   const tickGaps: number[] = []
   let prevP: number | null = null
   let prevTick: number | null = null
+
   const travelMarks = (payload.marks ?? []).filter(m => m.label !== 'bottom' && m.label !== 'settled')
   const unmeasured: string[] = []
   for (const m of travelMarks) {
@@ -177,6 +183,7 @@ function analyze(cell: Cell, payload: {
     if (P !== null) prevP = P
     prevTick = m.atTick
   }
+
   const settledMark = (payload.marks ?? []).find(m => m.label === 'settled')
   const endP = positionOf(settledMark !== undefined ? settledMark.grid : payload.grid)
   const endDrift = endP !== null && prevP !== null ? endP - prevP : null
@@ -194,6 +201,7 @@ function runCell(cell: Cell): void {
     sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 2, awaitStableTicks: 4, data: PAGEUP, mark: `p${String(i).padStart(2, '0')}` })
   }
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, data: '', mark: 'final' })
+
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 3, data: '', mark: 'settled' })
   sends.push({ atTick: 999, requireAwait: true, awaitText: 'TURN-', minTick: 1, awaitSettleTicks: 4, awaitStableTicks: 4, data: '\x1b[1;5F', mark: 'bottom' })
   const out = join(SCRATCH, `${cell.tag}.json`)
@@ -202,6 +210,7 @@ function runCell(cell: Cell): void {
     argv: ['node', join(ROOT, 'dist/mercury.mjs'), '--resume', '00000000-aaaa-bbbb-cccc-a3a3a3a3a3a3'],
     cols: cell.cols, rows: cell.rows, total: 500, sends, out,
   }))
+
   const trace = join(SCRATCH, `${cell.tag}-trace.jsonl`)
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
@@ -209,6 +218,7 @@ function runCell(cell: Cell): void {
       ...process.env,
       MERCURY_FULLSCREEN: '1',      MERCURY_CONFIG_DIR: home,
       MERCURY_CONNECTOR_TRACE: trace,
+
       MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
       MERCURY_LIVE_GLYPHS: '0',
@@ -237,12 +247,16 @@ function runCell(cell: Cell): void {
   const shown = a.deltas.map(d => String(d)).join(',')
   const bounds = stepBounds(a.viewport)
   console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · transcript region ${a.viewport} rows (press frames' mode) · viewports asked ${reqs.map(r => r.viewport).join(',')} · step bounds if the region were the viewport [${bounds.floor}, ${bounds.ceiling}]`)
+
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
+
   check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
   check(`${cell.tag}: every paging observation has a usable position (no unmeasured mark)`, a.unmeasured.length === 0, `unmeasured: ${a.unmeasured.join(',') || '(none)'}`)
   check(`${cell.tag}: exactly one measured delta per press`, a.deltas.length === cell.presses, `${a.deltas.length} deltas for ${cell.presses} presses`)
+
   check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses`)
+
   const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
@@ -260,13 +274,16 @@ function runCell(cell: Cell): void {
       `settled ${-d} rows vs asked ${-r.delta}`)
     check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}`)
   }
+
   check(`${cell.tag}: no post-settle drift`, a.endDrift === 0, `endDrift ${a.endDrift}`)
+
   const entryGrid = (payload.marks ?? []).find((m: { label: string }) => m.label === 'p00')?.grid
   const entryMax = entryGrid !== undefined
     ? allSigs(entryGrid).reduce((best, s) => Math.max(best, s.turn), 0)
     : 0
   check(`${cell.tag}: the resumed transcript opens at the tail`,
     entryMax >= 299, `max visible turn at entry ${entryMax} of 300`)
+
   const endSigs = allSigs(payload.grid)
   const maxTurn = endSigs.reduce((best, s) => Math.max(best, s.turn), 0)
   check(`${cell.tag}: jump-to-bottom lands on the tail (newest turn visible)`,

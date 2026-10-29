@@ -48,6 +48,7 @@ function stateFor(fullPath: string): FileState {
     if (size === 0) {
       resolved = { nextValue: 1, headerPending: true, unterminatedTail: false }
     } else {
+
       const lastByte = Buffer.alloc(1)
       readSync(fd, lastByte, 0, 1, size - 1)
       resolved = {
@@ -57,6 +58,7 @@ function stateFor(fullPath: string): FileState {
       }
     }
   } catch {
+
     resolved = { nextValue: 1, headerPending: true, unterminatedTail: false }
   } finally {
     if (fd !== null) closeSync(fd)
@@ -81,7 +83,9 @@ function encodeContext(state: { nextValue: number }): EncodeContext {
 }
 
 type EncodedTranscriptLine = {
+
   line: string
+
   record: MercuryRecord
 }
 
@@ -89,6 +93,7 @@ export function encodeTranscriptLine(
   fullPath: string,
   entry: Record<string, unknown>,
   opts?: {
+
     settleCreationOrdinal?: string
   },
 ): EncodedTranscriptLine {
@@ -96,6 +101,7 @@ export function encodeTranscriptLine(
   const ctx = encodeContext(state)
   let prefix = ''
   if (state.unterminatedTail) {
+
     state.unterminatedTail = false
     prefix = '\n'
   }

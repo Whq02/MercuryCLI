@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -13,13 +14,16 @@ const t = (name: string, ok: boolean, detail = '') => {
 
 const run = (sends: Array<{ atTick: number; data: string }>, out: string) => {
   const cfg = scenario('resume-2turn', 120, 44)
+
   const mine = { argv: cfg.argv, sends, total: 60, cols: 120, rows: 44, out }
   const cfgPath = `/tmp/redraw-proof-${process.pid}-${sends.length}.json`
   writeFileSync(cfgPath, JSON.stringify(mine))
   execFileSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
     timeout: vshotBudgetMs(120_000),
+
     env: {
       ...process.env,
+
     MERCURY_CONFIG_DIR: CONFIG_HOME,
       MERCURY_AWAY_SUMMARY: '0',
     },
@@ -34,6 +38,7 @@ const run = (sends: Array<{ atTick: number; data: string }>, out: string) => {
 try {
   const base = run([], `/tmp/redraw-base-${process.pid}.json`)
   const healed = run([{ atTick: 20, data: String.fromCharCode(12) }], `/tmp/redraw-healed-${process.pid}.json`)
+
   t('baseline transcript paints (the pane border + turns)', base.rows >= 8 && /\blanes\b[^\n]*╭/.test(base.text) && base.text.includes('first task') && base.text.includes('second task'))
   t('ctrl+l keeps row parity', Math.abs(healed.rows - base.rows) <= 1, `healed=${healed.rows} base=${base.rows}`)
   for (const [name, marker] of [['lanes label', 'lanes'], ['first task', 'first task'], ['second task', 'second task'], ['the way back', '← back']] as const) {

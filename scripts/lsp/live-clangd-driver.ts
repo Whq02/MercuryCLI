@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -7,7 +8,6 @@ import { pathToFileURL } from 'node:url'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 process.env.MERCURY_HOME = mkdtempSync(path.join(tmpdir(), 'live-smoke-home-'))
-
 
 if (process.env.RUN_LIVE !== '1') {
   console.log('live-clangd-driver: RUN_LIVE!=1 — skipping (live smoke only)')

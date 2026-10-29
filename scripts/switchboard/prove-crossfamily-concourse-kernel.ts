@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync } from 'node:fs'
@@ -10,6 +11,7 @@ const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'cma-kernel-')))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
+
 const work2 = join(SCRATCH, 'work2')
 const work3 = join(SCRATCH, 'work3')
 const work4 = join(SCRATCH, 'work4')
@@ -126,6 +128,7 @@ const receiptsOf = (r: unknown): Array<{ verb: string; outcome: string; detail?:
   ((r as { receipts?: Array<{ verb: string; outcome: string; detail?: string; objectRef?: string }> }).receipts ?? [])
 
 section('§1 GPT coordinator × Anthropic seat — the LAUNCH journey')
+
 {
   const effective = await lane.resolveEffectiveCoordinator()
   check('agent-assisted resolves on the GPT id', effective.resolution.effective === 'agent-assisted' && effective.assistModelId === 'gpt-5.5', text(effective))
@@ -164,6 +167,7 @@ section('§1 GPT coordinator × Anthropic seat — the LAUNCH journey')
 }
 
 section('§2 GPT coordinator — the STEER journey (message_session into the live seat)')
+
 {
   const before = captured.length
   const r2 = await lane.runOperatorMessageTurn('cma-steer: adjust the alpha seat', {}, { clientMessageId: 'cma-msg-2' })
@@ -183,7 +187,9 @@ section('§2 GPT coordinator — the STEER journey (message_session into the liv
 }
 
 section('§2b the PARALLEL round — two launches in ONE settlement (the live class)')
+
 {
+
   const before = captured.length
   const r = await lane.runOperatorMessageTurn('cma-launch-pair: start both pair seats', {}, { clientMessageId: 'cma-msg-pair' })
   const rows = receiptsOf(r)
@@ -202,6 +208,7 @@ section('§2b the PARALLEL round — two launches in ONE settlement (the live cl
 }
 
 section('§3 the VIEW journey headless — the board projection rows the seat')
+
 {
   const view = await boardMod.coordinatorBoardView({ ground: work })
   const alpha = view.sessions.find(s => s.title === 'CMA Alpha')
@@ -213,6 +220,7 @@ section('§3 the VIEW journey headless — the board projection rows the seat')
 }
 
 section('§4 SWITCH the coordinator chair across families through the real door')
+
 {
   const receipt = await models.switchCoordinatorAssistModel('claude-fable-5')
   check('gpt → anthropic switch applied through switchCoordinatorAssistModel',
@@ -223,11 +231,13 @@ section('§4 SWITCH the coordinator chair across families through the real door'
 }
 
 section('§5 Anthropic coordinator × GPT-named seat — the sovereign seat LAUNCHES')
+
 {
   const workerCount = async (): Promise<number> => {
     const reply = (await daemonControlRpc({ op: 'concourseList' } as never)) as { workers?: unknown[] }
     return Array.isArray(reply.workers) ? reply.workers.length : -1
   }
+
   const workersBefore = await workerCount()
   const probe = (await daemonControlRpc({
     op: 'concourseDispatch',
@@ -283,6 +293,7 @@ section('§5 Anthropic coordinator × GPT-named seat — the sovereign seat LAUN
 }
 
 section('§5b coordinator-dispatched sessions ride the SESSION arm — haiku + a routed id')
+
 {
   const freeSeat = async (sid: string): Promise<void> => {
     const listed = (await daemonControlRpc({ op: 'concourseList' } as never)) as { workers?: Array<Record<string, unknown>> }
@@ -298,6 +309,7 @@ section('§5b coordinator-dispatched sessions ride the SESSION arm — haiku + a
       }
     }
   }
+
   {
     const r = await lane.runOperatorMessageTurn('cma-launch-haiku: start the economy seat', {}, { clientMessageId: 'cma-msg-haiku' })
     const rows = receiptsOf(r)
@@ -312,6 +324,7 @@ section('§5b coordinator-dispatched sessions ride the SESSION arm — haiku + a
       captured.filter(h => h.lane === 'anthropic-seat').map(h => h.model).join(','))
     await freeSeat(sid)
   }
+
   {
     const r = await lane.runOperatorMessageTurn('cma-launch-nemotron: start the routed seat', {}, { clientMessageId: 'cma-msg-nemotron' })
     const rows = receiptsOf(r)
@@ -330,6 +343,7 @@ section('§5b coordinator-dispatched sessions ride the SESSION arm — haiku + a
 }
 
 section('§6 Anthropic coordinator × modelless launch — the seat lands on the operator default')
+
 {
   const before = captured.length
   const r4 = await lane.runOperatorMessageTurn('cma-launch-plain: start the plain seat', {}, { clientMessageId: 'cma-msg-4' })
@@ -346,6 +360,7 @@ section('§6 Anthropic coordinator × modelless launch — the seat lands on the
 }
 
 section('§7 GLM coordinator (zai) — the third dialect takes the chair')
+
 {
   const receipt = await models.switchCoordinatorAssistModel(GLM_ID)
   check(`anthropic → zai switch applied (${GLM_ID})`, (receipt as { outcome?: string }).outcome === 'applied', text(receipt))
@@ -367,6 +382,7 @@ section('§7 GLM coordinator (zai) — the third dialect takes the chair')
 }
 
 section('§8 the wire-separation law over the whole run')
+
 {
   const anthropicSeats = captured.filter(h => h.lane === 'anthropic-seat')
   check('every Anthropic seat call in the run rode /v1/messages',

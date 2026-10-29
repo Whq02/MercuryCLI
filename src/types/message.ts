@@ -1,4 +1,3 @@
-
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ContentBlockParam } from './wire.js'
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
@@ -15,7 +14,6 @@ import type {
 } from '../tools/shared/gitOperationTracking.js'
 import type { Progress } from '../Tool.js'
 import type { Attachment } from '../utils/attachments.js'
-
 
 export type SystemMessageLevel =
   | 'info'
@@ -38,11 +36,15 @@ export type AssistantMessageError = (typeof ASSISTANT_MESSAGE_ERRORS)[number]
 export type FailoverCause = 'overloaded' | 'unreachable' | 'sign-in' | 'unknown-model'
 
 export type RefusedToolCall = {
+
   id: string
+
   name: string
+
   argumentsRaw: string
   argumentsLength?: number
   code: 'unknown-tool' | 'missing-id' | 'invalid-json' | 'not-an-object' | 'schema' | 'duplicate-id' | 'provider-malformed'
+
   reason: string
   offered?: string[]
 }
@@ -60,9 +62,11 @@ export type MessageOrigin =
   | import('../utils/messages/outsideReport.js').OutsideReportOrigin
 
 export type CompactMetadata = {
+
   trigger: 'manual' | 'auto' | 'overflow'
   preTokens: number
   postTokens?: number
+
   overflow?: OverflowSignal
   userContext?: string
   messagesSummarized?: number
@@ -76,6 +80,7 @@ export type CompactMetadata = {
     anchorUuid: UUID
     tailUuid: UUID
   }
+
   preCompactDiscoveredTools?: string[]
   work?: {
     receipts: Array<{
@@ -94,7 +99,6 @@ export type CompactMetadata = {
   }
 }
 
-
 type AssistantAPIMessage = Omit<
   ApiMessage,
   'diagnostics' | 'stop_details'
@@ -108,19 +112,30 @@ export type AssistantMessage = {
   message: AssistantAPIMessage
   contextGauge?: import('../services/run/requestGauge.js').RequestGaugeAnchor
   foldLanding?: { boundaryId: string; usage: import('../services/compact/cacheEpoch.js').FoldCacheUsage; fixedPrefix?: { previous: string | null; current: string; unchanged: boolean; bytes: number } }
+
   requestId: string | undefined
+
   error?: AssistantMessageError
+
   errorDetails?: string
   failover?: FailoverCause
+
   providerWaitEndsAtMs?: number
+
   overflowSignal?: OverflowSignal
   mediaRefusal?: MediaRefusal
+
   apiError?: 'max_output_tokens'
+
   isApiErrorMessage?: boolean
+
   isMeta?: boolean
+
   isVirtual?: true
   retracted?: true
+
   research?: unknown
+
   refusedToolCalls?: RefusedToolCall[]
   reasoningOnly?: boolean
   geminiProviderTurn?: {
@@ -139,30 +154,35 @@ export type AssistantMessage = {
     items: unknown[]
     responseId?: string
   }
+
   apexProviderTurn?: {
     provider: 'openai'
     responseId?: string
     items: unknown[]
+
     contractDigest?: string
+
     providerUsage?: {
       inputTokensTotal: number
       cachedInputTokens: number
       outputTokens: number
+
       cacheWriteInputTokens?: number
       reasoningOutputTokens?: number
       anomaly?: 'cached-exceeds-total'
     }
   }
+
   streamEnd?: StreamEndV1
   busyRecovery?: BusyRecoveryV1
   busyRefusal?: BusyRefusalV1
+
   effortAdjusted?: EffortAdjustedV1
   effort?: EffortStampV1
   inReplyTo?: ReplyMark[]
 }
 
 export type ReplyMark = { uuid: string; at: string }
-
 
 export type UserMessage = {
   type: 'user'
@@ -172,44 +192,61 @@ export type UserMessage = {
     role: 'user'
     content: string | ContentBlockParam[]
   }
+
   isMeta?: true
+
   isVisibleInTranscriptOnly?: true
+
   isVirtual?: true
+
   queued?: true
+
   heldFor?: 'compaction'
+
   batchUuids?: string[]
+
   isCompactSummary?: true
+
   summarizeMetadata?: {
     messagesSummarized: number
     userContext?: string
     direction?: PartialCompactDirection
+
     contextReclaimedPct?: number
     tokensBefore?: number
     tokensAfter?: number
+
     keptMessages?: number
   }
+
   toolUseResult?: unknown
+
   mcpMeta?: {
     _meta?: Record<string, unknown>
     structuredContent?: Record<string, unknown>
   }
+
   imagePasteIds?: number[]
+
   sourceToolAssistantUUID?: UUID
+
   sourceToolUseID?: string
+
   permissionMode?: import('./permissions.js').PermissionMode
+
   origin?: MessageOrigin
 }
-
 
 export type ProgressMessage<P extends Progress = Progress> = {
   type: 'progress'
   uuid: UUID
   timestamp: string
   data: P
+
   toolUseID: string
+
   parentToolUseID: string
 }
-
 
 export type AttachmentMessage<A extends Attachment = Attachment> = {
   type: 'attachment'
@@ -219,7 +256,6 @@ export type AttachmentMessage<A extends Attachment = Attachment> = {
 }
 
 export type HookResultMessage = AttachmentMessage | ProgressMessage | SystemInformationalMessage
-
 
 export type SystemInformationalMessage = {
   type: 'system'
@@ -370,7 +406,6 @@ export type SystemScheduledTaskFireMessage = {
   timestamp: string
 }
 
-
 export type SystemTurnDurationMessage = {
   type: 'system'
   subtype: 'turn_duration'
@@ -403,12 +438,15 @@ export type AwayRecapMetadata = {
   endedOnError?: boolean
   turns?: number
   filesTouched?: number
+
   toolFailures?: number
+
   topTools?: string
   lastActiveGapMs?: number
   branch?: string
   dirtyCount?: number
   dirtyDelta?: string
+
   certVerdict?: string
   certAgeMs?: number
   launchWon?: LaunchWonV1
@@ -423,6 +461,7 @@ export type SystemAwaySummaryMessage = {
   type: 'system'
   subtype: 'away_summary'
   content: string
+
   recapMetadata?: AwayRecapMetadata
   uuid: UUID
   timestamp: string
@@ -436,6 +475,7 @@ export type SystemMemorySavedMessage = {
   uuid: UUID
   timestamp: string
   isMeta?: boolean
+
   verb?: string
 }
 
@@ -494,6 +534,7 @@ export type SystemCompactBoundaryMessage = {
   timestamp: string
   level: SystemMessageLevel
   compactMetadata: CompactMetadata
+
   logicalParentUuid?: UUID
 }
 
@@ -519,7 +560,9 @@ export type SystemAPIErrorMessage = {
   subtype: 'api_error'
   level: SystemMessageLevel
   cause: Error | undefined
+
   error: APIError | Error
+
   errorDetail?: {
     name: string
     message: string
@@ -533,7 +576,9 @@ export type SystemAPIErrorMessage = {
       ageMs?: number
     }
   }
+
   retryInMs: number
+
   recoveryTimeoutMs?: number
   retryAttempt: number
   maxRetries: number
@@ -591,7 +636,6 @@ export type SystemMessage =
   | SystemFileSnapshotMessage
   | SystemThinkingMessage
 
-
 export type Message =
   | AssistantMessage
   | UserMessage
@@ -599,12 +643,12 @@ export type Message =
   | AttachmentMessage
   | SystemMessage
 
-
 export type NormalizedAssistantMessage<
   C extends ContentBlock = ContentBlock,
 > = Omit<AssistantMessage, 'message'> & {
   message: Omit<AssistantAPIMessage, 'content'> & {
     content: [C]
+
     context_management: ApiMessage['context_management']
   }
 }
@@ -623,7 +667,6 @@ export type NormalizedMessage =
   | ProgressMessage
   | AttachmentMessage
   | SystemMessage
-
 
 export type GroupedToolUseMessage = {
   type: 'grouped_tool_use'
@@ -651,14 +694,17 @@ export type CollapsedReadSearchGroup = {
   displayMessage: CollapsibleMessage
   uuid: UUID
   timestamp: string
+
   mcpCallCount?: number
   mcpServerNames?: string[]
+
   bashCount?: number
   gitOpBashCount?: number
   commits?: { sha: string; kind: CommitKind }[]
   pushes?: { branch: string }[]
   branches?: { ref: string; action: BranchAction }[]
   prs?: { number: number; url?: string; action: PrAction }[]
+
   relevantMemories?: { path: string; content: string; mtimeMs: number }[]
 }
 
@@ -680,7 +726,9 @@ export type TurnReceiptMessage = {
     fetches: number
     commands: number
     browser: number
+
     agents: number
+
     delegatedTokens: number
     delegatedCostUSD: number
     delegatedUnpriced: number
@@ -697,7 +745,6 @@ export type RenderableMessage =
   | GroupedToolUseMessage
   | CollapsedReadSearchGroup
   | TurnReceiptMessage
-
 
 export type StreamEvent = {
   type: 'stream_event'

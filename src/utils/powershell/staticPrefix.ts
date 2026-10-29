@@ -6,9 +6,13 @@ import { buildPrefix, DEPTH_RULES } from '../shell/specPrefix.js'
 
 async function extractPrefixFromElement(element: ParsedCommandElement): Promise<string | null> {
   const name = element.name
+
   if (element.nameType === 'application') return null
+
   if (name === '') return null
+
   if (NEVER_SUGGEST.has(name.toLowerCase())) return null
+
   if (element.nameType === 'cmdlet') return name
 
   const classes = element.elementTypes ?? []
@@ -47,12 +51,14 @@ function checkWordIntegrity(prefix: string, args: string[], spec: CommandSpec | 
   const prefixWords = words.slice(1)
   let cursor = 0
   for (const expected of prefixWords) {
+
     if (expected.includes('\\')) return false
     while (cursor < args.length) {
       const arg = args[cursor] as string
       if (arg === expected) break
       if (arg.startsWith('-')) {
         cursor++
+
         const next = args[cursor]
         if (
           spec &&
@@ -65,6 +71,7 @@ function checkWordIntegrity(prefix: string, args: string[], spec: CommandSpec | 
         }
         continue
       }
+
       return false
     }
     if (cursor >= args.length) return false
@@ -125,6 +132,7 @@ export async function getCompoundCommandPrefixesStatic(
     const group = groups.get(rootKey) as string[]
     const collapsed = wordAlignedCommonPrefix(group)
     if (collapsed === '' || !collapsed.includes(' ')) {
+
       if (!specCache.has(rootKey)) specCache.set(rootKey, await getCommandSpec(rootKey))
       const spec = specCache.get(rootKey) ?? null
       const hasSubcommands = (spec?.subcommands?.length ?? 0) > 0

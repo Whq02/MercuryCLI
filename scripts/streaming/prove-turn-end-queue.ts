@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -96,20 +97,26 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const holdSends = [
+
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
+
       { requireAwait: true, minTick: 10, awaitText: 'after its last item', awaitSettleTicks: 6, data: `${FIRST}\r` },
       { afterPrevTicks: 10, data: `${SECOND}\r` },
+
       { afterPrevTicks: 12, data: '/workbench\r', mark: 'chat-queued' },
       { requireAwait: true, minTick: 5, awaitText: 'PROMPTS (', awaitSettleTicks: 6, data: '\x1b', mark: 'workbench' },
+
       { afterPrevTicks: 5 + Math.ceil(BUDGET_AUTHORED_MS / 200) + 40, data: '', mark: 'after-budget' },
   ]
   const toolSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${READ_ASK}\r` },
+
       { requireAwait: true, minTick: 10, awaitText: 'Read', awaitSettleTicks: 3, data: `${FIRST}\r` },
       { afterPrevTicks: 8, data: '/workbench\r', mark: 'chat-queued' },
       { requireAwait: true, minTick: 5, awaitText: 'PROMPTS (', awaitSettleTicks: 4, data: '\x1b', mark: 'workbench' },
+
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 10, data: '/workbench\r', mark: 'after-turn' },
       { requireAwait: true, minTick: 5, awaitText: 'PROMPTS (', awaitSettleTicks: 4, data: '\x1b', mark: 'workbench-after' },
       { afterPrevTicks: 10, data: '', mark: 'settled' },
@@ -117,6 +124,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const stopSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${SLEEP_ASK}\r` },
+
       { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
       { afterPrevTicks: 8, data: '\x1b', mark: 'after-first-esc' },
       { afterPrevTicks: 15, data: `${FIRST}\r`, mark: 'after-second-esc' },
@@ -127,16 +135,20 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const crewSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${LAUNCH_ASK}\r` },
+
       { requireAwait: true, minTick: 10, awaitText: 'first-byte-seat', awaitSettleTicks: 15, data: '', mark: 'seat-waiting' },
+
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'after-seat' },
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
   const noticeSends = [
       { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${NOTICE_ASK}\r` },
+
       { requireAwait: true, minTick: 10, awaitText: 'sleep 12', awaitSettleTicks: 2, data: '' },
       { requireAwait: true, minTick: 2, awaitText: NOTICE_ROW, awaitSettleTicks: 2, data: `${FIRST}\r`, mark: 'notice-queued' },
       { requireAwait: true, minTick: 1, awaitText: `[sam] ❯ ${FIRST}`, awaitSettleTicks: 2, data: '', mark: 'both-queued' },
+
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'drained' },
   ]
   const cfg = {
@@ -221,8 +233,10 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — S2: a crew seat whose request never answers its headers ends typed within the budget`)
     check(`${label}: vshot ran the crew journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
     check(`${label}: the seat's request was parked with no headers (once, then at most the bounded retry)`, heldHeaders.length >= 1 && heldHeaders.length <= 2, JSON.stringify(heldHeaders))
+
     check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /· running ·/.test(waiting), tail(waiting))
     check(`${label}: the parent's follow-up carried the seat's typed end and landed the final text`, parent.some(c => ((c as { step?: number }).step ?? 0) >= 1) && afterSeat.includes(REPLY), JSON.stringify(parent.map(c => [c.n, (c as { step?: number }).step])))
+
     const seatCalls = calls.filter(c => c.arm === 'seat-hold')
     const seatTokens = (seatCalls[0] as { promptTokens?: number } | undefined)?.promptTokens ?? 0
     const seatBudget = firstByteBudgetMs({ cold: true, promptTokens: seatTokens, idleMs: BUDGET_MS })
@@ -230,6 +244,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the bounded retry re-parked at the owner's budget for the seat's own prompt`, retryGap >= seatBudget - 500 && retryGap <= seatBudget + 6_000, `retry gap=${retryGap}ms budget=${seatBudget}ms tokens=${seatTokens}`)
     const gap = heldHeaders.length > 0 && parent.length > 1 ? (parent[parent.length - 1]!.at - heldHeaders[0]!.at) : -1
     check(`${label}: the seat ended inside two budgets — never the fifty-minute ceiling`, gap > 0 && gap <= 2 * seatBudget + 15_000, `gap=${gap}ms budget=${seatBudget}ms`)
+
     check(`${label}: the turn is freed — the strip is back at ready (or the crew's past-tense clock)`, (/ready · [^\n]*← back/.test(settled) || /agents? thought for \d/.test(settled)) && !/esc interrupt/.test(settled), tail(settled))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n'))
@@ -244,6 +259,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   }
 
   if (scene === 'notice') {
+
     try {
       const trace = readFileSync(path.join(RUN_HOME, 'connector-trace.jsonl'), 'utf8')
         .split('\n')
@@ -275,6 +291,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — N3/N4: the drain moves nothing`)
     check(`${label}: after the drain both rows wear clocks, the notice still above the words`, sentNotice.test(drained) && sentWords.test(drained) && lineOf(drained, sentNotice) < lineOf(drained, sentWords), tail(drained))
     check(`${label}: no queued or held row survives the drain`, !/(queued|held)\s+(since \d\d:\d\d:\d\d )?(●|\[sam\])/.test(drained), tail(drained))
+
     check(`${label}: the reply landed and the turn is over (no esc clause on the strip)`, drained.includes(REPLY) && !/esc interrupts/.test(drained), tail(drained))
     const folded = calls.find(c => c.arm === 'launch-and-sleep' && (c as { step?: number }).step === 2)
     check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background crewmate completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))
@@ -329,6 +346,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the typed row paints QUEUED while the turn runs`, /queued\s+\[sam\] ❯ first queued words/.test(chat) && /esc interrupt/.test(chat), tail(chat))
     check(`${label}: the roll counts it queued`, bench.includes('1 queued') && /queued\s+plain\s+first queued words/.test(bench), bench.split('\n').slice(0, 8).join('\n'))
     section(`${label} — Q7: the model sees it at the next tool boundary`)
+
     const steps = calls.filter(c => c.arm === 'read-three' && ((c as { tools?: number }).tools ?? 0) > 0)
     const firstCarry = steps.find(c => Array.isArray((c as { carries?: string[] }).carries) && (c as { carries: string[] }).carries.includes(FIRST))
     check(`${label}: four calls make the tool turn (three reads, the final text)`, steps.length === 4, JSON.stringify(steps.map(c => [c.n, (c as { step?: number }).step, (c as { carries?: string[] }).carries])))
@@ -371,6 +389,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   check(`${label}: no queued row survives the drain`, !/queued\s+\[sam\]/.test(after) && !/queued\s+\[sam\]/.test(fin), tail(fin))
 
   section(`${label} — Q5: the wire`)
+
   check(`${label}: exactly one hold`, holds.length === 1, JSON.stringify(holds))
   check(`${label}: the ask was issued once — never a reissue`, calls.filter(c => c.arm === 'hold-after-settle').length === 1 && !calls.some(c => /dropped mid-response|Pick up exactly/.test(c.ask ?? '')), JSON.stringify(calls.map(c => [c.n, c.arm, c.ask?.slice(0, 40)])))
   const held = holds[0]
@@ -387,6 +406,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
 console.log('============================================================')
 console.log(' the turn ends on facts · the queue tells the truth — the built bundle')
 console.log('============================================================')
+
 const only = (process.env.TURN_END_SCENES ?? '').split(',').map(s => s.trim()).filter(s => s !== '')
 const wants = (scene: string): boolean => only.length === 0 || only.includes(scene)
 if (wants('hold')) {

@@ -49,14 +49,18 @@ export interface SearchHit {
 
 export interface SearchRequest {
   query: string
+
   allowedDomains?: string[]
+
   blockedDomains?: string[]
+
   maxResults?: number
   signal?: AbortSignal
   cacheScope?: string
 }
 
 export const DEFAULT_MAX_RESULTS = 10
+
 export const MAX_SNIPPET_CHARS = 400
 
 type SearchFailureKind =
@@ -72,6 +76,7 @@ export interface SearchFailure {
   ok: false
   kind: SearchFailureKind
   via: SearchBackendId | 'none'
+
   message: string
 }
 
@@ -80,9 +85,13 @@ interface SearchSuccess {
   via: SearchBackendId
   tier: SearchTier
   hits: SearchHit[]
+
   commentary?: string[]
+
   queries?: string[]
+
   sequence?: Array<string | { toolUseId: string; hits: SearchHit[] }>
+
   notes?: string[]
 }
 
@@ -97,7 +106,6 @@ export function searchFailure(
 }
 
 export { webUserAgent as searchUserAgent } from '../../utils/webUserAgent.js'
-
 
 function hitHost(url: string): string | undefined {
   try {
@@ -154,8 +162,8 @@ export function normaliseHits(hits: readonly SearchHit[], maxResults = DEFAULT_M
   return out
 }
 
-
 export const KEYED_DOOR_COMMANDS = 'BRAVE_API_KEY · TAVILY_API_KEY'
+
 export const KEYED_DOOR_FREE_TIER = 'both offer a free tier'
 
 export const KEYED_DOOR_REMEDY = `a Brave or Tavily key lifts the keyless door's rate limit — ${KEYED_DOOR_COMMANDS} (${KEYED_DOOR_FREE_TIER})`

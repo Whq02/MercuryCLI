@@ -1,4 +1,3 @@
-
 import { workflowsDir } from './runManifest.js'
 import { join } from 'path'
 import { logForDebugging } from '../../utils/debug.js'
@@ -12,20 +11,22 @@ import { MAX_SCRIPT_BYTES } from './workflowConstants.js'
 import { workflowsDisabled } from './workflowEnablement.js'
 
 export interface WorkflowDescriptor {
+
   source: 'built-in' | 'userSettings' | 'projectSettings'
   name: string
   description: string
   whenToUse?: string
   phases?: WorkflowMeta['phases']
+
   script: string
   filePath?: string
+
   hidden?: boolean
 }
 
 function isParsed(p: ParsedWorkflow | { ok: false; error: string }): p is ParsedWorkflow {
   return !('ok' in p)
 }
-
 
 const builtinRegistry: WorkflowDescriptor[] = []
 
@@ -34,6 +35,7 @@ export function registerBuiltinWorkflow(
   meta: Omit<WorkflowDescriptor, 'source' | 'script' | 'hidden'>,
   opts?: { hidden?: boolean },
 ): void {
+
   builtinRegistry.push({ source: 'built-in', ...meta, script, hidden: opts?.hidden })
 }
 
@@ -41,7 +43,6 @@ export function getBuiltinWorkflows(): WorkflowDescriptor[] {
   if (workflowsDisabled()) return []
   return builtinRegistry
 }
-
 
 async function readWorkflowDir(
   dir: string,
@@ -61,6 +62,7 @@ async function readWorkflowDir(
       const filePath = join(dir, entry.name)
       let bytes: Buffer
       try {
+
         bytes = await fs.readFileBytes(filePath, MAX_SCRIPT_BYTES + 1)
       } catch {
         return null
@@ -99,6 +101,7 @@ async function collectLocalWorkflows(cwd: string): Promise<WorkflowDescriptor[]>
   const userAllowed = isSettingSourceEnabled('userSettings')
   const projectAllowed = isSettingSourceEnabled('projectSettings')
   const userDir = join(getMercuryHome(), 'workflows')
+
   const projectDirs = getProjectDirsUpToHome('workflows', cwd)
 
   const [userEntries, projectLists] = await Promise.all([
@@ -115,7 +118,6 @@ async function collectLocalWorkflows(cwd: string): Promise<WorkflowDescriptor[]>
   }
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
-
 
 export async function listWorkflows(cwd: string): Promise<WorkflowDescriptor[]> {
   if (workflowsDisabled()) return [...getBuiltinWorkflows()]
@@ -141,6 +143,7 @@ type SaveWorkflowResult =
 
 export async function saveWorkflowSourceToProject(opts: {
   source: string
+
   name?: string
   cwd: string
 }): Promise<SaveWorkflowResult> {
@@ -157,6 +160,7 @@ export async function saveWorkflowSourceToProject(opts: {
   } catch (e) {
     return { ok: false, error: `cannot create ${dir}: ${e instanceof Error ? e.message : String(e)}` }
   }
+
   for (let n = 1; n <= 9; n++) {
     const target = join(dir, n === 1 ? `${slug}.js` : `${slug}-${n}.js`)
     let existing: string | undefined
@@ -168,6 +172,7 @@ export async function saveWorkflowSourceToProject(opts: {
     if (existing === opts.source) return { ok: true, savedPath: target, already: true }
     if (existing === undefined) {
       try {
+
         await writeFile(target, opts.source, { encoding: 'utf8', flag: 'wx' })
         return { ok: true, savedPath: target }
       } catch (e) {

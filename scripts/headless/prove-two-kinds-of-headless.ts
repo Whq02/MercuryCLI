@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/sessionKind.ts src/cli/run.ts src/utils/cockpit/runtimePosture.ts src/utils/permissions/askClock.ts src/daemon/permissionAsks.ts src/services/tools/toolExecution.ts src/rows/turn.ts src/services/resources/adapters/seat.ts src/daemon/concourseWorkers.ts src/daemon/warmRunner.ts src/bootstrap/state.ts
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

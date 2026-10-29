@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -10,6 +11,7 @@ process.env.MERCURY_HOME = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_MODEL
+
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 
@@ -37,6 +39,7 @@ const { deepseekDisplayPin } = await import('../../src/services/providers/deepse
 const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
 const { huggingfaceDisplayPin } = await import('../../src/services/providers/huggingface/huggingfacePins.ts')
 const orCatalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const tracker = await import('../../src/cost-tracker.ts')
 
@@ -197,6 +200,7 @@ section('§3 the ledger counts the turns it could not price, and every spend vie
   check('compat lane: the figure reads "unpriced", never "$0.00"', formatLaneSpend(compat) === 'unpriced (2 unpriced turns — no rate on file, tokens counted)', formatLaneSpend(compat))
   check('huggingface lane: the floor is marked as an estimate beside its figure', hf.pricing?.estimatedModels === 1 && hf.pricing?.unpricedTurns === 0 && /^\$[\d.]+ \(one model at an estimated rate\)$/.test(formatLaneSpend(hf)), formatLaneSpend(hf))
   check('zai lane: wholly at recorded rates ⇒ a plain figure', zai.pricing === undefined && /^\$[\d.]+$/.test(formatLaneSpend(zai)), formatLaneSpend(zai))
+
   orCatalogue.__resetOpenrouterCatalogueForTest()
   check('openrouter (catalogue unfetched): the owner holds no rate', cost.resolveModelPricing('openrouter/nobody/nothing').basis === 'unpriced')
   settle('openrouter/nobody/nothing', { basis: 'wire-stated' }, 0.01)
@@ -205,13 +209,16 @@ section('§3 the ledger counts the turns it could not price, and every spend vie
   settle('openrouter/nobody/nothing')
   const orMixed = providerSessionSpend('openrouter')
   check('a mixed lane says "+ N unpriced turns" beside its figure', orMixed.pricing?.unpricedTurns === 1 && formatLaneSpend(orMixed) === '$0.0100 + 1 unpriced turn', formatLaneSpend(orMixed))
+
   check('formatSessionCost: no unpriced turns ⇒ the plain figure', formatSessionCost(0.25, 0) === '$0.2500' && formatSessionCost(0, 0) === '$0.0000')
   check('formatSessionCost: unpriced turns beside a figure', formatSessionCost(1.5, 3) === '$1.50 + 3 unpriced turns')
   check('formatSessionCost: nothing priced ⇒ "unpriced", never a zero', formatSessionCost(0, 1) === 'unpriced (1 unpriced turn — no rate on file, tokens counted)')
+
   const total = formatTotalCost().replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g'), '')
   check('the cost summary: the total says "+ 3 unpriced turns" beside its figure', /Total cost:\s+\$[\d.]+ \+ 3 unpriced turns/.test(total), total.split('\n')[0])
   check('the cost summary rows: the unpriced model row reads unpriced', total.includes('(unpriced (2 unpriced turns — no rate on file, tokens counted))'), total)
   check('the cost summary rows: no $0.0000 row for the unpriced model', !/compat[^\n]*\$0\.0000/.test(total), total)
+
   const { getSessionId } = await import('../../src/bootstrap/state.ts')
   let persisted = false
   try {
@@ -246,6 +253,7 @@ section('§5 the shape')
   }
   check('the owner table is typed over every route (a new family without a row is a type error)', src.includes('Record<CallModelRoute, PricingOwner>'))
   check('the unpriced basis is a zero tier under the flag, spelled once', (src.match(/resolved \?\? \{ costs: COST_UNPRICED, basis: 'unpriced' \}/g) ?? []).length === 1 && src.includes("if (resolved.basis !== 'recorded') setHasUnknownModelCost()"))
+
   const ownersStart = src.indexOf('const PRICING_OWNERS')
   const ownersTable = src.slice(ownersStart, src.indexOf('\n}\n', ownersStart))
   const ownerRows = ownersTable.split('\n').filter(l => /^\s+[a-z'-]+: /.test(l))
@@ -254,6 +262,7 @@ section('§5 the shape')
   check('no first-party tier is reachable for a non-first-party route: no other line of the owners table touches the first-party table, a first-party tier constant or the first-party fallback', offFirstParty.every(l => !/firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)), offFirstParty.filter(l => /firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)).join(' | '))
   const fpStart = src.indexOf('function firstPartyPricing')
   const fpBody = src.slice(fpStart, src.indexOf('\n}\n', fpStart))
+
   const codeLines = src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
   const declarationLines = codeLines.filter(l => /^const FIRST_PARTY_FALLBACK_TIER: ModelCosts = COST_TIER_5_25$/.test(l))
   const spendLines = codeLines.filter(l => l.includes('FIRST_PARTY_FALLBACK_TIER') && !/^const FIRST_PARTY_FALLBACK_TIER/.test(l))
@@ -285,6 +294,7 @@ section('§5 the shape')
   ] as const) {
     check(`${file} spells its figure through the one law`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
   }
+
   const priceTable = (text: string, name: string): string => text.slice(text.indexOf(`export const ${name}`), text.indexOf('\n]', text.indexOf(`export const ${name}`)))
   const datedRows = (text: string): number => (text.match(/observedAt: '20\d\d-\d\d-\d\d'/g) ?? []).length
   check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(glm, 'GLM_PRICE_PINS')) && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(gemini, 'GEMINI_PRICE_PINS')))

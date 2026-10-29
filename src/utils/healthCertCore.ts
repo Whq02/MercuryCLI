@@ -1,4 +1,3 @@
-
 export type HealthStatus = 'ok' | 'warn' | 'fail' | 'stale' | 'unknown' | 'off' | 'info'
 
 export type CertVerdict = 'certified' | 'caution' | 'fault'
@@ -24,14 +23,23 @@ export interface HealthCheck {
   id: string
   label: string
   status: HealthStatus
+
   evidence: string
+
   detail?: string
+
   fix?: string
+
   link?: string
+
   remedy?: HealthRemedy
+
   probe?: HealthProbeKind
+
   depth?: HealthDepth
+
   durationMs?: number
+
   evidenceAt?: number
 }
 
@@ -57,14 +65,18 @@ export interface NodeRuntimeFacts {
 export interface HealthCertificate {
   verdict: CertVerdict
   sections: HealthSection[]
+
   ranAt: string
+
   head: CertHead
+
   version: string
   durationMs: number
+
   depth?: HealthDepth
+
   nodeRuntime?: NodeRuntimeFacts
 }
-
 
 export function verdictFromStatuses(statuses: readonly HealthStatus[]): CertVerdict {
   if (statuses.includes('fail')) return 'fault'
@@ -128,7 +140,6 @@ export function nextActions(
   return ranked.slice(0, max).map(({ label, fix, status }) => ({ label, fix, status }))
 }
 
-
 export function formatAge(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return 'clock skew'
   const s = Math.round(ms / 1000)
@@ -144,15 +155,17 @@ export function sha7(sha: string | null | undefined): string {
   return sha ? sha.slice(0, 7) : '???????'
 }
 
-
 export interface GateVerdict {
   ok: boolean
   pass: string[]
   fail: string[]
+
   ranAt: string
   headSha: string | null
+
   dirty: boolean
   durationS: number
+
   treeSha: string | null
 }
 
@@ -182,6 +195,7 @@ export function interpretGateVerdict(
   nowMs: number,
 ): Pick<HealthCheck, 'status' | 'evidence' | 'fix'> {
   if (v === null) {
+
     return {
       status: 'info',
       evidence: 'no gate verdict recorded — the proof suite (a developer instrument) has not been run here',
@@ -192,6 +206,7 @@ export function interpretGateVerdict(
   const age = formatAge(nowMs - Date.parse(v.ranAt))
   const at = `@ ${sha7(v.headSha)} · ${age}`
   if (!v.ok) {
+
     const redHeadMoved = v.headSha !== null && head.sha !== null && v.headSha !== head.sha
     const redTreeMoved =
       v.treeSha !== null && head.treeSha != null && v.treeSha !== head.treeSha
@@ -208,6 +223,7 @@ export function interpretGateVerdict(
       fix: 'Fix the red suites, then re-run `bash scripts/run-all-suites.sh`.',
     }
   }
+
   if (v.treeSha !== null && head.treeSha != null && v.treeSha === head.treeSha) {
     return {
       status: 'ok',
@@ -239,13 +255,13 @@ export function interpretGateVerdict(
   }
 }
 
-
 export interface LastCertSummary {
   verdict: CertVerdict
   ranAt: string
   head: CertHead
   version: string
   counts: Record<HealthStatus, number>
+
   attention: Array<{ id: string; label: string; status: HealthStatus; evidence: string; depth?: HealthDepth; ranAt?: string }>
   depth?: HealthDepth
 }
@@ -319,6 +335,7 @@ export function decodeLastCertSummary(raw: unknown): LastCertSummary | null {
   const counts =
     o.counts && typeof o.counts === 'object' ? (o.counts as Record<string, unknown>) : {}
   const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+
   const isStatus = (v: unknown): v is HealthStatus =>
     v === 'ok' || v === 'warn' || v === 'fail' || v === 'stale' || v === 'unknown' || v === 'off' || v === 'info'
   const attention = Array.isArray(o.attention)
@@ -368,6 +385,7 @@ export const CERT_CHIP_STALE_MS = 24 * 60 * 60 * 1000
 
 export interface CertChip {
   verdict: CertVerdict | null
+
   ageMs: number | null
   ageLabel: string
   stale: boolean
@@ -386,11 +404,12 @@ export function chipFromLastCert(summary: LastCertSummary | null, nowMs: number)
   }
 }
 
-
 export interface PreflightSummary {
   verdict: CertVerdict
   ranAt: string
+
   failing: Array<{ id: string; evidence: string }>
+
   degraded: Array<{ id: string; status: HealthStatus; evidence: string }>
   durationMs: number
   via: 'preflight'
@@ -412,6 +431,7 @@ export function decodePreflightSummary(raw: unknown): PreflightSummary | null {
           : [],
       )
     : []
+
   const isPreStatus = (v: unknown): v is HealthStatus =>
     v === 'ok' || v === 'warn' || v === 'fail' || v === 'stale' || v === 'unknown' || v === 'off' || v === 'info'
   const degraded = Array.isArray(o.degraded)
@@ -439,6 +459,7 @@ export function decodePreflightSummary(raw: unknown): PreflightSummary | null {
 
 export interface CertChipAlert {
   source: 'preflight' | 'gate'
+
   tone: 'fault' | 'ok'
   text: string
 }

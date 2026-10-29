@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -67,6 +68,7 @@ const port = await new Promise<number>(resolvePort => {
   })
 })
 const BASE = `http://127.0.0.1:${port}`
+
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = BASE
 process.env.ANTHROPIC_BASE_URL = BASE
 writeFileSync(

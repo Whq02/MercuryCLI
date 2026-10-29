@@ -59,7 +59,9 @@ export function isModelAllowed(model: string): boolean {
   }
 
   for (const entry of entries) {
+
     if (isModelAlias(candidate) && candidateResolved === entry) return true
+
     if (isModelAlias(entry) && !isModelFamilyWord(entry)) {
       if (normalize(parseUserSpecifiedModel(entry)) === candidate) return true
     }

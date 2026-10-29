@@ -35,6 +35,7 @@ export function PowerShellPermissionRequest({
   onReject,
   workerBadge,
 }: PermissionRequestProps): React.ReactNode {
+
   const input = PowerShellTool.inputSchema.parse(toolUseConfirm.input) as PowerShellCardInput
   const command = input.command
   const [debugVisible, setDebugVisible] = useState(false)

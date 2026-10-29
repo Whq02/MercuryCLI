@@ -202,6 +202,7 @@ async function main(): Promise<void> {
       "evalBridge tier 'fast' rides smallFastModelFor(session model)",
       evalBridge.includes('smallFastModelFor(context.options.engineModel)'),
     )
+
     const streamCoreSeam = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
     check(
       'querySmallFast rides the session family (sessionSmallFastModel)',
@@ -222,11 +223,13 @@ async function main(): Promise<void> {
         srcText(...path).includes('querySmallFast'),
       )
     }
+
     const questionRunner = srcText('utils', 'hooks', 'questionRunner.ts')
     check(
       'the question hook runner rides sessionSmallFastModel (no getSmallFastModel residue)',
       questionRunner.includes('sessionSmallFastModel()') && !questionRunner.includes('getSmallFastModel'),
     )
+
     const tokenEstimation = srcText('services', 'tokenEstimation.ts')
     check(
       'tokenEstimation STILL carries its family-correct pin (Anthropic-wire counting capability)',
@@ -272,6 +275,7 @@ async function main(): Promise<void> {
       threwEmpty = e instanceof Error && !(e instanceof APIUserAbortError)
     }
     check('empty without abort throws the honest error', threwEmpty)
+
     const streamCore = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
     check(
       'queryWithModel delegates to settleAssistantTurn (one fold, one owner)',

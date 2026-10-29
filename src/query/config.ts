@@ -3,6 +3,7 @@ import { getSessionId } from '../bootstrap/state.js'
 export type QueryConfig = {
   sessionId: string
   gates: {
+
     emitToolUseSummaries: boolean
   }
 }

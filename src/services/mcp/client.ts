@@ -23,6 +23,7 @@ import { pathToFileURL } from 'node:url'
 
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { deepestErrorDetail, isStaleSocketCode } from '../api/transportEvidence.js'
+
 import { deadlineSecondsLabel } from '../providers/fetchDeadline.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import type { Command } from '../../types/command.js'
@@ -78,7 +79,6 @@ import type {
 } from './types.js'
 import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 
-
 export class McpAuthError extends Error {
   constructor(
     public readonly serverName: string,
@@ -133,7 +133,6 @@ function isStaleSocketFetchError(error: unknown): boolean {
   const message = `${errorMessage(error)} ${errorMessage((error as { cause?: unknown }).cause)}`
   return STALE_SOCKET_MESSAGE_SUBSTRINGS.some(substring => message.includes(substring))
 }
-
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
@@ -238,7 +237,6 @@ function getRemoteConnectionBatchSize(): number {
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
 
-
 function jsonRpcMethodOf(body: unknown): string | null {
   if (typeof body !== 'string') return null
   const head = body.slice(0, 2048)
@@ -288,7 +286,6 @@ export function loggedHeadersOf(headers: Record<string, string>): Record<string,
   return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key, key.toLowerCase() === 'user-agent' && value === getMCPUserAgent() ? value : '[REDACTED]']))
 }
 
-
 export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
   return async (input, init) => {
     const send = async (): Promise<{ response: Response; sentToken: string }> => {
@@ -301,6 +298,7 @@ export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
     }
     const first = await send()
     if (first.response.status !== 401) return first.response
+
     const changed = await handleOAuth401Error(first.sentToken)
     if (!changed) {
       const current = getClaudeAIOAuthTokens()?.accessToken
@@ -313,7 +311,6 @@ export function createAnthropicProxyFetch(innerFetch: FetchLike): FetchLike {
     }
   }
 }
-
 
 function needsAuthCachePath(): string {
   return join(getMercuryHome(), 'mcp-needs-auth-cache.json')
@@ -376,7 +373,6 @@ async function handleRemoteAuthFailure(name: string, config: ScopedMcpServerConf
   await writeNeedsAuth(name)
   return { name, type: 'needs-auth', config }
 }
-
 
 function clientVersion(): string {
   return typeof MACRO !== 'undefined' ? (MACRO.VERSION ?? 'unknown') : 'unknown'
@@ -467,6 +463,7 @@ function buildClient(negotiate: boolean, transportKind: ProbeTransportKind = 're
 
 function installRootsHandler(client: Client): void {
   client.setRequestHandler('roots/list', async () => {
+
     const roots = [pathToFileURL(getOriginalCwd()).href]
     const add = (p: string): void => {
       const stripped = p.replace(/[\\/]+$/, '')
@@ -485,7 +482,6 @@ function installRootsHandler(client: Client): void {
   })
 }
 
-
 type WsSocketLike = {
   send(data: string): void
   close(): void
@@ -498,6 +494,7 @@ async function createWsTransport(url: string, headers: Record<string, string>): 
   const tlsOptions = getWebSocketTLSOptions()
   let socket: WsSocketLike
   if (typeof Bun !== 'undefined') {
+
     const proxyUrl = getWebSocketProxyUrl(url)
     socket = new WebSocket(url, {
       protocols: ['mcp'],
@@ -506,6 +503,7 @@ async function createWsTransport(url: string, headers: Record<string, string>): 
       ...(proxyUrl ? { proxy: proxyUrl } : {}),
     } as never) as unknown as WsSocketLike
   } else {
+
     const proxyAgent = getWebSocketProxyAgent(url)
     const nodeOptions = { headers, ...(tlsOptions ?? {}), ...(proxyAgent ? { agent: proxyAgent } : {}) }
     const { default: NodeWebSocket } = await import('ws')
@@ -545,7 +543,6 @@ async function createWsTransport(url: string, headers: Record<string, string>): 
   return wsTransport
 }
 
-
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
 }
@@ -570,6 +567,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let spawnRefused = false
   let stderrBuffer = ''
   let inProcess = false
+
   const buildStdioTransport = (): StdioClientTransport => {
     const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
     const prefix = flagEnv('MERCURY_SHELL_PREFIX')
@@ -595,6 +593,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         authProvider: provider as never,
         fetch: wrapped as never,
         requestInit: { headers: { 'User-Agent': getMCPUserAgent(), ...headers } },
+
         eventSourceInit: {
           fetch: async (input: string | URL, init?: RequestInit) => {
             const tokens = await (provider as MercuryMcpAuthProvider).tokens()
@@ -619,6 +618,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       const proxyUrl = getProxyUrl()
       logMCPDebug(name, `runtime ${typeof Bun !== 'undefined' ? 'bun' : 'node'}, proxy ${proxyUrl === undefined ? 'none' : getLoggingSafeMcpBaseUrl({ type: 'http', url: proxyUrl }) ?? '[REDACTED]'}`)
       logMCPDebug(name, `HTTP request options: ${JSON.stringify({ headers: loggedHeadersOf(requestInit.headers), tls: 'tls' in requestInit, proxy: proxyUrl !== undefined })}`)
+
       void Boolean(await (provider as MercuryMcpAuthProvider).tokens())
       transport = new StreamableHTTPClientTransport(new URL(config.url as string), {
         authProvider: provider as never,
@@ -684,6 +684,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     try {
       const { endProcessTree, endProcessTreeSurvivors } = await import('../../utils/processGroup.js')
       const graceful = await endProcessTree(pid, 'SIGINT')
+
       const swept = graceful.survivors.length > 0 ? await endProcessTreeSurvivors(pid, graceful.survivors, 'SIGKILL') : null
       const survivors = swept ? swept.survivors : graceful.survivors
       const ended = graceful.ended + (swept?.ended ?? 0)
@@ -705,6 +706,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   if (spawnRefused) return { name, type: 'disabled', config: serverRef }
 
   let timedOut = false
+
   const connectPromise = (async (): Promise<void> => {
     try {
       await client.connect(transport, prior ? { prior } : undefined)
@@ -728,6 +730,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const timeoutPromise = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       timedOut = true
+
       const transportLabel = inProcess ? 'in-process' : type
       const written = mcpConfigAsWritten(config)
       const stderrFirstLine = stderrBuffer.trim().split('\n')[0]?.trim().slice(0, 200) ?? ''
@@ -741,6 +744,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
           MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
+
       void endStdioTree().finally(() => {
         void inProcessServer?.close().catch(() => {})
         void transport.close().catch(() => {})
@@ -758,6 +762,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     logMCPDebug(name, `protocol ${client.getNegotiatedProtocolVersion() ?? 'unknown'} (${era ?? 'unknown'} era)`)
     if (era !== undefined) void recordEraVerdict(eraKey, era)
   } catch (err) {
+
     await clearEraVerdict(eraKey)
     if (spawnRefused) {
       releaseSpawnGuard?.()
@@ -771,11 +776,13 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     const unauthorized = err instanceof UnauthorizedError
     if ((type === 'sse' || type === 'http') && unauthorized) return handleRemoteAuthFailure(name, serverRef, type.toUpperCase())
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
+
     releaseSpawnGuard?.()
     await endStdioTree()
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
+
     if (type === 'stdio' || type === 'sse' || type === 'http') {
       const stderrTail = Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ').slice(0, 300)
       const written = mcpConfigAsWritten(config)
@@ -802,6 +809,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     instructions = `${instructions.slice(0, INSTRUCTIONS_MAX_CHARS)}\n\n[instructions truncated]`
     logMCPDebug(name, `instructions truncated ${original} → ${instructions.length}`)
   }
+
   client.setRequestHandler('elicitation/create', async () => ({ action: 'cancel' as const }))
 
   const originalOnError = client.onerror
@@ -813,6 +821,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const closeViaClient = (): void => {
     if (closing) return
     closing = true
+
     void client.close().catch(() => {})
   }
   client.onerror = (error: Error) => {
@@ -861,6 +870,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       return
     }
     if (type === 'stdio' || config.type === undefined) {
+
       stdioTransport?.stderr?.off('data', onStderr)
       await endStdioTree()
     }
@@ -884,6 +894,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
 export const connectToServer = memoize(connectImpl, getServerCacheKey)
 
 export async function clearServerCache(name: string, serverRef: ScopedMcpServerConfig): Promise<void> {
+
   const memoized = connectToServer.cache.get(getServerCacheKey(name, serverRef)) as
     | ReturnType<typeof connectToServer>
     | undefined
@@ -912,7 +923,6 @@ export async function ensureConnectedClient(client: MCPServerConnection): Promis
   return connection
 }
 
-
 type ToolWithPermissions = ScopedMcpServerConfig & { toolPermissions?: Record<string, string> }
 
 function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
@@ -924,6 +934,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const searchHint = typeof rawHint === 'string' ? rawHint.replace(/\s+/g, ' ').trim() || undefined : undefined
   const alwaysLoad = meta['anthropic/alwaysLoad'] === true
   const qualifiedName = buildMcpToolName(serverName, toolName)
+
   const modelFacingName = wireSafeMcpToolName(serverName, toolName)
   const rawDescription = sdkTool.description ?? ''
   const description = withMcpToolCardHeader(serverName, rawDescription, annotations)
@@ -971,6 +982,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
         client,
         tool: toolName,
         args: restoreRenamedArgumentKeys(modelFacingName, args),
+
         toolDefinition: sdkTool,
         signal: context.abortController.signal,
         parentMessage,
@@ -978,6 +990,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
         onProgress: onProgress as ((progress: unknown) => void) | undefined,
         setAppState: context.setAppState as unknown as (updater: (prev: unknown) => unknown) => void,
         isNonInteractive: context.options.isNonInteractiveSession,
+
         handleUrlElicitation: context.handleElicitation
           ? async elicitation =>
               (await context.handleElicitation!(client.name, elicitation, context.abortController.signal))
@@ -1001,6 +1014,7 @@ async function listAllTools(client: ConnectedMCPServer): Promise<McpSdkTool[]> {
   for (let page = 0; page < TOOLS_MAX_PAGES; page++) {
     let result: ListToolsResult
     try {
+
       result = await client.client.request(
         { method: 'tools/list', params: cursor ? { cursor } : {} },
         { timeout: connectTimeoutMs() },
@@ -1025,6 +1039,7 @@ async function listAllTools(client: ConnectedMCPServer): Promise<McpSdkTool[]> {
     seenCursors.add(next)
     cursor = next
   }
+
   return accumulated
 }
 
@@ -1119,6 +1134,7 @@ export const fetchCommandsForClient = memoize(
           contentLength: 0,
           progressMessage: 'running',
           argNames,
+
           userFacingName: () => `${client.name}:${prompt.name} (MCP)`,
           getPromptForCommand: async (args: string) => {
             const values = args.split(' ')
@@ -1154,7 +1170,6 @@ export const fetchCommandsForClient = memoize(
 )
 fetchCommandsForClient.cache = new LRUCache({ max: 20 }) as never
 
-
 export type MCPResultType = 'toolResult' | 'structuredContent' | 'contentArray'
 
 export type TransformedMCPResult = {
@@ -1179,6 +1194,7 @@ async function persistBlob(bytes: Buffer, mimeType: string | undefined, serverNa
 async function resizedImageBlock(base64: string, mimeType: string | undefined): Promise<{ block: ContentBlockParam; dimensions?: ImageDimensions }> {
   const subtype = mimeType?.split('/')[1] ?? 'png'
   const bytes = Buffer.from(base64, 'base64')
+
   const resized = await maybeResizeAndDownsampleImageBuffer(bytes, bytes.length, subtype, { role: 'tool-result' })
   const block = {
     type: 'image',
@@ -1324,7 +1340,6 @@ export async function processMCPResult(result: unknown, tool: string, name: stri
   return getLargeOutputInstructions(persisted.filepath, serialized.length, getFormatDescription(transformed.type, transformed.schema))
 }
 
-
 type MCPToolCallResult = { content: MCPToolResult; _meta?: Record<string, unknown>; structuredContent?: unknown }
 
 async function callToolOnce(
@@ -1343,6 +1358,7 @@ async function callToolOnce(
     logMCPDebug(connected.name, `tool ${tool} still running after ${Math.round((Date.now() - startedAt) / 1000)}s`)
   }, LONG_CALL_LOG_INTERVAL_MS)
   stillRunning.unref()
+
   const clock = elicitationPausedClock(connected.client)
   const watchdog = armInactivityDeadline({
     seam: `MCP tool "${tool}" on server "${connected.name}"`,
@@ -1355,6 +1371,7 @@ async function callToolOnce(
   if (signal.aborted) requestController.abort()
   else signal.addEventListener('abort', forwardAbort, { once: true })
   watchdog.signal.addEventListener('abort', forwardAbort, { once: true })
+
   const progressToken = toolUseId
   const releaseRoute =
     progressToken !== undefined
@@ -1421,10 +1438,12 @@ async function callToolOnce(
   } catch (err) {
     clearInterval(stillRunning)
     if (watchdog.fired) {
+
       logMCPError(connected.name, `tool ${tool} stalled: ${errorMessage(err)}`)
       throw unknownOutcome()
     }
     if (signal.aborted || isAbortError(err) || (err as { name?: string } | null)?.name === 'AbortError') {
+
       if (!couldHaveExecuted) return { content: undefined }
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}": interrupted before it answered; if it has side effects, check them before calling again.`,
@@ -1435,12 +1454,14 @@ async function callToolOnce(
     if (status === 401 || err instanceof UnauthorizedError) {
       throw new McpAuthError(connected.name, `MCP server "${connected.name}" requires re-authorization`)
     }
+
     if (isMcpSessionExpiredError(err) || (err instanceof SdkError && err.code === SdkErrorCode.NotConnected)) {
       couldHaveExecuted = false
       await clearServerCache(connected.name, connected.config)
       throw new McpSessionExpiredError(connected.name)
     }
     if (isConnectionClosedError(err) || isStaleSocketFetchError(err)) {
+
       await clearServerCache(connected.name, connected.config)
     }
     if (couldHaveExecuted && !(err instanceof ProtocolError)) {
@@ -1479,6 +1500,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   client: MCPServerConnection
   tool: string
   args: Record<string, unknown>
+
   toolDefinition?: McpSdkTool
   signal: AbortSignal
   parentMessage?: AssistantMessage
@@ -1490,6 +1512,7 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
   callFn?: (attemptClient: ConnectedMCPServer, toolUseId: string | undefined, onProgress: ((event: Record<string, unknown>) => void) | undefined) => Promise<MCPToolCallResult>
 }): Promise<MCPToolCallResult> {
   const { client, tool, args, signal, parentMessage, toolDefinition } = params
+
   const parentContent = parentMessage?.message.content
   let toolUseId: string | undefined = params.toolUseId
   if (toolUseId === undefined && Array.isArray(parentContent)) {
@@ -1560,7 +1583,9 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
     }
   } catch (err) {
     progressSink?.({ status: 'failed', elapsedTimeMs: Date.now() - startedAt })
+
     if (!(err instanceof TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS)) {
+
       if (err instanceof ProtocolError) {
         throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(err.message, `MCP protocol error ${err.code}`)
       }
@@ -1613,7 +1638,6 @@ function queueUrlElicitation(
   })
 }
 
-
 type ConnectionReport = { client: MCPServerConnection; tools: Tool[]; commands: Command[]; resources?: ServerResource[] }
 
 async function discoverFor(connection: ConnectedMCPServer, includeResourceTools: boolean): Promise<ConnectionReport> {
@@ -1630,6 +1654,7 @@ async function discoverFor(connection: ConnectedMCPServer, includeResourceTools:
 }
 
 async function runWithLimit<T>(items: T[], limit: number, work: (item: T) => Promise<void>): Promise<void> {
+
   let index = 0
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (index < items.length) {
@@ -1647,6 +1672,7 @@ export function fenceMcpPrefixCollisions(configs: Record<string, ScopedMcpServer
   collided: McpPrefixCollision[]
 } {
   const prefixOwners = new Map<string, string>()
+
   const survivors = Object.create(null) as Record<string, ScopedMcpServerConfig>
   const collided: McpPrefixCollision[] = []
   for (const [name, config] of Object.entries(configs)) {
@@ -1752,6 +1778,7 @@ export async function reconnectMcpServerImpl(
   config: ScopedMcpServerConfig,
 ): Promise<{ client: MCPServerConnection; tools: Tool[]; commands: Command[]; resources?: ServerResource[] }> {
   try {
+
     const { clearKeychainCache } = await import('../../utils/secureStorage/index.js')
     clearKeychainCache()
     await clearServerCache(name, config)

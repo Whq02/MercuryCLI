@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useRef, useState } from 'react'
 import { existsSync } from 'node:fs'
@@ -51,7 +50,6 @@ import { agentSnapshotState, statusTone } from './WorkflowDetailDialog.js'
 import { useAgentTranscriptView } from './useAgentTranscriptView.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 
-
 type PhaseBucket<A> = PhaseBucketOf<A>
 
 export function groupByPhase<
@@ -78,7 +76,6 @@ export function pidAlive(pid: number): boolean {
     return false
   }
 }
-
 
 function shortModel(m: string | undefined): string | undefined {
   return m?.replace(/^claude-/, '')
@@ -111,6 +108,7 @@ function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
     case 'progress':
       return 'running'
     default:
+
       return 'starting'
   }
 }
@@ -186,7 +184,6 @@ function resultWords(action: WorkflowControlAction, label: string, result: Workf
   if (result.outcome === 'refused') return result.reason
   return `${verbWord(action)} of ${label}: ${result.reason}`
 }
-
 
 type LaneRow =
   | { kind: 'sep'; group: PhaseBucket<WorkflowRunAgentSummary>; num: number }
@@ -268,6 +265,7 @@ function AgentLane({
   const meta: string[] = []
   const model = shortModel(agent.model)
   if (model) meta.push(agent.effort ? `${model} @${agent.effort}` : model)
+
   if (agent.usage && usageSpeaks(agent.usage)) meta.push(`${GLYPH.tokens} ${workflowSpendWords(agent.usage, formatTokens)}`)
   else if (typeof agent.tokens === 'number' && agent.tokens > 0)
     meta.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} context`)
@@ -276,6 +274,7 @@ function AgentLane({
   const runtime = agentRuntime(agent, now)
   if (runtime) meta.push(runtime)
   if (agent.cached) meta.push('cached')
+
   const pulse = agentPulse(agent, now)
   const live =
     agent.state === 'progress'
@@ -307,7 +306,6 @@ function AgentLane({
   )
 }
 
-
 function estWrappedLines(text: string | undefined, width: number, cap: number): number {
   if (!text) return 1
   let lines = 0
@@ -328,10 +326,13 @@ function DossierCard({
 }: {
   agent: WorkflowRunAgentSummary
   transcriptDir: string
+
   fallbackDirs?: readonly string[]
   version: number | undefined
+
   inCeil: number
   outCeil: number
+
   activityRows: number
   width: number
   now: number
@@ -352,6 +353,7 @@ function DossierCard({
   const lastCall = view?.toolCalls?.length
     ? view.toolCalls[view.toolCalls.length - 1]
     : undefined
+
   const pulse = agentPulse(agent, now)
   const pulseOverride =
     pulse.kind === 'backoff' || pulse.kind === 'first-token' || pulse.kind === 'quiet' || pulse.kind === 'operator-pause' || pulse.kind === 'usage-window'
@@ -367,8 +369,10 @@ function DossierCard({
             : agent.state === 'start'
               ? 'starting…'
               :
+
                 'working…'))
       : `settled · ${agent.toolCalls ?? view?.toolCallsTotal ?? 0} ${plural(agent.toolCalls ?? view?.toolCallsTotal ?? 0, 'tool call')}`
+
   const attemptCalls = view?.toolCallsTotal
   const totalCalls = agent.toolCalls
   const toolsBit =
@@ -397,6 +401,7 @@ function DossierCard({
   const inH = Math.min(inCeil, inEst)
   const outEst = estWrappedLines(outText, contentWidth, outCeil + 1)
   const outH = Math.min(outCeil, outEst)
+
   const tailSource =
     agent.state === 'progress' || agent.state === 'start'
       ? (view?.toolCalls ?? []).slice(0, -1)
@@ -410,6 +415,7 @@ function DossierCard({
 
   const metaBits: string[] = []
   if (agent.usage && usageSpeaks(agent.usage)) {
+
     const u = agent.usage
     metaBits.push(
       `${GLYPH.tokens} ${workflowSpendWords(u, formatTokens)} (${formatTokens(u.inputTokens)} in / ${formatTokens(u.outputTokens)} out)`,
@@ -419,6 +425,7 @@ function DossierCard({
   }
   if (toolsBit) metaBits.push(toolsBit)
   if (view?.usage) {
+
     if (view.usage.contextTokens > 0) metaBits.push(`${formatTokens(view.usage.contextTokens)} context`)
     if (!agent.usage) {
       metaBits.push(
@@ -508,7 +515,6 @@ function DossierCard({
   )
 }
 
-
 type RunDetailPaneProps = {
   runId: string
   task?: DeepImmutable<LocalWorkflowTaskState>
@@ -525,6 +531,7 @@ export function RunDetailPane({
   onOpenAgent,
 }: RunDetailPaneProps): React.ReactNode {
   const { columns, rows } = useTerminalSize()
+
   const accent = useSessionAccent().accent
   const tokens = useMercuryTokens()
   const pastBuffer = useOpenEventGate()
@@ -536,6 +543,7 @@ export function RunDetailPane({
   const status = isLive ? task.status : (manifest?.status ?? 'running')
   const startTime = isLive ? task.startTime : (manifest?.startTime ?? Date.now())
   const endTime = isLive ? task.endTime : manifest?.endTime
+
   const liveness =
     !isLive && manifest
       ? runLiveness(manifest, manifest.mtimeMs, Date.now(), pidAlive)
@@ -544,7 +552,9 @@ export function RunDetailPane({
   const wedged = liveness === 'wedged'
   const parkedElsewhere = !isLive && manifest !== undefined && parkedOwnerAlive(manifest, manifest.mtimeMs, Date.now())
   const isRunning = !orphaned && !wedged && (status === 'running' || status === 'pending' || parkedElsewhere)
+
   const now = useNowTick(isRunning ? 1000 : null)
+
   const clockNow = isRunning ? now : (endTime ?? manifest?.mtimeMs ?? startTime)
   const elapsed = useElapsedTime(startTime, isRunning, 1000, 0, isRunning ? endTime : clockNow)
 
@@ -590,11 +600,13 @@ export function RunDetailPane({
       agents.push(a)
     }
   }
+
   const laneSel = useStableSelection(agents, a => String(a.agentId ?? `i${a.index}`))
   const selClamped = laneSel.index
   const selected: WorkflowRunAgentSummary | undefined = agents[selClamped]
 
   const scriptPathRaw = isLive ? task.scriptPath : manifest?.scriptPath
+
   const scriptPath = React.useMemo(
     () => (scriptPathRaw && existsSync(scriptPathRaw) ? scriptPathRaw : undefined),
     [scriptPathRaw],
@@ -620,6 +632,7 @@ export function RunDetailPane({
   const metrics: string[] = []
   metrics.push(`${GLYPH.mission} ${settledCount(groups)}/${groups.length}`)
   metrics.push(`${agentCount} ${plural(agentCount, 'crewmate')}`)
+
   if (runUsage && (usageSpeaks(runUsage) || runUsage.agentsUnreported > 0)) {
     const unreported =
       runUsage.agentsUnreported > 0 ? ` · ${runUsage.agentsUnreported} ${plural(runUsage.agentsUnreported, 'crewmate')} unmeasured` : ''
@@ -666,6 +679,7 @@ export function RunDetailPane({
   }
 
   useInput((input, key) => {
+
     const action = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true })
     if (action === 'cancel' || action === 'leaveChild') {
       onBack()
@@ -686,6 +700,7 @@ export function RunDetailPane({
       onOpenAgent(selected.index)
       return
     }
+
     if (input === 's' || input === 'r' || input === 'x' || input === 'p' || input === 'X' || input === 'P') {
       if (!controllable) {
         setNote(controlRefusal(input, status, orphaned, wedged))
@@ -738,6 +753,7 @@ export function RunDetailPane({
   }
 
   const tall = rows >= 30
+
   const inBase = tall ? 2 : 1
   const outBase = tall ? 2 : 1
   const dossierH = selected ? Math.max(3 + inBase + outBase, 4) + 2 : 0
@@ -762,6 +778,7 @@ export function RunDetailPane({
   let clippedAbove = 0
   let clippedBelow = 0
   if (lanes.length > laneBudget) {
+
     const span = Math.max(1, laneBudget - 2)
     let start = Math.max(0, Math.min(selPos - (span >> 1), lanes.length - span))
     clippedAbove = start

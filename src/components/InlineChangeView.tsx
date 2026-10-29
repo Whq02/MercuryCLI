@@ -11,7 +11,6 @@ import { cardToneOf } from './mercury-ui/toolCardGrammar.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { ToolCardMarker, toolCardCountColor } from './mercury-ui/toolCardMeta.js';
 
-
 export interface InlineChangeViewData {
   state:
     | 'proposed'
@@ -36,9 +35,13 @@ export interface InlineChangeViewData {
   matchCount?: number;
   diagnostics?: { planned: number } | { clean: number; failed: number };
   refs: string[];
+
   noChangePaths?: string[];
+
   hunkCount?: number;
+
   planMeta?: { id: string; digest12: string; ageMs: number; expiresInMs?: number };
+
   nextAction?: string;
 }
 
@@ -85,6 +88,7 @@ export function InlineChangeView({
     0,
   );
   const countColor = toolCardCountColor();
+
   const { glyph, tone } = cardToneOf(t, STATE_TONE_KEY[data.state]);
   const diag = diagnosticsText(data.diagnostics);
   const noChangeCount = data.noChangePaths?.length ?? 0;

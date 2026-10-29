@@ -13,6 +13,7 @@ for (const d of [home, crewDir]) mkdirSync(d, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
+
 for (const key of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN']) {
   delete process.env[key]
 }
@@ -24,6 +25,7 @@ process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
+
 const anthropicId = 'claude-sonnet-5'
 const q = await import('../../src/services/providers/openai/qualificationStore.ts')
 const lane = await import('../../src/services/concourse/coordinatorLane.ts')
@@ -67,6 +69,7 @@ console.log('§1 the mode lift (typed both directions)')
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: anthropicId } }))
   const anthropicChoice = await lane.resolveEffectiveCoordinator()
   check('an anthropic choice LIFTS (engine credentials are engine-scoped)', anthropicChoice.resolution.effective === 'agent-assisted', anthropicChoice.resolution.fallbackReason)
+
   check(
     "…on this credential-less home the choice carries 'not signed in — /logins anthropic'",
     anthropicChoice.assistModelStatus === 'not signed in — /logins anthropic',
@@ -75,6 +78,7 @@ console.log('§1 the mode lift (typed both directions)')
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: 'gpt-5.6-terra' } }))
   const receiptless = await lane.resolveEffectiveCoordinator()
   check(
+
     'a receiptless engine choice lifts with NO status word',
     receiptless.resolution.effective === 'agent-assisted' && receiptless.assistModelId === 'gpt-5.6-terra' && receiptless.assistModelStatus === undefined,
     `${receiptless.resolution.effective}/${receiptless.assistModelStatus}`,
@@ -160,12 +164,14 @@ console.log('§4 equivalent-trigger dedupe (no second spend)')
 console.log('§5 no equivalent-failure repetition')
 {
   lane._resetCoordinatorLaneForTesting()
+
   const failing = {
     decisions: [{ verb: 'attention.supersede' as const, obligationId: 'obl-does-not-exist', reason: 'r' }],
   }
   const deps = { crewDir, callModel: async () => failing }
   const first = await lane.runAssistedTurn({ kind: 'operator-message', messageId: 'o-f1', text: 'run the failing batch' }, deps)
   check('the failing batch executed and its receipt shows the refusal', first.outcome === 'executed' && first.receipts[0]?.outcome === 'noop' || first.receipts[0]?.outcome === 'refused', JSON.stringify(first.receipts))
+
   const batchKey = lane.batchKeyOf(failing.decisions)
   check('the batch fingerprint is stable (the progressModel owner)', batchKey === lane.batchKeyOf([{ verb: 'attention.supersede', obligationId: 'obl-does-not-exist', reason: 'r' }]))
 }
@@ -183,6 +189,7 @@ console.log('§6 assisted receipts ride the SAME owner path')
       }),
     },
   )
+
   const kernel = await import('../../src/services/concourse/coordinatorKernel.ts')
   const opReceipt = await kernel.executeKernelDecision(
     { verb: 'attention.raise', ref, sessionId: 's-p', question: 'q', owner: 'operator' },
@@ -211,7 +218,6 @@ console.log('§7 runCoordinatorTurn under rules-only (zero model)')
   check('ZERO model calls (zero-call)', calls === 0, String(calls))
   check('the kernel receipt landed (R1 raise)', receipt.receipts.some(r => r.verb === 'attention.raise'))
 }
-
 
 console.log('§9 the activity-feed receipts')
 {
@@ -281,6 +287,7 @@ console.log('§10 assisted receipts + visible refusals on the feed')
 
 console.log('§11 contract v2 — signal.emit gone from the model vocabulary; raise fields capped + owner-pinned')
 {
+
   check('the contract lineage is at least v9 (the seat floor line, then the conversation grammar)', lane.COORDINATOR_CONTRACT_VERSION >= 9)
   check(
     'the v6 contract IS the switchboard persona (one home)',
@@ -301,9 +308,13 @@ console.log('§11 contract v2 — signal.emit gone from the model vocabulary; ra
       crewDir,
       callModel: async () => ({
         decisions: [
+
           { verb: 'signal.emit', obligationId: 'o-v2', revision: 1, title: 'needs you', body: 'q' } as never,
+
           { verb: 'attention.raise', ref: 'v2:bad-owner', sessionId: 's-v2', question: 'q?', owner: 'the-model-itself' } as never,
+
           { verb: 'attention.raise', ref: 'v2:oversize', sessionId: 's-v2', question: 'q'.repeat(501), owner: 'operator' } as never,
+
           { verb: 'attention.raise', ref: 'v2:lawful', sessionId: 's-v2', question: 'which order?', owner: 'operator' },
         ],
       }),
@@ -403,6 +414,7 @@ console.log('§15 kernel-resolves-config: a mode-less caller honors the per-user
     { crewDir },
   )
   check("config 'rules-only' with NO mode passed ⇒ R1 runs", onReceipts.some(r => r.verb === 'attention.raise' && r.outcome === 'applied'), JSON.stringify(onReceipts))
+
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: anthropicId } }))
 }
 
@@ -413,6 +425,7 @@ console.log('§16 session verbs: validated shapes + the one executor path (parit
   check('session.redirect shape admits', lane.validateProposal({ verb: 'session.redirect', sessionId: 's-1', clientMessageId: 'm-1', instruction: 'focus the tests', by: 'coordinator' }))
   check('an oversize instruction refuses', !lane.validateProposal({ verb: 'session.redirect', sessionId: 's-1', clientMessageId: 'm-1', instruction: 'x'.repeat(4001), by: 'c' }))
   check('a stray field-less pause refuses', !lane.validateProposal({ verb: 'session.pause', sessionId: 's-1' }))
+
   lane._resetCoordinatorLaneForTesting()
   const receipt = await lane.runAssistedTurn(
     { kind: 'operator-message', messageId: 'o-verbs', text: 'drive this turn' },
@@ -455,6 +468,7 @@ console.log('§17 mid-flight switch continuity + actor attribution')
       },
     },
   )
+
   while (aModelId === '') await new Promise(r => setTimeout(r, 10))
   const switchReceipt = await models.switchCoordinatorAssistModel(secondId!)
   check('the switch APPLIED while a turn was in flight', switchReceipt.outcome === 'applied', switchReceipt.outcome)
@@ -481,6 +495,7 @@ console.log('§17 mid-flight switch continuity + actor attribution')
   const rows = activity.activityRows(activity.cachedActivityFeed())
   const switchRow = rows.find(r => r.verb === 'switched coordinator model')
   check('the switch rowed on the feed as an OPERATOR gesture (never the coordinator seat — §F-2)', switchRow !== undefined && switchRow.agentId !== seatBefore && switchRow.agentId.length > 0, switchRow?.agentId)
+
   await models.switchCoordinatorAssistModel(anthropicId)
 }
 
@@ -566,6 +581,7 @@ console.log('§18 the behavior fixtures (§9.3 table)')
         writeFileSync(qPath, JSON.stringify(raw))
         saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: 'gpt-5.6-sol' } }))
         const eff = await lane.resolveEffectiveCoordinator()
+
         q.recordLiveQualification({ modelId: 'gpt-5.6-sol', role: 'coordinator', sourceKind: 'subscription' as never })
         saveGlobalConfig(c => ({ ...c, concourseCoordinator: { mode: 'agent-assisted' as const, assistModel: anthropicId } }))
         return {
@@ -650,6 +666,7 @@ console.log('§18 the behavior fixtures (§9.3 table)')
     {
       name: 'changed strategy — novelty admits (a genuinely different batch executes)',
       run: async () => {
+
         const changed = await oneTurn('fx-fail-3', [raiseOf('fx:fail-changed', 's-fx', 'changed approach?')])
         const rows = (await openObligations({ dir: crewDir, scope: 'switchboard' })).some(o => o.ref === 'fx:fail-changed')
         return { ok: changed.outcome === 'executed' && changed.receipts[0]?.outcome === 'applied' && rows, detail: changed.outcome }

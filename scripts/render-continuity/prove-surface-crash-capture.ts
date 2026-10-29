@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,6 +34,7 @@ const linesOf = (g: { grid: { c: string }[][] }): string[] => g.grid.map(r => r.
 
 const out = join(OUT_DIR, 'surface-crash-120x40.json')
 const cfgPath = join(scratch, 'capture-cfg.json')
+
 const CTRL_C = String.fromCharCode(3)
 writeFileSync(
   cfgPath,
@@ -44,7 +46,9 @@ writeFileSync(
     out,
     total: 34,
     sends: [
+
       { atTick: 999, awaitText: 'could not be painted', minTick: 4, awaitSettleTicks: 2, data: CTRL_C, mark: 'card' },
+
       { afterPrevTicks: 4, data: CTRL_C, mark: 'armed' },
     ],
   }),
@@ -56,6 +60,7 @@ const env: Record<string, string> = {
   MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
   MERCURY_FAULT_INJECT_SURFACE: 'boot-settings',
   MERCURY_AWAY_SUMMARY: '0',
+
   MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
   MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
   MERCURY_LIVE_GLYPHS: '0',

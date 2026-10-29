@@ -28,7 +28,6 @@ import {
   renderToolUseRejectedMessage,
 } from './UI.js'
 
-
 const EDIT_MODES = ['replace', 'insert', 'delete'] as const
 type EditMode = (typeof EDIT_MODES)[number]
 
@@ -160,6 +159,7 @@ export const NotebookEditTool = buildTool({
   async prompt() {
     return PROMPT
   },
+
   getPath: notebookPathOf,
   getToolUseSummary,
   getActivityDescription(input?: Partial<Input>): string {
@@ -168,6 +168,7 @@ export const NotebookEditTool = buildTool({
       : 'editing notebook'
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
+
     return checkWritePermissionForTool(
       { name: NOTEBOOK_EDIT_TOOL_NAME, getPath: notebookPathOf },
       input,
@@ -315,6 +316,7 @@ export const NotebookEditTool = buildTool({
           outputs?: unknown[]
         }
         target.source = sourceInCellShape(new_source, target.source)
+
         if (target.cell_type === 'code') {
           target.execution_count = null
           target.outputs = []
@@ -344,6 +346,7 @@ export const NotebookEditTool = buildTool({
       const payload: Output = {
         new_source,
         cell_id: newCellId || undefined,
+
         cell_type: cell_type ?? 'code',
         language,
         edit_mode: mode,

@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'loop-cadence-'))
+
 process.env.MERCURY_LOOP_DYNAMIC = '0'
 delete process.env.MERCURY_LOOP_PROMPT
 

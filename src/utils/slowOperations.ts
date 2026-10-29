@@ -1,4 +1,3 @@
-
 function resolveThreshold(): number {
   if (process.env.NODE_ENV === 'development') return 20
   return Number.POSITIVE_INFINITY

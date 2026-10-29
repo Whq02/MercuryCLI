@@ -1,4 +1,3 @@
-
 import { getPlatform } from '../utils/platform.js'
 
 export type ReservedShortcut = {
@@ -20,6 +19,7 @@ export const TERMINAL_RESERVED: ReservedShortcut[] = [
 
 export const WINDOWS_RESERVED: ReservedShortcut[] = [
   { key: 'ctrl+z', reason: 'Windows shells read ctrl+z as end-of-input; not a suspend', severity: 'warning' },
+
   { key: 'ctrl+v', reason: 'Windows console paste (the host delivers the clipboard, not the chord)', severity: 'warning' },
   { key: 'ctrl+shift+c', reason: 'Windows Terminal copy (arrives as plain ctrl+c)', severity: 'warning' },
   { key: 'ctrl+shift+v', reason: 'Windows Terminal paste', severity: 'warning' },
@@ -38,6 +38,7 @@ export const WINDOWS_RESERVED: ReservedShortcut[] = [
 
 export function reservedShortcutsFor(platform: ReturnType<typeof getPlatform>): ReservedShortcut[] {
   if (platform === 'windows') {
+
     const posixSignalRows = new Set(['ctrl+z', 'ctrl+\\'])
     return [...NON_REBINDABLE, ...TERMINAL_RESERVED.filter(s => !posixSignalRows.has(s.key)), ...WINDOWS_RESERVED]
   }

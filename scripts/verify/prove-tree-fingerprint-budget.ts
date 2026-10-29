@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,6 +12,7 @@ if (process.platform === 'win32') {
 }
 
 const REPO_ROOT = join(import.meta.dir, '..', '..')
+
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'tree-budget-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME)
@@ -19,6 +21,7 @@ delete process.env.MERCURY_TREE_SCAN_CEILING
 delete process.env.MERCURY_TREE_SCAN_TIMEOUT_MS
 delete process.env.GIT_SHIM_SLEEP_MS
 delete process.env.GIT_SHIM_SLEEP_FOR
+
 process.env.GIT_CONFIG_GLOBAL = join(SCRATCH, 'gitconfig')
 writeFileSync(process.env.GIT_CONFIG_GLOBAL, '')
 process.env.GIT_CONFIG_SYSTEM = '/dev/null'
@@ -34,6 +37,7 @@ writeFileSync(
   [
     '#!/bin/bash',
     'sub=""; i=1; while [ $i -le $# ]; do w="${!i}"; case "$w" in -c|-C|--exec-path|--git-dir|--work-tree|--namespace|--config-env) i=$((i+2)); continue;; -*) i=$((i+1)); continue;; esac; sub="$w"; break; done',
+
     'if [ -n "$GIT_SHIM_SLEEP_MS" ] && { [ -z "$GIT_SHIM_SLEEP_FOR" ] || [ "$sub" = "$GIT_SHIM_SLEEP_FOR" ]; }; then sleep "$(awk "BEGIN{print $GIT_SHIM_SLEEP_MS/1000}")"; fi',
     `printf '%s\\t%s\\n' "$PWD" "$*" >> "${LOG}"`,
     `exec "${REAL_GIT}" "$@"`,
@@ -161,6 +165,7 @@ section('§3 exclude before the cost — harness churn never moves the digest, n
   check('…the add ran the exclude road (no reset)', r.some(x => x.argv === EXCLUDE_ADD) && !r.some(x => x.argv.startsWith('reset ')), r.map(x => x.argv).join(' | '))
   const blob = git(repo, 'hash-object', churn).trim()
   check('…and the file was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', blob]).status !== 0)
+
   writeFileSync(join(repo, '.gitignore'), '.mercury/\n')
   git(repo, 'add', '-A')
   git(repo, 'commit', '-qm', 'ignore the harness dir')
@@ -172,6 +177,7 @@ section('§3 exclude before the cost — harness churn never moves the digest, n
   const d2 = await vs.computeWorkingTreeDigestAsync(repo)
   r = since(n0)
   check('the ignored-and-present harness dir (the exclude-pathspec trap) still rides the exclude road', d2 === base2 && r.some(x => x.argv === EXCLUDE_ADD) && !r.some(x => x.argv.startsWith('reset ')), r.map(x => x.argv).join(' | '))
+
   mkdirSync(join(repo, '.mercury'), { recursive: true })
   const settings = join(repo, '.mercury', 'settings.json')
   writeFileSync(settings, '{}\n')
@@ -258,6 +264,7 @@ section('§5 bounded to the launch folder — a nested launch never looks above 
   vs.markMutation(undefined, [inside], nested)
   const nd3 = await vs.computeWorkingTreeDigestAsync(nested)
   check('…while a file inside does', nd3 !== null && nd3 !== nd)
+
   const nestedHarness = join(nested, '.mercury')
   mkdirSync(nestedHarness, { recursive: true })
   const nestedChurn = join(nestedHarness, 'churn.bin')
@@ -321,6 +328,7 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   const sA = vs.computeWorkingTreeDigest(A, { fresh: true })
   const aB = await vs.computeWorkingTreeDigestAsync(B, { fresh: true })
   check('sync ≡ async over identical trees', sA !== null && sA === aB, `${sA} vs ${aB}`)
+
   const idx = mkdtempSync(join(tmpdir(), 'cert-expect-'))
   const env = { ...process.env, PATH: process.env.PATH?.replace(`${SHIM_DIR}:`, ''), GIT_INDEX_FILE: join(idx, 'index') }
   const run = (args: string[]): string => execFileSync(REAL_GIT, args, { cwd: A, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })

@@ -54,9 +54,11 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
   if (!rec) return { ok: false, reason: 'no live session record owns this id' }
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
+
   const { sessionTitleOf } = await import('../concourse/sessionNaming.js')
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
   const title = sessionTitleOf(rec, () => headBriefLabel(rec, 48))
+
   seat.registerLiveTitleDeriver(liveTitleDeriverFor(workers, sessionTitleOf, headBriefLabel))
   if (!hasFocusedSession()) {
     armLandingWords({ model: rec.modelKey ?? null, effort: rec.effort ?? null, permissionMode: (rec.permissionMode as PermissionMode | undefined) ?? null })
@@ -75,9 +77,11 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     ...(rec.worktreePath !== undefined ? { worktreePath: rec.worktreePath } : {}),
   })
+
   void hop.catch(() => settleLandingWords())
   await Promise.race([hop, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
   void withLanding(hop.then(() => undefined)).catch(() => {})
+
   void import('./ensureDaemon.js')
     .then(m => m.ensureOwnedDaemon())
     .catch(() => {})
@@ -85,7 +89,9 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
 }
 
 type ResumeOutcome = HopOutcome & {
+
   admitted: Promise<boolean>
+
   refusal: Promise<string | null>
 }
 
@@ -101,6 +107,7 @@ function composeHeldLine(title: string): string {
 async function workspaceOfTranscript(transcriptPath: string | undefined): Promise<string> {
   if (transcriptPath !== undefined) {
     try {
+
       const { open } = await import('node:fs/promises')
       const fh = await open(transcriptPath, 'r')
       let head: string
@@ -147,14 +154,17 @@ async function focusResumedSessionLanding(
     if (hop.ok && launchGiven) void applyLaunchWordOnHop(sessionId, launch)
     return { ...hop, admitted: Promise.resolve(hop.ok), refusal: Promise.resolve(hop.ok ? null : hop.reason) }
   }
+
   const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
   const workspaceDir = standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))
   const paths = await import('../../utils/sessionStorage/paths.js')
   const seat = await import('../engine-connector/daemonConnector.js')
+
   const { headBriefLabel } = await import('../concourse/concourseSnapshot.js')
   const title = opts?.title ?? standing?.title ?? headBriefLabel({ sessionId, workspaceId: workspaceDir }, 48) ?? sessionId.slice(0, 8)
   const connector = seat.daemonSessionConnectorFor({
     sessionId,
+
     runnerId: standing?.runnerId ?? '',
     title,
     projectLabel: basename(workspaceDir) || workspaceDir,
@@ -184,14 +194,17 @@ async function focusResumedSessionLanding(
     : {}
   let settleLaunchWon: (won: LaunchWonV1 | null) => void = () => {}
   const launchWon: Promise<LaunchWonV1 | null> = launchGiven ? new Promise(resolve => { settleLaunchWon = resolve }) : Promise.resolve(null)
+
   const refusal = (async (): Promise<string | null> => {
     let won: LaunchWonV1 | null = null
     try {
       const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
       if (!(await ensureOwnedDaemon())) return 'the daemon did not start'
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+
       const worn = peekWornPresetKit()
       const reply = (await daemonControlRpc(
+
         { op: 'sessionAdmit', workspaceDir, resumeSessionId: sessionId, isolation: 'shared', by: 'operator', ...launch, ...((): Record<string, string> => { const mode = opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined; return mode !== undefined ? { permissionMode: mode } : {} })(), ...carriedConsentOf(bootBirthFacts()), ...(worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())), ...(opts?.restartReason !== undefined ? { restartReason: opts.restartReason } : {}) } as never,
         { timeoutMs: 60_000 },
       )) as Record<string, unknown>
@@ -200,9 +213,12 @@ async function focusResumedSessionLanding(
         ...(typeof reply.modelId === 'string' ? { model: reply.modelId } : {}),
         ...(typeof reply.effort === 'string' ? { effort: reply.effort } : {}),
       })
+
       if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
       if (reply.liveHop === true) mintImmediateReceipt(composeHeldLine(title))
+
       if (worn !== null && reply.liveHop !== true) takeWornPresetKit()
+
       const settled = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
       if (settled === undefined) return 'no live session record owns this id'
       seat.daemonSessionConnectorFor({
@@ -218,6 +234,7 @@ async function focusResumedSessionLanding(
         ...(settled.effort !== undefined ? { effort: settled.effort } : {}),
         ...(settled.worktreePath !== undefined ? { worktreePath: settled.worktreePath } : {}),
       })
+
       connector.assertSeat()
       return null
     } catch (error) {
@@ -228,8 +245,10 @@ async function focusResumedSessionLanding(
   })()
   connector.awaitAdmission(refusal)
   const admitted = refusal.then(r => r === null)
+
   const pointed = seat.focusDaemonSession(connector.record)
   await Promise.race([pointed, new Promise<void>(r => setTimeout(r, opts?.firstPaintMs ?? 250))])
+
   void withLanding(pointed.then(() => undefined)).catch(() => {})
   void paintResumeRecap(sessionId, launchWon)
   void paintReactivationScheduleWarn(sessionId)
@@ -280,6 +299,7 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
   const workspaceDir = focused.workspace().cwd
   const model = focused.modelFacts().effective
   const oldSessionId = focused.sessionId()
+
   const { bornSession } = await import('./bornSession.js')
   const born = await bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })
   if (!born.ok) {
@@ -289,6 +309,7 @@ export async function clearFocusedSession(): Promise<{ ok: true; cleared: boolea
     if (again === undefined || !again.ok) return { ok: false, reason: `a fresh session could not start, so this one stands — ${born.reason}` }
   }
   await parkSessionById(oldSessionId)
+
   const { markSessionCleared } = await import('../../utils/sessionStorage/clearedSessions.js')
   markSessionCleared(oldSessionId)
   return { ok: true, cleared: true }
@@ -314,6 +335,7 @@ async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {
     const { saturnNextFireMs } = await import('../../daemon/saturn.js')
     const { readLiveAccountFacts, scheduleAccountVerdict } = await import('../../daemon/saturnAccount.js')
     const now = Date.now()
+
     const rank = { 'signed-out': 4, unreachable: 4, expired: 3, 'rate-limited': 2, expiring: 1, ready: 0 } as const
     let worst: import('../../daemon/saturn.js').ScheduleAccountVerdictV1 | null = null
     for (const s of schedules) {
@@ -356,6 +378,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
     if (connector === undefined) return
+
     const t0 = Date.now()
     while (Date.now() - t0 < 3000 && connector.records().length === 0) {
       await new Promise(r => setTimeout(r, 100))
@@ -373,6 +396,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
     }
     const recap = buildAwayRecap(records, Date.now(), gitDelta)
     if (!recap) return
+
     const { readBranchHeadSync } = await import('../../utils/cockpit/branchHeadSync.js')
     const { healthCertSnapshot } = await import('../../utils/cockpit/healthCertSnapshot.js')
     const branch = readBranchHeadSync(connector.workspace().cwd)

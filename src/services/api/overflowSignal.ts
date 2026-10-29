@@ -6,6 +6,7 @@ import { providerDisplayName } from '../providers/routeLaw.js'
 export type OverflowFamily = CallModelRoute | 'unknown'
 
 type OverflowShape =
+
   | 'prompt-too-long'
   | 'request-too-large'
   | 'context-length-exceeded'
@@ -17,11 +18,15 @@ type OverflowShape =
   | 'blocking-limit'
 
 export type OverflowSignal = {
+
   source: 'provider' | 'estimate'
   family: OverflowFamily
   shape: OverflowShape
+
   actualTokens?: number
+
   limitTokens?: number
+
   detail?: string
   measuredTokens?: number
   measuredWindow?: number
@@ -86,6 +91,7 @@ function matchOverflowSentence(message: string): ShapeMatch | null {
     const actual = /passed (\d[\d,]*) input tokens/i.exec(message)
     return { shape: 'context-length-exceeded', limitTokens: num(inputBudget[2]), actualTokens: num(actual?.[1]) }
   }
+
   if (/exceeds? the context window/i.test(message)) return { shape: 'context-length-exceeded' }
   if (/context[ _]length[ _]exceeded/i.test(message)) return { shape: 'context-length-exceeded' }
 

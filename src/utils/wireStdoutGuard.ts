@@ -1,7 +1,6 @@
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 
-
 const STDOUT_GUARD_MARKER = '[stdout-guard]'
 
 let installed = false
@@ -37,6 +36,7 @@ export function installWireStdoutGuard(): void {
     while (newlineIndex !== -1) {
       const line = lineBuffer.slice(0, newlineIndex)
       lineBuffer = lineBuffer.slice(newlineIndex + 1)
+
       if (line === '' || isParseableJson(line)) {
         forwarded.push(line)
       } else {
@@ -51,6 +51,7 @@ export function installWireStdoutGuard(): void {
       const last = index === forwarded.length - 1
       lastForwardReturn = last && callback ? realWrite(`${line}\n`, callback) : realWrite(`${line}\n`)
     }
+
     if (callback && forwarded.length === 0) {
       queueMicrotask(() => callback())
     }

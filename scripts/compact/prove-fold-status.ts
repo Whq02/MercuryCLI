@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chdir } from 'node:process'
 import { join } from 'node:path'
 
@@ -210,6 +211,7 @@ console.log('\nS7 withFoldStatus owns the stamps')
   check('the streamed tokens reach the record', fillTokens[fillTokens.length - 1] === 1000, fillTokens.join(','))
 
   const cancelled = await drive('manual', async () => {
+
     throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
   })
   const cancelLast = compacting(cancelled.stamps[cancelled.stamps.length - 1])
@@ -228,7 +230,6 @@ console.log('\nS7 withFoldStatus owns the stamps')
   check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
 }
 
-
 {
   const { readdirSync, readFileSync, statSync } = await import('node:fs')
   const { join } = await import('node:path')
@@ -243,6 +244,7 @@ console.log('\nS7 withFoldStatus owns the stamps')
   const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
   const { FOLD_EXIT_WORDS } = await import('../../src/services/compact/foldStatus.ts')
   check("the user's esc line carries the fold row's own exit word", ERROR_MESSAGE_USER_ABORT.includes(FOLD_EXIT_WORDS.cancelled))
+
   const identityReads = files.filter(f => /err\.message === ERROR_MESSAGE_USER_ABORT/.test(readFileSync(f, 'utf8')))
   check('no reader under the two compaction roots classifies the abort by its message text', identityReads.length === 0, identityReads.map(f => f.slice(ROOT.length + 1)).join(', '))
 }

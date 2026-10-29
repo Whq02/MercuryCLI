@@ -15,7 +15,6 @@ import {
 } from '../../../utils/sessionStorage.js'
 import { useNowTick } from '../components.js'
 
-
 export type SessionScope = 'project' | 'all'
 
 type SessionPickerRow = {
@@ -23,6 +22,7 @@ type SessionPickerRow = {
   label: string
   seen: string
   log: SessionListing
+
   cleared?: boolean
 }
 export type SessionPickerFlatRow = { project: string; head: boolean; row: SessionPickerRow }
@@ -33,6 +33,7 @@ export function rowLabel(log: SessionListing): string {
 
 export function rowProject(log: SessionListing): string {
   const p = log.projectPath || currentProject().dir
+
   return p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 }
 
@@ -44,10 +45,15 @@ export function resumableNewestFirst(all: SessionListing[], currentSessionId: st
 
 export interface SessionPickerFacts {
   scope: SessionScope
+
   projectDir: string
+
   boardHomed: ReadonlySet<string>
+
   isCleared: (sessionId: string | undefined) => boolean
+
   nowMs?: number
+
   filterDir?: string
 }
 
@@ -66,6 +72,7 @@ export function projectSessionPickerRows(
           facts.projectDir,
         )
       : { inProject: operatorLogs, elsewhere: [] as SessionListing[] }
+
   const viewed =
     facts.filterDir !== undefined
       ? partitionByProject(scoped.inProject, facts.filterDir).inProject
@@ -90,8 +97,10 @@ const ENRICH_BATCH = 50
 function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   logs: SessionListing[] | null
   pendingMore: number
+
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
+
   const enabled = opts.enabled !== false
   const [logs, setLogs] = useState<SessionListing[] | null>(null)
   const [pendingMore, setPendingMore] = useState(0)
@@ -144,7 +153,9 @@ export function useSessionPickerModel(
   dropSessions: (sessionIds: ReadonlySet<string>) => void
 } {
   const { logs, pendingMore, dropSessions } = useResumableSessionLogs(opts)
+
   const projectKey = useSyncExternalStore(subscribeCurrentProject, () => currentProject().key, () => currentProject().key)
+
   const nowTick = useNowTick(30_000)
   const { flat, elsewhereCount } = useMemo(
     () =>
@@ -157,6 +168,7 @@ export function useSessionPickerModel(
             isCleared: id => isSessionCleared(id),
             ...(opts.filterDir !== undefined ? { filterDir: opts.filterDir } : {}),
           }),
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [logs, nowTick, scope, projectKey, opts.filterDir],
   )

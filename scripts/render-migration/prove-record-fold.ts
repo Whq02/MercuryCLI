@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { RecordFold } from '../../src/render-engine/cockpit/recordFold.ts'
 
 let failures = 0
@@ -28,6 +29,7 @@ console.log('record-fold laws')
   fold.beginRun()
   fold.ingestSettlement('t1.c1', 'uuid-attempt1-b0')
   fold.ingestSettlement('t1.c1', 'uuid-attempt1-b1')
+
   const r0 = fold.ingestSettlement('t1.c2', 'uuid-attempt2-b0')
   const r1 = fold.ingestSettlement('t1.c2', 'uuid-attempt2-b1')
   check('F1 the re-mint refolds onto attempt 1, position for position', r0.outcome === 'refolded' && r0.uuid === 'uuid-attempt1-b0' && r1.outcome === 'refolded' && r1.uuid === 'uuid-attempt1-b1')

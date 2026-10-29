@@ -12,8 +12,8 @@ import { getSourceCacheDir, getSourcesDir } from './paths.js'
 import { installedOrEmpty, logAct, readSources, sourcesOrEmpty, updateSources, type SourceRecord } from './records.js'
 
 export const SOURCE_FETCH_TIMEOUT_MS = 120_000
-export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
 
+export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
 
 export type SourceInput =
   | { kind: 'git'; url: string; ref: string | null }
@@ -37,11 +37,13 @@ export function expandHome(path: string): string {
 export function classifySourceInput(raw: string): SourceInput {
   const text = raw.trim()
   if (text === '') return { kind: 'refused', reason: 'nothing typed — a git URL, a folder or an archive' }
+
   const format = archiveFormat(text)
   if (format && (/^https?:\/\//i.test(text) || /^(\.{1,2}[\\/]|\/|~|[A-Za-z]:\\)/.test(text))) {
     const remote = /^https?:\/\//i.test(text)
     return { kind: 'archive', where: remote ? text : resolve(expandHome(text)), remote, format }
   }
+
   let url = text
   let ref: string | null = null
   const hash = text.lastIndexOf('#')
@@ -52,9 +54,11 @@ export function classifySourceInput(raw: string): SourceInput {
   if (/^(https?|ssh|git|file):\/\//i.test(url) || /^[^@\s/]+@[^:\s]+:.+/.test(url)) {
     return { kind: 'git', url, ref }
   }
+
   if (/^(\.{1,2}([\\/]|$)|\/|~|[A-Za-z]:\\)/.test(text)) {
     return { kind: 'folder', path: resolve(expandHome(text)) }
   }
+
   if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(text)) {
     return { kind: 'refused', reason: `"${text}" names no host — type the full URL (https://host/${text}.git)` }
   }
@@ -64,7 +68,6 @@ export function classifySourceInput(raw: string): SourceInput {
 export function scrubCredentials(text: string): string {
   return text.replace(/(\w+:\/\/)[^@\s/]+@/g, '$1')
 }
-
 
 export type SourceState = 'ok' | 'stale' | 'unreachable' | 'unchecked'
 
@@ -95,7 +98,6 @@ export function readSourceCatalogue(label: string, record: SourceRecord): { ok: 
   if (read.status === 'invalid') return { ok: false, error: `catalogue invalid: ${read.errors[0] ?? 'unknown'}` }
   return { ok: false, error: read.reason }
 }
-
 
 type Materialised = { ok: true; root: string; commit: string | null } | { ok: false; step: string; reason: string }
 
@@ -209,6 +211,7 @@ async function extractArchive(where: string, remote: boolean, format: 'zip' | 't
     rmSync(into, { recursive: true, force: true })
     return { ok: false, step: 'extract', reason: `could not extract ${scrubCredentials(where)}: ${error instanceof Error ? error.message : String(error)}` }
   }
+
   const root = descendOnce(into)
   return { ok: true, root, commit: null }
 }
@@ -252,13 +255,13 @@ async function materialise(input: Exclude<SourceInput, { kind: 'refused' }>, int
   return { ok: true, root: input.path, commit: null }
 }
 
-
 export type AddOutcome =
   | { ok: true; label: string; record: SourceRecord; catalogue: Catalogue; warnings: string[] }
   | { ok: false; step: string; reason: string }
 
 export type AddOptions = {
   label?: string
+
   onCollision?: 'refuse' | 'suffix'
   progress?: (line: string) => void
 }
@@ -358,7 +361,6 @@ export async function addSource(raw: string, options: AddOptions = {}): Promise<
   return { ok: true, label, record, catalogue: read.catalogue, warnings: read.warnings }
 }
 
-
 export type RefreshOutcome =
   | { ok: true; label: string; record: SourceRecord; catalogue: Catalogue; updates: Array<{ id: string; from: string; to: string }>; delisted: string[] }
   | { ok: false; label: string; reason: string }
@@ -410,6 +412,7 @@ export async function refreshSource(label: string, options: { progress?: (line: 
     const fresh = readSourceRoot(made.root)
     if (fresh.status === 'none' || fresh.status === 'invalid') {
       rmSync(staging, { recursive: true, force: true })
+
       return fail(fresh.status === 'none' ? fresh.reason : `catalogue invalid: ${fresh.errors[0] ?? 'unknown'}`)
     }
     const cache = getSourceCacheDir(label)
@@ -431,7 +434,6 @@ export async function refreshSource(label: string, options: { progress?: (line: 
   logAct(`source checked: ${label} (${updates.length} update${updates.length === 1 ? '' : 's'})`)
   return { ok: true, label, record: next, catalogue: read.catalogue, updates, delisted }
 }
-
 
 export function removeSource(label: string): { ok: true; installedFromIt: string[] } | { ok: false; reason: string } {
   const sources = sourcesOrEmpty()
@@ -456,7 +458,6 @@ export function installedFromSource(label: string): string[] {
     .filter(([, r]) => r.label === label)
     .map(([id]) => id)
 }
-
 
 export type SourceRow = {
   label: string

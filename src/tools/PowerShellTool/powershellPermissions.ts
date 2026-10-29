@@ -43,7 +43,6 @@ import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionRe
 
 const TOOL_NAME = 'PowerShell'
 
-
 function ruleMatches(rule: ShellPermissionRule, candidate: string, mode: 'exact' | 'prefix'): boolean {
   const c = candidate.toLowerCase()
   switch (rule.type) {
@@ -129,7 +128,6 @@ export function powershellToolCheckPermission(input: { command: string }, toolPe
   if (allow) return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(toolPermissionContext, allow, 'allow') }
   return { behavior: 'passthrough', message: `${command} requires approval.`, suggestions: exactSuggestions(command) }
 }
-
 
 const GIT_WRITER = new Set(['new-item', 'set-content', 'add-content', 'out-file', 'copy-item', 'move-item', 'rename-item', 'expand-archive', 'invoke-webrequest', 'invoke-restmethod', 'tee-object', 'export-csv', 'export-clixml'])
 const ARCHIVE_EXTRACTORS = new Set(['tar', 'bsdtar', 'unzip', '7z', '7za', 'gzip', 'gunzip', 'tar.exe', 'bsdtar.exe', 'unzip.exe', '7z.exe', '7za.exe', 'gzip.exe', 'gunzip.exe', 'expand-archive'])
@@ -221,23 +219,34 @@ async function decidePowerShellPermission(
   if (battery.behavior === 'ask') {
     push({ behavior: 'ask', message: battery.message ?? 'The command carries security-relevant patterns and needs approval.', suggestions: exactSuggestions(command) })
   }
+
   if (parsed.hasUsingStatements) push({ behavior: 'ask', message: 'A `using` statement may load external code (a module or an assembly).' })
   if (parsed.hasScriptRequirements) push({ behavior: 'ask', message: 'A `#Requires` directive may trigger module loading.' })
+
   push(providerUncScan(parsed, !!matchRules(command, toolPermissionContext, 'allow', 'exact')))
+
   for (const command_ of subcommands) push(subcommandRuleVerdict(command_, toolPermissionContext))
+
   if (totalCommands > 1 && hasCd && hasGit) push({ behavior: 'ask', message: 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.' })
+
   if (hasGit) {
     if (isCurrentDirectoryBareGitRepo(cwd)) push({ behavior: 'ask', message: 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.' })
     if (gitInternalWrite(parsed, subcommands)) push({ behavior: 'ask', message: 'The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.' })
     if (subcommands.some(c => ARCHIVE_EXTRACTORS.has(c.name.toLowerCase())) ) push({ behavior: 'ask', message: 'The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.' })
   }
+
   if (dotGitWrite(parsed, subcommands)) push({ behavior: 'ask', message: 'The command targets .git/; anything planted there runs at the next git operation.' })
+
   push(checkPathConstraints({ command }, parsed, toolPermissionContext, hasCd, cwd))
+
   if (exact.behavior === 'allow' && subcommands.length > 0 && subcommands.every(c => c.nameType !== 'application') && !subcommands.some(c => argLeaksValue(command, c))) {
     push(exact)
   }
+
   if (isReadOnlyCommand(command, parsed)) push({ behavior: 'allow', updatedInput: input, decisionReason: other('The whole command is read-only.') })
+
   if (pinnedCommandAnalysis.getFileRedirections(parsed).length > 0) push({ behavior: 'ask', message: 'The command has file redirections that could write to arbitrary paths.', suggestions: exactSuggestions(command) })
+
   push(checkPermissionMode({ command }, parsed, toolPermissionContext))
 
   const reduced = reduce(collected)
@@ -352,6 +361,7 @@ function perSubcommandApproval(
         continue
       }
       if (rule.behavior === 'allow') { approvalList.push(element.text); statementPushed.add(statement); continue }
+
       if (!hasCd && !hasSymlinkCreate && isProvablySafeStatement(statement) && isAllowlistedCommand(element, command)) continue
       approvalList.push(element.text)
       statementPushed.add(statement)

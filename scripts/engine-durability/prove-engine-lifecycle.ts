@@ -57,6 +57,7 @@ t.section('§2 — an unsubscribed vitals engine holds nothing')
 {
   const unsub = vitals.subscribeVitals(() => {})
   const live = vitals._statsForProofs()
+
   t.check(
     'subscribed: heartbeat, source subscriptions and coalescer armed',
     live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 4 && live.coalescer,
@@ -78,6 +79,7 @@ t.section('§2 — an unsubscribed vitals engine holds nothing')
 
 t.section('§3 — repeated start/stop cycles do not accumulate')
 {
+
   for (let i = 0; i < 10; i++) {
     const w = projection.subscribeWorkbench(() => {})
     const c = vitals.subscribeVitals(() => {})
@@ -100,6 +102,7 @@ t.section('§3 — repeated start/stop cycles do not accumulate')
 
 t.section('§4 — last-known-good is bounded by the source count, not by time')
 {
+
   projection._resetWorkbenchForTesting()
   const unsub = projection.subscribeWorkbench(() => {})
   await waitUntil(() => (projection.getWorkbenchSnapshot()?.version ?? 0) > 0)

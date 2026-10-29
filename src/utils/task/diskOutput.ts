@@ -8,7 +8,6 @@ import { getPlatform } from '../platform.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 import { getSessionId } from '../../bootstrap/state.js'
 
-
 export const TASK_OUTPUT_RETRY_DELAY_MS = 50
 
 export const MAX_TASK_OUTPUT_BYTES = 5 * 1024 * 1024 * 1024
@@ -66,6 +65,7 @@ async function createTaskOutputFile(taskId: string): Promise<string> {
   try {
     handle = await fs.promises.open(path, exclusiveCreateFlags())
   } catch (error) {
+
     if (getErrnoCode(error) === 'EEXIST') {
       logError(new Error(`task id collision: an output file already exists at ${path}`))
     }
@@ -137,12 +137,14 @@ async function createTaskOutputSymlink(taskId: string, targetPath: string): Prom
     try {
       await fs.promises.symlink(targetPath, path)
     } catch {
+
       await fs.promises.unlink(path)
       await fs.promises.symlink(targetPath, path)
     }
     return path
   } catch (error) {
     logError(error)
+
     if (getPlatform() !== 'windows') return initTaskOutput(taskId)
     const stub = await initTaskOutput(taskId)
     await awaitTranscriptFor(stub, targetPath)
@@ -159,8 +161,10 @@ export class DiskTaskOutput {
   private queue: string[] = []
   private draining = false
   private capped = false
+
   private totalLength = 0
   private flushPromise: Promise<void> = Promise.resolve()
+
   private lostChars = 0
   private lastWriteError: string | undefined
 
@@ -175,6 +179,7 @@ export class DiskTaskOutput {
   append(content: string): void {
     if (this.capped) return
     if (this.totalLength + content.length > MAX_TASK_OUTPUT_BYTES) {
+
       this.capped = true
       this.queue.push(`\n<task output truncated: the ${MAX_TASK_OUTPUT_BYTES_DISPLAY} disk limit was exceeded>\n`)
       this.startDrain()
@@ -212,13 +217,16 @@ export class DiskTaskOutput {
     try {
       await this.drainCycle()
     } catch (error) {
+
       logError(error)
       if (this.queue.length > 0) {
+
         await new Promise(r => setTimeout(r, TASK_OUTPUT_RETRY_DELAY_MS))
         try {
           await this.drainCycle()
         } catch (retryError) {
           logError(retryError)
+
           for (const chunk of this.queue) this.lostChars += chunk.length
           this.queue.length = 0
           this.lastWriteError = retryError instanceof Error ? retryError.message : String(retryError)
@@ -236,12 +244,15 @@ export class DiskTaskOutput {
   }
 
   private async drainCycle(): Promise<void> {
+
     await ensureTasksDir()
+
     while (this.queue.length > 0) {
       const handle = await fs.promises.open(this.path, appendFlags())
       try {
         await this.writeLossNoteIfOwed(handle)
         while (this.queue.length > 0) {
+
           await handle.write(takeQueuedPayload(this.queue))
         }
       } finally {

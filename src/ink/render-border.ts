@@ -1,4 +1,3 @@
-
 import chalk from 'chalk'
 import cliBoxes, { type BoxStyle } from 'cli-boxes'
 import { colorize } from './colorize.js'
@@ -123,6 +122,7 @@ export default function renderBorder(
     const titleWidth = stringWidth(title.content)
     const lineLength = line.length
     if (titleWidth >= lineLength - 2) {
+
       let cut = sliceAnsi(title.content, 0, lineLength)
       if (ground) cut = colorize(cut, ground, 'background')
       return cut
@@ -140,6 +140,7 @@ export default function renderBorder(
     const leadGlyphs = line[0]! + glyph.repeat(Math.max(0, insertion - 1))
     const tailCount = Math.max(0, lineLength - insertion - titleWidth - 1)
     const tailGlyphs = glyph.repeat(tailCount) + line[lineLength - 1]!
+
     const leadStyled = colorize(leadGlyphs, edge.color, 'foreground')
     const tailStyled = colorize(tailGlyphs, edge.color, 'foreground')
     let assembled =
@@ -160,6 +161,7 @@ export default function renderBorder(
       }
     }
     if (!hasGround) {
+
       const coloured = colorize(glyph, edge.color, 'foreground')
       const run = (coloured + '\n').repeat(rows)
       return edge.dim ? chalk.dim(run) : run

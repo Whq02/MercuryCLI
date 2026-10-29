@@ -1,4 +1,3 @@
-
 import {
   getWorkbenchSnapshot,
   resolveWorkbenchSnapshot,
@@ -110,6 +109,7 @@ const workbenchAdapter = {
     }
     const [head, ...rest] = ref.id.split('/')
     if (ref.id === '' || head === '' || head === undefined) {
+
       const got = await snapshotFor(ctx)
       if (got.state !== 'ok') return got
       return { state: 'ok', resource: currentResource(got.snap, ref) }
@@ -120,6 +120,7 @@ const workbenchAdapter = {
       return { state: 'ok', resource: currentResource(got.snap, ref) }
     }
     if (head === 'work') {
+
       try {
         const { gatherCurrentWork } = await import('../../workbench/currentWork.js')
         const work = await gatherCurrentWork(

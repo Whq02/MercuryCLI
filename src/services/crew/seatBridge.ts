@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto'
 import { logForDebugging } from '../../utils/debug.js'
 import { ingestActivity } from './activity.js'
@@ -23,10 +22,15 @@ import {
 } from './identity.js'
 
 export interface SeatHandshakeResult {
+
   protocol: string
+
   revision: string
+
   externalSessionId?: string
+
   declared: Partial<Record<CapabilityKind, { state: CapabilityState; source: string }>>
+
   raw?: unknown
 }
 
@@ -41,6 +45,7 @@ export type SeatDeliveryOutcome =
   | {
       result: 'accepted'
       disposition: 'steered-current' | 'queued-next' | 'started-turn' | 'delivered-next-moment'
+
       attachments: Array<{ attachmentId: string; outcome: 'accepted' | 'rejected'; reason?: string }>
       adapterOutcome?: string
     }
@@ -48,6 +53,7 @@ export type SeatDeliveryOutcome =
   | { result: 'unknown'; reason: string }
 
 export interface SeatEvent {
+
   sourceEventId: string
   kind: string
   payload: unknown
@@ -57,13 +63,18 @@ export interface SeatEvent {
 export interface ExternalSeatTransport {
   adapterKind: string
   displayName: string
+
   mercuryOwnsProcess: boolean
+
   declaresIdempotentDelivery?: boolean
   handshake(): Promise<SeatHandshakeResult>
   deliver?(req: SeatDeliveryRequest): Promise<SeatDeliveryOutcome>
   cancelTurn?(): Promise<SeatDeliveryOutcome>
+
   onEvent?(listener: (evt: SeatEvent) => void): () => void
+
   onLifecycle?(listener: (state: 'connected' | 'disconnected' | 'exited') => void): () => void
+
   onSessionIdentity?(listener: (externalSessionId: string) => void): () => void
   detach(): Promise<void>
 }
@@ -79,11 +90,13 @@ interface AttachedSeat {
   capabilities: CapabilitySetV1
   attachedAt: number
   lifecycle: 'connected' | 'disconnected' | 'exited'
+
   declaresIdempotentDelivery: boolean
 }
 
 interface LiveSeat extends AttachedSeat {
   transport: ExternalSeatTransport
+
   dir?: string
   eventUnsub?: () => void
   lifecycleUnsub?: () => void
@@ -102,7 +115,9 @@ export async function attachExternalSeat(
   const handshake = await transport.handshake()
   const seatId = `seat-${randomUUID().replace(/-/g, '').slice(0, 12)}`
   const dirOpt = opts?.dir !== undefined ? { dir: opts.dir } : undefined
+
   try {
+
     const stableId = handshake.externalSessionId
       ? `${transport.adapterKind}:${handshake.externalSessionId}`
       : `${transport.adapterKind}:${seatId}`
@@ -117,6 +132,7 @@ export async function attachExternalSeat(
       },
       ...(opts?.dir !== undefined ? { dir: opts.dir } : {}),
     })
+
     await bindAgent(
       identity.agentId,
       {
@@ -134,6 +150,7 @@ export async function attachExternalSeat(
       },
       dirOpt,
     )
+
     void import('./descriptor.js')
       .then(d =>
         d.publishSessionDescriptor(
@@ -167,6 +184,7 @@ export async function attachExternalSeat(
     }
     if (transport.onEvent) {
       live.eventUnsub = transport.onEvent(evt => {
+
         try {
           ingestActivity({
             event: evt,
@@ -183,7 +201,9 @@ export async function attachExternalSeat(
       live.lifecycleUnsub = transport.onLifecycle(state => {
         live.lifecycle = state
         if (state !== 'connected') {
+
           invalidateCapabilities(seatId, `lifecycle:${state}`)
+
           void endAgentSession(live.externalSessionId ?? live.seatId, live.dir !== undefined ? { dir: live.dir } : undefined).catch(e =>
             logForDebugging(`[crew/seatBridge] session close on lifecycle loss failed (ignored): ${e}`),
           )
@@ -199,6 +219,7 @@ export async function attachExternalSeat(
       })
     }
     if (transport.onSessionIdentity) {
+
       live.sessionIdentityUnsub = transport.onSessionIdentity(externalSessionId => {
         void (async () => {
           if (live.externalSessionId === externalSessionId) return
@@ -229,6 +250,7 @@ export async function attachExternalSeat(
           live.externalSessionId = externalSessionId
           const d = await import('./descriptor.js')
           await d.publishSessionDescriptor({ agentId: live.agentId, sessionId: externalSessionId }, dirOpt)
+
           if (placeholderSessionId !== externalSessionId) {
             await d.retireSessionDescriptor(placeholderSessionId, dirOpt)
           }
@@ -238,6 +260,7 @@ export async function attachExternalSeat(
     seats.set(seatId, live)
     return toView(live)
   } catch (e) {
+
     forgetCapabilities(seatId)
     try {
       await transport.detach()
@@ -262,6 +285,7 @@ export async function renegotiateSeat(seatId: string): Promise<AttachedSeat | nu
     declared: handshake.declared,
   })
   live.lifecycle = 'connected'
+
   const sessionId = live.externalSessionId
   if (sessionId !== undefined) {
     try {
@@ -325,6 +349,7 @@ export async function detachExternalSeat(seatId: string): Promise<boolean> {
   }
   forgetCapabilities(seatId)
   seats.delete(seatId)
+
   try {
     await endAgentSession(live.externalSessionId ?? live.seatId, live.dir !== undefined ? { dir: live.dir } : undefined)
     const d = await import('./descriptor.js')
@@ -376,6 +401,7 @@ function toView(live: LiveSeat): AttachedSeat {
     protocol: live.protocol,
     revision: live.revision,
     ...(live.externalSessionId !== undefined ? { externalSessionId: live.externalSessionId } : {}),
+
     capabilities: capabilitiesOf(live.seatId) ?? live.capabilities,
     attachedAt: live.attachedAt,
     lifecycle: live.lifecycle,

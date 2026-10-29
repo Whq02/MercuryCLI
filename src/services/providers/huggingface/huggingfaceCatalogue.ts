@@ -23,13 +23,13 @@ import {
   splitHuggingfaceSlug,
 } from './huggingfacePins.js'
 
-
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
 export interface HuggingfaceLiveProvider {
   provider: string
   status: string
   contextLength?: number
+
   pricing?: { input?: number; output?: number }
   isFree?: boolean
   supportsTools?: boolean
@@ -40,6 +40,7 @@ export interface HuggingfaceLiveProvider {
 }
 
 export interface HuggingfaceLiveModel {
+
   id: string
   ownedBy?: string
   createdAtS?: number
@@ -116,7 +117,6 @@ export function decodeHuggingfaceModel(raw: unknown): HuggingfaceLiveModel | und
   }
 }
 
-
 export async function fetchHuggingfaceLiveModels(opts: {
   url: string
   headers?: Record<string, string>
@@ -124,6 +124,7 @@ export async function fetchHuggingfaceLiveModels(opts: {
 }): Promise<{ models: HuggingfaceLiveModel[]; fetchedAtMs: number }> {
   const fetchImpl = opts.fetchImpl ?? getApiFetch()
   const proxyOptions = opts.fetchImpl ? {} : getProxyFetchOptions()
+
   const response = await fetchWithProviderDeadline(fetchImpl, 'huggingface', CATALOGUE_FETCH_TIMEOUT_MS, opts.url, {
     method: 'GET',
     headers: { ...(opts.headers ?? {}), accept: 'application/json', 'user-agent': getUserAgent() },
@@ -146,7 +147,6 @@ export async function fetchHuggingfaceLiveModels(opts: {
   return { models, fetchedAtMs: Date.now() }
 }
 
-
 const CATALOGUE_TTL_MS = 5 * 60_000
 
 export type HuggingfaceCatalogueKey = string
@@ -154,8 +154,10 @@ export type HuggingfaceCatalogueKey = string
 export interface HuggingfaceCatalogueSnapshot {
   key: HuggingfaceCatalogueKey
   models: HuggingfaceLiveModel[]
+
   fetchedAtMs: number
   lastAttemptAtMs?: number
+
   lastError?: string
 }
 
@@ -187,6 +189,7 @@ export function refreshHuggingfaceCatalogue(opts?: {
   const now = opts?.now ?? Date.now
   const key = catalogueKey(env)
   const cached = catalogueCache.get(key)
+
   if (!catalogueTrafficVerdict('huggingface', env).allowed) return Promise.resolve(cached ?? null)
   const anchor = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
   if (!opts?.force && cached && now() - anchor < CATALOGUE_TTL_MS) return Promise.resolve(cached)
@@ -194,6 +197,7 @@ export function refreshHuggingfaceCatalogue(opts?: {
   if (existing) return existing
   const work = (async (): Promise<HuggingfaceCatalogueSnapshot | null> => {
     try {
+
       const credential = resolveHuggingfaceApiKey(env)
       const result = await fetchHuggingfaceLiveModels({
         url: huggingfaceModelsUrl(env),
@@ -224,7 +228,6 @@ export function refreshHuggingfaceCatalogue(opts?: {
   catalogueInFlight.set(key, work)
   return work
 }
-
 
 export function huggingfaceLiveModel(
   wireSlug: string,
@@ -287,7 +290,6 @@ export function huggingfaceContextWindowFor(
   return pin?.contextWindow !== undefined ? { window: pin.contextWindow, source: 'static-pin' } : undefined
 }
 
-
 export type HuggingfaceDisabledWhy = 'no-account' | 'auth-invalid' | 'catalogue-pending' | 'catalogue-error' | 'no-models'
 
 export type HuggingfaceAvailability =
@@ -295,14 +297,18 @@ export type HuggingfaceAvailability =
       state: 'disabled'
       why: HuggingfaceDisabledWhy
       reason: string
+
       liveIds: string[]
     }
   | {
       state: 'ready'
+
       ids: string[]
       modelCount: number
+
       source: string
       keySource: HuggingfaceKeySource
+
       fetchedAtMs: number
       catalogueNote?: string
     }
@@ -310,6 +316,7 @@ export type HuggingfaceAvailability =
 export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env): HuggingfaceAvailability {
   const account = resolveHuggingfaceAccount(env)
   if (!account) {
+
     return {
       state: 'disabled',
       why: 'no-account',
@@ -320,6 +327,7 @@ export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env)
   const snapshot = getCachedHuggingfaceCatalogue(env)
   const verdict = catalogueTrafficVerdict('huggingface', env)
   if (!verdict.allowed) {
+
     return {
       state: 'ready',
       ids: snapshot?.models.map(m => m.id) ?? [],
@@ -360,9 +368,10 @@ export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env)
   }
 }
 
-
 export const HUGGINGFACE_MODEL_GROUP = 'Mercury — Hugging Face models'
+
 export const HUGGINGFACE_CONNECT_OPTION_VALUE = '__mercury_huggingface_connect__'
+
 export const HUGGINGFACE_EXPAND_OPTION_VALUE = '__mercury_huggingface_expand__'
 
 const PICKER_ROW_BOUND = 24
@@ -370,6 +379,7 @@ const PICKER_ROW_BOUND = 24
 function huggingfaceCatalogueRows(models: HuggingfaceLiveModel[], source: string, bound: number): ModelOption[] {
   const rows: ModelOption[] = []
   for (const model of models.slice(0, bound)) {
+
     const verdict = canonicalWireModelId(`${HUGGINGFACE_MODEL_PREFIX}${model.id}`)
     const widest = liveProviders(model)
       .map(p => p.contextLength ?? 0)
@@ -400,6 +410,7 @@ export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env)
   const availability = getHuggingfaceAvailability(env)
   const rows: ModelOption[] = []
   if (availability.state === 'disabled') {
+
     return [
       {
         value: HUGGINGFACE_CONNECT_OPTION_VALUE,
@@ -416,6 +427,7 @@ export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env)
   if (models.length > 0) {
     rows.push(...huggingfaceCatalogueRows(models, availability.source, PICKER_ROW_BOUND))
     if (availability.modelCount > PICKER_ROW_BOUND) {
+
       rows.push({
         value: HUGGINGFACE_EXPAND_OPTION_VALUE,
         label: `Hugging Face — ${availability.modelCount} models live`,
@@ -427,6 +439,7 @@ export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env)
     }
     return rows
   }
+
   const verdict = catalogueTrafficVerdict('huggingface', env)
   const trafficOff = !verdict.allowed && verdict.why === 'traffic-off'
   rows.push({

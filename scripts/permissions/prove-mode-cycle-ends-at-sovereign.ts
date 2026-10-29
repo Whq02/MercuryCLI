@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/getNextPermissionMode.ts src/utils/permissions/PermissionMode.ts src/types/permissions.ts
-// gate-watch: src/utils/permissions/permissionSetup.ts src/tools.ts src/utils/capability/declarations.ts src/substrate/flagRegistry.ts
-// gate-watch: src/components/mercury-ui/compactModeChip.ts src/components/MercuryFrame.tsx src/utils/attachments/modeLifecycles.ts
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

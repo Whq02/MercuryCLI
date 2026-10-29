@@ -1,4 +1,3 @@
-
 import type { MCPServerConnection } from '../../../services/mcp/types.js'
 
 type ReconnectOutcome = {
@@ -24,6 +23,7 @@ export function describeReconnectOutcome(
         message: `Reconnecting to ${serverName} failed.`,
       }
     default:
+
       return {
         success: false,
         message: `Reconnect outcome for ${serverName} is unknown.`,

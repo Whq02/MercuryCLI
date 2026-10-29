@@ -13,7 +13,6 @@ import { CommandCenter, EmptyState, StateBadge } from '../components.js'
 import { padTo, truncateToWidth } from '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 
-
 interface Section {
   key: string
   title: string
@@ -53,6 +52,7 @@ function ageLabel(t: number): string {
 
 function Row({ row, cursor, width, accent }: { row: FlatRow; cursor: boolean; width: number; accent: string }): React.ReactNode {
   const r = row.record
+
   const labelW = Math.min(24, Math.max(12, Math.floor(width * 0.3)))
   const noteW = Math.max(8, width - labelW - 6)
   return (
@@ -115,6 +115,7 @@ export function CapabilityManagerView({ onClose }: { onClose: () => void }): Rea
   const wide = columns >= 100
   const detailW = wide ? Math.min(46, Math.max(34, Math.floor(columns * 0.38))) : Math.max(40, columns - 6)
   const listW = wide ? columns - detailW - 8 : columns - 6
+
   const chrome = 24 + (wide ? 0 : detailOpen ? 8 : 0)
   const visible = Math.max(4, Math.min(rows.length, (termRows || 24) - chrome))
   const winStart = Math.max(0, Math.min(clampedSel - Math.floor(visible / 2), rows.length - visible))

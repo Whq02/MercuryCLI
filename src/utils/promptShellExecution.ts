@@ -11,8 +11,8 @@ import { hasPermissionsToUseTool } from './permissions/permissions.js'
 import { isPowerShellToolEnabled } from './shell/shellToolUtils.js'
 import { processToolResultBlock } from './toolResultStorage.js'
 
-
 const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g
+
 const INLINE_PATTERN = /(?<=\s|^)!`([^`]+)`/g
 const INLINE_OPENER = '!`'
 
@@ -68,6 +68,7 @@ async function runEmbeddedCommand(
     logForDebugging(`promptShellExecution: permission check failed for ${slashCommandName}: ${command} (${reason})`)
     throw new MalformedCommandError(`Permission check failed for the matched pattern "${command}": ${reason}`)
   }
+
   let lastResult = await tool.call({ command } as never, context)
   if (lastResult !== null && typeof lastResult === 'object' && Symbol.asyncIterator in lastResult) {
     for await (const update of lastResult as AsyncIterable<unknown>) lastResult = update
@@ -127,6 +128,7 @@ export async function executeShellCommandsInPrompt(
     const output = outputs[index]
     if (output === null || output === undefined) return
     void command
+
     result = result.replace(full, () => output)
   })
   return result

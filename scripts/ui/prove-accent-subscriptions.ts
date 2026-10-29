@@ -14,6 +14,7 @@ const MUST_SUBSCRIBE = [
 
 for (const file of MUST_SUBSCRIBE) {
   const src = readFileSync(file, 'utf8');
+
   const subscribes =
     src.includes('useSessionAccent') || src.includes('useMercuryTokens');
   const plainReads = /\bgetSessionAccent\s*\(/.test(src);

@@ -9,7 +9,6 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
-
 type ConfigEntry = { name: string; detail: string; via: string }
 
 const ENTRIES: ConfigEntry[] = [
@@ -42,6 +41,7 @@ export function MercuryConfig({
   useInput(
     (input, key, event) => {
       if (!isActive) return
+
       const action = decodeNavKey(input, key, { orientation: 'vertical' })
       if (action === 'cancel') {
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return

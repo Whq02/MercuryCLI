@@ -44,7 +44,6 @@ import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAccounts.js';
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
 
-
 const DETAIL_W = 38;
 
 export interface SaturnScreenRowV1 {
@@ -52,9 +51,13 @@ export interface SaturnScreenRowV1 {
   sessionId: string;
   workspaceId: string;
   parked: boolean;
+
   box?: true;
+
   facts: SaturnFactsRowV1;
+
   schedule: SaturnScheduleV1;
+
   held: HeldFireV1[];
 }
 
@@ -175,6 +178,7 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
   const lines: string[] = [`${row.facts.id} · ${row.facts.kind}${row.box === true ? ' · box tier' : ''}`, ''];
   lines.push(...wrapPlain(`when: ${row.facts.when}`, DETAIL_W));
   lines.push(`next: ${saturnRowFireWords(row, nowMs)}`);
+
   lines.push(`last: ${s.lastFiredAt !== undefined ? formatRelativeTimeAgo(new Date(s.lastFiredAt), { style: 'short', now: new Date(nowMs) }) : 'never'}`);
   lines.push(`model: ${s.modelKey}${s.effort !== undefined ? ` · ${s.effort}` : ''}`);
   lines.push(...wrapPlain(`account: ${s.account.family}/${s.account.source}${s.account.identity !== undefined && accountIdentityShown() ? ` · ${s.account.identity}` : ''}`, DETAIL_W));
@@ -258,13 +262,14 @@ export function saturnEmptyDetailLines(f: SaturnScreenFactsV1): string[] {
   ];
 }
 
-
 export interface SaturnFormStateV1 {
+
   when: string;
   modelKey: string;
   workspaceDir: string;
   presence: 'headless' | 'screen-present';
   kitPreset: string | null;
+
   opening: string | null;
   contract: { kind: 'unset' } | { kind: 'none' } | { kind: 'text'; text: string };
   title: string | null;
@@ -292,13 +297,11 @@ export function saturnContractWords(c: SaturnFormStateV1['contract']): string {
   return c.kind === 'unset' ? 'not pre-answered' : c.kind === 'none' ? 'no-contract (pre-answered)' : `“${clampText(c.text, 24)}”`;
 }
 
-
 export const SATURN_WORKSPACE_CUSTOM_ROW = 'custom path…';
 
 export function saturnWorkspacePickOptions(projectDirs: string[]): string[] {
   return [...new Set(projectDirs)].concat(SATURN_WORKSPACE_CUSTOM_ROW);
 }
-
 
 export const SATURN_OPENING_NONE_ROW = 'born-waiting — no mission';
 export const SATURN_OPENING_AUDIT_ROW = 'audit';
@@ -442,12 +445,18 @@ export function saturnFormLegendOf(state: { prompt: boolean; pick: boolean }): s
 
 interface BootSaturnScreenProps {
   onClose?: (value?: string) => void;
+
   fullScene?: { columns: number; rows: number };
+
   facts?: SaturnScreenFactsV1;
+
   nowMs?: number;
+
   receiptsOf?: (row: SaturnScreenRowV1) => SessionReceiptEntry[];
+
   modelOptionsOf?: () => string[];
   presetsOf?: () => string[];
+
   projectsOf?: () => string[];
   preflightOf?: (modelKey: string, nextFireMs: number | null) => SaturnFormPreflightV1;
 }
@@ -516,6 +525,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
   const t = useMercuryTokens();
   const { columns: termCols, rows: termRows } = useTerminalSize();
   const columns = fullScene?.columns ?? termCols;
+
   const rows = fullScene?.rows ?? Math.max(12, Math.min(24, termRows - 2));
 
   const [collected, setCollected] = useState<{ facts: SaturnScreenFactsV1; atMs: number }>(() => {
@@ -577,6 +587,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
     (row: SaturnScreenRowV1): void => {
       if (busy.current) return;
       if (row.schedule.action.kind !== 'fire') {
+
         setNote('run-now takes fire schedules; a birth fires on its own clock');
         return;
       }
@@ -656,6 +667,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
         hint: 'run-now',
         run: r => {
           if (r === null) return null;
+
           runNow(r);
           return null;
         },
@@ -719,6 +731,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
         setFormPick({ field: 'model', options: (modelOptionsOf ?? liveModelOptions)() });
         return;
       case 'workspace':
+
         setFormPick({ field: 'workspace', options: saturnWorkspacePickOptions((projectsOf ?? liveProjectDirs)()) });
         return;
       case 'presence':
@@ -728,9 +741,11 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
         setFormPick({ field: 'kit', options: ['none', ...(presetsOf ?? livePresets)()] });
         return;
       case 'opening':
+
         setFormPick({ field: 'opening', options: saturnOpeningPickOptions() });
         return;
       case 'contract':
+
         if (f.contract.kind === 'unset') setForm({ ...f, contract: { kind: 'none' } });
         else if (f.contract.kind === 'none') setFormPrompt({ field: 'contract', draft: '' });
         else setForm({ ...f, contract: { kind: 'unset' } });
@@ -859,6 +874,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
           const field = formPick?.field;
           if (field === undefined) return null;
           if (field === 'workspace' && r === SATURN_WORKSPACE_CUSTOM_ROW) {
+
             setFormPick(null);
             setFormPrompt({ field: 'workspace', draft: form?.workspaceDir ?? '' });
             return null;
@@ -941,6 +957,7 @@ export function BootSaturnScreen({ onClose, fullScene, facts: given, nowMs: give
       glowWord: wordGlow,
       moreHint: '… (the trail continues — a taller terminal shows it whole)',
     };
+
     if (form !== null) {
       const previewNow = givenNow ?? Date.now();
       const compiled = form.when === '' ? null : compileWhenSpelling(form.when, previewNow);

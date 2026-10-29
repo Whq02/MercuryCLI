@@ -45,11 +45,13 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
 export interface DeferralWireReads {
   firstPartyBaseUrl?: () => boolean
   env?: Record<string, string | undefined>
+
   probeVerdict?: (host: string) => DeferralWireForm | undefined
 }
 
 export interface DeferralWireVerdict {
   form: DeferralWireForm
+
   why:
     | 'first-party-contract'
     | 'route-table'
@@ -80,6 +82,7 @@ export function homeLaneWireForm(reads: DeferralWireReads = {}): DeferralWireVer
   const env = reads.env ?? process.env
   const firstParty = reads.firstPartyBaseUrl ? reads.firstPartyBaseUrl() : isFirstPartyAnthropicBaseUrl()
   if (firstParty) return { form: 'block', why: 'first-party-contract' }
+
   const asserted = env.MERCURY_TOOL_SEARCH
   if (asserted !== undefined && asserted !== '') return { form: 'block', why: 'gateway-asserted' }
   const host = gatewayHost(env)

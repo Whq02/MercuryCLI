@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs'
@@ -6,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'vanguard-contracts-'))
+
 process.env.MERCURY_BARE = '1'
 
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
@@ -180,6 +182,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     stamp !== undefined && stamp.content === onDisk)
   check('A6c result carries structuredPatch',
     Array.isArray(result?.data?.structuredPatch) && result.data.structuredPatch.length > 0)
+
   check('A6d FileEdit result carries the typed file.edit effect (slice 1)',
     result?.effect?.outcome === 'succeeded' &&
     result.effect.operation === 'file.edit' &&

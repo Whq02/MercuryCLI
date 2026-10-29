@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   isDecrqmProbeSafe,
   isProgressReportingAvailable,
@@ -99,6 +100,7 @@ console.log('native-core T5 — session + capability contract')
       JSON.stringify({ got: serialize([patch], true), expected }),
     )
   }
+
   const clear2 = serialize([{ type: 'clear', count: 2 }], true)
   check('clear(2) is the eraseLines composition', clear2.includes('\x1b[2K') && clear2.includes('\x1b[1A'), JSON.stringify(clear2))
   check('clear(0) emits nothing', serialize([{ type: 'clear', count: 0 }], true) === '')
@@ -127,10 +129,12 @@ console.log('native-core T5 — session + capability contract')
   check('sync: iTerm sniffs true', isSynchronizedOutputSupported() === true)
   process.env.TMUX = '/tmp/tmux-1000/default,123,0'
   check('sync: TMUX kills it even for iTerm', isSynchronizedOutputSupported() === false)
+
   process.env.MERCURY_FORCE_SYNC_OUTPUT = '1'
   check('sync: TMUX beats FORCE (characterized)', isSynchronizedOutputSupported() === false)
   delete process.env.TMUX
   check('sync: FORCE wins without tmux', isSynchronizedOutputSupported() === true)
+
   process.env.MERCURY_NO_SYNC_OUTPUT = '1'
   check('sync: NO_SYNC hatch beats FORCE', isSynchronizedOutputSupported() === false)
   delete process.env.MERCURY_FORCE_SYNC_OUTPUT
@@ -169,6 +173,7 @@ console.log('native-core T5 — session + capability contract')
   check('decrqm probe: iTerm safe', isDecrqmProbeSafe() === true)
   wipe()
   check('decrqm probe: unknown terminal safe (the probe is the point)', isDecrqmProbeSafe() === true)
+
   {
     const appSrc = readFileSync(join(import.meta.dir, '../../src/ink/components/App.tsx'), 'utf8')
     check(
@@ -185,6 +190,7 @@ console.log('native-core T5 — session + capability contract')
 }
 
 {
+
   upgradeSyncOutputSupport()
   check('sync latch: upgraded ⇒ true', syncOutputSupportedNow() === true)
   check('sync latch: sticky', syncOutputSupportedNow() === true)
@@ -196,6 +202,7 @@ console.log('native-core T5 — session + capability contract')
 }
 
 {
+
   const writes: string[] = []
   const querier = new TerminalQuerier({
     write: (s: string) => {
@@ -218,6 +225,7 @@ console.log('native-core T5 — session + capability contract')
   f0.then(() => {
     f0done = true
   })
+
   const q1 = querier.send(decrqm(2026))
   const f1 = querier.flush()
   pump('\x1b[?62;22c')
@@ -230,6 +238,7 @@ console.log('native-core T5 — session + capability contract')
     f1done = true
   })
   pump('\x1b[?2026;2$y')
+
   const qa = querier.send(decrqm(2026))
   const qb = querier.send(decrqm(2026))
   pump('\x1b[?2026;1$y')
@@ -242,6 +251,7 @@ console.log('native-core T5 — session + capability contract')
   qb.then(v => {
     bVal = v as never
   })
+
   const qc = querier.send(da1())
   pump('\x1b[?6')
   pump('2;22c')
@@ -257,6 +267,7 @@ console.log('native-core T5 — session + capability contract')
   check('mux: identical queries FIFO — first gets status 1', aVal?.status === 1, JSON.stringify(aVal))
   check('mux: identical queries FIFO — second gets status 2', bVal?.status === 2, JSON.stringify(bVal))
   check('mux: fragmented DA1 resolves', cVal !== undefined && (cVal as { params: number[] }).params[0] === 62, JSON.stringify(cVal))
+
   check(
     'mux: one write per flush, each flushed request riding its own batch',
     writes.length === 2 &&
@@ -278,6 +289,7 @@ console.log('native-core T5 — session + capability contract')
   setTerminalFocused(false)
   check('focus: synchronous notify on set', notified === 1, String(notified))
   check('focus: blurred reads false', getTerminalFocused() === false)
+
   setTerminalFocused(false)
   check('focus: every set notifies (characterized)', notified === 2, String(notified))
   setTerminalFocused(true)

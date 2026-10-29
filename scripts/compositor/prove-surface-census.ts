@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -54,6 +55,7 @@ function unitFiles(unit: string): string[] {
   const p = path.join(ROOT, unit)
   if (statSync(p).isFile()) return [unit]
   const out: string[] = []
+
   const walk = (d: string): void => {
     for (const n of readdirSync(d).sort()) {
       const fp = path.join(d, n)
@@ -102,6 +104,7 @@ function collectRoutes(): Route[] {
     }
     routes.push({ name, type, unit, signals: [...sigSet].sort() })
   }
+
   return routes.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
 }
 

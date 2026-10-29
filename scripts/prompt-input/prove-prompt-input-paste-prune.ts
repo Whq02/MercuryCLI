@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -34,6 +35,7 @@ function capture(tag: string, sends: unknown[], total: number): string[] {
 }
 
 try {
+
   const big = 'the quick brown fox jumps over the lazy dog 0123456789 '.repeat(220)
   const rows = capture('trunc', [
     { atTick: 40, data: big, minTick: 30 },
@@ -55,6 +57,7 @@ try {
   }
 
   const promptSrc = readFileSync(join(import.meta.dir, '../../src/components/PromptInput/useComposerAttachments.ts'), 'utf8')
+
   const pruneIdx = promptSrc.indexOf('for (const ref of parseReferences(pendingInput.text())) taken.add(ref.id)')
   const pruneBody = promptSrc.slice(Math.max(0, pruneIdx - 160), pruneIdx + 120)
   t('C: the prune derives from pendingInput.text(), not the render snapshot',

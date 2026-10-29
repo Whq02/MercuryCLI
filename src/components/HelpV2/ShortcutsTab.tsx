@@ -43,6 +43,7 @@ const ADVANCED: Section[] = [
   {
     head: 'advanced',
     rows: [
+
       { action: 'task:background', context: 'Task', fallback: 'ctrl+b', label: 'background the running task' },
     ],
   },

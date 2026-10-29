@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -37,6 +38,7 @@ const emptyCtx = (): Ctx =>
 
 section('§1 THE WRITE-ARM SUGGESTIONS')
 {
+
   const result = (await checkPathConstraints(
     { command: `touch ${join(OUTSIDE, 't3.txt')}` },
     process.cwd(),

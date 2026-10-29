@@ -1,4 +1,3 @@
-
 import { openDeliverables } from './runKernel.js'
 import { getRunSnapshot } from './runCoordinator.js'
 import type { OwnerKey } from './ownerKey.js'
@@ -85,6 +84,7 @@ export function buildRunContinuationCapsule(
         .join(', ')}${recallPaths.length > MAX_LIST ? ` …+${recallPaths.length - MAX_LIST}` : ''}`,
     )
   }
+
   try {
     const { capsuleContinuationLine } =
       require('../../utils/attachments/contextCapsule.js') as typeof import('../../utils/attachments/contextCapsule.js')

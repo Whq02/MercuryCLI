@@ -1,4 +1,3 @@
-
 import figures from 'figures'
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -42,7 +41,9 @@ type FieldState = {
   schema: PrimitiveSchemaDefinition
   kind: FieldKind
   required: boolean
+
   value: FieldValue | undefined
+
   text: string
   error: string | undefined
   resolving: boolean
@@ -53,6 +54,7 @@ function schemaOf(raw: unknown): PrimitiveSchemaDefinition {
 }
 
 function kindOf(schema: PrimitiveSchemaDefinition): FieldKind {
+
   if (isMultiSelectEnumSchema(schema)) return 'multi'
   if (isEnumSchema(schema)) return 'enum'
   const type = (schema as { type?: string }).type
@@ -123,7 +125,6 @@ function UrlWithBoldHost({ url }: { url: string }): React.ReactNode {
     )
   }
 }
-
 
 function UrlElicitationDialog({
   event,
@@ -239,7 +240,6 @@ function UrlElicitationDialog({
   )
 }
 
-
 type ElicitationDialogProps = {
   event: ElicitationRequestEvent
   onResponse: (
@@ -272,6 +272,7 @@ function FormElicitationDialog({
         let text = ''
         let error: string | undefined
         if (defaultValue !== undefined && kind === 'text') {
+
           text = String(defaultValue)
           const result = validateElicitationInput(text, schema)
           if (result.isValid) {
@@ -357,6 +358,7 @@ function FormElicitationDialog({
               resolving: false,
               value: result.value,
               error: undefined,
+
               ...(typedSince ? {} : { text: String(result.value ?? '') }),
             })
           } else {
@@ -387,6 +389,7 @@ function FormElicitationDialog({
     const type = (field.schema as { type?: string }).type
     if (text === '') {
       if (type === 'string' && field.value !== undefined) {
+
         const result = validateElicitationInput(text, field.schema)
         patchField(field.name, { text, value: result.isValid ? result.value : undefined, error: result.error })
       } else {
@@ -425,6 +428,7 @@ function FormElicitationDialog({
   const multiBoundsError = (field: FieldState): string | undefined => {
     const schema = field.schema as MultiSelectEnumSchema
     const selected = Array.isArray(field.value) ? field.value : []
+
     if (selected.length === 0 && !field.required) return undefined
     if (schema.minItems !== undefined && selected.length < schema.minItems) {
       return `Select at least ${schema.minItems}`
@@ -464,6 +468,7 @@ function FormElicitationDialog({
       }
       return
     }
+
     const content: Record<string, string | number | boolean | string[]> = {}
     for (const field of fields) {
       if (field.value !== undefined) content[field.name] = field.value
@@ -479,6 +484,7 @@ function FormElicitationDialog({
     'confirm:no',
     () => {
       if (focusedField && focusedField.kind === 'text') {
+
         patchField(focusedField.name, {
           text: focusedField.value !== undefined ? String(focusedField.value) : '',
         })
@@ -495,6 +501,7 @@ function FormElicitationDialog({
       return
     }
     if (field.kind === 'enum') {
+
       const values = getEnumValues(field.schema)
       const current = typeof field.value === 'string' ? values.indexOf(field.value) : -1
       setAccordionIndex(current === -1 ? 0 : current)
@@ -535,6 +542,7 @@ function FormElicitationDialog({
     if (at === -1) selected.push(value)
     else if (!checkOnly) selected.splice(at, 1)
     const next = { ...field, value: selected as FieldValue }
+
     patchField(field.name, {
       value: selected,
       error: multiBoundsError(next as FieldState),
@@ -564,9 +572,11 @@ function FormElicitationDialog({
           ? getMultiSelectValues(field.schema)
           : getEnumValues(field.schema)
       if (key.upArrow) {
+
         if (accordionIndex === 0) setAccordionOpen(false)
         else setAccordionIndex(accordionIndex - 1)
       } else if (key.downArrow) {
+
         if (accordionIndex >= values.length - 1) {
           setAccordionOpen(false)
           moveCursor(1)
@@ -588,6 +598,7 @@ function FormElicitationDialog({
         const value = values[accordionIndex]
         if (value === undefined) return
         if (field.kind === 'multi') {
+
           toggleMultiValue(field, value, true)
         } else {
           patchField(field.name, { value, error: undefined })
@@ -612,6 +623,7 @@ function FormElicitationDialog({
     switch (field.kind) {
       case 'boolean':
         if (input === ' ') {
+
           patchField(field.name, {
             value: field.value === undefined ? true : !field.value,
             error: undefined,
@@ -635,6 +647,7 @@ function FormElicitationDialog({
         }
         return
       case 'text':
+
         if ((key.backspace || key.delete) && field.text === '') {
           patchField(field.name, { value: undefined, error: undefined })
         }
@@ -654,6 +667,7 @@ function FormElicitationDialog({
   usePopupListPaging(accordionIndex, accordionValues.length, accordionWindow.end - accordionWindow.start, setAccordionIndex, accordionOpen)
 
   const statusCell = (field: FieldState, focused: boolean) => {
+
     if (field.resolving) {
       return { cell: <ResolvingSpinner />, tone: 'warning' as string | undefined }
     }
@@ -737,6 +751,7 @@ function FormElicitationDialog({
       title={`"${event.serverName}"`}
       subtitle={event.params.message}
       onCancel={() => onResponse('cancel')}
+
       isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}
       inputGuide={() => <Text italic dimColor>{footerHint}</Text>}
     >
@@ -839,7 +854,6 @@ function FormElicitationDialog({
     </Dialog>
   )
 }
-
 
 export function ElicitationDialog(props: ElicitationDialogProps): React.ReactNode {
   const mode = props.event.params.mode

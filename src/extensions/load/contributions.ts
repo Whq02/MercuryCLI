@@ -14,14 +14,15 @@ import {
 } from '../manifest.js'
 import { substituteRootAndData } from '../options.js'
 
-
 type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
 type ResolvedCommand = { name: string; file: string; body: string; frontmatter: FrontmatterData }
 export type ResolvedAgent = { agentType: string; file: string; body: string; frontmatter: FrontmatterData; ignoredFields: string[] }
 type ResolvedHook = {
   event: string
   hook: ManifestHook
+
   commandLine: string
+
   scriptPath: string | null
 }
 type ResolvedServer = { key: string; runtimeName: string; config: ManifestServer; transport: 'stdio' | 'http' | 'sse' }
@@ -38,7 +39,9 @@ export type Resolution = {
   language: ResolvedLanguage[]
   channels: ResolvedChannel[]
   keybindings: ResolvedKeybinding[]
+
   defects: string[]
+
   notes: string[]
 }
 
@@ -48,7 +51,6 @@ export type Probes = {
   chordTaken: (chord: string) => boolean
   optionSet: (key: string) => boolean
 }
-
 
 const PATH_EXTS = process.platform === 'win32' ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';') : ['']
 
@@ -86,7 +88,6 @@ export function realProbes(overrides: Partial<Probes> = {}): Probes {
   }
 }
 
-
 const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---/
 
 // eslint-disable-next-line no-control-regex
@@ -107,6 +108,7 @@ function readMarkdown(file: string): { body: string; frontmatter: FrontmatterDat
   }
   const md = parseFrontmatter(raw, file)
   const block = FRONTMATTER_BLOCK.exec(raw)
+
   const parsed = md.parseError === undefined && !(block && block[1]!.trim() !== '' && Object.keys(md.frontmatter).length === 0)
   return { body: md.content, frontmatter: md.frontmatter, parsed }
 }
@@ -185,7 +187,6 @@ function hookScriptPath(
   return null
 }
 
-
 const SKILL_FILE = 'SKILL.md'
 
 export function resolveContributions(
@@ -222,6 +223,7 @@ export function resolveContributions(
       continue
     }
     let loaded = 0
+
     const own = existsSync(join(abs, SKILL_FILE)) ? [{ name: basename(abs), isDir: true, self: true }] : []
     const candidates = own.length > 0 ? own : entries.filter(e => e.isDir).map(e => ({ ...e, self: false }))
     for (const entry of candidates) {
@@ -234,6 +236,7 @@ export function resolveContributions(
         continue
       }
       const declaredName = typeof md.frontmatter['name'] === 'string' && md.frontmatter['name'].trim() ? md.frontmatter['name'].trim() : null
+
       if (declaredName !== null && !isLegalSkillName(declaredName)) {
         defects.push(`skill ${dir}/${entry.name}/${SKILL_FILE}: name in frontmatter is not a legal skill name — skipped`)
         continue
@@ -254,6 +257,7 @@ export function resolveContributions(
       continue
     }
     let loaded = 0
+
     const holdsMarkdownAnywhere = (folder: string): boolean => {
       for (const item of listDir(folder) ?? []) {
         if (item.isDir) {
@@ -312,6 +316,7 @@ export function resolveContributions(
         continue
       }
       const base = typeof md.frontmatter['name'] === 'string' && md.frontmatter['name'].trim() ? md.frontmatter['name'].trim() : entry.name.replace(/\.md$/i, '')
+
       if (validateAgentIdentifier(base) !== null) {
         defects.push(`agent ${dir}/${entry.name}: name is not a legal agent identifier — skipped`)
         continue
@@ -333,6 +338,7 @@ export function resolveContributions(
     for (const hook of entries) {
       const commandLine = substitute(hook.run)
       const script = hookScriptPath(commandLine, root)
+
       if (script !== null && 'escaped' in script) {
         defects.push(`hook ${event}: script ${script.escaped} escapes the extension root — skipped`)
         continue

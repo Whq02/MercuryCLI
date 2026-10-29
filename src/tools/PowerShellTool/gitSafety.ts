@@ -5,16 +5,23 @@ const PS_DASH = /[-–—―]/
 
 function normalisePath(raw: string): string {
   let value = raw
+
   if ((PS_DASH.test(value[0] ?? '') || value[0] === '/')) {
     const colon = value.indexOf(':', 1)
     if (colon !== -1) value = value.slice(colon + 1)
   }
+
   if (/^['"]/.test(value)) value = value.slice(1)
   if (/['"]$/.test(value)) value = value.slice(0, -1)
+
   value = value.replace(/`/g, '')
+
   value = value.replace(/^(?:[\w.]+\\){0,3}FileSystem::/i, '')
+
   value = value.replace(/^[A-Za-z]:(?![\\/])/, '')
+
   value = value.replace(/\\/g, '/')
+
   const components = value.split('/')
   const cleaned = components.map(component => {
     if (component === '' || component === '.' || component === '..') return component
@@ -28,6 +35,7 @@ function normalisePath(raw: string): string {
     return c === '' ? '.' : c
   })
   value = cleaned.join('/')
+
   value = posixNormalise(value).replace(/^\.\//, '').toLowerCase()
   return value
 }
@@ -80,6 +88,7 @@ function matchesGitInternal(path: string): boolean {
   if (path === '.git' || path.startsWith('.git/')) return true
   if (/^git~\d+(?:\/|$)/.test(path)) return true
   if (/^(?:objects|refs|hooks)(?:\/|$)/.test(path)) return true
+
   return false
 }
 

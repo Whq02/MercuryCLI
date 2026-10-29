@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -95,6 +96,7 @@ for (let i = 0; i < 25; i++) {
   const draftsDir = join(home, 'drafts')
   const file = readdirSync(draftsDir).find(f => f.endsWith('.json'))
   const parsed = JSON.parse(readFileSync(join(draftsDir, file!), 'utf8')) as Record<string, unknown>
+
   const entries = Object.keys(parsed).filter(k => !k.startsWith('_'))
   check('§6 per-project file bounded to 20 newest', entries.length <= 20, `${entries.length}`)
   check('§6 the newest draft survived the bound', entries.some(k => k.endsWith('000000000024')))

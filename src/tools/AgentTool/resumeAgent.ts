@@ -1,4 +1,3 @@
-
 import { rebuildSeenLinesFromTranscript } from '../../services/changeTransaction/seenLines.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
@@ -77,6 +76,7 @@ type ResumeAgentResult = {
   agentId: string
   description: string
   outputFile: string
+
   cwdFallback?: 'parent-checkout' | 'parent-directory'
   recordedCwd?: string
   note?: string
@@ -122,6 +122,7 @@ export async function resumeAgentBackground(args: {
   replyTarget?: 'parent' | 'operator'
   model?: string
   effort?: EffortLevel
+
   automatic?: boolean
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
@@ -225,7 +226,6 @@ export async function resumeAgentBackground(args: {
     createUserMessage({ content: prompt + note }),
   ]
 
-
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
 
   const instructionProfileOverride = meta?.instructionProfile
@@ -248,6 +248,7 @@ export async function resumeAgentBackground(args: {
 
   const rootSetAppState =
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
+
   let tasksNow: Record<string, unknown> | undefined
   rootSetAppState(prev => {
     tasksNow = prev.tasks
@@ -300,6 +301,7 @@ export async function resumeAgentBackground(args: {
         runAgent({
           agentDefinition: definition,
           promptMessages,
+
           ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
           onWait: line => setAgentWaitLine(agentId, line, rootSetAppState),
           toolUseContext,
@@ -344,6 +346,7 @@ export async function resumeAgentBackground(args: {
       automaticResume: args.automatic === true,
       replyTarget,
       enableSummarization: getSdkAgentProgressSummariesEnabled(),
+
       getWorktreeResult: async () =>
         worktreePath ? { worktreePath } : {},
       canUseTool,

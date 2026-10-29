@@ -46,8 +46,10 @@ export const TEARDOWN_SUITE: readonly TeardownStep[] = Object.freeze([
 export type TeardownHost = {
   altScreenActive: boolean
   tabStatusSupported: boolean
+
   write: (bytes: string) => void
   drainStdin: () => void
+
   resetPointer: (write: (s: string) => void) => void
 }
 

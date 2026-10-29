@@ -15,6 +15,7 @@ if (process.env.MEASURE_CHILD) {
   const { runStreamScene } = await import('./streamHarness.tsx')
   await runStreamScene(process.env.MEASURE_SCENE!, process.env.MEASURE_OUT!)
 } else {
+
   const scenes = process.argv.slice(2).filter(a => !a.startsWith('-'))
   const chosen = scenes.length > 0 ? scenes : [...FIXTURE_NAMES, 'typing-under-stream']
 
@@ -53,6 +54,7 @@ if (process.env.MEASURE_CHILD) {
     const dir = mkdtempSync(join(tmpdir(), `flux-bench-${scene}-`))
     const tee = join(dir, 'tee.jsonl')
     const out = join(dir, 'child.json')
+
     const seconds = 16
     const isTyping = scene === 'typing-under-stream'
     const drive = join(dir, 'drive.jsonl')
@@ -81,6 +83,7 @@ if (process.env.MEASURE_CHILD) {
           MEASURE_OUT: out,
           INK_WRITE_TEE: tee,
           INK_WRITE_TEE_FULL: '1',
+
           MERCURY_CRITTER_GAZE: '0',
           MERCURY_LIVE_GLYPHS: '0',
           MERCURY_TURN_RECEIPT: '0',
@@ -135,6 +138,7 @@ if (process.env.MEASURE_CHILD) {
       if (hit) lat.push(hit.ts - emitTs)
       else misses++
     }
+
     const firstNeedle = visible(child.firstDeltaText ?? '')
     const firstEmit = child.firstDeltaEmitAt || windowStart
     const firstOut = firstNeedle.length > 0 ? vis.find(t => t.ts >= firstEmit && t.v.includes(firstNeedle)) : undefined

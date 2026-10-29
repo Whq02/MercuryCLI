@@ -1,4 +1,3 @@
-
 import React, { useCallback, useRef, useState } from 'react'
 import { appendFileSync, writeFileSync } from 'node:fs'
 import { buildFixture } from './fixtures.ts'
@@ -13,6 +12,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
   const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
   const { LiveStreamingTail } = await import('../../src/components/LiveStreamingTail.js')
   const { Markdown, StreamingMarkdown } = await import('../../src/components/Markdown.js')
+
   const legacy = process.env.FLUX_HARNESS_LEGACY === '1'
 
   enableConfigs()
@@ -99,6 +99,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
     }
     const onStreamingText = useCallback((f: (cur: string | null) => string | null) => {
       if (legacy) {
+
         const next = f(legacyTextRef.current)
         legacyTextRef.current = next
         const vis = next ? next.substring(0, next.lastIndexOf('\n') + 1) || null : null
@@ -109,6 +110,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
         })
         return
       }
+
       tailStore.update(f)
       setStreamingActive(tailStore.read() !== null)
     }, [tailStore])
@@ -171,6 +173,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
     handleMessageFromStream(
       frame,
       m => {
+
         const content = (m as { message?: { content?: { type: string; text?: string }[] } })
           .message?.content
         const text = content?.find(b => b.type === 'text')?.text ?? fixture.fullText
@@ -233,6 +236,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
         )
       }
       if (dispatched === total) {
+
         dispatch(streamEvent({ type: 'content_block_stop', index: 0 }))
         if (fixture.hasToolBlock) dispatch(streamEvent({ type: 'content_block_stop', index: 1 }))
         dispatch({
@@ -241,6 +245,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
           uuid: 'flux-final',
         } as never)
         const endedAt = Date.now()
+
         setTimeout(() => {
           writeFileSync(
             outPath,

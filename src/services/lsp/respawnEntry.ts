@@ -1,10 +1,10 @@
-
 import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 interface RespawnEntryResolution {
   script?: string
+
   direct?: boolean
   reason?: string
 }
@@ -27,6 +27,7 @@ export function resolveMercuryRespawnEntry(
     }
   })()
   if (self && self.endsWith('.mjs') && existsSync(self)) {
+
     return { script: self }
   }
   const argv1 = process.argv[1]

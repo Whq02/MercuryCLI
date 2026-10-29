@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync, spawnSync } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync, readSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -168,6 +169,7 @@ const readFile = (path: string): string | null => {
     return null
   }
 }
+
 const previousRef = args[0] && !args[0].startsWith('--') ? args[0].split('..')[0]! : 'HEAD'
 const previousContentOf = (path: string): string | null => {
   try { return execFileSync('git', ['show', `${previousRef}:${path}`], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe' }) } catch { return null }

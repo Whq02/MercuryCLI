@@ -21,9 +21,12 @@ export type HuggingfaceDeviceLoginEvent =
 
 export interface HuggingfaceDeviceLoginArgs {
   io?: HuggingfaceOauthIo
+
   sleep?: (ms: number) => Promise<void>
+
   cancelled?: () => boolean
   onEvent?: (event: HuggingfaceDeviceLoginEvent) => void
+
   refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>
 }
 
@@ -32,6 +35,7 @@ export type HuggingfaceDeviceLoginOutcome =
       ok: true
       receipt: string
       username: string | null
+
       settledAfterCancel?: true
     }
   | {
@@ -99,6 +103,7 @@ export async function runHuggingfaceDeviceLogin(
     polls += 1
     const result = await pollHuggingfaceDeviceToken(start, io)
     if (result.state === 'unreachable') {
+
       note = `the Hub did not answer (${result.message}) — still trying until the code expires`
       onEvent?.({ phase: 'waiting', start, polls, note })
       continue
@@ -135,6 +140,7 @@ export async function runHuggingfaceDeviceLogin(
       }
     }
     onEvent?.({ phase: 'finishing' })
+
     if (cancelled()) {
       try {
         writeHuggingfaceTokens(result.tokens)
@@ -145,6 +151,7 @@ export async function runHuggingfaceDeviceLogin(
           receipt: `Hugging Face authorized but the tokens could not be stored: ${errorMessageWithCause(error)} — retry from /logins.`,
         }
       }
+
       recordSignIn('huggingface', 'oauth')
       return {
         ok: true,
@@ -153,6 +160,7 @@ export async function runHuggingfaceDeviceLogin(
         receipt: HUGGINGFACE_SETTLED_AFTER_CANCEL_RECEIPT,
       }
     }
+
     const probe = await fetchHuggingfaceIdentity(result.tokens.accessToken, io)
     const identity = probe.state === 'confirmed' ? probe.identity : undefined
     try {
@@ -166,6 +174,7 @@ export async function runHuggingfaceDeviceLogin(
     }
     recordSignIn('huggingface', 'oauth')
     const snapshot = await refresh()
+
     if (cancelled()) {
       return {
         ok: true,
@@ -184,6 +193,7 @@ export async function runHuggingfaceDeviceLogin(
 
 export interface HuggingfaceTokenLoginOutcome {
   ok: boolean
+
   stored: boolean
   receipt: string
 }

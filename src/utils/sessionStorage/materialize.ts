@@ -9,9 +9,12 @@ import {
 } from './loading.js'
 
 interface MaterializedPoint {
+
   ordinal: number
+
   totalEntries: number
   fold: TranscriptFoldState
+
   digest: string
 }
 

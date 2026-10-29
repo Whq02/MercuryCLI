@@ -1,4 +1,3 @@
-
 import type { ApiMessage } from '../types/wire.js'
 import { setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../constants/betas.js'
@@ -20,7 +19,6 @@ import {
 } from './model/capabilities.js'
 import { normalizeModelStringForAPI } from './model/model.js'
 
-
 type SideQueryOptions = {
   model: string
   system?: string | TextBlockParam[]
@@ -32,8 +30,10 @@ type SideQueryOptions = {
   maxRetries?: number
   signal?: AbortSignal
   temperature?: number
+
   thinking?: number | false
   stop_sequences?: string[]
+
   querySource: QuerySource | string
   source?: string
 }
@@ -58,6 +58,7 @@ export function sideQueryThinkingParam(
   }
   if (typeof thinking === 'number') {
     if (modelSupportsAdaptiveThinking(model)) return { type: 'adaptive' }
+
     return { type: 'enabled', budget_tokens: Math.min(thinking, maxTokens - 1) }
   }
   return undefined
@@ -94,6 +95,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
   }
 
   const thinking = sideQueryThinkingParam(opts.model, opts.thinking, maxTokens)
+
   const toolChoice = opts.tool_choice
     ? foldToolChoiceForModel(opts.model, opts.tool_choice as { type: string })
     : undefined
@@ -118,6 +120,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
   const send = (system: TextBlockParam[]) =>
     client.beta.messages.create(
       { ...request, system } as unknown as Parameters<typeof client.beta.messages.create>[0],
+
       opts.signal ? { signal: opts.signal } : undefined,
     )
   let response: Awaited<ReturnType<typeof send>>
@@ -138,6 +141,7 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
       throw retryError
     }
   }
+
   setLastApiCompletionTimestamp(Date.now())
   return response as unknown as ApiMessage
 }

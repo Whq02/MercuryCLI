@@ -8,11 +8,13 @@ import {
   AMBER, CRIMSON, FAINT, IVORY, OASIS, SECOND, TEAL, TERRA, NIGHT,
 } from '../../src/components/mercuryPalette.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
+
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
@@ -58,6 +60,7 @@ function capture(cols: number, extraEnv: Record<string, string>): Grid | null {
   }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(90000),
+
     env: {
       ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME,
       ...extraEnv,

@@ -1,4 +1,3 @@
-
 import { sep } from 'path'
 import { getCwd } from '../../utils/cwd.js'
 import { toTildePath } from '../../utils/path.js'

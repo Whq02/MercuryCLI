@@ -8,6 +8,7 @@ const SIGN_IN_LEDGER_VERSION = 1
 export type SignInKind = 'oauth' | 'subscription' | 'api-key' | 'operator-switch'
 
 interface SignInRecord {
+
   at: number
   kind: SignInKind
 }
@@ -19,6 +20,7 @@ interface SignInLedgerFile {
 }
 
 export interface SignInLedgerIo {
+
   home?: string
   now?: () => number
 }
@@ -68,6 +70,7 @@ function normaliseFamily(family: string): string | undefined {
 
 function ledgerPath(io?: SignInLedgerIo): string {
   if (io?.home !== undefined) return join(io.home, SIGN_IN_LEDGER_FILE)
+
   const { signInLedgerPath } =
     require('../../services/providers/providerSecrets.js') as typeof import('../../services/providers/providerSecrets.js')
   return signInLedgerPath(SIGN_IN_LEDGER_FILE)

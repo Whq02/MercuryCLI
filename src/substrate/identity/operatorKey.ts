@@ -1,4 +1,3 @@
-
 import {
   createHash,
   createPrivateKey,
@@ -32,6 +31,7 @@ export interface OperatorKeyFileV1 {
 }
 
 export interface OperatorKey {
+
   id: string
   publicKeyRaw: Buffer
   publicKey: KeyObject
@@ -116,6 +116,7 @@ function pauseMs(ms: number): void {
 function readOrBirthKey(path: string): OperatorKey {
   let lastCause: unknown = null
   for (let attempt = 0; attempt < 3; attempt++) {
+
     let raw: string | null = null
     try {
       raw = readFileSync(path, 'utf8')
@@ -127,11 +128,13 @@ function readOrBirthKey(path: string): OperatorKey {
       try {
         return parseKeyFile(path, raw)
       } catch (e) {
+
         lastCause = e
         pauseMs(30)
         continue
       }
     }
+
     const { privateKey, publicKey } = generateKeyPairSync('ed25519')
     const jwk = privateKey.export({ format: 'jwk' }) as { x?: string; d?: string }
     if (typeof jwk.x !== 'string' || typeof jwk.d !== 'string') {

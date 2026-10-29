@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer } from 'node:http'
@@ -101,6 +102,7 @@ check('the refusal names the model', text.includes(MODEL), text)
 check('the refusal carries the HTTP status', text.includes('HTTP 404'), text)
 check('the refusal carries the request id', text.includes(REQUEST_ID), text)
 check('the refusal carries the action line', /--model|\/model/.test(text), text)
+
 check('the wire saw at most the stream/non-stream ladder (404 is never retry-stormed)',
   hits.length >= 1 && hits.length <= 2, JSON.stringify(hits))
 check('exactly one model id ever reached the wire — no silent substitution',

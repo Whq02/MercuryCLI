@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -53,6 +54,7 @@ console.log('lane identity legibility ──')
 }
 
 {
+
   const sources = src('src/components/diff/diffSources.ts')
   check('/diff worktree labels ride the shared helper', sources.includes('laneDisplayName({ worktreePath: wt.path })'))
   const kit = src('src/components/mercury-ui/components.tsx')

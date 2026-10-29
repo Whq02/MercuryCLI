@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto'
 import { MERCURY_VERSION } from '../constants/product.js'
 import type { Message } from '../types/message.js'
 
-
 const FINGERPRINT_SALT = '59cf53e54c78'
 
 const CHARACTER_INDICES = [4, 7, 20]

@@ -14,7 +14,6 @@ import {
 } from './macOsKeychainHelpers.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
-
 type SecurityResult = { exitCode: number; stdout: string; stderr: string }
 
 const KEYCHAIN_UNREACHABLE: SecurityResult = {
@@ -28,6 +27,7 @@ function runSecurity(args: string[], input?: string): SecurityResult {
   const result = spawnSync('security', args, {
     windowsHide: true,
     encoding: 'utf8',
+
     timeout: 10_000,
     env: { ...subprocessEnv() },
     ...(input !== undefined ? { input } : {}),
@@ -107,6 +107,7 @@ export const macOsKeychainStorage: SecureStorage = {
       } catch {
       }
     }
+
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     if (rawService !== null) {
       try {
@@ -120,6 +121,7 @@ export const macOsKeychainStorage: SecureStorage = {
       } catch {
       }
     }
+
     if (previous !== null) {
       logForDebugging('keychain read failed on both spellings; serving the previous value', {
         level: 'warn' as never,
@@ -147,6 +149,7 @@ export const macOsKeychainStorage: SecureStorage = {
         if (parsed !== null) break
       }
       if (parsed === null) {
+
         const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
         if (rawService !== null) {
           const raw = await readServiceAsync(rawService)
@@ -155,6 +158,7 @@ export const macOsKeychainStorage: SecureStorage = {
         }
       }
       if (state.generation !== generation) {
+
         return parsed
       }
       const previous = state.cached.data
@@ -177,14 +181,18 @@ export const macOsKeychainStorage: SecureStorage = {
   update(data: SecureStorageData): { success: boolean; warning?: string } {
     clearKeychainCache()
     try {
+
       const hex = Buffer.from(JSON.stringify(data), 'utf8').toString('hex')
       const serviceName = getMacOsKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
       const username = getUsername()
+
       const commandLine = `add-generic-password -U -a "${username}" -s "${serviceName}" -X ${hex}\n`
       let result: SecurityResult
       if (commandLine.length <= STDIN_LINE_LIMIT) {
+
         result = runSecurity(['-i'], commandLine)
       } else {
+
         logForDebugging(
           `keychain payload of ${commandLine.length} bytes exceeds the stdin line limit; using the argument vector`,
           { level: 'warn' as never },
@@ -201,6 +209,7 @@ export const macOsKeychainStorage: SecureStorage = {
 
   delete(): boolean {
     clearKeychainCache()
+
     let allSucceeded = true
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     const serviceNames = [
@@ -209,6 +218,7 @@ export const macOsKeychainStorage: SecureStorage = {
     ]
     for (const serviceName of serviceNames) {
       const result = runSecurity(['delete-generic-password', '-a', getUsername(), '-s', serviceName])
+
       if (result.exitCode !== 0 && result.exitCode !== 44) {
         logForDebugging(
           `keychain delete failed for ${serviceName}: exit ${result.exitCode}, ${result.stderr.slice(0, 200)}`,

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { execFileSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -79,6 +80,7 @@ console.log('[2] the built binary, headless, on a populated home: disk only')
 if (!existsSync(DIST)) {
   console.log('  – dist/mercury.mjs absent — SKIP §2/§3 (build first: bun run build.ts)')
 } else {
+
   const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
   const folderSource = join(scratch, 'folder-source')
   cpSync(FIXTURE, folderSource, { recursive: true })
@@ -129,6 +131,7 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     BROWSER: 'true',
   }
+
   {
     let poisoned = false
     try {

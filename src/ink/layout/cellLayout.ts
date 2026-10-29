@@ -14,7 +14,6 @@ import {
   type LayoutWrap,
 } from './node.js'
 
-
 type DimValue =
   | { unit: 'auto' }
   | { unit: 'point'; value: number }
@@ -73,7 +72,6 @@ function insetValue(
   return resolve(pick, basis)
 }
 
-
 let _visited = 0
 let _measured = 0
 let _cacheHits = 0
@@ -88,7 +86,6 @@ export function getCellLayoutCounters(): {
 } {
   return { visited: _visited, measured: _measured, cacheHits: _cacheHits, live: _liveNodes }
 }
-
 
 type Axis = 'row' | 'column'
 
@@ -143,6 +140,7 @@ interface FinalRect {
 }
 
 class CellLayoutNode implements LayoutNode {
+
   private children: CellLayoutNode[] = []
   private parent: CellLayoutNode | null = null
 
@@ -190,7 +188,6 @@ class CellLayoutNode implements LayoutNode {
     _liveNodes++
   }
 
-
   insertChild(child: LayoutNode, index: number): void {
     const c = child as CellLayoutNode
     c.parent = this
@@ -216,7 +213,6 @@ class CellLayoutNode implements LayoutNode {
     return this.parent
   }
 
-
   markDirty(): void {
     this.measureCache.clear()
     this.markSubtreeDirty()
@@ -231,7 +227,6 @@ class CellLayoutNode implements LayoutNode {
       node = node.parent
     }
   }
-
 
   setWidth(value: number): void {
     this.styleWidth = pointOrAuto(value)
@@ -376,7 +371,6 @@ class CellLayoutNode implements LayoutNode {
     this.markSubtreeDirty()
   }
 
-
   free(): void {
     if (this.parent) this.parent.removeChild(this)
     _liveNodes = Math.max(0, _liveNodes - 1)
@@ -385,7 +379,6 @@ class CellLayoutNode implements LayoutNode {
     for (const c of [...this.children]) c.freeRecursive()
     this.free()
   }
-
 
   getComputedLeft(): number {
     return this.rounded.left
@@ -406,8 +399,8 @@ class CellLayoutNode implements LayoutNode {
     return edgeValue(this.padding, edge as 'left' | 'right' | 'top' | 'bottom')
   }
 
-
   calculateLayout(width?: number, _height?: number): void {
+
     _visited = 0
     _measured = 0
     _cacheHits = 0
@@ -430,7 +423,6 @@ class CellLayoutNode implements LayoutNode {
     }
     this.roundPass(0, 0)
   }
-
 
   private mainAxis(): Axis {
     return this.flexDirection === 'row' || this.flexDirection === 'row-reverse'
@@ -559,6 +551,7 @@ class CellLayoutNode implements LayoutNode {
 
     let out: { width: number; height: number }
     if (this.measureFunc && this.children.length === 0) {
+
       const pbH = this.padBorderH()
       const pbV = this.padBorderV()
       const innerW =
@@ -577,6 +570,7 @@ class CellLayoutNode implements LayoutNode {
             : this.clampH(measured.height + pbV, ownerHeight),
       }
     } else if (this.children.length === 0) {
+
       out = {
         width:
           widthMode === 'exactly'
@@ -771,6 +765,7 @@ class CellLayoutNode implements LayoutNode {
           crossAvail = Math.max(0, crossStyle)
           crossModeB = 'exactly'
         } else if (innerCross !== undefined) {
+
           crossAvail = Math.max(0, innerCross - crossMarginOf(child))
           crossModeB =
             crossIsExact && child.resolvedAlign(this) === 'stretch'
@@ -912,7 +907,6 @@ class CellLayoutNode implements LayoutNode {
 
     if (!performLayout) return { width: outW, height: outH }
 
-
     const actualInnerMain = (row ? outW : outH) - mainPB
     const actualInnerCross = (row ? outH : outW) - crossPB
     const mainLeadPB = row
@@ -1030,6 +1024,7 @@ class CellLayoutNode implements LayoutNode {
             if (!wrapReverse) crossPos += crossFree
             break
           default:
+
             break
         }
 
@@ -1228,7 +1223,6 @@ export function createCellLayoutNode(): LayoutNode {
   return new CellLayoutNode()
 }
 
-
 let _traceFile: string | undefined | null = null
 function traceContamination(node: CellLayoutNode, w: number, h: number): void {
   if (_traceFile === null) {
@@ -1241,6 +1235,7 @@ function traceContamination(node: CellLayoutNode, w: number, h: number): void {
   }
   for (const c of n.children) {
     if (c.final.left + c.final.width > w + 1e-6 || c.final.top + c.final.height > h + 1e-6) {
+
       try {
         appendFileSync(
           _traceFile,

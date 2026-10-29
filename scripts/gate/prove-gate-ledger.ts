@@ -9,6 +9,7 @@ const REPO = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const LEDGER_CLI = join(REPO, 'scripts/gate/ledger.ts')
 const BUN = process.execPath
 const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'keel-ledger-')))
+
 const OUTBOX = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'keel-ledger-out-')))
 
 let failures = 0

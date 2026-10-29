@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'

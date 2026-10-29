@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -7,6 +8,7 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'conc-home-'))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
+
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
 let failures = 0
@@ -69,6 +71,7 @@ function transcriptRows(cwd: string, sessionId: string, words: string): Record<s
   })
   return [row({ type: 'user', message: { role: 'user', content: words } }), reply]
 }
+
 function seedChat(workspaceId: string, sessionId: string, words: string): string {
   const file = workerTranscriptPath({ sessionId, workspaceId })
   mkdirSync(workspaceId, { recursive: true })
@@ -78,6 +81,7 @@ function seedChat(workspaceId: string, sessionId: string, words: string): string
 }
 const sid = (tail: string): string => `00000000-cccc-4000-8000-${tail.padStart(12, '0')}`
 const build = (): ReturnType<typeof buildConcourseSnapshot> => buildConcourseSnapshot({ recordsDir, crewDir, draftDir, nowMs: NOW })
+
 async function switchTo(dir: string): Promise<void> {
   await writeConcourseSeedOverride({ projectDir: dir }, draftDir)
   await applyHarnessGround(dir)
@@ -138,6 +142,7 @@ console.log('§3 — THE TWIN PICKER ROWS LAND ONE BOARD: the `.mercury` spellin
 
 console.log('§4 — THE NEVER-AGAIN INVARIANT: no board classes one folder\'s rows both current and elsewhere, whatever the spelling class')
 {
+
   const { realpathSync } = await import('node:fs')
   const oracle = (dir: string): string => {
     let canonical: string
@@ -152,6 +157,7 @@ console.log('§4 — THE NEVER-AGAIN INVARIANT: no board classes one folder\'s r
     }
     return canonical
   }
+
   const aliasSpelling = SCRATCH.startsWith('/private/') ? P_HOME.replace(/^\/private\//, '/') : P_HOME
   const SUB = join(P_HOME, 'csgo-prototype')
   const CARVED = join(P_HOME, 'carved-ground')

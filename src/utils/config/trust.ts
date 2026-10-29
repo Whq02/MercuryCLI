@@ -24,6 +24,7 @@ export function untrustedWorkspaceHeadless(): boolean {
     if (!getIsNonInteractiveSession()) return false
     return !checkHasTrustDialogAccepted()
   } catch {
+
     return false
   }
 }
@@ -60,11 +61,13 @@ export function isPathTrusted(dir: string): boolean {
 
 export function setPathTrusted(dir: string): void {
   const absolutePath = normalizePathForConfigKey(resolve(dir))
+
   if (absolutePath === normalizePathForConfigKey(homedir())) {
     setSessionTrustAccepted(true)
     return
   }
   saveGlobalConfig(current => {
+
     if (current.projects?.[absolutePath]?.hasTrustDialogAccepted) {
       return current
     }
@@ -85,15 +88,17 @@ export function isProjectScopeTrustAccepted(): boolean {
   return checkHasTrustDialogAccepted()
 }
 
-
 export type PermissionPostureRecord = NonNullable<
   import('./schema.js').ProjectConfig['permissionPosture']
 >
 
 export function recordPermissionPosture(input: {
   bypassArmed: boolean
+
   envArmed: boolean
+
   flagArmed: boolean
+
   dialogSuppressed: boolean
 }): void {
   try {

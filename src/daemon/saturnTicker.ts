@@ -40,7 +40,6 @@ import {
 } from './saturnBoxSchedules.js'
 import { wakeDelayOfSpelling, type SaturnOrigin } from '../utils/messages/noticeRows.js'
 
-
 export const DEFAULT_SATURN_CATCHUP_WINDOW_MS = 6 * 60 * 60 * 1000
 
 export function saturnCatchupWindowMs(): number {
@@ -55,13 +54,14 @@ export function isSaturnDisabled(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_SATURN_DISABLE'))
 }
 
-
 interface SaturnDeliveryV1 {
   sessionId: string
   workspaceId: string
   prompt: string
   by: string
+
   clientMessageId: string
+
   parked: boolean
   origin?: SaturnOrigin
 }
@@ -91,16 +91,22 @@ function saturnFireOrigin(envelope: SaturnFireEnvelopeV1, nowMs: number, facts: 
 
 export interface SaturnTickerPortsV1 {
   now(): number
+
   records(): ConcourseWorkerRecordV1[]
+
   liveFacts(account: ScheduleAccountV1, sessionId?: string): LiveAccountFactsV1
+
   deriveAccount(modelKey: string): { ok: true; account: ScheduleAccountV1 } | { ok: false; reason: string; code?: 'unreachable' }
+
   deliver(d: SaturnDeliveryV1): Promise<{ ok: boolean; detail?: string }>
+
   birth(spec: SaturnBirthSpecV1, opts: { scheduleId: string; dueAt: number; by: string; owner: string }): Promise<{ ok: boolean; sessionId?: string; detail?: string }>
+
   screenOpen(): boolean
   rosterChanged?(sessionId: string): void
+
   dir?: string
 }
-
 
 export function saturnDueAtOf(schedule: SaturnScheduleV1): number | null {
   if (schedule.paused === true) return null
@@ -190,13 +196,13 @@ const heldLine = (reason: HeldFireV1['reason'], n: number, family?: string): str
 const reasonClause = (schedule: SaturnScheduleV1 | undefined): string =>
   schedule?.note !== undefined && schedule.note.trim() !== '' ? ` · reason: ${schedule.note.replace(/[\r\n]+/g, ' ').trim()}` : ''
 
-
 interface SaturnTickReportV1 {
   fired: number
   held: number
   missed: number
   replayed: number
   dropped: number
+
   pending: number
 }
 
@@ -252,8 +258,10 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           releasable.push({ scheduleId: h.scheduleId, dueAt: h.dueAt })
           continue
         }
+
         const schedule = scheduleList.find(s => s.id === h.scheduleId)
         if (schedule === undefined) continue
+
         const resolvedHold = resolveFireTimeAccount(ports, schedule, rec.modelKey)
         if (resolvedHold.kind === 'no-credential') continue
         const verdict = scheduleAccountVerdict({ account: resolvedHold.account, nextFireMs: now, nowMs: now, live: ports.liveFacts(resolvedHold.account, sessionId) })
@@ -294,6 +302,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
             }
             const rearm = refreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
             if (rearm !== undefined) {
+
               refreshSaturnScheduleAccount(sessionId, h.scheduleId, rearm.account, rearm.modelKey, ports.dir)
             }
             const heldSchedule = scheduleList.find(s => s.id === h.scheduleId)
@@ -316,6 +325,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
                 ...(heldSchedule?.note !== undefined ? { note: heldSchedule.note } : {}),
               })
             } else {
+
               holdSaturnFire(sessionId, { ...h, heldAt: h.heldAt }, ports.dir)
               report.held++
             }
@@ -335,6 +345,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
     }
 
     const heldAtTickStart = new Set(heldList.map(h => h.scheduleId))
+
     let heldNowCount = heldList.length
     for (const schedule of scheduleList) {
       if (heldAtTickStart.has(schedule.id)) continue
@@ -362,6 +373,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
 
       const resolved = resolveFireTimeAccount(ports, schedule, rec.modelKey)
       if (resolved.kind === 'no-credential') {
+
         const missReason = resolved.code === 'unreachable' ? ('unreachable' as const) : ('signed-out' as const)
         const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: missReason, envelope: envelopeOf(schedule, dueAt), heldAt: now }, ports.dir)
         if (held === 'held') {
@@ -380,6 +392,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       }
       const fireAccount = resolved.account
       if (resolved.identityMismatch === true) {
+
         const held = holdSaturnFire(
           sessionId,
           {
@@ -458,6 +471,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
       const effect = await replayEnvelope(ports, rec, envelopeOf(schedule, dueAt), parked, by, now, { schedule })
       if (effect.ok) {
         report.fired++
+
         const movedClause =
           resolved.movedFromFamily !== undefined
             ? ` — fired on ${fireAccount.family}: the session's model moved after scheduling (was ${resolved.movedFromFamily})`
@@ -483,6 +497,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
           ...(effect.sessionId !== undefined ? { bornSessionId: effect.sessionId } : {}),
         })
       } else if (schedule.action.kind === 'birth') {
+
         const held = holdSaturnFire(sessionId, { scheduleId: schedule.id, dueAt, reason: 'admission-refused', envelope: envelopeOf(schedule, dueAt), heldAt: now, ...(effect.detail !== undefined ? { detail: effect.detail } : {}) }, ports.dir)
         if (held === 'held') {
           report.held++
@@ -539,6 +554,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         const boxRearm = boxRefreshOnRelease.get(`${h.scheduleId}@${h.dueAt}`)
         if (boxRearm !== undefined) refreshBoxScheduleAccount(h.scheduleId, boxRearm, ports.dir)
         if (h.envelope.kind !== 'birth' || h.envelope.birth === undefined) {
+
           logForDebugging(`[saturn] box held fire ${h.scheduleId} dropped — its envelope is not a replayable birth`)
           continue
         }
@@ -561,6 +577,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         }
       }
     }
+
     const boxHeldAtStart = new Set(box.heldFires.map(h => h.scheduleId))
     for (const schedule of box.schedules) {
       if (boxHeldAtStart.has(schedule.id)) continue
@@ -635,6 +652,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
         report.fired++
         const spent = spendBoxOneShot(schedule.id, ports.dir)
         if (resolvedBox.movedFromFamily !== undefined && marked === 'marked' && spent === 'kept') {
+
           refreshBoxScheduleAccount(schedule.id, boxAccount, ports.dir)
           logForDebugging(`[saturn] box birth ${schedule.id} fired on ${boxAccount.family} — the model's route moved after scheduling (was ${resolvedBox.movedFromFamily})`)
         }
@@ -669,8 +687,10 @@ async function replayEnvelope(
   return ports.deliver({
     sessionId: rec.sessionId,
     workspaceId: rec.workspaceId,
+
     prompt: resolveLoopFireForWorkspace(prompt, rec.workspaceId, loopChainOf(rec.sessionId)),
     by,
+
     clientMessageId: `saturn-${rec.sessionId}-${envelope.scheduleId}-${envelope.dueAt}`,
     parked,
     origin: saturnFireOrigin(envelope, firedAtMs, facts),
@@ -686,7 +706,6 @@ function loopChainOf(sessionId: string): LoopFireChainStateV1 {
   }
   return chain
 }
-
 
 const SATURN_TICK_MS = 30_000
 
@@ -710,6 +729,7 @@ export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: Sat
   let pending = -1
   const timer = setInterval(() => {
     if (running || stopped) return
+
     const stamp = saturnStoreStamp(ports.dir)
     if (pending === 0 && stamp === storeStamp) return
     storeStamp = stamp

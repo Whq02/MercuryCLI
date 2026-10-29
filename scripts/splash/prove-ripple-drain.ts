@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -67,6 +68,7 @@ function runProbe(opts: {
 }
 
 function readAction(configDir: string): string | null {
+
   const p = join(configDir, 'splash-action.json')
   if (!existsSync(p)) return null
   try {

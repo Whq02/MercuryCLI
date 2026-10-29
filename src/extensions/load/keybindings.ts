@@ -48,7 +48,6 @@ function boundChords(): Set<string> {
   return taken
 }
 
-
 export function getExtensionKeybindingBlocks(): KeybindingBlock[] {
   const taken = boundChords()
   const blocks: KeybindingBlock[] = []

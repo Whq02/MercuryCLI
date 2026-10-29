@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -212,6 +213,7 @@ console.log('[7] the name grammar, the reserved labels, the ids')
 
 console.log('[8] the contributions hash canonicalises')
 {
+
   const emptyTree = join(scratch, 'hash-empty-tree')
   mkdirSync(emptyTree, { recursive: true })
   const hashOf = (value: unknown): string => {
@@ -354,8 +356,10 @@ console.log('[10] the catalogue: lying entries and escapes refused; a single-ext
 
 console.log('[11] C15 — BOM-led manifests parse, URL schemes floor, escaping hooks defect')
 {
+
   const bom = manifestMod.parseManifestText(String.fromCharCode(0xfeff) + JSON.stringify({ name: 'bom-ext', version: '1.0.0', description: 'x' }))
   check('a BOM-led manifest parses (was: "manifest is not JSON")', bom.ok, bom.ok ? '' : bom.errors.join('; '))
+
   const badScheme = manifestMod.parseManifestValue({
     name: 'bad-scheme', version: '1.0.0', description: 'x',
     contributes: { servers: { r: { type: 'http', url: 'javascript:alert(1)' } } },
@@ -366,6 +370,7 @@ console.log('[11] C15 — BOM-led manifests parse, URL schemes floor, escaping h
     contributes: { servers: { r: { type: 'http', url: 'https://api.example.org/${option.KEY}/mcp' } } },
   })
   check('…and a placeholder in the PATH still parses (the floor is the scheme)', placeholderPath.ok, placeholderPath.ok ? '' : placeholderPath.errors.join('; '))
+
   const escRoot = join(scratch2, 'escape')
   const escManifest = {
     name: 'esc-ext', version: '1.0.0', description: 'x',

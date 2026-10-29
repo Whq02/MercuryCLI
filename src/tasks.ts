@@ -3,7 +3,6 @@ import { LocalAgentTask } from './tasks/LocalAgentTask/LocalAgentTask.js'
 import { LocalShellTask } from './tasks/LocalShellTask/LocalShellTask.js'
 import { LocalWorkflowTask } from './tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 
-
 function resolveWorkflowTask(): Task | undefined {
   try {
     return LocalWorkflowTask

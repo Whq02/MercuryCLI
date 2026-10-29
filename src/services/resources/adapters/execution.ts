@@ -1,4 +1,3 @@
-
 import * as path from 'node:path'
 import {
   executionExpired,
@@ -68,6 +67,7 @@ async function debugAdapterChildren(record: ExecutionRecord): Promise<ResourceCh
   const alias = record.spec.metadata?.alias
   if (typeof alias !== 'string') return []
   try {
+
     const { getDapSession } = await import('../../dap/dapClient.js')
     const root = getDapSession(record.spec.owner, alias)
     if (!root) return []

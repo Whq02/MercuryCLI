@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -69,6 +70,7 @@ t.section('§2 — the first-character law')
     "type-to-compose is gated to the DETAIL level (hotkeys dead there — no key can eat the character)",
     panes.includes("nav.level === 'detail'") && panes.includes('onTypeToCompose'),
   )
+
   const panel = readFileSync('src/components/prompts-panel/PromptsPanel.tsx', 'utf8')
   t.check(
     'the prompts panel wires no type-to-compose (nothing composes from a record row)',

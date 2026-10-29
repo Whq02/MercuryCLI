@@ -1,4 +1,3 @@
-
 import vm from 'node:vm'
 
 const MAX_BOUNDARY_ARRAY = 4096
@@ -128,7 +127,6 @@ export function hardenVMIntrinsics(ctx: vm.Context): void {
   vm.runInContext(LOCKDOWN_SRC, ctx)
 }
 
-
 export function makeSettle(ctx: vm.Context): (v: unknown) => Promise<{ v: unknown }> {
   return vm.runInContext('(async value => ({__proto__: null, v: await value}))', ctx)
 }
@@ -212,7 +210,6 @@ export function makeBoundaryClone(ctx: vm.Context): (hostVal: unknown) => unknow
     ctx,
   )
 }
-
 
 function makeHostError(message: string, name = 'Error', stack?: string): any {
   const rendered = `${name}: ${message}`

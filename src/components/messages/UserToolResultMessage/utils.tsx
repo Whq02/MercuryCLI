@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react'
 import { type Tool, type Tools } from '../../../Tool.js'
 import { findToolForRender } from '../../../tools/MCPTool/absentToolShim.js'
@@ -13,6 +12,7 @@ export function useGetToolFromMessages(
   return useMemo(() => {
     const toolUse = lookups.toolUseByToolUseID.get(toolUseID)
     if (!toolUse) return null
+
     return { tool: findToolForRender(tools, toolUse.name), toolUse }
   }, [toolUseID, tools, lookups])
 }

@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useApp } from '../ink.js'
 import { EXIT_CHORD_WINDOW_MS, useDoublePress } from './useDoublePress.js'
@@ -28,6 +27,7 @@ export function useExitOnCtrlCD(
     pending: false,
     keyName: null,
   })
+
   const doExit = onExit ?? exit
 
   const fireInterrupt = useDoublePress(
@@ -48,6 +48,7 @@ export function useExitOnCtrlCD(
   useKeybindingsHook(
     {
       'app:interrupt': () => {
+
         if (onInterrupt?.() === true) return
         fireInterrupt()
       },

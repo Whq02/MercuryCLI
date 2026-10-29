@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -389,6 +390,7 @@ function readRound(dialect: Dialect, body: Body): RoundOnWire {
     input.forEach((item, i) => {
       if (item.type === 'function_call') lastCall = i
     })
+
     let start = lastCall
     while (start > 0 && input[start - 1]!.type === 'function_call') start--
     if (lastCall === -1) return { toolUseIds, answers, trailingText }
@@ -514,6 +516,7 @@ for (const { lane, model, dialect } of LANES) {
     check('P1 the run never threw and completed in exactly two model calls', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 2, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length}`)
     const second = r.wire[1]
     const round = second ? readRound(dialect, second.body) : { toolUseIds: [], answers: [], trailingText: [] }
+
     const executed = ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
     if (dialect === 'gemini') {
       check('P1 the replayed model content carries every part Google sent, in Google\'s order (the signed-parts law), the refused calls included', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))

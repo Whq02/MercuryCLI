@@ -18,6 +18,7 @@ export {
 } from './artifactSigning.js'
 export { verifyPayloadDir, type PayloadVerification } from './artifactVerify.js'
 export { trustedSigningKeys, PRODUCTION_SIGNING_KEY, type TrustedSigningKey } from './signingTrust.js'
+
 export { archiveBaseNameFor, archiveNameFor, isReleaseTarget, releaseTargetFor, RELEASE_TARGETS, type ReleaseTarget } from './releaseTarget.js'
 
 const EXIT_BY_STATE: Record<string, number> = {
@@ -60,6 +61,7 @@ function cliMain(): void {
 
   if (launcherMode) {
     const state = result.verdict.state
+
     const once = provenanceNoticeIsOnce(state)
     let notice = ''
     if (state !== 'signed' && (!once || !provenanceNoticeSaid(dir, state))) {

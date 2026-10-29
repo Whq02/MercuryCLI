@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,6 +27,7 @@ function dumpFrame(label: string, lines: string[]): void {
 }
 
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+
 const SETTLED = { minTick: 10, awaitSettleTicks: 4, requireAwait: true } as const
 const clickOn = (needle: string, atTick: number): Record<string, unknown> => ({
   targetText: needle,
@@ -42,6 +44,7 @@ function capture(
   total: number,
   extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
+
   const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
   cfg['sends'] = sends
   cfg['total'] = total
@@ -88,12 +91,14 @@ check(
   'the Glob renderer honors verbose (file list branch)',
   src('src/tools/GlobTool/UI.tsx').includes('opts.verbose && filenames.length > 0'),
 )
+
 check(
   'Messages.tsx error rows gate on the fold owner',
   /if \(\(result as \{ is_error\?: boolean \}\)\.is_error\) \{\s*verdict = true/.test(src('src/components/Messages.tsx')) &&
     /\)\.isResultTruncated\?\.\(record\) === true/.test(src('src/components/Messages.tsx')) &&
     src('src/components/FallbackToolUseErrorMessage.tsx').includes('export function isToolErrorResultTruncated'),
 )
+
 check(
   'dist ships the 3 isResultTruncated gates (10 method keys)',
   (readFileSync('dist/mercury.mjs', 'utf8').match(/isResultTruncated/g)?.length ?? 0) >= 10,
@@ -162,6 +167,7 @@ if (base && globY >= 0 && errY >= 0) {
     check('glob click: file list revealed', fileRow >= 0 && rowOf('GlobTool.ts') >= 0)
     check(
       'glob click: expanded block wears the DUNE_FAINT bg',
+
       fileRow >= 0 &&
         e.grid[fileRow]!.some(c => c.bg?.toLowerCase() === DUNE_FAINT.slice(1).toLowerCase()),
     )
@@ -175,6 +181,7 @@ if (base && globY >= 0 && errY >= 0) {
 cleanupScenario('click-expand')
 
 {
+
   const cfg = scenario('tool-lifecycle', 120, 50)
   const gridPath = `${tmpdir()}/tool-lifecycle-${process.pid}.json`
   const cfgPath = `${tmpdir()}/tool-lifecycle-cfg-${process.pid}.json`
@@ -204,11 +211,13 @@ cleanupScenario('click-expand')
       'lifecycle: the ± lane did NOT suppress the diff card (hunks still paint)',
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
+
     check(
       'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
       lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
       lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
     )
+
     check(
       'lifecycle: the unresolved Bash is never a settled "Ran" row',
       !lines.some(l => /Ran \d+ bash command/.test(l)),
@@ -239,7 +248,9 @@ cleanupScenario('click-expand')
 
 {
   const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
+
     const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
+
     cfg['sends'] = sends
     cfg['total'] = total
     const gridPath = `${tmpdir()}/click-expand-twobash-${tag}-${process.pid}.json`
@@ -264,12 +275,14 @@ cleanupScenario('click-expand')
     : []
   check('two-bash baseline shows BOTH collapsed rows', rows.length === 2, `rows=${JSON.stringify(rows)}`)
   if (rows.length === 2) {
+
     const afterTop = run('top', [{ ...clickOn('bash command', 110), targetDx: 0 }], 130)
     check(
       'clicking the FURTHER-UP row expands it (echo hi revealed)',
       afterTop !== null && afterTop.some(l => l.includes('Bash echo hi')),
       afterTop === null ? 'capture failed' : bashRows(afterTop),
     )
+
     const afterBot = run(
       'bottom',
       [
@@ -283,6 +296,7 @@ cleanupScenario('click-expand')
       afterBot !== null && afterBot.some(l => l.includes('shasum -a 256')),
       afterBot === null ? 'capture failed' : bashRows(afterBot),
     )
+
     const jitter = run(
       'jitter',
       [

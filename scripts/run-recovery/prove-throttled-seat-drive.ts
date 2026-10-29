@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -34,7 +35,9 @@ const BUDGET_MINUTES = 0.1
 const BUDGET_MS = 6_000
 const IDLE_MS = 2_000
 const FALLBACK_MS = 8_000
+
 const HUNG_BUDGET_MINUTES = 0.5
+
 const LEG_MS = 40_000
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'throttled-seat-'))
@@ -54,12 +57,14 @@ process.env.TMPDIR = '.'
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
+
 {
   const cfgPath = join(configDir, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg.switchboardCapacity = { askedAt: 0, allowed: true, recommendedSeats: 8 }
   writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
 }
+
 function writePatience(recoveryBudgetMinutes: number): void {
   const settingsPath = join(configDir, 'settings.json')
   const current = ((): Record<string, unknown> => {
@@ -110,6 +115,7 @@ const seatRows = (sid: string): WorkRow[] => {
     return []
   }
 }
+
 const findText = (value: unknown, pred: (s: string) => boolean, depth = 0): string | null => {
   if (depth > 12 || value === null || value === undefined) return null
   if (typeof value === 'string') return pred(value) ? value : null
@@ -128,6 +134,7 @@ const findText = (value: unknown, pred: (s: string) => boolean, depth = 0): stri
   }
   return null
 }
+
 const toolResultTexts = (value: unknown, out: string[], depth = 0): void => {
   if (depth > 12 || value === null || typeof value !== 'object') return
   if (Array.isArray(value)) {
@@ -135,6 +142,7 @@ const toolResultTexts = (value: unknown, out: string[], depth = 0): void => {
     return
   }
   const record = value as Record<string, unknown>
+
   if (record.kind === 'tool-result') {
     const body = record.body
     if (typeof body === 'string') out.push(body)
@@ -152,6 +160,7 @@ const toolResultTexts = (value: unknown, out: string[], depth = 0): void => {
   }
   for (const v of Object.values(record)) toolResultTexts(v, out, depth + 1)
 }
+
 const receiptOf = (sid: string): string | null => {
   for (const line of parentTranscript(sid).split('\n')) {
     if (!line.includes('"kind":"tool-result"') && !line.includes('tool_result')) continue
@@ -185,6 +194,7 @@ const seatNoticeFacts = (sid: string): NonNullable<ReturnType<typeof recoveryNot
         return []
       }
     })
+
 const pausedOf = (sid: string): WorkRow['paused'] | null => {
   for (const row of seatRows(sid)) if (row.paused !== undefined) return row.paused
   return null
@@ -193,6 +203,7 @@ const cutRow = (sid: string): string | null => {
   const m = /\[Request cut off[^\]]*\]/.exec(seatTranscript(sid))
   return m === null ? null : m[0]
 }
+
 const runnerOf = (sid: string): string | null => {
   try {
     const file = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { runnerId?: string; sessionId?: string; endedAt?: number }> }
@@ -202,6 +213,7 @@ const runnerOf = (sid: string): string | null => {
     return null
   }
 }
+
 const turnOpenOnRoster = async (runnerId: string): Promise<boolean | null> => {
   const listed = (await daemonControlRpc({ op: 'list' } as never)) as { ok?: boolean; jobs?: Array<{ short?: string; busy?: boolean; turnActive?: boolean }> }
   const row = listed.ok === true ? listed.jobs?.find(j => j.short === runnerId) : undefined
@@ -241,9 +253,11 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: base,
+
     MERCURY_RECOVERY_BUDGET_MINUTES: '',
     MERCURY_STREAM_IDLE_TIMEOUT_MS: '',
     MERCURY_API_TIMEOUT_MS: '',
+
     MERCURY_TOOL_DEFER: '0',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
@@ -285,8 +299,10 @@ type Leg = {
   paused: WorkRow['paused'] | null
   endedAt: number | null
 }
+
 const runLeg = async (arm: string): Promise<Leg> => {
   writePatience(arm === 'hung' ? HUNG_BUDGET_MINUTES : BUDGET_MINUTES)
+
   const opened = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: `throttle-open-${arm}`,
@@ -299,8 +315,10 @@ const runLeg = async (arm: string): Promise<Leg> => {
   check(`${arm}: the session opened`, opened.ok === true && typeof opened.sessionId === 'string', JSON.stringify(opened))
   const sid = opened.sessionId ?? ''
   await untilAsync(() => parentTranscript(sid).includes('fixture answers') && readFacts(sid)?.busy === false, 45_000, 50)
+
   const granted = (await daemonControlRpc({ op: 'sessionControl', action: 'grant-workflows', sessionId: sid, by: 'seat-drive' } as never)) as { ok?: boolean; outcome?: string; error?: string; detail?: string }
   check(`${arm}: the session holds the workflows-allowed tag`, granted.ok === true && (granted.outcome === undefined || granted.outcome === 'applied' || granted.outcome === 'noop'), JSON.stringify(granted))
+
   const runnerId = opened.runnerId ?? runnerOf(sid) ?? ''
   if (granted.outcome === 'applied') {
     check(
@@ -344,12 +362,15 @@ const runLeg = async (arm: string): Promise<Leg> => {
       leg.parentDone = true
       break
     }
+
     const open = await turnOpenOnRoster(runnerId)
     if (open === true) sawBusy = true
     if (sawBusy && open === false) break
     await sleep(40)
   }
+
   if (!leg.parentDone) leg.parentDone = await untilAsync(() => parentTranscript(sid).includes('parent done'), 2_000, 25)
+
   await untilAsync(() => receiptOf(sid) !== null, 5_000, 50)
   leg.receipt = receiptOf(sid)
   await untilAsync(() => seatRows(sid).length > 0 && seatRows(sid).every(row => row.status !== 'running'), 5_000, 50)
@@ -361,6 +382,7 @@ const runLeg = async (arm: string): Promise<Leg> => {
   leg.endedAt = Date.now()
   leg.notices = noticeCount(sid)
   leg.landed = /recovered after busy|slow but alive/.test(seatTranscript(sid))
+
   try {
     await daemonControlRpc({ op: 'sessionControl', action: 'revoke-workflows', sessionId: sid, by: 'seat-drive' } as never)
     await daemonControlRpc({ op: 'sessionControl', action: 'stop', sessionId: sid, by: 'seat-drive' } as never)
@@ -403,6 +425,7 @@ try {
       check('L1 the third refusal spends the budget: the seat stops typed', leg.cut !== null && leg.notices >= 3, `cut=${leg.cut} notices=${leg.notices}`)
       check('L1 the cut fires at the budget, on the harness clock', near(cutAfterMs(leg)), String(cutAfterMs(leg)))
       check('L1 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), leg.receipt ?? '(none)')
+
       check('L1 the seat row settled failed with the spent line as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /retry budget is spent/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
     }
     if (arm === '429-bare') {
@@ -412,6 +435,7 @@ try {
       check('L2 the receipt names the refusals and the budget', leg.receipt !== null && spent.test(leg.receipt) && /HTTP 429/.test(leg.receipt), leg.receipt ?? '(none)')
     }
     if (arm === '529') {
+
       check('L3 the quiet window keeps the overload waits off the row', !leg.waits.some(w => /provider overloaded \(HTTP 529\) — waiting \d+ s before retry \d+ of \d+/.test(w)), leg.waits.join(' | '))
       check('L3 the overloads end the seat typed and the receipt names them', leg.seatStatus === 'failed' && leg.receipt !== null && /overload/i.test(leg.receipt), `${leg.seatStatus} ${leg.receipt ?? '(none)'}`)
     }
@@ -424,6 +448,7 @@ try {
       const afterToolRequest = seatHits.find(c => c.toolResult === true && c.nth === 2 && c.streaming === true)
       check(`${tag} the wire saw the recovery: streamed tries, the non-streamed fallback, then the busy answer and the reply`, seatHits.some(c => c.streaming === false) && seatAnswers.some(c => c.status === 429) && afterToolReply !== undefined, JSON.stringify(seatHits.map(c => [c.streaming, c.toolResult, c.nth])))
       check(`${tag} the seat's reply answered its own after-tool request (route seat, tool result carried, second try)`, afterToolRequest !== undefined && afterToolReply !== undefined && afterToolReply.streaming === true && afterToolReply.at >= afterToolRequest.at, JSON.stringify(seatAnswers.map(c => [c.status, c.toolResult, c.nth])))
+
       const recoveries = seatNoticeFacts(leg.sid).filter(f => f.kind === 'recovery' && f.cause === cause && f.declaredMs > 0)
       check(`${tag} the row names the recovery, never a refusal (the sampled row, or the seat's own recovery notice with that cause and its ceiling)`, leg.waits.some(w => w.startsWith(`${cause} — `) && /up to (\d+ s|\d+m(?: \d+s)?)/.test(w)) || recoveries.length > 0, `${leg.waits.join(' | ')} · recovery notices on disk: ${recoveries.map(f => `${f.cause} up to ${f.declaredMs} ms`).join(' | ') || 'none'}`)
       check(`${tag} the busy answer after the tool call is waited out with the budget whole`, leg.waits.some(w => busy.test(w) && /waiting 1 s/.test(w) && /5 s of the 6s retry budget left$/.test(w)), leg.waits.join(' | '))

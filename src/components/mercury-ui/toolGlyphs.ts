@@ -1,5 +1,3 @@
-
-
 export type ToolFamily =
   | 'shell'
   | 'read'
@@ -19,8 +17,10 @@ type ToolToneRole = 'accent' | 'info' | 'textSecondary'
 
 type ToolFamilyMark = {
   glyph: string
+
   fallback: string
   tone: ToolToneRole
+
   label: string
 }
 
@@ -41,12 +41,15 @@ export const TOOL_FAMILY_MARKS: Record<ToolFamily, ToolFamilyMark> = {
 }
 
 export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
+
   Bash: 'shell',
   PowerShell: 'shell',
   Launch: 'shell',
   Eval: 'shell',
+
   Read: 'read',
   ReadMcpResource: 'read',
+
   Glob: 'search',
   Grep: 'search',
   AstSearch: 'search',
@@ -59,27 +62,34 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   LspFormat: 'edit',
   LspRequest: 'search',
   ToolSearch: 'search',
+
   Edit: 'edit',
   AstEdit: 'edit',
   NotebookEdit: 'edit',
   Structure: 'edit',
+
   Write: 'write',
   Document: 'write',
+
   ApolloReview: 'diff',
   ChangeSet: 'diff',
   Git: 'diff',
   Transaction: 'diff',
+
   Browser: 'browser',
   ProviderSearch: 'browser',
   WebFetch: 'browser',
   WebSearch: 'browser',
+
   Crewmate: 'agent',
   Contract: 'agent',
   SendMessage: 'agent',
   ResumeCrewmate: 'agent',
   Workflow: 'agent',
+
   Test: 'test',
   Journey: 'test',
+
   CronCreate: 'plan',
   CronDelete: 'plan',
   CronList: 'plan',
@@ -92,12 +102,14 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   TaskList: 'plan',
   TaskStop: 'plan',
   TaskUpdate: 'plan',
+
   Retain: 'memory',
   Recall: 'memory',
   Reflect: 'memory',
   Correct: 'memory',
   Journal: 'memory',
   RecordConvention: 'memory',
+
   AskAdvisor: 'system',
   AskUserQuestion: 'system',
   Checkpoint: 'system',
@@ -108,6 +120,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Rewind: 'system',
   Service: 'system',
   StructuredOutput: 'system',
+
   Aseprite: 'external',
   Blender: 'external',
   Godot: 'external',

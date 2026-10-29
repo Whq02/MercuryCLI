@@ -3,7 +3,6 @@ import { z } from 'zod/v4'
 import { lazySchema } from '../lazySchema.js'
 import { getCustomValidation, isBashPrefixTool, isFilePatternTool } from './toolValidationConfig.js'
 
-
 type PermissionRuleValidation = {
   valid: boolean
   error?: string
@@ -46,6 +45,7 @@ function hasSuspiciousWildcardPlacement(content: string): boolean {
 }
 
 export function validatePermissionRule(rule: string): PermissionRuleValidation {
+
   if (rule.trim() === '') {
     return { valid: false, error: 'A permission rule may not be empty' }
   }
@@ -61,6 +61,7 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
   }
 
   const firstOpen = findUnescaped(rule, '(')
+
   const toolName = (firstOpen === -1 ? rule : rule.slice(0, firstOpen)).trim()
 
   if (firstOpen !== -1 && findUnescaped(rule, ')', firstOpen + 1) === firstOpen + 1) {
@@ -78,10 +79,12 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
   if (firstOpen !== -1) {
     const lastClose = rule.lastIndexOf(')')
     content = rule.slice(firstOpen + 1, lastClose)
+
     if (content === '*') content = undefined
   }
 
   if (toolName.startsWith('mcp__')) {
+
     if (content !== undefined || firstOpen !== -1) {
       const rest = toolName.slice('mcp__'.length)
       const separatorIndex = rest.indexOf('__')
@@ -108,6 +111,7 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
     if (tool !== undefined && tool === '') {
       return { valid: false, error: 'MCP rule is missing a tool name after the separator' }
     }
+
     return { valid: true }
   }
 
@@ -126,6 +130,7 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
   }
 
   if (content !== undefined) {
+
     const customValidation = getCustomValidation(toolName)
     if (customValidation) {
       const result = customValidation(content)

@@ -11,7 +11,6 @@ import { getDisplayPath } from '../../utils/file.js'
 import { extractTag } from '../../utils/messages.js'
 import type { Output } from './NotebookEditTool.js'
 
-
 type UiInput = {
   notebook_path?: string
   cell_id?: string
@@ -94,6 +93,7 @@ function ResultCard({ output }: { output: Output }): React.ReactNode {
       </MessageResponse>
     )
   }
+
   return (
     <MessageResponse>
       <Box flexDirection="column">

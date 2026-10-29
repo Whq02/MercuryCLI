@@ -1,4 +1,3 @@
-
 import { createHash } from 'node:crypto'
 import type {
   DiffBodyFile,
@@ -9,7 +8,6 @@ import type {
 export function contentDigest(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex').slice(0, 16)
 }
-
 
 interface MdBlock {
   headingPath: string[]
@@ -25,6 +23,7 @@ export function listMdBlocks(markdown: string): MdBlock[] {
     const text = current.join('\n').trim()
     current = []
     if (text.length === 0) return
+
     blocks.push({
       headingPath: [...headingPath].map(s => s ?? ''),
       text,
@@ -32,6 +31,7 @@ export function listMdBlocks(markdown: string): MdBlock[] {
     })
   }
   for (const rawLine of markdown.split('\n')) {
+
     const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
     const heading = line.match(/^(#{1,6})\s+(.*)$/)
     if (heading) {
@@ -57,11 +57,11 @@ export function listMdBlocks(markdown: string): MdBlock[] {
   return blocks
 }
 
-
 interface DiffLineSite {
   path: string
   side: 'old' | 'new'
   hunkIndex: number
+
   line: number
   content: string
   digest: string
@@ -91,7 +91,6 @@ export function listDiffLineSites(files: DiffBodyFile[]): DiffLineSite[] {
   }
   return sites
 }
-
 
 type AnchorCheck = { ok: true } | { ok: false; reason: string }
 
@@ -160,7 +159,6 @@ export function validateAnchor(body: ReviewArtifactBody, anchor: ReviewAnchor): 
     }
   }
 }
-
 
 type Relocation =
   | { outcome: 'relocated'; anchor: ReviewAnchor }
@@ -262,6 +260,7 @@ export function relocateAnchor(newBody: ReviewArtifactBody, anchor: ReviewAnchor
       if (newBody.kind !== 'visual') {
         return { outcome: 'outdated', reason: 'the new version has no captures' }
       }
+
       const identical = newBody.captures.filter(
         c =>
           (anchor.captureDigest !== undefined && c.digest === anchor.captureDigest) ||

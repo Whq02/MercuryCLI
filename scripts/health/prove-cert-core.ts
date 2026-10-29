@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import {
   chipFromLastCert,
   composeChip,
@@ -69,6 +70,7 @@ const green: GateVerdict = {
 }
 {
   const r = interpretGateVerdict(null, { sha: 'a', dirty: false }, NOW)
+
   check('absent artifact ⇒ info (a never-run install has not failed a check)', r.status === 'info')
   check('absent artifact evidence says no verdict was recorded', r.evidence.includes('no gate verdict recorded'))
   check('…and the optional road stays named', (r.fix ?? '').includes('run-all-suites.sh'))
@@ -78,6 +80,7 @@ const green: GateVerdict = {
   const r = interpretGateVerdict(red, { sha: green.headSha, dirty: false }, NOW)
   check('red verdict at the SAME state ⇒ live fail', r.status === 'fail')
   check('red evidence names the red suites', r.evidence.includes('crew') && r.evidence.includes('RED'))
+
   const movedHead = interpretGateVerdict(red, { sha: 'somewhere-else', dirty: false }, NOW)
   check('red verdict at a SUPERSEDED commit ⇒ stale, never present-tense fail', movedHead.status === 'stale')
   check('the stale red still names what WAS red', movedHead.evidence.includes('crew') && movedHead.evidence.includes('superseded'))
@@ -113,22 +116,26 @@ const green: GateVerdict = {
 
 const TREE = 'f'.repeat(40)
 {
+
   const bound: GateVerdict = { ...green, dirty: true, treeSha: TREE }
   const r = interpretGateVerdict(bound, { sha: 'b'.repeat(40), dirty: false, treeSha: TREE }, NOW)
   check('content-bound: dirty-run + moved HEAD but SAME tree ⇒ ok', r.status === 'ok')
   check('content-bound evidence says so', r.evidence.includes('content-bound'))
 }
 {
+
   const bound: GateVerdict = { ...green, treeSha: TREE }
   const r = interpretGateVerdict(bound, { sha: 'b'.repeat(40), dirty: false, treeSha: 'e'.repeat(40) }, NOW)
   check('tree MISMATCH ⇒ still stale (HEAD moved)', r.status === 'stale')
 }
 {
+
   const red: GateVerdict = { ...green, ok: false, fail: ['ui'], treeSha: TREE }
   const r = interpretGateVerdict(red, { sha: green.headSha, dirty: false, treeSha: TREE }, NOW)
   check('red + matching tree ⇒ still fail (content match never rescues red)', r.status === 'fail')
 }
 {
+
   const r = interpretGateVerdict(green, { sha: 'b'.repeat(40), dirty: false, treeSha: TREE }, NOW)
   check('legacy verdict without treeSha ⇒ the old staleness rules stand', r.status === 'stale')
 }
@@ -184,6 +191,7 @@ const cert: HealthCertificate = {
   check('summary round-trips through JSON + decode', rt !== null && rt.verdict === 'caution' && rt.counts.stale === 1 && rt.head.dirty === true)
   const counts = countByStatus(cert.sections.flatMap(s => s.checks))
   check('countByStatus covers the 7-status enum', counts.ok === 1 && counts.warn === 1 && counts.stale === 1 && counts.unknown === 0)
+
   check(
     'summary carries the attention rows (stale before warn, ids + evidence)',
     sum.attention.length === 2 && sum.attention[0]!.id === 'c' && sum.attention[0]!.status === 'stale' && sum.attention[1]!.id === 'b' && sum.attention[1]!.evidence === 'e',
@@ -265,6 +273,7 @@ check('decodeLastCertSummary rejects garbage', decodeLastCertSummary({ verdict: 
   check('decode preflight: bad ranAt ⇒ null', decodePreflightSummary({ via: 'preflight', verdict: 'fault', ranAt: 'nope' }) === null)
   check('decode preflight: malformed failing entries dropped, not fatal', decodePreflightSummary({ via: 'preflight', verdict: 'fault', ranAt: iso(0), failing: [{ id: 1 }, { id: 'x', evidence: 'y' }] })?.failing.length === 1)
   check('decode preflight: non-object ⇒ null', decodePreflightSummary('x') === null && decodePreflightSummary(null) === null)
+
   const withDegraded = decodePreflightSummary({
     via: 'preflight', verdict: 'caution', ranAt: iso(0), failing: [],
     degraded: [{ id: 'gate', status: 'stale', evidence: 'verdict predates HEAD' }, { id: 'bad', status: 'nope', evidence: 'x' }],

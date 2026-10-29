@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,6 +33,7 @@ function runScene(scene: string): { reasons: Record<string, number>; frames: num
         INK_COMPOSED_TEE: composed,
         MERCURY_CONFIG_DIR: join(dir, 'config'),
         MERCURY_DAEMON_DIR: join(dir, 'daemon'),
+
         MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',

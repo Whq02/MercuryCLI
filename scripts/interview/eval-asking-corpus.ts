@@ -16,7 +16,9 @@ interface Scenario {
   kind: 'resolved' | 'trivial' | 'open' | 'dependent'
   files: Record<string, string>
   task: string
+
   forbidden: string[]
+
   dependentPair?: [string[], string[]]
   note: string
 }

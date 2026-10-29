@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,10 +31,13 @@ section('§1 THE WRITE FLOW (the card repro)')
   const path = join(SCRATCH, 'mixed.txt')
   writeFileSync(path, MIXED)
   const meta = readFileSyncWithMetadata(path)
+
   const updated = meta.content.replace('a2', 'a2-edited')
+
   if (preserve) {
     writeTextContent(path, preserve(meta.rawContent, updated, meta.lineEndings), meta.encoding, 'LF')
   } else {
+
     writeTextContent(path, updated, meta.encoding, meta.lineEndings)
   }
   const after = readFileSync(path, 'utf8')
@@ -54,6 +58,7 @@ section('§2 THE RECONCILIATION UNIT')
 {
   check('preserveUntouchedLineEndings exists on the write module', typeof preserve === 'function')
   if (preserve) {
+
     const raw = 'top\r\nkeep-lf\nmid\r\nbottom\r\n'
     const updated = 'top\nkeep-lf\nmid-CHANGED\nbottom\n'
     const out = preserve(raw, updated, 'CRLF')

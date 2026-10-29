@@ -12,6 +12,7 @@ import { getInitialSettings } from './settings/settings.js'
 
 const RECENT_ACTIVITY_LOAD_LIMIT = 10
 const RECENT_ACTIVITY_KEEP = 3
+
 const NO_PROMPT_PLACEHOLDER = 'No prompt'
 const APOLOGY_MARKER = 'I apologize'
 
@@ -41,7 +42,6 @@ export function getRecentActivity(): Promise<SessionListing[]> {
   return recentActivityPromise
 }
 
-
 const DEMO_PLACEHOLDER_PATH = '/code/mercury'
 
 export function getLogoDisplayData(): { version: string; cwd: string; billingType: string; agentName?: string } {
@@ -51,6 +51,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
   if (directConnect) {
     cwd = `${cwd} in ${directConnect.replace(/^https?:\/\//, '')}`
   }
+
   const billingType = ((): string => {
     try {
       const route = declaredRouteOf(getEngineModel())
@@ -75,6 +76,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'cerebras') return 'Cerebras API billing'
       if (route === 'fireworks') return 'Fireworks API billing'
       if (route === 'qwen') return 'QwenCloud or Model Studio pay-as-you-go or plan billing'
+
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }

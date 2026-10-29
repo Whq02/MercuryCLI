@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { chmodSync, mkdtempSync, readFileSync, statSync, existsSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,6 +27,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(cwd)
 const history = await import('../../src/history.ts')
+
 const quiet = (): boolean => {
   const h = history.getHistoryFlushHealth()
   return h.pending === 0 && !h.inFlight
@@ -65,6 +67,7 @@ section('H2 the search corpus — one read, one parse; readers over it cost noth
   const K = 25
   let matches = 0
   for (let k = 0; k < K; k++) {
+
     for await (const entry of history.makeHistoryReaderOver(corpus)) {
       if (entry.display.includes(`prompt ${L - 1 - k}`)) {
         matches++
@@ -89,6 +92,7 @@ section('H3 the corpus carries the pending buffer first and honours a retraction
 
 section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 MiB of whole lines')
 {
+
   const line = (i: number): string => record(`big-${i}`, i, otherProject)
   const target = 9 * 1024 * 1024
   const parts: string[] = []

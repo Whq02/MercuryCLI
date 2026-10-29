@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,6 +36,7 @@ writeFileSync(
     theme: 'dark',
     projects: { [WORK]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
+
     switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 5 },
   }),
 )
@@ -91,11 +93,16 @@ const cfg = {
   argv: ['node', DIST],
   cwd: WORK,
   sends: [
+
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'run the alpha turn\r' },
+
     { requireAwait: true, minTick: 5, awaitText: 'SIGMA-ALPHA-7', data: '/model gpt-5.6-sol\r' },
+
     { requireAwait: true, minTick: 10, awaitText: ALPHA_TAIL, data: 'run the terra turn\r' },
+
     { requireAwait: true, minTick: 10, awaitText: TERRA, awaitSettleTicks: 5, data: '/concourse\r' },
+
     { requireAwait: true, awaitText: 'SESSION CONCOURSE', awaitSettleTicks: 30, data: '\x1b' },
   ],
   readyText: ['? for shortcuts'],

@@ -1,4 +1,3 @@
-
 import { currentInputEventSeq } from '../ink/events/input-event.js'
 
 interface OverlayEntry {
@@ -6,14 +5,18 @@ interface OverlayEntry {
   readonly id: string
   readonly modal: boolean
   readonly inputOwner?: boolean
+
   readonly openSeq: number
+
   readonly onFocusReturn?: () => void
+
   readonly ownsPageKeys?: boolean
 }
 
 let stack: OverlayEntry[] = []
 let version = 0
 let nextToken = 1
+
 let lastPopEventSeq = -1
 const listeners = new Set<() => void>()
 
@@ -40,6 +43,7 @@ export function pushOverlay(entry: {
   ownsPageKeys?: boolean
 }): number {
   const token = entry.token ?? nextToken++
+
   const withoutDup = stack.filter(e => e.token !== token)
   stack = [
     ...withoutDup,

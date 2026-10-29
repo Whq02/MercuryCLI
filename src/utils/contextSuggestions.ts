@@ -6,7 +6,6 @@ import type { ContextData } from './analyzeContext.js'
 import { getDisplayPath } from './file.js'
 import { formatTokens } from './format.js'
 
-
 type SuggestionSeverity = 'info' | 'warning'
 
 export type ContextSuggestion = {

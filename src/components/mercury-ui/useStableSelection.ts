@@ -1,14 +1,17 @@
 import { useRef, useState } from 'react'
 
-
 export function useStableSelection<Row>(
   rows: readonly Row[],
   rowId: (row: Row) => string,
   options?: { initialIndex?: number },
 ): {
+
   index: number
+
   selected: Row | null
+
   select: (i: number) => void
+
   selectId: (id: string) => void
 } {
   const clampIndex = (i: number): number =>
@@ -17,6 +20,7 @@ export function useStableSelection<Row>(
   const [selKey, setSelKey] = useState<string | null>(() =>
     rows.length > 0 ? rowId(rows[initial]!) : null,
   )
+
   const lastIndexRef = useRef(initial)
 
   let index = selKey === null ? -1 : rows.findIndex(r => rowId(r) === selKey)

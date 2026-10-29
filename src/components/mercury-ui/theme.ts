@@ -1,4 +1,3 @@
-
 export {
   TERRA,
   IVORY,
@@ -62,6 +61,7 @@ export const STATE_STYLE: Record<
   gated: { glyph: '⦿', color: AMBER, label: 'gated' },
   unavailable: { glyph: '—', color: FAINT, label: 'unavailable' },
   blocked: { glyph: '◉', color: CRIMSON, label: 'blocked' },
+
   failed: { glyph: '✕', color: CRIMSON, label: 'failed' },
   excluded: { glyph: '⊝', color: FAINT, label: 'excluded' },
   planned: { glyph: '◇', color: SECOND, label: 'planned' },

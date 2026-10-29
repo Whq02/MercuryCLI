@@ -6,7 +6,6 @@ import { gte } from '../../utils/semver.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { CURSOR_HOME, csi, ERASE_SCREEN } from '../termio/csi.js'
 
-
 export function isSyncOutputForcedOff(): boolean {
   return isEnvTruthy(process.env.MERCURY_NO_SYNC_OUTPUT)
 }
@@ -48,12 +47,14 @@ export function syncOutputCapabilityNow(): boolean {
 }
 
 export function upgradeSyncOutputSupport(): void {
+
   syncOutputSupported = true
   syncUpgradedByProbe = true
 }
 
 export function syncOutputStatusNow(): { armed: boolean; why: string } {
   if (isSyncOutputForcedOff()) {
+
     return { armed: false, why: 'forced off (MERCURY_NO_SYNC_OUTPUT)' }
   }
   if (syncOutputSupported) {
@@ -79,7 +80,6 @@ export function shouldHoldFirstPaintForSyncProbe(): boolean {
   return syncProbeOutstanding && !syncOutputSupportedNow()
 }
 
-
 let xtversionName: string | undefined
 
 export function setXtversionName(name: string): void {
@@ -90,7 +90,6 @@ export function isXtermJs(): boolean {
   if (process.env.TERM_PROGRAM === 'vscode') return true
   return xtversionName?.startsWith('xterm.js') ?? false
 }
-
 
 const EXTENDED_KEYS_TERMINALS = [
   'iTerm.app',
@@ -107,6 +106,7 @@ export function supportsExtendedKeys(): boolean {
 
 let extendedKeysSupported = supportsExtendedKeys()
 let extendedKeysProved = false
+
 const extendedKeysListeners = new Set<() => void>()
 
 export function extendedKeysSupportedNow(): boolean {
@@ -131,7 +131,6 @@ export function subscribeExtendedKeysSupport(listener: () => void): () => void {
   }
 }
 
-
 export type Progress = {
   state: 'running' | 'completed' | 'error' | 'indeterminate'
   percentage?: number
@@ -155,7 +154,6 @@ export function isProgressReportingAvailable(
   return false
 }
 
-
 export function hasCursorUpViewportYankBug(): boolean {
   return process.platform === 'win32' || !!process.env.WT_SESSION
 }
@@ -167,11 +165,9 @@ export function streamingRevealSuppressed(
   return reducedMotion || (hasCursorUpViewportYankBug() && !fullscreenActive)
 }
 
-
 export function regionScrollTrustedNow(): boolean {
   return !hasCursorUpViewportYankBug()
 }
-
 
 const ADDITIONAL_HYPERLINK_TERMINALS = [
   'ghostty',
@@ -200,7 +196,6 @@ export function supportsHyperlinks(options?: SupportsHyperlinksOptions): boolean
   return false
 }
 
-
 const CURSOR_HOME_WINDOWS = csi(0, 'f')
 
 export function isModernWindowsTerminal(
@@ -209,7 +204,9 @@ export function isModernWindowsTerminal(
 ): boolean {
   if (platform !== 'win32') return false
   if (env.WT_SESSION) return true
+
   if (env.TERM_PROGRAM === 'vscode' && env.TERM_PROGRAM_VERSION) return true
+
   if (env.TERM_PROGRAM === 'mintty' || env.MSYSTEM) return true
   return false
 }

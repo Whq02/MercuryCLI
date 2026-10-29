@@ -1,4 +1,3 @@
-
 import { createScanner } from './input/scanner.js'
 import { stringWidth } from './stringWidth.js'
 
@@ -8,6 +7,7 @@ export function expandTabsWithColumn(
   interval = 8,
 ): { text: string; column: number } {
   if (!text.includes('\t')) {
+
     const lastBreak = text.lastIndexOf('\n')
     const tail = lastBreak === -1 ? text : text.slice(lastBreak + 1)
     return {
@@ -36,6 +36,7 @@ export function expandTabsWithColumn(
     for (const ch of token.value) {
       if (ch === '\t') {
         flushRun()
+
         const spaces = interval - (column % interval) || interval
         out += ' '.repeat(spaces)
         column += spaces

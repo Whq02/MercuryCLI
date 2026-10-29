@@ -2,7 +2,6 @@ import { getIsSessionOneShotHeadless } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 
-
 export const CRON_CREATE_TOOL_NAME = 'CronCreate'
 export const CRON_DELETE_TOOL_NAME = 'CronDelete'
 export const CRON_LIST_TOOL_NAME = 'CronList'
@@ -15,6 +14,7 @@ export function isSaturnSchedulingEnabled(): boolean {
 
 export function cronToolsMountable(): boolean {
   if (!isSaturnSchedulingEnabled()) return false
+
   return !getIsSessionOneShotHeadless()
 }
 

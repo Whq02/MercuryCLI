@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -54,6 +55,7 @@ const full = composeAt(root, COLS, ROWS, 0, 0)
 const fullLine = screenLines(full)[0]!
 const composedCol = fullLine.indexOf('needle')
 check('fixture: the full compose puts the message right of the rail', composedCol > 10, j({ fullLine, composedCol }))
+
 const mLayout = message.layoutNode!
 const scanScreen = composeAt(
   message,
@@ -79,6 +81,7 @@ section('§2 the defect pin: the styled cells land ON the words — never in the
     changed.length === positions[0]!.len && changed[0] === composedCol,
     j({ changed, composedCol }),
   )
+
   const full2 = composeAt(root, COLS, ROWS, 0, 0)
   const before2 = Array.from({ length: COLS }, (_, x) => cellAt(full2, x, 0)?.styleId)
   applyPositionedHighlight(full2, ctx.stylePool, positions, 0, 0, 0)

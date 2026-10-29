@@ -10,16 +10,20 @@ import { codeOnlyText } from '../lib/codeText.ts'
 const t = checker()
 
 const INVENTORY: Record<string, string[]> = {
+
   'ensureAgentIdentity': ['src/services/crew/seatBridge.ts'],
   'resolveAgent': ['src/services/crew/seatBridge.ts', 'src/utils/artifacts/reviewStore.ts'],
   'bindAgent': ['src/services/crew/seatBridge.ts'],
   'registerAgentSession': ['src/services/crew/seatBridge.ts'],
   'endAgentSession': ['src/services/crew/seatBridge.ts'],
+
   'bootCrewIdentity': ['src/cli/run.ts'],
   'crewStoreRoot': ['src/services/crew/conversations.ts', 'src/services/crew/descriptor.ts', 'src/services/crew/dispatch.ts'],
   'crewDirectoryEnabled': ['src/commands/crew/index.ts', 'src/services/crew/seatBridge.ts'],
   'displayLabelsOf': ['src/services/crew/projection.ts'],
+
   'resolveCrewSnapshot': ['src/commands/crew/index.ts', 'src/services/acp/acpServer.ts', 'src/services/crew/graph.ts'],
+
   'attachExternalSeat': ['src/commands/crew/index.ts'],
   'detachExternalSeat': ['src/commands/crew/index.ts'],
   'cancelSeatTurn': ['src/commands/crew/index.ts'],
@@ -27,33 +31,45 @@ const INVENTORY: Record<string, string[]> = {
   'deliverToSeat': ['src/services/crew/dispatch.ts'],
   'seatOfAgent': ['src/services/crew/dispatch.ts'],
   'listAttachedSeats': ['src/commands/crew/index.ts', 'src/services/crew/targetPicker.ts'],
+
   'listDeliveryReceipts': ['src/commands/crew/index.ts'],
+
   'mintConversation': ['src/services/crew/consoleHandoff.ts', 'src/services/crew/identity.ts'],
   'appendConversationEvent': ['src/services/crew/consoleHandoff.ts', 'src/services/crew/dispatch.ts'],
   'upsertUnresolvedEvent': ['src/services/crew/dispatch.ts', 'src/utils/artifacts/reviewStore.ts'],
   'resolveEventByRef': ['src/services/crew/dispatch.ts', 'src/utils/artifacts/reviewStore.ts'],
   'linkConversation': ['src/services/crew/consoleHandoff.ts'],
   'listReadCursors': ['src/services/acp/acpServer.ts'],
+
   'deriveInbox': ['src/services/acp/acpServer.ts'],
+
   'openSideConversation': ['src/utils/cockpit/helmConsole.ts'],
   'recordSideOutcome': ['src/utils/cockpit/helmConsole.ts'],
+
   'foldLegacyObligationsIntoSwitchboardScope': ['src/services/concourse/concourseSnapshot.ts'],
+
   'targetPickerRows': ['src/commands/crew/index.ts'],
+
   'publishSessionDescriptor': ['src/services/crew/identity.ts', 'src/services/crew/seatBridge.ts'],
   'retireSessionDescriptor': ['src/services/crew/seatBridge.ts'],
   'listSessionDescriptors': ['src/commands/crew/index.ts', 'src/services/acp/acpServer.ts'],
   'renderSessionTitle': ['src/commands/crew/index.ts', 'src/services/acp/acpServer.ts'],
+
   'assembleSessionGraph': ['src/services/acp/acpServer.ts'],
+
   'ingestActivity': ['src/services/crew/seatBridge.ts', 'src/utils/artifacts/reviewStore.ts'],
   'activityRows': ['src/commands/crew/index.ts'],
   'cachedActivityFeed': ['src/commands/crew/index.ts'],
   'activityLineOf': ['src/commands/crew/index.ts'],
+
   'authorizeCapability': ['src/services/crew/dispatch.ts', 'src/services/crew/seatBridge.ts'],
   'capabilitiesOf': ['src/commands/crew/index.ts', 'src/services/crew/seatBridge.ts'],
+
   'upsertObligation': ['src/services/crew/dispatch.ts'],
   'recordSettledObligation': ['src/daemon/permissionAsks.ts'],
   'resolveObligationByRef': ['src/services/crew/dispatch.ts'],
   'openObligations': ['src/services/crew/obligationsBridge.ts'],
+
   'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx'],
   'obligationOf': ['src/components/concourse/ConcourseRoute.tsx'],
   'subscribeObligations': ['src/services/crew/obligationsBridge.ts'],
@@ -120,6 +136,7 @@ t.section('§1 — every inventoried consumer still consumes')
 t.section('§2 — no NEW crew export ships without an inventory row')
 {
   const KNOWN_NON_PRODUCTION = new Set([
+
     '__identityLawsForProof', '__continuityLawsForProof', '__dispatchLawsForProof',
     '_resetCrewIdentityBootForTesting', '_resetSeatBridgeForTesting', '_resetCapabilitiesForTesting',
     '_resetActivityFeedForTesting', '_resetCrewProjectionForTesting',
@@ -130,9 +147,11 @@ t.section('§2 — no NEW crew export ships without an inventory row')
     'agentOf', 'listAgents', 'listAgentBindings', 'listAgentRoles', 'listAgentSessions',
     'linkAgentRole',
     'endAgentRole', 'renameAgent',
+
     'redirectObligation', 'listObligations',
     '_resetObligationsBridgeForTesting',
     'obligationFacts',
+
     'useCrew', 'dispatchToAgent', 'dispositionLabelOf', 'resolveConversationEvent', 'commitReadCursor',
     'setConversationPriority', 'handOffSideConversation',
     'dispatchableTargets', 'subscribeActivityFeed',

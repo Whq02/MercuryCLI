@@ -74,6 +74,7 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
     ok(readFileSync(p, 'utf8') === 'committed', `§3 ${phase}: prior committed content preserved`)
     ok(tempsIn(dir).length === 0, `§3 ${phase}: own temp cleaned`)
   }
+
   process.env.MERCURY_FAULT_INJECT = 'flush-dir@victim.json:throw'
   let caught: unknown = null
   try {
@@ -106,6 +107,7 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
       encoding: 'utf8',
       timeout: 20_000,
     })
+
   const preRename = runKill('rename')
   ok(preRename.signal === 'SIGKILL', '§4 child died at the rename boundary')
   ok(readFileSync(p, 'utf8') === 'old-complete', '§4 kill@rename: destination stays old-complete')
@@ -116,11 +118,13 @@ const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTemp
     removed.length === 1 && tempsIn(dir).length === 0,
     '§4 the sweeper removes exactly the owned orphan (pattern-scoped)',
   )
+
   const postRename = runKill('flush-dir')
   ok(
     postRename.signal === 'SIGKILL' && readFileSync(p, 'utf8') === 'new-complete',
     '§4 kill@flush-dir: destination is new-complete (rename already landed)',
   )
+
   writeFileSync(join(dir, 'unrelated.tmp'), 'keep me')
   const removed2 = await cleanupOrphanDurableTemps(dir, { olderThanMs: 0 })
   ok(

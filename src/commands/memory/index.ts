@@ -4,8 +4,10 @@ import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
 const memory: Command = {
   type: 'local-jsx',
   name: 'memory',
+
   aliases: ['chronicle'],
   description: 'Open the Memory Centre — facts, pinned rules, maintenance',
+
   get immediate() {
     return shouldNavCommandBeImmediate()
   },

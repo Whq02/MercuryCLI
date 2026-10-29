@@ -36,6 +36,7 @@ export type FoldAvailability =
 
 export function foldAvailability(input: {
   tracking: AutoCompactTrackingState | undefined
+
   headFold?: 'failed' | 'did-not-land'
   headFoldDetail?: string
   hasHistory: boolean
@@ -116,7 +117,6 @@ export function splitCarriedOperatorTail(messages: readonly Message[]): {
   const head = messages.slice(0, lastAssistant + 1)
   return { head, carry: tail, hasHistory: lastAssistant !== -1 }
 }
-
 
 export { overflowMeasuredClause, overflowWhoClause } from '../api/overflowSignal.js'
 

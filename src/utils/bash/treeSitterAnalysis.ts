@@ -62,6 +62,7 @@ function collectQuotedSpans(root: Node): QuotedSpan[] {
         spans.push({ start: node.startIndex, end: node.endIndex, kind: 'ansiC' })
         return
       case 'string':
+
         spans.push({ start: node.startIndex, end: node.endIndex, kind: 'double' })
         break
       case 'heredoc_redirect':
@@ -217,6 +218,7 @@ function extractCompoundStructure(rootNode: unknown, command: string): CompoundS
         return
       default:
         if (insideList) segments.push(child.text)
+
         return
     }
   }

@@ -110,6 +110,7 @@ export function addPermissionRulesToSettings(
             .join('; ')}`,
         )
       }
+
       if (kept.length === 0) return true
       serialized = kept
     }

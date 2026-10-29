@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, openSync, readSync, closeSync, readFileSync, readdirSync } from 'node:fs'
@@ -19,7 +18,9 @@ interface PythonInterpreterSelection {
   command: string
   version: string
   envKind: PythonEnvKind
+
   prefix: string
+
   source: string
 }
 
@@ -33,8 +34,10 @@ type PythonInterpreterResult = PythonInterpreterSelection | PythonInterpreterUna
 
 interface PythonProjectProfile {
   projectRoot: string
+
   markers: string[]
   interpreter: PythonInterpreterResult
+
   packageRootHints: string[]
   testFrameworks: {
     pytest: { detected: boolean; evidence?: string; configured: boolean }
@@ -63,7 +66,6 @@ const PROJECT_MARKERS = [
   'pytest.ini',
   'tox.ini',
 ] as const
-
 
 export function findPythonProjectRoot(from: string = getCwd()): { root: string; markers: string[] } {
   let dir = path.resolve(from)
@@ -127,7 +129,6 @@ function carriesUnittest(file: string): boolean {
   }
 }
 
-
 interface InterpreterProbe {
   ok: boolean
   version?: string
@@ -140,6 +141,7 @@ function probeInterpreter(command: string): InterpreterProbe {
     'import sys, json\n' +
     'print(json.dumps({"v": "%d.%d.%d" % sys.version_info[:3], "prefix": sys.prefix}))\n'
   try {
+
     const r = spawnSync(command, ['-c', script], {
       windowsHide: true,
       timeout: PROBE_TIMEOUT_MS,
@@ -163,7 +165,6 @@ function venvPython(prefix: string): string {
     ? path.join(prefix, 'Scripts', 'python.exe')
     : path.join(prefix, 'bin', 'python')
 }
-
 
 let selectionCache: { at: number; key: string; result: PythonInterpreterResult } | null = null
 
@@ -233,6 +234,7 @@ export function selectPythonInterpreter(from: string = getCwd()): PythonInterpre
       break
     }
     failures.push(probe.detail)
+
     if (c.envKind === 'explicit') break
   }
   if (!result) {
@@ -252,7 +254,6 @@ export function selectPythonInterpreter(from: string = getCwd()): PythonInterpre
   return result
 }
 
-
 export function projectPythonDebugAdapter(from: string = getCwd()): PythonAdapterResolution {
   const selection = selectPythonInterpreter(from)
   const pin = flagEnv('MERCURY_PYTHON')
@@ -270,7 +271,6 @@ export function projectPythonDebugAdapter(from: string = getCwd()): PythonAdapte
 export function projectPythonDebuggerProvenance(from: string = getCwd()): PythonDebuggerProvenance {
   return projectPythonDebugAdapter(from).provenance
 }
-
 
 function fileContains(p: string, needle: string): boolean {
   try {

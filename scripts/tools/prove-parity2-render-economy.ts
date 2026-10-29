@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -65,6 +66,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   t("the Chat posts the line on the warning road with no expiry: priority 'high', color 'warning', timeoutMs: Infinity (structural)", /addNotification\(\{ key: UPDATE_NOTICE_KEY, text, priority: 'high', color: 'warning', timeoutMs: Infinity \}\)/.test(repl))
   const notifications = readFileSync('src/context/notifications.tsx', 'utf8')
   t('the notification store arms no expiry for a timeoutMs: Infinity entry (structural)', /timeoutMs === Infinity/.test(notifications) && /cancelExpiry\(\)\s*\n\s*if \(standsUntilRemoved\(entry\)\) return/.test(notifications))
+
   const doc = readFileSync('docs/TERMINAL-RUNTIME.md', 'utf8')
   t('the runtime doc states exactly what the check sends', /sends nothing about the machine or the\s+operator/.test(doc) && /MERCURY_UPDATE_NOTICE=0/.test(doc))
 }
@@ -135,6 +137,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 {
   const caps = readFileSync('src/ink/session/capabilities.ts', 'utf8')
+
   t('the sync-output latch upgrades from the live DECRQM 2026 probe (structural)', /export function upgradeSyncOutputSupport\(\): void \{[\s\S]{0,400}?syncOutputSupported = true\s*\n\s*syncUpgradedByProbe = true/.test(caps) && !/upgradeSyncOutputSupport\(\): void \{\s*if \(isSyncOutputForcedOff\(\)\) return/.test(caps))
 }
 

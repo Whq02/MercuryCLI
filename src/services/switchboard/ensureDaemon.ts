@@ -27,6 +27,7 @@ function rememberUsable(): true {
   usableMemo = { at: Date.now() }
   return true
 }
+
 export function _daemonUsableMemoActiveForProofs(): boolean {
   return usableMemoActive()
 }
@@ -125,8 +126,11 @@ export async function warmSessionRunner(workspaceDir: string, retiring?: string)
         op: 'concourseWarm',
         workspaceDir,
         ...(retiring !== undefined ? { retiring } : {}),
+
         ...carriedConsentOf(bootBirthFacts()),
+
         ...(bootCarriesRunnerOptions() ? { runnerOptionsPresent: true } : {}),
+
         ...carriedKitOf(bootBirthFacts()),
       } as never,
       { timeoutMs: 5_000 },
@@ -157,12 +161,15 @@ export async function ensureOwnedDaemon(): Promise<boolean> {
 }
 
 async function ensureOwnedDaemonInner(): Promise<boolean> {
+
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.armDaemonSignInPoke())
     .catch(() => {})
+
   if (usableMemoActive() && !daemonHaltStanddownActive()) return true
   const hs = await import('../../daemon/handshake.js')
   const first = await hs.handshakeDaemon({ timeoutMs: 500 })
+
   if (first.state === 'starting') {
     waiting ??= awaitUsableOrGone(hs).finally(() => {
       waiting = null
@@ -179,12 +186,14 @@ async function ensureOwnedDaemonInner(): Promise<boolean> {
     if (heal.state !== 'restarting') return rememberUsable()
     if (await awaitSuccessor(hs, first.daemon?.pid ?? null)) return rememberUsable()
   }
+
   if (daemonHaltStanddownActive()) return false
   if (healing === null) {
     healing = (async () => {
       try {
         if ((await awaitDeparture(hs)) === 'usable') return true
         const { spawnOwnedDaemon } = await import('../../daemon/ownedDaemon.js')
+
         const daemonExtraEnv: Record<string, string> = {}
         if (bootCarriesRunnerOptions()) {
           daemonExtraEnv.MERCURY_DAEMON_NO_SELF_WARM = '1'

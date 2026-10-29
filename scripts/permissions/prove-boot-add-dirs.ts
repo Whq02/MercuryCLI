@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/permissions/permissionSetup.ts src/Tool.ts src/types/permissions.ts
-// gate-watch: src/commands.ts src/main.tsx src/services/switchboard/runnerArgv.ts src/context.ts src/skills/loadSkillsDir.ts src/bootstrap/state.ts
-// gate-watch: src/components/permissions/rules/PermissionRuleList.tsx src/services/instructions/engine.ts docs/TRUST.md
+
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'

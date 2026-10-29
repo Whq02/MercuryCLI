@@ -1,4 +1,3 @@
-
 import sliceAnsi from './sliceAnsi.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { ctrlOToExpand } from '../components/CtrlOToExpand.js'

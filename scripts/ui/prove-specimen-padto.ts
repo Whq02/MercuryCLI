@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,6 +39,7 @@ for (const f of FILES) {
 }
 check(`all ${FILES.length} files import padTo`, imported === FILES.length, `${imported}/${FILES.length}`)
 check(`all ${FILES.length} files use padTo and NO padEnd remains`, noPadEnd === FILES.length, `${noPadEnd}/${FILES.length}`)
+
 const diff = read('MercuryDiff.tsx')
 check('MercuryDiff is excluded — still padStart, not converted', /String\(n\)\.padStart\(3\)/.test(diff) && !/padTo\(/.test(diff))
 
@@ -45,6 +47,7 @@ section('byte-identical TODAY: padTo(s,w) === s.padEnd(w) for every real cell')
 const { padTo } = (await import(join(root, 'src', 'components', 'mercury-ui', 'glyphs.ts'))) as {
   padTo: (s: string, w: number) => string
 }
+
 const CELLS: [string, number][] = [
   ['system', 8], ['tools', 8], ['history', 8], ['free', 8],
   ['orchestrator', 14], ['api-worker', 14], ['verifier', 14],
@@ -63,6 +66,7 @@ for (const [s, w] of CELLS) {
   else mismatches.push(`${JSON.stringify(s)}@${w}`)
 }
 check(`padTo === padEnd for ALL ${CELLS.length} real specimen cells (zero bytes change today)`, identical === CELLS.length, mismatches.join(', '))
+
 check('the keybinding symbol cells (↑↓ ↵ ^⇧o) are width-1-per-codeunit → padTo === padEnd', padTo('↑↓', 6) === '↑↓'.padEnd(6) && padTo('^⇧o', 6) === '^⇧o'.padEnd(6))
 
 section('width-discipline VALUE: padTo diverges (correctly) for a wide glyph')

@@ -53,10 +53,12 @@ export interface WalletEntry {
   id: WalletEntryId
   provider: WalletProvider
   kind: WalletAuthKind
+
   label: string
   identity?: { email?: string; name?: string; accountId?: string; plan?: string; source?: WalletIdentitySource }
   keyTail?: string
   host?: string
+
   custodian:
     | 'anthropic-slots'
     | 'anthropic-auth'
@@ -158,6 +160,7 @@ function composeWalletEntries(): WalletEntry[] {
     const { key, source } = getAnthropicApiKeyWithSource({
       skipRetrievingKeyFromApiKeyHelper: true,
     })
+
     if ((key !== null || source === 'credentials.keyCommand') && source !== 'none' && !isClaudeAISubscriber()) {
       const keyTail = maskedKeyTail(key ?? undefined)
       entries.push({
@@ -176,6 +179,7 @@ function composeWalletEntries(): WalletEntry[] {
     const subscription = openaiSubscriptionRef()
     const accountId = subscription?.accountId
     const plan = subscription?.planType
+
     const email = subscription?.email
     entries.push({
       id: `openai:oauth:${accountId ? accountId.slice(0, 8) : 'subscription'}`,
@@ -337,15 +341,19 @@ export type NotLoggedInGate =
 
 export function notLoggedInGateDecision(
   entries: readonly WalletEntry[],
+
   route: string | null,
 ): NotLoggedInGate {
+
   if (route !== 'anthropic' && route !== 'openai') return { state: 'ok' }
   const openaiConnected = entries.some(e => e.provider === 'openai')
   const anthropicConnected = entries.some(e => e.provider === 'anthropic')
   const sessionProviderConnected = route === 'openai' ? openaiConnected : anthropicConnected
   if (sessionProviderConnected) return { state: 'ok' }
   if (entries.length === 0) return { state: 'not-logged-in' }
+
   const missingProvider = providerDisplayName(route)
+
   const { familyRouteWords } =
     require('../providers/accountSlots.js') as typeof import('../providers/accountSlots.js')
   return {
@@ -356,6 +364,7 @@ export function notLoggedInGateDecision(
 }
 
 export function activeWalletEntry(provider: WalletProvider): WalletEntry | undefined {
+
   const key = entriesKey()
   const now = Date.now()
   const hit = activeMemo.get(provider)
@@ -370,6 +379,7 @@ const activeMemo = new Map<WalletProvider, { at: number; key: string; entry: Wal
 function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undefined {
   const entries = walletEntries()
   if (provider === 'openrouter') {
+
     const active = resolveOpenrouterApiKey()
     if (!active) return undefined
     return entries.find(
@@ -379,6 +389,7 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
     )
   }
   if (provider === 'gemini') {
+
     const active = resolveGeminiAccount()
     if (!active) return undefined
     return entries.find(
@@ -388,6 +399,7 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
     )
   }
   if (provider === 'openai') {
+
     const active = resolveOpenaiAccount()
     if (!active) return undefined
     return entries.find(
@@ -416,6 +428,7 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
         (active.source === 'oauth' ? e.kind === 'oauth' : e.id === `huggingface:api-key:${active.source}`),
     )
   }
+
   const scopes = scanAccountScopes()
   const current = scopes.find(s => s.isCurrent && s.authed && !s.foreignHarness)
   if (current) {

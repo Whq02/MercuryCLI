@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
@@ -20,6 +21,7 @@ const dir = realpathSync(mkdtempSync(join(tmpdir(), 'session-drafts-')))
 
 t.section('§1 — five sessions, two projects: every draft its own key')
 {
+
   const sessions = ['p1-alpha', 'p1-beta', 'p1-gamma', 'p2-delta', 'p2-epsilon']
   for (const [i, s] of sessions.entries()) await writeConcourseSessionDraft(s, `draft for ${s} #${i}`, dir)
   let all = true
@@ -43,6 +45,7 @@ t.section('§2 — the session drafts never bleed into the new-session draft')
 
 t.section('§3 — durability + clear semantics')
 {
+
   t.check('a fresh read returns the durable draft', (await readConcourseSessionDraft('p2-delta', dir)) === 'draft for p2-delta #3')
   await writeConcourseSessionDraft('p2-delta', '', dir)
   t.check('an empty write clears the key (delivery clears the composer)', (await readConcourseSessionDraft('p2-delta', dir)) === '')
@@ -60,9 +63,11 @@ t.section('§5 — CU-05+AR-11: the caret rides beside the text (never end-of-te
   await writeConcourseSessionDraft('caret-session', 'hello caret', dir, 5)
   const st = await readConcourseSessionDraftState('caret-session', dir)
   t.check('text + caret round-trip exactly', st.text === 'hello caret' && st.caret === 5, `${JSON.stringify(st)}`)
+
   await writeConcourseSessionDraft('caret-legacy', 'old shape', dir)
   const legacy = await readConcourseSessionDraftState('caret-legacy', dir)
   t.check('a caret-less write reads back at end-of-text', legacy.text === 'old shape' && legacy.caret === 9, `${JSON.stringify(legacy)}`)
+
   await writeConcourseSessionDraft('caret-session', '', dir)
   const cleared = await readConcourseSessionDraftState('caret-session', dir)
   t.check('an empty write clears text AND caret', cleared.text === '' && cleared.caret === 0, `${JSON.stringify(cleared)}`)

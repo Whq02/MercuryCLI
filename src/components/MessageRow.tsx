@@ -1,4 +1,3 @@
-
 import React, { memo, useContext } from 'react'
 import { Box } from '../ink.js'
 import type { Screen } from '../screens/Chat.js'
@@ -313,6 +312,7 @@ export function shouldRenderStatically(
   if (screen === 'transcript') return true
   switch (message.type) {
     case 'turn_receipt':
+
       return false
     case 'system':
       return message.subtype !== 'api_error'

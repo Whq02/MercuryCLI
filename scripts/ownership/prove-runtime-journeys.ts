@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -165,6 +166,7 @@ section('J2 — headless rows run (byte-parseable protocol · row types)')
 
 section('J3 — read-tool round (tool_use → local execution → tool_result → final text)')
 {
+
   const fixtureTurns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Read', input: {} },
     { kind: 'text', text: 'J3-TOOL-DONE' },
@@ -202,6 +204,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
 
 section('J4 — mutating-tool round + the evidence-based stop evaluator (default path)')
 {
+
   const fixtureTurns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Write', input: {} },
     { kind: 'text', text: 'J4-MUTATION-DONE' },
@@ -226,6 +229,7 @@ section('J4 — mutating-tool round + the evidence-based stop evaluator (default
   ])
   const msgs = turnRequests(fixture, [false, false, true])
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
+
   check('final stdout is the post-tool text (one-shot completion on the settled, receipted mutation)', r.stdout === 'J4-MUTATION-DONE\n', JSON.stringify(r.stdout.slice(0, 120)))
   const written = existsSync(outPath) ? readFileSync(outPath, 'utf-8') : '«absent»'
   check('the mutation REALLY happened (file on disk, exact bytes)', written === 'WRITTEN-BY-THE-JOURNEY\n', written.slice(0, 80))
@@ -253,13 +257,16 @@ section('J5 — cancellation during model streaming (SIGINT tears down cleanly)'
     timeoutMs: 30_000,
     onSpawn: child => {
       void fixture.messageRequestStarted(1).then(() => {
+
         setTimeout(() => child.kill('SIGINT'), 400)
       })
     },
   })
   const elapsed = Date.now() - startedAt
   check('process exited promptly after SIGINT (<20s)', elapsed < 20_000, `${elapsed}ms`)
+
   check('no second request after cancellation', fixture.messageRequests().length === 1, String(fixture.messageRequests().length))
+
   check('an interrupted headless run exits 130', r.exit === 130, `exit=${r.exit} signal=${r.signal}`)
   journeys['J5'] = {
     exitKind: r.signal ?? `code:${r.exit}`,

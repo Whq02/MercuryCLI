@@ -1,6 +1,3 @@
-
-
-
 import { createHash } from 'crypto'
 import type { Tool } from '../../Tool.js'
 import { mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
@@ -25,6 +22,7 @@ export function toolsetHash(
     const parts = tools.map(toolFingerprint).sort()
     return createHash('sha256').update(parts.join('\x01')).digest('hex')
   } catch {
+
     return ''
   }
 }

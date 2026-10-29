@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -26,7 +27,6 @@ for (const file of ['src/tools/WorkflowTool/agentHooks.ts', 'src/tools/WorkflowT
   const raw = src.match(/\.abort\('[a-z0-9-]+'\)/g) ?? []
   check(`${file}: no abort site hands a bare literal (every cut goes through abortWithCut)`, raw.length === 0, raw.join(' '))
 }
-
 
 {
   const stopHooks = readFileSync(join(ROOT, 'src/query/stopHooks.ts'), 'utf8')
