@@ -1,5 +1,5 @@
 {
-  "base": "48ae5ea488e7538fc95ee37b0fceb5f0a3dad835",
+  "base": "dc251716502122f195921c30cc1b49576f7ff911",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -153,7 +153,7 @@
     },
     {
       "name": "Grep",
-      "description": "Content search across the tree, powered by ripgrep\n\nUsage:\n- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (`interface\\{\\}` reaches `interface{}` in Go code); lookaround and backreferences fall back to PCRE2\n- `literal: true` matches the pattern as exact text (rg -F): `foo(bar[0])`, `$VAR` or `a.b` need no escaping\n- PDFs and office/EPUB/RTF documents are searched as extracted text under Read permissions, with page or section labels. A folder search extracts at most 20 documents and counts skipped files; narrow path or glob for the rest. Type and glob filters apply to documents too.\n  - Semantic shortcut: for code by its shape, AstSearch matches the parse tree rather than the text.",
+      "description": "Content search across the tree, powered by ripgrep\n\nUsage:\n- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (`interface\\{\\}` reaches `interface{}` in Go code); lookaround and backreferences fall back to PCRE2\n- `literal: true` matches the pattern as exact text (rg -F): `foo(bar[0])`, `$VAR` or `a.b` need no escaping\n- PDFs and office/EPUB/RTF documents are searched as extracted text under Read permissions, with page or section labels. A folder search extracts at most 20 documents and counts skipped files; narrow path or glob for the rest. Type and glob filters apply to documents too.\n  - Semantic shortcut: for code by its shape, AstSearch (load it with ToolSearch) matches the parse tree rather than the text.",
       "input_schema": {
         "type": "object",
         "properties": {
