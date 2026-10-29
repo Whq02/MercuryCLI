@@ -153,9 +153,9 @@ tagged with `parent_call_id`.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `time_limit`, `schema_unmet` or `loop_stopped`.
-A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` at the
-next step once the time is up; the model call or tool round under way is not
-cut. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
+A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` when the
+time is up: a reply still streaming or a tool still running is cut at the
+deadline, and the outcome names the limit. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
 and a command-line usage error exits `2`. SIGINT and SIGTERM exit 130 and 143
 after the interrupted turn's outcome is flushed. A one-shot run has no host to
 answer interactive permission asks: a refused tool call is listed in `denials`,
