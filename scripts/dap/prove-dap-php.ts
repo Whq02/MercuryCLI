@@ -25,7 +25,7 @@ try {
   const { optionalAdapterPlan } = await import('../../src/services/dap/optionalAdapters.js')
   const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
   const hint = dormantBuiltinAdapterHints().find(row => row.key === 'php')?.hint ?? ''
-  check('PHP hint names separate adapter and Xdebug prerequisites', hint.includes('php -m | grep -i xdebug') && hint.includes('pie install xdebug/xdebug') && hint.includes('PHP Debug'))
+  check('PHP hint names separate adapter and Xdebug prerequisites', hint.includes('check that php -m lists xdebug') && !hint.includes('grep') && hint.includes('pie install xdebug/xdebug') && hint.includes('PHP Debug'))
   const permission = await DebugTool.checkPermissions({ op: 'launch', program: join(scratch, 'main.php') } as never, {} as never)
   check('missing PHP adapter still infers PHP', 'message' in permission && permission.message?.includes('adapter php') === true)
   const plan = optionalAdapterPlan('php')!
@@ -38,7 +38,7 @@ try {
   const absent = resolveAdapter('php')
   check('no PHP runtime refuses before adapter launch', absent?.preflightError?.includes('php') === true)
   fakeCommand(bin, 'php', '[PHP Modules]\nCore\n', scratch)
-  check('PHP without Xdebug refuses with module check', resolveAdapter('php')?.preflightError?.includes('php -m | grep -i xdebug') === true)
+  check('PHP without Xdebug refuses with module check', resolveAdapter('php')?.preflightError?.includes('check that php -m lists xdebug') === true)
   const other = join(scratch, 'with-xdebug')
   fakeCommand(other, 'php', '[PHP Modules]\nCore\nxdebug\n[Zend Modules]\nXdebug\n', scratch)
   process.env.PATH = other

@@ -484,7 +484,7 @@ function codelldbInstallHint(): string {
   return 'put codelldb on PATH (github.com/vadimcn/codelldb/releases)' + (optionalAdapterPlan('codelldb') ? ', or allow the pinned CodeLLDB download at Debug launch' : '')
 }
 
-const PHP_DEBUG_HINT = 'allow the pinned PHP Debug download at Debug launch; install PHP and check php -m | grep -i xdebug; install Xdebug with pie install xdebug/xdebug (xdebug.org/docs/install) and enable zend_extension=xdebug'
+const PHP_DEBUG_HINT = 'allow the pinned PHP Debug download at Debug launch; install PHP and check that php -m lists xdebug; install Xdebug with pie install xdebug/xdebug (xdebug.org/docs/install) and enable zend_extension=xdebug'
 let phpModulesMemo: { key: string; at: number; error?: string } | undefined
 
 function phpDebugPreflight(): string | undefined {
@@ -495,7 +495,7 @@ function phpDebugPreflight(): string | undefined {
   const probe = spawnSync(php, ['-m'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: subprocessEnv() })
   const error = probe.status === 0 && /^xdebug\s*$/im.test(probe.stdout ?? '')
     ? undefined
-    : 'PHP with Xdebug is required — check php -m | grep -i xdebug'
+    : 'PHP with Xdebug is required — check that php -m lists xdebug'
   phpModulesMemo = { key, at: Date.now(), error }
   return error
 }

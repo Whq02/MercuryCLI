@@ -61,7 +61,11 @@ language. Tesseract receives all installed recognition traineddata, including
 Arabic when installed. No OCR engine or language pack is downloaded by `Read`.
 
 To install Tesseract, use `brew install tesseract` on macOS or
-`sudo apt-get install tesseract-ocr poppler-utils` on Debian or Ubuntu.
+`sudo apt-get install tesseract-ocr poppler-utils` on Debian or Ubuntu. On
+Windows, add an OCR language under Settings › Time & language › Language &
+region, or as Administrator run
+`Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0` with the
+language you need in place of `en-US`.
 
 ## Searching documents
 
