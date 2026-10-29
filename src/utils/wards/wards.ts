@@ -133,6 +133,7 @@ const GENERATED_HEAD_CHARS = 4096
 
 const BUNDLED_SKILLS = [
   'extension-maker',
+  'image-generation',
   'mcp-smithy',
   'provider-apis',
   'research',

@@ -3,8 +3,9 @@
 The skills in this directory ship inside the Mercury build. Each is one
 directory holding a `SKILL.md`: frontmatter (`description` with the trigger
 first, `argument-hint`) plus the instructions the skill loads on invocation.
-Two skills also carry `references/` files, read on demand: `extension-maker`
-(the generated manifest contract and the source README template) and
+Three skills also carry `references/` files, read on demand: `extension-maker`
+(the generated manifest contract and the source README template),
+`image-generation` (the model-family notes and the pixel-art guide) and
 `provider-apis` (one reference per API dialect, the live documentation
 sources and the model-catalogue guidance). No skill ships a helper script;
 each works through Mercury's own tools (`Read`, `Eval`, `Browser`, `Service`,
@@ -14,6 +15,7 @@ renderers the project has installed, checked before use.
 | Skill | What it does |
 |---|---|
 | `extension-maker` | makes or repairs a Mercury extension or source catalogue — one manifest contributing skills, commands, agents, hooks, servers, or keybindings — validated with `mercury extensions inspect` |
+| `image-generation` | makes and edits images with Mercury image generation: reads the installed models and the live tool schema, then sets prompts, reference strength, masks, seeds and pixel-art options for the model family |
 | `mcp-smithy` | builds an MCP server for a Mercury session around a small tool contract, proves it with the SDK client, and registers it with `mercury mcp add` only when asked |
 | `provider-apis` | the reference for every provider API Mercury speaks — Anthropic Messages, OpenAI Responses, and the OpenAI-compatible chat-completions families — with request shapes, streaming, tool calls, caching, and live model sources |
 | `skill-forge` | writes and fixes a Mercury `SKILL.md` and its discovery rules, then checks discovery and expansion through the real loader |

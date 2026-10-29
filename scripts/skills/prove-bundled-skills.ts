@@ -95,17 +95,17 @@ async function buildRegistry(label: string, wrappers: string[]): Promise<BuiltRe
 }
 
 const EXPECTED = gen.discoverSkills().names
-const GENERATED = ['extension-maker', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
+const GENERATED = ['extension-maker', 'image-generation', 'mcp-smithy', 'provider-apis', 'research', 'skill-forge']
 
 initBundledSkills()
 const skills = getBundledSkills()
 const byName = new Map(skills.map(s => [s.name, s]))
 
-section(`§1 REGISTERED — exactly the five source skills; twelve bundled, each with description + prompt`)
+section(`§1 REGISTERED — exactly the six source skills; thirteen bundled, each with description + prompt`)
 {
-  check(same(EXPECTED, GENERATED), 'the source root carries exactly the five generated skills', EXPECTED.join(' '))
+  check(same(EXPECTED, GENERATED), 'the source root carries exactly the six generated skills', EXPECTED.join(' '))
   check(gen.discoverSkills().invalid.length === 0, 'every source dir name is a valid skill name')
-  check(skills.length === 12, 'twelve bundled skills register (seven hand-written + five generated)', skills.map(s => s.name).join(' '))
+  check(skills.length === 13, 'thirteen bundled skills register (seven hand-written + six generated)', skills.map(s => s.name).join(' '))
   const handWritten = skills.filter(s => !GENERATED.includes(s.name)).map(s => s.name)
   check(handWritten.length === 7, 'the seven hand-written skills register beside the generated ones', handWritten.join(' '))
   for (const n of EXPECTED) {
@@ -151,12 +151,12 @@ section('§3 ISOLATION — extract to the temp root, never a user config home')
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
-section('§4 BUILT CONTENT — the five wrappers under the text loader carry the source frontmatter, body and reference files')
+section('§4 BUILT CONTENT — the six wrappers under the text loader carry the source frontmatter, body and reference files')
 {
   const built = await buildRegistry('generated', EXPECTED.map(n => join(BUNDLED_DIR, `${n}.ts`)))
   built.registerAll()
   const registered = new Map(built.getBundledSkills().map(s => [s.name, s]))
-  check(same([...registered.keys()], EXPECTED), 'the five generated wrappers register under their source names', [...registered.keys()].join(' '))
+  check(same([...registered.keys()], EXPECTED), 'the six generated wrappers register under their source names', [...registered.keys()].join(' '))
   for (const n of EXPECTED) {
     const source = readFileSync(join(SOURCE_ROOT, n, 'SKILL.md'), 'utf8')
     const { frontmatter, content } = parseFrontmatter(source)
