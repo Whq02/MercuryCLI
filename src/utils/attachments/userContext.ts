@@ -16,9 +16,13 @@ export function latestUserContextBody(messages: readonly Message[]): string | nu
 export async function getUserContextAttachment(
   messages: readonly Message[],
   context?: Record<string, string>,
+  opening = true,
 ): Promise<Attachment[]> {
-  const body = userContextReminderBody(context ?? (await getUserContext()))
-  if (body === null) return []
-  if (latestUserContextBody(messages) === body) return []
-  return [{ type: 'user_context', body }]
+  const current = context ?? (await getUserContext())
+  const previous = messages.findLast(message => message.type === 'attachment' && message.attachment.type === 'user_context')
+  const prior = previous?.type === 'attachment' && previous.attachment.type === 'user_context' ? previous.attachment : null
+  const delivered = opening ? current : Object.fromEntries(Object.entries(current).filter(([key, value]) => key !== 'environment' && key !== 'currentDate' && prior?.context?.[key] !== value))
+  const body = userContextReminderBody(delivered)
+  if (body === null || prior?.body === body) return []
+  return [{ type: 'user_context', body, context: current }]
 }

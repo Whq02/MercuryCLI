@@ -53,7 +53,7 @@ type ContextBodies = {
     semDigest?: string; sectionDigest?: string; baseDigest?: string
     sections?: CapsuleSection[]; workingSet?: CapsuleWorkingRef[]
   }
-  user_context: { body: string }
+  user_context: { body: string; context?: Record<string, string> }
   critical_system_reminder: { content: string }
   date_change: { newDate: string }
   context_efficiency: Record<never, never>

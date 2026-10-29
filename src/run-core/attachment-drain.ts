@@ -1,6 +1,7 @@
 
 import type { AssistantMessage, ReplyMark } from '../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
+import { isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 
 type DrainableCommand = {
   uuid?: string
@@ -15,6 +16,7 @@ type DrainedRow = {
 }
 
 export function replyMarkOf(row: DrainedRow): ReplyMark | null {
+  if (isUnattendedRun()) return null
   const att = row.attachment
   if (att.type !== 'queued_command' || typeof att.source_uuid !== 'string' || att.source_uuid === '') return null
   if (att.isMeta === true || att.commandMode === 'task-notification') return null

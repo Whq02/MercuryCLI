@@ -12,7 +12,7 @@
 # gate-watch: src/bootstrap/state.ts src/constants/prompts.ts src/constants/systemPromptSections.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/mcp/client.ts src/utils/sessionStorage/writer.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts src/utils/messages/factories.ts
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts
-# gate-watch: src/utils/messages/apiView.ts src/utils/attachments/orchestrator.ts
+# gate-watch: src/utils/messages/apiView.ts src/utils/attachments/orchestrator.ts src/context.ts src/utils/cockpit/runtimePosture.ts src/run-core/attachment-drain.ts src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WebFetchTool/WebFetchTool.ts
 # gate-watch: src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/config/globalConfig.ts src/utils/model/model.ts src/tools/SkillTool/constants.ts src/state/AppStateStore.ts src/utils/file.ts src/utils/fileStateCache.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
@@ -41,5 +41,6 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-road.t
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-result-image-note.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tool-result-image-note.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stored-image-assembly.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stored-image-assembly.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-context-once.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-context-once.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-attachment-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-turn-attachment-roster.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ ATTACHMENTS SUITE GREEN"; exit 0; else
   echo "❌ ATTACHMENTS SUITE RED"; exit 1; fi

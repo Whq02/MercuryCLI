@@ -1,5 +1,6 @@
 import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['MERCURY_BARE', 'MERCURY_PROMPT_LAYERS', 'MERCURY_PROMPT_REPLACE_FILE']) delete process.env[key]
@@ -12,7 +13,16 @@ enableConfigs()
 const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
 const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+assert.equal(createHash('sha256').update(MERCURY_HEADLESS_CONSTITUTION).digest('hex'), '9595496ce4654ac46ec5f168ca7746ccd2ee42fc26e4f3d64a8e4df06d00b937')
+const sameTurn = [
+  'Act on a tool result in the turn it arrives; never spend a turn restating a result or announcing the next step.',
+  "An edit and the check that verifies it ride the same turn: Mercury runs one message's tool calls in order, so the check sees the edit's effect; a read needs a separate turn only when the next step needs its contents.",
+]
+for (const law of [MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION]) {
+  const engineering = law.slice(law.indexOf('## Engineering'), law.indexOf('## Communication'))
+  for (const sentence of sameTurn) assert.ok(engineering.includes(sentence), sentence)
+}
 const { staticCompositionChanged } = await import('../../src/prompt/recordedComposition.ts')
 assert.equal(staticCompositionChanged([{ name: 'static-composition', value: JSON.stringify(['head', 'constitution', MERCURY_CONSTITUTION]), key: null }]), true, 'a pre-mode-selection record must restore its whole old prompt instead of composing a new headless law')
 posture.markSessionNonInteractive('flow')

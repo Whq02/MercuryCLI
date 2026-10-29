@@ -1,4 +1,5 @@
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
+import { isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
 import { askForHandoff, handoffAsked, handoffNotice, inThousands, type AskRunner } from './handoffAsk.js'
 import { ledgerEntryOf } from './ledger.js'
@@ -22,7 +23,7 @@ export function exitFarewell(farewell: string, note: ExitNoteOutcome, chars: num
 }
 
 export function exitNoteDue(): boolean {
-  if (!lineageJoined()) return false
+  if (!lineageJoined() || isUnattendedRun()) return false
   const session = openLineageSession()
   if (session === null || handoffAsked(session.sessionId)) return false
   const entry = ledgerEntryOf(session.projectKey, session.sessionId)

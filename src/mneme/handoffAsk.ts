@@ -4,6 +4,7 @@ import { getCommandQueue } from '../input-core/command-queue.js'
 import type { Message } from '../types/message.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { logForDebugging } from '../utils/debug.js'
+import { isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { accumulateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
@@ -32,7 +33,7 @@ export function sessionEndsWithThisTurn(): boolean {
 }
 
 export function handoffAskDue(input: { agentId?: string; querySource?: string; sessionId?: string }): boolean {
-  if (!lineageJoined()) return false
+  if (!lineageJoined() || isUnattendedRun()) return false
   if (input.agentId !== undefined) return false
   if (input.querySource !== 'sdk' && input.querySource !== 'main_thread') return false
   const sessionId = input.sessionId ?? String(getSessionId())

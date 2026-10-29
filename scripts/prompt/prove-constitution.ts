@@ -121,8 +121,9 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === '34a2ce38e32fa2823a28a148188447ee8ccb245f1fefe80acd047d5fcf7b1a47', digest)
-    check('858 words, 5784 characters, no trailing newline (the owner\'s 1.0.0 text)', TEXT.split(/\s+/).length === 858 && TEXT.length === 5784 && !TEXT.endsWith('\n'))
+    check('byte anchor (sha256 of the constitution)', digest === 'ad2ecbcc8613a11510bd6879fde192fb7a59cea98096c14be079120c49c063f7', digest)
+    check('921 words, 6114 characters, no trailing newline', TEXT.split(/\s+/).length === 921 && TEXT.length === 6114 && !TEXT.endsWith('\n'))
+    check('the Communication section stays byte-identical', createHash('sha256').update(TEXT.slice(TEXT.indexOf('## Communication'))).digest('hex') === '0544582ac8507b353a3143a5785d4ecaa651d6011f82df2c5a138660e13f022b')
     check('opens on who the seat is', TEXT.startsWith("You are Mercury, the coding agent working in the operator's terminal."))
     check('closes on the asking rule (no trailer: a run\'s blocked outcome is the runner\'s to decide)', TEXT.endsWith('Keep paused work paused until they authorise resumption.'))
     const laws: Array<[string, string]> = [

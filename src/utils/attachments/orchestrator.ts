@@ -81,7 +81,7 @@ export async function getAttachments(
   const context = { ...toolUseContext, abortController, messages: messages ?? toolUseContext.messages }
 
   const isMainThread = !toolUseContext.agentId
-
+  const opening = !messages.some(message => message.type === 'assistant' || (message.type === 'system' && message.subtype === 'compact_boundary'))
   const collectionStart = performance.now()
   const maybe = makeMaybe(collectionStart + ATTACHMENT_HARD_DEADLINE_MS)
 
@@ -119,11 +119,11 @@ export async function getAttachments(
       priority: true,
     }),
     maybe('date_change', () =>
-      Promise.resolve(getCapsuleDateChange(context, messages)),
+      Promise.resolve(opening ? getCapsuleDateChange(context, messages) : []),
     ),
     maybe('deferred_tools_delta', () =>
       Promise.resolve(
-        getDeferredToolsDeltaAttachment(
+        opening ? getDeferredToolsDeltaAttachment(
           toolUseContext.options.tools,
           toolUseContext.options.engineModel,
           messages,
@@ -137,7 +137,7 @@ export async function getAttachments(
               ...(toolUseContext.getAppState?.().mcp?.clients ?? []),
             ].some(client => client.type === 'pending'),
           },
-        ),
+        ) : [],
       ),
     ),
     maybe('held_tools', () =>
@@ -167,7 +167,7 @@ export async function getAttachments(
     maybe('harness_map_delta', () =>
       Promise.resolve(
         (() => {
-          if (!isMainThread) return []
+          if (!isMainThread || !opening) return []
           const d = getHarnessMapDelta(messages)
           return d ? [{ type: 'harness_map_delta' as const, ...d }] : []
         })(),
@@ -180,13 +180,13 @@ export async function getAttachments(
     maybe('skill_listing', () => getSkillListingAttachments(context)),
     maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
     maybe('context_capsule', () =>
-      options?.localSubmission
+      options?.localSubmission || !opening
         ? Promise.resolve([])
         : getContextCapsuleAttachment(input, messages, toolUseContext),
     ),
-    maybe('task_reminders', () => getTaskReminderAttachments(messages, toolUseContext)),
+    maybe('task_reminders', () => opening ? getTaskReminderAttachments(messages, toolUseContext) : Promise.resolve([])),
     maybe('contract_reminder', () =>
-      getContractReminderAttachments(messages, toolUseContext),
+      opening ? getContractReminderAttachments(messages, toolUseContext) : Promise.resolve([]),
     ),
     maybe(
       'agent_pending_messages',
@@ -203,7 +203,7 @@ export async function getAttachments(
       { priority: true },
     ),
     maybe('user_context', () =>
-      isMainThread ? getUserContextAttachment(messages ?? []) : Promise.resolve([]),
+      isMainThread ? getUserContextAttachment(messages, undefined, opening) : Promise.resolve([]),
     ),
     maybe('tool_manuals', () => getToolManualAttachments(context), { priority: true, inputScoped: true }),
     maybe('critical_system_reminder', () =>
