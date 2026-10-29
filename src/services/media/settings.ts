@@ -4,6 +4,8 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { getInitialSettings, getSettingsForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { readHostRecord } from '../host/store.js'
+import { LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 
 export type MediaKind = 'image' | 'video'
 export type MediaSettings = { enabled?: boolean; root?: string; host?: string; imageModel?: string; videoModel?: string; serverPath?: string }
@@ -19,7 +21,7 @@ export const MEDIA_SERVER_NAME = 'ext:mercury-media:engine'
 export function readMediaSettings(): MediaSettings {
   const settings = getInitialSettings().media ?? {}
   const trusted = getSettingsForSource('userSettings')?.media
-  return { ...settings, enabled: getSettingsForSource('localSettings')?.media?.enabled ?? trusted?.enabled ?? false, serverPath: trusted?.serverPath }
+  return { ...settings, enabled: getSettingsForSource('localSettings')?.media?.enabled ?? trusted?.enabled ?? false, host: getSettingsForSource('localSettings')?.media?.host ?? trusted?.host, serverPath: trusted?.serverPath }
 }
 
 export function mediaRoot(settings: MediaSettings = readMediaSettings()): string {
@@ -49,6 +51,14 @@ export async function mediaConfigModule(settings: MediaSettings = readMediaSetti
   const file = join(dirname(await mediaServerPath(settings)), 'config.js')
   const module = await import(pathToFileURL(file).href) as MediaConfigModule
   if (typeof module.readMediaConfig !== 'function' || typeof module.writeMediaConfig !== 'function') throw new Error('Media config reader is missing. Reinstall Mercury.')
+  if (settings.host) return {
+    readMediaConfig: async root => ({ ...await module.readMediaConfig(root), ...await (await import('./host.js')).readMediaHostDefaults(settings) }),
+    writeMediaConfig: async (root, patch) => {
+      const slots = { ...(patch.imageModel !== undefined ? { imageModel: patch.imageModel } : {}), ...(patch.videoModel !== undefined ? { videoModel: patch.videoModel } : {}) }
+      if (Object.keys(slots).length) await (await import('./host.js')).setMediaHostDefaults(settings, slots)
+      return module.writeMediaConfig(root, patch)
+    },
+  }
   return module
 }
 
@@ -79,6 +89,7 @@ export async function saveMediaSettings(patch: MediaSettings): Promise<void> {
   const before = readMediaSettings()
   const next = { ...before, ...patch }
   const root = mediaRoot(next)
+  if (patch.host) (await import('./host.js')).requireMediaHost(patch.host)
   if (patch.imageModel !== undefined || patch.videoModel !== undefined) {
     const { readMediaCatalogue } = await import('./catalogue.js')
     const catalogue = await readMediaCatalogue(next)
@@ -105,6 +116,13 @@ export function mediaHealth(settings: MediaSettings = readMediaSettings()): { st
   if (!settings.enabled) return { status: 'off', evidence: 'off' }
   try {
     const root = mediaRoot(settings)
+    if (settings.host) {
+      const host = readHostRecord(settings.host)
+      if (!host || host.status === 'TERMINATED') return { status: 'warn', evidence: LLM_HOST_WORDS.terminatedPod, fix: '/llmhost' }
+      if (host.status === 'EXITED' || host.jobState === 'stopped') return { status: 'warn', evidence: LLM_HOST_WORDS.stoppedDisk, fix: '/llmhost' }
+      const saved = JSON.parse(readFileSync(join(root, 'host.json'), 'utf8')) as { installed: boolean; location: string }
+      return saved.installed ? { status: 'ok', evidence: saved.location } : { status: 'warn', evidence: 'Media runtime missing · /imagesetup', fix: '/imagesetup' }
+    }
     if (!existsSync(root)) return { status: 'warn', evidence: 'Media folder missing · /imagesetup', fix: '/imagesetup' }
     const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { binary?: string; server?: string }
     const binary = record.binary ?? record.server

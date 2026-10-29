@@ -97,6 +97,7 @@ export const SettingsSchema = lazySchema(() => {
     media: z.object({
       enabled: z.boolean().optional().describe('Local image and video generation; off by default'),
       root: z.string().min(1).optional().describe('Media storage folder; defaults to ~/.mercury/media'),
+      host: z.union([z.literal(''), z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/)]).optional(),
       imageModel: z.string().min(1).optional().describe('Default image model catalogue id'),
       videoModel: z.string().min(1).optional().describe('Default video model catalogue id'),
       serverPath: z.string().min(1).optional().describe('Development server.js path; user settings only'),

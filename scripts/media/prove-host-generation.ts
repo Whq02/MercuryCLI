@@ -7,6 +7,7 @@ import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
 import { catalogue, installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 import { mediaHostStatePath, connectMediaHost } from '../../src/services/media/host.js'
 import { writeHostRecord } from '../../src/services/host/store.js'
+import { mediaConfigModule, mediaRoot } from '../../src/services/media/settings.js'
 import { hostIdleVerdict, HOST_IDLE_LIMIT_MS } from '../../src/services/host/idle.js'
 
 const client = new Client({ name: 'media-host-proof', version: '1' })
@@ -45,6 +46,12 @@ try {
   assert.equal(hostIdleVerdict(record, Date.now(), { lastTurnAt: () => undefined }), undefined)
   const retrieved = await client.callTool({ name: 'media_result', arguments: { job_id: output.jobId } })
   assert.equal((retrieved.structuredContent as { path: string }).path, output.path)
+  await client.callTool({ name: 'media_set_default', arguments: { kind: 'image', model: 'image-two' } })
+  const settings = { root, serverPath, host: record.id }
+  const config = await mediaConfigModule(settings)
+  assert.equal((await config.readMediaConfig(mediaRoot(settings))).imageModel, 'image-two')
+  await config.writeMediaConfig(mediaRoot(settings), { imageModel: 'image-one' })
+  assert.equal((await config.readMediaConfig(mediaRoot(settings))).imageModel, 'image-one')
   writeHostRecord({ ...record, status: 'EXITED', jobState: 'stopped' })
   await assert.rejects(connectMediaHost(record.id, new AbortController().signal), /Stopped · compute ended; disk storage still bills until Terminate\./)
   await gateway.close()

@@ -117,6 +117,7 @@ export async function readMediaHostSnapshot(settings: MediaSettings, runner: Hos
   const previous = existsSync(join(root, 'config.json')) ? JSON.parse(readFileSync(join(root, 'config.json'), 'utf8')) as MediaConfig : {}
   const config = { ...previous, imageModel: snapshot.config.imageModel, videoModel: snapshot.config.videoModel }
   publishAtomicSync(join(root, 'config.json'), JSON.stringify(config), { mode: 0o600 })
+  publishAtomicSync(join(root, 'host.json'), JSON.stringify({ installed: snapshot.runtime.installed, location: hostMachineName(record.vendor ?? 'runpod', record.id) }), { mode: 0o600 })
   const installed = new Map(snapshot.files.map(file => [file.file, file]))
   const variants = catalogue.runtime.platforms['linux-x64'] ?? []
   const selected = snapshot.runtime.installed ? variants.find(row => row.variant === snapshot.runtime.variant) : undefined
@@ -170,4 +171,12 @@ export async function refreshMediaHostActivity(id: string): Promise<void> {
   const value = await (await hostFetch(state, '/activity', signal)).json() as { at: number; now: number }
   if (!Number.isFinite(value.at) || !Number.isFinite(value.now)) throw new Error('Media setup returned an unreadable response.')
   if (value.at > 0) publishAtomicSync(join(dirname(mediaHostStatePath(id)), 'activity.json'), JSON.stringify({ at: Date.now() - Math.max(0, value.now - value.at) }), { mode: 0o600 })
+}
+
+export async function readMediaHostDefaults(settings: MediaSettings): Promise<Pick<MediaConfig, 'imageModel' | 'videoModel'>> {
+  const signal = AbortSignal.timeout(30000)
+  const state = await connectMediaHost(settings.host!, signal)
+  const value = await (await hostFetch(state, '/config', signal)).json() as { imageModel?: unknown; videoModel?: unknown }
+  if (typeof value.imageModel !== 'string' || typeof value.videoModel !== 'string') throw new Error('Media setup returned an unreadable response.')
+  return { imageModel: value.imageModel, videoModel: value.videoModel }
 }
