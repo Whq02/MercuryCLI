@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { expandPath } from '../../utils/path.js'
@@ -49,9 +50,7 @@ interface EvalBridgeDeps {
   owner?: OwnerKey
   context: ToolUseContext
   canUseTool: CanUseToolFn
-
   cellAbort: AbortController
-
   onNested?: (message: AssistantMessage | NormalizedUserMessage) => void
   onScreenshot?: (screenshot: BridgeScreenshot) => void
 }
@@ -123,7 +122,6 @@ export function applySchemaToReply(text: string, schema: unknown, strict: boolea
   if (schema === null || schema === undefined) return { ok: true, value: text }
   const compiled = compileJsonSchema(schema)
   if (!compiled.ok) {
-
     if (strict) {
       return { ok: false, error: `the requested schema was refused by the validation engine — ${compiled.error}` }
     }
@@ -278,7 +276,6 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
           const p = parsed.data
           const refusedSchema = refuseUncompilableSchema(p.schema,  true)
           if (refusedSchema) return refusedSchema
-
           const model =
             p.model ??
             (p.tier === 'fast'
@@ -348,7 +345,6 @@ export async function oneShotCompletion(args: {
           .map(b => ((b as { type?: string; text?: string }).type === 'text' ? (b as { text?: string }).text ?? '' : ''))
           .join('')
       }
-
       if (e.isApiErrorMessage) apiError = text ?? 'provider error'
       else if (text !== null && text !== '') final = (final ?? '') + text
     }

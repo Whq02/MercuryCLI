@@ -1,10 +1,9 @@
+
 import { clampRowToWidth } from './ansiText.js'
 import type { OverlayInput, TailInput, Viewport } from './contracts.js'
 
 export interface ComposedTail {
-
   rows: readonly string[]
-
   park: { row: number; col: number }
 }
 

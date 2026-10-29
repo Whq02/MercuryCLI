@@ -52,7 +52,6 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { searchToolsWithKeywords } = await import(
   '../../src/tools/ToolSearchTool/ToolSearchTool.ts'
 )
-
 await import('../../src/services/resources/adapters/test.ts')
 await import('../../src/services/resources/adapters/git.ts')
 await import('../../src/services/resources/adapters/transaction.ts')
@@ -66,17 +65,14 @@ export interface MissionMetrics {
   id: string
   title: string
   done: boolean
-
   toolCalls: Record<string, number>
   totalToolCalls: number
   fallbackShellCalls: number
   failedEditAttempts: number
   editFormatRereads: number
-
   repeatedEditBytes: number
   explicitTxCalls: number
   invalidOrUnavailableCalls: number
-
   stepsToFirstGreenCheck: number | null
   falseSuccess: boolean
   unresolvedRefs: number
@@ -364,7 +360,6 @@ function buildRepoFixture(): { dir: string; shimDir: string } {
   writeFileSync(join(dir, 'feature.js'), 'export function feat() { return true }\n')
   git(dir, 'add', '.')
   git(dir, 'commit', '-q', '-m', 'add feature')
-
   const shimDir = tempDir('ghshim')
   const prJson = JSON.stringify({
     number: 1,
@@ -398,7 +393,6 @@ type Mode = 'baseline' | 'after'
 async function m1TsDefect(mode: Mode): Promise<MissionMetrics> {
   const t = new Trace('m1-ts-defect', 'TypeScript defect: locate → two-hunk edit → targeted check')
   const dir = buildTsFixture()
-
   const red = sh('node', ['--test', 'test/calc.test.ts'], dir)
   if (red.ok) {
     t.note('FIXTURE BROKEN: seeded defect did not fail the test')
@@ -409,7 +403,6 @@ async function m1TsDefect(mode: Mode): Promise<MissionMetrics> {
   const { content, anchor } = readCounted(t, calc)
 
   if (mode === 'after') {
-
     t.call('Edit')
     const plan = planHunks(
       content,
@@ -426,7 +419,6 @@ async function m1TsDefect(mode: Mode): Promise<MissionMetrics> {
     const anchorCheck = checkAnchor(anchor, readFileSync(calc, 'utf8'), calc)
     if (!anchorCheck.ok) return t.finish(false)
     writeFileSync(calc, applyHunks(content, plan))
-
     const step = t.call('Test')
     const profile = discoverRunnerProfiles(dir).profiles.find(
       p => p.runner === 'node-test' && p.kind === 'test',
@@ -477,7 +469,6 @@ async function m2PyDefect(mode: Mode): Promise<MissionMetrics> {
   const full = await runPythonTests({ from: dir })
   const fullGreen = full.state === 'ok' && full.record.counts.failed === 0
   if (fullGreen) t.greenCheckAt(step)
-
   const rec = latestRun(dir)
   if (rec) {
     const res = await runWithCwdOverride(dir, () =>
@@ -503,7 +494,6 @@ async function m3RustDefect(mode: Mode): Promise<MissionMetrics> {
   const lib = join(dir, 'src', 'lib.rs')
 
   if (mode === 'after') {
-
     process.env.CARGO_TARGET_DIR = join(dir, 'target')
     try {
       const profile = discoverRunnerProfiles(dir).profiles.find(
@@ -551,7 +541,6 @@ async function m3RustDefect(mode: Mode): Promise<MissionMetrics> {
 async function m4Rename(mode: Mode): Promise<MissionMetrics> {
   const t = new Trace('m4-rename', 'Rename journey: symbol + file across references')
   const dir = buildTsFixture()
-
   const calc = join(dir, 'src', 'calc.ts')
   writeFileSync(
     join(dir, 'src', 'calc.ts'),
@@ -567,7 +556,6 @@ async function m4Rename(mode: Mode): Promise<MissionMetrics> {
   const rTest = readCounted(t, test)
 
   if (mode === 'after') {
-
     t.call('Edit')
     const p1 = planHunks(rCalc.content, [{ lines: '5', replace: 'export function maxOf(a: number, b: number): number {' }], rCalc.anchor)
     t.call('Edit')
@@ -618,7 +606,6 @@ async function m4Rename(mode: Mode): Promise<MissionMetrics> {
   const e3 = editCounted(t, stats, 'values.reduce((a, b) => max(a, b)', 'values.reduce((a, b) => maxOf(a, b)')
   const e4 = editCounted(t, test, "import { add, max } from '../src/calc.ts'", "import { add, maxOf } from '../src/calculator.ts'")
   const e5 = editCounted(t, test, "test('max', () => { assert.equal(max(2, 3), 3) })", "test('max', () => { assert.equal(maxOf(2, 3), 3) })")
-
   t.shellFallback('mv src/calc.ts src/calculator.ts (no typed pathRename in this journey)')
   renameSync(calc, join(dir, 'src', 'calculator.ts'))
   const step = t.shellFallback('node --test (no typed JS/TS runner today)')
@@ -634,9 +621,7 @@ async function m5Drift(mode: Mode): Promise<MissionMetrics> {
   const file = join(dir, 'config.ts')
   writeFileSync(file, 'export const port = 3000\nexport const host = "localhost"\nexport const retries = 3\n')
   const { anchor } = readCounted(t, file)
-
   writeFileSync(file, 'export const port = 3001\nexport const host = "localhost"\nexport const retries = 3\n')
-
   t.call('Edit')
   t.m.repeatedEditBytes += Buffer.byteLength('export const port = 3000', 'utf8')
   const check = checkAnchor(anchor, readFileSync(file, 'utf8'), file)
@@ -656,7 +641,6 @@ async function m5Drift(mode: Mode): Promise<MissionMetrics> {
     t.note('refusal wrote bytes — data-loss class')
     return t.finish(false)
   }
-
   t.m.editFormatRereads += 1
   readCounted(t, file)
   const ok = editCounted(t, file, 'export const retries = 3', 'export const retries = 5')
@@ -669,19 +653,15 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
   const t = new Trace('m6-mixed-targets', 'Mixed-target reading: file · directory · notebook · resource · HTTP doc')
   const { dir } = buildMixedFixture()
   const surfaces = new Set<string>()
-
   readCounted(t, join(dir, 'a.txt'))
   surfaces.add('Read')
   if (mode === 'after') {
-
     t.call('Read')
     const { renderDirectoryTarget } = await import('../../src/tools/FileReadTool/readTarget.ts')
     const listing = renderDirectoryTarget(join(dir, 'sub'))
     if (!listing.content.includes('(target: directory')) return t.finish(false)
     surfaces.add('Read')
-
     t.call('Read')
-
     t.call('Read')
     const { renderResourceTarget } = await import('../../src/tools/FileReadTool/readTarget.ts')
     const res = await runWithCwdOverride(dir, () =>
@@ -689,7 +669,6 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
     )
     if (!/state: (ok|absent|unavailable)/.test(res.content)) return t.finish(false)
     t.note(`resource served through the Read front door: ${res.content.split('\n')[0]}`)
-
     const http = await import('node:http')
     const server = http.createServer((_req, res2) => {
       res2.writeHead(200, { 'content-type': 'text/html' })
@@ -705,16 +684,13 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
     t.note(`surfaces used: ${[...surfaces].join(' + ')} (${surfaces.size} distinct for 5 targets)`)
     return t.finish(true)
   }
-
   t.shellFallback('ls (Read refuses directories; prompt says use Bash ls)')
   const ls = sh('ls', ['-1', 'sub'], dir)
   if (!ls.ok) return t.finish(false)
   surfaces.add('Bash')
-
   t.call('Read')
   surfaces.add('Read')
   t.note('notebook counted at the Read surface (parser exercised by its own suite)')
-
   t.call('Inspect')
   surfaces.add('Inspect')
   const res = await resolveResource('mercury://health/latest', { owner, cwd: dir })
@@ -724,7 +700,6 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
   } else {
     t.note(`mercury://health/latest → typed state '${res.state}' (absent-vs-ok both exact)`)
   }
-
   const http = await import('node:http')
   const server = http.createServer((_req, res2) => {
     res2.writeHead(200, { 'content-type': 'text/html' })
@@ -745,7 +720,6 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
   const t = new Trace('m7-repository', 'Repository journey: branch/commit → PR + checks → located review')
   const { dir, shimDir } = buildRepoFixture()
   const shimEnv = { PATH: `${shimDir}:${process.env.PATH}` }
-
   t.call('Git')
   const st = gitStatus(dir)
   if ('state' in st && st.state === 'unavailable') {
@@ -760,7 +734,6 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
   }
 
   if (mode === 'after') {
-
     const { _resetRepoHostCacheForTesting } = await import('../../src/services/repoHost/repoHost.ts')
     const priorPath = process.env.PATH
     process.env.PATH = `${shimDir}:${priorPath}`
@@ -808,7 +781,6 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
       _resetRepoHostCacheForTesting()
     }
   }
-
   let step = t.shellFallback('gh pr view (no repository-host resource kind today)')
   const pr = sh('gh', ['pr', 'view', '--json', 'number,title,state'], dir, shimEnv)
   if (!pr.ok || !pr.out.includes('add feature')) return t.finish(false)
@@ -816,7 +788,6 @@ async function m7Repository(mode: Mode): Promise<MissionMetrics> {
   const checks = sh('gh', ['pr', 'checks'], dir, shimEnv)
   if (!checks.ok || !checks.out.includes('pass')) return t.finish(false)
   t.greenCheckAt(step)
-
   t.note('review = hand-composed prose; no typed findings/severity/range surface today')
   return t.finish(true)
 }
@@ -867,7 +838,6 @@ async function m8ClosedLoop(_mode: Mode): Promise<MissionMetrics> {
 interface IntentProbe {
   id: string
   query: string
-
   wantBaseline: string
   wantAfter: string
 }
@@ -886,7 +856,6 @@ async function probeIntents(mode: Mode): Promise<Array<{ id: string; want: strin
   const rows: Array<{ id: string; want: string; rank: number | null; top: string[] }> = []
   for (const probe of INTENTS) {
     const want = mode === 'baseline' ? probe.wantBaseline : probe.wantAfter
-
     const names = (await searchToolsWithKeywords(probe.query, catalog, catalog, 5)) as string[]
     const idx = names.indexOf(want)
     rows.push({ id: probe.id, want, rank: idx >= 0 ? idx + 1 : null, top: names.slice(0, 3) })

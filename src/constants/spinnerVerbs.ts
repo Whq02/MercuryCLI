@@ -265,7 +265,6 @@ export function sampleSpinnerVerb(pool: string[] = getSpinnerVerbs()): string {
   const recent = new Set(RECENT_PICKS.slice(-window))
   const candidates = pool.filter(verb => !recent.has(verb))
   const sampleFrom = candidates.length > 0 ? candidates : pool
-
   const picked = sampleFrom.length > 0 ? (sampleFrom[randomInt(sampleFrom.length)] ?? FALLBACK_VERB) : FALLBACK_VERB
   RECENT_PICKS.push(picked)
   while (RECENT_PICKS.length > RECENT_WINDOW) RECENT_PICKS.shift()

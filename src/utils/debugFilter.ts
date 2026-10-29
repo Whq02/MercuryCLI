@@ -1,5 +1,6 @@
 import { memoize } from 'lodash-es'
 
+
 export type DebugFilter = {
   include: string[]
   exclude: string[]
@@ -16,7 +17,6 @@ export const parseDebugFilter = memoize(
     if (entries.length === 0) return null
     const exclusions = entries.filter(entry => entry.startsWith('!'))
     if (exclusions.length > 0 && exclusions.length < entries.length) {
-
       return null
     }
     const isExclusive = exclusions.length === entries.length
@@ -41,7 +41,6 @@ function extractDebugCategories(message: string): string[] {
   const categories = new Set<string>()
   const mcpMatch = MCP_SERVER_PATTERN.exec(message)
   if (mcpMatch) {
-
     categories.add('mcp')
     categories.add((mcpMatch[1] as string).toLowerCase())
   } else {
@@ -60,7 +59,6 @@ function extractDebugCategories(message: string): string[] {
   const secondaryMatch = SECONDARY_PATTERN.exec(message)
   if (secondaryMatch) {
     const word = (secondaryMatch[1] as string).trim().toLowerCase()
-
     if (word.length < 30 && !word.includes(' ')) {
       categories.add(word)
     }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -37,7 +36,6 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const userPath = join(HOME, 'settings.json')
-
 const projDir = join(PROJ, '.mercury')
 mkdirSync(projDir, { recursive: true })
 const projPath = join(projDir, 'settings.json')
@@ -52,7 +50,6 @@ await settingsChangeDetector.resetForTesting({
   deletionGrace: 250,
 })
 settingsChangeDetector.subscribe(source => {
-
   events.push({ source, modelAtNotify: getInitialSettings().engine?.model })
 })
 await settingsChangeDetector.initialize()

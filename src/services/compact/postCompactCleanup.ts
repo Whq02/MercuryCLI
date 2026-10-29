@@ -8,6 +8,7 @@ import { resetMicrocompactState } from './microCompact.js'
 import type { Message } from '../../types/message.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 
+
 type PostCompactScope = {
   querySource?: string
   owner?: OwnerKey
@@ -19,7 +20,6 @@ type QuerySource = string
 const MAIN_THREAD_PREFIX = 'main_thread'
 
 function isMainThreadCompaction(querySource: string | undefined): boolean {
-
   return (
     querySource === undefined ||
     querySource.startsWith(MAIN_THREAD_PREFIX) ||
@@ -28,7 +28,6 @@ function isMainThreadCompaction(querySource: string | undefined): boolean {
 }
 
 export function runPostCompactCleanup(scope?: QuerySource | PostCompactScope, preservedMessages?: readonly Message[]): void {
-
   const normalized: PostCompactScope = typeof scope === 'string' ? { querySource: scope } : (scope ?? {})
   const mainThread = normalized.agentId === undefined && isMainThreadCompaction(normalized.querySource)
 

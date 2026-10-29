@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +13,6 @@ function section(t: string): void {
 }
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-
 const msgs = readFileSync(join(root, 'src', 'components', 'Messages.tsx'), 'utf-8')
 const tail = readFileSync(join(root, 'src', 'components', 'LiveStreamingTail.tsx'), 'utf-8')
 const chat = readFileSync(join(root, 'src', 'components', 'messages', 'ChatLine.tsx'), 'utf-8')
@@ -40,7 +38,6 @@ section('LiveStreamingTail: the ONE streaming nameplate (FLUX S2 home)')
 check('the leaf imports the nameplate from ChatLine',
   /import \{ MercuryStreamingNameplate \} from '\.\/messages\/ChatLine\.js'/.test(tail))
 check('Messages renders the ONE subscribed leaf (per-delta publishes never re-render the tree)',
-
   /\{streamingTail \? \(?\s*<LiveStreamingTail\s+store=\{streamingTail\}[^>]*\/>\s*\)? : null\}/.test(msgs))
 check('the streaming prose leads with MercuryStreamingNameplate',
   /leadingInline=\{<MercuryStreamingNameplate \/>\}/.test(tail))

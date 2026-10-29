@@ -41,7 +41,6 @@ function log(over: Partial<SessionListing> & { sessionId: string; modifiedMs: nu
 
 t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the hook)')
 {
-
   const movedNeedles = [
     'filterResumableSessions(all, currentSessionId).filter(isSubstantiveSession)',
     'partitionByProject(',
@@ -54,7 +53,6 @@ t.section('§1 — IDENTITY, BOTH DIRECTIONS (one owner; the skin consumes the h
   for (const needle of movedNeedles) {
     t.check(`model carries: ${needle.slice(0, 58)}`, modelSrc.includes(needle), needle)
   }
-
   const forkTokens = [
     'partitionByProject',
     'isSubstantiveSession',
@@ -139,7 +137,6 @@ t.section('§4 — THE CLOCK SEAM (seen cells byte-stable under an injected now)
 
 t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directions)')
 {
-
   const logs: SessionListing[] = [
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'b1', modifiedMs: 8_000, projectPath: '/repo/beta' }),
@@ -160,7 +157,6 @@ t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directi
   const filteredProject = projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/beta' })
   t.check('the filter composes OVER the scope partition (a beta filter under alpha scope is honestly empty)', filteredProject.flat.length === 0 && filteredProject.elsewhereCount === 1)
   t.check('the elsewhere count stays the SCOPE’s own fact (a view filter never rewrites it)', projectSessionPickerRows(logs, { ...base, scope: 'project', filterDir: '/repo/alpha' }).elsewhereCount === 1)
-
   t.check('the hook threads filterDir through opts and the memo deps', modelSrc.includes('opts: { enabled?: boolean; filterDir?: string } = {}') && modelSrc.includes("...(opts.filterDir !== undefined ? { filterDir: opts.filterDir } : {})") && modelSrc.includes('[logs, nowTick, scope, projectKey, opts.filterDir]'))
   t.check('the in-chat switcher never passes the filter (one skin, no drift)', !read('src/components/mercury-ui/screens/SessionManagerView.tsx').includes('filterDir'))
 }

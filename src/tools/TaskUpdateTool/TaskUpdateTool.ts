@@ -16,6 +16,7 @@ import {
 } from '../../utils/tasks.js'
 import { DESCRIPTION, getPrompt, getVerificationNudgeNote, TASK_UPDATE_TOOL_NAME } from './prompt.js'
 
+
 const inputSchema = z.strictObject({
   taskId: z.string().describe('The id of the task to update'),
   subject: z.string().optional().describe('New subject (imperative form)'),
@@ -85,7 +86,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   stage('owner', input.owner)
 
   if (input.metadata !== undefined) {
-
     const merged: Record<string, unknown> = { ...(task.metadata ?? {}) }
     for (const [key, value] of Object.entries(input.metadata)) {
       if (value === null) delete merged[key]
@@ -98,7 +98,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   let statusChange: Output['statusChange']
   if (input.status !== undefined) {
     if (input.status === 'deleted') {
-
       const deleted = await deleteTask(taskListId, input.taskId)
       if (!deleted) {
         return failure(input.taskId, `Failed to delete task ${input.taskId}`)
@@ -121,7 +120,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   if (Object.keys(updates).length > 0) {
     const written = await updateTask(taskListId, input.taskId, updates)
     if (written === null) {
-
       return failure(
         input.taskId,
         `Task ${input.taskId} disappeared before the update landed (deleted or list reset concurrently); nothing was applied`,
@@ -143,7 +141,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
     const fresh = input.addBlockedBy.filter(id => !task.blockedBy.includes(id))
     let landed = 0
     for (const blockerId of fresh) {
-
       if (await blockTask(taskListId, blockerId, input.taskId)) landed += 1
       else failedEdges.push(`${blockerId} (blockedBy)`)
     }
@@ -196,7 +193,6 @@ export const TaskUpdateTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
     if (!output.success) {
-
       return {
         tool_use_id: toolUseID,
         type: 'tool_result' as const,

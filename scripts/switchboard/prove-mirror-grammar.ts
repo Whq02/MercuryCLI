@@ -16,7 +16,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 const root = new URL('../../', import.meta.url).pathname
 const mirrorPath = join(root, 'src/components/concourse/SessionMirror.tsx')
 const foldPath = join(root, 'src/components/concourse/workerTranscriptFold.ts')
-
 const attachedPath = join(root, 'src/components/concourse/AttachedSessionScreen.tsx')
 const mirrorSrc = readFileSync(mirrorPath, 'utf8')
 const foldSrc = readFileSync(foldPath, 'utf8')
@@ -62,7 +61,6 @@ check(
 check('a real ScrollBox with stickyScroll', /<ScrollBox\b[^>]*stickyScroll/s.test(mirrorCode))
 
 console.log('LAW 2 — the word-ban (mirror-agent-word):')
-
 check("the exemption's tooth: 'agent-close' stands as a quoted receipt-kind token", /'agent-close'/.test(mirrorCode))
 check(
   'the word "agent" is absent from the mirror source (comments stripped; the quoted receipt-kind token exempted)',
@@ -70,7 +68,6 @@ check(
 )
 const { attachedPlateName, userHandle } = await import('../../src/components/messages/TranscriptNameplate.js')
 check("attachedPlateName maps 'agent' → 'Mercury'", attachedPlateName('agent') === 'Mercury')
-
 check("attachedPlateName plates 'coordinator' as 'Coordinator'", attachedPlateName('coordinator') === 'Coordinator')
 check(
   "attachedPlateName plates the operator as the handle",
@@ -101,7 +98,6 @@ check(
   'the attached-viewer screen is DELETED (rubric §2.3 — the mirror is the only reader surface)',
   !existsSync(attachedPath),
 )
-
 const defSites: string[] = []
 const walk = (dir: string): void => {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -170,18 +166,14 @@ check('the revision fixture projects (snapshot + final share one recordId)', sna
 if (snap !== null && fin !== null && other !== null) {
   const text = (m: unknown): string =>
     String(((m as { message?: { content?: Array<{ text?: string }> } }).message?.content ?? [])[0]?.text ?? '')
-
   check('control: the naive concat double-paints the revision pair', [other, snap, fin].length === 3)
-
   const cold = mergeFoldedMessages([], [other, snap, fin])
   check('the cold fold paints the pair as ONE message', cold.length === 2, `painted ${cold.length}`)
   check('…wearing the FINAL revision', text(cold[1]) === 'Finished counting', text(cold[1]))
-
   const partial = mergeFoldedMessages([], [other, snap])
   check('the streaming partial still paints (the collapse never suppresses)', partial.length === 2 && text(partial[1]) === 'Finished count')
   const settled = mergeFoldedMessages(partial, [fin])
   check('the final REPLACES at the same slot — position kept, count kept', settled.length === 2 && text(settled[1]) === 'Finished counting' && settled[0] === partial[0])
-
   check('distinct rows still append in order', mergeFoldedMessages([other], [snap]).length === 2)
 }
 const foldModuleSrc = readFileSync(foldPath, 'utf8')

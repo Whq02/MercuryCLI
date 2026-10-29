@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import net from 'node:net'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,7 +30,6 @@ const { MERCURY_DAEMON_PROTO, MIN_PROTO, DAEMON_VERB_BORN_AT, verbBornAt, encode
 const { controlSockPath, daemonControlRpc, forgetDaemonProtoForTesting, restartDaemonWords, olderDaemonRefusalLine } = socketMod
 
 const CONTROL_KEY = 'k'.repeat(64)
-
 const RAW_LIST_V5 = 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule, sessionId, by }'
 
 let scenarioN = 0
@@ -76,7 +74,6 @@ function startDaemon(opts: {
         if (typeof proto !== 'number' || proto < 1 || proto > opts.proto) {
           return answer({ ok: false, code: 'EPROTO', error: 'proto mismatch', serverProto: opts.proto, serverVersion: opts.version })
         }
-
         const keyed = op === 'sessionControl' || op === 'sessionRewind' || op === 'signIns' || op === 'list' || op === 'restart-when-idle'
         if (!keyed) return answer({ ok: false, code: 'EUNKNOWN', error: `unknown op: ${op}` })
         if (req.auth !== CONTROL_KEY) return answer({ ok: false, code: 'EAUTH', error: `${op} rejected: no key` })
@@ -144,13 +141,10 @@ section('§3 the daemon\'s proto unknown: the refusal\'s shape names an older bu
 {
   freshPlane()
   const daemon = await startDaemon({ proto: 5, version: '1.0.0-beta.0', knownActions: V5_ACTIONS })
-
   forgetDaemonProtoForTesting()
   const toggle = await daemonControlRpc({ op: 'sessionControl', action: 'set-spawn-switch', sessionId: 's-1', by: 'operator', spawnSwitch: { kind: 'subagents', on: false } } as never, { timeoutMs: 1000 })
-
   check('after the dialect retry the gap is numbered', toggle.ok === false && refusalOf(toggle) === 'daemon-older' && errorOf(toggle).includes('protocol 5'), errorOf(toggle))
   await daemon.close()
-
   const bare = olderDaemonRefusalLine('sessionControl set-spawn-switch', 6, null)
   check('with no proto on record the line still names an older build and the sentence', bare.startsWith('the daemon is an older build:') && bare.includes('needs protocol 6') && bare.endsWith(RESTART), bare)
 }
@@ -159,7 +153,6 @@ section('§4 a pre-handshake (v1) daemon: hello refused as unknown op still clas
 {
   freshPlane()
   const daemon = await startDaemon({ proto: 1, version: '0.9.0', knownActions: [], hello: false })
-
   const first = await hsMod.handshakeDaemon({ timeoutMs: 1000 })
   check('the first hello (EPROTO) reads pre-handshake, older', first.state === 'older' && first.daemon?.preHandshake === true, `${first.state} · pre ${first.daemon?.preHandshake}`)
   const second = await hsMod.handshakeDaemon({ timeoutMs: 1000 })

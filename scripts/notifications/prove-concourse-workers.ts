@@ -8,14 +8,10 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const t = checker()
-
 const root = scratchRoot('concourse-workers')
-
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
-
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 } }))
-
 writeFileSync(
   join(root, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -35,7 +31,6 @@ const {
 
 t.section('§1 — the pure seat-lease fold (the machine cap; line 6: no artificial ceiling)')
 {
-
   const live: { workspaceId: string }[] = []
   let admitted = 0
   for (let i = 1; i <= 5; i++) {
@@ -53,7 +48,6 @@ t.section('§1 — the pure seat-lease fold (the machine cap; line 6: no artific
     JSON.stringify(sixth),
   )
   t.check(
-
     "the refusal names the consented capacity reading (never a bare number) and the typed code",
     sixth.admit === false && sixth.code === 'runtime-ceiling' && (sixth.reason ?? '').includes('the consented capacity reading: 5 seats'),
     JSON.stringify(sixth),
@@ -129,9 +123,7 @@ t.section('§3 — the admission handler over a fake roster port')
   }
   const results = []
   results.push(await admit({ workspaceDir: wsDirs[0]! }))
-
   const dupe = await admit({ workspaceDir: wsDirs[0]! })
-
   t.check(
     'a duplicate defaulted claim on a plain folder holds on the git OFFER (no spawn)',
     dupe.ok === false &&
@@ -141,7 +133,6 @@ t.section('§3 — the admission handler over a fake roster port')
       (dupe as { moves?: Array<{ verb?: string }> }).moves?.some(m => m.verb === 'init-git') === true,
     JSON.stringify(dupe),
   )
-
   {
     const explicitDupe = await admit({ workspaceDir: wsDirs[0]!, isolation: 'exclusive' })
     t.check(
@@ -189,7 +180,6 @@ t.section('§3 — the admission handler over a fake roster port')
     JSON.stringify({ argv: spec.respawnExtraArgv, partialRows: spec.partialRows }),
   )
   const strip = new Set(spec.stripEnv ?? [])
-
   t.check(
     'CH-01: the spec strips the splash handoff, alt-hold, launch id and the stray session-kit stamp',
     ['MERCURY_SPLASH_HANDOFF', 'MERCURY_ALT_HELD', 'MERCURY_LAUNCH_ID', 'MERCURY_SESSION_KIT'].every(v => strip.has(v)),
@@ -211,7 +201,6 @@ t.section('§4 — settle + crash reconciliation (exactly-once, G13-conservative
   const ids = Object.keys(records)
   const victim = ids[0]!
   const survivorSet = new Set(ids.slice(1))
-
   const receipt = reconcileConcourseWorkers(survivorSet, dir)
   const victimRec = readSessionWorkers(dir)[victim]!
   t.check(
@@ -237,7 +226,6 @@ t.section('§4 — settle + crash reconciliation (exactly-once, G13-conservative
   )
   const again = reconcileConcourseWorkers(survivorSet, dir)
   t.check('re-reconciliation stamps nothing twice (converged rows leave both lists)', again.settled.length === 0, JSON.stringify(again))
-
   t.check('manual settle settles exactly once', settleConcourseWorker(victim, dir) === true && settleConcourseWorker(victim, dir) === false, victim)
   t.check(
     'released rows leave the board read (endedAt is the release, not the crash)',
@@ -274,7 +262,6 @@ t.section('§4c — a stale respawn promise converges at the reconcile (the daem
   const { markConcourseWorkerCrash, markConcourseWorkerDelivery } = await import('../../src/daemon/concourseWorkers.js')
   const ids = Object.keys(readSessionWorkers(dir)).filter(id => readSessionWorkers(dir)[id]!.endedAt === undefined)
   const subject = ids[0]!
-
   markConcourseWorkerCrash(subject, { reason: 'crashed mid-run (exit 1) · resumed — the interrupted ask needs a re-send', respawning: true }, dir)
   const stampedAt = readSessionWorkers(dir)[subject]!.crash!.at
   const others = new Set(ids.filter(id => id !== subject))
@@ -293,7 +280,6 @@ t.section('§4c — a stale respawn promise converges at the reconcile (the daem
   )
   const again = reconcileConcourseWorkers(others, dir)
   t.check('the re-run is a pure continue (idempotence holds past the convergence)', !again.settled.includes(subject), JSON.stringify(again))
-
   markConcourseWorkerDelivery(subject, dir)
 }
 
@@ -329,7 +315,6 @@ t.section('§worktree admission — isolated claims carve REAL worktrees')
 {
   const { execFileSync } = await import('node:child_process')
   const { writeFileSync } = await import('node:fs')
-
   process.env.GIT_CONFIG_GLOBAL = join(root, 'gitconfig-empty')
   process.env.GIT_CONFIG_SYSTEM = '/dev/null'
   process.env.XDG_CONFIG_HOME = join(root, 'xdg')

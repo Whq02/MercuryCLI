@@ -63,7 +63,6 @@ const run = await runArtifactArena({
 })
 
 try {
-
   const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const sendAt = (data: string, nth = 0): number =>
     sends.filter(s => s.data === data)[nth]?.at ?? -1
@@ -122,16 +121,13 @@ try {
   t.section('§3 — Esc at the root is the interview cancel: turn ends, draft survives durably')
   const final = timeline.at(-1)!
   t.check('the card closed (its help line is gone)', !textOf(final).includes('Enter to select'))
-
   const mainRounds = run.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))
-
   const roundShape = (r: { body: unknown }): string => {
     const last = (r.body as { messages?: { role?: string; content?: unknown }[] }).messages?.at(-1)
     const blocks = Array.isArray(last?.content) ? (last.content as { type?: string; content?: unknown }[]) : []
     const kinds = blocks.length > 0 ? blocks.map(c => c.type ?? '?').join('+') : typeof last?.content
-
     const result = blocks.find(c => c.type === 'tool_result')
     const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
     return `${last?.role ?? '?'}:${kinds}${head}`
@@ -144,7 +140,6 @@ try {
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
   {
-
     const dir = join(run.paths.home, '.mercury', 'interview')
     const files = readdirSync(dir).filter(f => f.endsWith('.json'))
     t.check('the durable session log exists', files.length === 1, files.join(','))
@@ -231,7 +226,6 @@ try {
     win(shiftTabAt + 150, S(17_000)).some(s => textOf2(s).includes('Which config shape should ship?')),
   )
   t.check(
-
     'q1 reopens on its derived focus (selected ?? first)',
     win(shiftTabAt + 150, S(17_000)).some(s => {
       const top = findRows(s.rows, 'Which config shape')[0] ?? 0

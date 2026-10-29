@@ -1,3 +1,5 @@
+
+
 export async function returnValue<A>(gen: AsyncGenerator<unknown, A, unknown>): Promise<A> {
   let next = await gen.next()
   while (!next.done) {
@@ -40,7 +42,6 @@ export async function* all<A>(
       }
       continue
     }
-
     tracked.promise = tracked.generator.next().then(next => ({ tracked, result: next }))
     live.add(tracked)
     if (result.value !== undefined) {

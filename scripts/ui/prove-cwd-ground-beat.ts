@@ -60,7 +60,6 @@ for (const file of MUST_RIDE_THE_BEAT) {
     !/const cwd = getFocusedSessionConnector\(\)\.workspace\(\)\.cwd/.test(frame),
   );
   check('MercuryFrame keeps no private copy of the feed', !frame.includes('subscribeCwdState('));
-
   const workViews = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8');
   check('the work views define no second useFocusedWorkspaceCwd', !workViews.includes('export function useFocusedWorkspaceCwd'));
   const board = readFileSync('src/components/tasks/WorkflowsBoard.tsx', 'utf8');

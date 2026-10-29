@@ -14,11 +14,10 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 
-export const TOOL_RESULTS_SUBDIR = 'tool-results'
 
+export const TOOL_RESULTS_SUBDIR = 'tool-results'
 export const PERSISTED_OUTPUT_TAG = '<persisted-output>'
 export const PERSISTED_OUTPUT_CLOSING_TAG = '</persisted-output>'
-
 export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
 export const PREVIEW_SIZE_CHARS = 2000
@@ -26,7 +25,6 @@ export const PREVIEW_MAX_LINE_CHARS = 400
 
 type PersistedToolResult = {
   filepath: string
-
   originalSize: number
   isJson: boolean
   preview: string
@@ -50,11 +48,8 @@ export type ToolResultReplacementRecord = {
 export type ContentReplacementRecord = ToolResultReplacementRecord
 
 export type ContentReplacementState = {
-
   seenIds: Set<string>
-
   replacements: Map<string, string>
-
   budgetChars?: number
 }
 
@@ -219,7 +214,6 @@ async function applySizePersistence(
   if (isToolResultContentEmpty(content)) {
     return { ...block, content: `(The ${toolName} tool completed successfully with no output)` }
   }
-
   if (typeof content === 'string' && content.startsWith(PERSISTED_OUTPUT_TAG)) return block
   const declared = threshold ?? DEFAULT_MAX_RESULT_SIZE_CHARS
   const limit = room === undefined ? declared : Math.min(declared, room.shareChars)
@@ -356,13 +350,11 @@ export async function enforceToolResultBudget(
     for (const candidate of group) {
       const priorReplacement = state.replacements.get(candidate.toolUseId)
       if (priorReplacement !== undefined) {
-
         applyById.set(candidate.toolUseId, priorReplacement)
         reappliedCount++
         continue
       }
       if (state.seenIds.has(candidate.toolUseId)) {
-
         frozenSize += candidate.size
         continue
       }
@@ -388,7 +380,6 @@ export async function enforceToolResultBudget(
 
     const freshSize = eligibleFresh.reduce((sum, candidate) => sum + candidate.size, 0)
     if (frozenSize + freshSize <= limit) {
-
       for (const candidate of group) state.seenIds.add(candidate.toolUseId)
       continue
     }
@@ -413,7 +404,6 @@ export async function enforceToolResultBudget(
         candidate.toolUseId,
       )
       if (isPersistError(persisted)) {
-
         state.seenIds.add(candidate.toolUseId)
         continue
       }

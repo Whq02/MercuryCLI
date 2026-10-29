@@ -1,3 +1,4 @@
+
 type RGB = { r: number; g: number; b: number }
 
 const FRAME_VOCABULARY = ['✶', '✸', '✹', '✺', '✹', '✷']

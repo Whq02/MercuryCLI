@@ -1,6 +1,7 @@
 import type { Command } from '../../commands.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
+
 const browser: Command = {
   type: 'local',
   name: 'browser',

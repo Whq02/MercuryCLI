@@ -1,3 +1,4 @@
+
 import React, {
   createContext,
   useCallback,
@@ -74,6 +75,7 @@ import {
 } from './messages/nullRenderingAttachments.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 
+
 export type UnseenDivider = { firstUnseenUuid: string; count: number }
 
 export function countUnseenAssistantTurns(
@@ -146,7 +148,6 @@ export function useUnseenDivider(
 } {
   const [dividerIndex, setDividerIndex] = useState<number | null>(null)
   const dividerYRef = useRef<number | null>(null)
-
   const countRef = useRef(messageCount)
   countRef.current = messageCount
   const clearSnapshotRef = useRef(false)
@@ -172,7 +173,6 @@ export function useUnseenDivider(
   }
 
   useEffect(() => {
-
     if (clearSnapshotRef.current && dividerIndex === null) {
       clearSnapshotRef.current = false
       dividerYRef.current = null
@@ -209,9 +209,7 @@ export function useUnseenDivider(
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
-
       if (handle.getScrollTop() + handle.getPendingDelta() >= max) return
-
       if (dividerYRef.current !== null) return
       dividerYRef.current = handle.getScrollHeight()
       setDividerIndex(countRef.current)
@@ -220,14 +218,12 @@ export function useUnseenDivider(
   )
 
   const onRepin = useCallback(() => {
-
     clearSnapshotRef.current = true
     setDividerIndex(null)
   }, [])
 
   const jumpToNew = useCallback((handle: ScrollBoxHandle | null) => {
     if (!handle) return
-
     handle.scrollToBottom()
   }, [])
 
@@ -253,11 +249,13 @@ export function useUnseenDivider(
   }
 }
 
+
 type StickyPrompt = { text: string; scrollTo: () => void }
 
 export const ScrollChromeContext = createContext<{
   setStickyPrompt: (prompt: StickyPrompt | 'clicked' | null) => void
 }>({ setStickyPrompt: () => {} })
+
 
 function PromptOverlayStrip(): React.ReactNode {
   const data = usePromptOverlay()
@@ -287,7 +285,6 @@ function JumpPill({
   dividerYRef: React.MutableRefObject<number | null>
   onClick: () => void
 }): React.ReactNode {
-
   const visible = React.useSyncExternalStore(
     useCallback(
       (listener: () => void) =>
@@ -313,7 +310,6 @@ function JumpPill({
     count === 0
       ? '[ back to the bottom · alt+↓ ]'
       : `[ ${count} new ${count === 1 ? 'message' : 'messages'} · alt+↓ ]`
-
   return (
     <>
       <Box height={1} flexShrink={0} />
@@ -352,6 +348,7 @@ function ModalPaneBody({ rows, columns, scrollRef, children }: { rows: number; c
     </CursorDeclarationContext.Provider>
   )
 }
+
 
 export function FullscreenLayout({
   scrollable,
@@ -392,7 +389,6 @@ export function FullscreenLayout({
   const [stickyPrompt, setStickyPrompt] = useState<
     StickyPrompt | 'clicked' | null
   >(null)
-
   const chromeContextValue = useMemo(() => ({ setStickyPrompt }), [])
 
   useEffect(() => {
@@ -443,7 +439,6 @@ export function FullscreenLayout({
     setHelmVitalsAvailable(reachable && plan.vitals)
     if (!reachable) setHelmFocus('prompt')
     else if (!plan.vitals) {
-
       setHelmFocus('prompt')
     }
   }, [cockpit, modalUp, plan.vitals])
@@ -464,7 +459,6 @@ export function FullscreenLayout({
     overrideRef.current = next
     return next
   }, [cockpit, plan.centerCols, columns, rows])
-
   const transcriptGutter = cockpit ? 1 : 0
   const transcriptSizeRef = useRef<{ columns: number; rows: number } | null>(null)
   const transcriptSize = useMemo(() => {
@@ -511,7 +505,6 @@ export function FullscreenLayout({
   }, [tokens])
 
   if (!fullscreen) {
-
     return (
       <PromptOverlayProvider>
         <Box flexDirection="column">
@@ -535,7 +528,6 @@ export function FullscreenLayout({
   const modalPeek = isCompact ? 0 : chrome === 'inline' ? 2 : 0
   const modalSeparatorRows = modalUp && (!isCompact || terminalRows > 1) ? 1 : 0
   const t = tokens
-
   const modalClaims = modalPeek === 0;
   const recessOn = modalUp && recessTargetFor(t) !== null;
   const blankClaims = modalUp && modalClaims && !recessOn;
@@ -552,8 +544,7 @@ export function FullscreenLayout({
       minHeight={0}
       paddingX={transcriptGutter}
     >
-      {
-}
+      {}
       {stickyVisible && stickyDescriptor ? (
         <Box height={1} onClick={() => stickyDescriptor.scrollTo()}>
           <Text dimColor wrap="truncate-end">
@@ -617,8 +608,7 @@ export function FullscreenLayout({
             scrollRef: modalScrollRef ?? null,
           }}
         >
-          {
-}
+          {}
           <ModalPaneBody rows={Math.max(0, terminalRows - modalPeek - modalSeparatorRows)} columns={columns} scrollRef={modalScrollRef ?? null}>{modal}</ModalPaneBody>{blankClaims && <Box flexGrow={1} />}
         </ModalContext.Provider>
       </Box>
@@ -631,8 +621,7 @@ export function FullscreenLayout({
         <CompactFooterNoticeContext.Provider value={isCompact ? setCompactFooterNotice : null}>
         <CompactFrameBudgetContext.Provider value={compactBudget}>
         <CockpitActiveContext.Provider value={cockpit}>
-          {
-}
+          {}
           <MotionParkContext.Provider value={motionParked}>
             <Box
               flexDirection="column"
@@ -665,8 +654,7 @@ export function FullscreenLayout({
                   borderStyle={centerFrame ? 'round' : undefined}
                   borderColor={centerFrame ? t.borderStrong : undefined}
                 >
-                  {
-}
+                  {}
                   <TerminalSizeContext.Provider value={sizeVal}>
                     {isCompact ? <CompactIdentityBand /> : null}
                     {centerFrame && statusBand ? (

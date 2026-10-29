@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, execFileSync } from 'node:child_process'
@@ -12,7 +11,6 @@ const home = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
 const work = join(SCRATCH, 'work')
 for (const d of [home, daemonDir, work]) mkdirSync(d, { recursive: true })
-
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONFIG_DIR = home

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +24,6 @@ console.log('R — resume brings up the whole house (rule 3)')
   check('R1 --continue / --resume <id> ride the ONE resume path at boot', resumeBody.includes('focusResumedSession(sessionId, log.fullPath'))
   check('R1 the boot resume carries the resolved posture (parity with a birth)', resumeBody.includes('permissionMode: args.permissionMode'))
   const face = read('src/components/BootSplashScreen.tsx')
-
   check('R1 Boot › Continue rides the ONE resume path directly with the resolved posture', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current'))
   check('R1 Projects-↵ rides the ONE resume path with the row transcript', face.includes('focusResumedSession(p.sessionId, p.transcriptPath'))
   const repl = read('src/screens/Chat.tsx')
@@ -35,14 +33,11 @@ console.log('R — resume brings up the whole house (rule 3)')
   const mountBody = repl.slice(mountAt, mountEnd)
   check('R2 the estate comes up behind EVERY landing: the mount hook heals the daemon and arms the warm runner, ungated by the journey', mountBody.includes('ensureOwnedDaemon()') && mountBody.includes('warmSessionRunner(getCwd())') && !/if \(.*(resume|continue|journey)/i.test(mountBody))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
-
   const fnAt = hop.indexOf('export function focusResumedSession(')
   const fnBody = hop.slice(fnAt, hop.indexOf('async function paintResumeRecap', fnAt))
   check('R3 a session live on the board is ENTERED (a hop — nothing respawns); a durable one is admitted behind its paint', fnAt !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'") && fnBody.includes('resumeSessionId: sessionId'))
-
   check('R4 the resume boots are explicit journeys (the chat is the landing, the menu one shift away) — and --chat is NOT one of them (L15)', main.includes('if (opts.continue || opts.resume || opts.pr || inputPrompt) {') && main.includes('markExplicitBootJourney()') && !main.includes('inputPrompt || opts.chat === true) {'))
   const route = read('src/context/surfaceRoute.ts')
-
   check('R5 switching unchanged: the strip keeps [boot menu · concourse · chat] in order, the chat stop counted from the focused slot (the reserved third stop retires)', route.includes("export const STRIP_ORDER: readonly StripStop[] = ['boot-settings', 'concourse', 'repl']") && route.includes("if (facts.chatPresent) stops.push('repl')") && !route.includes("const order = ['repl', 'concourse', 'boot-settings'] as const"))
 }
 
@@ -53,27 +48,22 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
   const removeBody = board.slice(removeAt, board.indexOf('noteControl(\n              \'strip:composer\',\n              reply.ok === true && reply.settled !== false', removeAt))
   const restHelper = board.slice(board.indexOf('async function restFocusedSlotAfterRelease('), board.indexOf('removeSession: sessionId => {'))
   check('C1 releasing the focused row re-points at a SURVIVOR first (the reaped-session ghost stays closed)', removeBody.includes('await restFocusedSlotAfterRelease(sessionId') && restHelper.includes('hops.hopIntoBoardSession(next.sessionId)'))
-
   check('C1 releasing the LAST row rests the slot and the board stays (no menu bounce) — no ghost minted at the screen\'s cwd', restHelper.includes('slot.releaseFocusedSessionConnector()') && !removeBody.includes('enterBootSettings()') && !removeBody.includes('focusNascentSession') && !removeBody.includes('getEngineModel'))
   const repl = read('src/screens/Chat.tsx')
   const backstopAt = repl.indexOf('const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);')
   const backstopEnd = repl.indexOf('}, [slotHasSession, landing, chatSurfaceCovered, localJsx, armedMessage]);', backstopAt)
   const backstop = backstopAt !== -1 && backstopEnd !== -1 ? repl.slice(backstopAt, backstopEnd) : ''
-
   check('C2 the root Chat yields whenever it would front a resting slot, handing the frame to the router\'s one absent-chat landing (settleAbsentChat, never a return token onto the empty chat)', backstop !== '' && backstop.includes('settleAbsentChat()') && !backstop.includes('enterBootSettings()') && backstop.includes('hasFocusedSession()'))
   check('C2 the yield settles one beat and re-reads every fact at fire time (a mounting dialog is never buried)', backstop.includes('NO_CHAT_SETTLE_MS') && backstop.includes("currentSurfaceRoute().kind !== 'repl'") && backstop.includes('toolJSXRef.current?.isLocalJSXCommand === true'))
   check('C2 an inline boot keeps its Chat (CB-10: no frame for the face)', backstop.includes('if (!isFullscreenEnvEnabled()) return;'))
   const route = read('src/context/surfaceRoute.ts')
-
   check('C2 the router\'s home verb never routes into an absent chat (no chat ⇒ no movement, no armed exception left)', route.includes('export function enterRootChat(): ChatEntry {') && route.includes('if (!chatPresent()) {') && route.includes("return { ok: false, code: 'no-chat', reason: NO_CHAT_HINT }") && !route.includes('armedRootCommand'))
   const face = read('src/components/BootSplashScreen.tsx')
-
   check('C2 no face row arms a root command; Health/Resume open face layers; New Session, Projects and Continue enter the chat they birthed or resumed', (face.match(/enterRootChat\(\{ armedRootCommand: true \}\)/g) ?? []).length === 0 && (face.match(/enterRootChat\(\)/g) ?? []).length === 5 && face.includes('setHealthOpen(true)') && face.includes('setResumeOpen(true)') && !face.includes('armRootCommand'))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
   const clearAt = hop.indexOf('export async function clearFocusedSession(')
   const clearBody = hop.slice(clearAt)
   check('C3 /clear with no chat open clears nothing', clearBody.includes('if (!slot.hasFocusedSession()) return { ok: true, cleared: false }'))
-
   check('C3 /clear births the fresh chat FIRST, then parks the old one by id (a failed birth moves nothing; never a release)', clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') !== -1 && clearBody.indexOf('bornSession({ workspaceDir, model, vacatingSessionId: oldSessionId })') < clearBody.indexOf('parkSessionById(oldSessionId)') && !clearBody.includes("op: 'sessionRelease'"))
   check('C3 a refused birth leaves the OLD chat standing, the daemon\'s own sentence in the refusal', clearBody.includes('a fresh session could not start, so this one stands'))
   check('C3 the runner compares the inherited model with its effective model, on cold boot and warm claim', read('src/daemon/concourseWorkers.ts').includes('carryClearModel(home, sessionId, previous.sessionId, facts?.model.setting ?? previous.modelKey)') && read('src/cli/run.ts').includes('settleClearModel(dirname(getTranscriptPath()), String(getSessionId()), activeModel ?? getEngineModel())') && read('src/services/switchboard/sessionReceipts.ts').includes('is no longer reachable — this fresh chat starts on the default model instead; /model picks another'))
@@ -81,7 +71,6 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
   check('C3 the /clear command rides the one door', command.includes('clearFocusedSession()'))
 
   {
-
     const { mkdtempSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
     const { join: joinPath } = await import('node:path')
@@ -122,12 +111,9 @@ console.log('F — the two switches (the amendment)')
   check('F1 the cli entry applies the spellings BEFORE commander and after the splash handover', cli.indexOf('consumeSplashHandover()') !== -1 && cli.indexOf('applyBankedFlagSpellings(process.argv)') > cli.indexOf('consumeSplashHandover()') && cli.indexOf('applyBankedFlagSpellings(process.argv)') !== -1 && cli.indexOf('applyBankedFlagSpellings(process.argv)') < cli.indexOf('process.env.NODE_COMPILE_CACHE === undefined &&'))
   const main = read('src/main.tsx')
   check('F2 the three options exist in the estate\'s grammar with their help naming the banked spellings', main.includes(".option('--chat',") && main.includes(".option('--concourse-off',") && main.includes(".option('--concourse-on',") && main.includes('`-chat` is the same switch') && main.includes('`-concourse-off` is the same switch'))
-
   check('F2 --chat lands on the boot menu (L15): not an explicit journey, no birth at boot — words and an inline boot still birth', main.includes('if (opts.continue || opts.resume || opts.pr || inputPrompt) {') && main.includes('if (promptIsWords || !isFullscreenEnvEnabled()) {') && main.includes("bornSession({ workspaceDir: getCwd(), model: null })") && !main.includes('opts.chat === true || promptIsWords') && !main.includes('program.opts().chat === true'))
-
   check('F2 --chat marks the plain world at launch classification (markChatBoot beside the explicit-journey mark; no third flag)', /if \(opts\.chat === true\) \{[\s\S]*?markChatBoot\(\)/.test(main) && !main.includes("'--chat-only'") && !main.includes('chatOnly:'))
   check('F2 a slash line on argv (the Health splice) births nothing — only words do', main.includes("!inputPrompt.trimStart().startsWith('/')"))
-
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const { concourseEnabled, setConcourseEnabled } = await import('../../src/services/concourse/concourseEnabled.ts')
@@ -155,19 +141,15 @@ console.log('F — the two switches (the amendment)')
   check('F3 /config carries the row (the other writer)', settings.includes("id: 'concourse'") && settings.includes('concourseEnabled: next'))
   check('F3 the boot switch writes through the one door, the later switch winning', main.includes("setConcourseEnabled(lastSwitch === '--concourse-on')"))
   const route = read('src/context/surfaceRoute.ts')
-
   check("F4 with the concourse off (or a --chat boot) the boot never auto-enters it (the policy reads 'off' when the concourse stop is absent)", route.includes("const policy = stripStops(stripFacts()).includes('concourse') ? resolveConcoursePolicy(opts.env) : 'off'"))
   const concourseRoute = read('src/components/concourse/ConcourseRoute.tsx')
-
   check('F4 the concourse route renders the reduced stage in the plain world — the switch off OR a --chat boot (the router\'s one world fact; the plain live view behind the explicit doors — never a strip stop)', concourseRoute.includes('reducedStage={chatOnlyBoot()}') && !concourseRoute.includes('reducedStage={!concourseEnabled()}') && !concourseRoute.includes("from '../../services/concourse/concourseEnabled.js'"))
   check('F4 no reader promises a shift+→ live view any more (the retired rule-5 sentence)', !/shift\+→[^\n]*live view|live view[^\n]*shift\+→/i.test(read('src/services/concourse/concourseEnabled.ts') + read('src/main.tsx') + read('src/context/surfaceRoute.ts') + read('src/components/BootSplashScreen.tsx')))
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check('F4 the reduced stage keeps the rows and the live view and drops the coordinator panel (the two-composers ring)', screen.includes("reducedStage ? ['list', 'live'] : ['coordinator', 'list', 'live']"))
-
   check('F4 the reduced stage types nothing into a composer (no draft, no dispatch — both send doors guarded)', screen.includes('if (reducedStage) return') && /const sendLive = \(\): void => \{\n    if \(reducedStage\) return/.test(screen) && /const sendCoordinator = \(\): void => \{\n    if \(reducedStage\) return/.test(screen))
   check('F4 the reduced stage says why this boot is the plain world and the way back in the router\'s words (a --chat boot with the switch on is never told to turn it on)', screen.includes('{concourseWayBack()}') && screen.includes('plainWorldWhy()') && !screen.includes('--concourse-on or /config turns the coordinator on'))
   const face = read('src/components/BootSplashScreen.tsx')
-
   check('F5 B1: the boot menu keeps Projects un-dimmed with the concourse off (the face passes no projectsDim)', face.includes('projects={facts.pickerProjects.map(p => {') && !face.includes('projectsDim'))
   check('F5 the concourse row stays enterable with the switch off and says what it is (live view only)', face.includes('live view only — ${facts.why}${count}') && face.includes('ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount })'))
 }

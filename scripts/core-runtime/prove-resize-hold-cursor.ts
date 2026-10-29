@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { join } from 'node:path'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')

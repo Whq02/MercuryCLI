@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
@@ -27,7 +26,6 @@ check('gate runs BEFORE the --version fast-path', gateIdx !== -1 && fastPathIdx 
 check('gate refuses non-zero', cli.includes('console.error(nodeRefusalMessage(nodeDecision))') && /nodeRefusalMessage\(nodeDecision\)\);\s*\n\s*process\.exit\(1\)/.test(cli))
 const setupSrc = readFileSync(join(REPO, 'src/setup.ts'), 'utf8')
 check('setup() carries no duplicate Node floor', !setupSrc.includes('requires Node.js version 18') && !/parseInt\(nodeVersion\) < 18/.test(setupSrc))
-
 check('gate exempts Bun-hosted execution by name', /if \(!process\.versions\?\.bun\) \{\s*\n\s*const nodeDecision = evaluateNodeRuntime\(process\.versions\?\.node\)/.test(cli))
 
 section('(2) the REAL bundle refuses unsupported runtimes on every route')
@@ -90,7 +88,6 @@ if (!existsSync(dist)) {
   const ver = run(['--version'])
   check('--version exits 0 + identity', ver.status === 0 && ver.out.includes('Mercury'), ver.out.slice(0, 120))
   {
-
     const bunBin = `${process.env.HOME}/.bun/bin/bun`
     const r = spawnSync(bunBin, [dist, '--version'], { encoding: 'utf8', env, timeout: 60_000 })
     check('bun-hosted --version exits 0 (verification-runtime exemption)', r.status === 0 && `${r.stdout}`.includes('Mercury'), `status=${r.status} ${`${r.stdout}${r.stderr}`.slice(0, 120)}`)
@@ -107,7 +104,6 @@ if (!existsSync(dist)) {
     const cert = JSON.parse(doc.out.slice(jsonStart)) as {
       nodeRuntime?: { observed: string | null; label: string; range: string; verdict: string }
     }
-
     const realNode = spawnSync('node', ['-p', 'process.versions.node'], { encoding: 'utf8', timeout: 30_000 }).stdout.trim()
     check(
       'health --json projects observed/label/range/verdict from the owner',

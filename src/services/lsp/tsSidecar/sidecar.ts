@@ -1,3 +1,4 @@
+
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -8,6 +9,7 @@ import type * as TS from 'typescript'
 
 type TsModule = typeof TS
 
+
 import {
   RPC_INTERNAL_ERROR,
   RPC_METHOD_NOT_FOUND,
@@ -17,6 +19,7 @@ import {
   createFrameWriter,
   type JsonRpcId,
 } from '../sidecarFraming.js'
+
 
 interface LspPosition {
   line: number
@@ -64,6 +67,7 @@ interface LspCodeAction {
   data?: unknown
 }
 
+
 function lineStartsOf(text: string): number[] {
   const starts = [0]
   for (let i = 0; i < text.length; i++) {
@@ -89,7 +93,6 @@ function offsetAt(text: string, pos: LspPosition): number {
 function positionAt(text: string, offset: number): LspPosition {
   const clamped = Math.max(0, Math.min(offset, text.length))
   const starts = lineStartsOf(text)
-
   let lo = 0
   let hi = starts.length - 1
   while (lo < hi) {
@@ -107,6 +110,7 @@ function spanToRange(text: string, start: number, length: number): LspRange {
   }
 }
 
+
 export function resolveWorkspaceTypescript(root: string): string | undefined {
   let dir = path.resolve(root)
   for (let i = 0; i < 40; i++) {
@@ -121,10 +125,10 @@ export function resolveWorkspaceTypescript(root: string): string | undefined {
 
 function loadTypescript(tsPath: string): TsModule {
   const req = createRequire(tsPath)
-
   const target: string = tsPath
   return req(target) as TsModule
 }
+
 
 interface OpenDoc {
   text: string
@@ -134,7 +138,6 @@ interface OpenDoc {
 interface Project {
   key: string
   service: TS.LanguageService
-
   extraRoots: Set<string>
   fileNames: Set<string>
   rootDir: string
@@ -199,7 +202,6 @@ class SidecarState {
   readonly workspaceRoot: string
   readonly openDocs = new Map<string, OpenDoc>()
   readonly projects = new Map<string, Project>()
-
   private readonly configForDir = new Map<
     string,
     { value: string | undefined; at: number }
@@ -235,7 +237,6 @@ class SidecarState {
   closeDoc(file: string): void {
     const norm = this.normalize(file)
     this.openDocs.delete(norm)
-
     this.mtimeCache.delete(norm)
   }
 
@@ -423,7 +424,6 @@ class SidecarState {
     let project: Project | undefined
     if (configPath) {
       project = this.loadConfiguredProject(this.normalize(configPath))
-
       if (project && project.fileNames.size === 0) {
         for (const refConfig of this.referencedConfigs(project)) {
           const refProject = this.loadConfiguredProject(refConfig)
@@ -704,6 +704,7 @@ function renameSafetyProblem(
   }
 }
 
+
 function toUri(file: string): string {
   return pathToFileURL(file).href
 }
@@ -767,10 +768,9 @@ function diagnosticSeverityOf(ts: TsModule, cat: TS.DiagnosticCategory): number 
 
 const DIAGNOSTIC_CAP_PER_FILE = 200
 
+
 interface SidecarOptions {
-
   typescriptPath?: string
-
   log?: (line: string) => void
 }
 
@@ -804,6 +804,7 @@ export function runTsLspSidecar(
     function notify(method: string, params: unknown): void {
       write({ jsonrpc: '2.0', method, params })
     }
+
 
     function computeDiagnostics(file: string): LspDiagnostic[] {
       if (!state) return []
@@ -849,6 +850,7 @@ export function runTsLspSidecar(
         }, 150),
       )
     }
+
 
     function requireState(): SidecarState {
       if (!state) {
@@ -1098,7 +1100,6 @@ export function runTsLspSidecar(
                 interFileDependencies: true,
                 workspaceDiagnostics: false,
               },
-
               workspace: {
                 fileOperations: {
                   willRename: {
@@ -1146,7 +1147,6 @@ export function runTsLspSidecar(
         }
 
         case 'workspace/willRenameFiles': {
-
           const st = requireState()
           const p = params as { files?: { oldUri: string; newUri: string }[] }
           const merged: Record<string, LspTextEdit[]> = {}
@@ -1169,7 +1169,6 @@ export function runTsLspSidecar(
         }
 
         case 'textDocument/formatting': {
-
           const st = requireState()
           const p = params as {
             textDocument: { uri: string }
@@ -1226,7 +1225,6 @@ export function runTsLspSidecar(
           const p = params as { context?: { includeDeclaration?: boolean } }
           const includeDecl = p.context?.includeDeclaration !== false
           const refs = project.service.getReferencesAtPosition(file, offset)
-
           const filtered = (refs ?? []).filter(
             r => includeDecl || !(r as { isDefinition?: boolean }).isDefinition,
           )
@@ -1357,7 +1355,6 @@ export function runTsLspSidecar(
             if (!to) continue
             out.push({
               to,
-
               fromRanges: call.fromSpans.map(s =>
                 spanToRange(text, s.start, s.length),
               ),
@@ -1757,7 +1754,6 @@ export function runTsLspSidecar(
           const st = requireState()
           const p = params as { textDocument: { uri: string } }
           const file = st.normalize(fromUri(p.textDocument.uri))
-
           st.closeDoc(file)
           schedulePublish(file)
           return
@@ -1769,7 +1765,6 @@ export function runTsLspSidecar(
           return
         }
         case 'workspace/didRenameFiles': {
-
           const st = requireState()
           const p = params as { files?: { oldUri: string }[] }
           for (const f of p.files ?? []) {
@@ -1778,7 +1773,6 @@ export function runTsLspSidecar(
           return
         }
         default:
-
           return
       }
     }
@@ -1787,7 +1781,6 @@ export function runTsLspSidecar(
       msg => {
         if (msg.method !== undefined) {
           if (msg.id !== undefined && msg.id !== null) {
-
             try {
               respond(msg.id, handleRequest(msg.method, msg.params))
             } catch (e) {
@@ -1800,7 +1793,6 @@ export function runTsLspSidecar(
               )
             }
           } else {
-
             try {
               handleNotification(msg.method, msg.params)
             } catch (e) {

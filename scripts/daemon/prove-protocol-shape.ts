@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -57,7 +56,6 @@ check(
     ? hash
     : `the wire verbs changed since DAEMON_PROTO_SHAPE was registered — bump MERCURY_DAEMON_PROTO (if a build at proto ${proto} was ever deployed) and set DAEMON_PROTO_SHAPE = '${hash}'`,
 )
-
 const socket = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'controlSocket.ts'), 'utf8')
 const server = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'controlServer.ts'), 'utf8')
 check('the RPC client stamps the negotiated proto (never a literal)', /outbound\.proto = protoToStamp\(\)/.test(socket) && !/proto: 1\b/.test(socket))

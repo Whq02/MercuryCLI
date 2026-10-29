@@ -1,3 +1,4 @@
+
 import { parseOperatorPauseDirective } from '../services/run/operatorPause.js'
 import { evaluateStop, type StopDecision } from '../services/run/completionEvaluator.js'
 import {
@@ -81,18 +82,14 @@ export function lastAssistantText(messages: readonly Message[]): string {
 }
 
 export interface RunStopAdapterOptions {
-
   maxBlocks: number
-
   wordingUnfinished: boolean
-
   owner?: OwnerKey
   signal?: AbortSignal
 }
 
 export interface RunStopVerdict {
   decision: StopDecision
-
   allowStop: boolean
 }
 
@@ -141,7 +138,6 @@ export async function evaluateStopAttempt(
     verification = {
       state: s.state,
       mutationsSinceEvidence: s.mutationsSinceEvidence,
-
       workspaceVerifiable: workspaceVerifiable(cwd, owner),
       priorEvidenceDemands: evidenceDemandCount(owner),
     }
@@ -187,10 +183,8 @@ export async function evaluateStopAttempt(
 
   switch (decision.kind) {
     case 'continue':
-
       return { decision, allowStop: true }
     case 'blocked': {
-
       if (snapshot && snapshot.lifecycle !== 'blocked') {
         noteRunEvent(owner, {
           type: 'blocked',
@@ -213,7 +207,6 @@ export async function evaluateStopAttempt(
       return { decision, allowStop: true }
     }
     default:
-
       return { decision, allowStop: true }
   }
 }
@@ -232,7 +225,6 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
   if (!hasChanges) return
   const flag = flagEnv('MERCURY_DELIVERY_ARTIFACT')
   if (isEnvDefinedFalsy(flag)) return
-
   if (!headlessMintAllowed(flag)) return
   if (deliveredRuns.has(runId)) return
   deliveredRuns.add(runId)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
@@ -192,19 +191,14 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   { id: 'logins-120x40-key-mistral', compose: () => composeLogins(120, 40, { sel: 10, flow: { kind: 'key', leg: 'mistral', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40-key-mistral-admin', compose: () => composeLogins(120, 40, { sel: 10, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-80x24-key-mistral-admin', compose: () => composeLogins(80, 24, { sel: 10, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
-
   { id: 'logins-120x40', compose: () => composeLogins(120, 40, { sel: 0 }) },
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },
-
   { id: 'logins-120x40-window', compose: () => composeLogins(120, 40, { sel: 3 }) },
-
   { id: 'logins-120x40-expired', compose: () => composeLogins(120, 40, { facts: expiredFacts(), sel: 3 }) },
   { id: 'logins-120x40-signedout', compose: () => composeLogins(120, 40, { facts: signedOutFacts(), sel: 0 }) },
-
   { id: 'logins-120x40-flow-waiting', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_WAITING_SNAP, draftLen: 6 } }) },
   { id: 'logins-120x40-flow-success', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'anthropic', snap: FLOW_SUCCESS_SNAP, draftLen: 0 } }) },
-
   { id: 'logins-120x40-pick-openai', compose: () => composeLogins(120, 40, { sel: 0, flow: { kind: 'pick', pick: 'openai', pickSel: 0 } }) },
   { id: 'logins-120x40-pick-anthropic', compose: () => composeLogins(120, 40, { sel: 1, flow: { kind: 'pick', pick: 'anthropic', pickSel: 0 } }) },
   {
@@ -221,7 +215,6 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
         },
       }),
   },
-
   {
     id: 'logins-120x40-device-wait',
     compose: () =>
@@ -244,7 +237,6 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
         },
       }),
   },
-
   {
     id: 'logins-120x40-handles-wait',
     compose: () =>
@@ -297,6 +289,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
       }),
   },
 ]
+
 
 import {
   resumeDetailLines,
@@ -373,10 +366,8 @@ export function composeMerged(
 void RESUME_FIXTURE_LOGS
 
 export const MERGED_STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
-
   { id: 'merged-120x40', compose: () => composeMerged(120, 40, { sel: 1 }) },
   { id: 'merged-64x12', compose: () => composeMerged(64, 12, { sel: 1 }) },
-
   { id: 'merged-120x40-filtered', compose: () => composeMerged(120, 40, { sel: 99, filterDir: '/repo/moodle' }) },
 ]
 

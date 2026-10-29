@@ -13,6 +13,7 @@ import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { calculateUSDCost } from '../utils/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 
+
 type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message
 
 function isTestEnvironment(): boolean {
@@ -20,13 +21,13 @@ function isTestEnvironment(): boolean {
 }
 
 function fixturesRoot(): string {
-
   return process.cwd()
 }
 
 function fixturePath(name: string): string {
   return join(fixturesRoot(), 'fixtures', `${name}.json`)
 }
+
 
 const CONFIG_HOME_TOKEN = '[CONFIG_HOME]'
 const CWD_TOKEN = '[CWD]'
@@ -50,7 +51,6 @@ function normalizePlaceholderPaths(text: string): string {
 function dehydrateString(text: string): string {
   if (text.includes('files modified by user')) return FILES_MODIFIED_TOKEN
   let out = text
-
   out = out.replace(/(<[^>]*\bfiles\b[^>]*=")\d+(")/g, `$1${NUM_TOKEN}$2`)
   out = out.replace(/\b\d+ms\b/g, DURATION_TOKEN)
   out = out.replace(/\$\d+(?:\.\d+)?/g, COST_TOKEN)
@@ -96,6 +96,7 @@ function mapStringsDeep(value: unknown, map: (text: string) => string): unknown 
   return value
 }
 
+
 function isCiEnvironment(): boolean {
   return env.isCI || Boolean(process.env.CI)
 }
@@ -119,6 +120,7 @@ async function withFixture<T>(fixtureName: string, input: unknown, produce: () =
   writeFileSync(path, JSON.stringify(result, null, 2))
   return result
 }
+
 
 type LooseBlock = Record<string, unknown>
 
@@ -146,14 +148,12 @@ function mapInputContent(content: unknown): unknown {
             if (entry.type === 'text') {
               return { ...entry, text: dehydrateString(String(entry.text ?? '')) }
             }
-
             return null
           }),
         }
       }
       return record
     }
-
     return null
   })
 }
@@ -268,6 +268,7 @@ export async function* withStreamingVCR<T>(
   })
   yield* cached.length > 0 ? cached : buffer
 }
+
 
 const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 const ISO_TIMESTAMP_PATTERN = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g

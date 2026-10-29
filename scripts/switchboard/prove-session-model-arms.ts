@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -41,7 +40,6 @@ process.env.MERCURY_CREW_DIR = join(scratch, 'crew')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-token'
-
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture000'
 process.env.ZAI_API_KEY = 'fixture-zai-key'
 delete process.env.MOONSHOT_API_KEY
@@ -62,7 +60,6 @@ const row = (id: string): Entry | undefined => registry.entries.find(e => e.mode
 const text = (v: unknown): string => JSON.stringify(v) ?? ''
 
 section('§1 — the session arm: pure product capability')
-
 {
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'session')
   check('an Anthropic frontier id validates ok for a session', fable.ok, text(fable))
@@ -105,7 +102,6 @@ section('§1 — the session arm: pure product capability')
 }
 
 section('§2 — the crew arm: the same vocabulary, row for row')
-
 {
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'crew')
   check('an Anthropic frontier id validates ok for a crew seat', fable.ok, text(fable))
@@ -120,7 +116,6 @@ section('§2 — the crew arm: the same vocabulary, row for row')
 }
 
 section('§3 — display ≡ dispatch, row by row, per arm')
-
 {
   let mismatches = 0
   for (const e of registry.entries) {
@@ -137,7 +132,6 @@ section('§3 — display ≡ dispatch, row by row, per arm')
 }
 
 section('§4 — the seed names its arm')
-
 {
   const reg = (entries: Entry[]) => ({ schema: 1 as const, entries })
   const sessionOnly = {
@@ -155,7 +149,6 @@ section('§4 — the seed names its arm')
 }
 
 section('§5 — the preflight door speaks the session arm')
-
 {
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
   const glm = await preflightConcourseDispatch({ workspaceDir: work, modelKey: 'glm-5.3' })
@@ -170,9 +163,7 @@ section('§5 — the preflight door speaks the session arm')
 }
 
 section('§6 — a record-less resume retains the transcript’s model (the vNext store)')
-
 {
-
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
   const workers = await import('../../src/daemon/concourseWorkers.ts')
@@ -221,9 +212,7 @@ section('§6 — a record-less resume retains the transcript’s model (the vNex
 }
 
 section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01)')
-
 {
-
   const { writeFileSync, mkdirSync: mkd } = await import('node:fs')
   const { join: j } = await import('node:path')
   const workers = await import('../../src/daemon/concourseWorkers.ts')
@@ -377,9 +366,7 @@ section("§6c — the session's own model entry: written when the session starts
 }
 
 section("§7 — spoken names resolve on the LAUNCH path (the coordinator's words)")
-
 {
-
   const sonnet = await wm.validateWorkerModelChoice('sonnet 5', 'session')
   check("'sonnet 5' (the coordinator's exact relay) resolves to claude-sonnet-5", sonnet.ok && sonnet.entry.modelId === 'claude-sonnet-5', text(sonnet))
   const opus = await wm.validateWorkerModelChoice('opus 5', 'session')
@@ -388,7 +375,6 @@ section("§7 — spoken names resolve on the LAUNCH path (the coordinator's word
   check("'Opus-5' (case + dash spelling) resolves the same", dashed.ok && dashed.entry.modelId === 'claude-opus-5', text(dashed))
   const glued = await wm.validateWorkerModelChoice('sonnet5', 'session')
   check("'sonnet5' (glued) resolves the same", glued.ok && glued.entry.modelId === 'claude-sonnet-5', text(glued))
-
   const stranger = await wm.validateWorkerModelChoice('zephyr 9000', 'session')
   check(
     'a genuine stranger refuses not-runnable:unrecognised (typed, naming the fact, the action names the picker)',
@@ -401,15 +387,12 @@ section("§7 — spoken names resolve on the LAUNCH path (the coordinator's word
 }
 
 section("§8 — the refusal's action names the family's OWN /logins word")
-
 {
-
   for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta']) {
     check(`${family}: the action names /logins ${family}`, wm.loginsActionFor(family) === `ask the operator to run /logins ${family}`, wm.loginsActionFor(family))
   }
   check('compat without an endpoint names the host and model doors, never an unconfigured sign-in', wm.loginsActionFor('openai-compat') === 'ask the operator to start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model')
   check('local names its connect home, never a /logins leg it lacks', wm.loginsActionFor('local').includes('MERCURY_LOCAL_BASE_URL') && !wm.loginsActionFor('local').includes('/logins'))
-
   const nemotron = await wm.validateWorkerModelChoice('openrouter/nvidia/nemotron-nano-9b-v2:free', 'session')
   check('a keyless OpenRouter id refuses with "/logins openrouter"', !nemotron.ok && String(nemotron.action ?? '').includes('/logins openrouter'), text(nemotron))
   const gemini = await wm.validateWorkerModelChoice('gemini-3-pro', 'session')

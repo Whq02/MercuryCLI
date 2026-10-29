@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -76,7 +75,6 @@ for (const [label, ua] of agents) {
   check(`${label} is the product identity`, sharesWebIdentity ? webIdentity : /^(mercury\/1\.0\.0|Mozilla\/5\.0 \(compatible; Mercury\/1\.0\.0\))/.test(ua), ua)
   check(`${label} carries no contract version or borrowed agent token`, !ua.includes(CONTRACT) && !/claude-cli/i.test(ua), ua)
 }
-
 {
   let captured: Headers | undefined
   const fetchOverride: typeof globalThis.fetch = async (_input, init) => {
@@ -99,7 +97,6 @@ const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8
 const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 {
   const homes = tracked.filter(p => /\.tsx?$/.test(p) && /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
-
   const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
   check('the contract version has exactly its six declared code homes in src (a seventh is a leak; the bundled skill prose may name it)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
   const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
@@ -156,7 +153,6 @@ check('unset ⇒ the constant, live (no memo)', getAnthropicClientContractVersio
 }
 
 section('§4 THE REFUSAL — the gate\'s 400 maps to the Mercury line; the wire\'s advice never rides')
-
 const otherName = ['Claude', 'Code'].join(' ')
 const wireSentence = `${otherName} 2.1.200 does not support this model; version 2.1.251 or newer is required. Run 'claude update', or update the ${['Claude', 'desktop'].join(' ')} app, then try again.`
 const gateBody = {

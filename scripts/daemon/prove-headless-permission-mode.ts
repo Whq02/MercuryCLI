@@ -87,7 +87,6 @@ section('operator overrides — live-read per spawn, no re-import')
     "'default' is the bare boot (no posture words)",
     !bare.includes('--mode') && !bare.includes('--sovereign'),
   )
-
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
   const withPair = buildArgv()
   const stripped = withPair.filter((w, i, a) => !(w === '--mode' || a[i - 1] === '--mode'))
@@ -101,7 +100,6 @@ section('operator overrides — live-read per spawn, no re-import')
 
 section('hostile / invalid values fall back, never leak into argv')
 {
-
   for (const bad of ['plan', 'scribe', 'bubble', 'ACCEPTEDITS', 'yes', '--verbose']) {
     process.env.MERCURY_DAEMON_PERMISSION_MODE = bad
     const argv = buildArgv()
@@ -115,7 +113,6 @@ section('hostile / invalid values fall back, never leak into argv')
 
 section('cross-checks against the real CLI + the one-shot seam')
 {
-
   for (const m of HEADLESS_PERMISSION_MODES) {
     if (m === 'default' || m === 'sovereign') continue
     check(
@@ -123,7 +120,6 @@ section('cross-checks against the real CLI + the one-shot seam')
       (PERMISSION_MODES as readonly string[]).includes(m),
     )
   }
-
   const src = readFileSync(join(import.meta.dir, '../../src/daemon/headlessRun.ts'), 'utf8')
   const oneShot = src.slice(src.indexOf('export function runTaskHeadless'))
   check(
@@ -134,13 +130,11 @@ section('cross-checks against the real CLI + the one-shot seam')
     'runTaskHeadless spawn threads spec.allowedTools (the recon floor)',
     /spec\.allowedTools && spec\.allowedTools\.length > 0[\s\S]{0,120}'--allowed-tools', \.\.\.spec\.allowedTools/.test(oneShot),
   )
-
   const rosterSrc = readFileSync(join(import.meta.dir, '../../src/daemon/roster.ts'), 'utf8')
   check(
     'roster dispatch passes allowedTools: resolveWorkerReconAllow()',
     /runTaskHeadless\(\s*(?:\/\/[^\n]*\n\s*)*\{[\s\S]{0,300}allowedTools: resolveWorkerReconAllow\(\)/.test(rosterSrc),
   )
-
   const reg = readFileSync(join(import.meta.dir, '../../src/substrate/flagRegistry.ts'), 'utf8')
   check(
     'MERCURY_DAEMON_PERMISSION_MODE registered → headlessRun consumer',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,7 +31,6 @@ section('§1 the pool policy')
     inFlight++
     maxInFlight = Math.max(maxInFlight, inFlight)
     started.push(index)
-
     await new Promise(r => setTimeout(r, Math.max(0, (N - item) % 7)))
     inFlight--
     return item * 10
@@ -114,7 +112,6 @@ section('§3 the wiring, call-shaped')
   const commentLookalike = `// const x = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), d => d)\n/* mapWithConcurrency(candidates, discoveryPoolWidth(), c => c) */\nasync function ghost(projectDirs: string[]) { return projectDirs }\n`
   check('a comment-only pool call is NOT inventoried (code-only read)', inventoryPoolSites(codeOnlyText('lookalike.ts', commentLookalike)).length === 0)
   check('…while the raw text WOULD have inventoried both lookalikes', inventoryPoolSites(commentLookalike).length === 2)
-
   const poolSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'concurrency.ts'), 'utf8')
   check('the width reads the quota-aware core count (law 6) in its one owner', /export function discoveryPoolWidth\(\): number \{\s*\n\s*return Math\.max\(1, Math\.min\(4, availableCores\(\)\)\)/.test(poolSrc))
   check('…and the discovery scans import it from there', /import \{[^}]*\bdiscoveryPoolWidth\b[^}]*\} from '\.\.\/concurrency\.js'/.test(logsSrc) && !/function discoveryPoolWidth\(/.test(logsSrc))

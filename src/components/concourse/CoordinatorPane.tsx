@@ -27,6 +27,7 @@ import { CoordinatorModelPicker } from './CoordinatorModelPicker.js';
 import { GitOfferCard, type GitOfferV1 } from './GitOfferCard.js';
 import type { ConcourseCallbacks } from './contracts.js';
 
+
 export const COORDINATOR_EXAMPLE_PROMPTS = [
   'launch two sessions on this project',
   'what needs me right now?',
@@ -101,7 +102,6 @@ const CoordinatorEntryBlock = React.memo(function CoordinatorEntryBlock({
       return null
     }
   }
-
   const receiptRow = (
     r: NonNullable<CoordinatorConversationEntryV1['receipts']>[number],
     key: string,
@@ -137,7 +137,6 @@ const CoordinatorEntryBlock = React.memo(function CoordinatorEntryBlock({
       </Text>
     )
   }
-
   const foldable =
     ((e.role === 'coordinator' && e.harness !== true) || e.summary === true) &&
     (e.text.length > REPLY_FOLD_CHARS || e.text.split(NL).length > REPLY_FOLD_LINES)
@@ -202,36 +201,23 @@ export function CoordinatorPane({
   callbacks: ConcourseCallbacks
   mode: 'off' | 'rules-only' | 'agent-assisted'
   fallbackReason?: string
-
   operatorHandle: string
   focused: boolean
   paneRows: number
   paneWidth: number
-
   bounds: [number, number, number, number]
-
   pending: boolean
-
   settingsOpen: boolean
   onCloseSettings: () => void
-
   onPickExample: (text: string) => void
-
   draftHeld?: boolean
-
   modalUp?: boolean
-
   gitOffer?: GitOfferV1
   onAnswerGitOffer?: (requestId: string, allow: boolean, obligationId: string) => void
-
   managerCardNode?: React.ReactNode
-
   composerNode?: React.ReactNode
-
   onFocus?: () => void
-
   collapsed?: boolean
-
   tailNote?: { tone: 'muted' | 'warning'; text: string } | null
   minimal?: boolean
 }): React.ReactNode {
@@ -272,10 +258,8 @@ export function CoordinatorPane({
     const load = (): void => {
       void readCoordinatorConversation().then(rows => {
         if (!aliveRef.current) return
-
         setEntries(prev => mergeCoordinatorEntries(prev, rows))
       })
-
       void readCoordinatorGauge().then(g => {
         if (!aliveRef.current) return
         setGauge(prev =>
@@ -294,10 +278,8 @@ export function CoordinatorPane({
   }, [])
 
   useInput((_input, key, event) => {
-
     if (modalUp || settingsOpen) return
     if (paneRows === 0) return
-
     if (key.wheelUp || key.wheelDown) {
       const kp = event.keypress as { x?: number; y?: number }
       const inside =
@@ -309,7 +291,6 @@ export function CoordinatorPane({
       scrollRows(key.wheelDown ? WHEEL_STEP_ROWS : -WHEEL_STEP_ROWS)
       return
     }
-
     if (gitOffer !== undefined) return
     if (!focused) return
     if ((key.pageUp || key.pageDown) && !key.ctrl && !key.meta) {
@@ -326,7 +307,6 @@ export function CoordinatorPane({
       setExampleIdx(next)
       return
     }
-
     if (!minimal && key.return && entries !== null && entries.length === 0 && !pending && !draftHeld) {
       event.stopImmediatePropagation()
       onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
@@ -344,7 +324,6 @@ export function CoordinatorPane({
   }, [])
 
   if (collapsed && !minimal) {
-
     const last = entries !== null && entries.length > 0 ? entries[entries.length - 1] : undefined
     return (
       <Box flexDirection="column" flexShrink={0} overflow="hidden" paddingX={1}>
@@ -356,7 +335,6 @@ export function CoordinatorPane({
           )}
         </InteractiveRow>
         {pending ? (
-
           <CoordinatorThinkingRow />
         ) : tailNote !== null ? (
           <Text color={tailNote.tone === 'warning' ? t.warning : t.textMuted} wrap="truncate-end">
@@ -366,7 +344,6 @@ export function CoordinatorPane({
           <Text color={t.textMuted} wrap="truncate-end">
             {last !== undefined
               ?
-
                 stripInlineMarkdown(last.text).replace(/\s+/g, ' ').slice(0, 200)
               : mode === 'agent-assisted'
                 ? 'ask in plain words'
@@ -382,7 +359,6 @@ export function CoordinatorPane({
       flexDirection="column"
       flexGrow={1}
       overflow="hidden"
-
       borderStyle={minimal ? undefined : paletteCollapsed() && focused ? 'bold' : 'round'}
       borderColor={focused ? t.info : t.borderSubtle}
       paddingX={minimal ? 0 : 1}
@@ -422,8 +398,7 @@ export function CoordinatorPane({
           <Text color={t.textMuted} wrap="wrap">
             it launches, watches, and reconciles your sessions — ask in plain words
           </Text>
-          {
-}
+          {}
           {gitOffer !== undefined ? null : COORDINATOR_EXAMPLE_PROMPTS.map((ex, i) => (
             <Box key={ex} height={1} flexShrink={0}>
               <InteractiveRow
@@ -434,8 +409,7 @@ export function CoordinatorPane({
               >
                 {hover => (
                   <Text wrap="truncate-end">
-                    {
-}
+                    {}
                     {focused && exampleIdx === i ? (
                       <Text color={t.info}>{GLYPH.cursor} </Text>
                     ) : (
@@ -467,21 +441,17 @@ export function CoordinatorPane({
         </ScrollBox>
       )}
       {pending && !settingsOpen ? (
-
         <CoordinatorThinkingRow />
       ) : null}
-      {
-}
+      {}
       {gauge !== null && !settingsOpen && calculateTokenWarningState(gauge.contextTokens, gauge.modelId).level !== 'ok' ? (
         <Box height={1} flexShrink={0} overflow="hidden">
           <TokenWarning tokenUsage={gauge.contextTokens} model={gauge.modelId} />
         </Box>
       ) : null}
       {gitOffer !== undefined && onAnswerGitOffer !== undefined && !settingsOpen ? (
-
         <GitOfferCard offer={gitOffer} onAnswer={onAnswerGitOffer} />
       ) : managerCardNode !== undefined && !settingsOpen ? (
-
         <Box flexDirection="column" flexShrink={0}>{managerCardNode}</Box>
       ) : null}
       {away && !settingsOpen ? (
@@ -496,7 +466,6 @@ export function CoordinatorPane({
         </Box>
       ) : null}
       {mode !== 'agent-assisted' && !settingsOpen ? (
-
         <Box height={1} flexShrink={0}>
           <InteractiveRow
             id="coordinator:switch-on"
@@ -520,7 +489,6 @@ export function CoordinatorPane({
       ) : null}
       </Box>
       {composerNode !== undefined && !settingsOpen ? (
-
         <Box flexDirection="column" flexShrink={0}>{composerNode}</Box>
       ) : null}
     </Box>

@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useMemo, useState } from 'react'
 import { Box, Text } from '../../../ink.js'
@@ -17,7 +18,6 @@ import type { PermissionRequestProps } from '../PermissionRequest.js'
 type ApolloOptionValue = 'build' | 'build-ask-first' | 'more-questions'
 
 const REVIEW_CHROME_ROWS = 6
-
 const REVIEW_INDENT_COLUMNS = 4
 
 export function ApolloReviewPermissionRequest({
@@ -39,7 +39,6 @@ export function ApolloReviewPermissionRequest({
   const blockers = input.blockers ?? []
   const specFiles = input.specFiles ?? []
   const runNote = input.runNote
-
   const bounded = useMemo(() => {
     const parts = [summary, ...specFiles, ...(runNote ? [runNote] : [])]
     const projection = boundLines(
@@ -76,7 +75,6 @@ export function ApolloReviewPermissionRequest({
   function handleSelect(value: ApolloOptionValue, feedback?: string): void {
     const typed = feedback?.trim()
     if (value === 'more-questions') {
-
       toolUseConfirm.onAllow(
         {
           ...(toolUseConfirm.input as Record<string, unknown>),

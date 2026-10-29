@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
@@ -53,7 +52,6 @@ const N = 12
       timestamp: new Date(1754000000000 + i * 1000).toISOString(),
       sessionId: SID,
     }
-
     writeFileSync(SRC, text, { flag: 'w' })
     const enc = encodeTranscriptLine(SRC, entry as never)
     text += enc.line
@@ -64,7 +62,6 @@ const N = 12
 section('§A B01 — deterministic materialization at arbitrary committed points')
 {
   const entries = await readAllTranscriptEntries(SRC)
-
   check(`the OWN full-read decodes all ${N} messages + the header`, entries.length === N + 1, `got ${entries.length}`)
   for (const ord of [1, 5, N]) {
     const a = materializeEntriesAt(entries, ord)
@@ -84,16 +81,12 @@ section('§B B02 — full replay ≡ snapshot + suffix (kernel law + the REAL st
 {
   const entries = await readAllTranscriptEntries(SRC)
   const full = materializeEntriesAt(entries)
-
   const k = 6
   const prefix = materializeEntriesAt(entries, k)
   for (let i = k; i < entries.length; i++) applyTranscriptEntry(prefix.fold, entries[i]!)
   check('prefix fold + suffix ≡ full fold (digest equality)', materializationDigest(prefix.fold) === full.digest)
-
   check('repeated full replay is digest-stable', materializeEntriesAt(entries).digest === full.digest)
-
   const snapPrefix = materializeEntriesAt(entries, k)
-
   const raw = readFileSync(SRC, 'utf8')
   const lines = raw.split('\n')
   let covered = 0
@@ -118,7 +111,6 @@ section('§B B02 — full replay ≡ snapshot + suffix (kernel law + the REAL st
 
 section('§C B03 — replay performs zero side effects')
 {
-
   const { readdirSync, statSync } = await import('node:fs')
   const worldState = (): string => {
     const rows: string[] = []
@@ -188,11 +180,9 @@ section('§D B05 — branch manifests preserve immutable lineage')
       boundary.type === 'system' && boundary.subtype === 'fork_boundary',
       JSON.stringify(boundary).slice(0, 120),
     )
-
     const branchPoint = materializeEntriesAt(branchEntries as never, 8)
     check('the branch prefix materializes to the sealed source digest', branchPoint.digest === m.sourceSnapshotDigest)
   }
-
   const LEGACY = join(HOME, 'legacy.jsonl')
   writeFileSync(
     LEGACY,
@@ -217,7 +207,6 @@ section('§E B06 — branches retain independent mutable state')
     check("the second branch carries the 'rewind' vocabulary", b2.manifest.boundaryKind === 'rewind')
     const srcBefore = sha(readFileSync(SRC))
     const b2Before = sha(readFileSync(b2.branchTranscriptPath))
-
     const enc = encodeTranscriptLine(b1.branchTranscriptPath, {
       type: 'user',
       message: { role: 'user', content: 'branch-only work' },

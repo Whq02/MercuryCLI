@@ -1,3 +1,4 @@
+
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
@@ -10,15 +11,12 @@ export function ctxForecastEnabled(): boolean {
 }
 
 const GROWTH_SAMPLES = 8
-
 const MIN_STEP = 0.1
-
 const RESET_DROP = 5
 
 interface ForecastState {
   deltas: number[]
   lastPct: number | null
-
   turnAnchorPct: number | null
 }
 
@@ -41,7 +39,6 @@ export function recordCtxSample(usedPct: number | null, owner?: OwnerKey): void 
     return
   }
   const d = usedPct - s.lastPct
-
   if (d <= -RESET_DROP) {
     s.deltas.length = 0
     s.lastPct = usedPct

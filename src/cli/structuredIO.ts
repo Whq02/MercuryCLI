@@ -1,3 +1,4 @@
+
 import { writeSync } from 'node:fs'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { createRowStamper, type RowDraft } from '../rows/project.js'
@@ -11,7 +12,6 @@ import { stripBOM } from '../utils/jsonRead.js'
 import { Stream } from '../utils/stream.js'
 
 function fatalProtocolError(reason: string): never {
-
   try {
     writeSync(2, `${reason}\n`)
   } catch {
@@ -66,9 +66,7 @@ export function inputRefusal(parsed: unknown): string | null {
 }
 
 export class StructuredIO {
-
   readonly structuredInput: AsyncGenerator<InputRow, void, unknown>
-
   readonly outbound: Stream<OutboundLine> = new Stream<OutboundLine>()
   readonly rows = createRowStamper()
 
@@ -79,6 +77,7 @@ export class StructuredIO {
     this.#refuse = refuse
     this.structuredInput = this.#createInputStream(input)
   }
+
 
   prependUserMessage(content: string): void {
     this.#prepended.push(content)
@@ -122,7 +121,6 @@ export class StructuredIO {
       }
       yield* this.#takePrepended()
     }
-
     if (!skipping && buffer.trim().length > 0) {
       const row = this.#classifyLine(stripBOM(buffer), false)
       yield* this.#takePrepended()
@@ -130,6 +128,7 @@ export class StructuredIO {
     }
     yield* this.#takePrepended()
   }
+
 
   #classifyLine(line: string, emitDiagnostic: boolean): InputRow | undefined {
     let parsed: unknown
@@ -150,6 +149,7 @@ export class StructuredIO {
     }
     return InputRowSchema().parse(parsed)
   }
+
 
   stdoutPipeBroken = false
 

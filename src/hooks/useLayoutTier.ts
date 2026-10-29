@@ -1,22 +1,16 @@
+
 import { zenRailsHidden } from '../utils/cockpit/zenMode.js'
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
 export const LAYOUT_BREAKPOINTS = {
-
   frameQuotaMin: 64,
-
   compactMax: 80,
-
   behaviorChipsMin: 90,
-
   cockpitMin: HELM_HOME_MIN_COLS,
-
   deckTwoColMin: 110,
-
   fleetSideBySideMin: 118,
-
   deckMinRows: 22,
   cockpitMinRows: 26,
 } as const
@@ -28,7 +22,6 @@ export function computeChromeMode(
   realRows?: number,
 ): ChromeMode {
   if (!isFullscreenEnvEnabled()) return 'inline'
-
   const rows = realRows ?? Number.POSITIVE_INFINITY
   if (
     isHelmHomeEnabled() &&
@@ -69,16 +62,13 @@ export function layoutChromeLive(realColumns: number, realRows?: number): { chro
 }
 
 export interface LayoutTier {
-
   columns: number
   rows: number
-
   showFrameQuota: boolean
   numberOnlyGauges: boolean
   showBehaviorChips: boolean
   show7dGauge: boolean
   branchMax: number
-
   deckTwoCol: boolean
   fleetSideBySide: boolean
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -78,7 +77,6 @@ try {
 section('§1 LIVE — a walk cut off mid-flight says so, and keeps what it found')
 {
   check('the completeness-bearing door exists', typeof ripGrepAnswer === 'function')
-
   const out = await driveShim('slow', '#!/bin/sh\necho "a.ts"\necho "b.ts"\necho "c.ts"\nsleep 30\n', { timeoutMs: 900 })
   const answer = out.answer
   check('the cut walk produced an answer rather than a throw (lines were salvaged)', answer !== undefined, out.raw.slice(0, 200))
@@ -106,7 +104,6 @@ section('§3 the plain door never returns a silently short answer')
   const fnAt = src.indexOf('export async function ripGrep(')
   const fn = src.slice(fnAt, src.indexOf('\n}\n', fnAt))
   check('ripGrep throws when the answer is incomplete rather than returning it', /if \(!answer\.complete\)/.test(fn) && /throw/.test(fn), fn.slice(0, 200))
-
   check('no bare `return salvaged` statement remains (the silent short answer)', !/^\s*return salvaged$/m.test(src))
   check('every incomplete road ends in an answer that says so', /return \{ lines: salvaged, complete: false, reason \}/.test(src))
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/ink/root.ts src/ink/instances.ts
 import { EventEmitter } from 'node:events'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'

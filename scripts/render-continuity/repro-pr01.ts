@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -220,7 +219,6 @@ const lifecycleP = runAsyncAgentLifecycle({
   enableSummarization: false,
   getWorktreeResult: async () => ({}),
 })
-
 const guidance = createUserMessage({ content: 'mid-turn guidance' })
 appendMessageToLocalAgent(AID, guidance as any, setAppState)
 queuePendingMessage(AID, 'mid-turn guidance', setAppState)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -24,7 +23,6 @@ const text = (g: Grid): string =>
   g.grid.map(row => row.map(c => c.c || ' ').join('')).join('\n')
 
 const cfg = scenario('resume-2turn', 120, 44)
-
 writeSyntheticSession('errors', SID_ERRORED)
 
 type Send = {
@@ -58,7 +56,6 @@ function capture(tag: string, sends: Send[], total: number): Grid {
 }
 
 try {
-
   const before = text(capture('before', [], 45))
   t("baseline shows fixture A ('first task')", before.includes('first task'))
   t('baseline does NOT show fixture B', !before.includes('apply the manifest edit'))
@@ -77,7 +74,6 @@ try {
     after.includes('apply the manifest edit') || after.includes('API Error')
   t('after /sessions <id>: fixture B transcript is on screen', switched)
   if (!switched) {
-
     console.log(`  … sendReceipts: ${JSON.stringify(lastReceipts)}`)
     console.log('  … final grid rows 0-24 (first 80 cols):')
     after

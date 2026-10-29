@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -83,7 +82,6 @@ function anthroLimits(over: Partial<Limits>): Limits {
 }
 
 section('§1 — anthropic: the existing meters, per-family claims included')
-
 {
   const reads = (limits: Limits): Reads =>
     baseReads({
@@ -259,7 +257,6 @@ section('§1 — anthropic: the existing meters, per-family claims included')
 }
 
 section('§2 — openai: the observed x-codex bands feed the warning')
-
 {
   const openaiReads = (usedPct: number): Reads =>
     baseReads({
@@ -284,7 +281,6 @@ section('§2 — openai: the observed x-codex bands feed the warning')
 }
 
 section('§3 — openrouter: the credit cap approaches (the new tier)')
-
 {
   const orReads = (usage: Record<string, unknown> | null): Reads =>
     baseReads({
@@ -319,7 +315,6 @@ section('§3 — openrouter: the credit cap approaches (the new tier)')
 }
 
 section('§4 — kimi: the managed account’s stated windows warn as Kimi')
-
 {
   const kimiReads: Reads = baseReads({
     route: () => 'moonshot',
@@ -342,7 +337,6 @@ section('§4 — kimi: the managed account’s stated windows warn as Kimi')
 }
 
 section('§5 — honest nothing: a wire serving no percent signal warns never')
-
 {
   const silent: Array<[string, string, Reads]> = [
     [
@@ -391,7 +385,6 @@ section('§5 — honest nothing: a wire serving no percent signal warns never')
 }
 
 section('§6 — the law’s constants and the disconnected mute')
-
 {
   check('the compatibility threshold names the first warning', APPROACHING_LIMIT_PCT === 80)
   const none = providerLimitWarning({

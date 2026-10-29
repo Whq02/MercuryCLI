@@ -1,5 +1,10 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/exit/exit.tsx src/components/ExitHandoff.tsx src/mneme/exitHandoff.ts src/mneme/handoffAsk.ts src/mneme/journal.ts
+// gate-watch: src/mneme/lineageSession.ts src/mneme/ledger.ts src/mneme/sessionClose.ts src/utils/gracefulShutdown.ts src/cli/run.ts
+// gate-watch: src/daemon/main.ts src/daemon/sessionSeat.ts src/daemon/protocol.ts src/runner/wire/methods.ts
+// gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/types.ts
+// gate-watch: src/services/switchboard/quitParksAll.ts src/utils/processGroup.ts
+// gate-watch: scripts/streaming/artifactArena.ts scripts/lib/fixtureApi.ts
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { HANDOFF_ASK_MARK, handoffTurn, isHandoffRequest, type ScriptedTurn } from '../lib/fixtureApi.ts'

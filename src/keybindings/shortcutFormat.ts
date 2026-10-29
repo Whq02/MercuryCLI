@@ -1,3 +1,4 @@
+
 import { getPlatform } from '../utils/platform.js'
 import { loadKeybindingsSync } from './loadUserBindings.js'
 import { getBindingDisplayText } from './resolver.js'

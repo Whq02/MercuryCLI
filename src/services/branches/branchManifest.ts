@@ -13,14 +13,10 @@ export interface BranchManifest {
   v: 1
   branchSessionId: string
   parentSessionId: string
-
   forkOrdinal: number
   boundaryKind: 'fork' | 'rewind'
-
   sourceSnapshotDigest: string
-
   project: { cwd: string; worktree?: string }
-
   providerOrigin: string
   createdAt: number
   receipt: string
@@ -69,13 +65,11 @@ export function createBranchSession(args: {
   }
   const rawText = raw.toString('utf8')
   if (!isRecordTranscript(rawText)) {
-
     return {
       ok: false,
       reason: `unsupported-for-branch: ${TRANSCRIPT_FORMAT_REFUSAL}`,
     }
   }
-
   const decoded = decodeTranscriptBuffer<Entry>(raw)
   const total = decoded.entries.length
   if (!(Number.isInteger(args.forkOrdinal) && args.forkOrdinal > 0 && args.forkOrdinal <= total)) {
@@ -108,7 +102,6 @@ export function createBranchSession(args: {
 
   try {
     writeFileSync(branchTranscriptPath, prefix)
-
     const boundary = encodeTranscriptLine(branchTranscriptPath, {
       type: 'system',
       subtype: args.boundaryKind === 'fork' ? 'fork_boundary' : 'rewind_boundary',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -78,7 +77,6 @@ writeFileSync(
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
 let clientBeat: DaemonClientBeat | null = null
-
 const spawnDaemonWithHome = (configHome: string, projectDir: string): void => {
   process.env.MERCURY_CONFIG_DIR = configHome
   daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', projectDir], {
@@ -117,7 +115,6 @@ try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [],
-
     sends: ['11000:\t', '13000:\x1b[C', '18000:\x1b[C'],
     seconds: 34,
     cols: SIZE.cols,
@@ -125,10 +122,8 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
-
       spawnSync('git', ['init', '-q', '-b', 'main'], { cwd })
       spawnSync('git', ['-c', 'user.name=tiles', '-c', 'user.email=tiles@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'seed'], { cwd })
-
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm *)'] } }))
       spawnDaemonWithHome(configDir, cwd)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -164,7 +159,6 @@ try {
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
       MERCURY_DAEMON_DIR: daemonDir,
-
       MERCURY_UPDATE_NOTICE: '0',
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
@@ -185,21 +179,17 @@ try {
     }
     const boardFrames = grabs.filter(g => text(g).includes('SESSIONS'))
     check('the board painted', boardFrames.length > 0, `frames: ${boardFrames.map(g => g.atMs).join(',')}`)
-
     const alphaRowText = (g: { rows: string[] }): string => g.rows.find(r => r.includes('Alpha stream')) ?? ''
     const streamFrames = boardFrames.filter(g => /tile-alpha (\d{3})/.test(alphaRowText(g)) && !/running/.test(alphaRowText(g)))
     check('§1 the NOW cell streams (tile text in Alpha row)', streamFrames.length >= 2, `frames: ${streamFrames.map(g => g.atMs).join(',') || 'none'}`)
     const tokenOf = (g: { rows: string[] }): number => Math.max(-1, ...[...alphaRowText(g).matchAll(/tile-alpha (\d{3})/g)].map(m => Number(m[1])))
     const toks = streamFrames.map(tokenOf)
     check('§2 …and the line SCROLLS (later frames carry later tokens)', toks.length >= 2 && toks[toks.length - 1]! > toks[0]!, `tokens: ${toks.join(',')}`)
-
     const toolFrames = boardFrames.filter(g => /headless · running(?: Bash|…)/.test(alphaRowText(g)))
     check('§1 the running-tool tile (`running Bash …`)', toolFrames.length > 0, `frames: ${toolFrames.map(g => g.atMs).join(',') || 'none'}`)
-
     const betaBoardRow = (g: { rows: string[] }): string => g.rows.find(r => /◆ (NEEDS YOU )?Beta asker\s{2,}/.test(r)) ?? ''
     const askAndStream = boardFrames.filter(g => /headless · waiting/.test(betaBoardRow(g)) && /tile-alpha|running Bash/.test(alphaRowText(g)))
     check('§6 needs-you shows FIRST beside a streaming tile', askAndStream.length > 0, `frames: ${askAndStream.map(g => g.atMs).join(',') || 'none'}`)
-
     const listBandRows = (g: { rows: string[] }): string[] => {
       const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
       if (start < 0) return []
@@ -217,13 +207,11 @@ try {
     const bandText = (g: { rows: string[] }): string => listBandRows(g).join('\n')
     const mirrorText = (g: { rows: string[] }): string => mirrorRows(g).join('\n')
     const peekFrames = grabs.filter(g => g.atMs >= 14000 && g.atMs <= 17000 && text(g).includes('SESSIONS'))
-
     const bodyNeedle = (t: string): boolean => /tile-beta prelude|try a cleanup|rm -rf scratchling|Running 1 bash/.test(t)
     const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /headless · waiting/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
     check("§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)", opened.length > 0, `frames: ${opened.map(g => g.atMs).join(',') || 'none'}`)
     check('§5 the peek is not a hop (the board frame stays)', opened.every(g => text(g).includes('SESSIONS')))
     check('§5 the list band keeps its rows under the mirror (nothing displaced)', opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
-
     const selTitle = (g: { rows: string[] }): string => {
       const row = g.rows.find(r => r.includes('▸'))
       if (row === undefined) return ''
@@ -231,7 +219,6 @@ try {
     }
     const postTab = boardFrames.filter(g => g.atMs >= 12000 && selTitle(g) !== '')
     check('§9 selection holds while tiles update', postTab.length >= 2 && new Set(postTab.map(selTitle)).size === 1, `selections: ${postTab.map(g => `${g.atMs}:${selTitle(g)}`).join(',')}`)
-
     const entries = readFileSync(tripwireLog, 'utf8')
       .split('\n')
       .filter(Boolean)

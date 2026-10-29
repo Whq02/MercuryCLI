@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { basename, dirname, join, normalize, relative, resolve } from 'node:path'
@@ -17,17 +18,12 @@ type CapsuleRole =
   | 'knowledge'
 
 interface CapsuleItem {
-
   ref: string
   path: string
   role: CapsuleRole
-
   reason: string
-
   tier: 1 | 2 | 3 | 4 | 5 | 6
-
   freshness: string
-
   bodyPresent: false
 }
 
@@ -35,17 +31,14 @@ interface ContextCapsule {
   schema: 1
   workspace: string
   generation: SnapshotGeneration
-
   task: string
   goal: string | null
   items: CapsuleItem[]
   caps: {
     maxItems: number
     maxBytes: number
-
     omitted: { count: number; reasons: string[] }
   }
-
   digest: string
   assembleMs: number
 }
@@ -54,19 +47,13 @@ interface CapsuleInput {
   workspace: string
   task: string
   goal?: string | null
-
   activeTaskSubjects?: string[]
-
   zonePaths?: string[]
-
   recentFiles?: string[]
-
   pins?: string[]
   drops?: string[]
   budget?: { maxItems?: number; maxBytes?: number }
-
   snapshotMaxStaleMs?: number
-
   snapshotRead?: SnapshotRead | null
 }
 
@@ -224,12 +211,10 @@ export function importNeighbours(workspace: string, rel: string): string[] {
     }
     return false
   }
-
   for (const m of head.matchAll(/from\s+['"]([^'"]+)['"]|require\(\s*['"]([^'"]+)['"]\s*\)/g)) {
     const resolved = resolveSpecifier(workspace, (m[1] ?? m[2])!, rel)
     if (resolved) out.add(resolved)
   }
-
   for (const m of head.matchAll(/^from\s+(\.+)([A-Za-z_][A-Za-z0-9_.]*)?\s+import\s+([A-Za-z_][A-Za-z0-9_]*)/gm)) {
     const dots = m[1]!.length
     let baseDir = dir
@@ -358,7 +343,6 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   } else if (Buffer.byteLength(JSON.stringify(candidates.slice(0, maxItems)), 'utf8') > maxBytes) {
     omittedReasons.push(`byte cap ${maxBytes} trimmed further`)
   }
-
   const omittedCount = candidates.length - items.length + droppedHits
 
   const digest = createHash('sha1')

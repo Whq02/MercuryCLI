@@ -6,20 +6,15 @@ import { withState, type Snapshot } from './types.js'
 export type FleetRosterSource = 'concourse' | 'execution'
 
 export interface FleetRosterEntry {
-
   id: string
   name: string
   source: FleetRosterSource
-
   state: string
-
   model?: string
-
   detail?: string
 }
 
 export type FleetData = {
-
   roster: FleetRosterEntry[]
 }
 

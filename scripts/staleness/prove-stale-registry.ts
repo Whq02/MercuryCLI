@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import ts from 'typescript'
@@ -65,12 +64,10 @@ function extractSites(file: string, text: string): Site[] {
       sites.push({ file, symbol: known?.[1] ?? `anonymous@${i + 1}`, kind: 'memoize' })
       continue
     }
-
     const mod =
       /^(?:export )?(?:let|const) ([A-Za-z_$][\w$]*)\s*(?::[^=]*)?=\s*(?:null|undefined|new Map\b|new Set\b|new WeakMap\b|new LRUCache\b|\{\s*$|\{\})/.exec(
         line,
       )
-
     const bare = mod ? null : /^(?:export )?let ([A-Za-z_$][\w$]*)\s*:[^=\n]*$/.exec(line)
     const name = mod?.[1] ?? bare?.[1]
     if (name !== undefined && NAME_FILTER.test(name) && !CONST_NAME.test(name)) {

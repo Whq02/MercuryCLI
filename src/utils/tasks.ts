@@ -15,6 +15,7 @@ import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 
+
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
 
 const TaskStatusSchema = lazySchema(() => z.enum(TASK_STATUSES))
@@ -66,6 +67,7 @@ export function sanitizePathComponent(input: string): string {
   return input.replace(/[^A-Za-z0-9_-]/g, '-')
 }
 
+
 export function getTasksDir(taskListId: string): string {
   return join(getMercuryHome(), 'tasks', sanitizePathComponent(taskListId))
 }
@@ -97,6 +99,7 @@ function taskLockPath(taskListId: string, taskId: string): string {
   return `${getTaskPath(taskListId, taskId)}.pidlock`
 }
 
+
 const tasksUpdatedSignal = createSignal()
 
 export function notifyTasksUpdated(): void {
@@ -108,6 +111,7 @@ export function notifyTasksUpdated(): void {
 
 export const onTasksUpdated = tasksUpdatedSignal.subscribe
 
+
 let taskLockSeq = 0
 
 function mintLockOwner(): string {
@@ -116,7 +120,6 @@ function mintLockOwner(): string {
 
 const LOCK_RETRY_OPTS = {
   liveness: 'assume-alive' as const,
-
   retries: 30,
   minTimeoutMs: 5,
   maxTimeoutMs: 100,
@@ -130,6 +133,7 @@ async function withLock<T>(lockPath: string, label: string, fn: () => Promise<T>
     noteLockRelease(label, await release())
   }
 }
+
 
 export async function readTaskEpoch(taskListId: string): Promise<number> {
   try {
@@ -148,7 +152,6 @@ function isTaskBodyName(name: string): boolean {
 async function listTaskIdsOnDisk(taskListId: string): Promise<string[]> {
   try {
     const names = await fs.promises.readdir(getTasksDir(taskListId))
-
     return names
       .filter(isTaskBodyName)
       .map(name => name.slice(0, -'.json'.length))
@@ -203,7 +206,6 @@ export async function resetTaskList(
       epochPath(taskListId),
       jsonStringify({ epoch: epoch + 1, resetAt: new Date().toISOString() }),
     )
-
     let names: string[] = []
     try {
       names = await fs.promises.readdir(getTasksDir(taskListId))
@@ -250,6 +252,7 @@ export async function sweepDeadEpochTasks(taskListId: string): Promise<number> {
   return removed
 }
 
+
 type CreateLaneState = { nextId: number; epoch: number }
 
 const createLanes = new Map<string, GroupCommitLane<CreateLaneState>>()
@@ -269,7 +272,6 @@ function createLaneFor(taskListId: string): GroupCommitLane<CreateLaneState> {
         const highest = Math.max(await highestNumericIdOnDisk(taskListId), await readHighWatermark(taskListId))
         return { value: { nextId: highest + 1, epoch: await readTaskEpoch(taskListId) }, context: undefined }
       },
-
       publish: async () => {
         notifyTasksUpdated()
       },
@@ -286,13 +288,13 @@ export async function createTask(taskListId: string, taskData: Omit<Task, 'id'>)
     const body: Task = {
       ...taskData,
       id,
-
       ...(current.epoch > 0 ? { epoch: current.epoch } : {}),
     }
     await publishAtomic(getTaskPath(taskListId, id), jsonStringify(body, null, 2))
     return { next: { ...current, nextId: current.nextId + 1 }, result: id }
   })
 }
+
 
 export async function getTask(taskListId: string, taskId: string, preloadedEpoch?: number): Promise<Task | null> {
   let raw: string
@@ -311,7 +313,6 @@ export async function getTask(taskListId: string, taskId: string, preloadedEpoch
     parsed = undefined
   }
   if (parsed === undefined) {
-
     logForDebugging(`task body unparseable: ${taskListId}/${taskId}`)
     logError(new Error(`task body unparseable: ${taskListId}/${taskId}`))
     return null
@@ -379,7 +380,6 @@ export async function deleteTask(taskListId: string, taskId: string): Promise<bo
     notifyTasksUpdated()
     return true
   } catch {
-
     return false
   }
 }
@@ -395,6 +395,7 @@ export async function blockTask(taskListId: string, fromTaskId: string, toTaskId
   }
   return true
 }
+
 
 type ClaimTaskOptions = { checkAgentBusy?: boolean }
 
@@ -412,13 +413,11 @@ export async function claimTask(
   options?: ClaimTaskOptions,
 ): Promise<ClaimTaskResult> {
   try {
-
     if ((await getTask(taskListId, taskId)) === null) {
       return { success: false, reason: 'task_not_found' }
     }
 
     if (options?.checkAgentBusy) {
-
       return await withLock(listLockPath(taskListId), 'tasks-claim', async () => {
         const tasks = await listTasks(taskListId)
         const task = tasks.find(candidate => candidate.id === taskId)
@@ -464,7 +463,6 @@ export async function claimTask(
       if (blockedByTasks.length > 0) {
         return { success: false, reason: 'blocked', task, blockedByTasks } as const
       }
-
       const claimed = await updateTaskUnlocked(taskListId, taskId, { owner: claimantAgentId })
       if (!claimed) return { success: false, reason: 'task_not_found' } as const
       return { success: true, task: claimed } as const

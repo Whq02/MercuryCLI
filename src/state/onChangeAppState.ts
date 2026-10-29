@@ -15,14 +15,11 @@ export function onChangeAppState({
   newState: AppState
   oldState: AppState
 }): void {
-
   const newMode = newState.toolPermissionContext.mode
   const oldMode = oldState.toolPermissionContext.mode
   if (newMode !== oldMode) {
-
     auditModeChange(oldMode, newMode)
     noteRootSovereign(newMode)
-
     notifyPermissionModeChanged(newMode)
   }
 
@@ -52,7 +49,6 @@ export function onChangeAppState({
     try {
       clearApiKeyHelperCache()
       if (newState.settings?.environment?.values !== oldState.settings?.environment?.values) {
-
         applyConfigEnvironmentVariables()
       }
     } catch (error) {

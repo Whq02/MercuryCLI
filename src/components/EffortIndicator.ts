@@ -1,3 +1,4 @@
+
 import {
   EFFORT_HIGH,
   EFFORT_LOW,
@@ -31,7 +32,6 @@ export function getEffortNotificationText(
 ): string | undefined {
   if (!modelSupportsEffort(model)) return undefined
   const label = getDisplayedEffortLabel(model, effortValue)
-
   const symbol = SYMBOLS[getDisplayedEffortLevel(model, effortValue)] ?? EFFORT_HIGH
   return `${symbol} effort: ${label} · /effort to change`
 }

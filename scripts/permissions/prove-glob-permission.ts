@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, isAbsolute, dirname, basename, sep } from 'node:path'
 
@@ -26,7 +25,6 @@ check('getPath imports the SAME helper glob() uses', /import \{ glob, extractGlo
 check('glob() ALSO uses extractGlobBaseDirectory for absolute patterns (consistency)', /if \(isAbsolute\(filePattern\)\)[\s\S]{0,160}extractGlobBaseDirectory\(filePattern\)/.test(globUtil))
 
 section('behavioural mirror: an absolute pattern resolves to its base dir (escapes cwd)')
-
 function baseDirOf(pattern: string): string {
   const m = pattern.match(/[*?[{]/)
   if (!m || m.index === undefined) return dirname(pattern)
@@ -82,7 +80,6 @@ section('WP-1: win32 deny-rule normalization (live, platform-seam primed)')
     if (hadReal) cache.set(undefined, realValue)
     else cache.delete(undefined)
   }
-
   const posixOut = fsMod.normalizePatternsToPath(
     new Map([['/home/u/proj', ['secrets/**']], ['/home/u/proj/sub', ['*.env']], ['/etc', ['x/**']]]),
     '/home/u/proj',
@@ -97,7 +94,6 @@ section('WP siblings: file-URI construction, argv quoting, win32 tokens')
   check('WP-3: MCP roots via pathToFileURL (defective concat template gone)', mcpClient.includes('pathToFileURL(getOriginalCwd()).href') && !mcpClient.includes('`file://${'))
   const browser = read('src/utils/browser.ts')
   check('WP-7: BROWSER argv gets the bare url (no literal quotes)', browser.includes('await execFileNoThrow(browserEnv, [url])') && !browser.includes('[`"${url}"`]'))
-
   const { isPathLikeToken } = await import(join(ROOT, 'src', 'utils', 'suggestions', 'directoryCompletion.ts'))
   check('WP-8: drive-letter forms are path-like', isPathLikeToken('C:\\Users\\me') && isPathLikeToken('C:/Users/me') && isPathLikeToken('c:\\'))
   check('WP-8: UNC form is path-like', isPathLikeToken('\\\\server\\share'))

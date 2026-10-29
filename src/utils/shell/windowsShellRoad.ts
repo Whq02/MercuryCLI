@@ -7,6 +7,7 @@ import { GIT_BASH_REMEDY, locateGitBash, type GitBashLocation } from '../windows
 import type { ShellEngineResolution } from './engineSession.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 
+
 export type WindowsBashRoad =
   | { kind: 'git-bash'; path: string }
   | { kind: 'engine'; path: string; arm: ShellEngineArm }

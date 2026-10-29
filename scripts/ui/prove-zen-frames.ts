@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/cockpit/zenMode.ts src/hooks/useLayoutTier.ts src/context/layoutChromeContext.tsx src/components/FullscreenLayout.tsx src/utils/helmGeometry.ts src/utils/settings/types.ts
+// gate-watch: src/commands/zen/index.ts src/commands/zen/zen.tsx src/commands.ts src/components/HelpV2/commandDomains.ts src/components/BaseTextInput.tsx src/hooks/useTypeahead.tsx
+// gate-watch: src/components/MercuryFrame.tsx src/components/Settings/Config.tsx src/components/SettingsPopupSlot.tsx src/commands/config/config.tsx src/utils/cockpit/settingsPopup.ts
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

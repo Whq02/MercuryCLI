@@ -1,3 +1,4 @@
+
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -97,7 +98,6 @@ function ErrorCard({
   verbose: boolean
   recovered: boolean
 }): React.ReactNode {
-
   if (recovered && isContinuableStreamFaultText(text)) {
     return <Text dimColor>{text}</Text>
   }
@@ -180,7 +180,6 @@ export function AssistantTextMessage({
     )
   }
   if (text === CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE) {
-
     return (
       <Text color="error">
         Anthropic says this account's credit balance is too low · Add funds at{' '}
@@ -189,7 +188,6 @@ export function AssistantTextMessage({
     )
   }
   if (text === INVALID_API_KEY_ERROR_MESSAGE) {
-
     const otherProviders = ((): string | null => {
       try {
         const others = walletEntries().filter(e => e.provider !== 'anthropic')
@@ -199,7 +197,6 @@ export function AssistantTextMessage({
         return null
       }
     })()
-
     const refusedFamily = providerDisplayName('anthropic')
     const switchTarget = ((): string => {
       try {
@@ -212,8 +209,7 @@ export function AssistantTextMessage({
     return (
       <Box flexDirection="column">
         <Text color="error">
-          {
-}
+          {}
           {otherProviders !== null ? `No ${refusedFamily} account for this model` : 'Not logged in · Run /logins'}
         </Text>
         {otherProviders !== null ? (

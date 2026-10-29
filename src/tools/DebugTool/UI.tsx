@@ -59,7 +59,6 @@ export function renderToolResultMessage(
 ): React.ReactNode {
   const lines = (output.result ?? '').split('\n');
   const shown = verbose ? lines : lines.slice(0, 12);
-
   return (
     <WithCardTone state={output.outcome}>
       {({ glyph, tone }) => (
@@ -71,7 +70,6 @@ export function renderToolResultMessage(
         {output.debuggee ? <Text color={IVORY}> · debuggee {output.debuggee}</Text> : null}
       </Text>
       {shown.map((line, i) => (
-
         <Text key={i} wrap="truncate-end">
           {line || ' '}
         </Text>

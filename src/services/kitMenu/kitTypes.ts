@@ -1,15 +1,14 @@
+
 export type McpState = 'on' | 'off'
 export type SkillState = 'on' | 'invocable' | 'off'
 export const MCP_STATES: readonly McpState[] = ['on', 'off']
 export const SKILL_STATES: readonly SkillState[] = ['on', 'invocable', 'off']
 
 export type KitSection = 'mcp' | 'skill'
-
 export const KIT_SECTIONS: readonly KitSection[] = ['mcp', 'skill']
 export const KIT_SECTION_TITLE: Readonly<Record<KitSection, string>> = { mcp: 'MCPs', skill: 'Skills' }
 
 export type KitRow =
-
   | { kind: 'mcp'; section: 'mcp'; name: string; scope: string; extension: string | null }
   | { kind: 'skill'; section: 'skill'; name: string; source: string; extension: string | null }
   | { kind: 'extension'; section: KitSection; name: string; contributes: string }
@@ -34,7 +33,6 @@ export function isKitMember(row: KitRow): row is Extract<KitRow, { kind: 'mcp' |
 }
 
 export function emptySectionText(section: KitSection): string {
-
   return section === 'mcp'
     ? 'no added MCPs (/mcp add); mercury / ide not listed'
     : 'no added skills — create one under .mercury/skills/'
@@ -66,6 +64,7 @@ export function sectionRows(catalogue: KitCatalogue): KitRow[] {
   return out
 }
 
+
 export type KitRowState = McpState | SkillState
 
 export function kitStateKey(row: KitRow): string | null {
@@ -91,11 +90,8 @@ export function cycleState(row: KitRow, current: KitRowState, direction: 1 | -1)
 export type KitStates = ReadonlyMap<string, KitRowState>
 
 export interface KitRowView {
-
   own: KitRowState
-
   effective: KitRowState
-
   masterOff: boolean
 }
 

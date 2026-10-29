@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -27,7 +26,6 @@ const t = checker()
 
 t.section('§1 generated registry matrix: every command classifies to its declared scope')
 {
-
   const { isCommandEnabled } = await import('../../src/commands.ts')
   const safeEnabled = (c: { isEnabled?: () => boolean }): boolean => {
     try {
@@ -36,7 +34,6 @@ t.section('§1 generated registry matrix: every command classifies to its declar
       return false
     }
   }
-
   const all = [...builtinCommands()]
   const roster = all.filter(safeEnabled)
   const rosterNames = new Set(roster.flatMap(c => [c.name, ...(c.aliases ?? [])]))
@@ -71,7 +68,6 @@ t.section('§1 generated registry matrix: every command classifies to its declar
     agentCount === 0,
     `${agentCount}`,
   )
-
   const aliasDrift = roster
     .filter(c => c.aliases?.length)
     .flatMap(c =>
@@ -167,7 +163,6 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, '120', '40', ...offsets, '-1'],
-
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
@@ -211,7 +206,6 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
             `${has(f, /❯ message poise probe/) ? ' VIEW' : ''}`,
         )
         .join(' ↵ ')
-
     const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
     const inView = (f: Fr): boolean => has(f, /❯ message poise probe/)
     const iCrew = idxOf(0, crewRow)
@@ -243,7 +237,6 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     const bodies = run.fixture.requests
       .map(r => r.body as { messages?: Msg[] } | null)
       .filter((b): b is { messages: Msg[] } => Boolean(b?.messages))
-
     const isCommandRecord = (text: string): boolean =>
       text.includes('<local-command-caveat>') || text.includes('<command-name>')
     const userTextIncludes = (needle: string): boolean =>

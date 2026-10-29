@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -116,7 +115,6 @@ section('G1 the fit sheds restored files largest-first, stops as soon as it fits
     const C = fileAttachment('C.txt', 2_400)
     const S = skillsAttachment(2_000)
     const result = rigResult([A, B, C, S])
-
     const afterA = estimateContext(buildPostCompactMessages(rigResult([B, C, S])))
     const afterAC = estimateContext(buildPostCompactMessages(rigResult([B, S])))
     const threshold = afterAC + 1

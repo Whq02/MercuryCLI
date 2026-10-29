@@ -91,7 +91,6 @@ check(
   allowlistLiterals.join(','),
 )
 check(
-
   'defer_loading is carved ONLY behind the live tool-defer gate AND the wire-form acceptance',
   /if \(toolDeferralEnabled\(\) && toolReferenceWireAccepted\(\)\) \{\s*allowed\.add\('defer_loading'\)/.test(
     stripBlock,

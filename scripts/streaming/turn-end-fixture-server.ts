@@ -1,11 +1,9 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const captureFile = process.argv[2]
-
 const fixtureCwd = process.argv[3] ?? process.cwd()
 if (!captureFile) {
   console.error('usage: turn-end-fixture-server.ts <captureFile> [fixtureCwd]')
@@ -16,29 +14,22 @@ const REPLY_TEXT = 'the reply stands here after its last item'
 const HOLD_AFTER_SETTLE_ASK = 'hold after settle'
 const CLOSE_AFTER_SETTLE_ASK = 'close after settle'
 const HOLD_AFTER_END_ASK = 'hold after end'
-
 const STREAM_SLOWLY_ASK = 'stream slowly'
 const STREAM_NOTE_SLOWLY_ASK = 'stream a note slowly'
 const SLOW_FIRST_DELTA_MS = 3_000
 const SLOW_DELTA_MS = 1_500
-
 const SLOW_REPLY_TEXTS = ['the first slow reply arrives a piece at a time', 'the second slow reply follows the queued words'] as const
 const SLOW_DELTAS = [
   ['the first slow reply ', 'arrives a piece ', 'at a time'],
   ['the second slow reply ', 'follows the ', 'queued words'],
 ] as const
-
 const READ_THREE_ASK = 'read three files'
-
 const SLEEP_TOOL_ASK = 'run the long sleep'
-
 const STUBBORN_SLEEP_ASK = 'run the stubborn sleep'
 const READ_HOLD_MS = vshotBudgetMs(6_000)
 const SLEEP_SECONDS = 40
-
 const LAUNCH_AGENT_ASK = 'launch one agent'
 const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
-
 const LAUNCH_SLEEP_ASK = 'launch an errand and sleep'
 const ERRAND_PROMPT = 'a quick errand'
 const ERRAND_SLEEP_SECONDS = 12
@@ -194,7 +185,6 @@ function carriesWords(body: Record<string, unknown>, words: string[]): string[] 
   return words.filter(w => raw.includes(w))
 }
 const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
-
 const NOTICE_WATCH = 'A background crewmate completed a task:'
 
 function orderOfWords(body: Record<string, unknown>, words: string[]): string[] {
@@ -229,6 +219,7 @@ function toolStep(arm: ToolArm, step: number, cwd: string, call: number): { name
   if (file === undefined) return null
   return { name: 'Read', input: { file_path: `${cwd}/${file}` }, id: `toolu_read_${step + 1}_c${call}` }
 }
+
 
 const held = new Set<ServerResponse>()
 let openaiCalls = 0
@@ -448,7 +439,6 @@ const shutdown = (): void => {
 }
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
-
 const parentPid = process.ppid
 const parentGone = (): boolean => {
   try {

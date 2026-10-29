@@ -1,3 +1,4 @@
+
 import { DEFAULT_BINDINGS } from './defaultBindings.js'
 import { getReservedShortcuts, normalizeKeyForComparison } from './reservedShortcuts.js'
 import type { KeybindingBlock } from './types.js'

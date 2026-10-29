@@ -1,3 +1,4 @@
+
 import type { RunSnapshot } from '../run/runKernel.js'
 import { isTerminalLifecycle } from '../run/runKernel.js'
 import { getRunSnapshot } from '../run/runCoordinator.js'
@@ -17,7 +18,6 @@ interface CurrentWorkPlanItem {
   id: string
   title: string
   state: 'open' | 'in-progress' | 'done' | 'dropped'
-
   blockedBy: string[]
 }
 
@@ -26,7 +26,6 @@ interface CurrentWorkReview {
   openComments: number
   awaitingReview: number
   latestRef: string | null
-
   anyStale: boolean
 }
 
@@ -40,7 +39,6 @@ type CurrentWorkRecovery =
 
 interface CurrentWork {
   schema: typeof CURRENT_WORK_SCHEMA
-
   identity: { owner: string; workspace: string; runId: string | null }
   outcome: string | null
   scale: WorkScale
@@ -49,18 +47,13 @@ interface CurrentWork {
   planItems: CurrentWorkPlanItem[]
   activeItem: CurrentWorkPlanItem | null
   completedCount: number
-
   blockedItems: CurrentWorkPlanItem[]
-
   ledger: 'live' | 'unavailable'
   blocker: { description: string; ownedBy: string; resumeCondition: string } | null
-
   nextAction: string | null
-
   agents: { active: number; lanes: number } | null
   changedPaths: string[]
   totalChangedPaths: number
-
   review: CurrentWorkReview | null
   verification: { state: string; detail: string } | null
   effectiveModelAndEffort: { model: string; effortLabel: string | null }
@@ -70,12 +63,12 @@ interface CurrentWork {
   generatedAt: number
 }
 
+
 export interface CurrentWorkInputs {
   now: number
   owner: string
   workspace: string
   run: RunSnapshot | null
-
   tasks: Array<{ id: string; subject: string; status: string; blockedBy: string[] }> | null
   workbench: WorkbenchSnapshot | null
   model: string
@@ -124,7 +117,6 @@ export function deriveCurrentWork(inputs: CurrentWorkInputs): CurrentWork {
 
   const wb = inputs.workbench
   let review: CurrentWorkReview | null = null
-
   if (wb !== null && wasObserved(wb.sources.artifacts)) {
     const awaiting = wb.reviewQueue.length
     review = {
@@ -180,6 +172,7 @@ export function deriveCurrentWork(inputs: CurrentWorkInputs): CurrentWork {
   }
 }
 
+
 export async function classifyRecovery(
   owner: string,
   run: RunSnapshot | null,
@@ -196,7 +189,6 @@ export async function classifyRecovery(
       ? { state: 'terminal-receipt', runId: load.snapshot.runId }
       : { state: 'unreconciled', runId: load.snapshot.runId }
   } catch (e) {
-
     const cls = classifyReadFailure(e)
     return cls.state === 'empty'
       ? { state: 'none' }

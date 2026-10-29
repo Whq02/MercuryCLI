@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -174,7 +173,6 @@ t.section('§7 editor context — narrowing, rendering, bounds, prompt placement
   t.check('the selection text is bounded and the cut named', bigText.length < 12_000 && bigText.includes('(selection truncated)'), String(bigText.length))
   t.check('open files are bounded with the remainder counted', bigText.includes('(+20 more)'), bigText.slice(bigText.indexOf('open files'), bigText.indexOf('open files') + 80))
   t.check('diagnostics are bounded with the remainder counted', bigText.includes('(+15 more)'))
-
   const blocks = composerDocumentBlocks(
     acpPromptToComposerDocument([
       res as unknown as Record<string, unknown>,

@@ -9,6 +9,7 @@ import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccou
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
+
 export interface FamilyCredentialPresenceV1 {
   credentialed: boolean
   kind: 'oauth' | 'api-key' | 'keyless' | 'none'
@@ -39,7 +40,6 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
     }
   }
   if (family === 'anthropic') {
-
     try {
       const presence = anthropicCredentialPresence()
       if (!presence.credentialed) return { credentialed: false, kind: 'none' }
@@ -49,14 +49,12 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
       return { credentialed: false, kind: 'none' }
     }
   }
-
   try {
     const provider = buildProviderSnapshot().providers.find(p => p.id === family)
     const account = (provider?.description as { account?: { kind?: string } } | undefined)?.account
     if (!account || account.kind === 'none' || account.kind === undefined) {
       return { credentialed: false, kind: 'none' }
     }
-
     if (account.kind === 'keyless') return { credentialed: true, kind: 'keyless' }
     return { credentialed: true, kind: account.kind === 'api-key' ? 'api-key' : 'oauth' }
   } catch {
@@ -125,7 +123,6 @@ export function deriveScheduleAccountForModel(
   const presence = presenceOf(family, modelKey)
   const scope = family === 'openai-compat' ? { modelKey } : {}
   if (!presence.credentialed || presence.kind === 'none') {
-
     if (family === 'local') return { ok: false, reason: localUnreachableRefusal(), code: 'unreachable' }
     let door = family
     if (family === 'openai-compat') {
@@ -142,7 +139,6 @@ export function deriveScheduleAccountForModel(
   if (family === 'anthropic' && presence.kind === 'oauth') {
     const detail = (reads.anthropicDetail ?? productionAnthropicDetail)()
     if (detail === null) {
-
       return { ok: true, account: { family, source: 'oauth' } }
     }
     return {
@@ -160,13 +156,12 @@ export function deriveScheduleAccountForModel(
   return { ok: true, account: { family, source: presence.kind === 'oauth' ? 'oauth' : 'api-key', ...scope } }
 }
 
+
 export interface LiveAccountFactsV1 {
   credentialed: boolean
   stranded: boolean
-
   expiresAt: number | null
   refreshable: boolean
-
   rateLimitedUntil?: number
 }
 
@@ -177,9 +172,7 @@ export function scheduleAccountVerdict(args: {
   live: LiveAccountFactsV1
 }): ScheduleAccountVerdictV1 {
   const { account, nextFireMs, nowMs, live } = args
-
   if (!live.credentialed) return account.source === 'keyless' ? { state: 'unreachable' } : { state: 'signed-out' }
-
   if (live.stranded && account.source !== 'keyless') return { state: 'expired' }
   if (live.rateLimitedUntil !== undefined && live.rateLimitedUntil > nowMs) {
     return { state: 'rate-limited', retryAt: live.rateLimitedUntil }
@@ -200,7 +193,6 @@ export interface LiveFactsReads {
   presenceOf?: (family: string, modelKey?: string) => FamilyCredentialPresenceV1
   strandedNow?: () => boolean
   anthropicDetail?: () => AnthropicOauthDetailV1 | null
-
   rateLimitedUntilOf?: (family: string) => number | undefined
 }
 

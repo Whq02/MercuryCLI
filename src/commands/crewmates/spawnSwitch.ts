@@ -24,3 +24,4 @@ export async function runSpawnSwitchCommand(kind: SpawnSwitchKind, rawArg: strin
   const receipt = await focused.setSpawnSwitch(kind, on)
   return receipt.detail ?? spawnSwitchToggleReceipt(kind, on, receipt.outcome)
 }
+

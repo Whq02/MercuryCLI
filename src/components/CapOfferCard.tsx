@@ -23,24 +23,15 @@ interface CapOfferChoice {
 }
 
 type Props = {
-
   trigger: 'rejected' | 'reset'
-
   windowName: string | null
-
   resetText: string | null
   carryWords?: string | null
-
   targetModel: string
-
   homeRoute: ProviderUsability['provider']
-
   awayRoute: ProviderUsability['provider']
-
   homeUsability: ProviderUsability
-
   awayUsability: ProviderUsability
-
   rows?: CapFailoverListedFamily[]
   onAccept: (chosen: CapOfferChoice) => void
   onDismiss: () => void
@@ -60,14 +51,12 @@ export function CapOfferCard({
   onAccept,
   onDismiss,
 }: Props): React.ReactNode {
-
   useRegisterOverlay('cap-offer')
   const mountedAtRef = React.useRef(Date.now())
   const home = trigger === 'reset'
   const list = !home && rows !== undefined && rows.length > 1 ? rows : null
   const [highlight, setHighlight] = React.useState(0)
   const highlighted = list !== null ? (list[Math.min(highlight, list.length - 1)] as CapFailoverListedFamily) : null
-
   const targetUsability = home ? homeUsability : awayUsability
   const usable = highlighted !== null ? highlighted.usable && !highlighted.atCap : targetUsability.usable
   const chosen: CapOfferChoice =
@@ -76,7 +65,6 @@ export function CapOfferCard({
       : { route: home ? homeRoute : awayRoute, model: targetModel }
   const homeName = providerDisplayName(homeRoute)
   const awayName = highlighted !== null ? providerDisplayName(highlighted.route) : providerDisplayName(awayRoute)
-
   const homeSpend = laneSpendPosture(homeRoute, homeUsability.credential, homeName)
   const awaySpend =
     highlighted !== null
@@ -85,7 +73,6 @@ export function CapOfferCard({
   useKeybinding(
     'confirm:yes',
     () => {
-
       if (Date.now() - mountedAtRef.current < CAP_OFFER_ENTER_ARM_MS) return
       if (usable) onAccept(chosen)
     },
@@ -106,17 +93,14 @@ export function CapOfferCard({
     { context: 'Confirmation', isActive: list !== null },
   )
   const title = home ? `${homeName} window reset — return?` : `${homeName} usage window`
-
   const escKey = useShortcutDisplay('confirm:no', 'Confirmation', 'esc')
   const chooseWords = list !== null ? `↑↓ choose ${GLYPH.dot} ` : ''
-
   const windowNoun = windowName ?? 'usage window'
   const stateLine = home
     ? `the ${homeName} window has reset — ${homeSpend.kind === 'subscription' ? 'your subscription' : homeName} is open again`
     : windowNoun === 'credits'
       ? `the ${homeName} credits are exhausted — ${homeName} requests are refused until reset`
       : `the ${homeName} ${windowNoun} is reached — ${homeName} requests are refused until reset`
-
   const spendLine = home
     ? awaySpend.kind === 'local'
       ? `returning to ${homeName} — the local model cost nothing to leave`

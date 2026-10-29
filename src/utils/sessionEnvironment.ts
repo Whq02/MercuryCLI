@@ -6,6 +6,7 @@ import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
 
+
 const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
 type SessionEnvHookEvent = (typeof ENV_FILE_EVENTS)[number]
 
@@ -108,3 +109,4 @@ export async function getSessionEnvironmentScript(): Promise<string | null> {
   cache = { state: 'loaded', script }
   return script
 }
+

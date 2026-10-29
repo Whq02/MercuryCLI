@@ -168,20 +168,17 @@ type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 type SettingsItem = {
   id: string
   label: string
-
   searchText?: string
   kind: ItemKind
   value: React.ReactNode
-
   change?: (direction: 1 | -1) => void
-
   open?: SubMenu
-
   warning?: string
   setByYou?: boolean
 }
 
 const THEME_LABELS: Record<string, string> = { auto: 'auto', ...THEME_NAMES_BY_SETTING }
+
 
 const CONFIG_PROVIDER_PRESENTATION: Record<
   string,
@@ -212,6 +209,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   fireworks: { label: 'Fireworks', absent: 'no key — /logins fireworks connects (or FIREWORKS_API_KEY)', manage: '/accounts' },
   qwen: { label: 'Qwen', absent: 'no key — /logins qwen connects (or DASHSCOPE_API_KEY)', manage: '/accounts' },
 }
+
 
 export function configRowApplicability(
   appliesTo: 'anthropic' | 'openrouter',
@@ -416,7 +414,6 @@ export function Config({
   const mountTheme = useRef(themeSetting)
 
   const changesRef = useRef(new Map<string, string>())
-
   const recordToggle = (key: string, text: string): void => {
     dirtyRef.current = true
     if (changesRef.current.has(key)) changesRef.current.delete(key)
@@ -447,7 +444,6 @@ export function Config({
   }
   const writeFailed = (source: 'localSettings' | 'userSettings', error: Error): void => {
     logForDebugging(`settings write failed (${source}): ${error.message}`)
-
     enqueueNotification(setAppState, {
       key: 'config-write-failed',
       text: `that change did not save — ${source === 'localSettings' ? 'project-local' : 'user'} settings write failed: ${error.message}`,
@@ -487,7 +483,6 @@ export function Config({
   )
   const sessionMode = getEffectivePermissionMode(appState.toolPermissionContext.mode)
   const sessionModeDiffers = sessionMode.source !== 'session-choice' && sessionMode.mode !== defaultMode
-
   const modeOptions: ReadonlyArray<(typeof PERMISSION_MODES)[number]> = ['default', 'implement', 'apollo', 'flow', 'dontAsk']
 
   const boolValue = (on: boolean): React.ReactNode => (
@@ -497,11 +492,9 @@ export function Config({
   )
 
   const servedModel = useFocusedServedModel()
-
   const mainRoute = declaredRouteOf(
     servedModel ?? appState.engineModelForSession ?? appState.engineModel ?? getEngineModel(),
   )
-
   const providerScoped = (item: SettingsItem, appliesTo: 'anthropic' | 'openrouter'): SettingsItem => {
     const applicability = configRowApplicability(appliesTo, mainRoute ?? 'unrecognised')
     if (applicability.applies) return item
@@ -546,10 +539,8 @@ export function Config({
       recordSet('autoCompactWindow', `set the auto-compact window to ${windowWords(next)}`)
     },
   })
-
   const world = stripFacts()
   items.push({
-
     id: 'concourse',
     label: 'Session concourse',
     searchText: 'session concourse coordinator live view concourse-off chat plain world',
@@ -572,7 +563,6 @@ export function Config({
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
     },
   })
-
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
   useEffect(() => {
@@ -681,7 +671,6 @@ export function Config({
     },
   })
   {
-
     const motionSetting = readMotionSetting()
     items.push({
       id: 'motion',
@@ -745,7 +734,6 @@ export function Config({
       const profiles = ['auto', 'native'] as const
       const current = validated(profiles, merged.briefs?.profile, 'auto')
       const next = cycleIn(profiles, current, direction)
-
       if (writeSource('localSettings', { briefs: { profile: next } })) {
         setSessionInstructionProfile(next === 'auto' ? null : isInstructionProfile(next) ? next : null)
         clearInstructionFileCaches()
@@ -757,7 +745,6 @@ export function Config({
   {
     const engineSetting = validated(['system', 'brush'] as const, merged.shell?.engine, 'system')
     const resolved = resolveShellEngine(engineSetting)
-
     const detail =
       engineSetting === 'brush' && resolved.engine !== 'brush'
         ? ' · unavailable, system shell in use'
@@ -777,10 +764,8 @@ export function Config({
       change: direction => {
         const engines = ['system', 'brush'] as const
         const next = cycleIn(engines, engineSetting, direction)
-
         if (writeSource('localSettings', { shell: { engine: next === 'system' ? undefined : next } })) {
           recordSet('shell.engine', `set shell engine to ${next}`)
-
           resetShellEngineResolution()
           void endEngineSession()
           bump()
@@ -789,7 +774,6 @@ export function Config({
     })
   }
   {
-
     const patience = patienceOf(merged.patience)
     const patiencePins = patienceEnvPins()
     items.push({
@@ -814,7 +798,6 @@ export function Config({
         const next = cycleIn(modes, patience.mode, direction)
         const value =
           next === 'normal' ? undefined : next === 'patient' ? 'patient' : customPatienceSetting(patience.numbers)
-
         if (writeSource('userSettings', { patience: value })) {
           recordSet('patience', `set patience with a quiet model to ${next}`)
           bump()
@@ -854,7 +837,6 @@ export function Config({
     }, 'openrouter'))
   }
   {
-
     const ceiling = resolveEngineSessionCeiling(merged.shell?.sessions)
     const pinned = engineSessionCeilingPinned()
     const share = ceiling === 1 ? 'no session for crewmates' : `the conversation + ${ceiling - 1} crewmate${ceiling === 2 ? '' : 's'}`
@@ -871,7 +853,6 @@ export function Config({
           : undefined,
       change: direction => {
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
-
         if (writeSource('localSettings', { shell: { sessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next } })) {
           recordSet('shell.sessions', `set shell engine sessions to ${next}`)
           bump()
@@ -897,7 +878,6 @@ export function Config({
       change: () => {
         if (!thinkingApplicability.applies) return
         const next = !thinkingOn
-
         if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
           recordToggle('thinking', `set thinking to ${next ? 'on' : 'off'}`)
           if (conversationHasAssistantTurn) {
@@ -1154,7 +1134,6 @@ export function Config({
       recordToggle('prStatusFooter', `set PR status footer to ${config.prStatusFooterEnabled === false ? 'on' : 'off'}`)
     },
   })
-
   items.push({
     id: 'model',
     label: 'Model (main loop)',
@@ -1185,14 +1164,12 @@ export function Config({
       bump()
     },
   })
-
   for (const row of configProviderRows(providerFamilyPresences())) {
     items.push({
       id: row.id,
       label: row.label,
       searchText: `${row.label} provider signed in`,
       kind: 'info',
-
       value: (
         <Text color={row.credentialed ? tokens.success : tokens.textSecondary} wrap="truncate-end">
           {row.valueText}
@@ -1241,7 +1218,6 @@ export function Config({
         recordToggle('fileCheckpointing', `set file checkpointing to ${config.fileCheckpointingEnabled === false ? 'on' : 'off'}`)
       },
     })
-
     const facts = getFocusedSessionConnector().checkpointFacts()
     const points = facts.restorable.size
     const sessionText = !hasFocusedSession()
@@ -1278,7 +1254,6 @@ export function Config({
       setByYou: config.mouseCapture === false,
       value: boolValue(config.mouseCapture !== false),
       change: () => {
-
         const next = config.mouseCapture === false
         writeGlobal(c => ({ ...c, mouseCapture: next }))
         inkInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
@@ -1457,7 +1432,6 @@ export function Config({
 
   const composeSummary = (): string | undefined => {
     const lines: string[] = [...changesRef.current.values()]
-
     if (themeSetting !== mountTheme.current) lines.push(`set theme to ${themeSetting}`)
     if (lines.length === 0) return undefined
     return lines.join('\n')
@@ -1582,7 +1556,6 @@ export function Config({
         }
         return
       }
-
       const item = filtered[selected]
       if (key.return) {
         event.stopImmediatePropagation()
@@ -1625,7 +1598,6 @@ export function Config({
         setSearchMode(true)
         return
       }
-
       if (
         input !== '' &&
         !key.ctrl &&
@@ -1701,7 +1673,6 @@ export function Config({
         isStandaloneDialog={false}
         externalIncludes={externalIncludes}
         onDone={() => {
-
           setSubMenu(null)
         }}
       />

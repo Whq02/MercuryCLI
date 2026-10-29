@@ -1,3 +1,4 @@
+
 import type { EngineClock, EngineProfile } from './contracts.js'
 import type { WriteDoor } from './door.js'
 
@@ -6,9 +7,7 @@ export const SYNC_PROBE = '\x1b[?2026$p'
 const DECRPM_2026 = /\x1b\[\?2026;(\d+)\$y/
 
 export interface ProbePolicy {
-
   readonly probeAllowed: boolean
-
   readonly budgetMs: number
 }
 

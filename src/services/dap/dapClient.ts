@@ -1,3 +1,4 @@
+
 import { spawn, spawnSync, type ChildProcess, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { DapCancelledError, dapDeadline, throwIfDapAborted, waitForDap } from './dapCancellation.js'
 import type { DapTerminalRequest, DapTerminalRunner } from './dapTerminal.js'
@@ -161,13 +162,9 @@ export function dialListener(target: DapListenerTarget, deadlineMs = REQUEST_TIM
 export type DapAdapterSpec = {
   command: string
   args: string[]
-
   installHint?: string
-
   buildLaunchArgs?: (options: DapLaunchOptions) => Record<string, unknown>
-
   preflightError?: string
-
   buildAttachArgs?: (options: {
     program: string
     cwd: string
@@ -175,19 +172,12 @@ export type DapAdapterSpec = {
     port?: number
     pid?: number
   }) => Record<string, unknown>
-
   connect?: 'stdio' | 'tcp'
-
   fileTypes?: string[]
-
   rootMarkers?: string[]
-
   launchDefaults?: Record<string, unknown>
-
   attachDefaults?: Record<string, unknown>
-
   attachShape?: 'connect' | 'flat'
-
   startRequest?: 'launch' | 'attach'
   envShape?: 'object' | 'pairs'
 }
@@ -227,6 +217,7 @@ function pythonAdapterSpec(): DapAdapterSpec {
       }
 }
 
+
 const GDB_DAP_MIN_MAJOR = 14
 
 export interface GdbProbe {
@@ -263,6 +254,8 @@ export function _resetGdbProbeForTesting(): void {
   gdbProbeCache = null
   gdbProbeRun = null
 }
+
+
 
 const NATIVE_ADAPTER_KEYS = new Set(['lldb', 'gdb', 'codelldb'])
 let darwinDebuggerAuthMemo: string | null | undefined
@@ -330,7 +323,6 @@ export function resolveLldbDap(): LldbDapResolution | null {
   }
   if (process.platform === 'darwin') {
     try {
-
       const r = spawnSync('xcrun', ['-f', 'lldb-dap'], {
         windowsHide: true,
         timeout: 5_000,
@@ -420,7 +412,6 @@ export function probeGdbDap(): GdbProbe {
     result = { viable: false, reason: 'no gdb on PATH' }
   } else {
     try {
-
       const r = spawnSync(bin, ['--version'], { windowsHide: true, timeout: 5_000, encoding: 'utf8', env: { ...subprocessEnv() } })
       result = gdbProbeOf(r.stdout ?? '', r.status, (r.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT')
     } catch (e) {
@@ -461,6 +452,7 @@ export function gdbProbeFromMemo(): GdbProbe {
 export function gdbProbePending(): boolean {
   return gdbProbeCache === null && findOnPathLocal('gdb') !== undefined
 }
+
 
 export function lldbDapInstallHint(platform: string = process.platform): string {
   switch (platform) {
@@ -592,7 +584,6 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       installHint: codelldbInstallHint(),
     })
   }
-
   if (findOnPathLocal('dlv')) {
     table.go = () => ({
       command: 'dlv',
@@ -603,7 +594,6 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       installHint: 'go install github.com/go-delve/delve/cmd/dlv@latest',
     })
   }
-
   const jsDebug = resolveJsDebugServer()
   if (jsDebug) {
     table.js = () => ({
@@ -612,13 +602,11 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       connect: 'tcp',
       fileTypes: ['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts'],
       rootMarkers: ['package.json'],
-
       launchDefaults: { type: 'pwa-node' },
       attachDefaults: { type: 'pwa-node' },
       installHint: `js-debug via ${jsDebugSourceLabel(jsDebug.source)}: ${jsDebug.path}`,
     })
   }
-
   if (findOnPathLocal('netcoredbg')) {
     table.dotnet = () => ({
       command: 'netcoredbg',
@@ -628,7 +616,6 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       installHint: netcoredbgInstallHint(),
     })
   }
-
   if (findOnPathLocal('rdbg')) {
     table.ruby = () => ({
       command: 'rdbg',
@@ -677,7 +664,6 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       installHint: ELIXIR_DEBUG_ADAPTER_HINT,
     })
   }
-
   const gdb = read === 'memo' ? gdbProbeFromMemo() : probeGdbDap()
   if (gdb.viable) {
     table.gdb = () => ({
@@ -703,7 +689,6 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       logForDebugging(`dap: godot adapter unavailable: ${bridge.reason}`)
     }
   }
-
   if (mercuryUnityEnabled()) {
     const unity = resolveUnityDebugAdapter()
     if (!('reason' in unity)) {
@@ -946,7 +931,6 @@ export function dormantBuiltinAdapterHints(read: 'live' | 'memo' = 'live'): Arra
   if (!('gdb' in table)) {
     out.push({ key: 'gdb', hint: gdbInstallHint() })
   }
-
   if (mercuryUnityEnabled() && !(UNITY_DAP_ADAPTER_KEY in table)) {
     out.push({ key: UNITY_DAP_ADAPTER_KEY, hint: UNITY_ADAPTER_ARM_HINT })
   }
@@ -1059,7 +1043,6 @@ export type StoppedInfo = {
 }
 
 const REQUEST_TIMEOUT_MS = 8_000
-
 const BREAKPOINT_REQUEST_TIMEOUT_MS = 30_000
 const OUTPUT_RING_MAX = 200
 
@@ -1068,13 +1051,10 @@ export class DapSession {
   readonly program: string
   #spec: DapAdapterSpec
   #cwd: string
-
   #child: ChildProcessWithoutNullStreams | null
   #socket: Socket | null = null
-
   #tcpPort: number | undefined
   #listener: DapListenerTarget | null = null
-
   #transportReady: Promise<void>
   #seq = 1
   #pending = new Map<number, Pending>()
@@ -1087,34 +1067,21 @@ export class DapSession {
   #buffer = Buffer.alloc(0)
   #initializedEvent: Promise<void>
   #resolveInitialized!: () => void
-
   #stateWaiters = new Set<() => void>()
-
   #requestedBreakpoints: Map<string, Array<number | DapBreakpointSpec>> | null = null
   #requestedFunctionBreakpoints: DapFunctionBreakpointSpec[] | null = null
-
   readonly children: DapSession[] = []
-
   readonly parentSession: DapSession | null
-
   readonly label: string
-
   readonly depth: number
-
   lastStoppedAt = 0
-
   lastStopped: StoppedInfo | null = null
   terminated = false
   exitDetail = ''
-
   capabilities: Record<string, unknown> | null = null
-
   startMode: 'launch' | 'attach' | null = null
-
   #hostsDebuggee = false
-
   output: string[] = []
-
   breakpoints = new Map<string, Array<{ line: number; verified: boolean; message?: string; id?: number }>>()
   functionBreakpoints: Array<{ name: string; verified: boolean; message?: string; id?: number }> = []
 
@@ -1123,11 +1090,8 @@ export class DapSession {
     spec: DapAdapterSpec,
     program: string,
     cwd: string,
-
     tcpPort?: number,
-
     wire: 'spawn' | 'dial' = 'spawn',
-
     treeInit?: { parent: DapSession | null; label: string },
     listener?: DapListenerTarget & { socket?: Socket },
   ) {
@@ -1142,7 +1106,6 @@ export class DapSession {
     this.#initializedEvent = new Promise(res => {
       this.#resolveInitialized = res
     })
-
     if (this.parentSession) this.output = this.parentSession.root().output
     if (wire === 'dial' && listener !== undefined) {
       this.#child = null
@@ -1169,15 +1132,12 @@ export class DapSession {
       windowsHide: true,
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-
       detached: process.platform !== 'win32',
-
       env: pythonSpawnEnv(),
     })
     this.#child = child
     child.stdin.on('error', err => logForDebugging(`dap: adapter stdin error: ${err.message}`))
     if (spec.connect === 'tcp' && tcpPort !== undefined) {
-
       child.stdout.on('data', (chunk: Buffer) => {
         this.#pushOutput(`[adapter] ${String(chunk).trimEnd()}`)
       })
@@ -1222,9 +1182,9 @@ export class DapSession {
       } catch {
       }
     }
-
     if (this.parentSession) this.parentSession.#wakeStateWaiters()
   }
+
 
   root(): DapSession {
     let s: DapSession = this
@@ -1371,7 +1331,6 @@ export class DapSession {
 
   treeTerminated(): boolean {
     if (this.terminated) return true
-
     if (this.#hostsDebuggee) return false
     return this.children.length > 0 && this.children.every(c => c.treeTerminated())
   }
@@ -1419,7 +1378,6 @@ export class DapSession {
   }
 
   async #connectTcp(port: number, host = '127.0.0.1', deadlineMs = 6_000): Promise<void> {
-
     const start = Date.now()
     for (;;) {
       if (this.terminated) throw new Error(this.exitDetail || 'adapter exited before the tcp port opened')
@@ -1483,7 +1441,6 @@ export class DapSession {
       const nl = this.#partialOutput.search(/[\r\n]/)
       if (nl === -1) break
       const line = this.#partialOutput.slice(0, nl).trimEnd()
-
       const next = this.#partialOutput[nl] === '\r' && this.#partialOutput[nl + 1] === '\n' ? nl + 2 : nl + 1
       this.#partialOutput = this.#partialOutput.slice(next)
       if (line) this.#pushOutput(line)
@@ -1507,7 +1464,6 @@ export class DapSession {
       const header = this.#buffer.subarray(0, headerEnd).toString('utf-8')
       const m = header.match(/Content-Length:\s*(\d+)/i)
       if (!m || m[1] === undefined) {
-
         this.#buffer = this.#buffer.subarray(headerEnd + 4)
         continue
       }
@@ -1526,7 +1482,6 @@ export class DapSession {
 
   #onMessage(msg: Record<string, unknown>): void {
     if (msg.type === 'request') {
-
       this.#onReverseRequest(msg)
       return
     }
@@ -1555,7 +1510,6 @@ export class DapSession {
           break
         case 'process':
         case 'thread':
-
           this.#hostsDebuggee = true
           break
         case 'stopped':
@@ -1573,13 +1527,11 @@ export class DapSession {
           this.lastStopped = null
           break
         case 'output': {
-
           if (body.category === 'telemetry') break
           this.#pushOutputChunk(String(body.output ?? ''))
           break
         }
         case 'breakpoint': {
-
           const bp =
             (body.breakpoint as { id?: number; line?: number; verified?: boolean; message?: string } | undefined) ?? {}
           for (const rows of this.breakpoints.values()) {
@@ -1693,7 +1645,6 @@ export class DapSession {
       adapterID: this.adapterKey,
     })
     const startDone = this.request(requestKind, configuration, 20_000)
-
     startDone.catch(() => {})
     const sawInitialized = await waitForDap(this.#initializedEvent.then(() => true), this.#operationSignal ?? this.root().#operationSignal, 10_000)
     if (!sawInitialized) {
@@ -1798,7 +1749,6 @@ export class DapSession {
       const requestKind: 'launch' | 'attach' = args.request === 'attach' ? 'attach' : 'launch'
       const refusal = this.#childBoundRefusal()
       if (refusal) {
-
         this.#respondToReverse(msg, false, refusal)
         this.#pushOutput(`[dap] refused startDebugging: ${refusal}`)
         return
@@ -1812,7 +1762,6 @@ export class DapSession {
         this.#pushOutput(`[dap] ${reason}`)
         return
       }
-
       this.#respondToReverse(msg, true)
       void child.withOperation(this.#operationSignal ?? this.root().#operationSignal, () => child.#runChildDance(requestKind, configuration)).catch(err => {
         this.#pushOutput(
@@ -1877,7 +1826,6 @@ export class DapSession {
       const cancelDeadline = dapDeadline(() => fail(new Error(`${command} timed out after ${timeoutMs}ms`)), timeoutMs)
       this.#pending.set(seq, { resolve: body => { cleanup(); resolve(body) }, reject: fail, cancelDeadline, command })
       signal?.addEventListener('abort', onAbort, { once: true })
-
       this.#writeFrame(payload, fail, () => this.#pending.has(seq))
     })
   }
@@ -1885,7 +1833,6 @@ export class DapSession {
   async launch(options: {
     program: string
     args?: string[]
-
     runtimeArgs?: string[]
     launchExtras?: Record<string, unknown>
     env?: Record<string, string>
@@ -1894,13 +1841,10 @@ export class DapSession {
     breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
     mode?: 'launch' | 'attach'
     pid?: number
-
     port?: number
     host?: string
-
     noDebug?: boolean
   }): Promise<void> {
-
     this.#requestedBreakpoints = options.breakpoints ?? null
     this.capabilities = await this.request('initialize', {
       ...CLIENT_INIT_ARGS,
@@ -1909,14 +1853,12 @@ export class DapSession {
       if (this.#listener === null || !(error instanceof Error) || !/timed out/.test(error.message)) throw error
       throw new Error(`the program listening at ${this.#listener.host}:${this.#listener.port} did not answer initialize within ${REQUEST_TIMEOUT_MS}ms — is it a debugpy --listen socket?`)
     })
-
     const attach = options.mode === 'attach' || this.#spec.startRequest === 'attach'
     this.startMode = attach ? 'attach' : 'launch'
     let startBody: Record<string, unknown>
     if (attach) {
       const host = options.host ?? '127.0.0.1'
       if (this.#spec.buildAttachArgs) {
-
         startBody = this.#spec.buildAttachArgs({
           program: options.program,
           cwd: this.#cwd,
@@ -1925,7 +1867,6 @@ export class DapSession {
           ...(options.pid !== undefined ? { pid: options.pid } : {}),
         })
       } else if (this.#spec.attachShape === 'connect' && options.port !== undefined) {
-
         startBody = { ...(this.#spec.attachDefaults ?? {}), connect: { host, port: options.port } }
       } else {
         startBody = {
@@ -1952,7 +1893,6 @@ export class DapSession {
         ...(options.env !== undefined
           ? { env: this.#spec.envShape === 'pairs' ? Object.entries(options.env).map(([key, value]) => `${key}=${value}`) : options.env }
           : {}),
-
         cwd: this.#cwd,
         stopOnEntry: options.stopOnEntry ?? false,
         noDebug: options.noDebug ?? false,
@@ -1960,9 +1900,7 @@ export class DapSession {
       }
     }
     const launchDone = this.request(attach ? 'attach' : 'launch', startBody, 20_000)
-
     launchDone.catch(() => {})
-
     const initializedTimeoutMs = options.noDebug ? 2_000 : 10_000
     const sawInitialized = await waitForDap(this.#initializedEvent.then(() => true), this.#operationSignal ?? this.root().#operationSignal, initializedTimeoutMs)
     if (!sawInitialized && !options.noDebug) {
@@ -1974,7 +1912,6 @@ export class DapSession {
     if (sawInitialized) {
       if (options.breakpoints && !options.noDebug) {
         for (const [path, lines] of options.breakpoints) {
-
           try {
             await this.setBreakpoints(path, lines)
           } catch (err) {
@@ -2017,7 +1954,6 @@ export class DapSession {
         })),
         sourceModified: false,
       },
-
       BREAKPOINT_REQUEST_TIMEOUT_MS,
     )
     const reported = Array.isArray(body.breakpoints)
@@ -2143,7 +2079,6 @@ export class DapSession {
   async waitForStopOutcome(
     timeoutMs = 10_000,
     signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal,
-
     sinceStamp = 0,
   ): Promise<
     | { state: 'stopped'; info: StoppedInfo; session: DapSession }
@@ -2217,7 +2152,6 @@ export class DapSession {
   async dispose(signal: AbortSignal | undefined = this.#operationSignal ?? this.root().#operationSignal): Promise<void> {
     this.#lifetime.abort()
     await this.#reapTerminalProcesses()
-
     for (const child of [...this.children]) {
       await child.dispose(signal)
     }
@@ -2227,7 +2161,6 @@ export class DapSession {
       } catch {
       }
     }
-
     const child = this.#child
     if (child !== null && child.exitCode === null) {
       const receipt = await endProcessTree(child, 'SIGKILL')
@@ -2274,6 +2207,7 @@ export class DapSession {
     return this.#stateWaiters.size
   }
 }
+
 
 const sessions = new Map<string, DapSession>()
 
@@ -2347,7 +2281,6 @@ export async function createDapSession(options: {
   adapterKey: string
   program: string
   args?: string[]
-
   runtimeArgs?: string[]
   launchExtras?: Record<string, unknown>
   env?: Record<string, string>
@@ -2355,15 +2288,11 @@ export async function createDapSession(options: {
   cwd: string
   stopOnEntry?: boolean
   breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
-
   mode?: 'launch' | 'attach'
   pid?: number
-
   port?: number
   host?: string
-
   noDebug?: boolean
-
   specOverride?: DapAdapterSpec
   signal?: AbortSignal
   terminalRunner?: DapTerminalRunner
@@ -2371,7 +2300,6 @@ export async function createDapSession(options: {
   throwIfDapAborted(options.signal)
   const resolved = options.specOverride ?? resolveAdapter(options.adapterKey)
   if (!resolved) {
-
     const dormant = dormantBuiltinAdapterHints()
     throw new Error(
       `unknown adapter '${options.adapterKey}' — known: ${knownAdapterKeys().join(', ')}` +
@@ -2386,13 +2314,11 @@ export async function createDapSession(options: {
   if (dial !== null && 'refused' in dial) throw new Error(listenerRefusedLine(listener!, dial.refused, options.adapterKey))
   const dialed = dial !== null && 'socket' in dial ? dial.socket : null
   if (resolved.preflightError && dialed === null) {
-
     throw new Error(
       `adapter '${options.adapterKey}' is unavailable: ${resolved.preflightError}` +
         (resolved.installHint ? ` — ${resolved.installHint}` : ''),
     )
   }
-
   const tcpPort = resolved.connect === 'tcp' && dialed === null ? await pickFreePort() : undefined
   const spec: DapAdapterSpec = {
     ...resolved,
@@ -2405,7 +2331,6 @@ export async function createDapSession(options: {
     }),
   }
   const key = registryKey(options.owner, options.id)
-
   const existing = sessions.get(key)
   if (existing) {
     await existing.dispose(options.signal)
@@ -2426,7 +2351,6 @@ export async function createDapSession(options: {
         })
   sessions.set(key, session)
   projectExternalState(options.owner, dapExecutionSpec(options.id, options.adapterKey), 'starting')
-
   registerOwnerDisposer(options.owner, `dap:${options.id}`, async () => {
     const live = sessions.get(key)
     if (live) {
@@ -2452,7 +2376,6 @@ export async function createDapSession(options: {
       noDebug: options.noDebug,
     }))
   } catch (err) {
-
     const outputTail = session.output.slice(-6).join('\n')
     await session.dispose(options.signal)
     sessions.delete(key)

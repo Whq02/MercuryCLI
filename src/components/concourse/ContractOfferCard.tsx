@@ -7,6 +7,7 @@ import { PermissionDialog } from '../permissions/PermissionDialog.js'
 import { PermissionPrompt, type PermissionPromptOption } from '../permissions/PermissionPrompt.js'
 import wrapText from '../../ink/wrap-text.js'
 
+
 type ContractOfferAnswer = 'yes' | 'no'
 
 export const CONTRACT_ASK_BLURB = `a contract is the session's advisory work agreement in your words: the agent acknowledges it without being blocked by it. Yes opens a field to write one before the session starts; No starts the session plain (/contract can add one any time).`
@@ -52,11 +53,8 @@ export function ContractOfferCard({
   width,
   rows,
 }: {
-
   onAnswer: (contractText: string | null) => void
-
   width: number
-
   rows: number
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -71,7 +69,6 @@ export function ContractOfferCard({
     ],
     [],
   )
-
   const columns = Math.max(16, width - 6)
   const fit = contractCardFit(rows, contractCardTextColumns(width))
   const visibleLines = fit.fieldLines
@@ -79,7 +76,6 @@ export function ContractOfferCard({
   const submit = (raw: string): void => {
     const words = raw.trim()
     if (words.length === 0) {
-
       setNote('type the contract first — or esc starts the session plain')
       return
     }
@@ -101,7 +97,6 @@ export function ContractOfferCard({
                 options={options}
                 onSelect={value => (value === 'yes' ? setFace('field') : onAnswer(null))}
                 onCancel={() => onAnswer(null)}
-
                 escapeHint="esc starts it plain"
                 hintGap={fit.askGap}
               />
@@ -143,8 +138,7 @@ export function ContractOfferCard({
                   </Text>
                 </Box>
               ) : null}
-              {
-}
+              {}
               <Box flexDirection="column" flexShrink={0} marginTop={fit.fieldGaps ? 1 : 0}>
                 <Text color="subtle" wrap="truncate-end">
                   {keyHintLabel('↵ starts the session under it · ⇧↵ newline')}

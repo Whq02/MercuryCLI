@@ -33,7 +33,6 @@ function McpToggle({
       let dials: Array<{ name: string; on: boolean }>
       let asked: string
       if (target === 'all') {
-
         dials = roster.clients
           .filter(client => !isMcpOrgan(client.name))
           .filter(client => (on ? client.type === 'disabled' : client.type !== 'disabled'))
@@ -72,7 +71,6 @@ export async function call(
   const [first, ...rest] = tokens
 
   if (first === 'reconnect' && rest.length > 0) {
-
     return <MCPReconnect serverName={rest.join(' ')} onComplete={onDone} />
   }
   if (first === 'enable' || first === 'disable') {

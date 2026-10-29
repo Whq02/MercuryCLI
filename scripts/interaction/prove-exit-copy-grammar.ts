@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -35,7 +34,6 @@ console.log('== 1 · key-map identity: \\x03 and CSI-u decode to ONE ctrl+c ==')
         csiU.name === 'c' && csiU.ctrl === true && !csiU.shift,
       `legacy=${JSON.stringify(legacy)} csiU=${JSON.stringify(csiU)}`,
     )
-
     const evLegacy = new InputEvent(legacy as never)
     const evCsiU = new InputEvent(csiU as never)
     check(
@@ -45,7 +43,6 @@ console.log('== 1 · key-map identity: \\x03 and CSI-u decode to ONE ctrl+c ==')
       `legacy={input:${JSON.stringify(evLegacy.input)}} csiU={input:${JSON.stringify(evCsiU.input)}}`,
     )
   }
-
   for (const rel of [
     'src/ink/input/byte-decoder.ts',
     'src/ink/input/interpreter.ts',
@@ -171,7 +168,6 @@ console.log('== 5 · one receipt · truthful footer ==')
     'the native receipt holds ~2 s; the mux/escape paths keep the longer read window',
     skh.includes("timeoutMs: path === 'native' ? 2000 : 4000"),
   )
-
   const guardAt = skh.indexOf("if (!key.ctrl || key.shift || key.meta || key.super) return")
   check('the plain-ctrl+c guard exists, chord-exact', guardAt !== -1 && skh.includes("if (input !== 'c') return"))
   check('…gated on a live selection', skh.slice(guardAt, guardAt + 400).includes('selection.hasSelection()'))
@@ -189,7 +185,6 @@ console.log('== 5 · one receipt · truthful footer ==')
   )
 
   const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-
   const notice = read('src/components/PromptInput/ExitChordNotice.tsx')
   check(
     'the armed notice reads "press ctrl+c twice to close mercury" (ctrl+d variant beside it) at its ONE owner',
@@ -215,7 +210,6 @@ console.log('== 5 · one receipt · truthful footer ==')
 
 console.log('== 4b · Mercury owns ctrl+c at the root (the S33 regression pin) ==')
 {
-
   const main = read('src/main.tsx')
   check(
     'the interactive root boots with getRenderContext(false)',

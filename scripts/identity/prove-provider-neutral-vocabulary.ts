@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,7 +7,6 @@ const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = process.argv.includes('--report')
 
 const J = (...parts: string[]): string => parts.join('')
-
 const VENDOR = J('(Cla', 'ude|Anth', 'ropic)')
 const FAMILY = J('(Cla', 'ude|Anth', 'ropic|Open', 'AI)')
 const VENDOR_WORD = new RegExp(J('\\b', VENDOR, '\\b'))
@@ -48,7 +46,6 @@ const FRAGMENTS: Array<[string, RegExp]> = [
 ]
 
 const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line)
-
 const isImportLine = (line: string): boolean => /^\s*(import|export)\b.*\bfrom\b/.test(line)
 const literalBearing = (line: string): boolean => /['"`]/.test(line) && !isImportLine(line)
 

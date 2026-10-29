@@ -9,6 +9,7 @@ function charWidth(char: string): number {
   return stringWidth(char)
 }
 
+
 type Color = { r: number; g: number; b: number; a: number }
 
 function rgb(r: number, g: number, b: number): Color {
@@ -26,6 +27,7 @@ type ColorMode = 'truecolor' | 'color256'
 function detectColorMode(): ColorMode {
   return truecolorActive() ? 'truecolor' : 'color256'
 }
+
 
 const CHANNEL_THRESHOLDS = [48, 115, 155, 195, 235]
 const CUBE_LEVELS = [0, 95, 135, 175, 215, 255]
@@ -45,7 +47,6 @@ function quantizeToAnsi256(r: number, g: number, b: number): number {
   const cubeIndex = 16 + 36 * qr + 6 * qg + qb
   const mean = (r + g + b) / 3
   if (mean < 5) return 16
-
   if (mean > 244 && qr === qg && qg === qb) return cubeIndex
   const greyLevel = Math.min(23, Math.max(0, Math.round((mean - 8) / 10)))
   const greyValue = 8 + greyLevel * 10
@@ -56,6 +57,7 @@ function quantizeToAnsi256(r: number, g: number, b: number): number {
   const cubeDist = (r - cubeR) ** 2 + (g - cubeG) ** 2 + (b - cubeB) ** 2
   return cubeDist <= greyDist ? cubeIndex : 232 + greyLevel
 }
+
 
 function fgEscape(color: Color, mode: ColorMode): string {
   if (color.a === 0) {
@@ -101,6 +103,7 @@ function emitBlocks(
   }
   return out + RESET
 }
+
 
 type DiffTheme = {
   addedLineBg: Color
@@ -177,7 +180,6 @@ const MERCURY_BRAND_DIFF = {
 
 function buildDiffTheme(themeName: string): DiffTheme {
   const mode = detectColorMode()
-
   const isDarkish = themeName === 'dark' || themeName === 'true-black'
 
   if (mode === 'truecolor' && isDarkish) {
@@ -235,6 +237,7 @@ function colorForScope(scope: string | undefined, text: string, theme: DiffTheme
   return theme.scopes[segment] ?? theme.foreground
 }
 
+
 type HighlightApi = {
   highlight: (code: string, options: { language: string; ignoreIllegals: boolean }) => unknown
   getLanguage: (name: string) => unknown
@@ -246,10 +249,10 @@ function getHighlighter(): HighlightApi {
   if (highlighter) return highlighter
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const loaded = require('highlight.js') as { default?: HighlightApi } & HighlightApi
-
   highlighter = typeof loaded.highlight === 'function' ? loaded : (loaded.default as HighlightApi)
   return highlighter
 }
+
 
 const FILENAME_LANGUAGES: Record<string, string> = {
   Dockerfile: 'dockerfile',
@@ -297,6 +300,7 @@ function detectLanguage(filePath: string, firstLine?: string): string | undefine
   return undefined
 }
 
+
 type EmitterNode = {
   scope?: string
   kind?: string
@@ -308,18 +312,15 @@ let emitterShapeErrorLogged = false
 function highlightLine(line: string, language: string | undefined, theme: DiffTheme): StyledBlock[] {
   const fallback: StyledBlock[] = [{ text: line, fg: theme.foreground, bg: theme.background }]
   if (!language) return fallback
-
   if (shouldSkipHighlight(line)) return fallback
   let result: unknown
   try {
-
     result = getHighlighter().highlight(`${line}\n`, { language, ignoreIllegals: true })
   } catch {
     return fallback
   }
   const emitter =
     (result as { _emitter?: unknown })._emitter ?? (result as { emitter?: unknown }).emitter
-
   const root =
     typeof emitter === 'object' && emitter !== null
       ? ((emitter as { rootNode?: unknown; root?: unknown }).rootNode ??
@@ -356,6 +357,7 @@ function highlightLine(line: string, language: string | undefined, theme: DiffTh
   for (const child of (root as EmitterNode).children ?? []) visit(child, undefined)
   return blocks.length > 0 ? blocks : fallback
 }
+
 
 const WORD_CHAR = /[\p{L}\p{Nd}_]/u
 const WHITESPACE = /\s/
@@ -450,6 +452,7 @@ function pairChangedLines(markers: string[]): Array<{ deleted: number; added: nu
   return pairs
 }
 
+
 function removeNewlines(blocks: StyledBlock[]): StyledBlock[] {
   const out: StyledBlock[] = []
   for (const block of blocks) {
@@ -517,7 +520,6 @@ function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
       currentWidth += blockWidth
       continue
     }
-
     let fit = ''
     let fitWidth = 0
     for (const char of block.text) {
@@ -528,7 +530,6 @@ function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
     }
     if (fit === '') {
       if (current.length === 0) {
-
         const first = [...block.text][0] ?? ''
         current.push({ ...block, text: first })
         rows.push(current)
@@ -554,6 +555,7 @@ function wrapBlocks(blocks: StyledBlock[], width: number): StyledBlock[][] {
   rows.push(current)
   return rows
 }
+
 
 type Hunk = {
   oldStart: number
@@ -583,7 +585,6 @@ function renderLines(
   const out: string[] = []
 
   lines.forEach((line, index) => {
-
     let blocks: StyledBlock[] =
       line.marker === '-'
         ? [{ text: line.code, fg: theme.foreground, bg: theme.background }]
@@ -644,7 +645,6 @@ function renderLines(
         fg: marked ? decoration : theme.foreground,
         bg: marked ? lineBg : theme.background,
       }
-
       if (!marked && !dim) {
         gutter = { ...gutter, text: `${DIM}${gutter.text}${UNDIM}` }
       }
@@ -660,7 +660,6 @@ export class ColorDiff {
   private filePath: string
 
   constructor(hunk: Hunk, firstLine?: string, filePath?: string, _prefixContent?: string) {
-
     this.hunk = hunk
     this.firstLine = firstLine
     this.filePath = filePath ?? ''
@@ -722,7 +721,6 @@ export class ColorFile {
 
   render(themeName: string, width: number, dim: boolean): string[] | null {
     const split = expandTabs(this.source).split('\n')
-
     if (split.length > 0 && split[split.length - 1] === '') split.pop()
     const gutterWidth = String(split.length).length
     const lines: RenderLine[] = split.map((code, index) => ({

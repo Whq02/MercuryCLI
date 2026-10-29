@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prov-home-'))
-
 for (const v of ['MERCURY_GODOT_TOOLS', 'MERCURY_GODOT_TOOLS', 'MERCURY_GODOT', 'MERCURY_GODOT']) {
   delete process.env[v]
 }
@@ -27,7 +26,6 @@ console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'prov-proj-'))
 try {
-
   const off = await godotProviderInventory(scratch)
   check('three separate provider identities, stable ids', off.length === 3 && JSON.stringify(off.map(r => r.id)) === JSON.stringify(['vulcan', 'godot-lsp', 'godot-dap']))
   check("flags off ⇒ each row independently 'disabled' with a named reason", off.every(r => r.state === 'disabled' && !!r.failureReason))

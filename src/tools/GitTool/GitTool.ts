@@ -1,3 +1,4 @@
+
 import { z } from 'zod/v4'
 import * as path from 'node:path'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
@@ -58,11 +59,9 @@ const OPS = [
   'verify',
   'reviewContext',
   'reviewRecord',
-
   'fileAtRef',
   'tree',
   'compare',
-
   'hostSearch',
   'prDiff',
   'runs',
@@ -219,7 +218,6 @@ async function runOp(
     }
     case 'plan': {
       if (!input.groups?.length) return { result: 'plan needs groups', outcome: 'failed' }
-
       const fileHistory = context.getAppState().fileHistory
       const mercuryTouched = fileHistory && fileHistoryEnabled()
         ? new Set([...fileHistory.trackedFiles].map(maybeExpandFilePath))
@@ -296,7 +294,6 @@ async function runOp(
       if (!input.planId) return { result: 'verify needs planId', outcome: 'failed' }
       return { result: verifyPlan(owner, root, input.planId), outcome: 'no-change' }
     }
-
     case 'reviewContext': {
       const { composeReviewContext } = await import('../../services/repoHost/repoHost.js')
       const out = await composeReviewContext(root, {
@@ -318,7 +315,6 @@ async function runOp(
         outcome: 'no-change',
       }
     }
-
     case 'fileAtRef': {
       if (!input.ref || !input.path) return { result: 'fileAtRef needs ref + path', outcome: 'failed' }
       const { gitFileAtRef } = await import('../../services/gitGraph/observe.js')
@@ -370,7 +366,6 @@ async function runOp(
         outcome: 'no-change',
       }
     }
-
     case 'hostSearch': {
       const { repoHostEnabled, searchHost } = await import('../../services/repoHost/repoHost.js')
       if (!repoHostEnabled()) return { result: 'repository-host reads are disabled (MERCURY_REPO_HOST=0)', outcome: 'failed' }
@@ -512,7 +507,6 @@ export type GitApplyPreview = {
 
 export const GitTool = buildTool({
   name: 'Git',
-
   searchHint: repoHostDiscoveryEnabled()
     ? 'typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit application; file/tree at a ref, branch compare, pull request / checks / issue context, host search, paginated PR diff, workflow-run watch via mercury://repo and the typed review record'
     : 'typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit application; file/tree at a ref, branch compare; the typed review record',
@@ -715,7 +709,6 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result
   },

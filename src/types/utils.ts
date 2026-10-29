@@ -1,3 +1,5 @@
+
+
 type ImmutableLeaf =
   | null
   | undefined
@@ -16,11 +18,11 @@ export type DeepImmutable<T> = T extends ImmutableLeaf
       ? ReadonlySet<DeepImmutable<V>>
       : T extends readonly unknown[]
         ?
-
           { readonly [K in keyof T]: DeepImmutable<T[K]> }
         : T extends object
           ? { readonly [K in keyof T]: DeepImmutable<T[K]> }
           : T
+
 
 export type Permutations<U, Rest = U> = [U] extends [never]
   ? []

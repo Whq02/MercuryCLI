@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -153,7 +152,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       }
     })()
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
-
       const model = String((body as { model?: unknown }).model ?? '')
       if (model.includes('haiku')) {
         record({ kind: 'side', model, url, at: Date.now() })
@@ -167,7 +165,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (calls === 1) {
         res.end(anthropicTurn([poll('toolu_apollo_poll1', POLL_ONE)], 'tool_use'))
       } else if (specBranch) {
-
         if (calls === 2) {
           res.end(anthropicTurn([specWrite('toolu_apollo_spec1', SPEC_FILE, 'Spec')], 'tool_use'))
         } else if (calls === 3) {

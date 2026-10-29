@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -13,7 +12,6 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const pin of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_CLOCK', 'MERCURY_LIVE_GLYPHS']) {
   process.env[pin] = '0'
 }
-
 process.env.MERCURY_FORCE_SYNC_OUTPUT = '1'
 process.env.FORCE_COLOR = '3'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -46,7 +44,6 @@ async function paint(messages: unknown[]): Promise<string> {
 
 const wordsOf = (s: string): string[] => s.match(/[A-Za-z0-9]{3,}/g) ?? []
 const countRun = (hayWords: string, run: string): number => ` ${hayWords} `.split(` ${run} `).length - 1
-
 function needleFor(text: string, all: readonly string[]): { run: string; expected: number } | null {
   const w = wordsOf(text)
   const n = Math.min(6, w.length)

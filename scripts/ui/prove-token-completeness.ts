@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { listUnresolvedTokenRoles, resolveMercuryTokens } from '../../src/utils/mercuryTokens.js'
 import { THEME_NAMES } from '../../src/utils/theme.js'
 import { stateStyleOf, gaugeColorOf, type SnapshotState } from '../../src/components/mercury-ui/theme.js'

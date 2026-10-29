@@ -5,11 +5,8 @@ export const MCP_PUBLISHED_REVISION = '2026-07-28'
 export const MCP_LEGACY_REVISION: string = LATEST_PROTOCOL_VERSION
 
 type McpProtocolCurrency = {
-
   line: string
-
   behind: boolean
-
   fix?: string
 }
 

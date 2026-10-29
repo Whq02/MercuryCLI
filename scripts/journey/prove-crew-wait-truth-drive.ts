@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -35,12 +34,10 @@ const NOTES_FILE = 'wait-notes.txt'
 const GPT_ID = 'gpt-5.6-sol'
 const SEATS = { fable: 'crew-fable', gpt: 'crew-gpt' } as const
 type Seat = keyof typeof SEATS
-
 const HOLD_MS = 3000
 const THINK_MS = 3000
 const THINK_STEP_MS = 400
 const TEXT_STEP_MS = 300
-
 const TOOL_NAME = 'Bash'
 const TOOL_INPUT = { command: 'sleep 2', description: 'wait two seconds' }
 
@@ -146,7 +143,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         } catch {
           body = null
         }
-
         if (req.method === 'POST' && url.endsWith('/responses')) {
           const call = ++seatCalls.gpt
           hits.push({ lane: 'gpt', url, atMs: Date.now(), call })
@@ -185,7 +181,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           res.end('{}')
           return
         }
-
         const model = typeof (body as { model?: unknown })?.model === 'string' ? (body as { model: string }).model : 'fixture'
         const items = itemsOf(body)
         const seat = seatOfAnthropic(items)
@@ -315,7 +310,6 @@ function driveEnv(home: string, base: string): Record<string, string> {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
-
     DEBUG: '1',
   }
 }
@@ -336,7 +330,6 @@ function runnerOpenaiTimeline(home: string, fromMs: number, toMs: number): strin
 }
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
-
 const seatRow = (frame: string, seat: Seat): string | null => {
   const rows = frame.split('\n')
   const at = rows.findIndex(r => r.includes(`(${SEATS[seat]})`))
@@ -344,7 +337,6 @@ const seatRow = (frame: string, seat: Seat): string | null => {
   return flat(`${rows[at]} ${rows[at + 1] ?? ''}`)
 }
 const PHASE_WORDS = ['request sent', 'waiting for the first byte', 'first byte in', 'reasoning', 'streaming', 'sleep', 'wait two seconds', 'Bash']
-
 const bootFetch = (hits: Hit[], at: number): boolean => hits.some(h => h.lane === 'other' && h.url === '/' && at - h.atMs >= 0 && at - h.atMs < 800)
 
 console.log('============================================================')
@@ -353,7 +345,6 @@ console.log('============================================================')
 const KEEP = process.env.CREW_WAIT_KEEP === '1'
 const { home, cwd } = seedWorld()
 const fixture = await startFixture(Number(process.env.CREW_WAIT_PORT ?? 0), cwd)
-
 const FRAMES = 40
 const sends: Array<Record<string, unknown>> = [
   { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },

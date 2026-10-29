@@ -1,3 +1,4 @@
+
 const DRIVE_PATH = /^[A-Za-z]:\\/
 const UNC_PATH = /^\\\\/
 
@@ -7,6 +8,5 @@ export function isBackslashContinuation(value: string, offset: number): boolean 
   const line = value.slice(lineStart, offset)
   const word = line.slice(line.search(/\S+$/) === -1 ? line.length : line.search(/\S+$/))
   if (DRIVE_PATH.test(word) || UNC_PATH.test(word)) return false
-
   return !word.slice(0, -1).includes('\\')
 }

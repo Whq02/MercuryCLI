@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
 import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
@@ -25,7 +24,6 @@ console.log('— C1 the counting law —')
 
 console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 {
-
   const store = {
     wf1: {
       id: 'wf1', type: 'local_workflow', status: 'running', description: 'live run',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,7 +36,6 @@ const cfg = scenario('frame', 100, 30) as Record<string, unknown>
 const gridPath = join(RUN_HOME, 'grid.json')
 const cfgPath = join(RUN_HOME, 'cfg.json')
 const teePath = join(RUN_HOME, 'tee.jsonl')
-
 writeFileSync(
   cfgPath,
   JSON.stringify({
@@ -45,7 +43,6 @@ writeFileSync(
     out: gridPath,
     total: 52,
     sends: [
-
       { atTick: 60, minTick: 8, awaitText: '❯', awaitSettleTicks: 2, data: 'h' },
       { atTick: 34, data: 'e' },
       { atTick: 38, data: 'l' },

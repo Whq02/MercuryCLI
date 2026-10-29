@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -44,7 +43,6 @@ section('§1 mayArmBoardModal — a pointer door arms only while no other owner 
     const may = mayArmBoardModal
     check('a quiet board: the ground picker may arm', may(quiet, 'ground-picker') === true)
     check('a quiet board: the model picker may arm', may(quiet, 'settings') === true)
-
     check('THE SEAT-OVERLOAD CARD STANDS ⇒ the ground picker may NOT arm (the base opened it over the card)', may(armed({ seatAsk: true }), 'ground-picker') === false)
     check('…nor the model picker', may(armed({ seatAsk: true }), 'settings') === false)
     check('the manager seat-ask card stands ⇒ neither picker arms', may(armed({ managerSeatAsk: true }), 'ground-picker') === false && may(armed({ managerSeatAsk: true }), 'settings') === false)
@@ -53,12 +51,10 @@ section('§1 mayArmBoardModal — a pointer door arms only while no other owner 
     check('the row pick stands ⇒ no picker arms', may(armed({ rowPick: true }), 'ground-picker') === false)
     check('the git-offer card stands ⇒ no picker arms over it', may(armed({ gitOffer: true }), 'ground-picker') === false)
     check('the atlas is open ⇒ no picker arms under it', may(armed({ helpOpen: true }), 'settings') === false)
-
     check('the ground picker is open ⇒ its own door still answers (the click closes it)', may(armed({ groundPickerOpen: true }), 'ground-picker') === true)
     check('the model picker is open ⇒ its own door still answers', may(armed({ settingsOpen: true }), 'settings') === true)
     check('the ground picker is open ⇒ the MODEL door does not arm a second Select', may(armed({ groundPickerOpen: true }), 'settings') === false)
     check('the model picker is open ⇒ the GROUND door does not arm a second Select', may(armed({ settingsOpen: true }), 'ground-picker') === false)
-
     check('a manager card with focus elsewhere ⇒ the doors answer', may(armed({ managerCardArmed: true, coordinatorFocused: false }), 'ground-picker') === true)
     check('a focused manager card ⇒ the doors yield', may(armed({ managerCardArmed: true, coordinatorFocused: true }), 'ground-picker') === false)
     check('the predicate is the owner table, not a second lattice', may(armed({ seatAsk: true, groundPickerOpen: true }), 'ground-picker') === (boardModalOwner(armed({ seatAsk: true, groundPickerOpen: true })) === 'ground-picker'))
@@ -71,7 +67,6 @@ section('§2 gitOfferOwnsTheKeys — the stacked card paints exactly while the t
   if (gitOfferOwnsTheKeys) {
     const owns = gitOfferOwnsTheKeys
     check('an offer alone owns the keys (the card paints)', owns(armed({ gitOffer: true })) === true)
-
     check('THE MODEL PICKER IS OPEN ⇒ the card does not paint over it (the base stacked it on top)', owns(armed({ gitOffer: true, settingsOpen: true })) === false)
     check('THE GROUND PICKER IS OPEN ⇒ the card does not paint over it', owns(armed({ gitOffer: true, groundPickerOpen: true })) === false)
     check('the row pick stands ⇒ the card waits', owns(armed({ gitOffer: true, rowPick: true })) === false)

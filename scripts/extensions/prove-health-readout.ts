@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { chmodSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -76,7 +75,6 @@ console.log('[1] broken: each probe with its reason')
   writeFileSync(join(root, 'README.md'), 'tampered\n')
   h = health.computeHealth(entryFor(id), {}, { probes })
   check('a tampered copy ⇒ broken "changed since install"', h.health.outcome === 'broken' && h.health.reasons[0]!.includes('changed since install'), h.health.reasons.join('; '))
-
   cpSync(join(FIXTURE, 'kitchen-sink', 'README.md'), join(root, 'README.md'))
   manifest.version = '9.9.9'
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
@@ -95,7 +93,6 @@ console.log('[1] broken: each probe with its reason')
     rosterMod.setActiveSnapshot(null)
     activeMod.publishActiveSet(null)
   }
-
   removeScratch(paths.getInstalledIdDir(id))
   records.updateInstalled(current => { const next = { ...current }; delete next[id]; return next })
   const again = await install.installFromSource('fixture-source', 'kitchen-sink')
@@ -156,7 +153,6 @@ console.log('[2] partial: each probe is one line naming the piece')
   check('a missing hook script ⇒ partial naming the file and event', hk.health.outcome === 'partial' && hk.health.reasons.some(r => r.includes('fixture-hook.sh') && r.includes('file missing')), hk.health.reasons.join(' | '))
   writeFileSync(script, '#!/bin/sh\nexit 0\n')
   chmodSync(script, 0o644)
-
   const direct = join(scratch, 'probe-direct')
   mkdirSync(join(direct, 'bin'), { recursive: true })
   writeFileSync(join(direct, 'mercury-extension.json'), JSON.stringify({ name: 'direct-hook', version: '1.0.0', description: 'x', contributes: { hooks: { 'turn.answer': [{ run: '${MERCURY_EXTENSION_ROOT}/bin/run.sh' }] } } }))
@@ -174,7 +170,6 @@ console.log('[3] the managers\' live facts join the readout')
     servers: new Map([['ext:kitchen-sink:fixture', { state: 'failed' as const, detail: 'exit 1' }]]),
     language: new Map([['ext:kitchen-sink:fixture-ls', { state: 'error' as const, detail: 'crashed' }]]),
   }
-
   const probes3 = { ...probes, onPath: (b: string) => b === 'node' || b === 'fixture-language-server' }
   health.resetRuntimeCounters()
   health.recordHookFailure('kitchen-sink@fixture-source', 'fixture-hook.sh', 'timeout')
@@ -200,7 +195,6 @@ console.log('[4] one owner: the row, /health and readiness derive from the same 
   const partial = rows.find(r => r.id === 'partial-one@fixture-source')
   check('the CLI row carries the word and the first reason', partial !== undefined && partial.state.includes('partial') && partial.state.includes('·'), partial?.state)
   check('the CLI --json carries the FULL reason list', partial !== undefined && (partial.health?.reasons.length ?? 0) >= 3, String(partial?.health?.reasons.length))
-
   writeFileSync(paths.getInstalledFile(), '{ not json')
   const degraded = rosterMod.computeRoster({ cwd })
   check('a corrupt installed.json ⇒ empty roster + a problem line', degraded.entries.filter(e => e.home === 'installed').length === 0 && degraded.problems.length === 1, degraded.problems.join(' | '))

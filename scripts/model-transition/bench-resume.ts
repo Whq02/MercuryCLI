@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -43,7 +42,6 @@ if (process.argv[2] === '--measure') {
     cold.push(r.ms)
     messages = r.messages
   }
-
   await run()
   if (!existsSync(sidecar)) {
     console.log(JSON.stringify({ error: 'no sidecar minted (file under SNAPSHOT_MIN_BYTES?)' }))
@@ -51,7 +49,6 @@ if (process.argv[2] === '--measure') {
   }
   const snap: number[] = []
   for (let i = 0; i < 3; i++) snap.push((await run()).ms)
-
   const preSize = statSync(file).size
   const tailFile = file + '.tail-tmp'
   await generateCorpus({ turns: 50, seed: 0xbadcafe }, tailFile)
@@ -80,7 +77,6 @@ mkdirSync(CORPUS_DIR, { recursive: true })
 const rows: Record<string, unknown>[] = []
 for (const size of SIZES) {
   const file = join(CORPUS_DIR, `corpus-${size.name}.jsonl`)
-
   const t0 = performance.now()
   const lines = await generateCorpus({ turns: size.turns }, file)
   const genMs = Math.round(performance.now() - t0)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
-
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 
 function runIn(home: string, body: string): Record<string, unknown> {

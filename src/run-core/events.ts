@@ -28,14 +28,11 @@ export type RunEvent =
       seq: number
       callId: string
       model: string
-
       effort: string | number | undefined
       maxOutputTokensOverride: number | undefined
-
       reference: ModelCallReference
     }
   | {
-
       kind: 'model_permit'
       seq: number
       callId: string
@@ -49,17 +46,14 @@ export type RunEvent =
       seq: number
       callId: string
       message: OpaqueMessage
-
       withheld: boolean
     }
   | {
-
       kind: 'withheld_surfaced'
       seq: number
       message: OpaqueMessage
     }
   | {
-
       kind: 'assistant_retracted'
       seq: number
       message: OpaqueMessage
@@ -76,14 +70,12 @@ export type RunEvent =
       seq: number
       toolUseId: string
       outcome: 'ok' | 'error' | 'aborted'
-
       synthetic: boolean
       message: OpaqueMessage
     }
   | {
       kind: 'compaction_boundary'
       seq: number
-
       trigger: 'auto' | 'overflow'
       messages: OpaqueMessage[]
     }
@@ -98,12 +90,10 @@ export type RunEvent =
       kind: 'interruption'
       seq: number
       phase: 'stream' | 'tools'
-
       steer: boolean
       message: OpaqueMessage | null
     }
   | {
-
       kind: 'hook_message'
       seq: number
       message: OpaqueMessage
@@ -113,11 +103,9 @@ export type RunEvent =
       seq: number
       gate: 'stop'
       outcome: 'passed' | 'prevented' | 'blocking'
-
       messages: OpaqueMessage[]
     }
   | {
-
       kind: 'notice'
       seq: number
       message: OpaqueMessage

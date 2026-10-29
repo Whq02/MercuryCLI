@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,11 +16,9 @@ const brief =
 delete process.env.NODE_ENV
 delete process.env.MERCURY_SCRIPTED_STREAM
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 const { pinHermeticCredentialedHome } = await import('./hermeticHome.ts')
 const HOME = pinHermeticCredentialedHome('admission-drill-home-')
 if (process.env.MERCURY_CONFIG_DIR !== HOME) throw new Error('the scratch config home did not pin')
-
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-daemon-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-crew-'))
 

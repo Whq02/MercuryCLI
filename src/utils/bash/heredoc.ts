@@ -63,7 +63,6 @@ function advanceScan(text: string, from: number, to: number, state: ScanState): 
       if (ch === '"') state.quote = 'plain'
       continue
     }
-
     if (ch === '\\') {
       i++
       continue
@@ -135,7 +134,6 @@ export function extractHeredocs(
 
   for (let i = 0; i + 1 < command.length; i++) {
     if (!(command[i] === '<' && command[i + 1] === '<')) continue
-
     if (command[i - 1] === '<' || command[i + 2] === '<') continue
 
     advanceScan(command, scanIndex, i, scan)
@@ -143,14 +141,12 @@ export function extractHeredocs(
 
     if (scan.quote !== 'plain' || scan.comment) continue
     if (precedingBackslashCount(command, i) % 2 === 1) continue
-
     if (candidates.some(c => c.skipped && i >= c.bodyStartIndex && i < c.contentEndIndex)) continue
 
     const parsed = parseCandidateAt(command, i)
     if (parsed === null) continue
 
     if (quotedOnly && !parsed.literalBody) {
-
       candidates.push({ ...parsed, skipped: true })
       continue
     }
@@ -190,7 +186,6 @@ export function extractHeredocs(
   for (const c of byBodyEndDesc) {
     const placeholder = placeholders.get(c) as string
     const operatorText = command.slice(c.operatorStartIndex, c.operatorEndIndex)
-
     const restorationText = operatorText + command.slice(c.bodyStartIndex, c.contentEndIndex)
     heredocs.set(placeholder, {
       fullText: restorationText,
@@ -201,7 +196,6 @@ export function extractHeredocs(
       contentEndIndex: c.contentEndIndex,
     })
     processed =
-
       processed.slice(0, c.operatorStartIndex) +
       placeholder +
       processed.slice(c.operatorEndIndex, c.bodyStartIndex) +
@@ -215,7 +209,6 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
   let i = opIndex + 2
   const dashForm = command[i] === '-'
   if (dashForm) i++
-
   while (command[i] === ' ' || command[i] === '\t') i++
 
   let literalBody: boolean
@@ -224,7 +217,6 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
 
   const quoteChar = command[i]
   if (quoteChar === "'" || quoteChar === '"') {
-
     let j = i + 1
     let body = ''
     if (command[j] === '\\') {
@@ -240,7 +232,6 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
     literalBody = true
     afterDelimiter = j + 1
   } else {
-
     let j = i
     let escaped = false
     if (command[j] === '\\') {
@@ -264,7 +255,6 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
     advanceScan(command, k, k + 1, lineScan)
     if (command[k] === '\n' && lineScan.quote === 'plain') {
       newlineIndex = k
-
       if (precedingBackslashCount(command, k) % 2 === 1) return null
       break
     }
@@ -280,7 +270,6 @@ function parseCandidateAt(command: string, opIndex: number): Candidate | null {
     delimiter,
     dashForm,
     literalBody,
-
     bodyStartIndex: newlineIndex,
     bodyEndIndex: found.delimiterLineStart,
     contentEndIndex: found.contentEndIndex,
@@ -303,7 +292,6 @@ function findClosingDelimiter(
     if (dashForm) stripped = stripped.replace(/^\t+/, '')
 
     if (stripped === delimiter) {
-
       return { delimiterLineStart: lineStart, contentEndIndex: lineEnd }
     }
     if (stripped.startsWith(delimiter) && stripped.length > delimiter.length) {

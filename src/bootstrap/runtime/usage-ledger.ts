@@ -25,7 +25,6 @@ export class UsageLedgerOwner {
   totalLinesRemoved = 0
   hasUnknownModelCost = false
   modelUsage: { [modelName: string]: ModelUsage } = {}
-
   unpricedTurns: { [modelName: string]: number } = {}
   workloadUsage: WorkloadUsage = {}
   workloadUnpricedTurns: WorkloadUnpricedTurns = {}
@@ -150,7 +149,6 @@ export class UsageLedgerOwner {
     totalLinesRemoved: number
     lastDuration: number | undefined
     modelUsage: { [modelName: string]: ModelUsage } | undefined
-
     unpricedTurns?: { [modelName: string]: number } | undefined
     workloadUsage?: WorkloadUsage | undefined
     workloadUnpricedTurns?: WorkloadUnpricedTurns | undefined

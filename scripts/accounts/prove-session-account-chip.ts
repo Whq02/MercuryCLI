@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -32,7 +31,6 @@ for (const key of [
 ]) {
   delete process.env[key]
 }
-
 delete process.env.NODE_ENV
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -138,7 +136,6 @@ section('C6 the face wires the composer (structural)')
 
 section('C7 the model chip beside it: the decision\'s own row word, healed when the catalogue lands')
 {
-
   const computed = await import('../../src/utils/model/computedDefault.ts')
   const catalogue = await import('../../src/services/providers/catalogueEpoch.ts')
   const keyless = { setting: 'claude-fable-5-1', why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default' }
@@ -154,7 +151,6 @@ section('C7 the model chip beside it: the decision\'s own row word, healed when 
   check('a sign-in whose catalogue is composing ⇒ keyless with the "no usable row yet" row (the sign-in is not denied)', composing.source === 'keyless' && composing.provider === null && composing.row === computed.NO_USABLE_ROW && composing.considered.length === 1, JSON.stringify({ row: composing.row, why: composing.why }))
   check('the default description explains why signed-in providers have no usable model', computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('name a model by id with /model, or sign in with /logins') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
   check('…/model\'s label and the terse line lead with the row word', computed.describeComputedDefaultLabel(composing).startsWith(`${computed.NO_USABLE_ROW} (default — `) && computed.describeComputedDefault(composing) === `${computed.NO_USABLE_ROW} · ${composing.why}`, computed.describeComputedDefaultLabel(composing))
-
   computed.resetComputedDefaultMemo()
   const first = computed.computedDefault()
   const second = computed.computedDefault()

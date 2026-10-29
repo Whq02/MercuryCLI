@@ -1,3 +1,4 @@
+
 import React, { useRef, useState } from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import type {
@@ -105,13 +106,10 @@ export function CollapsedReadSearchContent({
   isActiveGroup?: boolean
 }): React.ReactNode {
   const fullscreen = isFullscreenEnvEnabled()
-
   const selectedBg = useSelectedMessageBg()
   const memberEntries = React.useMemo(() => memberToolUses(message), [message])
   const memberIds = React.useMemo(() => memberEntries.map(entry => entry.id), [memberEntries])
-
   useEphemeralProgressVersion(memberIds)
-
   useFluxMountMark('read-group')
 
   const latchRef = useRef({ read: 0, search: 0, list: 0, mcp: 0, bash: 0 })
@@ -121,7 +119,6 @@ export function CollapsedReadSearchContent({
   latch.list = Math.max(latch.list, message.listCount)
   latch.mcp = Math.max(latch.mcp, message.mcpCallCount ?? 0)
   latch.bash = Math.max(latch.bash, fullscreen ? (message.bashCount ?? 0) : 0)
-
   const memoryReads = message.memoryReadCount
   const memorySearches = message.memorySearchCount
   const memoryWrites = message.memoryWriteCount
@@ -325,7 +322,6 @@ export function CollapsedReadSearchContent({
       if (!tool) continue
       let target: React.ReactNode | string | null = null
       try {
-
         target = tool.renderToolUseMessage?.(entry.input, { verbose: false }) ?? null
       } catch (error) {
         logError(error)
@@ -406,6 +402,7 @@ export function CollapsedReadSearchContent({
 
   if (totalOps === 0 && gitOps === 0) return null
 
+
   let tail: React.ReactNode = null
   if (active) {
     let slowest: { elapsed: number; lines: number } | null = null
@@ -465,8 +462,7 @@ export function CollapsedReadSearchContent({
   return (
     <Box flexDirection="column" backgroundColor={selectedBg}>
       <Box>
-        {
-}
+        {}
         <Box flexShrink={0}>
           <TranscriptNameplate />
         </Box>

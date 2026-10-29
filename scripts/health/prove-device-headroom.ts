@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
 import { parseMemAvailable, parseVmStat, deviceHeadroom } from '../../src/utils/cockpit/deviceHeadroom.ts'
@@ -41,6 +40,7 @@ t('resources check carries NO bare freemem() call (comments may name the trap)',
 t('no phantom mechanism named (the "spawn failsafe" prose is dead)', !/near the spawn failsafe/.test(check))
 t('busy = sustained oversubscription (≥1.25/core), not a gate run', /perCore >= 1\.25/.test(check))
 t('healthReport imports no freemem at all', !/import \{[^}]*freemem[^}]*\} from 'node:os'/.test(report))
+
 
 {
   const { readFileSync: readSrc94 } = await import('node:fs')

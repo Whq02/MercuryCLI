@@ -26,7 +26,6 @@ const healFence = (fromMs: number, toMs: number): string[] => {
 
 const run: ArenaRun = await runArtifactArena({
   turns: [],
-
   sends: [
     { awaitText: 'Type a prompt', text: '/bootmenu', afterPrevMs: 800 },
     { awaitText: '/bootmenu', text: '\r' },
@@ -46,7 +45,6 @@ const run: ArenaRun = await runArtifactArena({
 interface DriveEntry {
   ts?: number
   b64?: string
-
   sent?: number
   atMs?: number
 }
@@ -63,7 +61,6 @@ try {
   const chunks = entries
     .filter(e => typeof e.ts === 'number' && typeof e.b64 === 'string')
     .map(e => ({ ts: e.ts as number, text: Buffer.from(e.b64 as string, 'base64').toString('latin1') }))
-
   const submitSent = run.sendLog.find(e => e.step === 1)?.sent
   t.check('every route step reached its observed frame, including the receipt', run.sendLog.filter(e => e.step !== undefined).length === 6 && run.outcome.complete, run.driverOut)
   const windowStart = submitSent !== undefined ? submitSent - 200 : 0
@@ -74,7 +71,6 @@ try {
 
   t.section('§1 — the surface painted and returned (silence needs a live subject)')
   {
-
     const squash = (rows: { rows: unknown[] } | undefined): string =>
       ((rows?.rows ?? []) as Parameters<typeof visibleText>[0][]).map(visibleText).join('\n').replace(/\s+/g, '')
     const open = squash({ rows: run.sendLog.find(e => e.step === 3)?.screen ?? [] })
@@ -113,14 +109,11 @@ try {
   run.cleanup()
 }
 
+
 const WARM_AT = 6000
-
 const B_AT = 7000
-
 const LEFT_AT = 10000
-
 const RIGHT_AT = 12000
-
 const WAKE_AT = 13400
 const WAKE_BS_AT = 13800
 const CMD_AT = 14200
@@ -142,18 +135,15 @@ const crun: ArenaRun = await runArtifactArena({
     `${WAKE_BS_AT}:\x7f`,
     `${CMD_AT}:/concourse`,
     `${CMD_SUBMIT_AT}:\r`,
-
     `${ESC3_AT - 800}:\x1b[B`,
     `${ESC3_AT}:\x1b`,
     `${ESC3_AT + 900}:\x1b`,
-
     ...healFence(B_AT + 350, ESC3_AT + 900),
   ],
   seconds: 26,
   cols: 142,
   rows: 38,
   keep: true,
-
   anchor: null,
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
@@ -191,26 +181,22 @@ try {
   {
     const squash = (rows: { rows: unknown[] } | undefined): string =>
       ((rows?.rows ?? []) as Parameters<typeof visibleText>[0][]).map(visibleText).join('\n').replace(/\s+/g, '')
-
     const sentRel = (atMs: number): number => {
       const st = sentStamps.find(e => e.atMs === S(atMs))?.sent
       return st !== undefined ? st - base : S(atMs)
     }
     const LADDER = [400, 800, 1200, 1600, 2200, 3000, 4200, 6000, 8000, 10_000]
     const NONBLANK = 200
-
     const BACK = keyHintLabel('⇧← back').replace(/\s+/g, '')
     const isChat = (s: string): boolean => s.includes(BACK) || s.includes('Typeaprompt')
     const stations: Array<{ from: number; ready: (s: string) => boolean }> = [
       { from: 0, ready: s => s.includes('SESSIONCONCOURSE') },
-
       { from: sentRel(B_AT), ready: s => isChat(s) && !s.includes('SESSIONCONCOURSE') },
       { from: sentRel(LEFT_AT), ready: s => s.includes('SESSIONCONCOURSE') },
       { from: sentRel(RIGHT_AT), ready: s => isChat(s) && !s.includes('SESSIONCONCOURSE') },
       { from: sentRel(CMD_SUBMIT_AT), ready: s => s.includes('SESSIONCONCOURSE') },
       { from: sentRel(ESC3_AT), ready: s => !s.includes('SESSIONCONCOURSE') && s.length >= NONBLANK },
     ]
-
     const offsets = stations.flatMap(st => LADDER.map(d => Math.round(st.from + d)))
     const byAt = new Map(grabScreens(crun, 142, 38, offsets).map(g => [g.atMs, squash(g)]))
     const picked = stations.map(st => {

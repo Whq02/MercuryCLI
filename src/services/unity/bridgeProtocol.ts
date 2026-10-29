@@ -1,3 +1,4 @@
+
 export const UNITY_BRIDGE_PROTOCOL_VERSION = 1
 
 export const UNITY_BRIDGE_DEFAULT_PORT = 6011
@@ -6,6 +7,7 @@ export const UNITY_BRIDGE_MAX_LINE_BYTES = 8 * 1024 * 1024
 
 export const UNITY_BRIDGE_HIERARCHY_NODE_CAP = 2_000
 export const UNITY_BRIDGE_CONSOLE_RING_CAP = 1_000
+
 
 export const UNITY_BRIDGE_SERVER_ERROR_CODES = [
   'AUTH_FAILED',
@@ -37,12 +39,12 @@ export interface UnityBridgeError {
 }
 export type UnityBridgeResult = { ok: true; result: unknown } | { ok: false; error: UnityBridgeError }
 
+
 type UnityBridgeVerbClass = 'read' | 'mutate' | 'exec'
 
 export interface UnityBridgeVerbSpec {
   cls: UnityBridgeVerbClass
   summary: string
-
   args: Readonly<Record<string, string>>
 }
 
@@ -125,21 +127,18 @@ export function unityBridgeVerbNames(): UnityBridgeVerb[] {
   return Object.keys(UNITY_BRIDGE_VERBS) as UnityBridgeVerb[]
 }
 
+
 export interface UnityBridgePlayState {
   isPlaying: boolean
   isPaused: boolean
   isPlayingOrWillChangePlaymode: boolean
-
   willReloadOnPlay: boolean
 }
 
 export interface UnityBridgeHelloInfo {
   version: number
-
   bridge: string
-
   unity: string
-
   project: string
   playState: UnityBridgePlayState
 }
@@ -168,11 +167,12 @@ export interface UnityConsoleEntry {
   severity: UnityConsoleSeverity
   message: string
   stackTrace: string
-
   at: number
 }
 
+
 export const UNITY_BRIDGE_EVENTS = ['play_state_changed', 'test_run_finished'] as const
+
 
 export function buildUnityBridgeHelloFrame(token: string): string {
   return (

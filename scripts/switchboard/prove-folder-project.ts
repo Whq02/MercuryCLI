@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -69,7 +68,6 @@ const portable = await import('../../src/utils/sessionStoragePortable.ts')
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 
 try {
-
   console.log('F1 — the folder is the project, by its name, from boot')
   {
     state.setCwdState(FOO)
@@ -79,12 +77,10 @@ try {
     check('F1 the identity key is the folder\'s own session-store dir', current.key === portable.getProjectDir(FOO))
     check('F1 the same ground answers the same identity within the window', facts.currentProject() === current)
     const face = read('src/components/BootSplashScreen.tsx')
-
     check('F1 the Boot face\'s card names the cwd through the ONE naming seam on the ONE ground', face.includes('cwdBase: projectDisplayName(getCwd())'))
     check('F1 the Boot face\'s Dir chip names the cwd through the ONE naming seam on the ONE ground', face.includes('dir: projectDisplayName(getCwd())') && !/basename\((getCwd|process\.cwd)\(\)\)/.test(face))
     check('F1 the face reads the ground through the cwd owner alone (no raw process cwd anywhere on it)', face.includes("import { getCwd } from '../utils/cwd.js'") && !face.includes('process.cwd()'))
     const snapshot = read('src/services/concourse/concourseSnapshot.ts')
-
     check('F1 the concourse\'s project label reads the ONE catalog owner', snapshot.includes('const projectLabel = sanitizeLabel(projectDisplayName(projectDir))') && !snapshot.includes('basename(seedOverrides.projectDir ?? getCwd())'))
     const launcher = read('assets/splash/mercury-splash.mjs')
     check('F1 the launcher\'s frame-0 sites ride the mirrored seam (byte-equal across the hand-off)', (launcher.match(/projectDisplayName\(process\.cwd\(\)\)/g) ?? []).length === 3)
@@ -104,7 +100,6 @@ try {
     check('F2 no `.mercury/` appeared in the folder', !existsSync(join(FOO, '.mercury')))
     check('F2 the list is empty — a folder with no chat is not a listed project (it is still the current one, by name)', facts.workedInProjects().length === 0)
     const born = read('src/services/switchboard/bornSession.ts')
-
     const refusal = born.indexOf("reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start'))")
     const stamp = born.indexOf('catalogFirstChat(req.workspaceDir, sessionId)')
     const hop = born.indexOf('await hopIntoBoardSession(sessionId')
@@ -150,7 +145,6 @@ try {
     const picker = read('src/components/concourse/GroundPicker.tsx')
     const face = read('src/components/BootSplashScreen.tsx')
     check('F3 both listing surfaces render the ONE list (the picker rides workedInProjects, the face rides scanBootCardFacts on the ONE ground)', picker.includes('m.workedInProjects()') && face.includes('scanBootCardFacts(getCwd()'))
-
     const estateBefore = treeHash(estate)
     const cardBefore = read(cardPath)
     beats = []
@@ -158,7 +152,6 @@ try {
     check('F3 a second birth leaves the estate and the card untouched (the first stamp stands)', treeHash(estate) === estateBefore && read(cardPath) === cardBefore)
     check('F3 the second birth still emits the beat (the board re-reads, cheaply)', beats.length === 1)
     off()
-
     const transcript = join(store, '00000000-0000-4000-8000-00000000a111.jsonl')
     writeFileSync(transcript, JSON.stringify({ type: 'user', cwd: FOO, message: { role: 'user', content: 'hello' } }) + '\n')
     const rowNow = facts.workedInProjects().find(r => r.dir === FOO)
@@ -205,7 +198,6 @@ try {
     const rows = facts.workedInProjects()
     check('F5 the list carries each folder\'s own chat under its own row', rows.find(r => r.dir === FOO)?.sessionId === '00000000-0000-4000-8000-00000000a111' && rows.find(r => r.dir === BAR)?.sessionId === '00000000-0000-4000-8000-00000000b222')
     check('F5 the newest activity leads (bar\'s words came last)', rows[0]?.dir === BAR, rows.map(r => r.base).join(' · '))
-
     const beats: string[] = []
     const off = facts.subscribeCurrentProject(p => beats.push(`${p.name}:${p.catalogued}`))
     state.setCwdState(DELTA)
@@ -223,7 +215,6 @@ try {
 
   console.log('F6 — a project whose chats predate the card reads catalogued; no read writes the card')
   {
-
     const store = portable.getProjectDir(EPSILON)
     mkdirSync(store, { recursive: true })
     writeFileSync(join(store, '00000000-0000-4000-8000-00000000e555.jsonl'), JSON.stringify({ type: 'user', cwd: EPSILON, message: { role: 'user', content: 'old words' } }) + '\n')
@@ -239,7 +230,6 @@ try {
     facts.inProject(identity, EPSILON)
     check('F6 no read wrote the card (law 2: reads never write)', !existsSync(join(store, facts.PROJECT_CARD_FILE)) && treeHash(HOME) === homeBefore)
     check('F6 no read touched the folder', treeHash(EPSILON) === folderBefore && !existsSync(join(EPSILON, '.mercury')))
-
     facts.catalogFirstChat(EPSILON, 'sid-eps-1')
     const after = facts.projectIdentity(EPSILON)
     check('F6 the next birth stamps the pre-catalog project (estate + card) and keeps its chat', existsSync(join(EPSILON, '.mercury')) && typeof after.firstChatAt === 'number' && after.newestChat?.sessionId === '00000000-0000-4000-8000-00000000e555')

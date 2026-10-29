@@ -12,7 +12,6 @@ for (let i = 0; i < 200; i++) {
     continue
   }
   const w = WORDS[(i * 7 + 3) % WORDS.length]!
-
   deltas.push(i % 40 === 39 ? `${w}.\n` : `${w} `)
 }
 const SENTINELS = sIdx

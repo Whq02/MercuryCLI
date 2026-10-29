@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-
 const headSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim()
 const headTree = execFileSync('git', ['rev-parse', 'HEAD^{tree}'], { cwd: ROOT, encoding: 'utf8' }).trim()
 
@@ -20,7 +18,6 @@ function planWithGhShim(shimBody: string): { status: number | null; out: string 
   const bin = mkdtempSync(join(tmpdir(), 'vf-gh-shim-'))
   writeFileSync(join(bin, 'gh'), shimBody)
   chmodSync(join(bin, 'gh'), 0o755)
-
   const r = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/verify/fast.ts'), '--plan'], {
     cwd: ROOT,
     encoding: 'utf8',

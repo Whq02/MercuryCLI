@@ -1,3 +1,4 @@
+
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -40,6 +41,7 @@ function posOf(text: string, needle: string, occurrence = 0): { line: number; ch
 function uriOf(p: string): string {
   return pathToFileURL(p).href
 }
+
 
 interface Pending {
   resolve: (v: unknown) => void
@@ -219,7 +221,6 @@ async function main(): Promise<void> {
   }, 120_000)
 
   try {
-
     const init = await client.request<{
       capabilities: Record<string, unknown>
       serverInfo?: { name: string; version?: string }

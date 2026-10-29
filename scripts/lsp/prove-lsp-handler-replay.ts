@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -20,7 +19,6 @@ const extras: string[] = []
 let configHandlerCalls = 0
 
 const client = createLSPClient('fake', () => {})
-
 client.onNotification('textDocument/publishDiagnostics', (params: unknown) => {
   const p = params as { diagnostics?: Array<{ message: string }> }
   diagnostics.push(p.diagnostics?.[0]?.message ?? '(none)')

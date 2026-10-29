@@ -1,8 +1,8 @@
+
 import * as fsp from 'node:fs/promises'
 import * as path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — deep esm import (typings ride the package root)
 import { getCSSLanguageService, getLESSLanguageService, getSCSSLanguageService } from 'vscode-css-languageservice/lib/esm/cssLanguageService.js'
@@ -168,7 +168,6 @@ export async function runWebLspSidecar(
         case 'yaml':
           return yamlService.doValidation(doc, false)
         case 'html':
-
           return []
       }
     }
@@ -237,7 +236,6 @@ export async function runWebLspSidecar(
               rpcCode: RPC_INTERNAL_ERROR,
             })
           }
-
           return yamlService.doFormat(doc, {
             tabWidth: options.tabSize,
           })

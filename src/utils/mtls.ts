@@ -8,6 +8,7 @@ import { Agent, type Dispatcher } from 'undici'
 import { getCACertificates } from './caCerts.js'
 import { logForDebugging } from './debug.js'
 
+
 type MTLSConfig = { cert?: string; key?: string; passphrase?: string }
 type TLSConfig = MTLSConfig & { ca?: string[] }
 
@@ -19,7 +20,6 @@ function readMaterial(variable: string): string | undefined {
     logForDebugging(`mtls: loaded ${variable}`)
     return content
   } catch (err) {
-
     logForDebugging(`mtls: failed to read ${variable}: ${String(err)}`)
     return undefined
   }

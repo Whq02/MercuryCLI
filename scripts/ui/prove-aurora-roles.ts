@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { readFileSync } from 'node:fs'
@@ -124,7 +123,6 @@ section('§6 — consumer-QoL source invariants')
   const shortcuts = src('components', 'HelpV2', 'ShortcutsTab.tsx')
   check('shortcut help splits everyday from advanced', /head: 'everyday'/.test(shortcuts) && /head: 'advanced'/.test(shortcuts))
   const promptInput = src('components', 'PromptInput', 'PromptInput.tsx')
-
   const composerFloor = src('components', 'mercury-ui', 'composerFloor.ts')
   check('resting composer border is structural; composing regains the accent (shared composerFloor owner)',
     /empty \? 'promptBorderResting' : 'promptBorder'/.test(composerFloor) &&
@@ -147,11 +145,9 @@ section('§6 — consumer-QoL source invariants')
   const md = src('utils', 'markdown.ts')
   check("inline code spans ride 'info'", /color\('info', theme\)\(token\.text\)/.test(md))
   const fsl = src('components', 'FullscreenLayout.tsx')
-
   check('the jump-to-new pill is a NAVIGATION cue (info bg at rest, infoShimmer on hover)',
     /backgroundColor=\{hover \? 'infoShimmer' : 'info'\}/.test(fsl))
   const lanes = src('components', 'HelmLanesRail.tsx')
-
   check('lanes rail: lane names ride info', /const \{ info[^}]*\} = useMercuryTokens\(\)/.test(lanes))
   check('lanes rail: no standing "no recent sessions" stub', !/no recent sessions/.test(lanes))
   check('lanes rail: no stub gamedev lane', !/no missions yet/.test(lanes))
@@ -163,7 +159,6 @@ section('§6 — consumer-QoL source invariants')
 
 section('§7 — no new animation machinery (motion joins existing tiers only)')
 {
-
   const touched = [
     ['components', 'mercury-ui', 'RailPanel.tsx'],
     ['components', 'mercury-ui', 'components.tsx'],

@@ -21,15 +21,14 @@ function CritterCard({ on, ...box }: { on: boolean } & React.ComponentProps<type
   return <Box ref={cursorRef} {...box} />
 }
 
-export function CritterSelect({ onClose }: { onClose: () => void }): React.ReactNode {
 
+export function CritterSelect({ onClose }: { onClose: () => void }): React.ReactNode {
   const activeIndex = Math.max(
     0,
     ALL_CRITTERS.findIndex(c => c.key === getSessionAccent().key),
   )
   const paneCols = useTerminalSize().columns
   const oneRow = paneCols >= 84
-
   const dockDefs = React.useMemo(() => ALL_CRITTERS.map(c => critterDefForKey(c.key)), [])
 
   const nav = useInteractiveList({
@@ -41,7 +40,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
     onClose,
     actions: [
       {
-
         key: 'return',
         run: picked => {
           if (picked) {
@@ -53,7 +51,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
         hint: 'pick',
       },
       {
-
         key: 't',
         run: picked => {
           if (picked) setSessionCritter(picked.key)
@@ -71,7 +68,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
 
   const sel = nav.selectedIndex
   const liveActive = getSessionAccent().key
-
   const hoverBase = React.useId()
   const hoverOwner = useHoverOwner()
   const hovered =
@@ -100,7 +96,6 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
               on={on}
               key={c.key}
               borderStyle="round"
-
               borderColor={on || hovered === i ? c.accent : DUNE}
               marginRight={1}
               marginBottom={1}
@@ -111,10 +106,8 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
               onMouseEnter={() => claimHover(`${hoverBase}:${i}`)}
               onMouseLeave={() => releaseHover(`${hoverBase}:${i}`)}
             >
-              {
-}
-              {
-}
+              {}
+              {}
               <Box
                 height={SQUARE_DOCK_ART_LINES}
                 flexDirection="column"

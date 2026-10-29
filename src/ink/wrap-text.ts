@@ -1,3 +1,4 @@
+
 import sliceAnsi from '../utils/sliceAnsi.js'
 import { stringWidth } from './stringWidth.js'
 import { wrapAnsi } from './wrapAnsi.js'
@@ -18,6 +19,7 @@ function trailingSlice(text: string, width: number): string {
   if (stringWidth(out) > width) out = sliceAnsi(text, total - width + 1)
   return out
 }
+
 
 function stripSoftBreakIndent(line: string): string {
   let i = 0

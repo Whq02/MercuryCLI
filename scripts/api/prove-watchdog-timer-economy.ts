@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,7 +38,6 @@ globalThis.setTimeout = countingSetTimeout
 delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'watchdog-economy-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '30000'
 process.env.MERCURY_MAX_RETRIES = '1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }

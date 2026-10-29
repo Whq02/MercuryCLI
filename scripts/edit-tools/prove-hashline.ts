@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -134,7 +133,6 @@ section('L. pure line-anchor math')
   check('L9 the backslash-u spelling and the raw byte are distinct content', mintLineHash(escLine) !== mintLineHash(`data: '${RAW_ESC}[1;2D'`))
   const escDomain = anchorDomainLines(`send:\n${escLine}\nend`)
   check('L9b an escape-bearing line verifies by its own anchor', verifyLineRef(escDomain, { line: 2, hash: mintLineHash(escLine) }).ok)
-
   const nulLine = `const nul = '${LITERAL_NUL_SPELLING}'`
   check(
     'L9c the backslash-u0000 spelling and the NUL byte are distinct content',
@@ -253,7 +251,6 @@ section('R. the anchored read mode (real FileReadTool)')
   const anchoredRows = (anchoredRead.ok && anchoredRead.ok === true ? anchoredRead.text : '')
     .split('\n')
     .filter(row => /^\d+#/.test(row))
-
   check(
     'R3 anchored rows mirror the plain rows; content rows self-verify against the recorded content',
     anchoredRows.length === 5 &&
@@ -629,7 +626,6 @@ section('E. hash-qualified hunks (real FileEditTool)')
   primeRead(ctx11, fileJ)
   const e11 = await editViaTool({ file_path: fileJ, hunks: [{ lines: `1#${anchorFor('hello')}`, replace: 'HELLO' }] }, ctx11)
   check('E11 a BOM file edits by the visible line-1 anchor and keeps its BOM', e11.ok && e11.ok === true && readFileSync(fileJ, 'utf8') === `${BOM}HELLO\nworld\n`)
-
   const fileJ2 = join(fixtures, 'j2.txt')
   writeFileSync(fileJ2, `${BOM}hello\nworld\n`)
   const ctx11b = makeEditContext()

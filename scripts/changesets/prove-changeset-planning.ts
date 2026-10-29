@@ -343,7 +343,6 @@ console.log('── §5 digest determinism + no-change classification ──')
 {
   const m1 = [member(aPath, [{ lines: '2', replace: 'DET' }]), member(bPath, [{ lines: '1', replace: 'DET' }])]
   const m2 = [member(bPath, [{ lines: '1', replace: 'DET' }]), member(aPath, [{ lines: '2', replace: 'DET' }])]
-
   const m3 = [
     { hunks: [{ replace: 'DET', lines: '1' }], expected_anchor: anchorOf(bPath), file_path: bPath },
     { expected_anchor: anchorOf(aPath), hunks: [{ lines: '2', replace: 'DET' }], file_path: aPath },

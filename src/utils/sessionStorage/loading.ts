@@ -1,3 +1,4 @@
+
 import type { UUID } from 'crypto'
 import { join } from 'path'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
@@ -29,7 +30,6 @@ export async function loadTranscriptFile(
     const view = await readTranscript(filePath, { policy: opts?.keepAllLeaves ? 'all' : 'resume' })
     fold = copyOfFold(view.fold)
   } catch (e) {
-
     if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       logError(
         new Error(

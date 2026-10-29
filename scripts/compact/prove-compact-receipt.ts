@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -25,7 +24,6 @@ for (const ambient of [
   delete process.env[ambient]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compact-receipt-'))
-
 process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 
 const FIXTURE_PORT = 0

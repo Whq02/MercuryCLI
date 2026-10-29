@@ -9,6 +9,7 @@ import { Box, Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { truncate } from '../../utils/format.js'
 
+
 type RenderInput = { pattern?: string; rewrite?: string; path?: string; glob?: string; apply?: boolean }
 
 type RenderOutput = {
@@ -91,7 +92,7 @@ export function renderToolResultMessage(
           <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>
         ) : null}
       </Box>
-
+  
       )}
     </WithCardTone>
   )

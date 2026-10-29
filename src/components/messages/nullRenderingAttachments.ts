@@ -1,3 +1,4 @@
+
 import type { Message } from '../../types/message.js'
 import type { NormalizedMessage } from '../../types/message.js'
 

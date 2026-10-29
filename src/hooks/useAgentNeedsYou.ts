@@ -9,6 +9,7 @@ import {
 import type { Message } from '../types/message.js'
 import { getAssistantMessageText } from '../utils/messages.js'
 
+
 function latestAssistantText(messages: readonly Message[]): string | null {
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i]!
@@ -33,13 +34,11 @@ export function useAgentNeedsYou(
     if (!agentNeedsYouEnabled()) return
     const wasLoading = prevLoadingRef.current
     prevLoadingRef.current = isLoading
-
     if (!wasLoading && isLoading) {
       abortRef.current?.abort()
       clearAgentStateVerdict(getSessionId())
       return
     }
-
     if (!wasLoading || isLoading) return
 
     const text = latestAssistantText(messagesRef.current)

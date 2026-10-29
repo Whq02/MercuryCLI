@@ -36,7 +36,6 @@ async function main(): Promise<void> {
       'every check carries duration + evidence timestamp',
       checks.every(c => typeof c.durationMs === 'number' && typeof c.evidenceAt === 'number'),
     )
-
     const ifaceTokens = checks.find(c => c.id === 'iface-tokens')
     check(
       'iface-tokens: every family resolves every role (structured tokens included)',
@@ -85,7 +84,6 @@ async function main(): Promise<void> {
     const dap = await import('../../src/services/dap/dapClient.js')
     const counts = lifecycle.ownerLifecycleCounts()
     const fixtureResidue = Object.entries(counts.stores).filter(([, n]) => n > 0)
-
     check('no DAP sessions survive', dap._dapSessionCountForTesting() === 0)
     check(
       'no health-probe fixture owners survive in any registry',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { codeOnlyText } from '../lib/codeText.ts'
@@ -25,7 +24,6 @@ section('D1 · a keystroke burst coalesces to ONE scan')
 {
   let runs = 0
   let timer: ReturnType<typeof setTimeout> | null = null
-
   for (let i = 0; i < 10; i++) {
     disarmHistoryScanTimer(timer)
     timer = armHistoryScanTimer(() => {
@@ -90,7 +88,6 @@ section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every 
     'the non-empty keystroke path arms ONE debounced scan at the named cadence, reading the query at fire time',
     /disarmHistoryScanTimer\(scanDebounceRef\.current\)\s*\n\s*scanDebounceRef\.current = armHistoryScanTimer\(\(\) => \{\s*\n\s*scanDebounceRef\.current = null\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
   )
-
   const setQueryCode = codeOnlyText('useHistorySearch.ts', setQueryBlock)
   const branchStart = setQueryCode.indexOf("if (query === '') {")
   let branchEnd = -1
@@ -128,14 +125,11 @@ section('G · the fast-Enter arm — the identity is fixed synchronously over th
   const { findHistoryMatchSync, resolveFixedMatch } = hooks
   type Rec = { display: string; pastedContents: Record<number, { id: number; type: 'text' | 'image'; content?: string; contentHash?: string }>; timestamp: number; project: string }
   const rec = (display: string, pastedContents: Rec['pastedContents'] = {}): Rec => ({ display, pastedContents, timestamp: 1, project: '/p' })
-
   const corpus = [rec('foo fighters'), rec('foobar'), rec('foob!'), rec('unrelated')] as never
-
   {
     const settledForFoo = findHistoryMatchSync(corpus, 'foo', new Set())
     check('G1 fixture: the settled "foo" match is the first row', settledForFoo?.display === 'foo fighters')
     let timer: ReturnType<typeof setTimeout> | null = armHistoryScanTimer(() => {}, HISTORY_SCAN_DEBOUNCE_MS)
-
     disarmHistoryScanTimer(timer)
     timer = null
     const fixed = findHistoryMatchSync(corpus, 'foob', new Set())
@@ -144,13 +138,10 @@ section('G · the fast-Enter arm — the identity is fixed synchronously over th
     await sleep(HISTORY_SCAN_DEBOUNCE_MS * 2)
     check('G1 the disarmed scan never fires', historyScanTimerCensus() === 0)
   }
-
   check('G2 with the seen set standing, the next not-yet-seen match is fixed', findHistoryMatchSync(corpus, 'foob', new Set(['foobar']))?.display === 'foob!')
   check('G2 the walk keeps the reader order (newest first)', findHistoryMatchSync(corpus, 'foo', new Set())?.display === 'foo fighters')
-
   check('G3 no record matches ⇒ undefined (Enter then acts on no match, never a stale one)', findHistoryMatchSync(corpus, 'zzz', new Set()) === undefined)
   check('G3 every match seen ⇒ undefined', findHistoryMatchSync(corpus, 'foob', new Set(['foobar', 'foob!'])) === undefined)
-
   {
     let plain: unknown = 'unset'
     resolveFixedMatch(rec('plain prompt') as never, entry => {

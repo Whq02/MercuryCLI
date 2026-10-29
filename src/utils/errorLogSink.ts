@@ -9,6 +9,7 @@ import { getErrnoCode } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
 
+
 const LOG_FILE_NAME = `${dateToFilename(new Date())}.jsonl`
 
 function localDayFilename(date: Date = new Date()): string {
@@ -153,13 +154,11 @@ function sinkLogError(error: unknown): void {
 
 function sinkLogMCPError(serverName: string, error: unknown): void {
   const errorString = deriveErrorString(error)
-
   logForDebugging(`MCP server "${serverName}" ${errorString}`, { level: 'error' })
   writeJsonlRecord(getMCPLogsPath(serverName), {
     error: errorString,
     timestamp: new Date().toISOString(),
     sessionId: getSessionId(),
-
     cwd: getFsImplementation().cwd(),
   })
 }

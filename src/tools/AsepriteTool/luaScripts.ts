@@ -1,3 +1,4 @@
+
 export const SPRITE_PROBE_LUA = `-- Mercury sprite census probe (read-only)
 local spr = app.activeSprite
 if spr == nil then

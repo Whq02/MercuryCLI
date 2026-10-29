@@ -11,6 +11,7 @@ import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
 import { MANIFEST_FILE } from './paths.js'
 import { treeFileDigests } from './tree.js'
 
+
 export const NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
 export const NAME_RULE = 'lowercase letters, digits and hyphens, 1–40 characters, starting with a letter or digit'
 export const RESERVED_LABELS = ['project', 'session', 'mercury'] as const
@@ -35,6 +36,7 @@ export type ContributionKind = (typeof CONTRIBUTION_KINDS)[number]
 
 export const SWITCH_KINDS = ['hooks', 'servers', 'language', 'agents', 'skills', 'channels', 'keybindings'] as const
 export type SwitchKind = (typeof SWITCH_KINDS)[number]
+
 
 const relativeDirSchema = lazySchema(() =>
   z
@@ -75,7 +77,6 @@ const stdioServerSchema = lazySchema(() =>
 const remoteServerSchema = lazySchema(() =>
   z.strictObject({
     type: z.enum(['http', 'sse']).describe("The transport: 'http' (streamable HTTP) or 'sse'."),
-
     url: z
       .string()
       .min(1)
@@ -191,6 +192,7 @@ export const KNOWN_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'module',
 ])
 
+
 export type ManifestParse =
   | { ok: true; manifest: ExtensionManifest; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] }
@@ -202,7 +204,6 @@ export function issuePath(path: ReadonlyArray<PropertyKey>): string {
 export function parseManifestText(text: string, options: { strict?: boolean } = {}): ManifestParse {
   let raw: unknown
   try {
-
     raw = JSON.parse(stripBOM(text))
   } catch (error) {
     return { ok: false, errors: [`manifest is not JSON: ${error instanceof Error ? error.message : String(error)}`], warnings: [] }
@@ -259,6 +260,7 @@ export function readManifest(dir: string, options: { strict?: boolean } = {}): M
   return { status: 'ok', manifest: parsed.manifest, warnings: parsed.warnings, path }
 }
 
+
 export function resolveInsideRoot(root: string, declared: string): string | null {
   const absoluteRoot = resolve(root)
   const candidate = isAbsolute(declared) ? resolve(declared) : resolve(absoluteRoot, declared)
@@ -282,6 +284,7 @@ export function manifestPathErrors(manifest: ExtensionManifest, root: string): s
   }
   return errors
 }
+
 
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
@@ -308,6 +311,7 @@ export function shortHash(hash: string | null | undefined): string {
   const body = hash.replace(/^sha256:/, '')
   return body.slice(0, 7)
 }
+
 
 export function extensionId(name: string, label: string): string {
   return `${name}@${label}`

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -75,7 +74,6 @@ const SPECIMENS: ReadonlyArray<{ family: string; id: string }> = [
 ]
 
 section('§1 — the catalog family census: every row folds to a DECLARED family')
-
 {
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
   const families = new Map<string, number>()
@@ -97,7 +95,6 @@ section('§1 — the catalog family census: every row folds to a DECLARED family
 }
 
 section('§2 — canonicalization, one door: aliases fold home; engine ids pass verbatim')
-
 {
   const opus = await workerModels.canonicalWorkerModelId('opus')
   check("legacy key 'opus' folds to a canonical claude id", opus.startsWith('claude-opus-'), opus)
@@ -110,7 +107,6 @@ section('§2 — canonicalization, one door: aliases fold home; engine ids pass 
 }
 
 section('§3 — the KEYLESS world: every family refuses TYPED with its OWN name and fix')
-
 {
   for (const s of SPECIMENS) {
     const verdict = await workerModels.validateWorkerModelChoice(s.id, 'session')
@@ -137,7 +133,6 @@ section('§3 — the KEYLESS world: every family refuses TYPED with its OWN name
 }
 
 section('§4 — the CREDENTIALED world (presence = existence): the session arm admits; the crew arm keeps its vocabulary')
-
 {
   process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-token'
   process.env.OPENAI_API_KEY = 'fixture-key'
@@ -151,7 +146,6 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
   process.env.MERCURY_COMPAT_API_KEY = 'fixture-key'
   const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
   const presence = new Map(providerFamilyPresences().map(p => [p.id, p.credentialed]))
-
   for (const must of ['anthropic', 'openai', 'zai']) {
     check(`presence flips for ${must} on its fixture key`, presence.get(must) === true, JSON.stringify([...presence]))
   }
@@ -162,11 +156,9 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
     }
     const session = await workerModels.validateWorkerModelChoice(s.id, 'session')
     check(`${s.family}: the session arm admits '${s.id}'`, session.ok === true, JSON.stringify(session))
-
     const crew = await workerModels.validateWorkerModelChoice(s.id, 'crew')
     check(`${s.family}: the crew arm admits '${s.id}' (no family is favoured for a crew seat)`, crew.ok === true, JSON.stringify(crew))
   }
-
   const haikuSession = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'session')
   const haikuCrew = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
   check('small tier: a session runs what the account runs', haikuSession.ok === true, JSON.stringify(haikuSession))
@@ -174,7 +166,6 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
 }
 
 section('§5 — the launch receipt is family-neutral: model + tier named for engine ids exactly as for home ids')
-
 {
   const tools = await import('../../src/services/concourse/coordinatorTools.ts')
   const launch = tools.coordinatorToolSet().find(d => d.name === 'launch_session')!
@@ -223,7 +214,6 @@ section('§5 — the launch receipt is family-neutral: model + tier named for en
       check('…with the honest default disclaimer when no tier was asked', /no tier was asked/.test(String(receipt?.detail)), String(receipt?.detail))
     }
   }
-
   {
     const ctx = tools.createCoordinatorToolContext({
       workspaceRoot: scratch,
@@ -247,7 +237,6 @@ section('§5 — the launch receipt is family-neutral: model + tier named for en
       String(receipt?.detail),
     )
   }
-
   const { resolveStampedEffortTruth, isEffortLevel } = await import('../../src/utils/effort.ts')
   for (const c of cases) {
     if (!isEffortLevel(c.stamped)) continue
@@ -261,17 +250,14 @@ section('§5 — the launch receipt is family-neutral: model + tier named for en
 }
 
 section('§6 — the daemon preview refuses keyless typed and passes credentialed (one validator, by construction)')
-
 {
   const { preflightConcourseDispatch } = await import('../../src/daemon/concourseDispatch.ts')
-
   const okPreview = await preflightConcourseDispatch(
     { clientMessageId: 'm-ok', prompt: 'walk', workspaceDir: scratch, modelKey: 'gpt-5.2' } as never,
     join(scratch, 'daemon'),
   )
   const okModelRefusals = okPreview.ok ? [] : okPreview.refusals.filter(r => r.code === 'invalid-model')
   check('a credentialed engine id passes the model gate', okModelRefusals.length === 0, JSON.stringify(okPreview))
-
   delete process.env.OPENAI_API_KEY
   const keyless = await preflightConcourseDispatch(
     { clientMessageId: 'm-no', prompt: 'walk', workspaceDir: scratch, modelKey: 'gpt-5.2' } as never,
@@ -283,7 +269,6 @@ section('§6 — the daemon preview refuses keyless typed and passes credentiale
     refusal !== undefined && /no-credential:openai/.test(refusal.reason) && /\/logins openai/.test(refusal.reason),
     JSON.stringify(keyless),
   )
-
   const junk = await preflightConcourseDispatch(
     { clientMessageId: 'm-junk', prompt: 'walk', workspaceDir: scratch, modelKey: 'glm-4.7', effort: 'ludicrous' } as never,
     join(scratch, 'daemon'),

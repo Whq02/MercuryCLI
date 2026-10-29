@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -83,14 +82,12 @@ const user = (text: string): unknown => ({
   timestamp: new Date().toISOString(),
   message: { role: 'user', content: [{ type: 'text', text }] },
 })
-
 function transcriptAt(total: number): unknown[] {
   const output = 500
   const cacheRead = Math.floor(total / 3)
   const cacheCreation = 100
   const input = total - output - cacheRead - cacheCreation
   const u: Usage = { input_tokens: input, output_tokens: output, cache_creation_input_tokens: cacheCreation, cache_read_input_tokens: cacheRead }
-
   return [user('hi'), asst('resp-X', { ...u, output_tokens: 1 }, 'block one', null), asst('resp-X', u, 'block two', 'end_turn')]
 }
 
@@ -118,7 +115,6 @@ for (const f of FAMILIES) {
   const threshold = compact.getAutoCompactThreshold(f.model)
   thresholds.set(f.model, threshold)
   const reserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 4))
-
   const expected = effective - 3_000 - 20_000
   check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold }))
 }
@@ -141,11 +137,9 @@ for (const f of FAMILIES) {
   check(`${f.label}: false at threshold − 1, true at threshold`, fireBelow === false && fireAt === true, JSON.stringify({ fireBelow, fireAt }))
 }
 {
-
   const oldFallbackThreshold = 200_000 - 20_000 - 13_000
   const fired = await compact.shouldAutoCompact(transcriptAt(oldFallbackThreshold) as never, 'openrouter/stealth/ox-alpha')
   check('the 1M carrier at 167,000 tokens (the fallback-window threshold) does NOT compact', fired === false)
-
   const fired131 = await compact.shouldAutoCompact(transcriptAt(120_000) as never, 'openrouter/meta/llama-small')
   check('the 131k carrier at 120,000 tokens DOES compact (the fallback window would have let it overflow)', fired131 === true)
 }
@@ -171,7 +165,6 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   const compactAt = compact.calculateTokenWarningState(threshold, model)
   const blockedAt = compact.calculateTokenWarningState(effective - 3_000, model)
   check('warning ladder: warn 20k before the fold, compact at the fold, blocked only at the edge', warnAt.level === 'warn' && warnBelow.level === 'ok' && compactAt.level === 'compact' && blockedAt.level === 'blocked', JSON.stringify({ warnAt, warnBelow, compactAt, blockedAt }))
-
   check('pctLeft is measured to the trigger threshold over the model window (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / resolveContextWindow(model).effectiveWindow) * 100), JSON.stringify({ compactAt, warnAt }))
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
   check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow))

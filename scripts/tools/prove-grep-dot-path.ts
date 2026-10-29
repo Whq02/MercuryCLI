@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/permissions/windowsPath.ts src/utils/permissions/filesystem.ts src/tools/GrepTool/GrepTool.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

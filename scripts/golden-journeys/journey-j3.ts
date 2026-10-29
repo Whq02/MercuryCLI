@@ -1,3 +1,4 @@
+
 import {
   SIDS,
   JourneyWalker,
@@ -32,7 +33,6 @@ const facts = [
   walker.probeFact('remains', 'document the new commands', ROUTES),
   walker.probeFact('blocked', 'publish the release notes', ROUTES),
   walker.probeFact('proposed-next', 'continue the open deliverable', ROUTES),
-
   walker.probeFact('completion-evidence', 'checks: unverified', [{ cmd: '/run' }]),
 ]
 

@@ -9,9 +9,7 @@ export type HealthOutcome = 'loads' | 'partial' | 'broken'
 
 export type Health = {
   outcome: HealthOutcome
-
   reasons: string[]
-
   notes: string[]
 }
 
@@ -24,40 +22,26 @@ export type RosterEntry = {
   description: string
   label: string
   home: ExtensionHome
-
   root: string | null
   manifest: ExtensionManifest | null
   manifestWarnings: string[]
-
   manifestErrors: string[]
   record: InstalledRecord | null
   source: SourceRecord | null
   contributionsHash: string | null
-
   approved: boolean
-
   changedSinceApproval: boolean
-
   switchedOn: boolean
   switchScope: 'everywhere' | 'project' | 'off'
   blockedBy: BlockedBy
-
   shadowedBy: string | null
-
   pending: 'on' | 'off' | 'update' | null
-
   availableVersion: string | null
-
   noLongerOffered: boolean
-
   sourceRemoved: boolean
-
   changedOnDisk: boolean
-
   proposal: { source: string; ref?: string } | null
-
   previous: { version: string; path: string } | null
-
   bundledUpdatedWith: string | null
 }
 

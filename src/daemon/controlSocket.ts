@@ -1,3 +1,4 @@
+
 import net from 'node:net'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync, unlinkSync } from 'node:fs'
@@ -58,27 +59,19 @@ export function controlKeyPath(): string {
   return join(daemonDir(), 'control.key')
 }
 
+
 export interface DaemonState {
   pid: number
   version: string
-
   origin: 'transient'
-
   startedAt: number
-
   dir: string
-
   controlSock: string
-
   proto?: number
-
   buildTree?: string | null
   script?: string
-
   ownerPid?: number | null
-
   foreground?: boolean
-
   startToken?: string | null
   persist?: boolean
   state?: 'stopping'
@@ -167,14 +160,12 @@ export async function clearControlKey(): Promise<void> {
 }
 
 export function daemonExitTeardownSync(reason: string, exitCode?: number): void {
-
   const keptFiles: string[] = []
   if (ownsControlPlaneSync()) {
     for (const p of [daemonStatePath(), join(daemonDir(), 'daemon.lock'), controlKeyPath()]) {
       try {
         unlinkSync(p)
       } catch (e) {
-
         if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
           keptFiles.push(`${p.split(/[\\/]/).pop() ?? p}:${(e as NodeJS.ErrnoException).code ?? 'EUNKNOWN'}`)
         }
@@ -188,7 +179,6 @@ export function daemonExitTeardownSync(reason: string, exitCode?: number): void 
     pid: process.pid,
     reason: keptFiles.length > 0 ? `${reason} (sweep-failed: ${keptFiles.join(', ')})` : reason,
   })
-
   if (reason === 'exit-before-teardown') {
     try {
       process.stderr.write(
@@ -199,11 +189,11 @@ export function daemonExitTeardownSync(reason: string, exitCode?: number): void 
   }
 }
 
+
 export async function mintControlKey(): Promise<string> {
   const key = randomBytes(32).toString('hex')
   await mkdir(daemonDir(), { recursive: true })
   await writeFile(controlKeyPath(), key, { mode: 0o600 })
-
   await chmod(controlKeyPath(), 0o600).catch(() => {})
   return key
 }
@@ -217,7 +207,6 @@ export async function readControlKey(): Promise<string | null> {
 }
 
 let controlKeyMemo: string | null = null
-
 export function clearControlKeyMemo(): void {
   controlKeyMemo = null
 }
@@ -231,12 +220,10 @@ async function controlKeyForStamp(): Promise<string | null> {
   if (key !== null) controlKeyMemo = key
   return key
 }
-
 let lastUnreachableAt = 0
 export function daemonLastUnreachableAt(): number {
   return lastUnreachableAt
 }
-
 export const controlSocketCensus = { keyReads: 0, keyMemoHits: 0, eauthRetries: 0, waitsExtended: 0, waitsEndedDead: 0, waitsEndedIdle: 0 }
 
 let boxReadingForTesting: { load1: number; cores: number } | null = null
@@ -263,6 +250,7 @@ export function verifyControlAuth(
   return diff === 0
 }
 
+
 const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'list',
   'has',
@@ -278,7 +266,6 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'sessionRelease',
   'sessionRewind',
   'sessionFileRestore',
-
   'concourseAdmit',
   'concourseDispatch',
   'concourseList',
@@ -290,6 +277,7 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'signIns',
   'processSweep',
 ])
+
 
 const SESSION_OP_DOWNGRADES: Record<string, string> = {
   sessionAdmit: 'concourseAdmit',
@@ -303,9 +291,7 @@ export function sessionOpWireFrame<T extends { op: string; proto?: number }>(out
   const proto = outbound.proto ?? MERCURY_DAEMON_PROTO
   const old = proto < 3 ? SESSION_OP_DOWNGRADES[outbound.op] : undefined
   if (old === undefined) return outbound
-
   const frame = { ...outbound, op: old } as T & { workerId?: string; runnerId?: string }
-
   if (old === 'concourseRelease' && typeof frame.runnerId === 'string') {
     frame.workerId = frame.runnerId
     delete frame.runnerId
@@ -325,6 +311,7 @@ export function normalizeSessionOpReply(reply: DaemonReply): DaemonReply {
   }
   return out
 }
+
 
 let negotiated: { proto: number; version: string | null } | null = null
 
@@ -364,7 +351,6 @@ export async function daemonControlRpc(
   let reply = await rpcOnce(sessionOpWireFrame(outbound), timeoutMs)
   if (!reply.ok && reply.code === 'ENOCONN') lastUnreachableAt = Date.now()
   if (stamped && !reply.ok && reply.code === 'EAUTH') {
-
     const stale = outbound.auth
     clearControlKeyMemo()
     const fresh = await controlKeyForStamp()
@@ -388,11 +374,11 @@ export async function daemonControlRpc(
     logForDebugging(
       `[daemon] ${req.op}: daemon speaks proto ${reply.serverProto} (this build ${MERCURY_DAEMON_PROTO}) — re-sent in its dialect`,
     )
-
     return speakProtoGap(req, normalizeSessionOpReply(await rpcOnce(sessionOpWireFrame({ ...outbound, proto: reply.serverProto }), timeoutMs)))
   }
   return speakProtoGap(req, normalizeSessionOpReply(reply))
 }
+
 
 export function restartDaemonWords(binary = 'mercury'): string {
   return `restart the daemon: \`${binary} daemon restart\``
@@ -507,7 +493,6 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
       }
     })
     sock.on('error', err => {
-
       logForDebugging(`[daemon] control RPC transport error: ${err}`)
       finish({
         ok: false,
@@ -520,6 +505,7 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
     })
   })
 }
+
 
 export function mintDaemonIdentity(): string {
   return `hermes-daemon-${randomUUID()}`
@@ -547,7 +533,6 @@ export async function acquireDaemonLock(): Promise<DaemonLock | null> {
   }
   return {
     release: async () => {
-
       noteLockRelease(`daemon lock ${lockPath}`, await releasePidLock(lockPath, owner))
     },
   }

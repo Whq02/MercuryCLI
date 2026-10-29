@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -69,7 +68,6 @@ section('§3 ONE FENCE OWNER (rank 35)')
     check('survivors keep the first name per folded prefix, in precedence order', Object.keys(verdict.survivors).join(',') === 'col.one,github mcp,plain', Object.keys(verdict.survivors).join(','))
     check('every later collider is named with its winner', verdict.collided.map(c => `${c.name}<${c.winner}`).join(',') === 'col_one<col.one,github_mcp<github mcp', JSON.stringify(verdict.collided.map(c => [c.name, c.winner])))
     check('the reason names the collision, the folded prefix and the winner', verdict.collided.every(c => /collid/i.test(c.error) && c.error.includes(`'${c.winner}'`) && c.error.includes('mcp__')), verdict.collided[0]?.error)
-
     const proto = fence(Object.fromEntries([['__proto__', { ...stdioConfig }], ['safe', { ...stdioConfig }]]) as never)
     check("a '__proto__' server name is an own survivor key, never the prototype", Object.keys(proto.survivors).join(',') === '__proto__,safe' && Object.getPrototypeOf(proto.survivors) === null, Object.keys(proto.survivors).join(','))
     const walk = await drive(['col.one', 'col_one'])
@@ -99,5 +97,4 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log('\nprove-name-collision-fence: all green')
-
 process.exit(0)

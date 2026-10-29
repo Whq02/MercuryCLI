@@ -1,3 +1,4 @@
+
 import type { UUID } from 'node:crypto'
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
@@ -149,11 +150,9 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
     if (input.op === 'project_capsule' && input.args?.instance === undefined) return staticCapsuleAnswer(input)
     return `no unique Godot instance is available for this call — op:"vulcan_status" lists instances; pass args.instance with an id or role. The operator's editor is never selected implicitly`
   }
-
   const baseMs = input.op === 'playtest_run' ? 120_000 : 30_000
   const { instance: _instance, ...wireArgs } = input.args ?? {}
   const r: VulcanResult = await client.request(input.op, wireArgs, baseMs + vulcanDeclaredBudgetMs(input.op, input.args))
-
   if (!r.ok && input.op === 'project_capsule' && UNREACHABLE_CODES.has(r.error.code)) {
     return staticCapsuleAnswer(input)
   }
@@ -166,7 +165,6 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
   if (r.instance) text += `\ninstance: ${formatResult(r.instance)}`
   if (r.via) text += `\nvia: ${formatResult(r.via)}`
   if (input.op === 'script_validate') text += await classCacheHint(input.args)
-
   const events = client.drainEvents()
   if (events.length > 0) {
     const shown = events.slice(-8)
@@ -203,7 +201,6 @@ export const GodotTool = buildTool({
   },
   async checkPermissions(input: Input) {
     const spec = vulcanOp(input.op)
-
     if (!spec || spec.cls === 'read') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
@@ -230,7 +227,6 @@ export const GodotTool = buildTool({
         message: `Godot mutate: ${input.op} — writes addons/mercury_vulcan/ and project.godot rows (each row receipted; no editor undo step)${input.op === 'vulcan_install' ? '; with a bridge already up it reloads the editor plugin' : ''}`,
       }
     }
-
     if (FILE_MUTATES.has(input.op)) {
       return {
         behavior: 'ask' as const,
@@ -268,7 +264,6 @@ export const GodotTool = buildTool({
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result ?? ''
   },

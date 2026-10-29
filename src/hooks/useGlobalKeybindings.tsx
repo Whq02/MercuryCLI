@@ -1,3 +1,4 @@
+
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { useNotifications } from '../context/notifications.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
@@ -56,7 +57,6 @@ export function GlobalKeybindingHandlers({
           compactWork?.toggleSummary()
           return
         }
-
         setAppState(prev => {
           return {
             ...prev,
@@ -80,7 +80,6 @@ export function GlobalKeybindingHandlers({
         }
       },
       'app:redraw': () => {
-
         instances.get(process.stdout)?.repaintAltScreen()
         void store
       },
@@ -96,16 +95,12 @@ export function GlobalKeybindingHandlers({
     {
       'app:cycleSurfaceForward': () => step(1),
       'app:cycleSurfaceBack': () => step(-1),
-
       'app:surfaceRight': () => step(-1),
-
       'app:surfaceLeft': () => step(1),
-
       'app:openSurfaceSwitcher': () => {
         const outcome = enterConcourse()
         if (!outcome.ok) reportRefusal(outcome.reason)
       },
-
       'concourse:closeSession': () => {
         invokeConcourseCloseChord()
       },
@@ -126,7 +121,6 @@ export function GlobalKeybindingHandlers({
   useKeybinding(
     'transcript:exit',
     () => {
-
       setShowAllInTranscript(false)
       setScreen('prompt' as Screen)
       onExitTranscript?.()

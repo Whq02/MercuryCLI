@@ -79,7 +79,6 @@ section('(2) fetch --check honesty (no network)')
 
 section('(2b) the extractor candidate chain (small-fix bundle item 6, TASK-E007)')
 {
-
   const src = readFileSync(join(ROOT, 'scripts', 'vendor', 'fetch-debugpy.ts'), 'utf8')
   const order = ['unzip', 'python3', 'tar.exe', 'python', 'py']
   const listStart = src.indexOf('EXTRACT_CANDIDATES')

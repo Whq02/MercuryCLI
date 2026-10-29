@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,13 +24,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 const SEATS = ['tide-gauges', 'reef-survey', 'dune-count', 'kelp-map'] as const
 const ASK = 'crew-seats: launch four'
 const FIXTURE_API_KEY = 'fixture-key-000'
-
 const SEAT_CEILING = 3
-
 const SEAT_HOLD_MS = 14_000
 const CLAUDE_ID = 'claude-opus-4-8'
 const GPT_ID = 'gpt-5.6-sol'
-
 const CLAUDE_SEAT_ALIAS = 'opus'
 const CLAUDE_SEAT_PREFIX = 'claude-opus'
 
@@ -42,9 +38,7 @@ interface Hit {
   model: string
   seat: string | null
   lane: string
-
   at: number
-
   effort: string | null
 }
 interface Fixture {
@@ -237,19 +231,16 @@ async function startSeatsFixture(port: number, mainDialect: Dialect): Promise<Fi
       }
       const answer = lane === 'responses' ? responsesAnswer(blocks, usage) : messagesAnswer(model, blocks, usage)
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
-
       res.write(answer.head)
       if (holdMs === 0) {
         res.end(answer.tail)
         return
       }
-
       const t = setTimeout(() => res.end(answer.tail), holdMs)
       res.on('close', () => clearTimeout(t))
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
-
   const address = server.address()
   const bound = typeof address === 'object' && address !== null ? address.port : port
   return {
@@ -380,7 +371,6 @@ const portFor = (dialect: Dialect): number => Number(process.env[`CREW_SEATS_POR
 
 async function leg(mainDialect: Dialect): Promise<void> {
   const mainModel = mainDialect === 'anthropic' ? CLAUDE_ID : GPT_ID
-
   const seatModel = mainDialect === 'anthropic' ? GPT_ID : CLAUDE_SEAT_PREFIX
   const seatIs = (id: string): boolean => (mainDialect === 'anthropic' ? id === GPT_ID : id.startsWith(CLAUDE_SEAT_PREFIX))
   const seatLane = mainDialect === 'anthropic' ? 'responses' : 'messages'
@@ -400,11 +390,9 @@ async function leg(mainDialect: Dialect): Promise<void> {
         argv: ['node', DIST, '--model', mainModel],
         sends: [
           ...bootSends(ASK),
-
           { data: '/crewmates', atTick: 999, awaitText: 'Running 4 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
           { data: '\r', afterPrevTicks: 3 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
-
           { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 3 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
@@ -436,7 +424,6 @@ async function leg(mainDialect: Dialect): Promise<void> {
   const mid = marks['crew-mid'] ?? ''
   const fourth = rowOf(mid, SEATS[3]) ?? ''
   check(`${tag}: S2 the fourth row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), flat(fourth))
-
   const heldWords = /(\brunning\b|first byte|request sent|streaming|reasoning|replying|retry)/
   check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, SEATS.slice(0, 3).every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), SEATS.slice(0, 3).map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400))
 

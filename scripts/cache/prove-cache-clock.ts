@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -16,9 +15,7 @@ function section(t: string): void {
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
 process.chdir(mkdtempSync(join(tmpdir(), 'cache-clock-proof-')))
-
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'cache-clock-proof-home-'))
-
 for (const k of [
   'MERCURY_CACHE_CLOCK',
   'MERCURY_CACHE_TTL',
@@ -127,7 +124,6 @@ section('§1 CORE — cache state machine')
   )
 }
 {
-
   const s = newSimCacheState('5m')
   stepCache(s, 0, 1000)
   const at = TTL_MS['5m'] + 60_000
@@ -156,7 +152,6 @@ section('§2 INVARIANT — TTL-FLIP-AT-COLD-ONLY (sequence property)')
   ]
   let holds = true
   let flips = 0
-
   for (const g1 of gapGrid) {
     for (const g2 of gapGrid) {
       for (const g3 of gapGrid) {
@@ -221,7 +216,6 @@ check(
   'snapshot reflects the latch (non-worker class under a headless proof run)',
   (() => {
     const s = cacheClockSnapshot()
-
     return s.engaged && s.ttl === '5m' && s.cls !== 'worker' && !s.escalated
   })(),
 )
@@ -270,7 +264,6 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
       uncachedInputTokens: 100, now: NOW + i * 1_000,
     })
   }
-
   const portable = await import('../../src/utils/sessionStoragePortable.ts')
   const dir = join(
     portable.getProjectDir(process.cwd()),
@@ -313,7 +306,6 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
 
 section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24)')
 {
-
   const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
   const { mkdirSync: mkd } = await import('node:fs')
   const origin = join(mkdtempSync(join(tmpdir(), 'cache-clock proof origin-')), 'projected work')
@@ -365,7 +357,6 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
 
 section('§4 SEAMS — structural wiring')
 {
-
 const anthropicRuntime = readFileSync(join(repoRoot, 'src/services/providers/anthropic/index.ts'), 'utf8') + readdirSync(join(repoRoot, 'src/services/providers/anthropic')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repoRoot, 'src/services/providers/anthropic', f), 'utf8')).join('\n')
   const decisionIdx = anthropicRuntime.indexOf('cacheClockTtlDecision({')
   const allowlistIdx = anthropicRuntime.indexOf("'mercury_prompt_cache_1h_config'")

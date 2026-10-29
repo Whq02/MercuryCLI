@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
@@ -44,7 +43,6 @@ const WALK_TO_TERMINAL: Send[] = [
 ]
 const THROUGH_TRUST: Send[] = [
   ...WALK_TO_TERMINAL,
-
   { requireAwait: true, awaitText: 'trust · 5/5', awaitSettleTicks: 3, data: '\r' },
 ]
 
@@ -52,7 +50,6 @@ function drive(tag: string, cols: number, sends: Send[], readyText: string[], to
   const home = mkdtempSync(join(realpathSync(tmpdir()), `firstrun-skip-${tag}-`))
   const cwd = join(home, 'workspace')
   mkdirSync(cwd, { recursive: true })
-
   const configHome = join(home, 'confighome')
   mkdirSync(configHome, { recursive: true })
   const out = join(home, 'grid.json')
@@ -65,7 +62,6 @@ function drive(tag: string, cols: number, sends: Send[], readyText: string[], to
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     BROWSER: 'true',
     TERM_PROGRAM: 'vscode',
-
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
@@ -146,7 +142,6 @@ console.log('\n  ── C · /logins still opens, /accounts tells the truth @ 10
       ...THROUGH_TRUST,
       { requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 5, data: '/logins' },
       { afterPrevTicks: 5, data: '\r' },
-
       { requireAwait: true, awaitText: 'Anthropic — Claude subscription', awaitSettleTicks: 3, data: '\x1b' },
       { afterPrevTicks: 4, data: '/accounts' },
       { afterPrevTicks: 5, data: '\r' },

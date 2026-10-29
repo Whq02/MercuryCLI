@@ -64,7 +64,6 @@ async function main(): Promise<void> {
 
   type AnyContext = Record<string, unknown>
   const runEntry = (mode: string, context: AnyContext): string => {
-
     const updateAppState = (updater: (c: never) => never) => {
       updater(context as never)
     }

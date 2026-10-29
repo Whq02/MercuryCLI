@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/healthReport.ts scripts/settings/settings-schema.json
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

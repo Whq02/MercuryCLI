@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -72,7 +71,6 @@ section('§B owner liveness is the heartbeat — a recycled pid cannot hold a ru
   const dir = mkdtempSync(join(tmpdir(), 'run-ownership-resume-'))
   writeFileSync(join(dir, 'workflow.js'), "export const meta={name:'x',description:'y'}\nreturn 1\n")
   const deps = {
-
     pidAlive: () => true,
     fileExists: (p: string) => existsSync(p),
     readFileText: (p: string) => {
@@ -139,7 +137,6 @@ section('§D the journal epoch fence: a woken stale owner\'s late rows are filte
   await j1.append({ type: 'result', key: 'k1', agentId: 'a1', result: 'epoch1-original' })
   const j2 = new LocalFileJournal(join(dir, 'r'), { epoch: 2 })
   await j2.append({ type: 'result', key: 'k2', agentId: 'a2', result: 'epoch2-fresh' })
-
   await j1.append({ type: 'result', key: 'k2', agentId: 'a1-zombie', result: 'stale-shadow' })
   const snap = await new LocalFileJournal(join(dir, 'r')).load()
   check('rows are epoch-stamped on disk',

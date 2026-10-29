@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { randomUUID } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -29,11 +28,8 @@ interface BenchmarkOptions {
   dist: string
   timeoutMs: number
   liveTimeoutMs: number
-
   liveModel: string | null
-
   liveKey: string | null
-
   bareFamilyEnv: boolean
   quiet: boolean
 }
@@ -284,7 +280,6 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
       const main = hits.find(h => h.kind === 'main')
       if (main && main.dialect) {
         const roster = toolRoster(main.body, main.dialect)
-
         const prompt = normalisePaths(systemPromptText(main.body, main.dialect), { project: project.dir, home, out: opts.out })
         promptFacts = { promptChars: prompt.length, toolNames: roster.names, toolSchemaChars: roster.schemaChars }
         mkdirSync(join(opts.out, 'prompts'), { recursive: true })
@@ -296,7 +291,6 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
       initToolNames = ((run.init as { tools: unknown[] }).tools).map(t => (typeof t === 'string' ? t : String((t as { name?: string }).name ?? '')))
     }
     const verdict = task.oracle(ctx, { run, hits, prior: task.resumeOf ? runs.get(task.resumeOf) : undefined })
-
     const score = scoreRun(run, verdict, plan.mechanical ? task.probeTools.map(tool => ({ tool, probe: true })) : [])
     const row: TaskRow = {
       task: task.id,
@@ -308,7 +302,6 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
       ...score,
     }
     rows.push(row)
-
     const runDir = join(famDir, 'runs')
     mkdirSync(runDir, { recursive: true })
     writeFileSync(join(runDir, `${task.id}.jsonl`), run.envelopes.map(e => JSON.stringify(e)).join('\n') + '\n')
@@ -317,7 +310,6 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
       JSON.stringify(hits.map(h => ({ kind: h.kind, path: h.path, model: h.model, taskId: h.taskId, seatId: h.seatId, results: h.results, at: h.at, tools: toolRoster(h.body, h.dialect ?? 'chat').names.length, bytes: h.raw.length })), null, 1),
     )
     if (run.stderr.trim()) writeFileSync(join(runDir, `${task.id}.stderr.txt`), run.stderr)
-
     if (process.env.MERCURY_AX_DUMP_HITS === '1') {
       hits.forEach((h, i) => writeFileSync(join(runDir, `${task.id}.hit-${i + 1}.${h.kind}.json`), h.raw))
     }
@@ -348,7 +340,6 @@ async function runFamily(plan: FamilyRunPlan, opts: BenchmarkOptions, fixture: B
 
 function normalisePaths(text: string, paths: { project: string; home: string; out: string }): string {
   const keyOf = (p: string): string => p.replace(/[\\/]/g, '-')
-
   const variants = (p: string): string[] => {
     let real = p
     try {
@@ -408,7 +399,6 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
   const browser: BrowserProbe = tasks.some(t => t.needs === 'browser') ? await browserLaunches(nodeBin, opts.out) : { ok: true, note: 'no browser task in this run' }
   if (!opts.quiet && tasks.some(t => t.needs === 'browser')) console.log(`browser: ${browser.ok ? browser.note : `unmeasured — ${browser.note}`}`)
   const plans: FamilyRunPlan[] = []
-
   const fixture = await startBenchmarkFixture({ port: opts.port })
   for (const id of opts.families) {
     const spec = FAMILIES[id]
@@ -436,7 +426,6 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
   } finally {
     await fixture.close()
   }
-
   const foreign = new Map<string, number>()
   for (const h of fixture.hits) if (h.kind === 'other') foreign.set(`${h.method} ${h.path}`, (foreign.get(`${h.method} ${h.path}`) ?? 0) + 1)
   if (!opts.quiet && foreign.size > 0) console.log(`foreign requests at the fixture: ${[...foreign.entries()].map(([k, n]) => `${k} ×${n}`).join(' · ')}`)
@@ -452,7 +441,6 @@ export async function runBenchmark(opts: BenchmarkOptions): Promise<BenchmarkRes
     })) }))
     for (const table of recorded) writeFamilyTable(dir, table)
     writeFileSync(join(dir, 'summary.md'), renderSummary(recorded, `Agent-experience benchmark — ${tree}`))
-
     const promptsSrc = join(opts.out, 'prompts')
     if (existsSync(promptsSrc)) {
       const promptsDir = join(dir, 'prompts')

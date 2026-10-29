@@ -1,3 +1,5 @@
+
+
 export const GPT_SERVED_WINDOW_SUFFIX = '[served]'
 const TRAILING_SERVED_RE = /\[served\]$/i
 const ANY_SERVED_RE = /\[served\]/gi
@@ -15,11 +17,11 @@ export function stripGptServedWindowSuffix(id: string): string {
   return id.replace(ANY_SERVED_RE, '')
 }
 
+
 export interface GptModelIdentity {
   family: 'gpt'
   major: number
   minor: number
-
   variant: string
   canonicalId: string
   unparsed?: false
@@ -40,6 +42,8 @@ export function parseGptModelId(id: string): GptModelIdentity | undefined {
     canonicalId: trimmed,
   }
 }
+
+
 
 export const WIRE_EFFORT_RANK: Record<string, number> = {
   none: 0,
@@ -82,13 +86,12 @@ export function wireEffortForListDefault(
   return nearestSupportedWireEffort(CONVENTION_WIRE_EFFORT, supported)
 }
 
+
 export interface GptDisplayPin {
   id: string
   displayName: string
-
   observedAt: string
   source?: string
-
   contextWindow?: number
   outputMax?: number
   supportedReasoningEfforts?: readonly string[]
@@ -97,13 +100,9 @@ export interface GptDisplayPin {
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
-
   cacheWritePerMtok?: number
-
   knowledgeCutoff?: string
-
   availabilityNote?: string
-
   longContext?: { aboveInputTokens: number; inputMultiplier: number; outputMultiplier: number }
 }
 
@@ -139,14 +138,12 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     cachedInPerMtok: 1,
     cacheWritePerMtok: 12.5,
     knowledgeCutoff: '2026-04-30',
-
     longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
   { id: 'gpt-6.1-sol', displayName: 'GPT-6.1 Sol', observedAt: '2026-10-28', source: 'https://developers.openai.com/api/docs/models/gpt-6.1-sol', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.1, cacheWritePerMtok: 2.5, supportedReasoningEfforts: ['low', 'medium', 'high', 'xhigh', 'max'], defaultReasoningEffort: 'medium', inputModalities: ['text', 'image'], knowledgeCutoff: '2026-04-30', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-6.1-terra', displayName: 'GPT-6.1 Terra', observedAt: '2026-10-28', source: 'https://developers.openai.com/api/docs/models/gpt-6.1-terra', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 1, costOutPerMtok: 5, cachedInPerMtok: 0.05, cacheWritePerMtok: 1.25, supportedReasoningEfforts: ['none', 'low', 'medium', 'high', 'xhigh', 'max'], defaultReasoningEffort: 'medium', inputModalities: ['text', 'image'], knowledgeCutoff: '2026-06-01', longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-6-sol', displayName: 'GPT-6 Sol', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-6-sol.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 2, costOutPerMtok: 10, cachedInPerMtok: 0.2, cacheWritePerMtok: 2.5, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
   { id: 'gpt-6-luna', displayName: 'GPT-6 Luna', observedAt: '2026-10-25', source: 'https://developers.openai.com/api/docs/models/gpt-6-luna.md', contextWindow: 1_050_000, outputMax: 128_000, costInPerMtok: 0.1, costOutPerMtok: 0.5, cachedInPerMtok: 0.01, cacheWritePerMtok: 0.125, longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 } },
-
   {
     id: 'gpt-5.6-sol',
     displayName: 'GPT-5.6 Sol',

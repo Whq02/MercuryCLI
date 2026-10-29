@@ -20,9 +20,7 @@ interface ToolUse {
   id: string
   name: string
   input: Record<string, unknown>
-
   messageId: string
-
   parentToolUseId: string | null
 }
 
@@ -30,7 +28,6 @@ interface ToolResult {
   id: string
   text: string
   isError: boolean
-
   imageChars: number
   parentToolUseId: string | null
 }
@@ -38,17 +35,13 @@ interface ToolResult {
 export interface RunRecord {
   spec: RunSpec
   envelopes: Array<Record<string, unknown>>
-
   assistantMessages: Array<{ messageId: string; blocks: Array<Record<string, unknown>>; usage: Record<string, unknown> | null }>
   subagentAssistantMessages: number
-
   toolUses: ToolUse[]
   toolResults: ToolResult[]
   subagentToolUses: ToolUse[]
   subagentToolResults: ToolResult[]
-
   assistantTexts: string[]
-
   injectedChars: number
   result: Record<string, unknown> | null
   init: Record<string, unknown> | null
@@ -60,6 +53,7 @@ export interface RunRecord {
   timedOut: boolean
   sessionId: string
 }
+
 
 export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<RunRecord, 'assistantMessages' | 'subagentAssistantMessages' | 'toolUses' | 'toolResults' | 'subagentToolUses' | 'subagentToolResults' | 'assistantTexts' | 'injectedChars' | 'result' | 'init' | 'finalText'> {
   const assistantMessages: RunRecord['assistantMessages'] = []

@@ -28,17 +28,14 @@ import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 
+
 const OPENAI_AUTH_ISSUER = 'https://auth.openai.com'
-
 const OPENAI_OAUTH_CLIENT_ID = 'app_EMoamEEZ73f0CkXaXp7hrann'
-
 const OPENAI_OAUTH_REDIRECT_PORT = 1455
 const OPENAI_OAUTH_REDIRECT_URI = `http://localhost:${OPENAI_OAUTH_REDIRECT_PORT}/auth/callback`
 const OPENAI_OAUTH_SCOPE =
   'openid profile email offline_access api.connectors.read api.connectors.invoke'
-
 const OPENAI_CHATGPT_BASE_URL = 'https://chatgpt.com/backend-api/codex'
-
 const OPENAI_API_BASE_URL = 'https://api.openai.com/v1'
 
 function openaiIssuerBase(env: NodeJS.ProcessEnv = process.env): string {
@@ -51,6 +48,7 @@ function openaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return env['MERCURY_OPENAI_API_BASE']?.trim() || OPENAI_API_BASE_URL
 }
 
+
 const OPENAI_AUTH_VERSION = 1
 const AUTH_FILE_NAME = '.openai-auth.json'
 
@@ -62,9 +60,7 @@ export interface OpenaiStoredTokens {
   refreshToken: string
   accountId?: string
   planType?: string
-
   email?: string
-
   accessTokenExpiresAtMs?: number
 }
 
@@ -72,7 +68,6 @@ interface OpenaiAuthFile {
   version: number
   tokens?: OpenaiStoredTokens
   lastRefreshMs?: number
-
   preferredSource?: 'chatgpt-subscription' | 'api-key'
   [k: string]: unknown
 }
@@ -98,19 +93,18 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   const existing = readAuthFile() ?? { version: OPENAI_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENAI_AUTH_VERSION })
   const path = authFilePath()
-
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
   } catch {
   }
-
   noteCredentialChange()
 }
 
 export function openaiAuthPathForDisplay(): string {
   return authFilePath()
 }
+
 
 function decodeJwtPayload(jwt: string): Record<string, unknown> | undefined {
   const parts = jwt.split('.')
@@ -166,16 +160,15 @@ export function tokensFromExchange(raw: {
   }
 }
 
+
 export type OpenaiAccountSourceKind = 'chatgpt-subscription' | 'api-key'
 
 export interface OpenaiAccountRef {
   provider: 'openai'
   kind: OpenaiAccountSourceKind
-
   label: string
   accountId?: string
   planType?: string
-
   email?: string
   keySource?: 'env' | 'stored'
 }
@@ -286,10 +279,9 @@ export function resolveOpenaiAccount(
   return subscriptionRef() ?? apiKeyRef()
 }
 
+
 const REFRESH_SKEW_MS = 5 * 60_000
-
 const REFRESH_LOCK_STALE_MS = 30_000
-
 const REFRESH_WAIT_TOTAL_MS = 8_000
 const REFRESH_WAIT_STEP_MS = 200
 let refreshInFlight: Promise<OpenaiStoredTokens | undefined> | undefined
@@ -346,7 +338,6 @@ function acquireRefreshLock(nowMs: number): boolean {
       }
       return true
     } catch {
-
       try {
         const stamp = readFileSync(path, 'utf8')
         const stampedAt = Number(stamp.trim().split(/\s+/)[1])
@@ -388,7 +379,6 @@ async function postTokenEndpoint(
   const url = `${openaiIssuerBase(env)}/oauth/token`
   let response: Response
   try {
-
     response = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
       method: 'POST',
       headers: {
@@ -399,13 +389,11 @@ async function postTokenEndpoint(
       ...(getProxyFetchOptions() as Record<string, unknown>),
     } as RequestInit)
   } catch (error) {
-
     throw new Error(
       `openai token endpoint unreachable (${url}): ${errorMessageWithCause(error)}`,
     )
   }
   if (!response.ok) {
-
     let oauthError = ''
     try {
       const errorBody = (await response.json()) as Record<string, unknown>
@@ -433,7 +421,6 @@ export async function currentSubscriptionTokens(opts?: {
   env?: NodeJS.ProcessEnv
   now?: () => number
   readOnly?: boolean
-
   force?: boolean
 }): Promise<OpenaiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
@@ -441,11 +428,9 @@ export async function currentSubscriptionTokens(opts?: {
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
   if (opts?.readOnly) return tokensFresh(tokens, now()) && !opts.force ? tokens : undefined
-
   const adoptable = (latest: OpenaiStoredTokens | undefined): boolean =>
     tokensFresh(latest, now()) && (!opts?.force || latest?.accessToken !== tokens.accessToken)
   if (adoptable(tokens)) return tokens
-
   if (knownDeadRefreshTokens.has(tokens.refreshToken)) return undefined
   if (refreshInFlight) return refreshInFlight
   refreshInFlight = (async () => {
@@ -459,7 +444,6 @@ export async function currentSubscriptionTokens(opts?: {
     try {
       locked = acquireRefreshLock(now())
       if (!locked) {
-
         const deadline = now() + REFRESH_WAIT_TOTAL_MS
         while (now() < deadline) {
           await sleep(REFRESH_WAIT_STEP_MS)
@@ -467,7 +451,6 @@ export async function currentSubscriptionTokens(opts?: {
           if (adoptable(latest)) return latest
         }
       }
-
       const latest = readAuthFile()?.tokens
       if (adoptable(latest)) return latest
       const base = latest?.refreshToken ? latest : tokens
@@ -487,7 +470,6 @@ export async function currentSubscriptionTokens(opts?: {
       writeAuthFile(f => ({ ...f, tokens: next, lastRefreshMs: now() }))
       return next
     } catch (error) {
-
       const latest = readAuthFile()?.tokens
       if (
         latest?.refreshToken &&
@@ -496,13 +478,11 @@ export async function currentSubscriptionTokens(opts?: {
       ) {
         return latest
       }
-
       if (usedRefreshToken !== undefined && isTerminalGrantRefusal(error)) {
         knownDeadRefreshTokens.add(usedRefreshToken)
         blankDeadRefreshTokenOnDisk(usedRefreshToken)
         return undefined
       }
-
       return latest?.refreshToken ? latest : tokens
     } finally {
       if (locked) releaseRefreshLock()
@@ -520,20 +500,15 @@ export function disconnectOpenaiSubscription(): void {
     if (next.preferredSource === 'chatgpt-subscription') delete next.preferredSource
     return next
   })
-
   forgetOpenaiLimitSource('chatgpt-subscription')
 }
 
+
 export interface OpenaiConnectHandles {
-
   authorizeUrl: string
-
   result: Promise<OpenaiAccountRef>
-
   completeWithRedirect(pasted: string): void
-
   cancel(reason?: string): void
-
   boundLoopbackPort(): number | undefined
 }
 
@@ -573,13 +548,9 @@ async function exchangeAuthorizationCode(
 export function beginOpenaiBrowserConnect(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
-
   skipBrowserOpen?: boolean
-
   onListenerIssue?: (message: string) => void
-
   onSettledAfterCancel?: (ref: OpenaiAccountRef) => void
-
   loopbackPort?: number
 }): OpenaiConnectHandles {
   const env = opts?.env ?? process.env
@@ -600,7 +571,6 @@ export function beginOpenaiBrowserConnect(opts?: {
   let done = false
   let exchangeInFlight = false
   let cancelledMidExchange = false
-
   let settled = false
   const doSettle = (ref: OpenaiAccountRef): void => {
     if (settled) return
@@ -625,9 +595,7 @@ export function beginOpenaiBrowserConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
-
       forgetOpenaiLimitSource('chatgpt-subscription')
-
       recordSignIn('openai', 'subscription')
       const resolved = resolveOpenaiAccount(env)
       const ref: OpenaiAccountRef =
@@ -643,7 +611,6 @@ export function beginOpenaiBrowserConnect(opts?: {
               ...(tokens.planType ? { planType: tokens.planType } : {}),
             }
       if (cancelledMidExchange) {
-
         opts?.onSettledAfterCancel?.(ref)
         return 'disclosed'
       }
@@ -687,7 +654,6 @@ export function beginOpenaiBrowserConnect(opts?: {
         .end('Mercury: sign-in state mismatch — return to the terminal and retry.')
       return
     }
-
     void (async () => {
       const end = await finish(code)
       if (end === 'settled' || end === 'disclosed') {
@@ -708,7 +674,6 @@ export function beginOpenaiBrowserConnect(opts?: {
     })()
   })
   server.on('error', error => {
-
     server?.close()
     server = undefined
     opts?.onListenerIssue?.(
@@ -726,7 +691,6 @@ export function beginOpenaiBrowserConnect(opts?: {
     result,
     completeWithRedirect(pasted: string): void {
       const extracted = extractCode(pasted)
-
       if (!extracted.code) {
         done = true
         server?.close()
@@ -744,7 +708,6 @@ export function beginOpenaiBrowserConnect(opts?: {
       void finish(extracted.code)
     },
     cancel(reason?: string): void {
-
       if (exchangeInFlight) cancelledMidExchange = true
       done = true
       server?.close()
@@ -758,10 +721,10 @@ export function beginOpenaiBrowserConnect(opts?: {
   }
 }
 
+
 export interface OpenaiDeviceConnectStart {
   userCode: string
   verifyHint: string
-
   result: Promise<OpenaiAccountRef>
 }
 
@@ -804,7 +767,6 @@ export async function beginOpenaiDeviceConnect(opts?: {
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
   const base = openaiIssuerBase(env)
   const accountsBase = `${base}/api/accounts`
-
   const startResponse = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${accountsBase}/deviceauth/usercode`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': getUserAgent() },
@@ -825,14 +787,12 @@ export async function beginOpenaiDeviceConnect(opts?: {
     let intervalMs = opts?.pollIntervalMsOverride ?? Math.max(1, intervalS) * 1000
     for (;;) {
       if (Date.now() > deadline) {
-
         throw new Error('OpenAI sign-in expired before the code was approved — retry from /logins openai')
       }
       await new Promise(resolve => {
         const t = setTimeout(resolve, intervalMs)
         ;(t as { unref?: () => void }).unref?.()
       })
-
       const poll = await fetchWithProviderDeadline(fetchImpl, 'openai', LOGIN_EXCHANGE_TIMEOUT_MS, `${accountsBase}/deviceauth/token`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'user-agent': getUserAgent() },
@@ -877,7 +837,6 @@ export async function beginOpenaiDeviceConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
-
       forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const ref = resolveOpenaiAccount(env)
@@ -898,19 +857,17 @@ export async function beginOpenaiDeviceConnect(opts?: {
   }
 }
 
+
 export interface OpenaiRequestAuth {
   account: OpenaiAccountRef
   baseUrl: string
-
   headers: Record<string, string>
 }
 
 export async function resolveOpenaiRequestAuth(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
-
   sourceKind?: OpenaiAccountSourceKind
-
   forceRefresh?: boolean
   readOnly?: boolean
 }): Promise<OpenaiRequestAuth | undefined> {

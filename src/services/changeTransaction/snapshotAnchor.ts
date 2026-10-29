@@ -1,3 +1,4 @@
+
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 
 export type ParsedAnchor =
@@ -9,9 +10,7 @@ export type AnchorCheck =
   | {
       ok: false
       reason: 'stale' | 'malformed'
-
       currentAnchor?: string
-
       rereadHint: string
     }
 
@@ -23,7 +22,6 @@ export function normalizeForAnchor(text: string): string {
 }
 
 function digest12(normalized: string): string {
-
   return runtimeKernel().hash.sha256Hex(normalized).slice(0, 12)
 }
 

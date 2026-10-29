@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -86,13 +85,11 @@ section('§1 — dialect readers · step clock · scorer arithmetic')
     { type: 'tool_call', message_id: 'm1', block: 0, call_id: 't1', tool: 'Edit', input: { a: 1 } },
     { type: 'step', message_id: 'm1', model: 'm', usage: { input_tokens: 1, output_tokens: 1 } },
     { type: 'tool_result', call_id: 't1', status: 'error', output: 'old_string not found in file — read the file first' },
-
     { type: 'tool_call', message_id: 'm2', block: 0, call_id: 't2', tool: 'Read', input: { a: 1 } },
     { type: 'tool_call', message_id: 'm2', block: 0, call_id: 't2', tool: 'Read', input: { a: 1 } },
     { type: 'tool_call', message_id: 'm2', block: 1, call_id: 't2b', tool: 'Glob', input: { b: 2 } },
     { type: 'tool_result', call_id: 't2', status: 'ok', output: 'x'.repeat(400) + '\n[image]' },
     { type: 'tool_result', call_id: 't2b', status: 'ok', output: '' },
-
     { type: 'tool_call', parent_call_id: 't2b', message_id: 'sub1', block: 0, call_id: 's1', tool: 'Read', input: {} },
     { type: 'tool_result', parent_call_id: 't2b', call_id: 's1', status: 'ok', output: 'y'.repeat(900) },
     { type: 'tool_call', message_id: 'm3', block: 0, call_id: 't3', tool: 'Read', input: { a: 1 } },

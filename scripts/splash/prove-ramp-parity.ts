@@ -15,7 +15,6 @@ import { DEFAULT_THEME_SETTING } from '../../src/utils/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-
 const CORE_PATH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 const DRIVER_PATH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'mercury-splash.mjs')
 const src = readFileSync(CORE_PATH, 'utf8') + '\n' + readFileSync(DRIVER_PATH, 'utf8')
@@ -138,7 +137,6 @@ t.section('§3 — baked capability truth equals the canonical law')
 
 t.section('§4 — the splash hand palette equals mercuryPalette')
 {
-
   const pairs: Array<[string, number[]]> = [
     ['RED', rgb(TERRA)],
     ['DEEPRED', rgb(CLAW)],
@@ -183,7 +181,6 @@ t.section('§5 — bake contract integrity')
 
 t.section('§6 — the flat-ground pair-law (no vignette sampler)')
 {
-
   {
     const rgbN = rgb(NIGHT)
     t.check(
@@ -191,7 +188,6 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
       JSON.stringify(GROUND) === JSON.stringify(rgbN),
       `${JSON.stringify(GROUND)} vs ${JSON.stringify(rgbN)}`,
     )
-
     t.check(
       'GROUND_FAMILIES.dark == mercuryPalette OASIS_GROUND.NIGHT byte-exactly',
       JSON.stringify(GROUND_FAMILIES.dark) === JSON.stringify(rgb(OASIS_GROUND.NIGHT)),
@@ -211,7 +207,6 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
     t.check('an unknown family name keeps the dark identity', JSON.stringify(GROUND) === JSON.stringify(rgbN))
     adoptGroundFamily('dark')
     t.check('adoptGroundFamily(dark) restores NIGHT exactly', JSON.stringify(GROUND) === JSON.stringify(rgbN))
-
     const driverText = readFileSync(DRIVER_PATH, 'utf8')
     const mirror = /const DEFAULT_THEME_FAMILY = '([a-z-]+)'/.exec(driverText)?.[1]
     t.check(
@@ -229,7 +224,6 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
         driverText.includes("adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')"),
     )
   }
-
   {
     const driver = readFileSync(DRIVER_PATH, 'utf8')
     t.check(
@@ -249,7 +243,6 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
       'OSC-11 rides GROUND',
     )
   }
-
   {
     t.check('PLATE_TONE IS the ground alias (const PLATE_TONE = VOID)', src.includes('const PLATE_TONE = VOID'), 'alias present')
     const voidTone = grab('VOID') as number[]
@@ -259,7 +252,6 @@ t.section('§6 — the flat-ground pair-law (no vignette sampler)')
 
 t.section('§7 — GLOW: accent families + the mirrored greeting law')
 {
-
   const cd = await import('../../src/utils/cockpit/critterData.ts')
   const { deriveAccentSoft } = await import('../../src/utils/mercuryTokens.ts')
   const core = await import('../../assets/splash/splash-core.mjs')

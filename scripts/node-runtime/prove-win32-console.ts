@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -35,7 +34,6 @@ section('(1) decide matrix — win32-gated · TTY-gated · opt-out')
   check('win32 TTY ⇒ engage', d5.engage)
   const d6 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8: '1' })
   check('win32 TTY =1 ⇒ engage (only =0 opts out)', d6.engage)
-
   const d7 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8_PRESET: '1' })
   check('win32 TTY launcher-preset ⇒ no engage (launcher-preset)', !d7.engage && d7.reason === 'launcher-preset')
   const d8 = decideWin32ConsoleUtf8('win32', true, { MERCURY_WIN32_UTF8_PRESET: '1', MERCURY_WIN32_UTF8: '0' })
@@ -143,7 +141,6 @@ const WIN_TTY = { platform: 'win32', stdoutIsTTY: true, env: {} as Record<string
 section('(4) cli.tsx placement — after --version, before route dispatch')
 {
   const cli = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
-
   const guard = cli.indexOf("process.env.MERCURY_WIN32_UTF8_PRESET !== '1'")
   const importLine = cli.indexOf("await import('../utils/runtime/win32Console.js')")
   const versionFastPath = cli.indexOf("console.log(`Mercury ${MACRO.VERSION}`)")
@@ -183,13 +180,11 @@ section('(7) the chcp spawn shape — the console must be OURS')
     'windowsHide is FALSE (CREATE_NO_WINDOW re-aims chcp at a throwaway console — the inert-seam class)',
     shape.options.windowsHide === false,
   )
-
   check('the exe is System32 chcp.com under the env SystemRoot', shape.exe.startsWith('C:\\WINDOWS') && shape.exe.endsWith('chcp.com') && shape.exe.includes('System32'))
   check('the spawn is bounded (timeout armed, ≤ 5s)', shape.options.timeout > 0 && shape.options.timeout <= 5_000)
   check('SystemRoot absent falls back to C:\\Windows', chcpSpawnShape({}).exe.startsWith('C:\\Windows'))
   const win32Src = readFileSync(join(ROOT, 'src', 'utils', 'runtime', 'win32Console.ts'), 'utf8')
   check('defaultSyscalls rides chcpSpawnShape (one shape owner)', /const\s*\{\s*exe,\s*options\s*\}\s*=\s*chcpSpawnShape\(\)/.test(win32Src))
-
   const win32Code = win32Src
     .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
     .split('\n')

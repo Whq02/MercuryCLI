@@ -43,7 +43,9 @@ import { runPostCompactCleanup } from './postCompactCleanup.js'
 import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionMemoryCompact.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 
+
 void notifyCompaction
+
 
 export const MIN_AUTOCOMPACT_WINDOW = 100_000
 export const MAX_AUTOCOMPACT_WINDOW = 1_000_000
@@ -92,6 +94,7 @@ export type AutoCompactTrackingState = {
 }
 
 export type TokenWarningLevel = 'ok' | 'warn' | 'compact' | 'blocked'
+
 
 function modelMaxWindow(model: string): number {
   return getContextWindowForModel(model, getSdkBetas())
@@ -186,17 +189,14 @@ export function calculateTokenWarningState(
   settingsWindow?: number,
 ): { level: TokenWarningLevel; pctLeft?: number } {
   const autoCompact = isAutoCompactEnabled()
-
   const ceiling = autoCompact
     ? getAutoCompactThreshold(model)
     : getEffectiveContextWindowSize(model, settingsWindow)
-
   const warningThreshold = Math.max(
     ceiling - WARNING_THRESHOLD_BUFFER_TOKENS,
     Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),
   )
   const blockingLimit = getBlockingLimit(model, settingsWindow)
-
   const window = modelMaxWindow(model)
   const pctLeft = window > 0 ? Math.max(0, Math.round(((ceiling - tokenUsage) / window) * 100)) : 0
   let level: TokenWarningLevel = 'ok'
@@ -205,6 +205,7 @@ export function calculateTokenWarningState(
   else if (tokenUsage >= warningThreshold) level = 'warn'
   return { level, pctLeft }
 }
+
 
 export type FoldModelChoice = { model: string; source: 'seated' | 'history'; count: number }
 
@@ -245,7 +246,6 @@ export function detectFixedPrefixOverflow(
     (lastUsage.cache_read_input_tokens ?? 0) +
     (lastUsage.cache_creation_input_tokens ?? 0)
   const estimate = estimateMessageTokens(messages)
-
   const prefixTokens = Math.min(
     Math.max(0, totalInput - snipTokensFreed - estimate),
     getEffectiveContextWindowSize(model),
@@ -263,7 +263,6 @@ export function detectFixedPrefixOverflow(
       else if (record.type === 'tool_result' && Array.isArray(record.content)) countBlocks(record.content)
     }
   }
-
   for (const message of messages) {
     if (message.type !== 'user' && message.type !== 'assistant') continue
     const content = (message as AssistantMessage).message.content
@@ -277,13 +276,10 @@ export async function shouldAutoCompact(
   model: string,
   querySource?: string,
   snipTokensFreed: number = 0,
-
   onMeasured?: (rawTokenCount: number) => void,
 ): Promise<boolean> {
-
   if (querySource === 'session_memory' || querySource === 'compact') return false
   if (!isAutoCompactEnabled()) return false
-
   const tokenCount = tokenCountWithEstimation(messages, model) - snipTokensFreed
   const known = await awaitContextWindowSource(model, { estTokens: tokenCount + snipTokensFreed })
   onMeasured?.(tokenCount + snipTokensFreed)
@@ -301,6 +297,7 @@ export async function shouldAutoCompact(
   const { level } = calculateTokenWarningState(tokenCount, model)
   return level === 'compact' || level === 'blocked'
 }
+
 
 function ctxCompactionFlagOn(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION'))
@@ -324,6 +321,7 @@ const fixedMaterialSkipState = new OwnerScopedStore<{ noted: boolean }>({
   create: () => ({ noted: false }),
 })
 
+
 export async function autoCompactIfNeeded(
   messages: Message[],
   toolUseContext: ToolUseContext,
@@ -331,7 +329,6 @@ export async function autoCompactIfNeeded(
   querySource?: string,
   tracking?: AutoCompactTrackingState,
   snipTokensFreed: number = 0,
-
   overflowSignal?: OverflowSignal,
 ): Promise<{
   wasCompacted: boolean
@@ -339,11 +336,8 @@ export async function autoCompactIfNeeded(
   consecutiveFailures?: number
   consecutiveRapidRefills?: number
   rapidRefillBreakerTripped?: boolean
-
   measuredRawTokenCount?: number | null
-
   refusal?: string
-
   paused?: true
 }> {
   const notCompacted = { wasCompacted: false as const, consecutiveFailures: tracking?.consecutiveFailures }
@@ -356,7 +350,6 @@ export async function autoCompactIfNeeded(
   if (tracking?.rapidRefillPaused === true) {
     return forced ? { ...notCompacted, refusal: rapidRefillPauseText({ nonInteractive }) } : notCompacted
   }
-
   if (failures >= MAX_CONSECUTIVE_FAILURES) {
     return forced ? { ...notCompacted, refusal: compactionBreakerText({ nonInteractive }) } : notCompacted
   }
@@ -411,7 +404,6 @@ export async function autoCompactIfNeeded(
   if (!compact && !fixedMaterialHeld && advanceTriggerEnabled() && isAutoCompactEnabled()) {
     if (querySource !== 'session_memory' && querySource !== 'compact' && querySource !== 'context_agent') {
       try {
-
         const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation([...messages, ...(cacheSafeParams.postFoldCarry ?? [])], model)) - snipTokensFreed
         const { pctLeft } = calculateTokenWarningState(tokenCount, model)
         const owner = ownerFromToolUseContext(toolUseContext)
@@ -464,9 +456,7 @@ export async function autoCompactIfNeeded(
     )
   }
   try {
-
     return await withFoldStatus(toolUseContext, async scoped => {
-
     if (isMaintenanceLadderEnabled()) {
       const walked = await runMaintenanceLadder({
         messages,
@@ -485,7 +475,6 @@ export async function autoCompactIfNeeded(
         setLastSummarizedMessageId(undefined)
         runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(walked.result))
         if (walked.method === 'notes') {
-
           return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills, ...breaker }
         }
         return {
@@ -496,17 +485,14 @@ export async function autoCompactIfNeeded(
           ...breaker,
         }
       }
-
       return { ...notCompacted, ...breaker }
     }
 
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
     const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
     if (viaMemory !== null) {
-
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(viaMemory))
-
       return { wasCompacted: true, compactionResult: viaMemory, consecutiveRapidRefills: refills, ...breaker }
     }
 
@@ -532,14 +518,12 @@ export async function autoCompactIfNeeded(
     }
     }, { trigger: 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
   } catch (err) {
-
     if (err instanceof APIUserAbortError) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted
     }
     logError(err)
     const reason = err instanceof Error ? err.message : String(err)
     if (err instanceof CompactionRefusedForHistoryError) {
-
       logForDebugging(
         `autoCompact: the summary request was refused for a malformed history — automatic compaction is paused for the rest of this run: ${err.providerWords.slice(0, 160)}`,
         { level: 'warn' },

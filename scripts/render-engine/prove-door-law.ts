@@ -102,7 +102,6 @@ section('§4 teardown flush')
 
 section('§5 one door in the source')
 {
-
   const grep = (pattern: string): string[] => {
     try {
       return execSync(`grep -rln ${JSON.stringify(pattern)} src/render-engine`, {

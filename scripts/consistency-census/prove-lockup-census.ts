@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -18,7 +17,6 @@ execFileSync(process.execPath, [join(ROOT, 'scripts/consistency-census/gen-locku
   stdio: 'pipe',
 })
 const after = readFileSync(censusPath, 'utf8')
-
 if (before !== after) writeFileSync(censusPath, before)
 check('§A regeneration reproduces the LOCKUP census byte-for-byte', before === after)
 type Site = { role: string; file: string; kind: string; excerpt: string }

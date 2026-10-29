@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -41,7 +40,6 @@ console.log('empty-state hint honesty (hints-fire law) ──')
   )
 }
 {
-
   const s = src('src/components/MercuryResume.tsx')
   const emptyBranch = s.slice(s.indexOf('no resumable sessions') - 400, s.indexOf('no resumable sessions'))
   check('MercuryResume empty branch stays footer-less', !emptyBranch.includes('footer='))

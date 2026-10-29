@@ -24,7 +24,6 @@ export function detectUnreachableRules(context: ToolPermissionContext): Unreacha
   const findings: UnreachableRule[] = []
 
   for (const allow of allowRules) {
-
     if (isToolWide(allow)) continue
     const toolName = allow.ruleValue.toolName
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createWriteStream, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -46,7 +45,6 @@ export async function generateCorpus(spec: CorpusSpec, outFile: string): Promise
   let lines = 0
   let id = 0
   let parent: string | null = null
-
   let ord = 0
   const ctx = {
     sessionId: 'continuum-corpus' as never,
@@ -61,7 +59,6 @@ export async function generateCorpus(spec: CorpusSpec, outFile: string): Promise
   }
   for (let t = 0; t < spec.turns; t++) {
     const ts = (n: number) => new Date(EPOCH + t * 45_000 + n * 1_000).toISOString()
-
     const userUuid = uuidAt(id++)
     const userContent =
       t % 250 === 249

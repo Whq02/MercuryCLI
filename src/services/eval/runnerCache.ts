@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -23,7 +24,6 @@ export function ensureCached(prefix: string, extension: string, source: string):
   try {
     renameSync(tmp, path)
   } catch {
-
     try {
       rmSync(tmp, { force: true })
     } catch {

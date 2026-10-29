@@ -1,3 +1,4 @@
+
 export const MERCURY_COPYRIGHT_LINE: string | null = null
 
 export const MERCURY_LICENSE_POINTER: string | null = 'Apache License 2.0 — LICENSE.md'

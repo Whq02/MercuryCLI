@@ -53,15 +53,12 @@ export function countTrackedRunningAgents(
   try {
     for (const task of Object.values(getAppState().tasks ?? {})) {
       const t = task as { id?: unknown; status?: unknown; type?: unknown; agentId?: unknown }
-
       if (typeof t.status === 'string' && TERMINAL_TASK_STATUSES.has(t.status)) continue
-
       if (selfTaskId !== undefined && t.id === selfTaskId) continue
       if (typeof t.type === 'string' && TRACKED_AGENT_TASK_TYPES.has(t.type)) running++
       else if ((selfTaskId !== undefined || isRunInputClosed()) && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
     }
   } catch {
-
     return 0
   }
   return running
@@ -102,7 +99,6 @@ export const SleepTool = buildTool({
     return outputSchema()
   },
   isConcurrencySafe() {
-
     return true
   },
   isReadOnly() {
@@ -136,7 +132,6 @@ export const SleepTool = buildTool({
     }
   },
   async call({ seconds }, { abortController, getAppState, agentId }) {
-
     const { flagEnv } = await import('../../substrate/flagRegistry.js')
     const { NEW_INPUT_REASON, watchForNewInput } = await import('../../utils/newInputWatch.js')
     if (flagEnv('MERCURY_CONCOURSE_WORKER') === '1' && seconds > 300) {
@@ -148,7 +143,6 @@ export const SleepTool = buildTool({
     const ms = wait.value * 1000
     const start = Date.now()
     let interrupted = false
-
     let armed = countTrackedRunningAgents(getAppState, agentId) > 0
     let newInput = false
     await new Promise<void>(resolve => {
@@ -180,7 +174,6 @@ export const SleepTool = buildTool({
         tick++
         if (!armed) {
           if (tick > TRACKED_ARM_GRACE_TICKS) {
-
             clearInterval(watch)
             return
           }

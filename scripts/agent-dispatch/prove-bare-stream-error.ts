@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -91,7 +90,6 @@ const MODELS_BODY = {
   ],
 }
 const posts: string[] = []
-
 const requestInputTypes: string[][] = []
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []

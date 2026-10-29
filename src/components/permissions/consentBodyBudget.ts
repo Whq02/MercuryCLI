@@ -1,3 +1,4 @@
+
 import { stringWidth } from '../../ink/stringWidth.js'
 import { expandTabs } from '../../ink/tabstops.js'
 import type { StructuredPatchHunk } from '../../utils/diff.js'
@@ -5,11 +6,8 @@ import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import sliceAnsi from '../../utils/sliceAnsi.js'
 
 export const CONSENT_CHROME_ROWS = 21
-
 export const CONSENT_BODY_MIN_ROWS = 6
-
 export const CONSENT_CARD_CHROME_COLUMNS = 4
-
 const CUT_MARK = '…'
 
 export function consentBodyBudget(termRows: number): number {
@@ -49,17 +47,13 @@ export function cutToRows(line: string, paintWidth: number, rows: number): strin
   if (stringWidth(painted) <= width * rows) return line
   const cells = width * rows - stringWidth(CUT_MARK)
   let head = sliceAnsi(painted, 0, cells)
-
   if (stringWidth(head) > cells) head = sliceAnsi(painted, 0, cells - 1)
   return `${head}${CUT_MARK}`
 }
 
 type BoundedLines = {
-
   lines: string[]
-
   hiddenLines: number
-
   cut: boolean
 }
 

@@ -1,3 +1,4 @@
+
 const MAX_PAUSE_DIRECTIVE_CHARS = 160
 
 const PAUSE_VERBS = new Set(['pause', 'stop', 'hold'])
@@ -34,10 +35,8 @@ export function parseOperatorPauseDirective(text: string): OperatorPauseVerdict 
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i]!
     if (!PAUSE_VERBS.has(tok)) continue
-
     const prev = tokens[i - 1]
     if (prev !== undefined && PRE_VERB_BLOCKERS.has(prev)) continue
-
     let j = i + 1
     while (j < tokens.length && OBJECT_ARTICLES.has(tokens[j]!)) j++
     const object = tokens[j]

@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { CR_COLS, SQUARE_DOCK_ART_LINES, critterDefForKey } from '../../utils/cockpit/critterData.js'
 import { FAINT } from '../mercuryPalette.js'
@@ -9,15 +10,12 @@ import { cycleSessionCritter, useSessionAccent } from './sessionAccent.js'
 
 export function MiniCritter({ bare = false }: { bare?: boolean }): React.ReactNode {
   const critter = useSessionAccent()
-
   const { accentSoft } = useMercuryTokens()
   const def = critterDefForKey(critter.key)
-
   const miniDef = React.useMemo(
     () => ({ ...def, hue: critter.accent, hueDeep: critter.accentDeep }),
     [def, critter.accent, critter.accentDeep],
   )
-
   if (bare) {
     return <BareMiniArt miniDef={miniDef} />
   }

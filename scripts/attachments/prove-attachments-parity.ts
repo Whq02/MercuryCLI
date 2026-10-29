@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,9 +49,11 @@ add('parseAtMentionedFileLines', 'shapes', () =>
   ),
 )
 
+
 add('createAttachmentMessage', 'shape', () =>
   A.createAttachmentMessage({ type: 'todo', itemCount: 1, context: 'x' } as never),
 )
+
 
 add('getDirectoriesToProcess', 'nested', () =>
   A.getDirectoriesToProcess('/repo/src/deep/file.ts', '/repo'),
@@ -59,6 +62,7 @@ add('getDirectoriesToProcess', 'nested', () =>
 add('getContextEfficiencyAttachment', 'fold-dead', () =>
   (A as Record<string, CallableFunction>).getContextEfficiencyAttachment([]),
 )
+
 
 const SKIPPED: Record<string, string> = {
   getAttachments: 'per-turn orchestrator over ToolUseContext/appState — pinned by substrate suites (cache-stability, ctx-forecast, away-summary); gains fixture cases as R3 extraction reaches it',

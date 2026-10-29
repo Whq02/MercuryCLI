@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
@@ -114,12 +113,12 @@ reg(
   'shared-list',
 )
 
+
 reg(
   [
     'src/components/BaseTextInput.tsx',
     'src/components/PromptInput/PromptInput.tsx',
     'src/components/PromptInput/useComposerRawKeys.ts',
-
     'src/components/concourse/ConcourseStrips.tsx',
   ],
   'editor',
@@ -213,7 +212,6 @@ reg(
     'src/keybindings/KeybindingProviderSetup.tsx',
     'src/screens/Chat.tsx',
     'src/screens/ResumeConversation.tsx',
-
     'src/components/Settings/Config.tsx',
     'src/components/HelpV2/Commands.tsx',
     'src/components/HelpV2/HelpV2.tsx',

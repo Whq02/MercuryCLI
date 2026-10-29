@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, statSync } from 'node:fs'
@@ -226,7 +225,6 @@ section('4 · the credential ladder + the dispatch resolver')
   check('OAuth outranks the stored paste', resolveHuggingfaceApiKey()?.source === 'oauth' && resolveHuggingfaceAccount()?.username === 'oauth-user')
   const envKey = resolveHuggingfaceApiKey({ ...process.env, HF_TOKEN: 'hf_env_fixture_token_000001' })
   check('HF_TOKEN env wins over everything', envKey?.source === 'env')
-
   let refreshed = 0
   const rotating = (async () => {
     refreshed++
@@ -245,7 +243,6 @@ section('4 · the credential ladder + the dispatch resolver')
 section('5 · slots · usability · usage shape · routed removal')
 {
   writeHuggingfaceTokens({ accessToken: 'hf_oauth_fixture_access_0000000005' }, { username: 'oauth-user', observedAtMs: 5 })
-
   const providers = [
     {
       id: 'huggingface',
@@ -315,10 +312,8 @@ section('6 · transport honesty: unreachable is typed, never a throw or a refusa
   const down: typeof fetch = async () => {
     throw new TypeError('fetch failed: ECONNREFUSED 127.0.0.1:443')
   }
-
   const poll = await pollHuggingfaceDeviceToken({ deviceCode: 'dc', clientId: 'cid' }, { fetchImpl: down })
   check('a transport fault polls as the typed unreachable (never a throw)', poll.state === 'unreachable' && /ECONNREFUSED/.test(poll.state === 'unreachable' ? poll.message : ''))
-
   const refuse401: typeof fetch = async () => new Response(JSON.stringify({ error: 'Invalid credentials' }), { status: 401 })
   const refused = await fetchHuggingfaceIdentity('hf_wrong', { fetchImpl: refuse401 })
   const unreachable = await fetchHuggingfaceIdentity('hf_fine', { fetchImpl: down })

@@ -62,7 +62,6 @@ async function main(): Promise<void> {
       'breakpoints carry adapter-VERIFIED detail',
       a.breakpoints.get('/tmp/a.py')?.[0]?.verified === true,
     )
-
     const a2 = await dap.createDapSession({
       owner: A,
       id: 'main',

@@ -46,7 +46,6 @@ t.section('§1 — the revision is real and monotonic')
 
 t.section('§2 — the revision names the sidecar it was allocated for')
 {
-
   const { getRunSnapshot } = await import('../../src/services/run/runCoordinator.ts')
 
   const before = sidecar.runRevision(ownerA)
@@ -56,7 +55,6 @@ t.section('§2 — the revision names the sidecar it was allocated for')
     load.state === 'loaded' && load.snapshot.objective === 'revision parity run-a',
     `state=${load.state}`,
   )
-
   t.check(
     'loading does not regress the revision',
     sidecar.runRevision(ownerA) >= before,
@@ -69,7 +67,6 @@ t.section('§2 — the revision names the sidecar it was allocated for')
     sidecar.runRevision(ownerA) > before,
     `${before} → ${sidecar.runRevision(ownerA)}`,
   )
-
   t.check(
     'the in-memory reader answers honestly for an unhosted owner',
     getRunSnapshot(ownerA) === null || typeof getRunSnapshot(ownerA) === 'object',

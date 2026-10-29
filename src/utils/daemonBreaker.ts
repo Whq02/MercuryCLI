@@ -1,11 +1,8 @@
 import { flagEnv, flagEnvLoose } from '../substrate/flagRegistry.js'
 
 const DEFAULT_BREAKER_CONSECUTIVE_FAILS = 5
-
 const DEFAULT_BREAKER_WINDOW = 10
-
 const DEFAULT_BREAKER_RATE = 0.8
-
 const DEFAULT_BREAKER_COOLDOWN_MS = 60 * 1000
 
 function intEnv(name: string, dflt: number): number {
@@ -21,15 +18,10 @@ function rateEnv(name: string, dflt: number): number {
 }
 
 type DaemonBreakerConfig = {
-
   consecutiveFails?: number
-
   windowSize?: number
-
   failureRate?: number
-
   cooldownMs?: number
-
   now?: () => number
 }
 
@@ -38,11 +30,8 @@ type BreakerState = 'closed' | 'open' | 'half-open'
 type BreakerStatus = {
   state: BreakerState
   consecutiveFailures: number
-
   cooldownRemainingMs: number
-
   windowFilled: number
-
   windowFailures: number
 }
 
@@ -55,9 +44,7 @@ export class DaemonBreaker {
 
   private state: BreakerState = 'closed'
   private consecutiveFailures = 0
-
   private window: boolean[] = []
-
   private openedAt = 0
 
   constructor(config: DaemonBreakerConfig = {}) {
@@ -103,7 +90,6 @@ export class DaemonBreaker {
 
     if (ok) {
       this.consecutiveFailures = 0
-
       if (this.state === 'half-open') {
         this.state = 'closed'
         this.window = []

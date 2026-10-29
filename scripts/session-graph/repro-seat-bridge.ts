@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 

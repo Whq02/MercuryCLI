@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +16,6 @@ for (const key of [
 ]) {
   delete process.env[key]
 }
-
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 const pins = await import('../../src/services/providers/openai/gptPins.js')
@@ -54,11 +52,9 @@ console.log('============================================================')
 const ID = 'gpt-6-astra'
 const NAME = 'GPT-6 Astra'
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
-
 const LISTED = [...LADDER, 'ultra'] as const
 
 section('§1 THE ROW — the pin states the model-page facts; everything derives')
-
 {
   const pin = pins.gptDisplayPin(ID)
   check('the row exists in the one table', pin !== undefined)
@@ -179,7 +175,6 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
 }
 
 section('§2 THE LIVE LIST DECIDES PRESENCE — served ⇒ the row; unserved ⇒ no selectable row')
-
 type LiveRow = Record<string, unknown>
 const liveRow = (
   id: string,
@@ -201,7 +196,6 @@ const liveRow = (
   input_modalities: ['text', 'image'],
   supported_in_api: true,
 })
-
 const LIVE_ASTRA = liveRow(ID, 'GPT-6-Astra', 1, LISTED, 272_000, 872_000, 'medium')
 const LIVE_SOL = liveRow('gpt-5.6-sol', 'GPT-5.6 Sol', 2, ['low', 'medium', 'high', 'xhigh'], 272_000)
 const fetchOf = (models: LiveRow[]): typeof fetch =>
@@ -218,7 +212,6 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check('with the list serving no plain row below the frontier, the light fact is silence (the session model rides)', providerLightFact('openai') === undefined, JSON.stringify(providerLightFact('openai')))
 
   const evaluated = catalogue.evaluateGptCandidate(ID, 'api-key')
-
   check(
     "served ⇒ qualified, wearing the LIVE name ('GPT-6-Astra') and carrying the pin",
     evaluated.ok && evaluated.candidate.displayName === 'GPT-6-Astra' && evaluated.candidate.pin?.id === ID,
@@ -231,7 +224,6 @@ process.env.OPENAI_API_KEY = 'prover-key'
 
   const options = getModelOptions()
   const row = options.find(o => o.value === ID)
-
   check(
     `the picker row: the page's name ('${NAME}') through the one display owner, the OpenAI group, selectable`,
     row !== undefined && row.label === NAME && row.group === OPENAI_MODEL_GROUP && row.unavailable === undefined,
@@ -305,7 +297,6 @@ process.env.OPENAI_API_KEY = 'prover-key'
 delete process.env.OPENAI_API_KEY
 
 section('§3 THE WIRE — a fixture Responses stream on the id: the summary and the registers land')
-
 {
   const SUMMARY = 'weighing the tide tables before answering'
   const NOTE = 'Checking the gauges.'

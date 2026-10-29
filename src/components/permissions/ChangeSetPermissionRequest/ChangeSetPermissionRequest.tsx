@@ -6,7 +6,6 @@ import { StructuredDiffList } from '../../../components/StructuredDiffList.js';
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js';
 import { useKeybinding } from '../../../keybindings/useKeybinding.js';
 import { Box, Text } from '../../../ink.js';
-
 import {
   boundHunks,
   consentBodyBudget,
@@ -30,6 +29,7 @@ import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js';
 
 type ChangeSetInput = z.infer<typeof ChangeSetTool.inputSchema>;
 type DecisionValue = 'yes' | 'no';
+
 
 function displayPath(abs: string): string {
   const rel = relative(getFocusedSessionConnector().workspace().cwd, abs);
@@ -63,7 +63,6 @@ function computePreview(input: ChangeSetInput, owner: string): PreviewData {
 export function ChangeSetPermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge } = props;
   const { columns, rows } = useTerminalSize();
-
   const [expanded, setExpanded] = React.useState(false);
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
@@ -99,7 +98,6 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
 
   const plan = preview.plan;
   const changed = plan?.targets.filter(t => t.changed) ?? [];
-
   const innerWidth = Math.max(20, consentContentWidth(columns) - 4);
 
   type BoundedFile = { target: (typeof changed)[number]; hunks: (typeof changed)[number]['diff']['hunks']; cutLines: number };

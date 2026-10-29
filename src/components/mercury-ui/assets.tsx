@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { Box, Text, useTheme } from '../../ink.js'
 import { critterDefForKey } from '../../utils/cockpit/critterData.js'
@@ -11,7 +12,6 @@ import { useSessionAccent } from './sessionAccent.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
 export function Crab(): React.ReactNode {
-
   const { accent, accentDeep } = useSessionAccent()
   return (
     <Text>
@@ -46,9 +46,7 @@ export function Wordmark({
   const { accent } = useSessionAccent()
   const t = useMercuryTokens()
   const [theme] = useTheme()
-
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
-
   const shimmer = useGreetingShimmer(ramp, greeting ? displayWidth('Mercury') : 0)
   const segments = rampSegments('Mercury', ramp, { shimmer })
   return (
@@ -64,7 +62,6 @@ export function Wordmark({
 }
 
 const BIG_FONT: Record<string, string[]> = {
-
   M: ['#...#', '#####', '#.#.#', '#...#', '#...#'],
   E: ['####', '#...', '###.', '#...', '####'],
   R: ['###.', '#..#', '###.', '#.#.', '#..#'],
@@ -72,11 +69,9 @@ const BIG_FONT: Record<string, string[]> = {
   U: ['#..#', '#..#', '#..#', '#..#', '####'],
   Y: ['#...#', '#...#', '.###.', '..#..', '..#..'],
 }
-
 export function bigWordmarkRows(): string[] {
   const word = 'MERCURY'
   const rows: string[] = []
-
   for (let r = 0; r < 5; r += 2) {
     let s = ''
     for (let li = 0; li < word.length; li++) {
@@ -100,13 +95,10 @@ export function BigWordmark(): React.ReactNode {
   const { accent } = useSessionAccent()
   const t = useMercuryTokens()
   const [theme] = useTheme()
-
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
-
   const rows = bigWordmarkRows()
   const shimmer = useGreetingShimmer(ramp, displayWidth(rows[0] ?? ''))
   return (
-
     <Box flexDirection="column" flexShrink={0}>
       {rows.map((s, r) => (
         <Text key={r}>
@@ -170,7 +162,6 @@ function SigilRow({ row }: { row: string }): React.ReactNode {
 export function Sigil({ size = 'small' }: { size?: SigilSize }): React.ReactNode {
   const { accent } = useSessionAccent()
   if (size === 'inline') {
-
     return <TwinkleSpark color={accent} />
   }
   const rows = size === 'large' ? LARGE : size === 'medium' ? MEDIUM : SMALL

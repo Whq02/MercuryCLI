@@ -183,7 +183,6 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         return false
     }
   } catch {
-
     return false
   }
 }

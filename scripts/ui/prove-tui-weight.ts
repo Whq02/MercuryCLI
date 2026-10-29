@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -46,10 +45,8 @@ console.log('============================================================')
     },
     clearTimer: () => {},
   })
-
   b.update(cur => [...cur, { index: 0, unparsedToolInput: '' }])
   check('block start commits immediately', sinks === 1)
-
   for (let i = 0; i < 100; i++) {
     b.updateSilent(cur => {
       const next = cur.slice()
@@ -60,12 +57,10 @@ console.log('============================================================')
   check('100-delta storm schedules ZERO sinks', sinks === 1, `sinks=${sinks}`)
   check('100-delta storm arms ZERO timers', timers.length === 0, `timers=${timers.length}`)
   check('the accumulated input stays ref-fresh', b.current[0]!.unparsedToolInput.length === 100)
-
   b.flushSilent()
   check('content_block_stop commits the finished input', sinks === 2)
   b.flushSilent()
   check('a text-block stop (nothing silent-dirty) commits nothing', sinks === 2)
-
   b.updateSilent(cur => cur)
   b.flushSilent()
   check('identity silent update never dirties', sinks === 2)
@@ -96,7 +91,6 @@ console.log('============================================================')
     'content_block_stop flushes the silent accumulation',
     /case 'content_block_stop':[\s\S]{0,400}\{ flushSilent: true \}/.test(streaming),
   )
-
   const repl = src('src', 'screens', 'Chat.tsx')
   check(
     'the face holds no stream batcher (the runner streams; the seat tail carries it)',
@@ -109,7 +103,6 @@ console.log('============================================================')
 }
 
 {
-
   const repl = src('src', 'screens', 'Chat.tsx')
   check(
     'Chat holds no task-map subscription (no viewed-task read, no whole-map read)',
@@ -126,7 +119,6 @@ console.log('============================================================')
       !/useAppState\(state => state\)/.test(spinner),
   )
   const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx') + src('src', 'components', 'PromptInput', 'useComposerSubmit.ts') + src('src', 'components', 'PromptInput', 'useComposerKeybindings.ts')
-
   check(
     'PromptInput subscribes to primitives; handlers read the store at event time',
     !/const tasks = useAppState\(\(s: AppState\) => s\.tasks\)/.test(pi) &&
@@ -146,7 +138,6 @@ console.log('============================================================')
   const toolUse = (uuid: string) => ({
     type: 'assistant',
     uuid,
-
     message: { content: [{ type: 'tool_use', name: 'Read', id: `t-${uuid}`, input: {} }] },
   })
   const base = [boundary('u1', 'do the thing'), toolUse('a1')]
@@ -196,7 +187,6 @@ console.log('============================================================')
     'everything shed folds into ONE honest pointer line, fit-gated',
     rail.includes('short height — ${shedPointers.join') &&
       rail.includes('shedPointers.length > 0 && shedPointerFits') &&
-
       rail.includes("...(healthShed ? ['/health'] : [])"),
   )
   check(

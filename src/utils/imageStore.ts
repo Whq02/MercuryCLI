@@ -10,6 +10,7 @@ import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 
+
 const MAX_TRACKED_PATHS = 200
 
 const storedPaths = new Map<number, string>()
@@ -88,6 +89,7 @@ function missingStoredImageWords(imageId: number, path: string): string {
   return `[Image #${imageId}] file missing: ${path} — paste the image again`
 }
 
+
 export const STORED_IMAGE_SOURCE_TYPE = 'mercury-stored-image'
 
 interface StoredImageRefBlock {
@@ -97,7 +99,6 @@ interface StoredImageRefBlock {
     path: string
     media_type: string
     sha256: string
-
     imageId: number
   }
 }
@@ -203,6 +204,7 @@ export async function readStoredImageRefsForRequest(messages: readonly Message[]
   }
   return out
 }
+
 
 export async function cleanupOldImageCaches(cutoff: Date): Promise<void> {
   if (!Number.isFinite(cutoff.getTime())) return

@@ -1,3 +1,4 @@
+
 export const CAPABILITY_STATES = ['supported', 'unsupported', 'unknown'] as const
 export type CapabilityState = (typeof CAPABILITY_STATES)[number]
 
@@ -14,7 +15,6 @@ export const CAPABILITY_KINDS = [
   'structured-activity',
   'usage-totals',
   'artifact-replies',
-
   'harness-profile',
 ] as const
 export type CapabilityKind = (typeof CAPABILITY_KINDS)[number]
@@ -22,21 +22,17 @@ export type CapabilityKind = (typeof CAPABILITY_KINDS)[number]
 export interface CapabilityFact {
   kind: CapabilityKind
   state: CapabilityState
-
   source: string
   observedAt: number
 }
 
 export interface CapabilitySetV1 {
   v: 1
-
   seatId: string
   adapterKind: string
-
   revision: string
   facts: Map<CapabilityKind, CapabilityFact>
   observedAt: number
-
   invalidatedAt?: number
   invalidatedReason?: string
 }
@@ -60,7 +56,6 @@ export function recordCapabilities(args: {
       observedAt: now,
     })
   }
-
   facts.set('harness-profile', {
     kind: 'harness-profile',
     state: 'unsupported',

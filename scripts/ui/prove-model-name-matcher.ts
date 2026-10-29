@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/model/modelNameMatcher.ts src/utils/model/modelNameRoad.ts src/utils/model/validateModel.ts
+// gate-watch: src/commands/model/mercuryModel.tsx src/main.tsx src/tools/AgentTool/AgentTool.tsx src/utils/model/modelPickerGroups.ts
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -11,7 +10,6 @@ import { Readable, Writable } from 'node:stream'
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-teardown-mode-'))
-
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home-live')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
@@ -38,7 +36,6 @@ function fakeTty(): { stdout: NodeJS.WriteStream; spy: Spy } {
     }),
     { columns: 100, rows: 30, isTTY: true },
   ) as unknown as NodeJS.WriteStream
-
   stdout.on('error', (e: Error) => spy.errors.push(e.message))
   return { stdout, spy }
 }
@@ -133,13 +130,10 @@ section('§3 the stdin gap, live — an EOF wake is not a resume')
   const keyIn = fakeStdin()
   await mount(eof.stdout, eofIn)
   await mount(key.stdout, keyIn)
-
   await settle(gapMs + 700)
   eof.spy.writes.length = 0
   key.spy.writes.length = 0
-
   eofIn.push(null)
-
   keyIn.push('x')
   await settle(150)
   check('an EOF wake after the quiet spell writes no mode bytes', !eof.spy.writes.some(isModeWrite), `${eof.spy.writes.filter(isModeWrite).length} mode writes`)
@@ -194,7 +188,6 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
     writeFileSync(join(projDir, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
     const out = join(SCRATCH, 'pty.json')
     const cfgPath = join(SCRATCH, 'pty.cfg.json')
-
     const total = 55
     writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--resume', SID], cols: 120, rows: 40, total, sends: [], out }))
     const res = spawnSync(driver.python, [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {
@@ -210,7 +203,6 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
         MERCURY_CRITTER_SLEEP: '0',
         MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
-
         ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       },
     })
@@ -223,7 +215,6 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
     } catch (e) {
       check('the capture payload is readable', false, String(e))
     }
-
     const ledger = join(home, 'daemon', 'spawn-ledger.jsonl')
     const deadline = Date.now() + 20_000
     let shutDown = false
@@ -253,7 +244,6 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
 }
 
 for (const m of mounted) {
-
   Object.defineProperty(m.stdin, 'isTTY', { value: false, configurable: true })
   try {
     m.unmount()

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

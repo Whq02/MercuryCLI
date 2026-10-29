@@ -1,3 +1,4 @@
+
 import { pathToFileURL } from 'node:url'
 import figures from 'figures'
 import React, { useState } from 'react'
@@ -33,7 +34,6 @@ function TurnDurationRow({
 }: {
   message: Extract<SystemMessage, { subtype: 'turn_duration' }>
 }): React.ReactNode {
-
   const store = useAppStateStore()
   const [verb] = useState(
     () =>
@@ -91,6 +91,7 @@ function TurnDurationRow({
   )
 }
 
+
 export function SystemTextMessage({
   message,
   addMargin = false,
@@ -104,7 +105,6 @@ export function SystemTextMessage({
 }): React.ReactNode {
   const { columns } = useTerminalSize()
   const tokens = useMercuryTokens()
-
   const selectedBg = useSelectedMessageBg()
 
   switch (message.subtype) {
@@ -161,7 +161,6 @@ export function SystemTextMessage({
         )
       }
       if (message.resolution === 'applied' && message.boundary === 'turn-boundary') {
-
         return (
           <Text dimColor>
             model switched to{' '}
@@ -243,7 +242,6 @@ export function SystemTextMessage({
       )
 
     case 'roster_transition':
-
       return <Text dimColor>{message.content}</Text>
 
     case 'advisor_quiet':
@@ -282,11 +280,9 @@ export function SystemTextMessage({
       )
 
     case 'thinking_note':
-
       return null
 
     case 'thinking_dead':
-
       return null
 
     case 'api_error':

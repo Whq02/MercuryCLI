@@ -1,3 +1,4 @@
+
 import { debugpyVendorRoot } from '../dap/debugpyResolver.js'
 
 export const BLENDER_DEBUG_DEFAULT_PORT = 5678
@@ -17,10 +18,8 @@ export function blenderDebugListenExpr(
 
 interface BlenderDebugRecipe {
   port: number
-
   debugpySource: 'bundled' | 'pip'
   expr: string
-
   steps: string[]
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -84,7 +83,6 @@ function leg(
   label: string,
   detail?: (r: { lines: string[]; grid: Cell[][] }) => string,
 ): void {
-
   const SETTLE = 40
   for (let attempt = 0; attempt < 3; attempt++) {
     const base = capture(`${tag}-base${attempt}`, [], 52 + SETTLE)
@@ -136,7 +134,6 @@ leg(
   58,
   (r, a) => {
     const focusBanner = r.lines.some(l => l.includes('❯ vitals'))
-
     const cursorInPanel = r.lines.some((l, y) => {
       if (y <= a.usageHdrRow || y >= a.wfHdrRow + 2) return false
       return l.slice(RAIL_FROM - 2).includes('❯')
@@ -156,7 +153,6 @@ leg(
     { atTick: 52, data: click(a.ctxCol + 1, a.ctxRow + 1) },
   ],
   74,
-
   r =>
     r.lines.some(
       l =>

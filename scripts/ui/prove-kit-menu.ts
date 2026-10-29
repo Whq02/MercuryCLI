@@ -36,7 +36,6 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   const kit = rowsOf(FULL).find(r => r.key === 'kit')
   t.check("the row's bytes: ⊛ · 'MCPs & Skills' · 'what the next session loads'", kit?.icon === '⊛' && kit?.label === 'MCPs & Skills' && kit?.ctx === 'what the next session loads', JSON.stringify(kit))
   t.check('the row rides the SAME fit law as the menu row (no menu ⇒ no kit; the manager needs the menu floor)', !keysOf({ ...FULL, menuAvailable: false }).includes('kit') && !keysOf({ ...FULL, menuAvailable: false }).includes('menu') && !keysOf({ ...CHAT, menuAvailable: false }).includes('kit'))
-
   t.check('the existing rows stay EXACTLY as they are (their bytes are untouched by the additions)', JSON.stringify(rowsOf(FULL).filter(r => !['kit', 'agents', 'saturn', 'logins', 'sessions'].includes(r.key))) === JSON.stringify([
     { key: 'new', icon: '✶', label: 'New Session in proj', ctx: 'start fresh here' },
     { key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' },
@@ -55,7 +54,6 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   const WORLD_TOKENS = ['concourse', 'chatBoot', 'MERCURY_SPLASH_CHAT', 'world', 'chatOnly', 'plain']
   const worldHits = WORLD_TOKENS.filter(tok => guarded.replace(/\/\/[^\n]*/g, '').includes(tok))
   t.check('POISON absent: no world token in the guarded block (comments excluded)', worldHits.length === 0, worldHits.join(','))
-
   const kitReads = guarded.replace(/\/\/[^\n]*/g, '').match(/facts\.kit\w*/g) ?? []
   t.check('POISON absent: the guarded block reads no kit-record fact (the armed-wear display fact is the one lawful facts.kit* spelling)', kitReads.every(m => m === 'facts.kitArmedPreset'), kitReads.join(','))
   t.check('the row assembly has ONE owner — no second kit row on either host', !driverSrc.includes("key: 'kit'") && !faceSrc.includes("key: 'kit'") && (coreSrc.match(/key: 'kit'/g) ?? []).length === 1)
@@ -69,7 +67,6 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   t.check("the launcher activates the row with the `kit` receipt action", driverSrc.includes("else if (r2.key === 'kit') writeSplashAction('kit')"))
   const core = createSplashCore({ nocolor: false, truecolor: true })
   const chips = { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dir: 'proj', acct: { state: 'none' as const }, health: null }
-
   const lockup = (concourseCtx: string | null, cols: number, rows: number) =>
     core.composeLockup(cols, rows, {
       cardRows: assembleCardRows({ ...faceFacts('full'), concourse: concourseCtx === null ? null : { ctx: concourseCtx } }),
@@ -82,7 +79,6 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
     const launcher = lockup('the multi-session board, once', cols, rows)
     const face = lockup('the live board', cols, rows)
     const aboveCard = (r: { lines: string[]; actionLines: number[] }) => r.lines.slice(0, Math.min(...r.actionLines) - 1).join('\n')
-
     t.check(`${cols}x${rows}: the lines above the card are byte-identical across the two hosts' fact shapes (no hero shift)`, launcher.actionLines.length === 10 && face.actionLines.length === 10 && aboveCard(launcher) === aboveCard(face))
     const kitLine = (r: { lines: string[] }) => r.lines.findIndex(l => l.includes('MCPs & Skills'))
     t.check(`${cols}x${rows}: the kit row sits on the same line on both hosts, directly under the Boot Menu row`, kitLine(launcher) === kitLine(face) && kitLine(face) > r0(face) && kitLine(face) - r0(face) === launcher.actionLines[1]! - launcher.actionLines[0]!)
@@ -106,9 +102,7 @@ t.section('§2 — THE HANDOVER: `kit` admits here, unknown still boots plain, t
   t.check("an unknown action reads 'unknown-action' and arms nothing (an older runtime's plain boot, the protocol's law)", d(fresh({ action: 'kit-manager' })).reason === 'unknown-action' && consumeKitManagerDeepLink() === false)
   const handover = read('src/substrate/splashHandover.ts')
   t.check("the closed vocabulary names `kit`", /const ACTIONS = new Set\(\[[^\]]*'kit'[^\]]*\]\)/.test(handover))
-
   t.check('the face consumes the deep-link at mount (the CB-09 one-shot grammar)', faceSrc.includes('useState(() => consumeKitManagerDeepLink())') && faceSrc.includes("import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js'"))
-
   t.check('the manager layer replaces the composition like the settings layer and esc closes it to the face', faceSrc.includes('if (kitOpen) {') && faceSrc.includes('onClose={() => setKitOpen(false)}') && faceSrc.includes('active: !settingsOpen && !kitOpen && !healthOpen && !resumeOpen && !saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 
@@ -128,7 +122,6 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     statusRight: 'no blocking issues detected — changes reach new sessions',
     legend: '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · a apply receipts · esc back',
   }
-
   const explicit = { ...legacy, title: 'boot menu', summaryTitle: 'LAUNCH SUMMARY', moreHint: '… (the trail continues — a taller terminal shows it whole)', entries: legacyEntries.map(e => ({ ...e, inert: false })) }
   for (const [cols, rows] of [[120, 40], [142, 44], [100, 30], [80, 24]] as const) {
     const a = (core.composeBootMenu(cols, rows, legacy) as { lines: string[] }).lines.join('\n')
@@ -136,7 +129,6 @@ t.section("§3 — THE COMPOSER STAYS ONE: composeBootMenu's host fields are opt
     t.check(`${cols}x${rows}: absent host fields ≡ their explicit defaults (byte-identical)`, a === b)
     t.check(`${cols}x${rows}: the boot menu keeps its caption and panels`, a.includes(cols >= 110 ? '⌁ boot menu' : '· boot menu') && (cols < 110 || (a.includes('LAUNCH SUMMARY') && a.includes('Profile') && a.includes('ENVIRONMENT'))))
   }
-
   const inertM = {
     entries: sectionRows(EMPTY_KIT_CATALOGUE).map(row => kitEntryOf(row)),
     selIdx: -1,
@@ -208,7 +200,6 @@ t.section('§5 — THE STILLS: the face with the row (both worlds) and the manag
   const manager = readStill('manager-120x40') ?? ''
   t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('NEXT SESSION'))
   const mid = readStill('manager-120x40-midcycle') ?? ''
-
   t.check('the mid-cycle still speaks the tri-state in words (invocable · off · off (extension)) and the counts follow the EFFECTIVE states', mid.includes('invocable') && mid.includes('off (extension)') && mid.includes('1 on · 2 off') && mid.includes('1 on · 1 invocable · 3 off'))
 }
 
@@ -220,22 +211,18 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   const master = rows.find(r => r.kind === 'extension')!
   const extSkill = rows.find(r => r.kind === 'skill' && r.name === 'orchard-tools:prune')!
   const extServer = rows.find(r => r.kind === 'mcp' && r.name === 'ext:orchard-tools:db')!
-
   t.check('an MCP server cycles on → off → on (↵/space/→)', cycleState(mcp, 'on', 1) === 'off' && cycleState(mcp, 'off', 1) === 'on')
   t.check('a skill cycles on → invocable → off → on', cycleState(skill, 'on', 1) === 'invocable' && cycleState(skill, 'invocable', 1) === 'off' && cycleState(skill, 'off', 1) === 'on')
   t.check('← walks the ring back (on ← invocable ← off)', cycleState(skill, 'on', -1) === 'off' && cycleState(skill, 'off', -1) === 'invocable' && cycleState(skill, 'invocable', -1) === 'on' && cycleState(mcp, 'on', -1) === 'off')
   t.check('a master row cycles on ⇄ off (never invocable)', cycleState(master, 'on', 1) === 'off' && cycleState(master, 'off', 1) === 'on' && cycleState(master, 'on', -1) === 'off')
-
   const masterInSkills = rows.find(r => r.kind === 'extension' && r.section === 'skill')!
   const masterInMcps = rows.find(r => r.kind === 'extension' && r.section === 'mcp')!
   t.check("an extension's two master rows share ONE state key (the section is not part of it)", kitStateKey(masterInSkills) === kitStateKey(masterInMcps) && kitStateKey(masterInMcps) === 'extension:orchard-tools')
   t.check('items key by their resolved spelling; an empty line has no key', kitStateKey(extServer) === 'mcp:ext:orchard-tools:db' && kitStateKey(extSkill) === 'skill:orchard-tools:prune' && kitStateKey({ kind: 'empty', section: 'mcp', text: 'x' }) === null)
-
   const none = new Map<string, KitRowState>()
   t.check('default all-on: with no recorded deviation every row reads on and nothing is master-off', rows.filter(r => r.kind !== 'empty').every(r => { const v = kitRowView(r, none); return v.own === 'on' && v.effective === 'on' && !v.masterOff }))
   const c0 = kitCounts(rows, none)
   t.check('the fresh counts: 3 MCPs on · 0 off; 5 skills on · 0 invocable · 0 off', c0.mcp.on === 3 && c0.mcp.off === 0 && c0.skill.on === 5 && c0.skill.invocable === 0 && c0.skill.off === 0)
-
   const vExtSkill = kitRowView(extSkill, SAMPLE_STATES)
   const vExtServer = kitRowView(extServer, SAMPLE_STATES)
   t.check('master OFF ⇒ its items are EFFECTIVELY off whatever their own state (own kept for the return)', vExtSkill.masterOff && vExtSkill.effective === 'off' && vExtSkill.own === 'on' && vExtServer.masterOff && vExtServer.effective === 'off')
@@ -243,20 +230,16 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
   const c1 = kitCounts(rows, SAMPLE_STATES)
   t.check('the counts follow the EFFECTIVE states (postgres off + the extension server follows its master: 2 on · 1 off... and skills 1 on · 1 invocable · 3 off)', c1.mcp.on === 1 && c1.mcp.off === 2 && c1.skill.on === 1 && c1.skill.invocable === 1 && c1.skill.off === 3)
   t.check('the NEXT SESSION rows are the counts in words', JSON.stringify(kitSummaryRows(c1).map(r => r.value)) === JSON.stringify(['1 on · 2 off', '1 on · 1 invocable · 3 off', '● the next session']))
-
   const WORDS = new Set(['on', 'invocable', 'off', 'off (extension)', '—', ''])
   t.check('every value label is one of the ruled words', rows.every(r => WORDS.has(kitValueLabel(r, kitRowView(r, SAMPLE_STATES)))) && rows.every(r => WORDS.has(kitValueLabel(r, kitRowView(r, none)))))
   t.check("valueIsDefault is exactly 'own on and not master-off' (the faint/cream tone follows the word, never replaces it)", kitEntryOf(skill, kitRowView(skill, SAMPLE_STATES)).valueIsDefault === false && kitEntryOf(mcp, kitRowView(mcp, SAMPLE_STATES)).valueIsDefault === true && kitEntryOf(extSkill, vExtSkill).valueIsDefault === false)
   t.check("a master-off item's detail names the extension that holds it off", kitEntryOf(extSkill, vExtSkill).detailExtra?.some(l => l.includes('orchard-tools (extension) is off')) === true)
-
   const screen = read('src/components/KitMenuScreen.tsx')
   const bound = { return: screen.includes("key: 'return'"), space: screen.includes("key: ' '"), backspace: screen.includes("key: 'backspace'"), arrows: screen.includes('key.leftArrow') && screen.includes('key.rightArrow'), esc: screen.includes('onClose: () =>'), pages: read('src/components/mercury-ui/useInteractiveList.ts').includes('pageKeys: true') }
-
   t.check('the legend names ↵ · ⌫ · esc · ↑↓, every named key is bound, and the ←→ cycle stays bound unadvertised', KIT_LEGEND === '↑↓ move · pgup/pgdn page · ↵ change · ⌫ default · esc back' && KIT_LEGEND_SAVED === '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · esc back' && Object.values(bound).every(Boolean))
   t.check("the store-bound screen wears the '(saved)' legend (with the preset key) and its status line says a running session is never touched", screen.includes('legend: preset.open ? KIT_LEGEND_PROMPT : KIT_LEGEND_PRESET') && KIT_LEGEND_PRESET.startsWith(KIT_LEGEND_SAVED.replace(' · esc back', '')) && KIT_LEGEND_PRESET.includes('p save as preset…') && screen.includes("key: 'p'") && kitStatusLine(0).includes('changes apply to new sessions only'))
   t.check('a click activates through the same toggle body as ↵ (onActivate rides the primary action)', screen.includes('onActivate={props.onActivate}') && screen.includes("{ key: 'return', hint: 'change', run: row => ({ pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) }) }"))
   {
-
     const { withSkillState, withExtensionState } = await import('../../src/services/mcp/kitStore.js')
     const slice = { allowedTools: [], projectOnboardingSeenCount: 0, skillStates: { deploy: 'invocable' as const }, extensionStates: { 'orchard-tools': 'off' as const } } as never
     const onSkill = withSkillState(slice, 'deploy', 'on') as { skillStates?: unknown }
@@ -264,7 +247,6 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
     t.check("the record keeps deviations only: the record's withSkillState/withExtensionState DELETE the key on 'on', and the store door rides exactly those pens", onSkill.skillStates === undefined && onExt.extensionStates === undefined && read('src/services/kitMenu/menuStore.ts').includes("from '../mcp/kitStore.js'"))
   }
   t.check('cycling a master-off item answers in words instead of moving a hidden value', screen.includes('turn the extension on first'))
-
   for (const [cols, rowsN] of [[120, 40], [100, 30]] as const) {
     const plain = composeManager(cols, rowsN, SAMPLE_CATALOGUE, 4, SAMPLE_STATES).join('\n')
     t.check(`${cols}x${rowsN}: the composed manager speaks invocable · off · off (extension) and titles both sections`, plain.includes('invocable') && plain.includes('off (extension)') && plain.includes('MCPs') && plain.includes('Skills'))
@@ -274,7 +256,6 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
 t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
 {
   const { MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/services/kitMenu/kitCatalogue.js')
-
   const manifest = (name: string, contributes: Record<string, unknown>) => ({ name, version: '1.0.0', description: 'x', contributes }) as never
   const orchard = manifest('orchard-tools', { skills: ['prune', 'graft'], servers: { db: { command: 'x' } }, commands: ['tidy'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
   const quiet = manifest('quiet-hooks', { commands: ['lint'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
@@ -332,15 +313,12 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
   t.check('an extension server carries its extension (parsed from the runtime name) and the dynamic scope', extServer?.kind === 'mcp' && extServer.extension === 'orchard-tools' && extServer.scope === 'dynamic')
   const deploy = cat.rows.find(r => r.kind === 'skill' && r.name === 'deploy')
   t.check("a loader skill names its settings home in words ('project settings')", deploy?.kind === 'skill' && deploy.source === 'project settings' && deploy.extension === null)
-
   const doorNames = new Set(['github', 'postgres', 'ext:orchard-tools:db', 'deploy', 'notes', 'orchard-tools:prune', 'orchard-tools:graft'])
   t.check('POISON absent: every server/skill row name is a door spelling verbatim (no prettified or re-cased name)', cat.rows.filter(r => r.kind === 'mcp' || r.kind === 'skill').every(r => doorNames.has(r.name)))
-
   const listed = sectionRows(cat)
   t.check('sectionRows keeps members first and the note last, both sections titled', listed[listed.length - 1]?.kind === 'note' && listed[0]?.section === 'mcp' && listed.some(r => r.section === 'skill'))
   const { LOADING_KIT_CATALOGUE } = await import('../../src/services/kitMenu/kitTypes.js')
   t.check('the loading catalogue paints "reading…" lines, never the none-configured words', sectionRows(LOADING_KIT_CATALOGUE).every(r => r.kind === 'empty' && r.text.startsWith('reading')))
-
   {
     const { refusedSkillNote, shadowedSkillNote } = await import('../../src/services/kitMenu/kitCatalogue.js')
     const colliding = {
@@ -366,7 +344,6 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     t.check('the ruled MCP note stays LAST; the section list keeps members before notes', skillNotes[skillNotes.length - 1] === MCP_SKILLS_NOTE && sectionRows(cat2).filter(r => r.section === 'skill').findIndex(r => r.kind === 'note') > sectionRows(cat2).filter(r => r.section === 'skill').findLastIndex(r => r.kind === 'skill'))
     t.check('the toggle key space has one `good` (no duplicate row ids)', new Set(sectionRows(cat2).map(kitRowId)).size === sectionRows(cat2).length)
   }
-
   {
     const { mkdtempSync, rmSync } = await import('node:fs')
     const { tmpdir } = await import('node:os')
@@ -374,7 +351,6 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
     const savedHome = process.env.MERCURY_CONFIG_DIR
     process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
     delete process.env.MERCURY_ANTHROPIC_CONNECTORS
-
     const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
     enableConfigs()
     try {
@@ -400,7 +376,6 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
   const deploy = rows.find(r => r.kind === 'skill' && r.name === 'deploy')!
   const master = rows.find(r => r.kind === 'extension' && r.section === 'skill')!
   const prune = rows.find(r => r.kind === 'skill' && r.name === 'orchard-tools:prune')!
-
   const { mkdirSync, mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const scratch = mkdtempSync(join(tmpdir(), 'kit-menu-record-'))
@@ -415,23 +390,18 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
   enableConfigs()
   try {
     const store = new RecordKitMenuStore()
-
     t.check('a fresh record reads EMPTY (every row on — default all-on by construction)', store.read(WS).size === 0 && rows.filter(isMember).every(r => kitRowView(r, store.read(WS)).effective === 'on'))
     const fresh = kitStatusLine(0)
     t.check("the fresh status line is the all-on truth and never a nag (no 'configure' / 'set up' / 'choose' words)", fresh === 'everything on; changes apply to new sessions only' && !/configure|set up|choose|please/i.test(fresh))
     t.check('the standing line counts the saved choices once any stand', kitStatusLine(1) === '1 choice saved — applies to the next session' && kitStatusLine(3).startsWith('3 choices saved'))
-
     t.check("write deploy → invocable, re-read: invocable (receipt 'deploy → invocable')", JSON.stringify(store.write(WS, deploy, 'invocable')) === JSON.stringify({ ok: true, receipt: 'deploy → invocable' }) && store.read(WS).get('skill:deploy') === 'invocable' && kitDeltasForWorkspace(WS).skillStates['deploy'] === 'invocable')
     t.check('write deploy → off, re-read: off', store.write(WS, deploy, 'off').ok && store.read(WS).get('skill:deploy') === 'off')
     t.check('write deploy → on, re-read: the deviation is GONE (absent = on; the record carries no skillStates key)', store.write(WS, deploy, 'on').ok && !store.read(WS).has('skill:deploy') && getProjectConfigForWorkspace(WS).skillStates === undefined)
     t.check("an unchanged write writes nothing and says so ('deploy already on')", JSON.stringify(store.write(WS, deploy, 'on')) === JSON.stringify({ ok: true, receipt: 'deploy already on' }))
     t.check("an MCP server off/on round-trips through the landed disabled record ('postgres → off' ⇒ disabledMcpServers carries it; on ⇒ gone)", store.write(WS, postgres, 'off').ok && store.read(WS).get('mcp:postgres') === 'off' && (getProjectConfigForWorkspace(WS).disabledMcpServers ?? []).includes('postgres') && store.write(WS, postgres, 'on').ok && !store.read(WS).has('mcp:postgres') && !(getProjectConfigForWorkspace(WS).disabledMcpServers ?? []).includes('postgres'))
-
     t.check("master off round-trips: 'orchard-tools (extension) → off' (extensionStates carries it); its skill reads effectively off; master on ⇒ gone", store.write(WS, master, 'off').ok && getProjectConfigForWorkspace(WS).extensionStates?.['orchard-tools'] === 'off' && kitRowView(prune, store.read(WS)).effective === 'off' && kitRowView(prune, store.read(WS)).masterOff && store.write(WS, master, 'on').ok && !store.read(WS).has('extension:orchard-tools') && kitRowView(prune, store.read(WS)).effective === 'on')
-
     store.write(WS, postgres, 'off')
     t.check('KEYED BY WORKSPACE: the write under one repo is invisible under another', store.read(OTHER).size === 0 && store.read(WS).get('mcp:postgres') === 'off')
-
     store.write(WS, deploy, 'invocable')
     store.write(WS, master, 'off')
     const deltas = kitDeltasForWorkspace(WS)
@@ -443,7 +413,6 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     else process.env.MERCURY_CONFIG_DIR = savedHome
     rmSync(scratch, { recursive: true, force: true })
   }
-
   const screenSrc = read('src/components/KitMenuScreen.tsx')
   const storeSrc = read('src/services/kitMenu/menuStore.ts')
   const LIVE_DOORS = ['sessionControl', 'daemonConnector', 'set-kit', 'stampSessionKit', 'restampSessionKit', 'dispatchSlash', 'hopIntoSession', 'bornSession']
@@ -462,43 +431,33 @@ t.section('§9 — "SAVE AS PRESET…": the action hook, its prompt, the typed r
 {
   const { STORE_PRESET_HOOK, _resetKitPresetHookForTesting, bindKitPresetHook, kitPresetHook, presetNameProblem, PRESET_NAME_MAX } = await import('../../src/services/kitMenu/presetHook.js')
   const { deltasFromStates, statesFromDeltas } = await import('../../src/services/kitMenu/menuStore.js')
-
   t.check("an empty name refuses in words ('type a name first'); whitespace is empty", presetNameProblem('') === 'type a name first' && presetNameProblem('   ') === 'type a name first')
   t.check('a bad name refuses in words; a plain name passes; the cap is 40', presetNameProblem('review/kit') !== null && presetNameProblem('review kit') === null && presetNameProblem('a'.repeat(40)) === null && presetNameProblem('a'.repeat(41)) !== null && PRESET_NAME_MAX === 40)
-
   _resetKitPresetHookForTesting()
   const presetStore = await import('../../src/services/mcp/presetStore.ts')
   const storeSaved = kitPresetHook().save('menu door', { workspaceDir: '/proof/repo', deltas: { mcpOff: ['postgres'], skillStates: {}, extensionsOff: [] }, members: { mcp: ['postgres'], skills: [], extensions: [] } })
   const storeBack = presetStore.kitPresetDeltas('menu door')
   t.check("the DEFAULT hook is the store door: the save lands in the preset store with the counted receipt (the typed-refusal placeholder is dead)", storeSaved.ok && storeSaved.receipt === "preset 'menu door' saved (1 delta)" && storeBack.ok && storeBack.deltas.mcpOff[0] === 'postgres' && kitPresetHook() === STORE_PRESET_HOOK)
   presetStore.deleteKitPreset('menu door')
-
   const calls: Array<{ name: string; snapshot: unknown }> = []
   bindKitPresetHook({ save: (name, snapshot) => { calls.push({ name, snapshot }); return { ok: true, receipt: `saved preset ${name}` } } })
   const res = kitPresetHook().save('review kit', { workspaceDir: '/proof/repo', deltas: { mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: ['orchard-tools'] }, members: { mcp: ['github', 'postgres'], skills: ['deploy'], extensions: ['orchard-tools'] } })
   t.check('a bound hook is what the screen reaches (the store door re-binds the seam) and answers its own receipt', res.ok && res.receipt === 'saved preset review kit' && calls.length === 1 && calls[0]?.name === 'review kit')
   _resetKitPresetHookForTesting()
-
   const deltas = { mcpOff: ['postgres'], skillStates: { deploy: 'invocable' as const }, extensionsOff: ['orchard-tools'] }
   t.check('deltasFromStates ∘ statesFromDeltas is the identity on the record (a preset snapshots the record exactly)', JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(deltasFromStates(new Map())) === JSON.stringify({ mcpOff: [], skillStates: {}, extensionsOff: [] }))
-
   const lines = presetPromptLines('review k', null)
   t.check("the prompt paints the name with the live caret and its keys ('↵ save · esc cancel')", lines[0] === 'save as preset' && lines.includes('name: review k▌') && lines[lines.length - 1] === '↵ save · esc cancel')
   t.check('a note (the receipt or the refusal) replaces the keys line', presetPromptLines('x', 'type a name first')[lines.length - 1] === 'type a name first')
-
   t.check("the legends: the screen names 'p save as preset…' and 'w presets…' beside the row keys; the open prompt names only its own keys; the layer its own", KIT_LEGEND_PRESET === '↑↓ move · pgup/pgdn page · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back' && KIT_LEGEND_PROMPT === 'type a name · ↵ save · esc cancel' && KIT_LEGEND_PRESETS === '↑↓ move · pgup/pgdn page · ↵ wear next session · ⌫ delete · esc back')
-
   const screenSrc = read('src/components/KitMenuScreen.tsx')
-
   t.check("p opens the prompt and the list goes inert while a layer owns input ('active: !preset.open && !presetsLayer.open')", screenSrc.includes("key: 'p'") && screenSrc.includes('setPreset({ open: true, name: \'\', note: null })') && screenSrc.includes('active: !preset.open && !presetsLayer.open') && screenSrc.includes('{ isActive: !preset.open && !presetsLayer.open }'))
   t.check('the prompt owns esc (closes the prompt, not the screen), ↵ (validates, then the hook with the snapshot) and ⌫; every key is consumed', screenSrc.includes('if (key.escape) {') && screenSrc.includes("setPreset({ open: false, name: '', note: null })") && screenSrc.includes('kitPresetHook().save(preset.name.trim(), snapshotOf())') && screenSrc.includes('presetNameProblem(preset.name)') && screenSrc.includes('{ isActive: preset.open }'))
   t.check("the snapshot is the record's deltas + the roster's resolved names", screenSrc.includes('deltas: deltasFromStates(states)') && screenSrc.includes("mcp: listRows.filter(r => r.kind === 'mcp').map(r => r.name)"))
   t.check("no third titled section: the preset door is a KEY + the detail body (no 'preset' row kind, no 'Presets' group)", !screenSrc.includes("kind: 'preset'") && !screenSrc.includes("group: 'Presets'") && !read('src/services/kitMenu/kitTypes.ts').includes("'preset'"))
-
   const laneSrc = ['src/components/KitMenuScreen.tsx', 'src/services/kitMenu/kitTypes.ts', 'src/services/kitMenu/kitCatalogue.ts', 'src/services/kitMenu/menuStore.ts', 'src/services/kitMenu/presetHook.ts', 'src/services/kitMenu/presetWear.ts', 'src/services/mcp/presetStore.ts']
   const packHits = laneSrc.filter(f => /\bpacks?\b/i.test(read(f).replace(/"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g, '')))
   t.check("the vocabulary law: the word 'pack' appears nowhere in the lane's sources (the law's own sentence excepted)", packHits.length === 0, packHits.join(','))
-
   for (const [cols, rowsN] of [[120, 40], [100, 30]] as const) {
     const plain = composeManager(cols, rowsN, SAMPLE_CATALOGUE, 4, SAMPLE_STATES, { name: 'review kit', note: null }).join('\n')
     t.check(`${cols}x${rowsN}: the composed manager carries the prompt's legend${cols >= 110 ? ' and the name with its caret' : ''}`, plain.includes(KIT_LEGEND_PROMPT) && (cols < 110 || plain.includes('name: review kit▌')))
@@ -536,24 +495,19 @@ t.section('§11 — THE PRESETS LAYER (`w`) + the armed wear on the face')
 {
   const { KIT_LEGEND_PRESETS: LAYER_LEGEND, PRESET_LAYER_EMPTY, presetLayerEntryOf, presetLayerSummaryRows } = await import('../../src/components/KitMenuScreen.js')
   const { SAMPLE_PRESET_FACTS, composePresetsLayer, composeFace } = await import('./kit-menu-stills.ts')
-
   const armedEntry = presetLayerEntryOf({ name: 'writing', count: 2 }, 'writing')
   const plainEntry = presetLayerEntryOf({ name: 'review kit', count: 4 }, 'writing')
   const damagedEntry = presetLayerEntryOf({ name: 'broken', count: null }, null)
   t.check("the armed preset wears the word 'armed'; an unarmed one the em dash; a damaged one says so and offers the re-save", armedEntry.valueLabel === 'armed' && plainEntry.valueLabel === '—' && damagedEntry.summary.includes('damaged in the config') && damagedEntry.summary.includes('save it again'))
   t.check("the entry states the ONE-SHOT law in its own words ('one-shot: the menu's default resumes after')", plainEntry.summary.includes("one-shot: the menu's default resumes after"))
   t.check('the layer panel: Saved count · Armed truth (the teal marker only when armed) · the next-session applies row', JSON.stringify(presetLayerSummaryRows(3, 'writing')) === JSON.stringify([{ key: 'Saved', value: '3 presets' }, { key: 'Armed', value: "● 'writing' — one session", tone: 'teal' }, { key: 'Applies', value: '● the next session', tone: 'teal' }]) && presetLayerSummaryRows(0, null)[1]?.value === '— the menu’s default')
-
   for (const [cols, rowsN] of [[120, 40], [100, 30]] as const) {
     const plain = composePresetsLayer(cols, rowsN, SAMPLE_PRESET_FACTS, 0, 'writing').join('\n')
-
     t.check(`${cols}x${rowsN}: the composed presets layer carries its legend, the saved rows and the armed word${cols >= 110 ? ' + the armed status line' : ''}`, plain.includes(LAYER_LEGEND) && plain.includes('review kit') && plain.includes('broken') && plain.includes('armed') && (cols < 110 || plain.includes("preset 'writing' armed")))
   }
-
   const armedFace = composeFace('full', 120, 40, 'writing').join('\n')
   const plainFace = composeFace('full', 120, 40).join('\n')
   t.check("the face's kit row says \"next: preset 'writing'\" while armed and the standing ctx otherwise", armedFace.includes("next: preset 'writing'") && !plainFace.includes('next: preset') && plainFace.includes('what the next session loads'))
-
   const screenSrc = read('src/components/KitMenuScreen.tsx')
   t.check("w opens the layer and the sub-list owns the screen while open ('active: presetsLayer.open')", screenSrc.includes("key: 'w'") && screenSrc.includes('setPresetsLayer({ open: true, facts: readPresetFacts() })') && screenSrc.includes('active: presetsLayer.open'))
   t.check('↵ wears (the armed row disarms — the one-keystroke undo) and ⌫ deletes, both through the event loop', screenSrc.includes('wearOrDisarm') && screenSrc.includes('disarmWornPreset') && screenSrc.includes('deletePresetRow') && screenSrc.includes("pending: 'wearing…'") && screenSrc.includes("pending: 'deleting…'"))

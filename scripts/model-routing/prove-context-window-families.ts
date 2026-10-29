@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -27,7 +26,6 @@ for (const key of [
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-ctx-families-'))
-
 process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:9/api/v1'
 process.env.MERCURY_GEMINI_API_BASE = 'http://127.0.0.1:9/v1beta'
 process.env.MERCURY_HUGGINGFACE_API_BASE = 'http://127.0.0.1:9/v1'
@@ -94,7 +92,6 @@ section('W1 · unfetched: pins ride, everything else is the LABELLED conservativ
     const r = resolveContextWindow(id)
     check(`${id}: dated pin ${window.toLocaleString()} · source static-pin`, r.effectiveWindow === window && r.source === 'static-pin', JSON.stringify({ w: r.effectiveWindow, s: r.source }))
   }
-
   for (const id of ['openrouter/anthropic/claude-opus-5', 'openrouter/anthropic/claude-sonnet-5', 'anthropic/claude-opus-5', 'huggingface/org/claude-opus-5-clone', 'local/opus-5-quant', 'compat/sonnet-5-proxy']) {
     const r = resolveContextWindow(id)
     check(`${id}: never the first-party 1M pin — fallback 200,000 until its own source states a window`, r.source === 'fallback' && r.effectiveWindow === 200_000, JSON.stringify({ w: r.effectiveWindow, s: r.source }))
@@ -167,7 +164,6 @@ section('W4 · local discovery bumps the epoch too (the served window is a sourc
 
 section('W5 · awaitContextWindowSource lands the source before a decision; boot warms every family')
 {
-
   let modelsHits = 0
   const server = http.createServer((req, res) => {
     if (req.url?.startsWith('/api/v1/models')) {
@@ -197,7 +193,6 @@ section('W5 · awaitContextWindowSource lands the source before a decision; boot
   await warmup.awaitContextWindowSource('openrouter/stealth/ox-alpha')
   check('a second await is instant (cached; no second GET inside the TTL)', Date.now() - again < 50 && modelsHits === 1)
   check('a first-party id needs no source: instant, ready', (await warmup.contextWindowSourceReady('claude-opus-5')) === true)
-
   delete process.env.GEMINI_API_KEY
   delete process.env.OPENAI_API_KEY
   await warmup.warmContextWindowSources()

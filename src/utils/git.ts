@@ -25,7 +25,9 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgs, gitArgsAsync } from './git/spawnArgs.js'
 import { whichSync } from './which.js'
 
+
 const ROOT_CACHE_ENTRIES = 50
+
 
 type RootMemo = { root: string | null }
 type CachedFinder = ((startPath: string) => string | null) & { cache: LRUCache<string, RootMemo> }
@@ -74,7 +76,6 @@ export const findCanonicalGitRoot: CachedFinder = makeCachedFinder(startPath => 
     try {
       gitEntry = readFileSync(join(inputRoot, '.git'), 'utf8').trim()
     } catch {
-
       return inputRoot
     }
     if (!gitEntry.startsWith('gitdir:')) return inputRoot
@@ -85,17 +86,13 @@ export const findCanonicalGitRoot: CachedFinder = makeCachedFinder(startPath => 
     try {
       commonDirPointer = readFileSync(join(resolvedGitDir, 'commondir'), 'utf8').trim()
     } catch {
-
       return inputRoot
     }
     const commonDir = realpathSync(resolve(resolvedGitDir, commonDirPointer))
-
     if (dirname(resolvedGitDir) !== join(commonDir, 'worktrees')) return inputRoot
-
     const backLink = readFileSync(join(resolvedGitDir, 'gitdir'), 'utf8').trim()
     const expectedBackLink = join(realpathSync(inputRoot), '.git')
     if (resolve(backLink) !== expectedBackLink) return inputRoot
-
     const identity = basename(commonDir) === '.git' ? dirname(commonDir) : commonDir
     return identity.normalize('NFC')
   } catch {
@@ -122,6 +119,7 @@ export const gitExe = memoize((): string => {
   return executable
 })
 
+
 export const getIsGit = memoize(async (): Promise<boolean> => {
   const startedAt = Date.now()
   logForDiagnosticsNoPII('debug', 'is_git_check_started')
@@ -133,6 +131,7 @@ export const getIsGit = memoize(async (): Promise<boolean> => {
 export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
   return findGitRoot(cwd) !== null
 }
+
 
 async function getHead(): Promise<string> {
   return getCachedHead()
@@ -169,6 +168,8 @@ export function redactGitRemoteCredentials<T extends string | null | undefined>(
   if (url === null || url === undefined) return url
   return (url as string).replace(/:\/\/[^/@]+@/, '://***@') as T
 }
+
+
 
 const PROBE_TIMEOUT_MS = 30_000
 const PROBE_MAX_BUFFER = 16 * 1024 * 1024
@@ -223,7 +224,6 @@ async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null;
   const r = await runGitProbe(args, { GIT_OPTIONAL_LOCKS: '0' })
   if (r.fault !== null) return { value: null, fault: r.fault }
   if (r.status !== 0) return { value: false, fault: null }
-
   const meaningful = r.stdout
     .split('\n')
     .map(line => line.trimEnd())
@@ -238,7 +238,6 @@ async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null;
 
 export async function getIsClean(options?: {
   ignoreUntracked?: boolean
-
   untrackedFiles?: 'all' | 'normal'
 }): Promise<boolean> {
   const mode: UntrackedMode = options?.ignoreUntracked ? 'no' : (options?.untrackedFiles ?? 'all')
@@ -266,7 +265,6 @@ export async function getFileStatus(): Promise<GitFileStatus> {
     const status = token.slice(0, 2)
     const path = token.slice(3)
     if (status[0] === 'R' || status[0] === 'C') {
-
       i++
     }
     if (status === '??') {
@@ -282,10 +280,10 @@ async function getWorktreeCount(): Promise<number> {
   return getWorktreeCountFromFs()
 }
 
+
 const PROBE_FLOOR_MS = 60_000
 const PROBE_BACKOFF_FACTOR = 4
 const PROBE_BACKOFF_CAP_MS = 600_000
-
 const SIGNAL_SETTLE_MS = 500
 
 type LanesFact = GitWorktreeInfo[] | GitUnavailable
@@ -297,12 +295,9 @@ interface ProbeEntry<K extends ProbeKey> {
   value: FactValue[K] | undefined
   dirty: boolean
   inflight: Promise<FactValue[K] | undefined> | null
-
   restir: boolean
   computedAt: number
-
   notBefore: number
-
   secondLookAt: number
   failures: number
 }
@@ -342,7 +337,6 @@ let snapshotVersion = 0
 let probeNotice: string | null = null
 
 async function probeLanes(): Promise<{ value: LanesFact | null; fault: string | null }> {
-
   const { gitWorktreesAsync } = await import('../services/gitGraph/observe.js')
   const value = await gitWorktreesAsync(getCwd())
   if (!Array.isArray(value) && value.failure) return { value, fault: value.failure }
@@ -377,7 +371,6 @@ function compute<K extends ProbeKey>(key: K, mode: UntrackedMode): Promise<FactV
     try {
       outcome = await PROBES[key](mode)
     } catch (e) {
-
       outcome = { value: null, fault: e instanceof Error ? e.message : String(e) }
     }
     entry.computedAt = Date.now()
@@ -394,7 +387,6 @@ function compute<K extends ProbeKey>(key: K, mode: UntrackedMode): Promise<FactV
   void run.then(() => {
     if (entry.inflight === run) entry.inflight = null
     if (entry.restir) {
-
       entry.restir = false
       entry.dirty = true
       if (entry.failures === 0 && entry.computedAt - entry.secondLookAt >= PROBE_FLOOR_MS) {
@@ -449,7 +441,6 @@ export function markGitTreeSuspect(scope: 'tree' | 'git' = 'tree'): void {
 }
 
 function scheduleRecompute(): void {
-
   if (factListeners.size === 0 || settleTimer !== null) return
   settleTimer = setTimeout(() => {
     settleTimer = null
@@ -475,7 +466,6 @@ async function recomputeDirty(): Promise<void> {
   for (const key of PROBE_KEYS) {
     const entry = probeEntries[key]
     if (!entry.dirty || entry.inflight !== null) continue
-
     if (entry.value === undefined && entry.failures === 0) continue
     if (now < entry.notBefore) {
       deferredUntil = Math.min(deferredUntil, entry.notBefore)
@@ -624,6 +614,7 @@ export async function getGithubRepo(): Promise<string | null> {
   return `${parsed.owner}/${parsed.name}`
 }
 
+
 type BareRepoVerdict = false | 'gitdir-redirect-plantable' | 'gitdir-file-oversized' | 'bare-indicators'
 
 const GITDIR_FILE_MAX_BYTES = 4096
@@ -677,12 +668,10 @@ function resolveLexicallyHardened(path: string): string | undefined {
     if (process.platform !== 'win32' && looksLikeWindowsPath(target)) return undefined
     const remaining = components.slice(index)
     if (isAbsolute(target)) {
-
       resolvedParts = []
       ;({ root, rest } = rootAndRest(target))
       components = [...rest.split(/[\\/]+/), ...remaining]
     } else {
-
       components = [...target.split(/[\\/]+/), ...remaining]
     }
     index = 0
@@ -748,7 +737,6 @@ type GitEntryClass = 'trusted' | 'plantable' | 'oversized' | 'none'
 function classifyRedirectTarget(target: string, canonicalCwd: string): GitEntryClass {
   const crossOs = process.platform !== 'win32' && looksLikeWindowsPath(target)
   if (crossOs) {
-
     if (!isUncRoot(target)) return 'plantable'
     return 'none'
   }
@@ -809,7 +797,6 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
       return 'none'
     }
     if (contents.includes('\0')) return 'plantable'
-
     if (!contents.startsWith('gitdir: ')) return 'none'
     const declared = contents.slice('gitdir: '.length).replace(/[\r\n]+$/, '')
     return classifyRedirectTarget(isAbsolute(declared) ? declared : resolve(directory, declared), canonicalCwd)

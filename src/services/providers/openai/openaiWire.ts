@@ -1,3 +1,4 @@
+
 import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { OutageCause } from '../../api/reconnectLadder.js'
@@ -5,6 +6,7 @@ import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
+
 
 export interface OpenaiFunctionTool {
   type: 'function'
@@ -53,18 +55,14 @@ export interface OpenaiMessageItem {
     | { type: 'input_image'; image_url: string; detail?: 'low' | 'high' | 'auto' }
     | { type: 'input_file'; filename: string; file_data: string }
   >
-
   phase?: TextPhase
 }
 
 interface OpenaiFunctionCallItem {
   type: 'function_call'
-
   call_id: string
   name: string
-
   arguments: string
-
   id?: string
 }
 
@@ -102,19 +100,14 @@ export interface OpenaiResponsesRequest {
   tools?: Array<OpenaiFunctionTool | OpenaiWebSearchTool | OpenaiToolSearchTool>
   tool_choice?: 'auto' | 'none'
   parallel_tool_calls?: boolean
-
   reasoning?: { effort?: string; summary?: 'auto' | 'concise' | 'detailed' }
-
   store: boolean
   stream: true
   include?: string[]
-
   prompt_cache_key?: string
   prompt_cache_retention?: '24h'
   text?: {
-
     verbosity?: 'low' | 'medium' | 'high'
-
     format?: {
       type: 'json_schema'
       name: string
@@ -125,11 +118,11 @@ export interface OpenaiResponsesRequest {
   max_output_tokens?: number
 }
 
+
 export interface OpenaiUsage {
   inputTokens: number
   outputTokens: number
   cachedInputTokens?: number
-
   cacheWriteInputTokens?: number
   reasoningOutputTokens?: number
 }
@@ -138,9 +131,7 @@ export interface OpenaiCompletedToolCall {
   callId: string
   itemId?: string
   name: string
-
   argumentsRaw: string
-
   arguments?: unknown
   malformed: boolean
 }
@@ -157,16 +148,12 @@ export interface OpenaiFault {
     | 'cancelled'
     | 'transport-error'
     | 'usage-limit'
-
   code: string
   message: string
   retryable: boolean
   inStream?: true
-
   resetsAtMs?: number
-
   retryAfterMs?: number
-
   status?: number
   forensics?: StreamCutForensicsV1
   outage?: OutageCause
@@ -188,28 +175,19 @@ export type OpenaiStreamEvent =
       type: 'finish'
       reason: OpenaiFinishReason
       toolCalls: OpenaiCompletedToolCall[]
-
       webSearchCalls: Array<{ id: string; query?: string }>
-
       citations: Array<{ url: string; title: string }>
-
       reasoningItems: OpenaiReasoningItem[]
-
       orderedItems: OpenaiInputItem[]
-
       finalText: string
-
       refusalText: string
-
       unknownItemTypes: string[]
-
       incompleteDetail?: string
       responseId?: string
     }
   | {
       type: 'stream-fault'
       fault: OpenaiFault
-
       settledItems?: OpenaiInputItem[]
     }
 
@@ -220,6 +198,7 @@ export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   usage: true,
   timing: true,
 }
+
 
 export function mapOpenaiHttpFailure(
   status: number,
@@ -306,6 +285,7 @@ export function mapOpenaiHttpFailure(
     status,
   }
 }
+
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
@@ -482,23 +462,18 @@ function bareStreamErrorFault(nth: number): OpenaiFault {
 
 export class ResponsesStreamFold {
   finished = false
-
   private bareStreamError: OpenaiFault | null = null
-
   takeBareStreamError(): OpenaiFault | null {
     const held = this.bareStreamError
     this.bareStreamError = null
     return held
   }
-
   settledItems(): OpenaiInputItem[] {
     return [...this.orderedItems]
   }
   private responseId: string | undefined
   private toolCalls: OpenaiCompletedToolCall[] = []
-
   private argDeltas = new Map<string, string>()
-
   private toolIdentity = new Map<string, { callId: string; name: string }>()
   private reasoningItems: OpenaiReasoningItem[] = []
   private orderedItems: OpenaiInputItem[] = []
@@ -509,9 +484,7 @@ export class ResponsesStreamFold {
   private citations: Array<{ url: string; title: string }> = []
   private citationUrls = new Set<string>()
   private usage: OpenaiUsage | undefined
-
   private streamedTextChars = 0
-
   private settledTextChars = 0
   private reasoningTextStreamed = new Set<string>()
 
@@ -558,7 +531,6 @@ export class ResponsesStreamFold {
         break
       }
       case 'response.output_item.added': {
-
         const item = asRecord(o.item)
         if (item?.type === 'function_call') {
           const itemId = typeof item.id === 'string' ? item.id : ''
@@ -569,14 +541,12 @@ export class ResponsesStreamFold {
             out.push({ type: 'tool-args-start', itemId, callId, name })
           }
         } else if (item?.type === 'message') {
-
           const phase = readMessagePhase(item)
           out.push({ type: 'text-item-start', ...(phase ? { phase } : {}) })
         }
         break
       }
       case 'response.function_call_arguments.delta': {
-
         const itemId = typeof o.item_id === 'string' ? o.item_id : ''
         const delta = typeof o.delta === 'string' ? o.delta : ''
         if (itemId && delta) {
@@ -592,7 +562,6 @@ export class ResponsesStreamFold {
         const itemType = typeof item?.type === 'string' ? item.type : ''
         if (!item) break
         if (itemType === 'function_call') {
-
           const itemId = typeof item.id === 'string' ? item.id : ''
           const doneArgs = typeof item.arguments === 'string' ? item.arguments.trim() : ''
           if (doneArgs === '' && itemId && this.argDeltas.has(itemId)) {
@@ -601,13 +570,11 @@ export class ResponsesStreamFold {
           if (itemId) this.argDeltas.delete(itemId)
           const call = parseToolCall(item)
           this.toolCalls.push(call)
-
           if (itemId && this.toolIdentity.has(itemId)) {
             this.toolIdentity.delete(itemId)
             out.push({ type: 'tool-args-done', itemId, argsRaw: call.argumentsRaw })
           }
           if (!call.malformed) {
-
             this.orderedItems.push({
               type: 'function_call',
               call_id: call.callId,
@@ -631,7 +598,6 @@ export class ResponsesStreamFold {
           }
           if (itemId) this.reasoningTextStreamed.delete(itemId)
         } else if (itemType === 'message') {
-
           const content = Array.isArray(item.content) ? item.content : []
           const itemTexts: string[] = []
           for (const part of content) {
@@ -639,7 +605,6 @@ export class ResponsesStreamFold {
             if (rec?.type === 'output_text' && typeof rec.text === 'string') {
               this.textParts.push(rec.text)
               itemTexts.push(rec.text)
-
               for (const raw of Array.isArray(rec.annotations) ? rec.annotations : []) {
                 const annotation = asRecord(raw)
                 if (annotation?.type === 'url_citation' && typeof annotation.url === 'string') {
@@ -650,7 +615,6 @@ export class ResponsesStreamFold {
               this.refusalParts.push(rec.refusal)
             }
           }
-
           const joinedItemText = itemTexts.join('')
           if (joinedItemText.length > 0) {
             const alreadyStreamed = Math.max(
@@ -670,13 +634,11 @@ export class ResponsesStreamFold {
               type: 'message',
               role: 'assistant',
               content: itemTexts.map(text => ({ type: 'output_text' as const, text })),
-
               ...(phase ? { phase } : {}),
             })
           }
           out.push({ type: 'text-item-done', ...(phase ? { phase } : {}) })
         } else if (itemType === 'web_search_call') {
-
           const id = typeof item.id === 'string' && item.id !== '' ? item.id : `ws_${this.webSearchCalls.length + 1}`
           const action = asRecord(item.action)
           const query = typeof action?.query === 'string' && action.query !== '' ? action.query : undefined
@@ -699,7 +661,6 @@ export class ResponsesStreamFold {
       case 'response.completed':
       case 'response.failed':
       case 'response.incomplete': {
-
         this.bareStreamError = null
         const response = asRecord(o.response)
         const usage = asRecord(response?.usage)
@@ -728,7 +689,6 @@ export class ResponsesStreamFold {
       }
       case 'response.error':
       case 'error': {
-
         try {
           logForDebugging(`[openai-wire] raw stream error event: ${JSON.stringify(o)}`)
         } catch {
@@ -741,7 +701,6 @@ export class ResponsesStreamFold {
         const type = error === o ? undefined : error.type
         const errorType = o.error_type ?? error.error_type ?? asRecord(error.metadata)?.error_type
         if (!hadCode && !hadMessage && typeof type !== 'string' && typeof errorType !== 'string') {
-
           bareStreamErrors += 1
           this.bareStreamError = bareStreamErrorFault(bareStreamErrors)
           break
@@ -760,7 +719,6 @@ export class ResponsesStreamFold {
         break
       }
       default:
-
         break
     }
     return out

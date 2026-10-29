@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { join } from 'path'
 import { Box, Text } from '../ink.js'
@@ -8,6 +9,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { setClipboardWithReceipt } from '../ink/termio/osc.js'
 import { getFocusedWorkspaceCwd, useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { writeFileSync } from 'node:fs'
+
 
 type ExportResult = { success: boolean; message: string }
 
@@ -45,7 +47,6 @@ export function ExportDialog({
 
   const copyToClipboard = async (): Promise<void> => {
     try {
-
       const receipt = await setClipboardWithReceipt(content)
       if (receipt.sequence) process.stdout.write(receipt.sequence)
       onDone({ success: true, message: `Conversation ${receipt.confirmation}` })
@@ -60,7 +61,6 @@ export function ExportDialog({
   }
 
   const writeToFile = (): void => {
-
     const target = join(getFocusedWorkspaceCwd(), normalizeTxtFilename(filename))
     try {
       writeFileSync(target, content, {

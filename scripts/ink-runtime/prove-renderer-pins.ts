@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/ink.ts src/ink/frame.ts src/ink/root.ts src/ink/instances.ts src/ink/ink.tsx
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'

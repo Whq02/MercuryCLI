@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +7,6 @@ import ts from 'typescript'
 const ROOT = join(import.meta.dir, '..', '..')
 
 const REPO = join(import.meta.dir, '..', '..')
-
 const TARGET = join(process.env.PROVE_SRC ?? join(REPO, 'src'), 'utils', 'healthReport.ts')
 
 let failures = 0

@@ -23,6 +23,7 @@ import type {
   PermissionRuleValue,
   } from '../../types/permissions.js'
 
+
 function contentMatchesDangerousPattern(content: string | undefined, patterns: string[]): boolean {
   if (content === undefined || content.trim() === '' || content.trim() === '*') {
     return true
@@ -75,7 +76,6 @@ const POWERSHELL_DANGEROUS_NAMES: string[] = [
 export function isDangerousPowerShellPermission(toolName: string, ruleContent?: string): boolean {
   if (toolName !== POWERSHELL_TOOL_NAME) return false
   if (contentMatchesDangerousPattern(ruleContent, POWERSHELL_DANGEROUS_NAMES)) return true
-
   const withExe = POWERSHELL_DANGEROUS_NAMES.map(name => {
     const [first, ...rest] = name.split(' ')
     return [`${first}.exe`, ...rest].join(' ')
@@ -146,6 +146,7 @@ export function findDangerousPermissions(
   return found
 }
 
+
 type MutableRuleMaps = {
   alwaysAllowRules: Record<string, string[]>
   strippedDangerousRules?: Record<string, string[]>
@@ -196,6 +197,7 @@ export function restoreDangerousPermissions(context: ToolPermissionContext): Too
   return next
 }
 
+
 export function transitionPermissionMode(
   fromMode: PermissionMode,
   toMode: PermissionMode,
@@ -216,6 +218,7 @@ export function transitionPermissionMode(
 
   return next
 }
+
 
 export type SetPermissionModeResult = { ok: true; mode: PermissionMode } | { ok: false; error: string }
 
@@ -268,6 +271,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
   return { ok: true, mode }
 }
 
+
 function isFlowDisabledBySettings(): boolean {
   return getInitialSettings().guardrails?.disableFlowMode === true
 }
@@ -290,6 +294,7 @@ export function getFlowUnavailableNotification(reason: FlowUnavailableReason): s
   }
 }
 
+
 function isBypassDisabledBySettingsOrPolicy(): boolean {
   return getInitialSettings().guardrails?.disableSovereignMode === true
 }
@@ -308,6 +313,7 @@ export function createSovereignDisabledContext(
   }
   return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
 }
+
 
 export function parseToolListFromCLI(tools: string[]): string[] {
   const joined = tools.join(',')
@@ -430,13 +436,11 @@ export function resolvePermissionModeCandidates(
         continue
       }
       if (!dangerouslySkipPermissions) {
-
         notification =
           'Sovereign Mode requires launching with --sovereign because it is a bypass-posture mode.'
         continue
       }
     }
-
     resolvedMode = candidate
     break
   }
@@ -449,7 +453,6 @@ export function savedPermissionModeCandidate(): PermissionMode | undefined {
   const raw = settings.guardrails?.mode
   if (!raw) return errors.some(error => error.path === 'guardrails.mode') ? 'default' : undefined
   const mode = permissionModeFromString(raw)
-
   return mode
 }
 
@@ -521,7 +524,6 @@ export async function initializeToolPermissionContext(args: {
   } as unknown as ToolPermissionContext
 
   context = applyPermissionRulesToPermissionContext(context, diskRules)
-
   recordModeTransition({ from: null, to: context.mode, road: 'boot' })
 
   return {
@@ -536,6 +538,7 @@ function normalizeRuleString(rule: string): string {
   const value = permissionRuleValueFromString(rule)
   return value.ruleContent ? `${value.toolName}(${value.ruleContent})` : value.toolName
 }
+
 
 function cloneContext(context: ToolPermissionContext): ToolPermissionContext {
   const c = context as unknown as {

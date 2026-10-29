@@ -1,3 +1,4 @@
+
 import type { ToolCapability } from './contract.js'
 
 export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {

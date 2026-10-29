@@ -22,7 +22,6 @@ walk(SCRIPTS)
 check('live-E2E scripts discovered', liveScripts.length > 0, `${liveScripts.length} found`)
 for (const p of liveScripts) {
   const body = readFileSync(p, 'utf8')
-
   const hermetic =
     body.includes('MERCURY_HOME') ||
     body.includes('MERCURY_CONFIG_DIR') ||

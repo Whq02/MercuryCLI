@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFile } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -49,7 +48,6 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
-
   await new Promise<void>((resolveRun, rejectRun) => {
     execFile(
       '/usr/bin/python3',
@@ -92,9 +90,7 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
 }
 
 function seedHome(withSettingsModel?: string): { home: string; workspace: string } {
-
   const home = mkdtempSync(join(realpathSync(tmpdir()), 'usage-warning-home-'))
-
   const workspace = join(home, 'workspace')
   mkdirSync(workspace, { recursive: true })
   writeFileSync(
@@ -122,7 +118,6 @@ function baseEnv(home: string): Record<string, string> {
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:9',
     BROWSER: 'true',
-
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
     OPENROUTER_API_KEY: '',
@@ -161,9 +156,7 @@ for (const cols of [178, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-
         { data: '', atTick: 999, awaitText: 'of the weekly limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
-
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
@@ -192,7 +185,6 @@ for (const cols of [178, 120]) {
 }
 
 for (const cols of [178, 120]) {
-
   const { home, workspace } = seedHome('claude-opus-5')
   writeFileSync(
     join(home, '.credentials.json'),
@@ -218,7 +210,6 @@ for (const cols of [178, 120]) {
         ...FACE_THEN_COMPOSER,
         { data: '', atTick: 999, awaitText: 'of the Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-
         { data: '\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B', atTick: 999, awaitText: 'Current week (all models)', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],
@@ -303,9 +294,7 @@ for (const cols of [178, 120]) {
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-
         { data: '', atTick: 999, awaitText: 'of the credit cap used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
-
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'OpenRouter', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
       ],

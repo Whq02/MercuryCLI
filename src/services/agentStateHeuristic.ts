@@ -1,5 +1,6 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 
+
 export type AgentState = 'working' | 'blocked' | 'done' | 'failed'
 export type AgentTempo = 'active' | 'idle' | 'blocked'
 
@@ -12,9 +13,7 @@ export function agentNeedsYouEnabled(): boolean {
 export type AgentStateVerdict = {
   state: AgentState
   tempo: AgentTempo
-
   detail: string
-
   needs?: string
   source: 'preclassify' | 'heuristic' | 'llm' | 'apiError'
 }
@@ -50,7 +49,6 @@ const BLOCKED_RE =
   /(\?\s*$)|\b(let me know|which (one|would|do)|should i|do you want|would you like|please (confirm|clarify|provide|let me know)|waiting for|could you|can you (confirm|clarify|provide)|need(s)? your|awaiting)\b/i
 const DONE_RE =
   /\b(done|completed|finished|all set|all done|that's (it|done)|here'?s the|i'?ve (added|created|fixed|updated|implemented|completed|finished|done)|successfully)\b/i
-
 const FIXED_RE =
   /\b(fixed|resolved|corrected|repaired|patched|no longer|now (works|passes|passing)|sorted out)\b/i
 
@@ -78,9 +76,7 @@ export function classifyAgentStateHeuristic(
   const lastFailed = FAILED_RE.test(last) && !FIXED_RE.test(last)
 
   if (lastQuestion) return blockedVerdict(last, 'preclassify')
-
   if (lastDone && !lastFailed) return doneVerdict(last, 'preclassify')
-
   if (lastFailed) return failedVerdict(last, 'preclassify')
 
   if (FAILED_RE.test(tail) && !FIXED_RE.test(tail)) return failedVerdict(last || tail, 'heuristic')

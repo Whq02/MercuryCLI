@@ -13,6 +13,7 @@ import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
 
+
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
 
 const LEVEL_ORDER: readonly DebugLogLevel[] = ['verbose', 'debug', 'info', 'warn', 'error']
@@ -63,11 +64,11 @@ export function getDebugLogPath(): string {
   return join(getMercuryHome(), 'debug', fileName)
 }
 
+
 let trackedLogSize: number | null = null
 let trackedLogPath: string | null = null
 let rotationInProgress = false
 let latestSymlinkRefreshed = false
-
 let pendingMaintenance: Promise<void> = Promise.resolve()
 
 async function maybeRotateDebugLog(
@@ -130,11 +131,11 @@ function refreshLatestSymlink(logPath: string, logDir: string): void {
   }
 }
 
+
 let debugWriter: BufferedWriter | null = null
 let currentLogDirectory: string | null = null
 
 function writeLogLine(content: string): void {
-
   if (!isDebugMode()) return
   const logPath = getDebugLogPath()
   const logDir = dirname(logPath)
@@ -159,7 +160,6 @@ function writeLogLine(content: string): void {
 
 function getWriter(): BufferedWriter {
   if (debugWriter) return debugWriter
-
   debugWriter = createBufferedWriter({
     writeFn: writeLogLine,
     flushIntervalMs: 1000,

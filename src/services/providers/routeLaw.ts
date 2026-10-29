@@ -101,17 +101,15 @@ export function qualifiedWireId(model: string): string {
   return trimmed
 }
 
+
 export type WireIdVerdict =
   | {
       ok: true
-
       wireId: string
-
       healed?: true
     }
   | {
       ok: false
-
       reason: string
     }
 
@@ -121,7 +119,6 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
   const trimmed = model.trim()
   const space = qualifiedIdSpaceOf(trimmed)
   if (space?.qualifiedPrefix === undefined) {
-
     const wireId = normalizeModelStringForAPI(trimmed)
     if (wireId.includes('/')) {
       return {
@@ -144,7 +141,6 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
   }
   if (space.innerGrammar === 'segments-2' || space.innerGrammar === 'segments-1-or-2') {
     if (/[[\]]/.test(stripped)) {
-
       return {
         ok: false,
         reason: `'${trimmed}' carries display dressing ('${stripped.match(/\[[^\]]*\]?/)?.[0] ?? '['}…') that is not part of any catalogue id — pick the row again from /model (ids persist as ${space.qualifiedPrefix}<vendor>/<model>).`,
@@ -159,7 +155,6 @@ export function canonicalWireModelId(model: string): WireIdVerdict {
     }
     return healed ? { ok: true, wireId: stripped, healed: true } : { ok: true, wireId: stripped }
   }
-
   if (stripped.toLowerCase().startsWith(space.qualifiedPrefix)) {
     return {
       ok: false,
@@ -173,7 +168,6 @@ export function healListedCatalogueRowId(
   rowId: string,
   listed: ReadonlySet<string>,
 ): string | undefined {
-
   const raw = rowId.trim()
   const stripped = raw.replace(MERCURY_ANNOTATION_RE, '')
   if (stripped !== raw && listed.has(stripped)) return stripped
@@ -181,3 +175,4 @@ export function healListedCatalogueRowId(
   if (peeled !== undefined && peeled !== raw && listed.has(peeled)) return peeled
   return undefined
 }
+

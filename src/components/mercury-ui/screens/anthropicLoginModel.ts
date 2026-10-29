@@ -21,6 +21,7 @@ import { setClipboard } from '../../../ink/termio/osc.js'
 import { logError } from '../../../utils/log.js'
 import { getAuthScope } from '../../../utils/envUtils.js'
 
+
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
 export const PASTE_PROMPT_DELAY_MS = 3000
 export const NO_CODE_DELAY_MS = 30_000
@@ -43,13 +44,10 @@ export type AnthropicFlowState =
 
 export interface AnthropicLoginSnapshot {
   flow: AnthropicFlowState
-
   pastePromptUp: boolean
   noCodeYet: boolean
   browserOpened: boolean | null
-
   copied: boolean
-
   shadowWarning: string | null
   accountLabel: string | null
 }
@@ -125,7 +123,6 @@ export interface AnthropicLoginDeps {
   storeAccount: (account: AccountInfo) => void
   fetchRoles?: typeof fetchAndStoreUserRoles
   shadowWarning: () => string | null
-
   recordSignIn: (kind: SignInKind) => void
   settings: () => { credentials?: { signInRoute?: 'claudeai' | 'console' | null; organisation?: string | null } }
   notify?: (notice: typeof LOGIN_SUCCESS_NOTICE) => void
@@ -164,19 +161,12 @@ export interface AnthropicLoginMachineOptions {
 
 export interface AnthropicLoginMachine {
   snapshot(): AnthropicLoginSnapshot
-
   wake(): void
-
   start(loginWithClaudeAi: boolean): void
-
   submitCode(raw: string): boolean
-
   retry(): void
-
   copyUrl(): void
-
   reset(): void
-
   dispose(): void
 }
 
@@ -205,7 +195,6 @@ export function createAnthropicLoginMachine(
   let service: AnthropicOAuthServiceLike | null = null
   let started = false
   let disposed = false
-
   let generation = 0
   let rolesRequest: AbortController | null = null
   const timers = new Set<unknown>()
@@ -227,7 +216,6 @@ export function createAnthropicLoginMachine(
     flow = next
     if (next.name === 'idle') started = false
     publish()
-
     if (next.name === 'ready' && !started) {
       started = true
       const loginWithClaudeAi = next.loginWithClaudeAi
@@ -243,17 +231,14 @@ export function createAnthropicLoginMachine(
   }
 
   const succeed = async (tokens: OAuthTokens, gen: number): Promise<void> => {
-
     if (disposed || gen !== generation) return
     if (setupToken) {
       const token = (tokens as { accessToken?: string }).accessToken
       setFlow({ name: 'success', ...(token !== undefined ? { token } : {}) })
-
       arm(() => options.onDone(), TOKEN_FINISH_MS)
       return
     }
     try {
-
       const saved = deps.saveTokens(tokens)
       if (!saved.success) {
         throw new Error(saved.warning ?? 'the credential could not be saved to secure storage')
@@ -273,7 +258,6 @@ export function createAnthropicLoginMachine(
           .catch(error => deps.log(error))
           .finally(() => { if (rolesRequest === request) rolesRequest = null })
       }
-
       if (!deps.usesClaudeAiAuth(tokens.scopes)) {
         setFlow({ name: 'creating-key' })
         const minted = await deps.mintApiKey(tokens.accessToken)
@@ -288,12 +272,9 @@ export function createAnthropicLoginMachine(
           )
         }
       }
-
       if (disposed || gen !== generation) return
-
       deps.recordSignIn(deps.usesClaudeAiAuth(tokens.scopes) ? 'oauth' : 'api-key')
       deps.notify?.(LOGIN_SUCCESS_NOTICE)
-
       shadowWarning = deps.shadowWarning()
       accountLabel = landed?.emailAddress ?? null
       setFlow({ name: 'success', ...(saveWarning !== undefined ? { warning: saveWarning } : {}) })
@@ -441,7 +422,6 @@ export function useAnthropicLoginModel(
       {
         ...(options.mode !== undefined ? { mode: options.mode } : {}),
         ...(options.forceLoginMethod !== undefined ? { forceLoginMethod: options.forceLoginMethod } : {}),
-
         onDone: () => optionsRef.current.onDone(),
       },
       next => setSnap(next),
@@ -449,7 +429,6 @@ export function useAnthropicLoginModel(
     )
   }
   useEffect(() => {
-
     machineRef.current?.wake()
     return () => {
       machineRef.current?.dispose()

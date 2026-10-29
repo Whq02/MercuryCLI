@@ -1,3 +1,4 @@
+
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'

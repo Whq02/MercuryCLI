@@ -35,7 +35,6 @@ if (!nodeBin) {
   console.error('  REFUSED: no node on PATH (set NODE=<path>) — the drill drives node-targeted debugging.')
   process.exit(1)
 }
-
 const distVendored = join(import.meta.dir, '..', '..', 'dist', 'vendor', 'js-debug', 'src', 'dapDebugServer.js')
 const jsDebug = resolveJsDebugServer() ?? (existsSync(distVendored) ? { path: distVendored, source: 'vendored' as const } : null)
 if (!jsDebug) {
@@ -89,7 +88,6 @@ console.log(`  project: ${project}`)
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
 const { TestTool } = await import('../../src/tools/TestTool/TestTool.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-
 const callDebug = async (input: Record<string, unknown>): Promise<string> =>
   ((await runWithCwdOverride(project, () => DebugTool.call(input as never, {} as never))) as {
     data: { result: string }
@@ -107,7 +105,6 @@ try {
   check('the node-test lane ran it', firstRun.includes('node-test'), firstRun.slice(0, 120))
 
   section('2b. the Test tool hand-off: op:"debug" — one gesture from the TEST surface')
-
   const handoff = await callTest({ op: 'debug', node: 'compute adds', file: mathTs, lines: [2] })
   console.log(`  » ${handoff.split('\n')[0]}`)
   check(

@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import type { ContextData } from '../utils/analyzeContext.js'
@@ -95,7 +96,6 @@ export function ContextVisualization({
   const freeSpace = data.categories.find(c => c.name === FREE_SPACE_NAME)
   const reserved = data.categories.filter(c => RESERVE_NAMES.has(c.name))
   const suggestions = generateContextSuggestions(data)
-
   const source = activeSourceUsage()
 
   const loadedMcp = data.mcpTools.filter(tool => tool.isLoaded !== false)
@@ -108,8 +108,7 @@ export function ContextVisualization({
         <Text dimColor> — context</Text>
       </Box>
 
-      {
-}
+      {}
       <Box marginTop={1}>
         <Text>
           <Text bold>{data.model}</Text>

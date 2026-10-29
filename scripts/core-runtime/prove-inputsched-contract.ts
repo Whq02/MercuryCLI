@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -248,7 +247,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   const replSrc = readFileSync('src/screens/Chat.tsx', 'utf8')
   const hopBlock = replSrc.slice(replSrc.indexOf('rekeyedSessionRef.current !== focusedSessionId'))
-
   check('rekey: the Chat hop effect re-keys the queue beside pending-input, inside the same guard',
     hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
       hopBlock.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
@@ -257,7 +255,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
       hopBlock.indexOf('pendingInput.rekeyToSession') < hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId'))
   check('rekey: the landing word is the slot-fill fact, computed once for both owners',
     replSrc.includes("const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';"))
-
   q.resetCommandQueue()
   q.rekeyCommandQueueToSession(null)
   q.enqueue(cmd('queued while landing'))
@@ -327,7 +324,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   draft.saveDraftDebounced('sess-D', mk('typed during submit race'))
   draft.cancelPendingDraftSave()
   draft.deleteDraft('sess-D')
-
   draft.saveDraftDebounced('sess-D', mk(''))
   await draft.flushDraftSaves()
   check('draft: submit\'s cancel-then-delete leaves nothing to resurrect', draft.readDraftSync('sess-D') === null)
@@ -437,7 +433,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
     const r = textForResubmit(um('<command-name>/party</command-name><command-args>board</command-args>'))
     return r?.text === '/party board' && r?.mode === 'prompt'
   })())
-
   check('resubmit QUIRK: an args-less command carries a trailing space', (() => {
     const r = textForResubmit(um('<command-name>/party</command-name>'))
     return r?.text === '/party ' && r?.mode === 'prompt'
@@ -495,19 +490,16 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   check('lock: the face runs no auto-restore (no shouldAutoRestore call, no history rewind in the screen)',
     !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'))
-
   const cancelHook = readFileSync(join(import.meta.dir, '../../src/hooks/useCancelRequest.ts'), 'utf8')
   check('lock: esc reaches the focused session through its connector (the one interrupt door)',
     cancelHook.includes('getFocusedSessionConnector()') && cancelHook.includes('focused.interrupt()') && repl.includes('interruptFocusedTurn'))
 
   const ownerSrc = readFileSync(join(repoRoot, 'src/input-core/pending-input.ts'), 'utf8')
   const cancelIdx = ownerSrc.indexOf('cancelPendingDraftSave()')
-
   const deleteIdx = ownerSrc.indexOf('deleteDraft(owningSessionId ?? getSessionId())', cancelIdx)
   check('lock: submit cancels the pending save then deletes the draft (owner clearForSubmit)',
     cancelIdx !== -1 && deleteIdx !== -1 && deleteIdx - cancelIdx < 700
       && repl.includes('pendingInput.clearForSubmit(input);'))
-
   check('lock: saveDraftDebounced is imported ONLY by the pending-input owner',
     !repl.includes('saveDraftDebounced') && !promptInput.includes('saveDraftDebounced(')
       && ownerSrc.includes('saveDraftDebounced('))
@@ -519,7 +511,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const captureIdx = repl.indexOf('const seatMode = pendingInput.mode();', onSubmitStart)
   const capturePasteIdx = repl.indexOf('const seatPastes = pendingInput.pastedContents();', onSubmitStart)
   const resetIdx = repl.indexOf("setInputMode('prompt');", onSubmitStart)
-
   check('lock: onSubmit captures mode + pastedContents at entry, before the submitsNow reset',
     captureIdx !== -1 && capturePasteIdx !== -1 && resetIdx !== -1
       && captureIdx < resetIdx && capturePasteIdx < resetIdx
@@ -528,7 +519,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('lock: no live pendingInput.mode()/pastedContents() read survives in the onSubmit body',
     !onSubmitBody.slice(200).includes('pendingInput.mode()')
       && !onSubmitBody.slice(200).includes('pendingInput.pastedContents()'))
-
   check('lock: the session send receives the captured values',
     onSubmitBody.includes('.sendWords(text, {')
       && onSubmitBody.includes('mode: seatMode,')
@@ -558,7 +548,6 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   const turnMachine = readFileSync(join(repoRoot, 'src/run-core/turn-machine.ts'), 'utf8')
   check('lock: the steering drain snapshots through the queue-owned band view and removes by identity',
-
     turnMachine.includes('getDrainableCommands(sleepRan)') && turnMachine.includes('...consumeDrainedCommands(')
       && turnMachine.includes('? queuedCommandsSnapshot')
       && readFileSync('src/run-core/attachment-drain.ts', 'utf8').includes('effects.removeFromQueue(consumed)'))
@@ -742,14 +731,12 @@ function makeWheel(): Wheel {
 }
 
 {
-
   const reg = await import('../../src/ink/root/flush-registry.ts')
   const probesBefore = reg.flushProbeCount()
   const w = makeWheel()
   const bt = w.timer('batcher')
   let sunk = ''
   const b = new StreamBatcher<string>('', { sink: v => (sunk = v), setTimer: bt.set, clearTimer: bt.clear })
-
   check('registry: batcher construction registers a probe', reg.flushProbeCount() === probesBefore + 1)
   let maxPending = 0
   let maxRegistryPending = 0
@@ -819,7 +806,6 @@ function makeWheel(): Wheel {
 }
 
 {
-
   const w = makeWheel()
   const events: Array<{ t: number; kind: string }> = []
   const sched = new RenderScheduler(() => events.push({ t: w.now(), kind: 'echo-paint' }), w.clock)
@@ -1024,5 +1010,4 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log(`\nnative-core inputsched contract: green (${checks} checks)`)
-
 process.exit(0)

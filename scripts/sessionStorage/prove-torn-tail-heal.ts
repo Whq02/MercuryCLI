@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -35,14 +34,12 @@ const parseableLines = (path: string): { parseable: number; total: number } => {
 section('§1 THE TORN TAIL')
 {
   const file = join(HOME, 'torn.jsonl')
-
   appendEntryToFile(file, { type: 'user', uuid: 'aaaaaaaa-0000-0000-0000-000000000001', message: 'first' })
   appendEntryToFile(file, { type: 'user', uuid: 'aaaaaaaa-0000-0000-0000-000000000002', message: 'second' })
   const before = parseableLines(file)
   check('fixture: every line parseable before the tear', before.parseable === before.total && before.total >= 2, JSON.stringify(before))
   const content = readFileSync(file, 'utf8')
   writeFileSync(file, content.replace(/\n$/, ''))
-
   resetTranscriptFormatCacheForTesting()
   appendEntryToFile(file, { type: 'user', uuid: 'aaaaaaaa-0000-0000-0000-000000000003', message: 'third' })
   const after = parseableLines(file)

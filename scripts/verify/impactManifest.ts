@@ -1,12 +1,15 @@
+//  (`# gate-watch: <glob> …`, repeatable), each suite implicitly watches its
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 export interface ImpactManifest {
-
   watches: Record<string, string[]>
   ignores: string[]
   suites: string[]
-
+  /** suite → declared `# gate-class:` (absent/invalid ⇒ 'undeclared' — the
+   *  scheduler and the slice estimator both treat that as pty-conservative).
+   *  Optional so synthetic fixture manifests stay minimal; loadImpactManifest
+   *  always fills it. */
   classes?: Record<string, string>
 }
 
@@ -14,7 +17,6 @@ export interface ImpactSelection {
   suites: Set<string>
   ignored: string[]
   unclassified: string[]
-
   perPath: Record<string, string[]>
 }
 
@@ -23,12 +25,14 @@ export function parseWatchHeader(runnerText: string): string[] {
   for (const line of runnerText.split('\n')) {
     const m = line.match(/^# gate-watch:\s*(.+)$/)
     if (m) globs.push(...m[1]!.trim().split(/\s+/))
-
     if (line && !line.startsWith('#')) break
   }
   return globs
 }
 
+/** The suite's declared `# gate-class:` — same header discipline as the
+ *  scheduler's suite_class(): first declaration wins, anything else (absent,
+ *  misspelled) is 'undeclared' and schedules pty-conservative. */
 export function parseClassHeader(runnerText: string): string {
   for (const line of runnerText.split('\n')) {
     const m = line.match(/^# gate-class:\s*(\S+)/)
@@ -79,7 +83,6 @@ export function selectImpact(manifest: ImpactManifest, paths: string[]): ImpactS
   const perPath: Record<string, string[]> = {}
   for (const path of paths) {
     const claimants: string[] = []
-
     const self = path.match(/^scripts\/([A-Za-z0-9_-]+)\//)
     if (self && manifest.suites.includes(self[1]!)) claimants.push(self[1]!)
     for (const [dom, globs] of Object.entries(manifest.watches)) {

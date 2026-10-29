@@ -65,21 +65,16 @@ const K_B = { schema: 1, mcp: ['alpha', 'beta'], skills: [], invocable: ['ns:dep
 section('§B the setter beside the completion')
 {
   pin._resetSessionKitPinForTesting()
-
   const s1 = pin.setProcessSessionKit(K_A as never)
   t('B1 none→pinned latches the validated kit', s1.ok === true && deepEq(pin.sessionKitOf(), K_A))
-
   const s2 = pin.setProcessSessionKit(K_B as never)
   t('B2 pinned→pinned replaces whole', s2.ok === true && deepEq(pin.sessionKitOf(), K_B))
-
   const bad = pin.setProcessSessionKit({ schema: 1, mcp: ['sp ace'], skills: [], invocable: [] } as never)
   t('B4 malformed refuses typed and the latch is unmoved', bad.ok === false && /is not an MCP server name/.test((bad as { reason: string }).reason) && deepEq(pin.sessionKitOf(), K_B))
-
   t('B5a completion refuses a resolved latch', pin.completeProcessSessionKit(K_A as never) === false && deepEq(pin.sessionKitOf(), K_B))
   const unresolved = { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: { mcpOff: ['beta'], skillStates: {}, extensionsOff: [] } }
   t('B5b the setter may latch an unresolved kit (the materialized first dial)', pin.setProcessSessionKit(unresolved as never).ok === true && pin.sessionKitOf()?.resolved === false)
   t('B5c unresolved→resolved still moves ONLY through the completion', pin.completeProcessSessionKit(K_A as never) === true && pin.sessionKitOf()?.resolved === undefined)
-
   pin._resetSessionKitPinForTesting()
   process.env.MERCURY_SESSION_KIT = 'not json'
   const consumed = pin.consumeSessionKitPin()
@@ -88,17 +83,14 @@ section('§B the setter beside the completion')
 }
 section('§B the record-less edit road (materialize from the STANDING reality)')
 {
-
   pin._resetSessionKitPinForTesting()
   const out = pin.applyProcessSessionKitEdit({ mcp: [{ name: 'ygg', on: false }] }, ['xoff'])
   const latched = pin.sessionKitOf()
   t('B6a the first dial materializes-then-edits (applied, unresolved, standing off carried)', out.outcome === 'applied' && latched?.resolved === false && deepEq(latched?.deltas?.mcpOff?.slice().sort(), ['xoff', 'ygg']))
   t('B6b the widening poison is dead: the record-off name stays OFF after the dial', membership.kitMembership(latched, 'xoff') === false)
   t('B6c the dialed name is off; an unspoken name stays a member', membership.kitMembership(latched, 'ygg') === false && membership.kitMembership(latched, 'zeta') === true)
-
   const again = pin.applyProcessSessionKitEdit({ mcp: [{ name: 'ygg', on: false }] }, ['xoff'])
   t('B7 the same dial again answers noop', again.outcome === 'noop' && deepEq(pin.sessionKitOf(), latched))
-
   const on = pin.applyProcessSessionKitEdit({ mcp: [{ name: 'xoff', on: true }] }, ['xoff'])
   t('B8 dial-on lifts a standing off (session-scope widening is lawful)', on.outcome === 'applied' && membership.kitMembership(pin.sessionKitOf(), 'xoff') === true)
 }
@@ -111,11 +103,9 @@ section('§E the delta (a dial is a delta, never a heal)')
   t('E1a candidates = rows ∪ spoken names, deduped, row order first', deepEq(candidates, ['alpha', 'beta', 'stale', 'gamma']))
   const delta = dial.kitEditMcpDelta(before as never, after as never, candidates)
   t('E1b only CHANGED membership flips (beta off, gamma on; alpha untouched)', deepEq(delta, { connect: ['gamma'], disconnect: ['beta'] }))
-
   t('E1c a name off under both kits never flips', !delta.connect.includes('stale') && !delta.disconnect.includes('stale'))
 }
 {
-
   const before = { schema: 1, mcp: ['provisionalA'], skills: [], invocable: [], resolved: false, deltas: { mcpOff: ['beta'], skillStates: {}, extensionsOff: [] } }
   const after = { schema: 1, mcp: ['provisionalA'], skills: [], invocable: [], resolved: false, deltas: { mcpOff: [], skillStates: {}, extensionsOff: [] } }
   const candidates = dial.kitDialCandidates(before as never, after as never, ['alpha'])
@@ -124,13 +114,11 @@ section('§E the delta (a dial is a delta, never a heal)')
   t('E2b lifting an off-delta connects exactly that name', deepEq(delta, { connect: ['beta'], disconnect: [] }))
 }
 {
-
   const empty = { schema: 1, mcp: [], skills: [], invocable: [] }
   const delta = dial.kitEditMcpDelta(undefined, empty as never, dial.kitDialCandidates(undefined, empty as never, ['mercury', 'alpha']))
   t('E3 the organ is skipped whole (the in-process mercury server); the catalogue row flips', !delta.disconnect.includes('mercury') && delta.disconnect.includes('alpha'))
 }
 {
-
   const cfg = { type: 'stdio', command: 'x', scope: 'dynamic' } as never
   const state = {
     mcp: {
@@ -153,9 +141,7 @@ section('§E the delta (a dial is a delta, never a heal)')
 
 section('§H the write re-point')
 {
-
   const src = read('src/cli/run.ts')
-
   t('H1 run.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
   t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
   t('H1c the toggle road dials the PROCESS KIT through the one edit road (the registry port, no child arm of its own)', /setEnabledOnDisk: \(name, enabled\) => \{\s*applyProcessSessionKitEdit\(/.test(read('src/services/mcp/registry/livePorts.ts')) && !src.includes('mcp_toggle'))
@@ -163,7 +149,6 @@ section('§H the write re-point')
   t('H1e the completion replay is guarded to the unresolved arm only', /sessionKitOf\(\)\?\.resolved === false/.test(src))
 }
 {
-
   pin._resetSessionKitPinForTesting()
   const beforeShot = homeSnapshot()
   const out = pin.applyProcessSessionKitEdit({ mcp: [{ name: 'alpha', on: false }] }, [])
@@ -171,7 +156,6 @@ section('§H the write re-point')
   t('H2 a session dial writes NOTHING under the config home', out.outcome === 'applied' && deepEq(beforeShot, afterShot))
 }
 {
-
   const pinSrc = read('src/services/mcp/sessionKitPin.ts')
   const assignments = (pinSrc.match(/latched = /g) ?? []).length
   t('H3 every latch assignment lives in sessionKitPin.ts (the one home)', assignments >= 5 && !read('src/cli/run.ts').includes('latched ='))
@@ -217,23 +201,19 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   await tick()
   t('C1a idle dial applies through the one writer', c1.outcome === 'applied' && deepEq(recOf().kit?.mcp, ['alpha']))
   t('C1b ONE session/set_kit forward, the record kit in the wire\'s spelling', kitFrames().length === 1 && deepEq(kitFrames()[0]!.kit, sessionKitToWire(recOf().kit as never)))
-
   const framesBefore = kitFrames().length
   const c2 = seat.setSessionKitDial(SID, { mcp: [{ name: 'beta', on: false }] }, 'operator', roster as never, DAEMON_DIR)
   await tick()
   t('C2 an identity dial answers noop and forwards nothing', c2.outcome === 'noop' && kitFrames().length === framesBefore)
-
   busy = true
   const c3 = seat.setSessionKitDial(SID, { mcp: [{ name: 'alpha', on: false }] }, 'agent-a', roster as never, DAEMON_DIR)
   await tick()
   t('C3a a mid-turn dial queues with the honest line', c3.outcome === 'queued' && c3.detail === seat.KIT_DIAL_QUEUED_DETAIL)
   t('C3b the park is whole: record kit unmoved, the edit parked with its asker, no forward', deepEq(recOf().kit?.mcp, ['alpha']) && recOf().pendingKitEdits?.length === 1 && deepEq((recOf().pendingKitEdits![0] as { by: string }).by, 'agent-a') && kitFrames().length === framesBefore)
-
   busy = false
   seat.onSeatIdle('w-dial', roster as never, DAEMON_DIR)
   await tick()
   t('C4 the idle edge applies the parked dial and forwards once', deepEq(recOf().kit?.mcp, []) && recOf().pendingKitEdits === undefined && kitFrames().length === framesBefore + 1 && deepEq(kitFrames().at(-1)!.kit, recOf().kit))
-
   busy = true
   seat.setSessionKitDial(SID, { skills: [{ name: 'ns:deploy', state: 'invocable' }] }, 'operator', roster as never, DAEMON_DIR)
   busy = false
@@ -242,18 +222,14 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   await tick()
   const recAfterSpawn = readSessionWorkers(DAEMON_DIR)['w-dial'] as { kit?: { invocable: string[] } ; pendingKitEdits?: unknown[] }
   t('C5 the seat respawn drains the parked dials and forwards', deepEq(recAfterSpawn.kit?.invocable, ['ns:deploy']) && recAfterSpawn.pendingKitEdits === undefined && kitFrames().length === beforeSpawnFrames + 1)
-
   const c6 = seat.setSessionKitDial('00000000-0000-4000-8000-000000000000', { mcp: [{ name: 'x', on: true }] }, 'operator', roster as never, DAEMON_DIR)
   t('C6 unknown session refuses typed', c6.outcome === 'refused' && /unknown-session/.test(c6.detail ?? ''))
-
   channelUp = false
   const c7 = seat.setSessionKitDial(SID, { mcp: [{ name: 'alpha', on: true }] }, 'operator', roster as never, DAEMON_DIR)
   t('C7 no live door: applied on the record, the detail names the deferred live half', c7.outcome === 'applied' && /no live runner door/.test(c7.detail ?? '') && deepEq(recOf().kit?.mcp, ['alpha']))
   channelUp = true
-
   const rows = readSessionReceipts(getProjectDir(PROJECT), SID).filter(r => r.kind === 'kit-dial')
   t('C8 the sidecar carries the kit-dial rows with the asker and the dial words', rows.length >= 3 && rows.some(r => r.by === 'agent-a') && rows.every(r => typeof (r.details as { dials?: unknown } | undefined)?.dials === 'string'))
-
   const { setMcpServerEnabledForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
   setMcpServerEnabledForWorkspace(PROJECT, 'menuoff', false)
   const SID2 = '22222222-3333-4444-8555-888888888888'
@@ -275,7 +251,6 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   const pre = readSessionWorkers(DAEMON_DIR)['w-pre'] as { kit?: { resolved?: false; deltas?: { mcpOff: string[] } } }
   t('C9 a pre-kit record materializes-then-edits and says so', c9.outcome === 'applied' && /materialized/.test(c9.detail ?? '') && pre.kit?.resolved === false && pre.kit.deltas?.mcpOff.includes('ygg') === true)
   t('C9b the materialization carries the workspace STANDING off-record (the widening poison, dead record-side)', pre.kit?.deltas?.mcpOff.includes('menuoff') === true)
-
   const mainSrc = read('src/daemon/main.ts')
   t('C10 the set-kit arm rides the seat and settles only the adjudicated outcomes', /setSessionKitDial\(sessionId, kitEdit, by, roster\)/.test(mainSrc) && /dialed\.outcome === 'queued'\s*\?\s*dialed\s*:\s*settle\(/.test(mainSrc))
 }
@@ -297,16 +272,13 @@ section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
 {
   const govern = await import('../../src/skills/kitGovernance.ts')
   const completion = await import('../../src/services/mcp/kitCompletion.ts')
-
   const v1 = kit.validateSessionKit({ schema: 1, mcp: [], skills: ['a'], invocable: [], skillsOff: ['b'] })
   t('F1a the validator accepts and preserves skillsOff', v1.ok === true && deepEq((v1 as { kit: { skillsOff?: string[] } }).kit.skillsOff, ['b']))
   const v2 = kit.validateSessionKit({ schema: 1, mcp: [], skills: [], invocable: [], skillsOff: [] })
   t('F1b an empty skillsOff is dropped, not kept (absent ≠ empty)', v2.ok === true && (v2 as { kit: { skillsOff?: string[] } }).kit.skillsOff === undefined)
-
   const v3 = kit.validateSessionKit({ schema: 1, mcp: [], skills: ['x'], invocable: [], skillsOff: ['x'] })
   const v4 = kit.validateSessionKit({ schema: 1, mcp: [], skills: [], invocable: ['y'], skillsOff: ['y'] })
   t('F2 off∩on and off∩invocable refuse typed', v3.ok === false && /one state/.test((v3 as { reason: string }).reason) && v4.ok === false && /one state/.test((v4 as { reason: string }).reason))
-
   const resolved = { schema: 1, mcp: [], skills: ['s1'], invocable: [], } as unknown as Parameters<typeof kit.applyKitEdit>[0]
   const offed = kit.applyKitEdit(resolved, { skills: [{ name: 'ghost', state: 'off' }] })
   t('F3a an off-dial on an absent name APPLIES and records the explicit off', offed !== resolved && deepEq((offed as { skillsOff?: string[] }).skillsOff, ['ghost']))
@@ -314,7 +286,6 @@ section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
   t('F3b the re-dial answers by identity (noop)', noop === offed)
   const backOn = kit.applyKitEdit(offed, { skills: [{ name: 'ghost', state: 'on' }] })
   t('F3c an on-dial lifts the row and drops the empty field', deepEq((backOn as { skills: string[] }).skills.slice().sort(), ['ghost', 's1']) && (backOn as { skillsOff?: string[] }).skillsOff === undefined)
-
   govern._resetKitGovernanceForTesting()
   govern.noteBootSkillRoster(['seen'])
   const cmd = { type: 'prompt', name: 'late:skill', loadedFrom: 'skills' } as never
@@ -322,11 +293,9 @@ section('§F skillsOff: the lying dial is dead (born-later off is expressible)')
   const kitOff = { schema: 1, mcp: [], skills: [], invocable: [], skillsOff: ['late:skill'] } as never
   t('F4a POISON armed: plain absence leaves a born-later skill on (author frontmatter)', govern.kitDropsCommand(kitPlain, cmd) === false)
   t('F4b the explicit off drops it — the dial speaks for born-later names too', govern.kitDropsCommand(kitOff, cmd) === true)
-
   const unresolved = { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: { mcpOff: [], skillStates: { 'late:skill': 'off' }, extensionsOff: [] } } as never
   const composed = completion.completeSessionKitFromRoster(unresolved, { mcpNames: [], commands: [], extensions: [] })
   t('F5 the re-completion carries the explicit off and validates', deepEq((composed as { skillsOff?: string[] }).skillsOff, ['late:skill']) && kit.validateSessionKit(composed).ok === true)
-
   const mat = kit.materializedWholeConfigKit(['ok', 'sp ace'])
   t('F6 materialization grammar-filters the standing off-record', deepEq(mat.deltas?.mcpOff, ['ok']))
   govern._resetKitGovernanceForTesting()
@@ -337,7 +306,6 @@ section('§A the screen dial rides the connector; the panel estate dials its own
   const cmdSrc = read('src/commands/mcp/mcp.tsx')
   t('A1 the composer walks no client set and writes no store: the toggle rides connector.setKit over the SESSION roster', !cmdSrc.includes('useMcpToggleEnabled') && cmdSrc.includes('connector.setKit({ mcp: dials })') && cmdSrc.includes('connector.mcpRoster()'))
   t('A1b organs are named, never dialed', cmdSrc.includes('isMcpOrgan(target)') && read('src/commands/mcp/route.ts').includes("is Mercury's own organ — never dialed."))
-
   pin._resetSessionKitPinForTesting()
   const { liveMcpRegistryPorts } = await import('../../src/services/mcp/registry/livePorts.ts')
   const ports = liveMcpRegistryPorts()
@@ -348,7 +316,6 @@ section('§A the screen dial rides the connector; the panel estate dials its own
   ports.setEnabledOnDisk('panelsrv', true)
   t('A2c the on-direction lifts it (session-scope, both directions)', ports.isDisabledOnDisk('panelsrv') === false && deepEq(homeSnapshot(), beforeShot))
   pin._resetSessionKitPinForTesting()
-
   const route = await import('../../src/commands/mcp/route.ts')
   t('A3a the roster line says SESSION and points at the boot menu', route.mcpRosterLine({ clients: [{ name: 'a', type: 'connected' }] } as never).includes('this session only, the boot menu sets the next session\'s'))
   t('A3b the empty line points at the boot menu', route.MCP_EMPTY_ROSTER_LINE.includes("boot menu's MCPs & Skills"))
@@ -363,14 +330,12 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
   govern._resetKitGovernanceForTesting()
   govern.noteBootSkillRoster(['ns:seen', 'ns:offed'])
   const resolved = { schema: 1, mcp: [], skills: ['ns:seen'], invocable: [], skillsOff: ['late:born'] } as never
-
   const off = govern.offSkillNamesOf(resolved, ['ns:seen'])
   t('S1a off rows = dropped boot names + explicit offs', deepEq(off.slice().sort(), ['late:born', 'ns:offed']))
   t('S1b a table-present name is never claimed off', !govern.offSkillNamesOf(resolved, ['ns:seen', 'ns:offed']).includes('ns:offed'))
   t('S1c an un-kitted process has nothing off', deepEq(govern.offSkillNamesOf(undefined, []), []))
   const invocableKit = { schema: 1, mcp: [], skills: [], invocable: ['ns:seen', 'ns:offed'], } as never
   t('S1d an invocable name is not an off row', deepEq(govern.offSkillNamesOf(invocableKit, []), []))
-
   const cmds = [
     { type: 'prompt', name: 'ns:seen', description: 'd', loadedFrom: 'skills', source: 'projectSettings' },
     { type: 'prompt', name: 'ns:inv', description: 'd2', loadedFrom: 'skills', source: 'projectSettings', disableModelInvocation: true },
@@ -379,14 +344,12 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
   t('S2a the off row rides the projection with the state word and no description', deepEq(roster.find(r => r.name === 'ns:offed'), { name: 'ns:offed', description: '', state: 'off' }))
   t('S2b the table row wins a collision (the table is the process truth)', roster.filter(r => r.name === 'ns:seen').length === 1 && roster.find(r => r.name === 'ns:seen')?.state === undefined)
   t('S2c the invocable word still projects', roster.find(r => r.name === 'ns:inv')?.state === 'invocable')
-
   const cmdSrc = read('src/commands/skills/skills.tsx')
   t('S3 /skills rides the SESSION dial when a chat is focused; the screen table only for the resting slot', cmdSrc.includes('hasFocusedSession()') && cmdSrc.includes('SessionSkillsDial') && cmdSrc.includes('SkillsMenu'))
   const dialSrc = read('src/components/skills/SessionSkillsDial.tsx')
   t('S4a the dial rides the one connector verb and paints the honest receipt arms', dialSrc.includes(".setKit({ skills: [{ name: row.name, state: next }] })") && dialSrc.includes('kitDialLine'))
   t('S4b the words say SESSION and point at the boot menu (empty line included)', dialSrc.includes("this session's skills — the boot menu sets the next session's") && dialSrc.includes("No skills in this session. The boot menu's MCPs & Skills sets the next session's."))
   t('S4c no optimistic paint: the roster reads the session facts, never a local mutation', !dialSrc.includes('useState<SkillsRosterEntryV1') && dialSrc.includes('useSyncExternalStore'))
-
   const printSrc = read('src/cli/run.ts')
   t('S5 the child projects off rows beside the table roster', printSrc.includes('skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf()'))
   govern._resetKitGovernanceForTesting()
@@ -399,20 +362,17 @@ section('§D a dial never writes config/menu/sibling; a menu edit never reaches 
   const { setMcpServerEnabledForWorkspace, kitDeltasForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
   const DAEMON_DIR = process.env.MERCURY_DAEMON_DIR!
   const SID = '22222222-3333-4444-8555-777777777777'
-
   const configShot = (): Record<string, string> => {
     const all = homeSnapshot()
     return Object.fromEntries(Object.entries(all).filter(([p]) => !p.includes('projects')))
   }
   const roster = { door: () => undefined, list: () => [{ short: 'w-dial', busy: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
-
   const sibBefore = JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-pre'] as { kit?: unknown }).kit)
   const cfgBefore = configShot()
   const d1 = seat.setSessionKitDial(SID, { mcp: [{ name: 'isoprobe', on: true }] }, 'operator', roster as never, DAEMON_DIR)
   t('D1a the dial applied', d1.outcome === 'applied')
   t('D1b the CONFIG estate is byte-stable across a daemon-arm dial (menu store included)', deepEq(configShot(), cfgBefore))
   t('D1c the SIBLING record is byte-stable (dial A, census B)', JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-pre'] as { kit?: unknown }).kit) === sibBefore)
-
   const recBefore = JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-dial'] as { kit?: unknown }).kit)
   pin._resetSessionKitPinForTesting()
   pin.setProcessSessionKit({ schema: 1, mcp: ['keepme'], skills: [], invocable: [] } as never)
@@ -421,7 +381,6 @@ section('§D a dial never writes config/menu/sibling; a menu edit never reaches 
   t('D2b the live record never moves on a menu edit', JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-dial'] as { kit?: unknown }).kit) === recBefore)
   t('D2c a latched process\'s membership never re-reads the record (the live session keeps its set)', membership.isMcpCatalogueMember('keepme') === true)
   pin._resetSessionKitPinForTesting()
-
   const menuStoreSrc = read('src/services/kitMenu/menuStore.ts')
   t('D3 the menu store speaks its workspace writers only — no sessionControl, no latch, no writer', !menuStoreSrc.includes('setKit(') && !menuStoreSrc.includes('applyConcourseKitOp') && !menuStoreSrc.includes('setProcessSessionKit') && !menuStoreSrc.includes('applyProcessSessionKitEdit'))
 }

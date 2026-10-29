@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

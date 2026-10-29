@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -79,7 +78,6 @@ check(
   'sanitizer neutralizes a pure-dot segment so a literal ".." cannot escape upward',
   /\.\./.test(bus) && /\bdefault\b/.test(bus),
 )
-
 const sanitize = (raw: string): string => {
   const cleaned = raw.replace(/[^a-zA-Z0-9._-]/g, '_')
   return /^\.+$/.test(cleaned) ? 'default' : cleaned || 'default'
@@ -99,7 +97,6 @@ check(
   'getRoomDir join can never receive a separator/".." segment ⇒ stays under channelsRoot()',
   /join\(channelsRoot\(\),\s*getLocalChannelRoom\(\)\)/.test(bus),
 )
-
 const rootSrc = src('services', 'mcp', 'channelsRoot.ts')
 check(
   'channelsRoot is the one native root under the config home',
@@ -121,7 +118,6 @@ check(
   'the room dir is created owner-only (0700) — not world/group readable',
   /mkdirSync\(dir,\s*\{\s*recursive:\s*true,\s*mode:\s*0o700\s*\}\)/.test(bus),
 )
-
 const roomOf = (cwd: string): string => {
   const c = resolve(cwd)
   const base = sanitize(basename(c) || 'default')
@@ -143,7 +139,6 @@ check(
 check('the hashed room is still ONE safe segment (no path separator)', !rA.includes('/') && /^[a-zA-Z0-9._-]+$/.test(rA))
 
 section('(c) postLocalChannelMessage → JSONL append (the wire; the door is unknown)')
-
 const rec = { server: 'op', content: 'line1\nline2\twith\ttabs "and quotes"' }
 const wireLine = JSON.stringify(rec) + '\n'
 const partsAfterSplit = wireLine.split('\n')
@@ -160,21 +155,18 @@ check(
   /appendFileSync\(\s*getLocalChannelInboxPath\(\),\s*`\$\{JSON\.stringify\(record\)\}\\n`/.test(bus) &&
     /return false/.test(bus),
 )
-
 const distPath = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist/mercury.mjs absent — run `bun run build.ts` for the unknown-door leg')
 } else {
   const home = mkdtempSync(join(tmpdir(), 'mercury-chan-'))
   try {
-
     const {
       MERCURY_CONFIG_DIR: _mc,
       MERCURY_CONFIG_DIR: _cc,
       MERCURY_HOME: _mh,
       ...cleanEnv
     } = process.env
-
     const r = spawnSync(
       (process.execPath.includes('bun') ? 'node' : process.execPath),
       [distPath, 'run', '/say hello-from-proof'],
@@ -268,7 +260,6 @@ check(
   'UserChannelMessage renders the ← arrow + dim `server · user:` prefix',
   /CHANNEL_ARROW/.test(chanMsg) && /displayServerName/.test(chanMsg) && /dimColor/.test(chanMsg),
 )
-
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist/mercury.mjs absent — run `bun run build.ts` for the dist needle')
 } else {

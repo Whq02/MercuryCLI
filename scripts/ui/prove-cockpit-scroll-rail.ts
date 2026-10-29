@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
@@ -18,7 +17,6 @@ console.log(' cockpit scroll — rails stay pinned (rail-drag regression)')
 console.log('============================================================')
 
 const scrolledCfg = scenario('cockpit-scrolled', 150, 40)
-
 const PAGE_DOWN = '\x1b[6~'
 const cfg = {
   ...scrolledCfg,
@@ -65,7 +63,6 @@ if (res.status === 0) {
     marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }>
   }
   const rowsOf = (g: Array<Array<{ c: string }>>): string[] => g.map(r => r.map(c => c.c).join(''))
-
   const lines = rowsOf(grid.marks?.find(m => m.label === 'scrolled')?.grid ?? [])
   const bottom = rowsOf(grid.grid)
   const rowOf = (needle: string): number => lines.findIndex(l => l.includes(needle))
@@ -77,7 +74,6 @@ if (res.status === 0) {
     rowOf('back to the bottom') > 0 || lines.some(l => / \d+ new message/.test(l)),
   )
   check('transcript top reached (turn 1 visible)', rowOf('turn 1: say something long') > 0)
-
   const bannerRow = bigWordmarkRows()[0]!.trimEnd()
   check(
     'banner-header revealed at top',
@@ -85,12 +81,10 @@ if (res.status === 0) {
   )
 
   const recentRow = rowOf('RECENT')
-
   const bodyRow = lines.findIndex(l => /│\s+○ .+/.test(l.slice(0, 44)))
   check('RECENT header pinned at the top (inside its panel border)', recentRow === 2, `row ${recentRow}`)
   check('the recent body directly under the header (never dragged)', bodyRow === recentRow + 1, `row ${bodyRow}`)
   if (bodyRow !== recentRow + 1) {
-
     console.log('  … rail rows 0-14 (first 44 cols):')
     lines.slice(0, 15).forEach((l, i) => console.log(`  ${String(i).padStart(2)}│${l.slice(0, 44)}`))
   }

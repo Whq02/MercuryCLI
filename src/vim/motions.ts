@@ -1,3 +1,4 @@
+
 import type { Cursor } from '../utils/Cursor.js'
 
 const STEPS: Record<string, (c: Cursor) => Cursor> = {

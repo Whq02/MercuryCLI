@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import {
   formatQuietAge,
@@ -82,7 +81,6 @@ t("1h15m", formatQuietAge(4_500_000) === '1h15m')
 
 console.log('— the pulse splits into the owner\'s clock-free facts and the paint-time verdict —')
 {
-
   const facts = workflowPulseFacts(events, T0)
   t('the facts carry no clock (no quietMs, no moving)', !('quietMs' in facts) && !('moving' in facts))
   t('the facts keep the fold: running, settled, attempt, the newest signal, the phase', facts.running === 2 && facts.settled === 1 && facts.maxAttempt === 2 && facts.lastEventAt === T0 + 100_000 && facts.phaseTitle === 'Verify')

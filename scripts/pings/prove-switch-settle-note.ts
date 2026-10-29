@@ -90,7 +90,6 @@ async function until(pred: () => boolean, ms: number): Promise<boolean> {
 }
 
 section('§1 a queued switch settling paints ONE grey note in THAT chat (the daemon\'s REAL publish order)')
-
 publishSessionFacts(facts({ effective: 'claude-opus-5', pendingModel: 'fable', busy: true, atMs: 1000 }))
 const landedA = await until(() => readSessionFacts(SID)?.pendingModel === 'fable', 4000)
 if (!landedA) {
@@ -143,7 +142,6 @@ await new Promise(r => setTimeout(r, 500))
 check("the child's catch-up answer mints no second row", noteRows(connector).length === 1, `rows=${noteRows(connector).length}`)
 
 section('§2 once per stamp — a repeated settled publish mints no second row')
-
 publishSessionFacts(
   facts({
     effective: 'claude-fable-5',
@@ -158,7 +156,6 @@ await new Promise(r => setTimeout(r, 900))
 check('still exactly one note row', noteRows(connector).length === 1, `rows=${noteRows(connector).length}`)
 
 section('§3 a cancel (parked slot clears with NO stamp, model unchanged) mints nothing')
-
 publishSessionFacts(
   facts({
     effective: 'claude-fable-5',
@@ -184,7 +181,6 @@ await new Promise(r => setTimeout(r, 500))
 check('the cancelled park mints no note', noteRows(connector).length === 1, `rows=${noteRows(connector).length}`)
 
 section('§3b a fresh attach over a standing stamp adopts it silently (no replay on resume)')
-
 {
   const resumed = new DaemonSessionConnector({
     sessionId: SID,
@@ -201,14 +197,12 @@ section('§3b a fresh attach over a standing stamp adopts it silently (no replay
 }
 
 section('§4 the ruled copy and the never-a-bell law (structural)')
-
 {
   const renderer = readFileSync(join(ROOT, 'src', 'components', 'messages', 'SystemTextMessage.tsx'), 'utf8')
   check(
     "the renderer speaks the ruled sentence ('model switched to … for this session')",
     renderer.includes('model switched to') && renderer.includes('for\n            this session'),
   )
-
   check(
     'the turn-boundary row shows the cross-provider note (the one owner)',
     /for\n            this session[\s\S]{0,120}?crossProviderNote\(message\.applied\)/.test(renderer),
@@ -223,7 +217,6 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
       /addDisplayRow\(\s*createModelTransitionMessage\(/.test(connectorSrc.replace(/\n\s+/g, ' ').replace(/\( /g, '(')) ||
       connectorSrc.includes('this.addDisplayRow('),
   )
-
   check(
     "the edge reads the daemon's settlement stamp",
     connectorSrc.includes('next.modelSettled') && connectorSrc.includes('prev.modelSettled?.atMs'),
@@ -245,7 +238,6 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     'the publisher carries the stamp on every facts publish',
     /modelSettled: seat\.lastModelSettle/.test(seatSrc),
   )
-
   const replSrc = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
   check(
     'the boundary notification renders the label, Default included',
@@ -255,7 +247,6 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     'the boundary notification carries the cross-provider note when the receipt says so',
     /receipt\.crossProvider \? crossProviderNote\(/.test(replSrc),
   )
-
   const wrapperSrc = readFileSync(join(ROOT, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf8')
   check(
     "the picker wrapper's daemon branch carries the note",
@@ -266,11 +257,9 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     "the /model command's daemon branch carries the note",
     /const doorCross =[\s\S]{0,240}?crossProviderNote\(target\)/.test(modelCmdSrc) && modelCmdSrc.includes('${doorCross}'),
   )
-
   const composerSrc = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'useComposerModelDoors.tsx'), 'utf8')
   check(
     "the composer's daemon arm reads the from-model before the door",
-
     /const effectiveBefore = focused\.modelFacts\(\)\.effective[\s\S]{0,400}?void focused\.setModel\(value\)\.then\(receipt =>/.test(composerSrc),
   )
   check(

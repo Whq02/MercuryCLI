@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,11 +30,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const SEAT_MODEL = 'gpt-5.5'
 const SEAT_MODEL_LABEL = 'GPT-5.5'
-
 const LADDER = ['low', 'medium', 'high', 'xhigh'] as const
 const SERVED = 'xhigh'
 const ASKED = 'max'
-
 const SEAT_EFFORT = ASKED
 const SEAT_TITLE = 'Effort Seat'
 const TURN = 'hello effort seat'
@@ -87,7 +84,6 @@ let bornSent = 'unread'
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
-
   sends: [
     `after:${SEAT_TITLE}:2500:\t`,
     `after:${SEAT_TITLE}:4000:\r`,
@@ -122,7 +118,6 @@ const run = await runArtifactArena({
     seatId = a.sessionId ?? ''
     transcript = join(paths.getProjectDir(cwd), `${seatId}.jsonl`)
     check('the seat transcript is born', await untilAsync(() => existsSync(transcript) && statSync(transcript).size > 100, 30_000))
-
     await untilAsync(() => (projections.readSessionFacts(seatId)?.atMs ?? 0) > 0 && existsSync(transcript), 20_000)
     await new Promise(r => setTimeout(r, 2500))
     const born = projections.readSessionFacts(seatId)
@@ -198,7 +193,6 @@ try {
   check('E2 the turn landed (the seat answered)', turnAnswered)
   const receiptLine = `effort ${ASKED} is not served on ${SEAT_MODEL_LABEL} today — sent ${SERVED}`
   const rows = existsSync(transcript) ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
-
   check('E2 the transcript carries the typed receipt row (a notice row in the seat\'s own record)', rows.some(l => l.includes('"kind":"notice"') && l.includes(receiptLine)), rows.filter(l => l.includes('"kind":"notice"')).map(l => l.slice(0, 200)).join(' | ').slice(0, 500))
   check('E1 the /effort receipt never reaches the transcript (no result line on the record)', !rows.some(l => l.includes('Effort set to ')), rows.filter(l => l.includes('Effort set to ')).map(l => l.slice(0, 160)).join(' | ').slice(0, 300))
   check('E2 the receipt row painted on screen', anyFrame(receiptLine) || anyFrame(`is not served on ${SEAT_MODEL_LABEL} today`), distinct.map(f => flat(f.text)).filter(t => t.includes('not served')).map(t => t.slice(0, 200)).join(' | ').slice(0, 400))

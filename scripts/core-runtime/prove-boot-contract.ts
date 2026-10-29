@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   existsSync,
   mkdirSync,
@@ -143,7 +142,6 @@ function staticImports(src: string): {
 {
   const cliSrc = readFileSync(join(SRC, 'entrypoints/cli.tsx'), 'utf8')
   const cli = staticImports(cliSrc)
-
   check(
     'entry: cli.tsx static value imports = the nodePolicy singleton (fully dynamic otherwise)',
     cli.value.length === 1 && cli.value[0] === '../utils/runtime/nodePolicy.js',
@@ -170,7 +168,6 @@ function staticImports(src: string): {
     main.value.some(s => s.endsWith('boot/launchGraph.js')),
   )
   check(
-
     'eager-front: main.tsx type-only imports = 6 (erased at runtime)',
     main.typeOnly.length === 6,
     String(main.typeOnly.length),
@@ -222,7 +219,6 @@ function staticImports(src: string): {
 {
   const shutdownSrc = readFileSync(join(SRC, 'utils/gracefulShutdown.ts'), 'utf8')
   const sh = staticImports(shutdownSrc)
-
   const expected = [
     '../bootstrap/state.js',
     '../cli/sessionArgs.js',
@@ -241,7 +237,6 @@ function staticImports(src: string): {
     JSON.stringify(sh.value),
   )
   check('stage1-shutdown: installer has ZERO bare side-effect imports', sh.bare.length === 0)
-
   const heavyPredicates: Array<[string, (s: string) => boolean]> = [
     ['the config barrel', s => s.endsWith('/config.js') || s === './config.js'],
     ['ink/*', s => s.includes('/ink/')],
@@ -293,7 +288,6 @@ function staticImports(src: string): {
     'resume-identity: the title-match branch hands the matched log\'s own id through',
     /resumeSessionId = sessionIdOfListing\(/.test(resumeBlock),
   )
-
   check(
     'resume-identity: resumeAtBoot hands the id to the one resume door',
     /const resumeAtBoot = async \(sessionId: string, log: ResumeLog\)/.test(mainSrc) &&
@@ -340,7 +334,6 @@ function staticImports(src: string): {
 
   const launchSites = [...mainSrc.matchAll(/await launchChat\(/g)].map(m => m.index!)
   check('launch-graph: ONE interactive launchChat call site (T15 collapse)', launchSites.length === 1, String(launchSites.length))
-
   at('await withMcpLaunchBudget(connectMcpBatch(configs')
   check(
     'launch-graph: interactive MCP never rides a background-node connect (the Chat registry owns it)',
@@ -352,9 +345,7 @@ function staticImports(src: string): {
     batchCalls.length > 0 && launchSites[0] !== undefined && batchCalls.every(i => i > launchSites[0]!),
     String(batchCalls.length),
   )
-
   at('runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),')
-
   at('getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)')
   const managerSrc = readFileSync(join(SRC, 'services/mcp/MCPConnectionManager.tsx'), 'utf8')
   check(
@@ -414,7 +405,6 @@ function staticImports(src: string): {
   g.registerBackgroundNode('t15-b', async () => {
     ran.push('b')
   })
-
   g.registerBackgroundNode('t15-slow', async () => {
     events.push('slow-start')
     await new Promise(r => setTimeout(r, 300))
@@ -632,7 +622,6 @@ function staticImports(src: string): {
   const initialState = { __t15: 'state-1' }
   const root = { __t15root: true }
   const chatProps = { __t15repl: true }
-
   const realSetTimeout = globalThis.setTimeout
   const realClearTimeout = globalThis.clearTimeout
   const budgetTimers = new Set<unknown>()

@@ -4,6 +4,7 @@ import { MERCURY_CHANGELOG } from '../constants/changelog.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
 
+
 function getStoredChangelogFromMemory(): string {
   return MERCURY_CHANGELOG
 }

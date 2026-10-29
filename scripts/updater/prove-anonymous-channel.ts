@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -73,7 +72,6 @@ function runCli(
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_VERSIONS_DIR: versionsDir,
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
-
       ...(opts.pinned === false ? {} : { MERCURY_UPDATE_CHANNEL_REPO: SLUG }),
       MERCURY_UPDATE_API_BASE_URL: opts.base,
       ...ghEnv,

@@ -46,7 +46,6 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
   const BIN = 'dist/mercury.mjs'
   const scratch = mkdtempSync(join(tmpdir(), 'ci-keyless-'))
   const home = join(scratch, 'pty-home')
-
   const seedEnv = { ...process.env }
   delete seedEnv.ANTHROPIC_API_KEY
   spawnSync(process.execPath, ['run', 'scripts/lib/firstRunSeed.ts', home, process.cwd()], {
@@ -62,7 +61,6 @@ console.log('\n── §2 REAL BINARY: CI=true, zero credentials, seeded home �
     out,
     cwd: process.cwd(),
     sends: [
-
       { atTick: 999, awaitText: 'sign in to providers', minTick: 5, awaitSettleTicks: 2, data: '', mark: 'boot' },
     ],
   }

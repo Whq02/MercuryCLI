@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0-still' }
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,7 +21,6 @@ export function composeMotionMenu(cols: number, rows: number, setting: 'auto' | 
   delete process.env.MERCURY_CRITTER_IDLE
   delete process.env.MERCURY_LIVE_GLYPHS
   __motionGovernorResetForTest()
-
   setMotionPosture(setting)
   const list = menuRows()
   const entries = list.map(row => {

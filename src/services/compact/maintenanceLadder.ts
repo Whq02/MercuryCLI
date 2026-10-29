@@ -31,16 +31,13 @@ export interface LadderInput {
   cacheSafeParams: CacheSafeParams
   querySource?: string
   recompactionInfo: RecompactionInfo
-
   overflow?: boolean
-
   recoveryBandTokens?: number
 }
 
 interface LadderRunners {
   digestProjection?: typeof projectTimeBasedMicrocompact
   notes?: typeof trySessionMemoryCompaction
-
   handoff?: (input: LadderInput) => Promise<CompactionResult | null>
   summary?: typeof compactConversation
 }
@@ -62,7 +59,6 @@ export async function runMaintenanceLadder(
   for (const method of order) {
     switch (method) {
       case 'digest': {
-
         const projection = (runners.digestProjection ?? projectTimeBasedMicrocompact)(
           input.messages,
           input.querySource,

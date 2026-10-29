@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 import { ANTHROPIC_REPLY, GPT_ID, HOLD_ASK, OPENAI_REPLY, RESET_IN_SECONDS, SPEND_ASK } from './cap-fixture-words.ts'

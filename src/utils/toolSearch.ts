@@ -15,6 +15,7 @@ import { toolDeferralEnabled } from './model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../services/providers/deferralWire.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
 
+
 type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
 
 type DeferredToolsDelta = {
@@ -49,7 +50,6 @@ export function getToolSearchMode(): ToolSearchMode {
   const value = process.env.MERCURY_TOOL_SEARCH
   if (value === undefined || value === '') return 'tst'
   if (value.startsWith('auto')) {
-
     const percent = parseAutoPercentage(value)
     if (percent === 0) return 'tst'
     if (percent === 100) return 'standard'
@@ -111,7 +111,6 @@ const memoizedDeferredToolTokens = memoize(
   ): Promise<number | null> => {
     if (deferrableTools.length === 0) return 0
     try {
-
       const agentInfo = { allAgents: agents, activeAgents: agents } as AgentDefinitionsResult
       const total = await countToolDefinitionTokens(deferrableTools, getToolPermissionContext, agentInfo, model)
       if (total === 0) return null
@@ -221,7 +220,6 @@ export function extractDiscoveredToolNames(messages: Message[]): Set<string> {
   const discovered = new Set<string>()
   let fromBoundary = 0
   for (const message of messages) {
-
     if (
       message.type === 'system' &&
       (message as { subtype?: string }).subtype === 'compact_boundary'

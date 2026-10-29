@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
@@ -21,7 +20,6 @@ const INVERSE_ON = '\x1b[7m'
 
 section('A. the paint delta — the two phases differ only in the caret cell SGR')
 {
-
   const on = Cursor.fromText('hello', 40, 5).render(' ', '', s => chalk.inverse(s))
   const off = Cursor.fromText('hello', 40, 5).render(' ', '', s => s)
   check('ON phase carries the inverse attribute', on.includes(INVERSE_ON))
@@ -31,7 +29,6 @@ section('A. the paint delta — the two phases differ only in the caret cell SGR
     stripAnsi(on) === stripAnsi(off),
     JSON.stringify({ on: stripAnsi(on), off: stripAnsi(off) }),
   )
-
   const onMid = Cursor.fromText('hello', 40, 2).render(' ', '', s => chalk.inverse(s))
   const offMid = Cursor.fromText('hello', 40, 2).render(' ', '', s => s)
   check('covered character kept on the ON phase', stripAnsi(onMid) === 'hello')
@@ -47,7 +44,6 @@ section('B. the strip width law — off phase paints a same-width cell')
   const { caretLens } = await import('../../src/components/concourse/lineDraft.js')
   const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.js')
   check('the caret block is one cell wide', [...(GLYPH.caretBlock as string)].length === 1)
-
   const atEnd = caretLens({ text: 'launch two', caret: 10 }, 40)
   check('end-of-line lens exposes the empty at-cell (block ↔ space swap point)', atEnd.at === '')
   const mid = caretLens({ text: 'launch two', caret: 3 }, 40)

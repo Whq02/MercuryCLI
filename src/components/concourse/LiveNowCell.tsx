@@ -6,12 +6,12 @@ import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.j
 import { concourseWaitCopy, type ConcourseRowV1 } from './contracts.js'
 import { askTileCopy, useLiveTile } from './liveTiles.js'
 
+
 export const LiveNowCell = React.memo(function LiveNowCell({
   row,
   ask,
 }: {
   row: ConcourseRowV1
-
   ask?: string | undefined
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -24,13 +24,11 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       <Text color={t.textSecondary}>workflows allowed{trail ? ' · ' : ''}</Text>
     ) : null
   const hasWorkflows = row.workflowsAllowed === true
-
   const hasNextFire = row.scheduleNextFireMs !== undefined
   const nextFireLead = (trail: boolean): React.ReactNode =>
     row.scheduleNextFireMs !== undefined ? (
       <Text color={t.textSecondary}>next fire {fireDeltaWords(row.scheduleNextFireMs, Date.now())}{trail ? ' · ' : ''}</Text>
     ) : null
-
   if (row.state === 'queued') {
     return (
       <Text wrap="truncate-end">
@@ -41,7 +39,6 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       </Text>
     )
   }
-
   if (ask !== undefined && ask.length > 0) {
     const question = askTileCopy(row.title, ask)
     return (
@@ -53,7 +50,6 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       </Text>
     )
   }
-
   if (row.state === 'needs-you') {
     return (
       <Text wrap="truncate-end">
@@ -64,9 +60,7 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       </Text>
     )
   }
-
   if (live && !degraded && now.kind !== 'still') {
-
     return (
       <Text wrap={now.kind === 'streaming' ? 'truncate-start' : 'truncate-end'}>
         {headlessLead(true)}
@@ -76,7 +70,6 @@ export const LiveNowCell = React.memo(function LiveNowCell({
       </Text>
     )
   }
-
   return (
     <Text wrap="truncate-end">
       {headlessLead(hasWorkflows || hasNextFire || (row.nowLabel ?? '') !== '' || (live && degraded))}

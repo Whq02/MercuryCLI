@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/lineageSession.ts src/mneme/journal.ts src/mneme/handoffAsk.ts src/mneme/exitHandoff.ts src/mneme/entryPage.ts src/tools/JournalTool/JournalTool.ts src/tools/JournalTool/prompt.ts src/main.tsx src/bootstrap/state.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'

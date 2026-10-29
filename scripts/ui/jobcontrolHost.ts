@@ -34,7 +34,6 @@ export type HostReport = {
 
 type HostRun = {
   report: HostReport | null
-
   tee: Buffer
   status: number | null
   stderr: string
@@ -49,9 +48,7 @@ export function runJobControlHost(opts: {
   steps: HostStep[]
   env: NodeJS.ProcessEnv
   budgetSeconds?: number
-
   bundleMarker?: string
-
   bundleTitle?: string
   hostTimeoutSeconds?: number
 }): HostRun {

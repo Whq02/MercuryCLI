@@ -6,6 +6,7 @@ import { logForDebugging } from './debug.js'
 import { detectCurrentRepository } from './detectRepository.js'
 import { findGitRoot } from './git.js'
 
+
 type RepoPathMap = Record<string, string[]>
 
 function readMap(): RepoPathMap {

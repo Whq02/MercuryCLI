@@ -1,5 +1,6 @@
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 
+
 function steeringBullet(offered: ReadonlySet<string> | null): string {
   try {
     const { editSteeringLine } =

@@ -52,7 +52,6 @@ export function AppStateProvider({
     storeRef.current = createStore<AppState>(
       initialState ?? getDefaultAppState(),
       change => {
-
         fluxMark('appstate:set')
         onChangeAppState(change)
         onChangeAppStateProp?.(change)
@@ -109,7 +108,6 @@ function useStoreOrThrow(): AppStateStore {
 
 export function useAppState<Selected>(selector: (state: AppState) => Selected): Selected {
   const store = useStoreOrThrow()
-
   const getSnapshot = (): Selected => selector(store.getState())
   return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot)
 }

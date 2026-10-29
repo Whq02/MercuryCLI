@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -107,7 +106,6 @@ section('(3) conflict-stop — overlap is an inspectable stop')
     const refused = await executeHandoff({ contextId: ctx.contextId, to: { mode: 'worktree', root: lane }, preview: preview.value })
     check('executeHandoff refuses a conflicted preview', !refused.ok && refused.reason.includes('conflict'))
   }
-
   git(['checkout', '--', 'core.txt'], lane)
 }
 
@@ -140,7 +138,6 @@ section('(5) executed handoff rebinds without touching files')
       )
     }
     check('the local dirty file is untouched', existsSync(join(repo, 'core.txt')))
-
     const back = await previewHandoff({ contextId: ctx.contextId, to: { mode: 'local', root: repo } })
     check('worktree→local preview ok', back.ok && back.value.ok)
     if (back.ok) {
@@ -152,14 +149,12 @@ section('(5) executed handoff rebinds without touching files')
 
 section('(5b) verify-wave regressions — complete dirt · wrong-repo provision · cleared fields')
 {
-
   const rebound = listWorkContexts({ sessionId: 'sess-wc' })[0]!
   check('hand-back cleared worktreePath + laneId', rebound.worktreePath === undefined && rebound.laneId === undefined)
 
   for (let i = 0; i < 55; i++) writeFileSync(join(repo, `bulk-${String(i).padStart(2, '0')}.txt`), 'x\n')
   const bulkPreview = await previewHandoff({ contextId: ctx.contextId, to: { mode: 'worktree', root: lane } })
   check('55 dirty files ALL observed (no truncation)', bulkPreview.ok && bulkPreview.value.from.dirtyPaths.filter(p => p.startsWith('bulk-')).length === 55)
-
   git(['mv', 'other.txt', 'other-renamed.txt'])
   const renamePreview = await previewHandoff({ contextId: ctx.contextId, to: { mode: 'worktree', root: lane } })
   check(
@@ -198,7 +193,6 @@ section('(6) setup copy law — only listed, never overwrite')
 
 section('(7) park → recovery artifact · restore')
 {
-
   writeFileSync(join(lane, 'wip.txt'), 'uncommitted lane work\n')
   const laneCtx = bindWorkContext({ sessionId: 'sess-wc', mode: 'worktree', root: repo, worktreePath: lane, laneId: 'wt:lane' })
   const parked = await parkWorkContext(laneCtx.contextId)
@@ -212,7 +206,6 @@ section('(7) park → recovery artifact · restore')
     const restored = restoreWorkContext(laneCtx.contextId)
     check('restore re-activates', restored.ok && restored.value.status === 'active')
   }
-
   const ghost = bindWorkContext({ sessionId: 'sess-wc', mode: 'worktree', root: repo, worktreePath: join(laneParent, 'gone') })
   const ghostParked = await parkWorkContext(ghost.contextId)
   check('parking a vanished-worktree context still records recovery', ghostParked.ok)

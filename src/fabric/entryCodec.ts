@@ -17,11 +17,10 @@ type Raw = Record<string, unknown>
 export type EncodeContext = {
   sessionId: SessionId
   nextOrdinal: () => Ordinal
-
   observedAt: string
-
   source: RecordSource
 }
+
 
 function take(obj: Raw, keys: string[]): { picked: Raw; rest: Raw } {
   const picked: Raw = {}
@@ -34,6 +33,7 @@ function take(obj: Raw, keys: string[]): { picked: Raw; rest: Raw } {
 }
 
 const nonEmpty = (o: Raw): Raw | undefined => (Object.keys(o).length > 0 ? o : undefined)
+
 
 const USAGE_LIFT: Array<[wire: string, mercury: keyof MercuryUsage]> = [
   ['input_tokens', 'inputTokens'],
@@ -204,6 +204,7 @@ function projectBlock(b: ContentBlock): Raw {
   }
 }
 
+
 function mapOutcome(stopReason: unknown, stopSequence: unknown): TurnOutcome {
   const special: Record<string, 'refusal' | 'context-limit' | 'output-limit'> = {
     refusal: 'refusal',
@@ -233,7 +234,6 @@ function projectOutcome(o: TurnOutcome): Raw {
       if ('stopSequence' in o) out.stop_sequence = o.stopSequence
       return out
     }
-
     case 'interrupted':
     case 'cancelled':
     case 'error':
@@ -244,6 +244,7 @@ function projectOutcome(o: TurnOutcome): Raw {
     }
   }
 }
+
 
 function deriveThread(entry: Raw): ThreadId {
   if (typeof entry.agentId === 'string' && entry.agentId) return asThreadId(`agent:${entry.agentId}`)
@@ -275,6 +276,7 @@ function envelope(
   if (annotations) rec.annotations = annotations
   return rec
 }
+
 
 export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
   const t = entry.type
@@ -324,7 +326,6 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
   }
 
   if (t === 'progress') {
-
     const { picked, rest } = take(entry, ['type', 'data', 'toolUseID', 'parentToolUseID'])
     const payload: RecordPayload = {
       kind: 'progress',
@@ -355,7 +356,6 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
       sub === 'fork_boundary' ||
       sub === 'rewind_boundary'
     ) {
-
       const { picked, rest } = take(entry, ['type', 'subtype', 'content', 'logicalParentUuid'])
       const payload: RecordPayload = {
         kind: 'boundary',
@@ -371,7 +371,6 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
       }
       if ('content' in picked) payload.content = String(picked.content)
       if (typeof picked.logicalParentUuid === 'string') payload.logicalParent = asRecordId(picked.logicalParentUuid)
-
       return envelope(entry, ctx, { role: 'system' }, payload, undefined)
     }
     const { picked, rest } = take(entry, ['type', 'subtype', 'content', 'level'])
@@ -400,6 +399,7 @@ export function entryToRecord(entry: Raw, ctx: EncodeContext): MercuryRecord {
     undefined,
   )
 }
+
 
 export function recordToEntry(rec: MercuryRecord): Raw {
   const p = rec.payload

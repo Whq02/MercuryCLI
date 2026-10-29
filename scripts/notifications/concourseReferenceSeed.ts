@@ -1,20 +1,16 @@
+
 const CONCOURSE_REFERENCE_PROFILE = {
   png: {
     sha256: 'a6ba5752efa56c117a548de839d67dd3ce97443da4046f9ba535d397dd489ee0',
     width: 1586,
     height: 992,
     colorspace: 'RGB (no alpha)',
-
     appViewportTopPx: 40,
   },
   cell: { widthPx: 11.03, heightPx: 28, paddingPx: 10 },
-
   canonicalGrid: { cols: 142, rows: 38 },
-
   shortGrid: { cols: 142, rows: 34 },
-
   appFrame: { firstCol: 4, lastCol: 137 },
-
   paneSplit: { sessionsCols: 79, peekCols: 55 },
 } as const
 
@@ -118,9 +114,9 @@ const CONCOURSE_REFERENCE_SEED = {
     right: '1 needs you · 5 live · 4/10 seats',
   },
   helpStrip: '↑↓ browse · tab panes · ↵ open · n new · / filter · b boot menu · esc main Chat',
-
   countsReconciliation: { live: 5, working: 3, ready: 1, needsYou: 1, queued: 2, seatsHeld: 4, seatsDenominator: 10 },
 } as const
+
 
 export function referenceFixtureSnapshot(): Record<string, unknown> {
   const seed = CONCOURSE_REFERENCE_SEED
@@ -164,7 +160,6 @@ export function referenceFixtureSnapshot(): Record<string, unknown> {
         ownerLabel: r.owner === '—' ? null : r.owner,
         ageLabel: r.age === '—' ? null : r.age,
         seats: seatOf(r.seats),
-
         ...(r.id === 's-oauth' ? { nowLabel: 'editing src/auth/callback.ts' } : {}),
         ...(r.id === 's-parser' ? { nowLabel: 'Bash · bun test parser' } : {}),
       })),
@@ -194,7 +189,6 @@ export function referenceFixtureSnapshot(): Record<string, unknown> {
         seatsMax: 2,
       },
       draft: '',
-
       advancedAvailable: true,
     },
   }

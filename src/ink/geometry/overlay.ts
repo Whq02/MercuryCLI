@@ -85,7 +85,6 @@ export function applySelectionOverlay(
   const noSelect = screen.noSelect
   const clipLo = selection.clipLo ?? 0
   const clipHi = selection.clipHi ?? width - 1
-
   const clipTop = selection.clipTop ?? 0
   const clipBottom = selection.clipBottom ?? screen.height - 1
   const firstRow = Math.max(start.row, clipTop)

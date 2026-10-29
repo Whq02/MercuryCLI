@@ -14,7 +14,6 @@ function collectExtensionHooks(): { record: Partial<Record<HookEvent, ExtensionH
     const byEvent = new Map<HookEvent, HookEntry[]>()
     for (const hook of ext.resolution.hooks) {
       if (!isHookEvent(hook.event)) continue
-
       let entries = byEvent.get(hook.event)
       if (!entries) {
         entries = []

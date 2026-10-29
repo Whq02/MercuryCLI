@@ -1,12 +1,9 @@
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 type DeprecationEntry = {
-
   match: string
-
   name: string
   date: string | null
-
   replacement?: string
 }
 
@@ -34,7 +31,6 @@ function findDeprecation(id: string): { entry: DeprecationEntry; date: string | 
   for (const entry of DEPRECATION_TABLE) {
     if (!lowered.includes(entry.match)) continue
     const date = entry.date
-
     if (date === null && entry.replacement === undefined) continue
     return { entry, date }
   }

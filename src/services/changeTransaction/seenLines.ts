@@ -1,3 +1,4 @@
+
 import { readFileSync, statSync } from 'node:fs'
 import { ideFileGeneration } from '../acp/ideToolBridge.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
@@ -7,9 +8,7 @@ import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import type { HunkSpan } from './hunks.js'
 
 export const SEEN_LINES_BOUNDS = {
-
   rangeCap: 256,
-
   fileCap: 512,
 } as const
 
@@ -20,7 +19,6 @@ export type ColumnCut = { line: number; visibleChars: number }
 interface FileLedger {
   generation: string
   cuts?: ColumnCut[]
-
   ranges: SeenRange[]
 }
 
@@ -148,7 +146,6 @@ export function recordSeenLines(
   entry.cuts = [...keptCuts].map(([line, visibleChars]) => ({ line, visibleChars }))
   entry.ranges = coalesce([...entry.ranges, ...withoutCutLines([{ start: startLine, end: endLine }], cuts)])
   if (entry.ranges.length > SEEN_LINES_BOUNDS.rangeCap) {
-
     entry.ranges = entry.ranges
       .map((range, index) => ({ range, index }))
       .sort((a, b) => (b.range.end - b.range.start) - (a.range.end - a.range.start) || b.index - a.index)
@@ -265,7 +262,6 @@ type SeenLinesVerdict =
   | { ok: true }
   | {
       ok: false
-
       unseen: SeenRange[]
       hint: string
     }
@@ -343,13 +339,11 @@ export function shiftSeenLinesAfterApply(
         continue
       }
       if (s.start > end) continue
-
       if (s.start <= start && s.end >= end) {
         dropped = true
         break
       }
       if (s.start > start && s.end < end) {
-
         end = end + shift
         continue
       }

@@ -1,3 +1,4 @@
+
 import { createHash, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,7 +31,6 @@ type SerializedInterviewState = Omit<InterviewSessionState, 'seenEventIds'> & {
 interface SessionCheckpoint {
   v: 1
   state: SerializedInterviewState
-
   sealedCount: number
 }
 
@@ -88,22 +88,21 @@ const interviewStore = defineStore<InterviewLogFile>({
   onReadFailure: 'empty',
 })
 
+
 let liveEvents: InterviewEvent[] = []
 let liveState: InterviewSessionState = emptyInterviewState()
 const listeners = new Set<() => void>()
 
+
 interface InterviewSettlement {
   sessionId: InterviewSessionId
-
   generation: number
   state: 'settled' | 'degraded'
-
   error?: string
   atMs: number
 }
 
 interface InterviewFlushReceipt {
-
   drained: number
   settlements: InterviewSettlement[]
   allSettled: boolean
@@ -111,13 +110,9 @@ interface InterviewFlushReceipt {
 
 interface PendingPersist {
   timer: ReturnType<typeof setTimeout> | null
-
   events: InterviewEvent[]
-
   generation: number
-
   degraded?: InterviewSettlement
-
   inflight?: Promise<InterviewSettlement>
 }
 
@@ -130,7 +125,6 @@ function noteLiveCheckpoint(sessionId: InterviewSessionId, cp: SessionCheckpoint
   liveCheckpoints.delete(sessionId)
   liveCheckpoints.set(sessionId, cp)
   if (liveCheckpoints.size > MAX_SESSIONS) {
-
     for (const key of liveCheckpoints.keys()) {
       if (key === sessionId || pendingBySession.has(key)) continue
       liveCheckpoints.delete(key)
@@ -188,7 +182,6 @@ function scheduleSave(): void {
   entry.timer.unref?.()
   pendingBySession.set(sessionId, entry)
   if (pendingBySession.size > MAX_SESSIONS) {
-
     const oldest = [...pendingBySession.entries()]
       .filter(([id, e]) => id !== sessionId && e.timer === null && e.degraded)
       .sort((a, b) => (a[1].degraded?.atMs ?? 0) - (b[1].degraded?.atMs ?? 0))[0]
@@ -210,7 +203,6 @@ function persistEntry(sessionId: InterviewSessionId, entry: PendingPersist): Pro
       let sealedNow = 0
       let newCheckpoint: SessionCheckpoint | undefined
       await interviewStore().mutate(current => {
-
         const prior = current.sessions[sessionId]
         let checkpoint = prior?.checkpoint
         let retained = events
@@ -239,7 +231,6 @@ function persistEntry(sessionId: InterviewSessionId, entry: PendingPersist): Pro
         for (const stale of ids.slice(MAX_SESSIONS)) delete sessions[stale]
         return { sessions }
       })
-
       if (sealedNow > 0) {
         events.splice(0, sealedNow)
         if (newCheckpoint) noteLiveCheckpoint(sessionId, newCheckpoint)
@@ -303,9 +294,11 @@ export function interviewPersistenceHealth(): {
   }
 }
 
+
 export function mintInterviewId(prefix: 'is' | 'iq' | 'id' | 'io' | 'ie' | 'ir'): string {
   return `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 12)}`
 }
+
 
 export function appendInterviewEvent(event: InterviewEvent): InterviewSessionState {
   const next = foldInterviewShared(liveState, event, liveState.seenEventIds as Set<string>)
@@ -369,7 +362,6 @@ export function adoptDurableSessionSync(keys: {
 }): boolean {
   if (liveState.sessionId !== null) return false
   if (!keys.toolUseId && !(keys.declaredIds && keys.declaredIds.length > 0)) return false
-
   {
     const declared = new Set(keys.declaredIds ?? [])
     for (const [pendingId, entry] of pendingBySession) {
@@ -396,7 +388,6 @@ export function adoptDurableSessionSync(keys: {
   const adoptPath = join(getMercuryHome(), 'interview', `${projectKey()}.json`)
   try {
     const raw = JSON.parse(readFileSync(adoptPath, 'utf8')) as { data?: unknown }
-
     const decoded =
       (raw && typeof raw === 'object' && 'sessions' in raw ? raw : (raw.data ?? null)) ?? null
     const sessions = (decoded as { sessions?: unknown } | null)?.sessions
@@ -413,7 +404,6 @@ export function adoptDurableSessionSync(keys: {
       }
     }
   } catch (e) {
-
     if ((e as { code?: string }).code !== 'ENOENT' && !adoptDegradeRecorded) {
       adoptDegradeRecorded = true
       void import('../../substrate/storeRecovery.js')
@@ -455,7 +445,6 @@ export function adoptDurableSessionSync(keys: {
 }
 
 export async function resumeInterviewSession(sessionId: InterviewSessionId): Promise<boolean> {
-
   const inflight = pendingBySession.get(sessionId)?.inflight
   if (inflight) await inflight
   const pending = pendingBySession.get(sessionId)

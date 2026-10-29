@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -49,7 +48,6 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
     STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(',') === 'MERCURY_WARDS,MERCURY_DAP,MERCURY_LSP_CPP,MERCURY_SKIP_PERMISSIONS', STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(','))
   check('no row offers a whole-repository build or a standing planner or builder model pick (label, summary and detail)',
     !STARTUP_MENU.some(r => /repo(sitory)?[ -]?gen/i.test(r.label + r.summary + (r.detail?.controls ?? '') + (r.detail?.on ?? []).join(' ') + (r.detail?.off ?? []).join(' '))))
-
   check('the IDE lane rows are present (clangd visible-ON · godot arm-OFF)',
     STARTUP_MENU.some(r => r.env === 'MERCURY_LSP_CPP' && r.defaultLabel === 'on') &&
     STARTUP_MENU.some(r => r.env === 'MERCURY_GODOT' && r.defaultLabel === 'off'))
@@ -90,7 +88,6 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('the samples row is a toggle, off by default, 1 its one value, in its own group directly after the access-type row',
     samplesAt === accessAt + 1 && STARTUP_MENU[samplesAt]!.kind === 'toggle' && STARTUP_MENU[samplesAt]!.defaultLabel === 'off' && STARTUP_MENU[samplesAt]!.options.join(',') === '1' && STARTUP_MENU[samplesAt]!.group === 'samples' && STARTUP_MENU[samplesAt]!.label === 'Samples' && STARTUP_MENU[samplesAt]!.applicationClass === undefined)
   check('the samples row\'s foot line says what a sample is', /a page the model draws when you ask to see something/.test(STARTUP_MENU[samplesAt]?.summary ?? '') && /your marks/.test(STARTUP_MENU[samplesAt]?.summary ?? ''))
-
   const enterMenu = getFlagSpec('MERCURY_ENTER_MENU')
   check('MERCURY_ENTER_MENU registered default-on / infra, consumed by the applier',
     enterMenu?.kind === 'default-on' && enterMenu?.tier === 'infra' && enterMenu?.consumer === 'src/substrate/startupMenu.ts')
@@ -109,7 +106,6 @@ section('command-owned setting rows — the /caching dial law')
       const c = menuRowChoices(r)
       return c.length >= 2 && c[0]!.value === null
     }))
-
   check('MERCURY_CACHE_TTL is a command-owned row, not a boot-menu row',
     !STARTUP_MENU.some(r => r.env === 'MERCURY_CACHE_TTL'))
   const ttl = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')
@@ -119,7 +115,6 @@ section('command-owned setting rows — the /caching dial law')
   check('the union resolver answers menu + command rows exactly once each',
     allSettingRows().length === STARTUP_MENU.length + COMMAND_SETTINGS_ROWS.length &&
     new Set(allSettingRows().map(r => r.env)).size === allSettingRows().length)
-
   const cmdFile = join(scratch, 'boot-env-cmd.json')
   writeFileSync(cmdFile, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CACHE_TTL: '1h' } }))
   const cmdEnv: NodeJS.ProcessEnv = {}
@@ -131,7 +126,6 @@ section('command-owned setting rows — the /caching dial law')
   const badApplied = applyBootMenuEnv(cmdFile, badEnv)
   check('a foreign dial value still refuses (value validation holds)',
     badApplied !== null && badApplied.refused.length === 1 && Object.keys(badEnv).length === 0)
-
   const wFile = join(scratch, 'boot-env-writer.json')
   const w1 = writeBootEnvChoice('MERCURY_CACHE_TTL', '1h', wFile)
   check('the dial write commits through the profile writer', w1.ok === true)
@@ -147,7 +141,6 @@ section('command-owned setting rows — the /caching dial law')
   const afterStale = readBootEnvChoices(staleFile) ?? {}
   check("a stale foreign value already in the file (an earlier build's 'sovereign') never refuses a later save: it is pruned and every other saved row is kept",
     wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_CAP_FAILOVER === 'auto' && afterStale.MERCURY_GODOT === '1', JSON.stringify({ wStale, afterStale }))
-
   const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
   const menuStart = splashCore.indexOf('const MENU = [')
   const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))

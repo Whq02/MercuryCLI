@@ -17,19 +17,16 @@ export async function* queryEvents(
   params: QueryParams,
 ): AsyncGenerator<RunEvent, Terminal> {
   const consumedCommandUuids: string[] = []
-
   noteQueryTurnStart(params)
   let runTerminalReason = 'threw'
   try {
     const terminal = yield* runEventCore(params, consumedCommandUuids)
     runTerminalReason = terminal.reason
-
     for (const uuid of consumedCommandUuids) {
       notifyCommandLifecycle(uuid, 'completed')
     }
     return terminal
   } finally {
-
     await noteQueryTurnEnd({
       querySource: params.querySource,
       toolUseContext: params.toolUseContext,

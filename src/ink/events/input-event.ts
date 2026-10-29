@@ -1,3 +1,4 @@
+
 import {
   nonAlphanumericKeys,
   type ParsedKey,
@@ -80,7 +81,6 @@ function projectKey(parsed: ParsedKey): Key {
     tab: false,
     backspace: false,
     delete: false,
-
     meta: parsed.meta || parsed.name === 'escape' || parsed.option,
     super: parsed.super,
     isPasted: parsed.isPasted,
@@ -123,7 +123,6 @@ function projectText(parsed: ParsedKey, key: Key): { text: string; key: Key } {
     parsed.name !== undefined &&
     parsed.name.length === 1
   ) {
-
     text = parsed.name
   } else if (parsed.name !== undefined && FUNCTIONAL_NAMES.has(parsed.name)) {
     text = ''

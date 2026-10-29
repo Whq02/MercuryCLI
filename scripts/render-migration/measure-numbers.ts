@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -47,7 +46,6 @@ if (!existsSync(BIN)) {
   check('dist/mercury.mjs exists', false)
   process.exit(1)
 }
-
 const FIXTURE_KEY = 'sk-ant-fixture-numbers-key'
 process.env.ANTHROPIC_API_KEY = FIXTURE_KEY
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -203,7 +201,6 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
     const gaps: number[] = []
     for (let i = 1; i < bursts.length; i++) {
       const g = (bursts[i]![0] - bursts[i - 1]![0]) / 1e6
-
       if (bursts[i - 1]![0] / 1e9 < stormT0 && bursts[i]![0] / 1e9 > stormT1) continue
       gaps.push(g)
     }
@@ -223,7 +220,6 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
       else bursts.push([o.t, o.t])
     }
     if (bursts.length) {
-
       const settled = bursts.find(b => b[0] / 1e9 >= lastJoltS + 0.1) ?? bursts[0]!
       resizeSettleMs = settled[1] / 1e6 - lastJoltS * 1e3
       resizePaintsAfterLastJolt = bursts.filter(b => b[0] <= settled[0]).length

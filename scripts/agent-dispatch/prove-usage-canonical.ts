@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -26,13 +25,11 @@ const SPECIMEN = { inputTokens: 607_617, outputTokens: 17_840, cachedInputTokens
 
 console.log('— D03/D04: the field specimen recomputes at the pinned rates —')
 {
-
   const rate = (tokens: number, perM: number): number => (tokens * perM) / 1_000_000
   const u = mapOpenaiUsageToAnthropic(SPECIMEN)
   const canonical =
     rate(u.input_tokens, 5) + rate(u.output_tokens, 30) + rate(u.cache_read_input_tokens, 0.5)
   check('canonical disjoint cost = $2.296869', Math.abs(canonical - 2.296869) < 1e-9, canonical.toFixed(6))
-
   const inclusive =
     rate(SPECIMEN.inputTokens, 5) + rate(SPECIMEN.outputTokens, 30) + rate(SPECIMEN.cachedInputTokens, 0.5)
   check('the double-count artifact = $3.715109 (what the field paid on paper)', Math.abs(inclusive - 3.715109) < 1e-9, inclusive.toFixed(6))

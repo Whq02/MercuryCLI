@@ -1,3 +1,4 @@
+
 import { dapAdapterProbePending, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 import { mercuryUnityEnabled } from '../../services/ide/unityProject.js'
@@ -10,7 +11,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function harnessMapEnabled(): boolean {
   if (flagEnv('MERCURY_HARNESS_MAP') === '0') return false
-
   if (isSessionMarkedNonInteractive()) return false
   return true
 }
@@ -56,7 +56,6 @@ export function getHarnessMapSection(): string | null {
     return memo
   }
   memo = ['# Mercury harness map', ...computeHarnessMapLines()].join('\n')
-
   if (announcedLines === null) announcedLines = computeHarnessMapLines()
   return memo
 }
@@ -74,7 +73,6 @@ export function getHarnessMapDelta(
   if (!harnessMapEnabled()) return null
   const live = computeHarnessMapLines()
   if (announcedLines === null) {
-
     announcedLines = live
     return null
   }

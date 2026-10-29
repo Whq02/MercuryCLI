@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import type { Frame } from '../../src/ink/frame.js'
 import { FrameWriter } from '../../src/ink/frame-writer.js'
 import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'
@@ -85,21 +84,15 @@ function journeySteps(cardRows: number): string[][] {
   const t = Array.from({ length: 14 }, (_, i) => `transcript line ${i}`)
   const composer = 'composer ready'
   const steps: string[][] = []
-
   steps.push([...t.slice(0, 6), composer])
   steps.push([...t.slice(0, 10), composer])
   steps.push([...t, composer])
-
   steps.push([...t, 'tool-row RUNNING Edit deck.tsx', 'progress beat 1', composer])
   steps.push([...t, 'tool-row RUNNING Edit deck.tsx', 'progress beat 2', composer])
-
   const card = Array.from({ length: cardRows }, (_, i) => `card row ${i}`)
   steps.push([...t, 'tool-row RUNNING Edit deck.tsx', 'progress beat 2', ...card, composer])
-
   steps.push([...t, 'tool-row RUNNING Edit deck.tsx', 'progress beat 2', composer])
-
   steps.push([...t, 'tool-row SETTLED Edit deck.tsx +5/-2', composer])
-
   const after = Array.from({ length: 11 }, (_, i) => `after settle ${i}`)
   steps.push([...t, 'tool-row SETTLED Edit deck.tsx +5/-2', ...after, composer])
   return steps

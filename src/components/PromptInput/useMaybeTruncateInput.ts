@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react'
 import type { PastedContent } from '../../utils/config.js'
 import { maybeTruncateInput } from './inputPaste.js'

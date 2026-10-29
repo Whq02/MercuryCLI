@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -31,7 +30,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failed++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
-
 const lineOf = (blocks: string[]): string =>
   blocks.join('\n\n').match(/the model you run through Mercury is[^\n]*/)?.[0] ?? '(no identity line)'
 const namesModel = (blocks: string[]): boolean => blocks.join('\n\n').includes(MODEL_A) || blocks.join('\n\n').includes(MODEL_B)
@@ -135,7 +133,6 @@ const g9 = settleModelSelection(base, 'gpt-5.6-sol', { turnActive: false })
 check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied' && g9.receipt.crossProvider === true)
 
 {
-
   const applied = settleModelSelection(base, MODEL_B, { turnActive: false })
   const ALLOWED = new Set([
     'engineModel',
@@ -149,7 +146,6 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
     patchKeys.length > 0 && patchKeys.every(k => ALLOWED.has(k)),
     patchKeys.join(','),
   )
-
   const runAgentSrc = await import('node:fs').then(fs =>
     fs.readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/runAgent.ts'), 'utf8'),
   )
@@ -162,7 +158,6 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
 {
   const settled = settleModelSelection(base, MODEL_B, { turnActive: false })
   if (settled.kind !== 'applied') throw new Error('§I expects an applied settle')
-
   const { createModelTransitionMessage } = await import(
     '../../src/utils/messages/systemMessages.ts'
   )
@@ -176,7 +171,6 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
   )
   const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
   check('§I2 the row persists (loggable ⇒ transcript/resume/SDK agree)', isTranscribable(row as never))
-
   const codec = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   let ordN = 0
@@ -198,7 +192,6 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
       back.subtype === 'model_transition' &&
       back.applied === MODEL_B,
   )
-
   check(
     '§I4 the patch writes the ONE store field every UI surface reads',
     settled.patch?.engineModel === MODEL_B,

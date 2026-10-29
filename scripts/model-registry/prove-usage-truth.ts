@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -34,7 +33,6 @@ console.log(' USAGE-TRUTH — one live owner, two renderers, honest shapes')
 console.log('============================================================')
 
 section('1 · the x-codex header decode — only what the source stated')
-
 {
   const NOW = 1_000_000_000
   __resetOpenaiLimitStateForTest()
@@ -85,7 +83,6 @@ section('1 · the x-codex header decode — only what the source stated')
 }
 
 section('2 · window labels derive from the STATED length, never assumed')
-
 {
   check("a week-class window (≥6d) is the weekly meter ('wk')", usageWindowLabel(10_080) === 'wk')
   check("a ~5.5-day statement still labels itself in days ('5d'/'6d')", /^[56]d$/.test(usageWindowLabel(5.5 * 24 * 60)))
@@ -95,7 +92,6 @@ section('2 · window labels derive from the STATED length, never assumed')
 }
 
 section('3 · activeSourceUsage — lane → kind → SHAPE, switch re-derives')
-
 {
   const spendZero = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
   const spendSome = { inputTokens: 1200, outputTokens: 300, costUSD: 0.42, models: 1 }
@@ -228,7 +224,6 @@ section('3 · activeSourceUsage — lane → kind → SHAPE, switch re-derives')
 }
 
 section('3b · the tier law — every tier word derives from the active source')
-
 {
   const spendZero = { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }
   const reads: ActiveUsageReads = {
@@ -289,12 +284,10 @@ section('3b · the tier law — every tier word derives from the active source')
 }
 
 section('4 · structural — two slots, honest absences, one owner, both seams')
-
 {
   const usageTab = src('src/components/Settings/Usage.tsx')
   check('settings: the Subscription slot heading mounts', usageTab.includes('SlotHeading text="Subscription"'))
   check('settings: the API-key slot component mounts for every section', (usageTab.match(/<ApiKeySlot/g) ?? []).length >= 3)
-
   check(
     'settings: an absent key renders the honest none/n-a body (never a vanished slot)',
     usageTab.includes('return `none — ${route} · n/a`') &&

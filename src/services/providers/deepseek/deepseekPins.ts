@@ -1,3 +1,4 @@
+
 export function isDeepseekModelId(model: string): boolean {
   const m = model.trim().toLowerCase()
   return m === 'deepseek' || m.startsWith('deepseek-')
@@ -22,7 +23,6 @@ export function deepseekAcceptsEffort(model: string, effort: string): boolean {
 export interface DeepseekDisplayPin {
   id: string
   displayName: string
-
   observedAt: string
   contextWindow?: number
   outputMax?: number

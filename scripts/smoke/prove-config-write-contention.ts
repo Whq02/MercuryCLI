@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

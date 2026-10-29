@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,7 +49,6 @@ function makeArena(fixture: FixtureApi): Arena {
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
-
       MERCURY_VERIFY_EVIDENCE: '0',
     },
   }
@@ -106,7 +104,6 @@ check('the tool effect landed', existsSync(target))
 check('…with the exact content, once', existsSync(target) && readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE')
 
 const projectDirRoot = join(arena.home, '.mercury', 'projects')
-
 function transcriptFiles(): Array<{ path: string; text: string }> {
   if (!existsSync(projectDirRoot)) return []
   const out: Array<{ path: string; text: string }> = []
@@ -141,7 +138,6 @@ check('the resume request carries the turn-1 completion exactly once', countOf(r
 check('the resume request carries the tool effect exactly once', countOf(resumeBody, 'S16-EFFECT-ONCE') >= 1 && countOf(resumeBody, '"tool_use_id"') >= 1)
 
 for (const f of transcriptFiles()) {
-
   const userN = f.text
     .split('\n')
     .filter(l => (l.includes('"type":"user"') || l.includes('"kind":"input"')) && l.includes('write the file')).length
@@ -149,7 +145,6 @@ for (const f of transcriptFiles()) {
     .split('\n')
     .filter(l => (l.includes('"type":"assistant"') || l.includes('"kind":"output"')) && l.includes(MARKER)).length
   check(`no in-file duplication of the turn-1 user message (${f.path.split('/').pop()})`, userN <= 1, `count=${userN}`)
-
   check(`turn-1 completion appears once or as publish+settle (${f.path.split('/').pop()})`, markerN >= 1 && markerN <= 2, `count=${markerN}`)
 }
 
@@ -168,7 +163,6 @@ const sidecarText = (() => {
   return out
 })()
 if (sidecarText.length > 0) {
-
   check('the sidecar carries no fabricated execution lifecycle', !/"lifecycle"\s*:\s*"(executing|running)"/.test(sidecarText), sidecarText.slice(0, 200))
   check("an open (active) sidecar is the LATEST request's run, never a replay of turn 1", !/"lifecycle"\s*:\s*"active"/.test(sidecarText) || sidecarText.includes('"objective": "second prompt"') || sidecarText.includes('"objective":"second prompt"'), sidecarText.slice(0, 200))
 } else {

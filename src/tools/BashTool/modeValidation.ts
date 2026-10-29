@@ -23,7 +23,6 @@ export function checkPermissionMode<I extends { command: string; cwd?: string }>
   if (own.kind === 'simple' && own.commands.length > 0 && own.commands.every(simple => ownGroundCommand(simple, resolveShellCwd(input.cwd)))) {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: "the run's own ground" } }
   }
-
   if (modeBypassesPermissions(toolPermissionContext.mode)) {
     return { behavior: 'passthrough', message: 'Bypass-posture mode handles this command.' }
   }
@@ -42,7 +41,6 @@ export function checkPermissionMode<I extends { command: string; cwd?: string }>
     if (toolPermissionContext.mode === 'implement' && ACCEPT_EDITS_COMMANDS.has(base)) {
       return {
         behavior: 'allow',
-
         updatedInput: { command: subcommand } as unknown as I,
         decisionReason: { type: 'mode', mode: 'implement' },
       }

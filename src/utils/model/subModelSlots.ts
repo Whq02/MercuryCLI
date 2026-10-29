@@ -48,9 +48,7 @@ export function canonicalSubModelId(value: string): string {
 export interface SubModelPin {
   origin: 'env' | 'saved'
   model: string
-
   route: CallModelRoute | 'unrecognised'
-
   envVar?: string
 }
 
@@ -100,21 +98,17 @@ export function subModelIdentityLine(container: SubModelContainer, pin: SubModel
   )
 }
 
+
 export type SubModelRowState = 'selectable' | 'signed-out' | 'refused'
 
 export interface SubModelEntry {
   kind: 'model' | 'connect'
-
   modelId: string
   displayName: string
-
   source: CallModelRoute | 'unrecognised'
   state: SubModelRowState
-
   reason?: string
-
   connect?: { command?: string; note: string }
-
   description?: string
 }
 
@@ -122,13 +116,11 @@ export interface SubModelFamily {
   source: CallModelRoute | 'unrecognised'
   label: string
   credentialed: boolean
-
   credentialLabel?: string
 }
 
 export interface SubModelRegistry {
   entries: SubModelEntry[]
-
   families: SubModelFamily[]
 }
 
@@ -145,7 +137,6 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins openrouter', note: 'connect — /logins' }
     case 'gemini':
       return { command: '/logins gemini', note: 'connect — /logins' }
-
     case 'zai':
       return { command: '/logins zai', note: 'connect — /logins (API key)' }
     case 'moonshot':
@@ -181,10 +172,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
     case 'openai-compat':
       return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — MERCURY_COMPAT_API_KEY)' }
     case 'huggingface':
-
       return { command: '/logins huggingface', note: 'sign in — /logins' }
     case 'local':
-
       return {
         note: 'no sign-in — start a local server (Ollama · LM Studio · vLLM · llama.cpp) or set MERCURY_LOCAL_BASE_URL',
       }
@@ -216,7 +205,6 @@ export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubM
   )()
   for (const option of options) {
     const value = option.value
-
     if (!value || value.startsWith('__')) continue
     if (isProviderActionRow(value)) continue
     const modelId = canonicalSubModelId(value)
@@ -232,7 +220,6 @@ export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubM
         displayName: option.label,
         source: route,
         state: 'signed-out',
-
         reason: option.unavailable ?? 'not signed in',
         connect: home,
         ...description,
@@ -302,6 +289,7 @@ export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubM
   return { entries, families }
 }
 
+
 export type SubModelSetResult =
   | { ok: true; receipt: string }
   | { ok: false; reason: string }
@@ -355,12 +343,12 @@ export function setSubModel(
     ...config,
     subModels: { ...config.subModels, [container]: wanted },
   }))
-
   return {
     ok: true,
     receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}), ${subModelEffortClause(container, wanted)} (${container === 'advisor' ? 'live on the next note' : 'live on the next side question'})`,
   }
 }
+
 
 function containerLabel(container: SubModelContainer): string {
   return container === 'advisor' ? 'Advisor' : 'Console'

@@ -1,3 +1,4 @@
+
 import { randomBytes } from 'node:crypto'
 import { copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { basename, extname, isAbsolute, join, resolve } from 'node:path'
@@ -23,9 +24,9 @@ type ImageWithDimensions = {
   base64: string
   mediaType: string
   dimensions?: ImageDimensions
-
   byteLength?: number
 }
+
 
 type ClipboardPlatform = 'darwin' | 'linux' | 'win32'
 
@@ -53,10 +54,12 @@ export function nextPasteArtifactPath(): string {
   return join(pasteArtifactDir(), `paste-${pasteSequence}-${randomBytes(4).toString('hex')}.png`)
 }
 
+
 function fixtureClipboardFile(): string | null {
   const file = flagEnv('MERCURY_CLIPBOARD_IMAGE_FILE')
   return file !== undefined && file.trim() !== '' ? file : null
 }
+
 
 export async function hasImageInClipboard(): Promise<boolean> {
   try {
@@ -65,6 +68,7 @@ export async function hasImageInClipboard(): Promise<boolean> {
     return false
   }
 }
+
 
 async function checkClipboardImage(platform: ClipboardPlatform): Promise<boolean> {
   const fixture = fixtureClipboardFile()
@@ -77,12 +81,10 @@ async function checkClipboardImage(platform: ClipboardPlatform): Promise<boolean
     const result = await execFileNoThrow('powershell', [
       '-NoProfile',
       '-Command',
-
       '$img = Get-Clipboard -Format Image; if ($null -eq $img) { exit 1 }; exit 0',
     ])
     return result.code === 0
   }
-
   const imageMime = /image\/(png|jpe?g|gif|webp|bmp)/i
   const xTargets = await execFileNoThrow('xclip', ['-selection', 'clipboard', '-t', 'TARGETS', '-o'])
   if (xTargets.code === 0 && imageMime.test(xTargets.stdout)) return true
@@ -117,7 +119,6 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
     ])
     return result.code === 0
   }
-
   const attempts: Array<[string, string[]]> = [
     ['xclip', ['-selection', 'clipboard', '-t', 'image/png', '-o']],
     ['wl-paste', ['--type', 'image/png']],
@@ -166,7 +167,6 @@ async function readClipboardPathText(platform: ClipboardPlatform): Promise<strin
 }
 
 function deleteArtifact(platform: ClipboardPlatform, path: string): void {
-
   if (platform === 'win32') {
     void execFileNoThrow('powershell', [
       '-NoProfile',
@@ -178,6 +178,7 @@ function deleteArtifact(platform: ClipboardPlatform, path: string): void {
   void execFileNoThrow('rm', ['-f', path]).catch(() => {})
 }
 
+
 async function normalizeBmp(buffer: Buffer): Promise<Buffer> {
   if (buffer.length >= 2 && buffer[0] === 0x42 && buffer[1] === 0x4d) {
     const sharp = await getImageProcessor()
@@ -185,6 +186,7 @@ async function normalizeBmp(buffer: Buffer): Promise<Buffer> {
   }
   return buffer
 }
+
 
 export async function getImageFromClipboard(): Promise<ImageWithDimensions | null> {
   const platform = clipboardPlatform()
@@ -212,6 +214,7 @@ export async function getImageFromClipboard(): Promise<ImageWithDimensions | nul
 async function getImagePathFromClipboard(): Promise<string | null> {
   return readClipboardPathText(clipboardPlatform())
 }
+
 
 function cleanPath(text: string): string {
   let cleaned = text.trim()
@@ -243,6 +246,7 @@ export function asImageFilePath(text: string): string | null {
   return IMAGE_EXTENSION_REGEX.test(cleaned) ? cleaned : null
 }
 
+
 export async function tryReadImageFromPath(
   text: string,
 ): Promise<(ImageWithDimensions & { path: string }) | null> {
@@ -252,10 +256,8 @@ export async function tryReadImageFromPath(
   if (isAbsolute(cleaned)) {
     readFrom = cleaned
   } else if (getFsImplementation().existsSync(resolve(cleaned))) {
-
     readFrom = resolve(cleaned)
   } else {
-
     const clipboardPath = await getImagePathFromClipboard()
     if (clipboardPath && basename(clipboardPath) === basename(cleaned)) {
       readFrom = clipboardPath
@@ -278,6 +280,5 @@ export async function tryReadImageFromPath(
   const resized = await maybeResizeAndDownsampleImageBuffer(normalized, normalized.length, ext)
   const base64 = resized.buffer.toString('base64')
   const mediaType = detectImageFormatFromBase64(base64)
-
   return { base64, mediaType, dimensions: resized.dimensions, byteLength: resized.buffer.length, path: cleaned }
 }

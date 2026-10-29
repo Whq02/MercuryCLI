@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   appendChildNode,
   createNode,
@@ -168,7 +167,6 @@ function commit(w: World, promise: boolean, contaminated = false): { frame: Fram
 function driveSequence(w: World, promise: boolean): { frame: Frame; prev: Frame; hint: boolean }[] {
   const out: { frame: Frame; prev: Frame; hint: boolean }[] = []
   out.push(commit(w, promise, true))
-
   const it6 = w.items[6]!
   removeChildNode(it6.el, it6.texts[1]!)
   removeChildNode(it6.el, it6.texts[2]!)
@@ -180,12 +178,10 @@ function driveSequence(w: World, promise: boolean): { frame: Frame; prev: Frame;
   appendChildNode(w.content, receipt.el)
   markDirty(w.content)
   out.push(commit(w, promise))
-
   const nxt = item('it12', 2)
   appendChildNode(w.content, nxt.el)
   markDirty(w.content)
   out.push(commit(w, promise))
-
   const spacer = box({ flexDirection: 'column', width: '100%', flexShrink: 0, height: 0 })
   insertBeforeNode(w.content, spacer, w.items[0]!.el)
   removeChildNode(w.content, w.items[0]!.el)
@@ -193,19 +189,16 @@ function driveSequence(w: World, promise: boolean): { frame: Frame; prev: Frame;
   styled(spacer, { flexDirection: 'column', width: '100%', flexShrink: 0, height: 6 })
   markDirty(w.content)
   out.push(commit(w, promise))
-
   const nxt2 = item('it13', 3)
   appendChildNode(w.content, nxt2.el)
   removeChildNode(w.content, w.items[2]!.el)
   styled(spacer, { flexDirection: 'column', width: '100%', flexShrink: 0, height: 9 })
   markDirty(w.content)
   out.push(commit(w, promise))
-
   const it7 = w.items[7]!
   removeChildNode(it7.el, it7.texts[2]!)
   markDirty(it7.el)
   out.push(commit(w, promise))
-
   const nxt3 = item('it14', 2)
   appendChildNode(w.content, nxt3.el)
   markDirty(w.content)
@@ -246,7 +239,6 @@ section('§1 the capable road: the hint mints and the region scroll replays cell
 
 section('§2 ink.tsx hands ONE region-scroll truth to compose and writer alike')
 {
-
   const src = await import('node:fs').then(fs =>
     fs.readFileSync(new URL('../../src/ink/ink.tsx', import.meta.url), 'utf8'),
   )
@@ -286,7 +278,6 @@ section('§4 the rect road: promise withheld ⇒ the shifted region rides the da
   const damage = step.frame.screen.damage
   check('the commit reports damage', damage != null)
   if (damage) {
-
     check(
       'the damage rect covers the shifted region top (diffEach can re-emit it)',
       damage.y === 0,

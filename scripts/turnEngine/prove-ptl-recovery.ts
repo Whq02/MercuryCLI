@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
@@ -10,7 +9,6 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ptl-laws-config-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
-
 delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
 delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
 delete process.env.MERCURY_AUTO_COMPACT
@@ -64,6 +62,7 @@ const wireTextsOf = (content: unknown): string[] => wirePartsOf(content).map(p =
 const isOperatorBlock = (text: string): boolean => text.trimStart().startsWith(OPERATOR_BLOCK_HEADER)
 const isSummaryText = (text: string): boolean => text.trimStart().startsWith(SUMMARY_HEADER)
 const withoutOperatorBlock = (item: WireItem): WireItem => (item.role === 'user' ? { ...item, content: wirePartsOf(item.content).filter(p => !(typeof p.text === 'string' && isOperatorBlock(p.text))) } : item)
+
 
 function makeAssistant(seq: number, text: string, inputTokens: number): Record<string, unknown> {
   return {
@@ -361,7 +360,6 @@ section('§5b — a real API PTL with no summary to be had: the ladder refuses w
         errorType: 'invalid_request_error',
         message: 'prompt is too long: 137500 tokens > 135000 maximum',
       },
-
       { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
       { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
     ],
@@ -388,7 +386,6 @@ section('§6 — consecutive compact failures accumulate; the FOURTH iteration m
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
   ]
-
   const toolTurn = (id: string): ScriptedTurn => ({ kind: 'tool_use', name: 'PtlProbeTool', input: {}, id, usage: { input_tokens: 50_000 } })
   const r = await runQuery({
     turns: [

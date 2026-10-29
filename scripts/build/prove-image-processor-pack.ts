@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -75,7 +74,6 @@ function healthRow(node: string, bundle: string, home: string): { status?: strin
     console.log(`    health JSON unparseable: ${String(e)}`)
     return null
   }
-
   const stack: unknown[] = [parsed]
   while (stack.length > 0) {
     const node = stack.pop()

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,7 +24,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 const SEAT_ONE = 'tide-gauges'
 const SEAT_TWO = 'reef-survey'
 const ASK = 'crew-drive: launch two'
-
 const FIXTURE_API_KEY = 'fixture-key-000'
 
 type Dialect = 'anthropic' | 'openai'
@@ -34,10 +32,8 @@ interface Hit {
   route: Route
   model: string
   seat: string | null
-
   lane: string
 }
-
 const GPT_ID = 'gpt-5.5'
 interface Fixture {
   base: string
@@ -160,7 +156,6 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
     req.on('data', c => chunks.push(c))
     req.on('end', () => {
       const url = (req.url ?? '').split('?')[0] ?? ''
-
       if (req.method === 'GET' && url === '/openai/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(
@@ -198,7 +193,6 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
       const { route, seat } = routeOf(body)
       hits.push({ route, model, seat, lane })
       if (process.env.CREW_KEEP === '1' && route === 'side') {
-
         const b = body as { tools?: unknown[]; input?: unknown; messages?: unknown }
         const toolNames = Array.isArray(b?.tools) ? b.tools.map(t => (t as { name?: string; function?: { name?: string } })?.name ?? (t as { function?: { name?: string } })?.function?.name).slice(0, 12) : 'none'
         console.log(`[side ${lane}] keys=${Object.keys(body ?? {}).join(',')} tools=${JSON.stringify(toolNames)} items=${JSON.stringify(itemsOf(body).slice(-2)).slice(0, 700)}`)
@@ -305,7 +299,6 @@ function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<s
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
-
     ANTHROPIC_API_KEY: dialect === 'anthropic' ? FIXTURE_API_KEY : '',
     ...(dialect === 'openai'
       ? {
@@ -341,7 +334,6 @@ const crewPopup = (text: string): string => {
   const bottom = rows.findIndex((row, index) => index > titleAt && row[left] === '╰')
   return rows.slice(titleAt, bottom < 0 ? titleAt : bottom + 1).map(row => row.slice(left, right + 1)).join('\n')
 }
-
 const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
   text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
 const rowTokens = (text: string, name: string): boolean => {
@@ -353,9 +345,7 @@ const COLS = 160
 const ROWS = 44
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-
   { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]
@@ -374,7 +364,6 @@ const runs = (dialect: Dialect, leg: 'land' | 'stop'): boolean => {
   const name = dialect === 'anthropic' ? leg : `openai-${leg}`
   return LEG === 'all' || LEG === name || LEG === dialect
 }
-
 const argvFor = (dialect: Dialect): string[] => (dialect === 'openai' ? ['node', DIST, '--model', GPT_ID] : ['node', DIST])
 const portFor = (dialect: Dialect, leg: 'land' | 'stop'): number =>
   Number(process.env[`CREW_PORT_${dialect.toUpperCase()}_${leg.toUpperCase()}`] ?? (dialect === 'anthropic' ? (leg === 'land' ? 25161 : 25162) : leg === 'land' ? 25163 : 25164))
@@ -394,12 +383,9 @@ async function landLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-
           { data: '/crewmates', atTick: 999, awaitText: 'Running 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '\r', afterPrevTicks: 4 },
-
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-
           { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\r', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },

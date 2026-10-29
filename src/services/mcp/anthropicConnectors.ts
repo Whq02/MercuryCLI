@@ -11,6 +11,7 @@ import { clearMcpAuthCache } from './client.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
+
 export function anthropicConnectorsArmed(canonical: string | undefined): boolean {
   if (canonical !== undefined && canonical !== '') return isEnvTruthy(canonical)
   return false
@@ -40,7 +41,6 @@ export const fetchAnthropicConnectorsIfEligible = memoize(
       logForDebugging('claudeai MCP: no OAuth access token; skipping connector fetch')
       return {}
     }
-
     const scopes = tokens.scopes ?? []
     if (!scopes.includes(REQUIRED_SCOPE)) {
       logForDebugging(`claudeai MCP: token lacks ${REQUIRED_SCOPE} (has: ${scopes.join(', ') || 'none'})`)
@@ -48,7 +48,6 @@ export const fetchAnthropicConnectorsIfEligible = memoize(
     }
     try {
       const base = getOauthConfig().BASE_API_URL
-
       const response = await axios.get<{ data?: AnthropicConnectorRow[]; has_more?: boolean; next_page?: string | null }>(
         `${base}/v1/mcp_servers?limit=1000`,
         {
@@ -65,7 +64,6 @@ export const fetchAnthropicConnectorsIfEligible = memoize(
       const configs: Record<string, ScopedMcpServerConfig> = {}
       const takenNormalized = new Set<string>()
       for (const row of rows) {
-
         const baseName = `claude.ai ${row.display_name}`
         let name = baseName
         let suffix = 2

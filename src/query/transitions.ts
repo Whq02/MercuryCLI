@@ -1,3 +1,4 @@
+
 export type Terminal =
   | { reason: 'completed' }
   | { reason: 'model_error'; error: unknown }

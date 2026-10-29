@@ -70,7 +70,6 @@ export function renderToolResultMessage(
           ) : null}
         </Text>
         {shown.map((line, i) => (
-
           <Text key={i} wrap="truncate-end">
             {line || ' '}
           </Text>
@@ -79,7 +78,7 @@ export function renderToolResultMessage(
           <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>
         ) : null}
       </Box>
-
+  
       )}
     </WithCardTone>
   );

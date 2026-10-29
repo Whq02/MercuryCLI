@@ -1,3 +1,4 @@
+
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -10,7 +11,6 @@ import {
 interface OwnerPlans {
   plans: Map<string, ChangeSetPlan>
   order: string[]
-
   evicted: Set<string>
 }
 

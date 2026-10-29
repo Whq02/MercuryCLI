@@ -1,3 +1,4 @@
+
 import { buildCppProjectProfile } from '../../ide/cppProject.js'
 import { buildGodotIdeSession } from '../../ide/godotSession.js'
 import {
@@ -78,7 +79,6 @@ const ideAdapter: ResourceAdapter = {
       }
     }
     if (ref.id === 'typescript/project') {
-
       const { probeBuiltinTsServer } = await import('../../lsp/builtinServers.js')
       const { mercuryLspEnabled } = await import('../../lsp/mercuryLsp.js')
       if (!mercuryLspEnabled()) {

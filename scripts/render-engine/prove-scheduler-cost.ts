@@ -31,7 +31,6 @@ section('§1 demand-driven')
 section('§2 cadence under a sustained burst')
 {
   const { clock, sched, paints } = rig(() => 1)
-
   for (let i = 0; i < 200; i++) {
     sched.request()
     clock.advance(2)
@@ -85,7 +84,6 @@ section('§4 input priority')
   clock.advance(20)
   const inputPaint = paints.find(p => p.at > heavyAt)
   check('a keystroke paints on plain cadence while the floor holds', inputPaint !== undefined && inputPaint.at <= heavyAt + 45)
-
   clock.advance(400)
   check('the combined paint served every demand (none parked)', !sched.hasPending())
   check('no ghost paint followed', paints.length === 2)

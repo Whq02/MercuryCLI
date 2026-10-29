@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -22,6 +21,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
+
 
 type Route = (req: IncomingMessage, body: string, res: ServerResponse) => boolean
 function serve(route: Route): Promise<{ server: Server; root: string }> {
@@ -215,7 +215,6 @@ section('5 · the picker rows')
 {
   const rows = getLocalModelOptions()
   check('one row per discovered model, all in the local group', rows.length === cachedLocalModels().length && rows.every(r => r.group === LOCAL_MODEL_GROUP && r.value?.startsWith('local/')))
-
   const qwenRow = rows.find(r => r.value === 'local/qwen3:8b')!
   check('model rows carry no description (the neutral grammar)', rows.every(r => r.description === ''), JSON.stringify(rows.map(r => [r.value, r.description])))
   check('the served window rides the typed statedContextWindow', qwenRow.statedContextWindow === 32768, String(qwenRow.statedContextWindow))
@@ -305,7 +304,6 @@ section('7 · the wire')
 
 section('8 · identity collision across servers (the namespace law)')
 {
-
   const vllmTwin = await serve((req, _body, res) => {
     if (req.url === '/v1/models') return json(res, 200, { data: [{ id: 'qwen3:8b', owned_by: 'vllm', max_model_len: 32768, root: 'qwen3:8b' }] })
     return false
@@ -343,7 +341,6 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
     check("the provider is routeLaw's 'local'", live.data.provider === 'local', String(live.data.provider))
     check('the provider is USABLE with the keyless credential word (discovery is presence)', live.data.usability?.usable === true && live.data.usability.credential === 'keyless', JSON.stringify(live.data.usability))
   }
-
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
   await refreshLocalDiscovery({ force: true })
@@ -354,7 +351,6 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
     check('the blocker is the probe route (start a server / MERCURY_LOCAL_BASE_URL)', blocker.includes('no local server discovered') && blocker.includes('MERCURY_LOCAL_BASE_URL'), blocker)
     check('no borrowed credential words on the account-less family', !blocker.includes('/logins') && !blocker.toLowerCase().includes('sign in'), blocker)
   }
-
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
@@ -362,10 +358,8 @@ section('9 · the cockpit gauge on a local main (the model line is the served tr
 
 section('10 · the cloud-needed census on a local main (named degrades, never silence)')
 {
-
   const { modelSupports1M } = await import('../../src/utils/model/capabilities.ts')
   check('the 1M toggle never lights on a local id', !modelSupports1M('local/qwen3:8b') && !modelSupports1M('local/hf.co/org/model:tag'))
-
   const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
   const rows = mapMessagesToZai(undefined, [
     {
@@ -395,7 +389,6 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   __resetLocalDiscoveryForTest()
   process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${ollama.root}`
   await refreshLocalDiscovery({ force: true })
-
   const windows = await import('../../src/services/providers/local/localWindow.ts')
   windows.__resetLocalWindowsForTest()
   windows.writeLocalWindowSetting({ id: 'qwen3:8b' }, 'server')
@@ -418,7 +411,6 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   const autoRefusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
   check('under auto the guard reads the window the request will send (the trained max 40,960 on an unread machine) and names the choice', (autoRefusal ?? '').includes('40960 tokens — chosen by Mercury for this session (auto) — /config → Local model window'), String(autoRefusal))
   check('under auto a Modelfile num_ctx below the trained max no longer guards: the request sends num_ctx 131072 and the 31k request fits it', localLaneProfileFor(llama).requestFitRefusal?.({ requestBytes: 120_000, estTokens: 30_000, toolCount: 55, wireModel: 'llama3.2:latest' }) === undefined)
-
   const llava = localRecordFor('local/llava:latest')!
   check('an unstated window (unloaded, no num_ctx) never refuses', llava.contextWindow === undefined && localLaneProfileFor(llava).requestFitRefusal?.({ requestBytes: 800_000, estTokens: 200_000, toolCount: 202, wireModel: 'llava:latest' }) === undefined, JSON.stringify(llava.contextWindow))
   const trainedOnly = { ...llava, contextWindow: { tokens: 131072, source: 'model-max' as const } }
@@ -435,7 +427,6 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
     thinkingConfig: { type: 'disabled' } as never,
     tools: [] as never,
     signal: new AbortController().signal,
-
     options: {
       model: 'local/qwen3:8b',
       querySource: 'user',

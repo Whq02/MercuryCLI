@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
 import { execFileSync, spawn } from 'node:child_process'
@@ -22,7 +21,6 @@ plugin({
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
 let failures = 0
@@ -59,7 +57,6 @@ const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
-
 process.chdir(PROJECT)
 setCwd(PROJECT)
 setOriginalCwd(PROJECT)
@@ -172,7 +169,6 @@ section('§3 a here-string feeds stdin')
 
 section('§3b a bang reaches the command exactly as written')
 {
-
   const { quoteShellCommand } = await import('../../src/utils/bash/shellQuoting.ts')
   const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
   const BS = String.fromCharCode(92)
@@ -218,7 +214,6 @@ section('§3b a bang reaches the command exactly as written')
   }
   const stage = await plain(`printf "%s" "it's!" | cat`)
   check("a pipe stage holding a single quote and a bang reaches printf as written", stage.code === 0 && stage.out === "it's!", JSON.stringify(stage.out.slice(0, 80)))
-
   const stageForm = rearrangePipeCommand(`printf "%s" "it's!" | cat`)
   check('…its rearranged form carries no backslash-bang', !stageForm.includes(bangEscape) && stageForm.includes("it'"), stageForm)
   const tokenForm = rearrangePipeCommand('printf "%s" "hi there!" | cat')
@@ -296,7 +291,6 @@ if (!existsSync(DIST) || !nodeBin) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd into a subdirectory' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
-
     { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `cp "${globDir}/"*.m4a "${globOut}/" && echo 'copied:' && find "${globOut}" -name '*.m4a' | wc -l | tr -d ' '`, description: 'copy a quoted audio glob through a pipe' }, whenModel: MODEL },

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -60,7 +59,6 @@ function capturing(body: unknown, into: Captured[]): typeof fetch {
 const productAgent = (ua: string): boolean => /^mercury\/1\.0\.0/.test(ua) && !/axios|claude-cli|node-fetch|undici/i.test(ua)
 
 section('§1 OpenAI subscription refresh presents the product agent')
-
 {
   const openai = await import('../../src/services/providers/openai/openaiAccounts.ts')
   const path = openai.openaiAuthPathForDisplay()
@@ -83,7 +81,6 @@ section('§1 OpenAI subscription refresh presents the product agent')
 }
 
 section('§2 Gemini OAuth refresh presents the product agent')
-
 {
   const gemini = await import('../../src/services/providers/gemini/geminiAccounts.ts')
   const path = gemini.geminiAuthPathForDisplay()
@@ -97,7 +94,6 @@ section('§2 Gemini OAuth refresh presents the product agent')
 }
 
 section('§3 Moonshot/Kimi refresh presents the product agent')
-
 {
   const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
   moonshot.writeMoonshotTokens({ accessToken: 'ka-old', refreshToken: 'krt', accessTokenExpiresAtMs: 1 }, 'global')
@@ -109,7 +105,6 @@ section('§3 Moonshot/Kimi refresh presents the product agent')
 }
 
 section('§4 Anthropic OAuth refresh presents the product agent (axios leg)')
-
 {
   const posts: Array<{ url: string; userAgent: string }> = []
   axios.defaults.adapter = async config => {
@@ -127,7 +122,6 @@ section('§4 Anthropic OAuth refresh presents the product agent (axios leg)')
         config,
       } as never
     }
-
     throw new axios.AxiosError('fixture: no profile endpoint', 'ECONNREFUSED', config as never)
   }
   const { refreshOAuthToken } = await import('../../src/services/oauth/client.ts')
@@ -138,7 +132,6 @@ section('§4 Anthropic OAuth refresh presents the product agent (axios leg)')
 }
 
 section('§5 no auxiliary surface composes its own agent string (structural)')
-
 {
   const sources = readFileSync(join(ROOT, 'src/extensions/sources.ts'), 'utf8')
   check('the extension source (archive) fetch presents the product identity', /headers: \{ 'user-agent': getMercuryUserAgent\(\) \}/.test(sources))

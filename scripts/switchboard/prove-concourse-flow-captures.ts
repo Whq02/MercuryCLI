@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -38,7 +37,6 @@ interface Send {
   awaitText?: string
   minTick?: number
   awaitSettleTicks?: number
-
   mark?: string
 }
 
@@ -51,10 +49,8 @@ function newScratch(tag: string): string {
   seedFirstRun(scratch, [REPO])
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 5 }
   cfg['concourseCoordinator'] = { mode: 'agent-assisted', assistModel: 'claude-opus-5' }
-
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
   return scratch
@@ -82,7 +78,6 @@ function capture(
     MERCURY_CREW_DIR: join(scratch, 'crew'),
     MERCURY_AWAY_SUMMARY: '0',
     MERCURY_PARTY: '0',
-
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     ...extraEnv,
@@ -100,13 +95,11 @@ function capture(
   }
   return lines
 }
-
 const markedFrames = new Map<string, string[]>()
 const markOf = (tag: string, label: string): string[] => markedFrames.get(`${tag}:${label}`) ?? []
 
 const rowOf = (lines: string[], needle: string): number => lines.findIndex(l => l.includes(needle))
 const has = (lines: string[], needle: string): boolean => rowOf(lines, needle) >= 0
-
 const ONLY = process.env.CONCFLOW_ONLY
 const runLeg = (name: string): boolean => ONLY === undefined || ONLY === '' || ONLY === name
 
@@ -144,9 +137,7 @@ if (runLeg('git-offer')) {
     if (cols >= 120) {
       check(`${cols}×${rows}: the card sits INSIDE the pane — below its title, above the composer`, coord >= 0 && title > coord && (strip < 0 || title < strip), `coord=${coord} card=${title} strip=${strip}`)
     } else {
-
       check(`${cols}×${rows}: the card overlays at the BOTTOM — above the composer strip`, title > 3 && strip > title, `card=${title} strip=${strip}`)
-
       const legend = rowOf(lines, '↑↓ choose · ↵ confirm · esc cancel')
       const cardTop = title - 1
       const cardBottom = legend + 1
@@ -164,10 +155,8 @@ if (runLeg('git-offer')) {
     check(`${cols}×${rows}: the rail still MENTIONS the ask`, has(lines, 'NEEDS YOU') && has(lines, 'git offer'))
     check(`${cols}×${rows}: the strip's retired y/n context is absent`, !has(lines, 'y allows · n denies'))
   }
-
   const wrapped = capture('git-offer-down', scratch, fixturePath, 120, 40, [{ atTick: 999, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: DOWN }, { afterPrevTicks: 4, data: DOWN, mark: 'after-one-down' }], 70)
   const moved = markOf('git-offer-down', 'after-one-down')
-
   const cursorOn = (l: string): boolean => /[│ ]*❯\s+\d\./.test(l)
   const noLine = moved.find(l => l.includes('No — run here')) ?? ''
   const yesLine = moved.find(l => /\b1\. Yes\b/.test(l)) ?? ''
@@ -211,12 +200,10 @@ if (runLeg('arrows')) {
   const before = capture('arrows-before', scratch, fixturePath, 120, 40, [], 45)
   const after = capture('arrows-after', scratch, fixturePath, 120, 40, [{ ...settle, data: '\t' }, { afterPrevTicks: 3, data: DOWN }], 60)
   const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
-
   const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
   const rowBefore = selRow(before)
   const rowAfter = selRow(after)
   const firstTitle = titleOf(before[rowBefore])
-
   const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
   const secondTitle = titleOf(before[nextRow])
   check('before any key the ▸ selection sits on the first session row', rowBefore >= 0 && firstTitle !== '' && nextRow > rowBefore, `row=${rowBefore} title=${JSON.stringify(firstTitle)} next=${JSON.stringify(secondTitle)}`)
@@ -289,7 +276,6 @@ if (runLeg('thinking')) {
     for (const [cols, rows] of [[120, 40], [100, 30]] as const) {
       const lines = capture('thinking', scratch, fixturePath, cols, rows, [{ ...settle, data: 'status?' }, { afterPrevTicks: 3, data: '\r' }], 75, env)
       const row = lines.find(l => STAR_FRAMES.some(s => l.includes(s)) && /\(\d+s\)/.test(l))
-
       check(`${cols}×${rows}: the pane paints the main chat's thinking row (star cadence + verb + elapsed)`, row !== undefined && /[A-Z][^…]{2,60}… \(\d+s\)/.test(row), row ?? lines.filter(l => l.trim().length > 0).slice(-12).join(' | '))
       check(`${cols}×${rows}: the strip's old inline '↻ thinking…' token is gone`, !lines.some(l => l.includes('↻ thinking…') || l.includes(' thinking…')))
     }

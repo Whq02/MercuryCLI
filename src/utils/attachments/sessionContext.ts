@@ -1,3 +1,4 @@
+
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
@@ -13,7 +14,6 @@ export function getCriticalSystemReminderAttachment(
   if (!reminder) {
     return []
   }
-
   if (
     awarenessAlreadyEmittedThisTurn(
       messages,

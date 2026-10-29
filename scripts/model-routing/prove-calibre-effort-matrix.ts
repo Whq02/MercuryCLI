@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -18,7 +17,6 @@ console.log(' calibre — the model-effort truth matrix (one typed owner)')
 console.log('============================================================')
 
 const ROOT = join(import.meta.dir, '..', '..')
-
 const savedEnv: Record<string, string | undefined> = {}
 for (const key of [
   'OPENAI_API_KEY',
@@ -89,7 +87,6 @@ function clearEffortEnv(): void {
         mismatches++
         console.log(`    MISMATCH ${model} req=${String(requested)}: owner=${String(truth.wire)} profile=${String(profile.wireEffort)}`)
       }
-
       const expectedLabel =
         profile.wireEffort ?? (capabilities.modelSupportsEffort(model) ? 'default' : effort.NO_EFFORT_CONTROL_LABEL)
       if (truth.label !== expectedLabel) {
@@ -168,7 +165,6 @@ function clearEffortEnv(): void {
   const unavail = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check("unavailable (unfetched): applied claim is honestly 'default' (was: banked 'max' while the degraded wire omitted)", unavail.wire === undefined && unavail.label === 'default' && unavail.catalogue === 'gpt-unavailable')
   check('unavailable: the full-ladder offering survives for controls', effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max')
-
   check('unavailable: any gpt id offers the same full ladder (dispatch re-validates live)', effort.selectableEffortLevels('gpt-5.5').join(',') === 'low,medium,high,xhigh,max')
 }
 
@@ -225,7 +221,6 @@ function clearEffortEnv(): void {
   console.log('\n— 7 · /effort confirmation + readout truth —')
   await armWithCatalogue()
   clearEffortEnv()
-
   const terra = effortCmd.executeEffort('max', 'gpt-5.6-terra')
   check("'/effort max' on Terra states the applied tier once", /Effort set to max/.test(terra.message) && terra.message.includes('runs xhigh'), terra.message)
   const sol = effortCmd.executeEffort('max', 'gpt-5.6-sol')
@@ -251,7 +246,6 @@ function clearEffortEnv(): void {
   check('zai vocabulary rides the shared glmPins module', zaiSrc.includes("from './glmPins.js'"))
   const streamSrc = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('the Anthropic wire resolves through resolveAppliedEffort (unchanged)', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })'))
-
   for (const [file, needle] of [
     ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
     ['src/components/MercuryFrame.tsx', '<EffortChip model={model} />'],
@@ -285,17 +279,14 @@ function clearEffortEnv(): void {
   delete process.env.OPENAI_API_KEY
   __resetOpenaiCatalogueForTest()
   clearEffortEnv()
-
   check('unfetched gpt: full offering (max/xhigh offered)', capabilities.modelSupportsMaxEffort('gpt-5.6-sol') && capabilities.modelSupportsXHighEffort('gpt-5.6-sol') && capabilities.modelSupportsEffort('gpt-5.6-sol'))
   check('glm: the documented vocabulary stands without credentials', capabilities.modelSupportsEffort('glm-5.2') && capabilities.modelSupportsMaxEffort('glm-5.2'))
   check('unfetched gpt default: undefined (no invented ladder default)', effort.getDefaultEffortForModel('gpt-5.6-sol') === undefined)
-
   {
     const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
     check("unfetched request 'max': wire omitted + label 'default' (display ≡ wire)", truth.wire === undefined && truth.label === 'default' && effort.getDisplayedEffortLabel('gpt-5.6-sol', 'max') === 'default')
     check("unfetched request 'max': 'max' stays OFFERED in selectable (full offering)", truth.selectable.includes('max'))
   }
-
   check('opus-4-8 max passes through', effort.resolveAppliedEffort('claude-opus-4-8', 'max') === 'max')
   check('sonnet-4-6 xhigh steps to high', effort.resolveAppliedEffort('claude-sonnet-4-6', 'xhigh') === 'high')
   check('haiku has no effort axis', !capabilities.modelSupportsEffort('claude-haiku-4-5-20251001'))

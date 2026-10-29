@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
@@ -30,7 +29,6 @@ function section(t: string): void {
 
 const MODULES: Record<string, string[]> = {
   transports: [
-
     'src/cli/transports/Transport.ts',
     'src/cli/transports/connectionLifecycle.ts',
     'src/cli/transports/transportUtils.ts',
@@ -93,7 +91,6 @@ const MODULES: Record<string, string[]> = {
   turnEngine: [
     'src/query.ts',
     'src/rows/turn.ts',
-
     'src/run-core/turn-machine.ts',
     'src/run-core/events.ts',
     'src/run-core/project-legacy.ts',
@@ -126,7 +123,6 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
     files: ['src/cli/run.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
     patterns: [
       'outputFormat',
-
       'outcomeRow\\(',
       'isOutcome\\(',
       'exitCodeOf\\(',
@@ -243,6 +239,7 @@ for (const [domain, files] of Object.entries(MODULES)) {
   }
 }
 
+// The suite's `# gate-watch:` header is the declaration the impact plane
 section('(1b) the suite watches what it pins (the impact plane selects it for every inventoried owner)')
 {
   const globs = parseWatchHeader(readFileSync(join(import.meta.dir, 'run-all.sh'), 'utf-8')).map(g => new Bun.Glob(g))

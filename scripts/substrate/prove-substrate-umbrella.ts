@@ -25,7 +25,6 @@ function clearEnv(): void {
   delete process.env.MERCURY_DECK_PANE
   delete process.env.MERCURY_COORDINATION_MCP
 }
-
 function gates(): { trace: boolean; ctx: boolean; deck: boolean; umbrella: boolean } {
   const rows = substrateSnapshot().data.sections.flatMap(s => s.rows)
   const by = (name: string) => rows.find(r => r.name === name)?.on === true

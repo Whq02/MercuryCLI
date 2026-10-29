@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -79,7 +78,6 @@ section('(1) frame seal + CRC + canonical round-trip')
   if (decoded.ok) {
     check('round-trips identically', JSON.stringify(decoded.frame) === JSON.stringify(f))
   }
-
   const { c, ...rest } = f
   check('encoded bytes-minus-c === canonicalFrameJson(rest)', line.trimEnd() === canonicalFrameJson(rest).slice(0, -1) + `,"c":"${c}"}`)
 }
@@ -95,7 +93,6 @@ section('(2) decode failure classes are distinguished (torn / crc / invalid)')
   const missingAuthor = JSON.stringify({ v: 1, room: 'r1', seq: 1, hlc: 'x', id: 'i', kind: 'chat.human', body: {}, c: 'deadbeef' })
   const md = decodeFrameLine(missingAuthor)
   check('missing author ⇒ invalid-envelope', md.ok === false && (md as { failure?: string }).failure === 'invalid-envelope')
-
   const futureKind = sealFrame(draft('chat.human', { text: 'x' }), { seq: 1, hlc: 'x' })
   const futureKindLine = (() => {
     const shaped = { ...futureKind, kind: 'poll.vote' as never }
@@ -140,7 +137,6 @@ section('(4) frame signing — HMAC under a shared secret')
   check('unsigned frame rejected by verify', !verifyFrameSig(f, secret))
   const tampered = sealFrame({ ...draft('chat.human', { text: 'EVIL' }), sig }, { seq: 1, hlc: 'x', id: f.id })
   check('tampered signed body rejected', !verifyFrameSig(tampered, secret))
-
   check('authenticatedBytes strips sig + c only', authenticatedBytes(signed) === canonicalFrameJson((({ c: _c, sig: _s, ...rest }) => rest)(signed) as never))
 }
 
@@ -160,10 +156,8 @@ section('(4b) operator authorship — the keyed signature on local frames')
   const { generateKeyPairSync } = await import('node:crypto')
   const foreignRaw = Buffer.from((generateKeyPairSync('ed25519').publicKey.export({ format: 'jwk' }) as { x: string }).x, 'base64url')
   check("a foreign operator's key refuses", !verifyOperatorFrameSig(signed, foreignRaw))
-
   const other = sealFrame(draft('chat.human', { text: 'x' }, OP), { seq: 1, hlc: 'x' })
   check("someone else's frame yields null (unsigned, never a false claim)", signFrameAsOperator(other) === null)
-
   const secret = mintSharedSecret()
   const hmacSigned = sealFrame({ ...draft('chat.human', { text: 'r' }, OP), sig: signFrame(f, secret) }, { seq: 1, hlc: 'x', id: f.id })
   check('an HMAC-signed frame is not operator-signed', !isOperatorSignedFrame(hmacSigned) && !verifyOperatorFrameSig(hmacSigned, keyMod.operatorPublicKeyRaw()))
@@ -256,7 +250,6 @@ section('(5) the sealed link — the invite token never crosses the wire')
 
 section('(6) neutrality — no room/party vocabulary in the primitive homes')
 {
-
   const { readFileSync } = await import('node:fs')
   const { join: j } = await import('node:path')
   const ROOT = j(import.meta.dir, '..', '..')

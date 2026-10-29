@@ -14,7 +14,6 @@ export function resolveExecutionProfile(
   const platform = opts.platform ?? process.platform
   const env = opts.env ?? process.env
   if (env.GITHUB_ACTIONS === 'true') return { kind: 'hosted-gate' }
-
   const hasPoolRunner = existsSync(join(root, 'scripts', 'run-all-suites.sh'))
   if (!hasPoolRunner) {
     return {

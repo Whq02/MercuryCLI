@@ -1,11 +1,9 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
 
 const scratch = mkdtempSync(join(tmpdir(), 'updater-layout-'))
@@ -13,7 +11,6 @@ process.env.HOME = join(scratch, 'home')
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home', '.mercury')
 process.env.MERCURY_VERSIONS_DIR = join(scratch, 'home', '.mercury', 'versions')
 delete process.env.MERCURY_HOME
-
 delete process.env.MERCURY_UPDATE_FAULT
 
 const {
@@ -73,7 +70,6 @@ const roots = {
   shimPath: join(scratch, 'home', '.local', 'bin', 'mercury'),
   isWindows: false,
 }
-
 for (const p of [roots.versionsDir, roots.binDir, roots.shimPath]) {
   if (!p.startsWith(scratch)) {
     console.log(`  [FAIL] SAFETY: root escapes the scratch: ${p}`)
@@ -92,7 +88,6 @@ check('complete payload validates (native bundle)', validatePayloadDir(goodPaylo
   check('a payload whose only bundle-shaped member is not mercury.mjs is refused (one recognised runtime name)', res.state === 'invalid' && res.note.includes('mercury.mjs'))
 }
 {
-
   const declaredCompat = join(scratch, 'payload-declared-compat')
   makePayload(declaredCompat, '9.9.0-beta.1')
   const compatBytes = "import './mercury.mjs'\n"
@@ -148,7 +143,6 @@ releaseUpdateLock(roots)
 check('release frees', acquireUpdateLock(roots).state === 'acquired')
 releaseUpdateLock(roots)
 {
-
   mkdirSync(join(roots.versionsDir, '.update.lock'), { recursive: true })
   writeFileSync(join(roots.versionsDir, '.update.lock', 'pid'), '999999999')
   check('dead-pid lock reclaimed', acquireUpdateLock(roots).state === 'acquired')
@@ -166,7 +160,6 @@ console.log('── §4 staged install (fresh · idempotent · replace · never-
   writeFileSync(join(p2, 'mercury.mjs'), readFileSync(join(p2, 'mercury.mjs'), 'utf8') + '// differing bytes\n')
   const replaced = installPayload(roots, p2, '9.9.0-beta.1')
   check('differing same-version payload replaces after full staging', replaced.state === 'installed' && replaced.changed)
-
   const pMembers = join(scratch, 'payload-cross-members')
   makePayload(pMembers, '9.9.0-beta.1')
   writeFileSync(join(pMembers, 'NOTICES.md'), '# fixture notices\n')
@@ -178,7 +171,6 @@ console.log('── §4 staged install (fresh · idempotent · replace · never-
   check('version listed + intact', listInstalledVersions(roots).includes('9.9.0-beta.1') && versionDirIntact(roots, '9.9.0-beta.1'))
 }
 {
-
   const broken = join(scratch, 'payload-broken')
   makePayload(broken, '9.9.0-beta.3')
   rmSync(join(broken, 'manifest.json'))
@@ -200,14 +192,12 @@ console.log('── §6 the stable shim (foreign files are sacred) ──')
   const first = writeShim(roots)
   check('fresh shim written', first.state === 'written' && first.replaced === 'nothing' && existsSync(roots.shimPath))
   check('shim carries the managed marker', readFileSync(roots.shimPath, 'utf8').includes(SHIM_MARKER))
-
   const CHAIN = [
     'MERCURY_VERSIONS_DIR',
     'MERCURY_CONFIG_DIR',
     'MERCURY_HOME',
     '.mercury',
   ]
-
   const chainOrdered = (text: string): boolean => {
     let at = -1
     for (const rung of CHAIN) {
@@ -228,12 +218,10 @@ console.log('── §6 the stable shim (foreign files are sacred) ──')
   )
   const second = writeShim(roots)
   check('identical shim is a no-op', second.state === 'current')
-
   writeFileSync(roots.shimPath, `#!/bin/sh\n# ${SHIM_MARKER_FAMILY} v1 — the stable Mercury command.\nroot="$HOME/.mercury/versions"\nexec "$root/$(cat "$root/current.txt")/mercury" "$@"\n`)
   const upgraded = writeShim(roots)
   check('v1 managed shim is rewritten, not refused (D-2)', upgraded.state === 'written' && upgraded.replaced === 'managed-shim' && !upgraded.backupPath)
   check('rewritten shim carries the current marker', readFileSync(roots.shimPath, 'utf8').includes(SHIM_MARKER))
-
   writeFileSync(roots.shimPath, '#!/bin/sh\n# the operator launcher\nexec /somewhere/else "$@"\n')
   const refused = writeShim(roots)
   check('foreign file refused', refused.state === 'refused-foreign' && readFileSync(roots.shimPath, 'utf8').includes('operator launcher'))
@@ -259,7 +247,6 @@ console.log('── §6 the stable shim (foreign files are sacred) ──')
 
 console.log('── §6b the shim chain is EXACT: each rung once, and the sh shim resolves LIVE in rung order ──')
 {
-
   const envRungs = ['MERCURY_VERSIONS_DIR', 'MERCURY_CONFIG_DIR', 'MERCURY_HOME']
   const countIn = (text: string, needle: string): number => text.split(needle).length - 1
   const shBody = shimContent(false).split('\n').filter(l => !l.trimStart().startsWith('#')).join('\n')
@@ -276,7 +263,6 @@ console.log('── §6b the shim chain is EXACT: each rung once, and the sh shi
     const shim = join(live, 'mercury')
     writeFileSync(shim, shimContent(false))
     chmodSync(shim, 0o755)
-
     const mkRoot = (root: string, label: string): void => {
       mkdirSync(join(root, '9.9.0-beta.1'), { recursive: true })
       writeFileSync(join(root, 'current.txt'), '9.9.0-beta.1\n')
@@ -290,7 +276,6 @@ console.log('── §6b the shim chain is EXACT: each rung once, and the sh shi
     mkRoot(r.MVD, 'rung-MERCURY_VERSIONS_DIR')
     mkRoot(join(r.MCD, 'versions'), 'rung-MERCURY_CONFIG_DIR')
     mkRoot(join(r.MH, 'versions'), 'rung-MERCURY_HOME')
-
     const run = (env: Record<string, string>): string =>
       spawnSync('sh', [shim, '--version'], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: home, MERCURY_LOCAL_PROBE_TARGETS: 'none', ...env }, encoding: 'utf8' }).stdout.trim()
     const all = { MERCURY_VERSIONS_DIR: r.MVD, MERCURY_CONFIG_DIR: r.MCD, MERCURY_HOME: r.MH }
@@ -314,7 +299,6 @@ console.log('── §7 uninstall preserves the config home ──')
   check('managed shim removed', report.removedShim && !existsSync(roots.shimPath))
   check('config home untouched', existsSync(configMarker))
   check('uninstall names the preserved home', report.preservedConfigHome === process.env.MERCURY_CONFIG_DIR)
-
   mkdirSync(roots.binDir, { recursive: true })
   writeFileSync(roots.shimPath, '#!/bin/sh\n# operator launcher again\n')
   const second = uninstallLayout(roots)
@@ -323,7 +307,6 @@ console.log('── §7 uninstall preserves the config home ──')
 
 console.log('── §7a uninstall removals route the win32 transient-lock law ──')
 {
-
   const mkLayout = (name: string, isWindows: boolean): LayoutRoots => {
     const bin = join(scratch, `${name}-bin`)
     const versions = join(scratch, `${name}-versions`)
@@ -368,7 +351,6 @@ console.log('── §7a uninstall removals route the win32 transient-lock law �
 
 console.log('── §7b the uninstall report names every launcher-set member ──')
 {
-
   const winBin = join(scratch, 'report-bin')
   const winRoots: LayoutRoots = {
     versionsDir: join(scratch, 'report-versions'),
@@ -447,7 +429,6 @@ console.log('── §10 displaced-restore on promote failure (UPD-08) ──')
   const doubleFail = installPayload(roots, orig, v)
   delete process.env.MERCURY_UPDATE_FAULT
   check('restore-failure names the parked dir', doubleFail.state === 'failed' && doubleFail.note.includes(`.replaced-${v}-${process.pid}`), doubleFail.state === 'failed' ? doubleFail.note : doubleFail.state)
-
   const parked = join(roots.versionsDir, `.replaced-${v}-${process.pid}`)
   if (existsSync(parked) && !existsSync(join(roots.versionsDir, v))) {
     const { renameSync } = await import('node:fs')
@@ -473,7 +454,6 @@ console.log('── §11 win32 bounded rename retry (transient-lock class, injec
   delete process.env.MERCURY_UPDATE_FAULT
   check('exhausted retry reports failed + RETRYABLE', exhausted.state === 'failed' && exhausted.retryable === true, exhausted.state === 'failed' ? exhausted.note : exhausted.state)
   check('exhausted retry restored the working copy', existsSync(join(roots.versionsDir, v, 'mercury.mjs')) && !readFileSync(join(roots.versionsDir, v, 'mercury.mjs'), 'utf8').includes('retry-v2'))
-
   process.env.MERCURY_UPDATE_FAULT = 'promote-rename:1'
   const posixOnce = installPayload(roots, p2, v)
   delete process.env.MERCURY_UPDATE_FAULT
@@ -543,7 +523,6 @@ console.log('── §14 pointer tri-state (UPD-11 — absent · empty · unread
 
 console.log('── §15 seamark SM-I: activation renames + PATH identity + hostile roots ──')
 {
-
   const winBin = join(scratch, 'win-bin')
   const winRoots = { versionsDir: join(scratch, 'win-versions'), binDir: winBin, shimPath: join(winBin, 'mercury.cmd'), isWindows: true }
   process.env.MERCURY_UPDATE_FAULT = 'shim-rename'
@@ -594,7 +573,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   delete process.env.MERCURY_UPDATE_FAULT
 }
 {
-
   const real = join(scratch, 'path-target')
   mkdirSync(real, { recursive: true })
   const alias = join(scratch, 'path-alias')
@@ -608,7 +586,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   check('PATH identity: empty entry never matches', !pathEntryEquals('', real, false))
 }
 {
-
   const uniHome = join(scratch, 'Inställ Röot with spaces')
   const uniBin = join(uniHome, '.local', 'bin')
   const uniRoots = { versionsDir: join(uniHome, 'versions'), binDir: uniBin, shimPath: join(uniBin, 'mercury'), isWindows: false }
@@ -644,16 +621,13 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
     facade.includes('exec "$root/$ver/mercury" "$@"') &&
     facade.includes('current.txt'))
   check('LN-02: both members carry the managed marker family', facade.includes(SHIM_MARKER_FAMILY) && readFileSync(winRoots2.shimPath, 'utf8').includes(SHIM_MARKER_FAMILY))
-
   writeFileSync(join(winBin, 'mercury'), '#!/bin/sh\n# operator-owned launcher\n')
   const partial = writeShim(winRoots2)
   check('LN-19/20: a foreign member refuses and the set reports INCOMPLETE (never a false complete)',
     !partial.set.complete && partial.set.members.some(m => m.state === 'refused-foreign'))
-
   const un = uninstallLayout(winRoots2)
   check('LN-08..12: uninstall removes the managed cmd member and PRESERVES (names) the foreign facade',
     un.removedSetMembers.includes(winRoots2.shimPath) && un.preservedForeign.includes(join(winBin, 'mercury')) && existsSync(join(winBin, 'mercury')))
-
   const posixBin = join(setScratch, 'pbin')
   const posixRoots = {
     versionsDir: join(setScratch, 'pversions'),
@@ -664,7 +638,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   }
   const pOut = writeShim(posixRoots)
   check('LN: the POSIX set is the single sh member (unchanged single-launcher behavior)', pOut.set.members.length === 1 && pOut.set.complete)
-
   check('LN-15/16 (hermetic half): the facade delegates by ABSOLUTE versioned path — PATH shadowing cannot re-route the exec',
     !/exec (?!")/.test(facade.split('current.txt')[1] ?? '') && facade.includes('exec "$root/$ver/'))
   rmSync(setScratch, { recursive: true, force: true })
@@ -679,7 +652,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   check('VP-01: an empty pointer refuses plainly (exit 1, named remedy)', cmdShim.includes('if not defined MVER ('))
   check('VP-01: a pointer naming no installed version refuses BEFORE the call', cmdShim.includes('if not exist "%MROOT%\\%MVER%\\mercury.cmd" (') && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') !== -1 && cmdShim.indexOf('if not exist "%MROOT%\\%MVER%\\mercury.cmd"') < cmdShim.indexOf('call "%MROOT%\\%MVER%\\mercury.cmd"'))
   check('VP-01: the refusal never echoes pointer content into a parsed line', !cmdShim.split('\r\n').some(l => l.includes('echo') && l.includes('%MVER%')))
-
   const shShim = shimContent(false)
   check('VP-01 parity: the sh shim reads current.txt first-non-blank-line (IFS= read -r loop, no cat)',
     shShim.includes('while IFS= read -r ver; do [ -n "$ver" ] && break; done < "$root/current.txt"') &&
@@ -698,9 +670,7 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
     shimSetPaths: [join(bmBin, 'mercury.cmd'), join(bmBin, 'mercury')],
     isWindows: true,
   }
-
   check('BM-31: no managed install ⇒ null, nothing written', reconcileManagedShims(bmRoots) === null && !existsSync(bmBin))
-
   const bmPayload = join(bmScratch, 'payload')
   makePayload(bmPayload, '9.9.3-beta.1')
   installPayload(bmRoots, bmPayload, '9.9.3-beta.1')
@@ -715,7 +685,6 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   const healedAgain = reconcileManagedShims(bmRoots)
   check('BM-31: idempotent — a second heal writes nothing (both members current)',
     healedAgain !== null && healedAgain.complete && healedAgain.members.every(m => m.state === 'current'))
-
   writeFileSync(join(bmBin, 'mercury'), '#!/bin/sh\n# operator-owned launcher\n')
   const refusedHeal = reconcileManagedShims(bmRoots)
   check('BM-31: a foreign member refuses (never clobbered, set reports incomplete)',

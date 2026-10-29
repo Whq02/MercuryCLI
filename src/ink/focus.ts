@@ -1,3 +1,4 @@
+
 import type { DOMElement, DOMNode } from './dom.js'
 import { FocusEvent } from './events/focus-event.js'
 
@@ -60,7 +61,6 @@ export class FocusManager {
     if (active !== node && isInTree(active)) return
     this.activeElement = null
     this.dispatchFocusEvent(active, new FocusEvent('blur', null))
-
     while (this.stack.length > 0) {
       const candidate = this.stack.pop()!
       if (isInTree(candidate)) {
@@ -92,7 +92,6 @@ export class FocusManager {
     const visit = (node: DOMNode): void => {
       if (!isElement(node)) return
       const tabIndex = node.attributes['tabIndex']
-
       if (typeof tabIndex === 'number' && tabIndex >= 0) tabbable.push(node)
       for (const child of node.childNodes) visit(child)
     }

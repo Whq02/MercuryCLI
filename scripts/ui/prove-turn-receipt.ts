@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -47,9 +46,7 @@ const editResult = (filePath: string, lines: string[], uuid = 'r1', forUse = 'x'
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `t-${forUse}` }] },
     toolUseResult: { filePath, structuredPatch: [{ lines }] },
   }) as never
-
 const EMPTY_USAGE = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null, cache_creation: null }
-
 const agentResult = (totalTokens: number, costUSD: number | undefined, uuid = 'ar1', status: 'completed' | 'failed' = 'completed') =>
   ({
     type: 'user',
@@ -67,7 +64,6 @@ const agentResult = (totalTokens: number, costUSD: number | undefined, uuid = 'a
       usage: EMPTY_USAGE,
     },
   }) as never
-
 const olderAgentResult = (totalTokens: number, uuid = 'ar0') =>
   ({
     type: 'user',
@@ -75,7 +71,6 @@ const olderAgentResult = (totalTokens: number, uuid = 'ar0') =>
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
     toolUseResult: { agentId: `agent-${uuid}`, content: [{ type: 'text', text: 'done' }], totalToolUseCount: 1, totalDurationMs: 1, totalTokens, usage: EMPTY_USAGE },
   }) as never
-
 const launchResult = (toolUseResult: Record<string, unknown>, uuid = 'lr1') =>
   ({
     type: 'user',
@@ -441,7 +436,6 @@ const distPath = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(distPath)) {
   console.log('  [SKIP] dist absent — run `bun run build.ts` for the dist needle')
 } else {
-
   const dist = readFileSync(distPath, 'utf-8')
   check(
     'dist carries the receipt leg (needles `turn_receipt` + `scratchpadEdits`)',

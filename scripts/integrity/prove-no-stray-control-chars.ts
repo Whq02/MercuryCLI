@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SCAN_DIRS = ['src', 'scripts']
 const EXT = /\.(ts|tsx|js|jsx|mjs|cjs)$/
-
 const isStray = (b: number): boolean =>
   b < 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d
 
@@ -41,7 +39,6 @@ for (const full of files) {
 
   if (count === 0) {
     if (allowed) {
-
       offenders.push(`${rel}: allowlisted for ${allowed.count} but found 0 — remove the stale allowlist entry`)
       fail++
     }

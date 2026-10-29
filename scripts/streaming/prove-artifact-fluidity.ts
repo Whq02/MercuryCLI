@@ -29,7 +29,6 @@ const stagedDist = join(stage, 'mercury.mjs')
     if (i % 20 === 10) deltas.push(`${SENTS[Math.floor(i / 20)]} `)
     else deltas.push(i % 5 === 4 ? `w${i}.\n` : `w${i} `)
   }
-
   const run = await runArtifactArena({
     distPath: stagedDist,
     turns: [{ kind: 'paced', deltas, gapMs: vshotBudgetMs(40), whenModel: 'opus' }],
@@ -72,7 +71,6 @@ const stagedDist = join(stage, 'mercury.mjs')
   const run = await runArtifactArena({
     distPath: stagedDist,
     turns: [{ kind: 'hang', deltas: ['partial thought '], whenModel: 'opus' }],
-
     sends: ['4500:hello', '5300:\\r', 'after:partial thought:800:\\x1b', 'after:nterrupted:700:Ω'],
     seconds: 15,
     keep: true,

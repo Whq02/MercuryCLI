@@ -25,7 +25,6 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf-8',
   timeout: vshotBudgetMs(150000),
   env: { ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME, VSHOT_TEE: tee },
 })
 cleanupScenario('resume-2turn')
@@ -66,9 +65,7 @@ check(r.dupes.length === 0, `zero duplicated frames across history+screen (${r.d
 const screenText = r.screen.join('\n')
 check(/hello inline world/.test(screenText), 'typed text renders in the composer')
 check(/│❯ hello inline world/.test(screenText), 'the composer box carries the prompt (tracks the content tail)')
-
 const lastContent = r.screen.map(s => s.trim()).reduce((acc, s, i) => (s ? i : acc), 0)
-
 const composerBottom = r.screen.reduce((acc, s, i) => (s.includes('╰') ? i : acc), -1)
 check(
   composerBottom >= 0 && lastContent - composerBottom <= 2,

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'

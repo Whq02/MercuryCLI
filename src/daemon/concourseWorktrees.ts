@@ -33,16 +33,13 @@ function git(
   cwd: string,
   ...args: string[]
 ): { ok: boolean; stdout: string; stderr: string; unavailable?: boolean } {
-
   const res = spawnSync(gitExe(), gitArgs(['-C', cwd, ...args], cwd), {
     windowsHide: true,
     encoding: 'utf8',
     timeout: 30_000,
-
     env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
   })
   if (res.error) {
-
     return {
       ok: false,
       stdout: '',
@@ -147,7 +144,6 @@ export async function ensureWorkerWorktree(
     }
   }
   if (workspaceKindOf(workspaceId) === 'plain-folder') {
-
     const refusal = gitInitRefusal(workspaceId)
     if (refusal !== null) {
       return {
@@ -162,7 +158,6 @@ export async function ensureWorkerWorktree(
       error: `forking needs a git repository — ${workspaceId} has none yet`,
     }
   }
-
   let path: string | null = null
   const candidates = [runnerId, ...[2, 3, 4, 5, 6].map(n => `${runnerId}-${n}`)].map(id =>
     workerWorktreePath(id, dir),
@@ -187,7 +182,6 @@ export async function ensureWorkerWorktree(
       const onBranch = head.ok && head.stdout.trim() !== 'HEAD' ? head.stdout.trim() : undefined
       const branchMatches = opts?.branchName === undefined || onBranch === opts.branchName
       if (belongsHere && branchMatches) {
-
         return prepared({
           ok: true,
           path: candidate,
@@ -197,7 +191,6 @@ export async function ensureWorkerWorktree(
       }
       continue
     }
-
     try {
       rmSync(candidate, { recursive: true, force: true })
     } catch (err) {
@@ -213,7 +206,6 @@ export async function ensureWorkerWorktree(
       error: 'every candidate worktree slot holds a retained fork — merge or clear one first',
     }
   }
-
   const headProbe = git(workspaceId, 'rev-parse', '--verify', '--quiet', 'HEAD')
   if (headProbe.unavailable === true) {
     return {
@@ -246,14 +238,12 @@ export async function ensureWorkerWorktree(
   }
   if (opts?.branchName !== undefined) {
     const base = forkBaseRef(workspaceId)
-
     const ladder = [opts.branchName, ...[2, 3, 4, 5, 6].map(n => `${opts.branchName}-${n}`)]
     const branchTaken = (name: string): boolean =>
       git(workspaceId, 'rev-parse', '--verify', '--quiet', `refs/heads/${name}`).ok
     const name = ladder.find(candidate => !branchTaken(candidate)) ?? `${opts.branchName}-${Date.now().toString(36)}`
     const add = await gitAsync(workspaceId, 'worktree', 'add', '-b', name, path, base)
     if (add.ok) return prepared({ ok: true, path, created: true, branchName: name, base })
-
     await gitAsync(workspaceId, 'worktree', 'prune')
     const retryName = /already exists/i.test(add.stderr) ? `${opts.branchName}-${Date.now().toString(36)}` : name
     const retry = await gitAsync(workspaceId, 'worktree', 'add', '-b', retryName, path, base)
@@ -266,7 +256,6 @@ export async function ensureWorkerWorktree(
   }
   const add = await gitAsync(workspaceId, 'worktree', 'add', '--detach', path)
   if (!add.ok) {
-
     await gitAsync(workspaceId, 'worktree', 'prune')
     const retry = await gitAsync(workspaceId, 'worktree', 'add', '--detach', path)
     if (!retry.ok) {
@@ -279,7 +268,6 @@ export async function ensureWorkerWorktree(
 export const FORK_BASE_COMMIT_SUBJECT = 'mercury: base commit — forking unlocked'
 
 export function initGitRepository(folder: string): { ok: boolean; error?: string } {
-
   const refusal = gitInitRefusal(folder)
   if (refusal !== null) {
     return { ok: false, error: `Mercury will not start a repository in ${folder} — ${refusal.words}` }
@@ -355,7 +343,6 @@ function classifyStatusRows(status: { ok: boolean; stdout: string; stderr: strin
   for (const row of rows) {
     const flags = row.slice(0, 2)
     const file = row.slice(3).replace(/^"|"$/g, '')
-
     const topSegment = file.split(/[\\/]/)[0] ?? file
     if (flags === '??' && WORKTREE_RUNTIME_HOMES.includes(topSegment)) runtime.push(file)
     else authored.push(file)
@@ -404,10 +391,8 @@ export function reapWorkerWorktree(
   dir?: string,
   opts?: { branchName?: string; path?: string },
 ): WorktreeReapOutcome {
-
   const path = opts?.path ?? workerWorktreePath(runnerId, dir)
   if (!existsSync(path)) {
-
     git(workspaceId, 'worktree', 'prune')
     return { outcome: 'noop' }
   }
@@ -430,7 +415,6 @@ export function reapWorkerWorktree(
   }
   const remove = git(workspaceId, 'worktree', 'remove', '--force', path)
   if (!remove.ok) {
-
     try {
       rmSync(path, { recursive: true, force: true })
     } catch (err) {

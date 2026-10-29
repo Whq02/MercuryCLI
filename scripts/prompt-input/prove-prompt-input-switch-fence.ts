@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -44,7 +43,6 @@ const composerOf = (rows: string[]): string => {
 }
 
 function capture(tag: string, sends: unknown[], total: number): { rows: string[]; receipts: unknown; fires: string } {
-
   writeSyntheticSession('short', SID)
   writeSyntheticSession('errors', SID_ERRORED)
   writeSyntheticSession('tools', SID_C)
@@ -69,7 +67,6 @@ const ON_C = 'run the greeting and read the manifest'
 const ON_B_TAIL = 'missing-manifest.ts'
 
 try {
-
   const v0 = capture('v0', [
     { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
@@ -102,7 +99,6 @@ try {
   const v3 = capture('v3', [
     { atTick: 40, data: `/sessions ${SID_ERRORED}`, minTick: 10, awaitRaw: '\u001b[?2004h' },
     { atTick: 44, data: '\r', afterPrevTicks: 3 },
-
     { atTick: 70, data: 'hello mid switch', awaitText: ON_B, requireAwait: true },
   ], 130)
   t('V3 the switch to B committed', paneHas(v3.rows, ON_B) || paneHas(v3.rows, ON_B_TAIL))

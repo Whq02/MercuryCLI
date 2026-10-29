@@ -17,7 +17,6 @@ t.section('§1 — an unreadable sidecar is not reported as "no run"')
 const unreadableOwner = makeOwnerKey({ workspace: ROOT, sessionId: 'keel-unreadable', lane: 'main' })
 {
   const path = guardWrite(ROOT, sidecar.runSidecarPath(unreadableOwner))
-
   mkdirSync(path, { recursive: true })
 
   const load = await sidecar.loadRunSidecar(unreadableOwner)
@@ -40,7 +39,6 @@ t.section('§2 — the recovery classifier does not flatten unreadable to none')
 
 t.section('§3–§5 — unreadable workbench sources are not rendered as empty')
 {
-
   const workspace = join(ROOT, 'workspace')
   mkdirSync(workspace, { recursive: true })
   writeFileSync(guardWrite(ROOT, join(ROOT, 'review-artifacts')), 'not a directory')

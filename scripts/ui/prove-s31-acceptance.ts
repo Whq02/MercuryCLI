@@ -270,7 +270,6 @@ check(
   const userFile = join(SCRATCH_HOME, 'keybindings.json')
   const defaultCount = parseBindings(DEFAULT_BINDINGS).length
   try {
-
     writeFileSync(userFile, '{ this is not json')
     let thrown = false
     let result13: ReturnType<typeof loadKeybindingsSyncWithWarnings> | null = null
@@ -436,7 +435,6 @@ check(
 
 {
   const repl = src('src/screens/Chat.tsx')
-
   check(
     '23. the screen holds no transcript writer (the session runner records; the face paints through the connector)',
     !repl.includes('useLogMessages') && repl.includes('const messages = useFocusedTranscript();'),
@@ -475,7 +473,6 @@ check(
   )
   check(
     '29. several stop hooks use the generic plural line with completed/total',
-
     repl.includes('running answer hooks · ${ran}/${total}'),
   )
 }

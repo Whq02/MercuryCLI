@@ -57,6 +57,7 @@ import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteract
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
+
 let settingsLayerDeepLink = false;
 export function armBootSettingsLayerDeepLink(): void {
   settingsLayerDeepLink = true;
@@ -113,6 +114,7 @@ export function concourseRowCtx(facts: { live: boolean; why: PlainWorldWhy | nul
   return facts.why !== null ? `live view only — ${facts.why}${count}` : `the live board${count}`;
 }
 
+
 type BornSessionFn = typeof import('../services/switchboard/bornSession.js')['bornSession'];
 
 async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<BornSessionFn>): Promise<string | null> {
@@ -138,23 +140,17 @@ export function BootSplashScreen(): React.ReactNode {
   const t = useMercuryTokens();
   const { columns, rows } = useTerminalSize();
   const { isCompact } = useLayoutChrome();
-
   const permissionMode = useAppStateMaybeOutsideOfProvider(state => state.toolPermissionContext.mode);
   const permissionModeRef = useRef(permissionMode);
   permissionModeRef.current = permissionMode;
   const [settingsOpen, setSettingsOpen] = useState(() => consumeBootSettingsLayerDeepLink());
-
   const [kitOpen, setKitOpen] = useState(() => consumeKitManagerDeepLink());
-
   const [faceDoorOpener] = useState(() => peekFaceDoorOpener());
   const [faceDoor] = useState(() => consumeFaceDoorDeepLink());
   const [healthOpen, setHealthOpen] = useState(faceDoor === 'health');
   const [resumeOpen, setResumeOpen] = useState(faceDoor === 'resume');
-
   const [saturnOpen, setSaturnOpen] = useState(faceDoor === 'saturn');
-
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
-
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [loginsFamily, setLoginsFamily] = useState<string | undefined>(faceDoor === 'logins' ? faceDoorOpener?.family : undefined);
   const [loginsBack, setLoginsBack] = useState<'route' | 'picker' | null>(faceDoor === 'logins' && faceDoorOpener?.returnToOpener === true ? 'route' : null);
@@ -169,7 +165,6 @@ export function BootSplashScreen(): React.ReactNode {
     setPresenceEpoch(e => e + 1);
     if (back === 'picker') setModelDefaultOpen(true);
   };
-
   const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
@@ -181,12 +176,9 @@ export function BootSplashScreen(): React.ReactNode {
   }, [updateLine]);
 
   const concourseLive = routeSurfaceRegistered('concourse');
-
   const plainWhy = plainWorldWhy();
-
   const chatBoot = stripFacts().chatBoot;
   const modelDefaultDoor = sessionDefaultsKeyOn();
-
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const stripHint = stripKeyMapHint();
   const keyMapHint = faceKeyMapHintOf(stripHint, modelDefaultDoor);
@@ -213,7 +205,6 @@ export function BootSplashScreen(): React.ReactNode {
       cancelled = true;
     };
   }, [chatBoot]);
-
   const [runningByKey, setRunningByKey] = useState<ReadonlyMap<string, number>>(() => new Map());
   useEffect(() => {
     if (chatOnlyBoot()) return;
@@ -290,12 +281,10 @@ export function BootSplashScreen(): React.ReactNode {
   const sessionsCtx = repoCount > 0 ? `${repoCount} repo${repoCount === 1 ? '' : 's'} · pick a session` : null;
 
   const goHome = (): void => {
-
     if (!leaveCurrentSurface().ok) enterRootChat();
   };
 
   const openProject = (p: BootProjectFact): AsyncListNote => {
-
     return {
       pending: 'opening…',
       result: (async (): Promise<string | null> => {
@@ -317,16 +306,13 @@ export function BootSplashScreen(): React.ReactNode {
             p.firstSessionId !== null &&
             (await import('../daemon/concourseWorkers.js')).sessionOwnedByLiveWorker(p.firstSessionId) !== null
           ) {
-
             const hop = await import('../services/switchboard/hopIntoSession.js');
             const outcome = await hop.hopIntoBoardSession(p.firstSessionId);
             if (!outcome.ok) return outcome.reason;
           } else {
-
             return await flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }));
           }
         } catch (e) {
-
           return e instanceof Error ? e.message : String(e);
         }
         enterRootChat();
@@ -340,30 +326,23 @@ export function BootSplashScreen(): React.ReactNode {
   const composedRows: BootRow[] = useMemo(
     () =>
       assembleCardRows({
-
         cwdBase: projectDisplayName(getCwd()),
         continueTarget: facts.cwdProject
           ? { base: facts.cwdProject.base, ageMs: facts.cwdProject.ageMs, cross: false }
           : facts.recentLast
             ?
-
               { base: facts.recentLast.base, ageMs: facts.recentLast.ageMs, cross: true, dim: true }
             : null,
         menuAvailable: true,
-
         concourse: chatBoot
           ? null
           : {
               ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount }),
               ...(concourseLive ? {} : { dim: true }),
             },
-
         ...(armedPresetName !== undefined ? { kitArmedPreset: armedPresetName } : {}),
-
         ...(saturnCtx !== null ? { saturnCtx } : {}),
-
         ...(agentsCtx !== null ? { agentsCtx } : {}),
-
         ...(loginsCtx !== null ? { loginsCtx } : {}),
         ...(sessionsCtx !== null ? { sessionsCtx } : {}),
       }) as BootRow[],
@@ -375,14 +354,11 @@ export function BootSplashScreen(): React.ReactNode {
     if (row == null || row.dim) return null;
     switch (row.key) {
       case 'new': {
-
         return {
           pending: 'starting a session…',
-
           result: flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() })),
         };
       }
-
       case 'continue': {
         const target = facts.cwdProject;
         if (!target?.sessionId) return null;
@@ -397,7 +373,6 @@ export function BootSplashScreen(): React.ReactNode {
               });
               if (!outcome.ok) return outcome.reason;
             } catch (e) {
-
               return e instanceof Error ? e.message : String(e);
             }
             enterRootChat();
@@ -409,30 +384,24 @@ export function BootSplashScreen(): React.ReactNode {
         setSettingsOpen(true);
         return null;
       case 'kit':
-
         setKitOpen(true);
         return null;
       case 'health':
-
         setHealthOpen(true);
         return null;
       case 'saturn':
-
         setSaturnOpen(true);
         return null;
       case 'agents':
-
         setAgentsOpen(true);
         return null;
       case 'logins':
-
         setLoginsOpen(true);
         return null;
       case 'concourse':
         enterConcourse();
         return null;
       case 'sessions':
-
         setResumeOpen(true);
         return null;
     }
@@ -460,7 +429,6 @@ export function BootSplashScreen(): React.ReactNode {
         key: 'return',
         hint: 'start',
         run: r => {
-
           const target = selClearedRef.current ? (composedRows[0] ?? null) : r;
           setSelCleared(false);
           return runRow(target);
@@ -471,15 +439,12 @@ export function BootSplashScreen(): React.ReactNode {
         hint: modelDefaultDoor ? SESSION_DEFAULTS_KEY_HINT : 'menu',
         run: () => ((modelDefaultDoor ? setModelDefaultOpen(true) : setSettingsOpen(true)), null),
       },
-
       { key: 's', hint: 'menu', run: (): null => (setSettingsOpen(true), null) },
-
       ...(chatBoot ? [] : [{ key: 'o', hint: 'concourse', run: (): null => (enterConcourse(), null) }]),
     ],
     unavailable: r => r.dim === true,
     reasonUnavailable: r => r.ctx,
   });
-
   const selIdx = list.selectedIndex;
   const prevSelRef = useRef(selIdx);
   useEffect(() => {
@@ -489,14 +454,13 @@ export function BootSplashScreen(): React.ReactNode {
     }
   }, [selIdx]);
 
-  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
 
+  const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const [resolvedTheme] = useTheme();
   const core = useMemo(() => {
     adoptGroundFamily(resolvedTheme === 'true-black' ? 'true-black' : 'dark');
     return createSplashCore({ nocolor: false, truecolor: true, accent: coreAccent });
   }, [coreAccent, resolvedTheme]);
-
   const wordGlow = useGreetingShimmer(rampStops, isCompact ? 0 : WORD_W);
   const rowGlow = useGreetingShimmer(
     rampStops,
@@ -520,7 +484,6 @@ export function BootSplashScreen(): React.ReactNode {
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {
-
       const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
       const words = sessionAccountWords(mainModel);
       acct = words.state === 'email' ? { state: 'email', text: fit(words.text) } : { state: 'none' };
@@ -529,7 +492,6 @@ export function BootSplashScreen(): React.ReactNode {
     }
     const cert = healthCertSnapshot();
     const critterKey = getSessionCritterKey();
-
     let keylessRow: string | null = null;
     try {
       const decision = computedDefault();
@@ -578,7 +540,6 @@ export function BootSplashScreen(): React.ReactNode {
         lastRowFree: false,
       };
     }
-
     const lockupOptions: SplashComposeOpts = {
       cardRows: composedRows.map(r => ({
         icon: r.icon,
@@ -587,7 +548,6 @@ export function BootSplashScreen(): React.ReactNode {
         ...(r.dim ? { dim: true } : {}),
       })),
       cardSel: selectedIndex,
-
       hintSegments: [
         {
           key: '↵ ',
@@ -604,11 +564,9 @@ export function BootSplashScreen(): React.ReactNode {
       ],
       tinyHint: '↵ start',
       stripLines: (w: number) => core.composeStrip(chips, w) as string[],
-
       glowWord: wordGlow,
       glowRow: rowGlow,
     };
-
     const composeOver = (faceRows: number) => {
       const composed = core.composeLockup(columns, faceRows, lockupOptions);
       return { faceRows, composed, ...core.placeBlock(composed.lines, faceRows) };
@@ -625,8 +583,8 @@ export function BootSplashScreen(): React.ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
-  if (settingsOpen) {
 
+  if (settingsOpen) {
     return (
       <BootSettingsScreen
         fullScene={{ columns, rows }}
@@ -635,7 +593,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (kitOpen) {
-
     return (
       <KitMenuScreen
         fullScene={{ columns, rows }}
@@ -644,7 +601,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (healthOpen) {
-
     return (
       <BootHealthScreen
         fullScene={{ columns, rows }}
@@ -653,7 +609,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (saturnOpen) {
-
     return (
       <BootSaturnScreen
         fullScene={{ columns, rows }}
@@ -662,7 +617,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (agentsOpen) {
-
     return (
       <>
         <BootAgentsScreen
@@ -684,7 +638,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (loginsOpen) {
-
     return (
       <BootLoginsScreen
         fullScene={{ columns, rows }}
@@ -695,7 +648,6 @@ export function BootSplashScreen(): React.ReactNode {
     );
   }
   if (resumeOpen) {
-
     return (
       <BootResumeScreen
         fullScene={{ columns, rows }}
@@ -715,7 +667,6 @@ export function BootSplashScreen(): React.ReactNode {
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
         if (i === rows - 1 && (list.note !== null || birthReceipt !== null)) {
-
           const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + (list.note ?? birthReceipt ?? '') + core.R;
           return (
             <Box key="boot-note" height={1} flexShrink={0}>
@@ -726,7 +677,6 @@ export function BootSplashScreen(): React.ReactNode {
         if (i === rows - 1 && composition.lastRowFree && (keyMapHint !== '' || updateLine !== null)) {
           const bottomLine =
             bottomRowWithNotice(core, columns, keyMapHint, updateLine, false) ?? (keyMapHint !== '' ? KEY_MAP_ROW(core, keyMapHint) : '');
-
           return (
             <Box key="boot-keymap" height={1} flexShrink={0}>
               {bottomLine === '' ? null : renderSceneLine(isCompact ? truncateToWidth(bottomLine, columns) : bottomLine)}
@@ -739,7 +689,6 @@ export function BootSplashScreen(): React.ReactNode {
           const props = list.rowProps(row, actionIdx);
           const glowLabel = row.label;
           return (
-
             <InteractiveRow
               key={props.id}
               id={props.id}

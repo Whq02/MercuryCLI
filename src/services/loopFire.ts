@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getProjectRoot } from '../bootstrap/state.js'
@@ -9,12 +10,10 @@ import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
 import { isENOENT } from '../utils/errors.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
+
 export const LOOP_FILE_SENTINEL = '<<loop.md>>' as const
-
 export const LOOP_FILE_DYNAMIC_SENTINEL = '<<loop.md-dynamic>>' as const
-
 export const AUTONOMOUS_LOOP_SENTINEL = '<<autonomous-loop>>' as const
-
 export const AUTONOMOUS_LOOP_DYNAMIC_SENTINEL = '<<autonomous-loop-dynamic>>' as const
 
 function isAutonomousLoopSentinel(prompt: string): boolean {
@@ -28,6 +27,7 @@ function isLoopFileSentinel(prompt: string): boolean {
   return prompt === LOOP_FILE_SENTINEL || prompt === LOOP_FILE_DYNAMIC_SENTINEL
 }
 
+
 const PREAMBLE_SENT_MARKER = '__autonomous_preamble__'
 
 export interface LoopFireChainStateV1 {
@@ -38,6 +38,7 @@ export interface LoopFireChainStateV1 {
 export function freshLoopFireChainState(): LoopFireChainStateV1 {
   return { preambleSent: false, lastExpandedBody: null }
 }
+
 
 export function isLoopPersistentPreambleEnabled(): boolean {
   if (isEnvTruthy(flagEnv('MERCURY_LOOP_PERSISTENT'))) {
@@ -58,6 +59,7 @@ function awayHintEnabled(): boolean {
   return flagEnv('MERCURY_LOOP_AWAY_HINT') !== '0'
 }
 
+
 const PREAMBLE_STANDARD = `# Autonomous loop
 
 You are running an autonomous loop with no fixed task list. Each tick, do the most useful next thing for the current project: triage failing tests or CI, pick up the next item on an in-flight plan, review open diffs, or otherwise advance whatever work is in front of you. Keep each tick small and self-contained — finish one concrete unit, leave the tree in a clean state, and let the next tick continue.
@@ -77,9 +79,9 @@ export function getAutonomousLoopPreamble(): string {
 export function logAutonomousLoopActivation(): void {
 }
 
+
 function sendMessageOutcomeHint(isLoopFileMode = false): string {
   if (!awayHintEnabled()) return ''
-
   const softEnd = !isLoopFileMode && isLoopPersistentPreambleEnabled()
   const endCondition = softEnd
     ? "newly blocked on a decision you won't make alone, you're ending the loop"
@@ -88,6 +90,7 @@ function sendMessageOutcomeHint(isLoopFileMode = false): string {
 }
 
 const DYNAMIC_PACING_FOOTER = `\n\nIf the next tick is gated on an event, prefer a ${MONITOR_TOOL_NAME} watch on the log/process/command (or, for watches it doesn't fit, a long-running \`run_in_background\` Bash task — check ${TASK_LIST_TOOL_NAME}): its events arrive as \`<task-notification>\` messages and wake this loop immediately, so keep \`delaySeconds\` at 1200–1800s — the watch is your wake signal and this is only the fallback heartbeat. If you were woken by a \`<task-notification>\`, handle the event before rescheduling. To stop the loop, also ${TASK_STOP_TOOL_NAME} that watch (use ${TASK_LIST_TOOL_NAME} to find its task ID if it is no longer in context).`
+
 
 const rescheduleReminder = (sentinel: string): string =>
   `You scheduled this tick via the ${SCHEDULE_WAKEUP_TOOL_NAME} tool (not a recurring cron). To keep the loop alive, call ${SCHEDULE_WAKEUP_TOOL_NAME} again at the end of this turn with \`prompt\` set to the literal sentinel \`${sentinel}\` — otherwise the loop ends after this tick.`
@@ -128,6 +131,7 @@ loop.md is not currently present. Run the autonomous check using the loop instru
 You scheduled this tick via the ${SCHEDULE_WAKEUP_TOOL_NAME} tool (not a recurring cron). To keep the loop alive — and to pick up loop.md if it is recreated — call ${SCHEDULE_WAKEUP_TOOL_NAME} again at the end of this turn with \`prompt\` set to the literal sentinel \`${LOOP_FILE_DYNAMIC_SENTINEL}\` — otherwise the loop ends after this tick.${DYNAMIC_PACING_FOOTER}${sendMessageOutcomeHint()}`
 }
 
+
 const LOOP_FILE_BYTE_CAP = 25000
 
 function capLoopFile(content: string): string {
@@ -138,9 +142,7 @@ function capLoopFile(content: string): string {
 }
 
 interface LoopFile {
-
   path: string
-
   content: string
 }
 
@@ -165,6 +167,7 @@ export function readLoopFile(): LoopFile | null {
   return null
 }
 
+
 function resolveAutonomousWith(prompt: string, chain: LoopFireChainStateV1): string | null {
   if (!isAutonomousLoopSentinel(prompt)) return null
   if (!isLoopDefaultPromptEnabled()) return null
@@ -173,7 +176,6 @@ function resolveAutonomousWith(prompt: string, chain: LoopFireChainStateV1): str
     prompt === AUTONOMOUS_LOOP_DYNAMIC_SENTINEL
       ? autonomousDynamicTick()
       : autonomousFixedTick()
-
   if (chain.preambleSent || chain.lastExpandedBody !== null) return tickBody
   chain.preambleSent = true
   return `${getAutonomousLoopPreamble()}\n\n---\n\n${tickBody}`
@@ -191,7 +193,6 @@ function resolveLoopFileWith(
 
   if (loopFile !== null) {
     const tickBody = isDynamic ? loopFileDynamicTick() : loopFileFixedTick()
-
     if (chain.lastExpandedBody === loopFile.content) return tickBody
     chain.lastExpandedBody = loopFile.content
     return `# /loop tick — tasks from ${loopFile.path}\n\nThe user configured a loop-tasks file. Work through the tasks defined below; these are the instructions for this tick and every subsequent tick (the reminder on later fires refers back to this message).\n\n---\n\n${loopFile.content}\n\n---\n\n${tickBody}`
@@ -199,7 +200,6 @@ function resolveLoopFileWith(
 
   logAutonomousLoopActivation()
   const fallbackBody = isDynamic ? loopFileAbsentDynamicTick() : autonomousFixedTick()
-
   if (chain.lastExpandedBody === PREAMBLE_SENT_MARKER || chain.preambleSent) {
     return fallbackBody
   }

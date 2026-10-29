@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -66,7 +65,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   const continuation = source.indexOf('isContinuableStreamFaultMessage(lastMessage)')
   const terminal = source.indexOf('if (lastMessage?.isApiErrorMessage) {')
   check('continuation branch sits BEFORE the terminal API-error branch', continuation > 0 && terminal > continuation)
-
   check('the nudge is meta (never rendered as operator input)', /content: streamFaultRecoveryContent\(replyTextOf\(assistantMessages\)\)[\s\S]{0,200}isMeta: true/.test(source))
   check('the continuation carries the settled reply and never the fault row (the partial is the assistant\'s own last message before the marker)', /messages: \[\.\.\.messagesForQuery, \.\.\.assistantMessages\.filter\(m => m\.isApiErrorMessage !== true\), recoveryMessage\]/.test(source))
   const errorsSource = readFileSync(resolve(repoRoot, 'src/services/api/errors.ts'), 'utf8')

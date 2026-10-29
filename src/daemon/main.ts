@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'crypto'
 import { existsSync, watch as watchDir, writeSync, type FSWatcher } from 'node:fs'
 import { unlink } from 'fs/promises'
@@ -158,6 +159,7 @@ function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeD
   }
 }
 
+
 export async function daemonMain(args: string[]): Promise<void> {
   const verb = parseDaemonVerb(args)
   switch (verb.kind) {
@@ -172,7 +174,6 @@ export async function daemonMain(args: string[]): Promise<void> {
       console.log(DAEMON_USAGE)
       return
     case 'unknown':
-
       // eslint-disable-next-line no-console
       console.error(`mercury daemon: unknown verb '${verb.word}'\n${DAEMON_USAGE}`)
       process.exitCode = 1
@@ -210,14 +211,12 @@ async function daemonStopCmd(): Promise<void> {
     // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
   } else if (!reply.ok && reply.code === 'ENOCONN') {
-
     const stale = await readDaemonState()
     if (stale && !isProcessAlive(stale.pid)) {
       await clearDeadDaemonRecords()
       // eslint-disable-next-line no-console
       console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
-
       const verdict = daemonRecordIdentity(stale, getProcessStartToken(stale.pid))
       if (verdict === 'not-recorded-process') {
         await clearDeadDaemonRecords()
@@ -233,7 +232,6 @@ async function daemonStopCmd(): Promise<void> {
         process.exitCode = 1
       }
     } else {
-
       const { probePidLock } = await import('../substrate/pidLock.js')
       const lockPath = join(daemonDir(), 'daemon.lock')
       const lockHolder = existsSync(lockPath) ? await probePidLock(lockPath, { liveness: 'assume-alive' }) : null
@@ -273,13 +271,12 @@ async function daemonRestartCmd(): Promise<void> {
   if (receipt.state === 'refused') process.exitCode = 1
 }
 
+
 async function daemonRun(args: string[]): Promise<void> {
   const dir = resolveDir(args)
-
   const bootBuildTree = describeArtifactIdentity(currentVersion()).buildTree
   const bootScript = selfScriptPath()
   const buildHold = holdBuild()
-
   const foreground = process.stdout.isTTY === true || process.stderr.isTTY === true
 
   process.stderr.write(
@@ -293,7 +290,6 @@ async function daemonRun(args: string[]): Promise<void> {
   if (scrubbed.length > 0) {
     logForDebugging(`[daemon] scrubbed inherited role env (daemon runs role-free): ${scrubbed.join(', ')}`)
   }
-
   const lockIdentity = `daemon-${randomUUID()}`
 
   const breaker = new DaemonBreaker()
@@ -303,7 +299,6 @@ async function daemonRun(args: string[]): Promise<void> {
     const rec = await runBootRecovery({ scope: 'daemon', projectDir: dir })
     for (const err of rec.errors) logForDebugging(`[daemon] boot recovery: ${err}`)
   }
-
   try {
     const settledDispatches = reconcileWorkingDispatches()
     if (settledDispatches > 0) {
@@ -332,9 +327,7 @@ async function daemonRun(args: string[]): Promise<void> {
     flagEnv('MERCURY_DAEMON_CONTROL') !== '0'
 
   let controlServer: ControlServerHandle | null = null
-
   let stopPlaneHeal: (() => void) | null = null
-
   let restartArmed = false
   let restartAfterTeardown = false
   let stopArmedBeat: (() => void) | null = null
@@ -348,27 +341,21 @@ async function daemonRun(args: string[]): Promise<void> {
     if (!sessionless.hosted) sessionless = { ...sessionless, hosted: true }
   }
   let stopSessionlessBeat: (() => void) | null = null
-
   let stopSaturnTicker: (() => void) | null = null
   let stopHostJobs: (() => void) | null = null
   let roster: TaskRoster | null = null
-
   let ownerWatch: OwnerWatchHandleV1 | undefined
   let ownerPipe: OwnerPipeHandleV1 | undefined
   let currentOwnerPid = parseOwnerPid()
   const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
   let ready = false
-
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
     wakeReady = resolve
   })
   const startedAt = Date.now()
-
   let requestShutdown: (signal: string) => void = () => {}
-
   let daemonLock: DaemonLock | null = null
-
   let teardownComplete = false
   let releaseHeldReading: () => void = () => {}
 
@@ -414,7 +401,6 @@ async function daemonRun(args: string[]): Promise<void> {
     } else {
       return refuse(decision.why)
     }
-
     process.once('exit', code => {
       if (!teardownComplete) daemonExitTeardownSync('exit-before-teardown', code)
     })
@@ -425,9 +411,7 @@ async function daemonRun(args: string[]): Promise<void> {
         dir,
         breaker,
         maxInflight: MAX_INFLIGHT,
-
         onAsk: (short, params) => holdWorkerAsk(short, params),
-
         onRow: (short, row) => {
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatRow(short, row, roster)
@@ -452,27 +436,22 @@ async function daemonRun(args: string[]): Promise<void> {
           if (!short.startsWith('concourse-w') || roster === null) return
           publishSeatFacts(short, undefined, roster)
         },
-
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
           console.error(`[daemon] ${GLYPH.warn} DAEMON DEGRADED — ${reason}`)
-
           if (short !== undefined && short.startsWith('concourse-w')) {
             try {
               settleConcourseWorker(short)
             } catch {
             }
-
             try {
               failWorkingDispatchesForRunner(short, reason)
             } catch {
             }
           }
         },
-
         onIdle: short => {
           if (short.startsWith('concourse-w') && roster !== null) {
-
             if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
@@ -481,10 +460,8 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         },
       })
-
       if (handoverPredecessor === null) resetSeatProjections(dir)
       const controlKey = handoverPredecessor === null ? await mintControlKey() : ((await readControlKey()) ?? (await mintControlKey()))
-
       const warmDeps = {
         roster: () => roster ?? undefined,
         onWarmSpawned: (short: string, workspaceId: string, pid: number | undefined) => {
@@ -494,15 +471,12 @@ async function daemonRun(args: string[]): Promise<void> {
           )
         },
       }
-
       const warmAdmitDoors = {
         claimWarm: (args: Parameters<typeof claimWarmRunner>[0]) => claimWarmRunner(args, warmDeps),
-
         ensureWarm: (workspaceDir: string, kit?: Parameters<typeof ensureWarmRunner>[0]['kit'], bypassConsent?: boolean) => {
           void ensureWarmRunner({ workspaceDir, ...(kit !== undefined ? { kit } : {}), ...(bypassConsent === true ? { bypassConsent: true } : {}) }, warmDeps).catch(() => {})
         },
       }
-
       const concourseDispatchHandler = makeConcourseDispatchHandler({
         admit: makeConcourseAdmitHandler({
           roster: () => roster ?? undefined,
@@ -512,7 +486,6 @@ async function daemonRun(args: string[]): Promise<void> {
             console.error(
               `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
             )
-
             noteHosted()
             if (roster !== null) onSeatSpawned(runnerId, roster)
           },
@@ -520,11 +493,9 @@ async function daemonRun(args: string[]): Promise<void> {
         deliver: async (runnerId, prompt) => {
           if (!roster) return false
           const delivered = await roster.reply(runnerId, prompt)
-
           if (delivered && runnerId.startsWith('concourse-w')) requestSessionFacts(runnerId, roster, { immediate: true })
           return delivered
         },
-
         revive: async sessionId => {
           const out = reviveConcourseWorker(sessionId, 'auto-revive', roster ?? undefined)
           if (out.outcome === 'applied' && roster !== null) onSeatSpawned(out.runnerId, roster)
@@ -533,7 +504,6 @@ async function daemonRun(args: string[]): Promise<void> {
             : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
         },
       })
-
       const liveWorkers = (): { live: number; liveSessions: number } => {
         if (!roster) return { live: 0, liveSessions: 0 }
         const warm = new Set(warmRunnerShorts())
@@ -598,7 +568,6 @@ async function daemonRun(args: string[]): Promise<void> {
           birthsInFlight--
         }
       }
-
       const concourseAdmitHandler = makeConcourseAdmitHandler({
         roster: () => roster ?? undefined,
         ...warmAdmitDoors,
@@ -607,7 +576,6 @@ async function daemonRun(args: string[]): Promise<void> {
           console.error(
             `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
           )
-
           noteHosted()
           if (roster !== null) onSeatSpawned(runnerId, roster)
         },
@@ -631,9 +599,7 @@ async function daemonRun(args: string[]): Promise<void> {
         whenReady: () => readyPromise,
         concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args)),
         concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args)),
-
         concourseWithdraw: clientMessageId => concourseDispatchHandler.withdraw(clientMessageId),
-
         concourseWarm: req => ensureWarmRunner(req, warmDeps),
         warmRunnerCount: () => warmRunnerCount(),
         concourseList: () => {
@@ -641,17 +607,14 @@ async function daemonRun(args: string[]): Promise<void> {
           const entries = roster.list().filter(j => !j.outcome)
           const live = new Set([...entries.map(j => j.short), ...(handover?.heldRunners() ?? [])])
           const livePid = new Map(entries.map(j => [j.short, j.pid]))
-
           return listConcourseWorkers(live).map(r => ({
             ...r,
-
             workerId: r.runnerId,
             ...(livePid.get(r.runnerId) !== undefined ? { pid: livePid.get(r.runnerId) } : {}),
           })) as unknown as ReadonlyArray<Record<string, unknown>>
         },
         concourseRelease: runnerId => {
           const killed = roster ? roster.kill(runnerId) : false
-
           if (!killed) {
             const rec = readSessionWorkers()[runnerId]
             if (rec?.endedAt === undefined && rec?.pid !== undefined && isProcessAlive(rec.pid)) {
@@ -659,7 +622,6 @@ async function daemonRun(args: string[]): Promise<void> {
             }
           }
           const settled = settleConcourseWorker(runnerId)
-
           const reap = (delayMs: number): void => {
             const t = setTimeout(() => {
               const r = roster
@@ -673,7 +635,6 @@ async function daemonRun(args: string[]): Promise<void> {
           reap(2000)
           return { settled, killed }
         },
-
         sessionFileRestore: async req => {
           if (roster === null) return { outcome: 'refused' as const, mode: 'code' as const, refusal: 'no-channel' as const, detail: 'daemon roster not ready' }
           return rewindSession(req.sessionId, { mode: 'code', userMessageId: req.userMessageId }, roster, undefined, { fileRestore: req })
@@ -685,17 +646,13 @@ async function daemonRun(args: string[]): Promise<void> {
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
         concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, mcpAction, mcpServer, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
-
           void reason
-
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
-
             if (prior && prior.action === action && prior.sessionId === sessionId)
               return { outcome: prior.outcome, ...(prior.detail !== undefined ? { detail: prior.detail } : {}) }
           }
           const settle = (r: { outcome: 'applied' | 'noop' | 'refused'; detail?: string }): typeof r => {
-
             if (clientOpId !== undefined) {
               try {
                 recordConcourseControlOp({ clientOpId, action, sessionId, outcome: r.outcome, ...(r.detail !== undefined ? { detail: r.detail } : {}), atMs: Date.now() })
@@ -708,7 +665,6 @@ async function daemonRun(args: string[]): Promise<void> {
             return r
           }
           if (action === 'answer-permission') {
-
             if (requestId === undefined || requestId === '') {
               return { outcome: 'refused' as const, detail: 'answer-permission requires requestId' }
             }
@@ -717,7 +673,6 @@ async function daemonRun(args: string[]): Promise<void> {
               allow === true,
               by,
               {
-
                 onGitReady: folder => {
                   const waiting = heldGitLaunchesFor(folder)
                   void replayGitBlockedDispatches(folder, concourseDispatchHandler)
@@ -732,7 +687,6 @@ async function daemonRun(args: string[]): Promise<void> {
                     .catch(err => logForDebugging(`[daemon] git-ready replay failed for ${folder}: ${err}`))
                   return waiting
                 },
-
                 onDenyProceed: folder => {
                   const proceeding = denyProceedLaunchesFor(folder)
                   if (proceeding.length > 0) {
@@ -750,12 +704,10 @@ async function daemonRun(args: string[]): Promise<void> {
                   return proceeding
                 },
               },
-
               answer as Parameters<typeof answerPermissionAsk>[4],
             )
           }
           if (action === 'park-all') {
-
             const all = parkAllConcourseSessions(by, roster ?? undefined, undefined, {
               reason: undefined,
               exceptFocusedByLiveTerminal: true,
@@ -774,7 +726,6 @@ async function daemonRun(args: string[]): Promise<void> {
           )
           if (!rec) return settle({ outcome: 'refused' as const, detail: 'unknown-session: no live worker record owns this session' })
           if (action === 'park') {
-
             if (roster && rec.pid !== undefined && !isNewbornRecord(rec) && !turnInFlightOf(rec) && workerPidAlive(rec) && rec.attachedAt === undefined) {
               const retired = await retireConcourseSession(sessionId, by, roster)
               return retired.outcome === 'parked'
@@ -790,18 +741,14 @@ async function daemonRun(args: string[]): Promise<void> {
                   ? { outcome: 'draining' as const, detail: `${out.runnerId} finishes its turn, then parks` }
                   : { outcome: 'applied' as const, detail: out.released ? `released newborn ${out.runnerId}` : `parked ${out.runnerId}` }
           }
-
           if (action === 'set-title') {
-
             return settle(setConcourseSessionTitle(sessionId, title ?? '', by, titleSource === 'minted' ? 'minted' : 'operator'))
           }
           if (action === 'contract') {
-
             if (contract === undefined) return { outcome: 'refused' as const, detail: 'contract requires { contract: { op, text? } }' }
             return settle(applyConcourseContractOp(sessionId, contract, by))
           }
           if (action === 'set-schedule') {
-
             if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: 'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }' }
             return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))
           }
@@ -814,7 +761,6 @@ async function daemonRun(args: string[]): Promise<void> {
             return listSessionMcpTools(sessionId, mcpServer, roster)
           }
           if (action === 'set-kit') {
-
             if (kitEdit === undefined) return { outcome: 'refused' as const, detail: 'set-kit requires { kitEdit: { mcp?, skills?, extensions? } }' }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             const dialed = setSessionKitDial(sessionId, kitEdit, by, roster)
@@ -827,12 +773,10 @@ async function daemonRun(args: string[]): Promise<void> {
             return roster !== null ? await setSessionModel(sessionId, model, roster, undefined, words) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-effort') {
-
             if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: 'set-effort requires effort' }
             return roster !== null ? setSessionEffort(sessionId, effort, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-spawn-switch') {
-
             if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: 'set-spawn-switch requires { spawnSwitch: { kind: subagents|workflows, on } }' }
             return roster !== null ? setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
@@ -844,7 +788,6 @@ async function daemonRun(args: string[]): Promise<void> {
             return roster !== null ? refreshSessionFacts(sessionId, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'focus' || action === 'blur') {
-
             const out = action === 'focus' ? focusConcourseSession(sessionId, by, undefined, terminalApplication) : blurConcourseSession(sessionId, by)
             if (out.outcome === 'applied') {
               const left = action === 'focus' && out.cleared.length > 0 ? ` — seat left ${out.cleared.join(', ')}` : ''
@@ -855,7 +798,6 @@ async function daemonRun(args: string[]): Promise<void> {
               : { outcome: 'refused' as const, detail: out.reason }
           }
           if (action === 'interrupt') {
-
             const door = roster?.door(rec.runnerId)
             if (door === undefined) return settle({ outcome: 'refused' as const, detail: 'worker has no live runner door' })
             if (door.closed) return settle({ outcome: 'refused' as const, detail: 'the interrupt did not reach the runner: its door is closed' })
@@ -865,13 +807,11 @@ async function daemonRun(args: string[]): Promise<void> {
             return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` })
           }
           if (action === 'stop-agent' || action === 'resume-agent') {
-
             if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return controlSessionAgent(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
           }
           if (action === 'withdraw-send') {
-
             if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: 'withdraw-send requires clientMessageId' }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return withdrawSessionSend(sessionId, clientMessageId, roster)
@@ -894,7 +834,6 @@ async function daemonRun(args: string[]): Promise<void> {
             return leaveSession(sessionId, roster)
           }
           if (action === 'stop') {
-
             roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(() => {})
             const out = stopConcourseSession(sessionId, by, roster ?? undefined)
             if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')
@@ -907,14 +846,12 @@ async function daemonRun(args: string[]): Promise<void> {
                   : { outcome: 'applied' as const, detail: `stop sent — ${out.runnerId} ends its turn and its crewmates; the row reads stopped once it is gone` }
           }
           if (action === 'attach') {
-
             const out = attachYieldConcourseSession(sessionId, by, roster ?? undefined)
             return out.outcome === 'refused'
               ? { outcome: 'refused' as const, detail: out.detail ?? out.reason }
               : { outcome: out.outcome, detail: out.runnerId }
           }
           if (action === 'detach') {
-
             const out = detachRespawnConcourseSession(sessionId, by, roster ?? undefined, undefined, {
               ...(mintedAtMs !== undefined ? { mintedAtMs } : {}),
             })
@@ -928,13 +865,11 @@ async function daemonRun(args: string[]): Promise<void> {
                 : { outcome: 'refused' as const, detail: out.detail ?? out.reason }
           }
           if (action === 'grant-workflows' || action === 'revoke-workflows') {
-
             const out =
               action === 'grant-workflows'
                 ? grantConcourseWorkflows(sessionId, by)
                 : revokeConcourseWorkflows(sessionId, by)
             if (action === 'grant-workflows' && out.outcome === 'applied' && roster !== null) {
-
               const r = roster
               void buildConcoursePromptRow(
                 '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (crewmates and workflows) are available from your next turn. Automated notice; no reply needed.',
@@ -959,7 +894,6 @@ async function daemonRun(args: string[]): Promise<void> {
                 : { outcome: out.outcome, detail: out.reason },
             )
           }
-
           const out = resumeConcourseWorker(rec.runnerId, by)
           if (out.outcome === 'refused') return settle({ outcome: 'refused' as const, detail: out.reason })
           const fresh = Object.values(readSessionWorkers()).find(
@@ -993,7 +927,6 @@ async function daemonRun(args: string[]): Promise<void> {
           )
         },
         onShutdown: async (reapWorkers, forwardedFromPlane) => {
-
           const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
           if (reapWorkers && roster) {
             const live = roster.liveWorkerFacts()
@@ -1015,11 +948,9 @@ async function daemonRun(args: string[]): Promise<void> {
             reaped += reply.reaped
             workers.push(...(reply.workers ?? []))
           }
-
           setImmediate(() => requestShutdown('control:shutdown'))
           return { reaped, workers }
         },
-
         hello: () => ({
           version: currentVersion(),
           buildTree: bootBuildTree,
@@ -1033,7 +964,6 @@ async function daemonRun(args: string[]): Promise<void> {
           predecessorPid: handover?.predecessorPids()[0] ?? null,
           predecessorPids: handover?.predecessorPids() ?? [],
         }),
-
         signIns: opts => {
           const view = composeSignInView(opts)
           if (opts?.refresh === true && roster !== null) {
@@ -1043,7 +973,6 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return view
         },
-
         restartWhenIdle: by => {
           const counts = liveWorkers()
           const { live } = counts
@@ -1140,9 +1069,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) })
       await persistDaemonRecord(currentOwnerPid)
-
       {
-
         let healInflight = false
         let healQueued = false
         const ownSockPath = process.platform === 'win32' ? null : predecessorSockPath(process.pid)
@@ -1154,7 +1081,6 @@ async function daemonRun(args: string[]): Promise<void> {
           healInflight = true
           try {
             if (!daemonHomeStands('the plane heal')) return
-
             const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
             const keyMissing = !existsSync(controlKeyPath())
             let foreignOwner = false
@@ -1196,12 +1122,10 @@ async function daemonRun(args: string[]): Promise<void> {
             }
           }
         }
-
         const planeHeal = setInterval(() => {
           void healCheck()
         }, PLANE_HEAL_FLOOR_MS)
         planeHeal.unref?.()
-
         const planeNames = new Set([
           basename(controlKeyPath()),
           basename(daemonStatePath()),
@@ -1265,7 +1189,6 @@ async function daemonRun(args: string[]): Promise<void> {
           for (const watcher of installedWatchers) watcher.close()
         }
       }
-
       {
         const armedBeat = setInterval(() => {
           if (!restartArmed || restartAfterTeardown) return
@@ -1397,7 +1320,6 @@ async function daemonRun(args: string[]): Promise<void> {
       wakeReady()
       // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
-
       stopSaturnTicker = startSaturnTicker(
         {
           now: () => Date.now(),
@@ -1405,12 +1327,10 @@ async function daemonRun(args: string[]): Promise<void> {
             const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
             return Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && (superseded ? (roster?.has(r.runnerId).alive ?? false) : !(handover?.holds(r.runnerId) ?? false)))
           },
-
           liveFacts: (account, sessionId) => {
             refreshSignInReads()
             return liveFactsForSessionFire(account, sessionId)
           },
-
           deriveAccount: modelKey => {
             refreshSignInReads()
             return deriveScheduleAccountForModel(modelKey)
@@ -1427,7 +1347,6 @@ async function daemonRun(args: string[]): Promise<void> {
             })
             return { ok: result.ok, ...(result.error !== undefined ? { detail: result.error } : {}) }
           },
-
           birth: makeSaturnBirthPort({
             dispatch: async req => {
               const r = await concourseDispatchHandler(req)
@@ -1461,7 +1380,6 @@ async function daemonRun(args: string[]): Promise<void> {
           console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (stopped)` : ''}`)
         },
       )
-
       if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {
         void ensureWarmRunner({ workspaceDir: dir, ...(flagEnv('MERCURY_DAEMON_SELF_WARM_CONSENT') === '1' ? { bypassConsent: true } : {}) }, warmDeps)
           .then(w => {
@@ -1472,7 +1390,6 @@ async function daemonRun(args: string[]): Promise<void> {
           })
           .catch(e => logForDebugging(`[daemon] boot self-warm failed (the first dispatch spawns cold): ${e}`))
       }
-
       {
         const rosteredOrHeld = (): Set<string> =>
           new Set([...(roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(handover?.heldRunners() ?? [])])
@@ -1481,7 +1398,6 @@ async function daemonRun(args: string[]): Promise<void> {
         void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
           .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
           .catch(error => logForDebugging(`[daemon] boot process census failed: ${error}`))
-
         let reconcileRosterSig = [...liveShorts].sort().join(' ')
         let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
         let reconcileHadLive = bootReconcile.live.length > 0
@@ -1495,18 +1411,15 @@ async function daemonRun(args: string[]): Promise<void> {
               reconcileRosterSig = rosterSig
               const receipt = reconcileConcourseWorkers(live)
               reconcileHadLive = receipt.live.length > 0
-
               try {
                 sweepIdleEmptyConcourseSessions(roster ?? undefined)
               } catch (e) {
                 logForDebugging(`[daemon] idle retirement sweep threw (ignored): ${e}`)
               }
-
               reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
             }
           } catch {
           }
-
           try {
             sweepIdleWarmRunners(warmDeps)
           } catch (e) {
@@ -1516,7 +1429,6 @@ async function daemonRun(args: string[]): Promise<void> {
         reconcileTick.unref?.()
       }
     } catch (e) {
-
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
       logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
@@ -1537,7 +1449,6 @@ async function daemonRun(args: string[]): Promise<void> {
   }
 
   return new Promise<void>(resolveShutdown => {
-
     const keepAlive = setInterval(() => {}, 1 << 30)
     let shuttingDown = false
     const shutdown = (signal: string) => {
@@ -1563,7 +1474,6 @@ async function daemonRun(args: string[]): Promise<void> {
       ownerWatch = undefined
       ownerPipe?.close()
       ownerPipe = undefined
-
       if (roster) {
         for (const j of roster.list()) {
           if (!j.outcome) {
@@ -1578,17 +1488,14 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         }
       }
-
       void (async () => {
         try {
           await controlServer?.close()
         } catch (e) {
           logForDebugging(`[daemon] error closing control server: ${e}`)
         }
-
         if (controlEnabled) await clearControlKey().catch(() => {})
         if (controlEnabled) await clearDaemonState().catch(() => {})
-
         recordSpawnExit({
           kind: 'daemon',
           event: 'exit',
@@ -1596,24 +1503,18 @@ async function daemonRun(args: string[]): Promise<void> {
           pid: process.pid,
           reason: `shutdown:${signal}`,
         })
-
         teardownComplete = true
         releaseHeldReading()
-
         if (restartAfterTeardown) spawnSuccessorDaemon()
-
         await daemonLock?.release().catch(() => {})
         daemonLock = null
         clearInterval(keepAlive)
         resolveShutdown()
-
         setTimeout(() => process.exit(0), 250)
       })()
-
       const bail = setTimeout(() => process.exit(1), 15_000)
       bail.unref?.()
     }
-
     let orphanParking = false
     const parkAllThenShutdown = async (signal: string): Promise<void> => {
       if (orphanParking || shuttingDown) return
@@ -1647,15 +1548,12 @@ async function daemonRun(args: string[]): Promise<void> {
     })
     process.on('SIGINT', () => shutdown('SIGINT'))
     process.on('SIGTERM', () => shutdown('SIGTERM'))
-
     process.on('SIGHUP', () => shutdown('SIGHUP'))
-
     process.on('SIGBREAK', () => shutdown('SIGBREAK'))
 
     const crashShutdown = (label: string, err: unknown): void => {
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${label} — reaping workers + control socket, then exiting:`, err)
-
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
@@ -1720,9 +1618,7 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-
 const RESTART_STORM_GUARD_MS = 60_000
-
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
@@ -1760,12 +1656,9 @@ async function planeBootFacts(stamps: { selfBuildTree: string | null; successorO
     plane: await planeAnswer(stamps.selfBuildTree),
   }
 }
-
 const PLANE_HEAL_FLOOR_MS = 30_000
-
 const PLANE_HEAL_COALESCE_MS = 250
 const INSTALLED_POINTER_NAMES = new Set(['current', 'dist', 'current.txt'])
-
 const RECONCILE_TICK_MS = 60_000
 
 function successorRuntime(): ReturnType<typeof deployedRuntime> {
@@ -1820,11 +1713,9 @@ function unchangedSuccessorDetail(ageSeconds: number): string {
 
 function spawnSuccessorDaemon(): number | undefined {
   try {
-
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
     delete env.MERCURY_DAEMON_HANDOVER_FROM
     stampSpawnReceipt(env, ['MERCURY_DAEMON_SUCCESSOR_OF'])
-
     if (hasStoredOAuthToken()) {
       const stripped: string[] = []
       for (const k of STORED_TOKEN_SCRUB_VARS) {

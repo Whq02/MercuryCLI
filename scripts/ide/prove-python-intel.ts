@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -51,7 +50,6 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { createLSPServerManager } = await import('../../src/services/lsp/LSPServerManager.js')
 const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/LSPDiagnosticRegistry.js')
-
 const { registerLSPNotificationHandlers } = await import('../../src/services/lsp/passiveFeedback.js')
 const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
 const { primeRuffProbe } = await import('../../src/services/lsp/ruffLane.js')

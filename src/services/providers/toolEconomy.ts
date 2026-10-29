@@ -19,21 +19,15 @@ interface ToolPayloadPlanInput {
   getToolPermissionContext: () => Promise<ToolPermissionContext>
   agents: AgentDefinition[]
   hasPendingMcpServers?: boolean
-
   source?: string
-
   latchKey?: string
-
   alsoDefer?: (tool: Tool) => boolean
 }
 
 interface RosterLatch {
   enabled: boolean
-
   names: string[]
-
   tools: Tool[]
-
   deferred: Set<string>
 }
 const rosterLatches = new Map<string, RosterLatch>()
@@ -57,6 +51,7 @@ export function clearToolRosterLatches(owner?: string): void {
 export function heldToolsAtLastPlan(latchKey: string, messages: readonly Message[]): readonly string[] {
   return heldAtLastPlan.get(`${latchKey}|${firstConversationRow(messages)}`) ?? []
 }
+
 
 export interface RosterRestore {
   key: string
@@ -173,21 +168,15 @@ export function toolRosterLatchFor(
 }
 
 export interface ToolPayloadPlan {
-
   enabled: boolean
   conversationKey?: string
   wireForm: DeferralWireForm
   wireWhy: DeferralWireVerdict['why']
-
   roster: Tools
-
   deferredNames: ReadonlySet<string>
-
   admittedNames: ReadonlySet<string>
-
   isDeferredUnadmitted(name: string): boolean
   isBound(name: string): boolean
-
   restoredMissingTools: readonly string[]
   admissionDeclarations: readonly AdmissionDeclaration[]
 }
@@ -201,7 +190,6 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
   const latchKey = input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model)
-
   let restoredMissingTools: string[] = []
   if (latchKey !== null && !rosterLatches.has(latchKey)) {
     const restore = armedRestoreFor(latchKey)
@@ -284,7 +272,6 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
 
   const serverSearch = deferralSearchIsServerSide(wire.form)
   const admittedNames = enabled && !serverSearch ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-
   let roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
   let admissionDeclarations: AdmissionDeclaration[] = []
   if (enabled && (wire.form === 'text' || wire.form === 'text-append')) {

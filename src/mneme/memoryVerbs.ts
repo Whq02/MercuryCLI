@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -29,6 +30,7 @@ function recallSlug(doc: MnemeTopicDoc): string {
   return isArchiveDoc(doc) ? `${ARCHIVE_PREFIX}${doc.slug}` : doc.slug
 }
 
+
 export function memoryVerbsEnabled(): boolean {
   return mnemeEnabled()
 }
@@ -37,6 +39,7 @@ export function memoryVerbsWhyNot(): string | null {
   if (!mnemeEnabled()) return 'memory is off (memory.enabled is false in settings)'
   return null
 }
+
 
 export interface RetainItemInput {
   content: string
@@ -186,7 +189,6 @@ export function retainItems(
       })
       return
     }
-
     const after = pendingRows(dir)
     if (after.length <= before) {
       outcomes.push({ index, status: 'refused', reason: 'the append did not land (post-write read saw no new row)' })
@@ -226,14 +228,12 @@ export async function retainItemsJudged(
   return retainItems(items, provenance, dir, { verdicts })
 }
 
-export interface RecallHit {
 
+export interface RecallHit {
   id: string
   label: 'consolidated' | 'pending' | 'archived'
   slug: string
-
   preview: string
-
   signature: string
   status?: MemoryRef['status']
   confirmedAt?: string
@@ -241,7 +241,6 @@ export interface RecallHit {
 
 export interface RecallResult {
   hits: RecallHit[]
-
   elidable: boolean
   catalog: Array<{ slug: string; summary: string }>
   cut: { hits: number; stale: number }
@@ -276,7 +275,6 @@ export function recallQuery(
   const hits: RecallHit[] = []
   const historyStarts = new Map<string, number>()
   for (const hit of grepAll(query, { maxHits: Infinity, dir })) {
-
     if (hit.slug !== PENDING_SLUG && hit.line >= historyStartLine(hit.slug, dir, historyStarts)) {
       continue
     }
@@ -303,7 +301,6 @@ export function recallQuery(
       })
       continue
     }
-
     hits.push({
       id: `doc:${hit.slug}:${hit.line}`,
       label: 'consolidated',
@@ -362,6 +359,7 @@ export function recallQuery(
   }
   return { hits: kept, elidable: hits.length === 0, catalog: catalogRows, cut: { hits: beyond.length, stale: beyond.filter(hit => hit.status === 'stale').length } }
 }
+
 
 export const RECALL_RESULT_CAP_CHARS = 40_000
 
@@ -504,7 +502,6 @@ export function readMemoryRecord(
     const doc = allDocs(dir).find(d => recallSlug(d) === slug)
     const live = doc ? liveSeqs(doc) : new Set<number>()
     const render = clipDocRender(result.content, live, DOC_RENDER_BUDGET_CHARS, dir)
-
     for (const seq of render.renderedSeqs) seenFullRows.add(seq)
     bumpUsage([...render.renderedSeqs], dir)
     noteMemoryOpened([...render.renderedSeqs].map(seq => `seq:${seq}`), dir)
@@ -542,6 +539,7 @@ export function readMemoryRecord(
   }
   return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
 }
+
 
 export type CorrectOp = 'supersede' | 'amend' | 'retract'
 

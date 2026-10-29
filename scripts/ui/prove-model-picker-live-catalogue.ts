@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -136,11 +135,8 @@ if (driver.kind !== 'posix-pty') {
   console.error(`  dist/mercury.mjs missing — bun run build.ts first`)
   failures++
 } else {
-
   const PENDING_HOLD_MS = Math.min(vshotBudgetMs(10_000), 12_000)
-
   const FIXTURE_ROWS = (readFileSync(FIXTURE, 'utf8').match(/^\s+\{ id: '/gm) ?? []).length
-
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
@@ -160,7 +156,6 @@ if (driver.kind !== 'posix-pty') {
   const stops = picker.composePickerLines(pickerGroups, picker.initialPickerFolds(pickerGroups, ANTHROPIC_MODEL_GROUP), '', () => undefined).filter(line => picker.isCursorStop(line))
   const openrouterIndex = stops.findIndex(line => line.kind === 'row' && line.row.group === OPENROUTER_MODEL_GROUP)
   if (openrouterIndex < 0) throw new Error('OpenRouter is absent from the catalogue')
-
   const PICKER_REGION = [24, 0, 96, 40]
   const fixture = spawn(process.execPath, ['run', FIXTURE, String(PENDING_HOLD_MS)], { stdio: ['ignore', 'pipe', 'pipe'] })
   let port = 0
@@ -180,7 +175,6 @@ if (driver.kind !== 'posix-pty') {
     check('the loopback catalogue fixture started', false, String(e))
   }
   if (port > 0) {
-
     const home = resolveProofHome([REPO])
     const grid = join(SCRATCH, 'live-catalogue-120x40.json')
     const cfgPath = join(SCRATCH, 'vshot.json')
@@ -189,18 +183,14 @@ if (driver.kind !== 'posix-pty') {
       JSON.stringify({
         argv: ['node', BIN],
         sends: [
-
           { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
-
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
           { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' + '\u001b[B'.repeat(openrouterIndex) },
-
           { requireAwait: true, awaitText: '│ │ OpenRouter — connecting…', awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'pending', data: '' },
           { requireAwait: true, awaitText: `OPENROUTER · API key · …${OPENROUTER_KEY_TAIL} · ${FIXTURE_ROWS} live`, awaitStableTicks: 3, awaitStableRegion: PICKER_REGION, mark: 'landed', data: '' },
           { afterPrevTicks: 3, data: '\u001b' },
         ],
-
         total: 150,
         cols: 120,
         rows: 40,
@@ -213,19 +203,16 @@ if (driver.kind !== 'posix-pty') {
       env: {
         ...process.env,
         MERCURY_CONFIG_DIR: home,
-
         MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${port}/api/v1`,
-
         ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       },
       timeout: vshotBudgetMs(90_000),
     })
     check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}: ${(res.stderr ?? '').trim().slice(-300)}`)
     if (res.status !== 0) {
-
       const frame = (res.stdout ?? '').split('\n').filter(l => l.includes('│ │') || /OPENROUTER|more\s*$/.test(l))
       console.log('  final frame (header · focus box · fold markers):\n' + frame.map(l => `    ${l.trimEnd()}`).join('\n'))
     }
@@ -244,10 +231,8 @@ if (driver.kind !== 'posix-pty') {
         check('pending: the OpenRouter group paints its connecting row, no rows yet', p.includes('OpenRouter — connecting…') && !showsId(p, 'openrouter/anthropic/claude-opus-5'))
         check('landed: the catalogue rows replaced the connecting row (each id in its cell, cut to the column with …)', showsId(l, 'openrouter/anthropic/claude-opus-5') && showsId(l, 'openrouter/google/gemini-3.1-pro') && !l.includes('OpenRouter — connecting…'), l.split('\n').filter(line => line.includes('openrouter/')).map(line => line.trim()).join(' | '))
         check('both moments belong to ONE open (the picker never closed between them)', landed.atTick > pending.atTick && l.includes('Mercury · model') && p.includes('Mercury · model'))
-
         const openrouterHeading = (t: string): string => (t.match(/[▾▸❯] OPENROUTER · [^│\n]+/)?.[0] ?? '').trim()
         check(`the OpenRouter heading counts the landed rows (${FIXTURE_ROWS} live, the fixture's lineup)`, openrouterHeading(l).endsWith(`· ${FIXTURE_ROWS} live`) && !/\d+ live/.test(openrouterHeading(p)), `${openrouterHeading(p)} → ${openrouterHeading(l)}`)
-
         check('the rows landed under the cursor (the focus box holds the first live row)', new RegExp(`│ │ \\S.*${idCellPattern('openrouter/anthropic/claude-opus-5')}`).test(l), l.split('\n').filter(line => line.includes('│ │ ')).map(line => line.trim()).join(' | '))
       }
     } else {

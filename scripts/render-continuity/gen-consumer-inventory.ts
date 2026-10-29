@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -16,29 +15,22 @@ type Seam = {
 }
 
 const seams: Seam[] = [
-
   { family: 'D1', seam: 'synthetic onSubmit(text, true, true) manufacture sites', pattern: 'onSubmit\\([^)]*,\\s*true,\\s*true\\)', paths: ['src'] },
   { family: 'D1', seam: 'requestCommandDispatch producers', pattern: 'requestCommandDispatch\\(', paths: ['src'] },
   { family: 'D1', seam: 'consumeCommandDispatch consumers', pattern: 'consumeCommandDispatch\\(', paths: ['src'] },
   { family: 'D1', seam: 'onAgentSubmit routing', pattern: 'onAgentSubmit', paths: ['src'] },
-
   { family: 'D3', seam: 'getViewedCrewmateTask consumers', pattern: 'getViewedCrewmateTask', paths: ['src'] },
   { family: 'D3', seam: 'getActiveAgentForInput consumers', pattern: 'getActiveAgentForInput', paths: ['src'] },
   { family: 'D3', seam: 'viewingAgentTaskId readers', pattern: 'viewingAgentTaskId', paths: ['src'] },
   { family: 'D3/D4', seam: 'enterCrewmateView / exitCrewmateView callers', pattern: '(enterCrewmateView|exitCrewmateView)\\(', paths: ['src'] },
-
   { family: 'D2', seam: 'registerTask / registerAsyncAgent lifecycle', pattern: '(registerTask|registerAsyncAgent)\\(', paths: ['src'] },
   { family: 'D2', seam: 'resumeAgentBackground / appendMessageToLocalAgent / queuePendingMessage', pattern: '(resumeAgentBackground|appendMessageToLocalAgent|queuePendingMessage)\\(', paths: ['src'] },
-
   { family: 'D4', seam: 'HelmLanesRail lane row builders', pattern: '(ipRows|laRows|partySeats|daemonCrew)', paths: ['src/components/HelmLanesRail.tsx'] },
   { family: 'D4', seam: 'MAIN_CONVERSATION_ID adopters', pattern: 'MAIN_CONVERSATION_ID|cv-main', paths: ['src'] },
-
   { family: 'D5', seam: 'LiveStreamingTail consumers', pattern: 'LiveStreamingTail', paths: ['src'] },
   { family: 'D5', seam: 'StreamingTailStore / streamBatcher consumers', pattern: '(streamingTailStore|StreamingTailStore|streamBatcher|StreamBatcher)', paths: ['src'] },
-
   { family: 'D6', seam: 'applySelectionClipBand + clip-band walk', pattern: 'applySelectionClipBand|SelectionClipBand', paths: ['src'] },
   { family: 'D6', seam: 'selection model / overlay / extraction modules', pattern: 'selectionModel|selectionOverlay|extractSelection|copyOnSelect', paths: ['src'] },
-
   { family: 'D7', seam: 'splash compose/frame call sites', pattern: 'compose\\(cols|frame\\(block|holdFrame\\(', paths: ['assets/splash/mercury-splash.mjs'] },
   { family: 'D7', seam: 'splash independent out.rows/out.columns reads', pattern: 'out\\.(rows|columns)', paths: ['assets/splash/mercury-splash.mjs'] },
 ]
@@ -83,7 +75,6 @@ for (const s of seams) {
 }
 
 mkdirSync(RECEIPTS, { recursive: true })
-
 writeFileSync(
   join(RECEIPTS, 'consumer-inventory.json'),
   JSON.stringify({ inventory }, null, 2),

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 
 import { Readable, Writable } from 'node:stream'

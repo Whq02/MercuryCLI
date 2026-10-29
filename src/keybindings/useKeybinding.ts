@@ -1,3 +1,4 @@
+
 import { useContext, useEffect, useRef } from 'react'
 import { currentSurfaceRoute, type SurfaceKind } from '../context/surfaceRoute.js'
 import type { InputEvent, Key } from '../ink/events/input-event.js'
@@ -12,7 +13,6 @@ export type KeybindingHandlerResult = void | false | Promise<void>
 export type UseKeybindingOptions = {
   context?: KeybindingContextName
   isActive?: boolean
-
   routeSafe?: boolean
 }
 

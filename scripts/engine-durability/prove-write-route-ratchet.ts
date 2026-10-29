@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 
@@ -37,7 +36,6 @@ for (const f of files) {
   if (importsModule(text, 'durablePublish')) publish.push(f)
   if (importsModule(text, 'lockfile') && f !== LOCK_OWNER) lock.push(f)
   if (/from\s+'proper-lockfile'|require\('proper-lockfile'\)/.test(text) && f !== LOCK_OWNER) {
-
     if (!/declare module 'proper-lockfile'/.test(text)) rawProperLockfile.push(f)
   }
 }

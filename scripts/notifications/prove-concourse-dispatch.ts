@@ -20,7 +20,6 @@ let refuseNext = false
 const ledgerStatesAtAdmit: string[] = []
 const handler = makeConcourseDispatchHandler({
   admit: async (): Promise<ConcourseAdmitResult> => {
-
     const rec = readConcourseDispatches(dir)['cm-1'] ?? readConcourseDispatches(dir)['cm-2']
     if (rec) ledgerStatesAtAdmit.push(rec.state)
     admits++
@@ -56,7 +55,6 @@ t.section('§2 — the clientMessageId law')
 
 t.section('§3 — refusal truth (the hold valve + FN-008 held-replay)')
 {
-
   refuseNext = true
   const refused = await handler({ clientMessageId: 'cm-2', prompt: 'a sixth session', workspaceDir: '/tmp' })
   t.check(
@@ -117,7 +115,6 @@ t.section('§5 — the delivery valve + redirect')
   pauseConcourseWorker('rd-live', 'operator', dir)
   const held = await rhandler({ clientMessageId: 'rd-2', prompt: 'second instruction', workspaceDir: '', targetSessionId: 'sess-live' })
   const heldRow = readConcourseDispatches(dir)['rd-2']!
-
   t.check('THE VALVE: a paused target HOLDS typed — row stays queued, never failed', held.ok === false && held.heldReason === 'session-paused' && /paused/.test(held.error ?? '') && heldRow.state === 'queued' && heldRow.heldReason === 'session-paused', JSON.stringify({ held, heldRow }))
   t.check('…and nothing was delivered through the closed valve', sent.length === 1)
 
@@ -133,7 +130,6 @@ t.section('§5 — the delivery valve + redirect')
   t.check('RESUME + same-id replay DELIVERS exactly once (the round-trip)', resumed.ok === true && resumed.state === 'working' && sent.length === 2 && sent[1]!.runnerId === 'rd-live' && resumedRow.heldReason === undefined, JSON.stringify(resumed))
 
   const dead = await rhandler({ clientMessageId: 'rd-3', prompt: 'to nobody', workspaceDir: '', targetSessionId: 'sess-dead' })
-
   t.check('a dead target refuses typed and settles failed', dead.ok === false && /no live runner|revives/.test(dead.error ?? '') && readConcourseDispatches(dir)['rd-3']!.state === 'failed')
 
   const reviveAnswers: Array<{ ok: boolean; error?: string; reason?: 'transcript-lost' | 'respawn-failed' }> = []

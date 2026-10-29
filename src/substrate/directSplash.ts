@@ -1,3 +1,4 @@
+
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { constants as osConstants } from 'node:os'
@@ -6,11 +7,8 @@ import { runningBundlePayloadDir } from '../services/privateChannel/vendoredRunt
 import { setFlagEnv } from './flagRegistry.js'
 
 export const SPLASH_EXIT = {
-
   HANDOFF_HELD: 0,
-
   HANDOFF_RESTORED: 20,
-
   CANCEL: 130,
 } as const
 
@@ -20,7 +18,6 @@ export const SPLASH_DRIVER = 'splash.mjs'
 export const SPLASH_CORE = 'splash-core.mjs'
 
 export type DirectSplashSkip =
-
   | 'argv'
   | 'not-a-tty'
   | 'launcher-handed-over'
@@ -30,7 +27,6 @@ export type DirectSplashSkip =
   | 'asset-absent'
 
 export interface DirectSplashFacts {
-
   args: readonly string[]
   stdinTTY: boolean
   stdoutTTY: boolean
@@ -54,7 +50,6 @@ export function decideDirectSplash(f: DirectSplashFacts): DirectSplashDecision {
 export type SplashAssetRung = 'payload' | 'home' | 'source'
 
 export interface SplashAssetHit {
-
   driver: string
   rung: SplashAssetRung
 }
@@ -121,30 +116,24 @@ export type DirectSplashRun =
   | { verdict: SplashHandoverVerdict; asset: SplashAssetHit; exitCode: number }
 
 export function runDirectSplash(opts: { home: string | null }): DirectSplashRun {
-
   const decision = decideDirectSplash({
     args: process.argv.slice(2),
     stdinTTY: Boolean(process.stdin.isTTY),
     stdoutTTY: Boolean(process.stdout.isTTY),
-
     env: process.env,
   })
   if (!decision.run) return { verdict: 'skipped', reason: decision.reason }
   const asset = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: opts.home })
   if (asset === null) return { verdict: 'skipped', reason: 'asset-absent' }
-
   if (!process.env.MERCURY_LAUNCH_ID) {
     setFlagEnv('MERCURY_LAUNCH_ID', `direct-${process.pid}-${Date.now()}`)
   }
-
   const outlive = (): void => {}
   process.on('SIGINT', outlive)
   let exitCode: number
   try {
-
     const r = spawnSync(process.execPath, [asset.driver], {
       stdio: 'inherit',
-
       env: process.env,
       windowsHide: false,
     })

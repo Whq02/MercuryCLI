@@ -190,13 +190,10 @@ interface DriveResult {
   gridText: string
   marks: Record<string, string>
   stderr: string
-
   endReason: string
 }
 interface DriveOptions {
-
   resizes?: unknown[]
-
   args?: string[]
 }
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>, opts: DriveOptions = {}): DriveResult {

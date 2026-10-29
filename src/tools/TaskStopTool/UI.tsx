@@ -5,6 +5,7 @@ import { Text } from '../../ink.js'
 import { truncateToWidthNoEllipsis } from '../../utils/format.js'
 import type { Output } from './TaskStopTool.js'
 
+
 const MAX_COMMAND_LINES = 2
 const MAX_COMMAND_COLUMNS = 160
 
@@ -20,7 +21,6 @@ export function renderToolResultMessage(
   const command = output.command ?? ''
   let shown = command
   if (!verbose) {
-
     shown = truncateToWidthNoEllipsis(command.split('\n').slice(0, MAX_COMMAND_LINES).join('\n'), MAX_COMMAND_COLUMNS).trim()
   }
   if (output.already_finished) {
@@ -34,9 +34,7 @@ export function renderToolResultMessage(
       </MessageResponse>
     )
   }
-
   const suffix = shown !== command ? '… stopped' : ' stopped'
-
   const ended = output.processes_ended
   const survivors = output.process_survivors
   const countClause =

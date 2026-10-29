@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { randomUUID, type UUID } from 'node:crypto'
 import { statSync } from 'node:fs'
@@ -90,6 +91,7 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
   return `Unknown command: /${name}${near !== undefined && near !== name ? ` — closest: /${near}` : ''} · /help lists commands`
 }
 
+
 function looksLikeCommand(commandName: string): boolean {
   return /^[a-zA-Z0-9:_-]+$/.test(commandName)
 }
@@ -102,6 +104,7 @@ function isExistingPath(slashPrefixed: string): boolean {
     return false
   }
 }
+
 
 export function formatSkillLoadingMetadata(
   skillName: string,
@@ -118,7 +121,6 @@ export function formatCommandLoadingMetadata(fullName: string, args: string): st
 
 export function unavailableCommandLine(real: Command, args = ''): string {
   const name = getCommandName(real)
-
   if (commandOffInPlainWorld(real)) {
     return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
   }
@@ -158,6 +160,7 @@ function stderrWrapped(text: string): string {
   return `<${LOCAL_COMMAND_STDERR_TAG}>${text}</${LOCAL_COMMAND_STDERR_TAG}>`
 }
 
+
 function findCommand(commands: Command[], name: string): Command | undefined {
   return commands.find(
     command =>
@@ -166,6 +169,8 @@ function findCommand(commands: Command[], name: string): Command | undefined {
       getCommandName(command) === name,
   )
 }
+
+
 
 export async function processPromptSlashCommand(
   commandName: string,
@@ -294,7 +299,6 @@ async function executePromptCommand(
       ...(effort !== undefined ? { effort } : {}),
     }
   } catch (error) {
-
     const echoed = createUserMessage({
       content: formatCommandLoadingMetadata(commandName, args),
       ...(uuid ? { uuid } : {}),
@@ -315,6 +319,7 @@ async function executePromptCommand(
     }
   }
 }
+
 
 async function runForkedPromptCommand(
   command: Command & { type: 'prompt' },
@@ -340,7 +345,6 @@ async function runForkedPromptCommand(
     if (!cacheSafeParams) {
       throw new Error('No cache-safe turn parameters are available yet for a forked command.')
     }
-
     const baseAgent = command.effort !== undefined
       ? { ...prepared.baseAgent, effort: command.effort }
       : prepared.baseAgent
@@ -397,7 +401,6 @@ async function runForkedPromptCommand(
         resultText,
       }
     } finally {
-
       setToolJSX(null)
     }
   } catch (error) {
@@ -408,6 +411,7 @@ async function runForkedPromptCommand(
     }
   }
 }
+
 
 export async function processSlashCommand(
   inputString: string,
@@ -444,10 +448,8 @@ export async function processSlashCommand(
   }
 
   if (!command) {
-
     const registered = findCommand([...builtinCommands()], commandName)
     if (registered) {
-
       if (registered.type === 'local' && registered.userPrivate === true && isCommandEnabled(registered)) {
         if (registered.seat === 'screen' && getIsNonInteractiveSession()) {
           const line = unavailableCommandLine(registered)
@@ -478,11 +480,9 @@ export async function processSlashCommand(
     }
     if (looksLikeCommand(commandName) && !isExistingPath(`/${commandName}`)) {
       const unknownLine = unknownCommandLine(commandName, commands)
-
       const notice = { ...createSystemMessage(unknownLine, 'warning'), ...(uuid ? { uuid } : {}) }
       return { messages: [notice], shouldQuery: false, resultText: unknownLine, commandRefused: true }
     }
-
     const promptMessage = createUserMessage({
       content: inputString,
       uuid: (uuid ?? randomUUID()) as UUID,
@@ -569,7 +569,6 @@ export async function processSlashCommand(
     }
     return result
   } catch (error) {
-
     if ((error as { isMalformedCommand?: boolean } | null)?.isMalformedCommand === true) {
       return {
         messages: [createUserMessage({ content: String((error as Error).message) })],
@@ -579,6 +578,7 @@ export async function processSlashCommand(
     throw error
   }
 }
+
 
 async function runLocalJsxCommand(
   command: Command & { type: 'local-jsx' },
@@ -608,7 +608,6 @@ async function runLocalJsxCommand(
           : {}),
       }
       if (display === 'skip') {
-
         finish({ messages: [], ...forwarded })
         return
       }
@@ -616,7 +615,6 @@ async function runLocalJsxCommand(
         formatCommandLoadingMetadata(getCommandName(command), args),
       )
       if (display === 'system') {
-
         const isDismissal =
           typeof resultText === 'string' && /closed|dismissed|cancelled/i.test(resultText)
         if (isFullscreenEnvEnabled() && isDismissal) {
@@ -651,9 +649,7 @@ async function runLocalJsxCommand(
 
     void (async () => {
       try {
-
         markTransitionStart(getCommandName(command) === 'model' ? 'picker-open' : 'screen-switch')
-
         const module = await command.load()
         const element = await module.call(done, context, args, commandName)
         if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
@@ -662,11 +658,9 @@ async function runLocalJsxCommand(
           return
         }
         if (element === null || element === undefined) {
-
           return
         }
         if (settled) {
-
           return
         }
         setToolJSX({
@@ -689,6 +683,7 @@ async function runLocalJsxCommand(
     })()
   })
 }
+
 
 function answerBareUsage(
   command: Command & { type: 'prompt' },
@@ -714,10 +709,8 @@ async function runLocalCommand(
   context: ProcessUserInputContext,
   uuid?: UUID,
 ): Promise<ProcessUserInputBaseResult> {
-
   const sensitive = command.isSensitive === true
   const echoedArgs = sensitive && args.trim() !== '' ? '[REDACTED]' : args
-
   const echoed = createUserMessage({
     content: formatCommandLoadingMetadata(getCommandName(command), echoedArgs),
     ...(uuid ? { uuid } : {}),
@@ -725,7 +718,6 @@ async function runLocalCommand(
   try {
     const module = await command.load()
     const result = await module.call(args, context)
-
     if (command.userPrivate === true) {
       const text = result.type === 'text' ? result.value : ''
       return { messages: [], shouldQuery: false, ...(text !== '' ? { resultText: text } : {}) }
@@ -734,7 +726,6 @@ async function runLocalCommand(
       return { messages: [], shouldQuery: false }
     }
     if (result.type === 'compact') {
-
       resetMicrocompactState(undefined)
       const compaction = result.compactionResult
       const display = result.displayText

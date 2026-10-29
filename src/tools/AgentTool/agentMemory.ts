@@ -1,3 +1,4 @@
+
 import { normalize, join, relative, sep } from 'node:path'
 import { getMemoryBaseDir, isMnemeEnabled } from '../../mneme/paths.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -39,7 +40,6 @@ export function getAgentMemoryDir(
         projectLocalPath(getCwd(), AGENT_MEMORY_SUBDIR, dirName) + sep
       )
     case 'local':
-
       return projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) + sep
   }
 }
@@ -51,16 +51,13 @@ function isUnder(candidate: string, dir: string): boolean {
 
 export function isAgentMemoryPath(absolutePath: string): boolean {
   const path = normalize(absolutePath)
-
   if (isUnder(path, join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR))) {
     return true
   }
   const homes = projectConfigDirs(getCwd())
-
   for (const home of homes) {
     if (isUnder(path, join(home, AGENT_MEMORY_SUBDIR))) return true
   }
-
   if (isUnder(path, projectHomePath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR))) return true
   for (const home of homes) {
     if (isUnder(path, join(home, AGENT_MEMORY_LOCAL_SUBDIR))) return true

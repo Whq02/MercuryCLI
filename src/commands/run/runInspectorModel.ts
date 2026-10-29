@@ -1,3 +1,4 @@
+
 import {
   openDeliverables,
   type RunSnapshot,
@@ -10,9 +11,7 @@ import { truncateToWidth } from '../../utils/truncate.js'
 
 export interface RunRow {
   section: string
-
   line: string
-
   detail: string[]
   tone: 'ok' | 'warn' | 'fail' | 'neutral' | 'accent'
 }
@@ -177,7 +176,6 @@ export function buildRunCapsuleLine(snapshot: RunSnapshot | null, now: number): 
   const done = snapshot.deliverables.filter(d => d.state === 'done').length
   const parts: string[] = [`run ${snapshot.lifecycle}`, snapshot.phase]
   if (snapshot.deliverables.length > 0) parts.push(`${done}/${snapshot.deliverables.length}`)
-
   if (snapshot.blocker) {
     parts.push(`BLOCKED: ${truncateToWidth(snapshot.blocker.description, 40)}`)
   } else if (snapshot.nextAction) {

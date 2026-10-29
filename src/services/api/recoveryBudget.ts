@@ -48,19 +48,13 @@ export interface OutageWaitFacts {
 }
 
 export interface RecoveryBudget {
-
   capMs: number
-
   spentMs: number
-
   waits: number
-
   refusals: number
   faults: number
   recoveries: number
-
   lastStatus: number | undefined
-
   lastCause: string | undefined
   outage?: OutageWaitFacts
 }
@@ -124,11 +118,8 @@ export interface RecoveryNoticeFacts {
   of: number | undefined
   status: number | undefined
   kind: RecoveryWaitClass
-
   providerDeclared: boolean
-
   cause: string
-
   message: string
   outage?: OutageWaitFacts
 }
@@ -329,7 +320,6 @@ export function recoveryBudgetSpentLine(budget: RecoveryBudget): string {
 }
 
 export class RecoveryBudgetSpentError extends Error {
-
   readonly recoveryBudgetSpent = true as const
   readonly capMs: number
   readonly waits: number
@@ -338,7 +328,6 @@ export class RecoveryBudgetSpentError extends Error {
   readonly recoveries: number
   readonly lastStatus: number | undefined
   readonly lastCause: string | undefined
-
   readonly resumeAfterMs: number
   readonly networkOutage: boolean
   constructor(budget: RecoveryBudget, cut: { declaredMs: number; honoredMs: number }) {

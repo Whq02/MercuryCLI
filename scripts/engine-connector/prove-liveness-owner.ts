@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -19,7 +18,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 const settle = (): Promise<void> => sleep(750)
 const until = async (pred: () => boolean, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
@@ -40,7 +38,6 @@ type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').S
 const sid = '00000000-aaaa-bbbb-cccc-0000live0001'
 const transcript = join(scratch, `${sid}.jsonl`)
 const stamp = (msAgo: number): string => new Date(Date.now() - msAgo).toISOString()
-
 const rows: Array<Record<string, unknown>> = []
 const land = (o: Record<string, unknown>): void => {
   rows.push({ sessionId: sid, isSidechain: false, ...o })
@@ -48,7 +45,6 @@ const land = (o: Record<string, unknown>): void => {
 }
 const USER_UUID = '00000000-0000-4000-8000-0000000000u1'
 const TOOL_ROW_UUID = '00000000-0000-4000-8000-0000000000a1'
-
 land({ parentUuid: null, type: 'user', uuid: USER_UUID, timestamp: stamp(20_000), message: { role: 'user', content: 'hello' } })
 
 function facts(extra: Record<string, unknown>): void {
@@ -74,7 +70,6 @@ function tail(extra: Record<string, unknown>): void {
 }
 
 const c = seat.daemonSessionConnectorFor({ sessionId: sid, runnerId: 'runner-live-1', title: 'liveness fixture', projectLabel: 'proj', workspaceId: scratch, home: scratch })
-
 facts({})
 tail({})
 await c.attach()
@@ -137,7 +132,6 @@ section('§4 no stream events past the watchdog’s warning point = stuck, namin
 
 section('§5 a tool running under its deadline = alive, whatever the stream’s silence')
 {
-
   land({
     parentUuid: USER_UUID,
     type: 'assistant',
@@ -166,7 +160,6 @@ section('§6 interrupting wins over every other sentence')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
   const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 125_000, watchdogMs: 120_000, phaseMs: 125_000, toolBudgetMs: null, stuck: true, wait: null }
-
   check('interrupting + stuck ⇒ the interrupting sentence', statusLine(live, stuck) === 'interrupting — the request is torn down', statusLine(live, stuck))
   check('the second press outranks the interrupting sentence', statusLine(live, { ...stuck, hardStopping: true }) === 'interrupting again — the request is torn down once more; x on its row stops the runner', statusLine(live, { ...stuck, hardStopping: true }))
   const idle: SessionLiveV1 = { ...live, inFlight: false, phase: 'idle' }
@@ -177,7 +170,6 @@ section('§6 interrupting wins over every other sentence')
   check('the fold paints nothing on the row either (its dress is the face\'s)', statusLine(compacting, { ...young, phaseMs: 30_000 }) === '', statusLine(compacting, { ...young, phaseMs: 30_000 }))
   const tool: SessionLiveV1 = { ...live, phase: 'tool' }
   check('a tool paints nothing on the row (its card names its own clock and deadline)', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }) === '', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }))
-
   const crew = { active: true, line: 'crewmates thought for 28m' }
   check('the crew\'s clock paints under a thinking main agent', statusLine(live, young, crew) === 'crewmates thought for 28m', statusLine(live, young, crew))
   check('the crew\'s clock paints under a running tool', statusLine(tool, young, crew) === 'crewmates thought for 28m')

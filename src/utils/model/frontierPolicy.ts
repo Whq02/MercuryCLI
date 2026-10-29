@@ -1,3 +1,4 @@
+
 import {
   getRateLimitTier,
   isClaudeAISubscriber,
@@ -28,45 +29,32 @@ type FrontierEligibilityCode =
   | 'allowlist-excluded'
 
 type FrontierCandidateVerdict = {
-
   id: string
-
   family: string
-
   rank: number
   eligible: boolean
   code: FrontierEligibilityCode
 }
 
 type FrontierOperatorDecision = {
-
   setting: string
   source: 'frontier' | 'fallback'
-
   winner: FrontierCandidateVerdict | null
-
   candidates: FrontierCandidateVerdict[]
-
   code: FrontierEligibilityCode | 'no-registered-candidate'
 }
 
 export type FrontierFacts = {
-
   fableEnvPin: boolean
-
   fableId: string
-
   fableNatively1M?: boolean
   allowlistPresent: boolean
-
   allowlistNamesFable: boolean
-
   allowlistPermits: (id: string) => boolean
   claudeAiSubscriber: boolean
   maxSubscriber: boolean
   rateLimitTier: string | null
   oneMDisabled: boolean
-
   opusFallbackSetting: string
 }
 
@@ -80,14 +68,12 @@ function evaluateFableCandidate(f: FrontierFacts): FrontierCandidateVerdict {
   if (f.allowlistPresent && !f.allowlistPermits(f.fableId)) {
     return verdict(false, 'allowlist-excluded')
   }
-
   if (f.fableEnvPin) {
     return verdict(true, 'eligible-env-pin')
   }
   if (f.allowlistNamesFable) {
     return verdict(true, 'eligible-allowlist')
   }
-
   if (!f.claudeAiSubscriber) {
     return verdict(false, 'not-subscriber')
   }
@@ -128,7 +114,6 @@ export function evaluateFrontierDecision(
       code: winner.code,
     }
   }
-
   const diagnostic = candidates[0]
   return {
     setting: facts.opusFallbackSetting,
@@ -170,7 +155,6 @@ export function gatherFrontierFacts(): FrontierFacts {
     maxSubscriber: isMaxSubscriber(),
     rateLimitTier: getRateLimitTier(),
     oneMDisabled: is1mContextDisabled(),
-
     opusFallbackSetting:
       getDefaultOpusModel() +
       (isOpus1mMergeEnabled() && !isDefaultOpusNatively1M() ? '[1m]' : ''),

@@ -1,3 +1,4 @@
+
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { blenderBridgeEnabled, blenderBridgePort } from '../../utils/blender/bridgeGates.js'
@@ -23,6 +24,7 @@ export const BLENDER_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Blender dev lanes") or MERCURY_BLENDER=1'
 
 const BRIDGE_OP_TIMEOUT_MS = 8_000
+
 
 type BlenderLaneArming =
   | { state: 'armed' }
@@ -55,12 +57,12 @@ type BlenderEditorTruth =
 
 interface BlenderBridgeIdeSession {
   context: BlenderContextProfile
-
   blenderLane: BlenderLaneArming
   bridge: BlenderBridgeState
   editor: BlenderEditorTruth
   collectedAt: number
 }
+
 
 function laneArming(armed: boolean): BlenderLaneArming {
   return armed ? { state: 'armed' } : { state: 'disarmed', armSurface: BLENDER_LANES_ARM_SURFACE }
@@ -117,7 +119,6 @@ async function collectEditorTruth(bridge: BlenderBridgeState): Promise<BlenderEd
           : 'bridge unreachable'
     return { state: 'unavailable', detail: `unavailable (${why}) — ${bridge.detail}` }
   }
-
   const client = getBlenderBridgeClient()
   if (!client) {
     return { state: 'unavailable', detail: 'unavailable (no client — token address unresolved)' }
@@ -138,6 +139,7 @@ async function collectEditorTruth(bridge: BlenderBridgeState): Promise<BlenderEd
   return { state: 'ok', sceneInfo, renderState, reportHead }
 }
 
+
 export async function buildBlenderBridgeIdeSession(
   from: string = getCwd(),
 ): Promise<BlenderBridgeIdeSession> {
@@ -151,6 +153,7 @@ export async function buildBlenderBridgeIdeSession(
     collectedAt: Date.now(),
   }
 }
+
 
 export function blenderBridgeReadinessRecords(): Array<{
   id: string

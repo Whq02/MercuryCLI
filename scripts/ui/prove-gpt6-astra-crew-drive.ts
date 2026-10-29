@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -29,19 +28,16 @@ const NAME = 'GPT-6 Astra'
 const MAIN_ID = 'claude-fable-5-1'
 const ASK = 'astra-crew: launch the survey'
 const FIXTURE_API_KEY = 'fixture-key-000'
-
 const BUDGET_MS = 8_000
 const SEAT_CEILING = 6
 const PORT = Number(process.env.ASTRA_CREW_PORT ?? 25181)
 
 type SeatArm = 'deep' | 'quick' | 'cold'
-
 const SEATS: Record<SeatArm, { name: string; type: string; effort: string }> = {
   deep: { name: 'deep-survey', type: 'astra-deep', effort: 'max' },
   quick: { name: 'quick-survey', type: 'astra-quick', effort: 'xhigh' },
   cold: { name: 'cold-survey', type: 'astra-quick', effort: 'xhigh' },
 }
-
 const STATIONS = [
   { station: 'one', effort: 'max' },
   { station: 'two', effort: 'high' },
@@ -66,10 +62,8 @@ interface Hit {
   lane: Lane
   model: string
   who: string | null
-
   at: number
   effort: string | null
-
   promptTokens: number
   tools: string[]
 }
@@ -170,7 +164,6 @@ function messagesAnswer(model: string, blocks: Block[], usage: { input: number; 
 }
 
 let respSeq = 0
-
 function responsesAnswer(who: string, usage: { input: number; output: number }): { head: string; body: string; tail: string } {
   const n = ++respSeq
   const id = `resp_astra_${n}`
@@ -291,13 +284,11 @@ async function startFixture(port: number): Promise<Fixture> {
         seatHits.set(arm, nth)
         const answer = responsesAnswer(SEATS[arm].name, { input: 900, output: 60 })
         if (arm === 'cold' && nth === 1) {
-
           res.on('close', () => {})
           return
         }
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
         if (arm === 'quick') {
-
           res.write(answer.head + answer.body)
           res.on('close', () => {})
           return
@@ -446,7 +437,6 @@ function transcriptFiles(home: string): Array<{ file: string; rows: string[] }> 
 function transcriptRows(home: string): string[] {
   return transcriptFiles(home).flatMap(f => f.rows)
 }
-
 function agentTranscriptOf(home: string, seatName: string): { file: string; rows: string[] } | undefined {
   return transcriptFiles(home).find(f => /(^|\/)agent-[^/]*\.jsonl$/.test(f.file) && f.rows.some(l => l.includes(`astra-seat: survey the ${seatName}`)))
 }
@@ -480,22 +470,17 @@ try {
       argv: ['node', DIST, '--model', MAIN_ID],
       sends: [
         ...bootSends(ASK),
-
         { data: '/crewmates', atTick: 999, awaitText: 'Running 3 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
-
         { data: '/crewmates', afterPrevTicks: 3 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: `${GLYPH.done} ${SEATS.quick.name}`, requireAwait: true, minTick: 2, awaitSettleTicks: 1, mark: 'crew-wait' },
-
         { data: '\r', atTick: 999, awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'wf-ask' },
         { data: '\r', afterPrevTicks: 5 },
-
         { data: '/crewmates', atTick: 999, awaitText: 'the survey landed.', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
-
         { data: '/workflows', afterPrevTicks: 4 },
         { data: '\r', afterPrevTicks: 3 },
         { data: '2', atTick: 999, awaitText: 'Mercury — workflows', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'wf-board' },
@@ -529,10 +514,8 @@ check('the ask offered both the Crewmate tool and the Workflow tool', parents.so
 const seatHits = hits.filter(h => h.route === 'seat').sort((a, b) => a.at - b.at)
 console.log(`  wire: ${seatHits.map(h => `${h.who}@${(h.at / 1000).toFixed(1)}s ${h.effort}`).join(' · ')}`)
 const byArm = (arm: SeatArm): Hit[] => seatHits.filter(h => h.who === arm)
-
 check(`A1 every seat request rode the Responses wire on ${ID}`, seatHits.length >= 4 && seatHits.every(h => h.lane === 'responses' && h.model === ID), seatHits.map(h => `${h.lane}:${h.model}`).join(','))
 check('A1 the deep seat asked once, the quick seat once, the parked seat twice', byArm('deep').length === 1 && byArm('quick').length === 1 && byArm('cold').length === 2, `${byArm('deep').length}/${byArm('quick').length}/${byArm('cold').length}`)
-
 const LIVE_LADDER = ['low', 'medium', 'high', 'xhigh', 'max']
 console.log(`  efforts: ${(Object.keys(SEATS) as SeatArm[]).map(arm => `${SEATS[arm].name} asked ${SEATS[arm].effort} → sent ${byArm(arm).map(h => String(h.effort)).join('/')}`).join(' · ')}`)
 check('A2 every seat request carried a reasoning effort from the served five-level ladder', seatHits.every(h => h.effort !== null && LIVE_LADDER.includes(h.effort)), seatHits.map(h => String(h.effort)).join(','))
@@ -565,7 +548,6 @@ check('A4/A5 every seat landed with the row kept — the held seat and the parke
 check('nothing read stuck', !/may be stuck/.test(landed) && !/may be stuck/.test(marks['landed'] ?? ''))
 
 const rows = transcriptRows(home)
-
 const durationOf = (reply: string): number | undefined => {
   for (const l of rows) {
     if (!l.includes(reply)) continue
@@ -593,7 +575,6 @@ check("A3 the workflow agents' records hold their summaries as reasoning spans",
   const quick = agentTranscriptOf(home, SEATS.quick.name)
   const cold = agentTranscriptOf(home, SEATS.cold.name)
   check('A6 the held seat has its own agent transcript', quick !== undefined, transcriptFiles(home).map(f => f.file).join(','))
-
   const notices = (t: { rows: string[] } | undefined): string => t?.rows.filter(l => l.includes('"kind":"notice"')).map(l => l.slice(0, 220)).join(' | ') ?? ''
   check("A6 the held seat's transcript holds the typed-end receipt row (the stream went silent after its last item; the reply stands)", quick !== undefined && quick.rows.some(l => l.includes('"kind":"notice"') && l.includes('stream went silent') && l.includes('the reply stands')), notices(quick))
   check('A6 the parked seat has its own agent transcript', cold !== undefined)

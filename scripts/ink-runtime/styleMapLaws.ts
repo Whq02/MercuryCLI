@@ -87,7 +87,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§1 truncate-middle: the header shape keeps its colours past the ellipsis')
   {
-
     const ansi = await render(
       e(
         Box,
@@ -113,7 +112,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§2 truncate-start: the visible tail wears its OWN styles')
   {
-
     const ansi = await render(
       e(
         Box,
@@ -131,7 +129,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§3 the wrap face: a word ending exactly at the wrap column no longer drifts the continuation styles')
   {
-
     const ansi = await render(
       e(Box, { width: 7 }, e(Text, { wrap: 'wrap' }, e(Text, { color: '#00ff00' }, 'aaa bbb '), e(Text, { color: '#ff0000' }, 'ccc'))),
       7,
@@ -143,7 +140,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§3b the compensation is keyed on the soft-break record: a blank line and the indent after it keep their styles')
   {
-
     const ansi = await render(
       e(
         Box,
@@ -167,7 +163,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§4 the normalize face: decomposed source keeps its style boundaries')
   {
-
     const deco = 'café au'
     const ansi = await render(
       e(Box, { width: 5 }, e(Text, { wrap: 'wrap' }, e(Text, { color: '#00ff00' }, deco + ' '), e(Text, { color: '#ff0000' }, 'lait'))),
@@ -181,7 +176,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§4b the normalize face, second term: the wrapper folds CRLF, and the map indexes the folded form')
   {
-
     const ansi = await render(
       e(Box, { width: 5 }, e(Text, { wrap: 'wrap' }, e(Text, { color: '#00ff00' }, 'abcdefgh\r\n'), e(Text, { color: '#ff0000' }, 'xy'))),
       5,
@@ -194,7 +188,6 @@ export async function runStyleMapLaws(runtime: string): Promise<number> {
 
   section('§6 the inert wrap members never cut: `end` and `middle` paint untouched, as layout measured them')
   {
-
     for (const wrap of ['end', 'middle'] as const) {
       const ansi = await render(
         e(Box, { width: 8 }, e(Text, { wrap }, e(Text, { color: '#00ff00' }, 'abcdef'), e(Text, { color: '#ff0000' }, 'ghijklmnop'))),

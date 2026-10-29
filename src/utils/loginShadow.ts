@@ -1,3 +1,4 @@
+
 export function isEnvShadowedAuthSource(source: string): boolean {
   return (
     source === 'MERCURY_OAUTH_TOKEN' ||

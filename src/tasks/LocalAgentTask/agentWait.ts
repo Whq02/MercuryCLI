@@ -1,5 +1,5 @@
-type AgentWaitPhase =
 
+type AgentWaitPhase =
   | 'request-sent'
   | 'first-byte'
   | 'retry'
@@ -10,15 +10,11 @@ type AgentWaitPhase =
 
 export type AgentWaitV1 = {
   phase: AgentWaitPhase
-
   sinceMs: number
-
   budgetMs?: number
-
   reason?: string
   attempt?: number
   of?: number
-
   streamedChars?: number
 }
 
@@ -34,7 +30,6 @@ type StreamEventLike = {
   retryInMs?: number
   retryAttempt?: number
   message?: { content?: unknown }
-
   errorDetail?: { status?: unknown; message?: unknown }
   error?: { message?: unknown }
 }
@@ -85,7 +80,6 @@ export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs
     case 'request_wait': {
       const wait = decodeWait(event.wait)
       if (wait === null) {
-
         return prev !== null && (prev.phase === 'first-byte' || prev.phase === 'retry') ? { phase: 'replying', sinceMs: nowMs } : prev
       }
       if (wait.kind === 'first-byte') {
@@ -108,7 +102,6 @@ export function foldAgentWaitEvent(prev: AgentWaitV1 | null, raw: unknown, nowMs
       }
       const blockType = ev.type === 'content_block_start' ? ev.content_block?.type : undefined
       const deltaType = ev.type === 'content_block_delta' ? ev.delta?.type : undefined
-
       const streamed =
         deltaType === 'thinking_delta'
           ? (ev.delta?.thinking?.length ?? 0)
@@ -182,7 +175,6 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
     case 'replying':
       return 'first byte in, no tokens yet'
     case 'reasoning': {
-
       const streamed = streamedTokensWords(wait.streamedChars)
       return `reasoning${counter !== null ? ` ${counter}` : ''}${streamed !== null ? ` · ${streamed}` : ', no tokens yet'}`
     }

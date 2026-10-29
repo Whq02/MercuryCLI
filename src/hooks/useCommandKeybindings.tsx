@@ -1,3 +1,4 @@
+
 import { useMemo, useRef } from 'react'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useOptionalKeybindingContext } from '../keybindings/KeybindingContext.js'
@@ -44,7 +45,6 @@ export function CommandKeybindingHandlers({
       const name = action.slice(COMMAND_PREFIX.length)
       const command = `/${name}`
       out[action] = () => {
-
         if (findCommand(name, commandsRef.current) === undefined) return
         void onSubmit(command, inertHelpers, undefined, { fromKeybinding: true })
       }

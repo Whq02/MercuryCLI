@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-class: pure
+// gate-watch: package.json scripts/distribution/dependency-census.tsv
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 

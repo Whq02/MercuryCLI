@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -31,7 +30,6 @@ const INPUT: LadderInput = {
 }
 
 section('§A the walk — order, typed verdicts, first application wins')
-
 {
   const out = await ladder.runMaintenanceLadder(INPUT, undefined, {
     digestProjection: () => null,
@@ -55,7 +53,6 @@ section('§A the walk — order, typed verdicts, first application wins')
 }
 
 section('§B the laws')
-
 {
   const measured = await ladder.runMaintenanceLadder(INPUT, ['digest'], {
     digestProjection: () => ({ cleared: 4, tokensSaved: 1234 }) as never,
@@ -80,7 +77,6 @@ section('§B the laws')
 }
 
 section('§C exhaustion — the typed trail, never a loop')
-
 {
   const out = await ladder.runMaintenanceLadder(INPUT, ['digest', 'notes', 'handoff'], {
     digestProjection: () => null,
@@ -90,7 +86,6 @@ section('§C exhaustion — the typed trail, never a loop')
 }
 
 section('§D the gate (structural)')
-
 {
   const auto = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
   check('autoCompactIfNeeded consults the ladder ONLY under the gate', auto.includes('isMaintenanceLadderEnabled()') && auto.indexOf('runMaintenanceLadder(') > auto.indexOf('isMaintenanceLadderEnabled()'))

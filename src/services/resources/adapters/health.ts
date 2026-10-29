@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import { decodeGateVerdict, decodeLastCertSummary } from '../../../utils/healthCertCore.js'
 import { gateVerdictPath, lastCertPath } from '../../../utils/healthReport.js'
@@ -51,7 +52,6 @@ export const healthAdapter: ResourceAdapter = {
       if (!v) {
         return { state: 'absent', note: 'gate verdict artifact unreadable (not the recorded shape)' }
       }
-
       return {
         state: 'ok',
         resource: {

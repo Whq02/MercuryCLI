@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/healthReport.ts src/utils/healthCertCore.ts src/services/providers/anthropic/modelRefusal.ts src/services/providers/anthropic/thinkingBinding.ts
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -45,7 +44,6 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [wsClaimed, wsCold])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-
 const api = await startFixtureApi([
   { kind: 'text', text: 'The parity reply, identical for both sessions.' },
   { kind: 'text', text: 'The parity reply, identical for both sessions.' },
@@ -165,7 +163,6 @@ try {
   }
   check('the claimed session settled its turn', await untilAsync(() => settled(claimed.sessionId), 60_000))
   check('the cold session settled its turn', await untilAsync(() => settled(cold.sessionId), 60_000))
-
   const rows = (sid: string): number => {
     const path = transcriptOf(sid)
     return path === null ? -1 : readFileSync(path, 'utf8').split('\n').filter(Boolean).length
@@ -184,7 +181,6 @@ try {
 
   const factsOf = (sid: string): string => join(daemonDir, 'session-facts', `${sid}.json`)
   check('both facts projections published', await untilAsync(() => existsSync(factsOf(claimed.sessionId)) && existsSync(factsOf(cold.sessionId)), 20_000))
-
   await untilAsync(() => {
     const a = JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
     const b = JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -73,13 +72,11 @@ function makeRig(opts: {
 section('§A a replayed row shows what RAN, never the current default')
 const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
 {
-
   const journal1 = new LocalFileJournal(runDir)
   const rig1 = makeRig({ runDir, engineModel: 'claude-model-one', journal: journal1, snapshot: await journal1.load() })
   const r1 = await rig1.hooks.agent('first job')
   const r2 = await rig1.hooks.agent('second job')
   check('run 1 executed live', String(r1).includes('live-answer') && String(r2).includes('live-answer'))
-
   const rows = readFileSync(join(runDir, 'journal.jsonl'), 'utf8')
     .trim()
     .split('\n')
@@ -118,7 +115,6 @@ const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
   )
 }
 {
-
   const dir = mkdtempSync(join(tmpdir(), 'replay-prov-named-'))
   const j1 = new LocalFileJournal(dir)
   const rigA = makeRig({ runDir: dir, engineModel: 'claude-model-one', journal: j1, snapshot: await j1.load() })
@@ -142,7 +138,6 @@ section('§B the journal: serialized appends + the honest degraded state')
 {
   const dir = mkdtempSync(join(tmpdir(), 'replay-prov-serial-'))
   const j = new LocalFileJournal(join(dir, 'r'))
-
   const writes: Promise<void>[] = []
   for (let i = 0; i < 30; i++) {
     writes.push(j.append({ type: 'started', key: `k${i}`, agentId: `a${i}` }))
@@ -158,7 +153,6 @@ section('§B the journal: serialized appends + the honest degraded state')
   rmSync(dir, { recursive: true, force: true })
 }
 {
-
   const dir = mkdtempSync(join(tmpdir(), 'replay-prov-fail-'))
   writeFileSync(join(dir, 'blocked'), 'a file where the dir belongs')
   let fired = 0
@@ -174,7 +168,6 @@ section('§B the journal: serialized appends + the honest degraded state')
   rmSync(dir, { recursive: true, force: true })
 }
 {
-
   const dir = mkdtempSync(join(tmpdir(), 'replay-prov-corrupt-'))
   mkdirSync(join(dir, 'r'), { recursive: true })
   writeFileSync(

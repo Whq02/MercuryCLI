@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import type { SettingSource } from '../utils/settings/constants.js'

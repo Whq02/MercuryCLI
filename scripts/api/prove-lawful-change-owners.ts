@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createServer, request as httpRequest } from 'node:http'
@@ -98,11 +97,9 @@ type Family = {
   model: string
   lane: string
   path: string
-
   answer: RegExp
 }
 const FAMILIES: Family[] = [
-
   { route: 'anthropic', model: 'claude-opus-4-8', lane: 'anthropic-seat', path: '/v1/messages', answer: /spare-(?:landed|done) body\./ },
   { route: 'openai', model: 'gpt-5.5', lane: 'openai-seat', path: '/openai/v1/responses', answer: /spare-(?:landed|done) body\./ },
   { route: 'zai', model: 'glm-5.2', lane: 'zai-seat', path: '/zai/v4/chat/completions', answer: /spare-(?:landed|done) body\./ },
@@ -140,7 +137,6 @@ function makeContext(model: string): { ctx: Record<string, unknown>; readFileSta
     tasks: {},
     mcp: { clients: [], tools: [], commands: [], resources: {} },
   }
-
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   readFileState.set('/tmp/compact-router-file.ts', {
     content: 'export const x = 1\n',
@@ -161,7 +157,6 @@ function makeContext(model: string): { ctx: Record<string, unknown>; readFileSta
       mcpClients: [],
       engineModel: model,
       maxThinkingTokens: 0,
-
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },
@@ -199,7 +194,6 @@ async function runCompaction(family: Family, cacheSafe: (ctx: Record<string, unk
     result,
     error,
     hits: fixture.captured.slice(before),
-
     raw: rawHits.slice(rawBefore).filter(h => h.method === 'POST' && (h.url.split('?')[0] ?? '').endsWith('/v1/messages')),
     readFileState,
   }
@@ -234,7 +228,6 @@ function assertSummaryInstalled(tag: string, family: Family, run: Run): void {
 section('§1 the summariser\'s DIRECT call, per family — lands on that family\'s wire')
 for (const family of FAMILIES) {
   console.log(`\n  · ${family.route} — main model ${family.model}`)
-
   const run = await runCompaction(family, () => ({
     systemPrompt: asSystemPrompt([`You are a ${SESSION_POSTURE_MARK}.`]),
   }))
@@ -258,7 +251,6 @@ for (const family of FAMILIES) {
 }
 
 section('§2 a full CacheSafeParams, per family — the fold still rides the family wire')
-
 for (const family of FAMILIES) {
   console.log(`\n  · ${family.route} — main model ${family.model}`)
   const run = await runCompaction(family, (ctx, messages) => ({

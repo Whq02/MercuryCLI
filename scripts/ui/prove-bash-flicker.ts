@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -23,7 +22,6 @@ console.log('\n── A. compose stability: no frame loses the transcript ──
   const TEE = `/tmp/bash-flicker-tee-${process.pid}.jsonl`
   rmSync(TEE, { force: true })
   const cfg = scenario('resume-2turn', 100, 36)
-
   cfg.sends = [
     { atTick: 40, minTick: 10, awaitRaw: '\u001b[?2004h', data: '!echo flicker-probe-ran' },
     { afterPrevTicks: 8, data: '\r' },
@@ -79,7 +77,6 @@ console.log('\n── B. the DEC 2026 LIVE probe is wired (source locks) ──�
 
 console.log('\n── C. the upgrade seam behaves ─────────────────────────────')
 {
-
   const { syncOutputSupportedNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.ts')
   const before = syncOutputSupportedNow()
   upgradeSyncOutputSupport()

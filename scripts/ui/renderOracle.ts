@@ -20,7 +20,6 @@ export function evaluateCapture(
     return { ok: false, reason: `blank/partial capture: ${painted} painted cells (binary did not paint)` }
   }
   const text = g.grid.map(row => row.map(c => c.c ?? '').join('')).join('\n')
-
   const topText = g.grid.slice(0, 3).map(row => row.map(c => c.c ?? '').join('')).join('\n')
   const sig = BOOT_ERROR_SIGNATURES.find(s => topText.includes(s))
   if (sig) {

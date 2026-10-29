@@ -70,7 +70,6 @@ try {
   check('apollo ⇒ exactly one section', on.length === 1)
   const text = on[0] ?? ''
   check('the section is the Apollo interview appendix', text.startsWith('# Apollo Mode'))
-
   const { getApolloPreflightQuestions } = (await import('../../src/utils/settings/settings.js')) as typeof import('../../src/utils/settings/settings.js')
   check(`the poll budget rides the setting (${getApolloPreflightQuestions()})`, text.includes(`Budget: ${getApolloPreflightQuestions()} polls`))
   check('the pack names the four-option + automatic-E shape', /FOUR options \(A–D\)/.test(text) && /E is where the user types/.test(text))
@@ -94,11 +93,9 @@ try {
 }
 {
   const prompts = src('constants', 'prompts.ts')
-
   check('prompts.ts never pushes the apollo pack into the system prompt (the pack rides a mode_pack row)', !/pushPack\('mode-apollo'/.test(prompts) && !/getApolloModeSections\(/.test(prompts))
   const lifecycles = src('utils', 'attachments', 'modeLifecycles.ts')
   check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
-
   check(
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
@@ -126,7 +123,6 @@ try {
   check('PreviewQuestionView letters its ordinals in apollo', /isApolloPoll \? APOLLO_OPTION_LETTERS\[index\]/.test(pv))
   const sel = src('components', 'CustomSelect', 'select.tsx')
   check('the select owner honours an option-declared display ordinal (rowPrefix)', /option\.indexLabel !== undefined/.test(sel) && (sel.match(/rowPrefix\(option, option\.index \+ 1/g) ?? []).length >= 2)
-
   check('the grammar guarantees the trailing space (rowPrefix padEnd ≥ len+1)', /indexLabel\.padEnd\(Math\.max\(reservedWidth, option\.indexLabel\.length \+ 1\)\)/.test(sel))
   check('input rows honour the ordinal too', /option\.indexLabel !== undefined[\s\S]{0,200}option\.indexLabel\.length \+ 1/.test(src('components', 'CustomSelect', 'select-input-option.tsx')))
   check('multi-select rows honour the ordinal too', /option\.indexLabel !== undefined[\s\S]{0,260}option\.indexLabel\.length \+ 1/.test(src('components', 'CustomSelect', 'SelectMulti.tsx')))
@@ -248,7 +244,6 @@ try {
   check('ApolloReviewTool is registered in the pool', /ApolloReviewTool,/.test(tools))
   const router = src('components', 'permissions', 'PermissionRequest.tsx')
   check('the consent router carries the Apollo review card', /ApolloReviewPermissionRequest/.test(router))
-
   const card = src('components', 'permissions', 'ApolloReviewPermissionRequest', 'ApolloReviewPermissionRequest.tsx')
   check(
     'the consent card offers the three ruled answers',
@@ -259,17 +254,14 @@ try {
     /decision: 'more-questions'/.test(card) && /decision: value/.test(card),
   )
   check('esc stays the plain hold (reject path preserved)', /onCancel=\{handleCancel\}/.test(card) && /onReject\(\)/.test(card))
-
   const filesystem = src('utils', 'permissions', 'filesystem.ts')
   check(
     "modeSuggestion lists the ask posture only (apollo never moves through a consent card)",
     /context\.mode === 'default'\) \{/.test(filesystem) &&
       !/context\.mode === 'default' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
-
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
   check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
-
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
@@ -327,7 +319,6 @@ section('the runner accepts Apollo for every host')
     'the subagent prompt build passes NO permissionMode (main-agent-only holds by construction)',
     promptBuildStart !== -1 && /definition\.getSystemPrompt\(/.test(promptBuild) && /enhanceSystemPromptWithEnvDetails\(/.test(promptBuild) && !/permissionMode/.test(promptBuild),
   )
-
   const frame = src('components', 'MercuryFrame.tsx')
   check('the mode chip reads the connector facts', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -205,7 +204,6 @@ section('§6 · armed table shape + ladder + readiness')
   restore()
   process.env.MERCURY_UNITY = '1'
   delete process.env.MERCURY_UNITY_DEBUG_ADAPTER
-
   const spec = resolveAdapter(UNITY_DAP_ADAPTER_KEY)
   if (spec === null) {
     check(
@@ -223,7 +221,6 @@ section('§6 · armed table shape + ladder + readiness')
   } else {
     check('armed + resolved ⇒ attach-hosting row', spec.startRequest === 'attach')
   }
-
   process.env.MERCURY_UNITY_DEBUG_ADAPTER = fixtureDll
   process.env.PATH = `${dotnetDir}${path.delimiter}${process.env.PATH ?? ''}`
   const armed = resolveAdapter(UNITY_DAP_ADAPTER_KEY)
@@ -293,7 +290,6 @@ section('§8 · inferAdapter Unity-root override (netcoredbg cannot shadow the e
 {
   restore()
   const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.js')
-
   const ncbgDir = path.join(scratch, 'bin-ncbg')
   mkdirSync(ncbgDir, { recursive: true })
   const ncbg = path.join(ncbgDir, 'netcoredbg')

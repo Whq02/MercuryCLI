@@ -1,13 +1,10 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join } from 'node:path'
-
 // @ts-ignore -- untyped .mjs module
 import { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, SPLASH_SKIP_FLAGS, SPLASH_SKIP_VERBS, SPLASH_VERSION_TTY_PROBE_JS } from '../release/launcherTemplates.mjs'
-
 // @ts-ignore -- untyped .mjs module
 import * as templates from '../release/launcherTemplates.mjs'
 import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
@@ -63,7 +60,6 @@ exec "${process.execPath}" "$@"
 `,
 )
 chmodSync(join(shimDir, 'node'), 0o755)
-
 const SHIM_HOME = resolveProofHome([process.cwd()])
 const shimEnv = (v: string): NodeJS.ProcessEnv => ({
   ...process.env,
@@ -181,7 +177,6 @@ check('CMD probes the real version (existence-only gap CLOSED)', cmd.includes('p
 check('CMD anchors the supported major', cmd.includes(`findstr /r /c:"^${policy.major}\\.`))
 check('CMD enforces the minor floor', cmd.includes(`LSS ${policy.minorFloor}`))
 check('CMD names label + range in the refusal (range < > caret-escaped so the echo actually prints)', cmd.includes(policy.label) && cmd.includes(`^(${policy.range.replace(/([<>])/g, '^$1')}^)`) && !cmd.includes(`^(${policy.range}^)`))
-
 check('CMD propagates the exit code (captured across the F1 heal)', cmd.includes('set "RT_EXIT=%errorlevel%"') && cmd.includes('exit /b %RT_EXIT%'))
 check('CMD heal is TTY-gated + abnormal-only', cmd.includes('if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0"'))
 const ps1 = ps1Launcher(policy)
@@ -203,7 +198,6 @@ if (pwsh.status === 0) {
   check('PS1 22.21.0 → refused (pwsh available)', r.status === 1, `status=${r.status}`)
   const r2 = spawnSync('pwsh', ['-NoProfile', '-File', ps1Path, 'ps probe'], { encoding: 'utf8', env: shimEnv(NODE_SUPPORT.minimum), timeout: 30_000 })
   check(`PS1 ${NODE_SUPPORT.minimum} → accepted (pwsh available)`, r2.status === 0 && r2.stdout.includes('["ps probe"]'), `status=${r2.status} out=${r2.stdout.slice(0, 80)}`)
-
   const vendoredWin = join(appDir, 'vendor', 'node', 'node.exe')
   const vendoredWinMarker = join(base, 'vendored-win.ran')
   mkdirSync(join(appDir, 'vendor', 'node'), { recursive: true })
@@ -240,22 +234,17 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       check(`${name} boots straight for the '${verb}' verb`, text.includes(verb))
     }
     check(`${name} still boots mercury.mjs with forwarded args`, text.includes('mercury.mjs'))
-
     check(`${name} post-child heal resets focus tracking after the alt-screen exit`, name === 'POSIX' || text.includes('?1049l\\x1b[?1004l\\x1b[?25h'))
-
     const heals = text.split('\n').filter(l => l.includes('process.stdout.write(') && l.includes('?1049l'))
     check(`${name} every heal opens with ?2026l (${heals.length} heal${heals.length === 1 ? '' : 's'})`, heals.length >= 1 && heals.every(l => l.includes('\\x1b[?2026l\\x1b[0m')))
   }
   check('POSIX execs the runtime — one process, no wrapper pid (a signal to the started pid reaches the run; ctrl+z hands the terminal to the shell)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"') && !/\nrt=\$\?/.test(posix))
   check('POSIX gates on BOTH stdin+stdout TTY', posix.includes('[ -t 0 ] && [ -t 1 ]'))
-
   check('POSIX carries no splash-action reader (BM-30 ratchet)', !posix.includes('IFS= read -r MERCURY_SA_ACT') && !posix.includes('rm -f "$MERCURY_SA_TXT"') && !posix.includes('SPLASH_ACTION_CONSUMER'))
   check('CMD carries no splash-action reader (BM-30 ratchet — the killer line)', !cmdT.includes('set /p "') && !cmdT.includes('<"%MERCURY_SA_HOME%') && !cmdT.includes('del /q "%MERCURY_SA_HOME%'))
   check('PS1 carries no splash-action reader (BM-30 ratchet)', !ps1T.includes('Get-Content -LiteralPath $saTxt') && !ps1T.includes("Join-Path $saHome 'splash-action.txt'"))
   check('all THREE arm the runtime consumer on a handoff (MERCURY_SPLASH_HANDOFF=1 on exit 0 AND 20)', posix.includes('MERCURY_SPLASH_HANDOFF=1') && cmdT.includes('set "MERCURY_SPLASH_HANDOFF=1"') && ps1T.includes("$env:MERCURY_SPLASH_HANDOFF = '1'"))
-
   check('all THREE mint MERCURY_LAUNCH_ID before the splash (LH-01)', posix.includes('MERCURY_LAUNCH_ID="posix-$$-') && cmdT.includes('set "MERCURY_LAUNCH_ID=cmd-%RANDOM%') && ps1T.includes('$env:MERCURY_LAUNCH_ID = "ps-$PID-'))
-
   check('PS1 snapshots + restores its owned env keys (PS-01 transaction), the launcher marker among them', ps1T.includes('$mercuryEnvSnapshot') && ps1T.includes('} finally {') && ps1T.includes("'MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','MERCURY_LAUNCHER','NODE_COMPILE_CACHE'"))
   check('PS1 marks the road (MERCURY_LAUNCHER=ps1) inside the transaction, before any node start — PowerShell drops the first -- for a script, and the runtime hint says so under the marker', ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") !== -1 && ps1T.indexOf('try {') !== -1 && ps1T.indexOf('& $nodeBin') !== -1 && ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") > ps1T.indexOf('try {') && ps1T.indexOf("$env:MERCURY_LAUNCHER = 'ps1'") < ps1T.indexOf('& $nodeBin') && !cmdT.includes('MERCURY_LAUNCHER') && !posix.includes('MERCURY_LAUNCHER'))
   check(
@@ -267,7 +256,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   check('PS1 first-arg dash skips the takeover', ps1T.includes(".StartsWith('-')"))
   check('CMD probe carries the dash verdict', SPLASH_VERSION_TTY_PROBE_JS.includes("charAt(0)==='-'"))
   {
-
     const probeWrap =
       "Object.defineProperty(process.stdin,'isTTY',{value:true,configurable:true});" +
       SPLASH_VERSION_TTY_PROBE_JS
@@ -280,7 +268,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     'the root CLI keeps no pointer line for a bare --rollback (an unknown option like any other)',
     !readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8').includes('run `mercury update --rollback`'),
   )
-
   {
     const cmdT = cmdLauncher(policy)
     for (const [name, t] of [['POSIX', posix], ['CMD', cmdT], ['PS1', ps1T]] as const) {
@@ -290,7 +277,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     check('POSIX honors a pre-set cache dir (operator wins)', posix.includes('[ -z "${NODE_COMPILE_CACHE:-}" ]'))
     check('CMD honors a pre-set cache dir', cmdT.includes('if not defined NODE_COMPILE_CACHE'))
     check('PS1 honors a pre-set cache dir', ps1T.includes('-not $env:NODE_COMPILE_CACHE'))
-
     check(
       'POSIX sets the cache env BEFORE the splash node run (splash parse caches too)',
       posix.indexOf('NODE_COMPILE_CACHE') !== -1 && posix.indexOf('"$node_bin" "$dir/splash.mjs"') !== -1 && posix.indexOf('NODE_COMPILE_CACHE') < posix.indexOf('"$node_bin" "$dir/splash.mjs"'),
@@ -303,7 +289,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       'PS1 sets the cache env BEFORE the splash node run',
       ps1T.indexOf('NODE_COMPILE_CACHE') !== -1 && ps1T.indexOf('& $nodeBin $splashPath') !== -1 && ps1T.indexOf('NODE_COMPILE_CACHE') < ps1T.indexOf('& $nodeBin $splashPath'),
     )
-
     {
       const { WIN32_COMPILE_CACHE_DIR_MAX } = await import('../../src/utils/runtime/compileCachePath.ts')
       check('the bound is the one owner constant (200)', WIN32_COMPILE_CACHE_DIR_MAX === 200)
@@ -314,7 +299,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       check('PS1 bounds the cache path with the owner number', ps1T.includes(`.Length -le ${WIN32_COMPILE_CACHE_DIR_MAX}`))
       check("PS1 honors the \\\\?\\ opt-out", ps1T.includes(".StartsWith('\\\\?\\')"))
       check('POISON gone: PS1 no longer sets the cache unconditionally', !ps1T.includes("$env:NODE_COMPILE_CACHE = Join-Path $saHome 'compile-cache'"))
-
       const under = 'C:/x'.padEnd(200, 'a').slice(0, 200)
       const over = 'C:/x'.padEnd(201, 'a')
       check('the substring gate arithmetic: <=200 passes, >200 trips', under.slice(WIN32_COMPILE_CACHE_DIR_MAX) === '' && over.slice(WIN32_COMPILE_CACHE_DIR_MAX) !== '')
@@ -328,15 +312,12 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   check('POSIX honors the 130 cancel stand-down (via BM-30 exit codes)', posix.includes('[ "$MERCURY_SA_EXIT" = "130" ]'))
   check('POSIX keeps the static wordmark fallback', posix.includes('MERCURY') && posix.includes('printf'))
   {
-
     check('CMD probe reads stdin.isTTY only (stdout is the version channel)', SPLASH_VERSION_TTY_PROBE_JS.includes('process.stdin.isTTY') && !SPLASH_VERSION_TTY_PROBE_JS.includes('process.stdout.isTTY'))
     check('CMD probe prints the version + verdict on ONE line', SPLASH_VERSION_TTY_PROBE_JS.includes('process.versions.node'))
-
     const probeLine = cmdT.split('\r\n').find(l => l.includes('"%NODEBIN%" -e') && l.includes('process.stdin.isTTY')) ?? ''
     check('CMD probe line exists (plain command line, temp-file capture)', probeLine !== '' && probeLine.includes('>"%MERCURY_PROBE_OUT%"'))
     check('AR-01 ratchet: NO for /f line re-parses a command containing node/argv', cmdT.split('\r\n').filter(l => l.includes('for /f')).every(l => !l.includes('node') && !l.includes('%*')))
     check('CMD probe output is consumed first-line-only from the temp file (usebackq)', cmdT.includes('for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%")'))
-
     const nodeELines = cmdT.split('\r\n').filter(l => l.includes('"%NODEBIN%" -e'))
     check('CMD has exactly ONE pre-app node -e probe (version+tty merged)', nodeELines.filter(l => !l.includes('?1049l')).length === 1)
     check(
@@ -366,7 +347,6 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
 
 section('(7) POSIX chain — skip laws both directions (pipes + a real PTY)')
 {
-
   const chainDir = join(base, 'chain app')
   const chainHome = join(base, 'chain home')
   const projectDir = join(base, 'picked project')
@@ -414,14 +394,12 @@ if (mode === 'handoff') {
       ...process.env,
       PATH: `${shimDir}:${process.env.PATH}`,
       FAKE_NODE_VERSION: NODE_SUPPORT.minimum,
-
       MERCURY_CONFIG_DIR: chainHome,
       MERCURY_HOME: chainHome,
       MERCURY_HOME: chainHome,
       MERCURY_TEST_PROJECT: projectDir,
       ...extra,
     }
-
     for (const k of ['MERCURY_NO_BANNER', 'MERCURY_SPLASH', 'MERCURY_FULLSCREEN', 'MERCURY_ALT_HELD']) {
       if (!(k in extra)) delete env[k]
     }
@@ -434,7 +412,6 @@ if (mode === 'handoff') {
     rmSync(join(chainHome, 'splash-action.txt'), { force: true })
   }
   const lastJson = (out: string): { args: string[]; cwd: string; alt: string; handoff: string; launchId: string } | null => {
-
     const lines = out
       .split(/\r?\n/)
       .map(l => {
@@ -449,7 +426,6 @@ if (mode === 'handoff') {
       return null
     }
   }
-
   const runPty = (args: string[], env: NodeJS.ProcessEnv): { out: string; status: number | null } => {
     const py = [
       'import pty, sys, os',
@@ -477,7 +453,6 @@ if (mode === 'handoff') {
   if (ptyProbe.status === null || ptyProbe.out.trim() === '') {
     console.log('  [SKIP] python3 pty unavailable — the PTY legs need a real tty minting harness')
   } else {
-
     check('pty --version: splash skipped (flag law)', !splashRan())
     const jv = lastJson(ptyProbe.out)
     check('pty --version: forwarded', jv !== null && jv.args.length === 1 && jv.args[0] === '--version', ptyProbe.out.slice(0, 120))
@@ -572,7 +547,6 @@ if (mode === 'handoff') {
 
 section('(8) the skip-verb set DERIVES from the product\'s registered verb surface (FN-015 rank 7)')
 {
-
   const repo = join(import.meta.dir, '..', '..')
   const mainTsx = readFileSync(join(repo, 'src', 'main.tsx'), 'utf8')
   const cliTsx = readFileSync(join(repo, 'src', 'entrypoints', 'cli.tsx'), 'utf8')
@@ -584,7 +558,6 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     const surface = derive(mainTsx, cliTsx)
     const names = surface.commands.map(c => c.name)
     const aliases = surface.commands.flatMap(c => c.aliases)
-
     const rawSites = (mainTsx.match(/\bprogram\s*\.command\('/g) ?? []).length
     const loopBlock = /for \(const \[name, (?:description, )?usage\] of \[([\s\S]*?)\] as const\)/.exec(mainTsx)
     const rawLoopRows = loopBlock ? (loopBlock[1]!.match(/^\s*\['/gm) ?? []).length : 0
@@ -601,14 +574,12 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     }
     check('every registered name and alias is in the skip set (nothing registered can meet the enter screen)', [...names, ...aliases].every(v => SPLASH_SKIP_VERBS.includes(v)))
     check('no unregistered word rides the skip set (completion · error · export · log · task · up were never verbs)', ['completion', 'error', 'export', 'log', 'task', 'up'].every(v => !SPLASH_SKIP_VERBS.includes(v)))
-
     const posixT = posixLauncher(policy)
     const cmdGen = cmdLauncher(policy)
     const ps1Gen = ps1Launcher(policy)
     check('POSIX launcher case arm carries the derived set', posixT.includes(`${derived.join('|')}) MERCURY_TAKEOVER=0 ;;`))
     check('CMD launcher for-loop carries the derived set', cmdGen.includes(`for %%v in (${derived.join(' ')}) do`))
     check('PS1 launcher array carries the derived set', ps1Gen.includes(`@(${derived.map(v => `'${v}'`).join(',')})`))
-
     const ops = readFileSync(join(repo, 'scripts', 'ops', 'launcher-mercury.sh'), 'utf8')
     const opsArm = /^\s*([a-z-]+(?:\|[a-z-]+)+)\) MERCURY_TAKEOVER=0 ;;/m.exec(ops)
     const opsVerbs = opsArm ? opsArm[1]!.split('|').sort() : []

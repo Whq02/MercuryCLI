@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 
 type Package = { name: string; version: string; license?: string }
 const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
-export const lockedForms = (bytes: Buffer): Buffer[] => [bytes, Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')]
+const lockedForms = (bytes: Buffer): Buffer[] => [bytes, Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')]
 export async function vendorDocumentLibraries(root: string, output: string) {
   const lockPath = join(root, 'vendor/document-libs.lock.json')
   const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { packages: { name: string; version: string; license: string }[]; licenceSources: { name: string; version: string; file: string; sha256: string; url: string }[] }

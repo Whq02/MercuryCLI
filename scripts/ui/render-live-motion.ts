@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -9,7 +8,6 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BIN = join(root, 'dist', 'mercury.mjs')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 const VSHOT = join(root, 'scripts', 'ui', 'vshot.py')
 
@@ -39,7 +37,6 @@ writeFileSync(
   cfg,
   JSON.stringify({
     argv: ['node', BIN, '--allowed-tools', `Bash(${SLEEP_CMD})`],
-
     sends: [
       { atTick: 32, data: PROMPT.replace(/\n/g, ' ') },
       { atTick: 36, data: '\r' },
@@ -51,7 +48,6 @@ writeFileSync(
     title: 'live motion — mid-tool',
   }),
 )
-
 execFileSync('sleep', ['4'])
 execFileSync('/usr/bin/python3', [VSHOT, cfg], {
   encoding: 'utf-8',
@@ -59,7 +55,6 @@ execFileSync('/usr/bin/python3', [VSHOT, cfg], {
   env: {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-
     MERCURY_LIVE_GLYPHS: '1',
   },
 })

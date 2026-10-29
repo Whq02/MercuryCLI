@@ -4,15 +4,10 @@ import type { EffortValue } from '../../utils/effort.js'
 import type { SeatNarrowing } from './seatWords.js'
 
 interface CeilingFacts {
-
   seats: number
-
   seatSource: SeatCeilingSource | 'inherited'
-
   delegationBand: 1 | 2 | 3 | null
-
   profileId: string | null
-
   operatorLanes: number | null
 }
 

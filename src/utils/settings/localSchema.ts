@@ -5,6 +5,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { getMercuryHome } from '../envUtils.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
 
+
 export function settingsSchemaLocalPath(): string {
   return join(getMercuryHome(), 'schema', 'settings.schema.json')
 }

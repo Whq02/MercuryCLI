@@ -70,7 +70,6 @@ export default function BashToolResultMessage({
 }
 
 function EmptyRow({ content }: { content: BashResultContent }): React.ReactNode {
-
   const note = content.returnCodeInterpretation
     ? content.returnCodeInterpretation
     : content.noOutputExpected

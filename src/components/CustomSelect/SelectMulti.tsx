@@ -1,3 +1,4 @@
+
 import figures from 'figures'
 import React from 'react'
 import { Box, Text } from '../../ink.js'
@@ -28,7 +29,6 @@ type SelectMultiProps<T = string> = {
   onSubmit?: (values: T[]) => void
   onDownFromLastItem?: () => void
   onUpFromFirstItem?: () => void
-
   initialFocusLast?: boolean
   onOpenEditor?: (value: string, setValue: (value: string) => void) => void
   onImagePaste?: (
@@ -39,11 +39,8 @@ type SelectMultiProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
-
   onEmptyInputSubmit?: (value: T) => void
-
   onTabOut?: (direction: 'next' | 'previous') => void
-
   onSubmitFocusChange?: (focused: boolean) => void
 }
 
@@ -70,7 +67,6 @@ export function SelectMulti<T = string>({
   onTabOut,
   onSubmitFocusChange,
 }: SelectMultiProps<T>): React.ReactNode {
-
   const hasSubmitButton = Boolean(submitButtonText) && Boolean(onSubmit)
   const state = useMultiSelectState({
     visibleOptionCount,
@@ -107,7 +103,6 @@ export function SelectMulti<T = string>({
     <Box flexDirection="column">
       <PopupListViewport above={state.visibleFromIndex} below={optionCount - state.visibleToIndex} rows={visible.length}>
       {visible.map((option, position) => {
-
         const isFocused =
           !isDisabled &&
           !state.isSubmitFocused &&
@@ -127,7 +122,6 @@ export function SelectMulti<T = string>({
               )
 
         if (isInputOption(option)) {
-
           return (
             <Box
               key={String(option.value)}

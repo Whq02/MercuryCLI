@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -70,7 +69,6 @@ if (probe.status !== 0) {
 
 await manager.openFile(mainRs, readFileSync(mainRs, 'utf8'))
 const uri = pathToFileURL(mainRs).href
-
 let definition: unknown = null
 for (let i = 0; i < 40; i++) {
   definition = await manager

@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 
 import { Text } from '../../ink.js'
@@ -55,9 +56,7 @@ export function renderWorkflowToolUseMessage(
 }
 
 function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
-
   const task = useFocusedWorkRows().find(r => r.id === taskId && r.kind === 'workflow')
-
   const live = task !== undefined && workRowRuns(task)
   const nowMs = useNowTick(live ? 10_000 : null)
 
@@ -75,7 +74,6 @@ function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
     task.status === 'failed' ||
     task.status === 'killed'
   if (task.status === 'paused') {
-
     return (
       <Text>
         <Text color={AMBER}>{GLYPH.fisheye} </Text>
@@ -87,7 +85,6 @@ function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
   }
   if (!settled) {
     const asks = task.pendingAsks ?? 0
-
     const pulse = task.pulse ? workflowPulseAt(task.pulse, nowMs) : null
     const agentCount = task.agentCount ?? 0
     const totalTokens = task.totalTokens ?? 0
@@ -111,8 +108,7 @@ function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
           </>
         )}
         {clauses.length > 0 ? <Text color={FAINT}>{clauses.join(' · ')} · </Text> : null}
-        {
-}
+        {}
         {pulse !== null ? (
           <>
             <Text color={pulse.moving ? FAINT : AMBER}>

@@ -9,6 +9,7 @@ import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
 import { settledStopSentence } from './stopSettlement.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
+
 const KILL_SHELL_ALIAS = 'KillShell'
 
 const DESCRIPTION = 'Stops a running background task by its id. A task that already finished is answered with how it ended, when, and where its output file is; nothing is stopped and that is not an error.'

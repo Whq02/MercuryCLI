@@ -14,6 +14,7 @@ import type {
 import type { ContentBlockParam, ImageBlockParam, TextBlockParam, ToolResultBlockParam } from '../types/wire.js'
 import { expandPath } from './path.js'
 
+
 const LARGE_OUTPUT_THRESHOLD = 10_000
 const DEFAULT_LANGUAGE = 'python'
 
@@ -74,7 +75,6 @@ function processCell(cell: NotebookCell, index: number, language: string, includ
   }
   if (cell.cell_type === 'code') {
     if (cell.execution_count) record.execution_count = cell.execution_count
-
     record.language = language
     if (cell.outputs && cell.outputs.length > 0) {
       const processed = cell.outputs.map(processOutput)

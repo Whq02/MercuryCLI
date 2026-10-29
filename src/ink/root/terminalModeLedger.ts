@@ -1,3 +1,4 @@
+
 type TerminalMode =
   | 'alt-screen'
   | 'alternate-scroll'

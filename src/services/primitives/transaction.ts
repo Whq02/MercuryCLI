@@ -1,3 +1,4 @@
+
 import type { OwnerKey } from '../run/ownerKey.js'
 
 export const TRANSACTION_CONTRACT_VERSION = 1
@@ -63,18 +64,13 @@ export interface TransactionRecord {
   version: typeof TRANSACTION_CONTRACT_VERSION
   id: string
   owner: OwnerKey
-
   kind: string
   state: TransactionState
   createdAt: number
   updatedAt: number
-
   inputRefs: string[]
-
   expectedVersions: string[]
-
   executionRef?: string
-
   effectRef?: string
   evidenceRefs: string[]
   resultRefs: string[]

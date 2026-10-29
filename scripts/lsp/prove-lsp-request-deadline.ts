@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { getEventListeners } from 'node:events'
@@ -73,7 +74,6 @@ section('§1 a wedged request settles at its budget, typed, and cancels on the w
   check('…and the server it was waiting on', /deadline-proof/.test(message), message)
   check('…and says it was a wait that ran out, in seconds', /0\.7s|700ms/.test(message) && /answer/i.test(message), message)
   check('the failure is typed (name LspRequestTimeout), never a bare Error', failure instanceof Error && failure.name === 'LspRequestTimeout', failure instanceof Error ? failure.name : 'not an Error')
-
   check('the server received a $/cancelRequest for the abandoned request', (await cancelsSeen(server)) >= 1, 'no cancel reached the wire')
   await server.stop().catch(() => undefined)
 }

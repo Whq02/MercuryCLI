@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/Tool.ts src/bootstrap/state.ts src/cli/headless/runnerAsks.ts src/runner/wire/* src/utils/cwd.ts
+// gate-watch: src/utils/permissions/** src/tools/BashTool/** src/tools/FileWriteTool/FileWriteTool.ts src/tools/FileEditTool/FileEditTool.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

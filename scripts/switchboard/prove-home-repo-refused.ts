@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, parse } from 'node:path'
@@ -19,7 +18,6 @@ writeFileSync(join(HOME_FX, 'notes.txt'), 'home\n')
 writeFileSync(join(DESKTOP, 'todo.txt'), 'desk\n')
 writeFileSync(join(PROJ, 'README.md'), '# proj\n')
 writeFileSync(join(PROJ, 'src', 'a.txt'), 'hello\n')
-
 const BULK_FILES = Number(process.env.MERCURY_HOMEREPO_BULK_FILES ?? '20500')
 {
   const perDir = 500

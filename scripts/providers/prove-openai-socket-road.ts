@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/providers/openai/openaiSocketTransport.ts src/services/providers/openai/openaiClient.ts src/services/providers/openai/openaiCallModel.ts src/utils/settings/types.ts docs/SETTINGS.md scripts/settings/settings-schema.json
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'

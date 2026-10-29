@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/journal.ts src/mneme/sessionClose.ts src/mneme/ledger.ts src/mneme/paths.ts src/mneme/handoffAsk.ts src/mneme/entryPage.ts src/constants/prompts.ts
+// gate-watch: src/tools/JournalTool/** src/tools.ts src/constants/tools.ts src/utils/settings/types.ts
+// gate-watch: src/components/Settings/Config.tsx src/utils/settings/schemaOutput.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'

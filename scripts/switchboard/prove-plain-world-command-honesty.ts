@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,7 +65,6 @@ const child = spawn(
   {
     cwd,
     env: {
-
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -131,9 +129,7 @@ check(
   '§1 the honest plain-world sentence paints (the router speaks)',
   /opens a Session Concourse surface/.test(joined) && /off in this boot/.test(joined),
 )
-
 check('§2 POISON: the headless-form refusal never paints', !/no headless form/.test(joined))
-
 const projectsDir = join(configDir, 'projects')
 let transcriptBytes = ''
 if (existsSync(projectsDir)) {
@@ -149,14 +145,11 @@ check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
   !transcriptBytes.includes('/crew') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
 )
-
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
-
 const titleRows = joined.split('\n').filter(r => /✶ VIEW/.test(r))
 const statusRows = joined.split('\n').filter(r => /^ ?ready · |· thinking|· running a tool|· replying|esc interrupts/.test(r))
 check('§3c no title row paints and "new session" is nowhere after the first words; the status row leads with the model and its effort while a turn runs and rests on ready · the model · the effort, the folder at its right end', titleRows.length === 0 && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith('Opus 5.5 · ') || r.trimStart().startsWith('ready · Opus 5.5')) && statusRows.some(r => new RegExp(`^ ?ready · Opus 5\\.5 · \\S+ {2,}${basename(cwd)}(?: ⌥ \\S+)? {2}`).test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
-
 const typedNeedle = /(?<![:/\w])\/crew\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
 check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)

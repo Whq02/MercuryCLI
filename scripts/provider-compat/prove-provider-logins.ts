@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -51,7 +50,6 @@ type Hit = { path: string; bearer: string | undefined; body: string }
 let hits: Hit[] = []
 let tokenPosts: Hit[] = []
 let deviceStarts = 0
-
 let deviceLadder: Array<'pending' | 'slow_down' | 'ok' | 'access_denied'> = ['ok']
 let deviceLadderAt = 0
 let deviceExpiresIn = 300
@@ -240,7 +238,6 @@ const allText = (): string => JSON.stringify(deriveFamilySlotGroups()) + JSON.st
 section('§0 · the card and the vocabulary')
 {
   const card = readFileSync(join(import.meta.dir, '../../src/components/ConsoleOAuthFlow.tsx'), 'utf8')
-
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const rows = loginFamilyRows({ engineLegs: true })
   check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'))
@@ -259,7 +256,6 @@ section('§0 · the card and the vocabulary')
       parseFamilyFocus('HuggingFace') === 'huggingface' && parseFamilyFocus(undefined) === undefined &&
       parseFamilyFocus('unknown-word') === undefined,
   )
-
   const machine = readFileSync(
     join(import.meta.dir, '../../src/components/mercury-ui/screens/anthropicLoginModel.ts'),
     'utf8',
@@ -313,7 +309,6 @@ section('§1 · the Kimi device-code sign-in, end to end')
   check('the presence owner reads the Kimi sign-in (the adapter account)', moonshotPresence?.credentialed === true && moonshotPresence.credentialLabel?.startsWith('Kimi account (device-code sign-in') === true, JSON.stringify(moonshotPresence))
   const identity = mainLoopIdentity({ model: 'kimi-k3', presences })
   check('the main-loop identity on a Kimi model names the sign-in', identity.route === 'moonshot' && identity.text.includes('Kimi account (device-code sign-in') && identity.basis === 'credential-present', identity.text)
-
   const usage = activeSourceUsage({ model: 'kimi-k3', reads: {} })
   check('the usage owner meters the plan windows on the oauth source', usage.shape === 'subscription-windows' && usage.sourceKind === 'oauth' && usage.tier === 'Kimi sign-in' && usage.windows.map(w => w.label).join(',') === '5h,7d,quota' && usage.windows[0]?.usedPct === 1, JSON.stringify(usage))
   check('the same device sign-in usage read includes its Extra Usage balance and stamp', usage.credits?.state === 'reported' && usage.credits.display === 'USD 12.34 Extra Usage balance' && usage.credits.observedAtMs === usage.windows[0]?.observedAtMs, JSON.stringify(usage.credits))
@@ -407,7 +402,6 @@ section('§3 · the GLM (Z.AI) key leg — the plan travels with the key')
   check('a turn dispatches with the stored key on the pinned base', turn.errors.length === 0 && turn.settled.length > 0 && chatHits().length === 1 && chatHits()[0]?.path === '/zai/v4/chat/completions' && chatHits()[0]?.bearer === ZAI_KEY, JSON.stringify(chatHits()))
   const general = await storeZaiApiKeyLogin(ZAI_KEY_2, 'general')
   check('a general key clears the plan', general.ok && secrets.readStoredZaiKeyPlan() === undefined && resolveZaiDispatch()?.plan === 'general' && general.receipt.includes('Z.AI API key (general) stored'), general.receipt)
-
   process.env.ZAI_API_KEY = 'zai-fixture-env-key-000003'
   chatAnswers = [{ status: 401, body: { error: { message: 'invalid key', code: 1002 } } }]
   const envTurn = await drive('glm-5.2')
@@ -433,7 +427,6 @@ section('§4 · the DeepSeek key leg')
   check('a turn dispatches with the stored key', turn.errors.length === 0 && turn.settled.length > 0 && chatHits().length === 1 && chatHits()[0]?.path === '/deepseek/chat/completions' && chatHits()[0]?.bearer === DS_KEY, JSON.stringify(chatHits()))
   const usage = activeSourceUsage({ model: 'deepseek-v4-pro', reads: {} })
   check('the usage owner reads the key with the provider-stated balance', usage.shape === 'api-spend' && usage.balance?.display === 'USD 42.50', JSON.stringify(usage))
-
   process.env.DEEPSEEK_API_KEY = 'sk-deepseek-env-key-000002'
   chatAnswers = [{ status: 401, body: { error: { message: 'Authentication Fails', type: 'authentication_error' } } }]
   const envTurn = await drive('deepseek-v4-pro')

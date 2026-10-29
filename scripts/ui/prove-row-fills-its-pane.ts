@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -146,7 +145,6 @@ async function paint(reprovide: boolean): Promise<string> {
 }
 
 type Cell = { ch: string; styled: boolean }
-
 function cellsOf(line: string): Cell[] {
   const cells: Cell[] = []
   const on = new Set<string>()
@@ -196,7 +194,6 @@ function cellsOf(line: string): Cell[] {
   }
   return cells
 }
-
 function escapes(frame: string, limit: number): Array<{ row: number; col: number; ch: string; styled: boolean }> {
   const out: Array<{ row: number; col: number; ch: string; styled: boolean }> = []
   frame.split('\n').forEach((line, row) => {
@@ -234,14 +231,12 @@ section('§1 the law: a diff row under a 60-column pane on a 120-column render s
   check('no styled byte and no glyph past column 60 on any diff row (the band and the rules fill the pane, never the terminal)', onDiff.length === 0, `${onDiff.length} escaped cell(s): ${JSON.stringify(onDiff.slice(0, 6))} — ${[...new Set(onDiff.map(o => o.row))].map(r => `row ${r}: ${rowText(r)}`).join(' | ')}`)
   const widest = [...diffRows].reduce((w, r) => Math.max(w, stringWidth((lines[r] ?? '').replace(/\s+$/, ''))), 0)
   check('the widest diff row fits the pane', widest <= PANE_COLUMNS, `widest diff row ${widest} > ${PANE_COLUMNS}`)
-
   const elsewhere = [...new Set(out.filter(o => !diffRows.has(o.row)).map(o => o.row))]
   for (const r of elsewhere) console.log(`  [NOTE] a non-diff row leaves the pane — row ${r}: ${rowText(r)}`)
 }
 
 section('§1b the rules: the consent card\'s diff under the same pane frames itself inside it')
 {
-
   const { FileEditToolDiff } = await import('../../src/components/FileEditToolDiff.tsx')
   const card = h(FileEditToolDiff as never, { file_path: FILE, edits: [{ old_string: 'a + b + 0', new_string: 'a + b' }] })
   const tree = h(
@@ -276,12 +271,9 @@ section('§3 the census: every transcript-row host, and every narrower host re-p
     .split('\n')
     .filter(Boolean)
     .sort()
-
   const FULL_WIDTH = ['src/components/CrewmateTranscript.tsx', 'src/components/Messages.tsx', 'src/screens/Chat.tsx', 'src/utils/exportRenderer.tsx']
   const NARROWER: Array<{ file: string; measure: RegExp }> = [
-
     { file: 'src/components/concourse/SessionMirror.tsx', measure: /columns:\s*paneWidth,\s*rows:\s*paneRows/ },
-
     { file: 'src/components/SessionPreview.tsx', measure: /columns:\s*Math\.max\(\d+,\s*columns\s*-\s*4\)/ },
   ]
   const inventory = [...FULL_WIDTH, ...NARROWER.map(n => n.file)].sort()

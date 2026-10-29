@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -30,7 +29,6 @@ console.log(' Workflow honesty riders — 429 backoff visible · real attempts')
 console.log('============================================================')
 
 const fixture = await startWorkflowAgentFixture({ port: 0, throttle: { lane: 'anthropic', times: 2, retryAfterSec: 2 },
-
   latencyMs: { anthropic: 700 } })
 
 const CHILD = String.raw`

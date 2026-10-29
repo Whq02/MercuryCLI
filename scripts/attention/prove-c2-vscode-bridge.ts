@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -128,7 +127,6 @@ t.section('§3 usageWireOf — LAST-round-trip occupancy, model-true window')
   t.check(
     'occupancy stays inside the window for a realistic multi-tool turn (the >100% class is dead)',
     (() => {
-
       const last = usageWireOf(
         { input_tokens: 60_010, cached_input_tokens: 59_000, cache_write_input_tokens: 800, output_tokens: 1_550 },
         'definitely-unknown-model-id',
@@ -243,7 +241,6 @@ t.section('§4b attentionWireFromSnapshot — the ACP route is the bridge fold, 
     'the spawned-by edge crosses',
     wire.edges.some(e => e.kind === 'spawned-by' && e.from === 'thread:th-9'),
   )
-
   const src = readFileSync('src/services/acp/acpServer.ts', 'utf8')
   t.check(
     'the ACP handler folds the snapshot (no store arm in the server)',
@@ -255,7 +252,6 @@ t.section('§5 VS Code extension: no webview-only truth (RV-28)')
 {
   const src = readFileSync('integrations/vscode/extension.js', 'utf8')
   const requires = [...src.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map(m => m[1]!)
-
   const allowed = new Set(['vscode', 'node:child_process', 'node:http', 'node:fs', 'node:os', 'node:path', 'node:crypto'])
   const foreign = requires.filter(r => !allowed.has(r))
   t.check(

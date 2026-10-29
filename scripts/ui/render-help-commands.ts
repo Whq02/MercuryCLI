@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -14,7 +13,6 @@ for (const cols of [80, 120]) {
     execFileSync(BUN, ['run', join(ROOT, 'scripts/ui/render-tui.ts'), '--scenario', 'help-commands', '--cols', String(cols), '--out', `/tmp/tui-help-commands-${cols}.png`], {
       cwd: ROOT, env, stdio: 'pipe', timeout: 150000,
     })
-
     const grid = JSON.parse(readFileSync(`/tmp/grid-${cols}.json`, 'utf8')) as { grid: Array<Array<{ c: string }>> }
     const text = grid.grid.map(row => row.map(cell => cell.c).join('')).join('\n')
     const ok = text.includes('crew & delegation')

@@ -24,11 +24,10 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
+
 interface BootHealthScreenProps {
   onClose?: () => void;
-
   fullScene?: { columns: number; rows: number };
-
   certificate?: Cert;
 }
 
@@ -407,7 +406,6 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
               total: progress?.total ?? 0,
               current: progress?.current ?? '',
             }));
-
     if (trailOpen && selected !== null) {
       return {
         entries: healthTrailEntries(selected.check),
@@ -430,7 +428,6 @@ export function BootHealthScreen({ onClose, fullScene, certificate: given }: Boo
     const fixable = selected !== null && healthFixEnabled() && isFixable(selected.check);
     return {
       entries,
-
       selIdx: selected !== null ? nextCount + list.selectedIndex : -1,
       title: 'health check',
       summaryTitle: 'CERTIFICATE',

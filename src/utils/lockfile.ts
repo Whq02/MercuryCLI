@@ -6,7 +6,6 @@ let cached: LockfileModule | null = null
 
 function load(): LockfileModule {
   if (!cached) {
-
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     cached = require('proper-lockfile') as LockfileModule
   }

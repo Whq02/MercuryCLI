@@ -1,3 +1,4 @@
+
 import { tokenizeAnsi, type AnsiToken } from '../../src/render-engine/ansiText.js'
 import { firstUnlawfulGlyph, textIsDemoLawful } from './demoAlphabet.js'
 
@@ -48,13 +49,9 @@ interface StrictVerdict {
 }
 
 interface StrictRules {
-
   allowedFinals: Set<string>
-
   allowedModes: Set<string>
-
   allowedC0: Set<number>
-
   allow2026: boolean
 }
 
@@ -140,7 +137,6 @@ export function verifyStream(out: Buffer, rules: StrictRules): StrictVerdict {
         break
       }
       case 'truncated': {
-
         if (i !== tokens.length - 1) {
           v.malformed++
           offend(`mid-stream truncation ${show(t.raw)}`)

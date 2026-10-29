@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let pass = 0
@@ -32,7 +31,6 @@ console.log('owner descriptor laws')
   check('project owner never collides with a session key', proj !== session)
   const mach = P.machineOwner()
   check('machine owner scope', P.describeOwner(mach).scope === 'machine')
-
   const lane = P.makeOwnerKey({ workspace: '/w', sessionId: 's1', lane: 'side', querySource: '' })
   check('non-agent lane scope derived with parent', P.describeOwner(lane).scope === 'lane')
 }
@@ -61,7 +59,6 @@ console.log('execution graph laws')
   check('queued cannot jump to running', !P.canTransitionExecution('queued', 'running'))
   check('succeeded cannot resurrect', !P.canTransitionExecution('succeeded', 'running'))
   check('running is never unavailable', !P.canTransitionExecution('running', 'unavailable'))
-
   const nonTerminal = P.EXECUTION_STATES.filter(s => !P.isTerminalExecutionState(s))
   const reachesTerminal = (start: P.ExecutionState): boolean => {
     const seen = new Set<P.ExecutionState>([start])

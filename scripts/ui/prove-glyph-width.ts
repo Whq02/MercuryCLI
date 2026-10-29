@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { GLYPH, SPARK } from '../../src/components/mercury-ui/glyphs.js'
 import { charWidth, displayWidth, padTo } from '../../src/components/mercury-ui/glyphs.js'
 import { stringWidth } from '../../src/ink/stringWidth.js'
@@ -34,7 +33,6 @@ const wideSpark = SPARK.filter(c => stringWidth(c) !== 1)
 check('every SPARK cell is width-1', wideSpark.length === 0, wideSpark.length ? wideSpark.join(' ') : `all ${SPARK.length} cells width-1`)
 
 section('charWidth/displayWidth delegate to the canonical stringWidth (no parallel system)')
-
 for (const s of ['a', GLYPH.ok, GLYPH.fail, '世', 'café', '👨‍👩‍👧', '']) {
   check(`charWidth("${s}") === stringWidth`, charWidth(s.length ? [...s][0]! : '') === stringWidth(s.length ? [...s][0]! : ''))
   check(`displayWidth("${s}") === stringWidth("${s}")`, displayWidth(s) === stringWidth(s))
@@ -50,7 +48,6 @@ check('a VS16 emoji presentation measures width-2', stringWidth('✳️') === 2)
 check('ambiguous-as-narrow contract holds: ● is width-1 here (Ink agrees)', stringWidth('●') === 1)
 
 section('E1 (WG-3): Cf format characters occupy NO cell, both paths')
-
 check('LRM/RLM are zero (native route)', stringWidth('‎') === 0 && stringWidth('‏') === 0)
 check('embeddings/overrides are zero (native route refused, corrected path)', stringWidth('‪') === 0 && stringWidth('‮') === 0)
 check('isolates and ALM are zero', stringWidth('⁦') === 0 && stringWidth('⁩') === 0 && stringWidth('؜') === 0)

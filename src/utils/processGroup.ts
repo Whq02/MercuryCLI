@@ -3,13 +3,13 @@ import type { ChildProcess } from 'child_process'
 import { existsSync } from 'node:fs'
 import { win32 as pathWin32 } from 'node:path'
 
+
 export type ProcessTreeKillReceipt = {
   ended: number
   survivors: number[]
 }
 
 const REAP_BOUND_MS = 800
-
 const REAP_POLL_MS = 40
 const MSYS_TABLE_BOUND_MS = 800
 const MSYS_SWEEP_ROUNDS = 3
@@ -140,7 +140,6 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
 async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<ProcessTreeKillReceipt> {
   const table = await listPosixProcessTable()
   const rootRow = table.find(row => row.pid === pid)
-
   const groupPgid = rootRow !== undefined && rootRow.pgid === pid ? pid : undefined
   const targets =
     table.length > 0
@@ -295,11 +294,9 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
   const { file, args } = win32TaskkillCommand(pid)
   const stdout = await new Promise<string>(resolve => {
     execFile(file, args, { windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (_error, out) => {
-
       resolve(typeof out === 'string' ? out : String(out ?? ''))
     })
   })
-
   const acted = taskkillActedPids(stdout)
   if (msysPs !== undefined && before.length > 0) {
     for (const swept of await sweepMsysTree(msysPs, before, [pid, ...acted])) {
@@ -313,7 +310,6 @@ async function endWin32Tree(pid: number, spawnfile?: string): Promise<ProcessTre
     await sleep(REAP_POLL_MS)
     remaining = remaining.filter(isAlivePid)
   }
-
   const ended = acted.filter(actedPid => !remaining.includes(actedPid)).length
   return { ended, survivors: remaining }
 }
@@ -328,7 +324,6 @@ export async function endProcessTree(
   try {
     return process.platform === 'win32' ? await endWin32Tree(pid, spawnfile) : await endPosixTree(pid, signal)
   } catch {
-
     if (typeof target !== 'number') {
       try {
         target.kill(signal)

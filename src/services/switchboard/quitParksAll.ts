@@ -2,7 +2,6 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 
 const SEAT_BY = `operator:${process.pid}`
-
 const PARK_ALL_BUDGET_MS = 1500
 
 let armed = false

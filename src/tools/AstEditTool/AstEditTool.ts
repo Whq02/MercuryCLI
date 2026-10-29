@@ -59,6 +59,7 @@ import {
   renderToolUseRejectedMessage,
 } from './UI.js'
 
+
 const inputSchema = z.strictObject({
   pattern: z
     .string()
@@ -82,7 +83,6 @@ type Output = {
   pattern: string
   rewrite: string
   scope: string
-
   text: string
   plan?: string
   matchCount: number
@@ -197,7 +197,6 @@ export const AstEditTool = buildTool({
   },
   inputSchema,
   outputSchema,
-
   isEnabled() {
     return structurePolyglotEnabled() && resolveGrammarEngineDir().state === 'ok'
   },
@@ -286,20 +285,16 @@ export const AstEditTool = buildTool({
   },
   async checkPermissions(input: Input, context): Promise<PermissionDecision> {
     const permCtx = context.getAppState().toolPermissionContext
-
     if (input.apply !== true) {
       return checkReadPermissionForTool(AstEditTool, input, permCtx) as PermissionDecision
     }
-
     let planned: { scope: AstScope; plan: AstRewritePlan }
     try {
       planned = await planFor(input, context)
     } catch {
-
       return { behavior: 'allow', updatedInput: input } as PermissionDecision
     }
     const targets = planned.plan.files
-
     if (targets.length === 0 || input.plan?.trim() !== planned.plan.token) {
       return { behavior: 'allow', updatedInput: input } as PermissionDecision
     }

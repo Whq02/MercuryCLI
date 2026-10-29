@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -30,7 +29,6 @@ t.section('Journey F — the shelf surface is bound (RV-15/16)')
 {
   const { readFileSync } = await import('node:fs')
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')
-
   t.check(
     "the Action Graph names no 'composer:shelf' surface (retired with the board)",
     !/['"]composer:shelf['"]/.test(ag),

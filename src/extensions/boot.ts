@@ -12,6 +12,7 @@ import { logAct } from './records.js'
 import { bootExtensions, reloadExtensions, type ReloadResult } from './reload.js'
 import { activeEntries } from './roster.js'
 
+
 let bootPromise: Promise<ReloadResult> | null = null
 
 export function ensureExtensionsLoaded(options: { cwd?: string } = {}): Promise<ReloadResult> {
@@ -29,6 +30,7 @@ export function noteReloaded(result: Promise<ReloadResult>): void {
 
 export { reloadExtensions }
 
+
 const RETIRED_FOLDER = ['plug', 'ins'].join('')
 
 function reconcileRetiredState(home: string = getMercuryHome()): { removed: string | null } {
@@ -45,6 +47,7 @@ function reconcileRetiredState(home: string = getMercuryHome()): { removed: stri
     return { removed: null }
   }
 }
+
 
 let pending = false
 const pendingListeners = new Set<(pending: boolean) => void>()
@@ -85,6 +88,7 @@ export function installExtensionsChangeSubscription(): void {
     setExtensionsPending(true)
   })
 }
+
 
 type ExtensionsHealthRow = HealthSummary & { problems: string[]; brokenReasons: Array<{ id: string; reason: string }> }
 

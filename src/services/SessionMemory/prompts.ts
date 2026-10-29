@@ -38,6 +38,7 @@ _Any specific artefact the user asked for, reproduced here exactly._
 _A terse step-by-step record of what was attempted and what was done._
 `
 
+
 function overridePath(fileName: string): string {
   return join(getMercuryHome(), 'session-memory', 'config', fileName)
 }
@@ -57,6 +58,7 @@ function loadOverrideOr(fileName: string, fallback: string): string {
 async function loadSessionMemoryTemplate(): Promise<string> {
   return loadOverrideOr('template.md', DEFAULT_SESSION_MEMORY_TEMPLATE)
 }
+
 
 export async function isSessionMemoryEmpty(content: string): Promise<boolean> {
   const template = await loadSessionMemoryTemplate()
@@ -96,7 +98,6 @@ export function truncateSessionMemoryForCompact(content: string): {
   for (let index = 0; index < lines.length; index++) {
     if (/^#\s/.test(lines[index])) {
       if (sectionStart === -1) {
-
         output.push(...lines.slice(0, index))
       } else {
         emitSection(index)

@@ -39,13 +39,9 @@ export interface DurablePublishFailureDetail {
 }
 
 export class DurablePublishError extends Error {
-
   public readonly fsCode: string | undefined
-
   public readonly attempts: number
-
   public readonly elapsedMs: number
-
   public readonly tempCleanup: TempCleanupOutcome
   constructor(
     public readonly phase: PublishFailurePhase,
@@ -78,7 +74,6 @@ function errnoOf(e: unknown): string | undefined {
 }
 
 export interface DurablePublishOptions {
-
   mode?: number
   parent?: 'create' | 'must-stand'
 }
@@ -97,6 +92,7 @@ export function durableTempName(path: string): string {
 export function isDurableTempName(name: string): boolean {
   return TEMP_PATTERN.test(name)
 }
+
 
 export const WIN32_RENAME_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200]
 
@@ -126,13 +122,12 @@ function isReadOnlyDestination(to: string): boolean {
   }
 }
 
-export interface DurablePublishHealth {
 
+export interface DurablePublishHealth {
   budgetExhausted: {
     count: number
     last: { path: string; fsCode?: string; attempts: number; elapsedMs: number; atMs: number } | null
   }
-
   retriedSuccesses: {
     count: number
     last: { path: string; attempts: number; elapsedMs: number; atMs: number } | null
@@ -158,7 +153,6 @@ export function durablePublishHealth(): DurablePublishHealth {
 }
 
 function noteBudgetExhausted(path: string, fsCode: string | undefined, attempts: number, elapsedMs: number): void {
-
   if (!isTransientWin32FsCode(fsCode) || attempts <= 1) return
   publishHealth.budgetExhausted.count += 1
   publishHealth.budgetExhausted.last = { path, fsCode, attempts, elapsedMs, atMs: Date.now() }
@@ -307,7 +301,6 @@ export async function durableAtomicPublish(
     await fh.close()
     fh = null
     phase = 'rename'
-
     for (;;) {
       renameAttempts++
       try {
@@ -321,7 +314,6 @@ export async function durableAtomicPublish(
       }
     }
   } catch (e) {
-
     if (fh) await fh.close().catch(() => {})
     const tempCleanup: TempCleanupOutcome = await unlink(tmp).then(
       () => 'removed' as const,
@@ -335,7 +327,6 @@ export async function durableAtomicPublish(
       tempCleanup,
     })
   }
-
   if (fsyncEnabled()) {
     try {
       faultPoint('flush-dir', path)
@@ -390,7 +381,6 @@ export function durableAtomicPublishSync(
     closeSync(fd)
     fd = null
     phase = 'rename'
-
     for (;;) {
       renameAttempts++
       try {

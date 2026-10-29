@@ -7,13 +7,9 @@ export function workRowRuns(row: WorkRowV1): boolean {
 }
 
 export interface WorkCountsV1 {
-
   workflows: number
-
   agents: number
-
   shells: number
-
   asks: number
 }
 

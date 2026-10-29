@@ -1,13 +1,12 @@
+
 import type { ObligationV1 } from '../crew/obligations.js'
+
 
 type CoordinatorMode = 'off' | 'rules-only' | 'agent-assisted'
 
 export interface CoordinatorModeResolution {
-
   requested: CoordinatorMode
-
   effective: CoordinatorMode
-
   fallbackReason?: string
 }
 
@@ -16,6 +15,7 @@ export function resolveCoordinatorMode(requested: CoordinatorMode | undefined): 
   return { requested: asked, effective: asked }
 }
 
+
 export type KernelEventV1 =
   | {
       kind: 'dispatch-refused'
@@ -23,24 +23,19 @@ export type KernelEventV1 =
       reason: string
       workspaceDir: string
       promptPreview: string
-
       by?: string
     }
   | {
       kind: 'worker-settled'
       sessionId: string
       runnerId: string
-
       retained?: {
         workspaceId: string
         title: string
         branchName?: string
-
         mainHolderSessionId?: string
-
         batchBranches: string[]
         batchWorkerIds: string[]
-
         worktreePath?: string
         committedAhead?: number
         uncommittedFiles?: string[]
@@ -51,7 +46,6 @@ export type KernelEventV1 =
 export type KernelDecisionV1 =
   | {
       verb: 'attention.raise'
-
       ref: string
       sessionId: string
       question: string
@@ -80,21 +74,18 @@ export type KernelDecisionV1 =
     }
 
 interface KernelFacts {
-
   openObligations: readonly ObligationV1[]
 }
 
 export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): KernelDecisionV1[] {
   switch (event.kind) {
     case 'dispatch-refused': {
-
       if (event.by !== undefined && event.by !== 'operator') return []
       const preview = event.promptPreview.length > 60 ? `${event.promptPreview.slice(0, 60)}…` : event.promptPreview
       return [
         {
           verb: 'attention.raise',
           ref: `kernel:capacity:${event.clientMessageId}`,
-
           sessionId: `dispatch:${event.clientMessageId}`,
           question: `dispatch refused (${event.reason}); draft preserved ("${preview}"). Retry when a seat frees, or withdraw?`,
           owner: 'operator',
@@ -109,12 +100,10 @@ export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): Kernel
           obligationId: o.obligationId,
           reason: `worker ${event.runnerId} ended — the question no longer has a live session`,
         }))
-
       const r = event.retained
       if (r !== undefined) {
         const branches = r.batchBranches.length > 0 ? r.batchBranches : r.branchName !== undefined ? [r.branchName] : []
         if (branches.length > 0) {
-
           const whereBits: string[] = []
           if (r.worktreePath !== undefined) whereBits.push(`worktree ${r.worktreePath}`)
           if (r.committedAhead !== undefined && r.committedAhead > 0) whereBits.push(`${r.committedAhead} commit(s) ahead of main`)
@@ -127,7 +116,6 @@ export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): Kernel
             decisions.push({
               verb: 'session.redirect',
               sessionId: r.mainHolderSessionId,
-
               clientMessageId: `merge-back:${event.sessionId}`,
               by: 'coordinator',
               instruction: `Review and merge ${branchLine} — finished work from "${r.title}". Verify before merging; resolve conflicts thoughtfully.`,
@@ -147,20 +135,17 @@ export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): Kernel
       return decisions
     }
     case 'operator-message':
-
       return []
   }
 }
 
+
 export interface KernelReceiptV1 {
   verb: KernelDecisionV1['verb']
   objectRef: string
-
   outcome: 'applied' | 'noop' | 'refused' | 'failed' | 'queued'
   detail?: string
-
   actorAgentId: string
-
   opId?: string
 }
 
@@ -181,7 +166,6 @@ export function kernelObjectRefOf(d: KernelDecisionV1): string {
 }
 
 export interface KernelDeps {
-
   crewDir?: string
   configDir?: string
 }
@@ -225,7 +209,6 @@ export async function executeKernelDecision(
     }
     case 'session.pause':
     case 'session.resume': {
-
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       const action = decision.verb === 'session.pause' ? 'pause' : 'resume'
       try {
@@ -240,7 +223,6 @@ export async function executeKernelDecision(
           } as never,
           { timeoutMs: 15_000 },
         )) as { ok?: boolean; outcome?: 'applied' | 'noop' | 'refused'; detail?: string; error?: string; code?: string }
-
         const lost = reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN'
         return {
           verb: decision.verb,
@@ -258,7 +240,6 @@ export async function executeKernelDecision(
       }
     }
     case 'session.launch': {
-
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       try {
         const reply = (await daemonControlRpc(
@@ -295,7 +276,6 @@ export async function executeKernelDecision(
       }
     }
     case 'session.redirect': {
-
       const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
       try {
         const reply = (await daemonControlRpc(
@@ -332,7 +312,6 @@ export async function executeKernelDecision(
       }
     }
     case 'obligation.answer': {
-
       if (decision.sessionId.startsWith('dispatch:')) {
         return {
           verb: decision.verb,
@@ -346,7 +325,6 @@ export async function executeKernelDecision(
       let delivered = false
       let detail = ''
       try {
-
         let clientMessageId = decision.clientMessageId
         for (let hop = 0; hop < 5; hop++) {
           const reply = (await daemonControlRpc(
@@ -366,7 +344,6 @@ export async function executeKernelDecision(
             continue
           }
           if (reply.ok !== true && (reply.code === 'ETIMEOUT' || reply.code === 'ENOCONN')) {
-
             return {
               verb: decision.verb,
               objectRef: decision.obligationId,
@@ -423,7 +400,6 @@ export async function runCoordinatorKernel(
   }
   const mode = resolveCoordinatorMode(requested).effective
   if (mode === 'off') return []
-
   const { coordinatorAgentId } = await import('./coordinatorIdentity.js')
   const actor = await coordinatorAgentId(
     opts.crewDir !== undefined ? { dir: opts.crewDir } : undefined,
@@ -436,7 +412,6 @@ export async function runCoordinatorKernel(
   const decisions = evaluateKernel({ openObligations: open }, event)
   const receipts: KernelReceiptV1[] = []
   for (const d of decisions) {
-
     try {
       receipts.push({ ...(await executeKernelDecision(d, opts)), actorAgentId: actor })
     } catch (err) {
@@ -450,7 +425,6 @@ export async function runCoordinatorKernel(
     }
   }
   if (receipts.length > 0) {
-
     try {
       ;(await import('./coordinatorReceipts.js')).ingestCoordinatorReceipts(receipts, opts.crewDir !== undefined ? { crewDir: opts.crewDir } : {})
     } catch {

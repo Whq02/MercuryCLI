@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 
@@ -104,7 +102,6 @@ section('§3 — the pass over a synthetic screen')
   const links = new grid.HyperlinkPool()
   const screen = grid.createScreen(10, 4, pool, chars, links)
   const bright = pool.intern([FG('\x1b[38;2;237;232;221m')])
-
   for (let x = 0; x < 5; x++) {
     grid.setCellAt(screen, x, 0, { char: 'a', styleId: bright, width: 0, hyperlink: undefined })
     grid.setCellAt(screen, x, 2, { char: 'b', styleId: bright, width: 0, hyperlink: undefined })
@@ -156,7 +153,6 @@ section('§4 — policy gates')
 section('§5 — deactivation + growth (the verify-wave laws)')
 {
   const layerSrc = readFileSync(join(ROOT, 'src/ink/recessLayer.ts'), 'utf-8')
-
   check(
     'unregister invalidates the previous frame while a target is live',
     /registrants\.delete\(el\)\s*\n\s*if \(target !== null\) \{\s*\n\s*instances\.get\(process\.stdout\)\?\.invalidatePrevFrame\(\)/.test(layerSrc),
@@ -165,7 +161,6 @@ section('§5 — deactivation + growth (the verify-wave laws)')
     'a REAL target change with live registrants also invalidates (mid-modal theme flip)',
     /const changed =[\s\S]*?if \(changed && hadWork\) \{\s*\n\s*instances\.get\(process\.stdout\)\?\.invalidatePrevFrame\(\)/.test(layerSrc),
   )
-
   const gridSrc = readFileSync(join(ROOT, 'src/ink/cell-grid.ts'), 'utf-8')
   check(
     'withRecess degrades to identity near the style-pool ceiling',

@@ -81,7 +81,6 @@ function calculateWordDiffs(
     text.match(/\s+|[^\s]+/g) ?? []
   const oldTokens = tokenize(oldText)
   const newTokens = tokenize(newText)
-
   const m = oldTokens.length
   const n = newTokens.length
   const table: number[][] = Array.from({ length: m + 1 }, () =>
@@ -162,7 +161,6 @@ function changedFraction(parts: DiffPart[]): number {
     total += part.value.length
     if (part.added || part.removed) changed += part.value.length
   }
-
   const common = total - changed
   const denominator = common * 2 + changed
   if (denominator === 0) return 0
@@ -226,7 +224,6 @@ export function StructuredDiffFallback({
     }
 
     if (parts === null) {
-
       const wrapped = wrapLines(line.code === '' ? ' ' : line.code, contentWidth)
       return wrapped.map((segment, index) => (
         <Box key={`${key}:${index}`}>
@@ -241,8 +238,7 @@ export function StructuredDiffFallback({
             </Text>
           </NoSelect>
           <Text backgroundColor={background} color={theme.text} dimColor={dim}>
-            {
-}
+            {}
             {segment + ' '.repeat(Math.max(0, contentWidth - stringWidth(segment)))}
           </Text>
         </Box>

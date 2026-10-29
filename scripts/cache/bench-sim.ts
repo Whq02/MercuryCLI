@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,7 +29,6 @@ function arrivalTimes(session: Corpus['sessions'][number]): number[] {
   for (let i = 0; i < session.events.length; i++) {
     const ev = session.events[i]!
     if (i > 0) t += ev.d
-
     const arrival = t - genDurMs(ev.o)
     out.push(i === 0 ? arrival : Math.max(arrival, out[i - 1]! + 1))
   }
@@ -60,7 +58,6 @@ interface BenchmarkResult {
 
 export function runBenchmark(
   corpus: Corpus,
-
   decide: typeof decideInitialTtl = decideInitialTtl,
 ): BenchmarkResult {
   const base = newTotals()
@@ -82,9 +79,7 @@ export function runBenchmark(
 
     const bState = newSimCacheState('5m')
     let bCost = 0
-
     const aState = newSimCacheState('1h')
-
     let decision: Decision | null = decide({
       enabled: true,
       pin: null,
@@ -110,7 +105,6 @@ export function runBenchmark(
         if (kind === 'over5m') gapsOver5m++
         if (kind === 'over1h') gapsOver1h++
         if (shouldEscalate(decision, gapMs)) {
-
           decision = { ttl: '1h', escalation: false }
           escalateNow = true
           didEscalate = true
@@ -198,7 +192,6 @@ if (import.meta.main) {
   const corpusBytes = readFileSync(corpusPath, 'utf8')
   const corpus = JSON.parse(corpusBytes) as Corpus
   const result = runBenchmark(corpus)
-
   const escalateOnly = runBenchmark(corpus, () => ({
     ttl: '5m',
     escalation: true,

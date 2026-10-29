@@ -190,7 +190,6 @@ function boot(dist: string, home: string): Boot {
     stdout = failed.stdout ?? ''
     stderr = failed.stderr ?? ''
   }
-
   const { swept: leftovers, refused } = sweepOwned()
   return { code, signal, stdout, stderr, lines: netLines(), leftovers, refused }
 }
@@ -205,10 +204,8 @@ function census(label: string, lines: string[]): void {
 
 const registryHits = (lines: string[]): string[] => lines.filter(line => line.includes(REGISTRY_SEGMENT))
 const vendorHostHits = (lines: string[]): string[] => lines.filter(line => line.includes(VENDOR_API_HOST))
-
 const reachedModelCall = (result: Boot): boolean =>
   /API Error/.test(result.stderr) || result.lines.some(line => line.includes('127.0.0.1:9'))
-
 const NETWORK_SPAWN = /^(ssh\b|git (fetch|pull|clone|ls-remote|push|remote|submodule)\b)/m
 const networkSpawns = (): string => shimHits().split('\n').filter(row => NETWORK_SPAWN.test(row)).join(' · ')
 function spawnCensus(label: string): void {

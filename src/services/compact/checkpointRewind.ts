@@ -1,5 +1,4 @@
 import type { Message, UserMessage } from '../../types/message.js'
-
 import { createUserMessage } from '../../utils/messages/factories.js'
 
 export const CHECKPOINT_TOOL_NAME = 'Checkpoint'
@@ -8,12 +7,9 @@ export const REWIND_TOOL_NAME = 'Rewind'
 export const REWIND_RECORD_TAG = 'mercury-rewind-record'
 
 interface ActiveCheckpoint {
-
   id: string
   goal: string
-
   boundaryIndex: number
-
   messageCountAtCreation: number
 }
 
@@ -55,7 +51,6 @@ export function findActiveCheckpoint(messages: readonly Message[]): ActiveCheckp
     for (const block of blocksOf(m)) {
       if (block.type !== 'tool_use' || block.name !== CHECKPOINT_TOOL_NAME || !block.id) continue
       if (records.has(block.id)) return null
-
       for (let j = i + 1; j < messages.length; j++) {
         const candidate = messages[j]!
         if ((candidate as { type?: string }).type !== 'user') continue
@@ -95,6 +90,7 @@ export function createRewindRecordMessage(args: {
   ]
   return createUserMessage({ content: lines.join('\n'), isMeta: true })
 }
+
 
 export function createOperatorRewindRecordMessage(args: { turnUuid: string; removed: number }): UserMessage {
   const lines = [
@@ -198,7 +194,6 @@ export function buildRewindRecordIfSettled(
   const report = (rewindUse.input as { report?: unknown } | undefined)?.report
   const checkpoint = findActiveCheckpoint(roundMessages)
   if (checkpoint === null) {
-
     return null
   }
   const abandoned = Math.max(0, roundMessages.length - (checkpoint.boundaryIndex + 1))

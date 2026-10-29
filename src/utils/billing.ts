@@ -19,9 +19,7 @@ function hasResolvableApiKey(): boolean {
 export function hasConsoleBillingAccess(): boolean {
   if (!flagEnabled('MERCURY_COST_WARNINGS')) return false
   if (isClaudeAISubscriber()) return false
-
   if (!getAuthTokenSource().hasToken && !hasResolvableApiKey()) return false
-
   const account = getGlobalConfig().oauthAccount
   const organizationRole = account?.organizationRole
   const workspaceRole = account?.workspaceRole

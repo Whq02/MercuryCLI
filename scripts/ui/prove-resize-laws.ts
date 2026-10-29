@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -22,7 +21,6 @@ console.log('§1 B1 — the width-resize scale preserves recorded zeros')
   check('a positive height floors at ONE line, never zero', ratios.every(r => scaleHeightForWidth(1, r) >= 1 && scaleHeightForWidth(7, r) >= 1))
   check('ratio 1 is identity for positives', [1, 2, 5, 16].every(h => scaleHeightForWidth(h, 1) === h))
   check('the scale rounds, not truncates (6 at 1.5 → 9; 7 at 0.5 → 4)', scaleHeightForWidth(6, 1.5) === 9 && scaleHeightForWidth(7, 0.5) === 4)
-
   const thereAndBack = (h: number): number => scaleHeightForWidth(scaleHeightForWidth(h, 0.5), 2)
   check('a there-and-back keeps zero at zero', thereAndBack(0) === 0)
   const hook = read('src/hooks/useVirtualScroll.ts')
@@ -45,7 +43,6 @@ console.log('§2 B2 — the spinner stack decision is a hysteresis band')
   check('inside the band a one-line row STAYS one line (entry is never eager)', !d(38, false) && !d(40, false))
   check('below the band the stack releases', !d(40 - STACK_EXIT_SLACK, true) && !d(20, true))
   check('ineligible never stacks whatever the latch says', !spinnerStackDecision({ eligible: false, cost: 100, space: 10, wasStacked: true }))
-
   check('the band out-sizes the counters’ per-tick width jitter', STACK_EXIT_SLACK > 4)
   const row = read('src/components/Spinner/SpinnerAnimationRow.tsx')
   check(
@@ -119,7 +116,6 @@ console.log('§6 D2 — the composer viewport holds still inside the band')
   const { Cursor } = await import('../../src/utils/Cursor.ts')
   const text = Array.from({ length: 30 }, (_, i) => `line ${i}`).join('\n')
   const at = (line: number): InstanceType<typeof Cursor> => {
-
     let off = 0
     for (let i = 0; i < line; i++) off += `line ${i}\n`.length
     return Cursor.fromText(text, 40, off)
@@ -266,18 +262,14 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
     '../../src/components/concourse/ConcourseLayout.tsx'
   )
   const layoutSrc = read('src/components/concourse/ConcourseLayout.tsx')
-
   check('the reserve is table-derived', layoutSrc.includes('Object.values(STATE_WORD).map(word => word.length)'))
   const words = ['ready', 'working', 'NEEDS YOU', 'with you', 'stalled', 'failed', 'queued', 'starting', 'paused', 'stopped', 'done', 'cancelled', 'draft', 'parked', 'a door']
   check('the longest table word sizes the column', STATE_WORD_RESERVE === Math.max(...words.map(w => w.length)))
-
   const stable = words.every(w => stateWordCell(w).length === stateWordCell(null).length)
   check('title columns byte-stable across every selection flip', stable)
   check('an unknown over-long raw state cannot move even its own row', stateWordCell('a-very-long-unknown-state').length === stateWordCell(null).length)
-
   check('the resting cell is pure space', stateWordCell(null) === ' '.repeat(1 + STATE_WORD_RESERVE))
   check('the filled cell: word then spaces (the still)', stateWordCell('ready') === ' ready    ' && stateWordCell('NEEDS YOU') === ' NEEDS YOU' && stateWordCell('a door') === ' a door   ')
-
   check(
     'every row paints the reserve cell (the selected row fills, the rest hold spaces)',
     layoutSrc.includes('stateWordCell(') && layoutSrc.includes("? (STATE_WORD[r.state] ?? r.state)\n                            : null,"),

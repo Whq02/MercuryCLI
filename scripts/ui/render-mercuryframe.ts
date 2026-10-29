@@ -1,16 +1,13 @@
 #!/usr/bin/env bun
-
 import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(import.meta.dir, '..', '..')
-
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const VSHOT = join(import.meta.dir, 'vshot.py')
@@ -32,7 +29,6 @@ const common = (extra: Line): Line => ({
 })
 
 function buildSession(): string {
-
   const lines: Line[] = []
   let prev: string | null = null
   const push = (l: Line) => {
@@ -83,9 +79,7 @@ function shoot(cols: number): string {
     encoding: 'utf-8',
     env: {
       ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-
       MERCURY_HELM_HOME: '0',
       MERCURY_SUBSTRATE: '0',
       MERCURY_USAGE_SEED: USAGE_SEED,
@@ -109,12 +103,10 @@ function expect(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-
 function frameRow(raw: string): string {
   const line = raw.split('\n').find(l => l.includes('▖▟▆▙▗') && l.includes('│')) ?? ''
   return line.replace(/\s+/g, ' ')
 }
-
 const has5hGauge = (s: string) => /5h [█░]{2,4} \d+%/.test(s)
 const has5hAny = (s: string) => /5h .{0,6}\d+%/.test(s)
 const has7d = (s: string) => /7d .{0,6}\d+%/.test(s)
@@ -136,6 +128,7 @@ for (const c of COLS) {
   } else if (c >= 120) {
     expect(`@${c}: the 7d window rides at full width (cols >= 100 gate + room to escape truncation)`, has7d(scr))
   }
+
 
   expect(`@${c}: no session tab-strip paints above the statusbar at any width`, !/this session|⊞ SESSIONS/.test(full))
 }

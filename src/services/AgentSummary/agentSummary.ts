@@ -6,6 +6,7 @@ import { createUserMessage } from '../../utils/messages.js'
 import { runForkedAgent, type ForkedAgentParams } from '../../utils/forkedAgent.js'
 import { loadSubagentTranscripts } from '../../utils/sessionStorage.js'
 
+
 const SUMMARY_INTERVAL_MS = 30_000
 const MIN_TRANSCRIPT_MESSAGES = 3
 
@@ -44,7 +45,6 @@ export function startAgentSummarization(
       const transcript = transcripts[agentId]
       if (stopped) return
       if (!transcript || transcript.length < MIN_TRANSCRIPT_MESSAGES) return
-
       const contextMessages = filterIncompleteToolCalls(transcript)
       abortController = new AbortController()
       const instruction = createUserMessage({
@@ -57,7 +57,6 @@ export function startAgentSummarization(
           ...cacheSafeParams,
           forkContextMessages: contextMessages,
         },
-
         canUseTool: async () => ({ behavior: 'deny', message: 'tools are unavailable to the summariser' }),
         querySource: 'agent_summary',
         forkLabel: 'agent_summary',
@@ -85,7 +84,6 @@ export function startAgentSummarization(
       }
     } finally {
       abortController = null
-
       if (!stopped) {
         timer = setTimeout(() => void tick(), SUMMARY_INTERVAL_MS)
         timer.unref()

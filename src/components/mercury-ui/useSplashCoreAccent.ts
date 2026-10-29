@@ -3,6 +3,7 @@ import { useTheme } from '../../ink.js'
 import { resolveMercuryTokens } from '../../utils/mercuryTokens.js'
 import { useSessionAccent } from './sessionAccent.js'
 
+
 type Rgb = [number, number, number]
 
 function rgbOf(hex: string): Rgb | null {
@@ -27,7 +28,6 @@ export function useSplashCoreAccent(): { accent: SplashCoreAccent; rampStops: st
     if (main && deep && soft && stops.length > 1 && stops.every(s => s !== null)) {
       return {
         accent: { key: sa.key, main, deep, soft, ramp: stops as Rgb[], t256: 167, t256deep: 95 },
-
         rampStops: tok.focalRamp,
       }
     }

@@ -2,6 +2,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { RateLimitType } from './anthropicLimits.js'
 import { FIRST_WARNING_PCT } from './providers/usageTiers.js'
 
+
 type MockHeaderKey =
   | 'status' | 'reset' | 'claim' | 'fallback' | 'fallback-percentage' | 'retry-after'
   | `overage-${'status' | 'reset' | 'disabled-reason'}`
@@ -23,12 +24,12 @@ type ScenarioPool = { utilization: number; resets_at: string }
 
 type ScenarioPools = Partial<Record<'seven_day_opus' | 'seven_day_sonnet', ScenarioPool>>
 
+
 let mockHeaders: MockHeaders = {}
 let enabled = false
 
 let exceededLimits: ExceededLimit[] = []
 let scenarioPools: ScenarioPools = {}
-
 const mockSubscriptionType: string | null = null
 
 const HEADER_PREFIX = 'anthropic-ratelimit-unified-'
@@ -58,6 +59,7 @@ function foldScenarioPools(): void {
   foldUtilizationFromEndpoint(mockUtilizationPayload() ?? {})
 }
 
+
 function deriveRetryAfter(): void {
   const status = mockHeaders[`${HEADER_PREFIX}status`]
   const overage = mockHeaders[`${HEADER_PREFIX}overage-status`]
@@ -86,6 +88,7 @@ function deriveRepresentativeClaim(): void {
   deriveRetryAfter()
 }
 
+
 const CLAIM_DERIVED_TYPES = new Set<string>([
   'five_hour',
   'seven_day',
@@ -95,7 +98,6 @@ const CLAIM_DERIVED_TYPES = new Set<string>([
 
 export function setMockHeader(key: MockHeaderKey, value: string | undefined): void {
   if (!isArmed()) return
-
   enabled = true
   const headerName = headerNameFor(key)
   if (value === undefined || value === 'clear') {
@@ -105,7 +107,6 @@ export function setMockHeader(key: MockHeaderKey, value: string | undefined): vo
       return
     }
     if (key === 'claim') {
-
       delete mockHeaders[headerName]
       exceededLimits = []
       return
@@ -126,7 +127,6 @@ export function setMockHeader(key: MockHeaderKey, value: string | undefined): vo
       deriveRepresentativeClaim()
       return
     }
-
     mockHeaders[headerName] = value
     return
   }
@@ -160,7 +160,6 @@ export function setMockEarlyWarning(
 ): void {
   if (!isArmed()) return
   enabled = true
-
   for (const key of WARNING_HEADER_KEYS) {
     delete mockHeaders[`${HEADER_PREFIX}${key}`]
   }
@@ -172,6 +171,7 @@ export function setMockEarlyWarning(
     mockHeaders[`${HEADER_PREFIX}status`] = 'allowed'
   }
 }
+
 
 function nextMonthEpoch(): number {
   const now = new Date()
@@ -218,7 +218,6 @@ export function setMockRateLimitScenario(scenario: MockScenario): void {
   const hadPools = Object.keys(scenarioPools).length > 0
   scenarioPools = {}
   if (scenario === 'clear') {
-
     mockHeaders = {}
     enabled = false
     if (hadPools) foldScenarioPools()
@@ -236,7 +235,6 @@ export function setMockRateLimitScenario(scenario: MockScenario): void {
       break
     case 'session-limit-reached':
       exceededLimits.push({ type: 'five_hour', resetsAt: hoursFromNowEpoch(5) })
-
       deriveRepresentativeClaim()
       mockHeaders[`${HEADER_PREFIX}status`] = 'rejected'
       break
@@ -327,6 +325,7 @@ export function getCurrentMockScenario(): MockScenario | null {
   return null
 }
 
+
 function titleCaseHeader(key: string): string {
   const stripped = key.replace(HEADER_PREFIX, '')
   return stripped
@@ -384,6 +383,7 @@ export function applyMockHeaders(headers: Headers): Headers {
   }
   return merged
 }
+
 
 export function mockUtilizationPayload(): import('./api/usage.js').Utilization | null {
   if (!isArmed()) return null

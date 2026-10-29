@@ -50,7 +50,6 @@ console.log('§1 cache layout round trip (every BrowserPlatform)')
     const row = found.find(f => f.buildId === buildId)
     check(`${buildId} resolves to the package-derived executable`, row?.executablePath === exe, row?.executablePath ?? '(missing)')
   }
-
   const armExe = computeExecutablePath({
     browser: CftBrowser.CHROME,
     buildId: '153.0.8001.5',

@@ -109,7 +109,6 @@ export function listDeepseekModels(): ProviderModel[] {
 export function resolveDeepseekModel(
   _modelClass: ProviderModelClass,
 ): ProviderModelRef | null {
-
   return null
 }
 

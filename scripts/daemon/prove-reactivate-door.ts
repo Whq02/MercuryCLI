@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -9,7 +8,6 @@ import { join } from 'node:path'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'reactivate-door-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 delete process.env.MERCURY_HOME
-
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-reactivate-door-probe'
 delete process.env.MERCURY_WARM_RUNNER_IDLE_RETIRE_MINUTES
 delete process.env.MERCURY_WARM_RUNNER
@@ -179,7 +177,6 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   check('R1 in ONE publication (the delta stamp advanced exactly once for the flip)', revisionOf() === revisionBefore + 1, `${revisionBefore} → ${revisionOf()}`)
   check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(workers.concourseRecordState(live!, { needsYou: false, alive: true })))
   check('R1 the respawn argv flipped to --resume <id> (a crash later continues the same chat)', roster.patched.some(p => p.short === warmShort && p.patch.respawnExtraArgv.join(' ').startsWith(`--resume ${parkedSid}`)))
-
   await new Promise(r => setTimeout(r, 20))
   check('R1 the pool re-warms the workspace behind the answer', rewarmed.includes(wsId))
   check('R1 the seat hook fired for the claimed short', spawned.some(s => s.runnerId === warmShort))
@@ -235,7 +232,6 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   const lostAfter = recordsOf(lostSid)[0]
   check('R4 a parked row whose transcript is gone is refused BEFORE any spawn (nothing to resume it around)', !lost.ok && /transcript is gone/.test(lost.error) && roster.registered.length === registeredBeforeLost, JSON.stringify(lost))
   check('R4 …and stays parked with the loss as its reason, never a ghost, never live', lostAfter?.parkedAt !== undefined && lostAfter.pid === DEAD_PID && /transcript is gone/.test(lostAfter.parkReason ?? '') && workers.concourseRecordState(lostAfter, { needsYou: false, alive: false }) === 'parked', JSON.stringify(lostAfter))
-
   const holderSid = sid('e1')
   const parkedSid = sid('e2')
   const wsIdE = sup.canonicalWorkspaceId(wsE)
@@ -280,7 +276,6 @@ console.log('\n── R7: the screen door reads the record and re-says the seat 
   const fnBody = hop.slice(fnAt, hop.indexOf('export async function clearFocusedSession(', fnAt))
   check('R7 a live record is entered first (a hop, never a resume) — the existing pin stands', fnBody.indexOf('sessionOwnedByLiveWorker(') !== -1 && fnBody.indexOf('sessionOwnedByLiveWorker(') < fnBody.indexOf("op: 'sessionAdmit'"))
   check('R7 the standing record names the workspace, home and title (never the screen\'s cwd for a record-backed row)', fnBody.includes('const standing = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)') && fnBody.includes('standing?.workspaceId ?? (await workspaceOfTranscript(transcriptPath))') && fnBody.includes('paths.getProjectDir(standing.workspaceId)'))
-
   const adoptAt = fnBody.indexOf('const settled = Object.values(workers.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)')
   const assertAt = fnBody.indexOf('connector.assertSeat()')
   check('R7 the admission\'s completion adopts the record WITHOUT re-pointing the slot (no post-admission hop) and re-says the seat after the adoption', adoptAt !== -1 && fnBody.indexOf('seat.daemonSessionConnectorFor({', adoptAt) > adoptAt && assertAt > adoptAt && !fnBody.includes('hopIntoBoardSession(sessionId, { firstPaintMs: 0 })'))

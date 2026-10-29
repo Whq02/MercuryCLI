@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -44,13 +43,13 @@ for (const k of DRIVEN) delete process.env[k]
 const godot = await import('../../src/services/ide/godotSession.js')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
 
+
 console.log('============================================================')
 console.log(' godot session projection — identity · discovery · honesty')
 console.log('============================================================')
 
 const arena = mkdtempSync(join(tmpdir(), 'godot-session-'))
 try {
-
   const proj = join(arena, 'game')
   mkdirSync(join(proj, 'scenes'), { recursive: true })
   mkdirSync(join(proj, 'levels'), { recursive: true })

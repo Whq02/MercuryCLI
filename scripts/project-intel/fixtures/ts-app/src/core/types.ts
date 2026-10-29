@@ -14,11 +14,8 @@ export interface Order {
 }
 
 export interface PricingRules {
-
   bulkDiscount: number
-
   bulkThreshold: number
-
   couponRates: Record<string, number>
 }
 

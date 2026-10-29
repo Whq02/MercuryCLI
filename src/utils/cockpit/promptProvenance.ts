@@ -1,42 +1,33 @@
+
 import { createHash } from 'crypto'
 import type { BehaviourContract } from '../../prompt/behaviourContract.js'
 
 type ProvenanceSectionRecord = {
   group: string
-
   name: string
-
   scope: string
-
   owner: string
-
   cacheClass: string
   chars: number
-
   sha8: string
 }
 
 type ProvenanceAbsentSection = {
   name: string
-
   reason: string
 }
 
 type ProvenanceTotals = {
   digest: string
-
   totalChars: number
   segmentCount: number
-
   openaiChars: number
 }
 
 type PromptProvenance = ProvenanceTotals & {
   recordedAt: string
   sections: ProvenanceSectionRecord[]
-
   absent: ProvenanceAbsentSection[]
-
   previous: ProvenanceTotals | null
 }
 
@@ -44,9 +35,7 @@ let lastProvenance: PromptProvenance | null = null
 
 export function recordPromptComposition(input: {
   contract: BehaviourContract
-
   composedSegments: string[]
-
   absentDynamic?: ProvenanceAbsentSection[]
 }): void {
   try {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -35,7 +34,6 @@ const empty = fuzzySearch(names, 'zzzq', 10)
 check('a no-match query returns empty (honest, no false hits)', empty.length === 0)
 
 section('2. keybinding: action + FLAG-GATED ctrl+x p binding')
-
 const graph = read('src', 'keybindings', 'actionGraph.ts')
 check("KEYBINDING_ACTIONS includes 'app:commandPalette'", /'app:commandPalette'/.test(graph))
 check("ctrl+x p binds app:commandPalette", DEFAULT_BINDINGS.find(block => block.context === 'Global')?.bindings['ctrl+x p'] === 'app:commandPalette')
@@ -50,11 +48,9 @@ check("useKeybinding('app:commandPalette', …) opens it", /useKeybinding\('app:
 check('the open handler is wired', /useKeybinding\('app:commandPalette',[\s\S]{0,80}setShowCommandPalette\(true\)/.test(pi))
 check('render branch keys on showCommandPalette (unconditional)', /if \(showCommandPalette\)/.test(pi))
 check('palette is in the modal-overlay suppression guard', /overlay !== null \|\|\s*showCommandPalette/.test(pi))
-
 const help = read('src', 'components', 'PromptInput', 'PromptInputHelpMenu.tsx')
 check('the ? help menu lists the palette chord', /for command palette/.test(help))
 check('the help menu is de-_c (plain) so the line is not a hand-patched cache slot', !/const \$ = _c\(/.test(help))
-
 const pal2 = read('src', 'components', 'MercuryCommandPalette.tsx')
 check('the palette accepts ACTION rows (run callback, not insert)', /actions\?: PaletteAction\[\]/.test(pal2) && /if \(it\?\.run\) it\.run\(\)/.test(pal2))
 check('PromptInput passes the open-file + search-contents hub actions', /actions=\{\[[\s\S]{0,260}setShowFileOpen\(true\)[\s\S]{0,160}setShowContentSearch\(true\)/.test(pi))
@@ -62,13 +58,10 @@ check('PromptInput passes the open-file + search-contents hub actions', /actions
 section('4. SAFETY invariants (no auto-run, no data loss, never overflows)')
 const pal = read('src', 'components', 'MercuryCommandPalette.tsx')
 check('component file exists', existsSync(join(root, 'src', 'components', 'MercuryCommandPalette.tsx')))
-
 check('↵ inserts `/name ` (template) — launcher fills the prompt, user confirms', /onRun\(`\/\$\{it\.name\} `\)/.test(pal))
-
 check('the palette NEVER calls the composer submit (submitInput)', !/submitInput/.test(pal))
 check('↵ routes through the ONE activate path (editor onSubmit → activateSelected)', /onSubmit=\{\(\) => \{[\s\S]{0,120}activateSelected\(sel\)/.test(pal))
 check('the PromptInput onRun path inserts at cursor (no buffer clobber → no data loss)', /onRun=\{text =>[\s\S]{0,160}insertAtomic/.test(pi))
-
 check('visible rows are clamped to the ACTIVE slot height (the SCALED cockpit reserve — LUSTRE L4)',
   /reserve: cockpitActive \? cockpitBottomSlotReserve\(termRows\) : HEIGHT_RESERVE/.test(pal))
 check('the count/recency live in the always-pinned footer (no clippable header row)', /footer=\{footer\}/.test(pal) && !/SectionHeader/.test(pal))

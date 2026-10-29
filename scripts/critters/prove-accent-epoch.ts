@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -22,7 +21,6 @@ const unsub = accent.subscribeSessionCritter(() => {
   notified++
 })
 const e0 = accent.getAccentEpoch()
-
 accent.setSessionCritter('jellyfish')
 check('a /critter pick bumps the epoch', accent.getAccentEpoch() === e0 + 1)
 check('… and notifies the listeners', notified === 1)
@@ -57,7 +55,6 @@ const ROOT = join(import.meta.dir, '..', '..')
 const accentSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/sessionAccent.ts'), 'utf8')
 const boxSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedBox.tsx'), 'utf8')
 const textSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedText.tsx'), 'utf8')
-
 const pin = 'useSessionAccent()'
 const hookSrc = accentSrc
 check('useSessionAccent subscribes to the session critter store (accent epoch reactivity)', /useSyncExternalStore\(\s*subscribeSessionCritter,\s*getSessionAccentSnapshotKey,\s*getSessionAccentSnapshotKey,\s*\)/.test(hookSrc))

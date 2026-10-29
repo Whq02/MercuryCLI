@@ -138,7 +138,6 @@ async function main(): Promise<void> {
       'F05: the print owner starts no daemon and no multiplayer room host',
       !/ensureDaemon|startDaemon|spawnDaemon|longLivedRespawn|roomHost/.test(print),
     )
-
     const cli = src('src/entrypoints/cli.tsx')
     check(
       'F04 audit pin: the run route reaches print through the main.js graph (the recorded residue the F07 battery prices)',

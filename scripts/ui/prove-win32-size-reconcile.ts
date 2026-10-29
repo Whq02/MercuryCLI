@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { EventEmitter } from 'node:events'
@@ -96,7 +95,6 @@ section('§1 refreshConsoleSize')
 
 section('§2 the renderer under a forced win32 platform')
 {
-
   const React = await import('react')
   const { default: Ink } = await import('../../src/ink/ink.js')
   const { Box, Text } = await import('../../src/ink.js')
@@ -108,14 +106,12 @@ section('§2 the renderer under a forced win32 platform')
     ink.render(React.createElement(Box, null, React.createElement(Text, null, 'geometry')))
     await sleep(150)
     const before = stdout.refreshCalls
-
     stdout.trueSize = [120, 40]
     ink.reconcileSize()
     check('reconcileSize asks the console through the runtime refresh road', stdout.refreshCalls === before + 1, `refreshCalls before=${before} after=${stdout.refreshCalls}`)
     await sleep(400)
     const cached = ink as unknown as { cachedColumns: number; cachedRows: number }
     check('the renderer adopted the live geometry after the settle window', cached.cachedColumns === 120 && cached.cachedRows === 40, `${cached.cachedColumns}x${cached.cachedRows}`)
-
     const calls = stdout.refreshCalls
     ink.reconcileSize()
     await sleep(50)

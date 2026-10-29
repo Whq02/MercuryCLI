@@ -6,6 +6,7 @@ import { getAuthHeaders } from '../../utils/http.js'
 import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
 
+
 export type RateLimit = {
   utilization: number | null
   resets_at: string | null
@@ -29,7 +30,6 @@ export function usageEndpointBase(): string {
 }
 
 export async function fetchUtilization(): Promise<Utilization | null> {
-
   if (!isClaudeAISubscriber() || !hasProfileScope()) return {}
 
   try {
@@ -76,7 +76,6 @@ export async function fetchUtilization(): Promise<Utilization | null> {
   })
   const data = response.data ?? null
   if (data !== null) {
-
     try {
       const { foldUtilizationFromEndpoint } =
         require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')

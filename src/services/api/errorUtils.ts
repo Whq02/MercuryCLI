@@ -1,5 +1,6 @@
 import { APIError } from './sdkErrors.js'
 
+
 type ConnectionErrorDetails = {
   code: string
   message: string
@@ -68,13 +69,11 @@ function recoverNestedMessage(error: unknown): string | undefined {
   const outer = (error as { error?: unknown } | null)?.error as
     | { error?: { message?: unknown }; message?: unknown }
     | undefined
-
   const deep = outer?.error?.message
   if (typeof deep === 'string') {
     const sanitized = sanitizeAPIError(deep)
     if (sanitized !== '') return sanitized
   }
-
   const shallow = outer?.message
   if (typeof shallow === 'string') {
     const sanitized = sanitizeAPIError(shallow)
@@ -135,7 +134,6 @@ export function formatAPIError(error: unknown): string {
   }
 
   const message = (error as { message?: unknown } | null)?.message
-
   if (message === 'Connection error.') {
     if (details !== null) {
       return `Connection failed (${details.code}). Check your internet connection and proxy settings.`
@@ -144,7 +142,6 @@ export function formatAPIError(error: unknown): string {
   }
 
   if (typeof message !== 'string' || message === '') {
-
     const recovered = recoverNestedMessage(error)
     if (recovered !== undefined) return recovered
     const status = statusOf(error)

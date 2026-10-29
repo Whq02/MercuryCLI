@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/tools/AgentTool/scoutPolicy.ts src/tools/BashTool/BashTool.tsx src/tools/BashTool/readOnlyValidation.ts src/utils/config.ts
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

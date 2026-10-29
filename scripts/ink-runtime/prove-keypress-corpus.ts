@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -75,8 +74,8 @@ function semanticTrace(events: Record<string, unknown>[]): unknown[] {
   return trace
 }
 
-const ESC = '\x1b'
 
+const ESC = '\x1b'
 const CORPUS: Array<{ name: string; input: string; cbcExempt?: string }> = [
   { name: 'plain-lower', input: 'a' },
   { name: 'plain-upper', input: 'Z' },
@@ -146,7 +145,6 @@ const CORPUS: Array<{ name: string; input: string; cbcExempt?: string }> = [
     input: `abc${ESC}[A${ESC}[<0;3;3Mdef\r`,
   },
   { name: 'ctrl-in-text-run', input: 'a\x01b' },
-
   {
     name: 'crlf-burst',
     input: 'alpha\r\nbeta\r\ngamma',
@@ -243,7 +241,6 @@ for (const entry of CORPUS) {
 for (const probe of BYTE_PROBES) {
   const split = decode(probe.segments)
   const whole = decode([probe.whole])
-
   check(
     `byte-split invariance: ${probe.name}`,
     JSON.stringify(semanticTrace(split.events)) ===

@@ -1,3 +1,4 @@
+
 import { fluxMark } from '../flux/fluxProbe.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { registerOwnerScopedStore } from '../../services/run/ownerLifecycle.js'
@@ -13,7 +14,6 @@ export interface LiveContextUsage {
   usedPct: number | null
   window: number
   compactAtPct: number | null
-
   usedTokens: number | null
   fillSource: ContextFillSource | null
   windowSource: ContextWindowSource | null
@@ -71,7 +71,6 @@ export function publishContextUsage(
     slot.windowSource !== next.windowSource ||
     slot.windowPinned !== next.windowPinned
   Object.assign(slot, next)
-
   if (ctxForecastEnabled()) recordCtxSample(usedPct, key)
   if (changed) {
     version += 1

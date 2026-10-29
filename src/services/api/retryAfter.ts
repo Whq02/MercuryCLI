@@ -1,3 +1,4 @@
+
 export function headerValue(headers: unknown, name: string): string | undefined {
   if (headers === undefined || headers === null) return undefined
   if (typeof (headers as Headers).get === 'function') {

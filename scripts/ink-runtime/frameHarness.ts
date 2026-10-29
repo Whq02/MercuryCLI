@@ -61,7 +61,6 @@ export function buildDom(spec: SceneNode): DOMElement {
     return el
   }
   const el = createNode('ink-box')
-
   applySceneStyle(el, {
     flexDirection: 'row',
     flexGrow: 0,

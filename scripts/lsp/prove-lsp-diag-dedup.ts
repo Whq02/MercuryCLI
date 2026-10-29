@@ -1,3 +1,4 @@
+
 import {
   checkForLSPDiagnostics,
   clearDeliveredDiagnosticsForFile,

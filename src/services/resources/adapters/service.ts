@@ -1,3 +1,4 @@
+
 import { getOriginalCwd } from '../../../bootstrap/state.js'
 import {
   describeCondition,
@@ -92,7 +93,6 @@ const serviceAdapter: ResourceAdapter = {
             summary: 'ordered cursored log view',
           },
           {
-
             ref: formatRef('execution', `service:${record.spec.name}`),
             title: 'execution',
             summary: 'the canonical execution record (lifecycle, generation)',

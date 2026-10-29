@@ -70,7 +70,6 @@ t.section('§2 — width honesty through the ONE width owner')
     for (let i = 0; i < row.length; i++) {
       const w = stringWidth(row[i]!.c)
       if (w <= 1) continue
-
       if (row[i + 1] && row[i + 1]!.c === '') wideOk++
       else misallocated++
     }
@@ -80,13 +79,11 @@ t.section('§2 — width honesty through the ONE width owner')
     misallocated === 0,
     `${misallocated} misallocated wide cells (${wideOk} correct)`,
   )
-
   t.check('the width law ran on real wide glyphs (the CJK seed is present)', wideOk > 0, `${wideOk} wide cells`)
 }
 
 t.section('§3 — the glyph law: no emoji in the terminal grid')
 {
-
   const emoji = /[\u{1F000}-\u{1FAFF}\u{FE0F}]/u
   let found = ''
   for (const row of first.grid) {
@@ -104,7 +101,6 @@ t.section('§3 — the glyph law: no emoji in the terminal grid')
 t.section('§4 — the split-safe needle law (the campaign legs share these)')
 {
   const text = first.grid.map(row => row.map(c => c.c).join('')).join('\n')
-
   for (const needle of ['PROMPTS', 'SAVED PROMPTS', 'esc close']) {
     const pureAscii = [...needle].every(ch => ch >= ' ' && ch <= '~')
     t.check(

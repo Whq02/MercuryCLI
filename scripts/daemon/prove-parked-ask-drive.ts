@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -51,12 +50,9 @@ const BLOCK_REASON = 'park-probe: the fixture safety check blocks the probe comm
 const REPORT_LEAD = 'park-probe: sha='
 const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
-
 const WAIT_WORDS = 'headless · waiting'
-
 const BOARD_WORDS = 'STATUS & TITLE'
 const CARD_WORDS = 'Do you want to proceed?'
-
 const CARD_BLOCK_WORDS = "Flow's safety check blocked this"
 const DENIAL_WORDS = ['has been denied', 'auto-denied', 'was denied', 'was declined', 'declined this tool call', 'tool_use_error', 'was rejected', 'blocked this action']
 const isDenial = (text: string): boolean => DENIAL_WORDS.some(word => text.includes(word))
@@ -83,13 +79,11 @@ writeFileSync(join(work, 'README.md'), 'the parked-ask probe repository\n')
 git(['add', 'README.md'])
 git(['commit', '-q', '-m', 'the probe commit'])
 const shaBefore = git(['rev-parse', '--short', 'HEAD'])
-
 const commitCount = (): string => git(['rev-list', '--all', '--count'])
 const isCommit = (sha: string): boolean => spawnSync('git', ['-C', work, 'cat-file', '-t', sha], { encoding: 'utf8' }).stdout.trim() === 'commit'
 
 seedFirstRun(home, [work])
 {
-
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, hasSeenAutoDefaultNotice: true, hasSeenAutoDefaultNudge: true }, null, 2) + '\n')
@@ -214,7 +208,6 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     ANTHROPIC_BASE_URL: base,
     OPENAI_API_KEY: '',
-
     MERCURY_PERMISSION_ASK_EXPIRY_MINUTES: '0.05',
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
@@ -271,7 +264,6 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
   for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
   return { text: gridText(payload.grid), marks, sends: Array.isArray(cfg.sends) ? cfg.sends.length : 0, receipts: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0, endReason: payload.endReason ?? '' }
 }
-
 const listRowOf = (frame: string): string => frame.split('\n').find(r => !r.includes(`"${TITLE}"`) && !r.includes('enter session') && new RegExp(`${TITLE}\\s{2,}`).test(r)) ?? ''
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
@@ -318,24 +310,18 @@ try {
       cwd: work,
       argv: ['node', DIST],
       sends: [
-
         { data: '\t', atTick: 999, awaitText: WAIT_WORDS, requireAwait: true, minTick: 5, awaitSettleTicks: 3, mark: 'board' },
-
         { data: '\r', afterPrevTicks: 3, mark: 'armed' },
         { data: '\r', afterPrevTicks: 4, mark: 'entered' },
-
         { data: '\r', atTick: 999, awaitText: CARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
-
         { data: '\x1b[1;2D', atTick: 999, awaitText: REPORT_LEAD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'answered' },
         { data: '', atTick: 999, awaitText: BOARD_WORDS, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board-after' },
       ],
       readyText: [BOARD_WORDS],
       stableTicks: 6,
-
       liveSeat: true,
     },
     {
-
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_CONCOURSE: 'always',
@@ -365,7 +351,6 @@ try {
   check('P6 ↵ on Yes settled the needs-you row through the daemon', await untilAsync(async () => (await openAsks()) === 0, 15_000))
   check("P6 the seat's ask table emptied (the card leaves at once)", await untilAsync(() => (asksOf()?.asks.length ?? 0) === 0, 15_000), JSON.stringify(asksOf()))
   check("P6 the seat resumed: its report reached the session's file", await untilAsync(() => transcriptText().includes(REPORT_LEAD), 20_000), transcriptText().slice(-300))
-
   const shaAfter = /park-probe: sha=([0-9a-f]{7,12})/.exec(transcriptText())?.[1] ?? ''
   check('P6 the shell ran on the allow — the probe commit landed and the reported sha is a NEW commit', commitCount() === '2' && shaAfter !== '' && shaAfter !== shaBefore && isCommit(shaAfter), `commits ${commitCount()} · ${shaBefore} → ${shaAfter || '(no sha reported)'}`)
   const answered = cap.marks['answered'] ?? ''

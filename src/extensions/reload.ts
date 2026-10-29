@@ -48,9 +48,7 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
   if (reloading) return reloading
   reloading = (async () => {
     try {
-
       const set = computeActiveSet({ cwd: options.cwd })
-
       publishActiveSet(set)
       clearExtensionCommandCaches()
       clearCommandMemoizationCaches()
@@ -66,7 +64,6 @@ export async function reloadExtensions(options: { cwd?: string; onServersChanged
       const language = getExtensionLspServers()
       reinitializeLspServerManager()
       invalidateKeybindingsCache()
-
       const snapshot: ActiveSnapshot = new Map()
       for (const entry of activeEntries(set.roster.entries)) snapshot.set(entry.id, { version: entry.version, contributionsHash: entry.contributionsHash ?? '' })
       setActiveSnapshot(snapshot)

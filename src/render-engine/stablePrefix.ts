@@ -1,5 +1,5 @@
-export interface BoundaryScanner {
 
+export interface BoundaryScanner {
   advance(body: string): number
   reset(): void
 }
@@ -31,16 +31,13 @@ class BlankLineBoundary implements BoundaryScanner {
 }
 
 interface StreamRender {
-
   rows: readonly string[]
-
   stableRows: number
 }
 
 export class StreamBodyCache {
   private prefixText = ''
   private prefixRows: string[] = []
-
   private lastBody = ''
   private width = -1
   private promotions = 0
@@ -61,7 +58,6 @@ export class StreamBodyCache {
 
   update(body: string, width: number): StreamRender {
     if (width !== this.width || !body.startsWith(this.lastBody)) {
-
       this.prefixText = ''
       this.prefixRows = []
       this.width = width

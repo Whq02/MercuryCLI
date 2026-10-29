@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -36,7 +35,6 @@ console.log('\n§2 the frames header states count/cap and the live span')
   for (let i = 0; i < 5; i++) {
     trace.recordFrameTrace({ durationMs: 4 + i, flickers: [] })
   }
-
   const mountable = typeof FrameSection === 'function' ? FrameSection : (): null => null
   const frame = await renderToString(React.createElement(mountable, {} as never), 120)
   const header = frame.split('\n').find(l => l.includes('p50')) ?? ''

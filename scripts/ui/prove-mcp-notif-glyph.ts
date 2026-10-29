@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +23,6 @@ section('source: each severity-colored span LEADS with its glyph (not the tail)'
 const IMP = /import \{ GLYPH \} from '\.\.\/\.\.\/components\/mercury-ui\/glyphs\.js'/
 check('useMcpConnectivityStatus imports GLYPH', IMP.test(mcp))
 check('useLspInitializationNotification imports GLYPH', IMP.test(lsp))
-
 check('mcp-failed: error span leads with GLYPH.fail', /<Text color="error">\{GLYPH\.fail\}<\/Text> \{failedLocal\.length\} MCP/.test(mcp))
 check('mcp-claudeai-failed: error span leads with GLYPH.fail', /<Text color="error">\{GLYPH\.fail\}<\/Text> \{failedClaudeAi\.length\}/.test(mcp))
 check('mcp-needs-auth: warning span leads with GLYPH.warn', /<Text color="warning">\{GLYPH\.warn\}<\/Text> \{needsAuthLocal\.length\}/.test(mcp))
@@ -44,7 +42,6 @@ check('GLYPH.fail is display-width 1 (no EAW column drift)', glyphs.displayWidth
 check('GLYPH.warn is display-width 1', glyphs.displayWidth(glyphs.GLYPH.warn!) === 1)
 
 section('slot-safety: the inline-glyph add did not touch the _c cache (HB-0178 pattern)')
-
 check('useMcpConnectivityStatus is de-compiled (no _c allocs)', (mcp.match(/= _c\(\d+\)/g) ?? []).length === 0)
 check('useLspInitializationNotification is de-compiled (no _c allocs)', (lsp.match(/= _c\(\d+\)/g) ?? []).length === 0)
 

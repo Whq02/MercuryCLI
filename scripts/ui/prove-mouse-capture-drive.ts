@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -45,11 +44,8 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [FOLDER])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
-
 const COMPOSER = 'Type a prompt'
-
 const CHIP = 'mouse off — native copy sweeps rails'
-
 const WARM_TICKS = 25
 const MOUSE_SETS = ['\x1b[?1000h', '\x1b[?1002h', '\x1b[?1003h', '\x1b[?1006h']
 

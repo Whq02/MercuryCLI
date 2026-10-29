@@ -86,9 +86,7 @@ export type PrimaryBackendId =
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
-
   backend?: PrimaryBackendId
-
   provider?:
     | 'anthropic'
     | 'zai'
@@ -114,9 +112,7 @@ export interface AgentRuntimeRef {
     | 'cerebras'
     | 'fireworks'
     | 'qwen'
-
   route: CallModelRoute | 'unrecognised' | 'absence'
-
   canonicalModel: string
   family:
     | { kind: 'claude' }
@@ -144,7 +140,6 @@ export interface AgentRuntimeRef {
     | { kind: 'minimax' }
     | { kind: 'together' }
     | { kind: 'cohere' }
-
   walletEntryId?: string
 }
 
@@ -157,14 +152,11 @@ export interface PrimaryAgentBackend {
   id: PrimaryBackendId
   provider: AgentRuntimeRef['provider']
   label: string
-
   callModel: CallModel
-
   readiness(): BackendReadiness
 }
 
 function anthropicReadiness(): BackendReadiness {
-
   return { state: 'ready', detail: 'main-loop Anthropic transport' }
 }
 
@@ -568,7 +560,6 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
   } else if (route === 'openai-compat') {
     family = { kind: 'compat' }
   } else if (route === 'openrouter') {
-
     family = { kind: 'openrouter' }
   } else if (route === 'gemini') {
     family = { kind: 'gemini' }
@@ -603,7 +594,6 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }
-
   let walletEntryId: string | undefined
   try {
     if (route === 'openai' || route === 'anthropic' || route === 'openrouter' || route === 'gemini') {

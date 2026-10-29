@@ -52,6 +52,7 @@ import {
   renderToolUseMessage,
 } from './UI.js'
 
+
 const DEFAULT_HEAD_LIMIT = 250
 const DEFAULT_PER_FILE_MATCHES = 25
 
@@ -122,7 +123,6 @@ type Output = {
   numMatches?: number
   appliedLimit?: number
   appliedOffset?: number
-
   incomplete?: string
   engine?: string
   withheld?: string
@@ -373,7 +373,6 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   for (const dir of VCS_EXCLUDED_DIRECTORIES) {
     args.push('--glob', `!${dir}`)
   }
-
   args.push('--max-columns', '500')
 
   if (input.multiline) args.push('-U', '--multiline-dotall')
@@ -385,7 +384,6 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   if (mode === 'content') args.push('-n')
   if (mode === 'content') {
     args.push('--with-filename')
-
     if (input.context !== undefined) {
       args.push('-C', String(input.context))
     } else if (input['-C'] !== undefined) {
@@ -395,7 +393,6 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
       if (input['-A'] !== undefined) args.push('-A', String(input['-A']))
     }
   }
-
   const pattern = input.literal ? input.pattern : quoteTolerantPattern(input.pattern)
   if (pattern.startsWith('-')) {
     args.push('-e', pattern)
@@ -404,7 +401,6 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
   }
   if (input.type) args.push('--type', input.type)
   if (input.glob) {
-
     const patterns = splitGrepGlobField(input.glob).flatMap(pattern => resolveSearchGlob(pattern, searchRoot))
     const anchored = patterns.every(value => value.startsWith('!') || value.includes('/'))
     const depth = anchored ? globSearchDepth(patterns) : undefined
@@ -413,7 +409,6 @@ async function buildArgs(input: Input, context: ToolUseContext, searchRoot: stri
       args.push('--glob', value)
     }
   }
-
   const ignoreByRoot = getFileReadIgnorePatterns(
     context.getAppState().toolPermissionContext,
   )
@@ -508,7 +503,6 @@ export const GrepTool = buildTool({
   outputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
-
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     const permission = context.getAppState().toolPermissionContext
     if (input.glob) {
@@ -529,7 +523,6 @@ export const GrepTool = buildTool({
     return input?.pattern ? `Searching for ${input.pattern}` : 'Searching'
   },
   getPath(input: Partial<Input> | undefined): string {
-
     return input?.path || getCwd()
   },
   preparePermissionMatcher(input: Input) {
@@ -541,7 +534,6 @@ export const GrepTool = buildTool({
     return getDescription()
   },
   async prompt({ tools }): Promise<string> {
-
     return getDescription(new Set(tools.map(tool => tool.name)))
   },
   async validateInput(input: Input) {
@@ -598,10 +590,8 @@ export const GrepTool = buildTool({
         const nul = line.indexOf('\0')
         return nul < 0 ? line : restoreSeparator(line.slice(0, nul), line.slice(nul + 1), input['-n'] ?? true)
       })
-
       const { slice, start, appliedLimit, appliedOffset } = paginate(lines, input.head_limit, offset)
       if ((anchorPatchEnabled() || staleEditRecoveryEnabled()) && (input['-n'] ?? true)) {
-
         try {
           const owner = ownerFromToolUseContext(context)
           const generations = new Map<string, string | null>()
@@ -649,7 +639,6 @@ export const GrepTool = buildTool({
       let numFiles = 0
       const rendered: string[] = []
       for (const line of slice) {
-
         if (/^\d+$/.test(line)) {
           numMatches += parseInt(line, 10)
           numFiles++
@@ -695,7 +684,6 @@ export const GrepTool = buildTool({
       }
     })
     if (process.env.NODE_ENV === 'test') {
-
       statted.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))
     } else {
       statted.sort(
@@ -719,7 +707,6 @@ export const GrepTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     const note = paginationNote(data.appliedLimit, data.appliedOffset)
-
     const incompleteNote = data.incomplete !== undefined ? `\n(INCOMPLETE SEARCH — ${data.incomplete})` : ''
     const engineNote = (data.engine !== undefined ? `\n(${data.engine})` : '') + (data.withheld !== undefined ? `\n(${data.withheld})` : '')
     let text: string
@@ -743,7 +730,6 @@ export const GrepTool = buildTool({
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: text + engineNote + incompleteNote }
   },
   extractSearchText(data: Output): string {
-
     if (data.mode === 'content') return data.content ?? ''
     return data.filenames.join('\n')
   },

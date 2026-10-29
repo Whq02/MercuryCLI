@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'

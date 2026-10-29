@@ -1,3 +1,4 @@
+
 import type { ConversationV1, CrewConversationId } from './conversations.js'
 
 export const INBOX_BUCKET_ORDER = [
@@ -10,15 +11,12 @@ export const INBOX_BUCKET_ORDER = [
 export type InboxBucket = (typeof INBOX_BUCKET_ORDER)[number]
 
 export interface InboxRowV1 {
-
   conversationId: CrewConversationId
   bucket: InboxBucket
   title: string
   kind: ConversationV1['kind']
   unreadCount: number
-
   resumeSeq: number | null
-
   unresolvedSinceMs: number | null
   priority?: number
   updatedAt: number
@@ -52,7 +50,6 @@ export function deriveInboxRow(conversation: ConversationV1, cursorSeq: number):
     bucket,
     title: conversation.title,
     kind: conversation.kind,
-
     unreadCount: Math.max(0, conversation.lastEventSeq - cursorSeq),
     resumeSeq: resume,
     unresolvedSinceMs: oldestUnresolved?.atMs ?? null,

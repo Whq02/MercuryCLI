@@ -5,7 +5,6 @@ import { relative } from 'node:path'
 import { Box, NoSelect, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-
 import {
   boundHunks,
   boundLines,
@@ -112,7 +111,6 @@ export function NotebookEditToolDiff({
   const displayPath = verbose ? notebook_path : relative(getFocusedSessionConnector().workspace().cwd, notebook_path)
   const operation =
     mode === 'insert' ? 'Insert new cell' : mode === 'delete' ? 'Delete cell' : 'Replace cell contents'
-
   const highlightPath = cell_type === 'markdown' ? `${notebook_path}.md` : notebook_path
 
   return (

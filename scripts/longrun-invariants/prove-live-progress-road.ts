@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

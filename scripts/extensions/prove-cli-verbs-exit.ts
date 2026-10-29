@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -55,11 +54,9 @@ const PORT = await new Promise<number>((resolve, reject) => {
 const accepts = (): number => (existsSync(ACCEPT_LOG) ? readFileSync(ACCEPT_LOG, 'utf8').split('\n').filter(Boolean).length : 0)
 
 type Outcome = { exited: boolean; code: number | null; ms: number; out: string; err: string }
-
 function bounded(argv: string[], env: Record<string, string | undefined>, bin = BIN): Promise<Outcome> {
   return new Promise(resolvePromise => {
     const started = Date.now()
-
     const child = spawn('node', bin === '' ? argv : [bin, ...argv], { cwd: CWD, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''
     let err = ''
@@ -171,7 +168,6 @@ try {
     verbEnv,
     '',
   ).catch(() => null)
-
   check('a socket-holding child is reported HELD past the bound', holder !== null && !holder.exited && holder.ms >= BOUND_MS, holder ? shape(holder) : 'no outcome')
   check('…and the origin saw its connection (the detector observed a real socket)', accepts() === 1, `accepts=${accepts()}`)
 

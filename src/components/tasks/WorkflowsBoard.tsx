@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { createHash } from 'node:crypto'
@@ -64,7 +65,6 @@ import { WORK_UNREPORTED_LINE, workRowRuns, workUnreported } from '../../service
 import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js'
 
 const PAST_POLL_MS = 5_000
-
 const LIVE_MANIFEST_POLL_MS = 1_000
 
 export function sameRunListing(
@@ -114,7 +114,6 @@ export function createPastRunsLoader<T>(deps: {
 const SHORT_STATE_WORD: Record<string, string> = { running: 'run', pending: 'wait' }
 
 const MAX_PHASE_DOTS = 4
-
 const MAX_INFO_AGENTS_PER_PHASE = 3
 
 function headerStateFor(status: string, orphaned: boolean): SnapshotState {
@@ -152,23 +151,18 @@ type RunFacts = {
   agentsDone: number
   totalTokens: number
   startTime: number
-
   clockEnd?: number
   desc?: string
   model?: string
   error?: string
   scriptPath?: string
   args?: unknown
-
   script?: string
-
   runDir?: string
   pausedBy?: string
   pausedAt?: WorkflowPausePosition
   endedBy?: string
-
   owner?: { pid: number; word: string }
-
   pendingAsks?: number
 }
 
@@ -288,7 +282,6 @@ function factsForManifest(m: WorkflowRunManifest & { mtimeMs: number }): RunFact
     agentsDone: agentsDoneOf(m.agents),
     totalTokens: m.totalTokens,
     startTime: m.startTime,
-
     clockEnd: m.endTime ?? (orphaned ? m.mtimeMs : undefined),
     desc: m.description && m.description !== name ? m.description : undefined,
     error: m.error,
@@ -456,7 +449,6 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
                   ) : null}
                 </Text>
                 {shown.map(a => {
-
                   const s = STATE_STYLE[agentSnapshotState(a.state)]
                   return (
                     <Text key={a.index}>
@@ -486,12 +478,10 @@ type ViewState =
 export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.ReactNode {
   const tokens = useMercuryTokens()
   const tasks = useAppState(s => s.tasks)
-
   const roster = useFocusedWorkRoster()
   const cwd = useFocusedWorkspaceOriginalCwd()
   const [pastRuns, setPastRuns] = useState<Array<WorkflowRunManifest & { mtimeMs: number }>>([])
   const [pastLoaded, setPastLoaded] = useState(false)
-
   const [unreadableRuns, setUnreadableRuns] = useState(0)
   const [view, setView] = useState<ViewState>({ view: 'board' })
 
@@ -501,7 +491,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     ) as DeepImmutable<LocalWorkflowTaskState>[]
     const activeTasks = workflows.filter(t => t.status === 'running')
     const recentTasks = workflows.filter(t => t.status !== 'running')
-
     const rosterWorkflows = roster.rows.filter(w => w.kind === 'workflow')
     const presence = focusedRunnerPresence()
     const runnerLive = presence !== 'dormant'
@@ -516,7 +505,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       ...workflows.map(t => t.workflowRunId).filter((id): id is string => !!id),
       ...rosterWorkflows.map(w => w.workflowRunId).filter((id): id is string => !!id),
     ])
-
     const derivedAt = Date.now()
     const { external, past: diskPast } = partitionDiskRuns(
       pastRuns,
@@ -561,12 +549,9 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       manifest: m,
       facts: {
         ...factsForManifest(m),
-
         state: 'gated' as SnapshotState,
         word: m.liveness === 'wedged' ? 'wedged' : m.status === 'paused' ? 'paused' : 'run',
-
         clockEnd: m.liveness === 'wedged' ? m.mtimeMs : undefined,
-
         owner: {
           pid: m.ownerPid,
           word:
@@ -598,9 +583,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
 
   const boardHasMotion = activeRows.length > 0 || externalRows.length > 0
   const now = useNowTick(boardHasMotion ? 1000 : null)
-
   const [actionNote, setActionNote] = useState<string | null>(null)
-
   const [dispatchOpen, setDispatchOpen] = useState(false)
   const [dispatchDraft, setDispatchDraft] = useState('')
   const handleDispatchInput = (input: string, key: Record<string, boolean>): void => {
@@ -613,7 +596,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
           value: draft,
         })
         if (r.kind === 'dispatch-accepted') {
-
           setActionNote('sent to the session — it reads them at its next step')
         } else {
           setActionNote(`dispatch refused — ${r.reason}`)
@@ -630,21 +612,17 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     if (input && !key.ctrl && !key.meta && input !== '\t') setDispatchDraft(d => d + input)
   }
   const queuedResumes = useRef<Set<string>>(new Set())
-
   const lastActivatedKey = useRef<string | undefined>(undefined)
   const actingRuns = useRef<Set<string>>(new Set())
 
   const onBoard = view.view === 'board'
-
   const watchingHostedRun =
     view.view !== 'board' &&
     view.taskId === undefined &&
     (roster.rows.some(w => w.kind === 'workflow' && w.workflowRunId === view.runId && workRowRuns(w)) ||
       pastRuns.some(m => m.runId === view.runId && m.status === 'running'))
   useEffect(() => {
-
     if (!onBoard && !watchingHostedRun) return
-
     const loader = createPastRunsLoader({
       list: () => listWorkflowRunsDetailed(cwd),
       apply: listing => {
@@ -709,7 +687,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       key: 'status',
       header: 'St',
       width: 8,
-
       cell: r =>
         r.section === 'active' && r.facts.word !== 'stale' && r.facts.word !== 'paused' ? (
           <Text>
@@ -763,7 +740,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       header: 'Time',
       width: 8,
       align: 'right',
-
       cell: r => (
         <Text color={tokens.textMuted}>
           {formatDuration(Math.max(0, (r.facts.clockEnd ?? now) - r.facts.startTime))}
@@ -778,7 +754,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       label: 'Active',
       count: activeRows.length,
       rows: activeRows,
-
       emptyHint:
         presence === 'dormant'
           ? 'the session has no live runner — ↵ in the chat revives it'
@@ -793,7 +768,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       rows: recentRows,
       emptyHint: 'nothing recent',
     },
-
     ...(externalRows.length > 0
       ? [
           {
@@ -807,7 +781,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       : []),
     {
       id: 'past',
-
       label:
         unreadableRuns > 0
           ? `Past · ${unreadableRuns} unreadable — partial`
@@ -879,10 +852,8 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       run: () => setDispatchOpen(true),
     },
     {
-
       key: 'a',
       label: 'answer ask',
-
       when: (r: RunRow) =>
         r.section === 'active' &&
         ((r.task?.pendingPermissions?.size ?? 0) > 0 || (r.facts.pendingAsks ?? 0) > 0),
@@ -920,7 +891,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
           setActionNote(`no script recoverable for ${r.runId}`)
           return
         }
-
         void saveWorkflowSourceToProject({ source: src, name: r.facts.name, cwd }).then(res =>
           setActionNote(
             res.ok
@@ -935,7 +905,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     {
       key: 'R',
       label: 'resume',
-
       when: (r: RunRow) =>
         (r.section === 'recent' && !!r.taskId && !!r.facts.scriptPath) ||
         ((r.section === 'past' || (r.section === 'recent' && !r.taskId)) &&
@@ -948,12 +917,10 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
         }
         let scriptPath: string | undefined
         let args: unknown
-
         if (r.section === 'recent' && r.taskId) {
           scriptPath = r.facts.scriptPath
           args = r.facts.args
         } else if (r.manifest) {
-
           const res = probeDiskResumability(r.manifest)
           if (!res.ok) {
             setActionNote(`cannot resume ${r.runId}: ${res.reason}`)
@@ -964,7 +931,6 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
         }
         if (!scriptPath) return
         queuedResumes.current.add(r.runId)
-
         void (async () => {
           const receipt = await submitDispatch({
             intentId: mintIntentId(),

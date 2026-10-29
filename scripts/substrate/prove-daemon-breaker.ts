@@ -10,7 +10,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
-
 function clockFrom(start: number): { now: () => number; advance: (ms: number) => void } {
   let t = start
   return { now: () => t, advance: (ms: number) => { t += ms } }
@@ -47,7 +46,6 @@ section('A success resets the consecutive counter (no premature trip)')
 
 section('Window failure-rate trip (trips without N-consecutive)')
 {
-
   const b = new DaemonBreaker({ consecutiveFails: 99, windowSize: 5, failureRate: 0.8, cooldownMs: 1000, now: () => 0 })
   b.recordResult(false); b.recordResult(true); b.recordResult(false); b.recordResult(false)
   check('4 fails / 4 (window not full yet) ⇒ may stay closed', b.getState() === 'closed')
@@ -90,7 +88,6 @@ section('Half-open success ⇒ closed (recovered); half-open failure ⇒ re-open
 
 section('shouldSuppressFire is a PURE query (no admission mutation — caller caps probes)')
 {
-
   const clk = clockFrom(0)
   const b = new DaemonBreaker({ consecutiveFails: 2, windowSize: 100, failureRate: 0.99, cooldownMs: 1000, now: clk.now })
   b.recordResult(false); b.recordResult(false); clk.advance(1001)

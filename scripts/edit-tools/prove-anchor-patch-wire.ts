@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'

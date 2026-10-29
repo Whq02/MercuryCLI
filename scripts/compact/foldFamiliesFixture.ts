@@ -33,7 +33,6 @@ const LANE_BY_PATH: ReadonlyArray<{ prefix: string; lane: FoldFamilyLane }> = [
 interface FoldFamiliesFixture {
   base: string
   captured: FoldFamilyHit[]
-
   env: Record<string, string>
   close(): Promise<void>
 }
@@ -54,7 +53,6 @@ export async function startFoldFamiliesFixture(opts: { port: number }): Promise<
       }
       const lane = LANE_BY_PATH.find(entry => path.startsWith(entry.prefix))?.lane ?? 'other'
       if (req.method === 'GET') {
-
         if (lane === 'local') {
           if (path === '/local/v1/models') {
             res.writeHead(200, { 'content-type': 'application/json' })

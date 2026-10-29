@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/config/globalConfig.ts src/context.ts src/services/instructions/** src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/Tool.ts
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'

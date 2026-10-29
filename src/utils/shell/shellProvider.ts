@@ -1,3 +1,4 @@
+
 export const SHELL_TYPES = ['bash', 'powershell'] as const
 
 export type ShellType = (typeof SHELL_TYPES)[number]

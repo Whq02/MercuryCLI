@@ -44,11 +44,9 @@ export function registerForcedReadGuard(
 ): void {
   const targets = targetFiles.map(p => resolve(p))
   if (targets.length === 0) return
-
   if (forcedReadEngagedSessions.has(sessionId)) return
   const maxBlocks = options?.maxBlocks ?? 3
   let blocks = 0
-
   const missing = new Set(targets.filter(p => !existsSync(p)))
   if (missing.size > 0) {
     logForDebugging(

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, statSync, existsSync, copyFileSync, mkdirSync } from 'fs'
@@ -70,7 +69,6 @@ const runIso = (
   })
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
 }
-
 const runIsoAsync = (
   args: string[],
   cwd: string,
@@ -103,7 +101,6 @@ const isoBundle = join(iso, 'mercury.mjs')
   const h = runIso([isoBundle, '--help'], iso)
   check('--help exits 0 (full CLI module graph loads)', h.status === 0, (h.stderr || h.stdout).slice(0, 300))
   check('--help reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(h.stderr), h.stderr.slice(0, 200))
-
   check(
     '--help renders the command tree',
     /usage/i.test(h.stdout) && h.stdout.length > 500,
@@ -112,7 +109,6 @@ const isoBundle = join(iso, 'mercury.mjs')
 
   const d = runIso([isoBundle, 'health', '--json'], iso, 60_000)
   check('health --json produces the record in isolation (0/3 by verdict — FC-044; a signed-out scratch home is honestly fault)', d.status === 0 || d.status === 3, d.stderr.slice(0, 300))
-
   check('health --json in isolation reports no module-load failure', !/Cannot find module|MERCURY COULD NOT START/.test(d.stderr), d.stderr.slice(0, 200))
   let verdict = ''
   try {
@@ -124,7 +120,6 @@ const isoBundle = join(iso, 'mercury.mjs')
 
 section('(2) no bare STATIC package import survives in the bundle (AST scan)')
 {
-
   const text = readFileSync(dist, 'utf8')
   const builtin = new Set(builtinModules)
   const staticBare = [
@@ -180,7 +175,6 @@ let manifestOk = false
         m.search.vendored === rgOnDisk,
         `vendored=${m.search.vendored} rgOnDisk=${rgOnDisk}`,
       )
-
       check(
         'degraded[] agrees with the search claim',
         m.search.vendored ? !m.degraded.includes('search') : m.degraded.includes('search'),
@@ -213,7 +207,6 @@ let manifestOk = false
           pyright.vendored ? !m.degraded.includes('python-intelligence') : m.degraded.includes('python-intelligence'),
         )
       }
-
       const splash = (m as unknown as { splash?: { path: string; core: string; bytes: number; sha256: string } }).splash
       check('manifest carries the splash record', splash !== undefined)
       if (splash) {

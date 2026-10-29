@@ -5,6 +5,7 @@ import { logForDebugging } from './debug.js'
 import { hasNodeOption } from './envUtils.js'
 import { logError } from './log.js'
 
+
 type TlsModule = {
   rootCertificates: readonly string[]
   getCACertificates?: (type: string) => string[]
@@ -35,12 +36,10 @@ function resolveCACertificates(): string[] | undefined {
         logForDebugging(`caCerts: using ${systemCerts.length} system CA certificates`)
         certificates.push(...systemCerts)
       } else {
-
         logForDebugging('caCerts: system CA accessor returned nothing; falling back to bundled roots')
         certificates.push(...tls.rootCertificates)
       }
     } else if (!extraCertsPath) {
-
       logForDebugging('caCerts: no system CA accessor and no extra certs; deferring to the runtime')
       return undefined
     } else {
@@ -48,26 +47,22 @@ function resolveCACertificates(): string[] | undefined {
       certificates.push(...tls.rootCertificates)
     }
   } else {
-
     logForDebugging('caCerts: extra certs only; using bundled roots as the base')
     certificates.push(...tls.rootCertificates)
   }
 
   if (extraCertsPath) {
     try {
-
       certificates.push(readFileSync(extraCertsPath, 'utf8'))
       logForDebugging(`caCerts: appended extra certificates from ${extraCertsPath}`)
       extraCertsOutcome = { path: extraCertsPath, loaded: true }
     } catch (err) {
       logError(err)
-
       extraCertsOutcome = { path: extraCertsPath, loaded: false, error: err instanceof Error ? err.message : String(err) }
     }
   }
 
   if (certificates.length === 0) {
-
     logForDebugging('caCerts: every source failed or returned nothing; using runtime defaults')
     return undefined
   }
@@ -90,7 +85,6 @@ export function getCACertificates(): string[] | undefined {
 export function getExtraCaCertsOutcome(): ExtraCaCertsOutcome | null {
   getCACertificates()
   if (extraCertsOutcome === null && process.env.NODE_EXTRA_CA_CERTS) {
-
     return { path: process.env.NODE_EXTRA_CA_CERTS, loaded: true }
   }
   return extraCertsOutcome

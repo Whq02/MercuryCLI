@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawn } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,7 +10,6 @@ const TEMPLATE = join(SCRATCH, 'home-template')
 const CWD = join(SCRATCH, 'project')
 mkdirSync(TEMPLATE, { recursive: true })
 mkdirSync(CWD, { recursive: true })
-
 execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: CWD })
 execFileSync('git', ['-c', 'user.email=drive@fixture', '-c', 'user.name=drive', 'commit', '-q', '--allow-empty', '-m', 'ground'], { cwd: CWD })
 process.env.MERCURY_CONFIG_DIR = TEMPLATE
@@ -29,7 +27,6 @@ if (!existsSync(BIN)) {
   console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
   process.exit(1)
 }
-
 const SWITCH_MODEL = process.env.MERCURY_REACTIVATE_DRIVE_MODEL ?? 'claude-opus-5'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -56,7 +53,6 @@ const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
 const EMPTY_BOARD = 'no sessions yet'
-
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const SHIFT_LEFT = '\x1b[1;2D'
@@ -65,7 +61,6 @@ const ARROW_DOWN = '\x1b[B'
 const WARM_TICKS = 25
 const WORDS = 'park me please'
 const REPLY = 'Spare.'
-
 const REACTIVATE_BUDGET_TICKS = 15
 
 type Send = Record<string, unknown>
@@ -100,7 +95,6 @@ async function capture(opts: { id: string; home: string; argv?: string[]; sends:
       ...process.env,
       MERCURY_CONFIG_DIR: opts.home,
       MERCURY_LIVE_GLYPHS: '0',
-
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_SLEEP: '0',
@@ -232,7 +226,6 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
       g('stopped', '\x18', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 3, data: '\x18' },
       g(EMPTY_BOARD, '', { awaitSettleTicks: 35, mark: 'board-stays' }),
-
       { afterPrevTicks: 3, data: SHIFT_RIGHT },
       { afterPrevTicks: 6, data: '', mark: 'board-after' },
       { afterPrevTicks: 3, data: SHIFT_LEFT },
@@ -250,7 +243,6 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
   check('D1 the close chord walked its rungs on the only session — stop, then the archive rung releasing a chat never messaged — and ENDED it (no standing record)', standingOf(home).length === 0, JSON.stringify(standingOf(home).map(r => [r.runnerId, r.parkedAt !== undefined, r.crash?.reason])))
   check('D1 the board STAYS the frame — the two screens — never the dead chat, never a bounce to the menu', isBoard(stays) && !isChat(stays) && !isFace(stays), firstRows(stays))
   check('D1 NO refusal painted (poison: "✕ refused — stop refused")', !/refused/.test(stays), stays.split('\n').filter(l => /refused/.test(l)).join(' | '))
-
   const still = (t: string): string => t.replace(/❯ ▌/g, '❯  ')
   check('D1 ⇧→ from the board is byte-still (the chat stop is gone)', stays !== '' && still(stays) === still(after))
   check('D1 ⇧← is the face, whose row names the concourse alone', isFace(menu) && menu.includes(FACE_TO_CONCOURSE) && !menu.includes(FACE_TO_CHAT), firstRows(menu))
@@ -274,14 +266,12 @@ console.log('D2 — park, reactivate in place, park again, x-x: gone')
       g(BOARD, '', { awaitSettleTicks: 4, mark: 'board-parked' }),
       { afterPrevTicks: 2, data: '\t' },
       { afterPrevTicks: 2, data: ARROW_DOWN },
-
       { afterPrevTicks: 2, data: '\r' },
       { afterPrevTicks: 3, data: '\r', mark: 'enter-parked' },
       { afterPrevTicks: REACTIVATE_BUDGET_TICKS, data: '', mark: 'reactivated' },
       g(COMPOSER, '/clear', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: '\r' },
       { afterPrevTicks: 25, data: SHIFT_LEFT },
-
       g(BOARD, '', { awaitSettleTicks: 4, mark: 'board-parked-again' }),
       { afterPrevTicks: 2, data: '\x18' },
       { afterPrevTicks: 3, data: '\x18' },
@@ -326,7 +316,6 @@ console.log('D3 — the screen dies: records stand, the daemon goes down, the ne
       { afterPrevTicks: 2, data: '\r' },
       g(REPLY, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       g(BOARD, '\t', { awaitSettleTicks: 3 }),
-
       { afterPrevTicks: 2, data: 'n' },
       g('contract', '\x1b', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 15, data: '', mark: 'two-sessions' },
@@ -337,9 +326,7 @@ console.log('D3 — the screen dies: records stand, the daemon goes down, the ne
   const before = standingOf(home)
   check('D3 two sessions stood when the screen died — one messaged, one newborn', before.length === 2 && before.some(r => r.lastDeliveryAt !== undefined) && before.some(r => r.bornBlankAt !== undefined && r.lastDeliveryAt === undefined), JSON.stringify(before.map(r => [r.runnerId, r.lastDeliveryAt !== undefined])))
   const daemonPid = daemonPidOf(home)
-
   const down = await until(() => daemonPid === null || !isAlive(daemonPid), 30_000)
-
   await until(() => Object.values(recordsOf(home)).every(r => !isAlive(r.pid)), 45_000)
   const settled = Object.values(recordsOf(home))
   const messaged = settled.find(r => r.lastDeliveryAt !== undefined)

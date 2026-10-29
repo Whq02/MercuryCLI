@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 
 import { execFileNoThrow } from './execFileNoThrow.js'
 
+
 export function isProcessRunning(pid: number): boolean {
   if (pid <= 1) return false
   try {

@@ -108,7 +108,6 @@ section('§4 · the wire path through the real tool, against the fake')
   check('play_enter answers willReload', enter.includes('"willReload": false'))
   await sleep(50)
   const after = await runWithCwdOverride(proj, () => callTool('play_state'))
-
   const surfaced = [enter, after].filter(t => t.includes('events (') && t.includes('play_state_changed'))
   check('the play_state_changed event surfaces exactly once across the two calls', surfaced.length === 1, `${surfaced.length}`)
   const tests = await runWithCwdOverride(proj, () => callTool('tests_run', { mode: 'EditMode' }))

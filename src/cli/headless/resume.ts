@@ -1,3 +1,4 @@
+
 import { type UUID } from 'crypto'
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
@@ -50,7 +51,6 @@ export function removeInterruptedMessage(
 ): void {
   const idx = messages.findIndex(m => m.uuid === interruptedUserMessage.uuid)
   if (idx !== -1) {
-
     messages.splice(idx, 2)
   }
 }
@@ -84,7 +84,6 @@ export async function loadInitialMessages(
     return { messages: [] }
   }
   const adopt = async (result: Resumed, fallbackHome: string | null): Promise<LoadInitialMessagesResult> => {
-
     if (!options.forkSession && result.sessionId) {
       switchSession(
         asSessionId(result.sessionId),
@@ -95,7 +94,6 @@ export async function loadInitialMessages(
       }
     }
     await restoreSessionStateFromLog(result, setAppState)
-
     restoreSessionMetadata(
       options.forkSession
         ? { ...result, worktreeSession: undefined }
@@ -113,7 +111,6 @@ export async function loadInitialMessages(
       model: result.model,
     }
   }
-
   armProvisionalSessionReconcile()
 
   if (options.continue) {
@@ -122,9 +119,7 @@ export async function loadInitialMessages(
         undefined ,
         undefined ,
       )
-
       if (result && hasConversationTurn(result.messages)) return adopt(result, null)
-
       return refuse('No conversation found to continue')
     } catch (error) {
       logError(error)
@@ -157,7 +152,6 @@ export async function loadInitialMessages(
       )
 
       if (!result || !hasConversationTurn(result.messages)) {
-
         return refuse(
           parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
@@ -189,3 +183,4 @@ export async function loadInitialMessages(
       runSessionStartHooks('new')),
   }
 }
+

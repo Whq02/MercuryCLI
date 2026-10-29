@@ -6,6 +6,7 @@ import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { asSystemPrompt } from './systemPromptType.js'
 
+
 export { asSystemPrompt } from './systemPromptType.js'
 export type { SystemPrompt } from './systemPromptType.js'
 

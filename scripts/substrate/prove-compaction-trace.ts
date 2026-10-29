@@ -38,7 +38,6 @@ section('gating: stamped build + invocation-trace on, with MERCURY_COMPACTION_TR
   process.env.MERCURY_COMPACTION_TRACE = '0'
   check('MERCURY_COMPACTION_TRACE=0 ⇒ disabled (opt-out)', isCompactionTraceEnabled() === false)
   delete process.env.MERCURY_COMPACTION_TRACE
-
   process.env.MERCURY_TRACE = '0'
   process.env.MERCURY_SUBSTRATE = '0'
   check('invocation-trace off (MERCURY_TRACE=0 + MERCURY_SUBSTRATE=0) ⇒ compaction off too (piggyback)', isCompactionTraceEnabled() === false)
@@ -77,7 +76,6 @@ section('emitCompactionTrace → shared sidecar → traceSnapshot compaction lan
   check('compaction total = 4', c.total === 4)
   check('auto-compact rolled up to 2× / 3000 tok', c.byEvent.find(e => e.event === 'auto-compact')?.count === 2 && c.byEvent.find(e => e.event === 'auto-compact')?.tokensFreed === 3000)
   check('total tokens freed = 3500', c.totalTokensFreed === 3500)
-
   check('a last event is recorded', c.last !== undefined && ['snip', 'context-collapse', 'auto-compact'].includes(c.last.event))
 }
 

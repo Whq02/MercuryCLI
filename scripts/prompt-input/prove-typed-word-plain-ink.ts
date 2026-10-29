@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/PromptInput/PromptInput.tsx src/components/PromptInput/ShimmeredInput.tsx
+// gate-watch: src/components/messages/HighlightedThinkingText.tsx src/utils/textHighlighting.ts
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

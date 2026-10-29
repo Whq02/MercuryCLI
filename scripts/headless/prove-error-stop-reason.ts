@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,7 +24,6 @@ const run = (args: string[]): { status: number | null; out: string } => {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       NODE_ENV: undefined,
-
       MERCURY_COMPAT_BASE_URL: 'http://127.0.0.1:9',
       MERCURY_COMPAT_MODELS: 'w17-mock',
     } as NodeJS.ProcessEnv,

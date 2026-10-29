@@ -51,3 +51,4 @@ export function getToolNameForPermissionCheck(tool: {
   if (tool.mcpInfo) return buildMcpToolName(tool.mcpInfo.serverName, tool.mcpInfo.toolName)
   return tool.name
 }
+

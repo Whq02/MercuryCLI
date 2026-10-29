@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
@@ -35,7 +34,6 @@ section('§1 the fence ledger over a discarded prefix')
 
 section('§2 the bound returns the standing opener beside the untouched slice')
 {
-
   const lines = ['intro prose', '```ts', ...Array.from({ length: 12 }, (_, i) => `const v${i} = ${i} // #${i}`), '- not a bullet', '# not a heading']
   const text = lines.join('\n')
   const out = boundTailForInline(text, 10, 84)
@@ -58,7 +56,6 @@ section('§3 the dress, through the renderer’s own lexer')
   check('CONTROL (the disease): the kept slice ALONE lexes as prose — headings where code streamed', bare.some(t => t.type === 'heading'), j(bare.map(t => t.type)))
   const dressed = marked.lexer(`${out.openFence}\n${out.text}`)
   check('the carried opener restores the code dress: ONE code token, zero headings', dressed.length === 1 && dressed[0]!.type === 'code' && (dressed[0] as { lang?: string }).lang === 'ts', j(dressed.map(t => t.type)))
-
   const closerFirst = ['```js', ...Array.from({ length: 8 }, (_, i) => `code_${i}`), '```', '# real heading', 'plain prose', 'more prose']
   const cf = boundTailForInline(closerFirst.join('\n'), 10, 84)
   check('fixture: the closer is the first kept line', cf.truncated === true && cf.text.startsWith('```') && cf.openFence === '```js', j({ head: cf.text.split('\n')[0], fence: cf.openFence }))

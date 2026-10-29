@@ -106,14 +106,10 @@ import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscription
 export type UsageProvider = 'anthropic' | 'openai'
 
 export interface ProviderSessionSpend {
-
   inputTokens: number
   outputTokens: number
-
   costUSD: number
-
   models: number
-
   pricing?: { estimatedModels: number; unpricedModels: number; unpricedTurns: number }
   scheduled?: ProviderSessionSpend
   advisor?: ProviderSessionSpend
@@ -121,9 +117,7 @@ export interface ProviderSessionSpend {
 
 export interface ProviderUsageView {
   provider: UsageProvider
-
   activeEntry?: WalletEntry
-
   entries: WalletEntry[]
   sessionSpend: ProviderSessionSpend
   limits:
@@ -131,15 +125,13 @@ export interface ProviderUsageView {
     | { kind: 'openai-observed'; window: OpenaiLimitWindow }
 }
 
+
 export interface ProviderFamilyPresence {
   id: ProviderFamilyId
   available: boolean
   reason?: string
-
   credentialed: boolean
-
   credentialLabel?: string
-
   identity?: string
 }
 
@@ -147,11 +139,8 @@ export interface ProviderFamilyReads {
   claudeSubscriber?: () => boolean
   subscriptionType?: () => string | null
   anthropicApiKeyPresent?: () => boolean
-
   bearerTokenSource?: () => { source: string; hasToken: boolean }
-
   anthropicEmail?: () => string | undefined
-
   engineIdentity?: (id: ProviderFamilyId) => string | undefined
 }
 
@@ -167,7 +156,6 @@ export function presenceIdentityWords(
 function engineIdentityLive(id: ProviderFamilyId): string | undefined {
   try {
     if (id === 'openai') {
-
       const { resolveOpenaiAccount } =
         require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
       return resolveOpenaiAccount()?.email
@@ -202,11 +190,9 @@ export function anthropicCredentialPresence(
       try {
         return getAnthropicApiKey() !== null
       } catch {
-
         return false
       }
     })()
-
   const bearer = reads?.bearerTokenSource?.() ?? readBearerTokenSource()
   const envBearer =
     bearer.hasToken && bearer.source !== 'claude.ai' && bearer.source !== 'credentials.keyCommand' && bearer.source !== 'none'
@@ -217,7 +203,6 @@ export function anthropicCredentialPresence(
       : envBearer
         ? `Anthropic bearer token (${bearer.source})`
         : undefined
-
   const expired = ((): boolean => {
     try {
       return isAnthropicOAuthSignInExpired()
@@ -225,7 +210,6 @@ export function anthropicCredentialPresence(
       return false
     }
   })()
-
   const identity = subscriber ? anthropicSignInEmail(reads) : undefined
   return {
     credentialed: credentialLabel !== undefined,
@@ -258,7 +242,6 @@ export function providerFamilyPresences(
 ): ProviderFamilyPresence[] {
   return providers.map((provider): ProviderFamilyPresence => {
     if (provider.id === 'anthropic') {
-
       return {
         id: provider.id,
         available: provider.available,
@@ -266,7 +249,6 @@ export function providerFamilyPresences(
         ...anthropicCredentialPresence(reads),
       }
     }
-
     const account = provider.description.account
     const identity = account.kind !== 'none' ? (reads?.engineIdentity ?? engineIdentityLive)(provider.id) : undefined
     return {
@@ -397,13 +379,11 @@ function spendOf(
   let unpricedModels = 0
   let unpricedTurns = 0
   for (const [model, record] of Object.entries(usage)) {
-
     if (!admit(model)) continue
     spend.models += 1
     spend.inputTokens += record.inputTokens + record.cacheReadInputTokens + record.cacheCreationInputTokens
     spend.outputTokens += record.outputTokens
     spend.costUSD += record.costUSD
-
     const turns = unpriced[model] ?? 0
     if (turns > 0) {
       unpricedModels += 1
@@ -417,38 +397,31 @@ function spendOf(
   return spend
 }
 
+
 export interface UsageWindowView {
-
   key: string
-
   label: string
   state: 'live' | 'unavailable'
   usedPct?: number
   resetsAtMs?: number
   observedAtMs?: number
-
   source?: UsageFeed
   freshForMs?: number
 }
 
 export interface UsageBindingView {
   window: UsageWindowView
-
   claim?: RateLimitType
-
   windowName: string
 }
 
 export interface UsageCreditsView {
   state: 'reported' | 'unreported'
-
   display?: string
-
   compact?: string
   source?: UsageFeed
   observedAtMs?: number
   freshForMs?: number
-
   reason?: string
 }
 
@@ -471,59 +444,38 @@ const CARRY_UNSTATED: UsageCarryView = { state: 'unstated', display: CARRY_UNSTA
 export type ActiveUsageShape = 'subscription-windows' | 'api-spend' | 'none'
 
 export interface UsageFigureView {
-
   key: string
-
   label: string
-
   value: string
   observedAtMs?: number
   resetsAtMs?: number
-
   source?: UsageFeed
   freshForMs?: number
 }
 
 export interface ActiveSourceUsage {
-
   provider: ProviderFamilyId | 'unrecognised'
-
   sourceKind: 'subscription-oauth' | 'oauth' | 'api-key' | 'keyless' | 'none'
-
   label: string
   shape: ActiveUsageShape
   windows: UsageWindowView[]
-
   pools: UsageWindowView[]
-
   binding?: UsageBindingView
-
   credits?: UsageCreditsView
   carry?: UsageCarryView
   spend: ProviderSessionSpend
-
   limited?: { resetsAtMs: number; claim?: RateLimitType; windowName?: string }
-
   balance?: {
-
     display: string
     observedAtMs: number
   }
-
   figures?: UsageFigureView[]
-
   readerNote?: string
-
   readerNoteCompact?: string
-
   readerWait?: boolean
-
   readerRecord?: string
-
   absence?: string
-
   whyNot?: string
-
   tier?: string
   rental?: ReturnType<typeof hostRentalUsage>
 }
@@ -532,7 +484,6 @@ export interface ActiveUsageReads {
   route?: (model: string) => ProviderFamilyId
   activeEntry?: (provider: UsageProvider) => WalletEntry | undefined
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
-
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
   anthropicLimits?: () => AnthropicLimits
@@ -550,12 +501,10 @@ export interface ActiveUsageReads {
   geminiLimited?: () => GeminiLimitWindow
   huggingfaceAccount?: () => HuggingfaceAccountRef | undefined
   huggingfaceLimited?: () => HuggingfaceLimitWindow
-
   huggingfaceRate?: () => { remaining: number; resetsAtMs?: number; observedAtMs: number } | null
   huggingfaceAccountFacts?: () => HuggingfaceAccountFacts | null
   huggingfaceAccountFactsFailure?: () => HuggingfaceAccountFactsFailure | null
   localAccount?: () => LocalAccountRef | undefined
-
   laneCredentialed?: (provider: ProviderFamilyId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
@@ -564,13 +513,11 @@ export interface ActiveUsageReads {
   xaiSubscriptionCredits?: typeof xaiObservedSubscriptionCredits
   mistralAdminKeyPresent?: () => boolean
   mistralObserved?: () => { identity: { email?: string; name?: string; organization?: string; workspace?: string } | null; limits: import('./mistral/mistralUsageState.js').MistralObservedLimits | null; failure: import('./mistral/mistralUsageState.js').MistralUsageFailure | null }
-
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
   kimiManagedError?: () => string | undefined
   spend?: (route: ProviderFamilyId) => ProviderSessionSpend
-
   anthropicPlan?: () => string | null
   nousAccount?: () => NousObservedAccountView | null
   nousAccountFailure?: () => NousAccountFailureView | null
@@ -657,7 +604,6 @@ export interface UsageRefreshIo {
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
-
   reason?: 'open' | 'operator' | 'sign-in'
 }
 
@@ -705,7 +651,6 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
         return
       }
       case 'anthropic': {
-
         const { refreshAnthropicUsage } =
           require('./anthropic/anthropicUsageState.js') as typeof import('./anthropic/anthropicUsageState.js')
         await refreshAnthropicUsage({
@@ -1000,7 +945,6 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
       ...(usedPct !== undefined ? { usedPct: Math.min(100, Math.max(0, usedPct)) } : {}),
       ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
       observedAtMs: usage.observedAtMs,
-
       source: 'endpoint',
     }
   }
@@ -1028,7 +972,6 @@ export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[
     state: w.state === 'live' ? 'live' : 'unavailable',
     ...(w.usedPct !== null ? { usedPct: w.usedPct } : {}),
     ...(w.resetsAtMs !== null ? { resetsAtMs: w.resetsAtMs } : {}),
-
     ...(w.source !== undefined ? { source: w.source, freshForMs: usageStaleAfterMs() } : {}),
     ...(w.observedAtMs !== undefined ? { observedAtMs: w.observedAtMs } : {}),
   })
@@ -1309,6 +1252,7 @@ export function openaiObservedWindowViews(reads?: ActiveUsageReads): UsageWindow
   return openaiWindowViews(reads)
 }
 
+
 export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
   const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
   const usage = observed.usage
@@ -1323,7 +1267,6 @@ export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWi
       state: 'live',
       usedPct,
       observedAtMs: usage.observedAtMs,
-
       source: 'endpoint',
     },
   ]
@@ -1471,7 +1414,6 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
   const bands = [observed.primary, observed.secondary].filter(
     (b): b is NonNullable<typeof b> => b !== undefined && b.usedPct !== undefined,
   )
-
   bands.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0))
   return bands.map(band => {
     const label = usageWindowLabel(band.windowMinutes)
@@ -1579,14 +1521,12 @@ const ZAI_GENERAL_KEY_ABSENCE_NOTE =
 const ZAI_NO_PLAN_NOTE = 'usage: not on a coding plan'
 const COMPAT_USAGE_ABSENCE_NOTE =
   "a custom endpoint publishes no usage Mercury reads — the endpoint's own dashboard is the view"
-
 const API_KEY_USAGE_ABSENCE_NOTE =
   'no usage endpoint is read for an API key on this lane — the provider console is the view'
 
 function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] {
   if (!usage) return []
   const observedAtMs = usage.observedAtMs
-
   const stamp = { observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() }
   const figures: UsageFigureView[] = []
   if (usage.usage !== undefined) {
@@ -1662,7 +1602,6 @@ function deriveActiveSourceUsage(opts?: {
   const provider = (reads?.route ?? ((m: string) => declaredRouteOf(m) ?? 'unrecognised'))(model)
   const rental = reads === undefined && provider === 'openai-compat' ? hostRentalUsage(model) : undefined
   const view = { ...usageForProvider(provider, reads), ...(rental ? { rental } : {}) }
-
   const binding = bindingWindowOf(view, model)
   return binding !== undefined ? { ...view, binding } : view
 }
@@ -1751,7 +1690,6 @@ function deriveUsageForProvider(
       }
     }
     const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()
-
     const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
     const figures = openrouterFigures(observed.usage)
     const source = observed.errorSource ?? resolveOpenrouterApiKey()?.source
@@ -1788,7 +1726,6 @@ function deriveUsageForProvider(
     const plan = account.kind === 'plan' ? geminiPlanFacts() : undefined
     const planFigures = plan ? geminiPlanUsageFigures(plan) : []
     const planNote = plan ? geminiPlanQuotaReadNote(getCachedGeminiCatalogue('plan')) : undefined
-
     return {
       provider,
       sourceKind: account.kind === 'plan' ? 'oauth' : account.kind,
@@ -1801,7 +1738,6 @@ function deriveUsageForProvider(
       absence: plan ? GEMINI_PLAN_USAGE_ABSENCE_NOTE : GEMINI_USAGE_ABSENCE_NOTE,
       ...(planFigures.length > 0 ? { figures: planFigures } : {}),
       ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
-
       tier: plan ? geminiPlanTierWords(plan.tier) : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
       ...(limitedWindow.state === 'limited'
         ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
@@ -1815,7 +1751,6 @@ function deriveUsageForProvider(
       return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
     }
     const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
-
     const rate = reads?.huggingfaceRate ? reads.huggingfaceRate() : huggingfaceObservedRate()
     const facts = reads?.huggingfaceAccountFacts ? reads.huggingfaceAccountFacts() : huggingfaceObservedAccountFacts()
     const factsFailure = reads?.huggingfaceAccountFactsFailure ? reads.huggingfaceAccountFactsFailure() : huggingfaceAccountFactsFailure()
@@ -1828,7 +1763,6 @@ function deriveUsageForProvider(
               value: String(rate.remaining),
               observedAtMs: rate.observedAtMs,
               ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
-
               source: 'headers' as const,
             },
           ]
@@ -1875,7 +1809,6 @@ function deriveUsageForProvider(
   }
 
   if (provider === 'moonshot') {
-
     const account = reads?.moonshotAccount ? reads.moonshotAccount() : liveMoonshotAccount()
     if (!account) {
       return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
@@ -2133,22 +2066,18 @@ function deriveUsageForProvider(
       shape: 'api-spend',
       windows: [],
       pools: [],
-
       credits: provider === 'deepseek' ? polledBalanceCredits(balance) : CREDITS_UNREPORTED,
       spend,
       tier: API_BILLING_TIER,
       ...(balance ? { balance } : {}),
-
       ...(record && !record.isAvailable
         ? { readerNote: 'the provider marks this account unavailable for inference' }
         : {}),
-
       ...(provider === 'openai-compat' ? { absence: COMPAT_USAGE_ABSENCE_NOTE } : {}),
     }
   }
 
   if (provider === 'unrecognised') {
-
     return {
       provider,
       sourceKind: 'none',
@@ -2162,13 +2091,11 @@ function deriveUsageForProvider(
   }
   const entry = (reads?.activeEntry ?? activeWalletEntry)(provider)
   if (entry === undefined) {
-
     const title = providerDisplayName(provider)
     const whyNot = `not connected — /logins connects ${title}`
     return { provider, sourceKind: 'none', label: `${title} usage`, shape: 'none', windows: [], pools: [], spend, whyNot }
   }
   if (entry.kind === 'api-key') {
-
     return {
       provider,
       sourceKind: 'api-key',
@@ -2183,9 +2110,7 @@ function deriveUsageForProvider(
     }
   }
   if (provider === 'anthropic') {
-
     const plan = (reads?.anthropicPlan ?? getSubscriptionType)()
-
     const reader = reads === undefined ? liveAnthropicReaderWords() : {}
     const limited = anthropicLimitedWindow(reads)
     return {
@@ -2194,7 +2119,6 @@ function deriveUsageForProvider(
       label: 'Anthropic usage',
       shape: 'subscription-windows',
       windows: anthropicWindowViews(reads),
-
       pools: anthropicPoolWindowViews(reads),
       credits: anthropicExtraUsageCredits(reads),
       carry: anthropicExtraUsageCarry(reads),
@@ -2207,9 +2131,7 @@ function deriveUsageForProvider(
       ...(reader.wait === true ? { readerWait: true } : {}),
     }
   }
-
   const limitedWindow = (reads?.openaiLimited ?? (() => openaiLimitWindow('chatgpt-subscription')))()
-
   const openaiPlan = entry.identity?.plan
   return {
     provider,
@@ -2235,7 +2157,6 @@ function liveAnthropicReaderWords(): { note?: string; compact?: string; record?:
     const note = anthropicUsageReaderNote(now, 'prose')
     const compact = anthropicUsageReaderNote(now, 'compact')
     const record = usageReaderRecordWords()
-
     const wait = isServerWait(anthropicUsageReadStatus().failure)
     return {
       ...(note !== undefined ? { note } : {}),
@@ -2265,7 +2186,6 @@ export function providerUsageView(provider: UsageProvider): ProviderUsageView {
     ...(activeEntry ? { activeEntry } : {}),
     entries,
     sessionSpend: spendForRoute('openai'),
-
     limits: {
       kind: 'openai-observed',
       window: openaiLimitWindow(activeEntry?.kind === 'api-key' ? 'api-key' : 'chatgpt-subscription'),

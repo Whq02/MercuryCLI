@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -97,13 +96,11 @@ function armWorld(): Walk {
   sr.enterConcourse()
   const emitter = new EventEmitter()
   const composerSaw: number[] = []
-
   emitter.on('input', (e: InstanceType<typeof InputEvent>) => {
     if (sr.currentSurfaceRoute().kind !== 'repl') return
     if (sr.isPriorGenerationInput(e.seq)) return
     if (e.key.return) composerSaw.push(e.seq)
   })
-
   let armed = false
   let settled = false
   let resolveLanding: (ok: boolean) => void = () => {}
@@ -163,7 +160,6 @@ function dispatchChunk(w: Walk, events: InstanceType<typeof InputEvent>[], keybo
   w.landingResolve(true)
   await sleep(0)
   check('the hop landed BEHIND the flip (slot pointed after the commit)', w.landingSettled() && slot.hasFocusedSession())
-
   const e4 = enterKey()
   dispatchChunk(w, [e4])
   check('a fresh post-reveal ↵ lands in the composer (zero functionality)', w.composerSaw.includes(e4.seq))
@@ -237,7 +233,6 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
 {
   const w = armWorld()
   const neighborSaw: number[] = []
-
   w.emitter.on('input', (e: InstanceType<typeof InputEvent>) => {
     if (sr.currentSurfaceRoute().kind !== 'concourse' || !e.key.return) return
     neighborSaw.push(e.seq)
@@ -250,7 +245,6 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
   w.landingResolve(true)
   await sleep(0)
 }
-
 {
   sr._resetSurfaceRouteForTesting()
   sr.registerRouteSurface('concourse', { render: () => null })
@@ -281,7 +275,6 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
     if (sr.currentSurfaceRoute().kind === 'concourse') boardSaw.push(e.seq)
   })
   const op = { gen: sr.surfaceGeneration() }
-
   const during = enterKey()
   emitter.emit('input', during)
   check('input during the settled wait lands on the board (functionality preserved)', boardSaw.includes(during.seq))
@@ -293,7 +286,6 @@ console.log('\n§3 the edges (pointer entry · the ↵ neighbors · the settled 
   check('the queued remainder dies at the flip (aimed at a world that left)', !boardSaw.includes(undispatched.seq) && sr.isPriorGenerationInput(undispatched.seq))
   const fresh = enterKey()
   check('the next decoded keystroke is the revealed world\'s own', !sr.isPriorGenerationInput(fresh.seq))
-
   sr.returnToConcourse()
   const op2 = { gen: sr.surfaceGeneration() }
   sr.enterBootSettings()

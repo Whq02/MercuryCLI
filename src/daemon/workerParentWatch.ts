@@ -68,7 +68,6 @@ export function armWorkerParentWatch(
         persist: false,
       })
     ) {
-
       void orphanExit({ exit, cleanup: runCleanupFunctions })
     }
   }, WORKER_WATCH_INTERVAL_MS)

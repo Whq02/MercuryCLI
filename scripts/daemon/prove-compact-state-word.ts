@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -109,7 +108,6 @@ console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, 
   check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && compactingOf(seenAtWork[0])?.stage === null)
   check("the work's answer rides through", out === 'folded')
   check('the one finally stamps the landed exit (one stamp in, one exit out)', stamps.length === 2 && compactingOf(stamps[1])?.exit === 'landed')
-
   const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.ts')
   const thrown: unknown[] = []
   let caught: unknown = null

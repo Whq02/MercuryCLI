@@ -69,7 +69,6 @@ export async function probeServer(
 }
 
 function renderStatus(result: ProbeResult): string {
-
   const reason = result.reason !== undefined && result.reason.length > 0 ? ` — ${clipToWord(result.reason, 160)}` : ''
   switch (result.outcome) {
     case 'connected':
@@ -105,6 +104,7 @@ function scopeConfigFileLabel(scope: CliScope): string {
   }
 }
 
+
 export async function mcpServeHandler(options: {
   debug?: boolean
 }): Promise<void> {
@@ -119,7 +119,6 @@ export async function mcpServeHandler(options: {
     throw error
   }
   try {
-
     const { setup } = await import('../../setup.js')
     await setup(cwd, 'default', false, false, undefined, false)
     const { startMCPServer } = await import('../../entrypoints/mcp.js')
@@ -131,12 +130,12 @@ export async function mcpServeHandler(options: {
   }
 }
 
+
 export async function mcpRemoveHandler(
   name: string,
   options: { scope?: string },
 ): Promise<void> {
   try {
-
     const existing = getMcpConfigByName(name)
     const cleanSecureStorage = (config: McpServerConfig | null): void => {
       if (!config) return
@@ -153,9 +152,7 @@ export async function mcpRemoveHandler(
       process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
       return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
     }
-
     const holders: CliScope[] = []
-
     const local = getMcpConfigsByScope('local')
     const project = getMcpConfigsByScope('project')
     const user = getMcpConfigsByScope('user')
@@ -172,7 +169,6 @@ export async function mcpRemoveHandler(
       process.stdout.write(`Removed MCP server ${name} from ${scope} scope\n`)
       return cliOk(`Modified: ${scopeConfigFileLabel(scope)}`)
     }
-
     console.error(`MCP server ${name} exists in multiple scopes:`)
     for (const scope of holders) {
       console.error(`  ${scope} (${scopeConfigFileLabel(scope)})`)
@@ -186,6 +182,7 @@ export async function mcpRemoveHandler(
     return cliError(error instanceof Error ? error.message : String(error))
   }
 }
+
 
 export async function mcpListHandler(): Promise<void> {
   const { servers: configs, errors: notices } = await getMercuryMcpConfigs()
@@ -219,14 +216,13 @@ export async function mcpListHandler(): Promise<void> {
     } else if (config.type === 'stdio' || config.type === undefined) {
       process.stdout.write(`${name}: ${written.command ?? ''} ${written.args.join(' ')} — ${status}\n`)
     } else {
-
       const target = written.url === undefined ? '' : ` ${describeUrlRedacted(written.url)}`
       process.stdout.write(`${name}:${target} (${String(config.type)}) — ${status}\n`)
     }
   })
-
   await gracefulShutdown(0)
 }
+
 
 export async function mcpGetHandler(name: string): Promise<void> {
   const config = getMcpConfigByName(name)
@@ -248,13 +244,11 @@ export async function mcpGetHandler(name: string): Promise<void> {
     process.stdout.write(`  Type: ${config.type}\n`)
     process.stdout.write(`  URL: ${describeUrlRedacted(written.url ?? '')}\n`)
     if (config.headers && Object.keys(config.headers).length > 0) {
-
       process.stdout.write('  Headers:\n')
       for (const line of describeHeadersRedacted(config.headers).split(', ')) {
         process.stdout.write(`    ${line}\n`)
       }
     }
-
     if (config.oauth?.clientId || config.oauth?.callbackPort !== undefined) {
       const summary: string[] = []
       if (config.oauth.clientId) {
@@ -268,7 +262,6 @@ export async function mcpGetHandler(name: string): Promise<void> {
       process.stdout.write(`  OAuth: ${summary.join(', ')}\n`)
     }
   } else if (config.type === 'stdio' || config.type === undefined) {
-
     process.stdout.write('  Type: stdio\n')
     process.stdout.write(`  Command: ${written.command ?? ''}\n`)
     process.stdout.write(`  Args: ${written.args.join(' ')}\n`)
@@ -279,7 +272,6 @@ export async function mcpGetHandler(name: string): Promise<void> {
       }
     }
   } else {
-
     process.stdout.write(`  Type: ${String(config.type)}\n`)
     if (written.url !== undefined) {
       process.stdout.write(`  URL: ${describeUrlRedacted(written.url)}\n`)
@@ -292,6 +284,7 @@ export async function mcpGetHandler(name: string): Promise<void> {
   await gracefulShutdown(0)
 }
 
+
 export async function mcpAddJsonHandler(
   name: string,
   json: string,
@@ -303,9 +296,7 @@ export async function mcpAddJsonHandler(
     if (!parsed || typeof parsed !== 'object') {
       return cliError(`Invalid JSON for MCP server ${name}`)
     }
-
     const validated = McpServerConfigSchema().safeParse(parsed)
-
     let clientSecret: string | undefined
     if (
       options.clientSecret &&
@@ -315,9 +306,7 @@ export async function mcpAddJsonHandler(
     ) {
       clientSecret = await readClientSecret()
     }
-
     if (!validated.success) {
-
       cliError(`mcp import ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`)
       return
     }
@@ -331,6 +320,7 @@ export async function mcpAddJsonHandler(
     return cliError(error instanceof Error ? error.message : String(error))
   }
 }
+
 
 export async function mcpResetChoicesHandler(): Promise<void> {
   const { error } = updateSettingsForSource('localSettings', {

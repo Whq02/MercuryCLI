@@ -6,7 +6,6 @@ import {
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
 async function main(): Promise<void> {
-
   if (!process.versions?.bun) {
     const nodeDecision = evaluateNodeRuntime(process.versions?.node)
     if (nodeDecision.verdict !== 'supported') {
@@ -48,14 +47,12 @@ async function main(): Promise<void> {
       process.env.MERCURY_WIN32_UTF8 !== '0' &&
       process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
     ) {
-
       const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
       ensureWin32ConsoleUtf8()
     }
     const { runDirectSplash } = await import('../substrate/directSplash.js')
     const splash = runDirectSplash({ home: await resolveCompileCacheHome() })
     if (splash.verdict === 'cancel') {
-
       return
     }
   }
@@ -80,15 +77,12 @@ async function main(): Promise<void> {
       if (cacheHome) {
         const { join } = await import('node:path')
         const cacheDir = join(cacheHome, 'compile-cache')
-
         const { compileCacheDirUsable } = await import('../utils/runtime/compileCachePath.js')
         if (compileCacheDirUsable(cacheDir)) {
-
           const { mkdirSync } = await import('node:fs')
           mkdirSync(cacheDir, { recursive: true })
           const { enableCompileCache, constants: moduleConstants } = await import('node:module')
           const enabled = enableCompileCache(cacheDir)
-
           if (enabled.status === moduleConstants.compileCacheStatus.ENABLED) {
             process.env.NODE_COMPILE_CACHE = enabled.directory ?? cacheDir
           }
@@ -185,7 +179,6 @@ async function main(): Promise<void> {
     profileCheckpoint('route_acp')
     const extra = args.slice(1)
     if (extra.length > 0) {
-
       const { writeSync } = await import('node:fs')
       const help = extra[0] === '-h' || extra[0] === '--help'
       try {
@@ -194,7 +187,6 @@ async function main(): Promise<void> {
       }
       process.exit(help ? 0 : 2)
     }
-
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { runAcpServer } = await import('../services/acp/acpServer.js')

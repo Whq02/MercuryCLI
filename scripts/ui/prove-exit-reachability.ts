@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -186,7 +185,6 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     own.type === 'match' && own.action === exit.action,
     JSON.stringify(own),
   )
-
   const afford = actionAffordance(exit.action, ctx, bindings, 'linux')
   check(
     `${ctx}: the affordance oracle calls ${exit.action} bound (nothing later unbinds it) — via ${afford.kind === 'unbound' ? '—' : afford.chord}`,
@@ -196,13 +194,11 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
   check(`${ctx}: ${exit.action} exists in the action graph under this context`, ctx in EXIT_TABLE && (graph[exit.action]?.contexts ?? []).includes(ctx), JSON.stringify(graph[exit.action]?.contexts))
 }
 {
-
   const all = Object.keys(EXIT_TABLE)
   const wide = resolveKeyWithChordState('', ESCAPE, all, bindings, null)
   check('escape over EVERY context at once is an exit-class match', wide.type === 'match' && exitActions.has(wide.action), JSON.stringify(wide))
   const root = resolveKeyWithChordState('d', CTRL_D, ['Global'], bindings, null)
   check('the root leaves: ctrl+d resolves to app:exit in Global', root.type === 'match' && root.action === 'app:exit', JSON.stringify(root))
-
   const blocksWithEscape = new Set(
     bindings.filter(b => b.chord.length === 1 && b.chord[0]!.key === 'escape' && b.action !== null).map(b => b.context),
   )
@@ -269,7 +265,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     /<CommandCenter\b/, /<Dialog\b/, /KeyboardShortcutHint/, /ConfigurableShortcutHint/, /useShortcutDisplay\(/,
     /\blegend\b/, /\bfooter\b/, /footerHints/, /modelPickerFooter\(/,
   ]
-
   const ROUTE_ROSTER: Record<string, string> = {
     'src/components/BaseTextInput.tsx': 'a text-field primitive; the hosting card or shell owns the exit',
     'src/components/ScrollKeybindingHandler.tsx': 'the scroll/selection handler — renders nothing',
@@ -280,7 +275,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
     'src/components/ExitHandoff.tsx': 'the exit handoff notice — the session is already leaving; its one key, ctrl-c, skips the wait for the note; there is no surface to exit',
   }
-
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
     'src/components/PromptInput/useComposerRawKeys.ts': { reason: 'the composer’s raw key ladder; the composer’s footer prints the way out', witness: 'src/components/PromptInput/PromptInputFooterLeftSide.tsx' },
@@ -331,12 +325,10 @@ section('§5 the session switcher keeps its exit live while the swap lands (the 
   check('esc during the swap leaves the panel while the swap keeps going', view.includes('if (key.escape) leaveSwitch()') && view.includes("if (phase === 'swapping') onCloseAll()"))
   const fences = (view.match(/if \(gen !== switchGenRef\.current\) return/g) ?? []).length
   check(`a generation fence drops the late land (1 fence, found ${fences})`, fences === 1)
-
   check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('fillSessionListing') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
   check('the swapping footer names the leave', view.includes('switching — the swap keeps going · esc back to the chat'))
   check('the prune door’s deleting beat advertises no exit (closeKeys none)', view.includes("closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}") && view.includes("'deleting the named set…'"))
   check('a cancelled switch disarms the confirm it came from', /switchGenRef\.current\+\+\s*\n\s*setSwitching\(null\)\s*\n\s*setConfirmingKey\(null\)/.test(view))
-
   check('the phase footer passes the shell’s composer untouched',
     composeFooterHint('switching — the swap keeps going · esc back to the chat', { closeKeys: 'esc-arrow', captureInput: false }) === 'switching — the swap keeps going · esc back to the chat')
   check('the deleting footer under closeKeys none gains no appended esc',

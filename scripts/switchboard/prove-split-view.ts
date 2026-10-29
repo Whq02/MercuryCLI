@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,7 +37,6 @@ console.log('A — toggle presence per world/width')
   const offPlain = split.splitToggleDecisionOf({ on: true, cols: 80, rows: 50, plainWorld: true })
   check('A4 OFF always works — width and world never trap a standing split', offNarrow.ok && !offNarrow.on && offPlain.ok && !offPlain.on)
   check('A5 availability: 120 refuses, 121 affords', !split.splitAvailableAt(120, 50) && split.splitAvailableAt(121, 50) && split.splitMinCols() === 121)
-
   const listFull = manifest.regionKeysFor('list', { newSession: true })
   const listReduced = manifest.regionKeysFor('list', { newSession: false })
   check('A6 the full-stage list grammar prints s split', listFull.some(k => k.keys === 's' && k.label === 'split'))
@@ -60,10 +58,8 @@ console.log('A — toggle presence per world/width')
       chatEmpty.some(k => k.keys === '↵' && k.label === 'new session') &&
       chatKeys.some(k => k.keys === 's' && k.label === 'full board'),
   )
-
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
-
     'A12 the toggle handler is a list-region letter-verb gated off the reduced stage',
     screen.includes("if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate())"),
   )
@@ -134,7 +130,6 @@ console.log('D — focus routing')
     'D6 row enters stay in split: the slot re-point alone, the route holds',
     route.includes("splitFrameStands() && opts?.fullChat !== true") && route.includes("reason: 'in the chat pane'"),
   )
-
   check('D7 the rail’s answer journey keeps its flip (the consent card lives only in the full chat)', route.includes("attachAndEnter(row.sessionId, 'board:open', { fullChat: true, entry: 'settled' })"))
   check('D8 the birth stays in split with its receipt naming the pane', route.includes('in the chat pane') && route.includes('splitFrameStands()'))
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
@@ -158,7 +153,6 @@ console.log('E — the collapse line')
   )
   check('E5 the store turned off — the full board stands', !split.splitViewOn())
   check('E6 re-widening does NOT auto-re-split (the toggle is the operator’s)', split.splitAvailableAt(200, 50) && !split.splitViewOn())
-
   split._resetSplitViewForTesting()
   split.toggleSplitView(200, 50)
   const stuckLeft = split.nudgeSplitRatio(-1)
@@ -178,7 +172,6 @@ console.log('E — the collapse line')
 console.log('F — the rows law (the half-frame class)')
 {
   const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
-
   const R = split.SPLIT_MIN_ROWS
   check(
     `F1 availability refuses at 130×${R - 1} and affords at 130×${R}`,

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -65,24 +64,18 @@ console.log('============================================================')
 
 section('N1 · every dialect folds to the canonical envelope; the count is the wire total once')
 {
-
   const compat = mapCompatUsageToAnthropic(decodeCompatUsage({ prompt_tokens: 56_000, completion_tokens: 300, total_tokens: 56_300, prompt_tokens_details: { cached_tokens: 20_000 } }))
   check('OpenAI-compat/OpenRouter: 56,000 prompt (20,000 cached) + 300 ⇒ input 36,000 · cache_read 20,000 · output 300', compat.input_tokens === 36_000 && compat.cache_read_input_tokens === 20_000 && compat.output_tokens === 300, JSON.stringify(compat))
   check('  used-count = 56,300 (prompt + completion — the cached prefix counted once)', tokens.getTokenCountFromUsage(compat as never) === 56_300, String(tokens.getTokenCountFromUsage(compat as never)))
   const noCache = mapCompatUsageToAnthropic(decodeCompatUsage({ prompt_tokens: 56_000, completion_tokens: 300 }))
   check('  no cached_tokens stated ⇒ input 56,000 · cache_read 0 · count 56,300', noCache.input_tokens === 56_000 && noCache.cache_read_input_tokens === 0 && tokens.getTokenCountFromUsage(noCache as never) === 56_300)
-
   const deepseek = mapCompatUsageToAnthropic(decodeCompatUsage({ prompt_tokens: 1_000, completion_tokens: 50, prompt_cache_hit_tokens: 600, prompt_cache_miss_tokens: 400 }))
   check('DeepSeek: 1,000 prompt (600 hit + 400 miss) + 50 ⇒ input 400 · cache_read 600 · count 1,050', deepseek.input_tokens === 400 && deepseek.cache_read_input_tokens === 600 && tokens.getTokenCountFromUsage(deepseek as never) === 1_050, JSON.stringify(deepseek))
-
   const moonshot = mapCompatUsageToAnthropic(decodeCompatUsage({ prompt_tokens: 2_000, completion_tokens: 10, cached_tokens: 1_500 }))
   check('Moonshot: 2,000 prompt (1,500 cached) + 10 ⇒ input 500 · cache_read 1,500 · count 2,010', moonshot.input_tokens === 500 && moonshot.cache_read_input_tokens === 1_500 && tokens.getTokenCountFromUsage(moonshot as never) === 2_010)
-
   const responses = mapOpenaiUsageToAnthropic({ inputTokens: 1_000, outputTokens: 50, cachedInputTokens: 400 } as never)
   check('Responses: 1,000 input (400 cached) + 50 ⇒ input 600 · cache_read 400 · count 1,050', responses.input_tokens === 600 && responses.cache_read_input_tokens === 400 && tokens.getTokenCountFromUsage(responses as never) === 1_050)
-
   check('Anthropic: input 100 + cache_creation 5 + cache_read 7 + output 10 ⇒ count 122', tokens.getTokenCountFromUsage(usage(100, 10, 5, 7) as never) === 122)
-
   const none = mapCompatUsageToAnthropic(undefined)
   check('a usage-less wire folds to the zero placeholder — and it is not a usage record', tokens.getTokenUsage(asst('none', none as never, 'x') as never) === undefined)
 }
@@ -90,7 +83,6 @@ section('N1 · every dialect folds to the canonical envelope; the count is the w
 section('N2 · per-block siblings count once when settled; estimated while unsettled')
 {
   const big = 'x'.repeat(4_000)
-
   const seq = [user('hi'), asst('resp-A', usage(1_000, 1), big, null), asst('resp-A', usage(1_000, 1), big, null), asst('resp-A', usage(1_000, 300), big, 'tool_use'), toolResult(big), toolResult(big)]
   const got = tokens.tokenCountWithEstimation(seq as never)
   const want = 1_300 + rough([toolResult(big), toolResult(big)])
@@ -98,11 +90,9 @@ section('N2 · per-block siblings count once when settled; estimated while unset
   check('  (the old law double-counted the two sibling blocks: +~2,000)', got < want + rough([asst('resp-A', undefined, big)]), String(got))
   const fill = tokens.contextFill(seq as never)
   check('  contextFill reports the wire source', fill.source === 'usage' && fill.tokens === got)
-
   const midStream = [user('hi'), asst('resp-B', usage(1_000, 1), big, null), asst('resp-B', usage(1_000, 1), big, null)]
   const mid = tokens.tokenCountWithEstimation(midStream as never)
   check('unsettled (no stop_reason): the sibling blocks ARE estimated — in-flight output never dropped', mid === 1_001 + rough([asst('resp-B', undefined, big)]), String(mid))
-
   const a1 = asst('resp-C', usage(1_000, 50), 'first split block', null)
   const t1 = toolResult('tool result one')
   const a2 = asst('resp-C', usage(1_000, 50), 'second split block', 'tool_use')
@@ -146,34 +136,28 @@ section('N5 · the ONE fill derivation every surface reads')
   const compactAt = view.compactAtPct
   check('  compactAtPct is the trigger threshold over the same window (957,000 / 1,000,000 = 95.7)', compactAt !== null && Math.abs(compactAt - 95.7) < 0.01, String(compactAt))
   check('  leftUntilCompactPct rides the same window: used 29 + left 67 = the 95.7 fold point (to the rounding)', view.leftUntilCompactPct !== null && Math.abs(view.usedPct! + view.leftUntilCompactPct - compactAt!) <= 1, JSON.stringify({ used: view.usedPct, left: view.leftUntilCompactPct, compactAt }))
-
   const fallback = contextFillView(seq as never, 'compat/some-model')
   check('a fallback window resolves 200,000 with windowSource fallback and a reason', fallback.window === 200_000 && fallback.windowSource === 'fallback' && typeof fallback.windowReason === 'string')
   check('  pct = 290,000 / 200,000 clamps to 100', fallback.usedPct === 100)
   check("  the rail label marks it: '~200k'", contextWindowLabel(fallback.window, fallback.windowSource) === '~200k')
   check("  a stated window carries no mark: '1000k'", contextWindowLabel(view.window, view.windowSource) === '1000k')
-
   const usageless = [user('hi'), asst('resp-G', undefined, 'an answer without usage')]
   const est = contextFillView(usageless as never, 'claude-opus-5')
   check('a usage-less response reads an ESTIMATE, labelled — never a confident percent', est.fillSource === 'estimate' && est.usedTokens === rough(usageless) && est.usedPct !== null, JSON.stringify(est))
   check("  the rail label: '≈0%' (estimate) vs '29%' (usage)", contextPercentLabel(est.usedPct, est.fillSource) === `≈${est.usedPct}%` && contextPercentLabel(29, 'usage') === '29%' && contextPercentLabel(null, null) === '—')
-
   const { contextGauge } = await import('../../src/utils/cockpit/contextGauge.ts')
   const snap = contextGauge(seq as never, 'claude-opus-5' as never)
   check('contextGauge: live · usedPct 29 · usedTokens 290,000 · window 1,000,000', snap.state === 'live' && snap.data.usedPct === 29 && snap.data.usedTokens === 290_000 && snap.data.window === 1_000_000, JSON.stringify(snap))
   const freshSnap = contextGauge([user('hi')] as never, 'claude-opus-5' as never)
   check('contextGauge: fresh session ⇒ unavailable (never a fake gauge)', freshSnap.state === 'unavailable')
-
   check('contextFillPercent: 56,300 / 1,048,576 = 5 · 56,300 / 200,000 = 28 · unknown window ⇒ null', context.contextFillPercent(56_300, 1_048_576).used === 5 && context.contextFillPercent(56_300, 200_000).used === 28 && context.contextFillPercent(56_300, 0).used === null)
   check('calculateContextPercentages sums the ledger\'s split counters — input + cache written + cache read + output (the step row\'s input_tokens already holds the cache)', context.calculateContextPercentages({ input_tokens: 100_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 50_000, output_tokens: 50_000 }, 1_000_000).used === 20)
-
   const frame = src('src/components/MercuryFrame.tsx')
   check('MercuryFrame reads the focused context fill (the runner receipt when it carries one, else contextFillView) and publishes its figure + provenance', /useFocusedContextFill\(messages, windowModel/.test(frame) && /usedTokens: fill\.usedTokens/.test(frame) && /windowSource: fill\.windowSource/.test(frame))
   check('MercuryFrame subscribes to the catalogue epoch (re-derives when a source lands)', /useCatalogueEpoch\(\)/.test(frame))
   const analyze = src('src/utils/analyzeContext.ts')
   check('/context headline is contextFill (the trigger count) when usage exists', /const fill = contextFill\(originalMessages \?\? messages\)/.test(analyze) && /fill\.source === 'usage' \? fill\.tokens : actualUsage/.test(analyze))
   const picker = src('src/commands/model/mercuryModel.tsx')
-
   check('/model header gauge reads contextFillView over the served model', /contextFillView\(messages, servedModel\)/.test(picker) && /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(engineModelForSession \?\? getEngineModel\(\)\)/.test(picker))
   for (const rail of ['src/components/HelmLanesRail.tsx', 'src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx']) {
     const text = rail === 'src/components/HelmLanesRail.tsx' ? src(rail) + src('src/utils/cockpit/helmLanesModel.ts') : rail === 'src/components/HelmVitalsRail.tsx' ? src(rail) + src('src/utils/cockpit/helmVitalsModel.ts') : src(rail)

@@ -1,12 +1,10 @@
 import type { Message } from '../../types/message.js'
 
 export const WARMTH_TAIL_ROWS = 32
-
 const WARMTH_SESSIONS = 8
 
 interface WarmthSlice {
   rows: readonly Message[]
-
   shed: number
 }
 
@@ -74,7 +72,6 @@ export function settleEntryWarmth(sessionId?: string): void {
 interface EnteringWarmth {
   sessionId: string
   title?: string
-
   coveredSessionId?: string
   rows: readonly Message[]
   shed: number

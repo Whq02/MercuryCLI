@@ -1,14 +1,13 @@
+
 import { getRawUtilization } from '../../services/anthropicLimits.js'
 import type { UsageFeed } from '../../services/providers/usageFreshness.js'
 import type { SnapshotState } from '../../components/mercury-ui/theme.js'
 
 export type QuotaWindow = {
   key: '5h' | '7d'
-
   usedPct: number | null
   resetsAtMs: number | null
   state: SnapshotState
-
   source?: UsageFeed
   observedAtMs?: number
 }
@@ -17,7 +16,6 @@ function normalizeWindow(
   key: '5h' | '7d',
   raw: { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number } | undefined,
 ): QuotaWindow {
-
   if (!raw || !Number.isFinite(raw.utilization) || !Number.isFinite(raw.resets_at)) {
     return { key, usedPct: null, resetsAtMs: null, state: 'unavailable' }
   }

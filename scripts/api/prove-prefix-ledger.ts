@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -56,7 +55,6 @@ const TOOLS = [tool('Read'), tool('Bash'), tool('Browser', { defer_loading: true
 const KEY = 'owner|row-1|claude-fable-5-1'
 
 section('§1 the ledger, pure — digests, the range law, the names per part')
-
 {
   resetPrefixLedger()
   const r1 = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt'))] }
@@ -68,7 +66,6 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const r2 = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
   const v2 = judgeAndRecordPrefix('main', KEY, r2)
   check('an appended request holds (compared, no mismatch, the last replayed block at message 1)', v2.compared && v2.mismatch === null && v2.lastThinkingIndex === 1, j(v2))
-
   const { DEAD_THINKING_PLACEHOLDER } = await import('../../src/services/providers/anthropic/deadThinkingPlaceholder.ts')
   const r2b = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(TEXT(DEAD_THINKING_PLACEHOLDER)), user(TEXT('second prompt'))] }
   const v2b = judgeAndRecordPrefix('main', KEY, r2b)
@@ -103,7 +100,6 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   judgeAndRecordPrefix('main', KEY, r2)
   const reschemed = judgeAndRecordPrefix('main', KEY, { ...r2, tools: [TOOLS[0], tool('Bash', { input_schema: { type: 'object', properties: { command: { type: 'string' } } } }), TOOLS[2]] })
   check("a changed schema names 'the tool Bash's input schema'", reschemed.mismatch?.part === "the tool Bash's input schema", j(reschemed.mismatch))
-
   const referencing = { ...r2, messages: [user(TEXT('first prompt')), assistant(THINK('one'), { type: 'tool_use', id: 'toolu_1', name: 'ToolSearch', input: {} }), user({ type: 'tool_result', tool_use_id: 'toolu_1', content: [{ type: 'tool_reference', tool_name: 'Browser' }] }), assistant(THINK('two'), TEXT('b')), user(TEXT('next'))] }
   judgeAndRecordPrefix('main', KEY, referencing)
   check('boundTools keeps a referenced deferred tool and drops an unreferenced one', j(boundTools([...TOOLS, tool('Other', { defer_loading: true })], referencing.messages).map(t => (t as Block).name)) === j(['Read', 'Bash', 'Browser']))
@@ -112,20 +108,17 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   judgeAndRecordPrefix('main', KEY, referencing)
   const unmarked = judgeAndRecordPrefix('main', KEY, { ...referencing, tools: [TOOLS[0], TOOLS[1], tool('Browser')] })
   check("a bound tool's deferral mark flipping names 'the tool Browser's deferral mark'", unmarked.mismatch?.part === "the tool Browser's deferral mark", j(unmarked.mismatch))
-
   resetPrefixLedger()
   judgeAndRecordPrefix('main', KEY, r2)
   const lookup = { ...r2, messages: [...r2.messages, assistant(THINK('look'), { type: 'tool_use', id: 'toolu_2', name: 'ToolSearch', input: {} }), user({ type: 'tool_result', tool_use_id: 'toolu_2', content: [{ type: 'tool_reference', tool_name: 'Browser' }] })] }
   const referenced = judgeAndRecordPrefix('main', KEY, lookup)
   check('a deferred tool becoming referenced across a request (the lookup admitted it; the bytes unchanged) is not a prefix move', referenced.mismatch === null, j(referenced.mismatch))
-
   resetPrefixLedger()
   judgeAndRecordPrefix('main', KEY, r2)
   const loadedUnbound = judgeAndRecordPrefix('main', KEY, { ...lookup, tools: [TOOLS[0], TOOLS[1], tool('Browser')] })
   check('a tool unbound in the previous record and bound now — sent in full from then on — is a lawful arrival, not an addition and not a mark flip', loadedUnbound.mismatch === null, j(loadedUnbound.mismatch))
   const stillFull = judgeAndRecordPrefix('main', KEY, { ...lookup, tools: [TOOLS[0], TOOLS[1], tool('Browser')], messages: [...lookup.messages, assistant(THINK('used'), TEXT('d')), user(TEXT('more'))] })
   check('…and the loaded tool holds like any bound tool afterwards', stillFull.mismatch === null, j(stillFull.mismatch))
-
   judgeAndRecordPrefix('main', KEY, lookup)
   const flippedWhileBound = judgeAndRecordPrefix('main', KEY, { ...lookup, tools: [TOOLS[0], TOOLS[1], tool('Browser')], messages: [...lookup.messages, assistant(THINK('used'), TEXT('d')), user(TEXT('more'))] })
   check("a bound tool's mark flipping across a request is a rewrite: 'the tool Browser's deferral mark'", flippedWhileBound.mismatch?.part === "the tool Browser's deferral mark", j(flippedWhileBound.mismatch))
@@ -163,6 +156,7 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const other = judgeAndRecordPrefix('agent:1', KEY, r2)
   check('another owner keeps its own record', !other.compared && prefixRecordFor('agent:1') !== null && prefixRecordFor('main')!.key === 'owner|summary-row|claude-fable-5-1')
 
+
   check('resolveInducedPrefixEdit parses the three spellings and refuses the rest', j(resolveInducedPrefixEdit('system')) === j({ kind: 'system' }) && j(resolveInducedPrefixEdit('TOOLS')) === j({ kind: 'tools' }) && j(resolveInducedPrefixEdit('turn:2')) === j({ kind: 'turn', index: 2 }) && resolveInducedPrefixEdit('') === null && resolveInducedPrefixEdit(undefined) === null && resolveInducedPrefixEdit('nonsense') === null)
   const inducedSystem = applyInducedPrefixEdit(r2, { kind: 'system' })
   check('the system edit appends a marker to the LAST block and leaves the input untouched', (inducedSystem.system as Block[])[1]!.text === 'gitStatus: clean\n\n[induced edit]' && (r2.system[1] as Block).text === 'gitStatus: clean')
@@ -171,7 +165,6 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const inducedTurn = applyInducedPrefixEdit(r2, { kind: 'turn', index: 0 })
   check('the turn edit appends a text block to the named message', j((inducedTurn.messages[0] as Block).content) === j([TEXT('first prompt'), TEXT('[induced edit]')]) && j((r2.messages[0] as Block).content) === j([TEXT('first prompt')]))
   check('a turn past the end is identity', applyInducedPrefixEdit(r2, { kind: 'turn', index: 9 }) === r2)
-
   check('a first request (no assistant row yet) ⇒ no induced edit', !inducedEditApplies([{ type: 'attachment' }, { type: 'user' }]))
   check('a history with an assistant row ⇒ the edit rides (the second request, and a resume)', inducedEditApplies([{ type: 'user' }, { type: 'assistant' }, { type: 'user' }]))
 
@@ -185,7 +178,6 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const deadRow = { type: 'system', subtype: 'thinking_dead', dead: [{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }], content: '', level: 'info', uuid: 'dead-1', timestamp: 't' }
   const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
-
   const { createDeadThinkingAttachment } = binding
   const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
@@ -227,11 +219,9 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const mainReq = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
   judgeAndRecordPrefix(OWN, MK, mainReq as never)
   takePrefixVerdict(OWN)
-
   const foldReq = { system: [{ type: 'text', text: 'SUMMARISE the conversation so far into a single message.' }], tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('summary instruction'))] }
   const foldVerdict = judgeAndRecordPrefix(OWN, MK, foldReq as never, [], { replaceRecord: false })
   check('R2 the fold request is judged (a debug line) but never becomes the record', foldVerdict.mismatch !== null && pendingPrefixVerdict(OWN) === null && prefixRecordFor(OWN)?.whole !== undefined, `mismatch=${j(foldVerdict.mismatch?.part)} pending=${pendingPrefixVerdict(OWN) === null}`)
-
   const nextMain = judgeAndRecordPrefix(OWN, MK, { ...mainReq, messages: [...mainReq.messages, assistant(THINK('two'), TEXT('b')), user(TEXT('third prompt'))] } as never)
   check('R2 the next main request compares clean against the ORIGINAL record — no false "system prompt (block N added)" rewrite', nextMain.mismatch === null, j(nextMain.mismatch))
 }
@@ -520,7 +510,6 @@ section('capability mounts append guidance while the real request prefix holds')
 }
 
 section('§2 the words and /health — the receipts carry the named part')
-
 {
   const { classifyThinkingDrops, describeThinkingDrops, describePrefixRewrite, recordThinkingDropLedger, recordPrefixRewriteLedger, readThinkingDropLedger, preservedThinkingHealth, resetThinkingDropStates } = binding
   resetThinkingDropStates()
@@ -534,7 +523,6 @@ section('§2 the words and /health — the receipts carry the named part')
   check("a first drop's receipt ends with the ledger clause naming the part", words.includes('the history before messages.1.content.0 changed') && words.endsWith("Mercury's prefix ledger names the part that moved: the system prompt's Environment section."), words)
   const recurrent = classifyThinkingDrops('w', [DROP, { ...DROP, path: 'messages.3.content.0' }], mark)
   recurrent.part = "turn 0's user row: text block 0"
-
   check('the recurrent drop writes nothing new — the clause rode the first receipt', recurrent.paint === false && describeThinkingDrops([DROP], recurrent) === null, j(recurrent))
   recordThinkingDropLedger(recurrent, 'claude-fable-5-1')
   const row = readThinkingDropLedger()
@@ -556,7 +544,6 @@ section('§2 the words and /health — the receipts carry the named part')
 }
 
 section('§3 the wire — the built bundle, an induced edit per part, named end to end')
-
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {
@@ -678,7 +665,6 @@ if (!existsSync(DIST)) {
     }
 
     {
-
       const fixture = await startFixtureApi(scripted('kill', 6), { bindingCheck: true })
       const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: 'system' })
       const SID = 'c0ffee00-0000-4000-8000-00000000d007'
@@ -698,7 +684,6 @@ if (!existsSync(DIST)) {
       check('[killer] the record carries the dead mark once (one row, one block)', dead.length === 1 && dead[0]!.includes('1 dropped block(s)'), j(dead))
       const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[killer] the dead marks persist in the transcript as a dead_thinking attachment (an info notice was lost before disk)', rowsText.includes('"attachmentType":"dead_thinking"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 300))
-
       const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
       const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
       check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
@@ -735,7 +720,6 @@ if (!existsSync(DIST)) {
       const dropSeq = reqs.map(dropsOf)
       check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
-
       check('[switch] the request after the switch-back carries strictly fewer thinking blocks (the dead ones stripped, the record on disk before the process ended)', thinkingPer[4]! < thinkingPer[3]! && !j(reqs[4]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
       const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))

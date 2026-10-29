@@ -1,3 +1,4 @@
+
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import {
@@ -115,7 +116,6 @@ mercury://seat is this seat's own reference: the model this turn runs on (the id
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result ?? ''
   },

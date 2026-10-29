@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -43,6 +42,7 @@ const guard = setTimeout(() => {
 }, 180_000)
 guard.unref?.()
 
+
 function makeStore(): {
   getAppState: () => Record<string, unknown>
   setAppState: (f: (prev: Record<string, unknown>) => Record<string, unknown>) => void
@@ -75,7 +75,6 @@ function makeFakeTool(over: { name?: string } = {}): Record<string, unknown> {
     isReadOnly: () => true,
     checkPermissions: async () => ({ behavior: 'passthrough', message: 'ask the wrapper' }),
     description: async () => 'probe tool',
-
     prompt: async () => 'probe tool prompt',
     mapToolResultToToolResultBlockParam: (data: unknown, id: string) => ({
       type: 'tool_result',
@@ -97,7 +96,6 @@ async function runAsk(opts: {
   maxTurns?: number
   maxBudgetUsd?: number
   abortAfterFirstRequest?: boolean
-
   mutableMessages?: import('../../src/types/message.ts').Message[]
 }): Promise<{ api: FixtureApi; out: SdkMsg[]; cacheWrittenBack: unknown }> {
   const api = await startFixtureApi(opts.turns)
@@ -170,7 +168,6 @@ section('Q1 — row order · stop word capture · usage accumulation · last-TEX
 
 section('Q7 — the seat’s memory: ONE shared array across ask() calls carries the conversation (the amnesia concession)')
 {
-
   type Msg = import('../../src/types/message.ts').Message
   const shared: Msg[] = []
   const first = await runAsk({
@@ -185,7 +182,6 @@ section('Q7 — the seat’s memory: ONE shared array across ask() calls carries
     shared.length >= 2 && j(shared).includes('my name is Ozymandias') && j(shared).includes('THE FIRST ANSWER.'),
     `${shared.length} frames`,
   )
-
   const hostFrame = {
     type: 'user',
     message: { role: 'user', content: 'HOST-LANE FRAME (between turns)' },

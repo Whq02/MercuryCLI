@@ -1,32 +1,25 @@
+
 import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../../utils/debug.js'
 
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024
-
 const EXIT_CLOSE_BACKSTOP_MS = 1_500
-
 const STDERR_TAIL_BYTES = 4_096
-
 const KILL_ESCALATION_GRACE_MS = 1_500
 
 export interface NdjsonChildLike {
   write(line: string): void
   onLine(listener: (line: string) => void): () => void
-
   onExit(listener: (code: number | null, reason?: string) => void): () => void
   kill(): void
-
   readonly owned: boolean
-
   stderrTail?(): string
-
   killAndWait?(graceMs?: number): Promise<void>
 }
 
 export type SpawnImpl = (cmd: string, args: string[], opts: { cwd?: string }) => NdjsonChildLike
 
 export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: string }): NdjsonChildLike {
-
   const child: ChildProcess = spawn(cmd, args, {
     windowsHide: true,
     cwd: opts.cwd,
@@ -34,7 +27,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
   })
   const lineListeners = new Set<(line: string) => void>()
   const exitListeners = new Set<(code: number | null, reason?: string) => void>()
-
   let settled: { code: number | null; reason?: string } | null = null
   let exitCloseBackstop: NodeJS.Timeout | null = null
   const settle = (code: number | null, reason?: string): void => {
@@ -52,7 +44,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     }
   }
   let buffer = ''
-
   let discardingOversizedLine = false
   let oversizedLinesDropped = 0
   const deliverLine = (line: string): void => {
@@ -72,7 +63,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
       const line = buffer.slice(0, nl).trim()
       buffer = buffer.slice(nl + 1)
       if (discardingOversizedLine) {
-
         discardingOversizedLine = false
         oversizedLinesDropped++
         logForDebugging(
@@ -90,14 +80,12 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
       buffer = ''
     }
   })
-
   let stderrRing = ''
   child.stderr?.setEncoding('utf8')
   child.stderr?.on('data', (chunk: string) => {
     stderrRing = (stderrRing + chunk).slice(-STDERR_TAIL_BYTES)
     logForDebugging(`[crew/ndjsonChild:${cmd}] stderr: ${chunk.slice(0, 200)}`)
   })
-
   const flushTrailingPartialLine = (): void => {
     const tail = buffer.trim()
     buffer = ''
@@ -105,7 +93,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
       deliverLine(tail)
     }
   }
-
   child.on('close', code => {
     flushTrailingPartialLine()
     settle(code)
@@ -119,13 +106,11 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     }, EXIT_CLOSE_BACKSTOP_MS)
     exitCloseBackstop.unref?.()
   })
-
   child.on('error', err => {
     const msg = err instanceof Error ? err.message : String(err)
     logForDebugging(`[crew/ndjsonChild:${cmd}] child error: ${msg}`)
     settle(null, msg)
   })
-
   child.stdin?.on('error', err => {
     const msg = err instanceof Error ? err.message : String(err)
     logForDebugging(`[crew/ndjsonChild:${cmd}] stdin error — settling as failed: ${msg}`)
@@ -136,7 +121,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
       try {
         child.stdin?.write(line.endsWith('\n') ? line : `${line}\n`)
       } catch (e) {
-
         logForDebugging(`[crew/ndjsonChild:${cmd}] write failed: ${e}`)
       }
     },
@@ -193,7 +177,6 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
           }
         }, graceMs)
         escalation.unref?.()
-
         hardBound = setTimeout(() => {
           unsub()
           finish()

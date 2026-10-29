@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useState } from 'react'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -16,7 +17,6 @@ export function ConsentFileEditDiff({
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const [expanded, setExpanded] = useState(false)
-
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   })

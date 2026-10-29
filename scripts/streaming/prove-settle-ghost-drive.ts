@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,7 +39,6 @@ type Wire = { kind: string; n?: number; ask?: string; arm?: string; at: number }
 const rowText = (row: Cell[]): string => row.map(c => c.c || ' ').join('').replace(/\s+$/, '')
 const gridText = (grid: Cell[][]): string => grid.map(rowText).join('\n')
 const TIMESTAMPED = /\d\d:\d\d:\d\d \[Mercury\] /
-
 function fgOfNeedle(grid: Cell[][], needle: string, timestamped: boolean): string | null {
   for (const row of grid) {
     const text = rowText(row)
@@ -103,10 +101,8 @@ async function driveScene(route: 'openai' | 'anthropic', arm: 'plain' | 'note'):
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const sends: Array<Record<string, unknown>> = [
-
     { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
-
     { requireAwait: true, minTick: 5, awaitText: FIRST_WORDS, awaitSettleTicks: 1, data: `${QUEUED}\r`, mark: 'first-delta' },
   ]
   for (let n = 1; n <= MARKS; n++) sends.push({ afterPrevTicks: 5, data: '', mark: `t+${n}` })

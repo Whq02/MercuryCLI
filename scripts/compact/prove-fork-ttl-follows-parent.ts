@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,7 +12,6 @@ for (const key of ['MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fork-ttl-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
-
 process.env.MERCURY_CACHE_CLOCK = '0'
 
 let failures = 0
@@ -113,7 +111,6 @@ type Body = {
   system?: Array<{ cache_control?: { type?: string; ttl?: string } }>
   messages?: Array<{ role: string; content: unknown }>
 }
-
 function markersOf(body: Body): { system: Array<string | null>; message: string | null | 'none' } {
   const system = (body.system ?? []).filter(b => b.cache_control !== undefined).map(b => b.cache_control?.ttl ?? null)
   let message: string | null | 'none' = 'none'

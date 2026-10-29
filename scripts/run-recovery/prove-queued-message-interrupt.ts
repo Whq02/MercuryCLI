@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -67,7 +66,6 @@ const wire = (): Capture[] =>
 
 type Row = { type?: string; uuid?: string; timestamp?: string; message?: { role?: string; content?: unknown }; attachment?: { type?: string; source_uuid?: string; prompt?: unknown } }
 const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
-
 const transcriptRows = async (sid: string): Promise<Row[]> => {
   const p = join(projectDir, `${sid}.jsonl`)
   if (!existsSync(p)) return []

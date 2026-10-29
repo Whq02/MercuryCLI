@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -31,12 +32,9 @@ export function MCPStdioServerMenu({
   borderless = false,
 }: {
   server: ServerInfo
-
   serverToolsCount: number
   onViewTools: () => void
-
   onCancel: (tabHint?: string) => void
-
   onComplete: (result?: string) => void
   borderless?: boolean
 }): React.ReactNode {
@@ -52,7 +50,6 @@ export function MCPStdioServerMenu({
   const client = server.client
   const disabled = client.type === 'disabled'
   const connected = client.type === 'connected'
-
   const status = client.type === 'needs-auth' ? 'failed' : client.type
   const toolCount = serverToolsCount
   const config = server.config as StdioServerInfo['config']
@@ -80,7 +77,6 @@ export function MCPStdioServerMenu({
     options.push({ label: 'View tools', value: 'tools' })
   }
   if (!disabled) options.push({ label: 'Reconnect', value: 'reconnect' })
-
   options.push({
     label: disabled ? 'Enable' : 'Disable',
     value: 'toggle',
@@ -149,7 +145,6 @@ export function MCPStdioServerMenu({
                 .finally(() => setWaiting(false))
               return
             }
-
             const action = disabled ? 'enable' : 'disable'
             void toggle(server.name)
               .then(() => onComplete(`${action === 'enable' ? 'Enabled' : 'Disabled'} ${server.name}.`))

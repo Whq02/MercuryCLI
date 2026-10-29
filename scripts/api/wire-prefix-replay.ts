@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
 
 interface CaptureResponse {
   usage?: Record<string, number | undefined>
@@ -23,7 +23,6 @@ export interface CaptureRow {
   url?: string
   path?: string
   model?: string
-
   source?: string
   headers?: Record<string, string>
   body?: WireBody
@@ -36,7 +35,6 @@ export interface WireBody {
   tools?: unknown
   messages?: unknown[]
   thinking?: unknown
-
   instructions?: unknown
   input?: unknown[]
   [key: string]: unknown
@@ -70,6 +68,7 @@ export function messageRows(rows: CaptureRow[]): CaptureRow[] {
   })
 }
 
+
 export function withoutCacheControl(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(withoutCacheControl)
   if (value !== null && typeof value === 'object') {
@@ -86,7 +85,6 @@ export function withoutCacheControl(value: unknown): unknown {
 const j = (v: unknown): string => JSON.stringify(v)
 
 interface ByteDiff {
-
   path: string
   before: string
   after: string
@@ -129,7 +127,6 @@ function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null {
   if (a !== null && b !== null && typeof a === 'object' && typeof b === 'object') {
     const ao = a as Record<string, unknown>
     const bo = b as Record<string, unknown>
-
     const keys = [...Object.keys(ao), ...Object.keys(bo).filter(k => !(k in ao))]
     for (const k of keys) {
       if (!(k in ao)) return { path: `${path}.${k} (added)`, before: '', after: excerptAt(j(bo[k]), 0) }
@@ -138,7 +135,6 @@ function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null {
       if (d !== null) return d
     }
     if (j(ao) !== j(bo)) {
-
       return stringDiff(`${path} (key order)`, j(ao), j(bo))
     }
     return null
@@ -149,10 +145,8 @@ function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null {
 
 interface PairVerdict {
   held: boolean
-
   appended: number
   diff: ByteDiff | null
-
   term: 'system' | 'tools' | 'messages' | 'none'
 }
 
@@ -169,7 +163,6 @@ export function comparePrefix(prev: WireBody, cur: WireBody): PairVerdict {
   const ct = withoutCacheControl(cur.tools ?? []) as unknown[]
   const toolsDiff = jsonDiff('tools', pt, ct)
   if (toolsDiff !== null) {
-
     const pn = toolNames(pt)
     const cn = toolNames(ct)
     if (pn.length !== cn.length) {
@@ -196,6 +189,7 @@ export function comparePrefix(prev: WireBody, cur: WireBody): PairVerdict {
   }
   return { held: true, appended: cm.length - pm.length, diff: null, term: 'none' }
 }
+
 
 const textOfContent = (content: unknown): string => {
   if (typeof content === 'string') return content
@@ -259,15 +253,12 @@ export interface PairReport {
   curSeq: number
   model: string
   verdict: PairVerdict
-
   lawful: 'compaction' | 'model-switch' | null
   cacheRead: number | null
   drops: number | null
   firstDropPath: string | null
   replayedThinking: number
-
   retry: boolean
-
   refused: string | null
 }
 
@@ -291,7 +282,6 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
     const verdict = comparePrefix(pb, cb)
     const prevModel = String(pb.model ?? prev.model ?? '')
     const curModel = String(cb.model ?? cur.model ?? '')
-
     const headMove =
       !verdict.held &&
       verdict.diff !== null &&
@@ -361,6 +351,7 @@ function systemBytes(body: WireBody): number {
   return 0
 }
 
+
 export function debugLogWord(file: string): string[] {
   try {
     return readFileSync(file, 'utf8')
@@ -397,6 +388,7 @@ export function transcriptNotices(file: string): string[] {
   }
   return notices
 }
+
 
 const KEPT_HEADERS = ['anthropic-beta', 'anthropic-version', 'user-agent', 'x-app', 'content-type']
 
@@ -516,6 +508,7 @@ export async function startTap(opts: { out: string; upstream: string; port?: num
   })
   return { port, close: () => server.close() }
 }
+
 
 function usage(): never {
   console.log(`usage:

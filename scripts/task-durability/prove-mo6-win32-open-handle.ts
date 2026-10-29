@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,7 +25,6 @@ const ok = (cond: boolean, label: string, detail = ''): void => {
 const tmp = mkdtempSync(join(tmpdir(), 'mooring-mo6-'))
 const tempsIn = (dir: string): string[] => readdirSync(dir).filter(isDurableTempName)
 const pause = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 const describe = (e: unknown): string =>
   e instanceof DurablePublishError
     ? `DurablePublishError phase=${e.phase} fsCode=${e.fsCode} attempts=${e.attempts} elapsedMs=${e.elapsedMs} tempCleanup=${e.tempCleanup}`
@@ -106,7 +104,6 @@ await section('§1', async () => {
       return { failed: e as unknown }
     },
   )
-
   await pause(50)
   ok(!settled, '§1 the publish is still in flight at +50ms (the retry arm is demonstrably engaged)')
   writeFileSync(release, 'release')
@@ -120,7 +117,6 @@ await section('§1', async () => {
     ok(readFileSync(p, 'utf8') === 'new-value', '§1 the complete NEW value landed')
     ok(wall < 5_000, `§1 landed promptly once the release was commanded (${wall}ms)`)
   } else {
-
     console.log(`  · §1 LOST RACE under runner starvation (${wall}ms to exhaustion) — degrading to typed-failure discipline`)
     const err = res.failed instanceof DurablePublishError ? res.failed : null
     ok(
@@ -158,7 +154,6 @@ await section('§2', async () => {
     holder.kill()
     return
   }
-
   let caught: unknown = null
   try {
     await durableAtomicPublish(p, 'never-lands')
@@ -173,7 +168,6 @@ await section('§2', async () => {
   )
   ok(err?.attempts === 4 && (err?.elapsedMs ?? 0) >= 350, `§2 full budget spent (attempts=${err?.attempts}, ${err?.elapsedMs}ms)`)
   ok(err?.tempCleanup === 'removed', `§2 prepared temp cleaned (${err?.tempCleanup})`)
-
   ok(readFileSync(p, 'utf8') === 'previous-good', '§2 the committed file stayed READABLE + intact through the whole hold')
   ok(tempsIn(dir).length === 0, '§2 no orphan replacement left behind')
   writeFileSync(release, 'release')

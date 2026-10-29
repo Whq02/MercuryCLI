@@ -17,7 +17,6 @@ function drive(sessionRows: number): {
     profile: { syncOutput: false, syncWhy: 'fixture' },
     clock,
   })
-
   let seq = 0
   for (let i = 0; i < sessionRows; i += 50) {
     const rows = []

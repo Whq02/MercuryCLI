@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -100,7 +99,6 @@ try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const run = await runArtifactArena({
     turns: [],
-
     sends: ['9000:\t', '12000:\x1b[B', '15000:\x1b[A', '18000:\x1b[C', '22000:\x1b[C'],
     seconds: 27,
     cols: SIZE.cols,
@@ -108,7 +106,6 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
-
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -136,11 +133,9 @@ try {
         const p = transcriptOf(alphaId)
         return p !== null && readFileSync(p, 'utf8').includes('ready.')
       }, 60_000))
-
       const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: alphaId, by: 'operator' } as never)) as { ok?: boolean }
       check('the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
       check('alpha\'s workflow is LIVE in its facts', await untilAsync(() => (proj.readSessionFacts(alphaId)?.work ?? []).some(r => r.kind === 'workflow' && r.status === 'running'), 90_000))
-
       const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
       const connA = seat.daemonSessionConnectorFor({
         sessionId: alphaId,
@@ -193,7 +188,6 @@ try {
     }
     const boardFrames = grabs.filter(g => text(g).includes('SESSIONS'))
     check('the board painted', boardFrames.length > 0, `frames: ${boardFrames.map(g => g.atMs).join(',')}`)
-
     const selRowIndex = (g: { rows: string[] }): number => g.rows.findIndex(r => r.includes('▸'))
     const selTitle = (g: { rows: string[] }): 'alpha' | 'beta' | '' => {
       const i = selRowIndex(g)
@@ -207,19 +201,15 @@ try {
       return g.rows[i + 1] ?? ''
     }
     const isChip = (line: string): boolean => /●\s+\d+ workflow/.test(line)
-
     const alphaFrames = boardFrames.filter(g => selTitle(g) === 'alpha')
     const alphaChip = alphaFrames.filter(g => isChip(chipUnderSel(g)))
     check('C1 the selected row A carries the chip line under it', alphaChip.length > 0, `alpha frames: ${alphaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
     check('C1 …naming BOTH kinds from the same facts (multi-work)', alphaChip.some(g => /1 workflow · 1 crewmate running/.test(chipUnderSel(g))), alphaChip.map(g => chipUnderSel(g).trim()).join(' | '))
-
     const betaFrames = boardFrames.filter(g => selTitle(g) === 'beta')
     check('C2 selecting B (zero work) paints NO chip line', betaFrames.length > 0 && betaFrames.every(g => !isChip(chipUnderSel(g))), `beta frames: ${betaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
     check('C3 B\'s own row never carries A\'s work', boardFrames.every(g => !(g.rows.find(r => r.includes('Beta idle')) ?? '').includes('workflow')))
-
     const peekFrames = boardFrames.filter(g => g.atMs >= 19000 && g.atMs <= 21000 && selTitle(g) === 'alpha')
     check('C4 the open peek leads with the chip', peekFrames.some(g => isChip(chipUnderSel(g))), `peek frames: ${peekFrames.map(g => g.atMs).join(',') || 'none'}`)
-
     const holdFrames = boardFrames.filter(g => g.atMs >= 16000 && g.atMs <= 17000)
     check('C5 the selection holds while the chip updates', holdFrames.length >= 1 && new Set(holdFrames.map(selTitle)).size === 1, holdFrames.map(g => `${g.atMs}:${selTitle(g)}`).join(','))
   } finally {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
@@ -46,7 +45,6 @@ function serialize(diff: ReturnType<typeof optimizePatches>): string {
   writeDiffToTerminal(fake as never, diff, false)
   return captured
 }
-
 function drive(prev: Paint, next: Paint): { touched: Set<string>; grid: (x: number, y: number) => string; patches: number; mismatch: string } {
   const writer = new FrameWriter({ isTTY: true, stylePool: styles })
   const a = frameOf(prev)
@@ -139,7 +137,6 @@ t.section('§3 — once: a neighbour is written once, however many departures na
   const changedAbove = drive({ '5,3': '▀', '5,2': 'a' }, { '5,2': 'b' })
   t.check('a neighbour that changed this frame is written by the diff and not again', sameSet(changedAbove.touched, setOf('5,3', '5,2')) && changedAbove.grid(5, 2) === 'b' && changedAbove.patches <= 6, `${show(changedAbove.touched)} patches ${changedAbove.patches}`)
   const two = drive({ '5,3': '▀', '5,5': '▀', '5,4': '▄' }, {})
-
   t.check('two departures over shared neighbours re-emit each neighbour once', sameSet(two.touched, setOf('5,2', '5,3', '5,4', '5,5')), show(two.touched))
 }
 
@@ -155,7 +152,6 @@ t.section('§4 — the edges')
 
 t.section('§5 — the sprite: a shorter silhouette two rows lower wipes the row above the old top run')
 {
-
   const tall: Paint = {}
   const short: Paint = {}
   for (let x = 4; x < 24; x++) {
@@ -171,17 +167,14 @@ t.section('§5 — the sprite: a shorter silhouette two rows lower wipes the row
   t.check('rows the shape still covers are NOT touched (their ▀ never left)', rowsBelow.length === 0, `${rowsBelow.length}`)
   t.check('replay equals the next frame', cycle.mismatch === '', cycle.mismatch)
   console.log(`  · cells re-emitted by the wipe on this shape change: ${rowAbove.length} (the row above the old top run); by the diff: ${rows3and4.length}`)
-
   const grow = drive(short, tall)
   t.check('growing back touches only the arriving rows (nothing departs)', [...grow.touched].every(k => { const y = Number(k.split(',')[1]); return y === 3 || y === 4 }) && grow.touched.size === 40, `${grow.touched.size}`)
-
   const blink = drive(tall, { ...tall, '10,4': '▀' })
   t.check('a same-glyph frame (the blink class) touches nothing beyond the diff (here: nothing)', blink.touched.size === 0)
 }
 
 t.section('§7 — the re-emitted neighbour is the NEXT screen\'s cell with its OWN ground')
 {
-
   const bg = styles.intern([{ code: '\x1b[48;2;13;24;27m', endCode: '\x1b[49m' } as never])
   const prev = screenOf({ '5,3': '▀' })
   const next = screenOf({})

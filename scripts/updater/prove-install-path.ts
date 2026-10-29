@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -138,7 +137,6 @@ section('§1 the POSIX decision through the seam')
     check('a lookup that lands on OUR shim counts as on-path', ensureBinDirOnPath(roots, f.io).state === 'on-path')
   }
   {
-
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' } })
     const plan = planBinDirOnPath(roots, f.io)
     check('the plan names ~/.zshrc and writes nothing', plan.state === 'would-write' && plan.targets.join() === `${HOME_P}/.zshrc` && f.appends.length === 0)
@@ -288,7 +286,6 @@ section('§2 the win32 decision through the seam — the law of the empty value'
     check('a store that moved between read and write ⇒ refused with the store\'s own words', out.state === 'refused' && out.reason === 'the user PATH changed since it was read; nothing was written')
   }
   {
-
     const store = join(scratch, 'user-path.json')
     process.env.MERCURY_USER_PATH_FILE = store
     const io = (): PathEntryIo => ({ ...realPathEntryIo(), env: { PATH: '/usr/bin:/bin' }, home: 'C:\\Users\\Sam', resolveCommand: () => null })
@@ -318,7 +315,6 @@ section('§2 the win32 decision through the seam — the law of the empty value'
     delete process.env.MERCURY_USER_PATH_FILE
   }
   {
-
     const read = WIN32_READ_USER_PATH_PS1
     const write = WIN32_WRITE_USER_PATH_PS1
     check('the reader opens HKCU\\Environment read-only and reads Path UNEXPANDED', read.includes("OpenSubKey('Environment', $false)") && read.includes('DoNotExpandEnvironmentNames'))
@@ -350,7 +346,6 @@ section('§2 the win32 decision through the seam — the law of the empty value'
         check(`pwsh parses the ${name} block with zero errors`, r.status === 0 && r.stdout.trim() === '0', (r.stdout + r.stderr).slice(0, 200))
       }
       if (!IS_WIN) {
-
         const io: PathEntryIo = { ...realPathEntryIo({ powershell: () => 'pwsh' }), env: { PATH: '/usr/bin:/bin' }, home: 'C:\\Users\\Sam', resolveCommand: () => null }
         const out = ensureBinDirOnPath(winRoots, io)
         check('a real pwsh run on a host without a registry ⇒ the read fails ⇒ refused, nothing written', out.state === 'refused' && out.reason.includes('could not be read'), out.state === 'refused' ? out.reason : out.state)
@@ -375,12 +370,10 @@ if (IS_WIN) {
   } else if (unsignedPayload) {
     console.log(`  [SKIP] §3/§4 install-activation need a signed payload — this build has no manifest signing block (the hosted build is unsigned by design; the release job signs). The product unsigned-payload refusal stays the product's own contract and is unchanged.`)
   } else {
-
     const payload = join(scratch, 'payload', 'mercury')
     mkdirSync(payload, { recursive: true })
     for (const member of ['mercury.mjs', 'manifest.json', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs']) cpSync(join(DIST, member), join(payload, member))
     cpSync(join(DIST, 'vendor', 'ripgrep'), join(payload, 'vendor', 'ripgrep'), { recursive: true })
-
     if (existsSync(join(DIST, 'vendor', 'node'))) symlinkSync(join(DIST, 'vendor', 'node'), join(payload, 'vendor', 'node'))
     writeFileSync(join(payload, 'mercury'), posixLauncher(NODE_POLICY))
     writeFileSync(join(payload, 'install.sh'), '#!/bin/sh\n# fixture installer stub\n')
@@ -414,7 +407,6 @@ if (IS_WIN) {
       const r = spawnSync(cmd, args, { encoding: 'utf8', timeout: 180_000, env: baseEnv(home, shell, extra) })
       return { code: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '', all: `${r.stdout ?? ''}${r.stderr ?? ''}` }
     }
-
     const newShellRun = (shell: string, flags: string, home: string, command: string) =>
       spawnSync(shell, [flags, '-c', command], { encoding: 'utf8', timeout: 60_000, env: { HOME: home, PATH: HERMETIC_PATH, TERM: 'dumb', MERCURY_NODE: nodeBin, MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
     const newShell = (shell: string, flags: string, home: string, command = 'command -v mercury'): string =>
@@ -505,7 +497,6 @@ if (IS_WIN) {
     if (!has('python3')) {
       console.log('  [SKIP] python3 is not installed here — the PTY legs need it; the gate is pinned by text below')
     } else {
-
       const PTY_PY = [
         'import os, pty, select, sys',
         'argv = sys.argv[1:]',
@@ -543,7 +534,6 @@ if (IS_WIN) {
         check('the stable command answering --version under a PTY prints NO provenance line (a first run read it twice before)', version.code === 0 && version.out.includes(VERSION) && count(version.out, PROVENANCE) === 0, version.out.slice(0, 300))
       }
       {
-
         const fake = join(scratch, 'fake-node')
         const log = join(scratch, 'fake-node.log')
         writeFileSync(fake, ['#!/bin/sh', `case "$1" in -p) exec "${nodeBin}" "$@" ;; esac`, `if [ -t 0 ] && [ -t 1 ] && [ -t 2 ]; then t=tty; else t=notty; fi`, `printf '%s|%s\\n' "$t" "$*" >> "${log}"`, 'exit 0', ''].join('\n'))
@@ -586,7 +576,6 @@ if (IS_WIN) {
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-install-path: ${failures === 0 ? 'all checks passed' : `${failures} check(s) FAILED`}`)
 if (statSync(scratch).isDirectory() && failures === 0) {
-
   spawnSync('rm', ['-rf', scratch])
 }
 process.exit(failures === 0 ? 0 : 1)

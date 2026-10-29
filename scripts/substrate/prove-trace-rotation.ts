@@ -44,7 +44,6 @@ check('file shrank below the cap', afterSize <= TRACE_MAX_BYTES, `${afterSize} b
 check('file kept roughly the last KEEP_BYTES (not emptied, not whole)', afterSize > 0 && afterSize <= TRACE_KEEP_BYTES + 1000 && afterSize < beforeSize)
 
 const outLines = after.split('\n').filter(Boolean)
-
 let allParse = true
 let firstN = -1
 let lastParsedN = -1

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, sleep, within } from './lib.js'
 
 const { work } = setup()
@@ -74,7 +73,6 @@ try {
   section('idle-SIGINT immunity: a stray signal cannot kill a parked kernel')
   const i0 = await run('py', 'idle_mark = 3')
   check('idle seed ok', i0.status === 'ok')
-
   const { execSync } = await import('node:child_process')
   const pids = execSync(`pgrep -P ${process.pid} || true`, { encoding: 'utf8' })
     .split('\n')

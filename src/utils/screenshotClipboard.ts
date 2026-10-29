@@ -9,12 +9,12 @@ import { logError } from './log.js'
 import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getPlatform } from './platform.js'
 
+
 type CopyResult = { success: boolean; message: string }
 
 const SCRIPT_TIMEOUT_MS = 5000
 
 async function macCopy(filePath: string): Promise<CopyResult> {
-
   const escaped = filePath.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
   const script = `set the clipboard to (read (POSIX file "${escaped}") as «class PNGf»)`
   const result = await execFileNoThrow('osascript', ['-e', script], { timeout: SCRIPT_TIMEOUT_MS, useCwd: false })
@@ -28,7 +28,6 @@ async function linuxCopy(filePath: string): Promise<CopyResult> {
     useCwd: false,
   })
   if (xclip.code === 0) return { success: true, message: 'Screenshot copied to the clipboard' }
-
   const xsel = await execFileNoThrow('xsel', ['--clipboard', '--input', '-t', 'image/png'], {
     timeout: SCRIPT_TIMEOUT_MS,
     useCwd: false,
@@ -60,7 +59,6 @@ export async function copyAnsiToClipboard(ansiText: string, options?: AnsiToPngO
     const filePath = join(directory, `screenshot-${Date.now()}.png`)
     await writeFile(filePath, ansiToPng(ansiText, options))
     try {
-
       switch (getPlatform()) {
         case 'macos':
           return await macCopy(filePath)

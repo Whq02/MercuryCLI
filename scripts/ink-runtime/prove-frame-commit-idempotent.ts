@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -55,7 +54,6 @@ section('§1 the real renderer: the same cells again open no generation')
   const instance = await render(h(Text as never, null, 'the same words on the same row'), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
   await settle()
   const inst = instances.get(stdout) as unknown as { ledger: InstanceType<typeof FrameLedger> } | undefined
-
   const glyphs = (s: string): string => s.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\s+/g, '')
   check('the instance mounted on the terminal-shaped stream', inst !== undefined && glyphs(bytes).includes('thesamewords'), JSON.stringify(bytes.slice(0, 80)))
   const ledger = inst!.ledger

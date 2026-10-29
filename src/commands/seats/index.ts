@@ -1,5 +1,6 @@
 import type { Command } from '../../commands.js'
 
+
 const seats: Command = {
   type: 'local',
   name: 'seats',

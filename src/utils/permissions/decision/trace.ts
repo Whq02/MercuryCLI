@@ -1,3 +1,4 @@
+
 export type DecisionEntry = 'full' | 'ruleSubset'
 
 export type DecisionStageId =
@@ -34,7 +35,6 @@ export const DECISION_STAGE_ORDER: Record<
     'toolAllowRule',
     'resolution',
   ],
-
   ruleSubset: [
     'toolDenyRule',
     'toolAskRule',
@@ -49,19 +49,15 @@ export const DECISION_STAGE_ORDER: Record<
 
 export interface DecisionStageRecord {
   stage: DecisionStageId
-
   outcome: 'pass' | 'decided'
-
   note?: string
 }
 
 export interface DecisionTrace {
   entry: DecisionEntry
   toolName: string
-
   mode: string
   stages: DecisionStageRecord[]
-
   decidedBy: DecisionStageId | 'none'
 }
 

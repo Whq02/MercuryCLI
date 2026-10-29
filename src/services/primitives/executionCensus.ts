@@ -1,3 +1,4 @@
+
 type ExecutionDomainClassification =
   | 'full-execution-owner'
   | 'child-execution'
@@ -7,7 +8,6 @@ type ExecutionDomainClassification =
 interface ExecutionDomainCensusEntry {
   domain: string
   classification: ExecutionDomainClassification
-
   kind?: string
   adapter: string
   owner: string

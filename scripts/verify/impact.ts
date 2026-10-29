@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+//  The impact manifest (impactManifest.ts) maps each suite's `# gate-watch:`
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -93,7 +93,6 @@ if (explain) {
 }
 
 if (run) {
-
   const { mkdtempSync, readFileSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { spawnSync } = await import('node:child_process')

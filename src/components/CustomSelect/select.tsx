@@ -1,3 +1,4 @@
+
 import figures from 'figures'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import React, { useContext, useEffect, useRef, useState } from 'react'
@@ -23,23 +24,18 @@ export type { OptionWithDescription } from './option-map.js'
 
 type SelectProps<T = string> = {
   isDisabled?: boolean
-
   disableSelection?: boolean | 'numeric'
   hideIndexes?: boolean
   visibleOptionCount?: number
-
   highlightText?: string
   options: OptionWithDescription<T>[]
   defaultValue?: T
   onCancel?: () => void
   onChange?: (value: T) => void
   onFocus?: (value: T) => void
-
   onVisibleWindowChange?: (visibleFromIndex: number, visibleToIndex: number) => void
-
   defaultFocusValue?: T
   layout?: 'compact' | 'expanded' | 'compact-vertical'
-
   inlineDescriptions?: boolean
   onUpFromFirstItem?: () => void
   onDownFromLastItem?: () => void
@@ -53,7 +49,6 @@ type SelectProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
-
   onEmptyInputSubmit?: (value: T) => void
 }
 
@@ -259,14 +254,12 @@ export function Select<T = string>({
 
   const optionCount = options.length
   const digitCount = String(optionCount).length
-
   const textRowReserved = hideIndexes
     ? 0
     : digitCount + (layout === 'compact-vertical' ? 1 : 2)
   const inputRowReserved = hideIndexes ? 0 : digitCount
 
   const visible = state.visibleOptions
-
   const { visibleFromIndex, visibleToIndex } = state
   useEffect(() => {
     onVisibleWindowChange?.(visibleFromIndex, visibleToIndex)
@@ -289,7 +282,6 @@ export function Select<T = string>({
       option,
       position,
     )
-
     const clickable =
       layout !== 'compact' &&
       !isDisabled &&
@@ -364,7 +356,6 @@ export function Select<T = string>({
     anyDescriptionInView
   ) {
     const indexWidth = hideIndexes ? 0 : digitCount + 2
-
     const labelColumnWidth = options.reduce((max, option) => {
       if (isInputOption(option)) return max
       const labelWidth =
@@ -478,7 +469,6 @@ export function Select<T = string>({
               key={String(option.value)}
               flexDirection="column"
               onClick={
-
                 !isDisabled && !option.disabled && disableSelection !== true
                   ? () => state.focusValue(optionValueOf(option))
                   : undefined

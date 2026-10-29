@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -74,7 +73,6 @@ const ok = { availability: 'available' } as const
 const refusedAnthropic = { availability: 'refused', refusal: 'no-credential:anthropic', detail: 'x', action: 'y' } as const
 
 section('§1 — the seed law, pure: operator default → neutral default → first available → the first row')
-
 {
   const claudePinned: Entry = { modelId: 'claude-opus-5', displayName: 'Opus 5', session: refusedAnthropic, crew: refusedAnthropic, isOperatorDefault: true }
   const gptNeutral: Entry = { modelId: 'gpt-5.5', displayName: 'GPT-5.5', session: ok, crew: ok, effort: 'high', isNeutralDefault: true }
@@ -89,7 +87,6 @@ section('§1 — the seed law, pure: operator default → neutral default → fi
 }
 
 section('§2 — a keyless home: no neutral default, no roster, the two-door sentence, nothing routed')
-
 {
   resetComputedDefaultMemo()
   check('neutralSeatDefault() is null with no usable sign-in', wm.neutralSeatDefault() === null, text(wm.neutralSeatDefault()))
@@ -111,7 +108,6 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   check('the door drops every inherited or chosen model on a keyless home', door.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const spelled = await wm.validateWorkerModelChoice('claude-opus-5', 'session')
   check("a spelled-out Claude id on a keyless home keeps its family's own door (only a launch with no id admits keyless)", !spelled.ok && spelled.reason === 'no-credential:anthropic', text(spelled))
-
   const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.ts')
   const relayed = "model refused (no-credential:anthropic) · ask the operator to run /logins anthropic — or OpenAI is signed in: leave the model out for its newest row (gpt-5.6), or name 'openai' to pick that family — the anthropic family holds no credential on this account (got \"claude-opus-5\")"
   const spoken = operatorFacingBirthReason(relayed)
@@ -127,18 +123,15 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
 }
 
 section('§3 — ONLY OPENAI SIGNED IN: the seat is the GPT row everywhere; a named Claude choice refuses naming the way out')
-
 const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
 const fixture = await startCrossfamilyFixture({ port: 41000 + (process.pid % 10000) })
 try {
-
   for (const key of ['MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'OPENAI_API_KEY'] as const) {
     process.env[key] = fixture.env[key]
   }
   recordSignIn('openai', 'api-key')
   const { refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.ts')
   await refreshOpenaiCatalogue('api-key', { force: true }).catch(() => null)
-
   let neutral = null as ReturnType<typeof wm.neutralSeatDefault>
   for (let i = 0; i < 40 && (neutral === null || neutral.family !== 'openai'); i++) {
     resetComputedDefaultMemo()
@@ -153,12 +146,10 @@ try {
   check('the registry seeds the session arm on the GPT row', /gpt/i.test(seedSession), text({ seedSession }))
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
   check('the workflow executor routes to the same GPT row (one resolver)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === gptRow, text({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), gptRow }))
-
   const facts3 = await import('../../src/services/switchboard/bootBirthFacts.ts')
   check('with only OpenAI signed in the birth door hands the daemon the GPT row (screenBirthModel = the neutral default)', facts3.screenBirthModel() === gptRow, text({ screen: facts3.screenBirthModel(), gptRow }))
 
   section('§4 — anthropic signs in LATER: the neutral default follows the most recent sign-in')
-
   process.env.ANTHROPIC_API_KEY = fixture.env.ANTHROPIC_API_KEY
   process.env.ANTHROPIC_BASE_URL = fixture.env.ANTHROPIC_BASE_URL
   await new Promise(r => setTimeout(r, 5))

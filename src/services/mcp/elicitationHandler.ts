@@ -5,6 +5,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from './toolPolicy.js'
 
+
 type ElicitationWaitingState = {
   actionLabel: string
   showCancel?: boolean
@@ -32,6 +33,7 @@ export type ElicitationRequestEvent = {
 }
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
+
 
 type ElicitationPhase = 'entered' | 'left'
 type ElicitationListener = (phase: ElicitationPhase, question: symbol) => void
@@ -105,6 +107,7 @@ export function elicitationPausedClock(client: Client, base: () => number = Date
   }
 }
 
+
 export function registerElicitationHandler(
   client: Client,
   serverName: string,
@@ -112,7 +115,6 @@ export function registerElicitationHandler(
 ): void {
   try {
     client.setRequestHandler('elicitation/create', (request, ctx) => withElicitationEntered(client, async () => {
-
       logMCPDebug(serverName, `elicitation request: ${JSON.stringify(request)}`)
       const params = (request.params ?? {}) as ElicitationParams
       const isUrlMode = params.mode === 'url'

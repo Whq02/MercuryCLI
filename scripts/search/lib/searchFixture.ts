@@ -11,7 +11,6 @@ interface SearchFixtureHit {
   path: string
   headers: Record<string, string>
   body: string
-
   at: number
 }
 type DoorMode = 'results' | 'anomaly' | 'poison' | 'entity-poison' | 'http-401' | 'http-429' | 'http-500'
@@ -84,9 +83,7 @@ interface SearchFixture {
   base: string
   port: number
   hits: SearchFixtureHit[]
-
   modes: { ddgHtml: DoorMode; ddgLite: DoorMode; brave: DoorMode; tavily: DoorMode; openai: DoorMode }
-
   script: OpenaiScriptTurn[] | null
   env: Record<string, string>
   hitsOn(lane: FixtureLane): SearchFixtureHit[]
@@ -102,7 +99,6 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
 
   function laneOf(path: string): FixtureLane {
     if (path === '/v1/messages') return 'anthropic'
-
     if (path.startsWith('/api/web/domain_info')) return 'anthropic'
     if (path === '/openai/v1/responses') return 'openai'
     if (path === '/openai/v1/models') return 'openai-models'
@@ -136,13 +132,11 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
         return
       }
       if (mode === 'poison') {
-
         res.writeHead(200, { 'content-type': 'text/html' })
         res.end('<html><body><div class="totally-new-shape"><a href="https://example.com/x">A link</a></div></body></html>')
         return
       }
       if (mode === 'entity-poison') {
-
         res.writeHead(200, { 'content-type': 'text/html' })
         res.end(
           kind === 'html'

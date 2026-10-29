@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mock } from 'bun:test'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -39,9 +39,7 @@ import { logForDebugging } from '../utils/debug.js'
 const switchReceipts = new Set<string>()
 
 const responsesClassified = new Set<string>()
-
 const streamEndsReceipted = new Set<string>()
-
 const effortAdjustmentsReceipted = new Set<string>()
 const busyRecoveriesReceipted = new Set<string>()
 const RESPONSES_CLASSIFIED_CAP = 64
@@ -260,6 +258,7 @@ export type QueryParams = {
   deps?: QueryDeps
 }
 
+
 type TurnState = {
   messages: Message[]
   toolUseContext: ToolUseContext
@@ -267,9 +266,7 @@ type TurnState = {
   maxOutputTokensRecoveryCount: number
   lastOutputLimitReply?: string
   maxOutputTokensOverride: number | undefined
-
   streamFaultRecoveryCount: number
-
   toolCallRefusalRecoveryCount: number
   cutToolCallRecoveryCount?: number
   pauseTurnContinuations?: number
@@ -277,15 +274,13 @@ type TurnState = {
   stopHookActive: boolean | undefined
   turnCount: number
   transition: Continue | undefined
-
   emptyReplyRecoveryCount?: number
   chantRecoveryCount?: number
   reasoningOnlyRecoveryCount?: number
-
   overflowEpisode: OverflowEpisode
-
   pendingOverflow: { signal: OverflowSignal; rung: OverflowRung } | undefined
 }
+
 
 type RunCtx = {
   params: QueryParams
@@ -297,6 +292,7 @@ type RunCtx = {
   config: QueryConfig
   budgetGuard: BudgetGuard
 }
+
 
 type IterationState = {
   turnId: string
@@ -322,6 +318,7 @@ type IterationState = {
   early: EarlyStarts
   streamChant?: ChantDetection
 }
+
 
 function* emitSyntheticSettlements(
   assistantMessages: AssistantMessage[],
@@ -357,6 +354,8 @@ function* emitSyntheticSettlements(
   }
 }
 
+
+
 type StopHookGateResult = {
   preventContinuation: boolean
   blockingErrors: Message[]
@@ -377,7 +376,6 @@ async function* runStopHookGate(
       yield emit({ kind: 'hook_message', message: r.value })
     }
   } finally {
-
     await gen.return(undefined as never)
   }
   yield emit({
@@ -392,6 +390,7 @@ async function* runStopHookGate(
   })
   return result
 }
+
 
 type MaxOutputTokensDecision =
   | { kind: 'nudge'; attempt: number }
@@ -572,6 +571,7 @@ function toolUpdateEvent(message: Message, emit: EventMint): RunEvent {
   return emit({ kind: 'notice', message })
 }
 
+
 function* trimChantedIteration(iter: IterationState, detection: ChantDetection, emit: EventMint): Generator<RunEvent> {
   const cleaned = trimChantedReplyMessages(iter.assistantMessages, detection)
   for (const message of iter.assistantMessages) {
@@ -606,9 +606,7 @@ async function* streamModel(
         if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
       }
       const callId = `${iter.turnId}.c${++iter.callOrdinal}`
-
       const permitKey = `${iter.callChain.key}:${callId}`
-
       refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)
       let permit: Awaited<ReturnType<typeof acquireModelPermit>>
       try {
@@ -620,13 +618,11 @@ async function* streamModel(
                 ? 'foreground'
                 : 'service',
           callId: permitKey,
-
           ...(toolUseContext.seatHolder !== undefined ? { holder: toolUseContext.seatHolder } : {}),
           signal: toolUseContext.abortController.signal,
           ...(toolUseContext.onSeatWait !== undefined ? { onWait: toolUseContext.onSeatWait } : {}),
         })
       } catch (waitError) {
-
         if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
         throw waitError
       }
@@ -638,7 +634,6 @@ async function* streamModel(
         reacquired: permit.reacquired,
       })
       const effortValue = iter.appState.effortValue
-
       const callReference = buildModelCallReference({
         model: iter.currentModel,
         effort: effortValue,
@@ -653,7 +648,6 @@ async function* streamModel(
         maxOutputTokensOverride: iter.maxOutputTokensOverride,
         reference: callReference,
       })
-
       {
         const receipt = modelSwitchReceipt(
           String(ownerFromToolUseContext(toolUseContext)),
@@ -674,12 +668,10 @@ async function* streamModel(
       let chantWatch = new StreamChantWatch()
       try {
         let streamingFallbackOccured = false
-
         const requestMessages =
           latestUserContextBody(iter.messagesForQuery) === null
             ? prependUserContext(iter.messagesForQuery, run.userContext)
             : iter.messagesForQuery
-
         if (isTurnOwningQuerySource(run.querySource)) {
           recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
         }
@@ -728,7 +720,6 @@ async function* streamModel(
             onStreamingFallback: () => {
               streamingFallbackOccured = true
             },
-
             onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
             onStreamActivity: atMs => toolUseContext.setSDKStatus?.({ streamActivity: atMs }),
             querySource: run.querySource,
@@ -746,16 +737,12 @@ async function* streamModel(
             effortValue,
             skipCacheWrite: run.skipCacheWrite,
             agentId: toolUseContext.agentId,
-
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
           },
         })) {
-
           if (streamingFallbackOccured) {
-
             streamingFallbackOccured = false
-
             for (const msg of iter.assistantMessages) {
               if (msg.inReplyTo !== undefined) iter.replyTo.unshift(...msg.inReplyTo)
               yield emit({ kind: 'assistant_retracted', message: msg })
@@ -771,7 +758,6 @@ async function* streamModel(
               streamController.abort('stream-chant')
             }
           }
-
           const yieldMessage: typeof message = backfillCloneForYield(
             message,
             name => findToolByName(toolUseContext.options.tools, name),
@@ -794,25 +780,21 @@ async function* streamModel(
                 }),
               })
             }
-
             stampReply(message, iter.replyTo)
             if (yieldMessage !== message && message.inReplyTo !== undefined) (yieldMessage as AssistantMessage).inReplyTo = message.inReplyTo
             yield emit({
               kind: 'assistant_settled',
               callId,
               message: yieldMessage,
-
               withheld:
                 iter.streamChant !== undefined ||
                 isWithheldMaxOutputTokens(message) ||
                 (overflowSignalOf(message) !== null && overflowLadderArmed(run.querySource)),
             })
             iter.assistantMessages.push(message)
-
             if (!responsesClassified.has(message.message.id)) {
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
-
               const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
               fixedPrefix = prefixVerdict?.fixedPrefix
               if (drops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), drops)
@@ -831,27 +813,22 @@ async function* streamModel(
               if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
               const recordBehind = prefixVerdict?.behind ?? 0
               if (recordBehind > 0 && outcome.kind !== 'none' && outcome.lawful === null) outcome.behind = recordBehind
-
               const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
-
               if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel, dropNotice)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
               }
               if (dropNotice !== null) {
-
                 const lawful = outcome.kind === 'lawful'
                 logForDebugging(`preserved thinking: ${lawful ? 'note' : 'warning'}: ${dropNotice}`)
                 yield emit({ kind: 'notice', message: createThinkingNoteMessage(dropNotice, lawful ? 'info' : 'warning') })
               } else if (rewrite !== null && outcome.kind === 'none') {
-
                 const rewriteNotice = describePrefixRewrite(rewrite.part, rewrite.path)
                 recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel, rewriteNotice)
                 if (takeRewriteNoticeOnce(String(ownerFromToolUseContext(toolUseContext)))) {
                   yield emit({ kind: 'notice', message: createThinkingNoteMessage(rewriteNotice, 'warning') })
                 }
               }
-
               const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
               if (dead.length > 0) {
                 logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
@@ -860,7 +837,6 @@ async function* streamModel(
                 iter.deadThinkingRecords.push(record)
               }
             }
-
             if (toolUseContext.rosterOwner === undefined) {
               const boundRecord = await boundPrefixRecordToEmit(
                 String(rosterOwnerFromToolUseContext(toolUseContext)),
@@ -885,7 +861,6 @@ async function* streamModel(
             if (iter.streamChant === undefined || message.type !== 'stream_event') yield emit({ kind: 'stream_delta', callId, raw: yieldMessage })
           }
         }
-
         for (const settled of iter.assistantMessages) {
           settleGauge(settled)
           if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
@@ -895,7 +870,6 @@ async function* streamModel(
             message: createSystemMessage(streamEndReceiptLine(settled.streamEnd), 'warning'),
           })
         }
-
         for (const settled of iter.assistantMessages) {
           const adjusted = settled.effortAdjusted
           if (adjusted === undefined) continue
@@ -917,7 +891,6 @@ async function* streamModel(
         }
       } catch (innerError) {
         if (innerError instanceof FallbackTriggeredError && backups.take(innerError.fallbackModel)) {
-
           iter.currentModel = innerError.fallbackModel
           attemptWithFallback = true
 
@@ -927,10 +900,10 @@ async function* streamModel(
             'error',
             emit,
           )
-
           iter.needsFollowUp = resetForRetry(iter).needsFollowUp
 
           toolUseContext.options.engineModel = innerError.fallbackModel
+
 
           yield emit({
             kind: 'notice',
@@ -942,14 +915,12 @@ async function* streamModel(
         throw innerError
       } finally {
         parentSignal.removeEventListener('abort', onAbort)
-
         releaseModelPermitByCall(permitKey)
       }
     }
   } catch (error) {
     iter.early.reset()
     logError(error)
-
     const errorMessage =
       describeInvalidArgTypeError(error) ??
       (error instanceof Error ? error.message : String(error))
@@ -984,6 +955,7 @@ async function* streamModel(
   return { kind: 'streamed' }
 }
 
+
 export async function* runEventCore(
   params: QueryParams,
   consumedCommandUuids: string[],
@@ -996,7 +968,6 @@ async function* runEventMachine(
   consumedCommandUuids: string[],
 ): AsyncGenerator<RunEvent, Terminal> {
   const emit = createEventMint()
-
   const {
     systemPrompt,
     userContext,
@@ -1126,9 +1097,7 @@ async function* runEventMachine(
         ),
         microcompact: deps.microcompact,
         preserveBodies,
-
         readFileState: toolUseContext.readFileState,
-
         calibrationKey: (() => {
           const model = toolUseContext.options.engineModel
           return typeof model === 'string' && model
@@ -1155,9 +1124,7 @@ async function* runEventMachine(
             model: toolUseContext.options.engineModel,
           }).catch(() => ({ name: tool.name })))),
         }),
-
         harnessContextPolicy: null,
-
         ...(pendingOverflow?.rung === 'prune' ? { pressurePrune: true as const } : {}),
       },
       'apply',
@@ -1176,7 +1143,6 @@ async function* runEventMachine(
         messagesForQuery = [...messagesForQuery, ...digested.answer.contexts.map(words => createUserMessage({ content: words, isMeta: true }))]
       }
     }
-
     const deadThinkingRecords: AttachmentMessage[] = []
     {
       const known = deadThinkingMarks(messages)
@@ -1188,7 +1154,6 @@ async function* runEventMachine(
       }
     }
     if (pendingOverflow?.rung === 'prune') {
-
       const pruned = requestPlan.reductions.pressurePruned
       yield emit({
         kind: 'notice',
@@ -1307,7 +1272,6 @@ async function* runEventMachine(
         turnId: deps.uuid(),
         turnCounter: 0,
         consecutiveFailures: 0,
-
         consecutiveRapidRefills,
         ...(rapidRefillPaused ? { rapidRefillPaused: true as const } : {}),
       }
@@ -1325,7 +1289,6 @@ async function* runEventMachine(
       messagesForQuery = [...postCompactMessages, ...carried]
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
     } else if (consecutiveFailures !== undefined || rapidRefillPaused) {
-
       tracking = {
         ...(tracking ?? { compacted: false, turnId: '', turnCounter: 0 }),
         ...(consecutiveFailures !== undefined ? { consecutiveFailures } : {}),
@@ -1340,7 +1303,6 @@ async function* runEventMachine(
 
     const appState = toolUseContext.getAppState()
     const currentModel = toolUseContext.options.engineModel
-
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
       (compactionResult.truePostCompactTokenCount === undefined ||
@@ -1353,7 +1315,6 @@ async function* runEventMachine(
       querySource !== 'compact' &&
       querySource !== 'session_memory'
     ) {
-
       const estimatedTokens =
         compactionResult?.truePostCompactTokenCount ??
         Math.max(
@@ -1381,7 +1342,6 @@ async function* runEventMachine(
           yield emit({ kind: 'run_terminal', terminal })
           return terminal
         }
-
         if (overflowLadderArmed(querySource)) {
           const blockingLimit = getBlockingLimit(toolUseContext.options.engineModel)
           const signal = estimateOverflowSignal({
@@ -1401,7 +1361,6 @@ async function* runEventMachine(
             fold: foldAvailability({
               tracking,
               headFold: !foldSplit.hasHistory ? undefined : headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
-
               ...(headFoldFailed && compactionRefusal !== undefined ? { headFoldDetail: compactionRefusal } : {}),
               hasHistory: foldSplit.hasHistory,
             }),
@@ -1478,7 +1437,6 @@ async function* runEventMachine(
       assistantMessages: [],
       toolResults: [],
       deadThinkingRecords,
-
       toolUseBlocks: [],
       needsFollowUp: false,
       closingTurn,
@@ -1495,14 +1453,13 @@ async function* runEventMachine(
     if (deadThinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...deadThinkingRecords]
     if (iter.streamChant !== undefined && !toolUseContext.abortController.signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
     const { assistantMessages, toolResults, toolUseBlocks } = iter
-
     const allRefusedToolCalls = collectRefusedToolCalls(assistantMessages)
     const refusedToolCalls = unansweredRefusals(assistantMessages)
     const answeredRefusalIds = new Set(allRefusedToolCalls.filter(refusal => !refusedToolCalls.includes(refusal)).map(refusal => refusal.id))
 
+
     if (toolUseContext.abortController.signal.aborted) {
       iter.early.reset()
-
       const cutReason = toolUseContext.abortController.signal.reason
       yield* emitSyntheticSettlements(
         assistantMessages,
@@ -1510,7 +1467,6 @@ async function* runEventMachine(
         'aborted',
         emit,
       )
-
       const steer = cutReason === 'interrupt'
       yield emit({
         kind: 'interruption',
@@ -1797,7 +1753,6 @@ async function* runEventMachine(
           recoveryCount: streamFaultRecoveryCount,
         })
         if (decision.kind === 'continue') {
-
           const faultText = continuableStreamFaultTextOf(lastMessage)
           const faultFacts = faultText === null ? null : streamFaultFactsOf(faultText)
           yield emit({
@@ -1835,7 +1790,6 @@ async function* runEventMachine(
           state = next
           continue
         }
-
         yield emit({
           kind: 'notice',
           message: createSystemMessage(
@@ -2206,6 +2160,7 @@ async function* runEventMachine(
     let loopStoppedRecord: Message | null = null
     let updatedToolUseContext = toolUseContext
 
+
     for (const block of toolUseBlocks) {
       yield emit({
         kind: 'tool_started',
@@ -2314,7 +2269,6 @@ async function* runEventMachine(
     }
 
     if (toolUseContext.abortController.signal.aborted) {
-
       const cutReason = toolUseContext.abortController.signal.reason
       const steer = cutReason === 'interrupt'
       yield emit({
@@ -2323,12 +2277,10 @@ async function* runEventMachine(
         steer,
         message: steer ? null : createUserInterruptionMessage({ toolUse: true, reason: cutReason }),
       })
-
       yield emit({
         kind: 'notice',
         message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
       })
-
       const nextTurnCountOnAbort = turnCount + 1
       if (
         maxTurns !== undefined &&
@@ -2376,6 +2328,7 @@ async function* runEventMachine(
       tracking.turnCounter++
     }
 
+
     // eslint-disable-next-line custom-rules/require-tool-match-name -- ToolUseBlock.name has no aliases
     const sleepRan = toolUseBlocks.some(b => b.name === SLEEP_TOOL_NAME)
     const currentAgentId = toolUseContext.agentId
@@ -2383,12 +2336,10 @@ async function* runEventMachine(
       currentAgentId === undefined &&
       (querySource.startsWith('main_thread') || querySource === 'sdk')
     const queuedCommandsSnapshot = selectDrainableCommands(
-
       getDrainableCommands(sleepRan),
       { sleepRan, isMainThread, agentId: currentAgentId },
       isSlashCommand,
     )
-
     markDraining(queuedCommandsSnapshot)
 
     const yieldedCommandUuids = new Set<string>()
@@ -2401,7 +2352,6 @@ async function* runEventMachine(
         [...messagesForQuery, ...assistantMessages, ...toolResults],
         querySource,
       )) {
-
         const att = attachment.attachment as { type?: string; source_uuid?: string }
         if (att.type === 'queued_command' && typeof att.source_uuid === 'string') {
           yieldedCommandUuids.add(att.source_uuid)
@@ -2413,9 +2363,7 @@ async function* runEventMachine(
       }
       drainProduced = true
     } finally {
-
       markDraining([])
-
       consumedCommandUuids.push(
         ...consumeDrainedCommands(
           drainProduced
@@ -2444,6 +2392,7 @@ async function* runEventMachine(
       }
     }
 
+
     updatedToolUseContext = refreshTurnTools(updatedToolUseContext)
     const contextForNextTurn = { ...updatedToolUseContext, callChain }
 
@@ -2460,15 +2409,12 @@ async function* runEventMachine(
       autoCompactTracking: tracking,
       turnCount: nextTurnCount,
       maxOutputTokensRecoveryCount: 0,
-
       streamFaultRecoveryCount: 0,
-
       toolCallRefusalRecoveryCount: 0,
       pendingToolUseSummary: nextPendingToolUseSummary,
       maxOutputTokensOverride: undefined,
       stopHookActive,
       transition: { reason: 'next_turn' },
-
       overflowEpisode: FRESH_OVERFLOW_EPISODE,
       pendingOverflow: undefined,
     }

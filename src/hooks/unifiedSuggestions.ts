@@ -1,3 +1,4 @@
+
 import Fuse from 'fuse.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { generateFileSuggestions } from './fileSuggestions.js'
@@ -101,7 +102,6 @@ export async function generateUnifiedSuggestions(
   const agentEntries = agentItems(agents, query, showOnEmpty === true)
 
   if (query === '') {
-
     return [
       ...files,
       ...resources.map(entry => entry.item),

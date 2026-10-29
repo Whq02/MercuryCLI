@@ -1,7 +1,7 @@
+
 export type Store<T> = {
   getState: () => T
   setState: (updater: (prevState: T) => T) => void
-
   subscribe: (listener: () => void) => () => void
 }
 

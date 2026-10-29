@@ -1,3 +1,4 @@
+
 import type { AssistantMessage, ReplyMark } from '../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 
@@ -34,7 +35,6 @@ export function stampReply<M extends Pick<AssistantMessage, 'isApiErrorMessage' 
 }
 
 export type DrainScope = {
-
   sleepRan: boolean
   isMainThread: boolean
   agentId: string | undefined

@@ -1,3 +1,4 @@
+
 import type { AssistantMessage, Message } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { overflowSignalOf } from '../api/overflowSignal.js'
@@ -92,14 +93,11 @@ export async function liveCoordinatorCallModel(
     import('../../prompt/mercuryContract.js'),
     import('../../prompt/engineIdentity.js'),
   ])
-
   const engineLine = mercuryEngineIdentityLine(modelId)
-
   const managerInput = (input as { manager?: true }).manager === true
   const managerCollector: import('./managerMode.js').ManagerTurnCollector = {}
   const managerBits = managerInput ? await import('./managerMode.js') : null
   const defs = managerBits !== null ? [...coordinatorToolSet(), ...managerBits.managerToolSet(managerCollector)] : coordinatorToolSet()
-
   const { resolveHarnessGround } = await import('./concourseSnapshot.js')
   const ground = await resolveHarnessGround().catch(() => getCwd())
   const ctx = createCoordinatorToolContext({
@@ -107,7 +105,6 @@ export async function liveCoordinatorCallModel(
     by: runtime.by ?? 'coordinator',
     ...(runtime.crewDir !== undefined ? { crewDir: runtime.crewDir } : {}),
   })
-
   const apiTools = toolApiDeclarations(defs) as unknown as Tools
   const signal = AbortSignal.timeout(COORDINATOR_TURN_WALL_MS)
 
@@ -117,16 +114,13 @@ export async function liveCoordinatorCallModel(
   if (input.event.kind === 'operator-message') {
     current = input.event.text
     const last = tail[tail.length - 1]
-
     if (last !== undefined && last.role === 'operator') tail.pop()
   }
   for (const entry of tail) {
     if (entry.text.length === 0 && (entry.receipts === undefined || entry.receipts.length === 0)) continue
     if (entry.role === 'coordinator' && !messages.some(message => message.type === 'user')) continue
-
     const age = entry.age !== undefined ? `[${entry.age}] ` : ''
     if (entry.role === 'harness') {
-
       messages.push(
         createUserMessage({
           content: `[harness${entry.age !== undefined ? ` · ${entry.age}` : ''}] ${entry.text}`,
@@ -135,19 +129,16 @@ export async function liveCoordinatorCallModel(
       continue
     }
     if (entry.role === 'operator') {
-
       const settled = entry.settled === true ? ' [the harness settled this one — history, not an open ask]' : ''
       messages.push(createUserMessage({ content: `${age}${entry.text}${settled}` }))
       continue
     }
-
     const receiptLines =
       entry.receipts !== undefined && entry.receipts.length > 0
         ? `\n\n<receipts>\n${entry.receipts.map(r => `- ${r.label}`).join('\n')}\n</receipts>`
         : ''
     messages.push(createAssistantMessage({ content: `${age}${entry.text}${receiptLines}` }))
   }
-
   const boardBlock = `<switchboard${input.board.clock !== undefined ? ` clock="${input.board.clock}"` : ''}>\n${JSON.stringify(
     { event: input.event, board: input.board },
   )}\n</switchboard>`
@@ -165,18 +156,14 @@ export async function liveCoordinatorCallModel(
   let sawWork = false
   const finalParts: string[] = []
   let roundDelta = ''
-
   let maxContextTokens: number | undefined
 
   try {
-
     for (let round = 0; round <= COORDINATOR_TURN_MAX_TOOL_CALLS + 1; round++) {
       const remaining = COORDINATOR_TURN_MAX_OUTPUT_TOKENS - outputTokensUsed
       if (remaining < MIN_ROUND_OUTPUT_TOKENS) break
       roundDelta = ''
-
       const roundAssistants: AssistantMessage[] = []
-
       const stream = routedCallModel({
         messages,
         systemPrompt: asSystemPrompt([
@@ -192,7 +179,6 @@ export async function liveCoordinatorCallModel(
         signal,
         options: {
           model: modelId,
-
           effortValue: resolveCoordinatorEffort(),
           querySource: 'concourse_coordinator',
           agents: [],
@@ -222,13 +208,11 @@ export async function liveCoordinatorCallModel(
       }
       const lastAssistant = roundAssistants[roundAssistants.length - 1]
       if (lastAssistant === undefined) throw new Error('the provider returned no answer')
-
       const realAssistants = roundAssistants.filter(
         m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage !== true,
       )
       if (realAssistants.length === 0) {
         const failureText = textBlocksOf(lastAssistant.message.content)
-
         const overflow = roundAssistants.map(m => overflowSignalOf(m as never)).find(s => s !== null) ?? null
         if (overflow !== null) {
           throw new CoordinatorOverflowError(overflow, failureText.length > 0 ? failureText : 'the provider refused the request for not fitting the window')
@@ -241,7 +225,6 @@ export async function liveCoordinatorCallModel(
         .join('\n')
       if (roundText.length > 0) finalParts.push(roundText)
       roundDelta = ''
-
       runtime.onDelta?.(joinParts(finalParts))
       const usage = (lastAssistant as unknown as StreamEventLike).message?.usage
       const outUsage = usage?.output_tokens
@@ -274,7 +257,6 @@ export async function liveCoordinatorCallModel(
               ? { content: JSON.stringify({ ok: false, refused: `there is no tool named '${tu.name}'`, next: 'use one of the declared tools' }) }
               : await def.run(tu.input, ctx)
         }
-
         const finished = finishToolResult(tu.name, out)
         for (const receipt of finished.receipts ?? []) {
           sawWork = true
@@ -287,7 +269,6 @@ export async function liveCoordinatorCallModel(
           ...(finished.isError ? { is_error: true as const } : {}),
         })
       }
-
       messages.push(...roundAssistants)
       messages.push(
         createUserMessage({
@@ -300,27 +281,23 @@ export async function liveCoordinatorCallModel(
     const reply = joinParts(finalParts)
     return {
       decisions: [],
-
       ...(reply.length > 0 ? { reply: reply.slice(0, 8000) } : {}),
       ...(maxContextTokens !== undefined ? { turnUsage: { contextTokens: maxContextTokens } } : {}),
       ...(managerCollector.ask !== undefined ? { ask: managerCollector.ask } : {}),
       ...(managerCollector.plan !== undefined ? { plan: managerCollector.plan } : {}),
     }
   } catch (err) {
-
     if (err instanceof CoordinatorOverflowError) throw err
     const soFar = joinParts([...finalParts, roundDelta])
     if (!sawWork && soFar.length === 0) {
       if (coordinatorDeadlineExpired(signal)) throw new Error(coordinatorDeadlineWords(signal, COORDINATOR_TURN_WALL_MS, 'the coordinator turn', err))
       throw err
     }
-
     const why = coordinatorDeadlineWords(signal, COORDINATOR_TURN_WALL_MS, 'the coordinator turn', err)
     const apology = `${soFar}${soFar.length > 0 ? '\n\n' : ''}Something broke mid-turn (${why}) — the receipt rows here are what actually happened; nothing else was changed.`
     return {
       decisions: [],
       reply: apology.slice(0, 8000),
-
       ...(maxContextTokens !== undefined ? { turnUsage: { contextTokens: maxContextTokens } } : {}),
       ...(managerCollector.ask !== undefined ? { ask: managerCollector.ask } : {}),
       ...(managerCollector.plan !== undefined ? { plan: managerCollector.plan } : {}),

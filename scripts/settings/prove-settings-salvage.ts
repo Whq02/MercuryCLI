@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -100,20 +99,16 @@ section('§5 ROOT-MALFORMED JSON')
 
 section('§6 THE SEVERITY CHANNEL (B9) — the loader grades what it knows')
 {
-
   const salvagedCase = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: '30' } })
   check('a salvaged file grades every error warning', salvagedCase.settings !== null && salvagedCase.errors.length > 0 && salvagedCase.errors.every(e => e.severity === 'warning'), JSON.stringify(salvagedCase.errors).slice(0, 200))
-
   const voided = parseBlob('{nope')
   check('a voided file keeps the hard default', voided.settings === null && voided.errors.length > 0 && voided.errors.every(e => e.severity !== 'warning'), JSON.stringify(voided.errors).slice(0, 200))
-
   const filtered = parseBlob({ guardrails: { deny: ['Bash', 'Bash(rm -rf *'] } })
   check(
     'a dropped permission rule grades warning (the filter stamp)',
     filtered.settings !== null && filtered.errors.some(e => e.severity === 'warning' && /permission rule/.test(e.message)),
     JSON.stringify(filtered.errors).slice(0, 200),
   )
-
   const { readFileSync } = await import('node:fs')
   const dialog = readFileSync(new URL('../../src/components/InvalidSettingsDialog.tsx', import.meta.url), 'utf8')
   check("the dialog reads the first-class channel (severity === 'warning' ⇒ soft)", dialog.includes("error.severity === 'warning'"))

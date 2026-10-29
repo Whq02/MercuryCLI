@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   mkdirSync,
   mkdtempSync,
@@ -19,7 +18,6 @@ process.env.NODE_ENV = 'test'
 const hermeticHome = mkdtempSync(join(tmpdir(), 't17-state-home-'))
 process.env.MERCURY_CONFIG_DIR = join(hermeticHome, 'config')
 process.env.MERCURY_DAEMON_DIR = join(hermeticHome, 'daemon')
-
 delete process.env.MERCURY_ASSISTANT_DISABLE
 
 import * as state from '../../src/bootstrap/state.js'
@@ -77,7 +75,6 @@ function serPlain(v: unknown): string {
   if (v === undefined) return 'undefined'
   if (typeof v === 'function') return 'fn'
   if (v !== null && typeof v === 'object') {
-
     try {
       return JSON.stringify(v) ?? 'object'
     } catch {
@@ -92,16 +89,13 @@ const OBSERVABLES: Array<{
   scope: Scope
   read: () => unknown
 }> = [
-
   { key: 'sessionId', family: 'identity', scope: 'conversation', read: () => state.getSessionId() },
   { key: 'parentSessionId', family: 'identity', scope: 'conversation', read: () => state.getParentSessionId() },
   { key: 'sessionProjectDir', family: 'identity', scope: 'conversation', read: () => state.getSessionProjectDir() },
   { key: 'planSlugCache', family: 'identity', scope: 'session', read: () => state.getPlanSlugCache() },
-
   { key: 'originalCwd', family: 'cwd', scope: 'process', read: () => state.getOriginalCwd() },
   { key: 'projectRoot', family: 'cwd', scope: 'process', read: () => state.getProjectRoot() },
   { key: 'cwdState', family: 'cwd', scope: 'process', read: () => state.getCwdState() },
-
   { key: 'totalCostUSD', family: 'cost', scope: 'conversation', read: () => state.getTotalCostUSD() },
   { key: 'totalAPIDuration', family: 'cost', scope: 'conversation', read: () => state.getTotalAPIDuration() },
   { key: 'totalAPIDurationWithoutRetries', family: 'cost', scope: 'conversation', read: () => state.getTotalAPIDurationWithoutRetries() },
@@ -116,7 +110,6 @@ const OBSERVABLES: Array<{
   { key: 'totalCacheReadInputTokens', family: 'cost', scope: 'derived', read: () => state.getTotalCacheReadInputTokens() },
   { key: 'totalCacheCreationInputTokens', family: 'cost', scope: 'derived', read: () => state.getTotalCacheCreationInputTokens() },
   { key: 'totalWebSearchRequests', family: 'cost', scope: 'derived', read: () => state.getTotalWebSearchRequests() },
-
   { key: 'turnHookDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnHookDurationMs() },
   { key: 'turnHookCount', family: 'turn', scope: 'turn', read: () => state.getTurnHookCount() },
   { key: 'turnToolDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnToolDurationMs() },
@@ -124,27 +117,21 @@ const OBSERVABLES: Array<{
   { key: 'turnOutputTokens', family: 'turn', scope: 'derived', read: () => state.getTurnOutputTokens() },
   { key: 'currentTurnTokenBudget', family: 'turn', scope: 'turn', read: () => state.getCurrentTurnTokenBudget() },
   { key: 'budgetContinuationCount', family: 'turn', scope: 'turn', read: () => state.getBudgetContinuationCount() },
-
   { key: 'lastInteractionTime', family: 'interaction', scope: 'process', read: () => state.getLastInteractionTime() },
-
   { key: 'engineModelOverride', family: 'model', scope: 'session', read: () => state.getEngineModelOverride() },
   { key: 'initialEngineModel', family: 'model', scope: 'session', read: () => state.getInitialEngineModel() },
   { key: 'modelStrings', family: 'model', scope: 'session', read: () => (state.getModelStrings() === null ? null : 'set') },
   { key: 'sdkBetas', family: 'model', scope: 'session', read: () => state.getSdkBetas() },
-
   { key: 'statsStore', family: 'telemetry', scope: 'process', read: () => (state.getStatsStore() === null ? null : 'set') },
-
   { key: 'lastAPIRequest', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequest() },
   { key: 'lastAPIRequestMessages', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequestMessages() },
   { key: 'promptId', family: 'apiCapture', scope: 'conversation', read: () => state.getPromptId() },
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
-
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
   { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
   { key: 'systemPromptSectionCache', family: 'caches', scope: 'session', read: () => state.getSystemPromptSectionCache() },
   { key: 'lastEmittedDate', family: 'caches', scope: 'session', read: () => state.getLastEmittedDate() },
-
   { key: 'isInteractive', family: 'posture', scope: 'session', read: () => state.getIsInteractive() },
   { key: 'isNonInteractive', family: 'posture', scope: 'derived', read: () => state.getIsNonInteractiveSession() },
   { key: 'sessionKind', family: 'posture', scope: 'session', read: () => state.getSessionKind() },
@@ -161,7 +148,6 @@ const OBSERVABLES: Array<{
   { key: 'permissionModeResolution', family: 'posture', scope: 'session', read: () => state.getSessionPermissionModeResolution() },
   { key: 'sessionTrustAccepted', family: 'posture', scope: 'session', read: () => state.getSessionTrustAccepted() },
   { key: 'sessionPersistenceDisabled', family: 'posture', scope: 'session', read: () => state.isSessionPersistenceDisabled() },
-
   { key: 'flagSettingsPath', family: 'boot', scope: 'process', read: () => state.getFlagSettingsPath() },
   { key: 'flagSettingsInline', family: 'boot', scope: 'process', read: () => state.getFlagSettingsInline() },
   { key: 'allowedSettingSources', family: 'boot', scope: 'process', read: () => state.getAllowedSettingSources() },
@@ -173,9 +159,7 @@ const OBSERVABLES: Array<{
   { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
-
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
-
   { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
   { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
   { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkills() },
@@ -266,10 +250,8 @@ check(
 )
 
 section('LAW EXPORT-SURFACE — the frozen facade lock')
-
 {
   const EXPECTED_VALUE_EXPORTS = [
-
     'addInvokedSkill', 'addToToolDuration',
     'canAnswerAsks', 'getAskChannel', 'setAskChannel',
     'getSessionKind', 'setSessionKind',
@@ -281,7 +263,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'flushInteractionTime',
     'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
-    'getCacheEditingHeaderLatched',
+    'getCacheEditingHeaderLatched', 
     'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
     'getHasDevChannels', 'getInitialEngineModel', 'getSessionExtensions',
     'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
@@ -311,10 +293,10 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
     'resetStateForTests',
-    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY',
+    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 
     'resetTurnHookDuration', 'resetTurnToolDuration',
     'setAllowedChannels', 'setAllowedSettingSources',
-    'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched',
+    'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
@@ -409,7 +391,6 @@ section('LAW FAN-IN — the import census (the measurable cut baseline)')
 }
 
 section('LAW 12 SLOW-OPS-ABSENT — the dormant family is DELETED')
-
 {
   const exports = state as never as Record<string, unknown>
   check('absence: addSlowOperation is gone from the facade', !('addSlowOperation' in exports))
@@ -601,7 +582,6 @@ section('LAW 14b CWD-BEAT — subscribeCwdState fires on every setCwdState write
   state.setCwdState(NFD)
   check('cwd-beat: emit-after-write (subscriber reads the NEW cwd synchronously)', insideRead === NFC, insideRead)
   check('cwd-beat: the emitted argument is the normalized stored value', heardArg === NFC, heardArg)
-
   state.setCwdState(NFD)
   check('cwd-beat: a same-value write re-emits (no guard in the owner)', beats === 2, String(beats))
   unsub()
@@ -807,7 +787,6 @@ section('LAW 6 ASSISTANT — the env matrix · flip supremacy · the memo latch'
     check(`assistant matrix [${cell.label}]: isAssistantFamilyAvailable=${cell.active}`, r.json.active === cell.active, r.raw)
     check(`assistant matrix [${cell.label}]: isAssistantSessionActive reads ONLY the flip`, r.json.session === cell.flip, r.raw)
   }
-
   const MEMO_CHILD =
     `import * as s from ${JSON.stringify(stateAbs)}\n` +
     `const first = s.isAssistantFamilyAvailable()\n` +
@@ -820,7 +799,6 @@ section('LAW 6 ASSISTANT — the env matrix · flip supremacy · the memo latch'
     check('assistant memo: post-read env flip is ignored (first-read latch)', memo.json.second === true)
     check('assistant memo: session flip still false throughout', memo.json.session === false)
   }
-
   process.env.MERCURY_ASSISTANT_DISABLE = 'on'
   check('assistant memo (in-process): env flip after first read is ignored', state.isAssistantFamilyAvailable() === true)
   delete process.env.MERCURY_ASSISTANT_DISABLE
@@ -851,7 +829,6 @@ section('LAW 7 INTERACTION-CLOCK — deferred dirty bit · flush-once · immedia
 
 section('LAW 8 SCROLL-DRAIN — debounce · unref discipline · idle release')
 {
-
   const realSetTimeout = globalThis.setTimeout
   const realClearTimeout = globalThis.clearTimeout
   type Pending = { cb: () => void; delay: number; unrefd: boolean; cleared: boolean }
@@ -977,6 +954,7 @@ section('LAW 10 SKILL-TRACKING — composite keys · filters · preservation')
   })
 }
 
+
 section('LAW 16 API-CAPTURE — reference semantics (the /share reality pin)')
 {
   const msgs: Array<{ role: string; content: string }> = [{ role: 'user', content: 'hello' }]
@@ -1023,7 +1001,6 @@ section('LAW 15 MODEL-CONFIG — override/initial/strings/betas round-trips')
 }
 
 section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
-
 {
   let populateN = 0
   const cbHook = { tag: 'scope-cb' }
@@ -1166,13 +1143,11 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
 
 section('LAW PURITY — zero-arg getters do not mutate')
 {
-
   const getterNames = [
     ...stateSrc.matchAll(/^export function ((?:get|is|has|needs|prefer)[A-Za-z0-9_]*)\(\s*\)/gm),
   ]
     .map(m => m[1]!)
     .sort()
-
   check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
   const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
   check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
@@ -1205,7 +1180,6 @@ section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
   })
   state.switchSession('pre-reset-probe' as never)
   check('reset setup: subscriber live before reset', ghostEmissions === 1)
-
   let ghostCwdBeats = 0
   state.subscribeCwdState(() => {
     ghostCwdBeats++
@@ -1260,7 +1234,6 @@ section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
     state.isAssistantFamilyAvailable() === false,
   )
   delete process.env.MERCURY_ASSISTANT_DISABLE
-
   state.resetStateForTests()
   check('gap 1 corollary: the explicit-flip field itself resets with the instance', state.isAssistantSessionActive() === false)
 

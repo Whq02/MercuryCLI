@@ -143,7 +143,6 @@ console.log('D8: a same-dir twin resolves deterministically (the sorted walk)')
     'both twins stay visible in allAgents',
     result.allAgents.filter(a => a.agentType === 'foundry-twin').length === 2,
   )
-
   const printer = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'handlers', 'agents.ts'), 'utf-8')
   check(
     "the `mercury roster` shadow line names the same-source winner's file",
@@ -218,7 +217,6 @@ console.log('D6: filename vs declared name')
 
 {
   console.log('D7: worktree isolation — each carved checkout reads its OWN project scope (AGENTVERIFY A5)')
-
   const isoHome = join(scratch, 'iso-home')
   mkdirSync(join(isoHome, 'agents'), { recursive: true })
   const priorHome = process.env.MERCURY_CONFIG_DIR

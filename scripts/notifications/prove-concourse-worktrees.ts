@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
@@ -11,7 +10,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'sg6-worktrees-'))
-
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 delete process.env.MERCURY_HOME
 mkdirSync(join(scratch, 'home'), { recursive: true })
@@ -21,7 +19,6 @@ writeFileSync(
 )
 process.env.GIT_CONFIG_GLOBAL = join(scratch, 'gitconfig-empty')
 process.env.GIT_CONFIG_SYSTEM = '/dev/null'
-
 process.env.XDG_CONFIG_HOME = join(scratch, 'xdg')
 writeFileSync(process.env.GIT_CONFIG_GLOBAL, '')
 
@@ -89,7 +86,6 @@ console.log('§4 THE DIRT LAW')
 {
   const p = wt.workerWorktreePath('concourse-w1', daemon)
   check('a fresh worktree classifies CLEAN', wt.classifyWorktreeDirt(p).kind === 'clean')
-
   const runtimeHome = wt.WORKTREE_RUNTIME_HOMES[0]!
   mkdirSync(join(p, runtimeHome), { recursive: true })
   writeFileSync(join(p, runtimeHome, 'settings.local.json'), '{}')
@@ -109,7 +105,6 @@ console.log('§4 THE DIRT LAW')
 
 console.log('§5 reap — clean/runtime reaped + pruned; authored retained; noop idempotent')
 {
-
   const p1 = wt.workerWorktreePath('concourse-w1', daemon)
   const reaped = wt.reapWorkerWorktree(repo, 'concourse-w1', daemon)
   check('runtime-only dirt cannot keep a worktree alive', reaped.outcome === 'reaped', JSON.stringify(reaped))
@@ -134,7 +129,6 @@ console.log('§5 reap — clean/runtime reaped + pruned; authored retained; noop
 console.log('§6 daemon integration — settle + reconcile reap; retention records evidence')
 {
   const DEAD_PID = 4194999
-
   const w5 = await wt.ensureWorkerWorktree(repo, 'concourse-w5', daemon)
   check('clean fixture worktree created', w5.ok === true)
   const recordOf = (runnerId: string, worktreePath: string) => ({
@@ -165,12 +159,10 @@ console.log('§6 daemon integration — settle + reconcile reap; retention recor
   check('…and reaped its clean worktree', !existsSync(wt.workerWorktreePath('concourse-w5', daemon)))
 
   const receipt = sup.reconcileConcourseWorkers(new Set(), daemon)
-
   check('crash reconcile stamps the dead authored worker (row kept)', receipt.settled.includes('concourse-w4'), JSON.stringify(receipt))
   const w4 = sup.readSessionWorkers(daemon)['concourse-w4']
   check('…as a CRASH fact, not a burial (endedAt unset, reason on the record)', w4?.crash !== undefined && w4?.endedAt === undefined, JSON.stringify(w4?.crash))
   check('…its AUTHORED worktree survived the reconcile', existsSync(join(wt.workerWorktreePath('concourse-w4', daemon), 'real-work.ts')))
-
   check('the release settles the crashed row', sup.settleConcourseWorker('concourse-w4', daemon))
   check('…and the authored work still survives the release reap (the dirt law)', existsSync(join(wt.workerWorktreePath('concourse-w4', daemon), 'real-work.ts')))
   const evidence = sup.readCollisionEvidence(daemon)
@@ -213,7 +205,6 @@ console.log('§8 preflight — every term named, zero writes')
       },
     }, null, 1)}\n`,
   )
-
   const defaultedForks = await disp.preflightConcourseDispatch({ workspaceDir: repo }, pfDaemon)
   check(
     'a DEFAULTED claim beside the exclusive holder previews OK (ruling 1: it forks)',
@@ -228,7 +219,6 @@ console.log('§8 preflight — every term named, zero writes')
   )
   const readOnlyOk = await disp.preflightConcourseDispatch({ workspaceDir: repo, isolation: 'worktree-isolated' }, pfDaemon)
   check('a worktree-isolated claim beside the exclusive holder previews OK (ruling 5)', readOnlyOk.ok === true, JSON.stringify(readOnlyOk))
-
   const multi = await disp.preflightConcourseDispatch(
     { workspaceDir: plain, isolation: 'worktree-isolated', modelKey: 'no-such-model-zz' },
     pfDaemon,
@@ -255,7 +245,6 @@ console.log('§9 structural no-merge — the family never writes workspace files
   const daemon = read('src/daemon/concourseWorkers.ts')
   const dispatch = read('src/daemon/concourseDispatch.ts')
   const worktrees = read('src/daemon/concourseWorktrees.ts')
-
   for (const [name, src] of [['concourseWorkers', daemon], ['concourseDispatch', dispatch]] as const) {
     check(
       `${name}: zero hand-rolled fs writes — every publish rides durableAtomicPublishSync through the daemon-home door publishInDaemonHome`,

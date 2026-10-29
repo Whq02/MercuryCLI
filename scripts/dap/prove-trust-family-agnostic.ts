@@ -150,7 +150,6 @@ async function main(): Promise<void> {
       check(`${label}: Debug catalog gate answers true (default-on, an adapter reachable)`, dap === true)
       check(`${label}: clangd lane gate answers true (default-on)`, cpp === true)
     }
-
     process.env.MERCURY_DAP = '0'
     check(
       'MERCURY_DAP=0 kills under a planted family env',

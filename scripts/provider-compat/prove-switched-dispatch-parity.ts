@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -200,7 +199,6 @@ async function drive(history: Message[]): Promise<Drive> {
   } catch (error) {
     threw = error
   }
-
   const request = captured
     .slice(before)
     .find(c => JSON.stringify(c.body).includes('DRIVE-MARK'))
@@ -223,7 +221,6 @@ check('the fresh request reached the wire (control)', fresh.request !== undefine
 
 section('§B header parity — names and load-bearing values')
 if (switched.request && fresh.request) {
-
   const VOLATILE = new Set([
     'content-length',
     'x-stainless-retry-count',

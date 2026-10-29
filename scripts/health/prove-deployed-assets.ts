@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -104,7 +103,6 @@ console.log('\n── R-4: the splash-action block survives in the real launcher
 {
   const launcher = readFileSync(join(repoRoot, 'scripts/ops/launcher-mercury.sh'), 'utf8')
   check('the args=() fallback anchor is byte-intact', /^args=\(\)$/m.test(launcher))
-
   const canonicalBlock = readFileSync(join(repoRoot, 'assets/splash/launcher-action-block.sh'), 'utf8').trimEnd()
   const shellCode = (text: string): string[] =>
     text.split('\n').filter(line => line.trim() !== '' && !line.trimStart().startsWith('#'))
@@ -138,7 +136,6 @@ console.log('\n── R-4: the splash-action block survives in the real launcher
   )
   const deploy = readFileSync(join(repoRoot, 'scripts/splash/deploy.sh'), 'utf8')
   check('the splash deploy locates the block by the same two marker strings', deploy.includes(BEGIN) && deploy.includes(END))
-
   check(
     'the block gates on the defaulted exit-code capture (set -u safe)',
     canonicalBlock.includes('[ -n "${MERCURY_SA_EXIT:-}" ]'),

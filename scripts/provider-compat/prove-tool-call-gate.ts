@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,13 +24,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 type ScriptedCall = {
   id?: string
   name?: string
-
   args: string
   fragments?: string[]
 }
 type Script = {
   calls: ScriptedCall[]
-
   reasoningFirst?: boolean
 }
 let script: Script = { calls: [] }
@@ -566,7 +563,6 @@ section('the null-optional law stripped the nulls (accepted input carries no nul
 {
   const o = await drive('glm-5.2', CASES.find(c => c.label.startsWith('top-level null'))!.script)
   const input = (o.toolUses[0]?.input ?? {}) as Record<string, unknown>
-
   check(
     'no null-valued key survives into the minted input; timeout/description read as omitted',
     o.toolUses.length === 1 &&
@@ -729,7 +725,6 @@ section('Responses lane — the stateless-replay record keeps a refused call its
     items.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_ok,function_call:call_replay_bad2',
     items.map(i => `${i.type}:${i.call_id ?? ''}`).join(','),
   )
-
   const pure = replayableItems(
     [
       { type: 'reasoning', id: 'r1', summary: [] },

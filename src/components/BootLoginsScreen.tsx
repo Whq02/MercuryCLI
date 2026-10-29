@@ -138,15 +138,13 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
+
 const DETAIL_W = 38;
 const CHIP_W = 26;
 
 export interface LoginsScreenFactsV1 {
-
   groups: FamilySlotGroup[];
-
   usability: Record<ProviderId, ProviderUsability>;
-
   defaultFamily?: string;
   refusals?: Partial<Record<ProviderId, SignInRefusal>>;
 }
@@ -224,11 +222,8 @@ const fitChip = (text: string): string => (text.length > CHIP_W ? text.slice(0, 
 const clampText = (s: string, w: number): string => (s.length > w ? s.slice(0, w - 1) + '…' : s);
 
 export interface LoginsRowStateV1 {
-
   chip: string;
-
   loud: boolean;
-
   signedIn: boolean;
   refusal?: SignInRefusal;
 }
@@ -236,7 +231,6 @@ export interface LoginsRowStateV1 {
 export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): LoginsRowStateV1 {
   const group = facts.groups.find(g => g.family.id === arm.familyId);
   if (group === undefined) {
-
     return { chip: 'not in this build', loud: false, signedIn: false };
   }
   const slots = loginsArmSlots(arm, group);
@@ -244,7 +238,6 @@ export function loginsRowStateOf(arm: LoginsArmV1, facts: LoginsScreenFactsV1): 
   const signedIn = signedInSlots.length > 0;
   const refusal = facts.refusals?.[arm.familyId];
   if (refusal && slots.length > 0) return { chip: signInRefusalWords(refusal, arm.familyId), loud: true, signedIn, refusal };
-
   const expiredSlot = slots.find(s => s.expired === true);
   const expired =
     expiredSlot !== undefined ||
@@ -381,13 +374,13 @@ export function loginsStatusLine(facts: LoginsScreenFactsV1): string {
 }
 
 export function loginsFlowReady(_value: LoginFamilyRow['value']): boolean {
-
   return true;
 }
 
 export function loginsLegendOf(switchable = false): string {
   return switchable ? '↑↓ move · pgup/pgdn page · ↵ sign in · s switch slot · esc back' : '↑↓ move · pgup/pgdn page · ↵ sign in · esc back';
 }
+
 
 const DRAFT_DOTS_MAX = 24;
 
@@ -428,7 +421,6 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
       const lines: string[] = headline.warns ? wrapPlain(headline.words, DETAIL_W) : ['A browser window has been opened —', 'finish signing in there.'];
       if (flow.forcedMethod) lines.push(`(login method pre-selected: ${flow.forcedMethod})`);
       if (snap.pastePromptUp) {
-
         lines.push('Browser did not open? Use this URL:');
         lines.push(...wrapHard(flow.url, DETAIL_W));
         lines.push(snap.copied ? 'copied to clipboard' : 'c copies the URL');
@@ -484,6 +476,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
   if (flow.name === 'error') return 'the sign-in did not settle';
   return 'starting the sign-in';
 }
+
 
 export type LoginsPickId = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 export type FaceKeyLegId =
@@ -548,7 +541,6 @@ export function loginsPickOptions(
     case 'anthropic':
       return [...anthropicArmPickRows];
     case 'openai':
-
       return [...openaiArmPickRows];
     case 'zai':
       return [
@@ -667,7 +659,6 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
 }
 
 export function keyLegStoreLine(leg: FaceKeyLegId): string {
-
   switch (leg) {
     case 'anthropic-key': return 'Paste your Anthropic API key';
     case 'anthropic-workspace': return ANTHROPIC_WORKSPACE_PROMPT;
@@ -819,11 +810,11 @@ export function signedInStatusWayOut(backToPicker: boolean): string {
   return backToPicker ? '↵ returns to the picker' : '↵ returns to the roster';
 }
 
+
 export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'orcarouter' | 'meta';
 
 export interface DeviceWaitStateV1 {
   family: FaceDeviceFamily;
-
   regionWords?: string;
   phase: 'starting' | 'waiting' | 'finishing';
   userCode?: string;
@@ -876,6 +867,7 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
   lines.push(d.copied ? 'copied to clipboard' : 'c copies the URL · esc cancels');
   return lines;
 }
+
 
 export type HandlesLegId = 'openai-browser' | 'openrouter-browser' | 'openrouter-headless' | 'gemini-oauth' | 'gemini-plan';
 
@@ -1003,7 +995,6 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
     case 'device':
       return pane.device.phase === 'waiting' ? 'c copy url · esc cancel' : 'esc cancel';
     case 'handles': {
-
       if (pane.handles.phase !== 'waiting') return 'esc cancel';
       const copy = pane.draftLen === 0 && pane.handles.authorizeUrl !== undefined;
       const device = pane.draftLen === 0 && pane.handles.leg === 'openai-browser';
@@ -1101,9 +1092,7 @@ export function loginsMenuModelOf(
     environment: { model: string; critter: string; critterHue: string; dirBase: string; dirTail: string };
     statusNote?: string | null;
     glowWord?: BootMenuData['glowWord'];
-
     notice?: string | null;
-
     flow?: LoginsFlowPaneV1;
   },
 ): BootMenuData {
@@ -1123,7 +1112,6 @@ export function loginsMenuModelOf(
     title: 'logins',
     summaryTitle: 'LOGINS',
     summaryRows: loginsSummaryRows(facts, opts.notice ?? null),
-
     noticeLine: opts.notice ?? null,
     environment: opts.environment,
     entries:
@@ -1168,9 +1156,7 @@ interface BootLoginsScreenProps {
   onClose?: () => void;
   onSignedIn?: () => void;
   family?: string;
-
   fullScene?: { columns: number; rows: number };
-
   facts?: LoginsScreenFactsV1;
 }
 
@@ -1197,17 +1183,14 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const xaiApiReceipt = useRef('xAI API key kept.');
   const mistralApiReceipt = useRef('Mistral API key kept.');
   flowRef.current = flow;
-
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraftState] = useState('');
-
   const draftRef = useRef('');
   const setDraft = (next: string | ((current: string) => string)): void => {
     const value = typeof next === 'function' ? next(draftRef.current) : next;
     draftRef.current = value;
     setDraftState(value);
   };
-
   const deviceRunRef = useRef(0);
   const handlesRef = useRef<{ cancel: (reason?: string) => void; completeWithRedirect: (pasted: string) => void } | null>(null);
 
@@ -1246,7 +1229,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         user.resetUserCache();
         killswitch.resetSovereignCheck();
         if (setAppStateMaybe !== null) {
-
           let capturedContext: Parameters<typeof killswitch.checkAndDisableSovereignIfNeeded>[0] | null = null;
           setAppStateMaybe(prev => {
             capturedContext = prev.toolPermissionContext;
@@ -1330,7 +1312,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       setDraft('');
       setFlow({ kind: 'receipt', receipt: outcome.receipt, ok: outcome.ok });
     };
-
     const landOrDisclose = (outcome: { ok: boolean; receipt: string; settledAfterCancel?: true }): void => {
       if (outcome.settledAfterCancel === true) {
         discloseLateSettle(outcome.receipt);
@@ -1371,7 +1352,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       if (!live()) return;
       setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, listenerNote: message } } : f));
     };
-
     const legFamily = leg === 'openai-browser' ? 'openai' : leg === 'gemini-oauth' || leg === 'gemini-plan' ? 'gemini' : 'openrouter';
     const onSettledAfterCancel = (): void => discloseLateSettle(lateSettleNotice(legFamily));
     const handles =
@@ -1432,7 +1412,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         start.result
           .then(async ref => {
             if (!live()) {
-
               void ref;
               discloseLateSettle(lateSettleNotice('openai'));
               return;
@@ -1453,11 +1432,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const model = useAnthropicLoginModel({
     onDone: () => {
-
       settleSignedIn();
     },
   });
-
   const openPick = (pick: LoginsPickId, cursor = 0): void => {
     setFlow({ kind: 'pick', pick });
     pickList.moveTo(cursor);
@@ -1523,7 +1500,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         openPick('huggingface');
         return;
       case 'openai':
-
         openPick('openai');
         return;
       case 'openrouter':
@@ -1736,14 +1712,12 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     rowId: a => `logins:${a.row.value}`,
     idNamespace: 'boot-logins',
     ...(initialFocus !== undefined ? { initialId: `logins:${initialFocus}` } : {}),
-
     active: flow === null,
     onClose: () => onClose?.(),
     actions: [
       {
         key: 'return',
         hint: 'sign in',
-
         when: a => loginsFlowReady(a.row.value),
         run: a => {
           if (a !== null && loginsFlowReady(a.row.value)) openFlow(a);
@@ -1753,7 +1727,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       {
         key: 's',
         hint: 'switch active slot',
-
         when: a => given === undefined && loginsSwitchableFamily(a, facts) !== null,
         run: a => {
           if (a === null || given !== undefined) return null;
@@ -1775,7 +1748,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     rowId: r => `logins-pick:${r.value}`,
     idNamespace: 'boot-logins-pick',
     active: flow?.kind === 'pick',
-
     onClose: () => {
       if (flowRef.current?.kind === 'pick' && flowRef.current.pick === 'kimi-region') {
         openPick('moonshot');
@@ -1812,7 +1784,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         return;
       }
       if (current.kind === 'device') {
-
         if (key.escape) {
           deviceRunRef.current += 1;
           setDraft('');
@@ -1842,7 +1813,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       if (current.kind === 'handles') {
         const h = current.handles;
         if (key.escape) {
-
           deviceRunRef.current += 1;
           handlesRef.current?.cancel('cancelled from the logins layer');
           handlesRef.current = null;
@@ -1874,7 +1844,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
           return;
         }
         if (input === 'd' && !key.ctrl && !key.meta && h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === '') {
-
           handlesRef.current?.cancel('switching to the device-code flow');
           handlesRef.current = null;
           setDraft('');
@@ -1893,7 +1862,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       }
       if (current.kind === 'opdevice') {
         if (key.escape) {
-
           deviceRunRef.current += 1;
           setDraft('');
           setFlow({ kind: 'receipt', receipt: OPENAI_DEVICE_STOPPED_RECEIPT, ok: false });
@@ -1995,7 +1963,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         if (input.length > 0 && !/[\x00-\x1f\x7f]/.test(input)) setDraft(d => d + input);
         return;
       }
-
       const snap = model.flow;
       if (key.escape) {
         if (snap.name === 'success') {
@@ -2124,7 +2091,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
         const entryIdx = composition.entryAt.get(i);
-
         const target =
           entryIdx === undefined
             ? null

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -12,10 +11,8 @@ if (!captureFile) {
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const GPT_REPLY = 'sol answers from the fixture'
 const OPUS_REPLY = 'opus picked up cleanly'
-
 const LONG_THINK_ASK = 'think long please'
 const LONG_THINK_CEILING_MS = 120_000
-
 const SLOW_INGEST_ASK = 'ingest slowly please'
 const SLOW_INGEST_HOLD_MS = Number.parseInt(process.env.FIXTURE_HOLD_MS ?? '5000', 10)
 
@@ -58,7 +55,6 @@ function anthropicSse(): string {
 }
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-
   const dropListeners: Array<() => void> = []
   const dropped = (): void => {
     for (const listener of dropListeners.splice(0)) listener()
@@ -109,7 +105,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
       record({ kind: 'anthropic', url, body, at: Date.now() })
       if (wantsLongThink(body)) {
-
         const openedAt = Date.now()
         record({ kind: 'anthropic-open', at: openedAt })
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -129,7 +124,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
           clearInterval(timer)
           record({ kind: 'anthropic-closed', at: Date.now(), openMs: Date.now() - openedAt, why })
         }
-
         dropListeners.push(() => onClose(res.writableEnded ? 'ended' : 'client-dropped'))
         setTimeout(() => {
           if (!res.writableEnded && !res.destroyed) res.end()
@@ -137,7 +131,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
       if (wantsSlowIngest(body)) {
-
         const heldAt = Date.now()
         record({ kind: 'anthropic-held', at: heldAt, holdMs: SLOW_INGEST_HOLD_MS })
         dropListeners.push(() => {

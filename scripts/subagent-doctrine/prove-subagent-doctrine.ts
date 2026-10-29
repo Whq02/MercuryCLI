@@ -3,7 +3,6 @@
 import { readFileSync } from 'node:fs'
 import { buildSubagentMercurySections } from '../../src/constants/subagentDoctrine.js'
 import { MERCURY_CONSTITUTION, mercurySubagentContract } from '../../src/prompt/mercuryContract.js'
-
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryScoutAgent.js'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf-8')
@@ -65,15 +64,12 @@ for (const a of EXEMPT) {
 
 section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a string literal)')
 {
-
   const { isFixedOutputAgent } = await import('../../src/constants/subagentDoctrine.ts')
   for (const def of [MERCURY_SCOUT_AGENT]) {
     check(`${def.agentType}: def carries fixedOutputContract:true`, def.fixedOutputContract === true)
     check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }))
   }
-
   check("'workflow-subagent' literal ∈ derived exempt Set", isFixedOutputAgent({ agentType: 'workflow-subagent' }))
-
   check('a non-flagged agent (mercury-crew) is NOT exempt', !isFixedOutputAgent(GP))
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
 }
@@ -153,7 +149,6 @@ section('(e2) API-currency: the env block carries the rule once; the doctrine se
   const envFn = pr.slice(pr.indexOf('export async function computeEnvInfo'), pr.indexOf('export async function computeSimpleEnvInfo'))
   check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE and PROVIDER_SKILL_PRECEDENCE (every seat gets the rule once)', envFn.includes('${MODEL_CURRENCY_NOTE}') && envFn.includes('${PROVIDER_SKILL_PRECEDENCE}'))
   check('…for EVERY family (no route gate on the currency rule)', !envFn.includes('isAnthropicRoutedModelId'))
-
   check('the model_currency section shares the same const (no drift-prone twin literal)', pr.includes('function getModelCurrencySection(): string {\n  return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`\n}'))
   check('MODEL_CURRENCY_NOTE is the neutral rule — no vendor model list hardcoded', /MODEL_CURRENCY_NOTE = `Model currency:/.test(pr) && !/MODEL_CURRENCY_NOTE = `[^`]*claude-/.test(pr))
 }

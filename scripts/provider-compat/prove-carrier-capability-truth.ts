@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -122,7 +121,6 @@ check(
 )
 
 section('C1 · the window is the row\'s stated context_length — never a borrowed default')
-
 {
   const pro = caps.resolveContextWindow('openrouter/google/gemini-fixture-pro')
   check('a stated 1,050,000 row budgets 1,050,000 (source live-current)', pro.effectiveWindow === 1_050_000 && pro.source === 'live-current', JSON.stringify(pro))
@@ -152,7 +150,6 @@ section('C1 · the window is the row\'s stated context_length — never a borrow
 }
 
 section('C2 · output: the row\'s max_completion_tokens, never the first-party family table')
-
 {
   const pro = caps.getModelMaxOutputTokens('openrouter/google/gemini-fixture-pro')
   check('a stated 32,768 ceiling is the upper limit AND the default (the stated maximum up to 128k; 32,000 was the old floor under it)', pro.upperLimit === 32_768 && pro.default === 32_768, JSON.stringify(pro))
@@ -166,7 +163,6 @@ section('C2 · output: the row\'s max_completion_tokens, never the first-party f
 }
 
 section('C3 · effort: the row\'s vocabulary is the dial, and the wire sends from the same list')
-
 {
   const pro = 'openrouter/google/gemini-fixture-pro'
   check('a row stating supported_efforts offers a dial', caps.modelSupportsEffort(pro) === true)
@@ -203,7 +199,6 @@ section('C3 · effort: the row\'s vocabulary is the dial, and the wire sends fro
 }
 
 section('C4 · Gemini: the row\'s limits and thinking statement decide')
-
 {
   const pro = caps.resolveContextWindow('gemini-fixture-pro')
   check('inputTokenLimit is the budget (1,048,576 · live-current)', pro.effectiveWindow === 1_048_576 && pro.source === 'live-current', JSON.stringify(pro))
@@ -225,7 +220,6 @@ section('C4 · Gemini: the row\'s limits and thinking statement decide')
 }
 
 section('C5 · Anthropic-wire features read false off the Anthropic lane')
-
 {
   const carrier = 'openrouter/anthropic/claude-opus-5'
   check('structured outputs: false behind the carrier (the codec cannot request them)', caps.modelSupportsStructuredOutputs(carrier) === false)
@@ -238,7 +232,6 @@ section('C5 · Anthropic-wire features read false off the Anthropic lane')
 }
 
 section('C6 · the resolved record agrees with the predicates; first-party untouched')
-
 {
   const r = caps.resolveModelCapabilities('openrouter/anthropic/claude-opus-5')
   check(
@@ -256,7 +249,6 @@ section('C6 · the resolved record agrees with the predicates; first-party untou
 }
 
 section('C7 · the 1M kill-switch clamps a stated carrier window like every lane')
-
 {
   process.env.MERCURY_DISABLE_1M_CONTEXT = '1'
   const clamped = caps.resolveContextWindow('openrouter/google/gemini-fixture-pro')

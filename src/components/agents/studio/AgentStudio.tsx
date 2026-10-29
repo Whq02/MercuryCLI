@@ -58,6 +58,7 @@ import {
 } from './studioData.js'
 import { readFileSync } from 'node:fs'
 
+
 type Mode =
   | { kind: 'library' }
   | { kind: 'inspect'; row: StudioRow }
@@ -172,7 +173,6 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         return
       }
       if (input === ' ') {
-
         if (!row?.agent) return
         if (row.agent.source === 'built-in') return
         const target = row.agent
@@ -234,7 +234,6 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         return
       }
       if (!agent) return
-
       if (input === 'e') {
         if (isFileBacked(agent)) {
           setMode({
@@ -275,7 +274,6 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         return
       }
       if (input === 'm') {
-
         setMode({ kind: 'override-model', agent })
         return
       }
@@ -404,6 +402,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
     { isActive: mode.kind === 'trash' },
   )
 
+
   if (mode.kind === 'override-model') {
     const agent = mode.agent
     return (
@@ -474,7 +473,6 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
     return verbs.join(' · ')
   }
   const librarySpace = fl.selected?.agent && fl.selected.agent.source !== 'built-in' ? 'Space toggle · ' : ''
-
   const footer =
     mode.kind === 'inspect'
       ? inspected?.kind === 'invalid'
@@ -587,6 +585,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
     </CommandCenter>
   )
 }
+
 
 function LibraryPane({
   fl,
@@ -730,7 +729,6 @@ function InspectorPane({
         TEAL,
       )}
       {(() => {
-
         const availability = agentModelAvailabilityNote(agent.operatorOverride?.model ?? agent.model)
         return availability !== null ? line('availability', `${availability} — /logins signs in`, AMBER) : null
       })()}

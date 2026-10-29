@@ -1,3 +1,4 @@
+
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { currentInputEventSeq, markInputConsumedThroughCurrentSeq } from '../ink/events/input-event.js'
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
@@ -21,9 +22,7 @@ export interface SurfaceTransitionRecord {
   readonly verb: SurfaceTransitionVerb
   readonly from: string
   readonly to: string
-
   readonly generation: number
-
   readonly commitSeq: number
 }
 
@@ -48,10 +47,9 @@ export type SurfaceTransition =
   | { ok: true; token: SurfaceReturnToken }
   | { ok: false; code: 'surface-unregistered' | 'already-current' | 'invalid-target'; reason: string }
 
+
 export interface RouteSurfaceEntry {
-
   render: (route: SurfaceRoute) => import('react').ReactNode
-
   frame?: 'inherit'
 }
 
@@ -76,8 +74,8 @@ export function getRouteSurface(kind: SurfaceKind): RouteSurfaceEntry | undefine
   return kind === 'repl' ? undefined : registry.get(kind)
 }
 
-let current: SurfaceRoute = ROOT_CHAT_ROUTE
 
+let current: SurfaceRoute = ROOT_CHAT_ROUTE
 let returnStack: SurfaceReturnToken[] = []
 let nextNonce = 1
 let version = 0
@@ -100,7 +98,6 @@ function commitTransition(verb: SurfaceTransitionVerb, from: SurfaceRoute, to: S
     generation,
     commitSeq: currentInputEventSeq(),
   }
-
   markInputConsumedThroughCurrentSeq()
 }
 
@@ -184,6 +181,7 @@ export function returnToConcourse(): SurfaceTransition {
   return enter({ kind: 'concourse' })
 }
 
+
 export type ChatEntry = { ok: true } | { ok: false; code: 'no-chat'; reason: string }
 
 export function enterRootChat(): ChatEntry {
@@ -231,16 +229,13 @@ export function leaveCurrentSurface(): { ok: boolean } {
   return top ? returnFromSurface(top) : { ok: false }
 }
 
-export type StripStop = 'boot-settings' | 'concourse' | 'repl'
 
+export type StripStop = 'boot-settings' | 'concourse' | 'repl'
 export const STRIP_ORDER: readonly StripStop[] = ['boot-settings', 'concourse', 'repl']
 
 export interface StripFacts {
-
   readonly concourseEnabled: boolean
-
   readonly chatBoot: boolean
-
   readonly chatPresent: boolean
 }
 
@@ -274,7 +269,6 @@ export function stripMove(at: SurfaceKind, dir: StripDirection, present: readonl
 const STOP_NAMES: Readonly<Record<StripStop, string>> = { 'boot-settings': 'boot face', concourse: 'concourse', repl: 'chat' }
 
 export function stripKeyMapHintOf(at: SurfaceKind, present: readonly StripStop[]): string {
-
   const parts: string[] = []
   const left = stripMove(at, 'left', present)
   if (left.to !== null) parts.push(`${keyHintLabel('⇧←')} ${STOP_NAMES[left.to]}`)
@@ -369,7 +363,6 @@ export function cycleSurface(dir: 1 | -1): StripOutcome {
   }
   const move = stripMove(current.kind, dir === 1 ? 'left' : 'right', presentStripStops())
   if (move.to === null) return { ok: true, moved: false, hint: move.hint }
-
   const from = current
   current = move.to === 'repl' ? ROOT_CHAT_ROUTE : ({ kind: move.to } as SurfaceRoute)
   returnStack = []
@@ -377,6 +370,7 @@ export function cycleSurface(dir: 1 | -1): StripOutcome {
   bump()
   return { ok: true, moved: true, hint: null }
 }
+
 
 export type ConcoursePolicy = 'off' | 'auto' | 'always'
 
@@ -390,12 +384,9 @@ export function resolveConcoursePolicy(env: NodeJS.ProcessEnv = process.env): Co
 }
 
 export interface InitialSurfaceResolution {
-
   requested: SurfaceRoute
-
   effective: SurfaceRoute
   policy: ConcoursePolicy
-
   reason:
     | 'concourse-off'
     | 'always'
@@ -406,16 +397,13 @@ export interface InitialSurfaceResolution {
     | 'face-door-intent'
     | 'boot-menu-landing'
     | 'concourse-surface-unregistered'
-
   liveWorkers?: number
 }
 
 export async function resolveInitialSurface(
   opts: { env?: NodeJS.ProcessEnv; recordsDir?: string } = {},
 ): Promise<InitialSurfaceResolution> {
-
   const policy = stripStops(stripFacts()).includes('concourse') ? resolveConcoursePolicy(opts.env) : 'off'
-
   let bootMenuArmed = false
   try {
     const handover = await import('../substrate/splashHandover.js')
@@ -433,7 +421,6 @@ export async function resolveInitialSurface(
       }
       return { requested, effective: requested, policy, reason: 'splash-intent' }
     }
-
     if (handover.peekFaceDoorDeepLink() !== null && isFullscreenEnvEnabled() && routeSurfaceRegistered('boot-settings')) {
       const requested: SurfaceRoute = { kind: 'boot-settings' }
       stampRouteReady()
@@ -467,7 +454,6 @@ export async function resolveInitialSurface(
     return { requested, effective: requested, policy, reason, ...(liveWorkers !== undefined ? { liveWorkers } : {}) }
   }
   if (policy === 'always') return settle(concourse, 'always')
-
   let live = 0
   try {
     const workers = await import('../daemon/concourseWorkers.js')
@@ -476,14 +462,12 @@ export async function resolveInitialSurface(
     live = 0
   }
   if (live > 1) return settle(concourse, 'auto-live-sessions', live)
-
   try {
     const obligations = await import('../services/crew/obligations.js')
     const open = await obligations.openObligations({ scope: 'switchboard' })
     if (open.length > 0) return settle(concourse, 'auto-needs-you', live)
   } catch {
   }
-
   if (bootMenuArmed) return bootMenuLanding()
   return settle(ROOT_CHAT_ROUTE, 'auto-idle', live)
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -11,12 +10,9 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, 'vshot.py')
-
 const REPLY = 'the quiet wire answered'
 const ASK = 'quiet boot: say hello'
-
 const RELEASE_HOST = ['api', 'github', 'com'].join('.')
-
 const IDLE_TICKS = 300
 
 let failures = 0
@@ -91,10 +87,8 @@ interface Served {
   method: string
   path: string
   atMs: number
-
   shape: string
 }
-
 function shapeOf(raw: string): string {
   try {
     const body = JSON.parse(raw) as { tools?: unknown[]; messages?: Array<{ role?: string; content?: unknown }> }
@@ -165,7 +159,6 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',
@@ -175,7 +168,6 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
     MERCURY_TERMINAL_TITLE: '0',
-
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     ANTHROPIC_BASE_URL: FIXTURE_BASE,
     BROWSER: 'true',
@@ -208,7 +200,6 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
 const netlines = (netlog: string): string[] => (existsSync(netlog) ? readFileSync(netlog, 'utf8').split('\n').filter(l => l.trim() !== '') : [])
 const isLoopbackLine = (l: string): boolean => l.startsWith('tcp-local') || l.startsWith('tls-local') || l.startsWith('fetch-local')
 const isReleaseListing = (l: string): boolean => l.includes(RELEASE_HOST)
-
 const strayLines = (lines: string[]): string[] => lines.filter(l => !isLoopbackLine(l) && !isReleaseListing(l))
 const uniq = (lines: string[]): string[] => [...new Set(lines)]
 
@@ -226,7 +217,6 @@ const gridText = (grid: Grid): string =>
 async function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extra: Record<string, string> = {}): Promise<DriveResult> {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const stderr: string[] = []
   const status = await new Promise<number | null>((resolveStatus, reject) => {
@@ -243,7 +233,6 @@ async function drive(tag: string, home: string, netlog: string, sends: unknown[]
       resolveStatus(code)
     })
   })
-
   await new Promise<void>(r => setTimeout(r, 200))
   const marks: Record<string, string> = {}
   let endReason = ''

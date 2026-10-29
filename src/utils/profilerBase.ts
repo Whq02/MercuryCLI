@@ -1,5 +1,6 @@
 import { formatFileSize } from './format.js'
 
+
 let perf: Performance | null = null
 
 export function getPerformance(): Performance {

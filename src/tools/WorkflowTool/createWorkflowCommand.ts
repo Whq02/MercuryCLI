@@ -1,3 +1,4 @@
+
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { Command } from '../../commands.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -32,7 +33,6 @@ function createWorkflowCommand(wf: WorkflowDescriptor): Command {
     contentLength: wf.script.length,
     source,
     loadedFrom,
-
     kind: 'workflow',
     async getPromptForCommand(rawArgs: string): Promise<ContentBlockParam[]> {
       const phaseText = wf.phases?.length
@@ -43,7 +43,6 @@ function createWorkflowCommand(wf: WorkflowDescriptor): Command {
         : ''
       const args = rawArgs.trim()
       const nameJson = JSON.stringify(wf.name)
-
       const invocation = args
         ? `{ name: ${nameJson}, args: ${JSON.stringify(args)} }`
         : `{ name: ${nameJson} }`

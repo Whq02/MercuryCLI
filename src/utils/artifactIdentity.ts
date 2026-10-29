@@ -2,16 +2,11 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 interface ArtifactIdentity {
-
   version: string
-
   distribution: 'packaged-install' | 'source-build' | 'source-run'
-
   buildTree: string | null
   buildTime: string | null
-
   target: string | null
-
   entry: string | null
 }
 
@@ -51,7 +46,6 @@ export function describeArtifactIdentity(version: string, entryPath: string | nu
       buildTime?: string
       target?: string
     }
-
     const sourceAbove = existsSync(join(dirname(entry), '..', 'build.ts'))
     return {
       ...base,

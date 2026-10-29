@@ -1,6 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { SLEEP_PHASES, SWAY_PHASES } from './critterData.js'
 
+
 export const EYE_OPEN = '●'
 export const EYE_SHUT = '—'
 
@@ -8,12 +9,10 @@ export const BLINK_CYCLE = 5200
 export const LID_MS = 150
 export const SECOND_LID_AT = 280
 export const BREATH_PERIOD = 2800
-
 export const IDLE_TICK_MS = 80
 export const BREATH_TICK_MS = 120
 
 export function critterIdleEnabled(): boolean {
-
   return flagEnv('MERCURY_CRITTER_IDLE') === '0' ? false : true
 }
 
@@ -30,11 +29,13 @@ export function pupilForTime(time: number): string {
   return shut ? EYE_SHUT : EYE_OPEN
 }
 
+
 export const SWAY_TICK_MS = 700
 
 export const SLEEP_SWAY_TICK_MS = SWAY_TICK_MS * 3
 
 export const SLEEP_TICK_MS = 900
+
 
 export type SwayAnchor = { phase: number; at: number }
 

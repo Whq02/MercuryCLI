@@ -47,7 +47,6 @@ async function runSleep(
 
 t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union')
 {
-
   const taskSrc = readFileSync('src/Task.ts', 'utf8')
   const literalUnion = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
   const kindTable = taskSrc.match(/const taskKinds = \[([\s\S]*?)\] as const/)
@@ -70,7 +69,6 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
     [...UNTRACKED_TASK_TYPES.values()].every(r => r.length > 10),
     'decisions, not omissions',
   )
-
   const statuses: TaskStatus[] = ['pending', 'running', 'completed', 'failed', 'killed']
   t.check(
     "the tool's terminal-status mirror matches Task.ts isTerminalTaskStatus exactly",
@@ -170,7 +168,6 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
 
 t.section('§2 — the redirect: the wait ends when the tracked work does')
 {
-
   let status = 'running'
   setTimeout(() => {
     status = 'completed'
@@ -304,7 +301,6 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
     }
 
     const fixture = await startFixtureApi([
-
       {
         kind: 'paced_tool_use',
         preDeltas: ['dispatching, then waiting '],
@@ -322,14 +318,12 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
         ],
         whenModel: 'opus',
       },
-
       {
         kind: 'paced',
         deltas: Array.from({ length: 16 }, (_, i) => `working-${i} `),
         gapMs: 500,
         whenModel: 'opus',
       },
-
       {
         kind: 'paced_tool_use',
         preDeltas: ['now a plain wait '],

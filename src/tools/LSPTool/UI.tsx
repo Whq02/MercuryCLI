@@ -16,6 +16,7 @@ import { collapseAndClip } from '../../utils/stringUtils.js'
 import { getSymbolAtPosition } from './symbolContext.js'
 import type { Output } from './LSPTool.js'
 
+
 type RenderInput = Partial<{
   operation: string
   filePath: string
@@ -149,7 +150,6 @@ function OutcomeBadge({ output }: { output: Output }): React.ReactNode {
       toneState = 'applied'
     } else if (output.applied === false) {
       label = 'preview'
-
       toneState = 'prepared'
     } else {
       label = ''
@@ -166,7 +166,7 @@ function OutcomeBadge({ output }: { output: Output }): React.ReactNode {
       <Text color={tone}>
         {glyph} {label}{' '}
       </Text>
-
+  
       )}
     </WithCardTone>
   )
@@ -193,7 +193,6 @@ function LspResultSummary({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   if (output.resultCount === undefined || output.outcome === 'failed') {
-
     const words = verbose ? output.result : collapseAndClip(output.result.split('\n')[0] ?? output.result, LSP_ONE_LINE_MAX)
     return (
       <MessageResponse>

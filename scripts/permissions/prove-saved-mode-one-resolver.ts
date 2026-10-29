@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/permissions/permissionSetup.ts src/daemon/concourseWorkers.ts src/daemon/headlessRun.ts
+// gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
+// gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

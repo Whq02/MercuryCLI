@@ -42,7 +42,6 @@ navigateTo(q2.id)
 t.check('focus movement moves the decision', currentInterviewRef() === `mercury://interview/${sessionId}/${q2.decisionId}`)
 requestDiscussion({ onAllow: () => {}, onReject: () => {} }, { questions: [] }, q1.id)
 t.check('the DISCUSSED decision wins while discussing', currentInterviewRef() === `mercury://interview/${sessionId}/${q1.decisionId}`)
-
 presentToolCall({ input: { questions: [{ question: 'Which engine?', header: 'Cache', options: [{ label: 'A', description: 'a' }, { label: 'B', description: 'b' }] }] }, toolUseId: 'toolu_seam' })
 navigateTo('review')
 t.check('review falls to session scope (no single decision)', currentInterviewRef() === `mercury://interview/${sessionId}`)

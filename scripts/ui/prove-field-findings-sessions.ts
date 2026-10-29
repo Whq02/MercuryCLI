@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -20,7 +19,6 @@ console.log('§1 SL-1 — every resume failure lands as a refusal on the picker'
 {
   const screen = read('src/screens/ResumeConversation.tsx')
   check('POISON: the not-loaded throw is gone', !screen.includes("if (!loaded) throw new Error('Failed to load the selected conversation')"))
-
   check('a refused resume hop clears the spinner and paints the refusal', /if \(!outcome\.ok\) \{\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(`could not resume — \$\{outcome\.reason\}`\)/.test(screen))
   check('POISON: the call-site rethrow is gone', !/void onSelect\(log\)\.catch\(error => \{\s*\n\s*logError\(error\)\s*\n\s*throw error/.test(screen))
   check('the call-site catch logs, clears the spinner and paints the refusal (the picker stays open)', /void onSelect\(log\)\.catch\(error => \{\s*\n(?:.*\n){0,6}?\s*logError\(error\)\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(/.test(screen) && screen.includes('the picker stays open; the file was left untouched'))
@@ -30,7 +28,6 @@ console.log('§1 SL-1 — every resume failure lands as a refusal on the picker'
 
 console.log('§2 SL-2 — the manager walks the whole stat listing')
 {
-
   const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
   const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
   check('POISON: the capped one-shot load is gone', !view.includes('const all = await listSessionsAcrossProjects()') && !core.includes('const all = await listSessionsAcrossProjects()'))

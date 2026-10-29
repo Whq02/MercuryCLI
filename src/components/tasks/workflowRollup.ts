@@ -1,20 +1,16 @@
+
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 
 type WorkflowRollupFacts = {
-
   agentsDone: number
-
   agentCount: number
-
   elapsedMs: number
-
   tokens: number
 }
 
 export function workflowRollupLine(f: WorkflowRollupFacts): string {
-
   const parts: string[] = []
   if (f.agentCount > 0) parts.push(`${f.agentsDone}/${f.agentCount} crewmates`)
   if (f.tokens > 0) parts.push(`${GLYPH.tokens} ${formatTokens(f.tokens)}`)
@@ -59,7 +55,6 @@ export function phaseTone(g: {
     if (g.agents.some(a => a.state === 'error')) return 'error'
     if (g.agents.every(a => a.state === 'done' || a.state === 'skipped'))
       return 'settled'
-
     if (g.agents.some(a => a.state === 'start' || a.state === 'progress'))
       return 'active'
   }

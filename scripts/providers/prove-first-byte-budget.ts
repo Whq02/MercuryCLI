@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -99,7 +98,6 @@ section('F · the status row keeps the budget word on a narrow terminal (100 · 
   const { truncateKeepingTail } = await import('../../src/utils/truncate.ts')
   const { stringWidth } = await import('../../src/ink/stringWidth.ts')
   const line = 'ingesting a 60k-token prompt on Opus 5 — first byte expected within 61 s'
-
   const fixedWidth = 2 + stringWidth('hello sol') + stringWidth(' · fixture-repo · ') + 2 + stringWidth('esc interrupts · ⇧← back')
   for (const columns of [100, 110, 120]) {
     const fitted = fitStatusLine(line, columns, fixedWidth)

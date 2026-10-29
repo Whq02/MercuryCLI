@@ -14,12 +14,9 @@ export function applySettingsChange(
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): void {
   void source
-
   const settings = getInitialSettings()
-
   const rules = loadAllPermissionRulesFromDisk()
   refreshHooksSnapshot()
-
   setAppState(prev => {
     let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext as never, rules) as never
     if (
@@ -31,7 +28,6 @@ export function applySettingsChange(
 
     const previousEffort = prev.settings?.engine?.effort
     const nextEffort = settings.engine?.effort
-
     const effortChanged = previousEffort !== nextEffort && nextEffort !== undefined
 
     return {

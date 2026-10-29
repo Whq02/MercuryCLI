@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -10,7 +11,6 @@ type TagTab = {
 
 function tabCost(tab: TagTab, cap: number): number {
   if (tab.isAll) return stringWidth(tab.label) + 2
-
   return Math.min(stringWidth(tab.label), cap - 3) + 3
 }
 
@@ -55,7 +55,6 @@ export function TagTabs({
     from = 0
     to = tabs.length
   } else {
-
     const windowBudget = budget - leftArrowAllowance
     let used = tabs[selected] ? tabCost(tabs[selected]!, cap) : 0
     let expanded = true

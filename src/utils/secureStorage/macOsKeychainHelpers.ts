@@ -10,6 +10,7 @@ export function keychainReachable(): boolean {
   return flagEnv('MERCURY_CREDENTIAL_STORE') !== 'file'
 }
 
+
 export const CREDENTIALS_SERVICE_SUFFIX = '-credentials'
 
 export function getMacOsKeychainStorageServiceName(serviceSuffix: string = ''): string {
@@ -42,11 +43,8 @@ export function getUsername(): string {
 export const KEYCHAIN_CACHE_TTL_MS = 30_000
 
 type KeychainCacheState = {
-
   cached: { data: SecureStorageData | null; cachedAt: number }
-
   generation: number
-
   readInFlight: Promise<SecureStorageData | null> | null
 }
 

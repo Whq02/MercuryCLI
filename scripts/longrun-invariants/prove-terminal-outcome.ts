@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +6,6 @@ import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'terminal-outcome-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
-
 await import('../../src/tasks.js')
 const {
   deriveAgentTerminalOutcome,
@@ -21,7 +19,6 @@ const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/Loca
 const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(
   '../../src/utils/messages/factories.js'
 )
-
 const { getCommandQueueSnapshot, resetCommandQueue } = await import(
   '../../src/utils/messageQueueManager.js'
 )

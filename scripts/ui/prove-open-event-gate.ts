@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 
 import { Readable, Writable } from 'node:stream'
@@ -95,7 +94,6 @@ check('it landed exactly once (query row shows single q)', !frame2.includes('qq'
 
 written = ''
 ;(stdin as unknown as Readable).push('\x1b')
-
 await new Promise(r => setTimeout(r, 300))
 check('esc closed the palette (no gate in the way)', strip(written).includes('palette-closed'))
 check('close observed the esc event itself (no extra wall-clock wait)', closedAt === currentInputEventSeq())

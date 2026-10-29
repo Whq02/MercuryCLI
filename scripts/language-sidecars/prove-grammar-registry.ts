@@ -62,7 +62,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!existsSync(join(dist, 'vendor.json'))) {
     console.log('  [SKIP] dist/vendor/treesitter not built — two-way checks run on built trees')
   } else {
-
     const manifestPath = join(ROOT, 'dist', 'manifest.json')
     const degraded: string[] = existsSync(manifestPath)
       ? ((JSON.parse(readFileSync(manifestPath, 'utf8')) as { degraded?: string[] }).degraded ?? [])
@@ -102,7 +101,6 @@ function check(label: string, ok: boolean, detail = ''): void {
   check('unmapped basename stays null (Dockerfile has no grammar yet)', languageForFile('Dockerfile') === null)
   check('languageByName finds every registry row', GRAMMAR_REGISTRY.every(g => languageByName(g.name)?.wasm === g.wasm))
   check('languageByName refuses unknown', languageByName('klingon') === null)
-
   const facility = readFileSync(join(ROOT, 'src', 'services', 'structure', 'grammarFacility.ts'), 'utf8')
   const baseIdx = facility.indexOf('BASENAME_TO_LANG.get')
   const extIdx = facility.indexOf('EXT_TO_LANG.get')

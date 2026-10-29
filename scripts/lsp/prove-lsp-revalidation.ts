@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -42,7 +43,6 @@ const v1 = 'export const one = 1\n'
 writeFileSync(revalPath, v1)
 await manager.openFile(revalPath, v1)
 const versionBefore = manager.getDocumentVersion(revalPath)
-
 const v2 = 'export function madeFresh(): number {\n  return 2\n}\nexport const one = 1\n'
 writeFileSync(revalPath, v2)
 const report1 = await manager.revalidateOpenDocuments()

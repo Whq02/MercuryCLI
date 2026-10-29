@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -76,7 +75,6 @@ check('…and pushed the posture', motionPosture() === 'reduced')
 setMotionSetting('auto')
 check('auto deletes the key (absent = auto)', storedMotion() === undefined && readMotionSetting() === 'auto')
 {
-
   saveGlobalConfig(c => ({ ...c, motion: 'fast' as never }))
   noteMotionSettingChanged()
   const read = readMotionSetting()
@@ -179,7 +177,6 @@ for (const still of STILLS) {
   const wide = composeMotionMenu(120, 40).join('\n')
   check('wide: the PERFORMANCE header and the Motion row with its value', /PERFORMANCE/.test(wide) && /❯ Motion\s+auto · full/.test(wide), wide.split('\n').filter(l => /Motion|PERFORMANCE/.test(l)).join(' | '))
   check('wide: the detail pane names the value and the level now', /Current value/.test(wide) && /auto · full/.test(wide) && /now: full \(auto/.test(wide))
-
   const tall = composeMotionMenu(160, 48).join('\n')
   check('tall: the detail pane names the doors and the word', /doors: \/config · Boot Menu/.test(tall) && /the status line says reduced while reduced/.test(tall), tall.split('\n').filter(l => /doors|status line|trail/.test(l)).join(' | '))
   const classic = composeMotionMenu(100, 34).join('\n')

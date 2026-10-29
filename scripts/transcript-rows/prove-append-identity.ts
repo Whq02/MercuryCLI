@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -44,7 +43,6 @@ console.log('── row-identity append law ──')
     'the face holds no settle append (no setMessages append, no stream handler)',
     !src.includes('setMessages(prev => [...prev, message])') && !src.includes('const handleStreamMessage'),
   )
-
   check(
     'the connector rebuilds the records from the reader-handed tail through the 1:1 deserialize',
     connector.includes('deserializeLiveMessages(tail),') &&

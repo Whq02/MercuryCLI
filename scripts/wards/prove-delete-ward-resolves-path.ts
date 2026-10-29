@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/wards/wards* src/guards/wardsGuard* src/utils/cwd* src/substrate/flagRegistry*
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir, homedir } from 'node:os'
 import { join } from 'node:path'

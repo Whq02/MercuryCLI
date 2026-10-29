@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -70,14 +69,12 @@ async function main(): Promise<void> {
   const warmMs = performance.now() - warm0
   check('unchanged tree ⇒ cache-validated', r3?.from === 'cache-validated', r3?.from)
   writeFileSync(join(dir, 'src', 'core', 'NEW_FACT.ts'), 'export const flip = 1\n')
-
   const withinTtl = intel.getProjectSnapshot(dir)
   check(
     'an unobserved mutation is invisible before a turn boundary (cache-validated — the turn boundary is the only clock)',
     withinTtl?.from === 'cache-validated',
     withinTtl?.from,
   )
-
   const tolerant = intel.getProjectSnapshot(dir, { maxStaleMs: 60_000 })
   check('maxStaleMs read reuses WITHOUT digest work and says cache-ttl', tolerant?.from === 'cache-ttl', tolerant?.from)
   verification.markTreeSuspectAfterTurn()

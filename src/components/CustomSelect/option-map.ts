@@ -1,3 +1,4 @@
+
 import { isEqualWith } from 'lodash-es'
 import type React from 'react'
 
@@ -10,7 +11,6 @@ type TextOption<T> = {
   description?: string
   dimDescription?: boolean
   disabled?: boolean
-
   indexLabel?: string
 }
 
@@ -24,15 +24,10 @@ export type InputOption<T> = {
   onChange?: (value: string) => void
   placeholder?: string
   initialValue?: string
-
   allowEmptySubmitToCancel?: boolean
-
   showLabelWithValue?: boolean
-
   labelValueSeparator?: string
-
   resetCursorOnUpdate?: boolean
-
   indexLabel?: string
 }
 

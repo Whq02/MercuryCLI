@@ -70,7 +70,6 @@ t.section('the Windows host rule (operator ruling 3)')
 
 t.section('the default-terminal handoff (the friend-path class)')
 {
-
   const defterm = resolveTerminalProfile({
     env: {}, platform: 'win32', isTTY: true, modernWindowsHost: false,
     osRelease: '10.0.22631', ...ALL_RECS,

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -48,7 +47,6 @@ function fixtureMessages(): AnyMessage[] {
       timestamp: new Date(now - 1000 * (80 - i)).toISOString(),
       message: {
         role: 'user',
-
         content:
           i % 4 === 0
             ? `plain prompt ${i} with some words é⚡ `.repeat(8)
@@ -119,7 +117,6 @@ async function main(): Promise<void> {
 
   section('P3 · counted operations — the estimate adds ZERO extra stringify calls')
   {
-
     await build(true)
     await build(false)
     const real = JSON.stringify.bind(JSON)

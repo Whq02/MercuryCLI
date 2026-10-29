@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeSecretGuard.ts src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/prompt.ts src/utils/detectSecrets.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

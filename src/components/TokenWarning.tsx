@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
@@ -30,7 +31,6 @@ export function TokenWarning({
       </Text>
     )
   }
-
   const envKill = !flagEnabled('MERCURY_COMPACT')
     ? 'MERCURY_COMPACT=0'
     : !flagEnabled('MERCURY_AUTO_COMPACT')

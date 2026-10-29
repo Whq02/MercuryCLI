@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -70,7 +69,6 @@ section('P3 THE COUNT — bytes per request')
 {
   const b = bytes(before)
   const a = bytes(after)
-
   check('the request shed exactly the pruned reasoning bytes plus one array separator per pruned item', b - a > 0 && census.items === 4 && b - a === census.bytes + census.items, `${b} → ${a}, census ${JSON.stringify(census)}`)
   console.log(`  BEFORE (flag off, today's wire): ${b} input bytes with 4 settled turns of reasoning replayed · AFTER (flag on): ${a} — ${b - a} bytes (${census.items} reasoning items) fewer on this request; the shed grows with every settled turn`)
 }

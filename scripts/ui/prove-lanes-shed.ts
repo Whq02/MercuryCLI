@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { densityPlan, HELM_DENSITY_FLOOR } from '../../src/utils/helmDensity.ts'
@@ -7,7 +6,6 @@ import { densityPlan, HELM_DENSITY_FLOOR } from '../../src/utils/helmDensity.ts'
 const ROOT = path.resolve(import.meta.dir, '../..')
 const rail = readFileSync(path.join(ROOT, 'src/components/HelmLanesRail.tsx'), 'utf8')
 const model = readFileSync(path.join(ROOT, 'src/utils/cockpit/helmLanesModel.ts'), 'utf8')
-
 const density = readFileSync(path.join(ROOT, 'src/utils/helmDensity.ts'), 'utf8')
 const fsl = readFileSync(path.join(ROOT, 'src/components/FullscreenLayout.tsx'), 'utf8')
 
@@ -23,7 +21,6 @@ t(
   /const CALM_ORDER = \['workbench', 'next', 'recent', 'crew'\]/.test(density),
 )
 t(
-
   'no ladder revives the retired party slot',
   !density.includes("'party'"),
 )
@@ -43,7 +40,6 @@ t(
     /new Set<string>\(\[\.\.\.HELM_DENSITY_FLOOR/.test(model),
 )
 t(
-
   'and no mode can shed a floor section (the product plan, all four activities)',
   (['calm', 'active', 'waiting', 'review'] as const).every(activity =>
     [40, 24].every(rows => {

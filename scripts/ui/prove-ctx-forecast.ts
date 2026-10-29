@@ -23,7 +23,6 @@ process.env.MERCURY_CTX_FORECAST = '0'
 t('flag =0 ⇒ disabled (opt-out preserved)', !ctxForecastEnabled())
 delete process.env.MERCURY_CTX_FORECAST
 {
-
   const savedMacro = (globalThis as Record<string, unknown>).MACRO
   delete (globalThis as Record<string, unknown>).MACRO
   t('no MACRO + unset ⇒ STILL enabled (stamp-independence)', ctxForecastEnabled())

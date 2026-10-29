@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -41,7 +40,6 @@ delete process.env.OPENROUTER_API_KEY
 delete process.env.GEMINI_API_KEY
 delete process.env.GOOGLE_API_KEY
 delete process.env.HF_TOKEN
-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { resolvePrimaryAgentBackend, describeAgentRuntimeRef, APEX_BACKEND_CONTRACT_VERSION } =
@@ -52,7 +50,6 @@ const { mapOpenaiHttpFailure } = await import('../../src/services/providers/open
 const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
 
 section('1 · routing agreement across id shapes')
-
 {
   const cases: Array<[string, string]> = [
     ['gpt-5.6-sol', 'openai'],
@@ -62,7 +59,6 @@ section('1 · routing agreement across id shapes')
     ['glm', 'zai'],
     ['claude-opus-4-8', 'anthropic'],
     ['claude-fable-5[1m]', 'anthropic'],
-
     ['openrouter/anthropic/claude-opus-5', 'openrouter'],
     ['gemini-3-pro', 'gemini'],
     ['huggingface/openai/gpt-oss-120b', 'huggingface'],
@@ -80,7 +76,6 @@ section('1 · routing agreement across id shapes')
       `backend=${backend?.provider} route=${route}`,
     )
   }
-
   check(
     "'nonsense-id' resolves NO backend and classifies 'unrecognised' — never a borrowed family",
     resolvePrimaryAgentBackend('nonsense-id') === null && classifyModelRoute('nonsense-id').kind === 'unrecognised',
@@ -88,7 +83,6 @@ section('1 · routing agreement across id shapes')
 }
 
 section('2 · typed refs are total')
-
 {
   const sol = describeAgentRuntimeRef('gpt-5.6-sol')
   check(
@@ -101,7 +95,6 @@ section('2 · typed refs are total')
   const glm = describeAgentRuntimeRef('glm-5.2')
   check('glm id → glm family on zai-glm', glm.family.kind === 'glm' && glm.backend === 'zai-glm')
   const junk = describeAgentRuntimeRef(undefined)
-
   check(
     'undefined stays total AND honest (unknown family, absence route, no backend/provider)',
     junk.family.kind === 'unknown' && junk.route === 'absence' && junk.backend === undefined && junk.provider === undefined,
@@ -126,7 +119,6 @@ section('2 · typed refs are total')
 }
 
 section('3 · readiness honesty')
-
 {
   check('anthropic ready by construction', resolvePrimaryAgentBackend('claude-opus-4-8').readiness().state === 'ready')
 
@@ -166,7 +158,6 @@ section('3 · readiness honesty')
 }
 
 section('4 · the /health rows PROJECT the backend receipts')
-
 {
   const report = collectReadiness()
   const openaiRow = report.records.find(r => r.id === 'engine:backend:openai-responses')
@@ -188,7 +179,6 @@ section('4 · the /health rows PROJECT the backend receipts')
     openaiRow?.source === 'primary-backend readiness receipt' &&
       zaiRow?.source === 'primary-backend readiness receipt',
   )
-
   const expected: Array<[string, string]> = [
     ['engine:backend:anthropic-messages', 'claude-opus-4-8'],
     ['engine:backend:openai-responses', 'gpt-5.6-sol'],
@@ -223,7 +213,6 @@ section('4 · the /health rows PROJECT the backend receipts')
 }
 
 section('5 · A7 — usage-limit honesty (typed facts, no invented resets)')
-
 {
   const fault = mapOpenaiHttpFailure(
     429,

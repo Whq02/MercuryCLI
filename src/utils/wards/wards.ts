@@ -1,3 +1,4 @@
+
 type WardScope = 'edit' | 'bash'
 
 type GeneratedPath = {
@@ -8,22 +9,15 @@ type GeneratedPath = {
 }
 
 export type WardRule = {
-
   name: string
-
   teach: string
   scope: WardScope
-
   patterns: string[]
   flags?: string
-
   pathPattern?: string
-
   allowPathPattern?: string
-
   newContentOnly?: boolean
   outsideProjectOnly?: boolean
-
   skipCommentLines?: boolean
   outsideQuotes?: boolean
   refusal?: boolean
@@ -207,7 +201,6 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
     scope: 'edit',
     patterns: ['#[0-9a-fA-F]{3,8}\\b'],
     pathPattern: 'src/(components|screens|commands)/.*\\.(ts|tsx)$',
-
     allowPathPattern:
       '(components/mercuryPalette\\.ts|mercury-ui/sessionAccent\\.ts' +
       '|components/Spinner/(GlimmerMessage\\.tsx|SpinnerGlyph\\.tsx|utils\\.ts))$',
@@ -314,11 +307,9 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     refusal: true,
     scope: 'bash',
     patterns: [
-
       RECURSIVE_RM + HOME_SHAPED_ANY,
       RECURSIVE_REMOVE_ITEM + HOME_SHAPED_ANY,
       RECURSIVE_RD_SLASH + HOME_SHAPED_WINDOWS,
-
       '\\bfind\\s+["\']?' + HOME_SHAPED_ANY + '[^\\n;|&]*\\s-delete\\b',
     ],
     skipCommentLines: false,
@@ -1203,13 +1194,11 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
     if (rule.scope !== target.scope) continue
     if (target.scope === 'edit') {
       if (rule.pathPattern) {
-
         const re = cachedPathRegex(compiledPathPatterns, rule, rule.pathPattern)
         if (work && re !== null) regexWork(work, target.path)
         if (re === null || !re.test(target.path)) continue
       }
       if (rule.allowPathPattern) {
-
         const re = cachedPathRegex(compiledAllowPathPatterns, rule, rule.allowPathPattern)
         if (work && re !== null) regexWork(work, target.path)
         if (re !== null && re.test(target.path)) continue
@@ -1280,7 +1269,6 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
         if (work) regexWork(work, view)
         const m = view.match(re)
         if (!m || m[0] === undefined) continue
-
         if (rule.newContentOnly && target.oldText !== undefined) {
           const previous = fold ? (oldFolded ??= target.oldText.replace(BLANK_RUN, ' ')) : target.oldText
           if (previous.includes(m[0])) continue
@@ -1347,7 +1335,6 @@ export function parseProjectWardsWithReport(jsonText: string): {
       continue
     }
     if (scopeFolded !== scopeRaw) problems.push(`rule '${name}' scope ${JSON.stringify(scopeRaw)} folded to '${scopeFolded}'`)
-
     let flags: string | undefined
     if (typeof e.flags === 'string') {
       const cleaned = e.flags.replace(/\s+/g, '')

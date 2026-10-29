@@ -1,3 +1,4 @@
+
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -41,19 +42,14 @@ export interface CompassRun {
 }
 
 interface CompassArenaOpts {
-
   sends: string[]
-
   resizes?: string[]
   seconds: number
   cols?: number
   rows?: number
-
   turns?: ScriptedTurn[]
   extraEnv?: Record<string, string>
-
   extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }>
-
   chapters?: number
 }
 
@@ -88,7 +84,6 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   const nodeBin = nodeBinPath()
 
   const home = mkdtempSync(join(tmpdir(), 'compass-arena-home-'))
-
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'compass-arena-cwd-')))
 
   const fixture = await startFixtureApi(opts.turns ?? [])
@@ -133,13 +128,11 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
     {
       cwd,
       env: {
-
         ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
         HOME: home,
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
-
         MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
@@ -147,7 +140,6 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',
-
         MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',
@@ -230,6 +222,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   }
 }
 
+
 interface GrabbedScreen {
   atMs: number
   rows: string[]
@@ -245,6 +238,7 @@ export function grabScreens(run: CompassRun, cols: number, rows: number, offsets
   if (res.status !== 0) throw new Error(`screengrab failed: ${res.stderr}`)
   return (JSON.parse(res.stdout) as { screens: GrabbedScreen[] }).screens
 }
+
 
 export function pct(xs: number[], p: number): number {
   if (xs.length === 0) return -1

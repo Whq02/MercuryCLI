@@ -1,14 +1,12 @@
+
 export class DeadlineExceededError extends Error {
   override readonly name = 'DeadlineExceededError'
   readonly code = 'DEADLINE_EXCEEDED'
   constructor(
-
     readonly seam: string,
     readonly limitMs: number,
     readonly elapsedMs: number,
-
     readonly progressCount: number,
-
     readonly advice?: string,
   ) {
     super(
@@ -39,17 +37,12 @@ export function formatLimit(ms: number): string {
 }
 
 export interface InactivityDeadline {
-
   touch(): void
-
   cancel(): void
-
   readonly expiry: Promise<never>
-
   readonly signal: AbortSignal
   readonly fired: boolean
   readonly progressCount: number
-
   readonly armed: boolean
 }
 
@@ -57,9 +50,7 @@ interface InactivityDeadlineOptions {
   seam: string
   limitMs: number
   advice?: string
-
   onExpire?: (error: DeadlineExceededError) => void
-
   now?: () => number
 }
 
@@ -72,7 +63,6 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
   const expiry = new Promise<never>((_, reject) => {
     rejectExpiry = reject
   })
-
   expiry.catch(() => {})
 
   if (!armed) {

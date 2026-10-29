@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -40,7 +39,6 @@ console.log('§2 every family section rides the one grammar')
   for (const [name, needle] of sections) check(`${name}: the absent slot rides absentSlotLine`, needle.test(src))
   check('the one slot body paints INACTIVE_SLOT_LINE for a present slot that is not the billing source, and nothing else spells it', (src.match(/\{INACTIVE_SLOT_LINE\}/g) ?? []).length === 1 && src.includes('if (!active) return <Text dimColor>{INACTIVE_SLOT_LINE}</Text>'), String((src.match(/INACTIVE_SLOT_LINE/g) ?? []).length))
   check('every present slot that can be inactive rides that one body (eight slots — the OpenRouter section lists each stored key as its own slot, the Anthropic subscription slot carries its session spend, the Gemini section carries the Google sign-in slot beside the Google account, and Meta keeps the stored Muse Code subscription beside the active key)', (src.match(/<SlotSpend active=\{/g) ?? []).length === 8, String((src.match(/<SlotSpend active=\{/g) ?? []).length))
-
   const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//') && !l.includes('INACTIVE_SLOT_LINE =')).join('\n')
   for (const stale of ['none connected —', 'none on this lane', 'none discovered —', 'none attached —', "'attached — not the active", "'connected — not the active", "'not the active billing source this session'"]) {
     check(`no section spells "${stale}" on its own`, !bodies.includes(stale))

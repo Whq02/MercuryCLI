@@ -1,7 +1,7 @@
+
 export interface NativeWebSearchRequest {
   allowedDomains?: string[]
   blockedDomains?: string[]
-
   maxUses: number
 }
 

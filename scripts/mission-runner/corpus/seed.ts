@@ -35,7 +35,6 @@ const FIXED_ENV = {
   GIT_COMMITTER_EMAIL: 'corpus@mercury.local',
   GIT_AUTHOR_DATE: '2026-07-21T00:00:00Z',
   GIT_COMMITTER_DATE: '2026-07-21T00:00:00Z',
-
   GIT_CONFIG_GLOBAL: '/dev/null',
   GIT_CONFIG_SYSTEM: '/dev/null',
   HOME: '/tmp',
@@ -65,7 +64,6 @@ function writeTree(dir: string, files: Record<string, string | null>): void {
 export interface SeededRepo {
   id: string
   dir: string
-
   refs: Record<string, string>
 }
 

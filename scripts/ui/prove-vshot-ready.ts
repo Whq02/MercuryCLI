@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +41,6 @@ function capture(cfg: Record<string, unknown>, scale = '1'): Cap {
   const outPath = cfgPath.replace('.json', '-out.json')
   writeFileSync(cfgPath, JSON.stringify({ cols: 60, rows: 8, argv: CHILD, out: outPath, ...cfg }))
   const t0 = Date.now()
-
   const r = spawnCaptureSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(60_000),
@@ -61,7 +59,6 @@ console.log('════ vshot observed-ready laws ════')
     c.seconds < 6 && c.gridText.includes('READY-SENTINEL'),
     `${c.seconds}s`,
   )
-
   check(
     '1b. READY receipt: readyAt recorded, endReason ready, exit 0',
     c.status === 0 && typeof c.payload.readyAt === 'number' && c.payload.endReason === 'ready',
@@ -75,7 +72,6 @@ console.log('════ vshot observed-ready laws ════')
     c.seconds >= 1.6,
     `${c.seconds}s`,
   )
-
   check(
     '2b. NEVER-READY refuses: non-zero exit carrying the diagnostic',
     c.status !== 0 && /NEVER-READY/.test(c.stderr),
@@ -105,7 +101,6 @@ console.log('════ vshot observed-ready laws ════')
   )
 }
 {
-
   const c = capture({
     total: 60,
     readyText: 'READY-SENTINEL',
@@ -119,7 +114,6 @@ console.log('════ vshot observed-ready laws ════')
   )
 }
 {
-
   const c = capture({
     total: 14,
     sends: [{ atTick: 9, awaitText: 'NEVER-THERE', data: 'x' }],
@@ -133,7 +127,6 @@ console.log('════ vshot observed-ready laws ════')
 }
 
 {
-
   const c = capture({ total: 50, stableTicks: 4 })
   check(
     `7. STABLE-ALONE HAZARD: a mid-load pause reads as settled (exited ${c.seconds.toFixed(1)}s, pre-sentinel) — needles are mandatory in annotations`,
@@ -142,7 +135,6 @@ console.log('════ vshot observed-ready laws ════')
   )
 }
 {
-
   const anim = [
     'python3',
     '-u',
@@ -157,7 +149,6 @@ console.log('════ vshot observed-ready laws ════')
   )
 }
 {
-
   const c = capture({ total: 50, stableTicks: 3, readyText: 'READY-SENTINEL' })
   check(
     `9. COMPOSED: ready+stable exits early with the needle present (${c.seconds.toFixed(1)}s ≪ 10s)`,
@@ -167,7 +158,6 @@ console.log('════ vshot observed-ready laws ════')
 }
 
 {
-
   const c = capture({
     total: 60,
     readyText: 'READY-SENTINEL',
@@ -186,7 +176,6 @@ console.log('════ vshot observed-ready laws ════')
 }
 
 {
-
   const movie = capture(
     {
       total: 60,

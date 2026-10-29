@@ -29,6 +29,7 @@ import { paneWindow } from '../paneWindow.js'
 import { useInteractiveList } from '../useInteractiveList.js'
 import { InteractiveRow } from '../InteractiveRow.js'
 
+
 function ago(iso: string | undefined): string {
   if (!iso) return 'never'
   const t = Date.parse(iso)
@@ -62,7 +63,6 @@ function probeGitHubAuth(): Promise<{ authed: boolean; note: string }> {
 
 export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
-
   const [snap, setSnap] = useState(readRealmRegistry)
   const realms: RealmEntry[] = snap.realms
   const ledger: RealmLedgerRow[] = snap.ledger
@@ -72,7 +72,6 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
     onClose()
     return undefined
   }
-
   const mountedRef = React.useRef(true)
   React.useEffect(() => () => {
     mountedRef.current = false
@@ -91,7 +90,6 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
           const res = recordRealmLaunchIssued(r.id)
           setSnap(readRealmRegistry())
           if (!res.ok) return res.reason
-
           return `run in a new terminal:  ${res.message}`
         },
       },
@@ -104,7 +102,6 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
         key: 'g',
         hint: 'clone GitHub',
         run: () => ({
-
           pending: 'checking GitHub auth (gh)…',
           result: probeGitHubAuth().then(gh => {
             if (!mountedRef.current) return null
@@ -156,7 +153,6 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
         <>
           {realmWin.above > 0 ? <Text color={FAINT}>{'  '}↑ {realmWin.above} more</Text> : null}
           {realms.map((r, i) => {
-
             if (i < realmWin.start || i >= realmWin.end) return null
             const branch = realmGitBranch(r.dir)
             const lane = branch ? branchChip(branch) : 'no git'

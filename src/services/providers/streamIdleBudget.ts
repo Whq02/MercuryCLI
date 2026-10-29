@@ -84,10 +84,9 @@ export const REAL_STREAM_TIMERS: StreamTimers = {
   clearTimeout: handle => clearTimeout(handle as ReturnType<typeof setTimeout>),
 }
 
+
 export const COLD_INGEST_MS_PER_1K_TOKENS = 1_200
-
 export const FIRST_BYTE_BUDGET_CEILING_MS = 300_000
-
 export const FIRST_BYTE_BUDGET_CEILING_FACTOR = 2
 
 export function firstByteBudgetMs(args: { cold: boolean; promptTokens: number; idleMs?: number; prefillMs?: number }): number {
@@ -170,7 +169,6 @@ export type RequestWaitV1 =
       kind: 'first-byte'
       cold: boolean
       promptTokens: number
-
       model: string
       budgetMs: number
       sinceMs: number
@@ -185,7 +183,6 @@ export type RequestWaitV1 =
       kind: 'retry'
       attempt: number
       of: number
-
       reason: string
       delayMs: number
       sinceMs: number
@@ -348,10 +345,9 @@ export function retryNoticeWait(notice: SystemAPIErrorMessage, nowMs: number = D
   return { kind: 'retry', attempt: notice.retryAttempt, of: notice.maxRetries, reason: retryReasonWords(status, notice.error?.message), delayMs: notice.retryInMs, sinceMs: nowMs }
 }
 
+
 export type StreamIdleFire = {
-
   silentMs: number
-
   activity: number
   noBytes: boolean
 }
@@ -381,24 +377,17 @@ const idleSeconds = (ms: number): string => {
 }
 
 export interface StreamIdleWatchdog {
-
   noteActivity(): void
-
   stop(): void
-
   fired(): StreamIdleFire | null
-
   silentMs(): number
-
   guard<T>(pending: Promise<T>): Promise<T>
 }
 
 export function createStreamIdleWatchdog(opts: {
   timeoutMs: number
   silentAfterHeadersMs?: number | null
-
   onWarning?: (silentMs: number) => void
-
   onFire?: (fire: StreamIdleFire) => void
 }): StreamIdleWatchdog {
   const timeoutMs = opts.timeoutMs
@@ -411,7 +400,6 @@ export function createStreamIdleWatchdog(opts: {
   const createdAtMs = Date.now()
   let lastActivityAtMs = createdAtMs
   let activity = 0
-
   let warnedForMs = -1
   let timer: ReturnType<typeof setTimeout> | null = null
   let fire: StreamIdleFire | null = null
@@ -423,7 +411,6 @@ export function createStreamIdleWatchdog(opts: {
       timer = null
     }
   }
-
   function onStreamIdleDeadline(): void {
     timer = null
     if (stopped || fire !== null) return
@@ -485,6 +472,7 @@ export function createStreamIdleWatchdog(opts: {
   }
 }
 
+
 export type StreamEndV1 =
   | { reason: 'silent-after-last-item'; provider: string; silentMs: number }
   | { reason: 'closed-after-last-item'; provider: string }
@@ -498,7 +486,6 @@ export function streamEndReceiptLine(end: StreamEndV1): string {
 export function typedStreamEndOf(args: {
   fault: { kind: string; code: string }
   provider: string
-
   tailStands: boolean
   silentMs: number
 }): StreamEndV1 | null {
@@ -511,6 +498,7 @@ export function typedStreamEndOf(args: {
   }
   return null
 }
+
 
 export const STREAM_ACTIVITY_OPTION = 'mercuryStreamActivity'
 
@@ -537,7 +525,6 @@ export function observeStreamActivity(response: Response, note: StreamActivityNo
   )
   const observed = new Response(tapped, { status: response.status, statusText: response.statusText, headers: response.headers })
   try {
-
     Object.defineProperty(observed, 'url', { value: response.url, configurable: true })
   } catch {
   }

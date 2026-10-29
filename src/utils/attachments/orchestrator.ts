@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { AttachmentMessage, Message } from 'src/types/message.js'
@@ -65,7 +66,6 @@ export async function getAttachments(
 ): Promise<Attachment[]> {
   messages ??= toolUseContext.messages
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
-
     return [
       ...await getQueuedCommandAttachments(queuedCommands, { messages, model: toolUseContext.options.engineModel }),
       ...await getToolManualAttachments({ ...toolUseContext, messages }),
@@ -108,7 +108,6 @@ export async function getAttachments(
             ),
           { inputScoped: true },
         ),
-
         ...pulseFixtureUserInputProducers(maybe),
       ]
     : []
@@ -116,7 +115,6 @@ export async function getAttachments(
   const userAttachmentResults = await Promise.all(userInputAttachments)
 
   const allThreadAttachments = [
-
     maybe('queued_commands', () => getQueuedCommandAttachments(queuedCommands, { messages: context.messages, model: context.options.engineModel }), {
       priority: true,
     }),
@@ -166,7 +164,6 @@ export async function getAttachments(
         ),
       ),
     ),
-
     maybe('harness_map_delta', () =>
       Promise.resolve(
         (() => {
@@ -181,16 +178,13 @@ export async function getAttachments(
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
-
     maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
-
     maybe('context_capsule', () =>
       options?.localSubmission
         ? Promise.resolve([])
         : getContextCapsuleAttachment(input, messages, toolUseContext),
     ),
     maybe('task_reminders', () => getTaskReminderAttachments(messages, toolUseContext)),
-
     maybe('contract_reminder', () =>
       getContractReminderAttachments(messages, toolUseContext),
     ),
@@ -208,7 +202,6 @@ export async function getAttachments(
         }),
       { priority: true },
     ),
-
     maybe('user_context', () =>
       isMainThread ? getUserContextAttachment(messages ?? []) : Promise.resolve([]),
     ),
@@ -218,7 +211,6 @@ export async function getAttachments(
         getCriticalSystemReminderAttachment(toolUseContext, messages ?? []),
       ),
     ),
-
     ...pulseFixtureProducers(abortController.signal, maybe),
   ]
 
@@ -247,7 +239,6 @@ export async function getAttachments(
   ])
 
   clearTimeout(timeoutId)
-
   const collected = [
     ...userAttachmentResults.flat(),
     ...continuationResults.flat(),
@@ -259,9 +250,7 @@ const ATTACHMENT_SOFT_ABORT_MS = 1_000
 const ATTACHMENT_HARD_DEADLINE_MS = ATTACHMENT_SOFT_ABORT_MS * 2
 
 type MaybeOpts = {
-
   priority?: boolean
-
   inputScoped?: boolean
 }
 type MaybeFn = <A>(
@@ -282,7 +271,6 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
     let timer: ReturnType<typeof setTimeout> | null = null
     try {
       const remaining = deadlineAt - startTime
-
       if (remaining <= 0 && !opts?.priority) {
         logError(
           new Error(

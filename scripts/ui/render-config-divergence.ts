@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -17,7 +16,6 @@ const t = (name: string, ok: boolean, detail = '') => {
 }
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-cfg-'))
-
 seedFirstRun(tmp, [REPO])
 
 const png = join(tmp, 'divergent-80.png')

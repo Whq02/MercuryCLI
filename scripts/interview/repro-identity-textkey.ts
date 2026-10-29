@@ -9,7 +9,6 @@ const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionToo
 
 t.section('§1 — a reworded question keeps the operator note on the wire (the PRODUCTION shape)')
 {
-
   const reworded = 'Which storage engine should the cache layer use?'
   const NOTE = 'prefer the engine ops already runs'
   const result = {
@@ -58,7 +57,6 @@ t.section('§2 — the input contract can express stable question identity')
     ],
   }
   const parsed = AskUserQuestionTool.inputSchema.safeParse(withIds)
-
   const q = parsed.success
     ? (parsed.data as { questions: Record<string, unknown>[] }).questions[0]
     : undefined

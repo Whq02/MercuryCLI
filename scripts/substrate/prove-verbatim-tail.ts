@@ -93,7 +93,6 @@ section('(a) gate — default-ON (substrate), MERCURY_COMPACT_KEEP_TAIL=0 opt-ou
   delete process.env.MERCURY_SUBSTRATE
 
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '0.0.0-src' }
-
   check('bare stamp ⇒ STILL enabled (stamp-independence)', isMercuryCompactKeepTailEnabled() === true)
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 }
@@ -185,7 +184,6 @@ section('(e) explicit budget — the largest closed suffix that fits, the exact 
 section('(f) non-preservable messages (progress / boundary / summary) are filtered')
 {
   const msgs = rounds(10)
-
   msgs.push({ type: 'progress', uuid: uid(), timestamp: TS, data: { type: 'tool_progress' } } as M)
   msgs.push({ type: 'system', subtype: 'compact_boundary', uuid: uid(), timestamp: TS, content: 'x', level: 'info', compactMetadata: { trigger: 'auto', preTokens: 0 } } as M)
   msgs.push({ type: 'user', uuid: uid(), timestamp: TS, isCompactSummary: true, message: { role: 'user', content: 'old summary' } } as M)
@@ -272,7 +270,6 @@ section('(g) wiring — compact.ts populates messagesToKeep + relink; Chat dedup
   check('compact.ts gates on isMercuryCompactKeepTailEnabled', compact.includes('isMercuryCompactKeepTailEnabled()'))
   check('compact.ts annotates the boundary with the summary anchor', compact.includes('annotateBoundaryWithPreservedSegment(') && compact.includes('summaryMessages.at(-1)!.uuid'))
   check('compact.ts returns messagesToKeep on the full path', /messagesToKeep,\s*\n\s*attachments: postCompactFileAttachments/.test(compact))
-
   check('compact.ts counts the tail in truePostCompactTokenCount', compact.includes('...(messagesToKeep ?? []),'))
   check(
     'compact.ts passes the preserved-tail flag (!!messagesToKeep) into the summary message, the newest-message-follows flag beside it',
@@ -280,7 +277,6 @@ section('(g) wiring — compact.ts populates messagesToKeep + relink; Chat dedup
   )
 
   const repl = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
-
   check('the face holds no in-memory scrollback trim (the connector rebuilds the chain from the file)', !repl.includes('retainFullscreenScrollback('))
 }
 

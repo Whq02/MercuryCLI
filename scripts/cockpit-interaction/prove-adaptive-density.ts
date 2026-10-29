@@ -181,15 +181,12 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
     })
     const out = join(scratch, 'sweep.json')
-
     const WIDTHS = [100, 97, 96, 100, 150, 149, 144, 150, 120]
     const cfg = {
       cols: 120, rows: 40, total: 600,
       argv: ['node', BIN], out, cwd: process.cwd(),
       resizes: WIDTHS.map((cols, i) => ({ afterMark: 'drafted', afterMs: 4000 + i * 3200, cols, rows: 40 })),
-
       sends: [
-
         { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: 'draft survives', mark: 'drafted' },
       ],
@@ -203,7 +200,6 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: home,
         ANTHROPIC_API_KEY: FIXTURE_KEY,
-
         MERCURY_CRITTER: 'octopus',
         MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0',
@@ -239,7 +235,6 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
     )
 
     const cockpitOpen = (lines: string[]): boolean => /\blanes\b/.test(lines[0] ?? '') && (lines[0] ?? '').includes('╭')
-
     const hex = (h: string): string => h.replace('#', '').toLowerCase()
     const octopusHues = new Set([hex(critterDefForKey('octopus').hue), hex(critterDefForKey('octopus').hueDeep)])
     const crabHues = new Set([hex(critterDefForKey('crab').hue), hex(critterDefForKey('crab').hueDeep)])
@@ -313,7 +308,6 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
         lines.every(
           l =>
             (l.match(/╭/g)?.length ?? 0) === (l.match(/╮/g)?.length ?? 0) &&
-
             (l.match(/╰/g)?.length ?? 0) === (l.match(/╯/g)?.length ?? 0),
         ),
         'corners balance per row',
@@ -329,7 +323,6 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
 
 t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grids')
 {
-
   const BIN = 'dist/mercury.mjs'
   if (!existsSync(BIN)) {
     t.check('dist exists (build first)', false, BIN)
@@ -339,7 +332,6 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         kind: 'paced_tool_use',
         preDeltas: Array.from({ length: 40 }, (_, i) => `chunk-${i} `),
         gapMs: 300,
-
         tools: [{ name: 'Bash', input: { command: 'echo audit-probe > /etc/mercury-audit-probe', description: 'density probe' } }],
         whenModel: 'opus',
       },
@@ -362,14 +354,11 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         cols: 120, rows: TALL, total: 460,
         argv: ['node', BIN], out, cwd: process.cwd(),
         sends: [
-
           { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
           { atTick: 90, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '', mark: 'calm' },
           { afterPrevTicks: 2, data: 'go\r' },
-
           { atTick: 200, awaitText: 'chunk-5', minTick: 2, awaitSettleTicks: 1, data: '', mark: 'active' },
           { atTick: 420, awaitText: 'Do you want to proceed?', minTick: 5, awaitSettleTicks: 2, data: '', mark: 'waiting' },
-
           { afterPrevTicks: 2, data: '\u001b' },
         ],
         readyText: '? for shortcuts', readySettleTicks: 4,
@@ -393,7 +382,6 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
     let driverOut = ''
     child.stdout.on('data', d => (driverOut += String(d)))
     child.stderr.on('data', d => (driverOut += String(d)))
-
     const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(200_000))
     const status = await new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
     clearTimeout(killer)

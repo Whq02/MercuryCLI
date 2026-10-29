@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
@@ -139,7 +138,6 @@ async function stopDaemon(): Promise<void> {
 
 console.log('health: the daemon sign-in view — present · green on agreement · red with both lists on a gap')
 try {
-
   const saved = auth.saveOAuthTokensIfNeeded({
     accessToken: 'fixture-access-token',
     refreshToken: 'fixture-refresh-token',
@@ -176,7 +174,6 @@ try {
 
   section('§3 a real gap (a credential on one estate only) is red with both lists; its fix names sign-in or the estate, not a restart')
   {
-
     const r = runHealth({ OPENAI_API_KEY: undefined, MERCURY_OPENAI_API_BASE: undefined }, ['--only', 'daemon-sign-ins'])
     const row = rowOf(r.cert)
     check('the row is fail', row?.status === 'fail', words(row))

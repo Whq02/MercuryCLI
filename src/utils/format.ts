@@ -1,3 +1,4 @@
+
 import { getRelativeTimeFormat, getTimeZone } from './intl.js'
 
 export {
@@ -8,6 +9,7 @@ export {
   truncateToWidthNoEllipsis,
 } from './truncate.js'
 
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} bytes`
   const scaled = (value: number, suffix: string): string =>
@@ -16,6 +18,7 @@ export function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024 * 1024) return scaled(bytes / (1024 * 1024), 'MB')
   return scaled(bytes / (1024 * 1024 * 1024), 'GB')
 }
+
 
 export function formatSecondsShort(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
@@ -26,7 +29,6 @@ export function formatDuration(
   options?: { hideTrailingZeros?: boolean; mostSignificantOnly?: boolean },
 ): string {
   if (ms === 0) return '0s'
-
   if (ms < 1) return `${(ms / 1000).toFixed(1)}s`
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
 
@@ -88,6 +90,7 @@ export function formatBarElapsed(ms: number): string {
   return `${Math.floor(total / 86_400)}d${pad(Math.floor((total % 86_400) / 3600))}h`
 }
 
+
 const COMPACT_FIXED = new Intl.NumberFormat('en-US', {
   notation: 'compact',
   minimumFractionDigits: 1,
@@ -106,6 +109,7 @@ export function formatNumber(n: number): string {
 export function formatTokens(n: number): string {
   return formatNumber(n).replace('.0', '')
 }
+
 
 const RELATIVE_UNITS: Array<{
   unit: Intl.RelativeTimeFormatUnit
@@ -132,12 +136,10 @@ export function formatRelativeTime(
   const style = options?.style ?? 'narrow'
   const numeric = options?.numeric ?? 'always'
   const now = options?.now ?? new Date()
-
   const diff = Math.trunc((date.getTime() - now.getTime()) / 1000)
   const abs = Math.abs(diff)
 
   if (abs < 1) {
-
     if (style === 'narrow') return diff > 0 ? 'in 0s' : '0s ago'
     return getRelativeTimeFormat(style, numeric).format(diff, 'second')
   }
@@ -148,7 +150,6 @@ export function formatRelativeTime(
       if (style === 'narrow') {
         return diff < 0 ? `${value}${narrow} ago` : `in ${value}${narrow}`
       }
-
       return getRelativeTimeFormat('long', numeric).format(diff < 0 ? -value : value, unit)
     }
   }
@@ -168,6 +169,7 @@ export function formatRelativeTimeAgo(
   return formatRelativeTime(date, { ...options, numeric: 'always' })
 }
 
+
 export function formatLogMetadata(log: {
   modified: Date
   messageCount?: number
@@ -185,7 +187,6 @@ export function formatLogMetadata(log: {
   if (log.fileSize !== undefined) {
     parts.push(formatFileSize(log.fileSize))
   } else if (log.messageCount !== undefined) {
-
     parts.push(`${log.messageCount} messages`)
   }
   if (log.tag) parts.push(`#${log.tag}`)
@@ -193,10 +194,10 @@ export function formatLogMetadata(log: {
   if (log.prNumber !== undefined) {
     parts.push(log.prRepository ? `${log.prRepository}#${log.prNumber}` : `#${log.prNumber}`)
   }
-
   if (log.endedOnError) parts.push('✕ ended on error')
   return parts.join(' · ')
 }
+
 
 function timeZoneAbbreviation(date: Date): string {
   const parts = new Intl.DateTimeFormat(undefined, {
@@ -223,7 +224,6 @@ export function formatResetTime(
 
   let rendered: string
   if (withinDay) {
-
     rendered = new Intl.DateTimeFormat(undefined, {
       hour: 'numeric',
       ...(minuteVisible ? { minute: '2-digit' } : {}),

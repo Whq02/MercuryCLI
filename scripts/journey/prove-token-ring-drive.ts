@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -40,7 +39,6 @@ const SEAT_TWO_FILE = 'seat-two.txt'
 const PROCEED = 'Do you want to proceed?'
 
 const USAGE = {
-
   alpha: { input: 40_000, cacheRead: 60_000, output: 900 },
   scout: { input: 1500, cacheRead: 0, output: 80 },
   seatOne: { input: 5000, cacheRead: 0, output: 100 },
@@ -54,7 +52,6 @@ const USAGE = {
 } as const
 type Usage = { input: number; cacheRead: number; output: number }
 const contextOf = (u: Usage): number => u.input + u.cacheRead + u.output
-
 const SEAT_HOLD_MS = 5_000
 
 type Route = 'alpha' | 'scout' | 'scout-back' | 'shell' | 'shell-refused' | 'sleep' | 'seat-one' | 'seat-two' | 'seat-three' | 'side'
@@ -71,7 +68,6 @@ const offersTool = (body: unknown, name: string): boolean => {
   const tools = (body as { tools?: unknown[] })?.tools
   return Array.isArray(tools) && tools.some(t => (t as { name?: string })?.name === name)
 }
-
 function answeredTool(items: Item[]): { name: string; resultText: string } | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -115,7 +111,6 @@ type Answer =
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
-
 function answer(model: string, blocks: Answer[], usage: Usage): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const usageStart = { input_tokens: usage.input, cache_creation_input_tokens: 0, cache_read_input_tokens: usage.cacheRead, output_tokens: 1 }
@@ -205,7 +200,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           usage = USAGE.scoutBack
           break
         case 'shell':
-
           blocks = [{ type: 'tool_use', id: `toolu_ring_bash_${++toolSeq}`, name: 'Bash', input: { command: 'touch ring-refused.txt && rm ring-refused.txt', description: 'touch and remove a marker' } }]
           usage = USAGE.shell
           break
@@ -301,7 +295,6 @@ function seedWorld(): { home: string; cwd: string } {
 function driveEnv(home: string, fixtureBase: string, tee: string): Record<string, string> {
   return {
     VSHOT_TEE: tee,
-
     TERM_PROGRAM: 'iTerm.app',
     TERM_PROGRAM_VERSION: '3.6.6',
     MERCURY_CONFIG_DIR: home,
@@ -323,7 +316,6 @@ function driveEnv(home: string, fixtureBase: string, tee: string): Record<string
 }
 
 type RingEvent = { tick: number; code: number }
-
 function ringEvents(teePath: string): RingEvent[] {
   if (!existsSync(teePath)) return []
   const buf = readFileSync(teePath)
@@ -402,21 +394,14 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'ring-drive: alpha\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
-
         { data: 'ring-drive: scout\r', awaitText: ALPHA_DONE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'alpha' },
-
         { data: '', awaitText: `${(contextOf(USAGE.seatTwo) / 1000).toFixed(1)}k context`, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-live' },
-
         { data: 'ring-drive: shell\r', awaitText: SCOUT_BACK, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-done' },
-
         { data: '\x1b', awaitText: PROCEED, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'shell-card' },
         { data: 'ring-drive: sleep\r', awaitText: SHELL_REFUSED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'shell-refused' },
-
         { data: '\x1b', afterPrevTicks: 20, mark: 'sleep-running' },
-
         { data: '', afterPrevTicks: 40, mark: 'after-interrupt' },
       ],
       stableTicks: 6,
@@ -457,7 +442,6 @@ if (cap !== null) {
     liveRows.some(r => r.includes(`${(seatLiveContext / 1000).toFixed(1)}k context`)),
     liveRows.map(flat).join(' | ').slice(0, 300),
   )
-
   const bareTokens = /(?<!↓ )\b\d[\d.]*k? tokens\b/
   check(
     'D2 no surface paints a bare "tokens" figure — a sum beside a size without the words',
@@ -502,7 +486,6 @@ if (cap !== null) {
   const clears = codes.filter(c => c === 0).length
   const alternates = codes.every((c, i) => i === 0 || c !== codes[i - 1])
   check('R1 the ring alternates — one indeterminate per turn, a clear before the next', events.length > 0 && alternates && codes[0] === 3, codes.join(''))
-
   check(`R1 four turns ⇒ four rings and four clears (got ${rings} rings, ${clears} clears)`, rings === 4 && clears === 4, codes.join(''))
   check('R2 the last sequence is a clear — nothing rings at idle', codes.length > 0 && codes[codes.length - 1] === 0, codes.join(''))
   const idleTick = cap.markTicks['after-interrupt'] ?? Number.POSITIVE_INFINITY

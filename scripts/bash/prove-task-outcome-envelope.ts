@@ -23,7 +23,6 @@ console.log('============================================================')
 
 const SESSION = '00000000-0000-4000-8000-00000000e0e1'
 try {
-
   await recordTaskOutcome(SESSION, {
     taskId: 'task-env-1',
     taskType: 'local_bash',

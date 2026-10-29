@@ -1,3 +1,4 @@
+
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,9 +16,7 @@ const ISO_SUB_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z/g;
 function makeNormalizer() {
   const uuids = new Map<string, string>();
   const times = new Map<string, string>();
-
   const normScalar = (v: unknown): unknown => {
-
     if (typeof v === 'function') return `«fn/${(v as { length: number }).length}»`;
     if (typeof v === 'symbol') return `«symbol:${String(v)}»`;
     if (typeof v === 'bigint') return `«bigint:${v}»`;
@@ -29,7 +28,6 @@ function makeNormalizer() {
         return uuids.get(k)!;
       })
       .replace(ISO_SUB_RE, m => {
-
         if (!m.startsWith('2026-01-01T00:')) return '«ts»';
         if (!times.has(m)) times.set(m, `«t${times.size + 1}»`);
         return times.get(m)!;
@@ -63,7 +61,6 @@ const snap = (fn: () => unknown): unknown => {
   const norm = makeNormalizer();
   try {
     const v = norm(fn());
-
     return v === undefined ? '«undefined»' : v;
   } catch (e) {
     return { '«throws»': e instanceof Error ? e.message.slice(0, 200) : String(e) };
@@ -122,18 +119,14 @@ perFixture('filterUnresolvedToolUses', m => M.filterUnresolvedToolUses(m));
 perFixture('filterWhitespaceOnlyAssistantMessages', m => M.filterWhitespaceOnlyAssistantMessages(m));
 perFixture('filterOrphanedThinkingOnlyMessages', m => M.filterOrphanedThinkingOnlyMessages(m));
 perFixture('stripSignatureBlocks', m => M.stripSignatureBlocks(m));
-
 perFixture('stripUnsignedThinkingBlocks', m => M.stripUnsignedThinkingBlocks(m as never));
 perFixture('ensureToolResultPairing', m =>
   M.ensureToolResultPairing(
     (m as { type: string }[]).filter(x => x.type === 'user' || x.type === 'assistant') as never,
   ),
 );
-
 perFixture('healWalkableForWire', m => M.healWalkableForWire(m as never));
-
 perFixture('orderToolResultsByUse', m => M.orderToolResultsByUse(M.healWalkableForWire(m as never)));
-
 add('isUnsignedThinkingBlock', 'unsigned-empty-sig', () =>
   M.isUnsignedThinkingBlock({ type: 'thinking', thinking: 't', signature: '' } as never),
 );
@@ -226,7 +219,6 @@ add('extractTag', 'missing', () => M.extractTag('<a>x</a>', 'zzz'));
 add('stripPromptXMLTags', 'basic', () =>
   M.stripPromptXMLTags('<system-reminder>inner</system-reminder> visible'),
 );
-
 add('stripPromptXMLTagsKeepEdges', 'basic', () =>
   M.stripPromptXMLTagsKeepEdges('lead <commit_analysis>\nnotes\n</commit_analysis>\ntail'),
 );
@@ -321,7 +313,6 @@ add('createUserInterruptionMessage', 'basic', () => M.createUserInterruptionMess
 add('createUserInterruptionMessage', 'tool-use', () =>
   M.createUserInterruptionMessage({ toolUse: true }),
 );
-
 const CUTS = [
   { kind: 'operator' },
   { kind: 'idle-timeout' },
@@ -386,7 +377,6 @@ add('createToolResultStopMessage', 'basic', () =>
 add('createSystemMessage', 'basic', () =>
   snapSafe(() => M.createSystemMessage('note', 'info')),
 );
-
 add('createStreamCutMessage', 'basic', () =>
   M.createStreamCutMessage({ count: 1, content: 'OpenAI ended the stream after partial content — terminated (read-failed); asked the model to continue from where it stopped (continuation 1 of 1)', road: 'OpenAI', sent: 'terminated', code: 'read-failed' }),
 );
@@ -401,7 +391,6 @@ add('createSeatReceiptMessage', 'basic', () =>
 add('createSeatReceiptMessage', 'timeout-warning', () =>
   M.createSeatReceiptMessage('▲ reslot pending — worker → claude-fable-5 not observed applied after 10m', 'warning'),
 );
-
 add('createScheduledTaskFireMessage', 'basic', () =>
   snapSafe(() => M.createScheduledTaskFireMessage('daily')),
 );

@@ -1,26 +1,20 @@
+
 import { createHash } from 'node:crypto'
 
 interface PrefixSegmentFingerprint {
-
   index: number
   kind: 'tools' | 'system'
   bytes: number
-
   digest: string
-
   marked: boolean
 }
 
 export interface PrefixFingerprint {
-
   fullPrefixDigest: string
-
   domainDigest: string
   segments: PrefixSegmentFingerprint[]
-
   markerPositions: number[]
   totalBytes: number
-
   estTokens: number
 }
 

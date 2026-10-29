@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +11,6 @@ mkdirSync(DAEMON_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
@@ -158,7 +156,6 @@ console.log('§K4 the verdict: ready / unreachable; keyless never expires, never
     (goneVerdict.state as string) === 'unreachable',
     goneVerdict.state,
   )
-
   let borrowed = 0
   for (const credentialed of [true, false]) {
     for (const stranded of [false, true]) {
@@ -182,7 +179,6 @@ console.log('§K4 the verdict: ready / unreachable; keyless never expires, never
     'a standing limit window still holds as rate-limited',
     scheduleAccountVerdict({ account: keyless, nextFireMs: NOW, nowMs: NOW, live: { ...present, rateLimitedUntil: NOW + 90_000 } }).state === 'rate-limited',
   )
-
   const facts = readLiveAccountFacts({ family: 'local', source: 'keyless' as never }, {
     presenceOf: () => ({ credentialed: true, kind: 'keyless' }) as never,
   })

@@ -33,7 +33,6 @@ function compoundOperatorAskMessage(reason: CompoundReason): string {
 }
 
 async function stripSegmentRedirections(segment: string): Promise<string> {
-
   if (!segment.includes('>')) return segment
   const parsed = await ParsedCommand.parse(segment)
   if (!parsed) return segment

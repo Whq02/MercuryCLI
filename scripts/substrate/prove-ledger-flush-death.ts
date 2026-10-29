@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -36,7 +35,6 @@ const diskLines = (): string[] => {
 section('§1 invocation trace — injection: unwritable sidecar retains + escalates')
 {
   trace._resetTraceFlushForTesting()
-
   mkdirSync(tracePath, { recursive: true })
   trace.emitInvocationTrace(fakeTool, { durationMs: 5, ok: true })
   trace.emitInvocationTrace(fakeTool, { durationMs: 6, ok: false })
@@ -56,7 +54,6 @@ section('§1 invocation trace — injection: unwritable sidecar retains + escala
 section('§2 invocation trace — recovery lands everything in order')
 {
   rmSync(tracePath, { recursive: true, force: true })
-
   trace.emitCompactionTrace('microcompact', { tokensFreed: 1234 })
   await trace.flushTraceNow()
   const h = trace.getTraceFlushHealth()
@@ -90,12 +87,10 @@ section('§3 invocation trace — bounded buffer drops oldest, counted')
 section('§4 cache-clock rollups — counted streak + recovery')
 {
   clock.resetCacheClockForTesting()
-
   const decision = clock.cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: Date.now() })
   check('clock latched in the scratch home', decision !== null, String(decision))
   const snap = clock.cacheClockSnapshot()
   check('snapshot reports engaged', snap.engaged === true)
-
   const observe = () =>
     clock.cacheClockObserve({
       cacheReadTokens: 10,
@@ -110,7 +105,6 @@ section('§4 cache-clock rollups — counted streak + recovery')
   observe()
   let ch = clock.getCacheClockFlushHealth()
   check('healthy rollup stamps lastRollupOkAt', ch.lastRollupOkAt !== null && ch.streak === 0)
-
   const projectsRoot = join(HOME, 'projects')
   const sessionsDirs = ((): string[] => {
     const out: string[] = []
@@ -142,7 +136,6 @@ section('§4 cache-clock rollups — counted streak + recovery')
   ch = clock.getCacheClockFlushHealth()
   check('rollup failures count a streak (≥3 escalates)', ch.streak >= 3, `streak=${ch.streak}`)
   check('failure detail recorded', ch.lastFailure !== null)
-
   rmSync(sess, { force: true })
   clock.flushCacheClockNow()
   ch = clock.getCacheClockFlushHealth()

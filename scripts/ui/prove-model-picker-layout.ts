@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,7 +25,6 @@ for (const cols of [80, 100, 120, 160, 200]) {
   const w = panelWidth(cols)
   check(`@${cols} panelWidth(${w}) ≤ cols-2 (${cols - 2}) — no overflow`, w <= cols - 2)
 }
-
 section('footer discipline: sheds on narrow, never wraps, keeps the nav+exit floor')
 const innerOf = (cols: number): number => panelWidth(cols) - 4
 const FLOOR = '↑↓ select · esc closes'.length
@@ -62,7 +60,6 @@ check(
 )
 
 section('SEAT LAW — the picker\'s selection grammar names no engine')
-
 check('SEAT LAW: glm/haiku never in the picker; gpt only as the seat-state surface', !/glm/i.test(src) && !/haiku/i.test(src))
 check(
   "SEAT LAW: 'gpt' spellings confined to the seat-state + window-law surfaces (+ their docs)",
@@ -75,11 +72,8 @@ check(
         /^\s*(\/?\*|\/\/|\{\/\*)/.test(l),
     ),
 )
-
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
-
 const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
-
 check("picker accepts pendingNext + renders the 'next' AMBER row state", /pendingNext\?: string/.test(src) && /'next', AMBER/.test(src))
 check('picker renders the current→next header with the turn-settle note', /applies when the turn settles/.test(src))
 check('wrapper feeds pendingNext from AppState.pendingModelSwitch', /s\.pendingModelSwitch/.test(wrapper) && /pendingNext/.test(wrapper))

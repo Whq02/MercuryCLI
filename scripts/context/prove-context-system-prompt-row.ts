@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -28,14 +27,12 @@ const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.
 
 const MODEL = 'claude-fable-5-1'
 const agents = { activeAgents: [], allAgents: [] }
-
 const displayName = (part: string): string => {
   const heading = /^#+\s+(.+)$/m.exec(part)
   if (heading?.[1]) return heading[1]
   const firstLine = part.split('\n').find(line => line.trim().length > 0) ?? ''
   return firstLine.length > 40 ? `${firstLine.slice(0, 40)}…` : firstLine
 }
-
 const rowsFor = async (options: Record<string, unknown>): Promise<string[]> => {
   const data = await analyzeContextUsage([], MODEL, async () => getEmptyToolPermissionContext(), [], agents, 120, { options } as never)
   return (data.systemPromptSections ?? []).map(s => s.name)
@@ -64,7 +61,6 @@ section('§2 the replacing paths still replace, and the append rides last')
   check('…and never the default parts', !startsWith(custom, expectedDefault))
   const appended = await rowsFor({ appendSystemPrompt: 'APPENDED FOR THE PIN' })
   check('an append rides after the whole default', startsWith(appended, expectedDefault) && appended[expectedDefault.length] === 'APPENDED FOR THE PIN', appended.slice(expectedDefault.length - 1, expectedDefault.length + 2).join(' · '))
-
   const emptyCustom = await rowsFor({ customSystemPrompt: '' })
   check('an explicit empty custom prompt mirrors the request path (floor alone) — the diagnostic re-interprets nothing', emptyCustom[0] === floorName && !startsWith(emptyCustom, expectedDefault), emptyCustom.slice(0, 2).join(' · '))
 }

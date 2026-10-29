@@ -64,7 +64,6 @@ section('2. the catalog gate — armed AND in a .blend context (bounded walk, ca
   await runWithCwdOverride(bare, async () => {
     check('armed in a blend-less dir ⇒ no ghost tool', gates.blenderBridgeToolCatalogEnabled() === false)
   })
-
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
     gates.blenderBridgeToolCatalogEnabled()

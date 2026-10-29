@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
@@ -61,7 +60,6 @@ function drive(
   })
   if (res.status !== 0) {
     check(`${tag}: PTY journey completed`, false, (res.stderr ?? '').slice(-300))
-
     const printed = (res.stdout ?? '').split('\n').filter(line => line.trimEnd() !== '')
     if (printed.length > 0) {
       console.log(`      ┌ ${tag}: the screen vshot ended on`)
@@ -88,7 +86,6 @@ const dumpBottom = (label: string, grid: Array<Array<{ c: string }>>, count = 12
 }
 
 const NOTICE = 'twice to close Mercury'
-
 const INTERRUPTED_ROW = '⨯ Interrupted'
 
 section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
@@ -98,7 +95,6 @@ section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
     scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
-
       { atTick: 100, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
     110,
@@ -122,7 +118,6 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
     scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
-
       { afterPrevTicks: 17, data: CTRL_C, mark: 'preSecond' },
     ],
     110,
@@ -142,7 +137,6 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 
 type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
 const busyWorld = (): BusyWorld => {
-
   const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
   const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
@@ -159,7 +153,6 @@ const busyWorld = (): BusyWorld => {
 }
 const closeBusyWorld = (world: BusyWorld): void => {
   if (failures > 0) {
-
     const found = (spawnSync('find', [world.home, '-name', '*.jsonl'], { encoding: 'utf8' }).stdout ?? '')
       .trim()
       .split('\n')
@@ -178,7 +171,6 @@ const closeBusyWorld = (world: BusyWorld): void => {
   } catch {
   }
 }
-
 const ENTER_FRESH_CHAT: Send[] = [
   { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
 ]
@@ -191,13 +183,10 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-
       { atTick: 130, awaitText: keyHintLabel('⇧← concourse'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: '! Type a prompt', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
-
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
-
       { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
     260,
@@ -223,22 +212,18 @@ section('C · busy: one press interrupts AND arms; a second press closes')
 
 section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its promise)')
 {
-
   const world = busyWorld()
   const p = drive(
     'busy-esc',
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-
       { atTick: 130, awaitText: keyHintLabel('⇧← concourse'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: '! Type a prompt', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
-
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
     250,
-
     INTERRUPTED_ROW,
     world.env,
   )
@@ -258,7 +243,6 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
 
 section('D · the copy receipt on both trigger paths (the standing scenarios)')
 {
-
   const SGR = (button: number, up = false): string => `\x1b[<${button};{X};{Y}${up ? 'm' : 'M'}`
   const DRAG: Send[] = [
     { atTick: 60, minTick: 8, awaitText: '❯', data: '' },
@@ -277,7 +261,6 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
     return existsSync(file) ? readFileSync(file, 'utf8') : ''
   }
   const nativeCalls = (): string => (existsSync(shimLog) ? readFileSync(shimLog, 'utf8') : '')
-
   const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
   const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard', shimmedPath)
   if (pSel) {

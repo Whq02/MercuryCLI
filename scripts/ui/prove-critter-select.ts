@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   ALL_CRITTERS,
   getSessionAccent,
@@ -56,7 +55,6 @@ section('setSessionCritter — a REAL change commits + mirrors + fires')
   check('a real change fires exactly one listener tick', fired === 1, `${fired} fired`)
   check('MERCURY_CRITTER env is mirrored (fresh-subtree agreement)', process.env.MERCURY_CRITTER === 'octopus', String(process.env.MERCURY_CRITTER))
   off()
-
   setSessionCritter('  Jellyfish  ')
   check('key is trim+lowercased', getSessionCritterKey() === 'jellyfish', getSessionCritterKey())
 }
@@ -64,7 +62,6 @@ section('setSessionCritter — a REAL change commits + mirrors + fires')
 section('critterDefForKey — every picker row resolves a real grid')
 for (const c of ALL_CRITTERS) {
   const def = critterDefForKey(c.key)
-
   const wantName = c.key
   check(`row '${c.key}' resolves '${def.name}'`, def.name === wantName, def.name)
 }

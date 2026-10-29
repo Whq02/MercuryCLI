@@ -1,5 +1,6 @@
 import type { TaskKillReceipt } from '../../Task.js'
 
+
 export function settledStopSentence(
   settlement: Pick<TaskKillReceipt, 'exitCode' | 'interrupted'>,
 ): string {

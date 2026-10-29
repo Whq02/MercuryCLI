@@ -6,7 +6,6 @@ const mouse = {
   description: 'Toggle mouse capture — off = native terminal select/copy, on = clickable TUI',
   argumentHint: '[on|off]',
   supportsNonInteractive: false,
-
   seat: 'screen',
   load: () => import('./mouse.js'),
 } satisfies Command

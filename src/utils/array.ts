@@ -1,3 +1,4 @@
+
 export function intersperse<A>(as: A[], separator: (index: number) => A): A[] {
   const woven: A[] = []
   as.forEach((item, index) => {

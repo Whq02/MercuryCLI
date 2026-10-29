@@ -31,7 +31,6 @@ export function resolveRequestedInstructionProfile(): {
   if (agentProfile !== null) {
     return { profile: agentProfile, origin: 'agent' }
   }
-
   const envCarrier = flagEnv('MERCURY_INSTRUCTION_PROFILE')
   if (isInstructionProfile(envCarrier)) {
     return { profile: envCarrier, origin: 'agent' }
@@ -39,7 +38,6 @@ export function resolveRequestedInstructionProfile(): {
   if (sessionProfile !== null) {
     return { profile: sessionProfile, origin: 'session' }
   }
-
   let durable: unknown
   try {
     durable = getInitialSettings().briefs?.profile

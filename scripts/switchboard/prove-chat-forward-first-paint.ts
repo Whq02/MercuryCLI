@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -37,7 +36,6 @@ section('§1 withLanding — the gate is armed BEFORE the first await')
   release('done')
   check('the landing resolves to its own value', (await landed) === 'done')
   check('the gate clears once it settles', landingInFlight() === false)
-
   const refused = withLanding(Promise.reject(new Error('refused')))
   check('a rejected landing is in flight while it runs', landingInFlight() === true)
   await refused.catch(() => undefined)
@@ -69,7 +67,6 @@ section('§4 a refused birth reaches the screen (the seat-receipt seam)')
   check('the refusal mints a receipt carrying born.reason', /mintImmediateReceipt\([^)]*born\.reason/s.test(block), 'the reason still reaches only the debug log')
   check("the receipt is warning-level (never a quiet info row)", /mintImmediateReceipt\([\s\S]{0,200}?'warning'\)/.test(block))
   check('the debug line is kept beside it', /logForDebugging\(/.test(block))
-
   const receipts = await import('../../src/utils/model/seatReceipts.ts')
   receipts.mintImmediateReceipt('▲ the first receipt', 'warning')
   receipts.mintImmediateReceipt('▲ the second receipt', 'warning')

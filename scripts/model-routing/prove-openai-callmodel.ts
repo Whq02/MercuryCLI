@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 process.argv.push('--log-stderr')
@@ -34,7 +33,6 @@ for (const key of [
 ]) {
   savedEnv[key] = process.env[key]
 }
-
 delete process.env.MERCURY_AUTH_SCOPE_DIR
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-apex-home-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
@@ -189,7 +187,6 @@ const HAPPY_STREAM = [
 ]
 
 section('1 · the yield contract + the turn record')
-
 {
   process.env.OPENAI_API_KEY = 'sk-apex-proof-fake'
   __resetOpenaiCatalogueForTest()
@@ -224,7 +221,6 @@ section('1 · the yield contract + the turn record')
     JSON.stringify(toolBlock),
   )
   const last = assistants.at(-1)!
-
   check(
     'final usage written back onto the LAST message in the CANONICAL disjoint spelling',
     last.message.usage?.input_tokens === 70 &&
@@ -233,7 +229,6 @@ section('1 · the yield contract + the turn record')
     JSON.stringify(last.message.usage),
   )
   check("final stop_reason 'tool_use'", last.message.stop_reason === 'tool_use')
-
   const record = last.apexProviderTurn
   check(
     'apexProviderTurn: provider + responseId on the LAST message',
@@ -271,9 +266,7 @@ section('1 · the yield contract + the turn record')
   check("tool_choice 'auto' + parallel tool calls", body?.tool_choice === 'auto' && body?.parallel_tool_calls === true)
   check("live-resolved reasoning effort 'high' + summary auto", body?.reasoning?.effort === 'high' && body?.reasoning?.summary === 'auto')
   check('instructions carry the system prompt', body?.instructions === 'You are a specialist.')
-
   check('mercury prompt_cache_key rides as the STABLE domain digest', typeof body?.prompt_cache_key === 'string' && body.prompt_cache_key.startsWith('mercury-domain:'))
-
   {
     const { composeSystemPrompt } = await import('../../src/prompt/composer.js')
     const composedBase = (intro: string): string[] =>
@@ -292,10 +285,8 @@ section('1 · the yield contract + the turn record')
     check('the key moves with the base contract', otherBase !== undefined && otherBase !== tailOne, `${otherBase} vs ${tailOne}`)
     check('…and the two tails still render into the instructions (delivery, not the key)', typeof (lastResponsesBody as { instructions?: string } | undefined)?.instructions === 'string' && ((lastResponsesBody as { instructions?: string }).instructions ?? '').includes('git status snapshot: one file changed'))
   }
-
   check('max_output_tokens is NOT sent (live-proved unsupported)', body?.max_output_tokens === undefined)
   check('the key never rides the body', !JSON.stringify(body).includes('sk-apex-proof-fake'))
-
   check(
     '/models carries the REQUIRED client_version query param',
     typeof lastModelsUrl === 'string' && lastModelsUrl.includes('client_version='),
@@ -304,9 +295,7 @@ section('1 · the yield contract + the turn record')
 }
 
 section('2 · honest refusals + the §10 effort-adjustment note')
-
 {
-
   delete process.env.OPENAI_API_KEY
   const noAccount = await collect('gpt-5.6-sol')
   check(
@@ -429,7 +418,6 @@ section('2 · honest refusals + the §10 effort-adjustment note')
 }
 
 section("2b · the wire's own vocabulary: a refused word is remembered, re-issued once, and narrows the row")
-
 {
   const store = await import('../../src/services/providers/openai/qualificationStore.js')
   const effort = await import('../../src/utils/effort.js')
@@ -438,7 +426,6 @@ section("2b · the wire's own vocabulary: a refused word is remembered, re-issue
   const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
     items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
   const sentEffort = (): string | undefined => (lastResponsesBody as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
-
   const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
   const REFUSAL = "Invalid value: 'max'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', and 'xhigh'."
   const refusalResponse = (): Response =>
@@ -534,14 +521,12 @@ section("2b · the wire's own vocabulary: a refused word is remembered, re-issue
 }
 
 section('3 · stateless replay round-trip (the transcript is canonical)')
-
 {
   __resetOpenaiCatalogueForTest()
   patchWire()
   makeResponses = () => sseResponse(HAPPY_STREAM)
   const first = await collect('gpt-5.6-sol')
   const firstAssistants = first.filter(y => y.type === 'assistant') as AssistantMessage[]
-
   const followUp = callParams('gpt-5.6-sol')
   followUp.messages = [
     ...followUp.messages,
@@ -586,7 +571,6 @@ section('3 · stateless replay round-trip (the transcript is canonical)')
 }
 
 section('3b · reconstruction classes + the cross-model replay guard')
-
 {
   const RECONSTRUCTION_MARK = 'reconstructed continuation'
   const gptAssistantRow = (opts: {

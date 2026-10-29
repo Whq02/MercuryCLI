@@ -20,6 +20,7 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
+
 const COPY_ACK_MS = 2000
 
 export function KimiConnect({
@@ -93,7 +94,6 @@ export function KimiConnect({
       return
     }
     if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
-
       event.stopImmediatePropagation()
       void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
         if (sequence) process.stdout.write(sequence)
@@ -223,7 +223,6 @@ function MoonshotKeyLeg({
     if (storingRef.current) return
     const key = raw.trim()
     if (!key) return
-
     const guard = keyPasteGuardNote(key, { stores: 'a Moonshot platform key' })
     if (guard !== null) {
       setNote(guard)
@@ -234,7 +233,6 @@ function MoonshotKeyLeg({
     void storeMoonshotApiKeyLogin(key).then(outcome => {
       storingRef.current = false
       if (!outcome.stored) {
-
         setStoring(false)
         setNote(outcome.receipt)
         return

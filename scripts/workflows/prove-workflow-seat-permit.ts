@@ -60,7 +60,6 @@ function makeHarness(abortController = new AbortController()) {
         await sleep(step.idle)
         continue
       }
-
       const grant = await gov.acquireModelPermit({
         lane: 'background-session',
         callId: `${holder}.c${++callSeq}`,
@@ -100,7 +99,6 @@ function makeHarness(abortController = new AbortController()) {
     agent: (p: string, o?: Record<string, unknown>) => Promise<unknown>
     parallel: (thunks: Array<() => Promise<unknown>>) => Promise<unknown[]>
   }
-
   const latestByLabel = (): Map<string, Record<string, unknown>> => {
     const out = new Map<string, Record<string, unknown>>()
     for (const f of frames) {
@@ -122,7 +120,6 @@ section('P1–P4 two seats, four agents at once; a idle, b mid-call ⇒ c runs, 
   gov.setGovernorCeilings({ modelLanes: 2, delegationLanes: 2 })
   const { hooks, calls, latestByLabel } = makeHarness()
   const run = hooks.parallel(HOLDERS.map(h => () => hooks.agent(`${h} do the work`, { label: h })))
-
   await sleep(400)
   const latest = latestByLabel()
   const state = gov._governorStateForTesting()
@@ -152,7 +149,6 @@ section('P1–P4 two seats, four agents at once; a idle, b mid-call ⇒ c runs, 
   const c = callOf('agent-c')
   const d = callOf('agent-d')
   console.log(`  calls: ${calls.map(x => `${x.holder}@${x.startedAt}→${x.endedAt} (waited ${x.waitedMs})`).join(' · ')}`)
-
   check("P3 c's call started the moment a's first call ended (a alive and idle), well before b's ended", c !== undefined && b !== undefined && aFirst !== undefined && c.waitedMs < 300 && c.startedAt >= aFirst.endedAt - 5 && c.startedAt < b.endedAt - 500, `c waited ${c?.waitedMs} started ${c?.startedAt} · a's first ended ${aFirst?.endedAt} · b ended ${b?.endedAt}`)
   check("P3 d's call waited for a seat and started once one freed (the queue only with two calls in flight)", d !== undefined && b !== undefined && c !== undefined && d.waitedMs > 0 && d.startedAt >= Math.min(b.endedAt, c.endedAt) - 5, `d waited ${d?.waitedMs} started ${d?.startedAt}`)
   check("P3 a's second call ran after its idle stretch without queuing anyone", callOf('agent-a', 1) !== undefined, `a calls ${calls.filter(x => x.holder === 'agent-a').length}`)

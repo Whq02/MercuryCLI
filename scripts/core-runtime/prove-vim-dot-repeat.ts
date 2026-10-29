@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/hooks/useVimInput.ts src/vim/operators.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, rmSync } from 'node:fs'

@@ -15,7 +15,6 @@ import { zaiCatalogueSourceWords } from '../../services/providers/zai/zaiCatalog
 export interface ProviderFrontierFact {
   modelId: string
   displayName: string
-
   observedAt?: string
   source?: string
 }
@@ -24,7 +23,6 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
   try {
     switch (route) {
       case 'anthropic': {
-
         const decision = frontierOperatorDecision()
         const aware = decision.candidates[0]
         if (!aware) return undefined
@@ -34,7 +32,6 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         }
       }
       case 'openai': {
-
         let best: { pin: (typeof GPT_DISPLAY_PINS)[number]; major: number; minor: number } | undefined
         for (const pin of GPT_DISPLAY_PINS) {
           const identity = parseGptModelId(pin.id)
@@ -74,7 +71,6 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         if (liveWords !== undefined) return { modelId: pin.id, displayName: pin.displayName, source: liveWords }
         return { modelId: pin.id, displayName: pin.displayName, observedAt: pin.observedAt }
       }
-
       case 'gemini':
       case 'openrouter':
       case 'openai-compat':
@@ -227,7 +223,6 @@ export function providerSmallFastFact(route: CallModelRoute): ProviderFrontierFa
 export function smallFastModelFor(sessionModel: string): string {
   const route = declaredRouteOf(sessionModel)
   if (route === 'anthropic') return getSmallFastModel()
-
   if (route === null) return sessionModel
   return providerSmallFastFact(route)?.modelId ?? sessionModel
 }

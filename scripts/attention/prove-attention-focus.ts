@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -7,7 +6,6 @@ const t = checker()
 const panes = readFileSync('src/components/mercury-ui/NavigablePanes.tsx', 'utf8')
 
 t.section('RV-04 — stable identity, key-followed focus, recency-free sort')
-
 t.check(
   'the prompts panel keys its rows by record identity (prompt:<uuid>), never by index',
   readFileSync('src/components/prompts-panel/rows.ts', 'utf8').includes('key: `prompt:${m.uuid}`'),

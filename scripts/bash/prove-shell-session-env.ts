@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
@@ -19,7 +18,6 @@ plugin({
 const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 delete process.env.MERCURY_SHELL_ENGINE
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
@@ -52,16 +50,12 @@ check('MERCURY_ENTRYPOINT is self-stamped (the boot identity row)', getFlagSpec(
 
 const planted: NodeJS.ProcessEnv = {
   PATH: process.env.PATH,
-
   MERCURY_ENTRYPOINT: 'cli',
-
   MERCURY_BOOT_ENV_APPLIED: JSON.stringify({ MERCURY_GODOT_TOOLS: '1', MERCURY_SKIP_PERMISSIONS: '1' }),
   MERCURY_GODOT_TOOLS: '1',
   MERCURY_SKIP_PERMISSIONS: '0',
-
   MERCURY_SEATS: '2',
   MERCURY_MODEL: 'claimed-later',
-
   MERCURY_MODEL_LANES: '1',
 }
 stampSpawnReceipt(planted, ['MERCURY_SEATS', 'MERCURY_MODEL'])
@@ -179,7 +173,6 @@ check('a compaction resets the latch, so the first result after the fold carries
 const turnMachineSrc = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
 check('the turn machine resets the notice latch at the compaction boundary', turnMachineSrc.includes('resetSessionEnvNoticeOnCompaction()') && /compaction_boundary[\s\S]{0,200}resetSessionEnvNoticeOnCompaction\(\)/.test(turnMachineSrc))
 resetSessionEnvNoticeForTesting()
-
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }

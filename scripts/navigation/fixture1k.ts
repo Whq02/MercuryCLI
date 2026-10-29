@@ -1,3 +1,4 @@
+
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -43,6 +44,7 @@ function prose(rnd: () => number, targetChars: number): string {
   }
   return text.trim()
 }
+
 
 const BASE_TS = Date.UTC(2026, 5, 20, 8, 0, 0)
 const STEP_MS = 1200
@@ -132,6 +134,7 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
       toolUseResult,
     })
   }
+
 
   const LONG_DIR =
     '/Users/op/dev/orchard/src/components/mercury-ui/interaction/fixtures/deeply/nested/compass/baseline'

@@ -14,7 +14,6 @@ const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const FIXTURE = join(ROOT, 'scripts', 'voice', 'voice-transcriber-fixture-server.ts')
 const SPEECH = join(ROOT, 'scripts', 'voice', 'fixtures', 'on-device-take.wav')
-
 const SPOKEN = /seven ships/i
 const CLOUD_TRANSCRIPT = 'the quick brown fox jumps over the lazy dog'
 
@@ -239,7 +238,6 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
   }
   return { status: res.status, gridText, marks, stderr: (res.stderr ?? '').trim(), endReason }
 }
-
 const seededHome = (name: string, withModel = true): string => {
   const home = join(scratch, name)
   seedFirstRun(home, [ROOT])

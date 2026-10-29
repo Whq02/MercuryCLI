@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -69,7 +68,6 @@ check('…and empty grants never reach it (length > 0 guard)', src.includes('val
 void caseBlock
 
 console.log('\n── repo-skill data ratchet (no pointless pure-read grants)')
-
 const skillsRoots = ['mercury-skills', join('.mercury', 'skills')]
 let offenders: string[] = []
 for (const skillsRoot of skillsRoots) {

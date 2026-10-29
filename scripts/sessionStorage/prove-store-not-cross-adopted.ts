@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,7 +30,6 @@ mkdirSync(underscoreProj)
 
 section('§1 A MNEME ESTATE IS NOT A STORE')
 {
-
   const hashless = join(projectsDir, sanitizePath(dotProj))
   mkdirSync(join(hashless, 'memory'), { recursive: true })
   check('fixture: the siblings share one sanitized spelling', sanitizePath(dotProj) === sanitizePath(underscoreProj))

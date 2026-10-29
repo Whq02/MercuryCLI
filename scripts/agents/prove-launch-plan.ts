@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -129,7 +128,6 @@ section('§2 — lookup, restriction, and the denial band')
   } catch (e) {
     err = e as Error
   }
-
   check(
     'a Crewmate(x,y) tool-spec restriction excludes unlisted types (the denied-by-rule sentence)',
     err?.message === 'The mercury-scout crewmate is denied by the rule Crewmate(mercury-scout).',

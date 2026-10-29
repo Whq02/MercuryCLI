@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createSplashCore, assembleCardRows } from '../../assets/splash/splash-core.mjs'
 import { join as join2 } from 'node:path'
 

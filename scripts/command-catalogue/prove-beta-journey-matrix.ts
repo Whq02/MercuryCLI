@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -29,7 +30,6 @@ process.env.MERCURY_CONFIG_DIR = RUN_HOME
 const PROBE_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-verity-shape-probe'
 
 function seedHome(): void {
-
   writeFileSync(
     path.join(RUN_HOME, '.mercury.json'),
     JSON.stringify({
@@ -44,6 +44,7 @@ function seedHome(): void {
   writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({}))
 }
 seedHome()
+
 
 const childEnv = {
   ...process.env,
@@ -127,7 +128,6 @@ const { writeSyntheticSession, SID, RUNTIME_CWD } = scenarios
 
 type PtyLeg = { name: string; cmd: string; markers: string[]; anyOf?: string[] }
 const LEGS: PtyLeg[] = [
-
   { name: 'sessions', cmd: '/sessions', markers: ['— sessions'] },
   { name: 'palette', cmd: '/palette', markers: ['type to fuzzy-match', '↑↓ select · ↵ run'] },
 ]
@@ -138,14 +138,11 @@ function runLeg(leg: PtyLeg, withEsc: boolean): string | null {
   const out = path.join(RUN_HOME, `grid-${tag}.json`)
   const cfg = {
     argv: ['node', dist, '--resume', SID],
-
     sends: [
-
       { atTick: 180, minTick: 5, awaitText: 'Type a prompt', requireAwait: true, data: leg.cmd },
       { afterPrevTicks: 6, data: '\r' },
       ...(withEsc ? [{ afterPrevTicks: 24, data: '\x1b' }] : []),
     ],
-
     stableTicks: 4,
     total: withEsc ? 240 : 220,
     cols: 100,
@@ -154,7 +151,6 @@ function runLeg(leg: PtyLeg, withEsc: boolean): string | null {
   }
   const cfgPath = path.join(RUN_HOME, `cfg-${tag}.json`)
   writeFileSync(cfgPath, JSON.stringify(cfg))
-
   const ptyEnv = { ...childEnv }
   delete (ptyEnv as Record<string, string | undefined>).NODE_ENV
   const res = spawnSync('/usr/bin/python3', [path.join(repo, 'scripts/ui/vshot.py'), cfgPath], {

@@ -1,3 +1,4 @@
+
 import {
   appendConversationEvent,
   linkConversation,
@@ -9,13 +10,9 @@ import {
 import type { ActorRefV1 } from './identity.js'
 
 export interface OpenSideConversationArgs {
-
   question: string
-
   askedBy: ActorRefV1
-
   parentConversationId?: CrewConversationId
-
   originRef?: string
   dir?: string
 }

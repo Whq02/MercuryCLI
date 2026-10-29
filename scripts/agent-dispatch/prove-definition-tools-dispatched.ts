@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -49,9 +48,7 @@ section('§1 THE NARROWING LAW')
 section('§2 THE DISPATCH SEAM')
 {
   const src = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-
   const seam = src.slice(src.indexOf('const workerTools'), src.indexOf('const workerTools') + 900)
-
   const utils = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
   const owner = utils.slice(utils.indexOf('export function resolveWorkerTools('), utils.indexOf('export function resolveWorkerTools(') + 900)
   check(
@@ -66,7 +63,6 @@ section('§3 THE SCOUT CONTROL')
 {
   const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts').catch(() => ({ getBuiltInAgents: undefined }) as never)
   if (typeof getBuiltInAgents !== 'function') {
-
     check('scout definition readable (export shape known)', true)
   } else {
     const scout = (getBuiltInAgents() as Array<{ agentType: string; tools?: string[] }>).find(a => a.agentType === 'mercury-scout')

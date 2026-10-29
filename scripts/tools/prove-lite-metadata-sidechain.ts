@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
-
 const _ssDir = join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage')
 const storage = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'sessionStorage.ts'), 'utf-8') + readdirSync(_ssDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_ssDir, f), 'utf-8')).join('\n')
 
@@ -34,7 +32,6 @@ check(
 check('the old unscoped head.includes("isSidechain") is gone', !/head\.includes\('"isSidechain":true'\)/.test(storage))
 
 section('behavioural mirror: field-boundary-aware parsed scan classifies correctly')
-
 const firstMessageField = (head: string, field: string): unknown => {
   const needle = `"${field}"`
   let start = 0
@@ -58,10 +55,8 @@ const realSidechain = '{"parentUuid":null,"isSidechain":true,"uuid":"x"}\n{"type
 const foregroundQuoting = '{"parentUuid":null,"isSidechain":false,"uuid":"y"}\n{"type":"text","text":"set \\"isSidechain\\":true to mark a sidechain"}'
 const foregroundNoFlag = '{"parentUuid":null,"uuid":"z"}\n{"type":"text","text":"normal turn"}'
 const singleLineSidechain = '{"parentUuid":null,"isSidechain":true,"uuid":"w"}'
-
 const preambleThenSidechain =
   '{"type":"queue-operation","op":"x"}\n{"type":"file-history-snapshot"}\n{"parentUuid":null,"isSidechain":true,"uuid":"r"}'
-
 const foregroundWithSubSidechain =
   '{"isSidechain":false,"uuid":"a"}\n{"isSidechain":true,"uuid":"sub"}'
 check('a REAL sidechain (first message has the parsed flag) ⇒ true', classify(realSidechain) === true)

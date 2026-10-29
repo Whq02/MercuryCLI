@@ -3,6 +3,7 @@ import { logError } from '../log.js'
 import { extractTextContent } from '../messages.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 
+
 type DateTimeParseResult = { success: true; value: string } | { success: false; error: string }
 
 export function looksLikeISO8601(input: string): boolean {
@@ -12,7 +13,6 @@ export function looksLikeISO8601(input: string): boolean {
 const UNPARSEABLE_MESSAGE = 'Could not parse a date/time from that input'
 
 function localOffsetString(now: Date): string {
-
   const offsetMinutes = -now.getTimezoneOffset()
   const sign = offsetMinutes >= 0 ? '+' : '-'
   const absolute = Math.abs(offsetMinutes)
@@ -70,13 +70,11 @@ export async function parseNaturalLanguageDateTime(
     if (text === '' || text === 'INVALID') {
       return { success: false, error: UNPARSEABLE_MESSAGE }
     }
-
     if (!/^\d{4}/.test(text)) {
       return { success: false, error: UNPARSEABLE_MESSAGE }
     }
     return { success: true, value: text }
   } catch (error) {
-
     logError(error)
     return { success: false, error: 'Date parsing failed — enter the value in ISO 8601 format' }
   }

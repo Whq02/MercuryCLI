@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -98,7 +97,6 @@ section('§3 · ProjectVersion.txt (BOM/CRLF/conflict honesty)')
   rmSync(vfile)
   v = readUnityProjectVersion(proj)
   check('absent file ⇒ reason', v.version === undefined && (v.reason ?? '').includes('unreadable or absent'))
-
   writeFileSync(vfile, 'm_EditorVersion: 6000.3.4f1\n')
 }
 
@@ -111,7 +109,6 @@ section('§4 · editor location (fake hub roots; located, never executed)')
     mkdirSync(path.join(hub, ver, 'Unity.app', 'Contents', 'MacOS'), { recursive: true })
     writeFileSync(path.join(hub, ver, 'Unity.app', 'Contents', 'MacOS', 'Unity'), '#!/bin/sh\n')
   }
-
   mkdirSync(path.join(hub, '2022.3.60f1'), { recursive: true })
   const census = locateUnityEditors({ hubRoots: [hub], skipPathProbe: true, platform: 'darwin' })
   check(
@@ -154,7 +151,6 @@ section('§5 · profile fusion (match / mismatch / none)')
 {
   restore()
   delete process.env.MERCURY_UNITY_EDITOR
-
   const profile = buildUnityProjectProfile(path.join(proj, 'Assets'))
   check(
     'profile: root + markers + version fact',

@@ -1,3 +1,4 @@
+
 export function footerNoticeLine(text: string): string {
   return text
     .split(/\r?\n/)
@@ -108,7 +109,6 @@ const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => c
 const getFocusedModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 function FaultInjector(): React.ReactNode {
-
   if (flagEnv('MERCURY_RENDER_FAULT') === 'message') {
     throw new Error('MERCURY_RENDER_FAULT: injected notifications fault')
   }
@@ -131,7 +131,6 @@ function NotificationsColumn({
   messages: Message[]
   mcpClients?: MCPServerConnection[]
   isInputWrapped?: boolean
-
   alignStart?: boolean
   compact?: boolean
 }): React.ReactNode {
@@ -140,7 +139,6 @@ function NotificationsColumn({
   const current = useAppState(
     (state: AppState) => state.notifications.current,
   )
-
   const engineModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
   const limits = useAnthropicLimits()
 
@@ -163,7 +161,6 @@ function NotificationsColumn({
     current?.key !== 'limit-reached'
   const notAuthenticated =
     apiKeyStatus === 'invalid' || apiKeyStatus === 'missing'
-
   const signInEpoch = useSignInEpoch()
   const catalogueEpoch = useCatalogueEpoch()
   const walletGate = useMemo((): NotLoggedInGate => {
@@ -171,16 +168,13 @@ function NotificationsColumn({
     try {
       return notLoggedInGateDecision(
         walletEntries(),
-
         sessionAccountFamily(engineModel ?? getEngineModel()),
       )
     } catch {
-
       return { state: 'not-logged-in' }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
-
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = useFocusedContextFill(messages, engineModel).usedTokens ?? 0
   const showTokenCount = verbose && !sessionBlocked && !compact
@@ -240,7 +234,6 @@ function NotificationsColumn({
         </Text>
       ) : null}
       {walletGate.state === 'provider-missing' ? (
-
         <Box flexDirection="column" alignItems={alignStart ? 'flex-start' : 'flex-end'}>
           {walletGate.steering.split(' · ').map(segment => (
             <Text key={segment} color={tokens.warning} wrap="truncate-end">
@@ -274,7 +267,6 @@ export function Notifications(props: {
   alignStart?: boolean
   compact?: boolean
 }): React.ReactNode {
-
   return (
     <RowErrorBoundary>
       <NotificationsColumn {...props} />

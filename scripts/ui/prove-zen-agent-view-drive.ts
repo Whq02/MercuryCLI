@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/CrewmateTranscript.tsx src/components/tasks/useCrewmateTranscript.ts src/components/CompactIdentityBand.tsx src/components/CrewmateCard.tsx src/utils/cockpit/crewmateWords.ts src/components/mercury-ui/screens/CrewView.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

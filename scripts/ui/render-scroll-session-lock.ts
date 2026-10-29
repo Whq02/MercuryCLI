@@ -9,10 +9,8 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
-
 const CONFIG_HOME = resolveProofHome([REPO.normalize('NFC')])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(REPO.normalize('NFC'))))
-
 const SID = `00000000-aaaa-bbbb-eeee-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`
 
 const base = (extra: Record<string, unknown>) => ({
@@ -45,9 +43,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf-8', timeout: vshotBudgetMs(150000),
   env: {
     ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-
     MERCURY_LIVE_GLYPHS: '0',
     INK_COMMIT_TEE: commits,
   },
@@ -66,15 +62,11 @@ const check = (ok: boolean, label: string): void => {
   console.log(`${ok ? '✓' : '✗'} ${label}`)
   if (!ok) failures++
 }
-
 const halfBlocks = (joined.match(/[▀▄]/g) ?? []).length
 check(halfBlocks >= 60, `critter hero visible after PageUp spam (${halfBlocks} half-block cells)`)
 check(joined.includes(bigWordmarkRows()[0]!.trimEnd()), 'banner-header visible with the hero')
-
 check(!joined.includes('mission control'), 'landing tagline stays collapsed')
-
 check(joined.includes('turn 1:'), 'first message on screen below the header')
-
 const commitLines = readFileSync(commits, 'utf8').trim().split('\n').map(l => JSON.parse(l))
 const tail = commitLines.filter(c => c.scroll?.top !== undefined).slice(-3)
 check(

@@ -1,3 +1,4 @@
+
 import { getSdkBetas } from '../bootstrap/state.js'
 import { calculateTokenWarningState, getAutoCompactThreshold, isAutoCompactEnabled } from '../services/compact/autoCompact.js'
 import type { Message } from '../types/message.js'
@@ -6,26 +7,20 @@ import { type ContextResolution, resolveContextWindow } from './model/capabiliti
 import { contextFill } from './tokens.js'
 
 export interface ContextFillView {
-
   usedTokens: number | null
   usedPct: number | null
-
   fillSource: 'usage' | 'estimate' | null
   window: number
-
   windowSource: ContextResolution['source']
   windowPinned: boolean
   windowReason?: string
-
   compactAtPct: number | null
-
   leftUntilCompactPct: number | null
 }
 
 export function contextFillView(messages: readonly Message[], model: string): ContextFillView {
   const resolution = resolveContextWindow(model, getSdkBetas())
   const window = resolution.effectiveWindow
-
   const fill = contextFill(messages, model)
   const hasResponse = messages.some(message => message.type === 'assistant')
   const usedTokens = fill.source === 'usage' || hasResponse ? fill.tokens : null
@@ -35,7 +30,6 @@ export function contextFillView(messages: readonly Message[], model: string): Co
   try {
     if (isAutoCompactEnabled() && window > 0) {
       compactAtPct = Math.min(100, (getAutoCompactThreshold(model) / window) * 100)
-
       if (usedTokens !== null) leftUntilCompactPct = calculateTokenWarningState(usedTokens, model).pctLeft ?? null
     }
   } catch {

@@ -1,3 +1,4 @@
+
 import { receiptsFor } from '../changeTransaction/receipts.js'
 import { evidenceFor } from '../primitives/evidencePlane.js'
 import { processOwnerForLane } from '../run/resolveOwner.js'
@@ -24,9 +25,7 @@ export interface NormalizeInput {
 
 interface ParsedDeclaration {
   declared: DeclaredEnvelope | null
-
   malformedRaw: string | null
-
   prose: string
 }
 
@@ -131,7 +130,6 @@ export async function buildAgentResultEnvelope(
       : {}),
     ...(input.usage ? { usage: input.usage } : {}),
     fullOutputRef: `mercury://agent/${input.agentId}`,
-
     ...(() => {
       const refs = evidenceFor(owner)
         .filter(r => r.origin === 'observed' && r.state === 'present')

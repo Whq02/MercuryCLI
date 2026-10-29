@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { basename } from 'path'
 import { Box, Text } from '../ink.js'
@@ -18,7 +19,6 @@ import { boundHunks, diffPaintWidth } from './permissions/consentBodyBudget.js'
 import { StructuredDiffList } from './StructuredDiffList.js'
 
 const SCAN_CONTEXT_LINES = 3
-
 const FRAME_COLUMNS = 4
 
 type Edit = { old_string?: string; new_string?: string; replace_all?: boolean }
@@ -44,7 +44,6 @@ async function loadDiff(
   filePath: string,
   rawEdits: Edit[],
 ): Promise<LoadedDiff> {
-
   const edits = rawEdits.filter(
     (edit): edit is CompleteEdit =>
       typeof edit.old_string === 'string' && typeof edit.new_string === 'string',
@@ -52,7 +51,6 @@ async function loadDiff(
   if (edits.length === 0) return { hunks: [], firstLine: null }
 
   try {
-
     if (edits.length === 1 && edits[0]!.old_string.length >= CHUNK_SIZE) {
       return diffToolInputs(filePath, edits)
     }
@@ -61,7 +59,6 @@ async function loadDiff(
     if (handle === null) return diffToolInputs(filePath, edits)
     try {
       if (edits.length > 1 || edits[0]!.old_string === '') {
-
         const whole = await readCapped(handle)
         if (whole === null) return diffToolInputs(filePath, edits)
         const { patch } = getPatchForEdits({
@@ -92,7 +89,6 @@ async function loadDiff(
       const shifted = adjustHunkLineNumbers(patch, context.lineOffset - 1)
       return {
         hunks: shifted,
-
         firstLine:
           context.lineOffset === 1 ? (context.content.split('\n')[0] ?? null) : null,
         fileContent: context.content,
@@ -114,9 +110,7 @@ export function FileEditToolDiff({
 }: {
   file_path: string
   edits: Edit[]
-
   availableWidth?: number
-
   consentBudget?: number | null
 }): React.ReactNode {
   const { columns } = useTerminalSize()

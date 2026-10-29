@@ -34,7 +34,6 @@ export async function buildContextInspectionPlan(params: {
   messages: Message[]
   owner: OwnerKey
   engineModel: string
-
   effortValue?: EffortValue
   tools: Tools
   contentReplacementState: ContentReplacementState | undefined
@@ -132,7 +131,6 @@ export function renderContextUsageMarkdown(data: ContextData): string {
   const lines: string[] = []
   lines.push('## Context Usage')
   lines.push('')
-
   lines.push(`**Model:** ${data.model}  `)
   lines.push(
     `**Tokens:** ${formatTokens(data.totalTokens)} / ${formatTokens(data.rawMaxTokens)} (${data.percentage}%)`,
@@ -155,7 +153,6 @@ export function renderContextUsageMarkdown(data: ContextData): string {
     for (const category of qualifying) {
       lines.push(`| ${category.name} | ${formatTokens(category.tokens)} | ${percentOf(category.tokens)} |`)
     }
-
     for (const name of [FREE_SPACE_CATEGORY, AUTOCOMPACT_BUFFER_CATEGORY]) {
       const category = data.categories.find(c => c.name === name)
       if (category && category.tokens > 0) {

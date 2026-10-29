@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,7 +36,6 @@ writeFileSync(
     theme: 'dark',
     projects: { [WORK]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     customApiKeyResponses: { approved: ['sk-ant-stripplain-probe'.slice(-20)], rejected: [] },
-
     switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 5 },
   }),
 )
@@ -62,13 +60,11 @@ console.log(' collapsed coordinator strip — inline markdown as words')
 console.log('============================================================')
 
 const out = path.join(RUN_HOME, 'grid.json')
-
 const SHIFT_RIGHT = `${String.fromCharCode(27)}[1;2C`
 const cfg = {
   argv: ['node', DIST],
   cwd: WORK,
   sends: [{ atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: SHIFT_RIGHT }],
-
   readyText: ['tighten the parser next'],
   stableTicks: 5,
   total: 150,
@@ -84,7 +80,6 @@ const childEnv: NodeJS.ProcessEnv = {
   MERCURY_CONFIG_DIR: RUN_HOME,
   MERCURY_CONCOURSE: 'always',
   ANTHROPIC_API_KEY: 'sk-ant-stripplain-probe',
-
   ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_BOOT_PREFLIGHT: '0',

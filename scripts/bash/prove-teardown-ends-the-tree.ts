@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,7 +22,6 @@ const alive = (pid: number): boolean => {
     return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
 }
-
 const diedWithin = async (pid: number, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -62,7 +60,6 @@ if (process.platform !== 'win32') {
   const shimDir = join(root, 'shim')
   mkdirSync(shimDir)
   const pidFile = join(root, 'grandchild.pid')
-
   writeFileSync(join(shimDir, 'cmake'), `#!/bin/sh\nsleep 30 &\necho $! > ${JSON.stringify(pidFile)}\nwait\n`)
   chmodSync(join(shimDir, 'cmake'), 0o755)
   const ws = join(root, 'ws')
@@ -77,7 +74,6 @@ if (process.platform !== 'win32') {
     const { _resetCppProjectForTesting } = await import('../../src/services/ide/cppProject.ts')
     _resetCppProjectForTesting()
     _resetCppBuildForTesting()
-
     const run = await buildTarget({ from: ws, timeoutMs: 3_000 })
     grandchild = await readPid(pidFile)
     check('the shim cmake ran and the timeout leg fired', run.argv[0] === join(shimDir, 'cmake') && run.signal === 'SIGKILL' && run.exitCode === null, `${run.detail} argv=${run.argv.join(' ')}`)
@@ -96,7 +92,6 @@ if (process.platform !== 'win32') {
   const root = mkdtempSync(join(tmpdir(), 'teardown-tree-lsp-'))
   const pidFile = join(root, 'grandchild.pid')
   const server = join(root, 'fixture-server.mjs')
-
   writeFileSync(
     server,
     [
@@ -159,7 +154,6 @@ section('§3 the debug-adapter dispose rides the tree owner (call-shaped)')
   const lsp = readFileSync(join(import.meta.dir, '../../src/services/lsp/LSPClient.ts'), 'utf8')
   check('LSPClient.stop() routes through the tree owner (no bare child.kill())', /await endProcessTree\(proc, 'SIGTERM'\)/.test(lsp) && !/\n\s*(?:child|proc)\.kill\(\)/.test(lsp))
   const cpp = readFileSync(join(import.meta.dir, '../../src/services/ide/cppBuild.ts'), 'utf8')
-
   check(
     'the cmake timeout rides the settle owner (tree-killing forced ends; no bare SIGKILL on the driver)',
     /void settleChildRun\(child, \{ timeoutMs \}\)/.test(cpp) && !/child\.kill\('SIGKILL'\)/.test(cpp),
@@ -168,7 +162,6 @@ section('§3 the debug-adapter dispose rides the tree owner (call-shaped)')
 
 section('§4 the win32 survivor half — the reap covers the acted set')
 {
-
   const { taskkillActedPids } = await import('../../src/utils/processGroup.ts')
   const transcript = [
     'SUCCESS: The process with PID 100 (child of PID 7) has been terminated.',
@@ -202,7 +195,6 @@ if (process.platform !== 'win32') {
       const who = await run('echo "pid=$$"')
       const brushPid = Number(/pid=(\d+)/.exec(who.stdout)?.[1] ?? -1)
       check('the engine session answered with its pid', brushPid > 1, JSON.stringify(who.stdout.slice(0, 80)))
-
       await run(`sh -c 'sleep 30 & echo $! > ${JSON.stringify(pidFile)}; wait' >/dev/null 2>&1 &`)
       grandchild = await readPid(pidFile)
       check('the fixture recorded a descendant of the session', grandchild > 1, `pid=${grandchild}`)

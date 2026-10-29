@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,7 +34,6 @@ const HOME_DIR = join(SCRATCH, 'home')
 const LOGS = join(SCRATCH, 'census')
 const SHIM = join(SCRATCH, 'bin')
 for (const d of [FX, HOME_DIR, LOGS, SHIM, join(FX, 'src')]) mkdirSync(d, { recursive: true })
-
 writeFileSync(join(FX, 'package.json'), '{"name":"fx","private":true}\n')
 writeFileSync(join(FX, 'pyproject.toml'), '[project]\nname = "fx"\nversion = "0.1.0"\n')
 writeFileSync(join(FX, 'README.md'), '# fx\n')
@@ -45,7 +43,6 @@ writeFileSync(join(FX, 'src', 'main.py'), 'print("one")\n')
 const git = (args: string[]): boolean =>
   spawnSync('git', ['-C', FX, '-c', 'user.email=census@example.invalid', '-c', 'user.name=census', ...args], { stdio: 'ignore' }).status === 0
 check('the fixture repository has a commit', git(['init', '-q']) && git(['add', '.']) && git(['commit', '-q', '-m', 'seed']))
-
 writeFileSync(join(SHIM, 'ruff'), '#!/bin/sh\nif [ "$1" = "--version" ]; then echo "ruff 0.6.9"; exit 0; fi\nsleep 30\n')
 writeFileSync(join(SHIM, 'pyright-langserver'), '#!/bin/sh\nsleep 30\n')
 chmodSync(join(SHIM, 'ruff'), 0o755)
@@ -64,7 +61,6 @@ const COMPOSER = 'Type a prompt'
 const ASK = 'census: hello'
 const sends = [
   { awaitText: READY, atTick: 150, data: '', mark: 'face-ready' },
-
   { awaitText: READY, awaitSettleTicks: 30, atTick: 230, data: '\r', mark: 'enter' },
   { awaitText: COMPOSER, awaitSettleTicks: 5, atTick: 310, data: ASK, mark: 'chat-ready' },
   { awaitText: ASK, awaitSettleTicks: 3, atTick: 350, data: '\r', mark: 'submit' },
@@ -105,7 +101,6 @@ await new Promise<void>((resolve, reject) => {
   })
 })
 clearInterval(requestClock)
-
 await sleep(3_000)
 const leftovers = (spawnSync('pgrep', ['-f', HOME_DIR], { encoding: 'utf8' }).stdout ?? '').trim().split('\n').filter(Boolean).map(Number)
 for (const pid of leftovers) { try { process.kill(pid, 'SIGTERM') } catch {} }
@@ -175,7 +170,6 @@ const isLookup = (s: Spawn): boolean => exe(s) === 'which' || exe(s) === 'where.
 const isSearch = (s: Spawn): boolean => /^rg(\.exe)?$/.test(exe(s)) || s.cmd.includes('ripgrep')
 const isEstateWalk = (s: Spawn): boolean => isSearch(s) && s.args.includes('--files') && s.args.includes('*.md')
 const isInterpreterProbe = (s: Spawn): boolean => /^(python|node)/.test(exe(s)) && s.args[0] === '--version'
-
 const isOwnerWatch = (s: Spawn): boolean => exe(s) === 'ps' && s.args[0] === '-o' && s.args[1] === 'lstart='
 const describe = (s: Spawn): string => `${s.kind} ${s.cmd} ${s.args.join(' ')}${s.ms !== undefined ? ` (${s.ms} ms)` : ''}${s.err ? ` [${s.err}]` : ''}`
 const spawnStall = (st: Stall): string | undefined =>
@@ -204,7 +198,6 @@ if (iface) {
   const beforeOther = before.filter(s => !isGit(s))
   check('interface: at most one synchronous non-git spawn before the face paints', beforeOther.length <= 1, beforeOther.map(describe).join(' · '))
   check('interface: a PATH lookup never spawns a process', sync.filter(isLookup).length === 0 && iface.spawns.filter(isLookup).length === 0, iface.spawns.filter(isLookup).map(describe).join(' · '))
-
   check('interface: the git facts spawn nothing synchronously before the face paints', before.filter(isGit).length === 0, before.filter(isGit).map(describe).join(' · '))
   check('interface: nothing spawns synchronously after the first paint, git included', after.length === 0, after.map(describe).join(' · '))
   check('interface: the submitted turn spawns nothing synchronously before its first wire request, git included', turn.length === 0, turn.map(describe).join(' · '))

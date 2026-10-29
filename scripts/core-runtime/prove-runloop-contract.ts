@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -9,7 +8,6 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runloop-laws-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runloop-daemon-'))
-
 for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
@@ -71,6 +69,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 console.log('native-core T8 — query() run-loop contract')
+
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 
@@ -377,7 +376,6 @@ async function run(opts: RunOpts): Promise<RunResult> {
     yields.push(r.value)
     r = await gen.next()
   }
-
   await new Promise(resolve => setTimeout(resolve, 5))
   return { yields, terminal: r.value as Record<string, unknown>, calls, ctx, abortController }
 }
@@ -854,7 +852,6 @@ section('L7b ABORT under a typed reason — the row names the reason, never the 
     const rows = userTextMessages(r.yields)
     check(`'${operator}' is the operator's door: the row reads interrupted by user`, rows.filter(t => t === INTERRUPT_MESSAGE).length === 1, rows.join(' | '))
   }
-
   const { turnCutOfText } = await import('../../src/utils/messages/rejectionText.ts')
   const readBack = (rows: string[]): string[] => rows.map(t => turnCutOfText(t)?.kind ?? 'none').filter(k => k !== 'none')
   check('the rows read back as their reasons: stalled → idle-timeout, a deadline → idle-timeout (with its seam), workflow-abort → parent-stop, an Error → cut, the operator → operator',
@@ -993,7 +990,6 @@ section('L11 BLOCKING LIMIT — synthetic preempt, ZERO model calls')
       JSON.stringify((m as AnyMsg).message).includes(PROMPT_TOO_LONG_ERROR_MESSAGE),
   )
   check('the prompt-too-long error message is yielded', surfaced !== undefined)
-
   check('characterized: preempt fired with auto-compact defaults untouched', true)
 }
 
@@ -1346,7 +1342,6 @@ section('L20 NO TERMINAL TOOL — a courier-only round recurses like any other t
 
 section('L21 TEARDOWN — .return() skips lifecycle-completed (teardown asymmetry)')
 {
-
   qm.resetCommandQueue()
   const earlyEvents: Array<[string, string]> = []
   lifecycle.setCommandLifecycleListener((uuid, state) => {
@@ -1481,14 +1476,12 @@ section('CX1 CONCURRENT TOOLS — one message, two tool_uses, both settle once (
     r.calls.length === 2 &&
       JSON.stringify(r.calls[1]?.messages ?? []).includes('tu_cx_a') &&
       JSON.stringify(r.calls[1]?.messages ?? []).includes('tu_cx_b'))
-
   const followupStr = JSON.stringify(r.calls[1]?.messages ?? [])
   check('CX1 results in announcement order', followupStr.indexOf('tu_cx_a') !== -1 && followupStr.indexOf('tu_cx_a') < followupStr.indexOf('tu_cx_b'))
 }
 
 section('CX2 ABORT BEFORE FIRST DELTA — the pre-dispatch/header-wait stop is clean (§11 S6/S7)')
 {
-
   let controller: AbortController
   const r = record(
     await run({

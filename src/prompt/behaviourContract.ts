@@ -19,16 +19,13 @@ interface BehaviourSection {
   group: BehaviourGroup
   name: string
   scope: BehaviourScope
-
   owner: string
-
   cacheClass: BehaviourCacheClass
   text: string
 }
 
 export interface BehaviourContract {
   sections: readonly BehaviourSection[]
-
   digest: string
 }
 
@@ -144,6 +141,7 @@ export function buildBehaviourContract(parts: PromptParts): BehaviourContract {
   return { sections, digest: digestOf(sections) }
 }
 
+
 export type ContractRenderFamily = 'anthropic' | 'openai' | 'generic'
 
 export function renderContractSections(
@@ -171,6 +169,7 @@ export function renderOpenaiInstructions(contract: BehaviourContract): string {
 export function renderGenericInstructions(contract: BehaviourContract): string {
   return renderContractSections(contract, 'generic').join('\n\n')
 }
+
 
 const REGISTRY_MAX = 8
 const registry = new Map<string, BehaviourContract>()
@@ -236,6 +235,7 @@ export function __resetBehaviourContractRegistryForTest(): void {
   registry.clear()
 }
 
+
 const WEAKENER_PHRASES: readonly string[] = Object.freeze([
   'skip verification',
   'bypass the gate',
@@ -267,7 +267,6 @@ export function lintWeakeners(text: string): string[] {
     let idx: number
     while ((idx = hay.indexOf(phrase, from)) !== -1) {
       from = idx + phrase.length
-
       const clauseStart = Math.max(
         hay.lastIndexOf('.', idx - 1),
         hay.lastIndexOf(';', idx - 1),

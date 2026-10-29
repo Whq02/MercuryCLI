@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
 
@@ -87,7 +86,6 @@ section("R1 — a command arriving DURING settleIdle drains after 'stay'")
   rig.settleIdleImpl = async () => {
     settleCalls++
     if (settleCalls === 1) {
-
       await tick()
       rig.queue.push(cmd('arrived at the settle instant'))
       driver.kick()
@@ -164,7 +162,6 @@ section('R4 — the settle-instant command never runs twice')
   rig.queue.push(cmd('first turn'))
   driver.kick()
   await settleTicks(40)
-
   driver.kick()
   await settleTicks(20)
   check('the settle-instant command ran exactly once', rig.executed.filter(v => v === 'exactly once').length === 1, JSON.stringify(rig.executed))

@@ -17,7 +17,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 delete process.env.MERCURY_UNITY
 delete process.env.MERCURY_UNITY_BRIDGE_PORT
 process.env.MERCURY_UNITY_BRIDGE_TOKEN = 'tok'
-
 const scratchHome = mkdtempSync(path.join(tmpdir(), 'unity-bridge-home-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 
@@ -132,7 +131,6 @@ section('5. the boundary re-cuts — dead constraints are GONE, the contract sta
   check('BOTH landed in-product executors exist in code (Unity tests_run · Blender python_run/render_still)', unityTool.includes("input.op === 'tests_run'") && blenderTool.includes("input.op === 'python_run'") && blenderTool.includes('render_still:'))
   const profiles = readFileSync(path.join(repo, 'src', 'services', 'ide', 'launchProfiles.ts'), 'utf8')
   check('launchProfiles carries no until-the-lane-lands sentence any more', !profiles.includes('until the UNITY-BRIDGE lane lands') && !profiles.includes('owns any future in-product executor seam'))
-
   check('operatorRunRefusal + the compat alias still stand (the contract)', launchTool.includes('export function operatorRunRefusal') && launchTool.includes('export const unityHeadlessRefusal = operatorRunRefusal'))
 }
 

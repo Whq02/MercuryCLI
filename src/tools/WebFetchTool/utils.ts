@@ -46,6 +46,7 @@ export function clearWebFetchCache(): void {
   resetStructuredFetchPacing()
 }
 
+
 function validateURL(url: string): boolean {
   if (url.length > MAX_URL_LENGTH || /^https?:[\\/]*[^/?#]*\\/i.test(url.replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '').replace(/[\t\r\n]/g, ''))) return false
   let parsed: URL
@@ -106,7 +107,6 @@ export async function getURLMarkdownContent(
 
   const response = await fetchPage(upgraded, abortController.signal)
   if ('type' in response && response.type === 'redirect') {
-
     return response
   }
   const raw = response as RawResponse
@@ -178,7 +178,6 @@ export async function getURLMarkdownContent(
     ...(persistedPath !== undefined ? { persistedPath } : {}),
     ...(persistedSize !== undefined ? { persistedSize } : {}),
   }
-
   if (cacheable) urlCache.set(cacheKey, result, { size: Math.max(1, cachedSize) })
   return result
 }

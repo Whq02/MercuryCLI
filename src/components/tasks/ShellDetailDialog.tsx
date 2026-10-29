@@ -1,3 +1,4 @@
+
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { closeSync, openSync, readSync } from 'node:fs'
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
@@ -113,7 +114,6 @@ function advanceLineCount(count: LineCount, size: number): number {
 function readTail(path: string | undefined, count: LineCount): Tail {
   if (path === undefined) return { content: '', totalBytes: 0, totalLines: 0, present: false }
   try {
-
     const tail = tailFileSync(path, TAIL_BYTES)
     return { content: tail.content, totalBytes: tail.bytesTotal, totalLines: advanceLineCount(count, tail.bytesTotal), present: true }
   } catch (error) {

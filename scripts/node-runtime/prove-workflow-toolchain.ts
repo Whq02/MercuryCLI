@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -14,10 +13,8 @@ const check = (name: string, cond: boolean, detail?: string): void => {
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const count = (t: string, needle: string): number => t.split(needle).length - 1
-
 const countPinned = (t: string, action: string, tag: string): number =>
   (t.match(new RegExp(`uses: ${action}@[0-9a-f]{40} # ${tag}\\b`, 'g')) ?? []).length
-
 const floatingRefs = (t: string): string[] =>
   (t.match(/uses: [\w.-]+\/[\w.-]+@v[\d.]+\s*$/gm) ?? []).map(m => m.trim())
 const jobBlock = (t: string, job: string): string => {
@@ -44,12 +41,10 @@ check('dispatch-only trigger untouched', gate.includes('workflow_dispatch:') && 
 
 section('private-release.yml — verify + every packaging OS')
 const rel = readFileSync(join(REPO, '.github/workflows/private-release.yml'), 'utf8').replace(/\r\n/g, '\n')
-
 check('setup-node v7 (SHA-pinned) in verify + package + bridge-gate (3 uses)', countPinned(rel, 'actions/setup-node', 'v7') === 3, `${countPinned(rel, 'actions/setup-node', 'v7')}`)
 check('every third-party action is pinned to an immutable SHA', floatingRefs(rel).length === 0, floatingRefs(rel).join(', '))
 check('all three select the calibration pin via node-version-file', count(rel, 'node-version-file: .node-version') === 3)
 check('verify + package print the selected node', count(rel, 'run: node --version') === 2)
-
 check('release notes say the archive carries its own Node 24 LTS runtime, the range read from package.json engines (no literal)', rel.includes('carries its own Node 24 LTS runtime') && rel.includes('["engines"]["node"]') && !/>=24\.\d+\.\d+ <25/.test(rel))
 check('the publish job selects no Node (sha256sum + gh only)', selectsNoNode(jobBlock(rel, 'release')) && jobBlock(rel, 'release').includes('sha256sum mercury-') && jobBlock(rel, 'release').includes('gh release create'))
 check('no stale Node 20 claim anywhere in the workflow', !rel.includes('Node.js 20'))

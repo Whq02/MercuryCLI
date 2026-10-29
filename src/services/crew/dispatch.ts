@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
@@ -32,7 +33,6 @@ export interface DispatchAttachment {
 }
 
 export interface DispatchDraftV1 {
-
   clientMessageId: string
   sourceConversationId?: string
   requestedAddress: AgentAddressV1
@@ -54,10 +54,8 @@ export interface DeliveryReceiptV1 {
   sourceConversationId?: string
   requestedAddress: AgentAddressV1
   requestedDisposition: DispatchDisposition
-
   resolvedAgentId?: CrewAgentId
   resultingSessionId?: string
-
   disposition?: 'steered-current' | 'queued-next' | 'started-turn' | 'delivered-next-moment'
   instructionOutcome: 'accepted' | 'rejected' | 'unknown'
   attachmentOutcomes: AttachmentOutcome[]
@@ -69,7 +67,6 @@ export interface DeliveryReceiptV1 {
 
 interface ReceiptFile {
   receipts: DeliveryReceiptV1[]
-
   settledIds: string[]
 }
 
@@ -137,7 +134,6 @@ function boundReceiptFile(file: ReceiptFile): ReceiptFile {
   const resolved = file.receipts.filter(r => r.state !== 'delivery-unknown')
   const keptResolved = new Set(resolved.slice(-MAX_RECEIPTS))
   const keptUnknown = new Set(unknown.slice(-MAX_RECEIPTS))
-
   const evictedIds = [
     ...resolved.filter(r => !keptResolved.has(r)),
     ...unknown.filter(r => !keptUnknown.has(r)),
@@ -164,6 +160,7 @@ export function dispositionLabelOf(disposition: DispatchDisposition, targetLabel
       return `Start a turn with ${targetLabel}`
   }
 }
+
 
 export async function readDeliveryReceipt(
   clientMessageId: string,
@@ -192,7 +189,6 @@ function localMainDispositionSupported(disposition: DispatchDisposition): boolea
 }
 
 export interface DispatchOptions {
-
   retryDeclaredIdempotent?: boolean
   dir?: string
 }
@@ -203,7 +199,6 @@ export async function dispatchToAgent(
   draft: DispatchDraftV1,
   opts?: DispatchOptions,
 ): Promise<DeliveryReceiptV1> {
-
   if (!crewDirectoryEnabled()) {
     return {
       schema: 1,
@@ -280,7 +275,6 @@ async function runDispatchTransaction(
     }
   })
   if (reservation.kind === 'settled-evicted') {
-
     return {
       ...base,
       state: 'not-delivered',
@@ -298,7 +292,6 @@ async function runDispatchTransaction(
   let retryingUnknown: DeliveryReceiptV1 | null = null
   if (reservation.kind === 'existing') {
     if (reservation.receipt.state === 'delivery-unknown' && opts?.retryDeclaredIdempotent) {
-
       retryingUnknown = reservation.receipt
     } else {
       return reservation.receipt
@@ -309,7 +302,6 @@ async function runDispatchTransaction(
   try {
     receipt = await performDispatch(draft, base, retryingUnknown, dir)
   } catch (e) {
-
     receipt = await persistReceipt(
       {
         ...base,
@@ -324,7 +316,6 @@ async function runDispatchTransaction(
       dir,
     )
   }
-
   const ranTransaction =
     reservation.kind === 'reserved' || (retryingUnknown !== null && receipt !== retryingUnknown)
   if (draft.sourceConversationId !== undefined && ranTransaction) {
@@ -341,7 +332,6 @@ async function runDispatchTransaction(
           },
           dir !== undefined ? { dir } : undefined,
         )
-
         await conversations.resolveEventByRef(
           draft.sourceConversationId as never,
           'failure',
@@ -349,7 +339,6 @@ async function runDispatchTransaction(
           dir !== undefined ? { dir } : undefined,
         )
       } else {
-
         await conversations.upsertUnresolvedEvent(
           draft.sourceConversationId as never,
           {
@@ -360,13 +349,11 @@ async function runDispatchTransaction(
           dir !== undefined ? { dir } : undefined,
         )
       }
-
       const obligations = await import('./obligations.js')
       if (receipt.state === 'delivered') {
         await obligations.resolveObligationByRef(ref, {
           kind: 'resolved',
           answerRef: ref,
-
           scope: 'switchboard',
           ...(dir !== undefined ? { dir } : {}),
         })
@@ -384,7 +371,6 @@ async function runDispatchTransaction(
           sourceEventRef: ref,
           question: `dispatch to ${draft.requestedAddress.agentId} was ${receipt.state}${receipt.reason ? ` — ${receipt.reason.slice(0, 80)}` : ''}; retry or withdraw?`,
           owner: 'operator',
-
           scope: 'switchboard',
           ...(dir !== undefined ? { dir } : {}),
         })
@@ -401,7 +387,6 @@ async function performDispatch(
   retryingUnknown: DeliveryReceiptV1 | null,
   dir?: string,
 ): Promise<DeliveryReceiptV1> {
-
   const agent = await agentOf(draft.requestedAddress.agentId, dir !== undefined ? { dir } : undefined)
   if (!agent) {
     return persistReceipt(
@@ -422,11 +407,9 @@ async function performDispatch(
 
   const seat = seatOfAgent(agent.agentId)
   if (seat) {
-
     if (retryingUnknown && !seat.declaresIdempotentDelivery) {
       return retryingUnknown
     }
-
     const auth = authorizeCapability(seat.seatId, DISPOSITION_CAPABILITY[draft.requestedDisposition])
     if (!auth.ok) {
       return persistReceipt(
@@ -446,7 +429,6 @@ async function performDispatch(
         dir,
       )
     }
-
     const attachmentAuth = draft.attachments.map(a => {
       const kind: CapabilityKind | null =
         a.kind === 'file'
@@ -463,7 +445,6 @@ async function performDispatch(
         : { attachment: a, ok: false as const, reason: r.reason }
     })
     const deliverable = attachmentAuth.filter(x => x.ok).map(x => x.attachment)
-
     const outcome: SeatDeliveryOutcome = await deliverToSeat(seat.seatId, {
       clientMessageId: draft.clientMessageId,
       disposition: draft.requestedDisposition,
@@ -537,7 +518,6 @@ async function performDispatch(
   const bindings = await listAgentBindings(agent.agentId, dir !== undefined ? { dir } : undefined)
   const isMain = bindings.some(b => b.bindingKind === 'principal' && b.bindingId === 'agent-mercury')
   if (isMain) {
-
     if (retryingUnknown) {
       return retryingUnknown
     }
@@ -571,10 +551,8 @@ async function performDispatch(
           ...base,
           state: 'delivered',
           resolvedAgentId: agent.agentId,
-
           disposition: 'delivered-next-moment',
           instructionOutcome: 'accepted',
-
           attachmentOutcomes: draft.attachments.map(a => ({
             attachmentId: a.attachmentId,
             outcome: 'rejected' as const,
@@ -618,6 +596,7 @@ async function performDispatch(
     dir,
   )
 }
+
 
 export async function __dispatchLawsForProof(): Promise<{
   draftPreservedOnUnknown: boolean

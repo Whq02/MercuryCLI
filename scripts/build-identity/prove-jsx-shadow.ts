@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -35,7 +34,6 @@ const DESTRUCTURE_RE = new RegExp(
 const offenders: string[] = []
 for (const rel of files) {
   const text = readFileSync(join(REPO, rel), 'utf8')
-
   const stripped = text
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1')

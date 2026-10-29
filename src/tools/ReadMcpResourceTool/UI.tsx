@@ -7,6 +7,7 @@ import { Box, Text } from '../../ink.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './ReadMcpResourceTool.js'
 
+
 export function userFacingName(): string {
   return 'readMcpResource'
 }

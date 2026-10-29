@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/components/CommandPopupSlot.tsx src/utils/cockpit/commandPopup.ts src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

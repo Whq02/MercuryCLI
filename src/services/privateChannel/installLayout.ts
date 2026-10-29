@@ -34,13 +34,9 @@ import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from 
 import { payloadDigestOf } from './payloadDigest.js'
 
 export interface LayoutRoots {
-
   versionsDir: string
-
   binDir: string
-
   shimPath: string
-
   shimSetPaths?: string[]
   isWindows: boolean
 }
@@ -113,6 +109,7 @@ export function pathEntryEquals(entry: string, target: string, isWindows: boolea
   return norm(entry) === norm(target)
 }
 
+
 const faultCounts = new Map<string, number>()
 
 function injectFault(point: string): boolean {
@@ -122,7 +119,6 @@ function injectFault(point: string): boolean {
     const [name, countRaw] = entry.split(':')
     if (name !== point) continue
     const budget = countRaw ? Number(countRaw) : Number.POSITIVE_INFINITY
-
     const key = `${spec}::${point}`
     const used = faultCounts.get(key) ?? 0
     if (used >= budget) return false
@@ -173,6 +169,7 @@ function removeWithRetry(path: string, faultPoint: string, isWindows: boolean): 
     }
   }
 }
+
 
 export type PointerState =
   | { state: 'ok'; value: string }
@@ -276,6 +273,7 @@ export function restoreCurrent(roots: LayoutRoots, version: string): void {
   writePointerFile(join(roots.versionsDir, 'current.txt'), version, roots.isWindows)
 }
 
+
 export type LockResult = { state: 'acquired' } | { state: 'held'; byPid: number | null }
 
 function pidAlive(pid: number): boolean {
@@ -311,6 +309,7 @@ export function releaseUpdateLock(roots: LayoutRoots): void {
   if (Number.isFinite(pid) && pid > 0 && pid !== process.pid) return
   rmSync(lockDir, { recursive: true, force: true })
 }
+
 
 export interface SweepReport {
   removed: string[]
@@ -355,6 +354,7 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
   return report
 }
 
+
 export type PayloadCheck =
   | { state: 'ok'; version: string; launcher: string; bundle: string; descriptor: PayloadDescriptor }
   | { state: 'invalid'; note: string }
@@ -376,7 +376,6 @@ export function validatePayloadDir(dir: string): PayloadCheck {
   } catch (e) {
     return { state: 'invalid', note: `manifest.json unreadable: ${e instanceof Error ? e.message : String(e)}` }
   }
-
   const described = describePayload(manifest, members)
   if (described.state !== 'ok') return { state: 'invalid', note: described.note }
   const descriptor = described.descriptor
@@ -384,7 +383,6 @@ export function validatePayloadDir(dir: string): PayloadCheck {
     return { state: 'invalid', note: `declared primary ${descriptor.primary} is absent from ${dir}` }
   }
   if (!existsSync(join(dir, 'vendor', 'ripgrep'))) return { state: 'invalid', note: 'vendor/ripgrep missing from the payload' }
-
   const runtime = readRuntimeRecord(manifest)
   if (runtime?.vendored) {
     const carried = checkVendoredRuntime(dir, runtime)
@@ -425,7 +423,6 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
   rmSync(staging, { recursive: true, force: true })
   let displaced: string | null = null
   try {
-
     onStage?.()
     cpSync(payloadDir, staging, { recursive: true })
     const check = validatePayloadDir(staging)
@@ -436,7 +433,6 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
     if (!roots.isWindows) {
       chmodSync(join(staging, 'mercury'), 0o755)
       if (existsSync(join(staging, 'install.sh'))) chmodSync(join(staging, 'install.sh'), 0o755)
-
       const carried = payloadVendoredRuntime(staging)
       if (carried !== null) chmodSync(carried.binaryPath, 0o755)
     }
@@ -448,7 +444,6 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
     try {
       renameWithRetry(staging, versionDir, 'promote-rename', roots.isWindows)
     } catch (promoteErr) {
-
       rmSync(staging, { recursive: true, force: true })
       const promoteNote = promoteErr instanceof Error ? promoteErr.message.slice(0, 200) : String(promoteErr)
       const retryable = isTransientFsCode((promoteErr as NodeJS.ErrnoException).code)
@@ -514,13 +509,12 @@ export function versionDirIntact(roots: LayoutRoots, version: string): boolean {
   return validatePayloadDir(join(roots.versionsDir, version)).state === 'ok'
 }
 
-export const SHIM_MARKER_FAMILY = 'mercury-managed-shim'
 
+export const SHIM_MARKER_FAMILY = 'mercury-managed-shim'
 export const SHIM_MARKER = `${SHIM_MARKER_FAMILY} v3`
 
 export function shimContent(isWindows: boolean): string {
   if (isWindows) {
-
     return [
       '@echo off',
       `rem ${SHIM_MARKER} — the stable Mercury command.`,
@@ -734,7 +728,6 @@ function writeOneShim(path: string, desired: string, executable: boolean, isWind
   let replaced: 'nothing' | 'managed-shim' | 'foreign-file' = 'nothing'
   let backupPath: string | undefined
   if (existing !== null) {
-
     const managed = existing.includes(SHIM_MARKER_FAMILY)
     if (!managed && !opts.force) {
       return {
@@ -752,7 +745,6 @@ function writeOneShim(path: string, desired: string, executable: boolean, isWind
   const tmp = `${path}.tmp.${process.pid}`
   writeFileSync(tmp, desired)
   if (executable) chmodSync(tmp, 0o755)
-
   renameWithRetry(tmp, path, 'shim-rename', isWindows)
   return { state: 'written', path, replaced, backupPath }
 }
@@ -843,6 +835,7 @@ export function reconcileManagedShims(
   }
 }
 
+
 export type SmokeOutcome = { state: 'ok'; printed: string } | { state: 'failed'; note: string }
 
 export function smokeVersion(dir: string, expectedVersion: string, primaryBundle?: string): SmokeOutcome {
@@ -868,10 +861,10 @@ export function smokeVersion(dir: string, expectedVersion: string, primaryBundle
   }
 }
 
+
 export interface UninstallReport {
   removedVersionsDir: boolean
   removedShim: boolean
-
   removedSetMembers: string[]
   preservedForeign: string[]
   preservedConfigHome: string

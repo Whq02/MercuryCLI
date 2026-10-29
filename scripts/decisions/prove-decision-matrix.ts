@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -217,7 +216,6 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
   const bypassing: Array<[string, Record<string, unknown>, string]> = [
     ['sovereign', { mode: 'sovereign' }, 'sovereign'],
   ]
-
   for (const [posture, ctx] of asking) {
     const r = await decide(makeTool(), makeContext({ ...ctx, ask: ['FakeTool'] }))
     check(`${posture} × whole-tool ask RULE (1b) → ask, the rule's own reason`, r.behavior === 'ask' && r.decisionReason?.type === 'rule', j(r))
@@ -244,10 +242,8 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
       )
     }
   }
-
   const dontAsk = await decide(roads[2]!.tool, makeContext({ mode: 'dontAsk' }))
   check("dontAsk × safetyCheck ask → the road asks; dontAsk converts it to a deny", dontAsk.behavior === 'deny', j(dontAsk))
-
   let r = await decide(makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign' }))
   check('sovereign × tool deny → deny, unchanged (a deny is not a card)', r.behavior === 'deny', j(r))
   r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'plain' }, requiresUserInteraction: true }), makeContext({ mode: 'sovereign' }))
@@ -256,7 +252,6 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
 
 section('flow — pre-classifier floors and fast paths')
 {
-
   let r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'flow' }))
   check('flow: content ask-rule floors to a human ask', r.behavior === 'ask', j(r))
 
@@ -296,7 +291,6 @@ section('checkRuleBasedPermissions — the hook-allow guard path')
   check("org ask-ceiling → ask", (await rb(makeTool({ orgAskCeiling: true }), makeContext({})))?.behavior === 'ask')
   check('safetyCheck → ask', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({})))?.behavior === 'ask')
   check('plain tool ask → null (mode layer decides later)', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({}))) === null)
-
   check('sovereign: content ask-rule → null (no objection)', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }))) === null)
   check('sovereign: org ask-ceiling → null', (await rb(makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }))) === null)
   check('sovereign: safetyCheck → null', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }))) === null)

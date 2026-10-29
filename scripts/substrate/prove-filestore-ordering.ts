@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync, renameSync, unlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -13,11 +12,35 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
+/**
+ * Ceiling on how long a WATCHER delivery may take before it counts as never
+ * having arrived (§4a, §8b). Both loops exit the instant the event lands — 150ms
+ * and 50ms respectively on an unloaded machine — so this bound costs nothing
+ * when the contract holds. It only decides how much SCHEDULING DELAY is read as
+ * a broken contract.
+ *
+ * It was 3000ms, tuned on a free machine, and that made the full pool red for
+ * machine load rather than for the kernel: pool 9 reported
+ * `§4a … pre-delete after 3000ms` while the same prover passed solo in 150ms.
+ * Under a 129-suite pool the FSEvents debounce and chokidar's 100ms
+ * atomic-coalescing hold queue behind seconds of other work, and the Linux arm
+ * waits on a 1000ms poll FLOOR that can slip several intervals.
+ *
+ * That matters MORE here than in a pty suite, not less. run-all-suites.sh
+ * re-runs a failed suite solo exactly once — but ONLY for pty/undeclared
+ * classes. `substrate` is declared `gate-class: cpu`, so its RED is taken as
+ * genuine and never retried. A wall-clock timing dependency in a cpu-class
+ * suite therefore has no safety net at all, which is the real defect this
+ * bound was expressing.
+ *
+ * The assertion is unchanged — a delivery that never happens still fails, and
+ * the observed `waited` is reported either way, so a real latency regression
+ * stays visible in the detail rather than being hidden by the larger bound.
+ */
 const WATCHER_DELIVERY_BUDGET_MS = 15_000
 
 type Doc = { n: number; tag: string }
 const dir = mkdtempSync(join(tmpdir(), 'fs-order-'))
-
 process.env.MERCURY_CONFIG_DIR = dir
 const filePath = join(dir, 'doc.json')
 
@@ -59,7 +82,6 @@ console.log('prove-filestore-ordering')
     await sleep(30)
     const last = seen[seen.length - 1]
     if (last !== 100 + i) violation = `iter ${i}: last delivery n=${last}, expected ${100 + i} (stale initial read delivered after the publish)`
-
     for (let k = 1; k < seen.length; k++) {
       if (seen[k]! < seen[k - 1]!) violation = `iter ${i}: delivery order regressed ${seen[k - 1]} → ${seen[k]}`
     }

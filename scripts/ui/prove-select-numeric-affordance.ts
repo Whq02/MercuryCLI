@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,7 +31,6 @@ check('select-input-option.tsx guards <= 9 on the numeric prefix', /: \(index <=
 check('no bare `${i}.`.padEnd index label remains unguarded in select.tsx', !/`\$\{[a-zA-Z0-9_.+ ]+\}\.`\.padEnd/.test(select))
 
 section('slot-safety: maxIndexWidth (the cache slot) is UNCHANGED — only the per-row ordinal is conditional')
-
 check('select.tsx still pads numeric AND declared-ordinal prefixes to the reserved width (width preserved)', /return raw\.padEnd\(reservedWidth\)/.test(select) && /option\.indexLabel\.padEnd\(Math\.max\(reservedWidth, option\.indexLabel\.length \+ 1\)\)/.test(select))
 check('select-input-option.tsx still pads the prefix to reservedIndexWidth + 2 (width preserved)', /option\.indexLabel\.padEnd\(\s*Math\.max\(reservedIndexWidth \+ 2, option\.indexLabel\.length \+ 1\),?\s*\)/.test(inputOption) && /\.padEnd\(reservedIndexWidth \+ 2\)/.test(inputOption))
 
@@ -40,7 +38,6 @@ section('input handlers LEFT AS-IS: a genuine paste of a multi-digit number stil
 check('use-select-input.ts still resolves a numeric InputEvent (the paste path is untouched)', /\/\^\\d\+\$\/\.test\(digits\)/.test(useSel) && /parseInt\(digits, 10\)/.test(useSel))
 
 section('behaviour: 1-9 unchanged (byte-identical), 10+ suppressed but EQUAL WIDTH (aligned)')
-
 const cell = (n: number, w: number): string => (n <= 9 ? `${n}.` : '').padEnd(w)
 const W = 4
 let common = 0

@@ -1,3 +1,4 @@
+
 import { readFile } from 'node:fs/promises'
 import { isENOENT } from '../utils/errors.js'
 import { durableAtomicPublish } from '../substrate/durablePublish.js'
@@ -16,9 +17,7 @@ export const DOCS_LINE = 'Run /keys in Mercury for the live effective binding ta
 
 export type BindingEdit = {
   context: string
-
   chord: string
-
   action: KeybindingValue
 }
 
@@ -71,7 +70,6 @@ export async function writeUserBinding(
   }
   const next = applyBindingEdit(existing, edit)
   if (!next.ok) return next
-
   await durableAtomicPublish(path, next.content)
   return { ok: true, path }
 }

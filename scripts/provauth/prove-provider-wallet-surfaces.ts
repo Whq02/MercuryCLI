@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -99,7 +98,6 @@ const OR_KEY = 'sk-or-v1-MINTEDFIXTURE0000000'
 }
 
 {
-
   const presences = providerUsage.providerFamilyPresences(undefined, {
     claudeSubscriber: () => false,
     subscriptionType: () => null,

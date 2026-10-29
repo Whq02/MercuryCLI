@@ -1,6 +1,6 @@
+
 process.env.NODE_ENV = 'test'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-oracle-fixture-not-a-real-key'
-
 delete process.env.MERCURY_MAX_OUTPUT_TOKENS
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -116,7 +116,6 @@ add('stripExcessMediaItems', 'over-limit', () => {
 })
 
 add('getAPIMetadata', 'shape', () => {
-
   const meta = clone(C.getAPIMetadata()) as { user_id?: string }
   if (typeof meta.user_id === 'string') {
   }

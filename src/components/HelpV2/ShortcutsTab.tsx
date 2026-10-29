@@ -43,7 +43,6 @@ const ADVANCED: Section[] = [
   {
     head: 'advanced',
     rows: [
-
       { action: 'task:background', context: 'Task', fallback: 'ctrl+b', label: 'background the running task' },
     ],
   },
@@ -83,8 +82,7 @@ export function ShortcutsTab(): React.ReactNode {
       {ADVANCED.map(s => (
         <ShortcutSection key={s.head} section={s} />
       ))}
-      {
-}
+      {}
       <Text color={t.textMuted}>cockpit: tab focuses the rails (empty prompt)</Text>
       <Text color={t.textMuted}>/keys — every binding, live · rebind in {toTildePath(getKeybindingsPath())}</Text>
     </Box>

@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useEffect,
@@ -40,13 +41,9 @@ import {
 } from './messageActions.js'
 
 const JUMP_HEADROOM_ROWS = 3
-
 const PHANTOM_LIMIT = 20
-
 const MOUNT_ATTEMPT_LIMIT = 3
-
 const WARM_CHUNK = 500
-
 const STICKY_TEXT_CAP = 500
 
 export type JumpHandle = {
@@ -54,11 +51,8 @@ export type JumpHandle = {
   setSearchQuery: (query: string) => void
   nextMatch: () => void
   prevMatch: () => void
-
   setAnchor: () => void
-
   warmSearchIndex: () => Promise<number>
-
   disarmSearch: () => void
 }
 
@@ -68,29 +62,23 @@ type VirtualMessageListProps = {
   columns: number
   itemKey: (msg: RenderableMessage, index: number) => string
   renderItem: (msg: RenderableMessage, index: number) => React.ReactNode
-
   onItemClick?: (msg: RenderableMessage) => void
-
   isItemClickable?: (msg: RenderableMessage) => boolean
   isItemExpanded?: (msg: RenderableMessage) => boolean
-
   extractSearchText?: (msg: RenderableMessage) => string
-
   extractFacets?: (msg: RenderableMessage) => TranscriptFacets
   trackStickyPrompt?: boolean
   selectedIndex: number | undefined
   cursorNavRef?: React.Ref<MessageActionsNav | null>
   setCursor?: (cursor: MessageActionsState | null) => void
   jumpRef?: React.Ref<JumpHandle | null>
-
   onSearchMatchesChange?: (total: number, current: number) => void
-
   scanElement?: (el: DOMElement) => MatchPosition[]
-
   setPositions?: (state: SearchPositionsState | null) => void
 }
 
 let instanceCounter = 0
+
 
 function VirtualItem({
   hoverId,
@@ -107,7 +95,6 @@ function VirtualItem({
   onClick: ((event: ClickEvent) => void) | undefined
   children: React.ReactNode
 }): React.ReactNode {
-
   const hovered = useHoverOwned(hoverId) && clickable
   return (
     <InteractiveDisclosure
@@ -131,18 +118,14 @@ function VirtualItem({
   )
 }
 
+
 type SearchEngineState = {
   query: SearchQuery | null
-
   counts: number[]
-
   prefix: number[]
   total: number
-
   messagePointer: number
-
   ordinal: number
-
   wrapStart: number
   phantomRun: number
   mountAttempts: number
@@ -182,6 +165,7 @@ function countOccurrences(haystack: string, needle: string): number {
   }
   return count
 }
+
 
 export function VirtualMessageList({
   messages,
@@ -234,7 +218,6 @@ export function VirtualMessageList({
     (index: number): boolean => {
       const msg = messagesRef.current[index]
       if (!msg) return false
-
       if (vs.getItemHeight(index) === 0) return false
       return isNavigableMessage(msg)
     },
@@ -266,7 +249,6 @@ export function VirtualMessageList({
     cursorNavRef,
     (): MessageActionsNav => ({
       enter: () => {
-
         for (let i = messagesRef.current.length - 1; i >= 0; i--) {
           if (messagesRef.current[i]!.type === 'user' && isVisibleAt(i)) {
             publishCursor(i)
@@ -293,7 +275,6 @@ export function VirtualMessageList({
             return
           }
         }
-
         exitCursorMode()
       },
       prevUser: () => {
@@ -410,7 +391,6 @@ export function VirtualMessageList({
         if (!el || vsRef.current.getItemHeight(index) === 0) {
           engine.mountAttempts += 1
           if (engine.mountAttempts >= MOUNT_ATTEMPT_LIMIT) {
-
             engine.mountAttempts = 0
             finish()
             advanceRef.current?.(direction)
@@ -424,7 +404,6 @@ export function VirtualMessageList({
         handle.scrollToElement(el, JUMP_HEADROOM_ROWS)
         const positions = scanElementRef.current?.(el) ?? []
         if (positions.length === 0) {
-
           engine.phantomRun += 1
           if (engine.phantomRun >= PHANTOM_LIMIT) {
             engine.phantomRun = 0
@@ -448,7 +427,6 @@ export function VirtualMessageList({
         setPositionsRef.current?.({
           positions,
           rowOffset,
-
           colOffset: elementScreenLeft(el),
           currentIdx: ordinal,
         })
@@ -469,7 +447,6 @@ export function VirtualMessageList({
       clearHighlight()
       engine.messagePointer = index
       engine.ordinal = ordinal
-
       reportBadge()
       scrollMessageIntoView(index)
       settleOnMessage(index, direction)
@@ -511,7 +488,6 @@ export function VirtualMessageList({
       const engine = engineRef.current
       if (engine.total === 0) return
       if (engine.seekInFlight) {
-
         engine.queuedStep = direction
         return
       }
@@ -536,13 +512,11 @@ export function VirtualMessageList({
     jumpRef,
     (): JumpHandle => ({
       jumpToIndex: (index: number): void => {
-
         if (index < 0 || index >= messagesRef.current.length) return
         scrollMessageIntoView(index)
       },
       setSearchQuery: (raw: string): void => {
         const engine = engineRef.current
-
         if (engine.pendingTimer !== null) clearTimeout(engine.pendingTimer)
         engine.seekInFlight = false
         engine.queuedStep = null
@@ -568,11 +542,9 @@ export function VirtualMessageList({
             const msg = list[i]!
             if (hasOperators) {
               const facets = getFacetsRef.current?.(msg)
-
               if (!facets || !facetsSatisfy(facets, query)) continue
             }
             if (needle === '') {
-
               counts[i] = 1
               total += 1
               continue
@@ -591,7 +563,6 @@ export function VirtualMessageList({
           engine.messagePointer = -1
           engine.ordinal = 0
           onMatchChangeRef.current?.(0, 0)
-
           if (engine.anchor !== null) scrollRef.current?.scrollTo(engine.anchor)
           return
         }
@@ -610,7 +581,6 @@ export function VirtualMessageList({
         }
         if (best === -1) return
         engine.wrapStart = best
-
         seekToMessage(best, 1, Math.max(0, (counts[best] ?? 1) - 1))
       },
       nextMatch: (): void => {
@@ -628,7 +598,6 @@ export function VirtualMessageList({
         const list = messagesRef.current
         let workMs = 0
         for (let start = 0; start < list.length; start += WARM_CHUNK) {
-
           await new Promise<void>(resolve => setTimeout(resolve, 0))
           const began = performance.now()
           const end = Math.min(list.length, start + WARM_CHUNK)
@@ -650,7 +619,6 @@ export function VirtualMessageList({
   )
 
   const [rangeStart, rangeEnd] = vs.range
-
   const tracePath = flagEnv('MERCURY_CONNECTOR_TRACE')
   if (tracePath) {
     try {
@@ -668,7 +636,6 @@ export function VirtualMessageList({
         const i = Math.max(rangeStart, rangeEnd - 4) + j
         return `${m.type}:${m.uuid.slice(0, 8)}/${(itemKeys[i] ?? '?').slice(0, 8)}`
       })
-
       const box = scrollRef.current
       const scroll = box
         ? { top: box.getScrollTop(), pending: box.getPendingDelta(), sticky: box.isSticky(), viewport: box.getViewportHeight(), height: box.getScrollHeight() }
@@ -695,7 +662,6 @@ export function VirtualMessageList({
         onClick={
           clickable
             ? (event: ClickEvent) => {
-
                 if (!event.cellIsBlank) onItemClick?.(msg)
               }
             : undefined
@@ -708,8 +674,7 @@ export function VirtualMessageList({
 
   return (
     <>
-      {
-}
+      {}
       <Box flexShrink={0} height={vs.topSpacer} ref={vs.spacerRef} />
       {items}
       {vs.bottomSpacer > 0 ? (
@@ -729,6 +694,7 @@ export function VirtualMessageList({
   )
 }
 
+
 const realPromptCache = new WeakMap<object, string | null>()
 
 function realPromptText(msg: RenderableMessage): string | null {
@@ -742,7 +708,6 @@ function realPromptText(msg: RenderableMessage): string | null {
   ) {
     const first = msg.message.content[0]
     if (first && first.type === 'text') {
-
       const stripped = stripSystemReminders(first.text)
       if (stripped !== '' && !stripped.startsWith('<')) text = stripped
     }
@@ -808,7 +773,6 @@ function StickyPromptTracker({
   )
 
   const lastPublishedIndexRef = useRef<number | null>(null)
-
   const suppressionRef = useRef<'idle' | 'armed' | 'bypass'>('idle')
   const pendingTargetRef = useRef<{ index: number; attempts: number } | null>(
     null,
@@ -819,7 +783,6 @@ function StickyPromptTracker({
   useEffect(() => {
     const handle = scrollRef.current
     if (!handle) return
-
     if (handle.isSticky()) {
       if (lastPublishedIndexRef.current !== null) {
         lastPublishedIndexRef.current = null
@@ -828,7 +791,6 @@ function StickyPromptTracker({
       return
     }
     const target = handle.getScrollTop() + handle.getPendingDelta()
-
     const [rangeStart, rangeEnd] = range
     let firstVisible = rangeStart
     for (let i = rangeEnd - 1; i >= rangeStart; i--) {
@@ -848,7 +810,6 @@ function StickyPromptTracker({
       }
       return
     }
-
     let promptIndex = -1
     let promptText: string | null = null
     for (let i = firstVisible - 1; i >= 0; i--) {
@@ -863,7 +824,6 @@ function StickyPromptTracker({
 
     const suppression = suppressionRef.current
     if (suppression === 'armed') {
-
       suppressionRef.current = 'bypass'
       return
     }
@@ -877,7 +837,6 @@ function StickyPromptTracker({
       }
       return
     }
-
     if (!bypassDedup && lastPublishedIndexRef.current === promptIndex) return
     lastPublishedIndexRef.current = promptIndex
     const text = stickyHeaderText(promptText)
@@ -889,12 +848,10 @@ function StickyPromptTracker({
     setStickyPrompt({
       text,
       scrollTo: (): void => {
-
         suppressionRef.current = 'armed'
         setStickyPrompt('clicked')
         const el = getItemElement(index)
         if (el) {
-
           setTimeout(() => {
             scrollRef.current?.scrollToElement(el, 1)
           }, 0)

@@ -1,3 +1,4 @@
+
 import type { Writable } from 'node:stream'
 import { CADENCE_MS, CHOKE_HIGH_WATER_BYTES, CHOKE_RETRY_MS, COST_FLOOR_CAP_MS } from '../scheduler.js'
 
@@ -27,28 +28,19 @@ interface CockpitEngineMetrics {
 }
 
 export interface CockpitEngine {
-
   choked(): boolean
-
   floorMs(): number
-
   notePaintCost(ms: number, kind: 'normal' | 'input'): void
-
   noteKeystroke(): void
-
   consumeInputPriority(): boolean
-
   noteDeferral(kind: 'choke' | 'floor'): void
 
   armResize(hooks: { onStormEntered: () => void; onSettle: (cols: number, rows: number) => void }): void
-
   winch(cols: number, rows: number): boolean
-
   inResizeStorm(): boolean
 
   readonly ledger: CockpitLedger
   readonly fold: RecordFold
-
   noteHistoryReplaced(): void
 
   readonly streamBody: StreamBodyCache
@@ -76,7 +68,6 @@ function engineAssertionsArmed(): boolean {
 interface MountOptions {
   stdout: Writable & { isTTY?: boolean; fd?: number }
   columns: number
-
   syncOutputNow?: () => boolean
   chokeHighWaterBytes?: number
 }
@@ -128,7 +119,6 @@ export function mountCockpitEngine(options: MountOptions): CockpitEngine | null 
   })
   const streamBody = new StreamBodyCache(
     (text, width) => {
-
       const rows: string[] = []
       for (const line of text.split('\n')) {
         if (line.length <= width) rows.push(line)
@@ -176,7 +166,6 @@ export function mountCockpitEngine(options: MountOptions): CockpitEngine | null 
           }
           if (e.kind === 'storm-continues') return
           m.winchSettles++
-
           ledger.advanceWidth(e.cols)
           resizeHooks?.onSettle(e.cols, e.rows)
         },

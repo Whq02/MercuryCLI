@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 
 let failures = 0
@@ -10,7 +9,6 @@ const t = (name: string, ok: boolean): void => {
 
 const repl = readFileSync('src/screens/Chat.tsx', 'utf8')
 t('ONE strip definition (workingStatusStrip const)', (repl.match(/const workingStatusStrip = /g) ?? []).length === 1)
-
 t('strip carries the spinner + the streaming hold + the rollup', /workingStatusStrip = <Box[\s\S]{0,300}SpinnerWithVerb[\s\S]{0,1500}StreamingHoldRow[\s\S]{0,400}MercuryTurnRollup/.test(repl))
 t('bottom placement rides CockpitBottomStatus', repl.includes('<CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>'))
 t('cockpit placement threads statusBand into FullscreenLayout (transcript mode blanks it)', repl.includes('statusBand={inVirtualTranscript ? undefined : workingStatusStrip}'))
@@ -22,7 +20,6 @@ t(
   'berth card is the first interior row of the centre pane, inside the size override (no title row above it)',
   !fsl.includes('HelmCenterHeader') && /borderColor=\{centerFrame \? t\.borderStrong : undefined\}\s*>\s*(?:\{\s*(?:\/\*[^]*?\*\/)?\s*\}\s*)?<TerminalSizeContext\.Provider value=\{sizeVal\}>[\s\S]{0,900}\{centerFrame && statusBand \? \([\s\S]{0,3000}\{transcriptArea\}/.test(fsl),
 )
-
 const card = fsl.slice(fsl.indexOf('{centerFrame && statusBand ? ('), fsl.indexOf('{transcriptArea}'))
 t('berth card is a rounded strong-bordered pin (token role)', card.includes('borderStyle="round"') && card.includes('borderColor={t.borderStrong}') && card.includes('flexShrink={0}'))
 t('berth carries the pinned living critter', card.includes('<PinnedCritterBerth />'))
@@ -31,9 +28,7 @@ t('the layout centres the small critter on the capsule\'s rows itself (no measur
 t('the berth is the sprite and one card — the working capsule, or the viewed crewmate\'s card in its place (no speech line, no third mount)', card.includes('<WorkCapsule') && (card.match(/<[A-Z][A-Za-z.]*/g) ?? []).every(tag => ['<Box', '<PinnedCritterBerth', '<CrewmateCard', '<WorkCapsule', '<TerminalSizeContext.Provider'].includes(tag)))
 t('the crewmate card and the working capsule share the one card slot (an either/or on the viewed crewmate, never both, the same width budget)', /\{viewedCrewmate !== null \? \(\s*<CrewmateCard crewmate=\{viewedCrewmate\} width=\{sizeVal\.columns - 4 - 1 - CR_COLS\} \/>\s*\) : \(\s*<WorkCapsule/.test(card) && (card.match(/<CrewmateCard/g) ?? []).length === 1 && (card.match(/<WorkCapsule/g) ?? []).length === 1)
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8')
-
 t('PinnedCritterBerth renders the dock sprite (the square form over the dock grid)', /export function PinnedCritterBerth[\s\S]{0,4000}<AnimatedCritterArt def=\{hover \? hoverDockDef : dockDef\} square \/>/.test(home))
-
 t('berth art rides a fixed bottom-aligned three-row slot (a morph swaps pixels, never rows)', /PinnedCritterBerth[\s\S]{0,4000}height=\{SQUARE_DOCK_ART_LINES\} flexDirection="column" justifyContent="flex-end"/.test(home))
 t('berth critter is click-cyclable like the hero', /PinnedCritterBerth[\s\S]{0,3000}cycleSessionCritter/.test(home))
 
@@ -44,7 +39,6 @@ t('capsule wraps the cockpit statusBand, gated on statusBandActive', /<WorkCapsu
 t('capsule width budgets the berth interior minus the critter\'s thirteen-column slot and the gap', card.includes('width={sizeVal.columns - 4 - 1 - CR_COLS}'))
 t('Chat threads the live-turn signal (transcript mode blanks it)', repl.includes('statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}'))
 const capsule = readFileSync('src/components/mercury-ui/WorkCapsule.tsx', 'utf8')
-
 t('capsule is a rounded furniture card while dressed (borderStrong — DUNE on dark, not identity)', capsule.includes("borderStyle={dressed ? 'round' : undefined}") && capsule.includes('borderColor={dressed ? tokens.borderStrong : undefined}'))
 t('capsule has NO header row (the ✻ verb line is the one state row — operator dedup)', !capsule.includes('WorkingGlyph') && !capsule.includes('WORKING\''))
 t('capsule provides the width-true size context to its interior while dressed', /dressed && outer \? \{ columns: innerW, rows: outer\.rows \} : outer/.test(capsule))

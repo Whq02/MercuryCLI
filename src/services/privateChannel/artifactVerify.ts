@@ -16,9 +16,7 @@ type VerifyDepth = 'fast' | 'deep'
 export interface PayloadVerification {
   verdict: SignatureVerdict
   depth: VerifyDepth
-
   unevaluated: string[]
-
   manifestVersion: string | null
 }
 
@@ -110,6 +108,7 @@ export function verifyPayloadDir(
   )
   return { verdict, depth, unevaluated, manifestVersion }
 }
+
 
 interface SignatureCheckRow {
   status: 'ok' | 'warn' | 'fail' | 'info'

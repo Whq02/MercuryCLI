@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { KeyboardShortcutHint } from './KeyboardShortcutHint.js'
 import { Box, Text } from '../../ink.js'
@@ -29,9 +30,7 @@ export function Dialog({
   color?: string
   hideInputGuide?: boolean
   hideBorder?: boolean
-
   inputGuide?: (exitState: DialogExitState) => React.ReactNode
-
   isCancelActive?: boolean
 }): React.ReactNode {
   useKeybinding(
@@ -54,12 +53,10 @@ export function Dialog({
       <Box marginTop={1}>
         <Text italic dimColor>
           {exitState.pending ? (
-
             exitChordNoticeText(exitState.keyName)
           ) : inputGuide ? (
             inputGuide(exitState)
           ) : (
-
             <Byline>
               <Text italic dimColor>↑↓ move · pgup/pgdn page</Text>
               <Text italic dimColor>

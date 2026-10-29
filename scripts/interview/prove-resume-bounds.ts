@@ -62,7 +62,6 @@ const file = JSON.parse(readFileSync(logPath, 'utf8')) as {
 
 t.section('§1 — rebuild cost: a LINEAR slope envelope by operation count')
 {
-
   const { emptyInterviewState, foldInterviewShared } = await import(
     '../../src/services/interview/contracts.ts'
   )
@@ -104,7 +103,6 @@ t.section('§1 — rebuild cost: a LINEAR slope envelope by operation count')
     o3 / Math.max(1, o2) <= SLOPE_MAX,
     `ops: ${o2} → ${o3}`,
   )
-
   const quadOps = (n: number): number => (n * (n - 1)) / 2
   t.check(
     'the envelope REJECTS the seeded quadratic (slope ≈ 4 > the bound)',
@@ -150,10 +148,8 @@ t.section('§3 — the session cap holds under churn')
 t.section('§4 — a reconnect can never roll back a newer decision')
 {
   const { qid, optB } = await seedSession('toolu_rollback', 6)
-
   commitAnswer(qid, { optionIds: [optB] })
   await flushInterviewLog()
-
   _resetInterviewForProofs()
   t.check('the durable session re-adopts', adoptDurableSessionSync({ toolUseId: 'toolu_rollback' }))
   const s = interviewSnapshot()

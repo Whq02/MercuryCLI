@@ -1,13 +1,11 @@
+
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
 export const PATCH_REGISTER_BOUNDS = {
-
   nameCap: 8,
-
   bytesCap: 512 * 1024,
-
   perRegisterBytes: 256 * 1024,
 } as const
 
@@ -19,7 +17,6 @@ interface PatchRegister {
 
 interface RegisterState {
   registers: Map<string, PatchRegister>
-
   evicted: Set<string>
 }
 

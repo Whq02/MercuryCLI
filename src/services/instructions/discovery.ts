@@ -83,7 +83,6 @@ function memoizedResolvedPath(fsImpl: FsOperations, path: string): string {
   if (cached !== undefined) {
     return cached
   }
-
   const resolved = safeResolvePath(fsImpl, path).resolvedPath.replaceAll(
     '\\',
     '/',
@@ -106,7 +105,6 @@ function resolveExcludePatterns(patterns: string[]): string[] {
   })
 
   for (const normalized of [...expanded]) {
-
     if (!normalized.startsWith('/')) {
       continue
     }
@@ -169,7 +167,6 @@ export async function processInstructionFile(
   diagnostics?: InstructionDiagnostic[],
   ancestors?: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
-
   const normalizedPath = normalizePathForComparison(filePath)
   if (processedPaths.has(normalizedPath) || depth >= MAX_INCLUDE_DEPTH) {
     return []
@@ -229,7 +226,6 @@ export async function processInstructionFile(
       })
       continue
     }
-
     const includeTarget = safeResolvePath(getFsImplementation(), resolvedIncludePath).resolvedPath
     const isExternal =
       !pathInInstructionRoots(includeTarget) &&
@@ -265,7 +261,6 @@ export async function processInstructionFile(
       })
       continue
     }
-
     if (diagnostics !== undefined && !processedPaths.has(normalizedInclude)) {
       let isDirectory = false
       try {
@@ -282,7 +277,6 @@ export async function processInstructionFile(
         continue
       }
     }
-
     {
       const includeExt = extname(resolvedIncludePath).toLowerCase()
       if (includeExt && !TEXT_FILE_EXTENSIONS.has(includeExt)) {
@@ -417,7 +411,6 @@ export async function processRulesDir({
 
     return result
   } catch (error) {
-
     logForDebugging(
       `instruction discovery: rules dir ${rulesDir} unreadable (${String(error)})`,
       { level: 'error' },

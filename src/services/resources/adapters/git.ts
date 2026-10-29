@@ -1,3 +1,4 @@
+
 import { gitGraphEnabled } from '../../gitGraph/contracts.js'
 import {
   conflictId,
@@ -70,7 +71,6 @@ export const gitAdapter: ResourceAdapter = {
           },
         }
       }
-
       case 'at': {
         if (!rest.includes('/')) return { state: 'absent', note: 'git/at needs <ref>/<path>' }
         const { gitFileAtRef, splitRefPath } = await import('../../gitGraph/observe.js')

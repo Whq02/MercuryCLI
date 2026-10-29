@@ -5,10 +5,10 @@ export function isKitGovernedSkillCommand(command: Command): boolean {
   if (command.type !== 'prompt') return false
   const loadedFrom = (command as { loadedFrom?: string }).loadedFrom
   if (loadedFrom === 'skills') return true
-
   if (loadedFrom === 'extension') return (command as { skillRoot?: string }).skillRoot !== undefined
   return false
 }
+
 
 let bootRoster: ReadonlySet<string> | null = null
 
@@ -25,16 +25,15 @@ export function _resetKitGovernanceForTesting(): void {
   bootRoster = null
 }
 
+
 function kitSkillStateOf(kit: SessionKitV1, name: string, bornLater: boolean): 'on' | 'invocable' | 'off' | 'ungoverned' {
   if (kit.resolved === false) {
     const state = kit.deltas?.skillStates[name]
     return state === undefined ? 'on' : state
   }
-
   if ((kit.skillsOff ?? []).includes(name)) return 'off'
   if (kit.skills.includes(name)) return 'on'
   if (kit.invocable.includes(name)) return 'invocable'
-
   return bornLater ? 'ungoverned' : 'off'
 }
 

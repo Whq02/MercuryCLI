@@ -18,34 +18,30 @@ import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 
+
 const OPENROUTER_AUTH_PAGE = 'https://openrouter.ai/auth'
-
 const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1'
-
 const OPENROUTER_REDIRECT_PORT = 1456
 const openrouterRedirectUri = (port: number): string =>
   `http://127.0.0.1:${port}/auth/callback`
-
 const OPENROUTER_KEY_LABEL = 'Mercury'
 
 function openrouterAuthPage(env: NodeJS.ProcessEnv = process.env): string {
   return env['MERCURY_OPENROUTER_AUTH_BASE']?.trim() || OPENROUTER_AUTH_PAGE
 }
-
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
 export function openrouterApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return env['MERCURY_OPENROUTER_API_BASE']?.trim() || OPENROUTER_API_BASE
 }
 
+
 const OPENROUTER_AUTH_VERSION = 1
 const AUTH_FILE_NAME = '.openrouter-auth.json'
 
 export interface OpenrouterMintedKey {
-
   key: string
   mintedAtMs: number
-
   label?: string
   expiredMessage?: string
 }
@@ -77,13 +73,11 @@ function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile)
   const existing = readAuthFile() ?? { version: OPENROUTER_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENROUTER_AUTH_VERSION })
   const path = authFilePath()
-
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
   } catch {
   }
-
   noteCredentialChange()
 }
 
@@ -184,13 +178,12 @@ export function openrouterKeyRefusal(env: NodeJS.ProcessEnv = process.env): Open
   return { ...current, source: active.source }
 }
 
+
 export type OpenrouterKeySource = 'env' | 'oauth' | 'stored'
 
 export interface OpenrouterAccountRef {
   provider: 'openrouter'
-
   kind: 'oauth-key' | 'api-key'
-
   label: string
   keySource: OpenrouterKeySource
 }
@@ -235,10 +228,10 @@ export function resolveOpenrouterAccount(
   }
 }
 
+
 export interface OpenrouterRequestAuth {
   account: OpenrouterAccountRef
   baseUrl: string
-
   headers: Record<string, string>
 }
 
@@ -255,16 +248,12 @@ export function resolveOpenrouterRequestAuth(
   }
 }
 
+
 export interface OpenrouterConnectHandles {
-
   authorizeUrl: string
-
   result: Promise<OpenrouterAccountRef>
-
   completeWithRedirect(pasted: string): void
-
   cancel(reason?: string): void
-
   boundLoopbackPort(): number | undefined
 }
 
@@ -274,7 +263,6 @@ function buildOpenrouterAuthorizeUrl(
   mode: 'browser' | 'headless',
   redirectPort: number,
 ): string {
-
   const params = new URLSearchParams({
     ...(mode === 'browser' ? { callback_url: openrouterRedirectUri(redirectPort) } : {}),
     ...(mode === 'headless' ? { key_label: OPENROUTER_KEY_LABEL } : {}),
@@ -293,7 +281,6 @@ async function exchangeOpenrouterCode(
   const url = `${openrouterApiBase(env)}/auth/keys`
   let response: Response
   try {
-
     response = await fetchWithProviderDeadline(fetchImpl, 'openrouter', LOGIN_EXCHANGE_TIMEOUT_MS, url, {
       method: 'POST',
       headers: {
@@ -308,13 +295,11 @@ async function exchangeOpenrouterCode(
       ...(getProxyFetchOptions() as Record<string, unknown>),
     } as RequestInit)
   } catch (error) {
-
     throw new Error(
       `openrouter key exchange unreachable (${url}): ${errorMessageWithCause(error)}`,
     )
   }
   if (!response.ok) {
-
     throw new Error(
       response.status === 403
         ? 'openrouter key exchange refused (HTTP 403) — the authorization code is invalid or expired (codes last 10 minutes); retry the connect'
@@ -331,13 +316,9 @@ export function beginOpenrouterConnect(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   mode?: 'browser' | 'headless'
-
   skipBrowserOpen?: boolean
-
   onListenerIssue?: (message: string) => void
-
   loopbackPort?: number
-
   onSettledAfterCancel?: (ref: OpenrouterAccountRef) => void
 }): OpenrouterConnectHandles {
   const env = opts?.env ?? process.env
@@ -358,7 +339,6 @@ export function beginOpenrouterConnect(opts?: {
   let done = false
   let exchangeInFlight = false
   let cancelledMidExchange = false
-
   let settled = false
   const doSettle = (ref: OpenrouterAccountRef): void => {
     if (settled) return
@@ -380,9 +360,7 @@ export function beginOpenrouterConnect(opts?: {
         delete next.refused
         return next
       })
-
       recordSignIn('openrouter', 'oauth')
-
       const ref: OpenrouterAccountRef = {
         provider: 'openrouter',
         kind: 'oauth-key',
@@ -430,7 +408,6 @@ export function beginOpenrouterConnect(opts?: {
       server = undefined
     } catch (error) {
       exchangeInFlight = false
-
       if (done) {
         res
           .writeHead(409, { 'content-type': 'text/plain' })
@@ -456,7 +433,6 @@ export function beginOpenrouterConnect(opts?: {
       const url = new URL(trimmed)
       return url.searchParams.get('code') ?? undefined
     } catch {
-
       return trimmed || undefined
     }
   }
@@ -478,7 +454,6 @@ export function beginOpenrouterConnect(opts?: {
       void finishFromListener(code, res)
     })
     server.on('error', error => {
-
       server?.close()
       server = undefined
       opts?.onListenerIssue?.(
@@ -514,7 +489,6 @@ export function beginOpenrouterConnect(opts?: {
       void finish(code)
     },
     cancel(reason?: string): void {
-
       if (exchangeInFlight) cancelledMidExchange = true
       done = true
       server?.close()

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/providers/toolCallGate.ts src/run-core/turn-machine.ts src/tools/MemoryTools/MemoryTools.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'

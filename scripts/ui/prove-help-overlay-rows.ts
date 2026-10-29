@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,7 +23,6 @@ function capture(cols: number, rows: number): string[] | null {
     env: {
       ...process.env,
       MERCURY_LIVE_GLYPHS: '0',
-
       MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR ?? mkdtempSync(join(tmpdir(), 'help-overlay-home-')),
     },
   })
@@ -50,7 +48,6 @@ const GLOBAL_ROWS = [
   'to stash prompt',
   'to edit in $EDITOR',
 ]
-
 const MERGE_SIGNATURES = ['suspendo', 'undoo', 'redoo', 'stasho']
 
 function countLines(lines: string[], needle: string): number {
@@ -71,7 +68,6 @@ console.log('============================================================')
     for (const sig of MERGE_SIGNATURES) {
       check(`120x40: no merge residue "${sig}"`, countLines(g, sig) === 0)
     }
-
     const undoLine = g.find(l => l.includes('to undo') && !l.includes('undoo'))
     check('120x40: the undo row ends clean', !!undoLine && undoLine.trimEnd().endsWith('to undo'),
       JSON.stringify(undoLine?.trimEnd().slice(-40)))
@@ -91,7 +87,6 @@ console.log('============================================================')
   const g = capture(80, 24)
   if (g) {
     check('80x24: no merge residue', MERGE_SIGNATURES.every(s => countLines(g, s) === 0))
-
     const seen: number[] = []
     for (let i = 0; i < GLOBAL_ROWS.length; i++) {
       const idx = g.findIndex(l => l.includes(GLOBAL_ROWS[i]!))

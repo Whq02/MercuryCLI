@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -32,7 +31,6 @@ type Cell = {
   rRows: number
 }
 const MSG_LINES = 12
-
 const STANDING: Cell[] = [
   { tag: 'to80', cols: 120, rows: 50, rCols: 80, rRows: 50 },
 ]
@@ -78,7 +76,6 @@ function seedSession(home: string): void {
     })
     prevUuid = aUuid
   }
-
   writeFileSync(join(projDir, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
 }
 
@@ -134,7 +131,6 @@ function runCell(cell: Cell): void {
   const home = join(SCRATCH, `home-${cell.tag}`)
   seedSession(home)
   const PAGEUP = '\x1b[5~'
-
   const RESIZE_AT = 45
   const sends: Record<string, unknown>[] = [
     { atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: PAGEUP, mark: 'p00' },
@@ -160,7 +156,6 @@ function runCell(cell: Cell): void {
     env: {
       ...process.env,
       MERCURY_FULLSCREEN: '1',      MERCURY_CONFIG_DIR: home,
-
       MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
       MERCURY_LIVE_GLYPHS: '0',
@@ -194,7 +189,6 @@ function runCell(cell: Cell): void {
   const preTop = topOf(stage?.grid ?? marks.get('preResize')!.grid)
   const postTop = topOf(marks.get('postResize')!.grid)
   const lateTop = topOf(marks.get('late')!.grid)
-
   const strict = process.env.MERCURY_SCROLL_REFLOW_STRICT === '1'
   if (strict) {
     check(`${cell.tag}: pin holds the content through the reflow (strict)`,
@@ -206,14 +200,11 @@ function runCell(cell: Cell): void {
       preTop !== null && postTop !== null && Math.abs(postTop.turn - preTop.turn) <= 3,
       `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}`)
   }
-
   check(`${cell.tag}: no late drift`,
     postTop !== null && lateTop !== null && lateTop.turn === postTop.turn && lateTop.sig === postTop.sig,
     `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}`)
-
   const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
   const postRuler = positionRuler(postGrids)
-
   const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
   const bounds = stepBounds(region)
   const pQ1 = postRuler(marks.get('q01')!.grid)

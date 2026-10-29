@@ -1,3 +1,4 @@
+
 export const BANKED_FLAG_SPELLINGS: Readonly<Record<string, string>> = Object.freeze({
   '-chat': '--chat',
   '-concourse-off': '--concourse-off',

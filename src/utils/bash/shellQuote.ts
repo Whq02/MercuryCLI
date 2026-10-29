@@ -22,7 +22,6 @@ export function tryParseShellCommand(
       typeof env === 'function'
         ? shellParse(cmd, env)
         : shellParse(cmd, env)
-
     const tokens = raw as ParseEntry[]
     return { success: true, tokens }
   } catch (error) {
@@ -91,14 +90,12 @@ function countUnmatchedQuotes(command: string): { doubleQuotes: number; singleQu
   for (let i = 0; i < command.length; i++) {
     const ch = command[i]
     if (state === 'single') {
-
       if (ch === "'") {
         singleQuotes++
         state = 'plain'
       }
       continue
     }
-
     if (ch === '\\') {
       i++
       continue
@@ -164,7 +161,6 @@ export function hasShellQuoteSingleQuoteBug(command: string): boolean {
     const ch = command[i]
     if (state === 'single') {
       if (ch === "'") {
-
         let backslashes = 0
         let j = i - 1
         while (j >= 0 && command[j] === '\\') {

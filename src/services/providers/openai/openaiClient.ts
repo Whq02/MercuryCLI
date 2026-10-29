@@ -36,25 +36,20 @@ import {
 } from '../streamIdleBudget.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
-
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
 interface OpenaiStreamOptions {
   baseUrl: string
-
   headers: Record<string, string>
   request: OpenaiResponsesRequest
   signal?: AbortSignal
-
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
   silentAfterHeadersMs?: number | null
   onStreamActivity?: (atMs: number) => void
-
   firstByte?: {
     cold: boolean
     promptTokens: number
-
     model: string
     attempt?: number
     onWait?: (wait: RequestWaitV1 | null) => void
@@ -81,7 +76,6 @@ export async function* streamOpenaiResponses(
 
   try {
     let response: Response
-
     const firstByteBudget = firstByteBudgetMs({
       cold: options.firstByte?.cold === true,
       promptTokens: options.firstByte?.promptTokens ?? 0,
@@ -104,7 +98,6 @@ export async function* streamOpenaiResponses(
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
-
       options.signal?.throwIfAborted()
       const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
@@ -124,7 +117,6 @@ export async function* streamOpenaiResponses(
       clearTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
       if (!cancelled && firstByteFired) {
-
         yield {
           type: 'stream-fault',
           fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
@@ -139,7 +131,6 @@ export async function* streamOpenaiResponses(
           : {
               kind: 'transport-error',
               code: 'fetch-failed',
-
               message: errorMessageWithCause(error),
               retryable: true,
               ...(outage !== null ? { outage } : {}),
@@ -175,7 +166,6 @@ export async function* streamOpenaiResponses(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-
     const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null })
     idleWatchdog = watchdog
     const relay = createStreamActivityRelay(atMs => options.onStreamActivity?.(atMs))
@@ -239,7 +229,6 @@ export async function* streamOpenaiResponses(
                 },
           settledItems: fold.settledItems(),
         }
-
         void reader.cancel().catch(() => {})
         return
       }
@@ -287,7 +276,6 @@ export async function* streamOpenaiResponses(
     }
 
     if (!fold.finished) {
-
       const bare = fold.takeBareStreamError()
       if (bare !== null) {
         yield { type: 'stream-fault', fault: { ...bare, forensics: forensics() }, settledItems: fold.settledItems() }
@@ -337,23 +325,18 @@ export async function* streamOpenaiResponsesRoad(
   yield* streamOpenaiResponses(options)
 }
 
+
 export interface OpenaiLiveModel {
   id: string
   displayName?: string
   defaultReasoningEffort?: string
   supportedReasoningEfforts: string[]
-
   reasoningEffortsStated: boolean
-
   visibility?: string
   supportedInApi?: boolean
-
   priority?: number
-
   contextWindow?: number
-
   maxContextWindow?: number
-
   inputModalities?: string[]
 }
 
@@ -421,10 +404,8 @@ export async function fetchOpenaiLiveModels(options: {
   fetchImpl?: typeof fetch
   signal?: AbortSignal
 }): Promise<OpenaiCatalogueResult> {
-
   const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
   const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
-
   const response = await fetchWithProviderDeadline(
     fetchImpl,
     'openai',
@@ -436,7 +417,6 @@ export async function fetchOpenaiLiveModels(options: {
     ...(options.signal ? { signal: options.signal } : {}),
     ...(proxyOptions as Record<string, unknown>),
   } as RequestInit)
-
   recordOpenaiRateHeaders(response.headers)
   if (!response.ok) {
     throw new Error(`http-${response.status}`)

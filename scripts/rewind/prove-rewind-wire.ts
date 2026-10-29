@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -104,7 +103,6 @@ section('§3 — the seat verb: applied · typed refusals · the mixed-version l
     check('A unknown session refuses typed (unknown-session) and sends nothing', out.outcome === 'refused' && out.refusal === 'unknown-session' && rewinds(stand).length === 0, j(out))
     stand.close()
   }
-
   {
     const { stand, roster } = runnerOf('success', true)
     const out = await seat.rewindSession(SESSION, { mode: 'both', userMessageId: 'u1' }, roster as never, DAEMON_DIR)
@@ -122,7 +120,6 @@ section('§3 — the seat verb: applied · typed refusals · the mixed-version l
     check('C the settle re-asks the facts (the seat-verb law still runs)', stand.requests.some(x => x.method === 'session/facts'))
     stand.close()
   }
-
   {
     const { stand, roster } = runnerOf('success')
     await seat.rewindSession(SESSION, { mode: 'conversation', userMessageId: 'u-43', dryRun: true }, roster as never, DAEMON_DIR)
@@ -202,11 +199,9 @@ section('§4 — the projection laws: the operator window is inclusive in every 
   check('nothing to apply ⇒ identity (render layers bail on identity): the provider projection returns the SAME array', cr.projectRewoundWindows(plain) === plain)
   check('projectOperatorRewinds returns the SAME array when no operator record exists', cr.projectOperatorRewinds(plain) === plain)
   check('a window to apply ⇒ a NEW array from both projections (identity is never faked on a real cut)', cr.projectRewoundWindows(messages) !== messages && cr.projectOperatorRewinds(messages) !== messages)
-
   const orphan = [reply2, record, turn3]
   const orphanView = cr.projectRewoundWindows(orphan)
   check('a record whose turn left the view stands alone — only the record is excluded', orphanView.length === 2 && orphanView[0] === reply2 && orphanView[1] === turn3)
-
   const cpUse = createAssistantMessage({ content: [{ type: 'tool_use', id: 'toolu_cp1', name: 'Checkpoint', input: { goal: 'try' } }] } as never)
   const cpResult = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'toolu_cp1', content: 'checkpoint set' }] })
   const explore = a('exploring…')
@@ -215,7 +210,6 @@ section('§4 — the projection laws: the operator window is inclusive in every 
   const agentProvider = cr.projectRewoundWindows(agentMessages)
   check("the agent's window is EXCLUSIVE and its record stays in the provider view (unchanged law)", agentProvider.length === 4 && !agentProvider.includes(explore) && agentProvider.includes(agentRecord))
   check("the display keeps the agent's exploration (scrollback law) — projectOperatorRewinds is identity there", cr.projectOperatorRewinds(agentMessages) === agentMessages)
-
   const both = [...agentMessages, turn2, reply2, record, turn3]
   const bothView = cr.projectRewoundWindows(both)
   check('both kinds of window fold into one provider view', !bothView.includes(explore) && !bothView.includes(turn2) && !bothView.includes(reply2) && !bothView.includes(record) && bothView.includes(turn3) && bothView.includes(agentRecord))

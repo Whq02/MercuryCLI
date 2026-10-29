@@ -2,31 +2,22 @@ import type { ChildProcess } from 'node:child_process'
 
 import { endProcessTree } from './processGroup.js'
 
-const CLOSE_DRAIN_MS = 250
 
+const CLOSE_DRAIN_MS = 250
 const KILL_SETTLE_MS = 2_000
 
 interface ChildSettleOptions {
-
   timeoutMs: number
-
   signal?: AbortSignal
-
   closeDrainMs?: number
-
   killSettleMs?: number
 }
 
 interface ChildSettlement {
-
   code: number | null
-
   signal: NodeJS.Signals | null
-
   timedOut: boolean
-
   aborted: boolean
-
   spawnError?: string
 }
 
@@ -53,7 +44,6 @@ export function settleChildRun(child: ChildProcess, opts: ChildSettleOptions): P
     }
     const settleFromExit = (): void =>
       settle({ code: exited?.code ?? null, signal: exited?.signal ?? null })
-
     const forceEnd = (): void => {
       void endProcessTree(child, 'SIGKILL')
       arm(settleFromExit, killSettleMs)
@@ -66,7 +56,6 @@ export function settleChildRun(child: ChildProcess, opts: ChildSettleOptions): P
 
     child.on('exit', (code, signal) => {
       exited = { code, signal }
-
       arm(settleFromExit, closeDrainMs)
     })
     child.on('close', (code, signal) => {

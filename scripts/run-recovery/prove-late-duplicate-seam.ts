@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -51,12 +50,10 @@ section('§1 run kernel — replayed events do not double-count facts')
   ]
   let once = base
   for (const e of events) once = kernel.reduceRunEvent(once, e as never)
-
   const replayed = kernel.reduceRunEvent(once, events[3] as never)
   check('pending tools stay settled after the duplicate effect', replayed.pendingTools.length === once.pendingTools.length, `before=${once.pendingTools.length} after=${replayed.pendingTools.length}`)
   check('no bad-effect count from a duplicated OK effect', replayed.unresolvedBadEffects === once.unresolvedBadEffects)
   check('lifecycle unchanged by the duplicate', replayed.lifecycle === once.lifecycle)
-
   const dupStart = kernel.reduceRunEvent(replayed, events[2] as never)
   const dupSettled = kernel.reduceRunEvent(dupStart, events[3] as never)
   check('a replayed started+effected PAIR nets to settled (no stuck pending)', dupSettled.pendingTools.length === once.pendingTools.length, `pending=${dupSettled.pendingTools.length}`)
@@ -76,7 +73,6 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   plane.settleExecution(owner, 'exec-1', 'succeeded', { outcome: { reason: 'done' } })
   const afterFirst = plane.getExecution(owner, 'exec-1')
   check('first settle lands', afterFirst?.state === 'succeeded')
-
   let dupOutcome = 'no-op'
   try {
     plane.settleExecution(owner, 'exec-1', 'failed', { outcome: { reason: 'late duplicate' } })
@@ -85,7 +81,6 @@ section('§2 execution plane — duplicate settle inert; stale generation refuse
   }
   const afterDup = plane.getExecution(owner, 'exec-1')
   check(`duplicate settle is ${dupOutcome} — the record stays succeeded`, afterDup?.state === 'succeeded', `state=${afterDup?.state}`)
-
   plane.registerExecution({
     owner,
     id: 'exec-2',
@@ -129,7 +124,6 @@ section('§4 run sidecar — double-save yields ONE stable durable record')
   if (load1.state === 'loaded') {
     check('objective survived once, exact', load1.snapshot.objective === 'persist me')
   }
-
   const dirs = [process.env.MERCURY_CONFIG_DIR!]
   let sidecarFiles = 0
   while (dirs.length > 0) {

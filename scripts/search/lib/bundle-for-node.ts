@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { statSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 
@@ -47,11 +46,9 @@ const result = await Bun.build({
   naming: { entry: basename(outfile), chunk: basename(outfile).replace(/\.mjs$/, '') + '-[name]-[hash].mjs' },
   target: 'node',
   format: 'esm',
-
   splitting: true,
   sourcemap: 'none',
   plugins: [plugin],
-
   loader: { '.md': 'text', '.txt': 'text', '.sh': 'text', '.py': 'text', '.html': 'text', '.xml': 'text', '.dot': 'text' },
 })
 if (!result.success) {

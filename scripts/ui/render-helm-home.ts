@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { writeFileSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
@@ -19,9 +18,7 @@ function capture(cols: number, helm: boolean, scenarioName: string = NAME): Grid
   const cfg = { ...scenario(scenarioName, cols, 44), out: gridPath }
   const cfgPath = `/tmp/vshot-helm-${tag}.json`
   writeFileSync(cfgPath, JSON.stringify(cfg))
-
   const env: NodeJS.ProcessEnv = { ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME }
   env.MERCURY_HELM_HOME = helm ? '1' : '0'
   const painted = (g: Grid) => g.grid.reduce((n, r) => n + r.filter(c => c.c && c.c !== ' ').length, 0)
@@ -51,7 +48,6 @@ console.log('\n▶ cockpit @120 (MERCURY_HELM_HOME=1)')
 const c120 = capture(120, true)
 const t120 = text(c120)
 gridToPng(`/tmp/helm-home-grid-120-on.json`, '/tmp/helm-home-cockpit-120.png').then(r => console.log('  png:', r.path))
-
 expect('WORKBENCH lane header present', /WORKBENCH/.test(t120))
 expect('no SEAT box in the rail (the retired presence estate)', !/SEAT ·/.test(t120) && !/\(you\)/.test(t120))
 expect('solo RECENT glanceable present', /RECENT/.test(t120))
@@ -60,13 +56,11 @@ expect('merged VITALS glance present (folded rail leaves the glance)', /VITALS/.
 expect('glance usage row (5h N%)', /5h \d+%/.test(t120))
 expect('glance ctx row (`ctx … · <N>k`)', /ctx .{0,8}· \d+k/.test(t120))
 expect('NO full vitals-rail headers at the folded tier', !/substrate · \d/.test(t120))
-
 expect('welcome fleet-glance line SHED (no "no fleet · trace" dup)', !/no fleet · trace/.test(t120))
 
 console.log('\n▶ both rails @150 (center-first: vitals rail returns)')
 const c150 = capture(150, true)
 const t150 = text(c150)
-
 expect('@150: usage vitals header present', /usage/i.test(t150))
 expect('@150: trace vitals header present', /trace/i.test(t150))
 expect('@150: substrate vitals header present', /substrate/i.test(t150))
@@ -78,7 +72,6 @@ console.log('\n▶ degrade @80 (MERCURY_HELM_HOME=1 — rails auto-hidden)')
 const d80 = capture(80, true)
 const t80 = text(d80)
 gridToPng(`/tmp/helm-home-grid-80-on.json`, '/tmp/helm-home-degrade-80.png').then(r => console.log('  png:', r.path))
-
 expect('no lane header at narrow (rails hidden)', !/WORKBENCH/.test(t80))
 expect('deck strip present at narrow (ops rail: daemon ○ · fleet ○ · trace N)', /daemon [○●]/.test(t80))
 expect('vitals KEPT at narrow (deck 5h gauge — no data loss)', /5h [█░]/.test(t80))
@@ -96,10 +89,8 @@ console.log('\n▶ cockpit-wide @120 (long prose — transcript must stay in its
 const w120 = capture(120, true, 'cockpit-wide')
 const tw = text(w120)
 gridToPng('/tmp/helm-home-grid-cockpit-wide-120.json', '/tmp/helm-home-wide-120.png').then(r => console.log('  png:', r.path))
-
 const RAIL_W = 24
 const twCenter = w120.grid.map(r => r.map(c => c.c || ' ').join('').slice(RAIL_W)).join('\n')
-
 expect('long prose wrapped (phrase survives across the break)', /indifferent[\s│]+sea/.test(twCenter))
 expect('prose NOT broken by a rail glyph (no letter+glyph splice)', !/[a-z][○●◐⚠]/.test(tw))
 expect('the fleet-glance dup stays SHED with the cockpit-active context', !/no fleet · trace/.test(tw))

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -55,7 +54,6 @@ function makeHarness(opts: { autoResolve?: (name: string, call: number) => unkno
       configs: Record<string, unknown>,
       onSettle: (o: unknown) => void,
     ) => {
-
       await Promise.all(
         Object.keys(configs).map(async name => {
           const outcome = await ports.connect(name)
@@ -111,7 +109,6 @@ section('duplicate connects — single-flight onto ONE port call')
   await Promise.all([p1, p2])
   check('final phase connected', reg.get('srv')?.type === 'connected')
   check('exactly one settled connect event with tools', events.filter(e => e.cause === 'connect' && (e as never as { tools?: unknown[] }).tools).length === 1, j(events))
-
   await reg.connect('srv', cfg())
   check('post-settlement duplicate connect is a no-op (still one port call)', h.connectCalls.length === 1, j(h.connectCalls))
 }
@@ -123,7 +120,6 @@ section('auth races — needs-auth applies; manual reconnect supersedes in-fligh
   const events = tapEvents(reg)
   const p1 = reg.connect('auth', cfg())
   await ticks(2)
-
   const p2 = reg.connect('auth', cfg(), 'reconnect-manual')
   h.deferreds[0]!.resolve(needsAuth('auth'))
   await p1
@@ -153,7 +149,6 @@ section('stale generations — toggle-disable mid-connect wins')
   await Promise.all([p1, pToggle])
   check('disable wins — phase disabled', reg.get('slow')?.type === 'disabled', j(reg.get('slow')))
   check('disk store shows disabled', h.disk.has('slow'))
-
   const pEnable = reg.toggle('slow')
   await ticks(2)
   h.deferreds[1]!.resolve(connected('slow'))
@@ -188,24 +183,20 @@ section('the retry owner — one backoff loop, exponential, disk-checked')
   await ticks(2)
   check('one port call so far in the loop (second signal was a no-op)', h.connectCalls.length === 2, j(h.connectCalls))
   check('pending carries attempt counters', (reg.get('r') as { reconnectAttempt?: number })?.reconnectAttempt === 1)
-
   h.deferreds[1]!.resolve(failed('r'))
   await ticks(4)
   check('backoff #1 is 1000ms', h.sleeps[0]?.ms === 1000, j(h.sleeps.map(s => s.ms)))
   h.sleeps[0]!.resolve()
   await ticks(4)
-
   h.deferreds[2]!.resolve(failed('r'))
   await ticks(4)
   check('backoff #2 is 2000ms', h.sleeps[1]?.ms === 2000, j(h.sleeps.map(s => s.ms)))
-
   h.disk.add('r')
   h.sleeps[1]!.resolve()
   await Promise.all([loop, second])
   check('disk-disabled mid-loop stops the retry (3 port calls total)', h.connectCalls.length === 3, j(h.connectCalls))
 
   const h2 = makeHarness({ autoResolve: n => failed(n) })
-
   h2.ports.sleep = async () => {}
   const reg2 = new McpServerRegistry(h2.ports as never)
   reg2.seed({ x: cfg('http') })
@@ -257,7 +248,6 @@ section('connectAll — the batch path routes settles through generation checks'
   const batch = reg.connectAll({ m1: cfg(), m2: cfg() })
   await ticks(2)
   check('batch launched both connects', h.connectCalls.length === 2, j(h.connectCalls))
-
   const pToggle = reg.toggle('m2')
   h.deferreds.find(d => d.name === 'm1')!.resolve(connected('m1'))
   h.deferreds.find(d => d.name === 'm2')!.resolve(connected('m2'))
@@ -265,7 +255,6 @@ section('connectAll — the batch path routes settles through generation checks'
   check('m1 batch settle applied', reg.get('m1')?.type === 'connected')
   check('m2 batch settle DISCARDED (toggle won)', reg.get('m2')?.type === 'disabled', j(reg.get('m2')))
   check('m2 stale-drop emitted', events.some(e => e.name === 'm2' && e.cause === 'stale-drop'))
-
   const h2 = makeHarness({ autoResolve: n => connected(n) })
   const reg2 = new McpServerRegistry(h2.ports as never)
   reg2.seed({ o: cfg() })

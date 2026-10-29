@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { streamZaiChat, type ZaiStreamEvent } from '../../src/services/providers/zai/zaiClient.js'
@@ -49,7 +48,6 @@ console.log(' TEMPER T2 — zai stream transport returns to baseline')
 console.log('============================================================')
 
 section('1 · abandoned generator tears the transport down')
-
 {
   const { fetchImpl, wire } = fixtureFetch([sse(textChunk('hello '))], false)
   const gen = streamZaiChat({ apiKey: 'fixture-key', request: REQUEST, fetchImpl })
@@ -69,7 +67,6 @@ section('1 · abandoned generator tears the transport down')
 }
 
 section('2 · a consumed stream is unaffected by the baseline teardown')
-
 {
   const { fetchImpl } = fixtureFetch([sse(textChunk('a')), sse(textChunk('b')), sse(finishChunk()), DONE], true)
   const events: ZaiStreamEvent[] = []
@@ -87,7 +84,6 @@ section('2 · a consumed stream is unaffected by the baseline teardown')
 }
 
 section('3 · the explicit cancel contract is preserved')
-
 {
   const { fetchImpl, wire } = fixtureFetch([sse(textChunk('partial'))], false)
   const outer = new AbortController()

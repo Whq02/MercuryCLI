@@ -1,3 +1,4 @@
+
 import {
   ContinuousEventPriority,
   DefaultEventPriority,
@@ -33,7 +34,6 @@ function collectListeners(
       if (mapping.capture) {
         const capture = handlers[mapping.capture]
         if (typeof capture === 'function') {
-
           captures.unshift({
             node,
             handler: capture as (event: TerminalEvent) => void,
@@ -41,7 +41,6 @@ function collectListeners(
           })
         }
       }
-
       if (event.bubbles || node === target) {
         const bubble = handlers[mapping.bubble]
         if (typeof bubble === 'function') {
@@ -61,7 +60,6 @@ function collectListeners(
 export class Dispatcher {
   currentEvent: TerminalEvent | null = null
   currentUpdatePriority: number = NoEventPriority
-
   discreteUpdates: (<T>(fn: () => T) => T) | null = null
 
   resolveEventPriority(): number {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -292,7 +291,6 @@ section('§4 the live chain in a scratch home')
   check('the default lands on that family at once (the ledger epoch drops the memo)', onZai.provider === 'zai' && onZai.source === 'sign-in' && onZai.chosen?.family === 'zai' && onZai.chosen.timed === true, JSON.stringify({ provider: onZai.provider, source: onZai.source, why: onZai.why }))
   check('…on its newest usable row — the recorded frontier pin, selectable in the picker', zaiFrontier !== undefined && onZai.setting === zaiFrontier.id && declaredRouteOf(onZai.setting) === 'zai' && onZai.row === zaiFrontier.displayName, `${onZai.setting} vs ${zaiFrontier?.id}`)
   check('…with the observation date and absent live list stated', onZai.chosen?.verdict.usable === true && onZai.chosen.verdict.why.includes(`observed ${zaiFrontier?.observedAt}; no live list`), onZai.chosen?.verdict.why)
-
   const realFetch = globalThis.fetch
   let fetches = 0
   globalThis.fetch = (async (...args: unknown[]) => {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
@@ -21,7 +20,6 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-
 process.env.MERCURY_MODEL = 'claude-fable-5[1m]'
 process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 for (const pin of ['MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL', 'MERCURY_DEFAULT_HAIKU_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_DISABLE_1M_CONTEXT']) {
@@ -47,7 +45,6 @@ const { resolveStampedEffortTruth } = await import('../../src/utils/effort.js')
 const { permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.js')
 
 const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-
 const codeOnly = (text: string): string => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/.*$/gm, '$1')
 function walkSrc(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -72,7 +69,6 @@ const liveGetters = all
   })
   .map(c => c.name)
   .sort()
-
 const JUDGED_GETTERS = ['concourse', 'orient', 'logins']
 check(
   'the live description getters are the judged set (concourse: the boot shape · orient: a constant · logins: which sentence, no account word)',
@@ -107,7 +103,6 @@ check('no session ⇒ the /permissions column is blank', value('permissions') ==
 const opusFacts: Facts = { effective: 'claude-opus-5', effectiveSource: 'live', main: 'claude-opus-5', setting: 'claude-opus-5', sessionPin: 'claude-opus-5', effort: 'xhigh', pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
 check("a seat on Opus 5 at xhigh ⇒ the /model column is the seat's row", value('model') === model.renderModelName('claude-opus-5') && value('model') !== screenLabel, String(value('model')))
-
 check("⇒ the /effort column says the seat's word is ASKED while its runner has not said what it sends", value('effort') === 'xhigh (asked)', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: 'xhigh' }))
 check("⇒ with the runner's sent word on the facts the column is that word", value('effort') === 'xhigh', String(value('effort')))
@@ -184,7 +179,6 @@ const options = getModelOptions()
 check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))
 check('the picker carries a literal row per previous frontier generation', configs.previousGenerationKeys('fable').every(k => options.some(o => o.value === strings[k])), configs.previousGenerationKeys('fable').map(k => strings[k]).join(','))
 check('the picker carries the previous large generations from the table', configs.previousGenerationKeys('opus').every(k => options.some(o => o.value === strings[k])))
-
 const defaultsBody = src('src/utils/model/model.ts').match(/export function getDefault(Opus|Sonnet|Haiku|Fable)Model\(\)[\s\S]*?\n}/g) ?? []
 check('the four family defaults spell no table key (they read the table)', defaultsBody.length === 4 && defaultsBody.every(b => !/firstPartyString\('/.test(b)))
 check('the picker rows spell no generation (no literal previous-key list, no literal frontier row)', !has('src/utils/model/modelOptions.ts', 'PREVIOUS_LARGE_KEYS') && !has('src/utils/model/modelOptions.ts', 'getFable51Option') && !has('src/utils/model/modelOptions.ts', "strings.fable51"))

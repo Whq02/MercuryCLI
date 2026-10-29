@@ -1,3 +1,4 @@
+
 import { stripBOM } from '../utils/jsonRead.js'
 import chokidar, { type FSWatcher } from 'chokidar'
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -36,10 +37,10 @@ export function getProjectKeybindingsPath(): string | null {
   return resolveProjectConfigPath(getCwd(), FILE_NAME)
 }
 
+
 type Layer = 'user' | 'project'
 
 type ParsedLayer = {
-
   blocks: KeybindingBlock[] | null
   warnings: KeybindingWarning[]
 }
@@ -57,7 +58,6 @@ function isBlockShape(value: unknown): value is KeybindingBlock {
 function parseLayer(raw: string, layer: Layer): ParsedLayer {
   let parsed: unknown
   try {
-
     parsed = JSON.parse(stripBOM(raw))
   } catch (error) {
     return {
@@ -146,6 +146,7 @@ function assemble(user: ParsedLayer | null, project: ParsedLayer | null): Keybin
   return { bindings, warnings }
 }
 
+
 let cached: KeybindingsLoadResult | null = null
 let cachedCwd: string | null = null
 
@@ -154,7 +155,6 @@ function readLayerSync(path: string | null, layer: Layer): ParsedLayer | null {
   try {
     return parseLayer(readFileSync(path, 'utf8'), layer)
   } catch {
-
     return null
   }
 }
@@ -174,6 +174,7 @@ export function loadKeybindingsSyncWithWarnings(): KeybindingsLoadResult {
 export function loadKeybindingsSync(): ParsedBinding[] {
   return loadKeybindingsSyncWithWarnings().bindings
 }
+
 
 export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
   let user: ParsedLayer | null = null
@@ -204,6 +205,7 @@ export async function loadKeybindings(): Promise<KeybindingsLoadResult> {
   }
   return assemble(user, project)
 }
+
 
 const changes = createSignal<[KeybindingsLoadResult]>()
 let watcher: FSWatcher | null = null
@@ -260,7 +262,6 @@ export async function initializeKeybindingWatcher(): Promise<void> {
     atomic: true,
     ignored: ignoringSpecialFiles(),
   })
-
   watcher.on('error', error => {
     logForDebugging(`keybindings watcher error: ${error instanceof Error ? error.message : String(error)}`)
   })

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -52,7 +51,6 @@ function writeSkill(dir: string, name: string, description: string, body = 'body
   mkdirSync(skillDir, { recursive: true })
   const file = join(skillDir, 'SKILL.md')
   writeFileSync(file, `---\nname: ${name}\ndescription: ${description}\n---\n${body}\n`)
-
   stamp += 2
   utimesSync(file, stamp, stamp)
   return file

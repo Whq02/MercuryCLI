@@ -1,3 +1,4 @@
+
 import type { Chord, KeybindingBlock, ParsedBinding, ParsedKeystroke } from './types.js'
 
 const MODIFIER_TOKENS: Record<string, keyof Omit<ParsedKeystroke, 'key'>> = {
@@ -41,7 +42,6 @@ export function parseKeystroke(input: string): ParsedKeystroke {
       keystroke[modifier] = true
       continue
     }
-
     keystroke.key = KEY_ALIASES[token] ?? token
   }
   return keystroke

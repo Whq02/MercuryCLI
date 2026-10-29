@@ -16,6 +16,7 @@ import { isInBundledMode } from './bundledMode.js'
 import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 
+
 export type RipgrepMode = 'system' | 'builtin' | 'embedded'
 
 export type RipgrepConfig = {
@@ -92,11 +93,9 @@ let resolvedConfig: { mode: RipgrepMode; config: RipgrepConfig } | null = null
 export function resolveRipgrep(): { mode: RipgrepMode; config: RipgrepConfig } {
   if (resolvedConfig) return resolvedConfig
   let resolution: { mode: RipgrepMode; config: RipgrepConfig }
-
   if (!flagEnabled('MERCURY_BUILTIN_RIPGREP') && systemRg()) {
     resolution = { mode: 'system', config: { rgPath: RG_NAME, rgArgs: ['--no-config'] } }
   } else if (isInBundledMode()) {
-
     resolution = { mode: 'embedded', config: { rgPath: process.execPath, rgArgs: ['--no-config'], argv0: RG_NAME } }
   } else {
     const vendored = vendoredRgPath()
@@ -108,7 +107,6 @@ export function resolveRipgrep(): { mode: RipgrepMode; config: RipgrepConfig } {
     } else if (systemRg()) {
       resolution = { mode: 'system', config: { rgPath: RG_NAME, rgArgs: ['--no-config'] } }
     } else {
-
       resolution = { mode: 'builtin', config: { rgPath: vendored, rgArgs: ['--no-config'] } }
     }
   }
@@ -137,12 +135,12 @@ export function searchToolsAvailability(): {
   if (mode === 'embedded' || mode === 'system') return { available: true, mode, path: config.rgPath }
   if (existsSync(config.rgPath)) return { available: true, mode: 'builtin', path: config.rgPath }
   if (systemRg()) {
-
     resolvedConfig = null
     return { available: true, mode: 'system', path: RG_NAME }
   }
   return { available: false, mode: 'none', path: config.rgPath, remedy: unavailableRemedy(config.rgPath) }
 }
+
 
 let codesignChecked = false
 
@@ -198,6 +196,7 @@ export async function prepareSignedCopy(source: string): Promise<string | null> 
   }
 }
 
+
 type ProbeResult = { working: boolean; at: number; mode: RipgrepMode; path: string }
 
 let probePromise: Promise<ProbeResult> | null = null
@@ -210,7 +209,6 @@ function probeHealth(): Promise<ProbeResult> {
       let output: string
       let code: number | null
       if (config.argv0 !== undefined) {
-
         const child = Bun.spawn({
           cmd: [config.rgPath, ...config.rgArgs, '--version'],
           argv0: config.argv0,
@@ -246,13 +244,13 @@ export async function warmRipgrepStatus(): Promise<void> {
 
 export function getRipgrepStatus(): { mode: RipgrepMode | 'none'; path: string; working: boolean | null; present: boolean } {
   const { mode, config } = resolveRipgrep()
-
   const bare = !config.rgPath.includes('/') && !config.rgPath.includes('\\')
   const present = bare
     ? findExecutable(config.rgPath, []).cmd !== config.rgPath
     : existsSync(config.rgPath)
   return { mode, path: config.rgPath, working: probeSettled ? probeSettled.working : null, present }
 }
+
 
 const liveChildren = new Set<ChildProcess>()
 
@@ -321,7 +319,6 @@ function spawnWithArgv0(
     let killedSignal: NodeJS.Signals | null = null
 
     const settle = (error: SpawnOutcome['error']): void => {
-
       if (settled) return
       settled = true
       clearTimeout(timeoutTimer)
@@ -332,14 +329,12 @@ function spawnWithArgv0(
     let escalationTimer: ReturnType<typeof setTimeout> | null = null
     const timeoutTimer = setTimeout(() => {
       if (process.platform === 'win32') {
-
         killedSignal = 'SIGTERM'
         child.kill()
         return
       }
       killedSignal = 'SIGTERM'
       child.kill('SIGTERM')
-
       escalationTimer = setTimeout(() => {
         killedSignal = 'SIGKILL'
         child.kill('SIGKILL')
@@ -425,14 +420,12 @@ function splitOutput(raw: string): string[] {
     .filter(line => line !== '')
 }
 
+
 const EXHAUSTION_MARKERS = ['os error 11', 'Resource temporarily unavailable']
 
 export interface RipgrepAnswer {
-
   lines: string[]
-
   complete: boolean
-
   reason?: string
 }
 
@@ -448,7 +441,6 @@ export async function ripGrepAnswer(
   options: RipgrepOptions = {},
 ): Promise<RipgrepAnswer> {
   await maybeRepairCodesign()
-
   probeHealth().then(
     result => {
       probeSettled = result
@@ -466,7 +458,6 @@ export async function ripGrepAnswer(
   }
   let outcome = await runOnce(false)
   if (outcome.error && EXHAUSTION_MARKERS.some(marker => outcome.stderr.includes(marker))) {
-
     outcome = await runOnce(true)
   }
   if (!outcome.error) return { lines: splitOutput(outcome.stdout), complete: true }
@@ -481,7 +472,6 @@ export async function ripGrepAnswer(
   }
 
   let salvaged = splitOutput(outcome.stdout)
-
   const signalTimedOut =
     abortSignal?.aborted === true &&
     (abortSignal.reason as { name?: string } | undefined)?.name === 'TimeoutError'
@@ -491,24 +481,19 @@ export async function ripGrepAnswer(
   const isOverflow = code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
   const overflowReason = `the search output exceeded the ${OUTPUT_CAP / (1024 * 1024)}MB cap — results beyond it were dropped, so this answer is PARTIAL (${salvaged.length} line(s) kept); narrow the path or the pattern`
   if (isOverflow) {
-
     logError(new Error(overflowReason))
   }
   if ((isTimeout || isAbort || isOverflow) && salvaged.length > 0 && !outcome.stdout.endsWith('\n')) {
-
     salvaged = salvaged.slice(0, -1)
   }
   logForDebugging(
     `ripgrep failed: signal=${outcome.signal ?? 'none'} code=${String(code ?? 'none')} stderr=${outcome.stderr.slice(0, 500)} salvaged=${salvaged.length}`,
   )
-
   if (code !== 2 && code !== 'ABORT_ERR') logError(outcome.error)
-
   if (code === 2 && salvaged.length === 0 && isRipgrepUsageDiagnostic(outcome.stderr)) {
     throw new RipgrepUsageError(usageDiagnostic(outcome.stderr))
   }
   if (isAbort && salvaged.length === 0) {
-
     const abortError = new Error('The search was interrupted before it finished.')
     abortError.name = 'AbortError'
     throw abortError
@@ -519,7 +504,6 @@ export async function ripGrepAnswer(
       salvaged,
     )
   }
-
   const reason = isTimeout
     ? `the search timed out after ${timeoutS} seconds — the walk did not finish, so this answer is PARTIAL (${salvaged.length} line(s) kept); narrow the path or the pattern`
     : isAbort
@@ -535,6 +519,7 @@ export async function ripGrep(args: string[], target: string, abortSignal: Abort
   if (!answer.complete) throw new RipgrepTimeoutError(answer.reason ?? 'the search did not finish', answer.lines)
   return answer.lines
 }
+
 
 export async function ripGrepStream(
   args: string[],
@@ -576,7 +561,6 @@ export async function ripGrepStream(
     child.on('error', err => settle(err))
     child.on('close', code => {
       if (abortSignal.aborted) {
-
         settle()
         return
       }
@@ -593,6 +577,7 @@ export async function ripGrepStream(
   })
 }
 
+
 export async function countFilesWithRg(args: string[], target: string, abortSignal: AbortSignal): Promise<number> {
   await maybeRepairCodesign()
   const { config } = resolveRipgrep()
@@ -606,7 +591,6 @@ export async function countFilesWithRg(args: string[], target: string, abortSign
     })
     child.unref()
     ;(child.stdout as (NodeJS.ReadableStream & { unref?: () => void }) | null)?.unref?.()
-
     track(child)
     let count = 0
     let settled = false
@@ -649,7 +633,6 @@ export function countFilesRoundedRg(
       const magnitude = Math.pow(10, Math.floor(Math.log10(count)))
       return Math.round(count / magnitude) * magnitude
     } catch (err) {
-
       if (!(err instanceof Error && err.name === 'AbortError')) logError(err)
       return undefined
     }

@@ -9,7 +9,7 @@ const KEEP_TS = [
   /^\/\/\/\s*<(reference|amd-)/,
   /^\/\/[#@]\s*source(MappingURL|URL)=/,
   /@ts-(expect-error|ignore|nocheck|check)\b/,
-  /\beslint-(disable|enable|env)\b|^\/\*\s*global\b|^\/\/\s*global\b/,
+  /\beslint-(disable|enable|env)\b|^\/\*\s*global\b/,
   /prettier-ignore/,
   /@jsx(ImportSource|Frag|Runtime)?\b/,
   /^\/\*!/,

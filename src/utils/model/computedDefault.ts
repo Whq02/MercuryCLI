@@ -8,7 +8,6 @@ export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
 
 export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
-
 export const NO_USABLE_ROW = 'no usable row yet'
 
 export const CHOOSE_A_MODEL_ID = 'choose-a-model'
@@ -21,10 +20,8 @@ export function isChooseAModel(model: string | null | undefined): boolean {
 
 export interface CredentialFact {
   family: string
-
   at: number | null
   kind?: SignInKind
-
   label?: string
 }
 
@@ -38,41 +35,28 @@ export interface KeylessFact {
 }
 
 export interface ComputedDefaultFacts {
-
   credentials: CredentialFact[]
-
   recordedDefaultProvider?: string
-
   registryOrder: readonly string[]
-
   laneRow: (family: string) => LaneRowVerdict
   keyless: KeylessFact
-
   providerName?: (family: string) => string
-
   formatTime?: (ms: number) => string
 }
 
 export interface ConsideredCredential extends CredentialFact {
   timed: boolean
-
   recency: string
   verdict: LaneRowVerdict
 }
 
 export interface ComputedDefault {
-
   setting: string
-
   row: string
-
   provider: string | null
   source: ComputedDefaultSource
-
   chosen: ConsideredCredential | null
-
   considered: ConsideredCredential[]
-
   why: string
 }
 
@@ -137,7 +121,6 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
             .join('; ')}); name a model by id with /model, or sign in with /logins`
     return {
       setting: facts.keyless.setting,
-
       row: considered.length === 0 ? NO_SIGN_IN_ROW : NO_USABLE_ROW,
       provider: null,
       source: 'keyless',
@@ -215,6 +198,7 @@ export function describeComputedDefault(
   }
   return `${decision.row} · ${providerName(decision.provider)} · ${decision.chosen.recency} · ${decision.chosen.verdict.why}`
 }
+
 
 const FIRST_PARTY_EVIDENCE: Record<string, string> = {
   'eligible-env-pin': 'the MERCURY_DEFAULT_FABLE_MODEL pin names it',
@@ -316,7 +300,6 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       if (first !== undefined && first.unavailable !== undefined) {
         return { usable: false, why: `${first.label}: ${first.unavailable}`, ...(familyRows.every(option => option.cataloguePending === true) ? { unfetched: true } : {}) }
       }
-
       const { catalogueTrafficVerdict } =
         require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
       const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local', 'nous'] as const).includes(family as never)
@@ -414,7 +397,6 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
       }
     })
   const recorded = configuredDefaultProvider()
-
   let rows: ModelOption[] | null | undefined
   const facts: ComputedDefaultFacts & { degraded: boolean } = {
     credentials,
@@ -462,7 +444,6 @@ export function computedDefault(): ComputedDefault {
   if (memo !== null && memo.epoch === epoch && memo.catalogue === catalogue && now - memo.at < MEMO_TTL_MS) {
     return memo.decision
   }
-
   if (walkingPicker) {
     return evaluateComputedDefault({
       credentials: [],
@@ -473,7 +454,6 @@ export function computedDefault(): ComputedDefault {
   }
   const facts = gatherComputedDefaultFacts()
   const decision = evaluateComputedDefault(facts)
-
   if (!facts.degraded) memo = { at: now, epoch, catalogue, decision }
   return decision
 }

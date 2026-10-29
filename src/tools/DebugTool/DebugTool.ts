@@ -1,3 +1,4 @@
+
 import { existsSync } from 'node:fs'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
@@ -59,14 +60,12 @@ const OPS = [
   'output',
   'status',
   'disconnect',
-
   'loadedSources',
   'modules',
   'exceptionBreakpoints',
   'source',
   'completions',
   'setVariable',
-
   'attach',
   'functionBreakpoints',
   'disassemble',
@@ -75,7 +74,6 @@ const OPS = [
   'instructionBreakpoints',
   'writeMemory',
   'restart',
-
   'customRequest',
 ] as const
 
@@ -184,9 +182,7 @@ export type Input = z.infer<SchemaType>
 export type Output = {
   op: Input['op']
   result: string
-
   outcome: ToolEffectOutcome
-
   debuggee?: 'stopped' | 'running' | 'terminated'
 }
 
@@ -219,7 +215,6 @@ function lldbDapOnPath(): boolean {
 function inferAdapter(program: string, cwd = getCwd()): string {
   if (program.endsWith('.py')) return 'python'
   const ext = path.extname(program).toLowerCase()
-
   if (mercuryUnityEnabled()) {
     const isProjectDir =
       existsSync(path.join(program, 'Assets')) &&
@@ -232,10 +227,8 @@ function inferAdapter(program: string, cwd = getCwd()): string {
       return 'unity'
     }
   }
-
   const declared = adapterKeyForExtension(ext, expandPath(program, cwd))
   if (declared) return declared
-
   if (
     mercuryGodotEnabled() &&
     (program.endsWith('project.godot') ||
@@ -245,7 +238,6 @@ function inferAdapter(program: string, cwd = getCwd()): string {
   ) {
     return 'godot'
   }
-
   if (!lldbDapOnPath() && probeGdbDap().viable) return 'gdb'
   return 'lldb'
 }
@@ -309,7 +301,6 @@ async function formatStackTop(session: DapSession, threadId: number, depth = 3):
       (f, i) =>
         `#${i} ${f.name ?? '?'} (${f.source?.path ?? f.source?.name ?? '?'}:${f.line ?? '?'})` +
         (f.id !== undefined ? ` [frameId ${f.id}]` : '') +
-
         (f.instructionPointerReference ? ` [ip ${f.instructionPointerReference}]` : ''),
     )
     .join('\n')
@@ -319,7 +310,6 @@ async function reportStop(root: DapSession, label: string, sinceStamp = 0, timeo
   const outcome = await root.waitForStopOutcome(timeoutMs, signal, sinceStamp)
   if (outcome.state === 'aborted') throw new DapCancelledError()
   if (outcome.state === 'terminated') {
-
     await root.drainOutput(200, 1_000, signal)
     const tail = root.output.slice(-8).join('\n')
     return {
@@ -575,7 +565,6 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       }
       const gated = gateRichBreakpoints(r.session, requested)
       if (gated) return gated
-
       const verified = await r.session.setBreakpointsTree(expandPath(input.file), requested)
       if (requested.length === 0) {
         return {
@@ -779,7 +768,6 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
     case 'stepOut': {
       const r = requireTarget(owner, sessionId)
       if ('error' in r) return { result: r.error, outcome: 'failed' }
-
       const wantsInstruction =
         input.granularity === 'instruction' && (input.op === 'next' || input.op === 'stepIn')
       if (wantsInstruction) {
@@ -787,7 +775,6 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
         if (gated) return gated
       }
       const threadId = await resolveThreadId(r.target, input.threadId)
-
       const sinceStamp = r.root.treeNewestStopStamp()
       r.target.lastStopped = null
       await r.target.request(input.op, {
@@ -1058,7 +1045,6 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       return {
         result: all
           .map(({ id, session }) => {
-
             const lines = [
               `session '${id}': ${session.program} via ${session.adapterKey} — ${stateOf(session)}`,
             ]
@@ -1111,7 +1097,6 @@ async function runOp(input: Input, owner: OwnerKey, signal?: AbortSignal, termin
       }
     }
     case 'disconnect': {
-
       const detached = getDapSession(owner, sessionId)?.startMode === 'attach'
       const session = getDapSession(owner, sessionId)
       const removed = await removeDapSession(owner, sessionId, signal)
@@ -1281,7 +1266,6 @@ export const DebugTool = buildTool({
   name: DEBUG_TOOL_NAME,
   keepEmptyInputs: ['lines', 'breakpoints', 'functions', 'dataBreakpoints', 'instructionBreakpoints'],
   straightQuoteInputs: ['program', 'file', 'expression', 'name', 'value', 'text', 'functions'],
-
   get searchHint() {
     return (
       'real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function breakpoints, data breakpoints (stop on a variable write/read), instruction breakpoints, stepping (incl. instruction), stack traces, scopes, variables, evaluate, disassemble, readMemory, writeMemory, restart (python debugpy, native lldb' +
@@ -1343,7 +1327,6 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
     return INSPECT_OPS.has(input.op)
   },
   async checkPermissions(input: Input) {
-
     const approvalNeeded = (message: string) => ({ behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } })
     if (input.op === 'launch') {
       return approvalNeeded(`Debug launch: ${input.program ?? '?'}${input.args?.length ? ` ${input.args.join(' ')}` : ''} (adapter ${input.adapter ?? inferAdapter(input.program ?? '')})`)
@@ -1362,7 +1345,6 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
       return approvalNeeded(`Debug attach: ${target} (adapter ${adapter})`)
     }
     if (input.op === 'customRequest') {
-
       return approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`)
     }
     return { behavior: 'allow' as const, updatedInput: input }
@@ -1420,7 +1402,6 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
       op = session ? await session.withOperation(signal, run) : await run()
       throwIfDapAborted(signal)
     } catch (err) {
-
       op = signal?.aborted || err instanceof DapCancelledError
         ? { result: `${input.op} cancelled; a started debuggee may still be running — op:"status" to inspect, op:"disconnect" to end it`, outcome: 'failed', details: { cancelled: true } }
         : { result: `${input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
@@ -1456,7 +1437,6 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result ?? ''
   },

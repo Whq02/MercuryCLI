@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -7,7 +6,6 @@ import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'quiet-line-home-'))
-
 process.env.MERCURY_FLUX_PROBE = '1'
 delete process.env.MERCURY_FLUX_PROBE_TEE
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -24,7 +22,6 @@ const { render, Box, Text } = await import(join(ROOT, 'src/ink.ts'))
 const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
 const { createStreamingTailStore } = await import(join(ROOT, 'src/utils/messages/streamingTailStore.ts'))
-
 const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
 const { LiveStreamingTail } = await import(join(ROOT, 'src/components/LiveStreamingTail.tsx'))
@@ -78,7 +75,6 @@ const tailRenders = (): number => probe.fluxProbeDump().allMarks.filter((m: { k:
 
 const GPT = 'gpt-5.2'
 const CLAUDE = 'claude-opus-5'
-
 const MARKER = 'frame-marker'
 const framed = (): boolean => painted().includes(MARKER)
 

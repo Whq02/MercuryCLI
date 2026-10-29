@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { closeSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix, win32 } from 'node:path'
@@ -56,7 +55,6 @@ check('short strings pass through', clipVis('abc', 10) === 'abc')
   check('ASCII clip: 4 cols + ellipsis', vis(clipped) === 5 && clipped.startsWith('abcd'))
 }
 {
-
   const clipped = clipVis('魔法使いの夜', 7)
   check('CJK clip never exceeds the budget', vis(clipped) <= 7, `vis=${vis(clipped)}`)
   check('CJK clip keeps whole characters + ellipsis', clipped === '魔法使…\x1b[0m', JSON.stringify(clipped))
@@ -86,7 +84,6 @@ check('complete SS3 key is NOT partial', !isPartialEscape('\x1bOP'))
 check('kitty CSI-u is NOT partial (= breaks the param set)', !isPartialEscape('\x1b[=5;1u'))
 check('mouse SGR is NOT partial', !isPartialEscape('\x1b[<0;10;5M'))
 check('plain keys are NOT partial', !isPartialEscape('\r') && !isPartialEscape('m'))
-
 {
   const s1 = coalesceStep('', '\x1b')
   check('split arrow, chunk 1: held (no ESC misfire)', s1.dispatch === null && s1.pending === '\x1b')
@@ -133,7 +130,6 @@ try {
   check('the read is BOUNDED: ≤ 4096 bytes requested from a 5MB file (was: the whole file)', bytesRequested <= 4096, `requested=${bytesRequested}`)
   const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(got)
   check('the cwd regex still lands inside the head', m !== null && JSON.parse(`"${m[1]}"`) === '/Users/alice/projects/demo')
-
   const torn = join(scratch, 'torn.jsonl')
   writeFileSync(torn, 'a'.repeat(4095) + '魔魔魔')
   const gotTorn = readHead(torn)
@@ -145,19 +141,14 @@ try {
 
 section('§5 the basename mapping (B1) — node:path at all four sites')
 {
-
   const seamSites = (src.match(/projectDisplayName\(process\.cwd\(\)\)/g) ?? []).length
   const bareSites = (src.match(/basename\(process\.cwd\(\)\) \|\| process\.cwd\(\)/g) ?? []).length
   check('the three process.cwd() sites route through the ruled naming seam', seamSites === 3 && bareSites === 0, `seam ${seamSites} · bare ${bareSites}`)
-
   check('the recent-project scan reads the project card (the catalog row)', src.includes("names.includes('project.json')") && src.includes('card = { dir: raw.dir, firstChatAt: raw.firstChatAt }'))
-
   check('the recent-project scan routes through the ruled naming seam', src.includes('base: projectDisplayName(cwd)'))
   check('the naming seam routes through node:path basename', src.includes('const projectDisplayName = dir =>') && src.includes('const base = basename(dir)'))
   check("no '/'-only basename split survives", !src.includes(".split('/').pop()"))
-
   check('the New Session clamp is 24-with-ellipsis (the Dir chip grammar)', pairSrc.includes("cwdBase.length > 24 ? cwdBase.slice(0, 23) + '…' : cwdBase"))
-
   check('win32 basename handles backslash paths', win32.basename('C:\\Users\\alice\\Desktop\\Warcraft III 1.26') === 'Warcraft III 1.26')
   check('win32 basename handles forward slashes too', win32.basename('C:/Users/alice/repo') === 'repo')
   check('win32 drive root yields empty ⇒ the || fallback shows the path', win32.basename('C:\\') === '')
@@ -170,7 +161,6 @@ check('Ctrl-C routes through cancelExit (BM-30: every cancel leaves as exit 130)
 check('SIGINT + SIGTERM cancel the boot', src.includes("process.on('SIGINT', cancelExit)") && src.includes("process.on('SIGTERM', cancelExit)"))
 check('the idle timer cancels, never launches', src.includes('setTimeout(cancelExit, IDLE_MS)') && !src.includes('setTimeout(() => collapse(0), 30 * 60 * 1000)'))
 check('cancelExit records the cancel receipt AND leaves through collapse(130)', src.includes("writeSplashAction('cancel')") && /function cancelExit\(\) \{[\s\S]*?collapse\(130\)\s*\n\}/.test(src))
-
 check('collapse derives the exit-code contract (cancel→130, restored→20)', src.includes('if (cancelled) exitCode = 130') && src.includes("else if (code === 0 && screenAtExit === 'restored') exitCode = 20"))
 check('both restoreAndBrand branches settle the screen fact for the funnel', src.includes("screenAtExit = 'held'") && src.includes("screenAtExit = 'restored'"))
 check('the plain-text twin is never WRITTEN (BM-30, at the writer; the startup sweep may still delete leftovers)', !src.includes("writeFileSync(join(CONFIG_HOME, 'splash-action.txt')"))
@@ -178,7 +168,6 @@ check('every exit funnels through the draining collapse (D3)', src.includes("out
 
 section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class)')
 {
-
   const resolver = src.match(/function resolveConfigFile\(\) \{[\s\S]*?\n\}/)?.[0] ?? ''
   check('resolveConfigFile exists in the splash', resolver.length > 0)
   const iDot = resolver.indexOf("'.config.json'")
@@ -213,7 +202,6 @@ section('§7 resolveConfigFile ↔ runtime parity (K1 — the frozen-stale class
 
 section('§8 the card-tier strip bill (field return F3) — real rows, not padding')
 {
-
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
   const sevenRows = Array.from({ length: 7 }, (_, i) => ({ icon: 'x', label: `Row ${i}`, ctx: `ctx ${i}` }))
@@ -240,7 +228,6 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
   check('the ratified head-bare band stands: 120x38 keeps the art, sheds the strip', p120x38.cardShown && !stripOf(p120x38) && headOf(p120x38))
   const p80x24 = compose(80, 24, sevenRows)
   check('the 80x24 arrival is untouched (headless, strip shed)', p80x24.cardShown && !stripOf(p80x24) && !headOf(p80x24))
-
   const eightRows = Array.from({ length: 8 }, (_, i) => ({ icon: 'x', label: `Row ${i}`, ctx: `ctx ${i}` }))
   const e120x40 = compose(120, 40, eightRows)
   check('an eight-row card at 120x40 keeps head + card + strip and fills the terminal exactly', e120x40.cardShown && stripOf(e120x40) && headOf(e120x40) && e120x40.lines.length === 40, `lines=${e120x40.lines.length}`)
@@ -257,7 +244,6 @@ section('§8 the card-tier strip bill (field return F3) — real rows, not paddi
 
 section('§9 the tiny tier never composes wider than the terminal')
 {
-
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
   const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
@@ -279,7 +265,6 @@ section('§9 the tiny tier never composes wider than the terminal')
 
 section('§10 the boot card clips its ctx column in DISPLAY cells')
 {
-
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
   const compose = (ctx: string): string[] =>
@@ -318,7 +303,6 @@ section('§10 the boot card clips its ctx column in DISPLAY cells')
 
 section('§11 the boot-menu floor, as ratified: WARN, NEVER WALL')
 {
-
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
   const strip = (x: string): string => x.replace(/\x1b\[[0-9;]*m/g, '')

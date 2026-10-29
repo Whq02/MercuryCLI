@@ -19,6 +19,7 @@ import type { NativeWebSearchRequest } from '../../search/nativeSearchRequest.js
 import { flagEnabled } from '../../../substrate/flagRegistry.js'
 import { pdfBlockData } from '../pdfBlock.js'
 
+
 export interface OpenaiTurnRecord {
   provider: 'openai'
   responseId?: string
@@ -71,7 +72,6 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
       }
     }
     if (content.length === 0) return undefined
-
     const phase = o.phase === 'commentary' || o.phase === 'final_answer' ? o.phase : undefined
     return { type: 'message', role: 'assistant', content, ...(phase ? { phase } : {}) }
   }
@@ -96,6 +96,7 @@ export function decodeOpenaiTurnRecord(raw: unknown): OpenaiTurnRecord | undefin
     ...(typeof o.responseId === 'string' ? { responseId: o.responseId } : {}),
   }
 }
+
 
 const nonStrictToolsLogged = new Set<string>()
 
@@ -142,7 +143,6 @@ export function loadedToolNamesOf(items: readonly OpenaiInputItem[]): string[] {
 export interface BridgeMessage {
   role: 'user' | 'assistant'
   content: MessageParam['content']
-
   turnId?: string
   turnRecord?: OpenaiTurnRecord
 }
@@ -281,7 +281,6 @@ export function mapMessagesToOpenaiInput(
 ): OpenaiInputItem[] {
   const imagesSupported = opts?.imagesSupported !== false
   const out: OpenaiInputItem[] = []
-
   const prunePrior = flagEnabled('MERCURY_GPT_PRUNE_PRIOR_REASONING')
   let lastUserIndex = -1
   if (prunePrior) {
@@ -300,7 +299,6 @@ export function mapMessagesToOpenaiInput(
       index += 1
       continue
     }
-
     const turn: BridgeMessage[] = [message]
     let next = index + 1
     while (
@@ -334,21 +332,17 @@ export function mapMessagesToOpenaiInput(
   return out
 }
 
+
 interface BuildOpenaiRequestInput {
   model: string
   instructions?: string
   messages: readonly BridgeMessage[]
   tools?: readonly ApiShapedTool[]
-
   reasoningEffort?: string
-
   promptCacheKey?: string
-
   imagesSupported?: boolean
   pdfSupported?: boolean
-
   outputFormat?: JsonOutputFormat
-
   nativeWebSearch?: NativeWebSearchRequest
   deferredToolNames?: ReadonlySet<string>
   toolSearch?: boolean
@@ -400,7 +394,6 @@ export function buildOpenaiResponsesRequest(
             format: {
               type: 'json_schema' as const,
               name: 'mercury_structured_output',
-
               schema: toOpenaiStrictSchema(i.outputFormat.schema),
             },
           },

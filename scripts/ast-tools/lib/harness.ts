@@ -89,11 +89,8 @@ export async function makeContext(tools: unknown[], opts: ProverContextOptions =
 interface DriveResult {
   text: string
   isError: boolean
-
   data: Record<string, unknown> | null
-
   asks: Array<{ behavior: string; message?: string }>
-
   messageId: string
 }
 

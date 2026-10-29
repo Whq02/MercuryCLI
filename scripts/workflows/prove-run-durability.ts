@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -44,7 +43,6 @@ const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
 const sha256 = (t: string): string => createHash('sha256').update(t).digest('hex')
 const scratch = mkdtempSync(join(tmpdir(), 'wf-durability-'))
-
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wf-dur-home-'))
 
 console.log('============================================================')
@@ -238,7 +236,6 @@ section('(3) launch-persistence failure → precise error, no half-run')
 {
   const cwd = join(scratch, 'sabotage-cwd')
   mkdirSync(cwd, { recursive: true })
-
   const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
   const runsRoot = workflowRunsRoot(cwd)
   mkdirSync(dirname(runsRoot), { recursive: true })
@@ -256,7 +253,6 @@ section('(4) crash → orphan classification → REAL disk resume')
 {
   const cwd = join(scratch, 'crash-cwd')
   mkdirSync(cwd, { recursive: true })
-
   const childP = spawn(BUN, ['run', join(scratch, 'child.ts')], {
     cwd,
     env: { ...process.env, DUR_MODE: 'hang' },
@@ -273,7 +269,6 @@ section('(4) crash → orphan classification → REAL disk resume')
 
   if (launched) {
     const runDir = String(launched.runDir)
-
     const old = (Date.now() - 120_000) / 1000
     utimesSync(join(runDir, 'run.json'), old, old)
 
@@ -310,7 +305,6 @@ section('(4) crash → orphan classification → REAL disk resume')
       check('diskResumability recovers script + args', res.ok, res.ok ? '' : (res as { reason: string }).reason)
 
       if (res.ok) {
-
         const resumeP = spawn(BUN, ['run', join(scratch, 'child.ts')], {
           cwd,
           env: {

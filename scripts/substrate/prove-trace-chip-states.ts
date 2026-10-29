@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
@@ -23,7 +22,6 @@ console.log('§1 the snapshot states')
 
   delete process.env.MERCURY_TRACE
   const armed = await traceSnapshot()
-
   check(
     "an EMPTY store reads 'unavailable' (armed) or 'off' (disarmed) — never a third thing",
     armed.state === 'unavailable' || armed.state === 'off',

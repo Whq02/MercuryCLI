@@ -40,9 +40,7 @@ function resolveProjectInstructionEntry(cwd: string): {
 type ParsedEstateFile = {
   path: string
   raw: string
-
   content: string
-
   includePaths: string[]
 }
 
@@ -55,7 +53,6 @@ function readEstateFile(path: string): ParsedEstateFile | null {
   }
   const { info, includePaths, bareMentionPaths } = parseInstructionFileContent(raw, path, 'Project', path)
   if (info === null) return null
-
   return { path, raw, content: info.content, includePaths: [...includePaths, ...bareMentionPaths] }
 }
 

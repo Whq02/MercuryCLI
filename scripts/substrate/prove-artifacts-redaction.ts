@@ -69,7 +69,6 @@ section('end-to-end: sidecar on disk has no secret value')
 
 section('#11 — distinct project dirs ⇒ distinct artifact scopes')
 {
-
   check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'))
   check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'))
   check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'))
@@ -83,13 +82,11 @@ section('#10 — two adjacent azure secrets: the SECOND no longer leaks')
   )
   const az1 = 'abc1Q~' + 'a'.repeat(33)
   const az2 = 'xyz9Q~' + 'b'.repeat(33)
-
   const nl = redactSecrets(`${az1}\n${az2}`)
   check('newline-separated: az1 redacted', !nl.includes(az1))
   check('newline-separated: az2 redacted (was the leak)', !nl.includes(az2))
   const sp = redactSecrets(`${az1} ${az2}`)
   check('space-separated: both redacted', !sp.includes(az1) && !sp.includes(az2))
-
   check('single secret still redacts', !redactSecrets(` ${az1} `).includes(az1))
 }
 

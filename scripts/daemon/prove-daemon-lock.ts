@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -36,7 +35,6 @@ section('clean acquire → lock file written → release removes it')
 
 section('a live holder (different pid) ⇒ acquire REFUSES (null), file untouched')
 {
-
   const livePayload = JSON.stringify({ pid: 1, startedAt: Date.now(), id: 'other-live' })
   writeFileSync(lockPath, livePayload)
   const refused = await cs.acquireDaemonLock()
@@ -47,7 +45,6 @@ section('a live holder (different pid) ⇒ acquire REFUSES (null), file untouche
 
 section('a stale holder (dead pid) ⇒ acquire RECLAIMS the lock')
 {
-
   writeFileSync(lockPath, JSON.stringify({ pid: 2_146_999_999, startedAt: 0, id: 'stale' }))
   const reclaimed = await cs.acquireDaemonLock()
   check('acquire RECLAIMS a stale lock', reclaimed !== null)
@@ -60,7 +57,6 @@ section('release only removes OUR lock — a successor takeover is left intact')
 {
   const mine = await cs.acquireDaemonLock()
   check('acquired (ours)', mine !== null)
-
   const successor = JSON.stringify({ pid: 1, startedAt: Date.now(), id: 'successor' })
   writeFileSync(lockPath, successor)
   await mine!.release()

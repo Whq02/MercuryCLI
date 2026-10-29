@@ -16,7 +16,6 @@ import { isChooseAModel } from './computedDefault.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
-
 import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
@@ -28,14 +27,12 @@ import {
   liveGptDefaultEffort,
   liveGptEffortCatalogue,
 } from '../../services/providers/openai/openaiCatalogue.js'
-
 import {
   glmDisplayPin,
   glmEffortsFor,
   glmTakesImages,
   isGlmModelId,
 } from '../../services/providers/zai/glmPins.js'
-
 import {
   KIMI_EFFORT_STEPS,
   isKimiModelId,
@@ -71,7 +68,6 @@ import {
   isDeepseekModelId,
 } from '../../services/providers/deepseek/deepseekPins.js'
 import { deepseekLiveModel, deepseekModelFacts } from '../../services/providers/deepseek/deepseekCatalogue.js'
-
 import { isHuggingfaceModelId } from '../../services/providers/huggingface/huggingfacePins.js'
 import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../services/providers/routeLaw.js'
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
@@ -80,6 +76,7 @@ import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggi
 import { localRecordFor, localWireId } from '../../services/providers/local/localCatalogue.js'
 import { localModelRecord } from '../../services/providers/local/localDiscovery.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
+
 
 export function modelSupportsTemperature(model: string): boolean {
   if (isXaiModelId(model)) return xaiModelFacts(model)?.temperature === true
@@ -96,6 +93,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (family === 'opus' && major === 4 && minor >= 7) return false
   return true
 }
+
 
 export function modelSupportsISP(model: string): boolean {
   if (isOrcarouterModelId(model)) return false
@@ -133,19 +131,15 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isMistralModelId(model)) return false
   if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isMeliousModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model) || isQwenModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
-
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
   }
-
   if (canonical.includes('fable-5') || canonical.includes('mythos-5')) {
     return true
   }
-
   if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
     return true
   }
-
   if (
     canonical.includes('opus') ||
     canonical.includes('sonnet') ||
@@ -153,7 +147,6 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
   ) {
     return false
   }
-
   return true
 }
 
@@ -211,15 +204,14 @@ export function foldToolChoiceForModel<T extends { type: string }>(
   return { type: 'auto' }
 }
 
-export function modelSupportsStructuredOutputs(model: string): boolean {
 
+export function modelSupportsStructuredOutputs(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
     canonical === 'claude-haiku-5-5' ||
     canonical.includes('claude-sonnet-5') ||
     canonical.includes('claude-opus-5') ||
-
     canonical.includes('claude-fable-5') ||
     canonical.includes('claude-sonnet-4-6') ||
     canonical.includes('claude-sonnet-4-5') ||
@@ -229,6 +221,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
     canonical.includes('claude-haiku-4-5')
   )
 }
+
 
 export type GptEffortVocabularyView =
   | { state: 'not-gpt' }
@@ -269,7 +262,6 @@ export type EffortVocabularyView =
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
-
       thinkingOffWire?: string
       steps?: Readonly<Record<string, string>>
     }
@@ -311,7 +303,6 @@ const UNKNOWN_ID_LADDER: readonly EffortLevel[] = ['low', 'medium', 'high']
 
 function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (isChooseAModel(model)) return { kind: 'none', source: 'choose-a-model' }
-
   const gpt = gptEffortVocabularyView(model)
   switch (gpt.state) {
     case 'live':
@@ -433,7 +424,6 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {
-
     const { openrouterEffortVocabularyFor } =
       require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
     const vocabulary = openrouterEffortVocabularyFor(model)
@@ -450,7 +440,6 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'nous' }
   }
   if (route === 'gemini') {
-
     const { geminiEffortVocabularyFor } =
       require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
     const vocabulary = geminiEffortVocabularyFor(model)
@@ -479,7 +468,6 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   }
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }
   const m = familyDefaultsModel(model).toLowerCase()
-
   if (
     getCanonicalName(m) === 'claude-haiku-5-5' ||
     m.includes('sonnet-5') ||
@@ -494,11 +482,9 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
   if (m.includes('opus-4-5') || m.includes('opus-4-6') || m.includes('sonnet-4-6')) {
     return { kind: 'ladder', source: 'first-party', vocabulary: FIRST_PARTY_LADDER_TO_MAX }
   }
-
   if (m.includes('haiku') || m.includes('sonnet') || m.includes('opus')) {
     return { kind: 'none', source: 'first-party-legacy' }
   }
-
   return { kind: 'ladder', source: 'unknown-id', vocabulary: UNKNOWN_ID_LADDER }
 }
 
@@ -547,6 +533,7 @@ export function getMaxSupportedEffortLevel(model: string): EffortLevel {
   return aboveHigh.find(level => vocabularyOffers(view, level)) ?? 'high'
 }
 
+
 export const MODEL_CONTEXT_WINDOW_DEFAULT = 200_000
 
 const MAX_OUTPUT_TOKENS_DEFAULT = 32_000
@@ -572,7 +559,6 @@ export function modelSupports1M(model: string): boolean {
   if (is1mContextDisabled()) {
     return false
   }
-
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return (
@@ -581,10 +567,10 @@ export function modelSupports1M(model: string): boolean {
     canonical.includes('opus-5') ||
     canonical.includes('claude-sonnet-4') ||
     canonical.includes('opus-4-6') ||
-
     canonical.includes('fable-5')
   )
 }
+
 
 export type ContextRequestedMode = 'default' | 'maximum'
 
@@ -594,15 +580,11 @@ export type ContextActivation =
 
 export interface ContextResolution {
   model: string
-
   catalogueCurrent?: number
-
   catalogueMaximum?: number
-
   staticDefault?: number
   requestedMode: ContextRequestedMode
   activation: ContextActivation
-
   effectiveWindow: number
   source:
     | 'operator'
@@ -613,7 +595,6 @@ export interface ContextResolution {
     | 'beta-header'
     | 'fallback'
   pinAwaitingLive?: boolean
-
   outputReserve: number
   fallbackReason?: string
 }
@@ -636,7 +617,6 @@ function baseResolveContextWindow(
     let activation: ContextActivation = r.activation ?? { kind: 'none' }
     let fallbackReason = r.fallbackReason
     if (requestedMode === 'maximum' && activation.kind === 'none') {
-
       activation = {
         kind: 'unavailable',
         reason:
@@ -721,7 +701,6 @@ function baseResolveContextWindow(
     (firstPartyCanonical === 'claude-haiku-5-5' ||
       firstPartyCanonical.includes('sonnet-5') ||
       firstPartyCanonical.includes('opus-5') ||
-
       firstPartyCanonical === 'claude-fable-5-1')
   ) {
     if (is1mContextDisabled()) {
@@ -921,7 +900,6 @@ export function getContextWindowForModel(
   model: string,
   betas?: string[],
 ): number {
-
   return resolveContextWindow(model, betas).effectiveWindow
 }
 
@@ -980,10 +958,8 @@ function baseGetModelMaxOutputTokens(model: string): {
   const m = isCarrierShapedId(model) ? '' : getCanonicalName(familyDefaultsModel(model))
 
   if (m.includes('fable-5')) {
-
     upperLimit = 128_000
   } else if (m === 'claude-haiku-5-5' || m.includes('sonnet-5') || m.includes('opus-5')) {
-
     upperLimit = 128_000
   } else if (m.includes('opus-4-6')) {
     upperLimit = 128_000
@@ -1024,9 +1000,11 @@ export function getMaxThinkingTokensForModel(model: string): number {
   return getModelMaxOutputTokens(model).upperLimit - 1
 }
 
+
 export function getToolSearchBetaHeader(): string {
   return TOOL_SEARCH_BETA_HEADER_1P
 }
+
 
 const ALLOWED_SDK_BETAS = [CONTEXT_1M_BETA_HEADER]
 
@@ -1063,6 +1041,7 @@ export function filterAllowedSdkBetas(
   }
   return kept.length > 0 ? kept : undefined
 }
+
 
 const KEY_SEP = String.fromCharCode(0)
 
@@ -1122,27 +1101,23 @@ export function clearBetasCaches(): void {
   getModelBetas.cache?.clear?.()
 }
 
-export function getModelKnowledgeCutoff(modelId: string): string | null {
 
+export function getModelKnowledgeCutoff(modelId: string): string | null {
   if (isCarrierShapedId(modelId)) return null
   if (familyHeadOf(modelId) !== null) return null
   if (getCanonicalName(modelId) === 'claude-haiku-5-5') return 'June 2026'
   if (modelId.includes('claude-opus-5-5') || modelId.includes('claude-sonnet-5-5')) {
     return 'June 2026'
   }
-
   if (modelId.includes('claude-opus-5')) {
     return 'May 2026'
   }
-
   if (modelId.includes('claude-opus-4-8')) {
     return 'January 2026'
   }
-
   if (modelId.includes('claude-fable-5-1') || modelId.includes('claude-mythos-5-1')) {
     return 'June 2026'
   }
-
   if (modelId.includes('claude-fable-5') || modelId.includes('claude-mythos-5')) {
     return 'January 2026'
   }
@@ -1164,6 +1139,7 @@ export function getModelKnowledgeCutoff(modelId: string): string | null {
   return null
 }
 
+
 export function modelSupportsPDF(model: string): boolean {
   const route = declaredRouteOf(model)
   if (route === 'anthropic') return !model.toLowerCase().includes('claude-3-haiku')
@@ -1173,7 +1149,6 @@ export function modelSupportsPDF(model: string): boolean {
 }
 
 function baseModelReceivesImageBlocks(model: string): boolean {
-
   const verdict = classifyModelRoute(model)
   if (verdict.kind === 'unrecognised') return true
   if (verdict.kind === 'absence') return false
@@ -1242,6 +1217,7 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
   }
 }
 
+
 export function fineGrainedToolStreamingEnabled(): boolean {
   if (!isFirstPartyAnthropicBaseUrl()) {
     return false
@@ -1253,10 +1229,9 @@ export function toolDeferralEnabled(): boolean {
   return flagEnabled('MERCURY_TOOL_DEFER')
 }
 
+
 export type ModelCapabilityRecord = Readonly<{
-
   model: string
-
   canonical: string
   identity: Readonly<{
     isHaiku: boolean

@@ -1,3 +1,4 @@
+
 interface DeepErrorDetail {
   name: string
   message: string
@@ -8,13 +9,11 @@ interface DeepErrorDetail {
 
 interface TransportFailure extends DeepErrorDetail {
   ts: number
-
   target?: string
 }
 
 const MAX_CAUSE_HOPS = 5
 const RING_MAX = 8
-
 const RECENT_WINDOW_MS = 20_000
 
 const ring: TransportFailure[] = []

@@ -29,7 +29,6 @@ function helpOf(args: string[]): string {
       env: { ...process.env },
     })
   } catch (e) {
-
     return String((e as { stdout?: string }).stdout ?? '')
   }
 }

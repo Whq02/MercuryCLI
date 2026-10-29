@@ -21,6 +21,7 @@ import type {
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
 
+
 export function parseDefaultProviderWord(token: string | undefined): string | undefined {
   switch ((token ?? '').toLowerCase()) {
     case 'anthropic':
@@ -109,7 +110,6 @@ function switchReceipt(family: string, recorded: boolean): string {
   }
   const decision = computedDefault()
   if (decision.provider === family) {
-
     return `Default provider set to ${name} — default model now ${decision.setting} (${decision.row}); fresh sessions start there. Recorded in the sign-in ledger; a later sign-in moves it.`
   }
   const considered = decision.considered.find(c => c.family === family)

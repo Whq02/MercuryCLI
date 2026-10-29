@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
@@ -140,7 +141,6 @@ function matchNode(
   query: StructureQuery,
 ): { matched: boolean; name?: string } {
   const q = query
-
   if (!q.select) return { matched: false }
   const nameOk = (n: string | null): boolean => (q.name ? n !== null && matchesGlob(n, q.name) : true)
 
@@ -303,7 +303,6 @@ function withinOk(ts: TsModule, node: TS.Node, within: string | undefined): bool
       if (!nameRaw) return true
       curName = nodeName(ts, cur)
       if (curName === null && (ts.isArrowFunction(cur) || ts.isFunctionExpression(cur))) {
-
         const parent = cur.parent
         if (parent && ts.isVariableDeclaration(parent)) curName = nodeName(ts, parent)
       }

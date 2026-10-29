@@ -39,7 +39,6 @@ function runHealth(extraEnv: Record<string, string> = {}): Cert {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: configDir,
-
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? 'proof-key-builtin-tools-not-a-real-key',
       ...extraEnv,
     },
@@ -86,7 +85,6 @@ try {
   check("MERCURY_STRUCTURE=0 reads 'off'", findCheck(offCert, 'structure-loop')?.status === 'off')
   check("MERCURY_GIT_GRAPH=0 reads 'off'", findCheck(offCert, 'git-graph')?.status === 'off')
   check("MERCURY_JOURNEYS=0 reads 'off'", findCheck(offCert, 'journey-loop')?.status === 'off')
-
   const offSearch = findCheck(offCert, 'capability-search')
   check("…and capability-search reads 'off' (no Git target), never a fault", offSearch?.status === 'off', `${offSearch?.status}: ${offSearch?.evidence}`)
 } finally {

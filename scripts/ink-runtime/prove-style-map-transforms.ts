@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -29,7 +28,6 @@ section('arm 2: node (bundle-and-run — the shipped wrap engine)')
 {
   const cache = join(ROOT, 'node_modules', '.cache', 'mercury-style-map-node')
   mkdirSync(cache, { recursive: true })
-
   const macro = join(cache, 'macro.ts')
   writeFileSync(macro, ";(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }\n")
   const entry = join(cache, 'entry.ts')

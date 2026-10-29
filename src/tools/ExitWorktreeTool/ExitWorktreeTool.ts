@@ -23,6 +23,7 @@ import { EXIT_WORKTREE_TOOL_NAME } from './constants.js'
 import { getExitWorktreeToolPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
+
 const inputSchema = z.strictObject({
   action: z
     .enum(['keep', 'remove'])
@@ -88,15 +89,12 @@ async function countWorktreeChanges(
 
 function restoreSessionState(originalCwd: string, projectRootMoved: boolean): void {
   setCwd(originalCwd)
-
   setOriginalCwd(originalCwd)
   regroundGitWatch()
   if (projectRootMoved) {
-
     setProjectRoot(originalCwd)
     refreshHooksSnapshot()
   }
-
   clearInstructionFileCaches()
 }
 
@@ -110,7 +108,6 @@ export const ExitWorktreeTool = buildTool({
   inputSchema,
   outputSchema,
   searchHint: 'end the worktree session and return to the original directory',
-
   userFacingName: () => 'exiting worktree',
   isDestructive(input?: Partial<Input>): boolean {
     return input?.action === 'remove'
@@ -128,7 +125,6 @@ export const ExitWorktreeTool = buildTool({
     return getExitWorktreeToolPrompt()
   },
   async validateInput(input: Input) {
-
     const session = getCurrentWorktreeSession()
     if (session === null) {
       return {
@@ -171,17 +167,14 @@ export const ExitWorktreeTool = buildTool({
     return { result: true as const }
   },
   async call(input: Input) {
-
     const session = getCurrentWorktreeSession()
     if (session === null) {
       throw new Error(NO_SESSION_MESSAGE)
     }
-
     const originalCwd = session.originalCwd
     const worktreePath = session.worktreePath
     const worktreeBranch = session.worktreeBranch
     const tmuxSessionName = session.tmuxSessionName
-
     const projectRootMoved = getOriginalCwd() === getProjectRoot()
 
     if (input.action === 'keep') {

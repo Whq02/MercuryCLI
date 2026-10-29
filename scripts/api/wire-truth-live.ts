@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -129,7 +128,6 @@ rows.forEach((row, index) => {
   const size = row.usage.input + row.usage.cacheRead + row.usage.cacheCreation
   let verdict = 'first request (nothing to hold yet)'
   if (index > 0) {
-
     const held = row.usage.cacheRead >= previousSize
     if (held) heldPairs++
     else brokePairs++

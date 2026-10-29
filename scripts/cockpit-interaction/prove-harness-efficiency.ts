@@ -36,7 +36,6 @@ t.section('row 2 — the request pool is measured, and dead bytes are gone')
       live.every(tool => tool.isEnabled()),
     `${live.length} of ${catalog.length}`,
   )
-
   const disabledInCatalog = catalog.filter(tool => !tool.isEnabled()).map(tool => tool.name)
   const liveNames = new Set(live.map(tool => tool.name))
   t.check(

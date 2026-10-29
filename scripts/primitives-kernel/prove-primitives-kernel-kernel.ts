@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let pass = 0
@@ -72,7 +71,6 @@ console.log('capability negotiation')
 
 console.log('the anchor consumer is byte-identical through the boundary')
 {
-
   check('full-file anchor golden', mintFileAnchor('hello\nworld\n') === 'fa:4a1e67f2fe1d', mintFileAnchor('hello\nworld\n'))
   check('range anchor golden', mintRangeAnchor('mid', 3, 1) === 'ra:90ac16783fbc:L3+1', mintRangeAnchor('mid', 3, 1))
   check('CRLF normalization unchanged', mintFileAnchor('hello\r\nworld\r\n') === mintFileAnchor('hello\nworld\n'))

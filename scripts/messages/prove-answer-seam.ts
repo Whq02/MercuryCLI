@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -49,7 +48,6 @@ section('§1 sighting (a): an api-error settlement is a FAILURE, never an answer
     'the console failure detector recognises it (the error row, not a reply row)',
     ASK.consoleAskFailure(out) !== null,
   )
-
   const prefixed = `${ERR.API_ERROR_MESSAGE_PREFIX}: the anthropic wire refused the request`
   const outPrefixed = SQ.extractResponse([apiErrored(prefixed)] as never)
   check('a prefix-carrying failure passes through verbatim (no double wrap)', outPrefixed === prefixed, String(outPrefixed))
@@ -65,7 +63,6 @@ section('§2 a real answer beside an api-error settlement stays the answer')
 
 section('§3 every structured consumer asks the settlement classification first')
 {
-
   const coordinator = read('src/services/concourse/coordinatorCall.ts')
   check(
     'the coordinator round loop excludes api-error settlements from its reply text',

@@ -22,9 +22,7 @@ type PermissionPromptProps<T extends string> = {
   onSelect: (value: T, feedback?: string) => void
   onCancel?: () => void
   question?: string | ReactNode
-
   isDisabled?: boolean
-
   escapeHint?: string
   hintGap?: boolean
 }
@@ -152,7 +150,6 @@ export function PermissionPrompt<T extends string>({
   useKeybindings(keybindingHandlers, { context: 'Confirmation', isActive: !isDisabled && !inputOwnsFocus })
 
   const handleCancel = useCallback(() => {
-
     setAppState(prev => ({
       ...prev,
       attribution: {
@@ -177,7 +174,6 @@ export function PermissionPrompt<T extends string>({
         onChange={handleSelect}
         onCancel={handleCancel}
         onFocus={value => {
-
           const newOption = options.find(opt => opt.value === value)
           if (
             newOption?.feedbackConfig?.type !== 'accept' &&

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -33,14 +32,12 @@ const fullSse = (): string =>
     `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 2 } })}`,
     `event: message_stop\n${sse({ type: 'message_stop' })}`,
   ].join('')
-
 const midStreamThenSilence = (): string =>
   [
     `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_fx', type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
     `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
     `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'half a thought…' } })}`,
   ].join('')
-
 const toolUseThenSilence = (): string =>
   [
     `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_fx', type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
@@ -91,7 +88,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       res.write(toolUseThenSilence())
       holds.add(res)
     } else {
-
       res.flushHeaders()
       holds.add(res)
     }
@@ -186,7 +182,6 @@ function resetFixture(nextPlan: StreamPlan[]): void {
 }
 
 section('A · pre-first-event silence → ONE streaming reissue heals the turn')
-
 {
   resetFixture(['silent', 'full'])
   const o = await drive()
@@ -197,7 +192,6 @@ section('A · pre-first-event silence → ONE streaming reissue heals the turn')
 }
 
 section('B · silence persists across the reissue → non-streaming last resort')
-
 {
   resetFixture(['silent', 'silent'])
   const o = await drive()
@@ -207,7 +201,6 @@ section('B · silence persists across the reissue → non-streaming last resort'
 }
 
 section('C · mid-stream silence → NO reissue; non-streaming names the cause')
-
 {
   resetFixture(['mid-stream'])
   const o = await drive()
@@ -217,7 +210,6 @@ section('C · mid-stream silence → NO reissue; non-streaming names the cause')
 }
 
 section('D · silence after a streamed tool_use → NO fallback (the double-run veto)')
-
 {
   resetFixture(['tool-then-silence'])
   const o = await drive()

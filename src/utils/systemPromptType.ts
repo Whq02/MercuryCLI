@@ -1,3 +1,4 @@
+
 export type SystemPrompt = readonly string[] & {
   readonly __brand: 'SystemPrompt'
 }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -28,7 +27,6 @@ const providerFiles = ['src/services/providers/openai/openaiAdapter.ts', 'src/se
 const emitted = new Set<string>()
 for (const f of providerFiles) {
   const src = readFileSync(join(ROOT, f), 'utf8')
-
   for (const m of src.matchAll(/reason: '([a-z-]+:[a-z-]+)'/g)) emitted.add(m[1]!)
 }
 check('provider reason literals found', emitted.size >= 2, [...emitted].join(', '))

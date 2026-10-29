@@ -1,3 +1,4 @@
+
 import type { ImpactManifest, ImpactSelection } from './impactManifest.ts'
 import { selectImpact } from './impactManifest.ts'
 
@@ -8,23 +9,16 @@ export const DEFAULT_CLEARLY_UNDER_RATIO = 0.5
 const DEFAULT_SUITE_SECONDS = 30
 
 export interface SliceAnchor {
-
   treeSha: string
-
   source: string
-
   headSha: string | null
-
   ageCommits: number | null
 }
 
 export interface SlicePlanInput {
-
   changedPaths: string[]
   manifest: ImpactManifest
-
   classes: Record<string, GateClass>
-
   durations: Record<string, number>
   anchor: SliceAnchor | null
   cores: number
@@ -68,7 +62,6 @@ export function estimatePooledWallS(
   const cls = (s: string): GateClass => opts.classes[s] ?? 'undeclared'
   const longestFirst = (a: string, b: string): number => dur(b) - dur(a) || a.localeCompare(b)
   const q = {
-
     pty: suites.filter(s => cls(s) === 'pty' || cls(s) === 'undeclared').sort(longestFirst),
     cpu: suites.filter(s => cls(s) === 'cpu').sort(longestFirst),
     pure: suites.filter(s => cls(s) === 'pure').sort(longestFirst),
@@ -86,13 +79,11 @@ export function estimatePooledWallS(
     if (c === 'pure') pureN++
   }
   while (q.pty.length + q.cpu.length + q.pure.length + q.excl.length > 0 || running.length > 0) {
-
     for (;;) {
       if (q.pty.length > 0 && ptyN < ptyMax && slots + 2 <= slotsTotal) {
         launch(q.pty.shift()!, 2, 'pty')
         continue
       }
-
       const pureHeadOutlastsCpu =
         q.pure.length > 0 && pureN < pureMax && slots + 1 <= slotsTotal && q.cpu.length > 0 && dur(q.pure[0]!) > dur(q.cpu[0]!)
       if (q.cpu.length > 0 && slots + 2 <= slotsTotal && !pureHeadOutlastsCpu) {
@@ -103,7 +94,6 @@ export function estimatePooledWallS(
         launch(q.pure.shift()!, 1, 'pure')
         continue
       }
-
       if (
         q.excl.length > 0 &&
         running.length === 0 &&
@@ -114,7 +104,6 @@ export function estimatePooledWallS(
         launch(q.excl.shift()!, slotsTotal, 'excl')
         break
       }
-
       if (running.length === 0) {
         if (q.pty.length > 0) {
           launch(q.pty.shift()!, 2, 'pty')
@@ -132,7 +121,6 @@ export function estimatePooledWallS(
       break
     }
     if (running.length === 0) break
-
     let tNext = Infinity
     for (const r of running) tNext = Math.min(tNext, r.end)
     t = tNext

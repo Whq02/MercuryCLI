@@ -63,19 +63,14 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
+
 interface BootAgentsScreenProps {
   onClose?: () => void;
-
   suspended?: boolean;
-
   onOpenLogins?: () => void;
-
   fullScene?: { columns: number; rows: number };
-
   definitions?: AgentDefinitionsResult;
-
   workspaceDir?: string;
-
   toolsOf?: () => Tools;
 }
 
@@ -90,6 +85,7 @@ type FaceEntry = {
   detail: null;
   inert?: boolean;
 };
+
 
 export function agentFaceEntryOf(row: StudioRow): FaceEntry {
   if (row.kind === 'invalid') {
@@ -125,7 +121,6 @@ export function agentFaceDetailLines(
   row: StudioRow,
   estate: Map<string, AgentEstateEntry>,
   eff: ReturnType<typeof resolveEffectiveAgentRuntime> | null,
-
   availabilityNote: string | null = null,
 ): string[] {
   if (row.kind === 'invalid') {
@@ -153,7 +148,6 @@ export function agentFaceDetailLines(
     `scope: ${getAgentSourceDisplayName(agent.source)}`,
   ];
   if (eff !== null) {
-
     lines.push(
       `model: ${eff.modelIntent} → ${eff.model}${eff.modelIntent === 'inherit' ? " (your session's model)" : ''}`,
       `effort: ${eff.effortIntent !== undefined ? `${eff.effortIntent} → ` : 'session → '}${eff.effort.label}`,
@@ -230,6 +224,7 @@ function agentTrashEntryOf(entry: AgentTrashEntry): FaceEntry {
     detail: null,
   };
 }
+
 
 export function agentFormRowIds(mode: 'create' | 'edit'): Array<'destination' | FieldId> {
   return mode === 'create' ? ['destination', ...FIELD_ROWS.map(r => r.id)] : FIELD_ROWS.map(r => r.id);
@@ -375,7 +370,6 @@ export function BootAgentsScreen({
   useEffect(() => {
     reload();
     if (given !== undefined) return;
-
     void startAgentWatch(workspaceDir).catch(() => {});
     const unsubscribe = subscribeAgentsChanged(reload);
     return unsubscribe;
@@ -405,7 +399,6 @@ export function BootAgentsScreen({
 
   const [confirm, setConfirm] = useState<AgentDefinition | null>(null);
   const [trash, setTrash] = useState<{ open: boolean; entries: AgentTrashEntry[] }>({ open: false, entries: [] });
-
   const [modelPick, setModelPick] = useState<{
     agentType: string;
     current: string;
@@ -451,7 +444,6 @@ export function BootAgentsScreen({
         },
         s => setFormSnap(s),
       );
-
       machine.setView({ kind: 'advanced', cursor: 0, editing: null });
       setForm({ machine, mode });
       setFormSnap(machine.snapshot());
@@ -504,7 +496,6 @@ export function BootAgentsScreen({
         run: r => {
           if (!r?.agent) return null;
           if (r.agent.source === 'built-in') {
-
             const agent = r.agent;
             setModelPick({
               agentType: agent.agentType,
@@ -600,11 +591,9 @@ export function BootAgentsScreen({
           if (value === null || pick === null) return null;
           const row = pick.rows.find(r => r.value === value);
           if (row === undefined) return null;
-
           const outcome = agentModelPickOutcome(row);
           if (outcome.kind === 'needs-sign-in') {
             if (onOpenLogins) {
-
               onOpenLogins();
               return null;
             }
@@ -665,7 +654,6 @@ export function BootAgentsScreen({
       case 'pick': {
         const field = id as FieldId;
         if (field === 'model') {
-
           const modelRows = getAgentModelPickerRows();
           setFormPick({ field, options: modelRows.map(r => r.value), modelRows });
           return;
@@ -782,7 +770,6 @@ export function BootAgentsScreen({
           if (value === null || !f || !pick) return null;
           const snap = f.machine.snapshot();
           if (pick.toggles) {
-
             const field = pick.field as 'tools' | 'disallowedTools';
             const current = snap.doc.fields[field];
             const next =
@@ -801,7 +788,6 @@ export function BootAgentsScreen({
               const outcome = agentModelPickOutcome(row);
               if (outcome.kind === 'needs-sign-in') {
                 if (onOpenLogins) {
-
                   onOpenLogins();
                   return null;
                 }
@@ -959,7 +945,6 @@ export function BootAgentsScreen({
         name: snap.doc.fields.name,
       });
       const modelAvailability = agentModelAvailabilityNote(snap.doc.fields.model);
-
       const effRun = effectiveStudioRuntime({
         doc: snap.doc,
         base: undefined,
@@ -970,10 +955,8 @@ export function BootAgentsScreen({
       });
       const effectiveLine = `${effRun.modelIntent} → ${effRun.model} · effort ${effRun.effort.label}${modelAvailability !== null ? ` · ${modelAvailability}` : ''}`;
       if (formPick !== null) {
-
         const current = (snap.doc.fields as Record<string, unknown>)[formPick.field];
         if (formPick.modelRows !== undefined) {
-
           const currentModel = String(snap.doc.fields.model ?? 'inherit');
           return {
             ...base,
@@ -1031,7 +1014,6 @@ export function BootAgentsScreen({
       };
     }
     if (modelPick !== null) {
-
       return {
         ...base,
         entries: modelPick.rows.map(r => ({
@@ -1167,7 +1149,6 @@ export function BootAgentsScreen({
         const line = composition.placed[i] ?? '';
         const entryIdx = composition.entryAt.get(i);
         if (entryIdx !== undefined) {
-
           if (formPick !== null) {
             const option = formPick.options[entryIdx];
             if (option !== undefined) {

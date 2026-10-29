@@ -24,7 +24,6 @@ function liveOwner(sessionId: string): string {
 
 t.section('§1 — disposal during a coalesce wait settles the accepted generation')
 {
-
   const owner = liveOwner('keel-disposetimer')
   await lifecycle.disposeOwner(owner)
   await barrier.microturns()
@@ -168,7 +167,6 @@ t.section('§6 — an active durable owner is not silently evicted')
 {
   const before = coord._runOwnerCountForTesting()
   const first = liveOwner('keel-evict-first')
-
   for (let i = 0; i < 70; i++) {
     const filler = makeOwnerKey({ workspace: ROOT, sessionId: `keel-filler-${i}`, lane: 'main' })
     coord.acceptUserRequest(filler, { objective: 'filler', rootMessageId: null })
@@ -183,7 +181,6 @@ t.section('§6 — an active durable owner is not silently evicted')
 
 t.section('§7 — a new owner admitted while EVERY other owner is retained survives')
 {
-
   const disposed: string[] = []
   const retained = new Set<string>()
   const store = new OwnerScopedStore<{ id: string }>({
@@ -226,11 +223,9 @@ t.section('§7 — a new owner admitted while EVERY other owner is retained surv
 
 t.section('§8 — the graceful-shutdown sweep drains durable owners')
 {
-
   const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
 
   const owner = liveOwner('keel-shutdown')
-
   const before = await sidecar.loadRunSidecar(owner)
   t.check(
     'the accepted generation is not yet on disk (the precondition)',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -72,7 +71,6 @@ console.log('— R. unique relocation applies with a warning —')
   writeFileSync(p, original)
   const ctx = makeContext()
   const oldAnchor = primeAnchoredRead(ctx, p, original)
-
   writeFileSync(p, ['// new 1', '// new 2', '// new 3', '// head', BODY, '// tail', ''].join('\n'))
   const patch = [`file ${p} ${oldAnchor}`, 'replace 3', '|   return NEW'].join('\n')
   const r = await callTool({ op: 'apply', patch }, ctx)
@@ -88,7 +86,6 @@ console.log('— A. ambiguous relocation refuses with the current anchor —')
   writeFileSync(p, original)
   const ctx = makeContext()
   const oldAnchor = primeAnchoredRead(ctx, p, original)
-
   writeFileSync(p, ['// pre', '// head', BODY, '// tail', '// mid', '// head', BODY, '// tail', ''].join('\n'))
   const before = readFileSync(p, 'utf8')
   const patch = [`file ${p} ${oldAnchor}`, 'replace 3', '|   return NEW'].join('\n')
@@ -105,7 +102,6 @@ console.log('— C. changed window never recovers —')
   writeFileSync(p, original)
   const ctx = makeContext()
   const oldAnchor = primeAnchoredRead(ctx, p, original)
-
   writeFileSync(p, ['// head', 'function target() {', '  return TAMPERED', '}', '// tail', ''].join('\n'))
   const before = readFileSync(p, 'utf8')
   const patch = [`file ${p} ${oldAnchor}`, 'replace 3', '|   return NEW'].join('\n')
@@ -144,7 +140,6 @@ console.log('— N. no ring snapshot ⇒ the plain typed staleness refusal —')
   writeFileSync(p, 'x\ny\n')
   const ctx = makeContext()
   ctx.readFileState.set(p, { content: 'x\ny\n', timestamp: Date.now() + 60_000 } as never)
-
   const foreign = 'fa:00000000feed'
   const r = await callTool({ op: 'apply', patch: [`file ${p} ${foreign}`, 'replace 1', '| X'].join('\n') }, ctx)
   check('unknown stale anchor refuses typed', r.data.outcome === 'failed' && /Stale anchor|stale/.test(r.data.result), r.data.result.slice(0, 240))

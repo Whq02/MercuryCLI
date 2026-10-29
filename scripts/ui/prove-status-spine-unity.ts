@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cardTone } from '../../src/components/mercury-ui/toolCardGrammar.ts'
@@ -51,7 +50,6 @@ for (const word of ['queued', 'starting', 'running', 'waiting', 'stopping']) {
   const { cardToneOf } = await import('../../src/components/mercury-ui/toolCardGrammar.ts')
   const { resolveMercuryTokens } = await import('../../src/utils/mercuryTokens.ts')
   const { TERRA } = await import('../../src/components/mercuryPalette.ts')
-
   const dark = resolveMercuryTokens('dark', TERRA)
   const words = [
     'succeeded', 'ok', 'ready', 'completed', 'failed', 'error', 'absent', 'timed-out',
@@ -67,7 +65,6 @@ for (const word of ['queued', 'starting', 'running', 'waiting', 'stopping']) {
     }),
     words.filter(w => JSON.stringify(cardTone(w)) !== JSON.stringify(cardToneOf(dark, w))).join(','),
   )
-
   const { readdirSync, readFileSync: readFs, existsSync } = await import('node:fs')
   const { join } = await import('node:path')
   const toolsDir = join(import.meta.dir, '..', '..', 'src', 'tools')

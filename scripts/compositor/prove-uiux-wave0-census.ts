@@ -31,7 +31,6 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
   writeFileSync(
     probe,
     [
-
       "const chunks = []",
       "const origWrite = process.stdout.write.bind(process.stdout)",
       "Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })",
@@ -48,14 +47,12 @@ section('BM-19 — splash OSC 11 ground write, emitted bytes under the one spell
   )
   const runProbe = (env: Record<string, string>): { osc11: boolean; bytes: number } => {
     const out = execFileSync(process.execPath, [probe], {
-
       env: { PATH: process.env.PATH, TERM: 'xterm-256color', COLORTERM: 'truecolor', MERCURY_CONFIG_DIR: scratch, ...env },
       encoding: 'utf8',
       timeout: 30_000,
     })
     return JSON.parse(out.trim().split('\n').at(-1)!) as { osc11: boolean; bytes: number }
   }
-
   const baseline = runProbe({})
   const canonicalOff = runProbe({ MERCURY_OASIS_BG: '0' })
   const canonicalOn = runProbe({ MERCURY_OASIS_BG: '1' })
@@ -91,12 +88,9 @@ section('UI-006 — projected assets: the control reads')
 {
   const splash = src('assets/splash/mercury-splash.mjs')
   const launchers = src('scripts/release/launcherTemplates.mjs')
-
   const readsCanonical = (text: string, name: string): boolean =>
     new RegExp(`MERCURY_${name}\\b`).test(text)
-
   check(
-
     'census: splash canonical-aware USER controls (3.6.1, round-7 set) — TRUECOLOR · OASIS_BG · LAUNCH_RIPPLE · REDUCED_MOTION · CRITTER · SPLASH · CONFIG_DIR/HOME',
     readsCanonical(splash, 'TRUECOLOR') &&
       readsCanonical(splash, 'OASIS_BG') &&
@@ -119,7 +113,6 @@ section('UI-006 — projected assets: the control reads')
 
 section('UI-005 — terminal-mode acquisition/release census (who emits which mode bytes)')
 {
-
   const MODE_PATTERNS: Array<[name: string, re: RegExp]> = [
     ['alt-screen ?1049', /\[\?1049[hl]|\b(ALT_SCREEN\w*):\s*1049\b/],
     ['bracketed-paste ?2004', /\[\?2004[hl]|\b(BRACKETED_PASTE):\s*2004\b/],
@@ -150,7 +143,6 @@ section('UI-005 — terminal-mode acquisition/release census (who emits which mo
   }
   console.log(censusRows.map(r => `    ${r}`).join('\n'))
   const row = (s: string): string => censusRows.find(r => r.startsWith(s)) ?? ''
-
   check(
     'census: the splash asset emits alt-screen + cursor + ground bytes (the BM-20 ownership set)',
     row('splash-asset').includes('alt-screen') &&
@@ -159,7 +151,6 @@ section('UI-005 — terminal-mode acquisition/release census (who emits which mo
     row('splash-asset'),
   )
   {
-
     const launchers = src('scripts/release/launcherTemplates.mjs')
     check(
       'census: launcher templates emit RELEASE-ONLY heal bytes (abnormal path) — no mode acquisitions',
@@ -224,7 +215,6 @@ section('UI-007 — same-context legacy-projection collisions in the authored bi
     }
   }
   console.log(collisions.map(c => `    ${c}`).join('\n') || '    (no same-context legacy collisions)')
-
   check(
     'census: the collision list is DETERMINISTIC and recorded (each row names context, byte class, both actions)',
     collisions.every(c => /^[A-Za-z]+\/C0:.+ vs /.test(c)),
@@ -287,7 +277,6 @@ section('BM-20 — held is a settled receipt; release is obligation-exact (UI-02
 section('BM-22/23 — the remaining desired laws, pinned as flip targets')
 {
   {
-
     const resolverExists = existsSync(join(ROOT, 'src/ink/session/terminalExperience.ts'))
     check(
       'UI-021 (BM-21): a TerminalExperienceResolver owns fullscreen/mouse/title/accessibility resolution',
@@ -303,7 +292,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       !/same-direction plain arrows/.test(app),
   )
   {
-
     const policy = await import('../../src/ink/termio/alternateScrollPolicy.js')
     const arrow = (name: 'up' | 'down'): Record<string, unknown> => ({
       kind: 'key',
@@ -356,7 +344,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       JSON.stringify(names([{ ...arrow('up'), super: true }, { ...arrow('down'), super: true }], engaged)) === JSON.stringify(['up', 'down']),
       JSON.stringify(names([{ ...arrow('up'), super: true }], engaged)),
     )
-
     const historyRows = rowsBinding(shippedKeyForms(), action => action === 'history:previous' || action === 'history:next')
     const composer = src('src/hooks/useTextInput.ts')
     check(
@@ -376,7 +363,6 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
   }
   const ping = src('src/ink/termio/notifyPing.ts')
   {
-
     const { defaultPingMethod, buildOsc9Notification } = await import('../../src/ink/termio/notifyPing.js')
     check(
       'UI-078: every terminal has a ping road — the bell floor where OSC 9 is unproven (Windows Terminal, an unknown terminal), never silence',
@@ -410,7 +396,6 @@ section('UI-061..064 — authored chords classified through the live protocol; c
     ...(DEFAULT_BINDINGS as never[]),
     { context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTerminal', 'ctrl+x o': 'app:toggleTerminal' } },
   ] as never)
-
   const legacy = buildAtlas(authored, { defaultCount: defaults.length, platform: 'linux', extendedKeys: false })
   const extended = buildAtlas(authored, { defaultCount: defaults.length, platform: 'linux', extendedKeys: true })
   const shiftRow = (rows: typeof legacy) =>
@@ -491,7 +476,6 @@ section('RV — reasoning depth is not answer length; one balanced default + one
     src('src/services/providers/openai/openaiWire.ts').includes("verbosity?: 'low' | 'medium' | 'high'") &&
       !src('src/services/providers/openai/openaiCallModel.ts').includes('verbosity:'),
   )
-
   check(
     'RV-07: identical-retry prevention is the WK-08/2.2 shared mechanism (bm-classes floors stand; no second implementation)',
     src('scripts/stop-policy/prove-bm-classes.ts').includes('WK-08'),
@@ -540,7 +524,6 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
 
 section('UI-088..100 — selection/tokens/plates/transitions adjudicated to their owners')
 {
-
   const inkRoot = src('src/ink/ink.tsx')
   check(
     'UI-088..091: ONE screen-level selection owner (ink root copySelection + selection-model); no per-surface selection fork exists',
@@ -548,7 +531,6 @@ section('UI-088..100 — selection/tokens/plates/transitions adjudicated to thei
       existsSync(join(ROOT, 'src/ink/geometry/selection-model.ts')) &&
       existsSync(join(ROOT, 'scripts/render-continuity/prove-selection-region.ts')),
   )
-
   {
     const allowed = new Set([
       'src/utils/mercuryTokens.ts',
@@ -577,14 +559,12 @@ section('UI-088..100 — selection/tokens/plates/transitions adjudicated to thei
       offenders.join(', '),
     )
   }
-
   check(
     'UI-096: first text rides the shared stream owner (no plate delays first text)',
     src('src/utils/messages/streaming.ts').includes("if (delta.type === 'text_delta') {") &&
       src('src/utils/messages/streaming.ts').includes("text?.(before => (before ?? '') + chunk)") &&
       src('src/utils/messages/streaming.ts').includes('publishDelta(event, onUpdateLength, onStreamingToolUses, onStreamingText)'),
   )
-
   check(
     'UI-097..100: the transition families keep their standing owners (board-coverage · view-target-parity · agent-resume-visibility)',
     existsSync(join(ROOT, 'scripts/interaction/prove-board-coverage.ts')) &&
@@ -646,7 +626,6 @@ section('UI-009 — every prover is enrolled in a permanent suite')
       f => f.startsWith('prove-') && f.endsWith('.ts'),
     )
     for (const p of provers) {
-
       if (!runner.includes(p) && !runner.includes(p.replace(/\.ts$/, '')) && !listed.has(`${dir}/${p}`)) {
         orphans.push(`${dir}/${p}`)
       }

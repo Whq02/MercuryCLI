@@ -1,3 +1,4 @@
+
 import {
   registerExecution,
   registerExecutionDomain,
@@ -60,7 +61,6 @@ function finishWatch(watch: LiveWatch, state: 'succeeded' | 'failed' | 'stopped'
 interface RunWatchStart {
   state: 'watching'
   record: ExecutionRecord
-
   view: RunView | null
 }
 
@@ -97,7 +97,6 @@ export async function watchRun(owner: OwnerKey, root: string, runId: string): Pr
   })
   const watch: LiveWatch = { owner, id, runId, root, stopRequested: false, last: first.run, timer: null }
   liveWatches.set(watchKey(owner, id), watch)
-
   registerOwnerDisposer(owner, `run-watch:${id}`, () => {
     const live = liveWatches.get(watchKey(owner, id))
     if (!live) return
@@ -144,7 +143,6 @@ export async function watchRun(owner: OwnerKey, root: string, runId: string): Pr
         finishWatch(watch, view.run.conclusion === 'success' ? 'succeeded' : 'failed', `conclusion: ${view.run.conclusion || 'unknown'}`)
         return
       }
-
       if (!liveWatches.has(watchKey(owner, id))) return
     }
     watch.timer = setTimeout(() => void tick(), POLL_MS)

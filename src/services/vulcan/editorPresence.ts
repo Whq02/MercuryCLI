@@ -1,3 +1,4 @@
+
 import { listVulcanInstances, sameVulcanInstance, selectVulcanInstance, type VulcanInstance, type VulcanInstanceRole } from './instances.js'
 import { getVulcanClient } from './vulcanClient.js'
 import {
@@ -12,15 +13,10 @@ type GodotEditorPresenceState = 'no-editor' | 'editor-unbridged' | 'bridge-up'
 export interface GodotEditorPresence {
   state: GodotEditorPresenceState
   port: number
-
   reachable: boolean
-
   censusOk: boolean
-
   editors: GodotProcess[]
-
   processes: GodotProcess[]
-
   words: string
   ambiguous?: VulcanInstance[]
 }

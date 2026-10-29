@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer } from 'node:http'
 import { appendFileSync } from 'node:fs'
 

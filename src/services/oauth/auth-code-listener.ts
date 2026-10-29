@@ -83,7 +83,6 @@ export class AuthCodeListener {
       reject?.(new Error('Invalid state parameter'))
       return
     }
-
     this.pendingResponse = response
     const resolve = this.pendingResolve
     this.pendingResolve = null

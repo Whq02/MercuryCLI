@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -28,7 +27,6 @@ const COLS = 120
 const ROWS = 40
 const CHAPTERS = 8
 const SETTLE = 9000
-
 const BODY_C0 = 26
 
 let failures = 0
@@ -48,7 +46,6 @@ const PGUP = '\\x1b[5~'
 const PGDN = '\\x1b[6~'
 
 type AttrScreen = { atMs: number; rows: string[]; reverse: number[][]; bg: [number, number, string][] }
-
 let copies: string[] = []
 function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
   const res = spawnSync(
@@ -57,7 +54,6 @@ function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (res.status !== 0) throw new Error(`attrgrab failed: ${res.stderr}`)
-
   const payload = JSON.parse(res.stdout) as { screens: AttrScreen[]; copies?: string[] }
   copies = payload.copies ?? []
   return payload.screens
@@ -83,15 +79,12 @@ try {
     console.error(final.rows.slice(-14).join('\n'))
     process.exit(1)
   }
-
   stripRow = final.rows.findIndex(r => r.includes('SESSIONS'))
   if (stripRow < 0) stripRow = final.rows.findIndex(r => BACK_HINTS.some(h => r.includes(h)))
   if (stripRow < 0) stripRow = ROWS - 8
   paneBottom = stripRow - 3
   for (let r = tailRow; r < stripRow; r++) if ((final.rows[r] ?? '')[24] === '╰') paneBottom = r - 1
-
   for (let r = 1; r < tailRow; r++) if ((final.rows[r] ?? '')[25] === '╰') paneTop = r + 1
-
   let ar = Math.max(paneTop + 1, tailRow - 4)
   while (ar > paneTop + 1 && (final.rows[ar] ?? '').slice(BODY_C0).replace(/[^A-Za-z0-9]/g, '').length < 10) ar--
   anchor = { col: BODY_C0 + 6, row: ar }
@@ -110,39 +103,31 @@ const span = { top: paneTop + 1, bottom: paneBottom - 2 }
 const HOLD_MS = 200
 const dragT = t0 + 4500
 const sends: string[] = [
-
   `${t0}:${sgr(LEFT, anchor.col, anchor.row)}`,
   `${t0 + 60}:${sgr(LEFT | MOTION, focus1.col, focus1.row)}`,
   `${t0 + 120}:${sgr(LEFT, focus1.col, focus1.row, true)}`,
-
   `${t0 + 700}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
   `${t0 + 760}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
   `${t0 + 820}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
-
   `${t0 + 1500}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
   `${t0 + 1560}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
   `${t0 + 1620}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
   `${t0 + 1680}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
-
   `${t0 + 2400}:${sgr(LEFT, anchor.col, span.top)}`,
   `${t0 + 2460}:${sgr(LEFT | MOTION, anchor.col + 28, span.bottom)}`,
   `${t0 + 2520}:${sgr(LEFT, anchor.col + 28, span.bottom, true)}`,
-
   `${t0 + 3100}:${PGUP}`,
   `${t0 + 3800}:${PGDN}`,
-
   `${dragT}:${sgr(LEFT, anchor.col, anchor.row)}`,
   `${dragT + 40}:${sgr(LEFT | MOTION, anchor.col, 0)}`,
   `${dragT + 40 + HOLD_MS}:${sgr(LEFT, anchor.col, 0, true)}`,
 ]
 const lastMs = dragT + 40 + HOLD_MS
-
 const FLUX_PATH = join(mkdtempSync(join(tmpdir(), 'mercury-select-scroll-')), 'flux.json')
 const run = await runCompassArena({
   sends,
   seconds: Math.ceil((lastMs + 2500) / 1000),
   chapters: CHAPTERS,
-
   extraEnv: { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: FLUX_PATH, SSH_CONNECTION: '1' },
 })
 type Shot = { key: string; s: AttrScreen; hi: Hi; pane: { top: number; bottom: number } }
@@ -213,7 +198,6 @@ try {
     return d
   }
   const sel = take('sel')
-
   const midRow = sel.hi.rows[Math.floor(sel.hi.rows.length / 2)] ?? anchor.row + 1
   const midXs = sel.hi.cells.filter(([, y]) => y === midRow).map(([x]) => x)
   const paneC0 = midXs.length ? Math.min(...midXs) : BODY_C0
@@ -238,18 +222,15 @@ try {
   const sp = take('span')
   const pu = take('pgUp')
   const pd = take('pgDn')
-
   check('K0 a pane-spanning selection stands inside the pane', sp.hi.rows.length >= 8 && escaped(sp).length === 0, esc(sp))
   check('K1 after PgUp the surviving highlight is part of the selection PgDn restores', pu.hi.cells.length > 0 && subsetTexts(pu, pd), `PgUp rows ${rowsOf(pu)} texts ${JSON.stringify(pu.hi.texts.slice(0, 3))}; PgDn texts ${pd.hi.texts.length}`)
   check('K1 after PgUp no highlighted cell outside the pane', escaped(pu).length === 0, esc(pu))
-
   const held = sp.hi.rowTexts.slice(0, -1).filter(t => t.length > 0)
   const missing = held.filter(t => !pd.hi.texts.includes(t))
   check('K1 PgDn restores every row the selection held (widened by at most the two edge rows)', pd.hi.cells.length > 0 && missing.length === 0 && pd.hi.texts.length <= sp.hi.texts.length + 2, `before ${sp.hi.texts.length} rows, after ${pd.hi.texts.length} rows ${rowsOf(pd)}; missing ${JSON.stringify(missing.slice(0, 2))}`)
   check('K1 after PgDn no highlighted cell outside the pane', escaped(pd).length === 0, esc(pd))
 
   const dr = take('drag')
-
   const needle = (shot('preDrag').rows[anchor.row] ?? '').slice(BODY_C0).replace(/^[^A-Za-z0-9]+/, '').slice(0, 24).trim()
   const anchorRowNow = needle.length > 8 ? dr.s.rows.findIndex(r => r.includes(needle)) : -1
   check('D1 the drag-scrolled selection is highlighted at the release', dr.hi.cells.length > 0, 'zero highlighted cells')
@@ -263,7 +244,6 @@ try {
 }
 
 if (failures > 0) {
-
   for (const d of dumps) {
     console.log(`\n┌── ${d.key} (pane rows ${d.pane.top}..${d.pane.bottom}; highlighted ${d.hi.rows.map(y => `${y}[${d.hi.spans.get(y)![0]}..${d.hi.spans.get(y)![1]}]`).join(' ')}) ──`)
     for (let y = 0; y < ROWS; y++) console.log(`│${d.hi.rows.includes(y) ? '▌' : ' '}${(d.s.rows[y] ?? '').slice(0, 118)}`)

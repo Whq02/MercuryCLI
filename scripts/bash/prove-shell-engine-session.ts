@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import '../lib/hermetic.ts'
 
 process.env.MERCURY_SHELL_ENGINE = 'brush'
@@ -16,7 +15,6 @@ const { quote } = await import(join(ROOT, 'src/utils/bash/shellQuote.ts'))
 const { stripExtendedLengthPrefix } = await import(join(ROOT, 'src/utils/windowsPaths.ts'))
 const os = await import('node:os')
 const fs = await import('node:fs')
-
 const sameDir = (a: string, b: string): boolean => {
   const spell = (s: string): string => stripExtendedLengthPrefix(s.trim())
   try {
@@ -41,7 +39,6 @@ const alive = (pid: number): boolean => {
     return false
   }
 }
-
 const diedWithin = async (pid: number, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -99,7 +96,6 @@ section('§1 sentinel framing · exit codes · stderr folded into stdout')
   check('command-not-found reports 127', notfound.code === 127, `code=${notfound.code}`)
 
   const ordered = await run('echo out1; echo err1 >&2; echo out2')
-
   const allThree = ordered.stdout.includes('out1') && ordered.stdout.includes('err1') && ordered.stdout.includes('out2')
   check('stderr is folded into stdout in order (exec 2>&1)',
     allThree && ordered.stdout.indexOf('out1') < ordered.stdout.indexOf('err1') && ordered.stdout.indexOf('err1') < ordered.stdout.indexOf('out2'),
@@ -138,14 +134,12 @@ section('§2 a variable, a function and the cwd persist across three calls')
   check('call 3 can cd and reports the new cwd', c3.code === 0 && sameDir(lastLine(c3.stdout), target), `code=${c3.code} out=${JSON.stringify(c3.stdout)}`)
   const c4 = await run('pwd -P')
   check('call 4 starts where call 3 left off (cwd slaved through onCwd)', sameDir(lastLine(c4.stdout), target), `getCwd=${getCwd()} out=${JSON.stringify(c4.stdout)}`)
-
   check('the session records the directory in its native form (no extended-length prefix) and it is the target', !getCwd().startsWith('\\\\?\\') && sameDir(getCwd(), target), `getCwd=${getCwd()}`)
 }
 
 section('§3 a command printing sentinel-shaped bytes cannot fake completion')
 {
   resetEngineSessionForTest()
-
   const fake = String.fromCharCode(1) + 'deadbeef 0' + String.fromCharCode(2) + '/tmp' + String.fromCharCode(3)
   const r = await run(`printf %s ${JSON.stringify(fake)}; echo REAL_END; true`)
   check('the real command completes with code 0', r.code === 0, `code=${r.code}`)
@@ -197,7 +191,6 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
 {
   resetEngineSessionForTest()
   const { endEngineSession, endEngineSessionFor, engineChildForTest } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
-
   const order: string[] = []
   const a = run('sleep 2; echo A', 30_000, 'owner-a').then(r => {
     order.push('a')
@@ -212,13 +205,11 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
   const pidA = pidOf(await run('echo "pid=$$"', 30_000, 'owner-a'))
   const pidB = pidOf(await run('echo "pid=$$"', 30_000, 'owner-b'))
   check('each owner has its own engine process', pidA > 1 && pidB > 1 && pidA !== pidB && alive(pidA) && alive(pidB), `pids ${pidA}/${pidB}`)
-
   await run('OWNER_VAR=a-only; owner_fn() { echo fn-a; }', 30_000, 'owner-a')
   const seenByB = await run('echo "[${OWNER_VAR:-none}]"; owner_fn 2>/dev/null || echo fn-missing', 30_000, 'owner-b')
   check("an owner's variable and function are not seen by another owner", seenByB.stdout.includes('[none]') && seenByB.stdout.includes('fn-missing'), JSON.stringify(seenByB.stdout))
   const seenByA = await run('echo "[$OWNER_VAR]"; owner_fn', 30_000, 'owner-a')
   check('…and stay visible to their owner', seenByA.stdout.includes('[a-only]') && seenByA.stdout.includes('fn-a'), JSON.stringify(seenByA.stdout))
-
   await run('KEEP_B=kept', 30_000, 'owner-b')
   const hung = await run('sleep 30', 700, 'owner-a')
   check("owner A's hung command is killed with the timeout code", hung.code === 143, `code=${hung.code}`)
@@ -226,7 +217,6 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
   check("owner B's state survives owner A's reset, and B's result carries no note", afterB.stdout.includes('[kept]') && afterB.stderr === '', JSON.stringify(afterB))
   const afterA = await run('echo "[${OWNER_VAR:-gone}]"', 30_000, 'owner-a')
   check("owner A's next result carries the reset note and finds its state gone", afterA.stdout.includes('[gone]') && afterA.stderr.includes('reset'), JSON.stringify(afterA))
-
   const childA = engineChildForTest('owner-a')
   const childB = engineChildForTest('owner-b')
   const freshA = childA?.pid ?? -1
@@ -234,7 +224,6 @@ section('§10 two owners: a shell each — side by side, isolated, reset and end
   check("ending owner A's session ends A's process and not B's", freshA > 1 && (await diedWithin(freshA, 2_500)) && childB !== null && childB.pid === pidB && alive(pidB), `A ${freshA} B ${pidB}`)
   const backA = await run('echo "pid=$$"', 30_000, 'owner-a')
   check('a later command from owner A spawns fresh with no note owed', backA.code === 0 && pidOf(backA) > 1 && pidOf(backA) !== freshA && backA.stderr === '', JSON.stringify(backA))
-
   const lastA = pidOf(backA)
   await endEngineSession()
   check("the switch road ends every owner's session (both processes)", (await diedWithin(lastA, 2_500)) && (await diedWithin(pidB, 2_500)), `A ${lastA} alive=${alive(lastA)} B ${pidB} alive=${alive(pidB)}`)
@@ -248,12 +237,10 @@ section('§11 the ceiling on engine sessions: nine owners against 8 — the nint
   const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
   process.env.MERCURY_SHELL_ENGINE_SESSIONS = '8'
   check('the env pin outranks the setting and the default', resolveEngineSessionCeiling(3) === 8 && resolveEngineSessionCeiling() === 8)
-
   const agents = ['agent-1', 'agent-2', 'agent-3', 'agent-4', 'agent-5', 'agent-6', 'agent-7']
   const pids = new Set<number>([pidOf(await run('echo "pid=$$"'))])
   for (const owner of agents) pids.add(pidOf(await run('echo "pid=$$"', 30_000, owner)))
   check('the main conversation and seven sub-agents hold eight distinct sessions', pids.size === 8 && [...pids].every(pid => pid > 1), [...pids].join(','))
-
   let rowNote = ''
   const ninthController = new AbortController()
   const ninth = runEngineCommand(binaryPath, 'echo ninth; echo "pid=$$"', {
@@ -268,16 +255,13 @@ section('§11 the ceiling on engine sessions: nine owners against 8 — the nint
   while (!engineWaitingOwnersForTest().includes('agent-8') && Date.now() < deadline) await pause()
   check('the ninth owner waits for a free session — never a ninth process', engineWaitingOwnersForTest().includes('agent-8') && engineChildForTest('agent-8') === null && ninth.status === 'running', `waiting=${engineWaitingOwnersForTest().join(',')}`)
   check("the wait is said on the ninth's row, with the count and the ceiling", /waiting for a free shell engine session: 7 of 7 crewmate sessions are in use \(the ceiling is 8/.test(rowNote), JSON.stringify(rowNote))
-
   await endEngineSessionFor('agent-3')
   const ninthResult = (await ninth.result) as Result
   check('when an agent ends, the waiting owner gets a session and its command runs, on a process of its own', ninthResult.code === 0 && ninthResult.stdout.includes('ninth') && pidOf(ninthResult) > 1 && !pids.has(pidOf(ninthResult)), JSON.stringify(ninthResult))
   check('…and its output carries no trace of the wait (the note was the row\'s, never the output\'s)', !/waiting for a free/.test(ninthResult.stdout) && ninthResult.stderr === '', JSON.stringify(ninthResult))
   check('the ninth is no longer waiting', !engineWaitingOwnersForTest().includes('agent-8'))
-
   const late = (await runEngineCommand(binaryPath, 'echo late', { timeout: 600, signal: new AbortController().signal, owner: 'agent-9' }).result) as Result & { preSpawnError?: string }
   check("a wait past the call's timeout settles as a not-started result naming the ceiling", late.code === 1 && !late.interrupted && late.stdout === '' && /no shell engine session was free within 1s/.test(late.preSpawnError ?? '') && /the ceiling is 8/.test(late.stderr), JSON.stringify(late))
-
   const abortController = new AbortController()
   const parked = runEngineCommand(binaryPath, 'echo never', { timeout: 30_000, signal: abortController.signal, owner: 'agent-10' })
   deadline = Date.now() + 10_000
@@ -286,7 +270,6 @@ section('§11 the ceiling on engine sessions: nine owners against 8 — the nint
   abortController.abort('stop')
   const parkedResult = (await parked.result) as Result
   check('a waiting call that is aborted settles as aborted before execution (code 145), and leaves the wait', parkedResult.interrupted && parkedResult.code === 145 && !engineWaitingOwnersForTest().includes('agent-10'), JSON.stringify(parkedResult))
-
   process.env.MERCURY_SHELL_ENGINE_SESSIONS = '1'
   resetEngineSessionForTest()
   const mainOnly = await run('echo main-runs')
@@ -307,7 +290,6 @@ section('§11 the ceiling on engine sessions: nine owners against 8 — the nint
 section('§7 an engine that ends during its start refuses the command at once, with the reason')
 {
   resetEngineSessionForTest()
-
   const notABinary = fs.mkdtempSync(join(os.tmpdir(), 'engine-not-a-binary-'))
   const controller = new AbortController()
   const refused = (await runEngineCommand(notABinary, 'echo never', { timeout: 3_000, signal: controller.signal }).result) as Result & { preSpawnError?: string }
@@ -327,7 +309,6 @@ section('§8 an engine that dies between commands: the pipe error is heard, the 
   const child = engineChildForTest()
   check('the live engine is reachable through the seam', child !== null && typeof child?.pid === 'number')
   check("the engine's stdin pipe carries an error listener", (child?.stdin?.listenerCount('error') ?? 0) >= 1, `listeners=${child?.stdin?.listenerCount('error') ?? 'none'}`)
-
   let unheard: string | null = null
   const onUncaught = (error: unknown): void => {
     unheard = String(error)
@@ -359,11 +340,9 @@ section('§9 an interrupt with one command running and one waiting in line: the 
   resetEngineSessionForTest()
   await run('QUEUE_MARK=set')
   const gate = join(fs.mkdtempSync(join(os.tmpdir(), 'engine-gate-')), 'in-flight')
-
   const turn = new AbortController()
   const running = runEngineCommand(binaryPath, `: > ${quote([gate])}; sleep 30`, { timeout: 30_000, signal: turn.signal })
   const waiting = runEngineCommand(binaryPath, 'echo b', { timeout: 30_000, signal: turn.signal })
-
   const deadline = Date.now() + 10_000
   while (!fs.existsSync(gate) && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20))
   check('the first command is in flight (its gate file exists)', fs.existsSync(gate))

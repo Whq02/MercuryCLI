@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
@@ -106,7 +105,6 @@ console.log('recovered stream-fault presentation ──')
     check('the exhausted branch\u2019s warning row never marks the fault recovered', exhaustedLookups.recoveredStreamFaultUuids.size === 0)
   }
   {
-
     const messages = [
       mk.user('u1', 'go'),
       mk.assistant('a1', 'API Error: 529 overloaded.', true),
@@ -116,7 +114,6 @@ console.log('recovered stream-fault presentation ──')
     check('a non-continuable error never enters the set', lookups.recoveredStreamFaultUuids.size === 0)
   }
   {
-
     const messages = [
       mk.user('u1', 'go'),
       mk.assistant('a1', 'half —'),
@@ -150,7 +147,6 @@ for (const cols of [80, 120]) {
       encoding: 'utf-8',
       cwd: ROOT,
       timeout: 150_000,
-
       env: { ...process.env, MERCURY_AWAY_SUMMARY: '0' },
     },
   )

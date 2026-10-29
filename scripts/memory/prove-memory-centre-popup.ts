@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts
+// gate-watch: src/components/Settings/Settings.tsx src/components/SettingsPopupSlot.tsx src/utils/cockpit/settingsPopup.ts src/components/FullscreenLayout.tsx
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'

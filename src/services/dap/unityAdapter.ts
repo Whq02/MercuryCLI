@@ -1,3 +1,4 @@
+
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -14,9 +15,7 @@ export const UNITY_ADAPTER_ARM_HINT =
   "install the official 'Unity' VS Code extension (visualstudiotoolsforunity.vstuc ships bin/UnityDebugAdapter.dll), or point MERCURY_UNITY_DEBUG_ADAPTER at an UnityDebugAdapter.dll (unpack spot ~/.unity-dap works too); the adapter runs via the dotnet SDK on PATH"
 
 interface UnityAdapterResolution {
-
   dll: string
-
   dotnet: string
   source: 'pin' | 'vscode-extension' | 'unpack'
 }
@@ -110,7 +109,6 @@ interface UnityEditorEndpoint {
   host: string
   port: number
   processId: number
-
   evidence: string
 }
 

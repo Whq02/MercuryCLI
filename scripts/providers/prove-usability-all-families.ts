@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -73,7 +72,6 @@ const grok = resolveProviderUsability({ ...NONE, xaiKeyPresent: () => true, xaiA
 check('Grok subscription is usable as OAuth with no fabricated limit headroom', grok.usable && grok.credential === 'oauth' && grok.limit === 'unknown')
 
 section('§A every family × {ready, no-credential} — the verdict flips on its owning read')
-
 {
   const dark = resolveProviderUsability(NONE)
   for (const family of FAMILIES) {
@@ -97,7 +95,6 @@ section('§A every family × {ready, no-credential} — the verdict flips on its
 }
 
 section('§B anthropic window — information without a dispatch lock')
-
 {
   const capped = resolveProviderUsability({
     ...NONE,
@@ -115,7 +112,6 @@ section('§B anthropic window — information without a dispatch lock')
 }
 
 section('§C local — keyless readiness from the discovery cache, never a login')
-
 {
   const up = resolveProviderUsability({ ...NONE, localServerPresent: () => true }).local
   check('a discovered server ⇒ ready, credential=keyless (nothing to sign into)', up.usable && up.credential === 'keyless')
@@ -124,7 +120,6 @@ section('§C local — keyless readiness from the discovery cache, never a login
 }
 
 section('§D blocker specificity — no two families share a blocker, none generic')
-
 {
   const dark = resolveProviderUsability(NONE)
   const blockers = FAMILIES.map(f => dark[f].blockers[0] ?? '')
@@ -134,7 +129,6 @@ section('§D blocker specificity — no two families share a blocker, none gener
 }
 
 section('§F engine-lane usage truth — observed limit latches flip the limit axis')
-
 {
   const { delegationDispatchBlocker } = await import(
     '../../src/services/providers/providerUsability.ts'
@@ -168,7 +162,6 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
     )
   }
   {
-
     const exhausted = resolveProviderUsability({
       ...NONE,
       ...READY_OVERRIDES.huggingface,
@@ -191,7 +184,6 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
     )
   }
   {
-
     const billingLanes = FAMILIES.filter(f => f !== 'anthropic' && f !== 'huggingface')
     for (const family of billingLanes) {
       const refused = resolveProviderUsability({
@@ -249,7 +241,6 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
 }
 
 section('§E the surfaces read the ONE answer (structural source pins)')
-
 {
   const logins = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   check('/logins renders the readiness block from resolveProviderUsability', logins.includes('resolveProviderUsability') && logins.includes('ProviderReadinessBlock'))
@@ -269,7 +260,6 @@ section('§E the surfaces read the ONE answer (structural source pins)')
 }
 
 section("§H the compat slot's credential word comes from ITS OWN resolver (FC-075)")
-
 {
   const keyless = resolveProviderUsability({
     ...NONE,

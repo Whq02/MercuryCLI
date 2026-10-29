@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { readFileSync } from 'node:fs'
@@ -107,7 +106,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     'anthropic usable + allowed ⇒ dispatch proceeds (null verdict)',
     delegationDispatchBlocker('anthropic', mapOf({ anthropicSubscriber: () => true })) === null,
   )
-
   const capped = delegationDispatchBlocker(
     'anthropic',
     mapOf({ anthropicSubscriber: () => true, anthropicLimitStatus: () => 'rejected' }),
@@ -121,7 +119,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     'the selected lane remains selected',
     capped === null,
   )
-
   const cappedWithGpt = delegationDispatchBlocker(
     'anthropic',
     mapOf({
@@ -135,7 +132,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     cappedWithGpt === null,
     String(cappedWithGpt),
   )
-
   check(
     'allowed_warning ⇒ dispatch proceeds (warnings never cap delegation)',
     delegationDispatchBlocker(
@@ -143,7 +139,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
       mapOf({ anthropicSubscriber: () => true, anthropicLimitStatus: () => 'allowed_warning' }),
     ) === null,
   )
-
   check(
     'openai seat down ⇒ preflight does NOT refuse (per-request refusal owns it)',
     delegationDispatchBlocker('openai', mapOf()) === null,
@@ -152,7 +147,6 @@ section('§F usage-aware dispatch (lane FG E) — the delegation verdict is hone
     'anthropic credential-none ⇒ preflight does NOT refuse (fail-fast at the call; fixture rigs stay served)',
     delegationDispatchBlocker('anthropic', mapOf()) === null,
   )
-
   const runAgentSrc = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
   check(
     'runAgent consults the verdict on the RESOLVED model before minting the agent id',

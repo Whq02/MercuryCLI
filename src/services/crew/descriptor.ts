@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
@@ -10,9 +11,7 @@ export interface SessionDescriptorV1 {
   sessionId: string
   missionRef?: string
   worktreeRef?: string
-
   revision: number
-
   retiredAt?: number
   updatedAt: number
 }
@@ -68,7 +67,6 @@ export async function publishSessionDescriptor(
       existing.missionRef === args.missionRef &&
       existing.worktreeRef === args.worktreeRef
     ) {
-
       return { next: current, result: existing }
     }
     const published: SessionDescriptorV1 = {
@@ -83,7 +81,6 @@ export async function publishSessionDescriptor(
     let descriptors = { ...current.descriptors, [args.sessionId]: published }
     const ids = Object.keys(descriptors)
     if (ids.length > MAX_DESCRIPTORS) {
-
       const byAge = Object.values(descriptors).sort((a, b) => a.updatedAt - b.updatedAt)
       let toDrop = byAge.length - MAX_DESCRIPTORS
       const dropSet = new Set<SessionDescriptorV1>()

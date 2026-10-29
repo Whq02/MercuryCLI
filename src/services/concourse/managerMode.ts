@@ -1,45 +1,35 @@
+
 import { createHash } from 'node:crypto'
 import type { CoordinatorRpc, CoordinatorToolDef, CoordinatorToolReceiptV1 } from './coordinatorTools.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
+
 
 export const MAX_MANAGER_ASK_OPTIONS = 4
 export const MAX_MANAGER_LANES = 6
 
 export interface ManagerAskV1 {
-
   question: string
-
   options: string[]
-
   index?: number
 }
 
 export interface ManagerLaneV1 {
   title: string
-
   scope: string
   deliverables: string
-
   territory: string
 }
 
 export type ManagerPlanStateV1 = 'proposed' | 'declined' | 'dispatched'
 
 export interface ManagerPlanV1 {
-
   goal: string
-
   lanes: ManagerLaneV1[]
-
   seats?: string
-
   supervision: 'supervising' | 'launch-only'
   state: ManagerPlanStateV1
-
   laneSessionIds?: Array<string | null>
-
   laneWaiting?: number[]
-
   workspaceRoot?: string
 }
 
@@ -72,7 +62,6 @@ function decodeLane(raw: unknown): ManagerLaneV1 | null {
   const scope = str(r.scope, 400)
   const deliverables = str(r.deliverables, 400)
   const territory = str(r.territory, 300)
-
   if (title === undefined || scope === undefined || deliverables === undefined || territory === undefined) return null
   return { title, scope, deliverables, territory }
 }
@@ -112,6 +101,7 @@ export function decodeManagerPlan(raw: unknown): ManagerPlanV1 | null {
   }
 }
 
+
 export type AskCardKeyAction =
   | { kind: 'select'; index: number }
   | { kind: 'enough' }
@@ -120,9 +110,7 @@ export type AskCardKeyAction =
 export function askCardKeyAction(
   input: string,
   facts: {
-
     optionCount: number
-
     inInput: boolean
   },
 ): AskCardKeyAction {
@@ -133,6 +121,7 @@ export function askCardKeyAction(
   if (n === facts.optionCount + 1) return { kind: 'enough' }
   return { kind: 'ignore' }
 }
+
 
 export const MANAGER_MODE_ADDENDUM = `MANAGER MODE is on: the operator hands you ONE goal and you turn it into a plan of
 lanes — sessions working in harmony. Interview first, then plan; both through your two
@@ -163,6 +152,7 @@ After a dispatch under supervising: on every later turn, read your lanes from th
 first — report a land plainly when its row shows finished, nudge a stalled lane through
 message_session with one concrete steer, and relay a needs-you question instead of
 sitting on it. Under launch-only, stay quiet about the lanes unless asked.`
+
 
 export interface ManagerTurnCollector {
   ask?: ManagerAskV1
@@ -282,6 +272,7 @@ export function managerToolSet(collected: ManagerTurnCollector): CoordinatorTool
   ]
 }
 
+
 export function managerContractTextOf(plan: ManagerPlanV1, lane: ManagerLaneV1): string {
   return [
     `Goal: ${plan.goal}`,
@@ -301,6 +292,7 @@ export function managerLaneBriefOf(plan: ManagerPlanV1, laneIndex: number): stri
   return `${lane.scope}\n\nDeliverables: ${lane.deliverables}\nYour territory: ${lane.territory}${fences}`
 }
 
+
 export const MANAGER_NEEDS_MODEL_LINE =
   'manager mode needs a coordinator model — the rail’s coordinator chip or ⌃s picks one'
 
@@ -314,7 +306,6 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
     const { getGlobalConfig } = await import('../../utils/config.js')
     choice = getGlobalConfig().concourseCoordinator?.assistModel
   } catch {
-
     return { ok: false, reason: 'unreadable', line: keyHintLabel(MANAGER_NEEDS_MODEL_LINE) }
   }
   const { validateCoordinatorModelChoice } = await import('./coordinatorModels.js')
@@ -332,18 +323,16 @@ export async function resolveManagerModel(): Promise<ManagerModelResolution> {
   return { ok: true, modelId: validated.entry.modelId, label: validated.entry.displayName }
 }
 
+
 export interface ManagerPlanExecutionV1 {
   receipts: CoordinatorToolReceiptV1[]
   laneSessionIds: Array<string | null>
-
   laneWaiting: number[]
 }
 
 export interface ManagerLaneStartV1 {
   receipts: CoordinatorToolReceiptV1[]
-
   sessionId: string | null
-
   noSeat: boolean
 }
 
@@ -371,7 +360,6 @@ export async function startManagerLane(
   const lane = plan.lanes[laneIndex]!
   const receipts: CoordinatorToolReceiptV1[] = []
   const birthKey = init.entryId === undefined ? undefined : `mgr-${createHash('sha256').update(`${init.entryId}:${laneIndex}`).digest('hex').slice(0, 40)}`
-
   let born: Record<string, unknown>
   try {
     born = await rpc(
@@ -382,7 +370,6 @@ export async function startManagerLane(
     born = { ok: false, code: 'ENOCONN', error: e instanceof Error ? e.message : String(e) }
   }
   const sessionId = born.ok === true && typeof born.sessionId === 'string' && born.sessionId.length > 0 ? born.sessionId : null
-
   const laneKitSource = born.ok === true && typeof born.kitSource === 'string' && born.kitSource.length > 0 ? born.kitSource : undefined
   if (sessionId === null) {
     const noSeat = born.refusal === 'runtime-ceiling'
@@ -397,7 +384,6 @@ export async function startManagerLane(
     })
     return { receipts, sessionId: null, noSeat }
   }
-
   let contractReply: Record<string, unknown>
   try {
     contractReply = await rpc(
@@ -422,7 +408,6 @@ export async function startManagerLane(
       ? `"${lane.title}" — contract on the record before its first turn; the worker acknowledges in its own words`
       : `${typeof contractReply.error === 'string' ? contractReply.error : 'the contract was not set'} · the brief still carries the agreement; /contract retries`,
   })
-
   const { randomUUID } = await import('../../utils/crypto.js')
   const clientMessageId = `mgr-launch-${randomUUID()}`
   let delivered: Record<string, unknown>
@@ -481,11 +466,11 @@ export async function executeManagerPlan(
     const started = await startManagerLane(plan, i, init)
     receipts.push(...started.receipts)
     laneSessionIds.push(started.sessionId)
-
     if (started.sessionId === null) laneWaiting.push(i)
   }
   return { receipts, laneSessionIds, laneWaiting }
 }
+
 
 interface SupervisedLaneV1 {
   sessionId: string
@@ -494,16 +479,13 @@ interface SupervisedLaneV1 {
 interface SupervisedPlanV1 {
   lanes: SupervisedLaneV1[]
   supervision: 'supervising' | 'launch-only'
-
   plan: ManagerPlanV1
   entryId?: string
   workspaceRoot?: string
 }
 let supervised: SupervisedPlanV1 | null = null
 let seededFromStore = false
-
 const appliedRowIds = new Set<string>()
-
 let startingLane = false
 
 export function registerDispatchedManagerPlan(
@@ -550,14 +532,12 @@ export async function startWaitingManagerLane(
   if (workspaceRoot === undefined) return null
   const now = Date.now()
   const entryId = current.entryId
-
   const laneIndex = waiting.find(i => (laneRetryAfter.get(laneKey(entryId, i)) ?? 0) <= now)
   if (laneIndex === undefined) return null
   startingLane = true
   try {
     const started = await startManagerLane(current.plan, laneIndex, { workspaceRoot, ...init, ...(entryId !== undefined ? { entryId } : {}) })
     if (started.sessionId === null) {
-
       if (!started.noSeat) {
         laneRetryAfter.set(laneKey(entryId, laneIndex), now + WAITING_LANE_BACKOFF_MS)
         if (entryId !== undefined) {
@@ -651,7 +631,6 @@ export async function appendManagerSupervisionRows(
   dir?: string,
 ): Promise<number> {
   if (!seededFromStore && supervised === null) {
-
     seededFromStore = true
     try {
       const conv = await import('./coordinatorConversation.js')
@@ -697,7 +676,6 @@ export async function markManagerPlanState(
   next: {
     state: ManagerPlanStateV1
     laneSessionIds?: Array<string | null>
-
     laneWaiting?: number[]
     workspaceRoot?: string
   },

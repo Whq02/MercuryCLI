@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -29,11 +28,9 @@ const thief = spawn('/usr/bin/python3', [thiefPath], { stdio: 'ignore' })
 out('reclaim-driver: thief spawned')
 
 thief.on('exit', () => {
-
   const r = reclaimTerminalAfterChild('panel-shell(test)')
   const reason = (r.reason ?? 'none').replace(/ /g, '-')
   out(`reclaim-driver: receipt reclaimed=${r.reclaimed} reason=${reason} before=${r.before ?? '-'} after=${r.after ?? '-'}`)
-
   try {
     const buf = Buffer.alloc(1)
     const n = readSync(0, buf, 0, 1, null)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -56,6 +55,7 @@ check(
   offenders.length === 0,
   offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}` : 'clean',
 )
+
 
 console.log(failures === 0 ? '\nALL NO-EMOJI PROOFS PASS' : `\n${failures} PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

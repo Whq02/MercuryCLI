@@ -1,24 +1,19 @@
+
 import type { CoordinatorConversationEntryV1 } from './coordinatorConversation.js'
 import type { ManagerAskV1, ManagerPlanV1 } from './managerMode.js'
 import { ageLabelOf } from './concourseSnapshot.js'
 
 export interface CoordinatorReplayRowV1 {
-
   role: 'operator' | 'coordinator' | 'harness'
   text: string
-
   age?: string
-
   settled?: true
   receipts?: ReadonlyArray<{ verb: string; outcome: string; label: string }>
 }
 
 export const REPLAY_TAIL = 12
-
 const REPLAY_CLIP = 600
-
 const REPLAY_SUMMARY_CLIP = 4400
-
 export const REPLAY_AGE_FLOOR_MS = 30 * 60_000
 
 export function renderPlanForReplay(plan: ManagerPlanV1): string {
@@ -45,13 +40,11 @@ export function buildCoordinatorReplay(
   entries: readonly CoordinatorConversationEntryV1[],
   nowMs: number,
 ): CoordinatorReplayRowV1[] {
-
   const settledMessageIds = new Set<string>()
   for (const e of entries) {
     if (e.harness === true && !cardBearing(e) && e.id.startsWith('co:')) settledMessageIds.add(e.id.slice(3))
   }
   const rows: CoordinatorReplayRowV1[] = []
-
   const tail = entries.slice(-REPLAY_TAIL)
   const newestSummary = [...entries].reverse().find(e => e.summary === true)
   const replayed = newestSummary !== undefined && !tail.includes(newestSummary) ? [newestSummary, ...tail] : tail

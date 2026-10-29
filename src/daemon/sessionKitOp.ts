@@ -42,7 +42,6 @@ export function applyConcourseKitOp(sessionId: string, edit: SessionKitEditV1, b
       outcome: 'applied',
       detail: `${describeEdit(edit)}${materialized ? " — the kit was materialized from this session's whole-config reality first (a pre-kit record); the dial edits it" : ''}`,
     }
-
     try {
       const home = getProjectDir(rec.workspaceId)
       mkdirSync(home, { recursive: true })

@@ -89,7 +89,6 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
     argv: ['node', BIN],
     cwd: process.cwd(),
     sends: [
-
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, data: PASTE },
     ],
@@ -141,7 +140,6 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
     gitBranch: 'main',
     ...extra,
   })
-
   const USER_TEXT = 'HISTA1\x1b]0;PWNED-HIST\x07\x1b[2JHISTB2\x1b[31mHISTC3\x07\x08\x1b[0m done'
   const REPLY_TEXT = 'REPLYD4\x1b]52;c;U0VDUkVU\x07REPLYE5'
   const lines = [
@@ -170,7 +168,6 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
       timestamp: '2026-07-30T12:00:02.000Z',
     }),
   ]
-
   writeFileSync(join(projects, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
 
   const r = runVshot('resume', home, {
@@ -200,7 +197,6 @@ t.section('§2 — resumed history: persisted control bytes replay inert')
     remains.length === 0 && !r.lines.some(l => l.includes('✶ VIEW')),
     remains[0]?.trim() ?? '',
   )
-
   t.check(
     'the frame survived the replay (history 2J never executed)',
     r.lines.some(l => /\blanes\b[^\n]*╭/.test(l)) && r.lines.some(l => l.includes('? for shortcuts')),

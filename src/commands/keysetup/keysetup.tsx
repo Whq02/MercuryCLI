@@ -66,8 +66,8 @@ function paintFor(theme: ThemeName): Paint {
   }
 }
 
-function isRemoteVscodeSession(): boolean {
 
+function isRemoteVscodeSession(): boolean {
   const askpass = process.env.VSCODE_GIT_ASKPASS_MAIN ?? ''
   const pathVar = process.env.PATH ?? ''
   const markers = ['.vscode-server', '.cursor-server', '.windsurf-server']
@@ -98,7 +98,6 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<Term
         : process.platform === 'darwin'
           ? join(home, 'Library', 'Application Support', editorDir, 'User')
           : join(home, '.config', editorDir, 'User')
-
     await mkdir(userDir, { recursive: true })
     const filePath = join(userDir, 'keybindings.json')
     let content = '[]'
@@ -112,7 +111,6 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<Term
     const parsed = safeParseJSONC(content)
     if (!Array.isArray(parsed)) throw new Error(`Failed to install the ${editorDir} Shift+Enter binding`)
     const entries = parsed as Record<string, unknown>[]
-
     if (existed) {
       const backupPath = `${filePath}${backupSuffix()}`
       try {
@@ -134,7 +132,6 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<Term
         `A Shift+Enter terminal binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
       ) }
     }
-
     const updated = addItemToJSONCArray(content, {
       key: 'shift+enter',
       command: 'workbench.action.terminal.sendSequence',
@@ -151,6 +148,7 @@ async function installVscodeFamily(terminal: string, paint: Paint): Promise<Term
     throw new Error(`Failed to install the ${editorDir} Shift+Enter binding`)
   }
 }
+
 
 async function readTerminalDefault(key: string): Promise<string> {
   const result = await execFileNoThrow('defaults', ['read', 'com.apple.Terminal', key])
@@ -231,6 +229,7 @@ async function installAppleTerminal(paint: Paint): Promise<string> {
   }
 }
 
+
 const ALACRITTY_TABLE = `[[keyboard.bindings]]\nkey = "Return"\nmods = "Shift"\nchars = "\\u001b\\r"\n`
 
 async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
@@ -262,7 +261,6 @@ async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
       target = candidates[0]!
       await mkdir(dirname(target), { recursive: true })
     }
-
     if (existed && content.includes('mods = "Shift"') && content.includes('key = "Return"')) {
       return { installed: false, message: paint.warn(
         `A Shift+Return binding already exists in ${linkedPath(target)} — remove it first if you want it reinstalled.`,
@@ -278,7 +276,6 @@ async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
         ) }
       }
     }
-
     let updated = content
     if (updated !== '' && !updated.endsWith('\n')) updated += '\n'
     updated += `\n${ALACRITTY_TABLE}`
@@ -294,6 +291,7 @@ async function installAlacritty(paint: Paint): Promise<TerminalSetupResult> {
   }
 }
 
+
 async function installZed(paint: Paint): Promise<TerminalSetupResult> {
   try {
     const filePath = join(homedir(), '.config', 'zed', 'keymap.json')
@@ -306,7 +304,6 @@ async function installZed(paint: Paint): Promise<TerminalSetupResult> {
     } catch (error) {
       if (getErrnoCode(error) !== 'ENOENT') throw error
     }
-
     if (existed && content.includes('shift-enter')) {
       return { installed: false, message: paint.warn(
         `A shift-enter binding already exists in ${linkedPath(filePath)} — remove it first if you want it reinstalled.`,
@@ -340,6 +337,7 @@ async function installZed(paint: Paint): Promise<TerminalSetupResult> {
   }
 }
 
+
 export async function setupTerminal(theme: ThemeName): Promise<string> {
   const paint = paintFor(theme)
   const terminal = env.terminal
@@ -360,7 +358,6 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
       result = await installZed(paint)
       break
     case null:
-
       break
   }
   const config = getGlobalConfig()
@@ -380,11 +377,9 @@ export async function setupTerminal(theme: ThemeName): Promise<string> {
 
 function unsupportedTerminalMessage(terminal: string | null): string {
   const name = terminal ?? 'your current terminal'
-
   const platformLine = process.platform === 'darwin' ? ' - Apple Terminal\n' : ''
   return [
     `/keysetup cannot run from ${name}. It installs a Shift+Enter newline binding into your terminal's configuration.`,
-
     chalk.dim('Backslash-then-return (\\ then Enter) already inserts a newline today.'),
     'Using tmux or screen?',
     ' 1. Leave the multiplexer.',

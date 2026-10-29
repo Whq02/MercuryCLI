@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/Shell.ts src/utils/shell/engineSession.ts src/tools/BashTool/BashTool.tsx src/tools/BashTool/bashPermissions.ts src/tools/BashTool/readOnlyValidation.ts
+// gate-watch: src/cli/headless/runnerAsks.ts src/daemon/permissionAsks.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/daemonConnector.ts
+// gate-watch: src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena } from '../streaming/artifactArena.ts'

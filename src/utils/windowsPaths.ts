@@ -10,6 +10,7 @@ import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'
 import { logForDebugging } from './debug.js'
 import { memoizeWithLRU } from './memoize.js'
 
+
 function pathExists(candidate: string): boolean {
   try {
     return existsSync(candidate)
@@ -24,17 +25,14 @@ function findExecutableCandidates(name: string): string[] {
     const result = spawnSync('where.exe', [name], {
       windowsHide: true,
       encoding: 'utf8',
-
       timeout: 5_000,
       stdio: ['ignore', 'pipe', 'ignore'],
       env: { ...subprocessEnv() },
     })
     if (result.status === 0 && result.stdout) {
       const cwdLower = process.cwd().toLowerCase()
-
       for (const line of result.stdout.split('\r\n')) {
         if (line === '') continue
-
         const resolved = resolve(line)
         const resolvedLower = resolved.toLowerCase()
         if (dirname(resolved).toLowerCase() === cwdLower || resolvedLower.startsWith(cwdLower + sep)) {
@@ -78,7 +76,6 @@ export function gitBashCandidatePaths(gitPaths: string[]): string[] {
         : parent
     push(pathWin32.join(installRoot, 'bin', 'bash.exe'))
   }
-
   push('C:\\Program Files\\Git\\bin\\bash.exe')
   push('C:\\Program Files (x86)\\Git\\bin\\bash.exe')
   return candidates
@@ -95,7 +92,6 @@ export const locateGitBash = memoize((): GitBashLocation => {
   const override = process.env.MERCURY_GIT_BASH_PATH
   if (override !== undefined && override !== '') {
     if (pathExists(override)) return { path: override }
-
     releaseLauncherAltHoldNow()
     try {
       writeSync(2, `Error: unable to find MERCURY_GIT_BASH_PATH at ${override} — the path does not exist.\n`)

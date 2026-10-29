@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -177,7 +176,6 @@ section('W. cancellable run watch (finite fixture)')
   check('watch registers running', started.state === 'watching' && started.record.state === 'running', JSON.stringify(started))
   if (started.state === 'watching') {
     check('first observed view rides back', started.view?.status === 'in_progress')
-
     await new Promise(r => setTimeout(r, 6_500))
     const settled = getExecution(owner, 'run-watch-42')
     check('watch settled succeeded from the OBSERVED conclusion', settled?.state === 'succeeded', settled?.state)
@@ -198,7 +196,6 @@ section('W. cancellable run watch (finite fixture)')
 
 section('V. slashed refs · quotepath round-trip · binary honesty · bounded diff · disposal reaping')
 {
-
   g('branch', 'feature/x')
   const { splitRefPath, gitFileAtRef, gitTreeAtRef } = await import('../../src/services/gitGraph/observe.ts')
   const split = splitRefPath(repo, 'feature/x/lib/a.txt')

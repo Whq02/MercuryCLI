@@ -8,14 +8,11 @@ import { RESET_SCROLL_REGION } from '../termio/csi.js';
 import Box from './Box.js';
 import { TerminalSizeContext } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
-
   mouseTracking?: boolean;
 }>;
 
 const altScreenDepths = new WeakMap<object, { n: number }>()
-
 const NO_INSTANCE_KEY = {}
-
 const AltScreenDepthContext = createContext(0)
 
 export function AlternateScreen({
@@ -41,29 +38,22 @@ export function AlternateScreen({
     const outermost = depth.n === 0
     depth.n++
     if (outermost) {
-
       const launcherHolds = consumeLauncherAltHold();
-
       const armBytes =
         (effectiveMouse ? ENABLE_MOUSE_TRACKING : '') + ENABLE_ALTERNATE_SCROLL;
       if (launcherHolds) {
-
         writeRaw(RESET_SCROLL_REGION + '\x1b[0m' + armBytes);
       } else if (ink?.armAltScreenEntry) {
-
         ink.armAltScreenEntry(ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\x1b[2J\x1b[H' + armBytes);
       } else {
-
         writeRaw(ENTER_ALT_SCREEN + RESET_SCROLL_REGION + '\x1b[2J\x1b[H' + armBytes);
       }
-
       noteModeAcquired('alt-screen-session', 'alt-screen');
       noteModeAcquired('alt-screen-session', 'alternate-scroll');
       if (effectiveMouse) noteModeAcquired('alt-screen-session', 'mouse-tracking');
       ink?.setAltScreenActive(true, effectiveMouse);
       if (launcherHolds) ink?.armAltScreenTakeover();
     } else {
-
       if (!ink?.isAltEntryPending?.()) writeRaw(RESET_SCROLL_REGION);
       ink?.repaintAfterNestedAltScreenClose?.();
     }
@@ -73,14 +63,11 @@ export function AlternateScreen({
       if (depth.n === 0) {
         ink?.setAltScreenActive(false);
         ink?.clearTextSelection();
-
         writeRaw(DISABLE_ALTERNATE_SCROLL + DISABLE_MOUSE_TRACKING + EXIT_ALT_SCREEN);
-
         noteModeReleased('alt-screen-session', 'alt-screen');
         noteModeReleased('alt-screen-session', 'alternate-scroll');
         noteModeReleased('alt-screen-session', 'mouse-tracking');
       } else {
-
         ink?.clearTextSelection();
         ink?.repaintAfterNestedAltScreenClose?.();
       }

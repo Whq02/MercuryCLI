@@ -35,7 +35,6 @@ t.section('§2 — registration, entry, and the exact-return token')
   route._resetSurfaceRouteForTesting()
   const unregister = route.registerRouteSurface('boot-settings', { render: () => null })
   t.check('the surface registers', route.routeSurfaceRegistered('boot-settings'), 'registered')
-
   const releasePresence = route.registerChatPresence({ present: () => true, subscribe: () => () => {} })
   const entered = route.enterBootSettings()
   t.check('enterBootSettings answers ok + a token', entered.ok === true, JSON.stringify(entered))
@@ -52,7 +51,6 @@ t.section('§2 — registration, entry, and the exact-return token')
   const reentered = route.enterBootSettings()
   const leave = route.leaveCurrentSurface()
   t.check('leaveCurrentSurface rides the active token', reentered.ok && leave.ok && route.currentSurfaceRoute().kind === 'repl', route.surfaceRouteId(route.currentSurfaceRoute()))
-
   const reenter2 = route.enterBootSettings()
   releasePresence()
   const refused = route.leaveCurrentSurface()
@@ -69,7 +67,6 @@ t.section('§3 — stacked surfaces and the root unwind')
   route._resetSurfaceRouteForTesting()
   route.registerRouteSurface('boot-settings', { render: () => null })
   route.registerRouteSurface('concourse', { render: () => null })
-
   route.registerChatPresence({ present: () => true, subscribe: () => () => {} })
   const c = route.enterConcourse()
   const b = route.enterBootSettings()
@@ -103,7 +100,6 @@ t.section('§4 — transition silence (ledger untouched; no termio/process impor
     !/termio|child_process|node:child_process|spawn\(/.test(src),
     'surfaceRoute.ts import surface',
   )
-
   t.check(
     "the route owner's only static imports are the flag registry + the input-event seam + the CB-10 fullscreen gate + the concourse switch + the key-hint fold (+ types)",
     (src.match(/^import .*from '(.*)'/gm) ?? []).every(
@@ -111,7 +107,6 @@ t.section('§4 — transition silence (ledger untouched; no termio/process impor
     ),
     JSON.stringify(src.match(/^import .*from '(.*)'/gm) ?? []),
   )
-
   t.check(
     'the route owner never imports the focused slot (the chat stop rides the registered presence seam)',
     !(src.match(/^import .*from '(.*)'/gm) ?? []).some(l => l.includes('engine-connector/focusedConnector')) && /registerChatPresence/.test(src),
@@ -237,7 +232,6 @@ t.section('§7 — mount seeding adopts only registered routes')
 
 t.section('§8 — every boot journey hosts the router (NEW-1: no bare Chat mount)')
 {
-
   const resumeSrc = readFileSync(join(import.meta.dir, '../../src/screens/ResumeConversation.tsx'), 'utf8')
   t.check(
     'ResumeConversation imports SurfaceRouter (registration rides the module side effect)',

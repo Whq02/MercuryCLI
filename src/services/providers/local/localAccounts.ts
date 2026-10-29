@@ -26,7 +26,6 @@ export function resolveLocalApiKey(
 
 export interface LocalAccountRef {
   kind: 'keyless' | 'api-key'
-
   label: string
   keySource?: 'env' | 'stored'
   serverCount: number

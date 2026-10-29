@@ -9,7 +9,6 @@ export function useAnimationValue<T extends string | number | boolean>(
   derive: (timeMs: number) => T,
 ): [ref: (element: DOMElement | null) => void, value: T] {
   const clock = useContext(ClockContext)
-
   const parked = useContext(MotionParkContext)
   const [viewportRef, { isVisible }] = useTerminalViewport()
   const deriveRef = useRef(derive)
@@ -29,7 +28,6 @@ export function useAnimationValue<T extends string | number | boolean>(
       if (bucket === lastBucket) return
       lastBucket = bucket
       const next = deriveRef.current(now)
-
       setValue(prev => (Object.is(prev, next) ? prev : next))
     }
 

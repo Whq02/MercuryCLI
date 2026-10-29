@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -101,7 +100,6 @@ section('§1b a standing entry (timeoutMs: Infinity) — no expiry, yields the r
 
 section('§2 the killswitch drive — the mode flip says why')
 {
-
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { disableSovereignMode: true } }))
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()

@@ -1,3 +1,4 @@
+
 import { flagEnabled } from './flagRegistry.js'
 
 interface Entry<T> {
@@ -7,18 +8,13 @@ interface Entry<T> {
 }
 
 export interface GroupCommitLane<T> {
-
   submit: <R>(fn: (current: T) => Promise<{ next: T; result: R }>) => Promise<R>
 }
 
 interface GroupCommitOptions<T, C = void> {
-
   acquire: () => Promise<() => Promise<void>>
-
   read: () => Promise<{ value: T; context: C }>
-
   publish: (next: T, context: C) => Promise<void>
-
   beforePublish?: () => void
 }
 
@@ -29,14 +25,11 @@ function batchingEnabled(): boolean {
 export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): GroupCommitLane<T> {
   let queue: Array<Entry<T>> = []
   let scheduled = false
-
   let chain: Promise<void> = Promise.resolve()
 
   const drain = async (): Promise<void> => {
-
     scheduled = false
     if (queue.length === 0) return
-
     const batch = batchingEnabled() ? queue : queue.splice(0, 1)
     if (batchingEnabled()) queue = []
     else if (queue.length > 0) {
@@ -94,7 +87,6 @@ export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): Gr
           resolve: resolve as (value: unknown) => void,
           reject,
         })
-
         if (scheduled) return
         scheduled = true
         const op = chain.then(drain, drain)

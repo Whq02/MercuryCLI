@@ -61,7 +61,6 @@ section('3. the env override — wins, never written')
 
 section('4. the addon-home ladder — every arm through its seam')
 {
-
   const pinDir = path.join(scratch, 'pinned-addons')
   mkdirSync(pinDir, { recursive: true })
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = pinDir

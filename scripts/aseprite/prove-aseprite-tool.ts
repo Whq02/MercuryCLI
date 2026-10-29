@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -39,7 +38,6 @@ function restore(): void {
 const scratch = mkdtempSync(path.join(tmpdir(), 'ase-tool-'))
 const tree = path.join(scratch, 'tree')
 mkdirSync(tree, { recursive: true })
-
 const treeReal = realpathSync(tree)
 writeFileSync(path.join(tree, 'hero.aseprite'), '')
 const argvLog = path.join(scratch, 'argv.log')
@@ -152,7 +150,6 @@ section('§4 · argv truth (shim-recorded)')
   restore()
   process.env.MERCURY_ASEPRITE_BIN = shim
   await runWithCwdOverride(tree, async () => {
-
     clearRuns()
     let r = await run({
       op: 'export',
@@ -222,7 +219,6 @@ section('§4 · argv truth (shim-recorded)')
     const scr = runs[0]!.join(' ')
     check(
       'run-script: file → params → --script',
-
       scr === `-b ${path.join(tree, 'hero.aseprite')} --script-param who=tester --script ${runs[0]![runs[0]!.length - 1]}`,
       scr,
     )
@@ -248,7 +244,6 @@ section('§4 · argv truth (shim-recorded)')
 section('§5 · landed-bytes honesty')
 {
   restore()
-
   const writer = path.join(scratch, 'writer-aseprite')
   writeFileSync(
     writer,

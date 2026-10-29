@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -25,7 +24,6 @@ type Scene = {
   turns: ScriptedTurn[]
   sends: string[]
   seconds: number
-
   tailMs: number
   grabStep: number
 }
@@ -64,7 +62,6 @@ const scenes: Scene[] = [
       { kind: 'text', text: 'Follow answer.' },
       { kind: 'text', text: 'Spare.' },
     ],
-
     sends: ['after:New Session:800:\\r', 'after:Type a prompt:900:duplicate paint probe\\r', 'after:alpha stream body.:700:queued follow probe\\r'],
     seconds: 22,
     tailMs: 7750,
@@ -77,7 +74,6 @@ const scenes: Scene[] = [
       { kind: 'text', text: 'Spare.' },
       { kind: 'text', text: 'Spare.' },
     ],
-
     sends: ['after:New Session:800:\\r', 'after:Type a prompt:900:trailing space probe \\r'],
     seconds: 16,
     tailMs: 3150,
@@ -90,7 +86,6 @@ const scenes: Scene[] = [
       { kind: 'text', text: 'Spare.' },
       { kind: 'text', text: 'Spare.' },
     ],
-
     sends: ['after:New Session:800:\\r', 'after:Type a prompt:900:double enter probe\\r\\r'],
     seconds: 18,
     tailMs: 5150,
@@ -119,7 +114,6 @@ function transcriptHits(rows: string[], probe: string): number[] {
   const sigiled = new RegExp(`❯[^│]*${probe.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
   rows.forEach((row, index) => {
     if (!row.includes(probe)) return
-
     if (!sigiled.test(row)) return
     hits.push(index)
   })
@@ -136,7 +130,6 @@ for (const scene of scenes) {
     keep: true,
   })
   t.section(scene.name)
-
   t.check(`the journey ran whole (${scene.sends.length} sends delivered)`, run.sendLog.length === scene.sends.length, `${run.sendLog.length}/${scene.sends.length}`)
   const zero = driveZero(run.paths.drive)
   const probeOffs = scene.probes
@@ -148,7 +141,6 @@ for (const scene of scenes) {
     continue
   }
   const offsets: string[] = []
-
   const from = Math.min(...probeOffs) + S(150)
   const to = Math.max(...probeOffs) + S(scene.tailMs)
   for (let ms = from; ms <= to; ms += S(scene.grabStep)) offsets.push(String(Math.round(ms)))
@@ -203,7 +195,6 @@ for (const scene of scenes) {
       { kind: 'text', text: 'Spare one.' },
       { kind: 'text', text: 'Spare two.' },
     ],
-
     sends: ['after:New Session:800:\\r', 'after:Type a prompt:900:/mod', 'after:Type a prompt:2100:\\r'],
     seconds: 17,
     cols: 120,
@@ -235,7 +226,6 @@ for (const scene of scenes) {
       !anyFrameHas('Unknown skill'),
     )
   }
-
   let logText = ''
   const projectsRoot = join(run.paths.home, '.mercury', 'projects')
   if (existsSync(projectsRoot)) {
@@ -257,7 +247,6 @@ for (const scene of scenes) {
 {
   const run = await runPulseArena({
     turns: [{ kind: 'text', text: 'Spare.' }],
-
     sends: [
       'after:New Session:800:\\r',
       'after:Type a prompt:900:\t',

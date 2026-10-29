@@ -1,9 +1,7 @@
+
 export interface HlcState {
-
   wallMs: number
-
   counter: number
-
   node: string
 }
 
@@ -59,7 +57,6 @@ export function hlcTick(state: HlcState, nowMs?: number): string {
   } else {
     state.counter += 1
     if (state.counter >= COUNTER_LIMIT) {
-
       state.wallMs += 1
       state.counter = 0
     }
@@ -95,6 +92,5 @@ export function compareHlc(a: string, b: string): number {
 }
 
 export function principalNode(principalId: string): string {
-
   return principalId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 24) || 'node'
 }

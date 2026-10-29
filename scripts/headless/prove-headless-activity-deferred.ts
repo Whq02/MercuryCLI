@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'activity-deferred-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 delete process.env.NODE_ENV
@@ -36,7 +34,6 @@ const onDisk = (): Record<string, unknown> => {
   }
 }
 const activityOnDisk = (): Activity | undefined => onDisk().headlessActivity as Activity | undefined
-
 const exitListenersAtBoot = process.listeners('exit')
 
 section('§1 the note is a deferred merge: zero durable writes, the cache now, one publish')
@@ -75,13 +72,11 @@ section("§2 the exit seam: the first deferral armed ONE 'exit' listener that pu
   ledger.noteHeadlessActivity('print')
   check('a later deferral arms no second listener', process.listeners('exit').filter(l => !exitListenersAtBoot.includes(l)).length === 1)
   check('the note is pending', config.hasPendingDeferredGlobalConfigSaves())
-
   const flushAtExit = armed[0] as ((code: number) => void) | undefined
   flushAtExit?.call(process, 0)
   check('the exit seam published the pending note in ONE write', config.getGlobalConfigWriteCount() === writes0 + 1, `writes=${config.getGlobalConfigWriteCount() - writes0}`)
   check('…and the disk carries it (print = 2)', activityOnDisk()?.print === 2, j(activityOnDisk()))
   check('nothing pending after the exit flush', !config.hasPendingDeferredGlobalConfigSaves())
-
   const writes1 = config.getGlobalConfigWriteCount()
   flushAtExit?.call(process, 0)
   check('the exit flush with nothing pending writes nothing', config.getGlobalConfigWriteCount() === writes1)
@@ -108,7 +103,6 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
     const configDir = join(home, '.mercury')
     mkdirSync(configDir, { recursive: true })
     const file = join(configDir, '.config.json')
-
     writeFileSync(
       file,
       JSON.stringify({

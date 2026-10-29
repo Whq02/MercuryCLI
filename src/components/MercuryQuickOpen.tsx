@@ -10,6 +10,7 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
+
 type QuickOpenItem = { label: string; detail?: string }
 
 const LABEL_WIDTH = 40
@@ -36,13 +37,11 @@ export function MercuryQuickOpen({
   onClose: () => void
   isActive?: boolean
 }): React.ReactNode {
-
   const overlayToken = useRegisterOverlay('quick-open');
   const accent = useSessionAccent().accent
   const all = Array.isArray(items) ? items : []
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
-
   const [cursorOffset, setCursorOffset] = useState(0)
 
   const filtered = useMemo(() => all.filter(it => matches(it, query)), [all, query])
@@ -79,13 +78,11 @@ export function MercuryQuickOpen({
       view="quick-open"
       onClose={onClose}
       captureInput={false}
-
       footer={filtered.length > 0 ? 'type · ↑↓ move · ↵ open' : 'type — backspace to widen'}
     >
       <Box marginTop={1}>
         <Text color={accent}>{GLYPH.prompt} </Text>
-        {
-}
+        {}
         <TextInput
           value={query}
           onChange={q => {

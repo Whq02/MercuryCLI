@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react'
 import { Box, Text } from '../ink.js'
 import useInput from '../ink/hooks/use-input.js'
@@ -141,7 +142,6 @@ export function BaseTextInput({
   )
 
   if (visibleHighlights && visibleHighlights.length > 0) {
-
     return (
       <Box ref={cursorRef}>
         <HighlightedInput
@@ -162,8 +162,7 @@ export function BaseTextInput({
         dimColor={props.dimColor}
         wrap="truncate-end"
       >
-        {
-}
+        {}
         {renderedValue}
       </Text>
       {hintNode}

@@ -7,7 +7,6 @@ interface Case {
 }
 
 const CASES: Case[] = [
-
   { cmd: 'bun run build.ts && git commit -m "x"', allow: true, why: 'canonical verify && commit' },
   { cmd: 'npm test && git commit -am "x"', allow: true, why: 'test && commit' },
   { cmd: 'cd repo && bun run build.ts && git commit -m "x"', allow: true, why: 'cd &&-chained, still gated' },
@@ -79,7 +78,6 @@ console.log('\n— cross-shell pipefail exit-preservation (real subprocess) —'
     }
   }
   for (const shell of ['bash', 'zsh']) {
-
     try {
       execFileSync(shell, ['-c', 'exit 0'], { timeout: 10_000 })
     } catch (e) {

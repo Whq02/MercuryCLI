@@ -17,7 +17,6 @@ const call: LocalCommandCall = async (args: string) => {
       }
     }
     if (kind === 'opencode' || kind === 'goose') {
-
       const { acpSeatTransport } = await import('../../services/crew/adapters/acpProfile.js')
       const display = kind === 'opencode' ? 'OpenCode' : 'goose'
       const seat = await attachExternalSeat(
@@ -48,7 +47,6 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'cancel') {
-
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew cancel <seat-id>' }
     const { cancelSeatTurn } = await import('../../services/crew/seatBridge.js')
@@ -63,7 +61,6 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'renegotiate') {
-
     const seatId = rest[0]
     if (!seatId) return { type: 'text', value: '/crew renegotiate <seat-id>' }
     const { renegotiateSeat } = await import('../../services/crew/seatBridge.js')
@@ -81,7 +78,6 @@ const call: LocalCommandCall = async (args: string) => {
   }
 
   if (verb === 'receipts') {
-
     const { listDeliveryReceipts } = await import('../../services/crew/dispatch.js')
     const receipts = await listDeliveryReceipts()
     if (receipts.length === 0) {
@@ -140,7 +136,6 @@ const call: LocalCommandCall = async (args: string) => {
       value: 'the crew directory is empty — it fills as this session and attached agents register',
     }
   }
-
   const { targetPickerRows } = await import('../../services/crew/targetPicker.js')
   const { listSessionDescriptors, renderSessionTitle } = await import(
     '../../services/crew/descriptor.js'
@@ -175,7 +170,6 @@ const crew = {
   description: 'The living-crew directory — members, presence, external seat attach/detach',
   isEnabled: () => crewDirectoryEnabled(),
   supportsNonInteractive: true,
-
   seat: 'screen',
   load: () => Promise.resolve({ call }),
 } satisfies Command

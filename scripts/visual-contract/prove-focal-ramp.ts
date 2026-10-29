@@ -33,10 +33,8 @@ const oracle = (stops: string[], u: number): string => {
       .padStart(2, '0')
   return `#${ch(a[0], b[0])}${ch(a[1], b[1])}${ch(a[2], b[2])}`
 }
-
 const oracleAscii = (text: string, stops: string[]): string[] =>
   [...text].map((_, x) => oracle(stops, (x + 0.5) / text.length))
-
 const cells = (segs: RampSegment[]): string[] => segs.flatMap(s => [...s.text].map(() => s.color))
 const maxStep = (colors: string[]): number => {
   let max = 0
@@ -47,10 +45,8 @@ const maxStep = (colors: string[]): number => {
   }
   return max
 }
-
 const CONTINUITY_GATE: Record<number, number> = { 7: 21, 42: 4, 53: 4 }
 const OLD_BUCKET_STEP = 64
-
 const oldBucketCells = (width: number, stops: string[]): string[] =>
   Array.from({ length: width }, (_, x) => {
     const idx = Math.min(stops.length - 1, Math.floor(((x + 0.5) / width) * stops.length))
@@ -104,7 +100,6 @@ t.section('§1 — rampSegments: grapheme + cell-width safety')
     `u30C6=${displayWidth('\u30C6')} u6F22=${displayWidth('\u6F22')}`,
   )
   const w = rampSegments(wide, STOPS)
-
   t.check(
     'three wide clusters sample at TRUE cell centers (mid = exact stop hit)',
     w.length === 3 &&
@@ -189,7 +184,6 @@ t.section('§2 — the role derivation (mercuryTokens)')
 
 t.section('§3 — the continuous law (RF-1)')
 {
-
   const CASED = ['#DD4444', '#E58484', '#EDE8DD']
   const lead = rampSegments('\u0301M', CASED)
   t.check(
@@ -251,7 +245,6 @@ t.section('§3 — the continuous law (RF-1)')
   probe[1] = '#ff0000'
   const after = JSON.stringify(rampSegments('MMMM', probe))
   t.check('stops parse once per ramp (in-place mutation is invisible)', before === after, after)
-
   const fresh = JSON.stringify(rampSegments('MMMM', ['#000000', '#404040', '#808080']))
   t.check('equal-content stops give byte-identical segments', fresh === before, fresh)
 
@@ -276,7 +269,6 @@ t.section('§3 — the continuous law (RF-1)')
 
 t.section('§4 — the BOUNDED identity set')
 {
-
   const ALLOWED = new Set([
     'src/components/mercury-ui/assets.tsx',
     'src/components/mercury-ui/components.tsx',
@@ -295,7 +287,6 @@ t.section('§4 — the BOUNDED identity set')
       }
       if (!/\.tsx?$/.test(name)) continue
       const rel = relative(process.cwd(), full).replaceAll('\\', '/')
-
       if (rel === 'src/components/mercury-ui/focalRamp.ts' || rel === 'src/utils/mercuryTokens.ts') continue
       const src = readFileSync(full, 'utf8')
       if (/rampSegments|rampSampleAt|focalRamp/.test(codeOnly(src))) consumers.push(rel)
@@ -322,7 +313,6 @@ t.section('§4 — the BOUNDED identity set')
     'gate pin',
   )
   const header = readFileSync('src/components/concourse/ConcourseHeader.tsx', 'utf8')
-
   t.check(
     'the concourse lockup + glow resolve at the SELECTED critter accent (CR-3; SR-064 reversed)',
     /resolveMercuryTokens\(theme, sa\.accent\)/.test(header) &&
@@ -374,7 +364,6 @@ t.section('§5 — the GREETING SHIMMER: settle law, fixed point, bounded damage
       const boost = shim.shimmerBoostAt(center, phase)
       if (glowed[i] !== plain[i]) changed++
       if (boost === 0 && glowed[i] !== plain[i]) outOfBandClean = false
-
       const u = center / N
       const want = rampSampleAt(STOPS, boost > 0 ? u + boost * (1 - u) : u)
       if (glowed[i] !== want) onLine = false

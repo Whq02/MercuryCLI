@@ -1,3 +1,4 @@
+
 import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from 'crypto'
 
 export const SEALED_PROTOCOL_V = 3
@@ -9,17 +10,15 @@ const AAD_S2C = 'caduceus.v3.s2c'
 const NONCE_BYTES = 16
 const GCM_IV_BYTES = 12
 const GCM_TAG_BYTES = 16
-
 const MAX_BOX_BYTES = 256 * 1024
+
 
 export function deriveInviteHint(token: string): string {
   return createHmac('sha256', HINT_CONTEXT).update(token).digest('hex').slice(0, 16)
 }
 
 export interface SealedKeys {
-
   c2s: Buffer
-
   s2c: Buffer
 }
 
@@ -33,6 +32,7 @@ export function deriveSealedKeys(token: string, nonceS: Buffer, nonceC: Buffer):
 export function mintHandshakeNonce(): Buffer {
   return randomBytes(NONCE_BYTES)
 }
+
 
 function ivForCounter(n: number): Buffer {
   const iv = Buffer.alloc(GCM_IV_BYTES)
@@ -68,6 +68,7 @@ function openRaw(key: Buffer, n: number, aad: string, ctB64: string): Buffer | n
   }
 }
 
+
 export interface HelloMessage {
   type: 'hello'
   v: number
@@ -75,15 +76,12 @@ export interface HelloMessage {
 export interface ChallengeMessage {
   type: 'challenge'
   v: number
-
   nonce: string
 }
 export interface AuthMessage {
   type: 'auth'
   hint: string
-
   nonce: string
-
   box: string
 }
 export interface BoxMessage {
@@ -165,6 +163,7 @@ export function parseHandshakeNonce(b64: string): Buffer | null {
   return buf.length === NONCE_BYTES ? buf : null
 }
 
+
 export type SealedFailure = 'tamper' | 'replay' | 'malformed'
 
 export class SealedLinkError extends Error {
@@ -214,7 +213,6 @@ export class SealedLink {
     if (box.n <= this.recvLast) throw new SealedLinkError('replay')
     const pt = openRaw(this.recvKey, box.n, this.recvAad, box.ct)
     if (!pt) throw new SealedLinkError('tamper')
-
     this.recvLast = box.n
     try {
       return JSON.parse(pt.toString('utf8'))
@@ -224,11 +222,11 @@ export class SealedLink {
   }
 }
 
+
 export function isLoopbackHost(host: string): boolean {
   const h = host.trim().toLowerCase().replace(/^\[|\]$/g, '')
   if (h === 'localhost' || h === '::1') return true
   if (/^127(\.\d{1,3}){3}$/.test(h)) return true
-
   if (h.startsWith('::ffff:127.')) return true
   return false
 }

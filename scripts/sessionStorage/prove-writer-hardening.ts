@@ -31,7 +31,6 @@ console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'p1hard-'))
 try {
-
   {
     const deep = join(scratch, 'a', 'b', 'c', 'session.jsonl')
     let threw = false
@@ -95,7 +94,6 @@ try {
       type: 'user',
       timestamp: '2026-08-21T00:00:00Z',
     })
-
     const boundary: Msg = {
       ...mk('bd', 'd'),
       type: 'system',

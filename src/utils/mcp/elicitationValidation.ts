@@ -2,6 +2,7 @@ import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 
 import { looksLikeISO8601, parseNaturalLanguageDateTime } from './dateTimeParser.js'
 
+
 type SchemaLike = {
   type?: string
   format?: string
@@ -97,7 +98,6 @@ export function getMultiSelectLabel(schema: PrimitiveSchemaDefinition, value: st
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
-
 const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/
 
 function isValidUri(value: string): boolean {
@@ -158,14 +158,12 @@ export function validateElicitationInput(stringValue: string, schema: PrimitiveS
     } else if (s.format === 'date-time' && !DATE_TIME_PATTERN.test(stringValue)) {
       issues.push('Must be a valid date-time (e.g. 2024-03-15T14:30:00Z; natural language like "tomorrow at 3pm" is accepted)')
     }
-
     return issues.length === 0
       ? { isValid: true, value: stringValue }
       : { isValid: false, error: issues.join('; ') }
   }
 
   if (s.type === 'number' || s.type === 'integer') {
-
     const rangeMessage = numberRangeMessage(s)
     const parsed = Number(stringValue)
     if (stringValue.trim() === '' || Number.isNaN(parsed)) {
@@ -184,7 +182,6 @@ export function validateElicitationInput(stringValue: string, schema: PrimitiveS
   }
 
   if (s.type === 'boolean') {
-
     return { isValid: true, value: Boolean(stringValue) }
   }
 

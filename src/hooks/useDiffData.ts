@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import {
@@ -39,7 +40,6 @@ function classify(
   for (const [path, stats] of result.perFileStats) {
     const isUntracked = stats.isUntracked === true
     const fileHunks = hunks.get(path)
-
     const isLargeFile =
       !stats.isBinary && !isUntracked && (fileHunks === undefined || fileHunks.length === 0)
     const isTruncated =
@@ -67,7 +67,6 @@ export function useDiffData(spec?: GitDiffSpec): DiffData {
     hunks: new Map(),
     loading: true,
   })
-
   const specKey = useMemo(() => (spec ? JSON.stringify(spec) : ''), [spec])
   const specRef = useRef(spec)
   specRef.current = spec

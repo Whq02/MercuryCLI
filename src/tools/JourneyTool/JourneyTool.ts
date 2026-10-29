@@ -1,3 +1,4 @@
+
 import { z } from 'zod/v4'
 import { buildTool, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -322,7 +323,6 @@ Everything inspectable: mercury://journey/<id> · mercury://execution/<id> · pe
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result
   },

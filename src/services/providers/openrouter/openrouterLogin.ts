@@ -6,7 +6,6 @@ import { probeOpenrouterKey, type OpenrouterKeyProbe } from './openrouterUsageSt
 
 interface OpenrouterKeyLoginOutcome {
   ok: boolean
-
   stored: boolean
   receipt: string
 }
@@ -75,6 +74,5 @@ export function openrouterConnectFailedReceipt(error: unknown): string {
   return `OpenRouter connect failed: ${errorMessageWithCause(error)} — retry from /logins.`
 }
 export const OPENROUTER_CONNECT_CANCELLED_RECEIPT = 'OpenRouter connect cancelled — nothing stored.'
-
 export const OPENROUTER_CONNECT_STOPPED_RECEIPT =
   'OpenRouter connect cancelled — if the key exchange was already completing, the minted key still lands; /accounts shows and removes it.'

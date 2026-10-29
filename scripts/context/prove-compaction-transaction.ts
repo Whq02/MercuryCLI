@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -35,7 +34,6 @@ section('policy — decideCompaction table + the breaker')
   const { decideCompaction, compactionBreakerAllows, nextCompactionFailureCount } =
     await import('../../src/services/compact/compactionPolicy.ts')
   const d = decideCompaction as (a: Record<string, unknown>) => { kind: string }
-
   check('decideCompaction is a pure function', typeof decideCompaction === 'function')
   check('compactionBreakerAllows exists', typeof compactionBreakerAllows === 'function')
   const n0 = (nextCompactionFailureCount as (n: number, ok: boolean) => number)(0, false)
@@ -151,7 +149,6 @@ section('the happy path — a scripted summary INSTALLS')
 
 section('the validation band — adversarial summaries REFUSE, state survives')
 {
-
   {
     const api = await startFixtureApi([])
     process.env.ANTHROPIC_BASE_URL = api.url

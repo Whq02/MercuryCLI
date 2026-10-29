@@ -29,9 +29,7 @@ import type {
 } from './trace.js'
 
 interface DecisionPorts {
-
   isToolKilled(tool: Tool, agentType: string | undefined): boolean
-
   resolveToolVerdict(
     tool: Tool,
     input: Record<string, unknown>,
@@ -70,7 +68,6 @@ export async function decideToolPermission(
     context,
     ports,
   )
-
   return { decision: decision as PermissionDecision, trace }
 }
 
@@ -89,7 +86,6 @@ export async function decideRuleBasedPermissions(
     context,
     ports,
   )
-
   return {
     decision: decision as PermissionAskDecision | PermissionDenyDecision | null,
     trace,
@@ -124,7 +120,6 @@ async function runDecisionChain(
   }
 
   if (entry === 'full') {
-
     if (context.abortController.signal.aborted) {
       throw new AbortError()
     }
@@ -276,7 +271,6 @@ async function runDecisionChain(
   }
 
   if (entry === 'ruleSubset') {
-
     return {
       decision: null,
       trace: { entry, toolName: tool.name, mode: entryMode, stages, decidedBy: 'none' },

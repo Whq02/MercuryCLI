@@ -1,3 +1,4 @@
+
 import { registerAttentionGatherer } from '../../services/attention/store.js'
 import type { AttentionFact } from '../../services/attention/contracts.js'
 import { getOperatorName } from '../../substrate/identity/operatorDisplayName.js'
@@ -5,7 +6,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { openObligations, subscribeObligations, type ObligationV1 } from './obligations.js'
 
 let cachedOpen: ObligationV1[] = []
-
 let reportedOpen = new Map<string, { sinceMs: number; title: string }>()
 
 export function obligationFacts(
@@ -56,7 +56,6 @@ export function _resetObligationsBridgeForTesting(): void {
 }
 
 function refreshCache(notify?: () => void): void {
-
   void openObligations({ scope: 'switchboard' })
     .then(rows => {
       cachedOpen = rows
@@ -69,7 +68,6 @@ registerAttentionGatherer(
   () => ({ attention: obligationFacts(cachedOpen, getOperatorName(), Date.now()) }),
   {
     subscribe: cb => {
-
       refreshCache(cb)
       const unsub = subscribeObligations(() => refreshCache(cb), { scope: 'switchboard' })
       return () => {

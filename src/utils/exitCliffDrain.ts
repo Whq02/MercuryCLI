@@ -6,20 +6,15 @@ const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
 const drainChannel = channel(EXIT_CLIFF_DRAIN_CHANNEL)
 
 export type ExitCliffSeam = {
-
   name: string
-
   phase: 1 | 2 | 3
   settle: () => Promise<unknown>
 }
 
 type ExitCliffDrainReport = {
-
   skipped: boolean
   settled: string[]
-
   failed: string[]
-
   abandoned: string[]
   elapsedMs: number
 }
@@ -44,13 +39,9 @@ function emptyReport(skipped: boolean): ExitCliffDrainReport {
 }
 
 type ExitCliffGrace = {
-
   readonly spent: boolean
-
   readonly fired: Promise<void>
-
   elapsedMs(): number
-
   disarm(): void
 }
 
@@ -63,7 +54,6 @@ function armGrace(graceMs: number): ExitCliffGrace {
       spent = true
       resolve()
     }
-
     if (graceMs > 0) timer = setTimeout(fire, graceMs)
     else fire()
   })
@@ -92,7 +82,6 @@ async function drainSeamsUnder(
       report.abandoned.push(...batch.map(seam => seam.name))
       continue
     }
-
     const pending = new Set(batch.map(seam => seam.name))
     const runs = batch.map(seam =>
       Promise.resolve()
@@ -142,7 +131,6 @@ export async function drainExitCliffSeams(
 ): Promise<ExitCliffDrainReport> {
   const skipped = !flagEnabled('MERCURY_EXIT_CLIFF_DRAIN')
   const seams = listExitCliffSeams().map(seam => seam.name)
-
   drainChannel.publish({ phase: 'before', seams, skipped })
   if (skipped) {
     const report = emptyReport(true)

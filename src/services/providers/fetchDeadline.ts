@@ -1,3 +1,4 @@
+
 export function deadlineSecondsLabel(ms: number): string {
   const seconds = ms / 1000
   return `${Number.isInteger(seconds) ? seconds : Number(seconds.toFixed(1))}s`
@@ -36,7 +37,6 @@ export async function fetchWithProviderDeadline(
     observeSignInResponse(observation, response.status)
     return response
   } catch (error) {
-
     if (isDeadlineBreach(error) && deadline.aborted && !(callerSignal?.aborted ?? false)) {
       throw new Error(deadlineBreachLine(provider, timeoutMs))
     }

@@ -1,3 +1,4 @@
+
 export type Dialect = 'anthropic' | 'responses' | 'chat'
 
 interface ScriptedCall {
@@ -12,7 +13,6 @@ export type ScriptedTurn =
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
 let nonce = 0
-
 function callId(prefix: string, i: number): string {
   nonce = (nonce + 1) % 1_000_000
   return `${prefix}_${Date.now().toString(36)}_${nonce.toString(36)}_${i}`
@@ -95,6 +95,7 @@ export function encode(dialect: Dialect, turn: ScriptedTurn): string {
   if (dialect === 'responses') return responsesSse(turn)
   return chatSse(turn)
 }
+
 
 type Body = Record<string, any>
 
@@ -223,7 +224,6 @@ export function systemPromptText(body: Body, dialect: Dialect): string {
 
 interface ToolRoster {
   names: string[]
-
   schemaChars: number
 }
 

@@ -1,3 +1,4 @@
+
 export type HealthOutputMode = 'rich' | 'text' | 'json'
 
 export interface HealthPresentation {
@@ -19,7 +20,6 @@ export function resolveHealthPresentation(
 export function writeOutAndExit(text: string, code: number): Promise<never> {
   try {
     process.stdout.on('error', (e: NodeJS.ErrnoException) => {
-
       process.exit(e.code === 'EPIPE' ? code : 1)
     })
     const flushed = process.stdout.write(text)
@@ -27,14 +27,12 @@ export function writeOutAndExit(text: string, code: number): Promise<never> {
       process.exit(code)
     } else {
       process.stdout.once('drain', () => process.exit(code))
-
       const guard = setTimeout(() => process.exit(code), 30_000)
       ;(guard as { unref?: () => void }).unref?.()
     }
   } catch {
     process.exit(code)
   }
-
   return new Promise<never>(() => {})
 }
 

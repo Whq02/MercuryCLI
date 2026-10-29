@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -185,7 +184,6 @@ section('S. the node-test debug shim (no scratch program; node\'s own anchored n
     JSON.stringify(s4))
   const s5 = buildNodeTestDebugShim('test/absent.test.mjs::x', { from: tsDir })
   check('S5 a missing test file refuses typed', 'state' in s5 && s5.state === 'unavailable' && s5.reason.includes('not found'), JSON.stringify(s5))
-
   const toolSrc = (await import('node:fs')).readFileSync(join(import.meta.dir, '..', '..', 'src/tools/TestTool/TestTool.ts'), 'utf8')
   check('S6 the debug op routes by lane like run, both from the call\'s anchor (the session folder, or the project a path names)', toolSrc.includes("const debugLane = resolveTestLane(anchor.from, input.framework)") && toolSrc.includes("const lane = resolveTestLane(anchor.from, input.framework)") && !toolSrc.includes('resolveTestLane(getCwd()'))
   check('S7 every runner has a debug road: vitest/jest, go and cargo route through their plans and no runner is refused by name', toolSrc.includes("debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest'") && toolSrc.includes("debugLane.profile.runner === 'go'") && toolSrc.includes("debugLane.profile.runner === 'cargo'") && !toolSrc.includes("debugLane.profile.runner !== 'node-test'"))

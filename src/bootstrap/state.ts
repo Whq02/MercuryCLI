@@ -45,8 +45,8 @@ let cacheLatches = new CacheLatchOwner()
 let collections = new CollectionsOwner()
 let hookRegistry = new HookRegistryOwner()
 let statsHandle = new StatsHandleOwner()
-
 const scrollGate = new ScrollGateOwner()
+
 
 export function getSessionId(): SessionId {
   return sessionIdentity.sessionId
@@ -112,6 +112,7 @@ export function subscribeCwdState(
 export function getPlanSlugCache(): Map<string, string> {
   return sessionIdentity.planSlugCache
 }
+
 
 export function addToTotalDurationState(
   duration: number,
@@ -250,6 +251,7 @@ export function setCostStateForRestore(restore: {
   usageLedger.setCostStateForRestore(restore)
 }
 
+
 export function addToToolDuration(duration: number): void {
   turnAccounting.addToToolDuration(duration)
 }
@@ -302,6 +304,7 @@ export function incrementBudgetContinuationCount(): void {
   turnAccounting.incrementBudgetContinuationCount()
 }
 
+
 export function updateLastInteractionTime(immediate?: boolean): void {
   interactionClock.updateLastInteractionTime(immediate)
 }
@@ -325,6 +328,7 @@ export function getIsScrollDraining(): boolean {
 export function waitForScrollIdle(): Promise<void> {
   return scrollGate.waitForScrollIdle()
 }
+
 
 export function getEngineModelOverride(): ModelSetting | undefined {
   return modelConfig.engineModelOverride
@@ -378,6 +382,7 @@ export function setModelStrings(strings: ModelStrings): void {
 export function resetModelStringsForTestingOnly(): void {
   modelConfig.modelStrings = null
 }
+
 
 export function getIsNonInteractiveSession(): boolean {
   return !posture.isInteractive
@@ -527,6 +532,7 @@ export function setIsRemoteMode(value: boolean): void {
   posture.isRemoteMode = value
 }
 
+
 export function getDirectConnectServerUrl(): string | undefined {
   return bootConfig.directConnectServerUrl
 }
@@ -619,6 +625,7 @@ export function setHasDevChannels(value: boolean): void {
   bootConfig.hasDevChannels = value
 }
 
+
 export function getLastMainRequestId(): string | undefined {
   return apiCapture.lastMainRequestId
 }
@@ -664,6 +671,7 @@ export function getPromptId(): string | null {
 export function setPromptId(promptId: string | null): void {
   apiCapture.promptId = promptId
 }
+
 
 export function getSystemPromptSectionCache(): Map<
   string,
@@ -718,6 +726,7 @@ export function clearBetaHeaderLatches(): void {
   cacheLatches.clearBetaHeaderLatches()
 }
 
+
 export function getAgentColorMap(): Map<string, AgentColorName> {
   return collections.agentColorMap
 }
@@ -755,6 +764,7 @@ export function clearInvokedSkillsForAgent(agentId: string): void {
   collections.clearInvokedSkillsForAgent(agentId)
 }
 
+
 export function registerHookCallbacks(
   hooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>>,
 ): void {
@@ -774,6 +784,7 @@ export function clearRegisteredHooks(): void {
 export function clearRegisteredExtensionHooks(): void {
   hookRegistry.clearRegisteredExtensionHooks()
 }
+
 
 export function getStatsStore(): {
   observe(name: string, value: number): void

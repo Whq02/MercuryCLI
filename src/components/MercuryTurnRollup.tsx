@@ -17,6 +17,7 @@ import type { Tools } from '../Tool.js'
 import type { ModelName } from '../utils/model/model.js'
 import type { StreamingThinking } from '../utils/messages.js'
 
+
 type Props = {
   messages: Message[]
   tools?: Tools

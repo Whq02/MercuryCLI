@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { normalizeMessages, isToolUseRequestMessage, isToolUseResultMessage, contentBlocksOf } from '../../src/utils/messages/normalize.js'

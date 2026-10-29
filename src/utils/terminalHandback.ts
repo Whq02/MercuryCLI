@@ -7,7 +7,6 @@ import { logForDebugging } from './debug.js'
 export type TtyAddon = Pick<VoiceAddon, 'ttyForegroundGroup' | 'ownProcessGroup' | 'reclaimTerminal'>
 
 type HandbackReason =
-
   | 'already foreground'
   | 'pack absent'
   | 'disabled'
@@ -16,15 +15,12 @@ type HandbackReason =
   | 'failed'
 
 type HandbackReceipt = {
-
   label: string
   reclaimed: boolean
   reason?: HandbackReason
   note?: string
-
   before?: number
   after?: number
-
   fd?: number
 }
 
@@ -130,9 +126,7 @@ export function reclaimTerminalAfterChild(label: string): HandbackReceipt {
 }
 
 type HandbackDescription = {
-
   native: boolean
-
   line: string
 }
 

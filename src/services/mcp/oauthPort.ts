@@ -18,7 +18,6 @@ function isPortAvailable(port: number): Promise<boolean> {
     server.once('error', () => {
       resolve(false)
     })
-
     server.listen(port, '127.0.0.1', () => {
       server.close(() => {
         resolve(true)

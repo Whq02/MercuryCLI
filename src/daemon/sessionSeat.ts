@@ -48,7 +48,6 @@ import type { McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from './pr
 import { mcpToolsFromWire } from '../services/mcp/toolsAnswer.js'
 
 export interface SeatRosterPort {
-
   door(short: string): RunnerDoor | undefined
   list(): ReadonlyArray<{
     short: string
@@ -64,11 +63,8 @@ export interface SeatRosterPort {
     crashedAt?: number
     lastError?: string
   }>
-
   patchSeatModel(short: string, model: string): boolean
-
   patchSeatEffort(short: string, effort: string): boolean
-
   has?(short: string): { present: boolean }
   kill?(short: string): boolean
   registerLongLived?(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
@@ -131,55 +127,37 @@ interface SeatState {
   lastAnswer: SessionFactsAnswerV1 | null
   generation: number
   debounce: ReturnType<typeof setTimeout> | null
-
   workPoll: ReturnType<typeof setTimeout> | null
-
   lastBusy: boolean
   lastFactsAtMs: number
-
   sessionId: string | null
-
   tail: string | null
-
   tailMessageId: string | null
-
   tailPhase: TextPhase | null
   tailWithdrawn: string | null
   tailTimer: ReturnType<typeof setTimeout> | null
   tailDirty: boolean
-
   streamedThisTurn: boolean
-
   turnChars: number
   turnOutputTokens: number | null
   messageOutputTokens: number
   turnThinkingChars: number
   turnThinkingBlocks: number
   firstByteAtMs: number | null
-
   stateWord: 'compacting' | 'waiting-on-agents' | null
-
   waitingOnAgents: number
-
   fold: FoldStatusV1 | null
-
   wait: RequestWaitV1 | null
-
   progress: Map<string, SessionProgressEntryV1>
   progressTimer: ReturnType<typeof setTimeout> | null
   progressDirty: boolean
-
   lastModelSettle: { from: string; to: string; atMs: number } | null
   heldModel: { requestId: number; model: string } | null
   heldEffort: { requestId: number; effort: string } | null
   heldSpawnSwitches: Partial<Record<SpawnSwitchKind, { requestId: number; on: boolean }>>
-
   lastEventAtMs: number | null
-
   streamBlock: 'thinking' | 'text' | 'tool_use' | null
-
   blockSinceMs: number | null
-
   livenessTimer: ReturnType<typeof setTimeout> | null
   livenessDirty: boolean
 }
@@ -205,7 +183,6 @@ const TAIL_PUBLISH_MS = 40
 function publishTailNow(seat: SeatState, dir?: string): void {
   if (seat.sessionId === null) return
   seat.tailDirty = false
-
   seat.livenessDirty = false
   try {
     publishSessionTail(
@@ -295,7 +272,6 @@ function seatBlockOf(of: unknown): SeatState['streamBlock'] {
 }
 
 function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
-
   noteSeatEvent(seat, dir)
   const messageId = typeof row.message_id === 'string' && row.message_id !== '' ? row.message_id : null
   if (row.type === 'retracted') {
@@ -309,7 +285,6 @@ function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
   }
   if (row.type === 'block_start') {
     if (messageId !== seat.tailMessageId) {
-
       if (seat.tail !== null) setSeatTail(seat, null, dir)
       seat.tailMessageId = messageId
       if (seat.firstByteAtMs === null) seat.firstByteAtMs = Date.now()
@@ -319,7 +294,6 @@ function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
     seat.streamBlock = seatBlockOf(row.of)
     seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
     if (seat.streamBlock === 'thinking') seat.turnThinkingBlocks += 1
-
     if (row.of === 'text') seat.tailPhase = textPhaseOf(row.phase)
     publishTailNow(seat, dir)
     return
@@ -331,7 +305,6 @@ function onSeatPartialRow(seat: SeatState, row: SeatRow, dir?: string): void {
     return
   }
   if (row.type === 'reasoning_delta' && typeof row.text === 'string') {
-
     seat.turnChars += row.text.length
     seat.turnThinkingChars += row.text.length
     scheduleTailPublish(seat, dir)
@@ -353,7 +326,6 @@ function onSeatStepRow(seat: SeatState, row: SeatRow, dir?: string): void {
   seat.streamBlock = null
   seat.blockSinceMs = null
   foldMessageOutputTokens(seat)
-
   if (seat.tail !== null) setSeatTail(seat, null, dir)
   else publishTailNow(seat, dir)
 }
@@ -412,7 +384,6 @@ function clearSeatProgress(seat: SeatState, dir?: string): void {
 }
 
 function onSeatToolUpdate(seat: SeatState, row: SeatRow, dir?: string): void {
-
   noteSeatEvent(seat, dir)
   if (typeof row.call_id !== 'string' || typeof row.tick !== 'number' || typeof row.source !== 'string') return
   const key = typeof row.parent_call_id === 'string' ? row.parent_call_id : row.call_id
@@ -442,7 +413,6 @@ function onSeatTextRow(seat: SeatState, row: SeatRow, dir?: string): void {
   }
   const text = typeof row.text === 'string' ? row.text : ''
   if (text === '') return
-
   const id = row.message_id
   seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
   seat.tailPhase = textPhaseOf(row.phase)
@@ -491,6 +461,7 @@ export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatS
 function seatBusyForSwitch(short: string, roster: SeatRosterPort): boolean {
   return !switchAppliesWhileAgentsHold(seatBusy(short, roster), seatOf(short).stateWord)
 }
+
 
 const ZERO_USAGE: SessionFactsAnswerV1['usage'] = {
   totalCostUSD: 0,
@@ -542,25 +513,19 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     ...answerRest,
     ...(seat.generation > 0 ? { runnerGeneration: seat.generation } : {}),
     ...queueReadinessFacts(seat),
-
     model: {
       effective: seat.lastAnswer?.model.effective ?? rec.modelKey,
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
     },
     pendingModel: rec.pendingModelKey ?? null,
-
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
-
     spawnSwitches: spawnSwitchFactsOfRecord(rec),
     ...(rec.pendingSpawnSwitches !== undefined && rec.pendingSpawnSwitches.length > 0
       ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
       : {}),
-
     ...(seat.lastModelSettle !== null ? { modelSettled: seat.lastModelSettle } : {}),
     busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
-
     ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
-
     ...saturnFactsOf(rec, Date.now()),
     ...(boxAnswer !== undefined ? { box: boxAnswer } : {}),
     ...(runnerFact !== undefined ? { runner: runnerFact } : {}),
@@ -615,7 +580,6 @@ const WORK_POLL_MS = 1000
 function armWorkPoll(short: string, roster: SeatRosterPort, dir?: string): void {
   const seat = seats.get(short)
   if (seat === undefined) return
-
   const live = (seat.lastAnswer?.work ?? []).some(workRowRuns)
   if (!live) {
     if (seat.workPoll !== null) {
@@ -627,10 +591,8 @@ function armWorkPoll(short: string, roster: SeatRosterPort, dir?: string): void 
   if (seat.workPoll !== null) return
   const t = setTimeout(() => {
     seat.workPoll = null
-
     if (seats.get(short) === undefined) return
     requestSessionFacts(short, roster, { immediate: true }, dir)
-
     armWorkPoll(short, roster, dir)
   }, WORK_POLL_MS)
   t.unref?.()
@@ -844,7 +806,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
     case 'mission_updated':
     case 'samples_updated':
     case 'notice':
-
       requestSessionFacts(short, roster, undefined, dir)
       return
     case 'session':
@@ -852,7 +813,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       requestSessionFacts(short, roster, { immediate: true }, dir)
       return
     case 'wait': {
-
       const seat = seatFor()
       const next = seatWaitOf(row)
       noteSeatEvent(seat, dir)
@@ -867,12 +827,10 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
     case 'command_output':
     case 'rate_limit':
     case 'tool_result':
-
       noteSeatEvent(seatFor(), dir)
       return
     case 'turn':
     case 'compaction': {
-
       const seat = seatFor()
       if (row.type === 'turn' && row.state !== 'waiting') {
         noteSeatEvent(seat, dir)
@@ -891,7 +849,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       }
       const next = foldLive ? ('compacting' as const) : waiting > 0 ? ('waiting-on-agents' as const) : null
       const count = next === 'waiting-on-agents' ? waiting : 0
-
       noteSeatEvent(seat, dir)
       const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
       if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
@@ -911,7 +868,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
         return
       }
       onSeatStepRow(seat, row, dir)
-
       requestSessionFacts(short, roster, undefined, dir)
       return
     }
@@ -919,7 +875,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
     case 'reasoning':
     case 'tool_call': {
       const seat = seatFor()
-
       noteSeatEvent(seat, dir)
       if (tagged) {
         requestSessionFacts(short, roster, undefined, dir)
@@ -931,10 +886,8 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       return
     }
     case 'outcome': {
-
       const seat = seatOf(short)
       seat.streamedThisTurn = false
-
       seat.turnChars = 0
       seat.turnOutputTokens = null
       seat.messageOutputTokens = 0
@@ -949,7 +902,6 @@ export function onSeatRow(short: string, row: SeatRow, roster: SeatRosterPort, d
       seat.fold = null
       seat.wait = null
       foldStartedAt.delete(short)
-
       noteSeatEvent(seat, dir)
       seat.streamBlock = null
       seat.blockSinceMs = null
@@ -973,9 +925,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   console.error(`[daemon] seat idle edge: ${short}${parkedModel !== undefined ? ` — applying the parked model ${parkedModel}` : ''}${parkedEffort !== undefined ? ` — applying the parked effort ${parkedEffort}` : ''}`)
   if (parkedModel !== undefined) void forwardModel(rec, parkedModel, roster, dir, { parked: true, settle: true })
   if (parkedEffort !== undefined) void forwardEffort(rec, parkedEffort, roster, dir, { parked: true })
-
   drainPendingKitDials(short, roster, dir)
-
   drainPendingSpawnSwitches(short, roster, dir)
   publishSeatFacts(short, dir, roster)
   requestSessionFacts(short, roster, { immediate: true }, dir)
@@ -991,7 +941,6 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.heldEffort = null
   seat.heldSpawnSwitches = {}
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-
   seat.turnChars = 0
   seat.turnOutputTokens = null
   seat.messageOutputTokens = 0
@@ -1006,7 +955,6 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.waitingOnAgents = 0
   seat.fold = null
   seat.wait = null
-
   const hadLiveness = seat.lastEventAtMs !== null || seat.streamBlock !== null
   seat.lastEventAtMs = null
   seat.streamBlock = null
@@ -1017,14 +965,10 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   }
   seat.livenessDirty = false
   if (seat.tail !== null || hadWord || hadLiveness) setSeatTail(seat, null, dir)
-
   clearSeatProgress(seat, dir)
-
   drainPendingKitDials(short, roster, dir)
-
   forwardRecordSpawnSwitches(short, roster, dir)
   drainPendingSpawnSwitches(short, roster, dir)
-
   pushScheduleRoster(short, roster, dir)
   publishSeatFacts(short, dir, roster)
   requestSessionFacts(short, roster, { immediate: true }, dir)
@@ -1041,7 +985,9 @@ export function onSeatSettled(short: string): void {
   seats.delete(short)
 }
 
+
 export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string; respawned?: true }
+
 
 function refusedRewind(mode: SessionRewindMode, refusal: NonNullable<SessionRewindOutcomeV1['refusal']>, detail: string): SessionRewindOutcomeV1 {
   return { outcome: 'refused', mode, refusal, detail }
@@ -1079,6 +1025,7 @@ export async function rewindSession(
   if (failure.kind === 'older') return refusedRewind(req.mode, 'runner-older', "the session's runner predates the rewind verb — /daemon restart when ready, then reopen the session")
   return refusedRewind(req.mode, 'restore-failed', failure.words)
 }
+
 
 export const AGENT_VERB_ANSWER_DEADLINE_MS = 10_000
 
@@ -1216,6 +1163,7 @@ export async function quiesceSessionRunner(
   return { ok: true, token: request.token, phase }
 }
 
+
 export const WITHDRAW_ANSWER_DEADLINE_MS = 5_000
 
 export type SeatWithdrawOutcome = SeatVerbOutcome & { withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
@@ -1334,7 +1282,6 @@ export async function setSessionModel(sessionId: string, model: string, roster: 
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
-
   const gone = rec.pid !== undefined && !workerPidAlive(rec)
   const parked = !gone && seatBusyForSwitch(rec.runnerId, roster)
   if (parked) {
@@ -1381,7 +1328,6 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
     }
   })()
   if (row !== undefined && row.outcome === undefined && row.state === 'spawning') {
-
     roster.patchSeatModel(rec.runnerId, model)
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
@@ -1444,7 +1390,6 @@ function landEffort(rec: ConcourseWorkerRecordV1, effort: string, roster: SeatRo
     }
   }, dir)
   publishSeatFacts(rec.runnerId, dir, roster)
-
   requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
 }
 
@@ -1511,7 +1456,6 @@ function onSeatVerbApplied(short: string, frame: SessionAppliedParams, roster: S
 }
 
 export async function setSessionEffort(sessionId: string, effort: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {
-
   const level = normalizeEffortLevelString(effort)
   if (level === undefined) {
     return { outcome: 'refused', detail: `unknown effort '${effort}' — the levels are ${EFFORT_LEVELS.join(' | ')}` }
@@ -1606,6 +1550,7 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
   )
   return true
 }
+
 
 export async function setSessionSpawnSwitch(
   sessionId: string,
@@ -1768,6 +1713,7 @@ function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?: strin
   for (const entry of parked) applyConcourseKitOp(rec.sessionId, entry.edit, entry.by, dir)
   forwardSessionKit(short, roster, dir)
 }
+
 
 export const PERMISSION_MODE_ANSWER_DEADLINE_MS = 5_000
 

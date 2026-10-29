@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +6,6 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'local-admission-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
@@ -69,7 +67,6 @@ section('§1 a discovered local model admits (session arm), crew speaks the engi
   const row = registry.entries.find(e => e.modelId === 'local/qwen3:1.7b')
   check('the registry lists the discovered model as its persisted id', row !== undefined, registry.entries.map(e => e.modelId).join(' · '))
   check('the session arm is AVAILABLE (keyless presence — no credential asked)', row?.session.availability === 'available', JSON.stringify(row?.session))
-
   check(
     'the crew arm FOLLOWS the session arm on the discovered engine row (available — no narrower crew vocabulary)',
     row?.crew.availability === 'available',

@@ -1,3 +1,4 @@
+
 import {
   cellAt,
   CellWidth,
@@ -8,9 +9,7 @@ import { restyleCell, type OverlayRecord } from './geometry/overlay.js'
 
 type RowText = {
   text: string
-
   cellColumns: number[]
-
   unitToContribution: number[]
 }
 
@@ -30,7 +29,6 @@ function buildRowText(screen: Screen, y: number): RowText {
     if (skipCell(screen, x, y, cell.width)) continue
     const char = cell.char
     if (char === '') continue
-
     const lowered = char.toLowerCase()
     const contribution = cellColumns.length
     cellColumns.push(x)
@@ -58,7 +56,6 @@ export function applySearchHighlight(
     for (;;) {
       const index = row.text.indexOf(needle, from)
       if (index === -1) break
-
       from = index + needle.length
       const firstContribution = row.unitToContribution[index]
       const lastContribution = row.unitToContribution[index + needle.length - 1]

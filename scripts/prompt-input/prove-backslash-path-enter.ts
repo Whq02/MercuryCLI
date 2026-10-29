@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isBackslashContinuation } from '../../src/input-core/backslashContinuation.ts'

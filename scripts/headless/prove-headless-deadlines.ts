@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
@@ -42,7 +41,6 @@ guard.unref?.()
 section('§1 — stale-socket classifier · recovery binding · real pool reset')
 {
   const { isStaleConnectionError } = await import('../../src/services/api/withRetry.ts')
-
   class APIConnectionError extends Error {}
 
   const nodeShape = new APIConnectionError('Connection error.')
@@ -95,6 +93,7 @@ section('§1 — stale-socket classifier · recovery binding · real pool reset'
   proxy._resetKeepAliveForTesting()
   proxy._resetApiDispatcherForTesting()
 }
+
 
 type Envelope = Record<string, unknown> & { type: string; subtype?: string }
 type DistRun = {
@@ -189,7 +188,6 @@ const failedOf = (results: ReturnType<typeof resultsOf>) => results.find(r => r.
 
 section('§2 — black-holed socket: the belt ends the run typed (real dist)')
 {
-
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
     sockets.add(socket)
@@ -208,7 +206,6 @@ section('§2 — black-holed socket: the belt ends the run typed (real dist)')
   )
   const results = resultsOf(run)
   const errorResult = failedOf(results)
-
   const text = j(results)
   check('the run ENDS (no eternal hang) with a non-zero exit', run.exit !== null && run.exit !== 0, `exit=${run.exit}`)
   check('a typed error outcome lands', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? e.status ?? ''}`)))
@@ -245,7 +242,6 @@ section('§3 — black-holed socket, belt disabled: transport budgets alone end 
   const text = j(errorResult ?? {})
   check('the run ENDS non-zero on transport budgets alone', run.exit !== null && run.exit !== 0, `exit=${run.exit} stderr=${run.stderr.slice(0, 200)}`)
   check('a typed error outcome lands (no silent abort)', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? e.status ?? ''}`)))
-
   check('the fault names the timeout', /timed out|timeout|no first byte from .+ after (?:\d+ s|\d+m(?: \d+s)?)/i.test(text), text.slice(0, 300))
   check('the retry ladder ran dry inside the wall bound', run.wallMs < 90_000, `${run.wallMs}ms`)
   for (const s of sockets) s.destroy()
@@ -274,7 +270,6 @@ section('§4 — mid-stream stall (hang turn): the belt fires; the abort reaches
 
 section('§5 — mid-stream stall, belt disabled: undici bodyTimeout ends the run')
 {
-
   let messagePosts = 0
   const stallServer: HttpServer = createHttpServer((req, res) => {
     const chunks: Buffer[] = []
@@ -342,6 +337,7 @@ section('§6 — server-closed keep-alive replay: the run recovers on a fresh co
   await fixture.close()
 }
 
+
 type McpFixture = {
   url: string
   initializeCount(): number
@@ -407,12 +403,10 @@ async function startMcpFixture(behavior: { stallCalls?: boolean; killNthToolCall
       }
       if (body.method === 'notifications/cancelled') cancels++
       if (body.id !== undefined && body.method !== undefined) {
-
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(j({ jsonrpc: '2.0', id: body.id, error: { code: -32601, message: `Method not found: ${body.method}` } }))
         return
       }
-
       res.writeHead(202).end()
     })
   })
@@ -467,7 +461,6 @@ section('§7 — MCP stalled tools/call (real streamable HTTP): typed stall + on
   check('the stalled call settles as an unknown outcome', /unknown outcome/.test(message), message.slice(0, 220))
   check('the error names the action and inspection before retrying', /tool "probe" on server "hd7".*inspect the effect before retrying/.test(message))
   check('it settles at the idle limit, not a 60s fetch budget', settleMs < 10_000, `${settleMs}ms`)
-
   const cancelled = await (async () => {
     for (let waited = 0; waited < 5_000; waited += 100) {
       if (fixture.cancelledCount() > 0 || fixture.heldCallSocketClosed()) return true

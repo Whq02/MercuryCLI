@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LSP = '1'
 
@@ -75,10 +76,8 @@ const { runMercuryLspOp, clearDiagnosticsBaselines } = await import('../../src/t
   let generation = 1
   let docVersion: number | undefined = 1
   const script: Array<{ kind: string; items?: unknown[]; resultId?: string }> = []
-
   const fakeServer = {
     name: 'fake-ts',
-
     get generation() {
       return generation
     },

@@ -66,6 +66,7 @@ import {
   userFacingName,
 } from './UI.js'
 
+
 const inputSchema = z.strictObject({
   file_path: z
     .string()
@@ -120,6 +121,7 @@ function shapeToExistingFile(rawBody: string, content: string, majority: LineEnd
   return preserveUntouchedLineEndings(rawBody, body, majority)
 }
 
+
 export const FileWriteTool = buildTool({
   name: FILE_WRITE_TOOL_NAME,
   strict: true,
@@ -128,7 +130,6 @@ export const FileWriteTool = buildTool({
   inputSchema,
   outputSchema,
   async description(): Promise<string> {
-
     return 'Writes a file to the local filesystem.'
   },
   async prompt(): Promise<string> {
@@ -144,7 +145,6 @@ export const FileWriteTool = buildTool({
     return input?.file_path ? hostPathOfWriteTarget(input.file_path) : getCwd()
   },
   async checkPermissions(input: Input, context: ToolUseContext) {
-
     return checkWritePermissionForTool(
       {
         name: FILE_WRITE_TOOL_NAME,
@@ -159,7 +159,6 @@ export const FileWriteTool = buildTool({
     input.file_path = expandStructuredTargetPath(input.file_path)
   },
   async validateInput(input: Input, context: ToolUseContext) {
-
     const pathRefusal = controlCharacterPathRefusal(input.file_path)
     if (pathRefusal !== null) {
       return { result: false as const, message: pathRefusal, errorCode: 1 }
@@ -287,7 +286,6 @@ export const FileWriteTool = buildTool({
     const rawBody = hadBom ? rawContent.slice(1) : rawContent
     const content = stripSequentialReadPrefixes(input.content, rawBody)
     const shaped = fileExists && rawBody !== '' ? shapeToExistingFile(rawBody, content, lineEndings) : content
-
     const wantsBom = hadBom || (needsPowerShellBom(expandedPath) && encoding === 'utf8')
     const producedContent =
       wantsBom && shaped.charCodeAt(0) !== 0xfeff
@@ -483,7 +481,6 @@ export const FileWriteTool = buildTool({
     }
   },
   extractSearchText(): string {
-
     return ''
   },
   renderToolUseMessage,

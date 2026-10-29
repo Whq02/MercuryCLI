@@ -4,19 +4,16 @@ import { join } from 'node:path'
 import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
+
 interface WireDumpResponse {
   status: number
-
   ms: number
-
   firstByteMs?: number
-
   contentType?: string
   usage?: Record<string, number>
   input_transformations?: unknown[]
   model?: string
   stop_reason?: string | null
-
   text?: string
   error?: string
 }
@@ -122,15 +119,12 @@ const REPLY_TEXT_KEEP = 200
 
 type WireEvent = {
   type?: string
-
   message?: { usage?: Record<string, number>; input_transformations?: unknown[]; model?: string } | string
   usage?: Record<string, number>
-
   delta?: { type?: string; text?: string; stop_reason?: string | null } | string
   error?: { message?: string }
   model?: string
   stop_reason?: string | null
-
   response?: { usage?: Record<string, unknown>; model?: string; error?: { message?: string }; incomplete_details?: { reason?: string } }
   object?: string
   choices?: Array<{ delta?: { content?: string | null }; finish_reason?: string | null }>
@@ -141,11 +135,9 @@ export function createWireResponseReader(contentType: string): {
   end(): Partial<WireDumpResponse>
 } {
   const summary: Partial<WireDumpResponse> = {}
-
   let sse: boolean | null = contentType.includes('text/event-stream') ? true : null
   let text = ''
   let buffer = ''
-
   const takeResponse = (type: string, response: NonNullable<WireEvent['response']>): void => {
     if (response.usage && typeof response.usage === 'object') summary.usage = flattenResponsesUsage(response.usage)
     if (typeof response.model === 'string') summary.model = response.model
@@ -377,7 +369,6 @@ export function wrapFetchWithWireDump(baseFetch: typeof globalThis.fetch, source
       chunk => reader.feed(chunk),
       fault => {
         const summary = reader.end()
-
         const terminal = summary.stop_reason !== undefined || summary.usage !== undefined || summary.error !== undefined
         write({
           status: response.status,

@@ -1,3 +1,4 @@
+
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
@@ -15,18 +16,12 @@ export type WorkerArmAvailabilityV1 =
   | { availability: 'refused'; refusal: WorkerModelRefusal; detail?: string; action?: string }
 
 export interface WorkerModelEntryV1 {
-
   modelId: string
   displayName: string
-
   session: WorkerArmAvailabilityV1
-
   crew: WorkerArmAvailabilityV1
-
   effort?: 'high'
-
   isOperatorDefault?: true
-
   isNeutralDefault?: true
 }
 
@@ -59,9 +54,7 @@ const SEAT_FAMILY_WORDS = new Set([...LOGINS_FAMILY_WORDS, 'openai-compat', 'loc
 
 export interface SeatFamilyChoiceV1 {
   family: string
-
   setting: string
-
   row: string
 }
 
@@ -189,7 +182,6 @@ function composeArms(
     return { session: refused, crew: refused }
   }
   if (route === 'unrecognised') {
-
     const refused: WorkerArmAvailabilityV1 = {
       availability: 'refused',
       refusal: 'not-runnable:unrecognised',
@@ -218,7 +210,6 @@ function composeArms(
     ? { availability: 'available' }
     : route === 'local'
       ? {
-
           availability: 'refused',
           refusal: 'unreachable:local',
           detail: 'no local server is discovered on this box',
@@ -233,13 +224,11 @@ function composeArms(
               : `the ${route} family holds no credential on this account`,
           action: noCredentialAction(route, compatEndpoint),
         }
-
   return { session, crew: session }
 }
 
 export function foldLegacyWorkerModelKey(idOrKey: string): string {
   if (WORKER_MODEL_LEGACY_KEY_NAMES.has(idOrKey)) return parseUserSpecifiedModel(idOrKey)
-
   if (SEAT_FAMILY_WORDS.has(idOrKey)) return familySeatSetting(idOrKey) ?? idOrKey
   return idOrKey
 }
@@ -255,14 +244,12 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   const credentials = await readCredentialPresences()
   const entries: WorkerModelEntryV1[] = []
   const seen = new Set<string>()
-
   let operatorDefaultId: string | undefined
   try {
     const { getEngineModel } = await import('../../utils/model/model.js')
     operatorDefaultId = await canonicalWorkerModelId(getEngineModel())
   } catch {
   }
-
   let neutralDefaultId: string | undefined
   const neutral = neutralSeatDefault()
   if (neutral !== null) {
@@ -273,7 +260,6 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   }
   for (const o of options) {
     const v = o.value
-
     if (!v || v.startsWith('__')) continue
     const modelId = await canonicalWorkerModelId(v)
     if (seen.has(modelId)) continue
@@ -286,13 +272,11 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
       modelId,
       displayName,
       ...arms,
-
       ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
       ...operatorMark,
       ...neutralMark,
     })
   }
-
   if (neutralDefaultId !== undefined && !seen.has(neutralDefaultId)) {
     const arms = composeArms(neutralDefaultId, credentials, declaredRouteOf(neutralDefaultId) ?? 'unrecognised')
     entries.unshift({
@@ -305,7 +289,6 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
     })
     seen.add(neutralDefaultId)
   }
-
   if (operatorDefaultId !== undefined && !seen.has(operatorDefaultId)) {
     const arms = composeArms(operatorDefaultId, credentials, declaredRouteOf(operatorDefaultId) ?? 'unrecognised')
     entries.unshift({
@@ -323,12 +306,10 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
 export function defaultWorkerModelId(registry: WorkerModelRegistryV1, arm: WorkerDispatchArm): string {
   const operatorDefault = registry.entries.find(e => e.isOperatorDefault === true && e[arm].availability === 'available')
   if (operatorDefault !== undefined) return operatorDefault.modelId
-
   const neutralDefault = registry.entries.find(e => e.isNeutralDefault === true && e[arm].availability === 'available')
   if (neutralDefault !== undefined) return neutralDefault.modelId
   const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')
   if (firstAvailable !== undefined) return firstAvailable.modelId
-
   const operatorRow = registry.entries.find(e => e.isOperatorDefault === true)
   if (operatorRow !== undefined) return operatorRow.modelId
   return registry.entries[0]?.modelId ?? foldLegacyWorkerModelKey('fable')
@@ -338,17 +319,13 @@ export type WorkerModelValidation =
   | {
       ok: true
       entry: WorkerModelEntryV1
-
       keyless?: true
-
       note?: string
     }
   | {
       ok: false
       reason: WorkerModelRefusal
-
       detail?: string
-
       action?: string
     }
 
@@ -376,7 +353,6 @@ export async function validateWorkerModelChoice(
   arm: WorkerDispatchArm,
   reads: WorkerRegistryReads = {},
 ): Promise<WorkerModelValidation> {
-
   if (idOrKey !== undefined) {
     const family = await admissionNamesKeyedFamily(idOrKey)
     if (family !== null && (await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending(family))) {
@@ -419,12 +395,10 @@ export async function validateWorkerModelChoice(
   const registry = await composeWorkerModelRegistry(reads)
   const defaultId = await canonicalWorkerModelId(defaultWorkerModelId(registry, arm))
   const id = idOrKey === undefined ? defaultId : await canonicalWorkerModelId(idOrKey)
-
   const defaultDispatches = registry.entries.find(e => e.modelId === defaultId)?.[arm].availability === 'available'
   const unnamed = idOrKey === undefined || (id === defaultId && defaultDispatches)
   let entry = registry.entries.find(e => e.modelId === id)
   if (!entry) {
-
     const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '')
     const want = norm(String(idOrKey ?? ''))
     const candidates =
@@ -440,7 +414,6 @@ export async function validateWorkerModelChoice(
       const { declaredRouteOf } = await import('../providers/routeLaw.js')
       const route = declaredRouteOf(id)
       if (route === null) {
-
         return {
           ok: false,
           reason: 'not-runnable:unrecognised',
@@ -448,7 +421,6 @@ export async function validateWorkerModelChoice(
           action: unrecognisedRefusalAction(),
         }
       }
-
       const { isModelAllowed } = await import('../../utils/model/modelAllowlist.js')
       if (!isModelAllowed(id)) {
         return {
@@ -480,14 +452,12 @@ export async function validateWorkerModelChoice(
   }
   const verdict = entry[arm]
   if (verdict.availability !== 'available') {
-
     if (unnamed) {
       const noAccount = await unnamedLaunchNoAccount(verdict.refusal)
       if (noAccount !== undefined) {
         if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
         return { ok: false, ...noAccount }
       }
-
       if (arm === 'session' && idOrKey === undefined) {
         const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
         const decision = computedDefault()
@@ -496,7 +466,6 @@ export async function validateWorkerModelChoice(
         }
       }
     }
-
     const drift = unnamed ? await unnamedLaunchDrift(verdict.refusal) : undefined
     return {
       ok: false,
@@ -513,7 +482,6 @@ async function unnamedLaunchNoAccount(
   refusal: WorkerModelRefusal,
 ): Promise<{ reason: typeof NO_ACCOUNT_REFUSAL; detail: string; action: string } | undefined> {
   try {
-
     const { computedDefault } = await import('../../utils/model/computedDefault.js')
     const credentials = await readCredentialPresences()
     const anyCredentialed = [...credentials.values()].some(present => present === true)

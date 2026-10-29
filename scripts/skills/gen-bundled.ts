@@ -26,7 +26,6 @@ const listDir: ListDir = dir => readdirSync(dir, { withFileTypes: true })
 const byName = (a: DirEntry, b: DirEntry): number => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
 
 const SKIP_EXT = new Set(['.ttf', '.otf', '.woff', '.woff2', '.pyc', '.pdf', '.gz', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.ico', '.webp'])
-
 const LOADER_TEXT_EXT = new Set(['.md', '.txt', '.sh', '.py', '.html', '.xml', '.dot'])
 export const TEXT_LOADERS: Readonly<Record<string, 'text'>> = Object.fromEntries([...LOADER_TEXT_EXT].map(ext => [ext, 'text' as const]))
 

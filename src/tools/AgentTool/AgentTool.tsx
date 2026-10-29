@@ -1,3 +1,4 @@
+
 import { realpathSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { hasControlCharacter } from '../../utils/path.js'
@@ -111,12 +112,12 @@ const BACKGROUND_TASKS_DISABLED = false
 const DEFAULT_AGENT_TYPE = MERCURY_CREW_AGENT_TYPE
 const RESULT_SIZE_CAP = 100_000
 
+
 export type AgentToolInput = {
   description: string
   prompt: string
   crewmate_type?: string
   model?: string
-
   effort?: EffortLevel
   run_in_background?: boolean
   name?: string
@@ -183,7 +184,6 @@ export const inputSchema = lazySchema(() => {
       .string()
       .describe('A short (3-5 word) summary of the task'),
     prompt: z.string().describe('The task briefing handed to the crewmate'),
-
     crewmate_type: z
       .string()
       .optional()
@@ -192,7 +192,6 @@ export const inputSchema = lazySchema(() => {
       .string()
       .optional()
       .describe("Model override: exact id or family word ([1m] selects the 1M variant; your own family keeps your exact model). Wins over the agent definition; omitted inherits yours. Read mercury://models for reachable ids, mercury://models/known if the signed-in provider's live list is unavailable. Family words use that family's current default; never switch providers without the operator's word. All engines keep this harness's tools. The full manual lists every alias and fallback."),
-
     effort: z
       .enum(EFFORT_LEVELS)
       .optional()
@@ -208,7 +207,6 @@ export const inputSchema = lazySchema(() => {
       .string()
       .optional()
       .refine(value => value === undefined || (!value.includes('@') && value !== '*'), {
-
         message:
           'A crewmate name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
       })
@@ -246,6 +244,7 @@ export const inputSchema = lazySchema(() => {
   return z.object(base)
 })
 
+
 export const outputSchema = lazySchema(() => {
   const result = agentToolResultSchema()
   return z.union([
@@ -271,7 +270,6 @@ export const outputSchema = lazySchema(() => {
       outputFile: z
         .string()
         .describe('Output-file path for progress checks'),
-
       canReadOutputFile: z
         .boolean()
         .optional()
@@ -291,10 +289,10 @@ export const outputSchema = lazySchema(() => {
 })
 
 export type AgentToolOutput = z.infer<ReturnType<typeof outputSchema>> & {
-
   isAsync?: true
   agentName?: string
 }
+
 
 function mcpServerNamesWithTools(tools: readonly ToolShape[]): string[] {
   const names = new Set<string>()
@@ -317,7 +315,6 @@ async function waitForRequiredMcpServers(
     required.some(pattern =>
       name.toLowerCase().includes(pattern.toLowerCase()),
     )
-
   while (Date.now() < deadline) {
     const pendingRequired = clients().some(
       client => client.type === 'pending' && matchesRequired(client.name),
@@ -329,7 +326,6 @@ async function waitForRequiredMcpServers(
     if (failedRequired) break
     await new Promise(resolve => setTimeout(resolve, 500))
   }
-
   const serversWithTools = mcpServerNamesWithTools(
     context.getAppState().mcp.tools ?? [],
   )
@@ -372,6 +368,7 @@ function worktreeKeptLine(data: { worktreePath?: string; worktreeBranch?: string
   return `Worktree kept: ${data.worktreePath}${at ? ` (${at})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`
 }
 
+
 const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 
 export const AgentTool = buildTool({
@@ -405,7 +402,6 @@ Full usage notes arrive when loaded or first used.`
     agents: AgentDefinition[]
     allowedAgentTypes?: string[]
   }) {
-
     const serversWithTools = mcpServerNamesWithTools(options.tools)
     const mcpEligible = options.agents.filter((agent: AgentDefinition) => {
       const required = agent.requiredMcpServers
@@ -576,13 +572,11 @@ Full usage notes arrive when loaded or first used.`
           CREWMATE_SEAT,
         )
       } catch (error) {
-
         logForDebugging(
           `AgentTool: system prompt build failed: ${errorMessage(error)}`,
         )
       }
     }
-
     let worktreeInfo:
       | Awaited<ReturnType<typeof createAgentWorktree>>
       | undefined
@@ -592,7 +586,6 @@ Full usage notes arrive when loaded or first used.`
         ...(cwdParam !== undefined ? { from: cwdParam } : {}),
       })
       if (input.worktree_at !== undefined && worktreeInfo.headCommit !== undefined) {
-
         promptMessages = [
           ...promptMessages,
           createUserMessage({
@@ -705,7 +698,6 @@ Full usage notes arrive when loaded or first used.`
           : {}),
       },
       ...(modelForRunLoop !== undefined ? { model: modelForRunLoop } : {}),
-
       ...(input.effort !== undefined ? { effortOverride: input.effort } : {}),
       availableTools: workerTools,
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
@@ -714,9 +706,7 @@ Full usage notes arrive when loaded or first used.`
       description: input.description,
       ...(input.name ? { name: input.name } : {}),
       launchedAt: startTime,
-
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
-
       onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
     }
 
@@ -731,14 +721,12 @@ Full usage notes arrive when loaded or first used.`
     }
 
     if (plan.shouldRunAsync) {
-
       const task = registerAsyncAgent({
         agentId: earlyAgentId,
         description: input.description,
         prompt: input.prompt,
         setAppState: rootSetAppState,
         selectedAgent: agentDef,
-
         model: plan.model,
         toolUseId: context.toolUseId,
       })
@@ -760,7 +748,6 @@ Full usage notes arrive when loaded or first used.`
                 abortController: task.abortController!,
               },
               onCacheSafeParams: onCacheSafeParams as never,
-
               ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
             }),
           metadata,
@@ -794,13 +781,10 @@ Full usage notes arrive when loaded or first used.`
           outputFile: getTaskOutputPath(earlyAgentId),
           canReadOutputFile,
           ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
-
           ...(input.name ? { agentName: input.name } : {}),
-
           ...(input.run_in_background === false && agentDef.background === true
             ? { backgroundReason: 'agent-type' as const }
             : {}),
-
           runtimeRef: describeAgentRuntimeRef(plan.model),
         } as never,
       }
@@ -870,7 +854,6 @@ Full usage notes arrive when loaded or first used.`
       }
       const lines = [
         'Crewmate launched in the background.',
-
         ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason, async.siblingEnd)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
         continuationHint(async.agentId, async.agentName),
@@ -894,9 +877,7 @@ Full usage notes arrive when loaded or first used.`
     }
 
     if (status === 'failed') {
-
       const partialBlocks = data.content ?? []
-
       const paused = typeof data.error === 'string' && data.error.startsWith('paused — ')
       const blocks: Array<{ type: 'text'; text: string }> = [
         ...structuredBlocks,
@@ -909,7 +890,6 @@ Full usage notes arrive when loaded or first used.`
               },
             ]),
       ]
-
       const kept = worktreeKeptLine(data)
       const failedTrailer = [
         `Crewmate execution failed: ${data.error ?? 'unknown error'}`,
@@ -934,10 +914,8 @@ Full usage notes arrive when loaded or first used.`
     }
 
     if (status === 'completed') {
-
       let bodyBlocks = data.content ?? []
       if (bodyBlocks.length === 0) {
-
         bodyBlocks = [
           {
             type: 'text' as const,
@@ -950,11 +928,9 @@ Full usage notes arrive when loaded or first used.`
         data.outcome?.status === 'completed' &&
         data.outcome.promotedNarration
       ) {
-
         blocks.push({ type: 'text' as const, text: PROMOTED_NARRATION_NOTE })
       }
       blocks.push(...bodyBlocks)
-
       if (
         data.agentType !== undefined &&
         ONE_SHOT_BUILTIN_AGENT_TYPES.has(data.agentType) &&
@@ -970,7 +946,6 @@ Full usage notes arrive when loaded or first used.`
       const kept = worktreeKeptLine(data)
       if (kept !== null) trailerParts.push(kept)
       trailerParts.push(usageBlock(data))
-
       const envelope = envelopeFor(data)
       if (envelope) trailerParts.push(formatEnvelopeBlock(envelope))
       blocks.push({ type: 'text' as const, text: trailerParts.join('\n') })

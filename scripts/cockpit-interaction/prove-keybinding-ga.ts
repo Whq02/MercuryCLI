@@ -26,7 +26,6 @@ t.section('§1 — availability is unconditional; the loader imports nothing but
 
 t.section('§2 + §3 — user layer + project layer through the REAL loader')
 {
-
   const home = join(scratch, 'home')
   const proj = join(scratch, 'proj')
   mkdirSync(home, { recursive: true })
@@ -92,7 +91,6 @@ t.section('§4 — REAL BINARY: null-unbound Space TYPES (the HZ-02 journey)')
     spawnSync(process.execPath, ['run', 'scripts/lib/firstRunSeed.ts', home, process.cwd()], {
       env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
     })
-
     writeFileSync(
       join(home, 'keybindings.json'),
       JSON.stringify({ bindings: [{ context: 'Chat', bindings: { space: null } }] }),
@@ -101,9 +99,7 @@ t.section('§4 — REAL BINARY: null-unbound Space TYPES (the HZ-02 journey)')
     const cfg = {
       cols: 100, rows: 30, total: 200,
       argv: ['node', BIN], out, cwd: process.cwd(),
-
       sends: [
-
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'a' },
         { afterPrevTicks: 3, atTick: 80, awaitText: '❯ a', minTick: 3, awaitSettleTicks: 2, data: ' ' },
@@ -144,7 +140,6 @@ t.section('§4 — REAL BINARY: null-unbound Space TYPES (the HZ-02 journey)')
 
 t.section('§5 — a syntactically broken keybindings.json cannot kill the product')
 {
-
   const home = join(scratch, 'broken-home')
   mkdirSync(home, { recursive: true })
   writeFileSync(join(home, 'keybindings.json'), '{ this is not json')
@@ -202,7 +197,6 @@ console.log(JSON.stringify({
         cols: 100, rows: 30, total: 160,
         argv: ['node', BIN], out: out2, cwd: process.cwd(),
         sends: [
-
           { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'ok' },
         ],

@@ -1,3 +1,4 @@
+
 import { countCharInString } from '../utils/stringUtils.js'
 import { lastGrapheme } from '../utils/intl.js'
 import type { Cursor } from '../utils/Cursor.js'
@@ -17,6 +18,7 @@ export type OperatorContext = {
   setLastFind: (type: FindType, char: string) => void
   recordChange: (change: RecordedChange) => void
 }
+
 
 function lastGraphemeStart(text: string): number {
   if (text.length === 0) return 0
@@ -59,6 +61,7 @@ function displayLineIndex(ctx: OperatorContext, lines: string[]): number {
   return Math.min(ctx.cursor.getPosition().line, lines.length - 1)
 }
 
+
 export function executeOperatorMotion(
   op: Operator,
   motion: string,
@@ -70,7 +73,6 @@ export function executeOperatorMotion(
   let end: number
 
   if (op === 'change' && (motion === 'w' || motion === 'W')) {
-
     let c = cursor
     for (let i = 0; i < count - 1; i++) {
       c = motion === 'w' ? c.nextVimWord() : c.nextWORD()
@@ -81,12 +83,10 @@ export function executeOperatorMotion(
     if (end <= start) return
   } else {
     const target = resolveMotion(motion, cursor, count)
-
     if (target.equals(cursor)) return
     start = Math.min(cursor.offset, target.offset)
     end = Math.max(cursor.offset, target.offset)
     if (isLinewiseMotion(motion)) {
-
       const nl = ctx.text.indexOf('\n', end)
       if (nl !== -1) {
         end = nl + 1
@@ -106,6 +106,7 @@ export function executeOperatorMotion(
   ctx.recordChange({ type: 'operator', op, motion, count })
 }
 
+
 export function executeOperatorFind(
   op: Operator,
   findType: FindType,
@@ -115,13 +116,13 @@ export function executeOperatorFind(
 ): void {
   const target = ctx.cursor.findCharacter(char, findType, count)
   if (target === null) return
-
   const lo = Math.min(ctx.cursor.offset, target)
   const hi = Math.max(ctx.cursor.offset, target)
   applyOperator(op, lo, ctx.cursor.measuredText.nextOffset(hi), false, ctx)
   ctx.setLastFind(findType, char)
   ctx.recordChange({ type: 'operatorFind', op, find: findType, char, count })
 }
+
 
 export function executeOperatorTextObj(
   op: Operator,
@@ -136,9 +137,9 @@ export function executeOperatorTextObj(
   ctx.recordChange({ type: 'operatorTextObj', op, objType, scope, count })
 }
 
+
 export function executeLineOp(op: Operator, count: number, ctx: OperatorContext): void {
   const lines = ctx.text.split('\n')
-
   const lineIdx = countCharInString(ctx.text.slice(0, ctx.cursor.offset), '\n')
   const affected = Math.min(count, lines.length - lineIdx)
   if (affected <= 0) return
@@ -161,7 +162,6 @@ export function executeLineOp(op: Operator, count: number, ctx: OperatorContext)
     ctx.setText(newText)
     ctx.setOffset(Math.min(delStart, lastGraphemeStart(newText)))
   } else {
-
     if (lines.length === 1) {
       ctx.setText('')
       ctx.enterInsert(0)
@@ -172,10 +172,10 @@ export function executeLineOp(op: Operator, count: number, ctx: OperatorContext)
       ctx.enterInsert(lineStart)
     }
   }
-
   const motion = op === 'delete' ? 'd' : op === 'change' ? 'c' : 'y'
   ctx.recordChange({ type: 'operator', op, motion, count })
 }
+
 
 export function executeX(count: number, ctx: OperatorContext): void {
   const cursor = ctx.cursor
@@ -191,6 +191,7 @@ export function executeX(count: number, ctx: OperatorContext): void {
   ctx.recordChange({ type: 'x', count })
 }
 
+
 export function executeReplace(char: string, count: number, ctx: OperatorContext): void {
   const cursor = ctx.cursor
   let end = cursor.offset
@@ -203,10 +204,10 @@ export function executeReplace(char: string, count: number, ctx: OperatorContext
   const newText =
     ctx.text.slice(0, cursor.offset) + char.repeat(replaced) + ctx.text.slice(end)
   ctx.setText(newText)
-
   ctx.setOffset(cursor.offset + (replaced - 1) * char.length)
   ctx.recordChange({ type: 'replace', char, count })
 }
+
 
 export function executeToggleCase(count: number, ctx: OperatorContext): void {
   const cursor = ctx.cursor
@@ -223,10 +224,10 @@ export function executeToggleCase(count: number, ctx: OperatorContext): void {
   }
   const newText = ctx.text.slice(0, cursor.offset) + toggled + ctx.text.slice(pos)
   ctx.setText(newText)
-
   ctx.setOffset(cursor.offset + toggled.length)
   ctx.recordChange({ type: 'toggleCase', count })
 }
+
 
 export function executeJoin(count: number, ctx: OperatorContext): void {
   const lines = ctx.text.split('\n')
@@ -253,10 +254,10 @@ export function executeJoin(count: number, ctx: OperatorContext): void {
   ctx.recordChange({ type: 'join', count })
 }
 
+
 export function executePaste(after: boolean, count: number, ctx: OperatorContext): void {
   const register = ctx.getRegister()
   if (register === '') return
-
   const linewise = register.endsWith('\n')
   if (linewise) {
     const contentLines = register.slice(0, -1).split('\n')
@@ -267,7 +268,6 @@ export function executePaste(after: boolean, count: number, ctx: OperatorContext
     const insertAt = after ? lineIdx + 1 : lineIdx
     const newLines = [...lines.slice(0, insertAt), ...copies, ...lines.slice(insertAt)]
     ctx.setText(newLines.join('\n'))
-
     ctx.setOffset(offsetOfLine(newLines, insertAt))
   } else {
     const insertion = register.repeat(count)
@@ -276,10 +276,10 @@ export function executePaste(after: boolean, count: number, ctx: OperatorContext
       after && !cursor.isAtEnd() ? cursor.measuredText.nextOffset(cursor.offset) : cursor.offset
     const newText = ctx.text.slice(0, pos) + insertion + ctx.text.slice(pos)
     ctx.setText(newText)
-
     ctx.setOffset(Math.max(pos, pos + insertion.length - lastGrapheme(insertion).length))
   }
 }
+
 
 const INDENT_UNIT = '  '
 
@@ -301,12 +301,12 @@ export function executeIndent(dir: '>' | '<', count: number, ctx: OperatorContex
     }
   }
   ctx.setText(lines.join('\n'))
-
   const current = lines[lineIdx]!
   const firstNonBlank = /\S/.exec(current)
   ctx.setOffset(offsetOfLine(lines, lineIdx) + (firstNonBlank ? firstNonBlank.index : current.length))
   ctx.recordChange({ type: 'indent', dir, count })
 }
+
 
 export function executeOpenLine(direction: 'above' | 'below', ctx: OperatorContext): void {
   const lines = ctx.text.split('\n')
@@ -317,6 +317,7 @@ export function executeOpenLine(direction: 'above' | 'below', ctx: OperatorConte
   ctx.enterInsert(offsetOfLine(newLines, insertAt))
   ctx.recordChange({ type: 'openLine', direction })
 }
+
 
 function applyLinewiseBetween(
   op: Operator,

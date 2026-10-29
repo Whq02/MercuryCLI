@@ -14,7 +14,6 @@ const bad = (label: string) => {
 }
 
 const product = readFileSync(join(root, 'src/constants/product.ts'), 'utf8')
-
 const pkgVersion = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }).version
 if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(pkgVersion)) ok(`package.json version = ${pkgVersion} (the one root)`)
 else bad(`package.json version '${pkgVersion}' is not semver`)
@@ -25,7 +24,6 @@ if (product.includes('export const MERCURY_VERSION: string = resolveMercuryVersi
 else bad('product.ts must re-export the define: MERCURY_VERSION: string = MACRO.VERSION')
 
 const buildTs = readFileSync(join(root, 'build.ts'), 'utf8')
-
 if (
   /const PKG_JSON = JSON\.parse\(readFileSync\('\.\/package\.json'/.test(buildTs) &&
   /const MACRO_VERSION = PKG_JSON\.version/.test(buildTs)

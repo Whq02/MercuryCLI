@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'crypto'
 import { getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 
@@ -7,12 +8,9 @@ export const mintIntentId = (): string =>
   `di-${randomUUID().replace(/-/g, '').slice(0, 12)}`
 
 export interface DispatchIntent {
-
   intentId: string
-
   kind: 'prompt' | 'board-dispatch'
   value: string
-
   pastedContents?: Record<number, { id: number; type: 'text'; content: string }>
 }
 
@@ -20,7 +18,6 @@ export type DispatchReceipt =
   | {
       kind: 'dispatch-accepted'
       intentId: string
-
       route: 'session' | 'agent'
     }
   | { kind: 'dispatch-unavailable'; intentId: string; reason: string }
@@ -46,9 +43,7 @@ export async function submitDispatch(intent: DispatchIntent): Promise<DispatchRe
 
 export interface ReplyIntent {
   intentId: string
-
   targetSubjectId: string
-
   agentId?: string
   value: string
 }

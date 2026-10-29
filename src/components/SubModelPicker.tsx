@@ -31,6 +31,7 @@ import {
   type SubModelRegistry,
 } from '../utils/model/subModelSlots.js'
 
+
 type PickerRow =
   | { kind: 'unset' }
   | { kind: 'header'; family: SubModelFamily }
@@ -94,7 +95,6 @@ function ContainerHeader({
   const meta = CONTAINER_META[container]
   const resolved = resolveSubModel(container)
   const originWords = containerOriginWords(container, resolved)
-
   const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getEngineModel())
   const cacheWords =
     container === 'console' && resolved.origin !== 'unset'
@@ -140,16 +140,11 @@ function ContainerList({
   container: SubModelContainer
   active: boolean
   width: number
-
   listRows: number
-
   initialNote?: string
-
   initialModelId?: string
   onRoute: (pick: SubModelRoutePick, note: string) => void
-
   onClose: () => void
-
   compact: boolean
   epoch: number
   onChanged: () => void
@@ -157,12 +152,10 @@ function ContainerList({
   const t = useMercuryTokens()
   const accent = useSessionAccent().accent
   const setEpoch = (_next: (n: number) => number): void => onChanged()
-
   const registry = React.useMemo(() => composeSubModelRegistry(), [epoch])
   const resolved = resolveSubModel(container)
   const rows = React.useMemo(() => buildRows(registry), [registry])
   const [seedNote, setSeedNote] = useState<string | undefined>(initialNote)
-
   const [strip, setStrip] = useState<{
     modelId: string
     displayName: string
@@ -192,7 +185,6 @@ function ContainerList({
         setSeedNote(result.ok ? result.receipt : result.reason)
         return
       }
-
       event.stopImmediatePropagation()
       if (action === null) return
       const target = applyNavMotion(action, strip.index, strip.levels.length, { orientation: 'horizontal' })
@@ -249,7 +241,6 @@ function ContainerList({
               )
               return null
             }
-
             return entry.connect?.note ?? entry.reason ?? 'not signed in'
           }
           return null
@@ -263,7 +254,6 @@ function ContainerList({
           if (!row || row.kind !== 'entry' || row.entry.kind !== 'model') return null
           setSeedNote(undefined)
           const offered = subModelEffortStrip(container, row.entry.modelId)
-
           if (offered.kind === 'none') return offered.receipt
           setStrip({
             modelId: row.entry.modelId,
@@ -292,7 +282,6 @@ function ContainerList({
 
   const meta = CONTAINER_META[container]
   const nameW = compact ? Math.max(14, Math.min(28, width - 14)) : 28
-
   const effortRange = (modelId: string): string => {
     const offered = subModelEffortStrip(container, modelId)
     if (offered.kind === 'none') return offered.receipt
@@ -309,7 +298,6 @@ function ContainerList({
   const detail = ((): string => {
     const row = list.selectedRow
     if (!row) return ''
-
     if (row.kind === 'unset')
       return `answers "${SUB_MODEL_UNSET_HINT}" — spends nothing`
     if (row.kind !== 'entry') return ''
@@ -396,7 +384,6 @@ function ContainerList({
       ) : null}
       <Box height={1} overflow="hidden" marginTop={1}>
         {strip !== null ? (
-
           <EffortStrip levels={strip.levels} current={strip.levels[strip.index]} accent={accent} faint={t.textMuted} />
         ) : (
           <Text color={t.textMuted} wrap="truncate-end">
@@ -431,12 +418,9 @@ export function SubModelPicker({
   initialModelId,
 }: {
   onClose: () => void
-
   onRoute: (pick: SubModelRoutePick, note: string) => void
   initialContainer?: SubModelContainer
-
   initialNote?: string
-
   initialModelId?: string
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -456,15 +440,12 @@ export function SubModelPicker({
   )
 
   const width = Math.max(56, Math.min(100, columns - 6))
-
   const listRows = Math.max(4, termRows - 13 - (SUB_MODEL_CONTAINERS.length - 1))
-
   const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getEngineModel())
 
   return (
     <Box flexDirection="column" width={width}>
-      {
-}
+      {}
       <Box width={width}>
         <Text color={t.textMuted} wrap="truncate-end">{`main: ${mainModel} — context only; /model changes it`}</Text>
       </Box>

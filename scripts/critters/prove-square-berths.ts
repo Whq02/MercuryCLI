@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -70,7 +69,6 @@ section('§3 sleep air — the dock keeps a glyph\'s air; lid-only sleep stays a
     const count = sleepSlotCountFor(def)
     const dockSlots = sleepZzzSlots(def.squareDock, count)
     check(`${def.name}: the dock keeps at least one glyph's air`, dockSlots.length >= 1, `slots [${dockSlots.join(',')}]`)
-
     const lidAwake = composeCritterFrame(def, { square: true, pupil: '—', gazeKey: '', swayPhase: 0, sleepPhase: null })
     const asleep = composeCritterFrame(def, { square: true, pupil: '—', gazeKey: '', swayPhase: 0, sleepPhase: 2 })
     check(`${def.name}: the sleeping square carries no pupil`, asleep.art.every(r => !r.includes('K')))

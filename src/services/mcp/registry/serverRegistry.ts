@@ -41,19 +41,14 @@ export interface McpRegistryEvent {
 }
 
 export interface McpRegistryPorts {
-
   connect(name: string, config: ScopedMcpServerConfig): Promise<McpConnectOutcome>
-
   connectMany(
     configs: Record<string, ScopedMcpServerConfig>,
     onSettle: (outcome: McpConnectOutcome) => void,
   ): Promise<void>
-
   disconnect(name: string, config: ScopedMcpServerConfig): Promise<void>
-
   isDisabledOnDisk(name: string): boolean
   setEnabledOnDisk(name: string, enabled: boolean): void
-
   sleep(ms: number, signal: AbortSignal): Promise<void>
 }
 
@@ -62,13 +57,9 @@ interface ServerSlot {
   config: ScopedMcpServerConfig
   connection: MCPServerConnection
   generation: number
-
   chain: Promise<void>
-
   retryLoopActive: boolean
-
   connectInFlight: Promise<McpConnectOutcome | null> | null
-
   wakeup: AbortController | null
 }
 
@@ -81,6 +72,7 @@ export class McpServerRegistry {
   private shutdownFlag = false
 
   constructor(private ports: McpRegistryPorts) {}
+
 
   subscribe(listener: McpRegistryListener): () => void {
     this.listeners.add(listener)
@@ -121,6 +113,7 @@ export class McpServerRegistry {
     }
   }
 
+
   private slotFor(name: string, config: ScopedMcpServerConfig): ServerSlot {
     let slot = this.slots.get(name)
     if (!slot) {
@@ -144,7 +137,6 @@ export class McpServerRegistry {
     op: (gen: number) => Promise<R | null>,
   ): Promise<R | null> {
     const gen = ++slot.generation
-
     slot.wakeup?.abort()
     const run: Promise<R | null> = slot.chain
       .then(() => (this.shutdownFlag ? null : op(gen)))
@@ -169,6 +161,7 @@ export class McpServerRegistry {
     return false
   }
 
+
   seed(configs: Record<string, ScopedMcpServerConfig>): void {
     for (const [name, config] of Object.entries(configs)) {
       if (this.slots.has(name)) continue
@@ -186,7 +179,6 @@ export class McpServerRegistry {
     cause: 'connect' | 'reconnect-manual' = 'connect',
   ): Promise<McpConnectOutcome | null> {
     const slot = this.slotFor(name, config)
-
     if (cause === 'connect' && slot.connectInFlight) {
       return slot.connectInFlight
     }
@@ -197,7 +189,6 @@ export class McpServerRegistry {
         this.emit(slot, cause, { tools: [], commands: [] })
         return null
       }
-
       if (cause === 'connect' && slot.connection.type === 'connected') {
         return null
       }
@@ -238,7 +229,6 @@ export class McpServerRegistry {
         this.emit(slot, 'stale-drop')
         return
       }
-
       slot.connection = outcome.client
       this.emit(slot, 'connect', {
         tools: outcome.tools,
@@ -257,10 +247,8 @@ export class McpServerRegistry {
       return Promise.resolve()
     }
     if (configType === 'stdio') {
-
       return this.enqueue(slot, async gen => {
         if (this.stale(slot, gen, 'connection-lost')) return null
-
         slot.connection = {
           name,
           type: 'failed',
@@ -272,7 +260,6 @@ export class McpServerRegistry {
       }).then(() => undefined)
     }
     if (slot.retryLoopActive) {
-
       logMCPDebug(name, 'reconnect loop already active, ignoring signal')
       return Promise.resolve()
     }

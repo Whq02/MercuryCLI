@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -49,7 +48,6 @@ section('(1) the GDB fallback row — probed, never assumed')
     chmodSync(shim, 0o755)
   }
   try {
-
     process.env.PATH = mkdtempSync(join(tmpdir(), 'empty-path-'))
     dap._resetGdbProbeForTesting()
     check('no gdb on PATH ⇒ probe not viable', dap.probeGdbDap().viable === false, dap.probeGdbDap().reason)
@@ -64,7 +62,6 @@ section('(1) the GDB fallback row — probed, never assumed')
     check('gdb row registers as `gdb -i=dap`', spec?.command === 'gdb' && spec.args.join(' ') === '-i=dap', JSON.stringify(spec))
     check('installHint names the DAP floor', (spec?.installHint ?? '').includes('14+'), spec?.installHint)
     check('knownAdapterKeys carries gdb', dap.knownAdapterKeys().includes('gdb'))
-
     const perm = await DebugTool.checkPermissions({ op: 'launch', program: '/tmp/demo' } as never, {} as never)
     check('inferAdapter prefers probed gdb when lldb-dap is absent', perm.behavior === 'passthrough' && 'message' in perm && String(perm.message).includes('(adapter gdb)'), JSON.stringify(perm))
 

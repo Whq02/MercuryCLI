@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { getOriginalCwd } from '../../../bootstrap/state.js'
@@ -39,7 +40,6 @@ export const workflowAdapter: ResourceAdapter = {
   describe: 'workflow runs, phases, crewmates (mercury://workflow/<runId>?child=<agentId>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (ref.id === '') {
-
       const { rows: runs, unreadable } = await listWorkflowRunsDetailed(runsCwd(), { limit: 50 })
       return {
         state: 'ok',
@@ -64,7 +64,6 @@ export const workflowAdapter: ResourceAdapter = {
     if (!manifest) {
       return { state: 'absent', note: `no workflow run '${ref.id}' (no manifest under ${runDir})` }
     }
-
     if (ref.selectors.child) {
       const agent = manifest.agents.find(
         a => (a as { agentId?: string }).agentId === ref.selectors.child,
@@ -78,7 +77,6 @@ export const workflowAdapter: ResourceAdapter = {
         }
       }
       const ag = agent as { state?: string; label?: string }
-
       const transcriptPath =
         resolveAgentTranscriptFile(
           [manifest.transcriptDir, ...(manifest.transcriptDirs ?? [])],
@@ -92,7 +90,6 @@ export const workflowAdapter: ResourceAdapter = {
       let structured: unknown
       if (transcriptPath && wantsRawStream) {
         try {
-
           const view = boundedTextView(readFileSync(transcriptPath, 'utf8'), ref.selectors, 50, {
             defaultToTail: true,
           })
@@ -119,7 +116,6 @@ export const workflowAdapter: ResourceAdapter = {
               view.finalText,
             )
             if (view.finalTextTruncated) {
-
               const window = 50
               const cursor = Math.max(0, view.entryCount - window)
               parts.push(
@@ -160,7 +156,6 @@ export const workflowAdapter: ResourceAdapter = {
     } catch {
     }
     const liveness = runLiveness(manifest, manifestMtime, Date.now(), pidAlive)
-
     const phases = groupAgentsByPhase(manifest.phases, [], manifest.agents)
     const stateCounts = (agents: readonly unknown[]): string => {
       const counts = new Map<string, number>()
@@ -200,7 +195,6 @@ export const workflowAdapter: ResourceAdapter = {
               state?: string
               phaseTitle?: string
             }
-
             const pulseBit =
               ag.state === 'progress' || ag.state === 'start'
                 ? (() => {

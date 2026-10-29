@@ -16,6 +16,7 @@ import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
 import { paneWindow } from '../mercury-ui/paneWindow.js'
 import { useInteractiveList, type AsyncListNote } from '../mercury-ui/useInteractiveList.js'
 
+
 const EMPTY_ROSTER: readonly SkillsRosterEntryV1[] = Object.freeze([])
 
 const subscribeSkillsRoster = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
@@ -78,7 +79,6 @@ export function SessionSkillsDial({
       { key: ' ', hint: 'cycle', run: row => dial(row, 1) },
     ],
   })
-
   useInput(
     (_input, key) => {
       if (!key.leftArrow && !key.rightArrow) return

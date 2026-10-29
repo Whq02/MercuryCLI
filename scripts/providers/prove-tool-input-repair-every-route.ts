@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/providers/local/schemaTyping.ts src/services/providers/toolCallGate.ts src/services/tools/toolExecution.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/zai/zaiCallModel.ts
 import { readFileSync } from 'node:fs'
 import { z } from 'zod/v4'
 

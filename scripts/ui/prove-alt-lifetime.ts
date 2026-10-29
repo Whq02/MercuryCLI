@@ -10,7 +10,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const alt = readFileSync('src/ink/components/AlternateScreen.tsx', 'utf8');
 check(
   'alt-screen effect deps exclude the mouse prop (lifetime never cycles on it)',
-
   alt.includes('}, [writeRaw, inkFromContext]);') && !alt.includes('mouseTracking]'),
 );
 check(
@@ -27,7 +26,6 @@ check(
   alt.includes('const launcherHolds = consumeLauncherAltHold();') &&
     alt.includes("writeRaw(RESET_SCROLL_REGION + '\\x1b[0m' + armBytes);"),
 );
-
 check(
   'no-hold mount defers entry through ink.armAltScreenEntry',
   alt.includes('ink.armAltScreenEntry(ENTER_ALT_SCREEN + RESET_SCROLL_REGION') &&
@@ -70,7 +68,6 @@ check(
 );
 const module_ = readFileSync('src/ink/launcherAltHold.ts', 'utf8');
 check(
-
   'early-exit safety net releases an unconsumed hold',
   module_.includes("process.on('exit'") && module_.includes('\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h'),
 );

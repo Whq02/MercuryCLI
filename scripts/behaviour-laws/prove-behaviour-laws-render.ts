@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -69,7 +68,6 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 section('§3 semantic ids — no positional section names; live references resolve')
 {
   check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)))
-
   const all = contract.sections.map(s => s.text).join('\n')
   check('live references resolve (spot set): the discovery commands the harness map names exist',
     all.includes('/help lists commands') && all.includes('/capabilities'))

@@ -1,3 +1,4 @@
+
 import {
   isTerminalLifecycle,
   openDeliverables,
@@ -10,7 +11,6 @@ export type StopDecision =
       kind: 'continue'
       nextAction: string
       reason: string
-
       evidenceDemand?: boolean
     }
   | {
@@ -25,32 +25,20 @@ export type StopDecision =
   | { kind: 'budget-exhausted'; unfinished: string[] }
 
 interface StopEvaluationInput {
-
   snapshot: RunSnapshot | null
-
   wordingUnfinished: boolean
-
   continuationsThisTurn: number
-
   maxContinuationsPerTurn: number
-
   aborted: boolean
-
   apiError: boolean
-
   verification: {
     state: 'verified' | 'stale' | 'failed' | 'unverified'
     mutationsSinceEvidence: number
-
     workspaceVerifiable?: boolean
-
     priorEvidenceDemands?: number
   } | null
-
   pendingIdeFeedback: boolean
-
   surface?: 'interactive' | 'print' | 'sdk' | 'worker' | 'workflow' | 'external'
-
   terminalPolicy?: 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'
 }
 
@@ -81,10 +69,8 @@ function satisfiedConditions(input: StopEvaluationInput): string[] {
 }
 
 export function evaluateStop(input: StopEvaluationInput): StopDecision {
-
   if (input.aborted) return { kind: 'cancel', cause: 'operator interrupt (abort signal)' }
   if (input.apiError) return { kind: 'fail', cause: 'API error terminated the turn' }
-
   {
     const snap = input.snapshot
     if (
@@ -103,7 +89,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     }
   }
   if (input.continuationsThisTurn >= input.maxContinuationsPerTurn) {
-
     const freshProgress = (input.snapshot?.progress?.progressSinceDecision ?? 0) > 0
     if (!freshProgress) {
       const unfinished: string[] = []
@@ -124,7 +109,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
   }
 
   const snap = input.snapshot
-
   if (!snap || !snap.substantive) {
     if (input.wordingUnfinished) {
       return {
@@ -138,7 +122,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
 
   const open = openDeliverables(snap)
   const recordedCompleteWithOpenWork = snap.lifecycle === 'completed' && open.length > 0
-
   if (isTerminalLifecycle(snap.lifecycle) && !recordedCompleteWithOpenWork) {
     return { kind: 'complete', satisfied: [`run already ${snap.lifecycle}`] }
   }
@@ -189,7 +172,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     const v = input.verification
     const demands = v.priorEvidenceDemands ?? 0
     if (demands >= MAX_EVIDENCE_DEMANDS) {
-
       return {
         kind: 'complete',
         satisfied: [
@@ -199,7 +181,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
       }
     }
     if (v.workspaceVerifiable === false) {
-
       return {
         kind: 'continue',
         nextAction:
@@ -216,7 +197,6 @@ export function evaluateStop(input: StopEvaluationInput): StopDecision {
     }
   }
   if (input.verification && input.verification.state === 'failed') {
-
     const demands = input.verification.priorEvidenceDemands ?? 0
     if (demands >= MAX_EVIDENCE_DEMANDS) {
       return {

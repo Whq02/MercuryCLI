@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -19,9 +20,9 @@ const REPO = path.resolve(import.meta.dir, '../..')
 export const DIST = path.join(REPO, 'dist/mercury.mjs')
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 
+
 export const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-momentum-${process.pid}`)
 export const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
-
 const PROBE_KEY = 'sk-ant-momentum-journey-probe'
 
 export const SIDS = {
@@ -37,7 +38,6 @@ const PROJECT_DIR = () => path.join(RUN_HOME, 'projects', path.basename(getProje
 let exitCleanupArmed = false
 
 export function seedWorld(): void {
-
   if (!exitCleanupArmed) {
     exitCleanupArmed = true
     process.on('exit', () => {
@@ -49,7 +49,6 @@ export function seedWorld(): void {
   }
   rmSync(RUN_HOME, { recursive: true, force: true })
   mkdirSync(FIXTURE_CWD, { recursive: true })
-
   writeFileSync(
     path.join(RUN_HOME, '.mercury.json'),
     JSON.stringify({
@@ -82,7 +81,6 @@ export function seedWorld(): void {
   writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# fixture demo\n')
   git('add', '-A')
   git('-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'fixture baseline')
-
   writeFileSync(
     path.join(FIXTURE_CWD, 'src/greet.ts'),
     'export function greet(name: string) {\n  return `hello, ${name}`\n}\n',
@@ -92,6 +90,7 @@ export function seedWorld(): void {
 export function cleanupWorld(): void {
   rmSync(RUN_HOME, { recursive: true, force: true })
 }
+
 
 type Row = Record<string, unknown>
 
@@ -229,6 +228,7 @@ export function bashRound(command: string, description: string, stdout: string, 
   }
 }
 
+
 function ownerFor(sid: string): OwnerKey {
   return makeOwnerKey({ workspace: FIXTURE_CWD, sessionId: sid, lane: 'main' })
 }
@@ -269,6 +269,7 @@ export function readRunSidecar(sid: string): { writeSeq: number; snapshot: RunSn
   }
 }
 
+
 interface SeedTask {
   id: string
   subject: string
@@ -295,6 +296,7 @@ export function seedTasks(sid: string, tasks: SeedTask[]): void {
   }
 }
 
+
 export interface Send {
   data: string
   atTick?: number
@@ -314,7 +316,6 @@ interface CaptureOpts {
   stableTicks?: number
   cols?: number
   rows?: number
-
   settledText?: string
 }
 
@@ -324,7 +325,6 @@ export const journeyChildEnv = (): NodeJS.ProcessEnv => {
     MERCURY_CONFIG_DIR: RUN_HOME,
     ANTHROPIC_API_KEY: PROBE_KEY,
     MERCURY_NPM_REGISTRY_BASE: 'http://127.0.0.1:1',
-
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',
@@ -345,11 +345,9 @@ export interface Capture {
 
 export function hasProse(c: Capture | string, needle: string): boolean {
   const text = typeof c === 'string' ? c : c.text
-
   const squeeze = (t: string): string =>
     t.replace(/[│╭╮╰╯─═║▔┃┆]/g, ' ').replace(/\s+/g, ' ')
   if (squeeze(text).includes(needle)) return true
-
   const lines = text.split('\n')
   const column = (from: number, to?: number): string =>
     squeeze(lines.map(line => line.slice(from, to)).join(' '))
@@ -358,7 +356,6 @@ export function hasProse(c: Capture | string, needle: string): boolean {
 
 export function capture(opts: CaptureOpts): Capture {
   const out = path.join(RUN_HOME, `grid-${opts.tag}.json`)
-
   const sends = opts.sends ?? []
   const stable = opts.stableTicks ?? 4
   const sendlessReady =
@@ -401,12 +398,11 @@ export function slashSends(cmd: string, extra: Send[] = []): Send[] {
   ]
 }
 
+
 type Visibility = 'at-glance' | 'after-navigation' | 'not-visible'
 
 interface NavRoute {
-
   cmd: string
-
   extra?: Send[]
 }
 
@@ -414,7 +410,6 @@ interface FactResult {
   fact: string
   needle: string
   visibility: Visibility
-
   transitions: number
   route: string | null
 }
@@ -422,7 +417,6 @@ interface FactResult {
 export class JourneyWalker {
   private navCache = new Map<string, Capture>()
   readonly captures: string[] = []
-
   readonly failedCaptures: string[] = []
   constructor(
     private readonly sid: string,
@@ -471,7 +465,6 @@ interface JourneyReport {
   completed: boolean
   integrityFailures: string[]
   facts: FactResult[]
-
   specialistCommands: string[]
   surfaceTransitions: number
   stepsToFirstFeedback: number
@@ -488,6 +481,7 @@ export function reportPath(journey: string): string {
 export function writeReport(report: JourneyReport): void {
   writeFileSync(reportPath(report.journey), JSON.stringify(report, null, 2))
 }
+
 
 export function makeChecker(): {
   check: (name: string, ok: boolean, detail?: string) => void

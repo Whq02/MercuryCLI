@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -53,7 +52,6 @@ section('§2 two responses in one fork ADD; the single-delta lanes still fold')
   ]
   const total = settleForkUsageFold(foldAll(events))
   check('two responses add on every counter', total.input_tokens === 300 && total.cache_read_input_tokens === 10100 && total.output_tokens === 100, JSON.stringify(total))
-
   const single = settleForkUsageFold(foldAll([
     start({ input_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 }),
     delta({ input_tokens: 1234, cache_creation_input_tokens: 0, cache_read_input_tokens: 300, output_tokens: 56 }),

@@ -1,3 +1,5 @@
+
+
 export const INTERRUPT_MESSAGE = '[Request interrupted by user]'
 export const INTERRUPT_MESSAGE_FOR_TOOL_USE =
   '[Request interrupted by user for tool use]'
@@ -7,6 +9,7 @@ export function interruptedToolsLine(toolNames: readonly string[]): string {
   const list = names.length === 0 ? 'the running tool' : names.join(', ')
   return `the interrupt ended ${list} — the turn is over`
 }
+
 
 export type TurnCutKind = 'operator' | 'idle-timeout' | 'parent-stop' | 'cut'
 export type TurnCut = { kind: TurnCutKind; detail?: string }

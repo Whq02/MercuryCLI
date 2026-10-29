@@ -24,6 +24,7 @@ export function isInstructionDiscoveryDisabled(): boolean {
   return isBareMode()
 }
 
+
 async function rawGit(args: string[]): Promise<string> {
   const outcome = await execFileNoThrow(gitExe(), args, {
     preserveOutputOnError: false,
@@ -34,7 +35,6 @@ async function rawGit(args: string[]): Promise<string> {
 
 export const getGitStatus = memoize(async (): Promise<string | null> => {
   if (process.env.NODE_ENV === 'test') {
-
     return null
   }
   logForDiagnosticsNoPII('info', 'git_status_started')
@@ -102,6 +102,7 @@ function armInstructionInvalidation(): void {
   })
 }
 
+
 export const getSystemContext = memoize(
   async (): Promise<Record<string, string>> => {
     armInstructionInvalidation()
@@ -110,7 +111,6 @@ export const getSystemContext = memoize(
     const gitStatus = shouldIncludeGitInstructions()
       ? await getGitStatus()
       : null
-
     logForDiagnosticsNoPII('info', 'system_context_completed', {
       duration_ms: Date.now() - startedAt,
       has_git_status: gitStatus !== null,
@@ -139,14 +139,12 @@ export const getUserContext = memoize(
     const disabled = isInstructionDiscoveryDisabled()
     let instructionPrompt: string | null = null
     if (!disabled) {
-
       const files = await getInstructionFiles()
       const composed = composeInstructionPrompt(
         filterInjectedInstructionFiles(files),
       )
       instructionPrompt = composed || null
     }
-
     const isGit = await getIsGit()
     logForDiagnosticsNoPII('info', 'user_context_completed', {
       duration_ms: Date.now() - startedAt,

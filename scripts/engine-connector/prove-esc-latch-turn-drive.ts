@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -46,7 +45,6 @@ const count = (s: string, needle: string): number => s.split(needle).length - 1
 async function drive(scene: Scene): Promise<void> {
   const ask = 'run the long sleep please'
   const arm = 'sleep-tool'
-
   const TOOL_ROW = 'Running 1 bash command'
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-esclatch-${scene}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
@@ -95,39 +93,31 @@ async function drive(scene: Scene): Promise<void> {
   }
 
   const out = path.join(RUN_HOME, 'grid.json')
-
   const boot = [
-
     { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ask}\r` },
   ]
   const press =
     scene === 'fresh'
       ? [
-
           { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: '\x1b', mark: 'tool-running' },
           { afterPrevTicks: 1, data: `${ask}\r`, mark: 'esc-landed' },
           { afterPrevTicks: 5, data: '', mark: 'sent' },
         ]
       : [
-
           { requireAwait: true, minTick: 10, awaitText: 'Running 1 bash command', awaitSettleTicks: 6, data: `${ask}\r`, mark: 'tool-running' },
           { afterPrevTicks: 10, data: '\x1b', mark: 'queued' },
           { afterPrevTicks: 1, data: '', mark: 'esc-landed' },
           { afterPrevTicks: 5, data: '', mark: 'sent' },
         ]
   const rest = [
-
     { afterPrevTicks: 15, data: '', mark: 'next-turn' },
-
     { afterPrevTicks: 10, data: '\x1b', mark: 'next-turn-late' },
     { afterPrevTicks: 2, data: '', mark: 'after-esc-2' },
-
     { afterPrevTicks: 20, data: `${AFTER_WORDS}\r`, mark: 'settled' },
     { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 5, data: '', mark: 'answered' },
   ]
   const sends = [...boot, ...press, ...rest]
-
   const cfg = {
     argv: ['node', DIST, '--model', 'claude-opus-4-8'],
     cwd: FIXTURE_CWD,
@@ -204,7 +194,6 @@ async function drive(scene: Scene): Promise<void> {
     daemonLog = readFileSync(path.join(daemonDir, 'daemon.log'), 'utf8')
   } catch {
   }
-
   let trace: Array<Record<string, unknown>> = []
   try {
     trace = readFileSync(path.join(RUN_HOME, 'connector-trace.jsonl'), 'utf8')
@@ -234,7 +223,6 @@ async function drive(scene: Scene): Promise<void> {
   if (scene === 'drain') check(`${scene}: the words typed into the running turn painted QUEUED before the press`, /queued\s+\[sam\] ❯ run the long sleep please/.test(at('queued')), tail(at('queued')))
 
   section(`${scene} — E2: the next turn wears its own phase, never the stale latch`)
-
   const sleepSteps = wire.filter(c => c.kind === 'anthropic' && c.arm === arm && c.step === 0 && ((c as { tools?: number }).tools ?? 0) > 0)
   check(`${scene}: the second ask earned a fresh sleep turn (the fixture served the sleep twice)`, sleepSteps.length === 2, JSON.stringify(wire.map(c => [c.n, c.arm, c.step])))
   const nextRunning = (frame: string): boolean => frame.includes(TOOL_ROW) && frame.includes('sleep 40')
@@ -246,12 +234,10 @@ async function drive(scene: Scene): Promise<void> {
   }
 
   section(`${scene} — E3: the second esc is a plain interrupt of the new turn`)
-
   console.log(`  [record] after the second esc: ${at('after-esc-2').includes(INTERRUPTING) ? 'the interrupting rung' : /ready · [^\n]*← back/.test(at('after-esc-2')) ? 'ready (the turn had ended)' : 'neither'}`)
   check(`${scene}: never the second-press words ("interrupting again")`, !at('after-esc-2').includes(HARD_STOPPING) && !at('settled').includes(HARD_STOPPING), tail(at('after-esc-2')))
 
   section(`${scene} — E4: the wire: plain interrupts only, no runner cut`)
-
   check(`${scene}: the applied-ops ledger holds exactly two interrupt rows${scene === 'drain' ? ' (the second press found the drained turn)' : ''}`, interrupts.length === 2, JSON.stringify(ledger))
   check(`${scene}: every interrupt on the ledger is a plain interrupt — never a hard stop`, interrupts.length >= 1 && interrupts.every(r => r.outcome === 'applied' && (r.detail ?? '').startsWith('interrupt ')), JSON.stringify(interrupts))
   check(`${scene}: the daemon never cut the runner (no hard-stop line in its log)`, !/hard stop:/.test(daemonLog), daemonLog.split('\n').filter(l => /hard stop/.test(l)).slice(-3).join(' | '))

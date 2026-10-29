@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -23,7 +24,6 @@ export type SuggestionItem = {
   id: string
   displayText: string
   tag?: string
-
   value?: string
   description?: string
   metadata?: unknown
@@ -54,7 +54,6 @@ function UnifiedRow({
   columns: number
   selected: boolean
 }): React.ReactNode {
-
   const tokens = useMercuryTokens()
   const glyph = unifiedGlyph(item.id) ?? GLYPH.read
   const separator = 3
@@ -106,7 +105,6 @@ function OtherRow({
   }
   const padded = name + ' '.repeat(Math.max(0, nameColumn - displayWidth(name)))
   const tag = item.tag ? `[${item.tag}] ` : ''
-
   const value = item.value ? `${truncateToWidth(collapseWhitespace(item.value), 24)}  ` : ''
   const descriptionBudget = Math.max(
     0,
@@ -149,7 +147,6 @@ export function PromptInputFooterSuggestions({
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const storeSelection = useSelectedSuggestion()
-
   const selected = selectedSuggestion ?? storeSelection
 
   if (suggestions.length === 0 || maxRows === 0) return null
@@ -162,7 +159,6 @@ export function PromptInputFooterSuggestions({
   if (maxRows !== undefined) maxVisible = Math.min(maxVisible, maxRows)
   const overflowing = suggestions.length > maxVisible && maxVisible > 1
   if (overflowing) {
-
     maxVisible = Math.max(1, maxVisible - 1)
   }
 

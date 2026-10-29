@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -35,7 +34,6 @@ const editCall = (file_path: string, new_string: string) =>
 section('W1 · counted operations — zero constructions after the first call')
 {
   const rules = wards.AUTONOMOUS_WARDS
-
   wards.evaluateWards(rules, bashCall('ls -la'))
   counting = true
   constructions = 0

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -130,7 +129,6 @@ section('§C B08 — structured output rides the Responses wire (format parity)'
     outputFormat: { type: 'json_schema', schema },
   })
   check('text.format is the documented json_schema block', req.text?.format?.type === 'json_schema')
-
   check(
     'the wire schema is the strict-dialect derivation of the one truth',
     JSON.stringify(req.text?.format?.schema) === JSON.stringify(toOpenaiStrictSchema(schema)),

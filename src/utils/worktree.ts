@@ -22,6 +22,9 @@ import { getInitialSettings, getRelativeSettingsFilePathForSource } from './sett
 import { sleep } from './sleep.js'
 import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
 
+
+
+
 const MAX_SLUG_LENGTH = 64
 
 export function validateWorktreeSlug(slug: string): void {
@@ -40,6 +43,7 @@ export function validateWorktreeSlug(slug: string): void {
   }
 }
 
+
 function worktreesHome(gitRoot: string): string {
   return projectLocalPath(gitRoot, 'worktrees')
 }
@@ -55,6 +59,7 @@ export function worktreeBranchName(slug: string): string {
 function worktreePathForSlug(gitRoot: string, slug: string): string {
   return join(worktreesHome(gitRoot), flattenSlug(slug))
 }
+
 
 const BASELINE_FILENAME = 'WORKTREE_BASE'
 
@@ -93,6 +98,7 @@ async function readWorktreeBaseline(worktreePath: string): Promise<string | null
   const trimmed = content.trim()
   return /^[0-9a-fA-F]{7,64}$/.test(trimmed) ? trimmed : null
 }
+
 
 function noPromptEnv(): NodeJS.ProcessEnv {
   return { ...subprocessEnv(), GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' }
@@ -138,9 +144,9 @@ async function runWorktreeAdd(args: string[], repoRoot: string): Promise<{ code:
   return runGit(args, repoRoot)
 }
 
+
 type CreateOrResumeResult = {
   worktreePath: string
-
   worktreeBranch?: string
   headCommit: string | null
   existed: boolean
@@ -252,7 +258,6 @@ async function createOrResumeWorktreeNow(
       const checkout = await runGit(['checkout', 'HEAD'], worktreePath)
       if (checkout.code !== 0) throw new Error(`git checkout failed in the sparse worktree: ${checkout.stderr.trim()}`)
     } catch (error) {
-
       await runGit(['worktree', 'remove', '--force', worktreePath], repoRoot)
       throw error
     }
@@ -267,6 +272,7 @@ async function createOrResumeWorktreeNow(
     ...(baseBranch !== undefined ? { baseBranch } : {}),
   }
 }
+
 
 async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, preserveExisting = false): Promise<string[]> {
   let patternText: string
@@ -500,6 +506,7 @@ async function runWorktreePrepareCommand(worktreePath: string): Promise<string |
   return `workspace.worktree.prepare failed with exit ${end.code}${end.stderr.trim() ? `: ${end.stderr.trim()}` : ''}`
 }
 
+
 export type WorktreeSession = {
   originalCwd: string
   worktreePath: string
@@ -510,7 +517,6 @@ export type WorktreeSession = {
   sessionId: string
   tmuxSessionName?: string
   prepareFailure?: string
-
   creationDurationMs?: number
   usedSparsePaths?: boolean
 }
@@ -551,7 +557,6 @@ export async function createWorktreeForSession(
   tmuxSessionName?: string,
   options?: { prNumber?: number; gitRoot?: string },
 ): Promise<WorktreeSession> {
-
   validateWorktreeSlug(slug)
   const originalCwd = getCwd()
 
@@ -586,7 +591,6 @@ export async function createWorktreeForSession(
     ...(created.headCommit !== null ? { originalHeadCommit: created.headCommit } : {}),
     sessionId,
     ...(tmuxSessionName !== undefined ? { tmuxSessionName } : {}),
-
     ...(created.existed ? {} : { creationDurationMs: Date.now() - startedAt }),
     ...(usedSparse && !created.existed ? { usedSparsePaths: true } : {}),
     ...(prepareFailure !== undefined ? { prepareFailure } : {}),
@@ -615,7 +619,6 @@ export async function cleanupWorktree(): Promise<void> {
   const session = currentWorktreeSession
   if (session === null) return
   try {
-
     process.chdir(session.originalCwd)
   } catch (error) {
     logForDebugging(`cleanupWorktree chdir failed: ${String(error)}`)
@@ -623,7 +626,6 @@ export async function cleanupWorktree(): Promise<void> {
   }
   try {
     {
-
       const removal = await runGit(['worktree', 'remove', '--force', session.worktreePath], session.originalCwd)
       if (removal.code !== 0) {
         throw new Error(removal.stderr.trim() || removal.stdout.trim() || `git worktree remove exited ${removal.code}`)
@@ -632,7 +634,6 @@ export async function cleanupWorktree(): Promise<void> {
     currentWorktreeSession = null
     persistWorktreeSession(null)
     if (session.worktreeBranch !== undefined) {
-
       await sleep(100)
       const branchDelete = await runGit(['branch', '-D', session.worktreeBranch], session.originalCwd)
       if (branchDelete.code !== 0) {
@@ -644,6 +645,7 @@ export async function cleanupWorktree(): Promise<void> {
     throw error
   }
 }
+
 
 type WorktreeCapability = {
   available: boolean
@@ -684,7 +686,6 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
 export async function createAgentWorktree(
   slug: string,
   options?: {
-
     at?: string
     from?: string
   },
@@ -696,11 +697,9 @@ export async function createAgentWorktree(
   prepareFailure?: string
 }> {
   validateWorktreeSlug(slug)
-
   const from = options?.from ?? getCwd()
   const gitRoot = findCanonicalGitRoot(from)
   if (!gitRoot) {
-
     throw new Error(
       'Worktree isolation is unavailable here: this is not a git repository. ' +
         'Retry the same Crewmate call WITHOUT the isolation parameter; the crewmate will run in the current directory.',
@@ -713,7 +712,6 @@ export async function createAgentWorktree(
   let prepareFailure: string | undefined
   if (!created.existed) {
     prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
-
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -722,7 +720,6 @@ export async function createAgentWorktree(
       logForDebugging(`worktree lock failed for ${created.worktreePath}: ${lock.stderr.trim()}`)
     }
   } else {
-
     try {
       const now = new Date()
       await utimes(created.worktreePath, now, now)
@@ -752,7 +749,6 @@ async function removeAgentWorktree(
     logError(new Error(`removeAgentWorktree: no git root for ${worktreePath}`))
     return false
   }
-
   await unlockAgentWorktree(worktreePath, gitRoot)
   const removal = await runGit(['worktree', 'remove', '--force', worktreePath], gitRoot)
   if (removal.code !== 0) {
@@ -768,6 +764,7 @@ async function removeAgentWorktree(
   return true
 }
 
+
 const MERCURY_EPHEMERAL_PREFIXES = ['.mercury/cache-clock/']
 
 function isMercuryEphemeralLanePath(relPath: string): boolean {
@@ -775,13 +772,10 @@ function isMercuryEphemeralLanePath(relPath: string): boolean {
 }
 
 type WorktreeDelta = {
-
   commitsAhead: number
-
   tracked: string[]
   untrackedAuthored: string[]
   mercuryEphemeral: string[]
-
   uncertainty: string | null
 }
 
@@ -806,7 +800,6 @@ export function classifyPorcelainRecords(zOutput: string): {
     }
     tracked.push(path)
     if (statusPair.includes('R') || statusPair.includes('C')) {
-
       const origin = records[index + 1]
       if (origin !== undefined && origin !== '') {
         tracked.push(origin)
@@ -877,6 +870,7 @@ export async function hasWorktreeChanges(worktreePath: string, headCommit: strin
   return deltaBlocksSettlement(delta)
 }
 
+
 type WorktreeSettlementReceipt =
   | { outcome: 'settled'; worktreePath: string }
   | { outcome: 'preserved'; worktreePath: string; delta: WorktreeDelta; summary: string }
@@ -909,7 +903,6 @@ export async function settleAgentWorktree(info: {
       detail: 'removal failed; see the debug log',
     }
   }
-
   try {
     await stat(info.worktreePath)
     return {
@@ -957,6 +950,7 @@ export async function worktreeRemovalSafe(worktreePath: string, ownBranch?: stri
   }
   return { safe: true }
 }
+
 
 const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
 const EPHEMERAL_SLUG_PATTERNS: RegExp[] = [
@@ -1085,6 +1079,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
   return removedCount
 }
 
+
 export async function createBaselineWorktree(
   revision: string,
   root?: string,
@@ -1137,6 +1132,7 @@ export async function createBaselineWorktree(
   }
 }
 
+
 function parsePRReference(input: string): number | null {
   const urlMatch = input.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/pull\/(\d+)\/?(?:[?#].*)?$/)
   if (urlMatch) return parseInt(urlMatch[1] as string, 10)
@@ -1144,6 +1140,7 @@ function parsePRReference(input: string): number | null {
   if (shortMatch) return parseInt(shortMatch[1] as string, 10)
   return null
 }
+
 
 export async function isTmuxAvailable(): Promise<boolean> {
   const result = await execFileNoThrowWithCwd('tmux', ['-V'], {})
@@ -1178,22 +1175,22 @@ export function generateTmuxSessionName(repoPath: string, branch: string): strin
   return `${basename(repoPath)}_${branch}`.replace(/[/.]/g, '_')
 }
 
+
 function runTmuxSync(args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv; inherit?: boolean }): {
   status: number
   stdout: string
 } {
   const result = spawnSync('tmux', args, {
     encoding: 'utf8',
-
     windowsHide: options?.inherit !== true,
     ...(options?.cwd !== undefined ? { cwd: options.cwd } : {}),
     ...(options?.env !== undefined ? { env: options.env } : {}),
     stdio: options?.inherit ? 'inherit' : ['ignore', 'pipe', 'ignore'],
-
     ...(options?.inherit === true ? {} : { timeout: 15_000 }),
   })
   return { status: result.status ?? 1, stdout: typeof result.stdout === 'string' ? result.stdout : '' }
 }
+
 
 const THROWAWAY_ADJECTIVES = ['quick', 'calm', 'brisk', 'quiet', 'bright', 'spare']
 const THROWAWAY_NOUNS = ['lane', 'bench', 'desk', 'nook', 'yard', 'shed']
@@ -1211,7 +1208,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
     return { handled: false, error: '--multiplex is not supported on Windows' }
   }
   if (runTmuxSync(['-V']).status !== 0) {
-
     const hint =
       process.platform === 'darwin' ? 'Install it with: brew install tmux' : 'Install it with: sudo apt install tmux'
     return { handled: false, error: `tmux is not installed. ${hint}` }
@@ -1291,7 +1287,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
 
   const sessionExists = runTmuxSync(['has-session', '-t', tmuxSessionName]).status === 0
   const insideTmux = isInsideTmuxSync()
-
   const controlMode = isInITerm2() && !classicMode && !insideTmux
 
   const childEnv: NodeJS.ProcessEnv = { ...process.env }
@@ -1304,7 +1299,6 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
 
   const relaunchCommand = [process.execPath, ...relaunchArgs]
   if (insideTmux) {
-
     if (!sessionExists) {
       runTmuxSync(['new-session', '-d', '-s', tmuxSessionName, '-c', worktreeDir, '--', ...relaunchCommand], {
         env: childEnv,

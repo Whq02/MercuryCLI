@@ -7,7 +7,6 @@ export function logForDiagnosticsNoPII(
   event: string,
   data?: Record<string, unknown>,
 ): void {
-
   const logFile = undefined as string | undefined
   if (!logFile) return
   const line =
@@ -22,7 +21,6 @@ export function logForDiagnosticsNoPII(
     fs.appendFileSync(logFile, line)
   } catch {
     try {
-
       fs.mkdirSync(dirname(logFile))
       fs.appendFileSync(logFile, line)
     } catch {

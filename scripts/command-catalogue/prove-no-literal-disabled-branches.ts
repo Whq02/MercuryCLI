@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -16,7 +15,6 @@ const PATTERNS: Array<{ name: string; re: RegExp }> = [
 ]
 
 function stripComments(src: string): string {
-
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1')
 }
 

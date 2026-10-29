@@ -15,7 +15,6 @@ function section(t: string): void {
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
-
 function callerFiles(symbolCall: string): string[] {
   let out = ''
   try {
@@ -43,17 +42,13 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/envUtils.ts',
     'src/utils/secureStorage/plainTextStorage.ts',
     'src/utils/secureStorage/macOsKeychainHelpers.ts',
-
     'src/services/providers/providerSecrets.ts',
     'src/services/host/jobCredentials.ts',
     'src/utils/accounts/signInRefusal.ts',
     'src/utils/redactSecrets.ts',
-
     'src/services/providers/openai/openaiAccounts.ts',
-
     'src/services/providers/openai/qualificationStore.ts',
     'src/services/providers/anthropic/modelRefusal.ts',
-
     'src/services/providers/gemini/geminiAccounts.ts',
     'src/services/providers/huggingface/huggingfaceAccounts.ts',
     'src/services/providers/moonshot/moonshotAccounts.ts',
@@ -63,11 +58,8 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/services/providers/nous/nousClientContract.ts',
     'src/services/providers/gemini/antigravityClientContract.ts',
     'src/utils/auth.ts',
-
     'src/utils/healthReport.ts',
-
     'src/daemon/saturnAccount.ts',
-
     'src/daemon/signInView.ts',
   ])
   const callers = callerFiles('getAuthConfigHomeDir()')
@@ -81,7 +73,6 @@ section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the swit
   const sanctioned = new Set([
     'src/utils/accounts/scopedCredentialRead.ts',
     'src/utils/envUtils.ts',
-
     'src/utils/accounts/scopedReauth.ts',
   ])
   for (const call of ['setAuthScope(', 'clearAuthScope(']) {
@@ -94,7 +85,6 @@ section('§2 SCOPE-SETTER FLOOR — setAuthScope/clearAuthScope only in the swit
 const PREV = process.env.MERCURY_CONFIG_DIR
 const PREV_MCD = process.env.MERCURY_CONFIG_DIR
 const PREV_MH = process.env.MERCURY_HOME
-
 delete process.env.MERCURY_CONFIG_DIR
 delete process.env.MERCURY_HOME
 const env = await import('../../src/utils/envUtils.js')
@@ -113,7 +103,6 @@ section('§4 NO KEYCHAIN COLLISION — Mercury ~/.mercury and a foreign-named ho
   env.clearAuthScope()
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.mercury')
   const mercurySvc = keychain.getMacOsKeychainStorageServiceName(keychain.CREDENTIALS_SERVICE_SUFFIX)
-
   process.env.MERCURY_CONFIG_DIR = join(homedir(), '.claude')
   const foreignSvc = keychain.getMacOsKeychainStorageServiceName(keychain.CREDENTIALS_SERVICE_SUFFIX)
   check(mercurySvc !== foreignSvc, 'sovereign and foreign keychain service names differ', `${mercurySvc} vs ${foreignSvc}`)
@@ -135,7 +124,6 @@ section('§5 SESSION HOME PINNED — an override moves the auth home, NOT the se
 
 section('§6 NO RELAY RING EXISTS — the roster module and its stations are gone')
 {
-
   check(!existsSync(join(import.meta.dir, '../../src/utils/accountSnapshot.ts')), 'the roster module is deleted')
   const hits = execSync(
     "grep -rl 'launchAccounts(' ../../src --include='*.ts' --include='*.tsx' || true",

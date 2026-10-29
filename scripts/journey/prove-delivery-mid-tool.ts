@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -43,7 +42,6 @@ writeFileSync(
   JSON.stringify({
     argv: ['node', BIN],
     cwd: FIX,
-
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 90, minTick: 5, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'please list that directory\r' },
@@ -58,7 +56,6 @@ writeFileSync(
 
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
-
   timeout: vshotBudgetMs(240_000),
   env: {
     ...process.env,

@@ -47,7 +47,6 @@ t.section('§1 — an older held write cannot land over a newer committed one')
   const older = sidecar.saveRunSidecar(owner, { ...base, nextAction: 'OLDER' })
   await hold.entered
   const newer = sidecar.saveRunSidecar(owner, { ...base, nextAction: 'NEWER' })
-
   await waitUntil(() => barrier.completionOrder().some(p => p === path), {
     tries: 40,
     everyMs: 5,
@@ -126,7 +125,6 @@ t.section('§4 — flushRun awaits the newest in-flight write, not a cleared poi
   const held = barrier.holdNextPublish(p => p === path)
   coord.noteRunEvent(owner, { type: 'paused', at: 3, reason: 'generation A' })
   await held.entered
-
   coord.noteRunEvent(owner, { type: 'resumed', at: 4, reason: 'generation B' })
 
   let settled = false

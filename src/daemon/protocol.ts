@@ -1,3 +1,4 @@
+
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
@@ -92,19 +93,14 @@ export type DaemonOp =
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 
 export interface DispatchBody {
-
   short?: string
-
   prompt: string
-
   cwd?: string
-
   source?: DispatchSource
-
   model?: string
-
   workflow?: string
 }
+
 
 export type SessionRewindMode = 'code' | 'conversation' | 'both'
 
@@ -132,19 +128,14 @@ export type RewindRefusalKind =
 export interface SessionRewindOutcomeV1 {
   outcome: 'applied' | 'refused' | 'noop'
   mode: SessionRewindMode
-
   refusal?: RewindRefusalKind
-
   detail?: string
-
   dryRun?: boolean
-
   code?: {
     filesChanged: string[]
     insertions: number
     deletions: number
   }
-
   conversation?: {
     turnUuid: string
     removed: number
@@ -191,7 +182,6 @@ export type DaemonRequest =
       signal?: NodeJS.Signals
     }
   | {
-
       op: 'reconfigure'
       proto: number
       auth?: string
@@ -200,27 +190,18 @@ export type DaemonRequest =
       effort?: string
     }
   | {
-
       op: 'sessionAdmit'
       proto: number
       auth?: string
       workspaceDir: string
-
       isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
-
       model?: string
-
       effort?: string
       title?: string
-
       resumeSessionId?: string
-
       bornBlank?: true
-
       kit?: SessionKitV1
-
       kitPreset?: string
-
       bypassConsent?: true
       birthKey?: string
       waitForSeatMs?: number
@@ -231,21 +212,16 @@ export type DaemonRequest =
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }
   | { op: 'sessionRelease'; proto: number; auth?: string; runnerId: string }
   | {
-
       op: 'concourseWarm'
       proto: number
       auth?: string
       workspaceDir: string
       retiring?: string
-
       runnerOptionsPresent?: boolean
-
       kit?: SessionKitV1
-
       bypassConsent?: true
     }
   | {
-
       op: 'sessionControl'
       proto: number
       auth?: string
@@ -285,50 +261,33 @@ export type DaemonRequest =
       by: string
       reason?: string
       paused?: boolean
-
       hard?: boolean
-
       requestId?: string
-
       allow?: boolean
-
       answer?: {
         updatedInput?: Record<string, unknown>
         permissionUpdates?: unknown[]
         feedback?: string
         interrupt?: boolean
       }
-
       model?: string
-
       effort?: string
-
       mode?: string
-
       title?: string
       titleSource?: 'operator' | 'minted'
-
       contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
-
       kitEdit?: SessionKitEditV1
       mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
       mcpServer?: string
-
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
-
       spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
       terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
-
       agentId?: string
-
       note?: string
-
       clientOpId?: string
-
       clientMessageId?: string
     }
   | {
-
       op: 'sessionDispatch'
       origin?: import('../utils/messages/outsideReport.js').OutsideReportOrigin
       proto: number
@@ -336,29 +295,21 @@ export type DaemonRequest =
       clientMessageId: string
       prompt: string
       workspaceDir: string
-
       targetSessionId?: string
       isolation?: 'exclusive' | 'worktree-isolated' | 'read-only'
       model?: string
       title?: string
-
       agentName?: string
       seatsMax?: 1 | 2
       resumeSessionId?: string
-
       by?: string
-
       mode?: 'prompt' | 'bash'
-
       priority?: 'now' | 'next' | 'later'
-
       content?: unknown[]
       sentAt?: string
-
       kitPreset?: string
     }
   | {
-
       op: 'hello'
       proto?: number
       clientVersion?: string
@@ -367,15 +318,12 @@ export type DaemonRequest =
       clientKind?: 'screen' | 'client'
     }
   | {
-
       op: 'restart-when-idle'
       proto: number
       auth?: string
-
       by?: string
     }
   | {
-
       op: 'sessionRewind'
       proto: number
       auth?: string
@@ -387,7 +335,6 @@ export type DaemonRequest =
     }
   | ({ op: 'sessionFileRestore'; proto: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
   | {
-
       op: 'signIns'
       proto: number
       auth?: string
@@ -404,50 +351,35 @@ export type DaemonRequest =
 export interface SignInFamilyViewV1 {
   family: string
   credentialed: boolean
-
   label?: string
-
   usable: boolean
-
   row?: string
-
   why?: string
   unfetched?: boolean
   catalogueReadAt?: number
-
   signedInAt?: number | null
   refused?: { status: 401 | 403; at: number }
 }
 
 export interface DaemonSignInViewV1 {
-
   home: string
-
   store: string
-
   defaultFamily: string | null
   readAt: number
-
   refreshed: boolean
-
   families: SignInFamilyViewV1[]
 }
 
 export interface DaemonHelloFacts {
   version: string
-
   buildTree: string | null
   pid: number
   startedAt: number
-
   ownerPid: number | null
-
   foreground: boolean
-
   live: number
   liveSessions: number
   warm: number
-
   restartArmed: boolean
   predecessorPid?: number | null
   predecessorPids?: number[]
@@ -463,28 +395,17 @@ export interface WireRosterEntry {
   pid?: number
   startedAt: number
   cliVersion: string
-
   outcome?: string
   via?: string
-
   turnStartedAt?: number
-
   model?: string
-
   effort?: string
-
   pendingModel?: string
-
   pendingEffort?: string
-
   respawns?: number
-
   contextPct?: number
-
   busy?: boolean
-
   turnActive?: boolean
-
   turnElapsedMs?: number
   cwd?: string
   worktree?: string
@@ -508,7 +429,6 @@ export type DaemonReply =
       ok: true
       op: 'shutdown'
       reaped: number
-
       workers?: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
     }
   | { ok: true; op: 'leases'; clients: LeaseClient[] }
@@ -527,7 +447,6 @@ export type DaemonReply =
       sessionId: string
       workspaceId: string
       pid?: number
-
       branchName?: string
       mainHolderTitle?: string
       modelId?: string
@@ -536,7 +455,6 @@ export type DaemonReply =
       note?: string
       kitSource?: 'carried' | 'derived' | 'preset'
       liveHop?: true
-
       presetName?: string
       presetNote?: string
     }
@@ -548,13 +466,10 @@ export type DaemonReply =
       state: string
       stateRevision: number
       runnerId?: string
-
       workerId?: string
       sessionId?: string
       replay?: string
-
       kitSource?: 'carried' | 'derived' | 'preset'
-
       presetName?: string
       presetNote?: string
     }
@@ -595,12 +510,11 @@ export interface WireStatus {
   breakerOpen: boolean
   leaseCount: number
   proto: number
-
   degraded?: boolean
   degradedReason?: string
-
   warmRunners?: number
 }
+
 
 export function encodeFrame(obj: unknown): string {
   return JSON.stringify(obj) + '\n'

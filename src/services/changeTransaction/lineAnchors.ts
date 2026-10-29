@@ -1,3 +1,4 @@
+
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
@@ -34,6 +35,7 @@ export function formatLineAnchor(lineNumber: number, lineText: string): string {
   return `${lineNumber}#${mintLineHash(lineText)}`
 }
 
+
 export function addAnchoredLineNumbers({
   content,
   startLine,
@@ -49,6 +51,7 @@ export function addAnchoredLineNumbers({
     .map((line, index) => `${startLine + index}#${mintLineHash(line)}\t${line}`)
     .join('\n')
 }
+
 
 export interface LineRef {
   line: number
@@ -92,13 +95,13 @@ export function parseHashedLinesSpelling(spelling: string): HashedLinesParse {
   return { ok: true, start, end }
 }
 
+
 type LineRefCheck =
   | { ok: true }
   | {
       ok: false
       line: number
       expectedHash: string
-
       currentHash: string | null
     }
 
@@ -112,6 +115,7 @@ export function verifyLineRef(domainLines: string[], ref: LineRef): LineRefCheck
   }
   return { ok: true }
 }
+
 
 export function neighborhoodRows(
   domainLines: string[],

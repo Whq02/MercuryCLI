@@ -8,6 +8,8 @@ import { logForDebugging } from './debug.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 
+
+
 function tmuxControlModeHeuristic(): boolean {
   if (!process.env.TMUX) return false
   if (process.env.TERM_PROGRAM !== 'iTerm.app') return false
@@ -38,8 +40,8 @@ function isTmuxControlMode(): boolean {
   return controlModeCache
 }
 
-export function isFullscreenEnvEnabled(): boolean {
 
+export function isFullscreenEnvEnabled(): boolean {
   const raw = flagEnv('MERCURY_FULLSCREEN')
   if (isEnvDefinedFalsy(raw)) return false
   if (isEnvTruthy(raw)) return true
@@ -79,6 +81,7 @@ export async function maybeGetTmuxMouseHint(): Promise<string | null> {
   return 'tmux detected: PageUp/PageDown scroll the transcript. Add `set -g mouse on` to ~/.tmux.conf to restore wheel scrolling.'
 }
 
+
 export function isDeckPaneEnabled(): boolean {
   return isEnvTruthy(flagEnv('MERCURY_DECK_PANE')) || isMercurySubstrateProfileOn()
 }
@@ -89,7 +92,6 @@ export function isDeckPaneActive(): boolean {
 
 export function isHelmHomeEnabled(): boolean {
   if (!isFullscreenEnvEnabled()) return false
-
   if (isEnvDefinedFalsy(flagEnv('MERCURY_HELM_HOME'))) return false
   return true
 }

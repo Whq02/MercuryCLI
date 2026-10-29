@@ -16,7 +16,6 @@ import {
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 const REQUEST_TIMEOUT_MS = 15_000
-
 const TAVILY_MAX_RESULTS = 20
 
 function tavilySearchUrl(): string {
@@ -108,7 +107,6 @@ async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): P
   if (response.status === 401 || response.status === 403) {
     return searchFailure('key-refused', 'tavily', `HTTP ${response.status} — check the key at app.tavily.com and set TAVILY_API_KEY again`)
   }
-
   if (response.status === 429 || response.status === 432 || response.status === 433) {
     return searchFailure('rate-limited', 'tavily', `HTTP ${response.status} — the plan's rate or monthly credits are spent`)
   }

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
@@ -27,7 +28,6 @@ export function SessionPreview({
   const [fullLog, setFullLog] = useState<SessionListing | null>(
     isLiteListing(log) ? null : log,
   )
-
   const cardHeight = Math.max(6, rows)
   const interior = useMemo(
     () => ({ columns: Math.max(20, columns - 4), rows: Math.max(1, cardHeight - 2) }),
@@ -97,7 +97,6 @@ export function SessionPreview({
   return (
     <Box
       flexDirection="column"
-
       height={cardHeight}
       borderStyle="round"
       borderColor={tokens.borderSubtle}

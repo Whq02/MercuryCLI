@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
 import { spawnSync } from 'node:child_process'
@@ -96,7 +95,6 @@ section('§0 the build: the first drop after a runner respawn under a new build 
 }
 
 section('§1 the classifier')
-
 {
   resetThinkingDropStates()
   const none = classifyThinkingDrops('main', [], mark())
@@ -107,7 +105,6 @@ section('§1 the classifier')
   check('a drop after a drop with unchanged marks is recurrent (run 2, the count is this response\'s)', second.kind === 'recurrent' && second.consecutive === 2 && second.count === 2, j(second))
   const third = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting (3)', third.kind === 'recurrent' && third.consecutive === 3, j(third))
-
   check('the first drop writes the one receipt of its episode; no recurrent drop writes one', first.paint === true && second.paint === false && third.paint === false, `${first.paint} ${second.paint} ${third.paint}`)
   check('…the words follow: a sentence for the first, null for every recurrent', (describeThinkingDrops([DROP('messages.1.content.0')], first) ?? '').includes('dropped 1 thinking block') && describeThinkingDrops([DROP('messages.1.content.0')], second) === null && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
   const fourth = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
@@ -197,7 +194,6 @@ section('§1 the classifier')
 }
 
 section('§1b Mercury\'s own context edits are named, not read as a rewrite')
-
 {
   const { preservedThinkingHealth } = binding
   const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
@@ -253,7 +249,6 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   check('a drop while the idle thinking-clear latch is armed is lawful thinking-cleared', cleared.kind === 'lawful' && cleared.lawful === 'thinking-cleared', j(cleared))
   const clearedWords = describeThinkingDrops([DROP('messages.50.content.0')], cleared) ?? ''
   check('the words name the idle clear and never accuse a rewrite', clearedWords.includes('cleared reasoning older than the last turn after an hour idle') && !clearedWords.includes('Mercury rewrote'), clearedWords)
-
   resetThinkingDropStates()
   classifyThinkingDrops('bothedits', [], mark({ thinkingClearActive: true, contextEditActive: true }))
   const bothEdits = classifyThinkingDrops('bothedits', [DROP('messages.1.content.0')], mark({ thinkingClearActive: true, contextEditActive: true }))
@@ -267,7 +262,6 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
 }
 
 section('§1c the count cannot fire the prune early — a session at 88% never prunes')
-
 {
   const { getBlockingLimit, calculateTokenWarningState, getEffectiveContextWindowSize } = await import('../../src/services/compact/autoCompact.ts')
   const model = 'claude-fable-5-1'
@@ -281,7 +275,6 @@ section('§1c the count cannot fire the prune early — a session at 88% never p
 }
 
 section('§2 the words')
-
 {
   resetThinkingDropStates()
   const list = [DROP('messages.1.content.0')]
@@ -289,7 +282,6 @@ section('§2 the words')
   const lawful = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark({ firstRow: 'summary-row' }))) ?? ''
   check('a single lawful drop is the one-line receipt naming compaction and a turn, never a wire path', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('the first turn') && !lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
   check('…with no Mercury blame, no health pointer', !lawful.includes('Mercury') && !lawful.includes('health'), lawful)
-
   const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
   const note = createThinkingNoteMessage(lawful)
   check('the lawful receipt is a thinking_note system row at info level, carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
@@ -334,7 +326,6 @@ section('§2 the words')
 }
 
 section('§2b the model-switch receipt — the previous model\'s thinking leaves quietly, once')
-
 {
   const { isSameModel, modelSwitchReceipt } = binding
   const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
@@ -369,7 +360,6 @@ section('§2b the model-switch receipt — the previous model\'s thinking leaves
 }
 
 section('§3 the ledger and the health row')
-
 {
   const { recordThinkingDropLedger, readThinkingDropLedger, preservedThinkingHealth, thinkingDropLedgerPath } = binding
   check('no ledger ⇒ null', readThinkingDropLedger() === null)
@@ -443,7 +433,6 @@ section('§3 the ledger and the health row')
 }
 
 section('§4 the real health — the built artifact carries the row')
-
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {
@@ -528,9 +517,7 @@ if (!existsSync(DIST)) {
 }
 
 section("§8 the turn word: the conversation's own units, never an API round")
-
 {
-
   resetThinkingDropStates()
   const { turnOrdinalOfWirePath } = binding
   const a = assistant([THINK('first-round'), TEXT('calling a tool'), { type: 'tool_use', id: 'tu_1', name: 'Bash', input: {} }])
@@ -544,7 +531,6 @@ section("§8 the turn word: the conversation's own units, never an API round")
   check('a path the request did not send (no id at that index), a user row, or no path resolves to no ordinal', turnOrdinalOfWirePath('messages.2.content.0', wireIds, history) === null && turnOrdinalOfWirePath('messages.9.content.0', wireIds, history) === null && turnOrdinalOfWirePath(null, wireIds, history) === null)
   const meta = { ...user('a meta row the operator never typed'), isMeta: true } as Record<string, unknown>
   check('a meta user row is not a turn', turnOrdinalOfWirePath('messages.1.content.0', [null, idOf(a)], [meta, user('the real first ask'), a] as never[]) === 1)
-
   const afterCompaction = (owner: string, drops: Entry[]): ReturnType<typeof classifyThinkingDrops> => {
     classifyThinkingDrops(owner, [], mark())
     return classifyThinkingDrops(owner, drops, mark({ firstRow: 'summary-row' }))

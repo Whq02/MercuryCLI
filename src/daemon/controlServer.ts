@@ -1,3 +1,4 @@
+
 import { refuseRunnerArgv } from '../services/switchboard/runnerArgv.js'
 import net from 'node:net'
 import { existsSync, readFileSync } from 'node:fs'
@@ -41,7 +42,6 @@ export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
   detail?: string
   respawned?: true
-
   withdrawn?: boolean
   text?: string
   reason?: 'taken' | 'unknown'
@@ -56,45 +56,30 @@ export type ShutdownReceipt = {
 export interface ControlServerDeps {
   roster: TaskRoster
   breaker: DaemonBreaker
-
   dir: string
-
   startedAt: number
-
   maxInflight: number
-
   controlKey: string
-
   isReady: () => boolean
-
   whenReady?: () => Promise<void>
-
   startingHoldMs?: number
-
   onShutdown: (reapWorkers: boolean, forwarded: boolean) => ShutdownReceipt | Promise<ShutdownReceipt>
-
   hello?: () => DaemonHelloFacts
-
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
-
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
   processSweep?: (request: { action: 'facts' | 'end'; expected?: ProcessSweepEntry }) => Promise<Extract<DaemonReply, { op: 'processSweep' }>>
   handover?: {
     roadOf: (op: string, raw: Record<string, unknown>) => 'here' | 'predecessor'
     forward: (line: string) => Promise<DaemonReply>
   }
-
   concourseAdmit?: (req: {
     effort?: string
     workspaceDir: string
     isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
     modelKey?: string
     title?: string
-
     kit?: SessionKitV1
-
     kitPreset?: string
-
     vacatingSessionId?: string
     birthKey?: string
     by?: string
@@ -105,25 +90,19 @@ export interface ControlServerDeps {
         sessionId: string
         workspaceId: string
         pid?: number
-
         branchName?: string
         mainHolderTitle?: string
         modelId?: string
         modelDisplayName?: string
-
         effort?: string
-
         note?: string
-
         kitSource?: 'carried' | 'derived' | 'preset'
         liveHop?: true
-
         presetName?: string
         presetNote?: string
       }
     | { ok: false; error: string; code: string; moves?: ReadonlyArray<{ verb: string; label: string }> }
   >
-
   concourseDispatch?: (req: {
     clientMessageId: string
     prompt: string
@@ -135,16 +114,13 @@ export interface ControlServerDeps {
     agentName?: string
     seatsMax?: 1 | 2
     resumeSessionId?: string
-
     targetSessionId?: string
-
     mode?: 'prompt' | 'bash' | 'task-notification'
     agentId?: string
     priority?: 'now' | 'next' | 'later'
     content?: unknown[]
     origin?: OutsideReportOrigin
     by?: string
-
     kitPreset?: string
   }) => Promise<{
     ok: boolean
@@ -155,38 +131,26 @@ export interface ControlServerDeps {
     sessionId?: string
     error?: string
     replay?: string
-
     heldReason?: string
     heldByTitle?: string
     moves?: Array<{ verb: string; label: string }>
-
     branchName?: string
     mainHolderTitle?: string
-
     modelId?: string
     modelDisplayName?: string
-
     effort?: string
-
     kitSource?: 'carried' | 'derived' | 'preset'
-
     presetName?: string
     presetNote?: string
   }>
-
   concourseList?: () => ReadonlyArray<Record<string, unknown>>
-
   concourseWithdraw?: (clientMessageId: string) => Promise<boolean>
-
   concourseRelease?: (runnerId: string) => { settled: boolean; killed: boolean }
-
   concourseWarm?: (req: { workspaceDir: string; retiring?: string; bootCarriesRunnerOptions?: boolean; kit?: SessionKitV1; bypassConsent?: true }) => Promise<{
     state: 'warmed' | 'kept' | 'refused'
     detail?: string
   }>
-
   warmRunnerCount?: () => number
-
   concourseControl?: (req: {
     action:
       | 'pause'
@@ -224,43 +188,29 @@ export interface ControlServerDeps {
     by: string
     reason?: string
     paused?: boolean
-
     hard?: boolean
-
     clientMessageId?: string
-
     requestId?: string
     allow?: boolean
-
     answer?: { updatedInput?: Record<string, unknown>; permissionUpdates?: unknown[]; feedback?: string; interrupt?: boolean }
-
     model?: string
     words?: string
     effort?: string
     mode?: string
-
     title?: string
     titleSource?: 'operator' | 'minted'
-
     contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
-
     kitEdit?: SessionKitEditV1
     mcpAction?: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' }
     mcpServer?: string
-
     scheduleEdit?: ScheduleOpRequestV1
-
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
     terminalApplication?: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null
-
     agentId?: string
     note?: string
-
     mintedAtMs?: number
-
     clientOpId?: string
   }) => ControlOutcome | Promise<ControlOutcome>
-
   sessionRewind?: (req: {
     sessionId: string
     by: string
@@ -273,7 +223,6 @@ export interface ControlServerDeps {
 
 export interface ControlServerHandle {
   close(): Promise<void>
-
   rebind(): Promise<void>
   leaseCount(): number
 }
@@ -306,7 +255,6 @@ export function isBirthKey(value: unknown): value is string {
 }
 
 type AdmitOk = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: true }>
-
 const ADMIT_WIRE_KEYS = [
   'runnerId', 'sessionId', 'workspaceId', 'pid',
   'branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName', 'effort', 'note',
@@ -318,13 +266,11 @@ const ADMIT_REFUSAL_WIRE_KEYS = ['moves'] as const satisfies readonly (keyof Adm
 const admitRefusalWhole: Whole<Omit<AdmitRefused, 'ok' | 'error' | 'code'>, (typeof ADMIT_REFUSAL_WIRE_KEYS)[number]> = true
 
 type DispatchResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseDispatch']>>>
-
 const DISPATCH_WIRE_KEYS = [
   'clientMessageId', 'state', 'stateRevision', 'runnerId', 'sessionId', 'replay',
   'branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName', 'effort',
   'kitSource', 'presetName', 'presetNote',
 ] as const satisfies readonly (keyof DispatchResult)[]
-
 const DISPATCH_REFUSAL_WIRE_KEYS = ['state', 'stateRevision', 'heldReason', 'heldByTitle', 'moves'] as const satisfies readonly (keyof DispatchResult)[]
 const dispatchWhole: Whole<
   Omit<DispatchResult, 'ok' | 'error'>,
@@ -404,7 +350,6 @@ export async function startControlServer(
       await removeStaleSocket(join(dir, name))
     }
   }
-
   await removeStaleSocket(sockPath)
   await sweepDeadPidSockets()
 
@@ -433,7 +378,6 @@ export async function startControlServer(
         answering++
         void routeControlRequest(deps, leases, sock, line)
           .catch(err => {
-
             answer(sock, {
               ok: false,
               code: 'EUNKNOWN',
@@ -474,25 +418,21 @@ export async function startControlServer(
       new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-
           if (ownsControlPlaneSync()) void removeStaleSocket(planePath)
           resolve()
         })
       }),
-
     rebind: () => {
       if (sockPath !== planePath && existsSync(sockPath) && ownsControlPlaneSync()) return publishSocket()
       return new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-
           const foreignLive = !ownsControlPlaneSync() && livePlaneOwnerIsForeign()
           if (foreignLive && sockPath === planePath) {
             logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
             resolve()
             return
           }
-
           const listenFailed = (err: Error): void => {
             logForDebugging(`[daemon] rebind listen failed (next beat retries): ${err}`)
             resolve()
@@ -567,7 +507,6 @@ async function routeControlRequest(
   if (!raw || typeof raw !== 'object') {
     return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'bad json' })
   }
-
   const requestedOp = raw.op
   const op = requestedOp !== undefined ? (SESSION_OP_ALIASES[requestedOp] ?? requestedOp) : requestedOp
 
@@ -581,7 +520,6 @@ async function routeControlRequest(
     })
   }
   if (op === 'hello') {
-
     const facts = deps.hello?.()
     const presenceKind = clientPresenceKindOf(raw.clientKind)
     if (presenceKind !== undefined && typeof raw.clientPid === 'number') noteClientPresence(raw.clientPid, presenceKind)
@@ -694,7 +632,6 @@ async function routeControlRequest(
           startedAt: deps.startedAt,
           uptimeSec: Math.floor((now - deps.startedAt) / 1000),
           dir: deps.dir,
-
           workersLive: Math.max(
             0,
             deps.roster.liveCount() - (deps.warmRunnerCount !== undefined ? deps.warmRunnerCount() : 0),
@@ -766,7 +703,6 @@ async function routeControlRequest(
       const short = String(raw.short ?? '')
       const model = typeof raw.model === 'string' ? raw.model : undefined
       const effort = typeof raw.effort === 'string' ? raw.effort : undefined
-
       if (!deps.roster.has(short).present) {
         return answer(sock, {
           ok: false,
@@ -796,7 +732,6 @@ async function routeControlRequest(
           error: r.error ?? 'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
-
       return answer(sock, { ok: true, op: 'reconfigure', ...pickDefined(r, RECONFIGURE_WIRE_KEYS) })
     }
 
@@ -809,28 +744,23 @@ async function routeControlRequest(
       if (!workspaceDir) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionAdmit requires { workspaceDir }' })
       }
-
       const isolation =
         raw.isolation === 'exclusive' || raw.isolation === 'shared' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
           ? raw.isolation
           : undefined
-
       if (raw.runnerArgv !== undefined) {
         const refusal = refuseRunnerArgv(raw.runnerArgv)
         if (refusal !== null) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `runnerArgv refused — ${refusal}` })
       }
-
       let kit: SessionKitV1 | undefined
       if (raw.kit !== undefined) {
         const verdict = validateSessionKit(raw.kit)
         if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kit refused — ${verdict.reason}` })
         kit = verdict.kit
       }
-
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-
       const named = requestedModel(raw)
       if (named.conflict !== undefined) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
@@ -848,17 +778,14 @@ async function routeControlRequest(
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
         ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
         ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
-
         ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
         ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
-
         ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
         ...(raw.bornBlank === true ? { bornBlank: true } : {}),
         ...(typeof raw.by === 'string' && raw.by ? { by: raw.by } : {}),
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
-
         ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),
         ...(raw.restartReason === 'update' ? { restartReason: 'update' as const } : {}),
       }
@@ -876,9 +803,7 @@ async function routeControlRequest(
       return answer(sock, {
         ok: true,
         op: requestedOp === 'concourseAdmit' ? 'concourseAdmit' : 'sessionAdmit',
-
         workerId: r.runnerId,
-
         ...pickDefined(r, ADMIT_WIRE_KEYS),
       })
     }
@@ -905,7 +830,6 @@ async function routeControlRequest(
       if (!warmWorkspaceDir) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'concourseWarm requires { workspaceDir }' })
       }
-
       let warmKit: SessionKitV1 | undefined
       if (raw.kit !== undefined) {
         const verdict = validateSessionKit(raw.kit)
@@ -933,7 +857,6 @@ async function routeControlRequest(
       if (raw.origin !== undefined && (!isOutsideReportOrigin(raw.origin) || targetSessionId === undefined)) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'An outside report requires a sender and an existing target session' })
       }
-
       if (!clientMessageId || !prompt || (!workspaceDir && targetSessionId === undefined)) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionDispatch requires { clientMessageId, prompt, workspaceDir } (workspaceDir optional with targetSessionId)' })
       }
@@ -941,7 +864,6 @@ async function routeControlRequest(
         raw.isolation === 'exclusive' || raw.isolation === 'worktree-isolated' || raw.isolation === 'read-only'
           ? raw.isolation
           : undefined
-
       if (raw.isolation !== undefined && isolation === undefined) {
         return answer(sock, {
           ok: false,
@@ -956,7 +878,6 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-
       const named = requestedModel(raw)
       if (named.conflict !== undefined) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was dispatched` })
@@ -969,7 +890,6 @@ async function routeControlRequest(
         ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
-
         ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
         ...(raw.seatsMax === 1 || raw.seatsMax === 2 ? { seatsMax: raw.seatsMax } : {}),
         ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
@@ -978,33 +898,26 @@ async function routeControlRequest(
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
         ...(targetSessionId !== undefined ? { targetSessionId } : {}),
         ...(isOutsideReportOrigin(raw.origin) ? { origin: raw.origin } : {}),
-
         ...(raw.mode === 'bash' || raw.mode === 'prompt' || raw.mode === 'task-notification' ? { mode: raw.mode } : {}),
         ...(raw.mode === 'task-notification' && typeof raw.agentId === 'string' && raw.agentId !== '' ? { agentId: raw.agentId } : {}),
         ...(raw.priority === 'now' || raw.priority === 'next' || raw.priority === 'later' ? { priority: raw.priority } : {}),
         ...(Array.isArray(raw.content) && raw.content.length > 0 ? { content: raw.content } : {}),
         ...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),
-
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
       })
       if (!r.ok) {
-
         return answer(sock, {
           ok: false,
           code: 'EUNKNOWN',
           error: r.error ?? 'dispatch refused',
-
           refusal: r.replay,
-
           ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),
         })
       }
       return answer(sock, {
         ok: true,
         op: requestedOp === 'concourseDispatch' ? 'concourseDispatch' : 'sessionDispatch',
-
         workerId: r.runnerId,
-
         ...pickDefined(r, DISPATCH_WIRE_KEYS),
       })
     }
@@ -1053,7 +966,6 @@ async function routeControlRequest(
       if (action === undefined || !sessionId || !by) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now, sessionId, by }' })
       }
-
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
         const rawSwitch =
@@ -1083,11 +995,9 @@ async function routeControlRequest(
         rawContract?.op === 'set' || rawContract?.op === 'ack' || rawContract?.op === 'amend' || rawContract?.op === 'close'
           ? {
               op: rawContract.op as 'set' | 'ack' | 'amend' | 'close',
-
               ...(typeof rawContract.text === 'string' ? { text: rawContract.text.slice(0, 20_000) } : {}),
             }
           : undefined
-
       let mcpAction: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' } | undefined
       if (raw.action === 'mcp-action') {
         const m = raw.mcpAction as Record<string, unknown> | undefined
@@ -1109,7 +1019,6 @@ async function routeControlRequest(
         if (!verdict.ok) return answer(sock, { ok: false, code: 'EUNKNOWN', error: `kitEdit refused — ${verdict.reason}` })
         kitEdit = verdict.edit
       }
-
       let scheduleEdit: ScheduleOpRequestV1 | undefined
       if (raw.scheduleEdit !== undefined) {
         const rawSchedule =
@@ -1209,7 +1118,6 @@ async function routeControlRequest(
           error: 'sessionRewind requires { sessionId, by, mode: code|conversation|both, userMessageId }',
         })
       }
-
       const r = await deps.sessionRewind({
         sessionId,
         by,
@@ -1233,7 +1141,6 @@ async function routeControlRequest(
       if (!deps.concourseRelease) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
       }
-
       const runnerId = String(raw.runnerId ?? raw.workerId ?? '')
       if (!runnerId) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionRelease requires { runnerId }' })
@@ -1247,7 +1154,6 @@ async function routeControlRequest(
       if (!deps.restartWhenIdle) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon cannot restart itself' })
       }
-
       const by = typeof raw.by === 'string' && raw.by !== '' ? raw.by.slice(0, 64) : 'client'
       const r = deps.restartWhenIdle(by)
       return answer(sock, {
@@ -1264,7 +1170,6 @@ async function routeControlRequest(
       if (!deps.signIns) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no sign-in view' })
       }
-
       return answer(sock, { ok: true, op: 'signIns', view: deps.signIns({ refresh: raw.refresh === true }) })
     }
 

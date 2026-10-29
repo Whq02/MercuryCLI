@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,12 +17,10 @@ if (process.argv[2] === '--child') {
   }
   process.env.FORCE_COLOR = '3'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
   Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ activity: { progress: true } }))
   process.env.MERCURY_OASIS_BG = '0'
   const React = (await import('react')).default
-
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { EventEmitter } = await import('node:events')
@@ -66,7 +63,6 @@ if (process.argv[2] === '--child') {
   })
   await instance.waitUntilExit()
   writeFileSync(join(outDir, 'stream.bin'), bytes)
-
   cleanupTerminalModes()
   process.exit(0)
 }

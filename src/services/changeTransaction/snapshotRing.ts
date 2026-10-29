@@ -1,3 +1,4 @@
+
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
@@ -10,14 +11,12 @@ const SNAPSHOT_RING_BOUNDS = {
 } as const
 
 interface RingEntry {
-
   content: string
   path: string
   at: number
 }
 
 interface RingState {
-
   entries: Map<string, RingEntry>
 }
 
@@ -60,7 +59,6 @@ export function recallAnchoredSnapshot(
 ): { content: string; path: string } | undefined {
   const entry = store.peek(owner)?.entries.get(anchor)
   if (!entry) return undefined
-
   const parsed = parseAnchor(anchor)
   if (!parsed) return undefined
   const reminted =

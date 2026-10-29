@@ -3,6 +3,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 
+
 const CAFFEINATE_TIMEOUT_SECONDS = 300
 const RESTART_INTERVAL_MS = 240_000
 
@@ -21,7 +22,6 @@ function spawnHelper(): void {
     })
   }
   try {
-
     const child = spawn('caffeinate', ['-i', '-t', String(CAFFEINATE_TIMEOUT_SECONDS)], {
       windowsHide: true,
       stdio: 'ignore',
@@ -30,7 +30,6 @@ function spawnHelper(): void {
     })
     child.unref()
     child.on('error', () => {
-
       if (helper === child) helper = null
     })
     child.on('exit', () => {

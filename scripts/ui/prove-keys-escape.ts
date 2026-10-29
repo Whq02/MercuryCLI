@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
@@ -43,7 +42,6 @@ console.log('input atlas — advertised Escape closes it')
 for (const cols of [80, 120]) {
   console.log(`\n— keys-escape @${cols} —`)
   const { final, atSend } = capture('keys-escape', cols, 44)
-
   check(
     `@${cols}: the atlas was OPEN when the ESC was sent (no vacuous pass)`,
     /input atlas/.test(atSend),

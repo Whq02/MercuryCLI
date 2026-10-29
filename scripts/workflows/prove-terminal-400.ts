@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -24,7 +23,6 @@ let re: RegExp | undefined
 if (m) {
   const body = m[1]!
   re = new RegExp(body.slice(1, body.lastIndexOf('/')), 'i')
-
   for (const s of [
     'Prompt is too long',
     'prompt is too long: 214431 tokens > 204698 maximum',
@@ -34,7 +32,6 @@ if (m) {
   ]) {
     check(`matches: ${s.slice(0, 56)}`, re.test(s))
   }
-
   for (const s of [
     'Overloaded',
     'API Error: 529 overloaded_error',
@@ -52,7 +49,6 @@ check(
   'the assistant branch tests API-error text against the regex',
   /isApiErrorMessage\)\s*\{\s*\n\s*const errText = extractTextContent\(a\.message\.content[\s\S]{0,200}DETERMINISTIC_400_RE\.test\(errText\)/.test(src),
 )
-
 check("sighting aborts the attempt with reason 'terminal-400'", src.includes("abortWithCut(childAbort, 'terminal-400')"))
 const catchBlock = src.slice(src.indexOf("cutReason === 'terminal-400'"))
 check("the catch settles terminal-400 BEFORE the stall/user-retry branch", src.indexOf("cutReason === 'terminal-400'") !== -1 && src.indexOf("cutReason === 'terminal-400'") < src.indexOf("cutReason === 'stalled' || cutReason === 'user-retry'"))
@@ -65,13 +61,11 @@ check(
   'the outer ladder gates stall retries on report.stallCut (apiError bypasses it)',
   src.includes('for (let a = 1; report.stallCut && !tookThrottleRescue'),
 )
-
 check(
   'looksThrottled refuses DETERMINISTIC-400 and provider-throttled apiError results (the natural-settle race)',
   /const looksThrottled = \(r: \w+\): boolean =>\s*\n\s*(?:r\.capPause === undefined &&\s*\n\s*)?\(r\.apiError === undefined \|\|\s*\n\s*\(!DETERMINISTIC_400_RE\.test\(r\.apiError\) &&\s*\n\s*!isRecoveryBudgetSpentLine\(r\.apiError\)\)\) &&/.test(src),
 )
 if (re) {
-
   const detRe = re
   const detector = (r: { apiError?: string; stalled: boolean; skipped: boolean; stopReason: string | null; structured?: unknown; outputTokens?: number; durationMs: number }, stallMs: number): boolean =>
     (r.apiError === undefined || !detRe.test(r.apiError)) && !r.stalled && !r.skipped && r.stopReason == null && r.structured === undefined && (r.outputTokens ?? Infinity) < 50 && r.durationMs > stallMs * 0.5
@@ -80,7 +74,6 @@ if (re) {
   check('TRANSIENT apiError shape keeps the throttle rescue', detector({ ...base, apiError: 'API Error: 529 overloaded_error' }, 180_000) === true)
   check('legit degraded shape still throttles', detector(base, 180_000) === true)
 }
-
 check(
   'terminal-400 abort path rescues delivered structured output',
   /cutReason === 'terminal-400' && terminal400\) \{\s*\n\s*return structured !== undefined\s*\n\s*\? deliveredSettle\(elapsed\)\s*\n\s*: apiErrorSettle\(elapsed, terminal400\)/.test(src),

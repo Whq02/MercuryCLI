@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -25,7 +24,6 @@ check('package.mjs refuses a missing splash', packageSrc.includes('the enter scr
 check('package.mjs syntax-checks the splash PAIR before packaging (ruling 1: driver + core)', packageSrc.includes("for (const f of [splashSrc, splashCoreSrc])") && packageSrc.includes("['--check', f]"))
 check('package.mjs copies the compose core beside the driver', packageSrc.includes("join(pkgDir, 'splash-core.mjs')") && packageSrc.includes('the splash ships as a pair'))
 {
-
   const { topAllowlist, readCompatFloor } = await import('../release/payloadContract.mjs')
   const floor = readCompatFloor()
   check('splash.mjs sits in the windows top allowlist', topAllowlist('windows-x64', floor).includes('splash.mjs'))
@@ -44,7 +42,6 @@ section('(2) the canonical splash — parses, dependency-free, menu baked, self-
     parses = false
   }
   check('node --check passes', parses)
-
   const coreSrc = readFileSync(join(ROOT, 'assets', 'splash', 'splash-core.mjs'), 'utf8')
   const imports = splashSrc.split('\n').filter(l => /^import /.test(l))
   check('every driver import is a node: builtin or the sibling core (zero-dependency pair)', imports.length > 0 && imports.every(l => l.includes("from 'node:") || l.includes("from './splash-core.mjs'")), imports.filter(l => !l.includes("from 'node:") && !l.includes('./splash-core.mjs')).join(' | '))
@@ -53,7 +50,6 @@ section('(2) the canonical splash — parses, dependency-free, menu baked, self-
     'the boot menu is baked into the core (the MENU and MODEL_NAMES declarations the bake writes, drift-gated by the suite)',
     /^const MENU = \[$/m.test(coreSrc) && /^const MODEL_NAMES = \{$/m.test(coreSrc) && readFileSync(join(ROOT, 'scripts', 'splash', 'run-all.sh'), 'utf8').includes('bake-menu.mjs" --check'),
   )
-
   check('the TTY/off/static self-guard exists (exit 0, silent)', splashSrc.includes("process.env.MERCURY_SPLASH === 'off' || process.env.MERCURY_SPLASH === 'static' || !out.isTTY) process.exit(0)"))
   check('boot-env handover targets <config-home>/boot-env.json', splashSrc.includes("join(CONFIG_HOME, 'boot-env.json')"))
   check('the launcher handover targets <config-home>/splash-action.json', splashSrc.includes("join(CONFIG_HOME, 'splash-action.json')"))

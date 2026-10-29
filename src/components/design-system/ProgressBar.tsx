@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Text } from '../../ink.js'
 
@@ -14,7 +15,6 @@ export function ProgressBar({
   fillColor?: string
   emptyColor?: string
 }): React.ReactNode {
-
   const safeWidth = Number.isFinite(width) ? Math.max(0, Math.floor(width)) : 0
   const clamped = Math.min(1, Math.max(0, ratio))
   const cells = clamped * safeWidth

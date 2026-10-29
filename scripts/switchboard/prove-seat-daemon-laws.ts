@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -52,13 +51,9 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
   { kind: 'tool_use', whenModel: 'opus', name: 'Bash', input: { command: `rm -f ${join(SCRATCH, 'nothing-here')}`, description: 'tidy' }, preText: 'about to tidy up. ' },
   { kind: 'text', whenModel: 'opus', text: 'Tidied after your allow.' },
-
   { kind: 'paced', whenModel: 'opus', deltas: Array.from({ length: 40 }, (_, i) => `long-${String(i + 1).padStart(2, '0')} body. `), gapMs: 400, settleDelayMs: 1500 },
-
   { kind: 'text', whenModel: 'sonnet', text: 'sonnet-law body.' },
-
   { kind: 'paced', whenModel: 'sonnet', deltas: Array.from({ length: 12 }, (_, i) => `parked-${String(i + 1).padStart(2, '0')} body. `), gapMs: 400, settleDelayMs: 1000 },
-
   { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['steer-stage body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 6; echo steer', description: 'pause' } }] },
   { kind: 'text', whenModel: 'opus', text: 'steer-done body.' },
   { kind: 'text', whenModel: 'opus', text: 'opus-again body.' },
@@ -129,7 +124,6 @@ try {
   check('D9 one connector per session', seat.daemonSessionConnectorFor(record) === connector)
 
   check('D1 records() carries the session\'s own rows', await untilAsync(() => connector.records().some(m => JSON.stringify(m).includes('tidy the scratch folder')), 10_000))
-
   check('D1 the reader doors answer stable snapshots between changes (the uSES law)', connector.records() === connector.records() && connector.asks() === connector.asks())
   let recordPings = 0
   const offRecords = connector.subscribeRecords(() => recordPings++)
@@ -139,7 +133,6 @@ try {
   const confirm = ask?.confirm
   check('D2 the FULL payload: the tool by name, the input, an ask result', confirm !== undefined && confirm.tool.name === 'Bash' && String((confirm.input as { command?: string }).command).includes('rm -f') && confirm.permissionResult.behavior === 'ask')
   check('D2 the assistant record names the asking tool use', confirm !== undefined && JSON.stringify(confirm.assistantMessage).includes(confirm.toolUseID))
-
   const reason = confirm !== undefined && 'decisionReason' in confirm.permissionResult ? confirm.permissionResult.decisionReason : undefined
   check(
     'D2 the reason crosses structured: the matched ask rule Bash(rm *)',
@@ -173,7 +166,6 @@ try {
   const sent = await connector.sendWords('say something long please')
   check('D3 sendWords is accepted by an idle session', sent.state === 'accepted', JSON.stringify(sent))
   check('D3 the session\'s turn is in flight', await untilAsync(() => connector.turnActive(), 15_000))
-
   {
     const doors = connector as unknown as Record<string, unknown>
     check('D6 the pen stays dead: no queue() door on the connector', typeof doors.queue === 'undefined')
@@ -193,7 +185,6 @@ try {
   check('D4 the WIRE ran the session on sonnet (the fixture serves that turn only to a sonnet request)', await untilAsync(() => logText().includes('sonnet-law body.'), 20_000))
   check('D4 the session\'s facts name sonnet', await untilAsync(() => connector.modelFacts().effective === 'claude-sonnet-5' && connector.modelFacts().pendingSwitch === null, 10_000))
   check('D4 the same model no-ops', (await connector.setModel('claude-sonnet-5')).state === 'no-op')
-
   const parkedTurn = await connector.sendWords('stream a parked turn')
   check('D4 a busy turn opens', parkedTurn.state === 'accepted' && (await untilAsync(() => connector.turnActive(), 15_000)))
   const queuedSwitch = await connector.setModel(DEFAULT_OPUS)
@@ -202,7 +193,6 @@ try {
   check('D4 the record parks it', await untilAsync(() => recordOf()?.pendingModelKey === DEFAULT_OPUS, 10_000))
   check('D4 the turn\'s end applies it', await untilAsync(() => recordOf()?.modelKey === DEFAULT_OPUS && recordOf()?.pendingModelKey === undefined, 30_000), JSON.stringify(recordOf()))
   check('D4 the facts follow the applied switch', await untilAsync(() => connector.modelFacts().effective === DEFAULT_OPUS && connector.modelFacts().pendingSwitch === null, 15_000))
-
   check(
     'D4 the parked settle paints its transcript note (the daemon receipt drives it)',
     await untilAsync(
@@ -241,7 +231,6 @@ try {
     logText().split('\n').filter(l => l.includes('"kind":"input"') && l.includes('steer these words in')).length === 0,
   )
   check('D10 the steered words paint as a row of the chat (the echo)', JSON.stringify(connector.records()).includes('steer these words in'))
-
   check('D10 a steered send is never "waiting for its turn" (the count itself is gone)', !('waitingWords' in connector.status()))
 
   connector.setPermissionMode('implement')
@@ -295,7 +284,6 @@ try {
     check('W the pool named its pre-spawn in the log', await untilAsync(() => warmSpawnLine() !== undefined, 10_000))
     const warmShort = /pre-spawned: (concourse-w\d+) \(pid (\d+)\)/.exec(warmSpawnLine() ?? '')
     check('W the pre-spawn names its short and pid', warmShort !== null, warmSpawnLine() ?? 'no line')
-
     check('W the warm runner reaches ready', await untilAsync(async () => {
       const h = (await daemonControlRpc({ op: 'has', proto: 1, short: warmShort?.[1] ?? '' } as never)) as { ready?: boolean }
       return h.ready === true
@@ -314,7 +302,6 @@ try {
       const row = (l.workers ?? []).find(r => r.sessionId === w2.sessionId)
       return row !== undefined && row.runnerId === warmShort?.[1] && String(row.pid) === warmShort?.[2]
     }, 15_000))
-
     const transcript2 = (): string | null => {
       const root = join(home, 'projects')
       if (!existsSync(root)) return null

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,7 +37,6 @@ section('E1 the epoch moves on sign-ins AND removals, and subscribers hear it')
   const unsubscribe = ledger.subscribeSignInEpoch(() => {
     heard += 1
   })
-
   const landed = ledger.recordSignIn('openai', 'subscription', { home: HOME })
   check('a landed record bumps the epoch at once, and the subscriber has not yet woken', landed && ledger.signInLedgerEpoch() === before + 1 && heard === 0)
   await Promise.resolve()
@@ -87,7 +85,6 @@ section('E2 the per-slot removal owner: the move is announced, the observations 
     signedIn: true,
     removal: { route: 'openai-subscription' },
   }
-
   const out = slots.executeSlotRemoval(subscriptionSlot as never, { disconnectOpenaiSubscription: () => ledger.noteCredentialChange(), openaiApiKeyAfter: () => undefined })
   check('the removal mutated through its owner', out.mutated === true)
   check('…and the move was announced ONCE (the owner raised the epoch; the orchestrator did not raise it again)', ledger.signInLedgerEpoch() === epochBefore + 1 && woke === 0)
@@ -103,7 +100,6 @@ section('E2 the per-slot removal owner: the move is announced, the observations 
   const refused = slots.executeSlotRemoval(guidance as never)
   await Promise.resolve()
   check('a refused removal (an env pin) announces nothing', refused.mutated === false && woke === woken)
-
   cap.noteCapHandoff('gpt-5.6-sol', 'openai')
   slots.executeSlotRemoval(subscriptionSlot as never, { disconnectOpenaiSubscription: () => {}, openaiApiKeyAfter: () => undefined })
   check('a removal of the HOME family clears the failover handoff note', cap.capHandoffState() === null)
@@ -171,7 +167,6 @@ section('E4 the readers re-derive on the epoch; the warm claim reads the disk')
   const runner = read('src/cli/run.ts')
   const claim = runner.slice(runner.indexOf("'session/claim': async params => {"), runner.indexOf("'session/set_effort': (params, ref) => {"))
   check('the warm claim drops the credential memos BEFORE it applies the session (presence is live at the claim)', claim.indexOf('dropCredentialMemos()') !== -1 && claim.indexOf('dropCredentialMemos()') < claim.indexOf('consumeSessionHomePin()'))
-
   const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
   const beforeKey = auth.getApiKeyFromConfigOrMacOSKeychain()
   saveGlobalConfig(current => ({ ...current, primaryApiKey: 'fixture-managed-key-000000000000' }))

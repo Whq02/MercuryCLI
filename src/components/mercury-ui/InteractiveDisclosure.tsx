@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, type ClickEvent, type DOMElement } from '../../ink.js'
 
+
 export function InteractiveDisclosure({
   rowRef,
   expanded,

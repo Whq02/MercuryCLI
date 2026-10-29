@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react'
 import { useNotifications } from '../context/notifications.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
@@ -33,7 +34,6 @@ export function useClipboardImageHint(
     const was = wasFocusedRef.current
     wasFocusedRef.current = isFocused
     if (!enabled || !isFocused || was) return
-
     if (pendingRef.current !== null) clearTimeout(pendingRef.current)
     pendingRef.current = setTimeout(() => {
       pendingRef.current = null

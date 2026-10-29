@@ -52,7 +52,6 @@ export const geminiLaneProfile: CompatLaneProfile = {
     'check the billing and quota of the Google Cloud project behind this key, then retry; /model picks another model meanwhile.',
   requestUrl: () => `${geminiApiBase()}/openai/chat/completions`,
   wireModelId: modelId => modelId,
-
   buildExtras: args =>
     buildGeminiExtras({
       ...args,

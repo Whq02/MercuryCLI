@@ -11,16 +11,13 @@ import {
 import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
 
 const HEALTH_DEADLINE_MS = 20_000
-
 export const FRESH_CERT_MS = 10 * 60_000
 
 const ATTENTION: readonly HealthStatus[] = ['fail', 'stale', 'warn']
 
 interface HealthSectionOptions {
   deadlineMs?: number
-
   nowMs?: number
-
   signal?: AbortSignal
 }
 
@@ -87,7 +84,6 @@ export async function runHealthBounded(deadlineMs: number, signal?: AbortSignal)
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', onOuter)
-
     if (!controller.signal.aborted) controller.abort(new Error('health section settled'))
   }
 }

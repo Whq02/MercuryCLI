@@ -3,23 +3,14 @@ import type { TrustedSigningKey } from './signingTrust.js'
 
 export interface SigningStatementV1 {
   schema: 1
-
   name: string
-
   version: string
-
   channel: string
-
   target: string
-
   packagedAt: string
-
   buildTree: string | null
-
   primarySha256: string
-
   payloadDigest: string
-
   licenseId: string | null
 }
 
@@ -78,10 +69,8 @@ export interface SignatureBlockV1 {
   schema: 1
   algorithm: 'ed25519'
   keyId: string
-
   publicKeySpkiB64: string
   statement: SigningStatementV1
-
   signatureB64: string
 }
 
@@ -111,11 +100,8 @@ export type SignatureVerdict =
   | { state: 'malformed'; note: string }
 
 interface ContentBinds {
-
   manifestVersion: string | null
-
   primarySha256: string | null
-
   payloadDigest: string | null
 }
 

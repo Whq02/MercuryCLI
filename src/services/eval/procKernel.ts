@@ -1,3 +1,4 @@
+
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { once } from 'node:events'
@@ -83,7 +84,6 @@ export class ProcKernel {
   private cellEnd: ((end: CellEnd) => void) | null = null
   private exited: { code: number | null; signal: string | null } | null = null
   private exitWaiters: Array<() => void> = []
-
   private held: Record<DataStream, string> = { stdout: '', stderr: '' }
   private marked: Record<DataStream, boolean> = { stdout: false, stderr: false }
   private pendingDone: Extract<CellEnd, { kind: 'done' }> | null = null
@@ -128,7 +128,6 @@ export class ProcKernel {
     this.child.on('exit', (code, signal) => {
       this.exited = { code, signal: signal ?? null }
       this.closeProtocol()
-
       if (this.pendingDone) this.settle()
       this.flushHeld()
       const end = this.cellEnd
@@ -297,7 +296,6 @@ export class ProcKernel {
         }
         return
       case 'bridge':
-
         if (frame.id === this.currentCellId) this.handlers?.onBridge(frame)
         return
       case 'done': {
@@ -368,7 +366,6 @@ export class ProcKernel {
     try {
       if (!this.alive || !this.child.pid) return
       if (process.platform === 'win32') {
-
         this.kill()
         return
       }

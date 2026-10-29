@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/memory/memory.tsx src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/mneme/mnemeCorrect.ts src/mneme/memoryVerbs.ts src/mneme/mnemeConsolidate.ts src/tools/MemoryTools/prompt.ts src/tools/MemoryTools/MemoryTools.ts docs/MNEME.md
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'

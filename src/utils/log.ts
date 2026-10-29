@@ -8,6 +8,7 @@ import { stripDisplayTags, stripDisplayTagsAllowEmpty } from './displayTags.js'
 import { toError } from './errors.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
 
+
 type ErrorLogSink = {
   logError: (error: Error) => void
   logMCPError: (serverName: string, error: unknown) => void
@@ -30,7 +31,6 @@ const inMemoryErrors: { error: string; timestamp: string }[] = []
 export function attachErrorLogSink(newSink: ErrorLogSink): void {
   if (sink) return
   sink = newSink
-
   const pending = queue.splice(0, queue.length)
   for (const event of pending) dispatch(newSink, event)
 }
@@ -92,13 +92,13 @@ export function logMCPDebug(serverName: string, message: string): void {
   }
 }
 
+
 function isAutonomousPrompt(firstPrompt: string | undefined): boolean {
   return typeof firstPrompt === 'string' && firstPrompt.trimStart().startsWith(`<${TICK_TAG}`)
 }
 
 export function getLogDisplayTitle(log: SessionListing, defaultTitle?: string): string {
   const autonomous = isAutonomousPrompt(log.firstPrompt)
-
   const strippedPrompt = log.firstPrompt ? stripDisplayTagsAllowEmpty(log.firstPrompt) : ''
   let title: string
   if (log.agentName) title = log.agentName
@@ -112,9 +112,11 @@ export function getLogDisplayTitle(log: SessionListing, defaultTitle?: string): 
   return stripDisplayTags(title).trim()
 }
 
+
 export function dateToFilename(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-')
 }
+
 
 export function captureAPIRequest(params: ApiRequestParams, querySource?: QuerySource): void {
   if (!querySource || !String(querySource).startsWith('main_thread')) return

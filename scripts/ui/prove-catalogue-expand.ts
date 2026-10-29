@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -141,7 +140,6 @@ function childEnv(home: string, tag: string): NodeJS.ProcessEnv {
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
-
     MERCURY_DAEMON_DIR: join(scratch, `daemon-${tag}`),
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',
@@ -332,14 +330,11 @@ type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: nu
 
 function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: number }): unknown[] {
   return [
-
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-
       { atTick: settle.atTick, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: settle.settleTicks },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
-
       { afterPrevTicks: 3, data: walkTo(spec.door) },
       { afterPrevTicks: 4, mark: 'walked', data: '' },
       { requireAwait: true, awaitText: spec.fold === 'folded' ? '↵ unfold' : '↵ fold', awaitStableTicks: 2, mark: 'door', data: spec.fold === 'folded' ? '\x1b[C' : '' },
@@ -359,7 +354,6 @@ function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: nu
       { requireAwait: true, awaitText: `/ ${NEEDLE_FILTER}`, awaitStableTicks: 2, mark: 'refiltered', data: DOWN.repeat(spec.needleDowns) },
       { requireAwait: true, awaitText: `│ │ ${spec.needleLabel}`, awaitStableTicks: 2, mark: 'targeted', data: '\r' },
       { requireAwait: true, awaitText: 'Set model to', awaitStableTicks: 3, mark: 'selected', data: '' },
-
       { afterPrevTicks: 6, data: '/model' },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
@@ -370,7 +364,6 @@ function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: nu
 
 function familyDrive(spec: FamilySpec): void {
   console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
-
   let home = seededHome(`home-${spec.family}`)
   let res = drive(spec.family, home, familySends(spec, { atTick: 130, settleTicks: 15 }), 460)
   if (res.status !== 0 && /first stuck: '(Mercury · model|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
@@ -399,27 +392,20 @@ function familyDrive(spec: FamilySpec): void {
   const live30 = (glyphs: string): RegExp => new RegExp(`^[${glyphs}] .* · 30 live(?: ·|$)`)
   if (spec.fold === 'folded') check(`${spec.family}: the picker opened with the family folded past the seat's own: none of its rows paints, and its heading (▸, 30 live) is either in the window or below it (↓ N more)`, rowsOn(open, spec.firstLabel, spec.firstRow) === 0 && (headingWords(open) === '' ? /↓ \d+ more\s/.test(open) : live30('▸').test(headingWords(open))), `${headingWords(open) || '(heading below the window)'} · ${lines(open, 'more')}`)
   else check(`${spec.family}: the picker opened with the family open at its top (the seat's own): its heading counts 30 live, the first listed row paints and the rest is named`, live30('▾❯').test(headingWords(open)) && rowsOn(open, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(ownLines(open)), `${headingWords(open)} · ${lines(open, 'more')}`)
-
   check(`${spec.family}: the walk lands on the family heading (❯, 30 live${spec.fold === 'folded' ? ', no row under it' : ''}) and the hint says ${spec.fold === 'folded' ? '↵ unfold' : '↵ fold'}`, live30('❯').test(headingWords(door)) && door.includes(spec.fold === 'folded' ? '↵ unfold' : '↵ fold') && door.includes('esc or click outside closes') && (spec.fold !== 'folded' || rowsOn(door, spec.firstLabel, spec.firstRow) === 0), `${headingWords(door)} · ${lines(door, '↑↓ select')}`)
-
   check(`${spec.family}: the family open at its top — the first listed row paints under its heading, the rest is named, the deep row is not listed`, rowsOn(expanded, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(listedTail) && rowsOn(expanded, spec.needleLabel, spec.needleId) === 0 && rowsOn(listedTail, spec.needleLabel, spec.needleId) === 0, lines(listedTail, 'more'))
   check(`${spec.family}: → unfolds the rest — no more line under the heading, the heading open (▾ or ❯)`, !ownLines(unfolded).includes('→ unfolds the rest') && live30('▾❯').test(headingWords(unfolded)), headingWords(unfolded) + ' · ' + lines(unfolded, 'more'))
-
   check(`${spec.family}: typing narrows every group — the header reads N of M match, the family's deep row is listed and the first match is focused`, /Mercury · model · \d+ of \d+ match/.test(filtered) && rowsOn(filtered, spec.needleLabel, spec.needleId) === 1 && filtered.includes('│ │ '), lines(filtered, 'needle'))
   check(`${spec.family}: the hint says esc clears the search while a search stands`, filtered.includes('esc clears the search'), lines(filtered, '↑↓ select'))
   check(`${spec.family}: the rows the filter does not match are gone from the picker (no "${spec.firstLabel}" row)`, rowsOn(filtered, spec.firstLabel, spec.firstRow) === 0, lines(filtered, 'expand-model'))
-
   check(`${spec.family}: esc clears the search — the plain header is back, the box still focused, and the picker stays`, !cleared.includes(`/ ${NEEDLE_FILTER}`) && cleared.includes('/ search by name or id') && !cleared.includes(' match') && cleared.includes('Mercury · model'), lines(cleared, 'Mercury'))
-
   check(`${spec.family}: esc with no filter closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
-
   check(`${spec.family}: ${spec.needleDowns} ↓ from the first match (the composition's count) focuses the family's own deep row`, focusedRowPattern(spec.needleLabel, spec.needleId).test(targeted), lines(targeted, '│ │ '))
   check(`${spec.family}: ↵ on the focused deep row selects it — the receipt names the row`, selected.includes(`Set model to ${spec.needleLabel}`), lines(selected, 'Set model'))
   check(`${spec.family}: re-opening the picker opens the family whole at mount (the current model lives past its listed rows) with the deep row focused and marked current`, live30('▾❯').test(headingWords(reopened)) && focusedRowPattern(spec.needleLabel, spec.needleId, '\\s{2,}current').test(reopened), lines(reopened, spec.needleLabel) + ' || ' + headingWords(reopened))
   const carriers = filesCarrying(home, spec.needleId).concat(filesCarrying(join(scratch, `daemon-${spec.family}`), spec.needleId), filesCarrying(join(scratch, `daemon-${spec.family}-2`), spec.needleId))
   check(`${spec.family}: the persisted model is the deep row's id (${spec.needleId}) — on disk in the scratch home`, carriers.length >= 1, `files: ${carriers.join(', ') || 'none'} · settings: ${existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8').slice(0, 300) : 'absent'}`)
   if (failures !== failuresBefore) {
-
     for (const [label, screen] of res.marks) {
       console.log(`\n──── ${spec.family} · mark "${label}" ────`)
       console.log(screen.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l !== '').join('\n'))

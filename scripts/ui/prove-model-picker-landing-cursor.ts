@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -12,7 +11,6 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, 'vshot.py')
-
 const ESC = String.fromCharCode(27)
 const CR = String.fromCharCode(13)
 const DOWN = `${ESC}[B`
@@ -43,13 +41,11 @@ const PICKER = 'PICKER PAINTED'
 
 section('THE GATE off-screen: the landing line while a landing is in flight, the picker once it settles')
 {
-
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const stripAnsi = (await import('strip-ansi')).default
   const React = (await import('react')).default
   const { render, Text } = await import('../../src/ink.js')
-
   const mount = async (ceilingMs?: number) => {
     let output = ''
     const stdout = new PassThrough()
@@ -96,7 +92,6 @@ section('THE GATE off-screen: the landing line while a landing is in flight, the
     check('the landing edge cleared the gate (no landing in flight)', !focused.landingInFlight())
     view.unmount()
   }
-
   {
     void focused.withLanding(new Promise<void>(() => {}))
     const view = await mount(300)
@@ -108,7 +103,6 @@ section('THE GATE off-screen: the landing line while a landing is in flight, the
     view.unmount()
     focused._resetFocusedSessionConnectorForTesting()
   }
-
   {
     const view = await mount()
     await sleep(120)
@@ -135,7 +129,6 @@ if (driver.kind !== 'posix-pty') {
   console.error(`  dist/mercury.mjs missing — bun run build.ts first`)
   failures++
 } else {
-
   const home = resolveProofHome([REPO])
   const grid = join(SCRATCH, 'landing-120x40.json')
   const cfgPath = join(SCRATCH, 'vshot.json')
@@ -144,14 +137,10 @@ if (driver.kind !== 'posix-pty') {
     JSON.stringify({
       argv: ['node', BIN],
       sends: [
-
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: CR },
-
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 1, data: CR },
-
         { afterPrevTicks: 8, awaitText: WORDS.slice(0, 28), minTick: 1, data: '', mark: 'opened' },
-
         { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 1, data: DOWN + DOWN, mark: 'painted' },
         { afterPrevTicks: 2, data: '', mark: 'walked' },
         { afterPrevTicks: 25, data: '', mark: 'settled' },
@@ -169,11 +158,9 @@ if (driver.kind !== 'posix-pty') {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
-
       MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
       MERCURY_LIVE_GLYPHS: '0',
-
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     },
     timeout: vshotBudgetMs(90_000),
@@ -188,7 +175,6 @@ if (driver.kind !== 'posix-pty') {
       const m = payload.marks?.find(x => x.label === label)
       return m === undefined ? '' : text(m.grid)
     }
-
     const focusRow = (t: string): string => {
       const rows = t.split('\n')
       const title = rows.find(row => row.includes('Mercury · model')) ?? ''
@@ -212,7 +198,6 @@ if (driver.kind !== 'posix-pty') {
   } else {
     check('the capture wrote its grid', false)
   }
-
   try {
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)

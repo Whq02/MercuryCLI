@@ -1,3 +1,4 @@
+
 import { Event } from './event.js'
 
 export type EventTarget = {

@@ -76,7 +76,6 @@ export function interpretCommandResult(
   if (semantic) {
     return semantic(exitCode)
   }
-
   if (exitCode !== 0) {
     return { isError: true, message: `failed with exit code ${exitCode}` }
   }

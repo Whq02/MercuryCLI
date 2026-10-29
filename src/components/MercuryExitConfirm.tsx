@@ -10,7 +10,6 @@ export function MercuryExitConfirm({
   onQuit,
   onStay,
 }: {
-
   liveWords: string
   onQuit: () => void
   onStay: () => void
@@ -31,8 +30,7 @@ export function MercuryExitConfirm({
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={t.warning} paddingX={1} marginTop={1}>
       <Text>
-        {
-}
+        {}
         <SessionMark />{' '}
         <Text bold color={t.textPrimary}>
           Leave Mercury?
@@ -44,8 +42,7 @@ export function MercuryExitConfirm({
       <Text color={t.textMuted}>quitting stops them · see them with /runs · the session itself stays resumable</Text>
       {testerDoor !== null ? <Text color={t.textMuted}>{testerDoor}</Text> : null}
       <Text>
-        {
-}
+        {}
         <Text color={t.failure}>[y]</Text> <Text color={t.textSecondary}>quit</Text>
         <Text color={t.textMuted}> · ↵ quit</Text>
         {'   '}

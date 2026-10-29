@@ -15,6 +15,7 @@ import {
   type Snapshot,
 } from '../utils/cockpit/index.js'
 
+
 const NAME_WIDTH = 32
 const MAX_ROWS = 12
 
@@ -51,7 +52,6 @@ export function MercuryMcpList({
   isActive?: boolean
 }): React.ReactNode {
   const accent = useSessionAccent().accent
-
   const version = useSyncExternalStore(subscribeMcpGauge, getMcpGaugeVersion, getMcpGaugeVersion)
   const snap = useMemo<Snapshot<{ data: McpData }>>(() => {
     try {
@@ -118,7 +118,6 @@ export function MercuryMcpList({
   }
 
   const maxRisk = snap.data.maxRisk
-
   const riskColor = snap.data.mcpPolicyActive ? TEAL : (RISK_COLOR[maxRisk] ?? FAINT)
 
   return (
@@ -139,8 +138,7 @@ export function MercuryMcpList({
         return (
           <Text key={row.name}>
             <Text color={here ? accent : FAINT}>{here ? `${GLYPH.prompt} ` : '  '}</Text>
-            {
-}
+            {}
             <Text color={mark.color}>{mark.glyph} </Text>
             <Text color={here ? IVORY : SECOND}>{padTo(truncateToWidth(row.name, NAME_WIDTH), NAME_WIDTH)}</Text>
           </Text>

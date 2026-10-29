@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -11,11 +10,9 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 delete process.env.CI
-
 process.env.MERCURY_MCP_TIMEOUT_MS = '1500'
 const DEADLINE_LABEL = '1.5s'
 const SETTLE_BUDGET_MS = 8_000
-
 const FIXTURE_MARK = `mcp-frozen-fixture-${process.pid}`
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -48,7 +45,6 @@ const alive = (pid: number): boolean => {
 
 async function listenFrozen(): Promise<{ server: Server; port: number }> {
   const server = createServer(socket => {
-
     socket.on('error', () => {})
   })
   for (let port = 37040; port < 37100; port++) {
@@ -64,7 +60,6 @@ async function listenFrozen(): Promise<{ server: Server; port: number }> {
 async function connectOnce(name: string, config: Record<string, unknown>): Promise<{ outcome: Record<string, unknown>; wallMs: number }> {
   const scoped = { ...config, scope: 'local' } as never
   const started = Date.now()
-
   const { client: outcome } = await mcp.reconnectMcpServerImpl(name, scoped)
   return { outcome: outcome as unknown as Record<string, unknown>, wallMs: Date.now() - started }
 }
@@ -75,7 +70,6 @@ console.log('============================================================')
 
 section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TREE gone')
 {
-
   const gcMarker = join(SCRATCH, 'grandchild.pid')
   const grandchildScript = `process.title=${JSON.stringify(`${FIXTURE_MARK}-grandchild`)}; require('fs').writeFileSync(${JSON.stringify(gcMarker)}, String(process.pid)); setInterval(() => {}, 1000)`
   const childScript =
@@ -94,15 +88,11 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
   t('§1 reason names the transport', error.includes('(stdio)'), error)
   t(`§1 reason names the seconds (${DEADLINE_LABEL})`, error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
   t('§1 reason points at the retry door', error.includes('retry from /mcp'), error)
-
   t('§1 the deadline sentence stands alone — no close-class tail', !error.includes('before closing') && !error.includes('server stderr'), error)
-
   if (process.platform === 'win32') {
-
     console.log('[SKIP] §1 reap census is pgrep-shaped on this host; the win32 arm rides the field leg')
   } else {
     const { execFileSync } = await import('node:child_process')
-
     const frozenPids = (): { readable: boolean; pids: string } => {
       try {
         return { readable: true, pids: execFileSync('pgrep', ['-f', FIXTURE_MARK], { encoding: 'utf8' }).trim() }
@@ -111,7 +101,6 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
         return { readable: false, pids: `census unreadable: ${(error as Error).message}` }
       }
     }
-
     const { existsSync: markerExists, readFileSync: readMarker } = await import('node:fs')
     let markerSeen = markerExists(gcMarker)
     const markerDeadline = Date.now() + 3_000
@@ -185,7 +174,6 @@ section('§5 the gauge detail carries the failed reason verbatim (source pin)')
 
 section('§6 the advertised deadline is the whole truth — one burn per retry')
 {
-
   const spawnLog = join(SCRATCH, 'retry-spawn-log.txt')
   const { outcome, wallMs } = await connectOnce('frozen-retry', {
     type: 'stdio',
@@ -207,9 +195,7 @@ section('§6 the advertised deadline is the whole truth — one burn per retry')
     }
   })()
   t('§6 one retry spawns ONE child (no probe connect inside the disconnect)', spawns.length === 1, `spawned ${spawns.length}: ${spawns.join(', ')}`)
-
   t('§6 wall clock is one deadline, not two', wallMs >= 1400 && wallMs < 2800, `${wallMs}ms`)
-
   const spawnedPids = spawns.map(Number).filter(pid => Number.isFinite(pid) && pid > 0)
   let survivors = spawnedPids.filter(alive)
   const reapDeadline = Date.now() + 6_000
@@ -218,7 +204,6 @@ section('§6 the advertised deadline is the whole truth — one burn per retry')
     survivors = spawnedPids.filter(alive)
   }
   t('§6 the retry child dies with the drive (bounded ladder)', survivors.length === 0, `pids: ${survivors.join(', ')}`)
-
   for (const pid of survivors) {
     try {
       process.kill(pid, 'SIGKILL')

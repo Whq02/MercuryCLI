@@ -1,3 +1,4 @@
+
 import { getCwd } from '../../utils/cwd.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
 import { valueOr } from '../../substrate/sourceState.js'
@@ -20,13 +21,10 @@ export const GRAPH_NODE_KINDS = ['agent', 'session', 'conversation', 'artifact',
 export type GraphNodeKind = (typeof GRAPH_NODE_KINDS)[number]
 
 export interface SessionGraphNode {
-
   id: string
   kind: GraphNodeKind
   label: string
-
   agentId?: string
-
   focus?: string
 }
 
@@ -34,7 +32,6 @@ export interface SessionGraphEdge {
   kind: GraphEdgeKind
   from: string
   to: string
-
   owner: string
 }
 
@@ -79,7 +76,6 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
         })
       }
     }
-
     const byWorktree = new Map<string, string[]>()
     for (const m of snap.members) {
       if (!m.worktreeRef) continue
@@ -117,13 +113,11 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
   }
 
   const conversations = await listConversations().catch(() => [])
-
   const windowed = [...conversations]
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 60)
   const mainConv = conversations.find(c => (c.conversationId as string) === 'cv-main')
   if (mainConv && !windowed.includes(mainConv)) windowed.push(mainConv)
-
   for (const c of windowed) {
     addNode({ id: `conversation:${c.conversationId}`, kind: 'conversation', label: c.title })
   }
@@ -137,7 +131,6 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
         owner: 'crew-conversations',
       })
     }
-
     for (const l of c.lineage) {
       const from = l.direction === 'from' ? c.conversationId : l.otherConversationId
       const to = l.direction === 'from' ? l.otherConversationId : c.conversationId
@@ -181,7 +174,6 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
   return {
     nodes: nodeList,
     edges: edges.filter(e => {
-
       const fromIsNode = e.from.includes(':') && nodes.has(e.from)
       const toIsNode = e.to.includes(':') && nodes.has(e.to)
       return (!fromIsNode || kept.has(e.from)) && (!toIsNode || kept.has(e.to))

@@ -11,28 +11,21 @@ function isPostureEnvTruthy(v: string | undefined): boolean {
 
 export class PostureOwner {
   isInteractive = false
-
   headlessOneShot = false
   runInputClosed = false
   askChannel: 'operator' | 'sdk' | 'none' = 'operator'
   sessionKind: SessionKind = 'headless'
   assistantSessionActive = false
-
   strictToolResultPairing = false
   sdkAgentProgressSummariesEnabled = false
   clientType = 'cli'
   sessionSource: string | undefined = undefined
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined
-
   isRemoteMode = false
-
   sessionBypassPermissionsMode = false
   permissionModeResolution: Readonly<SessionPermissionModeResolution> | null = null
-
   sessionTrustAccepted = false
-
   sessionPersistenceDisabled = false
-
   private assistantDefaultCache: boolean | null = null
 
   isAssistantFamilyAvailable(): boolean {
@@ -52,7 +45,6 @@ export class PostureOwner {
   }
 
   preferThirdPartyAuthentication(): boolean {
-
     return !this.isInteractive && this.clientType !== 'mercury-editor'
   }
 }

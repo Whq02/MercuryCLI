@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -155,7 +154,6 @@ console.log('============================================================')
 
 section('the refusal band — no start, no terminal observation, error results')
 {
-
   resetTaps()
   let out = await run(makeTool(), {}, ALLOW, { name: 'NoSuchTool' })
   check('unknown tool → tool_use_error', resultText(out).includes('No such tool available: NoSuchTool'), resultText(out))
@@ -207,7 +205,6 @@ section('the refusal band — no start, no terminal observation, error results')
 
 section('the executed path — start + exactly-once terminal + typed effect')
 {
-
   resetTaps()
   const effect = {
     outcome: 'succeeded',
@@ -288,7 +285,6 @@ section('the executed path — start + exactly-once terminal + typed effect')
 
 section('cancellation at every transition (Phase 5 deliberate corrections)')
 {
-
   resetTaps()
   let ctxRef: { abortController: AbortController } | null = null
   const tool = makeTool({ call: async () => ({ data: 'must never run' }) })
@@ -340,7 +336,6 @@ section('cancellation at every transition (Phase 5 deliberate corrections)')
 
 section('the hook engine FAILS CLOSED — an engine crash denies, never allows')
 {
-
   resetTaps()
   const tool = makeTool({
     call: async () => ({ data: 'must never run' }),

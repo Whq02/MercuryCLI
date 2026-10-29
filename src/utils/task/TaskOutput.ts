@@ -9,6 +9,7 @@ import { getMaxOutputLength, OUTPUT_HEAD_SHARE } from '../shell/outputLimits.js'
 import { safeJoinLines } from '../stringUtils.js'
 import { DiskTaskOutput, acquireTaskOutputWriter, getTaskOutputPath } from './diskOutput.js'
 
+
 type ProgressCallback = (
   recentLines: string,
   fullRecentLines: string,
@@ -32,7 +33,6 @@ const activePolling = new Set<string>()
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 function pollTick(): void {
-
   for (const taskId of activePolling) {
     const instance = pollRegistry.get(taskId)
     if (!instance || !instance.hasProgressCallback()) continue
@@ -47,7 +47,6 @@ function materialiseSegment(segment: string): string {
 
 export class TaskOutput {
   readonly taskId: string
-
   readonly path: string
   readonly stdoutToFile: boolean
 
@@ -92,7 +91,6 @@ export class TaskOutput {
     activePolling.add(taskId)
     if (pollTimer === null) {
       pollTimer = setInterval(pollTick, POLL_INTERVAL_MS)
-
       pollTimer.unref?.()
     }
   }
@@ -132,18 +130,14 @@ export class TaskOutput {
   async sampleFileProgress(): Promise<void> {
     let sample: { content: string; bytesRead: number; bytesTotal: number }
     try {
-
       sample = await tailFile(this.path, POLL_SAMPLE_BYTES)
     } catch {
-
       return
     }
-
     const onProgress = this.onProgress
     if (!onProgress) return
 
     if (sample.content.length === 0) {
-
       onProgress('', '', this.lineCount, sample.bytesTotal, false)
       return
     }
@@ -162,7 +156,6 @@ export class TaskOutput {
     }
 
     const sampledWholeFile = sample.bytesRead === sample.bytesTotal
-
     const totalLines = sampledWholeFile
       ? count
       : Math.max(Math.round(count * (sample.bytesTotal / sample.bytesRead)), this.lineCount)
@@ -186,7 +179,6 @@ export class TaskOutput {
   }
 
   private write(data: string, isStderr: boolean): void {
-
     this.byteTotal += data.length
     const harvestedAny = this.harvest(data)
     if (harvestedAny && this.onProgress) {
@@ -226,7 +218,6 @@ export class TaskOutput {
       const newline = chunk.lastIndexOf('\n', cursor - 1)
       if (newline === -1) break
       this.lineCount++
-
       const segment = chunk.slice(newline + 1, cursor)
       if (
         collected.length < HARVEST_MAX_SEGMENTS &&
@@ -239,7 +230,6 @@ export class TaskOutput {
       }
       cursor = newline
     }
-
     const firstNewline = chunk.indexOf('\n')
     if (this.atLineStart && firstNewline !== -1) {
       const first = chunk.slice(0, firstNewline)
@@ -254,7 +244,6 @@ export class TaskOutput {
       }
     }
     if (chunk.length > 0) this.atLineStart = chunk.endsWith('\n')
-
     for (let i = collected.length - 1; i >= 0; i--) {
       this.recentLines.add(collected[i]!)
     }
@@ -266,7 +255,6 @@ export class TaskOutput {
   }
 
   private writeToDisk(data: string, isStderr: boolean): void {
-
     this.diskWriter?.append(isStderr ? `[stderr] ${data}` : data)
   }
 
@@ -291,12 +279,10 @@ export class TaskOutput {
     this.stdoutLength = 0
     this.stderrChunks = []
     this.stderrLength = 0
-
     this.spilled = true
   }
 
   private async headAndTailExcerpt(head: { content: string; bytesRead: number; bytesTotal: number }, maxLength: number): Promise<string> {
-
     const noticeReserve = 160 + this.path.length
     const budget = Math.max(64, maxLength - noticeReserve)
     const headBudget = Math.floor(budget * OUTPUT_HEAD_SHARE)
@@ -317,11 +303,9 @@ export class TaskOutput {
   async getStdout(): Promise<string> {
     if (this.stdoutToFile) {
       try {
-
         const maxLength = getMaxOutputLength()
         const result = await readFileRange(this.path, 0, maxLength)
         if (result === null) {
-
           this.fileRedundant = true
           return ''
         }
@@ -330,11 +314,9 @@ export class TaskOutput {
           this.fileRedundant = true
           return result.content
         }
-
         this.fileRedundant = false
         return await this.headAndTailExcerpt(result, maxLength)
       } catch (error) {
-
         const code = getErrnoCode(error) ?? 'unknown'
         logForDebugging(`task output read failed: ${this.path} (${code}): ${String(error)}`)
         return `<command output unavailable: could not read ${this.path} (${code}) — most likely another Mercury process working in this project deleted it during its startup cleanup>`
@@ -343,7 +325,6 @@ export class TaskOutput {
     if (!this.spilled) {
       return this.stdoutChunks.join('')
     }
-
     const tail = this.recentLines.getRecent(RECENT_VIEW_LINES)
     const totalKb = Math.round(this.byteTotal / 1024)
     const notice = `\n<output truncated: ~${totalKb}KB captured in total — the complete output is saved at ${this.path}>`

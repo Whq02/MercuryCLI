@@ -45,6 +45,7 @@ import {
   renderToolUseRejectedMessage,
 } from './UI.js'
 
+
 export type { SkillToolProgress as Progress }
 
 export const inputSchema = lazySchema(() =>
@@ -68,7 +69,6 @@ export const outputSchema = lazySchema(() =>
         .optional()
         .describe('Tools the skill grants for its run'),
       model: z.string().optional().describe('The model the skill pins'),
-
       status: z
         .literal('inline')
         .optional()
@@ -88,8 +88,8 @@ export const outputSchema = lazySchema(() =>
   ]),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
-
 export type Output = z.input<OutputSchema>
+
 
 export const READ_ONLY_SKILL_TOOLS: ReadonlySet<string> = new Set([
   FILE_READ_TOOL_NAME,
@@ -121,9 +121,7 @@ const SAFE_COMMAND_PROPERTIES: ReadonlySet<string> = new Set([
   'isMcp',
   'argumentHint',
   'whenToUse',
-
   'pathFilters',
-
   'menuDescription',
   'version',
   'disableModelInvocation',
@@ -161,6 +159,7 @@ export function skillHasOnlySafeProperties(command: Command): boolean {
   }
   return true
 }
+
 
 function normalizeSkillName(raw: string): string {
   return raw.trim().replace(/^\//, '')
@@ -249,6 +248,7 @@ function messageCarriesToolActivity(message: Message): boolean {
   })
 }
 
+
 export function refusedExpansionError(
   name: string,
   processed: { messages: ReadonlyArray<{ type: string; message?: { content?: unknown } }>; resultText?: string },
@@ -326,7 +326,6 @@ export const SkillTool = buildTool({
         }
       }
     }
-
     for (const [content, rule] of getRuleByContentsForToolName(permissionContext, SKILL_TOOL_NAME, 'allow')) {
       if (ruleNamesSkill(content)) {
         return {
@@ -336,11 +335,9 @@ export const SkillTool = buildTool({
         }
       }
     }
-
     if (command && isPromptCommand(command) && skillHasOnlySafeProperties(command)) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-
     return {
       behavior: 'ask' as const,
       message: `Run skill "${name}"?`,
@@ -371,7 +368,6 @@ export const SkillTool = buildTool({
     const parentToolUseId = getToolUseIDFromParentMessage(parentMessage, SKILL_TOOL_NAME)
 
     if (command.context === 'fork') {
-
       const authority = evaluateLaunchAuthority('subagents')
       if (!authority.allowed) throw new Error(authority.reason)
       const agentId = createAgentId()
@@ -473,7 +469,6 @@ export const SkillTool = buildTool({
           next = { ...next, getAppState: createGetAppStateWithAllowedTools(next.getAppState, allowedTools) }
         }
         if (model) {
-
           next = {
             ...next,
             options: { ...next.options, engineModel: resolveSkillModelOverride(model, next.options.engineModel) },

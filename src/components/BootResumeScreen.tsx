@@ -34,6 +34,7 @@ import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteract
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 
+
 interface BootResumePickerModel {
   flat: SessionPickerFlatRow[];
   elsewhereCount: number;
@@ -42,15 +43,10 @@ interface BootResumePickerModel {
 
 interface BootResumeScreenProps {
   onClose?: () => void;
-
   fullScene?: { columns: number; rows: number };
-
   model?: BootResumePickerModel;
-
   initialScope?: SessionScope;
-
   projects?: ReadonlyArray<BootProjectFact & { running?: number }>;
-
   openProject?: (p: BootProjectFact) => AsyncListNote;
 }
 
@@ -84,7 +80,6 @@ export function resumeElsewhereEntry(count: number): ResumeEntry {
   return {
     label: `+${count} in other project${count === 1 ? '' : 's'} — a shows all history`,
     group: 'elsewhere',
-
     groupTitle: 'elsewhere',
     summary: '',
     valueLabel: '',
@@ -108,6 +103,7 @@ export function resumeDetailLines(f: SessionPickerFlatRow): string[] {
     'esc — back to the face, nothing opened',
   ];
 }
+
 
 export function resumeProjectEntryOf(p: BootProjectFact & { running?: number }): ResumeEntry {
   return {
@@ -186,6 +182,7 @@ export function resumeLegendOf(scope: SessionScope, hasRows: boolean, projectsPr
     ? `↑↓ move · ↵ open · n new session · d prune · ${flip}${jump} · esc back`
     : `n new session · d prune · ${flip}${jump} · esc back`;
 }
+
 
 export function pruneScopeLabelOf(scope: SessionScope): string {
   return scope === 'project'
@@ -305,11 +302,9 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
   async function runPrune(offer: PruneOffer) {
     setPrune({ stage: 'deleting' });
     const receipt = await operatorPruneTranscripts(offer);
-
     live.dropSessions(new Set(receipt.deletedSessionIds));
     setPrune({ stage: 'receipt', receipt });
   }
-
   useInput(
     (input, key, event) => {
       event.stopImmediatePropagation();
@@ -346,7 +341,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
 
   const openRow = (row: SelectableRow): AsyncListNote | null => {
     if (row.kind === 'project') {
-
       return openProject?.(row.project) ?? null;
     }
     const log = row.flat.row.log;
@@ -364,7 +358,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
           });
           if (!outcome.ok) return outcome.reason;
         } catch (e) {
-
           return e instanceof Error ? e.message : String(e);
         }
         enterRootChat();
@@ -388,7 +381,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     rows: selectable,
     rowId: selectableIdOf,
     idNamespace: 'boot-resume',
-
     active: prune === null,
     onClose: () => onClose?.(),
     actions: [
@@ -398,7 +390,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         key: 'd',
         hint: 'prune',
         run: () => {
-
           if (projectFilter !== null) {
             return 'prune acts on the whole list; exit the project filter first';
           }
@@ -479,7 +470,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
       ...(scope === 'project' && elsewhereCount > 0 ? [resumeElsewhereEntry(elsewhereCount)] : []),
       ...(projects ?? []).map(resumeProjectEntryOf),
     ];
-
     const entryIndexOf = (i: number): number =>
       i < flat.length ? i : i + (scope === 'project' && elsewhereCount > 0 ? 1 : 0);
     const statusRight =
@@ -491,7 +481,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
         pendingMore,
         ...(projectFilter !== null ? { filterBase: projectFilter.base } : {}),
       });
-
     const pruneOverride =
       prune === null
         ? null
@@ -504,7 +493,6 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     return {
       entries,
       selIdx: selected !== null ? entryIndexOf(list.selectedIndex) : -1,
-
       title: merged ? 'sessions · projects' : 'resume session',
       summaryTitle: merged ? 'SESSIONS · PROJECTS' : 'SESSIONS',
       summaryRows: resumeSummaryRows({

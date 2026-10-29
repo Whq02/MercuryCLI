@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -22,12 +21,10 @@ console.log('§1 ctr-1 — the key index follows the in-place append')
   check('the index remembers how many keys it has indexed', hook.includes('map: Map<string, number>; indexed: number }>({') && hook.includes('ki.indexed = keys.length'))
   check('the same identity, grown, indexes only the new tail (O(delta))', hook.includes('} else if (ki.indexed < keys.length) {') && hook.includes('for (let i = ki.indexed; i < keys.length; i++) ki.map.set(keys[i]!, i)'))
   check('POISON: the identity-only rebuild is gone', !/if \(ki\.keys !== keys\) \{\s*\n\s*ki\.map\.clear\(\)\s*\n\s*for \(let i = 0; i < keys\.length; i\+\+\) ki\.map\.set\(keys\[i\]!, i\)\s*\n\s*ki\.keys = keys\s*\n\s*\}\s*\n\s*return ki\.map\.get\(key\)/.test(hook))
-
   const list = read('src/components/VirtualMessageList.tsx')
   const keyLaw = read('src/components/virtualListKeys.ts')
   check('the list still appends in place (the identity law the map now honours)', list.includes('reconcileItemKeys(keysStateRef.current, messages, itemKey)') && keyLaw.includes('keys.push(key)') && keyLaw.includes('if (keys === prior.keys) {'))
   check('the content pin still resolves through the one index (the consumer the fix revives)', hook.includes('const idx = indexByKey(itemKeys, pin.key)') && hook.includes('box.pinScrollTop(target)'))
-
   const model = (): { index: (keys: readonly string[], key: string) => number | undefined } => {
     const ki = { keys: null as readonly string[] | null, map: new Map<string, number>(), indexed: 0 }
     return {

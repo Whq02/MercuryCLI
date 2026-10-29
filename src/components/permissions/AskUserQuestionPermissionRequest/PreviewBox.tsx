@@ -8,15 +8,10 @@ import { applyMarkdown } from '../../../utils/markdown.js'
 import sliceAnsi from '../../../utils/sliceAnsi.js'
 
 type PreviewBoxProps = {
-
   content: string
-
   maxLines?: number
-
   minHeight?: number
-
   minWidth?: number
-
   maxWidth?: number
 }
 
@@ -58,7 +53,6 @@ function PreviewBoxBody({
 }: PreviewBoxProps & { highlight: CliHighlight | null }): React.ReactNode {
   const { columns: terminalWidth } = useTerminalSize()
   const [theme] = useTheme()
-
   const effectiveMaxWidth = Math.max(8, maxWidth ?? terminalWidth - 4)
   const effectiveMaxLines = maxLines ?? 20
 
@@ -79,7 +73,6 @@ function PreviewBoxBody({
   const innerWidth = boxWidth - 4
 
   const horizontal = FRAME.horizontal.repeat(boxWidth - 2)
-
   const truncationBar = isTruncated
     ? (() => {
         const hidden = contentLines.length - effectiveMaxLines

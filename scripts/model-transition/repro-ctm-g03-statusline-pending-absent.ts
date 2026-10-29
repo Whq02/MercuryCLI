@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,7 +29,6 @@ const hits = execFileSync('git', ['grep', '-l', 'pendingModelSwitch', '--', 'src
 const displaySurfaces = hits.filter(
   f =>
     (f.startsWith('src/components/') && !f.includes('ModelPicker')) ||
-
     f === 'src/hooks/useDisplayedSessionModel.ts',
 )
 check(

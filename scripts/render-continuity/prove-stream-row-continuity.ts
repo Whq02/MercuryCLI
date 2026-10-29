@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -107,7 +106,6 @@ const scenes: Scene[] = [
       { kind: 'paced', deltas: TOKENS.slice(0, 10).map(x => `${x} stream body. `), gapMs: 400 },
       { kind: 'text', text: 'Spare.' },
     ],
-
     sends: ['after:↑↓ choose:900:\\r','6000:interrupt anatomy probe\\r', `after:alpha stream body:600:${ESC}`],
     seconds: 15,
     grabFrom: 6200,
@@ -365,7 +363,6 @@ for (const scene of scenes) {
   t.check('every frame with response text carries the nameplate at-or-above it', identityLaw)
 
   if (!scene.scrolls && scene.flips === undefined) {
-
     const rowLaw = (label: string, rowOf: (f: Frame) => number): void => {
       const verdict = downOnlyWithCard([...withText, final].map(f => ({ atMs: f.atMs, row: rowOf(f), cardRows: cardRowsOf(f) })))
       t.check(`${label} moves down only with the working card's own growth, once at most (no insert-above; upward growth-scroll allowed)`, verdict.ok, verdict.detail)
@@ -387,7 +384,6 @@ for (const scene of scenes) {
   const withoutPostscript = (r: string): string => r.replace(/\w+ thought for \d+[smhd]\b/g, '').replace(/first byte expected within [\dsmh ]+|past the [\dsmh ]+ first-byte budget/g, '').replace(/↻\d+[smhd]\b/g, '')
   const carriesElapsed = (r: string): boolean => /\b\d+s\b/.test(withoutPostscript(r)) && /esc|interrupt|thinking|✻|✶/i.test(r)
   const spinnerFrames = timed.filter(f => f.rows.some(carriesElapsed))
-
   const turnFrames: typeof timed = []
   let seenGap = false
   for (const f of timed) {
@@ -402,7 +398,6 @@ for (const scene of scenes) {
   for (const f of turnFrames) {
     const elapsedRows = f.rows.filter(carriesElapsed)
     if (elapsedRows.length > 1) elapsedLawHolds = false
-
     const row = withoutPostscript(elapsedRows[0] ?? '')
     const ints = [...row.matchAll(/(?:^|[^.\d])(\d+)s\b/g)].map(m => Number(m[1]))
     if (ints.length) {
@@ -441,12 +436,10 @@ for (const scene of scenes) {
         }
       }
     }
-
     t.check('markdown restyle under stream stays bounded (<= 4 non-tail row edits, hosted-margined)', restyles <= Math.ceil(S(4)), `${restyles}`)
   }
 
   if (scene.scrolls) {
-
     const firstVisibleIdx = (f: Frame): number => {
       for (let i = 0; i < TOKENS.length; i++) {
         if (f.rows.some(r => r.includes(`${TOKENS[i]} stream body`))) return i

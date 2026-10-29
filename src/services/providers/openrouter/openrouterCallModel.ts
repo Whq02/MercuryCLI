@@ -72,21 +72,17 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     const failure = providerKeyCommandFailure('openrouter')
     return failure ? `the configured ${failure.message} — no OpenRouter credential detected.` : 'no OpenRouter credential detected — /logins connects OpenRouter (OAuth mints a key), or set OPENROUTER_API_KEY.'
   },
-
   authRemedy: OPENROUTER_AUTH_REMEDY,
   billingRemedy:
     'the OpenRouter account has insufficient credits — add credits, then retry; /model picks another model meanwhile.',
   requestUrl: () => `${openrouterApiBase()}/chat/completions`,
-
   wireModelId: modelId => openrouterWireModelId(modelId),
-
   buildExtras: args =>
     buildOpenrouterExtras({
       ...args,
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
       providerPolicy: openrouterProviderObject(getInitialSettings().routing?.openrouter),
     }),
-
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages) ?? { events: streamCompatChat({ ...options, request: openrouterChatCache(options.request) }) },
   policyFaultNote: (fault, extra) =>
@@ -99,7 +95,6 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       clearOpenrouterUsageLimit()
       clearOpenrouterKeyRefusal(resolveOpenrouterApiKey())
     }
-
     void refreshOpenrouterKeyUsage({ force: status === 429 }).catch(() => {})
     const account = resolveOpenrouterAccount()
     if (account) void refreshOpenrouterCatalogue(account.keySource).catch(() => {})

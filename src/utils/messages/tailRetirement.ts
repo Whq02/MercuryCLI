@@ -2,16 +2,12 @@ import type { Message } from '../../types/message.js'
 import { hasTextContent } from '../../rows/content.js'
 
 interface TailReleaseIds {
-
   current: string | null
-
   settled: string | null
 }
 
 interface TailRelease {
-
   publishedShown: boolean
-
   settledShown: boolean
 }
 

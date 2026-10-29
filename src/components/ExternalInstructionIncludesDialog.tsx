@@ -60,8 +60,7 @@ export function ExternalInstructionIncludesDialog({
         ]}
         onChange={(value: string) => handleSelection(value as 'yes' | 'no')}
       />
-      {
-}
+      {}
       <Text dimColor={true}>
         ↑↓ choose · ↵ answers · esc answers No — the answer is saved for this
         project

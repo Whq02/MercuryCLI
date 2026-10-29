@@ -1,3 +1,4 @@
+
 import stripAnsi from 'strip-ansi'
 import React, { useEffect, useMemo, useState } from 'react'
 import type { Token, Tokens } from 'marked'
@@ -20,6 +21,7 @@ import {
 } from '../utils/cliHighlight.js'
 import { MarkdownTable } from './MarkdownTable.js'
 
+
 const TOKEN_CACHE_LIMIT = 500
 const tokenCache = new Map<string, Token[]>()
 
@@ -28,7 +30,6 @@ function lexCached(stripped: string): Token[] {
   const key = hashContent(stripped)
   const hit = tokenCache.get(key)
   if (hit) {
-
     tokenCache.delete(key)
     tokenCache.set(key, hit)
     return hit
@@ -73,7 +74,6 @@ function renderTokens(
   const flush = (): void => {
     const trimmed = pending.trim()
     pending = ''
-
     if (trimmed === '') return
     if (firstIsProse === null) firstIsProse = true
     elements.push(
@@ -118,11 +118,9 @@ export function Markdown({
   dimColor?: boolean
   color?: string
   leadingInline?: React.ReactNode
-
   trailingInline?: React.ReactNode
 }): React.ReactNode {
   const [themeName] = useTheme()
-
   const { accent } = useSessionAccent()
   const highlightingDisabled = useAppState(
     state => state.settings.view?.syntaxOff === true,
@@ -130,7 +128,6 @@ export function Markdown({
   const highlight = useCliHighlight(highlightingDisabled)
 
   const { elements, firstIsProse } = useMemo<Rendered>(() => {
-
     const sanitized = stripAnsi(children).replace(
       // eslint-disable-next-line no-control-regex -- the control filter is the point
       /[\u0000-\u0008\u000b-\u001f\u007f]/g,
@@ -138,7 +135,6 @@ export function Markdown({
     )
     const stripped = stripPromptXMLTags(sanitized)
     if (!hasMarkdownMarkers(stripped)) {
-
       const trimmed = stripped.trim()
       return {
         elements:
@@ -208,6 +204,7 @@ export function Markdown({
   )
 }
 
+
 export function advanceStableBoundary(
   stripped: string,
   boundary: number,
@@ -250,9 +247,7 @@ export function computeSeamRows(
     break
   }
   if (!last) return 0
-
   if (last.type === 'table') return 1
-
   let tail = formatToken(last, theme, 0, null, null, null)
   for (const spaceToken of trailingSpaces) {
     tail += formatToken(spaceToken, theme, 0, null, null, null)
@@ -265,7 +260,6 @@ export function pendingRowsOf(live: string): number {
   const m = live.match(/((?:\n[ \t]*)+)$/)
   if (!m) return 0
   const rows = (m[1]!.match(/\n/g) ?? []).length
-
   return Math.min(rows, 2)
 }
 
@@ -278,18 +272,15 @@ export function StreamingMarkdown({
 }: {
   children: string
   leadingInline?: React.ReactNode
-
   color?: string
 }): React.ReactNode {
   const [themeName] = useTheme()
-
   const boundaryRef = React.useRef(0)
   const prefixRef = React.useRef('')
   const seamRef = React.useRef(0)
 
   const stripped = stripPromptXMLTagsKeepEdges(children)
   if (!stripped.startsWith(prefixRef.current)) {
-
     boundaryRef.current = 0
     prefixRef.current = ''
     seamRef.current = 0
@@ -311,7 +302,6 @@ export function StreamingMarkdown({
       {STREAM_CARET}
     </Text>
   )
-
   const pendingBlankRows = caretOnHeadRow
     ? Math.max(0, pendingRowsOf(live) - 1)
     : pendingRowsOf(live)
@@ -340,8 +330,7 @@ export function StreamingMarkdown({
           {live}
         </Markdown>
       ) : null}
-      {
-}
+      {}
       {live.trim() !== '' && pendingBlankRows > 0 ? (
         <Box height={pendingBlankRows} />
       ) : null}

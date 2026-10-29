@@ -68,7 +68,6 @@ await scene(
   'F3 tool failure',
   {
     turns: cwd => [
-
       { kind: 'tool_use', name: 'Read', input: { file_path: `${cwd}/flux-missing.txt` } },
       { kind: 'text', text: 'recovered after the tool error.', whenModel: 'opus' },
     ],
@@ -136,7 +135,6 @@ await scene(
       { kind: 'hang', deltas: ['first turn text '], whenModel: 'opus' },
       { kind: 'text', text: 'second answer.', whenModel: 'opus' },
     ],
-
     sends: [
       '4500:hello', '5300:\\r',
       'after:first turn text:800:\\x1b',

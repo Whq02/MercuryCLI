@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -221,7 +220,6 @@ check('the deny was issued (ask 2)', settled?.askLog?.some(a => a.decision === '
 const postDeny = hits.find(h => h.deniedSeen)
 check('the wire saw the deny as an is_error tool_result (conversation continued)', !!postDeny && postDeny.isErrorSeen, JSON.stringify(hits))
 check('the agent then ran the OTHER tool and finished', settled?.result === 'ask-final-done.', JSON.stringify(settled?.result))
-
 check('all three emitted tool calls counted (denied one included)', settled?.toolCalls === 3, `toolCalls=${settled?.toolCalls}`)
 
 server.close()

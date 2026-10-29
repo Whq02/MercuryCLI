@@ -39,11 +39,11 @@ import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
 
+
 export function PinnedCritterBerth(): React.ReactNode {
   const tok = useMercuryTokens()
   const sa = useSessionAccent()
   const rawDef = critterDefForKey(sa.key)
-
   const dockDef = React.useMemo(
     () => ({ ...rawDef, hue: sa.accent, hueDeep: sa.accentDeep }),
     [rawDef, sa.accent, sa.accentDeep],
@@ -52,7 +52,6 @@ export function PinnedCritterBerth(): React.ReactNode {
     () => ({ ...dockDef, hue: tok.accentSoft }),
     [dockDef, tok.accentSoft],
   )
-
   return (
     <InteractiveRow
       id="berth:critter"
@@ -64,8 +63,7 @@ export function PinnedCritterBerth(): React.ReactNode {
     >
       {hover => (
         <Box flexDirection="column" flexShrink={0} justifyContent="center">
-          {
-}
+          {}
           <Box height={SQUARE_DOCK_ART_LINES} flexDirection="column" justifyContent="flex-end">
             <AnimatedCritterArt def={hover ? hoverDockDef : dockDef} square />
           </Box>
@@ -92,11 +90,9 @@ function MercuryHeroBody(): React.ReactNode {
 
 export function MercuryBrandRow(): React.ReactNode {
   const tok = useMercuryTokens()
-
   const { rows, columns } = useTerminalSize()
   const banner = wordmarkForm(columns, rows) === 'banner'
   return (
-
     <Box paddingX={1} marginTop={1} flexShrink={0}>
       {banner ? (
         <BigWordmark />
@@ -134,11 +130,9 @@ function useMemoryAtStartRow(): string | null {
 
 function MercuryHomeBody(): React.ReactNode {
   const tok = useMercuryTokens()
-
   const model = useDisplayedSessionModel().label
   const servedModel = useFocusedServedModel()
   const signInGate = useSessionSignInGate(servedModel ?? getEngineModel())
-
   const cwd = useCwdState()
   const dir = pathTailLabel(cwd)
   const memoryRow = useMemoryAtStartRow()
@@ -146,9 +140,7 @@ function MercuryHomeBody(): React.ReactNode {
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   const [fleet, setFleet] = useState<Snapshot<{ data: FleetData }> | null>(null)
   const [trace, setTrace] = useState<Snapshot<{ data: TraceData }> | null>(null)
-
   const [projectScopeEmpty, setProjectScopeEmpty] = useState(false)
-
   const isProjectCwd = useMemo((): boolean => {
     try {
       return findGitRoot(cwd) !== null
@@ -177,18 +169,14 @@ function MercuryHomeBody(): React.ReactNode {
 
   const substrate = substrateSnapshot()
   const daemon = daemonSnapshot()
-
   const helmHome = useContext(CockpitActiveContext)
-
   const deckPresent = isDeckPaneActive() && !helmHome
 
   const sa = useSessionAccent()
   const accent = sa.accent
-
   const { rows: termRows, columns: termCols } = useTerminalSize()
   const bigHero = wordmarkForm(termCols, termRows) === 'banner'
   const critterLabel = sa.name.charAt(0).toUpperCase() + sa.name.slice(1)
-
   const rowClick = (key: string, command: string): { id: string; directActivate: true; onActivate: () => void } => ({
     id: `home:row:${key}`,
     directActivate: true,
@@ -203,11 +191,9 @@ function MercuryHomeBody(): React.ReactNode {
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      {
-}
+      {}
 
-      {
-}
+      {}
       <Box flexDirection="column" marginTop={1}>
         {bigHero ? (
           <BigWordmark />
@@ -218,8 +204,7 @@ function MercuryHomeBody(): React.ReactNode {
             <Wordmark />
           </Box>
         )}
-        {
-}
+        {}
         {signInGate.state === 'ok' ? (
           <InteractiveRow {...rowClick('standing-by', '/palette')}>
             <BreathingDot />
@@ -244,8 +229,7 @@ function MercuryHomeBody(): React.ReactNode {
         )}
       </Box>
 
-      {
-}
+      {}
       <Box marginTop={1} flexDirection="column">
         {!deckPresent ? (
           <InteractiveRow {...rowClick('model', '/model')}>
@@ -281,8 +265,7 @@ function MercuryHomeBody(): React.ReactNode {
             </Text>
           </InteractiveRow>
         ) : null}
-        {
-}
+        {}
         {!helmHome && !deckPresent ? (
           <InteractiveRow {...rowClick('fleet', '/crewmates')}>
           <Text wrap="truncate-end">
@@ -306,8 +289,7 @@ function MercuryHomeBody(): React.ReactNode {
           </Text>
           </InteractiveRow>
         ) : null}
-        {
-}
+        {}
         {projectScopeEmpty && isProjectCwd ? (
           <InteractiveRow {...rowClick('init-signpost', '/orient')}>
             <Text wrap="truncate-end">
@@ -319,17 +301,14 @@ function MercuryHomeBody(): React.ReactNode {
         ) : null}
       </Box>
 
-      {
-}
-      {
-}
+      {}
+      {}
       <Box marginTop={1}>
         <Text wrap="truncate-end">
           <Text color={accent}>❯ </Text>
           <Text color={tok.textPrimary}>↵</Text>
           <Text color={tok.textSecondary}> sends</Text>
-          {
-}
+          {}
           <Text color={tok.textMuted}>{`  ·  /workflows ${CREW_VIEW_DOOR} /saturn /health /trace`}</Text>
         </Text>
       </Box>

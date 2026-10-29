@@ -3,10 +3,8 @@ import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
 export type ScriptedCall = { id: string; name: string; args: string }
-
 type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
-
   | { text: string; usage?: { input: number; output: number; cost?: number }; finishReason?: string; reasoning?: ScriptedReasoning }
   | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning; finishReason?: string }
   | { error: { status: number; body: unknown; headers?: Record<string, string> } }
@@ -168,13 +166,9 @@ interface OverflowFixture {
   base: string
   captured: Captured[]
   asks: Captured[]
-
   inputRule: boolean
-
   refusals: Array<{ request: number; message: string }>
-
   script(turns: Turn[] | ((request: Captured) => Turn)): void
-
   env: Record<string, string>
   close(): Promise<void>
 }
@@ -249,7 +243,6 @@ export async function startOverflowFixture(options: { stream?: (request: Capture
             return
           }
           res.writeHead(200, { 'content-type': 'text/event-stream' })
-
           res.end(responsesCutSse(turn, n))
           return
         }

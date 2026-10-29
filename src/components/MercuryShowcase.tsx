@@ -62,7 +62,6 @@ function specimen(node: React.ReactNode): React.ComponentType<{ onClose: () => v
       },
       { isActive: true },
     )
-
     const display = React.isValidElement(node)
       ? React.cloneElement(node as React.ReactElement<Record<string, unknown>>, {
           isActive: false,

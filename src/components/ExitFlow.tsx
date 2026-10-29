@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react'
 import { ExitHandoff, noteAskedAtExit } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'

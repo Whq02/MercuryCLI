@@ -1,3 +1,4 @@
+
 import {
   CRITTER_COUNT,
   critterAt,
@@ -14,7 +15,6 @@ function critterVariantFor(key: string | null | undefined): number {
     v = nextVariant % CRITTER_COUNT
     assigned.set(key, v)
     nextVariant += 1
-
     if (assigned.size > 256) {
       const oldest = assigned.keys().next().value
       if (oldest !== undefined) assigned.delete(oldest)
@@ -26,3 +26,4 @@ function critterVariantFor(key: string | null | undefined): number {
 export function critterForKey(key: string | null | undefined): CritterDef {
   return critterAt(critterVariantFor(key))
 }
+

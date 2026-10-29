@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -163,7 +162,6 @@ console.log('── Z3 an outside member uses ordinary permission ──')
 
 console.log('── Z4 one deny-rule member ⇒ NO member written ──')
 {
-
   const ctx = makeContext({ deny: [`Edit(/${bPath})`] })
   primeRead(ctx, aPath, bPath)
   const before = treeDigest()
@@ -219,7 +217,6 @@ console.log('── Z6 cancellation before commit ⇒ zero writes ──')
 
 console.log('── Z7 all-no-change ⇒ ONE truthful no-change effect, zero writes ──')
 {
-
   writeFileSync(aPath, A)
   writeFileSync(bPath, B)
   const ctx = makeContext()

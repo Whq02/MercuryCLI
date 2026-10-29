@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, mkdirSync, readdirSync } from 'node:fs'
 import { join, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'plo-home-'))
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
-
 const stateRoot = mkdtempSync(join(tmpdir(), 'plo-state-'))
 process.env.MERCURY_HEALTH_STATE_DIR = stateRoot
 

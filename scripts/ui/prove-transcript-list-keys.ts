@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 
 import { readFileSync } from 'node:fs'
@@ -66,7 +65,6 @@ section('§3 identity law — appends keep identity, moves and shrinks do not')
   const s2 = reconcileItemKeys(s1, appended, keyOf)
   check('a pure append keeps the array identity and appends one exact key', s2.keys === s1.keys && s2.keys.length === 6 && exact(s2.keys, appended).length === 0)
   check('a pure append returns the prior state object', s2 === s1)
-
   const echoed = [...before, row('user', 'send-echo-1')]
   const s3 = reconcileItemKeys(null, echoed, keyOf)
   const landed = [...before, row('user', '8a716ea4')]
@@ -76,7 +74,6 @@ section('§3 identity law — appends keep identity, moves and shrinks do not')
   const shrunk = before.slice(0, 3)
   const s5 = reconcileItemKeys(s4, shrunk, keyOf)
   check('a shrink truncates to exact keys in a fresh array', s5.keys.length === 3 && exact(s5.keys, shrunk).length === 0 && s5.keys !== s4.keys)
-
   let calls = 0
   const counting = (m: Row): string => {
     calls++
@@ -86,7 +83,6 @@ section('§3 identity law — appends keep identity, moves and shrinks do not')
   const c1calls = calls
   const c2 = reconcileItemKeys(c1, [...before, row('assistant', 'a3')], counting)
   check('unchanged row objects keep their keys without re-deriving (one call for the append)', calls === c1calls + 1 && c2.keys.length === 6, `calls ${calls - c1calls}`)
-
   const other = (m: Row): string => `${m.uuid}:other`
   const c3 = reconcileItemKeys(c2, before, other)
   check('a new key function rebuilds every key', c3.keys.every((k, i) => k === other(before[i]!)) && c3.keyFn === other)
@@ -116,7 +112,6 @@ section('§5 structural — the consumers ride the law')
 
 section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry attempt mounts fresh')
 {
-
   const banner1 = row('system', 'api-error-attempt-1')
   const banner2 = row('system', 'api-error-attempt-2')
   const attempt1 = [...settled, banner1]
@@ -129,7 +124,6 @@ section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry atte
   check('the replaced banner takes its own key — exact at every index', exact(s2.keys, attempt2).length === 0 && s2.keys[4] === keyOf(banner2), JSON.stringify(s2.keys))
   check('a fresh array: the swap is a re-mount, never an in-place reconcile', s2.keys !== s1.keys)
   check('no duplicate sibling keys', dupes(s2.keys).length === 0)
-
   const uiOrder = readFileSync(join(ROOT, 'src/utils/messages/uiOrder.ts'), 'utf8')
   check('uiOrder collapses consecutive banners by replacing the object', uiOrder.includes('result[result.length - 1] = message'))
   const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
@@ -151,7 +145,6 @@ section('§7 the long scrolled window — 400 rows, every live mutation, keys ex
     exact: rows.slice(WINDOW[0], WINDOW[1]).map((m, j) => (keys[WINDOW[0] + j] === keyOf(m) ? -1 : WINDOW[0] + j)).filter(i => i >= 0),
     dupes: dupes(keys.slice(WINDOW[0], WINDOW[1])),
   })
-
   const long: Row[] = []
   for (let t = 0; long.length < N - 1; t++) {
     long.push(row('user', `u${t}`), row('assistant', `a${t}`), row('grouped_tool_use', `grouped-tu${t}`), row('turn_receipt', `u${t}-turn-receipt`))

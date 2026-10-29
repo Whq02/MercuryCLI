@@ -13,6 +13,7 @@ import { extractTag } from '../../utils/messages.js'
 import { SearchResultSummary } from '../GrepTool/UI.js'
 import type { Output } from './GlobTool.js'
 
+
 type GlobRenderInput = { pattern?: string; path?: string }
 
 export function userFacingName(): string {
@@ -46,12 +47,10 @@ export function renderToolResultMessage(
   opts: { verbose: boolean; isTranscriptMode?: boolean },
 ): React.ReactNode {
   const { filenames } = output
-
   const trailer =
     typeof output.durationMs === 'number' && output.durationMs > 0
       ? `${Math.round(output.durationMs)}ms`
       : undefined
-
   const revealed = (opts.verbose && filenames.length > 0) || (opts.isTranscriptMode === true && filenames.length > 0)
   return (
     <SearchResultSummary

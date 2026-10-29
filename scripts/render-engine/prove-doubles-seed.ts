@@ -45,7 +45,6 @@ section('§1 the folded drive: constant-1 paint census over the wire-replay shap
     null
 
   for (let round = 1; round <= ROUNDS; round++) {
-
     for (let r = 1; r <= round; r++) {
       const { row, outcome } = ingestion.ingest({
         foldKey: `round${r}/assistant/0`,
@@ -53,7 +52,6 @@ section('§1 the folded drive: constant-1 paint census over the wire-replay shap
         text: `SETLD-${r} the reply of round ${r}`,
       })
       if (outcome === 'recorded') {
-
         const batch = {
           seq: engine.nextSeq(),
           widthEpoch: engine.widthEpoch(),
@@ -65,17 +63,14 @@ section('§1 the folded drive: constant-1 paint census over the wire-replay shap
         lastBatch = batch
       }
     }
-
     if (lastBatch) {
       const framesBefore = engine.metrics().framesComposed
       const ack = engine.submitSettled(lastBatch)
       if (ack.kind !== 'repeat') curveHolds = false
       clock.advance(50)
-
       if (engine.ledgerRef().size() !== settledTexts.length) repeatsPainted++
       void framesBefore
     }
-
     const live: UnsettledTurn = { identity: `live-${round}`, text: `tail-${round}` }
     engine.updateTail({ streamRows: [`tail-${round} composing`], statusRows: ['status'] })
     clock.advance(40)
@@ -102,7 +97,6 @@ section('§1 the folded drive: constant-1 paint census over the wire-replay shap
   check('retries acknowledged without settling', repeatsPainted === 0)
   check('the E10 agreement assertion stayed silent all drive', agreementSilent)
   check('no flatness drops were needed on the folded path', violations === 0)
-
   const raw = sink.text()
   let rawOnce = true
   for (const text of settledTexts) {
@@ -125,7 +119,6 @@ section('§2 the harness bites: the unfolded control shows the rising curve')
     profile: { syncOutput: false, syncWhy: 'fixture' },
     clock,
   })
-
   let mint = 0
   for (let round = 1; round <= 4; round++) {
     for (let r = 1; r <= round; r++) {

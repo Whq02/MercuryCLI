@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -54,7 +53,6 @@ const WORDS = NOTE.split(' ').slice(0, 4).join(' ')
 function Host({ store }: { store: TailStore }): React.ReactElement {
   return h(Box as never, { flexDirection: 'column' }, h(LiveStreamingTail as never, { store }), h(Text as never, {}, MARKER))
 }
-
 async function paintBlock(phase: 'commentary' | 'final_answer' | null, text = NOTE): Promise<{ store: TailStore; frame: string; unmount: () => Promise<void> }> {
   const store = createStreamingTailStore()
   const instance = await render(
@@ -74,7 +72,6 @@ async function paintBlock(phase: 'commentary' | 'final_answer' | null, text = NO
     },
   }
 }
-
 const inkOfRow = (frame: string, needle: string): string => {
   const row = frame.split('\n').find(l => strip(l).includes(needle)) ?? ''
   return (row.match(/\x1b\[[0-9;]*m/g) ?? []).join('')

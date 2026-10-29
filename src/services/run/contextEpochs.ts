@@ -1,3 +1,4 @@
+
 import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
@@ -24,9 +25,7 @@ interface ContextEpochState {
   lastAppliedPlanDigest: string | null
   lastAppliedPlanAt: number | null
   lastTransition: ContextTransition | null
-
   capsule: { version: 1; state: 'installed' | 'degraded' | 'none'; reason: string }
-
   degraded: string[]
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -59,11 +58,9 @@ section('H1 — the owner')
 
 section('H2 — a fresh project: the spec in the folder, every local store in the home')
 {
-
   const specDir = apolloSpecDirectory(REPO)
   mkdirSync(specDir, { recursive: true })
   writeFileSync(join(specDir, 'spec.md'), '# the spec\n')
-
   const runDir = join(workflowRunsRoot(REPO), 'run-1')
   mkdirSync(runDir, { recursive: true })
   writeFileSync(join(runDir, 'run.json'), '{}\n')
@@ -101,7 +98,6 @@ section('H2 — a fresh project: the spec in the folder, every local store in th
 
 section('H3 — the migration: read once, the folder copy stays, /health names it')
 {
-
   const REPO2 = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-repo2-')))
   const git2 = (...args: string[]): string => execFileSync('git', args, { cwd: REPO2, encoding: 'utf8' })
   git2('init', '-q')
@@ -120,7 +116,6 @@ section('H3 — the migration: read once, the folder copy stays, /health names i
   check('/health\'s Project estate row warns and names them', estate.status === 'warn' && (estate.evidence ?? '').includes('.mercury/reviews'), JSON.stringify(estate))
   check('…with the one git line that untracks the tracked ones', /git rm -r --cached ".mercury\/reviews"/.test(estate.fix ?? ''), estate.fix)
   check('…and the words that Mercury deletes nothing', /never deletes/.test(estate.detail ?? ''), estate.detail)
-
   writeFileSync(join(homeReviews, 'latest.json'), 'home rows\n')
   check('a later touch never overwrites the home copy', homeStores.projectHomeStore(REPO2, 'reviews') === homeReviews && readFileSync(join(homeReviews, 'latest.json'), 'utf8') === 'home rows\n')
   rmSync(join(REPO2, '.mercury', 'reviews'), { recursive: true, force: true })

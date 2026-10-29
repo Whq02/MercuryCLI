@@ -9,6 +9,7 @@ import { posixPathToWindowsPath } from './windowsPaths.js'
 
 export { sanitizePath } from './sessionStoragePortable.js'
 
+
 function defaultBaseDir(): string {
   try {
     return getCwd()
@@ -40,7 +41,6 @@ export function controlCharacterPathRefusal(path: string | undefined): string | 
 export function expandPath(path: string, baseDir: string = defaultBaseDir()): string {
   if (typeof path !== 'string') throw new TypeError(`expandPath: expected a string path, received ${typeof path}`)
   if (typeof baseDir !== 'string') throw new TypeError(`expandPath: expected a string base directory, received ${typeof baseDir}`)
-
   if (hasNulByte(path) || hasNulByte(baseDir)) throw new Error(NUL_PATH_MESSAGE)
   if (path.trim() === '') return normalize(baseDir).normalize('NFC')
   const trimmed = path.trim()
@@ -86,6 +86,5 @@ export function containsPathTraversal(path: string): boolean {
 
 export function normalizePathForConfigKey(path: string): string {
   const key = normalize(path).replace(/\\/g, '/')
-
   return key.replace(/^([a-z]):\//, (_, letter: string) => `${letter.toUpperCase()}:/`)
 }

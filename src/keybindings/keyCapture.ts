@@ -1,3 +1,4 @@
+
 import type { Key } from '../ink.js'
 
 type KeyCaptureFn = (input: string, key: Key) => void

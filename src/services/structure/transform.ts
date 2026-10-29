@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -27,6 +28,7 @@ export interface Edit {
 export function digestOf(text: string): string {
   return createHash('sha1').update(text).digest('hex').slice(0, 16)
 }
+
 
 function nameNodeOf(ts: TsModule, node: TS.Node): TS.Node[] {
   const named = node as { name?: TS.Node }
@@ -77,7 +79,6 @@ function editsForMatch(
       }))
     }
     case 'remove': {
-
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || node.parent === undefined || ts.isSourceFile(node.parent) || (ts.isBlock(node.parent) && ts.isStatement(node as TS.Statement))) {
         const r = lineExtendedRange(text, start, end)
         return [{ start: r.start, end: r.end, newText: '' }]
@@ -95,7 +96,6 @@ function editsForMatch(
         return { refuse: `${match.id}: replace-import needs an import-declaration match` }
       }
       const spec = node.moduleSpecifier
-
       return [{ start: spec.getStart(sourceFile) + 1, end: spec.getEnd() - 1, newText: transform.module }]
     }
     case 'replace-callee': {
@@ -124,7 +124,6 @@ function editsForMatch(
     }
     case 'insert-before':
     case 'insert-after':
-
       return [insertionEdit(text, start, end, transform.action, transform.text)]
   }
 }
@@ -148,6 +147,7 @@ function insertionEdit(
   const prefix = e >= text.length && text.length > 0 && !text.endsWith('\n') ? '\n' : ''
   return { start: e, end: e, newText: prefix + block }
 }
+
 
 interface PreviewRefusal {
   state: 'refused'
@@ -278,17 +278,16 @@ export function buildPreview(
     totalChangedLines: files.reduce((n, f) => n + f.changedLines, 0),
     diagnosticsPlanned: files.map(f => f.file),
   }
-
   Object.defineProperty(preview, '_originals', { value: originals, enumerable: false })
   rememberPreview(owner, preview)
   return preview
 }
 
+
 interface ApplyOutcome {
   state: 'applied'
   preview: StructurePreview
   changedPaths: string[]
-
   diagnostics: { file: string; ok: boolean; message?: string }[]
   evidenceRefs: string[]
 }

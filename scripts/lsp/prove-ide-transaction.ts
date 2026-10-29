@@ -32,7 +32,6 @@ async function main(): Promise<void> {
       'apply:true INPUT no longer classifies as a mutation',
       v.isMutationToolCall('LSP', { operation: 'rename', apply: true }) === false,
     )
-
     observeToolTerminal({
       owner,
       toolName: 'LSP',
@@ -54,7 +53,6 @@ async function main(): Promise<void> {
       'a FAILED apply records zero mutations',
       v.verificationSummary(tmp, { skipDigest: true, owner }).mutationsSinceEvidence === 0,
     )
-
     observeToolTerminal({
       owner,
       toolName: 'LSP',
@@ -76,7 +74,6 @@ async function main(): Promise<void> {
       'a no-change observation records zero mutations',
       v.verificationSummary(tmp, { skipDigest: true, owner }).mutationsSinceEvidence === 0,
     )
-
     observeToolTerminal({
       owner,
       toolName: 'LSP',
@@ -137,7 +134,6 @@ async function main(): Promise<void> {
     const { registerPendingLSPDiagnostic, _publishListenerCountForTesting } = await import(
       '../../src/services/lsp/LSPDiagnosticRegistry.js'
     )
-
     const fakeManager = {
       getServerForFile: () => ({ name: 'fake', generation: 1, capabilities: {} }),
       getDocumentVersion: () => 3,
@@ -148,7 +144,6 @@ async function main(): Promise<void> {
       deadlineMs: 1_500,
       quietWindowMs: 100,
     })
-
     setTimeout(() => {
       registerPendingLSPDiagnostic({
         serverName: 'fake',
@@ -170,7 +165,6 @@ async function main(): Promise<void> {
       JSON.stringify(outcome),
     )
     check('the barrier unsubscribes (no leak)', _publishListenerCountForTesting() === before)
-
     const silent = await awaitDiagnosticStabilization(fakeManager, '/tmp/push-lane/other.py', {
       deadlineMs: 300,
       quietWindowMs: 100,

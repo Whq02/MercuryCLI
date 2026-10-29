@@ -1,3 +1,4 @@
+
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { registerResourceAdapter } from '../registry.js'
@@ -105,7 +106,6 @@ export function jsonlConciseRows(file: string): string[] {
                 : ''
         rows.push(withEffort(`${type}: → ${block.name}${target ? ` ${target}` : ''}`))
       } else if (block.type === 'tool_result') {
-
         const raw = block.content
         const text =
           typeof raw === 'string'
@@ -179,7 +179,6 @@ export const transcriptAdapter: ResourceAdapter = {
       }
       const rows = jsonlConciseRows(agentFile)
       const view = boundedTextView(rows.join('\n'), ref.selectors, 100)
-
       const registryStatus = stem.startsWith('agent-') ? registryStatusOf(ctx, stem.slice('agent-'.length)) : null
       const status = registryStatus !== null ? agentStatusWord(registryStatus) : transcriptEndWords((await readAgentTranscript(agentFile))?.end)
       return {
@@ -202,7 +201,6 @@ export const transcriptAdapter: ResourceAdapter = {
     }
   },
   async list(ctx) {
-
     const children: ResourceChild[] = []
     if (!projectIntelEnabled()) return children
     try {

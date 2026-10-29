@@ -1,3 +1,4 @@
+
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -60,6 +61,7 @@ function abortOf(context: Partial<ToolUseContext>): { signal?: AbortSignal } {
   return signal === undefined ? {} : { signal }
 }
 
+
 const retainSchema = lazySchema(() =>
   z.strictObject({
     items: z
@@ -110,7 +112,6 @@ export const RetainTool = buildTool({
     return memoryVerbsEnabled()
   },
   isConcurrencySafe() {
-
     return false
   },
   isReadOnly() {
@@ -193,6 +194,7 @@ export const RetainTool = buildTool({
   renderToolResultMessage: renderRetainResult,
 } satisfies ToolDef<RetainSchema, RetainOutput>)
 
+
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
@@ -212,7 +214,6 @@ export type RecallOutput =
 export const RecallTool = buildTool({
   name: RECALL_TOOL_NAME,
   searchHint: 'search project memory with stable ids and provenance',
-
   maxResultSizeChars: RECALL_RESULT_CAP_CHARS,
   shouldDefer: true,
   get inputSchema(): RecallSchema {
@@ -279,6 +280,7 @@ export const RecallTool = buildTool({
   renderToolResultMessage: renderRecallResult,
 } satisfies ToolDef<RecallSchema, RecallOutput>)
 
+
 const reflectSchema = lazySchema(() =>
   z.strictObject({
     query: z.string().describe('The question to answer over memory.'),
@@ -324,7 +326,6 @@ export const ReflectTool = buildTool({
     if (recall.hits.length === 0) {
       return { data: { mode: 'recall-only' as const, degradedReason: 'nothing recalled — nothing to synthesize', recall } }
     }
-
     let pendingIndex = 0
     const citable = new Set<string>()
     const sheetLines: string[] = []
@@ -407,6 +408,7 @@ export const ReflectTool = buildTool({
   renderToolResultMessage: renderReflectResult,
 } satisfies ToolDef<ReflectSchema, ReflectOutput>)
 
+
 const correctSchema = lazySchema(() =>
   z.strictObject({
     op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong (a consolidated row keeps its history; a pending row is a draft and is struck).'),
@@ -431,7 +433,6 @@ export const CorrectTool = buildTool({
     return memoryVerbsEnabled()
   },
   isConcurrencySafe() {
-
     return false
   },
   isReadOnly() {

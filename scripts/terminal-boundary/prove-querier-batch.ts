@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -40,7 +39,6 @@ section('B1 · the boot probe shape: 4 sends + flush = one write, bytes in send 
   check('exactly ONE write for the whole batch (was 5)', writes.length === 1, `writes=${writes.length}`)
   const expected = qs.map(q => q.request).join('') + SENTINEL
   check('the write is byte-identical to the per-send stream (requests then sentinel)', writes[0] === expected, JSON.stringify({ got: writes[0], expected }).slice(0, 240))
-
   querier.onResponse({ type: 'xtversion', name: 'FixtureTerm 1.0' } as never)
   querier.onResponse({ type: 'da1', params: [62, 22] } as never)
   const [version, background, sync, kitty] = await Promise.all(promises)
@@ -68,7 +66,6 @@ section('B3 · batch isolation and cross-batch byte order')
     writes[0] === '\x1b[?2026$p' + SENTINEL && writes[1] === '\x1b[?2027$p' + SENTINEL,
     JSON.stringify(writes),
   )
-
   querier.onResponse({ type: 'da1', params: [62] } as never)
   const aVal = await qa
   await f1

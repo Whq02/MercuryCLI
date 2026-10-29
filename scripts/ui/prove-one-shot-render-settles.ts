@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -20,7 +19,6 @@ if (process.argv[2] === '--child') {
   }
   process.env.FORCE_COLOR = '3'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { streamRenderedMessages } = await import('../../src/utils/exportRenderer.tsx')
@@ -101,7 +99,6 @@ const reference = frames.get('force') ?? ''
 for (const arm of ARMS.slice(1)) {
   const frame = frames.get(arm.name) ?? ''
   if (arm.name === 'tmux') {
-
     const sgrCount = (s: string): number => (s.match(/\x1b\[[0-9;]*m/g) ?? []).length
     check(`${arm.name}: the same settled text and the same style transitions as the forced-on arm (only the colour form follows the terminal)`, stripAnsi(frame) === stripAnsi(reference) && sgrCount(frame) === sgrCount(reference), `${sgrCount(frame)} vs ${sgrCount(reference)} transitions`)
     continue

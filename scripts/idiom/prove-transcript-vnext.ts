@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, writeFileSync, appendFileSync, truncateSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -177,7 +176,6 @@ section('§E — the non-record format refusal; torn record tails recover')
   check('the torn tail is position-classified, prior records decode', torn.malformed.length === 1 && torn.entries.length >= 3, `malformed=${torn.malformed.length}`)
 }
 {
-
   const complete = readFileSync(fileA, 'utf8').split('\n').filter(l => {
     if (!l.trim()) return false
     try { JSON.parse(l); return true } catch { return false }

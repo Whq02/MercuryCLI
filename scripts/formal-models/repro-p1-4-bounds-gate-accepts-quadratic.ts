@@ -21,7 +21,6 @@ t.section('§1 — the live gate no longer relies on one loose ratio allowance')
 
 t.section('§2 — the gate rejects a seeded quadratic (the slope-envelope certificate)')
 {
-
   const gateSrc = readFileSync(join(ROOT, 'scripts/interview/prove-resume-bounds.ts'), 'utf8')
   t.check('the gate measures an operation-count slope envelope', gateSrc.includes('SLOPE_MAX') && gateSrc.includes('opsFor'))
   t.check('the gate carries the seeded-quadratic rejection certificate', gateSrc.includes('REJECTS the seeded quadratic') && gateSrc.includes('quadOps'))

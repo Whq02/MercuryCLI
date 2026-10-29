@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -39,7 +38,6 @@ function shoot(cols: number, rows: number): string {
   const grid = `/tmp/model-picker-tail-${cols}x${rows}.json`
   const cfg = {
     argv: ['node', BIN, '--resume', SID],
-
     sends: [
       { atTick: 30, data: '/model', awaitText: '❯', minTick: 5 },
       { afterPrevTicks: 6, data: '\r' },
@@ -79,14 +77,11 @@ function expect(label: string, cond: boolean, detail = ''): void {
 for (const [cols, rows] of [[120, 44], [80, 24]] as const) {
   const scr = shoot(cols, rows)
   const lines = scr.split('\n')
-
   const compactTier = !/│\s+╭/.test(scr)
   console.log(`\n── @ ${cols}×${rows} (${compactTier ? 'compact' : 'full'} tier) ──`)
   expect('the picker mounted', /Mercury · model/.test(scr))
-
   const lastInk = [...lines].reverse().find(l => l.trim().length > 0) ?? ''
   expect('the panel closes on screen (bottom-most ink is its ╰ border)', lastInk.includes('╰'), JSON.stringify(lastInk.slice(0, 60)))
-
   if (compactTier) {
     expect('compact: the focused (❯) row is on screen', lines.some(l => l.includes('❯')))
     expect('compact: the footer hints survive below the rows', /esc (?:or click outside )?closes/.test(scr))

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -24,7 +23,6 @@ section('§1 age-due fires WITHOUT a new observation (the age-due class)')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-mnt1-'))
   mkdirSync(dir, { recursive: true })
-
   writeFileSync(
     join(dir, 'current.jsonl'),
     JSON.stringify({ ts: new Date(Date.now() - 25 * 3600_000).toISOString(), source: 'old-session', text: 'aged fact', topicHint: 'aging' }) + '\n',
@@ -43,7 +41,6 @@ section('§2 dead-holder lock reaped fast; LIVE holder respected')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-mnt2-'))
   appendObservation({ text: 'fact behind a dead lock', source: 's', topicHint: 'locks' }, dir)
-
   const deadPid = await new Promise<number>(res => {
     const c = spawn(process.execPath, ['-e', 'process.exit(0)'], { stdio: 'ignore' })
     c.on('close', () => res(c.pid!))
@@ -58,7 +55,6 @@ section('§2 dead-holder lock reaped fast; LIVE holder respected')
   const out = await runDueMaintenance('turn-end', { dir, force: true })
   check('maintenance reaped the dead lock and consolidated', out.ran && out.consolidated === true, JSON.stringify(out))
   check('lock gone', !existsSync(lock))
-
   mkdirSync(lock, { recursive: true })
   writeFileSync(join(lock, 'pid'), String(process.pid))
   appendObservation({ text: 'fact behind a live lock', source: 's', topicHint: 'locks' }, dir)
@@ -96,14 +92,12 @@ section('§3 crash recovery is EXACTLY-ONCE (manifest dedup; §F dup → 0)')
       })
     })
     if (!finished) killedMid++
-
     const lock = join(dir, '.consolidate.lock')
     if (existsSync(lock)) {
       const old = new Date(Date.now() - 30_000)
       utimesSync(lock, old, old)
     }
     await runDueMaintenance('boot', { dir, force: true })
-
     const texts = new Map<string, number>()
     for (const d of listTopicDocs(dir)) {
       const raw = readFileSync(join(dir, `topic-${d.slug}.md`), 'utf8')

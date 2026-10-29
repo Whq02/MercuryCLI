@@ -4,6 +4,7 @@ import { describeInvalidArgTypeError, isAbortError, ShellError } from './errors.
 import { INTERRUPT_MESSAGE } from './messages/rejectionText.js'
 import { OUTPUT_HEAD_SHARE } from './shell/outputLimits.js'
 
+
 const MAX_ERROR_LENGTH = 10_000
 const ERROR_HEAD = 5_000
 const ERROR_TAIL = 5_000
@@ -38,7 +39,6 @@ export function cutAroundSpillNotice(content: string, maxLength: number): string
 
 function getErrorParts(error: Error): string[] {
   if (error instanceof ShellError) {
-
     const headline =
       !error.interrupted && Number.isFinite(error.code) && error.code !== 0
         ? `${error.message} (exit code ${error.code})`
@@ -207,7 +207,6 @@ export function formatZodValidationError(
   const issues = error.issues.filter(issue => !((issue.code === 'too_small' || issue.code === 'too_big') && mistyped.has(formatIssuePath(issue.path))))
   const lines = issues.flatMap(issue => formatIssue(issue as IssueLike, inputSchema, toolName))
   if (lines.length === 0) {
-
     return error.message
   }
   const noun = lines.length === 1 ? 'issue' : 'issues'

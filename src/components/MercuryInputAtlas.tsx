@@ -39,6 +39,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 
+
 const CHORD_WIDTH = 16
 const ACTION_WIDTH = 26
 const QUERY_WIDTH = 44
@@ -73,7 +74,6 @@ export function MercuryInputAtlas({
   const kb = useKeybindingContext()
   const termRows = useTerminalSize().rows
   const cockpitActive = React.useContext(CockpitActiveContext)
-
   const overlayToken = useRegisterOverlay('input-atlas', true, { ownsPageKeys: true })
 
   const [query, setQuery] = useState('')
@@ -148,7 +148,6 @@ export function MercuryInputAtlas({
         result,
         {
           defaultCount,
-
           passesThroughToEditor: !unboundConsumes(input, key),
         },
       )
@@ -157,7 +156,6 @@ export function MercuryInputAtlas({
         setPending(result.pending)
         return
       }
-
       setPending(null)
       setMode('browse')
     },
@@ -222,7 +220,6 @@ export function MercuryInputAtlas({
       if (mode !== 'browse') return
       const action = decodeNavKey(input, key, { orientation: 'vertical', pageKeys: true })
       if (action === 'cancel') {
-
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
         event.stopImmediatePropagation()
         onClose()
@@ -273,12 +270,10 @@ export function MercuryInputAtlas({
     },
     { context: 'Atlas' },
   )
-
   const lookupChord = useShortcutDisplay('atlas:lookup', 'Atlas', 'ctrl+l')
   const rebindChord = useShortcutDisplay('atlas:rebind', 'Atlas', 'ctrl+r')
 
   const liveContexts = Array.from(kb.activeContexts)
-
   const footer =
     mode === 'lookup'
       ? 'press the chord you want explained · esc back'
@@ -409,7 +404,6 @@ function RowDetail({
       tone: row.reserved.severity === 'error' ? t.failure : t.warning,
     })
   }
-
   if (row.delivery?.status === 'aliases-to') {
     lines.push({
       text: row.collidesWith
@@ -478,3 +472,4 @@ function LookupView({
     </Box>
   )
 }
+

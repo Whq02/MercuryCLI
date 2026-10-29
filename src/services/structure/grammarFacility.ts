@@ -1,3 +1,4 @@
+
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
@@ -8,6 +9,7 @@ import { logForDebugging } from '../../utils/debug.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
+
 
 export interface TSNode {
   type: string
@@ -45,6 +47,7 @@ interface TreeSitterModule {
   Language: { load(p: string): Promise<unknown> }
 }
 
+
 import { GRAMMAR_REGISTRY, type GrammarRegistryEntry } from './grammarRegistry.js'
 
 export type PolyglotLanguage = GrammarRegistryEntry
@@ -59,7 +62,6 @@ for (const lang of POLYGLOT_LANGUAGES) {
 }
 
 export function languageForFile(fileName: string): PolyglotLanguage | null {
-
   const byBase = BASENAME_TO_LANG.get(path.basename(fileName).toLowerCase())
   if (byBase) return byBase
   return EXT_TO_LANG.get(path.extname(fileName).toLowerCase()) ?? null
@@ -68,6 +70,7 @@ export function languageForFile(fileName: string): PolyglotLanguage | null {
 export function languageByName(name: string): PolyglotLanguage | null {
   return POLYGLOT_LANGUAGES.find(l => l.name === name) ?? null
 }
+
 
 interface EngineResolution {
   state: 'ok'
@@ -95,7 +98,6 @@ export function resolveGrammarEngineDir(): EngineResolution | EngineUnavailable 
   }
   const vendored = path.resolve(__dirname, 'vendor', 'treesitter')
   if (isEngineDir(vendored)) return { state: 'ok', dir: vendored, source: 'vendored' }
-
   let dir = path.resolve(__dirname)
   for (let i = 0; i < 6; i++) {
     const candidate = path.join(dir, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
@@ -114,15 +116,14 @@ export function resolveGrammarEngineDir(): EngineResolution | EngineUnavailable 
   }
 }
 
+
 interface LoadedEngine {
   state: 'ok'
   dir: string
   source: EngineResolution['source']
   parser: TSParser
   loadLanguage(lang: PolyglotLanguage): Promise<unknown | { state: 'unavailable'; note: string }>
-
   resetParser(): void
-
   poisoned?: boolean
 }
 
@@ -164,10 +165,8 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
     let mod: TreeSitterModule
     try {
       const req = createRequire(path.join(dir, 'tree-sitter.js'))
-
       const target: string = path.join(dir, 'tree-sitter.js')
       const raw = req(target) as TreeSitterModule & { default?: TreeSitterModule }
-
       mod = raw?.Parser ? raw : (raw?.default ?? raw)
     } catch (err) {
       return { state: 'unavailable', note: `tree-sitter loader failed to load from ${dir}: ${(err as Error).message}` }
@@ -205,14 +204,12 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
         if (!existsSync(wasmPath)) {
           return { state: 'unavailable' as const, note: `grammar '${lang.name}' missing (${lang.wasm} not in ${dir})` }
         }
-
         if (lang.fragile) {
           const verdict = probeFragileGrammarOnce(lang.name, dir, wasmPath, lang.fragile.reason)
           if (verdict !== null) return verdict
         }
         try {
           const loaded = await withLibraryChannelsRouted(() => mod.Language.load(wasmPath))
-
           const declared = (loaded as { name?: unknown } | null)?.name
           if (typeof declared === 'string' && declared.length > 0) {
             const fold = (n: string): string => n.toLowerCase().replace(/[-_]/g, '')
@@ -235,6 +232,7 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
   })()
   return enginePromise
 }
+
 
 const fragileProbeVerdicts = new Map<string, { state: 'unavailable'; note: string } | null>()
 
@@ -264,9 +262,7 @@ function probeFragileGrammarOnce(
   if (remembered !== undefined) return remembered
   let verdict: { state: 'unavailable'; note: string } | null
   try {
-
     const probe = spawnSync(process.execPath, ['-e', FRAGILE_PROBE_SOURCE, dir, wasmPath], {
-
       env: process.env,
       timeout: 30_000,
       stdio: 'ignore',
@@ -300,9 +296,9 @@ export function _resetGrammarEngineForTesting(): void {
   enginePromise = null
 }
 
+
 interface PolyglotParse {
   tree: TSTree
-
   parseErrors: string[]
 }
 
@@ -330,7 +326,6 @@ export async function parsePolyglot(
   lang: PolyglotLanguage,
   text: string,
 ): Promise<PolyglotParse | { state: 'unavailable'; note: string }> {
-
   if (engine.poisoned) {
     const fresh = await loadGrammarEngine()
     if (fresh.state === 'unavailable') return fresh
@@ -345,7 +340,6 @@ export async function parsePolyglot(
     engine.parser.setLanguage(language)
     tree = engine.parser.parse(text)
   } catch (err) {
-
     engine.poisoned = true
     engine.resetParser()
     enginePromise = null
@@ -356,7 +350,6 @@ export async function parsePolyglot(
     }
   }
   if (!tree) return { state: 'unavailable', note: `the ${lang.name} parser returned no tree` }
-
   let parseErrors: string[] = []
   if (tree.rootNode.hasError) {
     parseErrors = collectParseErrors(tree.rootNode)

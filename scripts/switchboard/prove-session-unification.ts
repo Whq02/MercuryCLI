@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawn } from 'node:child_process'
 import {
   cpSync,
@@ -38,7 +37,6 @@ const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } = await import('../lib/captureDriver.ts')
-
 const PACE = vshotBudgetScale()
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -65,7 +63,6 @@ seedFirstRun(TEMPLATE, [CWD])
 const REPLY_1 = 'The blank chat became a session. Hello from the runner.'
 type FixtureApi = Awaited<ReturnType<typeof startFixtureApi>>
 const BIN_UNDER_TEST = process.env.MERCURY_UNIFY_BIN ?? BIN
-
 const MODE = process.env.MERCURY_UNIFY_MODE ?? 'full'
 const TIMING_RUNS = Number(process.env.MERCURY_UNIFY_TIMING_RUNS ?? '5')
 
@@ -76,13 +73,9 @@ type Drive = {
   cols: number
   rows: number
   argv?: string[]
-
   argvWhole?: string[]
-
   env?: Record<string, string>
-
   prepare?: (home: string) => void
-
   during?: (home: string, rigPid: number) => Promise<void>
   sends: Send[]
   ready?: string
@@ -105,9 +98,7 @@ type DriveResult = {
 function g(needle: string, data: string, extra: Send = {}): Send {
   return { requireAwait: true, awaitText: needle, awaitSettleTicks: 2, data, ...extra }
 }
-
 const composerLive: Send = { atTick: 200, awaitRaw: `${ESC}[?2004h`, minTick: 30, awaitSettleTicks: 6, data: '' }
-
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const BASE_AB = process.env.MERCURY_UNIFY_BASE === '1'
 const enterNewChat: Send[] =
@@ -120,7 +111,6 @@ async function runDrive(drive: Drive): Promise<DriveResult> {
   const home = join(SCRATCH, `home-${drive.id}`)
   cpSync(TEMPLATE, home, { recursive: true })
   drive.prepare?.(home)
-
   if (drive.argv?.includes('RESUMED_SID')) {
     const sid = Object.values(readSessionWorkers(join(home, 'daemon')))[0]?.sessionId ?? transcriptsOf(home)[0]?.replace(/^.*\//, '').replace(/\.jsonl$/, '') ?? ''
     resumedSids.set(`${drive.cols}x${drive.rows}`, sid)
@@ -146,7 +136,6 @@ async function runDrive(drive: Drive): Promise<DriveResult> {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
-
       MERCURY_LIVE_GLYPHS: '0',
       MERCURY_LIVE_CLOCK: '0',
       MERCURY_CRITTER_IDLE: '0',
@@ -161,7 +150,6 @@ async function runDrive(drive: Drive): Promise<DriveResult> {
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
-
   const during = drive.during !== undefined ? drive.during(home, child.pid ?? 0).catch(() => {}) : Promise.resolve()
   const captured = new Promise<DriveResult>(resolvePromise => {
     let tail = ''
@@ -235,7 +223,6 @@ function transcriptsOf(home: string): string[] {
   const out: string[] = []
   for (const project of readdirSync(dir)) {
     const pdir = join(dir, project)
-
     for (const f of readdirSync(pdir)) if (f.endsWith('.jsonl') && !f.endsWith('.receipts.jsonl')) out.push(join(pdir, f))
   }
   return out
@@ -283,7 +270,6 @@ for (const [cols, rows] of [
     assert: async r => {
       printFrame(`u1 ${cols}x${rows}`, r.lines)
       check(`u1 ${cols}x${rows}: the boot landed with the composer live`, r.payload.sendReceipts !== undefined, r.tail.slice(-200))
-
       const born = BASE_AB ? 0 : 1
       const registered = BASE_AB ? liveRecords(r.home) : await waitForBirthRecords(r.home)
       check(`u1 ${cols}x${rows}: ↵ on New Session BIRTHED exactly one session (one live worker record — born = registered)`, Object.keys(registered).length === born, JSON.stringify(Object.keys(registered)))
@@ -339,7 +325,6 @@ for (const [cols, rows] of [
       check(`u2 ${cols}x${rows}: the transcript carries the words and the reply`, body.includes('hello from the boot chat') && body.includes(REPLY_1))
       check(`u2 ${cols}x${rows}: the words echo on screen`, r.text.includes('hello from the boot chat'))
       check(`u2 ${cols}x${rows}: the reply painted`, r.text.includes(REPLY_1))
-
       const slug = basename(getProjectDir(CWD))
       check(`u2 ${cols}x${rows}: the transcript lives under the project's home slug (the one transcript-home law)`, transcripts[0] !== undefined && dirname(transcripts[0]) === join(r.home, 'projects', slug), `${transcripts[0]} vs ${join(r.home, 'projects', slug)}`)
       const req = r.api.messageRequests()[0]
@@ -362,13 +347,11 @@ for (const [cols, rows] of [
     rows,
     argv: ['--resume', 'RESUMED_SID'],
     prepare: home => {
-
       const from = join(SCRATCH, `home-u2-first-message-${cols}x${rows}`)
       for (const sub of ['projects', 'daemon']) {
         removeScratch(join(home, sub))
         if (existsSync(join(from, sub))) cpSync(join(from, sub), join(home, sub), { recursive: true })
       }
-
       if (!existsSync(join(home, 'daemon'))) throw new Error(`u3 needs the u2 drive's home (${from}) — run u2 in the same pass`)
       for (const f of readdirSync(join(home, 'daemon'))) if (!f.endsWith('.json')) removeScratch(join(home, 'daemon', f))
     },
@@ -437,7 +420,6 @@ for (const [cols, rows] of [
       const body = transcripts.map(t => readFileSync(t, 'utf8')).join('\n')
       check(`u4 ${cols}x${rows}: the runner recorded /kill's receipt in the session's own transcript`, body.includes(SESSION_RECEIPT))
       check(`u4 ${cols}x${rows}: /vim's receipt stayed on the screen (never in the session's transcript)`, !body.includes(VIM_RECEIPT))
-
       const afterClear = Object.values(liveRecords(r.home)).filter(x => x.parkedAt === undefined)
       const oldRec = Object.values(readSessionWorkers(join(r.home, 'daemon'))).find(x => x.endedAt === undefined && x.parkedAt !== undefined)
       check(`u4 ${cols}x${rows}: /clear parked the old session (its record stands, parked — never ended, never crashed)`, oldRec !== undefined && oldRec.crash === undefined, JSON.stringify(Object.values(readSessionWorkers(join(r.home, 'daemon'))).map(x => [x.runnerId, x.endedAt !== undefined, x.parkedAt !== undefined])))
@@ -462,16 +444,13 @@ for (const [cols, rows] of [
       ...enterNewChat,
       { afterPrevTicks: 2, data: 'stream a long reply please' },
       { afterPrevTicks: 4, data: '\r' },
-
       g('esc interrupts', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
       g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
-
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 3, data: '\r' },
       g(keyHintLabel('⇧← back'), '', { awaitSettleTicks: 3, mark: 'back' }),
     ],
     ready: 'streaming-word-24',
-
     total: 260,
     turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }],
     assert: async r => {
@@ -484,17 +463,13 @@ for (const [cols, rows] of [
       check(`u5 ${cols}x${rows}: mid-turn the status row shows the turn in flight (the esc rung hint)`, midTurn.includes('esc interrupts'))
       const partialOnScreen = /streaming-word-0[1-9]/.test(midTurn)
       console.log(`  [PAINT] u5 ${cols}x${rows}: partial reply text visible mid-turn: ${partialOnScreen ? 'YES' : 'NO (the reply lands whole when the runner settles it)'}`)
-
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
       check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
-
       check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes(keyHintLabel('⇧← back')) && back.includes('stream a long reply please'))
-
       const backMidTurn = back.includes('esc interrupts')
       console.log(`  [PAINT] u5 ${cols}x${rows}: the hopped-into chat caught the reply ${backMidTurn ? 'MID-TURN (partial words + the live status row)' : 'SETTLED (the hop landed after the settle)'}`)
       check(`u5 ${cols}x${rows}: the hopped-into chat paints the reply's words (the reveal rides the hop)`, /streaming-word-\d\d/.test(back))
       check(`u5 ${cols}x${rows}: the reply settled whole in the chat after the hop`, r.text.includes('streaming-word-24') && r.text.includes('streaming-word-01'))
-
       const promptCount = (frame: string): number => (frame.match(/❯ stream a long reply please/g) ?? []).length
       check(`u5 ${cols}x${rows}: no duplicated rows (the words appear at most once on every frame)`, promptCount(r.text) <= 1 && promptCount(back) <= 1 && promptCount(midTurn) <= 1, `final ${promptCount(r.text)} · back ${promptCount(back)} · mid-turn ${promptCount(midTurn)}`)
       await reapHome(r.home)
@@ -503,7 +478,6 @@ for (const [cols, rows] of [
 }
 
 const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Health Check', 'Session Concourse', 'Sessions · Projects']
-
 const KEY_MAP = keyHintLabel('⇧→ concourse')
 function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))
@@ -511,10 +485,8 @@ function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {})
   const last = r.lines[r.lines.length - 1] ?? ''
   check(`${id}: the dim key-map row sits on the face's LAST row and names the concourse alone (the strip's one present move from a fresh face)`, last.includes(KEY_MAP) && !last.includes('chat'), last.trim().slice(0, 60))
   check(`${id}: the key-map row appears exactly once, outside the card`, r.text.split(KEY_MAP).length - 1 === 1)
-
   if (opts.births !== true) check(`${id}: no session was created by landing on the face (a warm runner's record stands claimless)`, Object.values(liveRecords(r.home)).filter(x => x.warm !== true).length === 0, JSON.stringify(Object.values(liveRecords(r.home)).map(x => ({ id: x.runnerId, warm: x.warm, sid: x.sessionId }))))
 }
-
 for (const [cols, rows] of [
   [120, 42],
   [100, 30],
@@ -587,12 +559,10 @@ function processCensus(home: string, rigPid = 0): { screens: number[]; daemons: 
       }
       const pin = ` MERCURY_CONFIG_DIR=${home}`
       if (!cmd.includes(BIN_UNDER_TEST) || !(cmd.includes(`${pin} `) || cmd.endsWith(pin))) continue
-
       if (cmd.includes(` daemon run ${CWD}`) || cmd.includes(` daemon ${CWD}`)) {
         out.daemons.push(pid)
         continue
       }
-
       if (/ runner( |$)/.test(cmd)) {
         const sid = /--(?:session-id|resume) ([0-9a-f-]{36})/.exec(cmd)
         out.runners.push({ pid, sessionId: sid?.[1] ?? '(claimless argv)' })
@@ -615,11 +585,9 @@ drives.push({
   id: 'u9-terminal-close-120x40',
   cols: 120,
   rows: 40,
-
   during: async (home, rigPid) => {
     const deadline = Date.now() + 60_000
     while (Date.now() < deadline) {
-
       const live = BASE_AB
         ? processCensus(home, rigPid).screens
         : Object.values(liveRecords(home)).filter(x => x.pid !== undefined && isAlive(x.pid))
@@ -635,7 +603,6 @@ drives.push({
     ...enterNewChat,
     { afterPrevTicks: 2, data: 'stay alive for a while' },
     { afterPrevTicks: 4, data: '\r' },
-
     g('esc interrupts', '', { awaitSettleTicks: 4, mark: 'before-close', signal: 'SIGHUP' }),
   ],
   total: 120,
@@ -651,10 +618,8 @@ drives.push({
     if (BASE_AB) {
       check('u9 (base A/B): the census named the screen process alone — no daemon, no runner (as today)', screenPids.length >= 1 && daemonPids.length === 0 && runnerPids.length === 0)
     } else {
-
       check('u9: the census named the screen, ONE owned daemon and the runner(s) before the close', screenPids.length >= 1 && daemonPids.length === 1 && runnerPids.length >= 1)
     }
-
     const started = Date.now()
     const deadline = started + 20_000
     while (Date.now() < deadline && (runnerPids.some(isAlive) || daemonPids.some(isAlive) || screenPids.some(isAlive))) {
@@ -688,7 +653,6 @@ for (const [cols, rows] of [
       ...enterNewChat,
       { afterPrevTicks: 2, data: `count to ${COUNT_N}, sleeping a second between` },
       { afterPrevTicks: 4, data: '\r' },
-
       ...Array.from({ length: 10 }, (_, i) => ({ afterPrevTicks: 5, data: '', mark: `frame-${i + 1}` })),
     ],
     ready: 'count-done',
@@ -722,7 +686,6 @@ for (const [cols, rows] of [
       console.log(`  [PRINT-ONCE] u10 ${cols}x${rows}: ${frames.length} mid-turn frames · doubles ${doubles.length === 0 ? 'NONE' : doubles.join(' ')}`)
       check(`u10 ${cols}x${rows}: the mid-turn frames caught the counting on screen`, frames.length >= 5 && seenAny)
       check(`u10 ${cols}x${rows}: every number paints AT MOST once on every mid-turn frame (no settle ghost beside its own row)`, doubles.length === 0, doubles.join(' '))
-
       const settledCounts = Array.from({ length: COUNT_N }, (_, i) => countOf(r.text, i + 1))
       check(`u10 ${cols}x${rows}: the settled frame paints every visible number exactly once (the last number and the closing reply on screen)`, settledCounts.every(c => c <= 1) && settledCounts[COUNT_N - 1] === 1 && r.text.includes('count-done'), settledCounts.map((c, i) => `${COUNT_WORD(i + 1)}=${c}`).join(' '))
       await reapHome(r.home)
@@ -742,7 +705,6 @@ for (const [cols, rows] of [
       ...enterNewChat,
       { afterPrevTicks: 2, data: 'please write the file' },
       { afterPrevTicks: 4, data: '\r' },
-
       { atTick: 200, awaitText: 'Do you want to', minTick: 5, awaitSettleTicks: 3, data: '1', mark: 'card' },
     ],
     ready: 'Written.',
@@ -790,7 +752,6 @@ for (const [cols, rows] of [[120, 40]] as const) {
       g('Running 1 bash command', '', { awaitSettleTicks: 1, mark: 'running-1' }),
       { afterPrevTicks: 1, data: '', mark: 'running-2' },
       { afterPrevTicks: 1, data: '', mark: 'running-3' },
-
       { atTick: 100, awaitText: 'Round done.', minTick: 5, awaitSettleTicks: 3, data: 'now make the directory' },
       { afterPrevTicks: 3, data: '\r' },
       { atTick: 220, awaitText: 'Do you want to', minTick: 5, awaitSettleTicks: 3, data: '1', mark: 'ask-card', requireAwait: true },
@@ -812,7 +773,6 @@ for (const [cols, rows] of [[120, 40]] as const) {
         whenModel: 'sonnet',
         preText: 'Making it.\n',
         name: 'Bash',
-
         input: { command: 'rm -rf ./round-made-dir' },
       },
       { kind: 'text' as const, whenModel: 'sonnet', text: 'Made it.' },
@@ -853,10 +813,8 @@ if (MODE === 'timing' || MODE === 'full') {
 }
 
 const latencies: number[] = []
-
 const ONLY = (process.env.MERCURY_UNIFY_ONLY ?? '').split(',').map(s => s.trim()).filter(s => s !== '')
 for (const drive of [...(MODE === 'timing' ? [] : drives), ...timingDrives].filter(d => ONLY.length === 0 || ONLY.some(p => d.id.startsWith(p)))) {
-
   if (driver.kind === 'windows-conpty' && drive.sends.some(s => 'signal' in s)) {
     console.log(`\n── ${drive.id} (${drive.cols}x${drive.rows}) [SKIP] a POSIX signal send on the ConPTY engine — the field's close-the-window leg`)
     continue

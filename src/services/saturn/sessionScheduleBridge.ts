@@ -75,6 +75,7 @@ export function sessionScheduleRosterPushedAtMs(): number | null {
   return rosterPushedAtMs
 }
 
+
 export function registerLocalWakeSink(sink: (prompt: string, facts?: LocalWakeFacts) => void): void {
   wakeSink = sink
 }
@@ -98,6 +99,7 @@ export function armLocalWake(delaySeconds: number, prompt: string, facts?: Local
   localWakeTimers.add(timer)
   return { ok: true, atMs }
 }
+
 
 export const WAKE_REASON_ENV_FLAG = 'MERCURY_WAKE_REASON'
 

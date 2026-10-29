@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as net from 'node:net'
@@ -43,7 +42,6 @@ const { resolveAdapter, knownAdapterKeys } = await import(
 const { parseBridgeTarget, isLoopbackHost } = await import(
   '../../src/services/tcpBridge/entry.js'
 )
-
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 
 const scratch = mkdtempSync(path.join(tmpdir(), 'godot-lane-'))
@@ -150,7 +148,6 @@ section('§4 · LSP config shape')
 section('§5 · LIVE bridge (fake TCP LSP server)')
 await (async () => {
   restore()
-
   let sockets: net.Socket[] = []
   const server = net.createServer(socket => {
     sockets.push(socket)
@@ -203,7 +200,6 @@ await (async () => {
     response.includes('"id":7') && response.includes('fake-godot-ls'),
     response.slice(0, 120),
   )
-
   for (const s of sockets) s.end()
   const exitCode = await new Promise<number | null>(res => {
     const t = setTimeout(() => res(-1), 5000)

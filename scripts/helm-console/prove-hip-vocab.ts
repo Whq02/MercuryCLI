@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 delete process.env.MERCURY_HIP
 delete process.env.MERCURY_HIP
@@ -88,7 +87,6 @@ check('QUICKSILVER_SWING bar defined', glyph.includes('const QUICKSILVER_SWING')
 check('cadence prop gates the swing', glyph.includes("cadence === 'quicksilver'"))
 check('reduced-motion path untouched by cadence', /if \(reducedMotion\) \{[\s\S]{0,400}REDUCED_MOTION_DOT/.test(glyph))
 const row = readFileSync('src/components/Spinner/SpinnerAnimationRow.tsx', 'utf8')
-
 check('animation row derives cadence from the displayed head', row.includes('isQuicksilverLine(displayedHead)'))
 check('…and threads it to the glyph', row.includes('cadence={cadence}'))
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
@@ -77,6 +76,7 @@ type TurnObs = {
 
 const ALLOW = ['Bash(ls *)', 'Bash(cat *)', 'Bash(rg *)', 'Bash(grep *)', 'Bash(find *)', 'Bash(git status *)', 'Bash(git log *)']
 
+
 function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> {
   return new Promise(resolveP => {
     const t0 = performance.now()
@@ -117,7 +117,6 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
       () => sendUser('T2-post-reads', 'One line: which file owns geometry?'),
       async () => { await sendModel('opus'); sendUser('T3-explicit-opus', 'One line, from what you already read — no new tool calls: name the exported functions in src/format.ts.') },
       async () => { await sendModel('default'); sendUser('T4-back-to-default', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.') },
-
       () => sendUser('T5-unchanged-dedup', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.'),
     ]
     let step = 0

@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -17,25 +18,20 @@ import { recallAnchoredSnapshot } from './snapshotRing.js'
 import { recoverStaleHunks } from './stalePatchRecovery.js'
 
 interface LoweredMemberMeta {
-
   recovered: boolean
-
   blockNotes: string[]
 }
 
 export interface LoweredPatch {
   ok: true
   members: ChangeSetMemberInput[]
-
   memberMeta: Map<string, LoweredMemberMeta>
-
   registerPublications: Map<string, { content: string; fromPath: string }>
   warnings: string[]
 }
 
 interface LowerFailure {
   ok: false
-
   code:
     | 'stale-anchor'
     | 'register-unknown'
@@ -102,11 +98,8 @@ export function lowerAnchorPatch(parse: AnchorPatchParse, owner: OwnerKey): Lowe
 
   interface Prepared {
     group: FileGroup
-
     snapshot: string
-
     current: string
-
     memberAnchor: string
     recovered: boolean
   }
@@ -296,7 +289,6 @@ export function lowerAnchorPatch(parse: AnchorPatchParse, owner: OwnerKey): Lowe
       memberHunks = outcome.hunks
       warnings.push(...outcome.warnings)
     } else if (prep.recovered && fileOp !== undefined) {
-
       const check = checkAnchor(group.anchor, prep.current, group.path)
       return {
         ok: false,

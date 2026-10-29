@@ -28,7 +28,6 @@ export type SharpFunction = (input?: Buffer | string) => SharpInstance
 type ImageProcessorState =
   | {
       road: 'native'
-
       source: 'vendored' | 'node_modules'
       sharp: string
       libvips: string
@@ -37,7 +36,6 @@ type ImageProcessorState =
   | {
       road: 'javascript'
       reason: string
-
       packDir: string
     }
 

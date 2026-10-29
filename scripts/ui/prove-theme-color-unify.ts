@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,9 +25,7 @@ check('the private chalkForChart const is deleted', !/const chalkForChart\s*=/.t
 check('the chalk/Chalk import is gone (was unused after the deletion)', !/import chalk.*from 'chalk'/.test(themeSrc) && !/\bnew Chalk\(/.test(themeSrc))
 check("the now-unused env import is gone (env.terminal was chalkForChart's only use)", !/import \{ env \} from '\.\/env\.js'/.test(themeSrc))
 check('colorize is imported', /import \{ colorize \} from '\.\.\/ink\/colorize\.js'/.test(themeSrc))
-
 check('themeColorToAnsi routes through colorize and slices the bare opening escape', /export function themeColorToAnsi\(themeColor: string\): string \{[\s\S]{0,400}colorize\(sentinel, themeColor, 'foreground'\)[\s\S]{0,200}painted\.slice\(0, idx\)/.test(themeSrc))
-
 check('NO magenta floor (the floor would leak into a no-color chart + re-desync)', !/\\x1b\[35m/.test(themeSrc))
 
 section('behaviour: chart series === legend bullet (the desync is closed)')
@@ -56,7 +53,6 @@ const bulletEsc = (c: string): string => {
   const wrapped = colorizeMod.applyColor('X', c)
   return wrapped.slice(0, wrapped.indexOf('X'))
 }
-
 const oldChartEsc = (themeColor: string): string => {
   const escFor = (r: number, g: number, b: number): string => `\x1b[38;2;${r};${g};${b}m`
   const m = themeColor.match(/rgb\(\s?(\d+),\s?(\d+),\s?(\d+)\s?\)/)
@@ -110,7 +106,6 @@ check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi
 check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m')
 
 section('behaviour: NO_COLOR (chalk level 0) — no magenta leak, chart === legend')
-
 const childScript =
   `globalThis.MACRO={VERSION:'1.0.0',ISSUES_EXPLAINER:'',PACKAGE_URL:'',README_URL:'',IS_DEV:false,MERCURY_DEMO:false};` +
   `const t=await import(${JSON.stringify(join(root, 'src', 'utils', 'theme.ts'))});` +

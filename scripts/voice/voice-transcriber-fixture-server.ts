@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage } from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -69,7 +68,6 @@ const server = createServer(async (req, res) => {
     return
   }
   if (req.method === 'GET' && /\/v1beta\/models(\?|$)/.test(url)) {
-
     record(`${new Date().toISOString()} GET ${url} catalogue`)
     answer(200, {
       models: [
@@ -79,7 +77,6 @@ const server = createServer(async (req, res) => {
     return
   }
   if (req.method === 'GET' && url.endsWith('/models')) {
-
     record(`${new Date().toISOString()} GET ${url} catalogue`)
     answer(200, { object: 'list', data: [] })
     return

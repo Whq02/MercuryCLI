@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto'
 
+import { randomUUID } from 'node:crypto'
 import '../changeTransaction/receipts.js'
 import { logError } from '../../utils/log.js'
 import { getTaskListId, listTasks } from '../../utils/tasks.js'
@@ -35,7 +35,6 @@ const SUBSTANTIVE_TOOLS = new Set([
 
 interface CoordinatorState {
   snapshot: RunSnapshot | null
-
   persistence: OwnerPersistence<RunSnapshot>
 }
 
@@ -50,12 +49,10 @@ const runs = new OwnerScopedStore<CoordinatorState>({
         saveRunSidecar(o, snapshot, { epoch: ctx.epoch, writerId: ctx.writerId }),
     }),
   }),
-
   dispose: (state, owner) =>
     state.persistence.drain().then(settlement => {
       rememberDegraded(owner, settlement)
     }),
-
   retain: state => state.persistence.hasUncommittedWork(),
 })
 registerOwnerScopedStore(runs)
@@ -101,7 +98,6 @@ function acceptGeneration(owner: OwnerKey, state: CoordinatorState, immediate: b
 export async function flushRun(owner: OwnerKey): Promise<void> {
   const state = runs.peek(owner)
   if (!state) return
-
   rememberDegraded(owner, await state.persistence.flush())
 }
 
@@ -110,7 +106,6 @@ const degradedReceipts = new Map<OwnerKey, LaneSettlement>()
 
 function rememberDegraded(owner: OwnerKey, settlement: LaneSettlement): void {
   if (settlement.state !== 'degraded') {
-
     if (settlement.state === 'settled') degradedReceipts.delete(owner)
     return
   }
@@ -158,6 +153,7 @@ export function noteRunEvent(owner: OwnerKey, event: RunEvent): void {
 export function getRunSnapshot(owner: OwnerKey): RunSnapshot | null {
   return runs.peek(owner)?.snapshot ?? null
 }
+
 
 export function acceptUserRequest(
   owner: OwnerKey,
@@ -251,7 +247,6 @@ export async function syncDeliverablesFromTasks(owner: OwnerKey): Promise<void> 
       })
     }
   }
-
   if (tasks.length === 0 && state.snapshot.deliverables.some(d => d.state === 'open' || d.state === 'in-progress')) {
     try {
       const { readTaskEpoch } = await import('../../utils/tasks.js')
@@ -304,7 +299,6 @@ export type RunReconcileResult =
   | { state: 'unavailable'; reason: string; retryable: boolean }
 
 export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<RunReconcileResult> {
-
   const before = runs.peek(owner)?.snapshot ?? null
   const load: RunSidecarLoad = await loadRunSidecar(owner)
   if ((runs.peek(owner)?.snapshot ?? null) !== before) {
@@ -320,11 +314,9 @@ export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<R
   const state = runs.get(owner)
   state.snapshot = reconcileCompletion(load.snapshot)
   if (isTerminalLifecycle(state.snapshot.lifecycle)) {
-
     return { state: 'terminal', snapshot: state.snapshot }
   }
   const at = Date.now()
-
   state.snapshot = reduceRunEvent(state.snapshot, {
     type: 'interrupted',
     at,
@@ -338,7 +330,6 @@ export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<R
     at,
     reason: 'session resumed — state reconciled before continuing',
   })
-
   if (load.snapshot.lifecycle === 'blocked' && load.snapshot.blocker) {
     state.snapshot = reduceRunEvent(state.snapshot, {
       type: 'blocked',
@@ -368,10 +359,9 @@ export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<R
   return { state: 'reconciled', snapshot: state.snapshot! }
 }
 
+
 export type ResumeFoldNotice = {
-
   interruptedTools: number
-
   blocker: RunBlocker | null
 }
 let resumeFoldNotice: ResumeFoldNotice | null = null
@@ -437,7 +427,6 @@ subscribeToolTerminal(event => {
     })
     return
   }
-
   const input = event.input as { file_path?: unknown; notebook_path?: unknown } | undefined
   const declaredPath =
     typeof input?.file_path === 'string'
@@ -456,7 +445,6 @@ subscribeToolTerminal(event => {
       changedPaths: event.ok && declaredPath ? [declaredPath] : [],
     })
   } else {
-
     noteRunEvent(event.owner, {
       type: 'tool-effected',
       at: Date.now(),

@@ -5,7 +5,7 @@ Before you confirm a confident claim — the operator's or your own — convert 
 </honesty-discipline>`
 
 export function getAntiSycophancyAlwaysOnSection(): string[] {
-
+  
   if (flagEnv('MERCURY_ANTISYC_ALWAYS_ON') !== '1') return []
   return [ANTISYC_ALWAYS_ON_CLAUSE]
 }

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
@@ -12,7 +11,6 @@ import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const t = checker()
 const root = scratchRoot('boot-profiles')
-
 writeFileSync(
   join(root, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -30,7 +28,6 @@ t.section('§2 — atomic monotonic digested receipted saves')
 {
   const first = menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1' }, profilePath)
   t.check('the first save commits revision 1', first.ok === true && first.revision === 1, JSON.stringify(first))
-
   const second = menu.saveBootDefaultsProfile({ MERCURY_DAP: '0' }, profilePath)
   t.check(
     'a second save commits the NEXT monotonic revision with a fresh digest',
@@ -95,7 +92,6 @@ t.section('§4 — at the daemon seam: immutable + resume-retained')
     JSON.stringify(rec().settingsSnapshot) === JSON.stringify(captured),
     'frozen',
   )
-
   settleConcourseWorker(admitted.runnerId, dir)
   liveShorts.delete(admitted.runnerId)
   const readmitted = await admit({ workspaceDir: ws, resumeSessionId: admitted.sessionId })

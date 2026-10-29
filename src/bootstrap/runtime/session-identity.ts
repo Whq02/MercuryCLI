@@ -1,28 +1,22 @@
 import { realpathSync } from 'fs'
 import { cwd } from 'process'
 import type { SessionId } from 'src/types/ids.js'
-
 // eslint-disable-next-line custom-rules/bootstrap-isolation -- the sanctioned crypto leaf (see note)
 import { randomUUID } from 'src/utils/crypto.js'
 import { createSignal } from 'src/utils/signal.js'
 
 export class SessionIdentityOwner {
   originalCwd: string
-
   projectRoot: string
   cwd: string
   sessionId: SessionId
-
   parentSessionId: SessionId | undefined = undefined
-
   sessionProjectDir: string | null = null
-
   readonly planSlugCache: Map<string, string> = new Map()
   private readonly sessionSwitched = createSignal<[id: SessionId]>()
   private readonly cwdChanged = createSignal<[cwd: string]>()
 
   constructor() {
-
     let resolvedCwd = ''
     if (
       typeof process !== 'undefined' &&
@@ -33,7 +27,6 @@ export class SessionIdentityOwner {
       try {
         resolvedCwd = realpathSync(rawCwd).normalize('NFC')
       } catch {
-
         resolvedCwd = rawCwd.normalize('NFC')
       }
     }
@@ -53,12 +46,10 @@ export class SessionIdentityOwner {
 
   setCwdState(nextCwd: string): void {
     this.cwd = nextCwd.normalize('NFC')
-
     this.cwdChanged.emit(this.cwd)
   }
 
   switchSession(sessionId: SessionId, projectDir: string | null = null): void {
-
     this.planSlugCache.delete(this.sessionId)
     this.sessionId = sessionId
     this.sessionProjectDir = projectDir
@@ -71,9 +62,7 @@ export class SessionIdentityOwner {
     if (options.setCurrentAsParent) {
       this.parentSessionId = this.sessionId
     }
-
     this.planSlugCache.delete(this.sessionId)
-
     this.sessionId = randomUUID() as SessionId
     this.sessionProjectDir = null
     return this.sessionId

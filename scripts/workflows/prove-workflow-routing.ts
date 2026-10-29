@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import '../lib/hermetic.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -41,7 +40,6 @@ check('DEFAULT (unset): no tier ⇒ undefined', wr.resolveWorkflowRoutedModel({}
 
 section('flag ON — the executor routes to the NEUTRAL seat default, orchestrator falls through, explicit model wins')
 process.env.MERCURY_WORKFLOW_ROUTING = '1'
-
 const { neutralSeatDefault } = await import('../../src/services/concourse/workerModels.js')
 const neutral = neutralSeatDefault()
 check('executor + no model ⇒ the neutral seat default (undefined with no usable sign-in in this home, never a favoured family)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === (neutral?.setting ?? undefined), JSON.stringify({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), neutral }))
@@ -78,7 +76,6 @@ section('DSL prompt doc ships the tier contract (undocumented VM surface = dead 
 const doc = src('tools', 'WorkflowTool', 'workflowPrompt.ts')
 check("doc carries both tier values as the union 'orchestrator' | 'executor'", /'orchestrator' \| 'executor'/.test(doc))
 check('doc names the opt-in gate (registered spelling) + inertness + explicit-model-wins', /routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1/.test(doc) && /names opts\.model outranks its tier/.test(doc))
-
 check('doctrine section: the operator directs the model per dispatch (no omit-guidance to override) and small-tier agentType pins are banned', /## Mercury workflow authorship doctrine/.test(doc) && /the operator directs models per dispatch/.test(doc) && !/leave opts\.model out/.test(doc) && /never pick an agentType whose definition pins a small-tier model/.test(doc))
 check('doctrine section: verify-stage contract for non-trivial implementation', /A verify stage belongs to the workflow's shape itself/.test(doc) && /an assertion, not evidence/.test(doc))
 check('doctrine appended unconditionally in getWorkflowToolPrompt', /return WORKFLOW_TOOL_PROMPT \+ AUTHORING_DOCTRINE_SECTION/.test(doc))

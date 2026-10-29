@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { copyFileSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,9 +8,7 @@ const SRC = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
 const DIR = realpathSync(mkdtempSync(join(tmpdir(), 'grammar-id-')))
 copyFileSync(join(SRC, 'tree-sitter.js'), join(DIR, 'tree-sitter.js'))
 copyFileSync(join(SRC, 'tree-sitter.wasm'), join(DIR, 'tree-sitter.wasm'))
-
 copyFileSync(join(SRC, 'tree-sitter-python.wasm'), join(DIR, 'tree-sitter-bash.wasm'))
-
 copyFileSync(join(SRC, 'tree-sitter-c-sharp.wasm'), join(DIR, 'tree-sitter-c-sharp.wasm'))
 copyFileSync(join(SRC, 'tree-sitter-typescript.wasm'), join(DIR, 'tree-sitter-typescript.wasm'))
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR

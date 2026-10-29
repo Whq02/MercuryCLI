@@ -8,6 +8,7 @@ const PACKAGE_JSON = `{
 }
 `
 
+
 const REGISTRY_BASE = `// Route-kind registry — the ONE place a kind becomes routable. KIND_ORDER is
 // the maintained default chain order; every registered kind appears in it.
 const KINDS = new Map()
@@ -38,6 +39,7 @@ const REGISTRY_EXTENDED = REGISTRY_BASE.replace(
   `export const KIND_ORDER = ['alpha', 'beta', 'gamma']`,
   `export const KIND_ORDER = ['alpha', 'audit', 'beta', 'gamma', 'replay']`,
 )
+
 
 const ALPHA_BASE = `import { registerKind } from '../registry.js'
 
@@ -169,6 +171,7 @@ export function makeReplay() {
 registerKind('replay', makeReplay)
 `
 
+
 const QUEUE_BASE = `// Redelivery queue for failed handler calls. Bounded: MAX_REDELIVER attempts
 // per event, then the event lands in the dead-letter list.
 export const MAX_REDELIVER = 3
@@ -219,6 +222,7 @@ const QUEUE_LIVE_ITERATION = QUEUE_BASE.replace(
   return results`,
 )
 
+
 const DISPATCH_BASE = `import { makeHandler } from './registry.js'
 import { createQueue, drain, enqueue } from './queue.js'
 
@@ -261,6 +265,7 @@ function handleFailure(dispatcher, handler, event, attempt, error) {
   return { ok: false, queued, message: String(error && error.message) }
 }
 `
+
 
 const DISPATCH_TYPED = `import { makeHandler } from './registry.js'
 import { createQueue, drain, enqueue } from './queue.js'
@@ -338,6 +343,7 @@ const GAMMA_TYPED = GAMMA_BASE.replace(
       return { status: 'buffered' }
     },`,
 )
+
 
 const MW_LOG = `// log middleware: append a trace marker (positional signature).
 export const name = 'log'
@@ -500,6 +506,7 @@ export function runPipeline(event, configs) {
 }
 `
 
+
 const QUEUE_BACKPRESSURE = QUEUE_BASE.replace(
   `// Redelivery queue for failed handler calls. Bounded: MAX_REDELIVER attempts
 // per event, then the event lands in the dead-letter list.
@@ -559,6 +566,7 @@ const QUEUE_BACKPRESSURE_NAIVE = QUEUE_BACKPRESSURE.replace(
   return queue.pending.length >= HIGH_WATER
 }`,
 )
+
 
 const TEST_REGISTRY = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -736,6 +744,7 @@ test('auth drops actor-less events', () => {
 })
 `
 
+
 const TEST_DISPATCH_TYPED = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createDispatcher } from '../src/dispatch.js'
@@ -862,6 +871,7 @@ test('gamma still drains high priority first, FIFO within a band', () => {
 })
 `
 
+
 const TEST_AUDIT = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { KIND_ORDER, knownKinds, makeHandler } from '../src/registry.js'
@@ -905,6 +915,7 @@ test('replay buffers and re-emits in order', () => {
   assert.deepEqual(replay.replay().map(e => e.topic), ['one', 'two'])
 })
 `
+
 
 const TEST_MW_CTX = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -974,6 +985,7 @@ test('pipeline surfaces the typed drop reason', () => {
 })
 `
 
+
 const TEST_REDELIVERY_INTEGRATION = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createDispatcher } from '../src/dispatch.js'
@@ -1007,6 +1019,7 @@ test('redelivery passes are finite and exactly-once per pass', () => {
   assert.equal(dispatcher.queue.pending.length, 0)
 })
 `
+
 
 const TEST_BACKPRESSURE = `import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -1073,6 +1086,7 @@ test('pressure does NOT resume between LOW and HIGH (the hysteresis band)', () =
   assert.equal(dispatcher.dispatch({ topic: 'mid', payload: {} }).accepted, false)
 })
 `
+
 
 const QUEUE_DEADLETTER = QUEUE_BASE + `
 // deadLetters: typed rows for events that exhausted their redeliveries.

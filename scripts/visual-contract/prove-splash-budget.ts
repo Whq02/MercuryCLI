@@ -85,7 +85,6 @@ const r = spawnSync(
       MERCURY_HOME: home,
       MERCURY_HOME: home,
       MERCURY_CONFIG_DIR: home,
-
       MERCURY_LAUNCH_RIPPLE: '0',
     },
     encoding: 'utf8',

@@ -85,6 +85,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 
+
 function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string, string> {
   const out: Record<string, string> = {};
   if (!profile) return out;
@@ -154,7 +155,6 @@ export function BootSettingsScreen({
   fullScene,
 }: {
   onClose?: () => void;
-
   fullScene?: { columns: number; rows: number };
 } = {}): React.ReactNode {
   const t = useMercuryTokens();
@@ -168,7 +168,6 @@ export function BootSettingsScreen({
   const profile = useMemo(() => readBootDefaultsProfile(path), [path, saveTick]);
   const saved = useMemo(() => savedChoicesByRow(profile), [profile]);
   const snapshot = useMemo(
-
     () => bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path }),
     [path, saveTick],
   );
@@ -176,7 +175,6 @@ export function BootSettingsScreen({
     () => new Map(snapshot.rows.map(r => [r.env, r])),
     [snapshot],
   );
-
   const [seatsTick, setSeatsTick] = useState(0);
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null);
   useEffect(() => {
@@ -184,7 +182,6 @@ export function BootSettingsScreen({
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts); });
     return () => { active = false; };
   }, [seatsTick, saveTick]);
-
   const [motionTick, setMotionTick] = useState(0);
   const motionSetting = useMemo(() => readMotionSetting(), [motionTick, saveTick]);
   const [jevTick, setJevTick] = useState(0);
@@ -256,7 +253,6 @@ export function BootSettingsScreen({
         const workers = sup
           .listConcourseWorkers(null)
           .map((rec): WorkerApplySummary => {
-
             const live = spawnSwitchFactsOfRecord(rec);
             const liveValues = {
               [SPAWN_SWITCH_ENV.subagents]: live.subagents.on ? null : '0',
@@ -272,7 +268,6 @@ export function BootSettingsScreen({
             };
           });
         setApply({ phase: 'ready', workers });
-
         for (const worker of workers) {
           for (const receipt of worker.receipts ?? []) {
             const kind = spawnSwitchKindOfEnv(receipt.env);
@@ -337,7 +332,6 @@ export function BootSettingsScreen({
     if (!res.ok) return `save refused — ${res.reason}`;
     setSaveTick(n => n + 1);
     setLastReceipt(`r${res.revision} · ${res.receipt}`);
-
     const kind = spawnSwitchKindOfEnv(row.env);
     if (row.applicationClass === 'live' && kind !== null && hasFocusedSession()) {
       void getFocusedSessionConnector()
@@ -348,9 +342,7 @@ export function BootSettingsScreen({
   };
 
   const cycleRow = (row: MenuRow, direction: 1 | -1): string => {
-
     if (isSeatsRow(row)) return seatFacts === null ? 'capacity reading is pending — try again shortly' : commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
-
     if (isMotionRow(row)) {
       const at = MOTION_SETTINGS.indexOf(motionSetting);
       return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
@@ -365,9 +357,7 @@ export function BootSettingsScreen({
   };
 
   const concourseLive = routeSurfaceRegistered('concourse') && isFullscreenEnvEnabled();
-
   const plainWorld = chatOnlyBoot();
-
   const chatBoot = stripFacts().chatBoot;
 
   const list = useInteractiveList<MenuRow>({
@@ -379,24 +369,20 @@ export function BootSettingsScreen({
         setApply({ phase: 'closed' });
         return;
       }
-
       if (onClose) onClose();
       else leaveCurrentSurface();
     },
     actions: [
-
       {
         key: 'return',
         hint: 'cycle',
         run: row => (row ? { pending: 'saving…', result: Promise.resolve().then(() => cycleRow(row, 1)) } : null),
       },
-
       ...(concourseLive && !chatBoot
         ? [{
             key: 'o',
             hint: plainWorld ? 'open the live view' : 'open concourse',
             run: (): null => {
-
               armBootSettingsLayerDeepLink();
               enterConcourse();
               return null;
@@ -416,7 +402,6 @@ export function BootSettingsScreen({
           return null;
         },
       },
-
       {
         key: ' ',
         hint: 'cycle',
@@ -512,19 +497,16 @@ export function BootSettingsScreen({
         pinnedVal: envPinned ? (effective?.value ?? '') : null,
         warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
         detail: row.detail ?? null,
-
         detailExtra: [
           `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
         ],
       };
     });
-
     const harness = [
       isHelmHomeEnabled() ? 'helm' : null,
       consoleEnabled() ? 'console' : null,
     ].filter(Boolean) as string[];
     const critterKey = getSessionCritterKey();
-
     const statusRight =
       (list.note ?? lastReceipt ?? (changed > 0 ? `${changed} choice${changed === 1 ? '' : 's'} saved — applies to new sessions` : 'changes reach new sessions')) +
       (liveCount !== null ? `  ·  ${liveCount} established session${liveCount === 1 ? '' : 's'} unchanged` : '');
@@ -578,7 +560,6 @@ export function BootSettingsScreen({
           const row = menuRows[entryIdx]!;
           const props = list.rowProps(row, entryIdx);
           return (
-
             <InteractiveRow
               key={props.id}
               id={props.id}

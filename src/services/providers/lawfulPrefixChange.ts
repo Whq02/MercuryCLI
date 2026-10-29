@@ -3,7 +3,6 @@ import { requestToolSchemaChange } from '../../utils/toolSchemaCache.js'
 import type { Tools } from '../../Tool.js'
 
 const pending = new Map<string, string>()
-
 const PROCESS_WIDE = '*'
 const processWideConsumedBy = new Set<string>()
 

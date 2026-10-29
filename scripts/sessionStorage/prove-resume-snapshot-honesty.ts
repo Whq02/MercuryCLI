@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { appendFileSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -38,7 +37,6 @@ function snapshotCursor(filePath: string): number | null {
     const raw = JSON.parse(readFileSync(`${filePath}.resume-snapshot.json`, 'utf8')) as { byteCursor?: number }
     return raw.byteCursor ?? null
   } catch {
-
     return null
   }
 }
@@ -66,7 +64,6 @@ console.log('L1 a refused >1 MB tail: no cursor advance, the history past the fo
   const { file, cursor } = await seed('refused', 5)
   const before = cursorOf(file)
   t('premise: the seeded snapshot covers the prefix', before === cursor, `cursor=${before} expected=${cursor}`)
-
   appendFileSync(file, '{"foreign":"not a record line"}\n')
   let added = 0
   while (statSync(file).size - cursor < 1.2 * 1024 * 1024) {
@@ -75,7 +72,6 @@ console.log('L1 a refused >1 MB tail: no cursor advance, the history past the fo
   }
   const messages = await messagesIn(file)
   t('the records past the foreign line resume (the load fell through to the plain road)', messages === 5 + added, `messages=${messages} expected=${5 + added}`)
-
   const again = await messagesIn(file)
   const after = cursorOf(file)
   t('the snapshot standing after the load covers what it claims (a second resume sees every record)', again === 5 + added, `second resume messages=${again} expected=${5 + added} cursor=${after}`)

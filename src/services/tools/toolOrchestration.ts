@@ -16,6 +16,7 @@ import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { bindResultRoom, bindResultRoomRound, createResultRoom, resultRoomBudget, resultRoomFor, resultRoomForRound, type ResultRoom } from '../run/resultRoom.js'
 
+
 type MessageUpdate = {
   message?: Message
   newContext: ToolUseContext
@@ -114,7 +115,6 @@ export async function* runTools(
 
   for (const batch of batches) {
     if (batch.concurrent && batch.blocks.length > 0) {
-
       const queuedModifiers = new Map<string, Array<(c: ToolUseContext) => ToolUseContext>>()
       const currentContext = context
       const generators = batch.blocks.map(block => {
@@ -138,7 +138,6 @@ export async function* runTools(
         })()
       })
       yield* all(generators, maxToolUseConcurrency())
-
       for (const block of batch.blocks) {
         for (const modifier of queuedModifiers.get(block.id) ?? []) {
           try {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -18,21 +17,14 @@ t.section('§1 timer census over the rendezvous owners (no polling class exists)
     'src/input-core/composer-document.ts',
     'src/input-core/command-queue.ts',
     'src/utils/promptDraft.ts',
-
     'src/components/prompts-panel/PromptsPanel.tsx',
-
     'src/services/workbench/projection.ts',
   ]
-
   const ALLOWED_SET_TIMEOUT: Record<string, number> = {
-
     'src/services/attention/viewModel.ts': 1,
-
     'src/utils/promptDraft.ts': 2,
-
     'src/services/workbench/projection.ts': 1,
   }
-
   const ALLOWED_SET_INTERVAL: Record<string, number> = {
     'src/services/workbench/projection.ts': 1,
   }
@@ -53,7 +45,6 @@ t.section('§1 timer census over the rendezvous owners (no polling class exists)
       `found ${timeouts}`,
     )
   }
-
   const proj = readFileSync('src/services/workbench/projection.ts', 'utf8')
   t.check(
     'the projection heartbeat is subscriber-armed with a teardown (dormancy holds)',
@@ -74,7 +65,6 @@ t.section('§2 a REAL 10 s quiet window: armed, event-free, and completely silen
       gatherCalls++
       return { attention: [], relations: [] }
     },
-
     { subscribe: () => () => {} },
   )
 
@@ -87,7 +77,6 @@ t.section('§2 a REAL 10 s quiet window: armed, event-free, and completely silen
   t.check('arming gathered at least once (the arm recompute)', gatherAfterArm >= 1, String(gatherAfterArm))
 
   const windowMs = 10_000
-
   const t0 = performance.now()
   let elapsed = 0
   for (;;) {

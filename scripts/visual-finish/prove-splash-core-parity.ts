@@ -43,7 +43,6 @@ t.section('§1 — one grid owner, two consuming hosts (share-by-extraction)')
     !driverSrc.includes('function rasterHard') && !faceSrc.includes('rasterHard('),
     'raster census',
   )
-
   t.check(
     'both hosts assemble the ORIGINAL card through core assembleCardRows',
     driverSrc.includes('assembleCardRows({') && faceSrc.includes('assembleCardRows({') && coreSrc.includes('export function assembleCardRows'),
@@ -83,7 +82,6 @@ t.section('§2 — the core is pure (injection-only capability + data)')
 t.section('§3 — flatten parity at the capture matrix (incl. the operator profile)')
 {
   const core = createSplashCore({ nocolor: false, truecolor: true })
-
   const IN_PROCESS_OPTS = {
     cardRows: assembleCardRows({
       cwdBase: 'orchard-src',
@@ -147,7 +145,6 @@ t.section('§3 — flatten parity at the capture matrix (incl. the operator prof
     t.check(`${cols}x${rows}: the adapter accepts the core's complete SGR vocabulary`, vocabOk, 'closed vocabulary')
     t.check(`${cols}x${rows}: run text is byte-preserved (no dropped cells)`, textOk, 'lossless text')
     t.check(`${cols}x${rows}: emit→reparse is a fixed point (cell output ≡ SGR flatten)`, roundtripOk, 'round-trip stable')
-
     t.check(
       `${cols}x${rows}: the composition carries the ten action rows (the kit-era eight + Saturn + Agents, post the sessions-projects merge and the Logins row)`,
       res.cardShown && res.actionLines.length === 10,
@@ -170,7 +167,6 @@ t.section('§4 — CB-11: background ink is art cells + the approved plate only 
     cardSel: 0,
     hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' as const }],
     tinyHint: '↵ start',
-
     stripLines: (w: number) =>
       core.composeStrip(
         { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dir: 'proj', acct: { state: 'none' }, health: null },
@@ -181,7 +177,6 @@ t.section('§4 — CB-11: background ink is art cells + the approved plate only 
   const PLATE = '\x1b[48;2;13;24;27m'
   res.lines.forEach((line, i) => {
     if (!line.includes('\x1b[48;2;')) return
-
     if (/[▀▄█]/.test(line)) return
     const nonPlate = line.split('\x1b[48;2;').slice(1).some(seg => !('\x1b[48;2;' + seg).startsWith(PLATE))
     if (nonPlate || !/[╭╮╰╯─│├┤]/.test(line)) offenders.push(i)

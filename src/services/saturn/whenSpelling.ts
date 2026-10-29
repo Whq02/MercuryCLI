@@ -64,7 +64,6 @@ function no(reason: string): WhenSpellingCompile {
   return { ok: false, reason }
 }
 function every(cron: string, spelling: string): WhenSpellingCompile {
-
   if (parseCronExpression(cron) === null) return no(`'${spelling}' compiled to an expression the cron parser refuses ('${cron}')`)
   return ok({ kind: 'every', cron, spelling })
 }

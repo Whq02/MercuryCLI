@@ -120,7 +120,6 @@ async function renderRow(opts: {
   inProgress: Set<string>
   lookups: unknown
 }): Promise<string> {
-
   const node = React.createElement(
     AppStateProvider as never,
     {},

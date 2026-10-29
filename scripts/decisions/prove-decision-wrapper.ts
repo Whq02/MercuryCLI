@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -78,7 +77,6 @@ function makeContext(opts: {
 const ASSISTANT = { message: { id: 'msg_wrapper' } } as never
 
 type Ports = typeof defaultWrapperPorts
-
 function makePorts(over: Partial<Ports>): Ports {
   return {
     ...defaultWrapperPorts,
@@ -149,7 +147,6 @@ section('the leftover — an ask no floor and no shortcut settles is the operato
 
 section('fast-path ports')
 {
-
   let r = await run(
     makeTool(),
     makeContext({ mode: 'flow' }),
@@ -173,7 +170,6 @@ section('fast-path ports')
 
 section('the headless hook band')
 {
-
   let r = await run(
     makeTool(),
     makeContext({ mode: 'default', avoidPrompts: true }),
@@ -200,7 +196,6 @@ section('the headless hook band')
 
 section('pass-through identity + public-entry parity (default ports)')
 {
-
   const r = await run(makeTool(), makeContext({ mode: 'default' }), makePorts({}))
   check("default mode ask → decidedBy 'engine', no wrapper stages consulted", r.wrapper.decidedBy === 'engine' && r.wrapper.stages.length === 0, j(r.wrapper))
 

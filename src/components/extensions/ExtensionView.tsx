@@ -59,13 +59,11 @@ export function ExtensionView({
   onOptions: () => void
   onBlock: () => void
   onPrevious: () => void
-
   onRefreshRoster: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns: cols, rows: termRows } = useTerminalSize()
   const pastGate = useOpenEventGate()
-
   const kb = React.useMemo(() => resolveExtensionsBindings(), [])
   const kchar = (action: string): string | null => kb.chars.get(`extensions:${action}`) ?? null
 
@@ -96,7 +94,6 @@ export function ExtensionView({
       onBack()
       return
     }
-
     if (key.ctrl || key.meta) return
     if (!pastGate()) return
     if (input === '') return
@@ -253,8 +250,7 @@ export function ExtensionView({
               </Fact>
             ) : null}
 
-            {
-}
+            {}
             <SectionRule label="adds" width={cols - 4} />
             {addLines.length === 0 ? (
               <Text color={tokens.textMuted}>  nothing — the manifest declares no contributions</Text>

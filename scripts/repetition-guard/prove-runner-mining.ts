@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -47,23 +46,18 @@ const result = (id: string, text: string, isError = false) => ({
 
 const sameEditInput = { file_path: '/w/f.ts', hunks: [{ lines: '2', replace: 'l2' }] }
 const rows = [
-
   assistantRow([use('t1', 'Edit', sameEditInput)]),
   userRow([result('t1', 'No changes made to /w/f.ts — the computed edit result is byte-identical to the current file content. Nothing was written.')]),
   assistantRow([use('t2', 'Edit', sameEditInput)]),
   userRow([result('t2', 'No changes made to /w/f.ts — the computed edit result is byte-identical to the current file content. Nothing was written.')]),
   assistantRow([use('t3', 'Edit', sameEditInput)]),
   userRow([result('t3', 'No changes made to /w/f.ts — the computed edit result is byte-identical to the current file content. Nothing was written.')]),
-
   assistantRow([use('t4', 'ChangeSet', { op: 'apply', changes: [] })]),
   userRow([result('t4', 'No changes needed — every member of plan cs-abc is already satisfied (a.ts). Nothing was written.')]),
-
   assistantRow([use('t5', 'Write', { file_path: '/w/new.ts', content: 'x' })]),
   userRow([result('t5', 'File created successfully at: /w/new.ts')]),
-
   assistantRow([use('t6', 'Edit', { file_path: '/w/f.ts', old_string: 'a', new_string: 'b' })]),
   userRow([result('t6', 'The old_string was not found in the file.', true)]),
-
   assistantRow([use('t7', 'Bash', { command: 'false' })]),
   userRow([result('t7', 'exit 1', true)]),
 ]

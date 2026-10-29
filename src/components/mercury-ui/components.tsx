@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useElevatedSurface } from './useElevatedSurface.js'
@@ -26,7 +27,10 @@ import { topOverlayOwnsPageKeys } from '../../context/overlayStack.js'
 import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
+
 export const CockpitEmbeddedContext = React.createContext(false)
+
+
 
 export function ProductLockup({
   view,
@@ -43,7 +47,6 @@ export function ProductLockup({
   const { accent } = useSessionAccent()
   const [theme] = useTheme()
   const ramp = accent === t.accent ? t.focalRamp : resolveMercuryTokens(theme, accent).focalRamp
-
   const title = `Mercury${separator}${view}`
   const { isCompact } = useLayoutChrome()
   const shimmer = useGreetingShimmer(isCompact || plain ? [t.accent] : ramp, displayWidth(title))
@@ -95,25 +98,19 @@ export function CommandCenter({
   onClose: () => void
   captureInput?: boolean
   bodyOwnsPageKeys?: boolean
-
   closeKeys?: FooterCloseKeys
-
   embedded?: boolean
-
   specimen?: boolean
-
   elevated?: boolean
   children: React.ReactNode
 }): React.ReactNode {
   const t = useMercuryTokens()
   const embedded = embeddedProp || React.useContext(CockpitEmbeddedContext)
   const elevatedRef = useElevatedSurface()
-
   React.useEffect(() => {
     if (!embedded) markTransitionEnd('screen-switch')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
   const closable = closeKeys !== 'none'
   const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)
   useInput(
@@ -125,17 +122,13 @@ export function CommandCenter({
     },
     { isActive: captureInput && !embedded && closable },
   )
-
   const groundCwd = useCwdState()
   const dir = groundCwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || groundCwd
-
   const cols = useTerminalSize().columns
-
   const footerWords = composeFooterHint(footer ?? dir, { closeKeys, captureInput })
   const fullKeyGuide = footerWords.includes('pgup/pgdn')
   const guideRows = fullKeyGuide ? wrapText(footerWords, Math.max(1, cols - 4), 'wrap').split('\n').length : 1
   const footerText = fullKeyGuide ? footerWords : packFooter(footerWords, Math.max(0, cols - 4))
-
   const insideModal = useIsInsideModal()
   const chrome = useLayoutChrome()
   const popup = React.useContext(PopupFrameContext)
@@ -186,7 +179,6 @@ export function CommandCenter({
     { isActive: insideModal && !embedded },
   )
   if (embedded) {
-
     return (
       <Box flexDirection="column">
         {specimen ? (
@@ -211,7 +203,6 @@ export function CommandCenter({
     </Box>
   )
   return (
-
     <Box ref={elevated ? elevatedRef : undefined} flexDirection="column" borderStyle="round" borderColor={t.borderStrong} paddingX={1}>
       <ProductLockup view={view} subtitle={subtitle} />
       {specimen ? (
@@ -231,11 +222,9 @@ export function CommandCenter({
       ) : (
         children
       )}
-      {
-}
+      {}
       <InteractiveRow id={`center:${view}:close`} directActivate onActivate={closable ? onClose : undefined} flexDirection="column">
-        {
-}
+        {}
         {hover => (
           <Box marginTop={1}>
             <Text color={hover ? t.info : t.textMuted}>{bodyFooterText}</Text>
@@ -274,7 +263,6 @@ export function Panel({
       paddingX={1}
     >
       {title ? (
-
         <Text bold color={t.info}>
           {title}
         </Text>
@@ -294,7 +282,6 @@ export function SectionHeader({
   marginTop?: number
 }): React.ReactNode {
   const t = useMercuryTokens()
-
   return (
     <Box marginTop={marginTop} flexDirection="row">
       <Text bold color={t.textPrimary}>
@@ -340,7 +327,6 @@ export function Divider({
 }): React.ReactNode {
   const t = useMercuryTokens()
   const ink = color ?? t.textMuted
-
   width = Number.isFinite(width) ? Math.max(0, Math.floor(width)) : 0
   if (!label) {
     return <Text color={ink}>{'─'.repeat(width)}</Text>
@@ -353,12 +339,11 @@ export function Divider({
   )
 }
 
-export function useNowTick(ms: number | null = 1000): number {
 
+export function useNowTick(ms: number | null = 1000): number {
   const parked = React.useContext(MotionParkContext)
   const [now, setNow] = React.useState(() => Date.now())
   React.useEffect(() => {
-
     if (!ms || parked) return
     setNow(quantizedNow(ms))
     return subscribeUiClock(ms, () => setNow(quantizedNow(ms)))
@@ -438,12 +423,12 @@ export function Chip({
   )
 }
 
+
 export type KVRow = {
   k: string
   v: string
   tone?: string
   note?: string
-
   fit?: 'middle' | 'end'
 }
 export function KeyValueGrid({
@@ -454,12 +439,10 @@ export function KeyValueGrid({
   keyWidth?: number
 }): React.ReactNode {
   const t = useMercuryTokens()
-
   return (
     <Box flexDirection="column">
       {rows.map((r, i) =>
         r.fit ? (
-
           <Box key={i} flexDirection="row">
             <Box flexShrink={0}>
               <Text color={t.textMuted}>{padTo(r.k, keyWidth)}</Text>
@@ -500,20 +483,16 @@ export function ProgressBar({
   showPct?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
-
   width = Number.isFinite(width) ? Math.max(0, Math.floor(width)) : 0
-
   const v = Number.isFinite(value) ? value : 0
   const frac = max > 0 ? Math.max(0, Math.min(1, v / max)) : 0
   const pct = max > 0 ? Math.round((Math.max(0, v) / max) * 100) : 0
-
   let filled = Math.max(0, Math.min(width, Math.round(frac * width)))
   if (width > 1) {
     if (frac > 0 && filled === 0) filled = 1
     if (frac < 1 && filled === width) filled = width - 1
   }
   const color = tone ?? gaugeColorOf(t, pct)
-
   const ramp = spectralRampFor(color, t.surface0)
   const flat = ramp.length === 1
   return (
@@ -555,7 +534,6 @@ export function Sparkline({
       return SPARK[idx]
     })
     .join('')
-
   return <Text color={color ?? t.info}>{cells}</Text>
 }
 
@@ -581,6 +559,7 @@ export function CommandRow({
   )
 }
 
+
 export function EmptyState({
   title,
   hint,
@@ -594,7 +573,6 @@ export function EmptyState({
 }): React.ReactNode {
   const t = useMercuryTokens()
   const color = tone === 'danger' ? t.failure : tone === 'gated' ? t.warning : t.textMuted
-
   const g =
     glyph ??
     (tone === 'danger' ? GLYPH.fail : tone === 'gated' ? GLYPH.warn : GLYPH.pending)
@@ -633,6 +611,7 @@ export function WarningBanner({
   )
 }
 
+
 export function AgentRow({
   name,
   agentType,
@@ -644,7 +623,6 @@ export function AgentRow({
   agentType?: string
   state?: 'busy' | 'idle' | 'drifting' | 'blocked'
   tasks?: string[]
-
   maxWidth?: number
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -759,7 +737,6 @@ export function GateRow({
   hintWidth?: number
 }): React.ReactNode {
   const t = useMercuryTokens()
-
   const nm = padTo(truncateToWidth(name, nameWidth - 1), nameWidth)
   const ht = hint ? (hintWidth ? truncateToWidth(hint, hintWidth) : hint) : ''
   return (
@@ -795,7 +772,6 @@ export function UsageMeter({
 }): React.ReactNode {
   const t = useMercuryTokens()
   if (compact) {
-
     if (state !== 'live' || !Number.isFinite(value)) {
       const s = stateStyleOf(t, state === 'live' ? 'unavailable' : state)
       return (
@@ -805,9 +781,7 @@ export function UsageMeter({
         </Text>
       )
     }
-
     const pct = Math.round((Math.max(0, value as number) / max) * 100)
-
     if (numberOnly) {
       return (
         <Text>
@@ -817,7 +791,6 @@ export function UsageMeter({
         </Text>
       )
     }
-
     return (
       <Text>
         <Text color={t.textMuted}>{window} </Text>

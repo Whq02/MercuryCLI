@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { existsSync, rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -49,7 +48,6 @@ if (existsSync(tsc)) {
   let clean = true
   let out = ''
   try {
-
     execFileSync(
       'node',
       [tsc, '-p', tsDir, '--noEmit', '--typeRoots', join(REPO, 'node_modules', '@types'), '--types', 'node'],

@@ -9,7 +9,6 @@ export function deepseekApiBase(env: NodeJS.ProcessEnv = process.env): string {
 export function deepseekChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${deepseekApiBase(env)}/chat/completions`
 }
-
 export function deepseekBalanceUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${deepseekApiBase(env)}/user/balance`
 }

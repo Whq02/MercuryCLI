@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import type { ValidationError } from '../utils/settings/validation.js'
@@ -17,12 +18,10 @@ function buildTree(errors: ValidationError[]): TreeNode {
   const root: TreeNode = Object.create(null)
   for (const error of errors) {
     if (error.path === '') {
-
       root[''] = error.message
       continue
     }
     const segments = error.path.split('.')
-
     const last = segments[segments.length - 1]!
     if (
       error.invalidValue !== null &&
@@ -71,7 +70,6 @@ export function ValidationErrorsList({
     <Box flexDirection="column">
       {files.map(file => {
         const fileErrors = [...(byFile.get(file) ?? [])].sort((a, b) => {
-
           if (a.path === '' && b.path !== '') return -1
           if (a.path !== '' && b.path === '') return 1
           return a.path.localeCompare(b.path)
@@ -81,7 +79,6 @@ export function ValidationErrorsList({
           themeName,
           treeCharColors: { treeChar: 'inactive', key: 'text', value: 'inactive' },
         })
-
         const seen = new Set<string>()
         const suggestions: string[] = []
         for (const error of fileErrors) {

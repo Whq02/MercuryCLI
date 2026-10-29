@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 
 import { readFileSync } from 'node:fs'
@@ -49,7 +48,6 @@ section('§1 DuckDuckGo html — the captured page, the challenge, the poison')
   const withAd = page('ddg-html-results.html').replace('class="result results_links results_links_deep web-result "', 'class="result results_links results_links_deep result--ad web-result "')
   const adParsed = parseDuckDuckGoHtml(withAd)
   check('an advertisement block (result--ad) drops from the hits', adParsed.kind === 'results' && adParsed.hits.length === 9, adParsed.kind === 'results' ? String(adParsed.hits.length) : adParsed.kind)
-
   const entityPoison = parseDuckDuckGoHtml('<html><body><div id="links"><div class="result results_links"><a rel="nofollow" class="result__a" href="https://example.com/x">poison &#x110000; &#99999999999999999999; title</a></div></div></body></html>')
   check('POISON: over-range numeric entities PARSE (total — never a thrown RangeError), the literal kept',
     entityPoison.kind === 'results' && entityPoison.hits[0]?.title === 'poison &#x110000; &#99999999999999999999; title', j(entityPoison))
@@ -70,7 +68,6 @@ section('§2 DuckDuckGo lite — the captured page, the challenge, the poison')
   check('POISON: a changed lite shape reads UNRECOGNISED', parseDuckDuckGoLite('<html><body><table><tr><td>new shape</td></tr></table></body></html>').kind === 'unrecognised')
   const framedEmpty = parseDuckDuckGoLite("<html><body><form action=\"/lite/\" method=\"post\"></form>No more results.</body></html>")
   check('a framed lite page with zero rows is an honest EMPTY', framedEmpty.kind === 'results' && framedEmpty.hits.length === 0, j(framedEmpty))
-
   const entityPoisonLite = parseDuckDuckGoLite("<html><body><table><tr><td><a rel=\"nofollow\" class='result-link' href=\"https://example.com/x\">poison &#x110000; title</a></td></tr><tr><td class='result-snippet'>snippet &#xFFFFFFFF; text</td></tr></table></body></html>")
   check('POISON: over-range entities on the lite page PARSE with the literal kept (title and snippet)',
     entityPoisonLite.kind === 'results' && entityPoisonLite.hits[0]?.title === 'poison &#x110000; title' && entityPoisonLite.hits[0]?.snippet === 'snippet &#xFFFFFFFF; text', j(entityPoisonLite))
@@ -89,7 +86,6 @@ section('§3 Brave — the documented decode and its poison')
   check('a no-web search envelope is an honest EMPTY', (() => { const d = decodeBraveWebSearch({ type: 'search', query: { original: 'x' } }); return d.kind === 'results' && d.hits.length === 0 })())
   check('POISON: a body without web.results reads UNRECOGNISED', decodeBraveWebSearch({ shape: 'never-seen' }).kind === 'unrecognised')
   check('POISON: a non-object body reads UNRECOGNISED', decodeBraveWebSearch('nope').kind === 'unrecognised')
-
   check('POISON: an over-range entity in a title/description decodes to the LITERAL, never a throw', (() => {
     const d = decodeBraveWebSearch({ web: { results: [{ title: 'T &#x110000;', url: 'https://x.org/', description: 'D &#78000000;' }] } })
     return d.kind === 'results' && d.hits[0]?.title === 'T &#x110000;' && d.hits[0]?.snippet === 'D &#78000000;'

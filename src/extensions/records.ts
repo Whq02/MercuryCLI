@@ -6,6 +6,7 @@ import { lazySchema } from '../utils/lazySchema.js'
 import { SWITCH_KINDS, type SwitchKind } from './manifest.js'
 import { getExtensionsLog, getInstalledFile, getSourcesFile } from './paths.js'
 
+
 export const SourceRecordSchema = lazySchema(() =>
   z.object({
     kind: z.enum(['git', 'folder', 'archive']).describe('How the source is materialised.'),
@@ -47,11 +48,8 @@ export const InstalledRecordSchema = lazySchema(() =>
     previous: z.object({ version: z.string(), path: z.string(), contributionsHash: z.string() }).nullable(),
     approval: ApprovalSchema().nullable(),
     switches: SwitchesSchema(),
-
     pendingFirstLoad: z.boolean().optional(),
-
     pendingUpdate: z.object({ version: z.string(), path: z.string(), contributionsHash: z.string(), commit: z.string().nullable() }).nullable().optional(),
-
     bundledNote: z.string().nullable().optional(),
   }),
 )
@@ -63,6 +61,7 @@ export type InstalledFile = Record<string, InstalledRecord>
 export function defaultSwitches(): Switches {
   return Object.fromEntries(SWITCH_KINDS.map(kind => [kind, true])) as Switches
 }
+
 
 export type RecordsRead<T> = { ok: true; data: T; exists: boolean } | { ok: false; error: string; path: string }
 
@@ -128,6 +127,7 @@ export function installedOrEmpty(): InstalledFile {
   return read.ok ? read.data : {}
 }
 
+
 export function writeDurable(path: string, text: string): void {
   durableAtomicPublishSync(path, text)
 }
@@ -155,6 +155,7 @@ export function updateInstalled(mutate: (current: InstalledFile) => InstalledFil
   writeInstalled(next)
   return { ok: true }
 }
+
 
 export function logAct(line: string): void {
   try {

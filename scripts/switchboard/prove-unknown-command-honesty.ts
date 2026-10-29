@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -87,7 +86,6 @@ const child = spawn(
   {
     cwd,
     env: {
-
       ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
@@ -112,7 +110,6 @@ const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 10
 await driverClosed(child)
 clearTimeout(killer)
 await api.close()
-
 try {
   const wf = join(daemonDir, 'concourse-workers.json')
   if (existsSync(wf)) {

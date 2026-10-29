@@ -1,3 +1,4 @@
+
 import { statSync } from 'node:fs'
 import { join, normalize } from 'node:path'
 import { git } from '../gitGraph/observe.js'
@@ -15,17 +16,15 @@ interface ImpactProjection {
     imports: string[]
     importedBy: string[]
     tests: string[]
-
     change: { added: number; deleted: number } | null
-
     diagnostics: { pendingCount: number; note: string }
   }
   inferences: string[]
   caps: { scannedFiles: number; capped: boolean; omissions: string[] }
 }
 
-function changeStats(workspace: string, target: string): { added: number; deleted: number } | null {
 
+function changeStats(workspace: string, target: string): { added: number; deleted: number } | null {
   let added = 0
   let deleted = 0
   let any = false
@@ -66,7 +65,6 @@ export function projectImpact(workspace: string, target: string): ImpactProjecti
   const targets = pathTokens(target, workspace)
   if (targets.length !== 1) return null
   target = targets[0]!
-
   const abs = normalize(join(workspace, target))
   const prefix = workspace.endsWith('/') ? workspace : `${workspace}/`
   if (!abs.startsWith(prefix)) return null

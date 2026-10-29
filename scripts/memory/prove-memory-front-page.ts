@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts src/mneme/mnemeArchive.ts
+// gate-watch: src/mneme/mnemeLookup.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/mneme/mnemeLibrary.ts src/mneme/mnemeTopicDocs.ts src/constants/prompts.ts
+// gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeBuffer.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

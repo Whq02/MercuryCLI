@@ -1,3 +1,4 @@
+
 import { abortWithCut } from '../../utils/messages/turnCut.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { PermissionDecision } from '../../types/permissions.js'
@@ -32,13 +33,9 @@ class WorkflowPermissionTimeoutError extends Error {
 interface WorkflowCanUseToolDeps {
   taskId: string
   setAppState: SetAppState
-
   realCanUseTool: CanUseToolFn
-
   getAgentControllers: () => Map<string, AbortController> | undefined
-
   getAppState?: () => { tasks?: Record<string, unknown> }
-
   timeoutMsOverride?: number
 }
 
@@ -65,7 +62,6 @@ export function workflowAskBadgeName(
 }
 
 export function makeWorkflowCanUseTool(deps: WorkflowCanUseToolDeps): CanUseToolFn {
-
   const recordAsk = (
     toolUseID: string,
     entry: PendingWorkflowPermission | undefined,
@@ -89,7 +85,6 @@ export function makeWorkflowCanUseTool(deps: WorkflowCanUseToolDeps): CanUseTool
   return async (tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision) => {
     const agentId = (toolUseContext as { agentId?: string }).agentId
     recordAsk(toolUseID, { agentId, toolName: tool.name, askedAt: Date.now() })
-
     try {
       const task = deps.getAppState?.().tasks?.[deps.taskId] as
         | Parameters<typeof workflowAskBadgeName>[0]
@@ -101,7 +96,6 @@ export function makeWorkflowCanUseTool(deps: WorkflowCanUseToolDeps): CanUseTool
     } catch {
     }
     try {
-
       if (!toolUseContext.options.isNonInteractiveSession) {
         return await deps.realCanUseTool(
           tool,
@@ -154,7 +148,6 @@ export function makeWorkflowCanUseTool(deps: WorkflowCanUseToolDeps): CanUseTool
         if (timer) clearTimeout(timer)
       }
     } finally {
-
       recordAsk(toolUseID, undefined)
     }
   }

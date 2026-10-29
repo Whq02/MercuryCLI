@@ -35,7 +35,6 @@ export type CredentialValueShape = { readonly pattern: RegExp; readonly marker: 
 
 export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, CredentialValueShape> = {
   anthropic: { pattern: /(?<![A-Za-z0-9"'])sk-ant-[A-Za-z0-9_-]{10,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_API_KEY]' },
-
   openai: { pattern: /(?<![A-Za-z0-9"'])sk-(?!ant-|or-v1-|mel-)(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_OPENAI_KEY]' },
   zai: null,
   moonshot: null,

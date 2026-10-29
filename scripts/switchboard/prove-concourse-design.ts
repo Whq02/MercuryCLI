@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -14,7 +13,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-
 function ordered(hay: string, a: string, b: string): boolean {
   const ia = hay.indexOf(a)
   const ib = hay.indexOf(b)
@@ -76,7 +74,6 @@ function reply(cwd: string, sessionId: string, extra: Record<string, unknown> = 
     ...extra,
   })
 }
-
 function seedChat(project: string, sessionId: string, words: string, ageMs: number, opts: { husk?: boolean } = {}): string {
   const file = workerTranscriptPath({ sessionId, workspaceId: project })
   mkdirSync(project, { recursive: true })
@@ -169,7 +166,6 @@ console.log('§2 — the older-chats drop-down: unfolds on the board, ↵ reacti
   check('the drop-down rides the peek\'s granted-rows channel in BOTH geometry call sites (one owner)', screen.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : chipRows') && layout.includes('rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows'))
   check('esc folds the list BEFORE the peek layer and the exit (one layer at a time)', ordered(screen, 'setOlderList(null)\n        return', 'setRowPeekOpen(false)\n        return') && ordered(screen, "if (ctx.kind !== 'chat') {", 'if (olderListRef.current !== null) {'))
   check('the tail is the honest arithmetic: window overflow + the census rest + the fold hint', screen.includes('+${beyond} more — /sessions lists everything') && screen.includes("'esc folds'"))
-
   const win = paneWindow(10, 7, 5)
   check('the cursor window keeps the pick visible with exact overflow counts (10 entries · cursor 7 · span 5)', win.start <= 7 && 7 < win.end && win.above === win.start && win.below === 10 - win.end)
 }
@@ -182,9 +178,7 @@ console.log('§3 — one project-name owner: the rail\'s ground chip is THE name
   check('POISON (the dedup): the header paints NO project name and NO clock — and holds no live-clock subscription', !header.includes('context.projectLabel') && !header.includes('liveClock') && !header.includes('snapshot.clock') && !header.includes('padTo(clock'))
   const strips = read('src/components/concourse/ConcourseStrips.tsx')
   check('the rail\'s ground chip IS the name (painted AND clickable — the segment that switches)', strips.includes('{snapshot.context.projectLabel} {GLYPH.chevronDown}') && strips.includes("id=\"concourse:rail:project\""))
-
   const dir = join(process.cwd(), 'src', 'components', 'concourse')
-
   let namePaints = 0
   for (const f of readdirSync(dir)) {
     if (!/\.(ts|tsx)$/.test(f)) continue
@@ -209,9 +203,7 @@ console.log('§4 — two composers: the coordinator pane owns its box, the live 
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')
-
   check('the full-width strip slot is gone from the layout (no composerNode, no strip band)', !layout.includes('composerNode') && !layout.includes('stripRows') && layout.includes('liveComposerBand'))
-
   const liveSendAt = screen.indexOf('const sendLive = (): void => {')
   const coordSendAt = screen.indexOf('const sendCoordinator = (): void => {')
   const liveSendBody = screen.slice(liveSendAt, coordSendAt)
@@ -220,16 +212,12 @@ console.log('§4 — two composers: the coordinator pane owns its box, the live 
   check('the LIVE send exists and rides the steering door (session.redirect) with the answer/rename contexts as its own delivery', liveSendAt > 0 && liveSendBody.includes('callbacks.redirectSession(') && liveSendBody.includes("ctx.kind === 'answer'") && liveSendBody.includes("ctx.kind === 'rename'"))
   check('POISON (live→coordinator): the live send never reaches the coordinator or the launcher', !liveSendBody.includes('sendCoordinatorMessage') && !liveSendBody.includes('submitSessionDraft'))
   check('POISON (coordinator→session): the coordinator send never reaches a session\'s turn', coordSendAt > 0 && coordSendEnd > coordSendAt && !coordSendBody.includes('redirectSession') && !coordSendBody.includes('answerObligation'))
-
   check('the screen mounts the shared composer exactly twice (the pane\'s box + the live box)', screen.split('<ConcourseComposer').length - 1 === 2 && !pane.includes('<ConcourseComposer'))
   check('the coordinator pane hosts its composer at the foot (the mini-Chat grammar)', pane.includes('composerNode !== undefined && !settingsOpen'))
-
   check('the live gate refuses in type before any edit (printables and newline both check it)', screen.split('liveGateRefusal()').length - 1 >= 2 && ordered(screen, 'const refusal = liveGateRefusal()', 'side.edit(d => insertAt(d, payload))'))
   check('the gate names the refusal classes (parked · door · queued · attached · none)', ['no session selected', 'a door —', 'queued — m stacks', 'parked —', 'with you —'].every(s => screen.includes(s)))
-
   check('the ring is panels and the manifest speaks it', screen.includes("['coordinator', 'list', 'live']") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"composer\"") && !JSON.stringify(manifest.CONCOURSE_CONTROLS).includes("\"region\":\"mirror\""))
   check('the live panel and coordinator panel key rows exist (one resolver feeds legend + atlas)', manifest.CONCOURSE_REGION_KEYS.live.some(k => k.keys === 'pgup/pgdn') && manifest.CONCOURSE_REGION_KEYS.coordinator.some(k => k.keys === '↵' && k.label === 'send'))
-
   check("the live box's placeholder names the SELECTED row", screen.includes('placeholder: `message ${sel.title} · queued for its next turn`'))
 }
 
@@ -244,7 +232,6 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts')
   const enterEnd = screen.indexOf('const gitOffer = useMemo<GitOfferV1 | undefined>(() => {', enterAt)
   const enterBody = enterAt !== -1 && enterEnd > enterAt ? screen.slice(enterAt, enterEnd) : ''
-
   check('the arm stage sits AFTER the door/older/queued grammars (they keep one press) and skips pointer, the reduced stage and a parked row', ordered(enterBody, 'door !== undefined', "opts.pointer !== true && boardArmedRef.current !== sessionId") && enterBody.includes('!reducedStage && !parked && opts.pointer !== true') && enterBody.includes("?.state === 'parked'"))
   check('a second ↵ on the ARMED row enters (the arm clears at the door)', ordered(enterBody, 'setBoardArmed(sessionId)', 'boardArmedRef.current = null') && enterBody.includes('callbacks.enterSession(sessionId)'))
   check('→ on an ARMED row enters (both the list and the live panel arms)', screen.split('boardArmedRef.current === sel.sessionId').length - 1 >= 2)
@@ -254,14 +241,11 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   check('a selection move disarms (the target is ALWAYS the selected chat — the operator\'s words)', screen.includes('if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)'))
   check('typing in the live composer ARMS the selected row (the target turns explicit)', screen.split('armSelectedForTyping()').length - 1 >= 2)
   check('the armed row SHOWS the arm on its granted line — the words road is tab (the composer’s own focus), advertised only where the gate takes words (G4; the broadcast face suppresses it too), and a held draft says send', screen.includes("'armed — ↵ again enters'") && screen.includes("liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''") && screen.includes("'armed — ↵ sends the draft · → enters'"))
-
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   check('the example walk\'s ↵ yields to a held draft (typed words outrank the example — the one precedence law)', pane.includes('&& !pending && !draftHeld) {') && screen.includes('draftHeld={draft.text.trim().length > 0}'))
-
   const pickAt = screen.indexOf('onPickExample={text => {')
   const pickBody = pickAt === -1 ? '' : screen.slice(pickAt, screen.indexOf('}}', pickAt))
   check('the example walk\'s ↵ (and a click) FILLS the composer and never sends — the pick handler calls no send', pickAt !== -1 && pickBody.includes('setDraft(draftRef.current)') && !pickBody.includes('sendCoordinator(') && !pane.includes('onSendExample') && pane.includes('onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)') && pane.includes('· ↵ fills the box'), pickBody.slice(0, 160))
-
   check('the pane\'s own verbs park under ANY board modal owner (modalUp = the one boardModalOwner read, never a pairwise guard)', pane.includes('if (modalUp || settingsOpen) return') && screen.includes('modalUp={') && screen.split('boardModalOwner({').length - 1 >= 2)
   check('the legend says the truth in both states (↵↵ unarmed · ↵ enters while armed)', layout.includes("{ keys: '↵', label: 'enters (armed)' }") && layout.includes("{ keys: '↵↵', label: 'enter session' }"))
 }
@@ -290,13 +274,11 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     liveComposerGateOf(row({ state: 'stopped' }), false),
   ].every(g => g.ok === false))
   check('a queued row refuses by its TYPED state as well as by the live `dispatch:` id spelling (a fixture’s plain-id queued row takes no words either)', (liveComposerGateOf(row({ state: 'queued' }), false) as { line?: string }).line === 'queued — m stacks a message for its start')
-
   const older = (regionArg?: import('../../src/components/concourse/ConcourseLayout.tsx').ConcourseRegion) =>
     liveComposerGateOf(row({ sessionId: `${OLDER_CHATS_ROW_PREFIX}/tmp/p` }), false, regionArg) as { ok: false; line: string }
   check('the older line speaks ↵ exactly where ↵ fires: the list region and the live box', older('list').line === 'older chats — ↵ unfolds the list' && older('live').line === 'older chats — ↵ unfolds the list' && older(undefined).line === 'older chats — ↵ unfolds the list')
   check('POISON (the box\'s three identical coordinator passes): from the coordinator/rail/chat the note names the move that works from there, never a ↵ that goes to another owner', (['coordinator', 'rail', 'chat'] as const).every(r => older(r).line === 'older chats — tab to the list, ↵ unfolds it'))
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
-
   const screenFolded = screen.replace(/\s+/g, ' ')
   check('the gate is DERIVED, never stored (the lock cannot go stale in either direction — the L17 cut\'s whole point)', screenFolded.includes('liveComposerGateOf( sel, sel !== undefined && snapshot.needsYou.some(o => o.sessionId === sel.sessionId), noteRegion, sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined, )'))
   check('the rest hint hands the gate its region (the advertisement follows the operator\'s focus)', screen.includes('liveComposerGate(sessionRows.find(r => r.sessionId === boardSel), region)'))

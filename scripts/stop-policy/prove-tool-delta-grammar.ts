@@ -32,7 +32,6 @@ async function main(): Promise<void> {
       type: 'response.output_item.added',
       item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'EchoTool', arguments: '' },
     })
-
     const argPieces = ['{"text":"caf\\u00', 'e9 \\"π\\" ', '✓"}']
     const forwarded: string[] = []
     let sameCallForwarding = true
@@ -42,7 +41,6 @@ async function main(): Promise<void> {
       if (deltas.length !== 1 || (deltas[0] as { delta: string }).delta !== piece) sameCallForwarding = false
       forwarded.push(...deltas.map(e => (e as { delta: string }).delta))
     }
-
     const done = fold.fold({
       type: 'response.output_item.done',
       item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'EchoTool' },

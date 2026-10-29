@@ -2,13 +2,9 @@ import React from 'react'
 import Text from '../../ink/components/Text.js'
 
 type Props = {
-
   shortcut: string
-
   action: string
-
   parens?: boolean
-
   bold?: boolean
 }
 

@@ -10,7 +10,9 @@ import { Select, type OptionWithDescription } from '../CustomSelect/index.js'
 import { askCardKeyAction, type ManagerAskV1, type ManagerPlanV1 } from '../../services/concourse/managerMode.js'
 import { planCardLayout } from './planCardLayout.js'
 
+
 const CUSTOM_VALUE = '__custom__'
+
 
 export function ManagerAskCard({
   ask,
@@ -20,18 +22,13 @@ export function ManagerAskCard({
   onDismiss,
 }: {
   ask: ManagerAskV1
-
   focused: boolean
-
   onAnswer: (text: string) => void
-
   onEnough: () => void
-
   onDismiss: (typedDraft?: string) => void
 }): React.ReactNode {
   const t = useMercuryTokens()
   const [customText, setCustomText] = useState('')
-
   const [focusTarget, setFocusTarget] = useState<string | undefined>(undefined)
   const liveFocusRef = useRef<string | undefined>(undefined)
 
@@ -55,7 +52,6 @@ export function ManagerAskCard({
   const commit = (value: string): void => {
     if (value === CUSTOM_VALUE) {
       const text = customText.trim()
-
       if (text.length === 0) return
       onAnswer(text)
       return
@@ -73,7 +69,6 @@ export function ManagerAskCard({
     (input, _key, event) => {
       const action = askCardKeyAction(input, {
         optionCount: options.length,
-
         inInput: liveFocusRef.current === CUSTOM_VALUE,
       })
       if (action.kind === 'ignore') return
@@ -82,7 +77,6 @@ export function ManagerAskCard({
         selectRow(action.index)
         return
       }
-
       onEnough()
     },
     { isActive: focused },
@@ -101,8 +95,7 @@ export function ManagerAskCard({
             </Text>
           </Box>
           <Box flexDirection="column" flexShrink={0} marginTop={1}>
-            {
-}
+            {}
             <Select
               options={options}
               layout="compact-vertical"
@@ -111,7 +104,6 @@ export function ManagerAskCard({
               isDisabled={!focused}
               {...(focusTarget !== undefined ? { defaultFocusValue: focusTarget } : {})}
               onFocus={value => {
-
                 liveFocusRef.current = String(value)
                 setFocusTarget(String(value))
               }}
@@ -131,8 +123,7 @@ export function ManagerAskCard({
           </Box>
           <Box marginTop={1} flexShrink={0}>
             <Text color="subtle" wrap="truncate-end">
-              {
-}
+              {}
               {`1–${ask.options.length} select · ↵ commit · ${customOrdinal} custom answer · esc close`}
             </Text>
           </Box>
@@ -141,6 +132,7 @@ export function ManagerAskCard({
     </Box>
   )
 }
+
 
 type PlanAnswer = 'yes' | 'no'
 
@@ -155,19 +147,13 @@ export function ManagerPlanCard({
 }: {
   plan: ManagerPlanV1
   focused: boolean
-
   busy: boolean
-
   onYes: (supervision: 'supervising' | 'launch-only') => void
-
   onNo: () => void
-
   maxRows?: number
-
   textWidth?: number
 }): React.ReactNode {
   const t = useMercuryTokens()
-
   const [supervision, setSupervision] = useState<'supervising' | 'launch-only'>(plan.supervision)
   const layout = planCardLayout(plan, maxRows, Math.max(16, textWidth ?? 38))
   const lanesShown = plan.lanes.slice(0, layout.shown)
@@ -196,8 +182,7 @@ export function ManagerPlanCard({
               <Text bold>{plan.goal}</Text>
             </Text>
           </Box>
-          {
-}
+          {}
           <Box
             flexDirection="column"
             flexShrink={0}
@@ -232,8 +217,7 @@ export function ManagerPlanCard({
                       </Text>
                     </>
                   ) : null}
-                  {
-}
+                  {}
                   <Text wrap="wrap">
                     {'  '}
                     <Text color={t.warning}>{GLYPH.ownSubstrate}</Text>
@@ -266,8 +250,7 @@ export function ManagerPlanCard({
             >
               {hover => (
                 <Text color={hover ? t.textPrimary : t.textSecondary} wrap="truncate-end">
-                  {
-}
+                  {}
                   after dispatch — s switches:{' '}
                   <Text color={supervision === 'supervising' ? t.infoText : t.textMuted} bold={supervision === 'supervising'}>
                     supervise
@@ -290,7 +273,6 @@ export function ManagerPlanCard({
             <PermissionPrompt
               options={options}
               question="Dispatch this plan?"
-
               isDisabled={!focused}
               onSelect={value => (value === 'yes' ? onYes(supervision) : onNo())}
               onCancel={onNo}
@@ -303,6 +285,7 @@ export function ManagerPlanCard({
   )
 }
 
+
 export function ManagerSeatAskCard({
   live,
   ceiling,
@@ -313,9 +296,7 @@ export function ManagerSeatAskCard({
   live: number
   ceiling: number
   lanes: number
-
   focused: boolean
-
   onAnswer: (allowed: boolean) => void
 }): React.ReactNode {
   const options = useMemo<PermissionPromptOption<PlanAnswer>[]>(

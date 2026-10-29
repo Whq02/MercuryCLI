@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -136,7 +135,6 @@ section("§C the other slot's OWN wall rides the view and the receipt")
 
 section("§C2 an unobservable wall is UNKNOWN, never invented headroom (FN-016 R18)")
 {
-
   const subscriptionActive: Reads = {
     anthropicSubscriptionStored: () => true,
     anthropicManagedKeyPresent: () => true,
@@ -207,7 +205,6 @@ section('§D mid-session — the seat is read at turn start; a flip moves the re
   check('openaiCallModel resolves the account at turn entry (turn-start capture)', call.includes('const account = resolveOpenaiAccount()'))
   const client = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
   check('getAnthropicClient consults the subscriber seat per request unless explicitly probing a key', client.includes('const subscriber = callerApiKey === undefined && isClaudeAISubscriber()'))
-
   const { writePreferredOpenaiSource, resolveOpenaiAccount } = await import(
     '../../src/services/providers/openai/openaiAccounts.ts'
   )

@@ -16,9 +16,9 @@ function userPointerColor(isSelected: boolean, accent: string): string {
   return accent
 }
 
+
 export function HighlightedThinkingText({ text }: Props): React.ReactNode {
   const isSelected = useContext(MessageActionsSelectedContext)
-
   const { accent } = useSessionAccent()
   const pointerColor = userPointerColor(isSelected, accent)
   const textColor = useMercuryTokens().accentSoft

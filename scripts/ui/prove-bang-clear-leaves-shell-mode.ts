@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerRawKeys.ts src/hooks/useTextInput.ts src/input-core/pending-input.ts
 import { mock } from 'bun:test'
 import * as childProcess from 'node:child_process'
 import { mkdirSync } from 'node:fs'

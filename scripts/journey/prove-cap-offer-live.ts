@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -32,11 +31,8 @@ if (!existsSync(DIST)) {
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const FABLE_REPLY = 'fable picked up the handoff'
-
 const TARGET_ID = 'claude-fable-5-1'
-
 const TARGET_CHIP = 'Fable 5.1 ·'
-
 const HOME_CHIP = 'GPT-5.6 Sol ·'
 const OFFER_TITLE = 'OpenAI usage window'
 const LANE_LINE = /on the anthropic failover lane · (Fable 5\.1|Sonnet 5\.5) · OpenAI window resets [^·]+ · \/model to return/
@@ -59,7 +55,6 @@ writeFileSync(
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),
 )
-
 writeFileSync(
   path.join(RUN_HOME, '.openai-auth.json'),
   JSON.stringify({
@@ -105,7 +100,6 @@ const reap = (): void => {
     fixture.kill('SIGTERM')
   } catch {
   }
-
   if (failures === 0) {
     try {
       rmSync(RUN_HOME, { recursive: true, force: true })
@@ -169,7 +163,6 @@ const childEnv: NodeJS.ProcessEnv = {
 }
 delete childEnv.NODE_ENV
 delete childEnv.ANTHROPIC_AUTH_TOKEN
-
 delete childEnv.OPENAI_API_KEY
 delete childEnv.MERCURY_CAP_FAILOVER
 delete childEnv.MERCURY_MOCK_LIMITS

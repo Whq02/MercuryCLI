@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -14,7 +13,6 @@ import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const API_KEY = 'fixture-key-000'
-
 const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {
   encoding: 'utf8',
 }).stdout.trim()
@@ -140,11 +138,8 @@ const awaits = (needle: string, data: string, extra: Send = {}): Send => ({
   data,
   ...extra,
 })
-
 const then = (data: string, extra: Send = {}): Send => ({ afterPrevTicks: 2, data, ...extra })
-
 const snap = (mark: string, ticks = 3): Send => ({ afterPrevTicks: ticks, data: '', mark })
-
 const clickOn = (needle: string, extra: Send = {}): Send => ({
   requireAwait: true,
   targetText: needle,
@@ -197,7 +192,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
       switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 },
     }),
   )
-
   writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { disableFlowMode: true } }))
   const out = join(world, `grid-${tag}.json`)
   const cfgPath = join(world, `cfg-${tag}.json`)
@@ -215,7 +209,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
       out,
     }),
   )
-
   const env: NodeJS.ProcessEnv = {
     ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
     HOME: home,
@@ -237,7 +230,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
   }
-
   const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let driverOut = ''
   child.stdout.on('data', d => (driverOut += d))
@@ -258,7 +250,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
   }
   if (status !== 0) {
     console.log(`  [driver] ${tag}: vshot exit ${status}; end=${endReason}; tail: ${driverOut.split('\n').filter(Boolean).slice(-4).join(' | ')}`)
-
     for (const r of fixture.requests) {
       const body = r.body as { model?: string; messages?: Array<{ role?: string; content?: unknown }> } | null
       const last = body?.messages?.at(-1)
@@ -266,7 +257,6 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
       console.log(`  [wire] ${r.method} ${r.path} model=${body?.model ?? '-'} last=${last?.role ?? '-'}:${kinds ?? '-'}`)
     }
   }
-
   let toolResultText = ''
   const requests = fixture.requests.filter(r => r.path.includes('/v1/messages')).map(r => r.body)
   for (const body of requests) {
@@ -413,7 +403,6 @@ if (wants('A')) {
   const q2Typed = cardRows(markOr(d, 'q2-typed'), Q2)
   check('A: typing on E checks its box (membership IS the text)', q2Typed.some(r => r.includes(Q2_TEXT) && r.includes(figures.checkboxOn)))
   if (!q2Typed.some(r => r.includes(Q2_TEXT))) dumpFrame('q2-typed', markOr(d, 'q2-typed'))
-
   const q2Enter = cardRows(markOr(d, 'q2-enter'), Q2)
   const onButton = pointerOn(q2Enter, 'Submit') || pointerOn(q2Enter, 'Next')
   check('A: ↵ on the typed E row keeps it checked and moves the highlight on to the Submit/Next button', q2Enter.some(r => r.includes(Q2_TEXT) && r.includes(figures.checkboxOn)) && onButton && q2Enter.some(r => r.includes('Enter to continue')))
@@ -553,7 +542,6 @@ if (wants('D')) {
   check('D: the drive completed', d.status === 0, `status=${d.status} end=${d.endReason}`)
   const card = markOr(d, 'd-card')
   check('D: the card was up with its Esc affordance stated', card.some(r => r.includes('Esc to cancel')))
-
   const denied = d.final.some(r => r.includes('declined this tool call'))
   check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied)
   if (!denied) dumpFrame('d-final', d.final)

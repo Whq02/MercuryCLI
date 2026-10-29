@@ -22,7 +22,6 @@ export async function haltAll(ctx: HaltContext): Promise<HaltResult> {
       tasksFailed.push(id)
     }
   }
-
   markDaemonHaltStanddown()
   let daemon: HaltResult['daemon']
   try {
@@ -32,7 +31,6 @@ export async function haltAll(ctx: HaltContext): Promise<HaltResult> {
         ? { ok: true, reaped: reply.reaped, workers: reply.workers }
         : { ok: false, reason: 'no daemon running' }
   } catch {
-
     daemon = { ok: false, reason: 'no daemon running' }
   }
   return { tasksStopped, tasksFailed, daemon }

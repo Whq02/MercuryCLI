@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -77,7 +76,6 @@ const PAGE_ONE = {
 const PAGE_TWO = {
   data: [
     { id: 'openai/gpt-fixture', name: 'GPT Fixture', expiration_date: '2026-12-01' },
-
     { id: 'anthropic/claude-opus-5[1m]', name: 'Claude Opus 5 (1M)' },
   ],
   total_count: 5,
@@ -150,7 +148,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   check('an injected recognizing law flips readiness', openrouterDispatchReady(() => 'openrouter') === true)
   const rows = getOpenrouterModelOptions()
   const modelRows = rows.filter(r => !String(r.value).startsWith('__'))
-
   check('ready picker renders the live rows in vendor order, values QUALIFIED', modelRows.length === 4 && modelRows[0]!.value === 'openrouter/anthropic/claude-fixture')
   const bracketRow = modelRows.find(r => String(r.value).includes('[1m]'))
   check(
@@ -163,16 +160,13 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
     'clean rows stay selectable beside the junk row',
     modelRows.filter(r => r.unavailable === undefined).length === 3,
   )
-
   check('every row value carries the openrouter/ namespace; the copy is empty (the neutral grammar)', modelRows.every(r => String(r.value).startsWith('openrouter/') && r.description === ''), JSON.stringify(modelRows.map(r => [r.value, r.description])))
   check('routed rows carry no dispatch-pending refusal', modelRows.every(r => r.unavailable === undefined || !r.unavailable.includes('dispatch wire pending')))
   check('rows land in the OpenRouter picker group', modelRows.every(r => r.group === 'Mercury — OpenRouter models'))
-
   const stated = modelRows.find(r => r.value === 'openrouter/anthropic/claude-fixture')
   check('a row with a stated context_length carries statedContextWindow (200000)', stated?.statedContextWindow === 200000)
   const unstated = modelRows.find(r => r.value === 'openrouter/google/gemini-fixture')
   check('a row with NO stated context carries no window (no borrowed default)', unstated !== undefined && unstated.statedContextWindow === undefined)
-
   const { resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
   const budget = resolveContextWindow('openrouter/anthropic/claude-fixture')
   check('resolveContextWindow budgets a listed openrouter id at its stated window', budget.effectiveWindow === 200000 && budget.source === 'live-current', JSON.stringify({ w: budget.effectiveWindow, s: budget.source }))
@@ -185,7 +179,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
 }
 
 {
-
   __resetOpenrouterCatalogueForTest()
   const many = {
     data: Array.from({ length: 30 }, (_, i) => ({
@@ -223,7 +216,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
 }
 
 {
-
   __resetOpenrouterCatalogueForTest()
   const emptyFetch: typeof fetch = (async () =>
     new Response(JSON.stringify({ data: [], total_count: 0, links: { next: null } }), {
@@ -237,7 +229,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   check('empty catalogue picker = ONE honest action row', rows.length === 1 && rows[0]!.label === 'OpenRouter — no models listed')
 }
 {
-
   __resetOpenrouterCatalogueForTest()
   const cursorFetch: typeof fetch = (async () =>
     new Response(
@@ -255,7 +246,6 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   check('labelled-incomplete with rows still reads READY (stale-but-labelled)', availability.state === 'ready' && availability.modelCount === 1)
 }
 {
-
   __resetOpenrouterCatalogueForTest()
   const counter = { calls: [] as string[] }
   const endlessFetch: typeof fetch = (async (url: RequestInfo | URL) => {

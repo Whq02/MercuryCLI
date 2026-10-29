@@ -1,3 +1,4 @@
+
 import type { ToolUseConfirm } from '../../../components/permissions/PermissionRequest.js'
 import type {
   PermissionAskDecision,
@@ -10,13 +11,12 @@ import { askLimitMs, unansweredAskRefusal } from '../../../utils/permissions/ask
 
 const USER_INTERACTION_GRACE_MS = 200
 
+
 type InteractivePermissionParams = {
   ctx: PermissionContext
   description: string
   result: PermissionAskDecision
-
   awaitAutomatedChecksBeforeDialog?: boolean
-
   channelCallbacks?: unknown
 }
 
@@ -31,7 +31,6 @@ export function handleInteractivePermission(
   const signal = ctx.toolUseContext.abortController.signal
 
   let channelUnsubscribe: (() => void) | null = null
-
   let checkmarkTimer: ReturnType<typeof setTimeout> | null = null
   let userInteracted = false
   let awayTimer: ReturnType<typeof setTimeout> | undefined
@@ -66,7 +65,6 @@ export function handleInteractivePermission(
     toolUseID: ctx.toolUseID,
     permissionResult: result,
     permissionPromptStartTimeMs,
-
     ...((ctx.toolUseContext as { workflowAskBadge?: ToolUseConfirm['workerBadge'] })
       .workflowAskBadge
       ? {
@@ -77,7 +75,6 @@ export function handleInteractivePermission(
       : {}),
 
     onUserInteraction() {
-
       if (Date.now() - permissionPromptStartTimeMs < USER_INTERACTION_GRACE_MS) {
         return
       }
@@ -96,7 +93,6 @@ export function handleInteractivePermission(
     onAbort: settleOnAbort,
 
     async onAllow(updatedInput, permissionUpdates, feedback, contentBlocks) {
-
       if (!guard.claim()) return
       releaseResources()
       guard.resolve(
@@ -142,7 +138,6 @@ export function handleInteractivePermission(
         )
       ).decision
       if (fresh.behavior !== 'allow') return
-
       if (!guard.claim()) return
       releaseResources()
       ctx.removeFromQueue()

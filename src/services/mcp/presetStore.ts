@@ -21,7 +21,6 @@ export function presetNameProblem(name: string): string | null {
 }
 
 export const KIT_PRESET_CAP = 200
-
 export const PRESET_LIST_CAP = 2000
 
 type KitPresetReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
@@ -113,7 +112,6 @@ export function saveKitPreset(name: string, deltas: KitDeltasV1): KitPresetRecei
     }
     return {
       ...current,
-
       kitPresets: { ...raw, [trimmed]: JSON.parse(JSON.stringify(canonical.deltas)) as KitDeltasV1 } as Record<string, KitDeltasV1>,
     }
   })
@@ -125,7 +123,6 @@ export function deleteKitPreset(name: string): KitPresetReceipt {
   saveGlobalConfig(current => {
     const raw = rawPresetsOf(current)
     if (!Object.prototype.hasOwnProperty.call(raw, name)) {
-
       receipt = { ok: false, reason: `unknown preset '${name.slice(0, PRESET_NAME_MAX)}' — ${rosterWordsOf(Object.keys(raw).sort((a, b) => a.localeCompare(b)))}` }
       return current
     }

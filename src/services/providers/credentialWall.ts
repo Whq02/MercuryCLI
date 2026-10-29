@@ -1,9 +1,10 @@
+
 type CredentialWallCause = 'sign-in' | 'key-limit'
 
 export type WireCredentialKind = 'sign-in' | 'key'
 
-const REVOKED_SIGN_IN = /\btoken\b[^.{}"]{0,40}?\brevoked\b|\brevoked\b[^.{}"]{0,20}?\btoken\b/i
 
+const REVOKED_SIGN_IN = /\btoken\b[^.{}"]{0,40}?\brevoked\b|\brevoked\b[^.{}"]{0,20}?\btoken\b/i
 const KEY_LIMIT = /\bkey\b[^.{}"]{0,40}?\b(?:limit|cap|quota)\b[^.{}"]{0,30}?\b(?:exceeded|reached|hit)\b/i
 
 const WALL_STATUSES = new Set([401, 402, 403])

@@ -1,3 +1,4 @@
+
 import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { delimiter, join, posix as pathPosix, win32 as pathWin32 } from 'path'
 import { projectConfigCandidates } from '../../utils/projectConfig.js'
@@ -19,9 +20,7 @@ interface AbsolutePathFinding {
 
 interface ControlDiscrepancy {
   skillFile: string
-
   declaredNotLive: string[]
-
   liveNotDeclared: string[]
 }
 
@@ -29,13 +28,11 @@ interface ExecutableReceipt {
   resolved?: string
   source: 'pin' | 'running-editor' | 'PATH' | 'well-known-location' | 'not-found'
   note: string
-
   probed: string[]
 }
 
 interface SemanticLaunch {
   skillFile: string
-
   scene?: string
 }
 
@@ -78,6 +75,7 @@ export function semanticLaunchOf(skillText: string): string | undefined {
   const bare = /(?:^|[\s"'`(=])([A-Za-z0-9_./\\-]+\.tscn)/m.exec(skillText)
   return bare ? bare[1]!.split(/[/\\]/).pop() : undefined
 }
+
 
 function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
   return platform === 'win32' ? pathWin32.join : pathPosix.join
@@ -197,9 +195,7 @@ function findGodotInRoot(root: string, platform: CensusPlatform, fs: RootWalkFs 
 interface ResolveGodotOptions {
   platform?: CensusPlatform
   env?: NodeJS.ProcessEnv
-
   census?: GodotProcess[]
-
   projectRoot?: string
   fs?: RootWalkFs
 }
@@ -244,15 +240,12 @@ async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<Exe
   if (mine[0]) {
     return { resolved: mine[0].executable, source: 'running-editor', note: `the running editor's own executable (pid ${mine[0].pid}, this project)`, probed }
   }
-
   const onPath = godotOnPath(platform, env, fs)
   if (onPath !== undefined) return { resolved: onPath.path, source: 'PATH', note: onPath.note, probed }
-
   for (const root of probed) {
     const found = findGodotInRoot(root, platform, fs)
     if (found) return { resolved: found, source: 'well-known-location', note: `resolved under ${root}`, probed }
   }
-
   const any = census.find(p => p.editor) ?? census[0]
   if (any) {
     return {

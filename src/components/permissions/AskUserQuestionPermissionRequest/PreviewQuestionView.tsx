@@ -69,7 +69,6 @@ export function PreviewQuestionView({
   onNotesPasteLarge,
 }: Props): React.ReactNode {
   const previewPermissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
-
   const isApolloPoll = previewPermissionMode === 'apollo'
   const { columns, rows: terminalRows } = useTerminalSize()
   const [isFooterFocused, setIsFooterFocused] = useState(false)
@@ -81,7 +80,6 @@ export function PreviewQuestionView({
   const questionState = questionStates[questionText]
 
   const allOptions = question.options
-
   const focusForSelection = (): number => {
     const selected = questionStates[questionText]?.selectedValue as string | undefined
     const idx = selected ? allOptions.findIndex(opt => opt.label === selected) : -1
@@ -101,7 +99,6 @@ export function PreviewQuestionView({
     () =>
       resolveInterviewLayout({
         columns,
-
         rows: minContentHeight ?? terminalRows,
         question: {
           id: 'view',
@@ -220,7 +217,6 @@ export function PreviewQuestionView({
         onCancel()
         return
       }
-
       if (e.key === 'n' && !e.ctrl && !e.meta) {
         e.preventDefault()
         setIsInNotesInput(true)
@@ -252,7 +248,6 @@ export function PreviewQuestionView({
     const isFocused = focusedIndex === index
     const isSelected = selectedValue === option.label
     return (
-
       <Box key={option.label} flexDirection="row" onClick={() => handleSelectOption(index)}>
         {isFocused ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
         <Text dimColor> {isApolloPoll ? APOLLO_OPTION_LETTERS[index] ?? index + 1 : index + 1}.</Text>

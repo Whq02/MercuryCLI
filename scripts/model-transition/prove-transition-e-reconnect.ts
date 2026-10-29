@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -60,7 +59,6 @@ section('§A E01/transcript — snapshot + proven suffix, typed miss, watermark 
   const full = materializeEntriesAt(entries)
   const k = 9
   const prefix = materializeEntriesAt(entries, k)
-
   const raw = readFileSync(SRC, 'utf8')
   let covered = 0
   let cursor = 0
@@ -78,17 +76,14 @@ section('§A E01/transcript — snapshot + proven suffix, typed miss, watermark 
     for (const e of tailEntries) applyTranscriptEntry(hit.fold, e as never)
     check('snapshot + suffix ≡ the pure full replay (digest law)', materializationDigest(hit.fold) === full.digest)
   }
-
   const ALIEN = join(HOME, 'alien.jsonl')
   writeFileSync(ALIEN, raw)
   check('no snapshot ⇒ TYPED null (the explicit full-read fallback)', (await tryLoadResumeSnapshot(ALIEN)) === null)
-
   const MOVED = join(HOME, 'moved.jsonl')
   writeFileSync(MOVED, raw)
   writeResumeSnapshot(MOVED, prefix.fold, cursor)
   writeFileSync(MOVED, raw.replace('reply 8', 'REPLY X'))
   check('a stale snapshot refuses TYPED (never a wrong resume)', (await tryLoadResumeSnapshot(MOVED)) === null)
-
   const recordSrc = readFileSync(join(import.meta.dir, '../../src/fabric/record.ts'), 'utf8')
   check('affected-item revisions ride (recordId, updateOrdinal) last-wins', recordSrc.includes('updateOrdinal'))
 }
@@ -166,7 +161,6 @@ section('§E E05 — payloads stay shared references across branch lineages')
 section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)')
 {
   const messagesSrc = readFileSync(join(import.meta.dir, '../../src/components/Messages.tsx'), 'utf8')
-
   check(
     'the message slices key on [messages, anchor] only',
     /const \[beforeTail, afterTail\] = useMemo\(\s*\(\)(?::[^=]+)?=>\s*anchor >= messages\.length \? \[messages, EMPTY_ROWS\] : \[messages\.slice\(0, anchor\), messages\.slice\(anchor\)\],\s*\[messages, anchor\],?\s*\)/.test(messagesSrc),
@@ -187,10 +181,8 @@ section('§F E03 — resize/focus/unread reparse zero (the memo seam + counter)'
   norm.normalizeMessages(fixture as never)
   norm.normalizeMessages(fixture as never)
   check('the instrumented counter counts passes', norm._normalizePassesForProof === before + 2)
-
   const { existsSync } = await import('node:fs')
   check('the rendered resize journey stands', existsSync(join(import.meta.dir, '../../scripts/session-graph/prove-resize-continuity.ts')))
-
   const { execSync } = await import('node:child_process')
   const unreadNormalizers = execSync(
     "grep -rl 'normalizeMessages' src/services/crew 2>/dev/null || true",

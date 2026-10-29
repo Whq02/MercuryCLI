@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { writeFileSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { bigWordmarkRows } from '../../src/components/mercury-ui/assets.js'
@@ -19,7 +18,6 @@ function capture(scenarioName: string, cols: number, tag: string): Grid {
   const cfgPath = `/tmp/vshot-model-switch-${tag}.json`
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const env: NodeJS.ProcessEnv = { ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME }
   const painted = (g: Grid) => g.grid.reduce((n, r) => n + r.filter(c => c.c && c.c !== ' ').length, 0)
   let grid: Grid = { grid: [] }
@@ -33,7 +31,6 @@ function capture(scenarioName: string, cols: number, tag: string): Grid {
 }
 
 const text = (g: Grid) => g.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
-
 const halfBlocks = (g: Grid) =>
   g.grid.reduce((n, r) => n + r.filter(c => c.c === '▀' || c.c === '▄' || c.c === '█').length, 0)
 
@@ -51,7 +48,6 @@ console.log('\n▶ model-switch-home @120 (cockpit — landing must survive)')
 const c120 = capture('model-switch-home', 120, '120')
 const t120 = text(c120)
 gridToPng('/tmp/model-switch-grid-120.json', '/tmp/model-switch-120.png').then(r => console.log('  png:', r.path))
-
 expect('landing prompt-hint row present (`↵ sends`)', /↵ sends/.test(t120))
 expect('landing session table present (theme row)', /theme\s+\w/.test(t120))
 expect('mascot hero sprite mass on screen (≥60 half-block cells)', halfBlocks(c120) >= 60)
@@ -74,9 +70,7 @@ const tt120 = text(turns120)
 gridToPng('/tmp/model-switch-grid-turns-120.json', '/tmp/model-switch-turns-120.png').then(r => console.log('  png:', r.path))
 expect('landing prompt-hint ABSENT with real turns (furniture collapse intact)', !/↵ sends/.test(tt120))
 expect('landing session table ABSENT with real turns', !/theme\s+\w/.test(tt120))
-
 expect('hero sprite mass PRESENT with real turns (persistent hero, ≥60)', halfBlocks(turns120) >= 60)
-
 expect('the banner-header painted (never the crab glyph collapse)', tt120.includes(bigWordmarkRows()[0]!.trimEnd()))
 expect('the real turns painted (`first task`)', /first task/.test(tt120))
 

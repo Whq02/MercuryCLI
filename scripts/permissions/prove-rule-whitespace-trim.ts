@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { permissionRuleValueFromString } from '../../src/utils/permissions/permissionRuleParser.ts'
 import { getDenyRuleForTool } from '../../src/utils/permissions/decision/rules.ts'
 import { validatePermissionRule } from '../../src/utils/settings/permissionValidation.ts'

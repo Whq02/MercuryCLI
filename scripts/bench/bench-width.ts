@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { stringWidth } from '../../src/ink/stringWidth.js'
 import { truncateToWidth } from '../../src/utils/truncate.js'
 
@@ -15,7 +14,6 @@ const SAMPLES = [
 ]
 
 function bench(label: string, fn: () => void, iters: number, floorOpsSec: number): void {
-
   for (let i = 0; i < 1000; i++) fn()
   const t0 = process.hrtime.bigint()
   for (let i = 0; i < iters; i++) fn()
@@ -45,7 +43,6 @@ bench(
   20_000,
   4_000,
 )
-
 {
   const checks: Array<[string, number, number]> = [
     ['abc', stringWidth('abc'), 3],

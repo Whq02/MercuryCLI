@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -44,13 +43,11 @@ console.log(' selector estate + ModelTransition proof')
 console.log('============================================================')
 
 section('1 · the PURE grammar — numeric parse (the semantic foundation)')
-
 {
   const sol = parseGptModelId('GPT-5.6-Sol')
   check('parses + canonicalizes (case-folded)', sol?.major === 5 && sol.minor === 6 && sol.variant === 'sol' && sol.canonicalId === 'gpt-5.6-sol')
   check('the class alias never parses', parseGptModelId('gpt') === undefined)
   check('non-gpt ids never parse', parseGptModelId('claude-opus-4-8') === undefined && parseGptModelId('glm-5.2') === undefined)
-
   const nova = parseGptModelId('gpt-5.10-nova')
   check('5.10 parses minor = ten (numeric, not lexicographic)', nova?.major === 5 && nova.minor === 10)
   const six = parseGptModelId('gpt-6')
@@ -58,7 +55,6 @@ section('1 · the PURE grammar — numeric parse (the semantic foundation)')
 }
 
 section('2 · display — the official names, everywhere the estate renders')
-
 {
   check("getPublicModelDisplayName('gpt-5.6-sol') = 'GPT-5.6 Sol'", getPublicModelDisplayName('gpt-5.6-sol') === 'GPT-5.6 Sol')
   check("marketing name matches", getMarketingNameForModel('gpt-5.6-sol') === 'GPT-5.6 Sol')
@@ -68,9 +64,7 @@ section('2 · display — the official names, everywhere the estate renders')
 }
 
 section('3 · context — the pin drives the uncredentialed budget; kill-switch capped')
-
 {
-
   const solPin = gptDisplayPin('gpt-5.6-sol')
   check(
     'Sol budget derives from the recorded pin window (dated observation)',
@@ -85,17 +79,13 @@ section('3 · context — the pin drives the uncredentialed budget; kill-switch 
 }
 
 section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rate')
-
 {
-
   const solPin = gptDisplayPin('gpt-5.6-sol')!
   const lunaPin = gptDisplayPin('gpt-5.6-luna')!
-
   const pricingOf = (pin: { costInPerMtok?: number; costOutPerMtok?: number }): string =>
     formatModelPricing({ inputTokens: pin.costInPerMtok ?? 0, outputTokens: pin.costOutPerMtok ?? 0, promptCacheWriteTokens: 0, promptCacheReadTokens: 0, webSearchRequests: 0 })
   check("Sol pricing string derives from the pin's recorded rates", getModelPricingString('gpt-5.6-sol') === pricingOf(solPin))
   check("Luna pricing string derives from the pin's recorded rates", getModelPricingString('gpt-5.6-luna') === pricingOf(lunaPin))
-
   const cachedUnder = calculateCostFromTokens('gpt-5.6-sol', {
     inputTokens: 0,
     outputTokens: 0,
@@ -107,7 +97,6 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
     solPin.cachedInPerMtok !== undefined && Math.abs(cachedUnder - solPin.cachedInPerMtok * 0.2) < 1e-9,
     String(cachedUnder),
   )
-
   const cachedPast = calculateCostFromTokens('gpt-5.6-sol', {
     inputTokens: 0,
     outputTokens: 0,
@@ -126,7 +115,6 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
     cacheReadInputTokens: 200_000,
     cacheCreationInputTokens: 0,
   })
-
   check(
     "Terra cached-input rate is the pin's RECORDED rate",
     terraPin.cachedInPerMtok !== undefined && Math.abs(terraCached - terraPin.cachedInPerMtok * 0.2) < 1e-9,
@@ -136,9 +124,7 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
 }
 
 section('4b · the FULL lineup sweeps the same consumers (provider parity)')
-
 {
-
   const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
   const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.js')
   check('the lineup includes developers.openai.com/api/docs/models/gpt-6.1-terra, read 2026-10-28', GPT_DISPLAY_PINS.map(pin => pin.id).join(',') === 'gpt-6-astra,gpt-6.1-sol,gpt-6.1-terra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.6-cyber,gpt-5.5,gpt-5.5-pro,gpt-5.5-cyber,gpt-5.4,gpt-5.4-pro,gpt-5.4-mini,gpt-5.4-nano', GPT_DISPLAY_PINS.map(pin => pin.id).join(','))
@@ -174,7 +160,6 @@ section('4b · the FULL lineup sweeps the same consumers (provider parity)')
 }
 
 section('5 · the ModelTransition decision matrix (decision #7)')
-
 {
   const samePick = decideModelTransition({ currentSetting: 'gpt-5.6-sol', nextSetting: 'gpt-5.6-sol', turnActive: true })
   check('same-model ⇒ no-op even mid-turn', samePick.kind === 'no-op-same')
@@ -188,7 +173,6 @@ section('5 · the ModelTransition decision matrix (decision #7)')
   check('gpt → Default ⇒ apply-now cross-provider (back to Anthropic)', back.kind === 'apply-now' && back.crossProvider === true)
   check("families: gpt ⇒ 'openai' · glm ⇒ 'zai' · opus ⇒ 'anthropic'", providerFamilyOfSetting('gpt-5.6-sol') === 'openai' && providerFamilyOfSetting('glm-5.2') === 'zai' && providerFamilyOfSetting('opus') === 'anthropic')
   check('the cross-provider note names the transport change', crossProviderNote('gpt-5.6-sol').includes('Responses'))
-
   check('the return sentence is reserved for the Anthropic destination', crossProviderNote(null).includes('return to the Anthropic transport') && crossProviderNote('opus').includes('return to the Anthropic transport'))
   check('a gemini destination is NAMED, never claimed as an Anthropic return', crossProviderNote('gemini-3-pro').includes('the Gemini transport') && !crossProviderNote('gemini-3-pro').includes('return to the Anthropic'))
   check('a deepseek destination the same', crossProviderNote('deepseek-v4').includes('the DeepSeek transport') && !crossProviderNote('deepseek-v4').includes('return to the Anthropic'))
@@ -196,10 +180,8 @@ section('5 · the ModelTransition decision matrix (decision #7)')
 }
 
 section('6 · retention + wiring (structural — the module graph is not bun-loadable)')
-
 {
   const restore = readFileSync(join(ROOT, 'src', 'utils', 'sessionRestore.ts'), 'utf8')
-
   const retained = readFileSync(join(ROOT, 'src', 'utils', 'model', 'retainedModel.ts'), 'utf8')
   check(
     '§8 retention is family-blind (no id-spelling gate; the synthetic sentinel is the one exclusion)',
@@ -222,7 +204,6 @@ section('6 · retention + wiring (structural — the module graph is not bun-loa
     ),
   )
   const repl = readFileSync(join(ROOT, 'src', 'screens', 'Chat.tsx'), 'utf8')
-
   check(
     'the Chat boundary effect applies the parked switch exactly-once',
     repl.includes('pendingModelSwitch === null) return') &&

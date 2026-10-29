@@ -15,7 +15,6 @@ type Props = {
   style?: 'condensed';
   verbose: boolean;
 };
-
 export function FileEditToolUpdatedMessage({
   filePath,
   structuredPatch,
@@ -34,7 +33,6 @@ export function FileEditToolUpdatedMessage({
     0,
   );
   const countColor = toolCardCountColor();
-
   const hasChanges = numAdditions > 0 || numRemovals > 0;
 
   const text = (

@@ -7,12 +7,12 @@ import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import { formatFileSize, truncate } from '../../utils/format.js'
 import type { Output } from './WebFetchTool.js'
 
+
 type Input = { url?: string; prompt?: string }
 
 export function renderToolUseMessage(input: Partial<Input>, { verbose }: { verbose: boolean }): React.ReactNode {
   if (!input.url) return null
   if (!verbose) return input.url
-
   return [`url: ${input.url}`, ...(input.prompt ? [`prompt: ${input.prompt}`] : [])].join('\n')
 }
 

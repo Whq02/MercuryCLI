@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, rmSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -60,7 +59,6 @@ section('§B critical_system_reminder: once per turn, changed content still fire
 
 section('§C sizes: bytes are bytes, the char budget says chars')
 {
-
   const multi = '漢'.repeat(12_000)
   const result = await persistToolResult(multi, 'vigil-q13-probe')
   check('the result persisted', !('error' in result), JSON.stringify(result).slice(0, 120))

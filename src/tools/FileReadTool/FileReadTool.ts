@@ -114,6 +114,8 @@ import {
   userFacingName,
 } from './UI.js'
 
+
+
 const MAX_RANGES_PER_READ = 32
 
 const stockFields = () => ({
@@ -179,6 +181,7 @@ function selectedCrop(crop: readonly number[] | undefined): CropBox | undefined 
 
 export type Input = z.infer<WidestReadSchema>
 
+
 type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number }; room?: true }
 
 export type Output =
@@ -193,9 +196,7 @@ export type Output =
         overCap?: OverCapNote
         lossless?: boolean
         reminder?: string
-
         anchor?: string
-
         memoryUpdatedAt?: number
       }
     }
@@ -272,6 +273,7 @@ const outputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('file_unchanged'), file: z.object({ filePath: z.string(), anchor: z.string().optional() }) }),
 ])
 
+
 const resultLineAnchors = new WeakSet<object>()
 
 const resultOutlineBodies = new WeakMap<object, string>()
@@ -281,6 +283,7 @@ const resultPreRenderedBody = new WeakMap<object, string>()
 
 const REMINDER_TAKEN_CAP = 256
 const reminderTakenBy = new Set<string>()
+
 
 type FileReadListener = (filePath: string, content: string) => void
 
@@ -302,6 +305,7 @@ function notifyFileReadListeners(filePath: string, content: string): void {
     }
   }
 }
+
 
 export class MaxFileReadTokenExceededError extends Error {
   readonly tokenCount: number
@@ -412,6 +416,7 @@ async function tokensOverCap(content: string, ext: string, maxTokens: number, ex
   return effective > maxTokens ? effective : undefined
 }
 
+
 const CYBER_RISK_MITIGATION_REMINDER = `
 
 <system-reminder>
@@ -474,6 +479,7 @@ function takeReminder(parentMessage: unknown, messages: Message[] | undefined): 
   }
   return true
 }
+
 
 const BLOCKED_DEVICE_PATHS = new Set([
   '/dev/zero',
@@ -569,6 +575,7 @@ async function friendlyNotFoundError(requestedPath: string, expandedPath: string
   if (suggestion) message += ` Did you mean ${suggestion}?`
   return new Error(message)
 }
+
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 
@@ -667,7 +674,6 @@ export async function readImageWithTokenBudget(
       .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 20 })
       .toBuffer()
-
     return {
       type: 'image',
       file: {
@@ -690,6 +696,7 @@ export async function readImageWithTokenBudget(
     }
   }
 }
+
 
 type LaneResult = { data: Output; newMessages?: Message[] }
 
@@ -737,7 +744,6 @@ async function readImageLane(
   crop?: CropBox,
   scale = 1,
 ): Promise<LaneResult> {
-
   const { cropped, ...data } = await readImageWithTokenBudget(resolvedPath, limits.maxTokens, undefined, crop, scale)
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   const captions: string[] = []
@@ -790,7 +796,6 @@ async function readPdfLane(
   }
   if (pages !== undefined && caps.media.images) {
     const range = parsePDFPageRange(pages)
-
     const extraction = await extractPDFPages(resolvedPath, {
       firstPage: range?.firstPage,
       lastPage: range?.lastPage,
@@ -849,12 +854,10 @@ async function readPdfLane(
   const stats = await stat(resolvedPath)
   const pdfSupported = isPDFSupported(turnModel)
   if (!pdfSupported || stats.size > PDF_TARGET_RAW_SIZE) {
-
     const extraction = await extractPDFPages(resolvedPath).catch(() => undefined)
     if (extraction?.success) await removePDFPages(extraction.data.file.outputDir)
   }
   if (!pdfSupported) {
-
     const pagesFallback = resolveModelCapabilities(turnModel).media.images
       ? `, or use the \`pages\` parameter to read up to ${MAX_PDF_PAGES_PER_REQUEST} pages at a time as images`
       : ` (image-based page reading is also unavailable on this model — extract the text with a shell tool such as \`pdftotext\` instead)`
@@ -1484,7 +1487,6 @@ async function readTextLane(
       range = await readFileInRange(resolvedPath, lineOffset, maxLines, undefined, context.abortController.signal)
     }
   } else {
-
     const maxBytes = input.limit === undefined ? declared.maxSizeBytes : undefined
     try {
       range = await readFileInRange(
@@ -1573,7 +1575,6 @@ async function readTextLane(
       filePath: resolvedPath,
       content: range.content,
       numLines: shown.count,
-
       startLine: lineOffset + 1,
       totalLines,
       ...(input.lossless ? { lossless: true } : {}),
@@ -1597,6 +1598,7 @@ async function readTextLane(
   }
   return { data }
 }
+
 
 type TextFile = Extract<Output, { type: 'text' }>['file']
 
@@ -1670,11 +1672,11 @@ function overCapWords(file: TextFile): string {
   return `File content (${note.tokens} tokens) ${cap}: ${shown}; ${overCapNextWords(note.next)}`
 }
 
+
 export const FileReadTool = buildTool({
   name: FILE_READ_TOOL_NAME,
   strict: true,
   straightQuoteInputs: ['file_path'],
-
   maxResultSizeChars: Infinity,
   get inputSchema() {
     return inputSchema()
@@ -1682,7 +1684,6 @@ export const FileReadTool = buildTool({
   outputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
-
   async checkPermissions(input, context): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     return checkReadPermissionForTool(FileReadTool, input, context.getAppState().toolPermissionContext)
   },
@@ -1697,12 +1698,10 @@ export const FileReadTool = buildTool({
     return input?.file_path || getCwd()
   },
   backfillObservableInput(input: Input): void {
-
     if (hasControlCharacter(input.file_path) || windowsPathNeedsPermission(input.file_path)) return
     input.file_path = expandPath(input.file_path)
   },
   preparePermissionMatcher(input: Input) {
-
     return (rulePattern: string): boolean =>
       matchWildcardPattern(rulePattern, input.file_path)
   },
@@ -1735,7 +1734,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
   },
   async prompt(options?: { model?: string }): Promise<string> {
     const targetLines = readTargetsEnabled() ? readTargetPromptLines() : undefined
-
     const caps = resolveModelCapabilities(options?.model ?? getEngineModel())
     return renderPromptTemplate(
       LINE_FORMAT_INSTRUCTION,
@@ -1752,7 +1750,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
     if (pathRefusal !== null) {
       return { result: false as const, message: pathRefusal, errorCode: 1 }
     }
-
     const pages = selectedPages(input.pages)
     let parsedRange: { firstPage: number; lastPage: number } | null = null
     if (pages !== undefined) {
@@ -1765,7 +1762,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
         }
       }
       const width = parsedRange.lastPage - parsedRange.firstPage + 1
-
       if (!Number.isFinite(width) || width > MAX_PDF_PAGES_PER_REQUEST) {
         return {
           result: false as const,
@@ -1915,7 +1911,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
       }
       if (isDirectoryTarget(fullFilePath)) {
         const rendered = renderDirectoryTarget(fullFilePath)
-
         return settle({
           data: {
             type: 'text',
@@ -2079,7 +2074,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
         if (data.file.content === '') {
           return { tool_use_id: toolUseID, type: 'tool_result' as const, content: body }
         }
-
         return {
           tool_use_id: toolUseID,
           type: 'tool_result' as const,
@@ -2089,7 +2083,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
     }
   },
   extractSearchText(): string {
-
     return ''
   },
   renderToolUseMessage,

@@ -1,7 +1,7 @@
+
 const SETTLE_WINDOW_MS = 120
 
 type ResizeGateEvent =
-
   | { kind: 'storm-entered' }
   | { kind: 'storm-continues' }
   | { kind: 'settle'; cols: number; rows: number }

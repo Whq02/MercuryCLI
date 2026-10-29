@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover', PACKAGE_URL: 'https://github.com/example/mercury' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -49,7 +48,6 @@ const OFF_SUB = "crewmates are off for this session — /crewmates on, or the bo
 const OFF_WF = "workflows are off for this session — /workflows on, or the boot menu's Agents section"
 
 section('§1 the rows — live-class toggles over registered flags, through the boot-env road')
-
 {
   const rows = menu.STARTUP_MENU.filter(r => r.group === 'agents')
   check('the Agents section holds exactly the two rows, sub-agents then workflows', rows.length === 2 && rows[0]?.env === SUB && rows[1]?.env === WF, rows.map(r => r.env).join(','))
@@ -100,7 +98,6 @@ section('§1 the rows — live-class toggles over registered flags, through the 
 }
 
 section('§2 the valve and the latch — one receipt while off; born once, sticky, moved by the toggle')
-
 {
   const off = evaluateLaunchAuthority('subagents', { spawnSwitch: { on: false, source: 'boot-menu' } })
   check('sub-agents off ⇒ the valve refuses with the ONE receipt', !off.allowed && off.reason === OFF_SUB && off.cause === 'session-switch', j(off))
@@ -124,7 +121,6 @@ section('§2 the valve and the latch — one receipt while off; born once, stick
   check('the in-session toggle moves the switch and says so', moved.changed === true && j(moved.state) === j({ on: true, source: 'in-session' }))
   check('the same toggle again changes nothing', sw.setSpawnSwitch('subagents', true).changed === false)
   check('the facts carry both switches', j(sw.spawnSwitchFacts()) === j({ subagents: { on: true, source: 'in-session' }, workflows: { on: true, source: 'default' } }))
-
   sw._resetSpawnSwitchesForTesting()
   const path = join(HOME, 'boot-env-latch.json')
   menu.saveBootDefaultsProfile({ [WF]: '0' }, path)
@@ -135,7 +131,6 @@ section('§2 the valve and the latch — one receipt while off; born once, stick
 }
 
 section('§3 the roster — the switches decide which tools the model sees')
-
 const { getTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
@@ -159,7 +154,6 @@ const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(
 }
 
 section('§4 the spawn roads — every road answers the receipt, and nothing outside a session reads the switch')
-
 {
   sw.setSpawnSwitch('subagents', false)
   let agentError = ''
@@ -207,7 +201,6 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
 }
 
 section("§5 the record's view — the admission snapshot's rows and the in-session toggle")
-
 {
   const rows = (value: string | null, source: 'process-env' | 'profile' | 'default') => ({ settingsSnapshot: { rows: [{ env: SUB, value, source }] } })
   check('a profile row of 0 reads off, the boot menu\'s', j(sw.spawnSwitchOfRecord(rows('0', 'profile'), 'subagents')) === j({ on: false, source: 'boot-menu' }))
@@ -220,7 +213,6 @@ section("§5 the record's view — the admission snapshot's rows and the in-sess
 }
 
 section("§6 the seat verb — idle applies, busy parks and forwards, the runner's frame lands it, the respawn re-forwards")
-
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
   const sup = await import('../../src/daemon/concourseWorkers.ts')
@@ -242,7 +234,6 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
     hooks: { onApplied: params => seat.onSeatApplied(short, params, roster as never, recDir) },
   })
   const roster = stand.roster({ list: () => [{ short, busy, turnActive: busy }] })
-
   const settled = (): Promise<void> => new Promise(r => setTimeout(r, 120))
   const until = async (seen: () => boolean, budgetMs = 5_000): Promise<boolean> => {
     const deadline = Date.now() + budgetMs
@@ -329,7 +320,6 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
 }
 
 section('§7 the preserved-thinking seam — a roster transition is a lawful prefix change that names the toggle')
-
 {
   const tb = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const { createRosterTransitionMessage } = await import('../../src/utils/messages/systemMessages.ts')
@@ -389,7 +379,6 @@ if (!existsSync(DIST)) {
     }
   }
   interface RunResult { exit: number | null; stdout: string; stderr: string; answers: Array<{ method: string; result?: unknown; error?: string }> }
-
   function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; request?: TurnRequest }>): Promise<RunResult> {
     return runTurns({ node: nodeBin, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, requests: t.request !== undefined ? [t.request] : [] })) })
   }
@@ -431,7 +420,6 @@ if (!existsSync(DIST)) {
   const common = ['--model', 'claude-opus-4-8']
 
   section('§8a the wire — born with both switches off, the request carries neither tool')
-
   {
     const turns: ScriptedTurn[] = [{ kind: 'text', text: 'S8A-DONE', thinking: 'born off', inputTransformations: [] }]
     const fixture = await startFixtureApi([handoffTurn(), ...turns])
@@ -446,7 +434,6 @@ if (!existsSync(DIST)) {
   }
 
   section('§8b the wire — the in-session toggle leaves the frozen roster on the wire (the valve refuses at launch), the prefix holds, the receipt names the toggle')
-
   {
     const DROP = { type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }
     const turns: ScriptedTurn[] = [
@@ -472,14 +459,12 @@ if (!existsSync(DIST)) {
       const b2 = reqs[1]!.body as Body
       const b3 = reqs[2]!.body as Body
       check('request 1 carries the Crewmate tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
-
       check('request 2 (the next request after the toggle) STILL carries the Crewmate tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
       check('…and the tools array is byte-identical to request 1 (nothing left, nothing moved)', j(toolNames(b1)) === j(toolNames(b2)))
       const pm = (b1.messages ?? []) as unknown[]
       const cm = (b2.messages ?? []) as unknown[]
       const prefixSame = pm.every((m, i) => j(withoutCacheControl(m)) === j(withoutCacheControl(cm[i])))
       check('the shared messages prefix is byte-identical and the turn is appended (the toggle is a roster change, never a history rewrite)', prefixSame && cm.length > pm.length, `${pm.length}→${cm.length}`)
-
       check('the top-level system moves at most at the toggle: request 3 is byte-identical to request 2', j(withoutCacheControl(b2.system)) === j(withoutCacheControl(b3.system)))
       check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
@@ -491,7 +476,6 @@ if (!existsSync(DIST)) {
   }
 
   section('§9 /health — the built artifact names both switches with their source')
-
   {
     const findRow = (value: unknown): Record<string, unknown> | null => {
       if (Array.isArray(value)) {
@@ -537,7 +521,6 @@ if (!existsSync(DIST)) {
 }
 
 section('§10 the commands — /crewmates and /workflows on|off, the grammar, the no-chat sentence')
-
 {
   const { default: crewmates } = await import('../../src/commands/crewmates/index.ts')
   const { default: workflows } = await import('../../src/commands/workflows/index.ts')

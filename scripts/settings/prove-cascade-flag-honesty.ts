@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -51,7 +50,6 @@ section('§1 FC-027 — a cascade-member flag file keeps flag priority')
 section('§2 FC-028 — both flag spellings read')
 {
   const main = src('src/main.tsx')
-
   const eagerStart = main.indexOf('function eagerLoadSettings')
   const eager = main.slice(eagerStart, main.indexOf("profileCheckpoint('eagerLoadSettings_end')", eagerStart))
   check(

@@ -51,7 +51,6 @@ export function usePermissionExplainerUI({
           toolInput,
           toolDescription,
           messages,
-
           signal: new AbortController().signal,
         }).catch(() => null)
         setPromise(requestRef.current)

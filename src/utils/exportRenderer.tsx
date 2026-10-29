@@ -9,6 +9,7 @@ import type { Tools } from '../Tool.js'
 import type { Message } from '../types/message.js'
 import { renderToAnsiString } from './staticRender.tsx'
 
+
 type ExportOptions = {
   columns?: number
   verbose?: boolean

@@ -1,15 +1,12 @@
+
 const MIN = { major: 24, minor: 20, patch: 0 } as const
 
 const MINIMUM = `${MIN.major}.${MIN.minor}.${MIN.patch}`
 
 export const NODE_SUPPORT = {
-
   range: `>=${MINIMUM} <${MIN.major + 1}`,
-
   major: MIN.major,
-
   minimum: MINIMUM,
-
   label: 'Node 24 LTS',
 } as const
 
@@ -24,9 +21,7 @@ type NodeRuntimeVerdict =
 
 interface NodeRuntimeDecision {
   verdict: NodeRuntimeVerdict
-
   observed: string | null
-
   detail: string
 }
 
@@ -71,7 +66,6 @@ export function nodeRefusalMessage(decision: NodeRuntimeDecision): string {
     `mercury: ${why}`,
     `mercury: Mercury currently supports ${NODE_SUPPORT.label} (${NODE_SUPPORT.range}); newer majors are not yet qualified.`,
   ]
-
   if (decision.verdict === 'too-old' && decision.observed?.startsWith(`${NODE_SUPPORT.major}.`)) {
     lines.push(`mercury: ${NODE_FLOOR_REASON}.`)
   }

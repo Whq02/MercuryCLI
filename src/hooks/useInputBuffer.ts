@@ -1,3 +1,4 @@
+
 import { useCallback, useRef, useState } from 'react'
 import type { PastedContent } from '../utils/config.js'
 
@@ -36,9 +37,7 @@ export function useInputBuffer({
 }: UseInputBufferProps): UseInputBufferResult {
   const undoStackRef = useRef<BufferEntry[]>([])
   const redoStackRef = useRef<BufferEntry[]>([])
-
   const burstAtRef = useRef(0)
-
   const [depths, setDepths] = useState({ undo: 0, redo: 0 })
 
   const syncDepths = useCallback((): void => {
@@ -64,12 +63,10 @@ export function useInputBuffer({
       pastedContents: Record<number, PastedContent> = {},
     ): void => {
       const now = Date.now()
-
       if (burstAtRef.current !== 0 && now - burstAtRef.current < debounceMs) {
         burstAtRef.current = now
         return
       }
-
       const last = undoStackRef.current[undoStackRef.current.length - 1]
       if (last !== undefined && last.text === text) {
         if (redoStackRef.current.length > 0) redoStackRef.current = []
@@ -91,7 +88,6 @@ export function useInputBuffer({
       cursorOffset: number,
       pastedContents: Record<number, PastedContent> = {},
     ): void => {
-
       undoStackRef.current.push({ text, cursorOffset, pastedContents })
       bound(undoStackRef.current)
       if (redoStackRef.current.length > 0) redoStackRef.current = []
@@ -109,7 +105,6 @@ export function useInputBuffer({
         syncDepths()
         return undefined
       }
-
       redoStackRef.current.push(current)
       bound(redoStackRef.current)
       syncDepths()

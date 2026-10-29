@@ -1,3 +1,4 @@
+
 import { describeArtifactIdentity } from '../utils/artifactIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { comparePrivateVersions, parsePrivateVersion } from '../services/privateChannel/channelCore.js'
@@ -28,12 +29,10 @@ export interface DaemonVersionFacts {
   ready: boolean
   restartArmed: boolean
   predecessorPids?: number[]
-
   preHandshake: boolean
 }
 
 export type HandshakeState = 'absent' | 'starting' | 'matched' | 'rebuilt' | 'older' | 'newer'
-
 export type HandshakeHeal = 'none' | 'wait' | 'spawn' | 'restart-when-idle' | 'operator' | 'reopen'
 export type HealState = 'none' | 'restarting' | 'armed' | 'refused' | 'operator'
 
@@ -41,14 +40,11 @@ export interface DaemonHandshakeVerdict {
   state: HandshakeState
   daemon: DaemonVersionFacts | null
   client: ClientVersionFacts
-
   live: number
   liveSessions: number
   heal: HandshakeHeal
-
   healState: HealState
   healDetail?: string
-
   line: string | null
   at: number
 }
@@ -93,6 +89,7 @@ export type HelloOutcome =
     }
   | { kind: 'hello'; reply: HelloReply }
 
+
 let clientMemo: ClientVersionFacts | null = null
 
 export function clientVersionFacts(override?: Partial<ClientVersionFacts>): ClientVersionFacts {
@@ -109,6 +106,7 @@ export function clientVersionFacts(override?: Partial<ClientVersionFacts>): Clie
   return override ? { ...clientMemo, ...override } : clientMemo
 }
 
+
 export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFacts, now = Date.now(), installed: InstalledBuildFacts | null = null): DaemonHandshakeVerdict {
   const base = { client, healState: 'none' as const, at: now }
   if (outcome.kind === 'absent') {
@@ -118,7 +116,6 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     return { ...base, state: 'starting', daemon: null, live: 0, liveSessions: 0, heal: 'wait', line: null }
   }
   if (outcome.kind === 'pre-handshake') {
-
     const newer = outcome.proto !== null && outcome.proto > client.proto
     const daemon: DaemonVersionFacts = {
       proto: outcome.proto ?? MIN_PROTO,
@@ -237,7 +234,6 @@ export function honestLine(v: DaemonHandshakeVerdict): string | null {
   if (v.healState === 'restarting') return null
   if (v.live > 0) return `${who} running with ${liveNoun(v)} — ${wait} · /daemon restart when ready`
   if (v.heal === 'operator') return `${who} running with nothing live — ${wait} · /daemon restart`
-
   return null
 }
 
@@ -332,6 +328,7 @@ function healWords(v: DaemonHandshakeVerdict): string {
   }
 }
 
+
 let last: DaemonHandshakeVerdict | null = null
 const subscribers = new Set<() => void>()
 
@@ -373,6 +370,7 @@ export function resetDaemonHandshakeForTesting(): void {
   healAskInFlight = null
 }
 
+
 export async function handshakeDaemon(
   opts: { timeoutMs?: number; client?: Partial<ClientVersionFacts> } = {},
 ): Promise<DaemonHandshakeVerdict> {
@@ -410,7 +408,6 @@ async function classifyHello(reply: DaemonReply): Promise<HelloOutcome> {
     case 'ESTARTING':
       return { kind: 'starting' }
     case 'EPROTO': {
-
       const proto = typeof reply.serverProto === 'number' ? reply.serverProto : null
       const version = typeof reply.serverVersion === 'string' ? reply.serverVersion : null
       if (proto !== null) noteDaemonProto(proto, version)
@@ -418,7 +415,6 @@ async function classifyHello(reply: DaemonReply): Promise<HelloOutcome> {
     }
     case 'EUNKNOWN': {
       if (reply.refusal === 'daemon-older' || /unknown op/i.test(reply.error)) {
-
         const known = negotiatedDaemonProto()
         return {
           kind: 'pre-handshake',
@@ -465,6 +461,7 @@ async function preHandshakeFacts(): Promise<{ live: number; liveSessions: number
   }
   return { live, liveSessions, pid: rec?.pid ?? null, startedAt: rec?.startedAt ?? null }
 }
+
 
 const HEAL_ASK_GAP_MS = 60_000
 let lastHealAsk: { pid: number | null; at: number } | null = null
@@ -560,6 +557,7 @@ export async function handoverDaemonVersion(
   return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
 }
 
+
 export interface RestartReceipt {
   state: 'restarted' | 'restarting' | 'armed' | 'refused' | 'absent'
   line: string
@@ -570,9 +568,7 @@ export type DaemonPosture = 'owned' | 'persistent'
 export async function restartDaemon(opts: {
   by: string
   posture: DaemonPosture
-
   dir?: string
-
   spawn?: (dir: string, posture: DaemonPosture) => Promise<number | undefined>
   pollMs?: number
   tries?: number

@@ -29,20 +29,19 @@ function usageFetch(io?: MoonshotUsageIo): { fetchImpl: typeof fetch; proxyOptio
   }
 }
 
+
 export function moonshotBalanceUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${moonshotApiBase(env)}/users/me/balance`
 }
 
 export interface MoonshotObservedBalance {
   observedAtMs: number
-
   availableBalance: number
   voucherBalance?: number
   cashBalance?: number
 }
 
 let observed: MoonshotObservedBalance | null = null
-
 let observedIdentity = 'none'
 
 function activeKeyIdentity(env: NodeJS.ProcessEnv = process.env): string {
@@ -93,7 +92,6 @@ export async function fetchMoonshotBalance(key: string, io?: MoonshotUsageIo): P
   const env = io?.env ?? process.env
   const { fetchImpl, proxyOptions } = usageFetch(io)
   try {
-
     const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', PROBE_TIMEOUT_MS, moonshotBalanceUrl(env), {
       method: 'GET',
       headers: {
@@ -107,7 +105,6 @@ export async function fetchMoonshotBalance(key: string, io?: MoonshotUsageIo): P
     const decoded = decodeMoonshotBalance(await response.json(), io?.now?.() ?? Date.now())
     if (!decoded) return { state: 'refused', status: response.status }
     observed = decoded
-
     observedIdentity = credentialFingerprint(key)
     return { state: 'confirmed', balance: decoded }
   } catch (error) {
@@ -141,10 +138,9 @@ export function refreshMoonshotBalance(io?: MoonshotUsageIo): Promise<MoonshotOb
   return work
 }
 
+
 export interface KimiUsageWindow {
-
   name?: string
-
   windowMinutes?: number
   used?: number
   limit?: number
@@ -154,7 +150,6 @@ export interface KimiUsageWindow {
 
 export interface KimiManagedUsage {
   observedAtMs: number
-
   quota?: KimiUsageWindow
   windows: KimiUsageWindow[]
   extraUsage?: { balance: string; currency: string }
@@ -162,7 +157,6 @@ export interface KimiManagedUsage {
 
 let observedManaged: KimiManagedUsage | null = null
 let lastManagedError: string | undefined
-
 let observedManagedIdentity = 'none'
 
 function activeSignInIdentity(): string {
@@ -359,7 +353,6 @@ export async function fetchKimiManagedUsage(
     noteUsageRecordChanged()
   }
   try {
-
     const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', PROBE_TIMEOUT_MS, kimiUsagesUrl(region, env), {
       method: 'GET',
       headers: {

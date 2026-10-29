@@ -111,7 +111,6 @@ t.section('§3 — backward decoding: a v1 entry (no checkpoint) still folds')
 {
   const listed = await store.listInterviewSessions()
   t.check('(premise) the compacted session lists', listed.some(s => s.sessionId === sid))
-
   store._resetInterviewForProofs()
   const v1sid = store.openInterviewSession({ mission: 'v1 sibling', atMs: 5000 })
   await store.flushInterviewLog()
@@ -126,7 +125,6 @@ t.section('§4 — pending-first resume folds the pending tail onto the checkpoi
 {
   store._resetInterviewForProofs()
   await store.resumeInterviewSession(sid)
-
   store.appendInterviewEvent({ kind: 'note-set', eventId: 'ie_pending_note', atMs: 9000, questionId: 'iq_engine', note: 'pending newest' } as never)
   const again = await store.resumeInterviewSession(sid)
   const s = store.interviewSnapshot()
@@ -138,7 +136,6 @@ t.section('§4 — pending-first resume folds the pending tail onto the checkpoi
 
 t.section('§5 — resume DURING an in-flight compacting persist stays coherent (the close review\'s find)')
 {
-
   store._resetInterviewForProofs()
   const refEvents2: Ev[] = []
   const sid2 = store.openInterviewSession({ mission: 'mid-compaction resume', toolUseId: 'toolu_midc', atMs: 20000 })
@@ -170,7 +167,6 @@ t.section('§5 — resume DURING an in-flight compacting persist stays coherent 
   for (let i = 0; i < 450; i++) {
     pushTracked({ kind: 'navigated', eventId: `ie_mnav_${i}`, atMs: 20010 + i, target: 'review' } as never)
   }
-
   const flushing = store.flushInterviewLog()
   const resumed = await store.resumeInterviewSession(sid2)
   t.check('the mid-flight resume returns (after awaiting the inflight publication)', resumed)
@@ -199,7 +195,6 @@ t.section('§6 — a pending identity\'s checkpoint base survives mid-drain LRU 
     refP.push(e)
   }
   await store.flushInterviewLog()
-
   await store.resumeInterviewSession(sidP)
   const tail = { kind: 'navigated', eventId: 'ie_p_tail', atMs: 50000, target: 'review' } as never as Ev
   store.appendInterviewEvent(tail as never)
@@ -212,7 +207,6 @@ t.section('§6 — a pending identity\'s checkpoint base survives mid-drain LRU 
   }
   const receipt = await store.flushInterviewLog()
   t.check('the twelve-identity drain settled', receipt.allSettled, `drained=${receipt.drained}`)
-
   const listed = (await store.listInterviewSessions()).find(s => s.sessionId === sidP)
   if (listed) {
     t.check('the pressured identity\'s durable state ≡ its full reference (base intact mid-drain)',

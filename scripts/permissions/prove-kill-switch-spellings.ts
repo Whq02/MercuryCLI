@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -79,7 +78,6 @@ section('§4 HEALTH WIRING')
   )
   check(
     'unmatched entries elevate the row to warn',
-
     healthSrc.includes("unmatched > 0 || capRejects.length > 0 ? 'warn' : 'info'"),
   )
   check(

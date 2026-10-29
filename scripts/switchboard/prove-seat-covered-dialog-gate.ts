@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -40,7 +39,6 @@ check(
 
 {
   const kb = read('src/keybindings/useKeybinding.ts')
-
   check(
     "G5 the keybinding covered gate keeps the kind !== 'repl' predicate (the same covered truth)",
     /function coveredFor\(scope: SurfaceKind\)[\s\S]{0,200}const current = currentSurfaceRoute\(\)\.kind[\s\S]{0,80}current !== 'repl' && current !== scope/.test(kb),
@@ -50,23 +48,19 @@ check(
     !/replCovered\(\)/.test(kb) && (kb.match(/coveredFor\(scope\)/g) ?? []).length === 4,
     `coveredFor sites: ${(kb.match(/coveredFor\(scope\)/g) ?? []).length}`,
   )
-
   const scopeMod = read('src/keybindings/RouteSurfaceScope.ts')
   const router = read('src/components/SurfaceRouter.tsx')
   check("G7 the scope context defaults to 'repl' (the parked tree's scope)", /createContext<SurfaceKind>\('repl'\)/.test(scopeMod))
   check('G7 SurfaceRouter provides route.kind around the surface render', /<RouteSurfaceScopeContext\.Provider value=\{route\.kind\}>[\s\S]{0,400}entry\.render\(route\)/.test(router))
   check('G7 the hooks read the scope', (kb.match(/useContext\(RouteSurfaceScopeContext\)/g) ?? []).length === 2)
   check("G7 the surface gets its own KeybindingSetup (the Chat's provider mounts beneath the router)", /<KeybindingSetup>[\s\S]{0,200}entry\.render\(route\)/.test(router))
-
   const scopeOnly = "function coveredFor(scope: SurfaceKind) {\n  const current = currentSurfaceRoute().kind\n  return current !== scope\n}"
   check("G7 poison: a scope-only gate (no kind !== 'repl') does NOT satisfy the covered needle", !/current !== 'repl' && current !== scope/.test(scopeOnly))
 }
 
 {
-
   const preFix = "focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] ? ("
   check('G6 poison: the pre-fix ungated overlay shape does NOT satisfy the gate needle', !/focusedInputDialog === 'tool-permission' && toolUseConfirmQueue\[0\] && !chatSurfaceCovered/.test(preFix))
-
   const wrong = "const chatSurfaceCovered = useSyncExternalStore(subscribeSurfaceRoute, () => currentSurfaceRoute().kind === 'repl'"
   check('G6 poison: an inverted predicate (kind === repl) does NOT satisfy the covered needle', !/currentSurfaceRoute\(\)\.kind !== 'repl'/.test(wrong))
 }

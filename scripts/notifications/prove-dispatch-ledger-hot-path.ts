@@ -33,7 +33,6 @@ const { makeConcourseDispatchHandler, readConcourseDispatches, concourseDispatch
 const { durableAtomicPublishSync } = await import('../../src/substrate/durablePublish.js')
 
 type Row = { state?: string; stateRevision?: number; deliveredAt?: number; title?: string }
-
 const disk = (id: string): Row | undefined => {
   try {
     return (rawParse(readFileSync(concourseDispatchesPath(dir), 'utf8')) as { dispatches: Record<string, Row> }).dispatches[id]
@@ -112,13 +111,11 @@ t.section('§4 CROSS-PROCESS TRUTH — another writer moves the stamp; the next 
   const foreign = rawParse(readFileSync(path, 'utf8')) as { version: 1; dispatches: Record<string, Row> }
   foreign.dispatches['cm-1']!.title = 'edited out of process'
   const parsesBefore = ledgerParses
-
   durableAtomicPublishSync(path, `${rawStringify(foreign, null, 1)}\n`)
   const seen = readConcourseDispatches(dir)['cm-1']
   t.check('a rename-publish from outside is seen on the next read (one re-parse)', seen?.title === 'edited out of process' && ledgerParses === parsesBefore + 1, `${seen?.title} parses+${ledgerParses - parsesBefore}`)
   const again = readConcourseDispatches(dir)
   t.check('…and the read after that is served from the memo (no further parse)', ledgerParses === parsesBefore + 1 && again['cm-1']?.title === 'edited out of process')
-
   foreign.dispatches['cm-2']!.title = 'rewritten in place'
   writeFileSync(path, `${rawStringify(foreign, null, 1)}\n`)
   t.check('an in-place rewrite is seen too (mtime + size are part of the stamp)', readConcourseDispatches(dir)['cm-2']?.title === 'rewritten in place' && ledgerParses === parsesBefore + 2, `parses+${ledgerParses - parsesBefore}`)

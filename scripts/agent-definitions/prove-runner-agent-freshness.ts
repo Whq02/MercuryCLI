@@ -57,7 +57,6 @@ const rosterNames = (): string[] => activeAgents.map(a => a.agentType)
 
 console.log('R1: disease-then-cure')
 {
-
   writeFileSync(
     join(project, '.mercury', 'agents', 'pre-arm-scout.md'),
     agentFile('pre-arm-scout', 'Landed before the freshness seam armed.'),
@@ -78,11 +77,9 @@ const disarm = armRunnerAgentFreshness({
   },
   armDelayMs: 0,
 })
-
 await new Promise(resolve => setTimeout(resolve, 500))
 
 {
-
   clearAgentDefinitionsCache()
   writeFileSync(
     join(project, '.mercury', 'agents', 'post-arm-scout.md'),

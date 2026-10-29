@@ -72,7 +72,6 @@ section('§3 identity flatness edge (E10 at the ledger)')
 section('§4 nothing else settles (E1)')
 {
   const ledger = new SettledRowLedger(80)
-
   const before = { size: ledger.size(), mark: ledger.acceptedMark(), epoch: ledger.widthEpoch() }
   ledger.settledRows()
   ledger.has('anything')

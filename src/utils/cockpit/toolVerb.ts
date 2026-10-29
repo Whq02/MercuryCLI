@@ -1,3 +1,4 @@
+
 import { pathTailLabel as tail } from '../pathLabel.js'
 
 const MAX_DETAIL = 24

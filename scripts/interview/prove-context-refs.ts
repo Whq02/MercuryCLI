@@ -73,7 +73,6 @@ t.section('§1 — attach: scope, interview-wide default, duplicate no-op')
   t.check('the image is scoped to decision 1', s.contextScope['image:1'] === q1.id)
   t.check('the paste is scoped to decision 2', s.contextScope['paste:abc'] === q2.id)
   t.check('the file is interview-wide (absent scope)', s.contextScope['file:src/x.ts'] === undefined)
-
   const before = s
   attachContext({ refId: 'image:1', kind: 'image', label: 'diagram.png' }, q1.id)
   t.check(

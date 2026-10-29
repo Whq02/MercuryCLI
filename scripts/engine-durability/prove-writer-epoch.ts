@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -41,7 +40,6 @@ check(
 
 {
   const realNow = Date.now
-
   Date.now = () => realNow() - 86_400_000
   let underBackwardsClock: number
   try {

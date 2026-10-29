@@ -38,7 +38,6 @@ const EFFORT_ENV_VAR = 'MERCURY_EFFORT_LEVEL'
 
 export type EffortCommandResult = {
   message: string
-
   effortUpdate?: { value: EffortValue | undefined }
 }
 
@@ -89,7 +88,6 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
     if (error) {
       return { message: `Could not clear the effort settings: ${error.message}` }
     }
-
     unpinAllLaunchEffort()
     const override = getEffortEnvOverride()
     const message =
@@ -129,7 +127,6 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   if (truth.headline) {
     message = truth.headline
   } else {
-
     message = persistable
       ? `Effort set to ${level} — saved as your default for future sessions.${truth.trailing ?? ''}`
       : `Effort set to ${level} for this session only (this level is not persisted).${truth.trailing ?? ''}`
@@ -146,12 +143,10 @@ export function showSeatEffort(word: string | null | undefined, sent: string | n
   if (value === undefined) {
     return `Effort is automatic — this session carries no effort word; currently ${resolveStampedEffortTruth(model, undefined).label} on ${model}.`
   }
-
   if (sent === undefined) {
     return `Effort is ${String(value)} (asked; the seat has not sent a request yet): ${getEffortValueDescription(value, model)}.`
   }
   const runs = sent
-
   const clause =
     runs === null
       ? ` (${model} runs its provider default this session)`
@@ -168,10 +163,8 @@ export function showCurrentEffort(
   const override = getEffortEnvOverride()
   const effective =
     override === null ? undefined : override !== undefined ? override : storedEffortValue
-
   const truth = resolveEffortTruth(model, storedEffortValue)
   if (!truth.supportsEffort) {
-
     return {
       message:
         effective === undefined
@@ -208,6 +201,7 @@ function helpText(): string {
   return lines.join('\n')
 }
 
+
 function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): void {
   context.setAppState(prev => {
     let next: AppState = prev
@@ -229,7 +223,6 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
   const model = context.options.engineModel
   const level = toPersistableEffort(result.effortUpdate.value)
   if (level === undefined) {
-
     const word = focused.modelFacts().effort
     return { text: `Effort settings cleared for future sessions — this session keeps running ${word ?? 'its own word'}; pick a level to change it.`, seat: true }
   }
@@ -238,13 +231,11 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
   if (receipt.state === 'refused') {
     return { text: `${level} was not applied to this session: ${receipt.detail}.${saved}`, seat: true }
   }
-
   applyEffortResult(result, context)
   if (receipt.state === 'no-op') return { text: `Already on ${level} — nothing to change.`, seat: true }
   if (receipt.state === 'queued') {
     return { text: `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${saved}`, seat: true }
   }
-
   if (!modelSupportsEffort(model)) {
     return { text: `${renderModelName(model)} takes no effort setting — ${level} is kept for the next model that takes one.${saved}`, seat: true }
   }
@@ -272,6 +263,7 @@ function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnD
   onDone(receipt.text)
 }
 
+
 function SessionPopup({
   context,
   onDone,
@@ -291,6 +283,7 @@ function SessionPopup({
     </EffortApplyContext.Provider>
   )
 }
+
 
 const HELP_TOKENS = new Set(['help', '-h', '--help'])
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFile } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -86,7 +85,6 @@ async function capture(tag: string, cfg: Record<string, unknown>, env: Record<st
 }
 
 function seedHome(): { home: string; workspace: string } {
-
   const home = mkdtempSync(join(realpathSync(tmpdir()), 'usage-pools-home-'))
   const workspace = join(home, 'workspace')
   mkdirSync(workspace, { recursive: true })
@@ -99,7 +97,6 @@ function seedHome(): { home: string; workspace: string } {
     }),
   )
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: 'claude-opus-5' } }))
-
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({
@@ -130,7 +127,6 @@ function baseEnv(home: string): Record<string, string> {
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:9',
     BROWSER: 'true',
-
     ANTHROPIC_API_KEY: '',
     OPENAI_API_KEY: '',
     OPENROUTER_API_KEY: '',
@@ -166,9 +162,7 @@ console.log('============================================================')
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
-
         { data: '', atTick: 999, awaitText: 'of the Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
-
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B', atTick: 999, awaitText: 'Current week (all models)', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
@@ -212,7 +206,6 @@ console.log('============================================================')
         { data: '/usage\r', atTick: 999, awaitText: 'ready · ', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B\x1b[B', atTick: 999, awaitText: 'Current week (all models)', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-
         { data: '', atTick: 999, awaitText: '87%', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'band' },
       ],
       readyText: ['? for shortcuts'],
@@ -220,7 +213,6 @@ console.log('============================================================')
     },
     {
       ...baseEnv(home),
-
       MERCURY_HELM_HOME: '0',
       MERCURY_SUBSTRATE: '0',
     },

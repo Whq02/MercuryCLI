@@ -8,21 +8,15 @@ import { MessageResponse } from './MessageResponse.js'
 import { ProgressBar } from './mercury-ui/components.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 
+
 type Props = {
-
   summary: string
-
   pct?: number
-
   messagesSummarized?: number
-
   userContext?: string
-
   tokensBefore?: number
   tokensAfter?: number
-
   keptMessages?: number
-
   transcript?: boolean
 }
 
@@ -36,7 +30,6 @@ export function MercuryCompactSummary({
   keptMessages,
   transcript = false,
 }: Props): React.ReactNode {
-
   if (transcript) {
     return (
       <Box flexDirection="column" marginTop={1}>
@@ -72,8 +65,7 @@ export function MercuryCompactSummary({
             {hasPct ? (
               <Text>
                 <Text color={FAINT}> {GLYPH.dot} </Text>
-                {
-}
+                {}
                 <ProgressBar value={pct!} max={100} width={5} showPct />
                 <Text color={FAINT}> reclaimed</Text>
               </Text>

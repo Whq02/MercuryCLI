@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -12,7 +11,6 @@ const { evalAvailability, primeEvalAvailability, _resetInterpreterProbeCacheForT
   '../../src/services/eval/interpreters.js'
 )
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
-
 await primeEvalAvailability(process.cwd())
 
 const src = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', ...p), 'utf-8')
@@ -61,7 +59,6 @@ _resetInterpreterProbeCacheForTesting()
 await primeEvalAvailability(process.cwd())
 {
   const row = evalAvailability(process.cwd()).find(r => r.language === 'py')
-
   check('a dead pin falls through the ladder (py still available via python3)', row?.available === true, row?.whyNot)
 }
 delete process.env.MERCURY_EVAL_PYTHON

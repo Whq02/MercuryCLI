@@ -1,3 +1,4 @@
+
 interface LspPositionLike {
   line: number
   character: number
@@ -144,7 +145,6 @@ export function applyEditsToText(
   for (let i = 1; i < ordered.length; i++) {
     const prev = ordered[i - 1]!
     const cur = ordered[i]!
-
     if (cur.start < prev.end) {
       return {
         ok: false,

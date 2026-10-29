@@ -17,7 +17,6 @@ import { displayWidth } from '../../src/components/mercury-ui/glyphs.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()
-
 const KEYS = ['crab', 'octopus', 'jellyfish', 'clam'] as const
 const BLOCKS = new Set('▖▗▘▝▙▟▛▜▚▞▀▄▆█'.split(''))
 
@@ -45,7 +44,6 @@ t.section('§1 — every registered critter authors a distinct 5-cell mark')
     critterDefForKey('seahorse').name === critterDefForKey(DEFAULT_CRITTER_KEY).name,
     critterDefForKey('seahorse').name,
   )
-
   for (const dead of ['dragon', 'hermit', 'hermit crab']) {
     t.check(
       `the retired key '${dead}' takes the bounded fallback to the pool default`,
@@ -70,7 +68,6 @@ t.section('§3 — the session-identity slots render the SESSION mark')
 {
   const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
   t.check('the statusline anchor is <SessionMark/>', frame.includes('<SessionMark />'), 'statusRow')
-
   const frameCode = frame
     .split('\n')
     .map(l => l.replace(/\/\/.*$/, ''))
@@ -104,7 +101,6 @@ t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline
   } else {
     const scratch = mkdtempSync(join(tmpdir(), 'mercury-critter-mark-'))
     const home = join(scratch, 'home')
-
     const FIXTURE_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-fixture-critter-mark'
     spawnSync(process.execPath, ['run', 'scripts/lib/firstRunSeed.ts', home, process.cwd()], {
       env: { ...process.env, ANTHROPIC_API_KEY: FIXTURE_KEY },
@@ -113,7 +109,6 @@ t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline
     const cfg = {
       cols: 100, rows: 30, total: 150,
       argv: ['node', BIN], out, cwd: process.cwd(),
-
       sends: [
         { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, data: '' },
@@ -148,7 +143,6 @@ t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline
     const octoMark = octo.pre + octo.core + octo.post
     t.check('the capture settled', r.status === 0, `exit=${r.status}`)
     t.check(`the inline statusline anchors with the octopus mark ${octoMark}`, text.includes(octoMark), 'found')
-
     const crabCount = text.split(CRAB_GLYPHS).length - 1
     t.check(
       'zero crab marks anywhere in an octopus session (any appearance is a reverted slot)',

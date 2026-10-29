@@ -48,7 +48,6 @@ function suggestedBashRuleContents(suggestions: PermissionUpdate[]): string[] {
 
 export function BashPermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm } = props
-
   const input = BashTool.inputSchema.parse(toolUseConfirm.input) as BashCardInput
 
   const sedEditInfo = parseSedEditCommand(input.command)
@@ -161,7 +160,6 @@ function BashCommandPermissionRequest(
         break
       }
       case 'yes-apply-suggestions': {
-
         const result = toolUseConfirm.permissionResult
         const verbatim = ('suggestions' in result ? result.suggestions : undefined) ?? []
         toolUseConfirm.onAllow(toolUseConfirm.input, verbatim)
@@ -206,8 +204,7 @@ function BashCommandPermissionRequest(
       >
         <Box flexDirection="column">
           <Box flexDirection="column">
-            {
-}
+            {}
             {typeof (toolUseConfirm.input as { command?: unknown }).command === 'string' ? (
               <ConsentBodyText
                 text={(toolUseConfirm.input as { command: string }).command}

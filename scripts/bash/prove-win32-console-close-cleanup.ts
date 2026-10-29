@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -15,7 +14,6 @@ const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', 
 section('§1 THE PROVIDER DETACH')
 {
   const provider = src('src/utils/shell/bashProvider.ts')
-
   const line = provider.split('\n').find(l => /^\s*detached:/.test(l)) ?? ''
   check(
     "detached is platform-keyed, never a bare `true` (FC-024)",
@@ -45,7 +43,6 @@ section('§2 THE SIGHUP ARM')
 
 section('§3 THE CTRL+BREAK ARM (FN-015 rank 21)')
 {
-
   const shutdown = src('src/utils/gracefulShutdown.ts')
   const breakAt = shutdown.indexOf("process.on('SIGBREAK'")
   check('the session shutdown registers a SIGBREAK arm', breakAt !== -1)
@@ -64,7 +61,6 @@ section('§3 THE CTRL+BREAK ARM (FN-015 rank 21)')
     "the daemon's own signal set carries SIGBREAK too (it skips the session arms)",
     /process\.on\('SIGBREAK', \(\) => shutdown\('SIGBREAK'\)\)/.test(daemon),
   )
-
   const { spawnSync } = await import('node:child_process')
   const modulePath = join(import.meta.dir, '../../src/utils/gracefulShutdown.ts')
   const probe = [
@@ -86,7 +82,6 @@ section('§3 THE CTRL+BREAK ARM (FN-015 rank 21)')
     run.status === 0 && counts.sigbreak === 1,
     `status=${run.status} stdout=${JSON.stringify(lastLine)} stderr=${JSON.stringify((run.stderr ?? '').slice(-300))}`,
   )
-
   check('…beside the SIGHUP listener(s)', (counts.sighup ?? 0) >= 1, JSON.stringify(counts))
 }
 

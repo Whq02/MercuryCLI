@@ -87,24 +87,16 @@ export function sgrStateOfStyleString(s: string): SgrState {
 export class AnsiEmulator {
   readonly width: number
   readonly height: number
-
   grid: string[][]
-
   cellStyles: Array<Array<SgrState | null>>
-
   cellLinks: Array<Array<string | null>>
-
   scrollback: string[] = []
   cursorX = 0
   cursorY = 0
   cursorVisible = true
-
   sgr: SgrState = defaultSgr()
-
   activeLink: string | null = null
-
   region: { top: number; bottom: number } | null = null
-
   edClears = 0
   scrollbackErased = 0
   private readonly altScreen: boolean
@@ -188,7 +180,6 @@ export class AnsiEmulator {
         i++
         continue
       }
-
       let unit = ch
       const code = ch.codePointAt(0)!
       if (code > 0xffff) {
@@ -271,7 +262,6 @@ export class AnsiEmulator {
         }
         break
       case 'm': {
-
         const sgrParams = body === '' ? [0] : body.split(';').map(v => (v === '' ? 0 : parseInt(v, 10)))
         applySgrParams(this.sgr, sgrParams)
         break
@@ -281,7 +271,6 @@ export class AnsiEmulator {
         break
       case 'h':
       case 'l':
-
         if (body === '?25') this.cursorVisible = final === 'h'
         break
       default:
@@ -293,12 +282,10 @@ export class AnsiEmulator {
   }
 
   private handleOsc(bytes: string, start: number): number {
-
     let j = start
     while (j < bytes.length) {
       if (bytes[j] === '\x07' || (bytes[j] === ESC && bytes[j + 1] === '\\')) {
         const body = bytes.slice(start, j)
-
         const m = /^8;[^;]*;(.*)$/s.exec(body)
         if (m) this.activeLink = m[1] === '' ? null : m[1]!
         return bytes[j] === '\x07' ? j + 1 : j + 2
@@ -333,7 +320,6 @@ export class AnsiEmulator {
     const bottom = this.region ? this.region.bottom : this.height - 1
     if (delta > 0) {
       for (let n = 0; n < delta; n++) {
-
         const leaving = this.grid[top]!
         if (!this.altScreen && !this.region) {
           this.scrollback.push(leaving.join('').replace(/\s+$/, ''))
@@ -364,7 +350,6 @@ export class AnsiEmulator {
   private writeChar(unit: string): void {
     const w = stringWidth(unit)
     if (this.cursorX + Math.max(1, w) > this.width) {
-
       if (!this.autowrap) {
         throw new Error(
           `ansiEmulator: write past right edge at (${this.cursorX},${this.cursorY}): ${JSON.stringify(unit)}`,

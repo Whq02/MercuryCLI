@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/subprocessEnv.ts src/substrate/envStamps.ts src/utils/Shell.ts src/utils/hooks/commandRunner.ts src/services/mcp/client.ts docs/HOOKS.md
 import { plugin } from 'bun'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

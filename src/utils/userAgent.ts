@@ -1,3 +1,4 @@
+
 export function getMercuryUserAgent(): string {
   return `mercury/${MACRO.VERSION}`
 }

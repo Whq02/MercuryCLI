@@ -13,7 +13,6 @@ type StateWord = { glyph: string; word: string; role: StateRole }
 export function trustWord(state: TrustState, health: Health | null): StateWord {
   switch (state) {
     case 'on': {
-
       const outcome = health?.outcome ?? 'loads'
       if (outcome === 'partial') return { glyph: '◑', word: 'partial', role: 'warning' }
       if (outcome === 'broken') return { glyph: '✕', word: 'broken', role: 'failure' }
@@ -66,7 +65,6 @@ export function noteWords(entry: RosterEntry, health: Health | null): string {
     default:
       break
   }
-
   if (state !== 'on' && state !== 'pending' && entry.availableVersion) parts.push(`↑ ${entry.availableVersion} available`)
   if (entry.noLongerOffered) parts.push(`no longer offered by ${entry.label}`)
   if (entry.sourceRemoved && entry.home === 'installed') parts.push(`from ${entry.label} (removed)`)
@@ -108,7 +106,6 @@ export function plainRowText(text: string): string {
 }
 
 export function sourceWhereWords(row: SourceRow): string {
-
   const parts: string[] = []
   if (row.state === 'unreachable') {
     parts.push(row.record.lastError ? plainRowText(row.record.lastError) : 'unreachable', 'u retries', row.record.where)

@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { z } from 'zod'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -21,8 +22,8 @@ import {
 
 const RESULT_SIZE_CAP = 100_000
 
-const questionOptionSchema = z.object({
 
+const questionOptionSchema = z.object({
   id: z.string().optional(),
   label: z.string().describe('Concise 1-5 word label for this option'),
   description: z
@@ -35,9 +36,7 @@ const questionOptionSchema = z.object({
 })
 
 const questionSchema = z.object({
-
   id: z.string().optional(),
-
   decisionId: z.string().optional(),
   question: z
     .string()
@@ -125,6 +124,7 @@ export type Question = z.infer<typeof questionSchema>
 type Input = z.infer<typeof inputSchemaObject>
 type Output = z.infer<typeof outputSchemaObject>
 
+
 function lookupFor<T>(
   record: Record<string, T> | undefined,
   question: Question,
@@ -175,7 +175,6 @@ function identityResultText(output: Output): string {
     const identifier = question.id ?? `q${index + 1}`
     const answer = lookupFor(output.answers, question)
     const annotation = lookupFor(output.annotations, question)
-
     let line = `- [${identifier}] ${JSON.stringify(question.question)} -> ${
       answer !== undefined ? JSON.stringify(answer) : '(unanswered)'
     }`
@@ -189,6 +188,7 @@ function identityResultText(output: Output): string {
   })
   return `User has answered your questions:\n${lines.join('\n')}\nYou can now continue with the user's answers in mind.`
 }
+
 
 export const AskUserQuestionTool = buildTool({
   name: ASK_USER_QUESTION_TOOL_NAME,
@@ -216,11 +216,9 @@ export const AskUserQuestionTool = buildTool({
   isConcurrencySafe() {
     return true
   },
-
   userFacingName() {
     return ''
   },
-
   async validateInput(input: Input) {
     if (getQuestionPreviewFormat() !== 'html') return { result: true as const }
     for (const question of input.questions) {
@@ -253,7 +251,6 @@ export const AskUserQuestionTool = buildTool({
     }
     return { result: true as const }
   },
-
   async checkPermissions(input: Input) {
     return {
       behavior: 'ask' as const,
@@ -262,7 +259,6 @@ export const AskUserQuestionTool = buildTool({
     }
   },
   async call(input: Input) {
-
     return {
       data: {
         questions: input.questions,
@@ -299,7 +295,6 @@ export const AskUserQuestionTool = buildTool({
     return null
   },
   renderToolResultMessage(output: Output): React.ReactNode {
-
     const answers = output.answers ?? {}
     const byQuestion = new Map<string, string>()
     for (const q of output.questions) {

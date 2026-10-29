@@ -321,13 +321,11 @@ type HeadlessOptions = {
   agent?: string
   workload?: string
   advise?: boolean
-
   bootSessionIdPinned?: boolean
   initializeMcp?: () => Promise<void>
   door?: 'rows' | 'wire'
   subscribeAppState?: (listener: () => void) => () => void
   sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
-
   setSDKStatus?: unknown
 }
 
@@ -367,13 +365,11 @@ function buildModelCatalogue(): ModelCatalogueEntry[] {
     const resolved = parseUserSpecifiedModel(option.value) ?? option.value
     const entry: ModelCatalogueEntry = {
       value: option.value,
-
       display_name: option.label,
       description: option.description,
     }
     if (modelSupportsEffort(resolved)) {
       entry.supports_effort = true
-
       entry.supported_effort_levels = [...resolveEffortTruth(resolved, undefined).selectable]
     }
     if (modelSupportsAdaptiveThinking(resolved)) entry.supports_adaptive_thinking = true
@@ -394,6 +390,7 @@ function normalizeInputPrompt(
   }
 }
 
+
 function priorTurnCount(messages: readonly Message[]): number {
   return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
 }
@@ -412,7 +409,6 @@ export async function runHeadless(
   options: HeadlessOptions,
 ): Promise<void> {
   const maxTime = options.maxTimeMs === undefined ? undefined : { limitMs: options.maxTimeMs, at: Date.now() + options.maxTimeMs }
-
   setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   const kindPin = consumeSessionKindPin()
   if (kindPin.kind === undefined && kindPin.raw !== undefined && kindPin.raw.trim() !== '') {
@@ -424,7 +420,6 @@ export async function runHeadless(
   setSessionKind(kindPin.kind === 'oculus' && options.door === 'wire' ? 'oculus' : 'headless')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
   markSessionBootRules(getAppState().toolPermissionContext)
-
   const shellRoadNotice = windowsShellRoadNotice()
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   for (const fault of options.door === 'wire' ? currentSettingsFaults() : untoldSettingsFaults()) {
@@ -440,21 +435,17 @@ export async function runHeadless(
       process.stderr.write(`${GLYPH.warn} ${withheldByRuleWords(withheld.tool, withheld.rule)}\n`)
     }
   }
-
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
     options.outputFormat === 'rows' && streamingInput ? 'sdk' : 'print',
   )
-
   settingsChangeDetector.subscribe(source => {
     applySettingsChange(source, setAppState)
   })
-
   if (process.versions.bun) {
     const bunGc = (globalThis as { Bun?: { gc?: (full: boolean) => void } }).Bun
     setInterval(() => bunGc?.gc?.(true), 1000).unref?.()
   }
-
   headlessProfilerStartTurn()
   noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)
   noteRunPhase('cli_parse')
@@ -625,7 +616,6 @@ export async function runHeadless(
     }
     return null
   }
-
   {
     let missionTimer: NodeJS.Timeout | null = null
     onTasksUpdated(() => {
@@ -649,7 +639,6 @@ export async function runHeadless(
     })
   }
   if (options.outputFormat === 'rows') {
-
     installWireStdoutGuard()
   }
   noteRunPhase('invocation_resolution')
@@ -668,11 +657,9 @@ export async function runHeadless(
   let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
-
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   let mcpInitialized = !awaitingSessionClaim
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
-
   let sessionFactsHoldSpent = false
   let sessionFactsHold: Promise<void> | null = null
   let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
@@ -691,7 +678,6 @@ export async function runHeadless(
   const armSessionRunnerWiring = async (sid: string): Promise<void> => {
     const [wards, crew] = await sessionWiringModules()
     wards.registerWardsGuard(setAppState, sid)
-
     const mission = await import('../guards/mission.js')
     mission.rearmMissionFromCard({ cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {
@@ -701,7 +687,6 @@ export async function runHeadless(
   if (isConcourseWorker && !awaitingSessionClaim) {
     await armSessionRunnerWiring(String(getSessionId()))
   } else if (awaitingSessionClaim) {
-
     void sessionWiringModules().catch(() => {})
   }
 
@@ -759,7 +744,6 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
-
     try {
       const owner = processMainOwner()
       if (getRunSnapshot(owner) === null) {
@@ -808,7 +792,6 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
-
     try {
       const { reconcileBackgroundLaunchesOnResume, coerceRestartReason } = await import('../tasks/LocalAgentTask/launchReceipts.js')
       const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState, Date.now(), coerceRestartReason(runnerRestartReason))
@@ -889,7 +872,6 @@ export async function runHeadless(
         const agentPrompt = restored.agentDefinition.getSystemPrompt()
         if (agentPrompt) options.systemPrompt = agentPrompt
       }
-
       saveAgentSetting(restored.agentType)
     }
   }
@@ -910,7 +892,6 @@ export async function runHeadless(
       gracefulShutdownSync(1)
       return
     }
-
     const rewindResult = await handleRewindFiles(
       options.rewindFiles as UUID,
       getAppState(),
@@ -984,11 +965,9 @@ export async function runHeadless(
   let hostAsks: HostAskLiveness | null = null
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
-
   let deferredModelBreadcrumb: { to: string; from: string } | null = null
   let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
   let heldSeatEffort: { requestId: number; effort: string } | null = null
-
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
@@ -1009,7 +988,6 @@ export async function runHeadless(
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
     messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
-
     declareLawfulPrefixChangeForEveryOwner(`you turned ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
   }
 
@@ -1021,7 +999,6 @@ export async function runHeadless(
   }
 
   const pendingSeeds = new Map<string, FileState>()
-
   let readFileCache: FileStateCache =
     messages.length > 0
       ? extractReadFilesFromMessages(messages, getCwd(), READ_FILE_STATE_CACHE_SIZE)
@@ -1032,7 +1009,6 @@ export async function runHeadless(
     for (const [key, value] of pendingSeeds) merged.set(key, value)
     for (const key of readFileCache.keys()) {
       const value = readFileCache.get(key)
-
       if (value !== undefined) merged.set(key, value)
     }
     return merged
@@ -1049,7 +1025,6 @@ export async function runHeadless(
   }
 
   const rateLimitListener = (limits: AnthropicLimits): void => {
-
     enqueueRow(rateLimitRow(liveScope(), limits))
   }
   statusListeners.add(rateLimitListener)
@@ -1070,12 +1045,10 @@ export async function runHeadless(
     client: ConnectedMCPServer,
     serverName: string,
   ): Promise<void> => {
-
     client.client.setRequestHandler(
       'elicitation/create',
       (request, ctx) => withElicitationEntered(client.client, async () => {
         const params = request.params
-
         const mode = params.mode === 'url' ? 'url' : 'form'
         const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
         const url = params.mode === 'url' ? params.url : undefined
@@ -1103,7 +1076,6 @@ export async function runHeadless(
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
   const answerSchemaOf = (turnSchema: Record<string, unknown> | undefined): Record<string, unknown> | undefined => turnSchema ?? initializeJsonSchema ?? options.jsonSchema
   const assembleTools = (state: AppState, turnSchema?: Record<string, unknown>): Tool[] => {
-
     const mcpPartition = mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)
     const pool: Tool[] = [
       ...getTools(state.toolPermissionContext),
@@ -1189,6 +1161,7 @@ export async function runHeadless(
     enqueueRow(modeRow(liveScope(), mode))
   })
 
+
   skillChangeDetector.subscribe(() => {
     clearCommandMemoizationCaches()
     void getCommands(getCwd()).then(refreshed => {
@@ -1259,14 +1232,12 @@ export async function runHeadless(
             ...(member.origin !== undefined ? { origin: member.origin } : {}),
           }))
         : []
-
     emitCommandNotifications([...initialNotices, command])
     const turnAbort = new AbortController()
     inFlightAbort = turnAbort
     turnsRun += 1
     currentTurn = turnsRun
     currentTurnId = null
-
     const turnIdleLimitMs = headlessTurnIdleLimitMs()
     const turnWatchdog = armInactivityDeadline({
       seam: 'unattended turn',
@@ -1329,14 +1300,12 @@ export async function runHeadless(
           prompt: promptValue,
           ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
           promptUuid: command.uuid,
-
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),
           ...(initialNotices.length > 0 ? { initialNotices } : {}),
           isMeta: command.isMeta,
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
-
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
@@ -1346,7 +1315,6 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           maxTime,
           canUseTool,
-
           ...(peer !== null ? { hostHoldsAsks: true } : {}),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
@@ -1366,7 +1334,6 @@ export async function runHeadless(
           onToolRoundSettled: rows => {
             void advisorMainRound(String(getSessionId()), rows, advisorRoad)
           },
-
           handleElicitation: (
             serverName: string,
             params: { message: string; mode?: 'form' | 'url'; url?: string; elicitationId?: string },
@@ -1433,7 +1400,6 @@ export async function runHeadless(
       void checkBuildBehind(true)
     }
     if (turnWatchdog.fired) {
-
       throw new DeadlineExceededError('unattended turn', turnIdleLimitMs, turnIdleLimitMs, turnWatchdog.progressCount, 'no engine event for the whole limit — the turn was aborted; MERCURY_HEADLESS_IDLE_MINUTES tunes the limit (0 disables)')
     }
   }
@@ -1587,7 +1553,6 @@ export async function runHeadless(
       if (currentTurnId === null) currentTurnId = randomUUID()
       return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? turnsRun }, { turnId: currentTurnId, messageIds, model: activeModel ?? getEngineModel() })
     },
-
     executeTurn: (command, batch, onMessage, initialNotices) =>
       executeTurn(command, batch, message => {
         onMessage(message)
@@ -1605,7 +1570,6 @@ export async function runHeadless(
       ),
     waitableBackgroundTaskCount: () =>
       getRunningTasks(getAppState()).filter(task => !(inputClosed && isLocalShellTask(task))).length,
-
     onAgentWait: (count, turnId) => {
       enqueueRow(turnWaitingRow({ session_id: getSessionId(), turn: turnsRun }, { turnId, agents: count }))
     },
@@ -1828,6 +1792,7 @@ export async function runHeadless(
     })
   }
 
+
   const modelInfos = buildModelCatalogue()
 
   const resolveServerConfigFromAllSources = (
@@ -1840,7 +1805,6 @@ export async function runHeadless(
   }
 
   const applyReconnectedClient = async (serverName: string, client: MCPServerConnection): Promise<void> => {
-
     const [tools, commandsForServer, resources] = await Promise.all([
       fetchToolsForClient(client),
       fetchCommandsForClient(client),
@@ -1938,12 +1902,10 @@ export async function runHeadless(
   ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
     await options.initializeMcp?.()
     sessionInitialized = true
-
     const missionSync = await import('../guards/mission.js')
     missionSync.syncMissionFromCard(String(getSessionId()))
     const uuid = input.id
     if (uuid) {
-
       const historical = await doesMessageExistInSession(
         getSessionId(),
         uuid as UUID,
@@ -1951,7 +1913,6 @@ export async function runHeadless(
       const runtime = receivedUuids.has(uuid)
       if (historical || runtime) {
         if (historical && !runtime) {
-
           notifyCommandLifecycle(uuid, 'completed')
         }
         return { accepted: false, reason: 'duplicate' }
@@ -1971,7 +1932,6 @@ export async function runHeadless(
       return { accepted: true }
     }
     if (input.kind === 'note') {
-
       operatorPauseGate.lift(input.to)
       enqueue({
         value: input.content,
@@ -1986,7 +1946,6 @@ export async function runHeadless(
     if (input.kind === 'prompt' && !('origin' in saturnQueueStamp(input.origin))) operatorPauseGate.resume()
     enqueue({
       value: input.kind === 'shell' ? input.command : input.content,
-
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
       sentAt,
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
@@ -2032,7 +1991,6 @@ export async function runHeadless(
       return projectQuery(params, getAppState().toolPermissionContext)
     },
     'turn/interrupt': params => {
-
       if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
       if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
       const interrupted = inFlightAbort !== null || leaveAbort !== null
@@ -2044,7 +2002,6 @@ export async function runHeadless(
       leaveAbort?.abort(new Error('the handoff was skipped by ctrl-c'))
       driver.releaseHold()
       if (params.hard === true) {
-
         for (const task of Object.values(getAppState().tasks)) {
           if (isLocalShellTask(task) && task.status === 'running') void killTask(task.id, setAppState)
         }
@@ -2053,7 +2010,6 @@ export async function runHeadless(
     },
     'queue/add': params => acceptInputRow(params),
     'queue/withdraw': params => {
-
       const popped = popById(params.id)
       return popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason }
     },
@@ -2091,7 +2047,6 @@ export async function runHeadless(
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     'session/claim': async params => {
-
       if (!awaitingSessionClaim) throw refused('claim refused — this runner already carries a session identity', 'claim')
       const sid = String(params.session_id ?? '')
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
@@ -2099,7 +2054,6 @@ export async function runHeadless(
       }
       const claimedMode = typeof params.mode === 'string' && params.mode !== '' ? params.mode : undefined
       const claimedEffort = typeof params.effort === 'string' && params.effort !== '' ? params.effort : undefined
-
       let claimedContext: AppState['toolPermissionContext'] | undefined
       if (claimedMode !== undefined) {
         const transition = resolvePermissionModeTransition(
@@ -2113,9 +2067,7 @@ export async function runHeadless(
       if (claimedEffort !== undefined && !isEffortLevel(claimedEffort)) {
         throw refused(`claim refused — effort '${claimedEffort}' is not on the shared ladder`, 'claim')
       }
-
       dropCredentialMemos()
-
       if (params.openai_catalogue !== undefined) {
         primeOpenaiCatalogue(openaiCatalogueFromWire(params.openai_catalogue) as Parameters<typeof primeOpenaiCatalogue>[0])
       }
@@ -2124,11 +2076,9 @@ export async function runHeadless(
         try { claimedModel = await resolveHeadlessModel(params.model) }
         catch (error) { throw refused(errorMessage(error), 'claim') }
       }
-
       const claimedHome = consumeSessionHomePin()
       clearSystemPromptSections()
       if (params.resume === true) {
-
         const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
         let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
         try {
@@ -2168,11 +2118,9 @@ export async function runHeadless(
         activeModel = claimedModel
         setEngineModelOverride(claimedModel)
         saveSessionModel(activeModel)
-
         setFlagEnv('MERCURY_MODEL', claimedModel)
       }
       if (claimedEffort !== undefined) {
-
         setFlagEnv('MERCURY_EFFORT_LEVEL', claimedEffort)
         setAppState(previous => ({ ...previous, effortValue: claimedEffort }))
       }
@@ -2181,9 +2129,7 @@ export async function runHeadless(
         setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
         markSessionPermissionModeAtClaim(nextContext.mode)
       }
-
       await armSessionRunnerWiring(sid)
-
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       if (params.resume === true) await hydrateResumedRun()
       void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
@@ -2200,7 +2146,6 @@ export async function runHeadless(
       return { session_id: sid }
     },
     'session/set_effort': (params, ref) => {
-
       const requestedEffort = String(params.effort ?? '')
       if (!isEffortLevel(requestedEffort)) throw refused(`effort refused ('${requestedEffort}' is not on the shared ladder)`, 'effort')
       if (inFlightAbort !== null) {
@@ -2219,7 +2164,6 @@ export async function runHeadless(
         if (Number.isFinite(holdMs) && holdMs > 0) sessionFactsHold = new Promise(resolve => setTimeout(resolve, holdMs))
       }
       if (sessionFactsHold !== null) await sessionFactsHold
-
       const state = getAppState()
       const anthropicWindow = anthropicWindowFact()
       const anthropicObserved = anthropicObservedUsage()
@@ -2245,13 +2189,10 @@ export async function runHeadless(
           totalCacheReadInputTokens: getTotalCacheReadInputTokens(),
           totalCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
           hasUnknownModelCost: hasUnknownModelCost(),
-
           unpricedTurns: getTotalUnpricedTurns(),
           modelSpend: sessionModelSpendRows(),
           context: { model: activeModel ?? getEngineModel(), ...contextFillView(messages, activeModel ?? getEngineModel()) },
-
           limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
-
           ...(() => {
             const observed = openaiObservedUsage()
             return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
@@ -2270,7 +2211,6 @@ export async function runHeadless(
           claudeAiBilling: hasClaudeAiBillingAccess(),
           accountEmail: anthropicSignInEmail() ?? null,
         },
-
         skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
         mcp: mcpRosterEntriesOf(state.mcp.clients, []).map(row => ({
           ...row,
@@ -2279,13 +2219,10 @@ export async function runHeadless(
           ...(mcpSignIns.has(row.name) ? { signingIn: true, authorizationUrl: mcpSignIns.get(row.name)?.authorizationUrl } : {}),
         })),
         permissionMode: state.toolPermissionContext.mode,
-
         ...((): { effortSent?: string | null } => {
           const sent = effortSentOf(resolveEffortTruth(activeModel ?? getEngineModel(), state.effortValue))
-
           return sent === undefined ? {} : { effortSent: sent }
         })(),
-
         spawnSwitches: spawnSwitchFacts(),
         box: boxReading(),
         ...(openaiCatalogue !== undefined ? { openaiCatalogue } : {}),
@@ -2309,13 +2246,11 @@ export async function runHeadless(
           ...(command.origin !== undefined ? { origin: command.origin } : {}),
           ...(command.priority !== undefined ? { priority: command.priority } : {}),
         })),
-
         work: projectWorkRoster(state.tasks),
         pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
         advisor: advisorFacts(),
         editOutcomes: editOutcomeRows(processMainOwner()),
         notices: noticeRows(),
-
         mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
           id: task.id,
           subject: task.subject.slice(0, 120),
@@ -2326,14 +2261,11 @@ export async function runHeadless(
           ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
         })),
         samples: await sampleRowsOf(getSessionId()),
-
         ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
-
         ...((): Record<string, unknown> => {
           const edits = takePendingScheduleEdits()
           return edits.length > 0 ? { pendingScheduleEdits: edits } : {}
         })(),
-
         streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
         buildTree: runningBuildTree(),
         fileCheckpoints: {
@@ -2343,12 +2275,10 @@ export async function runHeadless(
           ...(state.fileHistory.rewindUndo === undefined ? {} : { undo: state.fileHistory.rewindUndo.messageId }),
         },
       }
-
       markScheduleSeatObserved()
       return sessionFactsToWire(answer) as Record<string, unknown>
     },
     'schedule/roster': params => {
-
       const rows = Array.isArray(params.schedules)
         ? (params.schedules as unknown[]).flatMap(raw => {
             if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return []
@@ -2372,7 +2302,6 @@ export async function runHeadless(
       return {}
     },
     'session/rewind': async params => {
-
       const outcome = await handleRewindSession(params, {
         messages,
         getAppState,
@@ -2387,7 +2316,6 @@ export async function runHeadless(
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
     'session/set_spawn_switch': (params, ref) => {
-
       const toggle = { kind: params.switch, on: params.on }
       if (inFlightAbort !== null) {
         deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]
@@ -2475,7 +2403,6 @@ export async function runHeadless(
       return mcpToolsAnswerOf(name, tools)
     },
     'session/set_kit': params =>
-
       serializeMcpChange(async () => {
         const verdict = validateSessionKit(sessionKitFromWire(params.kit))
         if (!verdict.ok) throw refused(`kit refused — ${verdict.reason}`, 'kit')
@@ -2526,9 +2453,7 @@ export async function runHeadless(
         }
         clearCommandMemoizationCaches()
         activeCommands = await getCommands(getCwd())
-
         pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(activeCommands))
-
         if (sessionKitOf()?.resolved === false) {
           const { completeSessionKitFromRoster } = await import('../services/mcp/kitCompletion.js')
           const { getActiveSet } = await import('../extensions/active.js')
@@ -2591,7 +2516,6 @@ export async function runHeadless(
       }
     },
     'agent/resume': async params => {
-
       const lastParams = getLastCacheSafeParams()
       if (lastParams === null) throw refused('nothing to resume from yet — the session has not run a turn', 'nothing-to-resume')
       const target = getAppState().tasks[params.agent_id]
@@ -2602,7 +2526,6 @@ export async function runHeadless(
         return { queued: true, agent_id: params.agent_id }
       }
       const { resumeAgentBackground, operatorResumeWords } = await import('../tools/AgentTool/resumeAgent.js')
-
       const { toolUseId: _staleToolUseId, ...lastContext } = lastParams.toolUseContext
       void _staleToolUseId
       const resumed = await resumeAgentBackground({
@@ -2673,7 +2596,6 @@ export async function runHeadless(
   })()
 
   for await (const outboundMessage of io.outbound) {
-
     if (isOutcome(outboundMessage as never)) await peekProject()?.flush()
     routeOutbound(outboundMessage)
   }
@@ -2685,7 +2607,6 @@ export async function runHeadless(
     new Promise((resolve, reject) => {
       stream.write(text, error => {
         if (error) {
-
           if (isBrokenPipeError(error)) {
             if (stream === process.stdout) io.markStdoutPipeBroken()
             else process.exitCode = 1
@@ -2733,6 +2654,5 @@ export async function runHeadless(
   logHeadlessProfilerTurn()
   noteRunPhase('flush_exit')
   logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
-
   gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? exitCodeOf(last.status)))
 }

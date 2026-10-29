@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -32,7 +31,6 @@ console.log('§1 WG-1 — astral emoji clusters measure the two cells the grid p
     ['👨‍💻', 2],
     ['👩‍👩‍👦', 2],
     ['⚠️', 2],
-
     ['1️⃣', 2],
     ['1️', 1],
     ['✔', 1],

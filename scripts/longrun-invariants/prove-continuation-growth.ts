@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -83,7 +82,6 @@ section('§B fork-inherited UUIDs still land in the agent file once')
   const agentId = 'a-cont-growth-2'
   const file = getAgentTranscriptPath(asAgentId(agentId))
   const shared = '00000000-0000-4000-8000-777700000001'
-
   await recordTranscript([
     {
       type: 'user',
@@ -111,7 +109,6 @@ section('§C the per-file set seeds from DISK (fresh-process resume shape)')
   const agentId = 'a-cont-growth-3'
   const file = getAgentTranscriptPath(asAgentId(agentId))
   const u = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(11, '0')}9`
-
   mkdirSync(dirname(file), { recursive: true })
   let ordinal = 0
   const priorProcess = {
@@ -145,5 +142,4 @@ if (failures > 0) {
   process.exit(1)
 }
 console.log('✅ ALL CONTINUATION-GROWTH PROOFS PASS')
-
 process.exit(0)

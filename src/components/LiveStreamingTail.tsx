@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useFluxMountMark } from '../hooks/useFluxMountMark.js'
 import { Box, Text, flushPendingSyncWork } from '../ink.js'
@@ -79,13 +80,11 @@ export function boundTailForInline(
 ): { text: string; truncated: boolean; openFence: string | null } {
   const capRows = Math.max(4, rows - 6)
   const width = Math.max(20, columns - 4)
-
   let used = 0
   let end = text.length
   let cut = text.length
   let linesRemain = true
   while (linesRemain && used < capRows) {
-
     const nl = end === 0 ? -1 : text.lastIndexOf('\n', end - 1)
     const lineStart = nl + 1
     used += Math.max(1, Math.ceil((end - lineStart) / width))
@@ -94,7 +93,6 @@ export function boundTailForInline(
     else end = nl
   }
   if (!linesRemain) return { text, truncated: false, openFence: null }
-
   return { text: text.slice(cut), truncated: true, openFence: openFenceBefore(text, cut) }
 }
 
@@ -107,18 +105,14 @@ export function LiveStreamingTail({
   textSuppressed = false,
 }: {
   store: StreamingTailStore
-
   textSuppressed?: boolean
 }): React.ReactNode {
   fluxMark('render:tail')
-
   useFluxMountMark('tail')
-
   const subscribe = useCallback(
     (cb: () => void) =>
       store.subscribe(() => {
         cb()
-
         if (!textSuppressed && store.read() !== null) flushPendingSyncWork()
       }),
     [store, textSuppressed],
@@ -131,7 +125,6 @@ export function LiveStreamingTail({
   const { rows, columns } = useTerminalSize()
   const settled = !textSuppressed && published === null ? store.readSettled() : null
   const settledSince = settled !== null ? store.readSettledSinceMs() : null
-
   const [lingerExpired, setLingerExpired] = useState(false)
   useEffect(() => {
     if (settled === null) {
@@ -147,18 +140,15 @@ export function LiveStreamingTail({
   useEffect(() => {
     if (settled !== null && lingerExpired) store.dropSettled()
   }, [store, settled, lingerExpired])
-
   const phases = store.readPhases()
   const phase = rawText === null ? null : published !== null ? phases.current : phases.settled
   const ink = phase === 'commentary' ? 'subtle' : undefined
-
   const engine = cockpitEngine()
   if (engine && rawText) engine.streamBody.update(rawText, Math.max(20, columns - 4))
   const bounded =
     rawText && !isFullscreenActive()
       ? boundTailForInline(rawText, rows, columns)
       : { text: rawText, truncated: false, openFence: null }
-
   const text =
     bounded.truncated && bounded.openFence && bounded.text
       ? `${bounded.openFence}\n${bounded.text}`

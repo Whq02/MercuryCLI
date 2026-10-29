@@ -1,3 +1,4 @@
+
 import React from 'react'
 import type { Tokens } from 'marked'
 import wrapAnsi from 'wrap-ansi'
@@ -21,7 +22,6 @@ function inlineText(
   themeName: Parameters<typeof applyMarkdown>[1],
   highlight: CliHighlight | null | undefined,
 ): string {
-
   return applyMarkdown(raw, themeName, highlight, Number.POSITIVE_INFINITY)
     .replace(/\n+/g, ' ')
     .trim()
@@ -43,7 +43,6 @@ function wrapCell(text: string, width: number, hard: boolean): string[] {
   })
     .split('\n')
     .filter(line => line.trim() !== '')
-
   const out: string[] = []
   for (let line of lines) {
     while (stringWidth(line) > w) {
@@ -118,7 +117,6 @@ export function MarkdownTable({
   if (idealTotal <= available) {
     widths = idealWidths
   } else if (minTotal <= available) {
-
     const spare = available - minTotal
     const overflows = idealWidths.map((w, c) => w - minWidths[c]!)
     const overflowTotal = overflows.reduce((a, b) => a + b, 0)
@@ -130,7 +128,6 @@ export function MarkdownTable({
           : 0),
     )
   } else {
-
     widths = minWidths.map(w =>
       Math.max(MIN_COLUMN_WIDTH, Math.floor((w * available) / minTotal)),
     )
@@ -156,7 +153,6 @@ export function MarkdownTable({
       const height = Math.max(...cells.map(cell => cell.length))
       for (let line = 0; line < height; line++) {
         const parts = cells.map((cell, c) => {
-
           const offset = Math.floor((height - cell.length) / 2)
           const text = cell[line - offset] ?? ''
           return ` ${padTo(text, widths[c]!, header ? 'center' : aligns[c]!)} `
@@ -196,7 +192,6 @@ export function MarkdownTable({
       let valueLines = wrapCell(value, firstWidth, false)
       const continuationWidth = terminalWidth - 3
       if (valueLines.length > 1 && continuationWidth > firstWidth) {
-
         const tail = valueLines.slice(1).join(' ')
         valueLines = [
           valueLines[0]!,

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mkdtempSync } from 'node:fs'
@@ -41,9 +40,7 @@ const DOORS = [
   'setPermissionMode',
   'workspace',
   'dispatchSlash',
-
   'sendAgentNote',
-
   'stopAgent',
   'resumeAgent',
   'backgroundShell',
@@ -51,15 +48,12 @@ const DOORS = [
   'queuedSendCount',
   'pauseGate',
   'leave',
-
   'setKit',
   'checkpointFacts',
   'subscribeCheckpoints',
   'rewind',
-
   'spawnSwitches',
   'setSpawnSwitch',
-
   'recallableSend',
   'withdrawSend',
   'advisorFacts',
@@ -101,7 +95,6 @@ const DOORS = [
     check(`the daemon-hosted session answers ${door}`, typeof (seat as unknown as Record<string, unknown>)[door] === 'function')
   }
   check("both carriers read 'daemon' — one kind of session", resting.carrier === 'daemon' && seat.carrier === 'daemon')
-
   const typesSource = readFileSync(join(process.cwd(), 'src/services/engine-connector/types.ts'), 'utf8')
   check('the MCP roster carries name+state rows (no live client crosses the doorway)', typesSource.includes('clients: readonly McpRosterEntryV1[]'))
   const restingTools = await resting.mcpTools('runpod')
@@ -112,7 +105,6 @@ const DOORS = [
   const boot = getFocusedSessionConnector()
   check('the focused slot rests on no session (no chat behind the boot menu)', !hasFocusedSession() && boot instanceof NoSessionConnector && boot.sessionId() === '')
   check('the resting slot owns no records and no turn', boot.records().length === 0 && boot.turnActive() === false)
-
   setFocusedSessionConnector(seat)
   check('handing the slot a session re-points it', getFocusedSessionConnector() === seat && hasFocusedSession())
   releaseFocusedSessionConnector()

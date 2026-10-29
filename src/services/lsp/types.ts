@@ -4,9 +4,7 @@ import type { LspServerConfigSchema } from './schema.js'
 type LspServerConfig = z.infer<ReturnType<typeof LspServerConfigSchema>>
 
 export type ScopedLspServerConfig = LspServerConfig & {
-
   scope: 'dynamic'
-
   source: string
 }
 

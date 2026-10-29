@@ -3,11 +3,11 @@ import { isAbsolute, normalize } from 'node:path'
 import { logForDebugging } from '../debug.js'
 import { containsPathTraversal } from '../path.js'
 
+
 const MAX_FILE_SIZE_BYTES = 512 * 1024 * 1024
 const MAX_TOTAL_SIZE_BYTES = 1024 * 1024 * 1024
 const MAX_FILE_COUNT = 100_000
 const MAX_COMPRESSION_RATIO = 50
-
 const MIN_COMPRESSION_RATIO = 0.5
 void MIN_COMPRESSION_RATIO
 
@@ -19,9 +19,7 @@ function isPathSafe(filePath: string): boolean {
 type ZipValidationState = {
   fileCount: number
   totalUncompressedSize: number
-
   compressedSize: number
-
   errors: string[]
 }
 
@@ -101,7 +99,6 @@ export function parseZipModes(data: Uint8Array): Record<string, number> {
       break
     }
   }
-
   if (eocdOffset === -1) return modes
 
   const entryCount = view.getUint16(eocdOffset + 10, true)
@@ -116,7 +113,6 @@ export function parseZipModes(data: Uint8Array): Record<string, number> {
     const commentLength = view.getUint16(cursor + 32, true)
     const externalAttributes = view.getUint32(cursor + 38, true)
     const name = new TextDecoder().decode(data.subarray(cursor + 46, cursor + 46 + nameLength))
-
     if (versionMadeBy >> 8 === 3) {
       const mode = (externalAttributes >>> 16) & 0xffff
       if (mode !== 0) modes[name] = mode

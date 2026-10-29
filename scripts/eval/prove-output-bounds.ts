@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync } from 'node:fs'
 import { check, cleanup, finish, refusingBridge, loadEval, section, setup, within } from './lib.js'
 

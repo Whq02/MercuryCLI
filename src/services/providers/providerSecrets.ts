@@ -39,7 +39,6 @@ interface ProviderSecretsFile {
   fireworksApiKey?: string
   qwenApiKey?: string
   qwenKeyBase?: string
-
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -137,6 +136,7 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   }  noteCredentialChange()
 }
 
+
 export function readStoredZaiApiKey(): string | undefined {
   const file = readFile()
   const key = typeof file?.zaiApiKey === 'string' ? file.zaiApiKey.trim() : ''
@@ -159,7 +159,6 @@ export function writeStoredZaiApiKey(key: string | null, plan?: ZaiKeyPlan): voi
       else delete next.zaiKeyPlan
     }
   })
-
   if (key !== null && key.trim() !== '') recordSignIn('zai', 'api-key')
 }
 
@@ -176,6 +175,7 @@ export function writeStoredOpenaiApiKey(key: string | null): void {
   })
   if (key !== null && key.trim() !== '') recordSignIn('openai', 'api-key')
 }
+
 
 type StoredKeyField =
   | 'moonshotApiKey'

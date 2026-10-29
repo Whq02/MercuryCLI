@@ -43,6 +43,7 @@ export function honestDeadlineBreach(error: unknown, ms: number): unknown {
 }
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000
 
+
 export function shouldUseClaudeAIAuth(scopes: string[] | undefined): boolean {
   return scopes?.includes(INFERENCE_SCOPE) ?? false
 }
@@ -51,6 +52,7 @@ export function parseScopes(scopeString?: string | null): string[] {
   if (!scopeString) return []
   return scopeString.split(' ').filter(scope => scope !== '')
 }
+
 
 export function buildAuthUrl({
   loginWithClaudeAi,
@@ -96,6 +98,7 @@ export function buildAuthUrl({
   return url.toString()
 }
 
+
 export async function exchangeCodeForTokens(
   code: string,
   state: string,
@@ -135,6 +138,7 @@ export async function exchangeCodeForTokens(
     throw honestDeadlineBreach(error, EXCHANGE_TIMEOUT_MS)
   }
 }
+
 
 function readStoredCredential(): OAuthTokens | undefined {
   return getSecureStorage().read()?.claudeAiOauth
@@ -198,12 +202,10 @@ export async function refreshOAuthToken(
             ? scopes.join(' ')
             : SUBSCRIPTION_OAUTH_SCOPES.join(' '),
       },
-
       { timeout: EXCHANGE_TIMEOUT_MS, headers: { 'User-Agent': getMercuryUserAgent() } },
     )
   } catch (error) {
     if (error instanceof AxiosError && error.response !== undefined) {
-
       throw new OAuthRefreshHttpError(
         `Token refresh failed: ${error.response.statusText}`,
         error.response.status,
@@ -245,6 +247,7 @@ export async function refreshSignInGrant(
   delete tokens.tokenAccount
   return tokens
 }
+
 
 const ORGANIZATION_SUBSCRIPTIONS: Record<string, SubscriptionType> = {
   claude_max: 'max',
@@ -288,6 +291,7 @@ function normalizeProfile(profile: OAuthProfileResponse): {
     profile,
   }
 }
+
 
 export async function fetchAndStoreUserRoles(
   accessToken: string,
@@ -345,7 +349,6 @@ export async function fetchAndStoreUserRoles(
 
 export async function createAndStoreApiKey(accessToken: string): Promise<string | null> {
   const config = getOauthConfig()
-
   let response: { data?: { raw_key?: string; workspace_id?: string } }
   try {
     response = await axios.post<{ raw_key?: string; workspace_id?: string }>(
@@ -377,6 +380,7 @@ function serverErrorSentence(error: unknown): string | undefined {
   const said = candidates.find(value => typeof value === 'string' && value.trim() !== '') as string | undefined
   return said?.trim()
 }
+
 
 export function isOAuthTokenExpired(expiresAt: number | null): boolean {
   if (expiresAt === null) return false
@@ -419,6 +423,7 @@ export function isInvalidGrantError(error: unknown): boolean {
   return oauthErrorType(error) === 'invalid_grant'
 }
 
+
 export async function revokeOAuthToken(token: string, clientId?: string): Promise<void> {
   const config = getOauthConfig()
   try {
@@ -441,6 +446,7 @@ export async function revokeOAuthToken(token: string, clientId?: string): Promis
     )
   }
 }
+
 
 export async function populateOAuthAccountInfoIfNeeded(): Promise<void> {
   const envAccountUuid = process.env.MERCURY_ACCOUNT_UUID
@@ -526,7 +532,6 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
     }
     if (!changed) return
   }
-
   if (existing !== undefined && existing.accountUuid !== info.accountUuid) {
     try {
       const { resetLimitsForCredentialSwitch } =
@@ -536,7 +541,6 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
     }
   }
   saveGlobalConfig(current => ({ ...current, oauthAccount: info }))
-
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.restartOwnedDaemonForFreshSignin())
     .catch(() => {})

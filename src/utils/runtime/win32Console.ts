@@ -16,7 +16,6 @@ export function decideWin32ConsoleUtf8(
   if (platform !== 'win32') return { engage: false, reason: 'not-win32' }
   if (!stdoutIsTTY) return { engage: false, reason: 'no-tty' }
   if (env.MERCURY_WIN32_UTF8 === '0') return { engage: false, reason: 'opted-out' }
-
   if (env.MERCURY_WIN32_UTF8_PRESET === '1') return { engage: false, reason: 'launcher-preset' }
   return { engage: true }
 }
@@ -47,7 +46,6 @@ const defaultSyscalls: Win32ConsoleSyscalls = {
   chcp: arg => {
     try {
       const { exe, options } = chcpSpawnShape()
-
       const r = spawnSync(exe, arg === undefined ? [] : [arg], options)
       if (r.error || r.status !== 0) return null
       return r.stdout ?? ''
@@ -58,18 +56,13 @@ const defaultSyscalls: Win32ConsoleSyscalls = {
 }
 
 interface Win32Utf8Outcome {
-
   engaged: boolean
-
   previous: number | null
-
   changed: boolean
-
   restoreArmed: boolean
 }
 
 let outcome: Win32Utf8Outcome | null = null
-
 let restored = false
 
 export function ensureWin32ConsoleUtf8(
@@ -93,7 +86,6 @@ export function ensureWin32ConsoleUtf8(
   }
   const previous = parseChcpCodepage(syscalls.chcp())
   if (previous === UTF8_CODEPAGE) {
-
     outcome = { engaged: true, previous, changed: false, restoreArmed: false }
     return outcome
   }

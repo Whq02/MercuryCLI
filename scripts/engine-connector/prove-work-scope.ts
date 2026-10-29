@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { closeSync, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -257,10 +256,8 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const b = seat.daemonSessionConnectorFor(recordOf(SID_B, 'B'))
   check('P3 the constructor reads the facts synchronously — A has its row', a.workRoster().rows.length === 1 && a.workRoster().rows[0]!.name === 'scope-probe')
   check('P3 B answers the honest empty', b.workRoster().rows.length === 0)
-
   check('P3 A\'s reported roster carries no unreported flag (the rows are the runner\'s word)', a.workRoster().reported !== false)
   check('P3 B (no facts file yet) reads as UNREPORTED — nothing the runner said', b.workRoster().reported === false && b.workRoster().rows.length === 0, JSON.stringify(b.workRoster()))
-
   proj.publishSessionFacts({ schema: 1, sessionId: SID_C, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
   check('P3 the skeleton-shaped answer landed on disk before the read', await untilAsync(() => proj.readSessionFacts(SID_C) !== null, 5_000))
   const c = seat.daemonSessionConnectorFor(recordOf(SID_C, 'C'))
@@ -317,11 +314,9 @@ proj.resetSeatProjections()
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 p5Stage('seed scratch home and workspace trust')
 seedFirstRun(home, [work])
-
 p5Stage('write scratch tool permissions')
 const { writeFileSync } = await import('node:fs')
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
-
 {
   const { execFileSync } = await import('node:child_process')
   const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'pin', GIT_AUTHOR_EMAIL: 'pin@scratch', GIT_COMMITTER_NAME: 'pin', GIT_COMMITTER_EMAIL: 'pin@scratch' }
@@ -336,7 +331,6 @@ writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow:
 const WORKFLOW_SCRIPT = [
   "export const meta = { name: 'scope-probe', description: 'work-scope pin', phases: [{ title: 'Probe' }] }",
   "phase('Probe')",
-
   `const a = await agent('hold the probe open for a while, then reply with the word done', { model: ${JSON.stringify(DEFAULT_OPUS)} })`,
   'return { a }',
 ].join('\n')
@@ -345,10 +339,8 @@ const HOLD_SECONDS = 40
 
 p5Stage('import fixture API')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-
 p5Stage('bind fixture API loopback port')
 const api = await startFixtureApi([
-
   { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'ready.' },
   { kind: 'tool_use', whenModel: 'opus', whenBody: 'say ready', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
   { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'workflow launched.' },
@@ -379,7 +371,6 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
     ANTHROPIC_BASE_URL: api.url,
     MERCURY_CACHE_CLOCK: '0',
     MERCURY_PARTY: '0',
-
     MERCURY_TOOL_SEARCH: '0',
   },
   stdio: ['ignore', logFd, logFd],
@@ -390,7 +381,6 @@ try {
   p5Stage('import daemon RPC and handshake')
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
-
   p5Stage('read client version facts')
   const client = clientVersionFacts()
   p5Stage('wait for daemon hello.ready')
@@ -418,7 +408,6 @@ try {
 
   p5Stage('dispatch session A')
   const A = await dispatch2('say ready', 'A', DEFAULT_OPUS, work)
-
   {
     const root = join(home, 'projects')
     const aReplied = (): boolean => {
@@ -471,7 +460,6 @@ try {
     await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && r.status === 'running' && r.name === 'scope-probe'), 90_000),
     JSON.stringify(rowsA()),
   )
-
   type Block = { type?: string; id?: string; name?: string; input?: { seconds?: number }; tool_use_id?: string; content?: unknown }
   const holdLedger = (): { served: boolean; results: string[] } => {
     const ids = new Set<string>()
@@ -502,7 +490,6 @@ try {
     (await untilAsync(() => holdLedger().served, 30_000)) && holdLedger().results.length === 0,
     JSON.stringify(holdLedger()),
   )
-
   p5Stage('wait for workflow agents in roster')
   check(
     'P5 the run\'s agents reach the roster while it runs',
@@ -619,7 +606,6 @@ try {
   p5Stage('reap exact child pids')
   daemon.kill('SIGTERM')
   await wait(500)
-
   for (const pid of workerPids) {
     try {
       process.kill(pid, 'SIGKILL')
@@ -632,7 +618,6 @@ try {
   }
   p5Stage('close fixture API')
   await api.close()
-
   p5Stage('release scratch')
   if (process.env.WORKSCOPE_KEEP === '1' || failures > 0) console.log(`[keep] ${SCRATCH}`)
   else rmSync(SCRATCH, { recursive: true, force: true })

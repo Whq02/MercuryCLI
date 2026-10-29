@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/PromptInput/useComposerAttachments.ts src/input-core/composer-document.ts src/utils/pasteStore.ts
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor } from '../lib/settingsPopupHarness.ts'

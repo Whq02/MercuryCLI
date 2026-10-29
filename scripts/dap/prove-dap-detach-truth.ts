@@ -22,7 +22,6 @@ function section(t: string): void {
 type TraceRow = { command: string; arguments: Record<string, unknown>; adapterCwd: string }
 const scratch = mkdtempSync(join(tmpdir(), 'dap-detach-'))
 let traceSeq = 0
-
 function armTrace(): string {
   const file = join(scratch, `trace-${++traceSeq}.jsonl`)
   process.env.MOCK_DAP_TRACE = file

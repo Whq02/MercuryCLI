@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -71,7 +70,6 @@ console.log('============================================================')
       const w = fit(budget, sel)
       const need = tiles(w, budget)
       const rows = w.end - w.start
-
       const wider = pw(groups.length, sel, rows + 1)
       const maximal = rows === groups.length || tiles(wider, budget) > budget
       check(`budget ${budget} sel ${sel}: fits (${need} ≤ ${budget}), ≥1 row, maximal`, need <= budget && rows >= 1 && maximal, JSON.stringify(w))
@@ -81,7 +79,6 @@ console.log('============================================================')
 
 {
   const { fitMeasuredWindow, paneWindow: pw } = await import('../../src/components/mercury-ui/paneWindow.js')
-
   const n = 10
   const measureFor = (sel: number) => (w: { start: number; end: number; above: number; below: number }): number => {
     let lines = (w.above > 0 ? 1 : 0) + (w.below > 0 ? 1 : 0)
@@ -89,7 +86,6 @@ console.log('============================================================')
     return lines
   }
   console.log('\n(7) measured fit — variable row heights tile the budget')
-
   for (const budget of [4, 6, 8, 12]) {
     for (let sel = 0; sel < n; sel++) {
       const w = fitMeasuredWindow(n, budget, span => pw(n, sel, span), measureFor(sel))
@@ -103,7 +99,6 @@ console.log('============================================================')
       )
     }
   }
-
   const tiny = fitMeasuredWindow(n, 2, span => pw(n, 5, span), measureFor(5))
   check('a sub-row budget still returns the cursor row', tiny.end - tiny.start === 1 && tiny.start === 5, JSON.stringify(tiny))
 }

@@ -26,7 +26,6 @@ export interface SpawnLedgerEntry {
     | 'crewmate-refused'
   id: string
   cwd: string
-
   reason?: string
   role?: string
 }
@@ -66,15 +65,12 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
 }
 
 export interface SpawnExitEntry {
-
   kind: 'long-lived' | 'headless' | 'crewmate' | 'daemon'
-
   event: 'exit' | 'reap'
   id: string
   pid?: number
   code?: number | null
   signal?: string | null
-
   outcome?: string
   reason?: string
 }

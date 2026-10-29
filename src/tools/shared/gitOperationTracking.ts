@@ -1,3 +1,4 @@
+
 import type { UUID } from 'node:crypto'
 
 export type CommitKind = 'committed' | 'amended' | 'cherry-picked'
@@ -11,6 +12,7 @@ type GitOperationDetection = {
   pr?: { number: number; url?: string; action: PrAction }
 }
 
+
 const GIT_GLOBAL_OPTIONS = String.raw`(?:(?:-c\s+\S+|-C\s+\S+|--[\w-]+=\S+)\s+)*`
 
 function gitSubcommandPattern(subcommand: string): RegExp {
@@ -20,7 +22,6 @@ function gitSubcommandPattern(subcommand: string): RegExp {
 const COMMIT_COMMAND = gitSubcommandPattern('commit')
 const PUSH_COMMAND = gitSubcommandPattern('push')
 const CHERRY_PICK_COMMAND = gitSubcommandPattern('cherry-pick')
-
 const MERGE_COMMAND = gitSubcommandPattern('merge')
 const REBASE_COMMAND = gitSubcommandPattern('rebase')
 
@@ -32,6 +33,7 @@ const PR_COMMANDS: ReadonlyArray<{ pattern: RegExp; action: PrAction }> = [
   { pattern: /\bgh\s+pr\s+close\b/, action: 'closed' },
   { pattern: /\bgh\s+pr\s+ready\b/, action: 'ready' },
 ]
+
 
 const COMMIT_SUMMARY_LINE = /\[[\w./-]+(?:\s+\(root-commit\))?\s+([0-9a-f]+)\]/
 

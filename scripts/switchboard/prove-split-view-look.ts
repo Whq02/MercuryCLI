@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -69,7 +68,6 @@ const env = {
     { data: '\t', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
     { data: 's', afterPrevTicks: 2 },
     { data: '', awaitText: 'tab chat pane', requireAwait: true, awaitSettleTicks: 2, mark: 'split-on' },
-
     { data: '\t\t', afterPrevTicks: 2 },
     { data: '', awaitText: 'tab board · s full board', requireAwait: true, awaitSettleTicks: 2, mark: 'chat-focused' },
     { data: 's', afterPrevTicks: 2 },
@@ -97,12 +95,10 @@ const env = {
   check("no focused session ⇒ the board's own New Session grammar", has(mk('split-on'), '↵ new session'))
   check('the board stands beside it (SESSIONS on the same frame)', has(mk('split-on'), 'SESSIONS'))
   check('the divider rule runs between the panes', has(mk('split-on'), '│'))
-
   check("the board pane's header sheds at the pane's width — lockup and crumb never collide", !has(mk('split-on'), 'CONCOURSEBOOT') && has(mk('split-on'), 'FOCUSED CHAT ›'))
   console.log('L2 — pane focus at a glance')
   check('the chat pane names the way back while it owns the keys', has(mk('chat-focused'), 'tab board · s full board'))
   console.log('L3 — the way back')
-
   check('s from the chat pane returns the full board (no chat pane header remains)', !has(mk('split-off'), 'tab chat pane') && !has(mk('split-off'), 'tab board · s full board'))
   check('the board still stands whole', has(mk('split-off'), 'SESSIONS'))
 }
@@ -127,7 +123,6 @@ const env = {
   const has = (needle: string): boolean => lines.some(l => l.includes(needle))
   console.log('L4 — the honest refusal under the threshold')
   check('the one width line names the needed columns', has('split needs 121 columns'))
-
   check('nothing split — no chat pane column appeared', !has('tab chat pane') && !has('tab board · s full board'))
 }
 

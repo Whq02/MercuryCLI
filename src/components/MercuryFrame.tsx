@@ -26,7 +26,6 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { needsYouJump } from './mercury-ui/needsYouJump.js'
 import { useIdleMotion } from '../hooks/useIdleMotion.js'
 import { governorTrip, motionPosture } from '../utils/cockpit/motionGovernor.js'
-
 import '../services/crew/obligationsBridge.js'
 import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
@@ -40,7 +39,6 @@ import { activeSourceUsage, usageViewIsStale } from '../services/providers/provi
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/anthropicLimits.js'
-
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
@@ -65,7 +63,6 @@ import { formatQuietAge, workflowPulseAt } from '../tools/WorkflowTool/livePulse
 import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
 import type { AppState } from '../state/AppState.js'
-
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip, RecordedEffortChip } from './mercury-ui/EffortChip.js'
@@ -77,10 +74,9 @@ import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 
+
 type Props = {
-
   model: ModelName
-
   routeSurface?: boolean
 }
 
@@ -89,7 +85,6 @@ export const MercuryFrame = React.memo(MercuryFrameImpl)
 const subscribeFocusedModelFacts = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().modelFacts().sessionPin
 const getFocusedAdvisorChip = (): string | null => advisorChipWords(getFocusedSessionConnector().advisorFacts())
-
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
 const getFocusedPermissionMode = (): PermissionMode | null => getFocusedSessionConnector().permissionMode()
 const subscribeFocusedLive = subscribeThroughFocused((connector, listener) => (hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {}))
@@ -103,7 +98,6 @@ const getFocusedThinkingKey = (): string => {
 function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
   fluxMark('render:frame')
   const tok = useMercuryTokens()
-
   const messages = useFocusedTranscript()
   const { cwd, folder: dir, branch } = useFocusedWorkspaceBranch()
 
@@ -116,21 +110,13 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const viewedCrewmate = useViewedCrewmate()
   const crewmateModel = useCrewmateModel(routeSurface ? null : viewedCrewmate)
   const modelName = crewmateModel === null ? sessionModelName : crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)
-
   const showBehavior = tier.showBehaviorChips
-
   const branchMax = tier.branchMax
-
   useSessionAccent()
-
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
-
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
-
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
-
   const deckOwnsVitals = deckPresent && cols >= LAYOUT_BREAKPOINTS.cockpitMin
-
   const usageOwnedElsewhere = !routeSurface && (deckOwnsVitals || helmActive)
 
   const turns = countOperatorTurns(messages)
@@ -182,7 +168,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   } catch {
     mouseOff = false
   }
-
   const mouseNode = mouseOff ? (
     <Text>
       <Sep />
@@ -197,12 +182,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     getFocusedSessionPin,
   )
   const windowModel = routeSurface ? model : (sessionPinnedModel ?? model)
-
   useCatalogueEpoch()
   const fill = useFocusedContextFill(messages, windowModel, !routeSurface)
   const used = fill.usedPct
   const windowSize = fill.window
-
   useEffect(() => {
     publishContextUsage(used ?? null, windowSize, fill.compactAtPct, undefined, {
       usedTokens: fill.usedTokens,
@@ -240,13 +223,9 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
-
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
-
   useProviderUsageOnShow(!isCompact && tier.showFrameQuota)
-
   const usageNow = useNowTick(!isCompact && tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
-
   const costNode =
     (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (
       <Text>
@@ -257,19 +236,15 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
 
   let usageNode: React.ReactNode = null
   if (tier.showFrameQuota) {
-
     const usage = activeSourceUsage({ model: getFocusedSessionConnector().modelFacts().main })
     const numberOnly = tier.numberOnlyGauges
     const showSecond = tier.show7dGauge
     const first = usage.windows[0]
-
     const second =
       usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
         ? usage.binding.window
         : usage.windows[1]
-
     const limited = usage.limited
-
     const ageTail = first !== undefined ? usageAgeTail(first, usageNow) : undefined
     usageNode =
       first !== undefined || limited !== undefined ? (
@@ -320,7 +295,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     healthChip !== null &&
     !healthAlarm &&
     (healthChip.verdict === 'caution' || healthChip.stale)
-
   const healthAge =
     healthChip?.ageLabel && healthChip.ageLabel !== 'never'
       ? healthChip.ageLabel.replace(' ago', '')
@@ -349,7 +323,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       if (!verifyEvidenceEnabled()) return null
       const s = verificationSummary(cwd, { skipDigest: true })
       if (s.state === 'stale' || s.state === 'failed') return s.state
-
       return treeScanStatus(cwd).state === 'unmeasured' ? 'unmeasured' : null
     },
     () => null,
@@ -386,7 +359,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     getFocusedPermissionMode,
     getFocusedPermissionMode,
   )
-
   const allTasks = useAppStateMaybeOutsideOfProvider(
     (s: { tasks?: AppState['tasks'] } | undefined) => s?.tasks,
   ) as AppState['tasks'] | undefined
@@ -403,7 +375,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   useNowTick(thinkingShown ? 1000 : null)
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
-
     const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
     const worst = pulses.length > 0 ? pulses.reduce((a, b) => (a.quietMs >= b.quietMs ? a : b)) : null
     const label = wfLive.length === 1 ? 'wf' : `wf×${wfLive.length}`
@@ -422,18 +393,15 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       </Text>
     )
   }
-
   const modeBand = !isDefaultMode(permMode ?? undefined) ? (
     <Box width="100%" paddingX={1} flexShrink={0}>
       {permMode === 'sovereign' ? (
-
         <Text bold color={tok.failure} wrap="truncate-end">
           {permissionModeSymbol('sovereign')} {permissionModeTitle('sovereign').toLowerCase()} on — all tool calls auto-approved
         </Text>
       ) : (
         <Text color={getModeColor(permMode as PermissionMode)} wrap="truncate-end">
-          {
-}
+          {}
           {permissionModeSymbol(permMode as PermissionMode)}{' '}
           {permissionModeTitle(permMode as PermissionMode).toLowerCase()} on
           <Text color={tok.textMuted}> (shift+tab to cycle)</Text>
@@ -466,20 +434,17 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {turnsNode}
         {needsNode}
         {motionNode}
-        {
-}
+        {}
         {wfNode}
         {ctxNode}
         {!deckOwnsVitals ? costNode : null}
         {!usageOwnedElsewhere ? usageNode : null}
         {advisorNode}
-        {
-}
+        {}
         {healthNode}
         {vfyNode}
         {runNode}
-        {
-}
+        {}
         {!deckOwnsVitals ? <TrimChip /> : null}
         {mouseNode}
       </Text>

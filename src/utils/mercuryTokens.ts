@@ -1,3 +1,4 @@
+
 import { truecolorActive } from '../ink/colorize.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
@@ -85,7 +86,6 @@ function deriveSelectionBand(
         .padStart(2, '0')
     return `#${m(a[0], g[0])}${m(a[1], g[1])}${m(a[2], g[2])}`
   }
-
   let band = mixAt(0.95)
   for (let t = 0.55; t <= 0.96; t += 0.05) {
     const candidate = mixAt(t)
@@ -198,7 +198,6 @@ export function spectralRampFor(
 type AgentAccent = { name: string; color: string }
 
 export type MercuryThemeTokens = {
-
   canvas?: string
   surface0: string
   surface1: string
@@ -208,43 +207,31 @@ export type MercuryThemeTokens = {
   textPrimary: string
   textSecondary: string
   textMuted: string
-
   textInstruction: string
   textInverse: string
   accent: string
   accentSoft: string
-
   focalRamp: string[]
-
   spectraGround?: { top: string; bottom: string }
   focus: string
   selection: string
-
   selectionBand: string
   info: string
-
   infoText: string
   success: string
   warning: string
   cardBrown: string
   failure: string
-
   failureText: string
   diffAddRow: string
   diffAddWord: string
   diffRemoveRow: string
   diffRemoveWord: string
-
   spectral: {
-
     oasis: SpectralRamp
-
     terra: SpectralRamp
-
     dune: SpectralRamp
-
     amber: SpectralRamp
-
     crimson: SpectralRamp
   }
   agentAccents: readonly AgentAccent[]
@@ -307,11 +294,8 @@ export function resolveMercuryTokens(
   const theme = getTheme(themeName)
   let tokens: MercuryThemeTokens
   if (themeName === 'dark' || themeName === 'true-black') {
-
     const ground = groundFamilyFor(themeName)
-
     const spectraBottom = spectraMix(ground.NIGHT, OASIS, 0.25)
-
     tokens = {
       canvas: ground.NIGHT,
       spectraGround: { top: ground.NIGHT, bottom: spectraBottom },
@@ -326,9 +310,7 @@ export function resolveMercuryTokens(
       textInstruction: deriveTextFloorInk(FAINT, IVORY, spectraBottom),
       textInverse: ground.NIGHT,
       accent,
-
       accentSoft: accent === TERRA ? BELLY : deriveAccentSoft(accent, IVORY),
-
       focalRamp: deriveFocalRamp(
         accent,
         accent === TERRA ? BELLY : deriveAccentSoft(accent, IVORY),
@@ -336,7 +318,6 @@ export function resolveMercuryTokens(
       ),
       focus: accent,
       selection: DUNE,
-
       selectionBand: deriveSelectionBand(accent, ground.NIGHT, IVORY, FAINT) ?? DUNE,
       info: OASIS,
       infoText: deriveTextFloorInk(OASIS, IVORY, spectraBottom),
@@ -349,7 +330,6 @@ export function resolveMercuryTokens(
       diffAddWord: DIFF_ADD_WORD,
       diffRemoveRow: DIFF_DEL_BG,
       diffRemoveWord: DIFF_DEL_WORD,
-
       spectral: {
         oasis: spectralRampFor(OASIS, ground.NIGHT_SOFT),
         terra: spectralRampFor(accent, ground.NIGHT_SOFT),
@@ -360,7 +340,6 @@ export function resolveMercuryTokens(
       agentAccents: agentAccentsOf(theme),
     }
   } else {
-
     tokens = {
       surface0: theme.userMessageBackground,
       surface1: theme.userMessageBackground,
@@ -370,22 +349,17 @@ export function resolveMercuryTokens(
       textPrimary: theme.text,
       textSecondary: theme.subtle,
       textMuted: theme.inactive,
-
       textInstruction: theme.subtle,
       textInverse: theme.inverseText,
       accent,
-
       accentSoft: deriveAccentSoft(accent, theme.text),
-
       focalRamp: [accent],
       focus: accent,
       selection: theme.selectionBg,
-
       selectionBand:
         deriveSelectionBand(accent, theme.userMessageBackground, theme.text, theme.inactive) ??
         theme.selectionBg,
       info: theme.info,
-
       infoText: theme.info,
       success: theme.success,
       warning: theme.warning,
@@ -396,7 +370,6 @@ export function resolveMercuryTokens(
       diffAddWord: theme.diffAddedWord,
       diffRemoveRow: theme.diffRemoved,
       diffRemoveWord: theme.diffRemovedWord,
-
       spectral: {
         oasis: spectralRampFor(theme.info, theme.userMessageBackground),
         terra: spectralRampFor(accent, theme.userMessageBackground),

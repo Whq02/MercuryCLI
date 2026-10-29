@@ -76,7 +76,6 @@ for (const [q, winner] of [
 console.log('[B] a disabled tool ranks below every enabled match + reads unavailable')
 const structure = byName('Structure')!
 const gitTool = byName('Git')!
-
 const demoteQ = 'apply a codemod to matching call expressions'
 
 const enabledRun = await search(demoteQ)
@@ -143,7 +142,6 @@ check(
 )
 
 console.log('[D] additive: undeclared tools inert, exact-name unaffected, deterministic')
-
 const fAlpha = { name: 'mcp__srv__alpha_zip', isMcp: true, prompt: async () => 'compress an archive' } as never
 const fBeta = { name: 'mcp__srv__beta_tar', isMcp: true, prompt: async () => 'extract an archive' } as never
 const fixtures = [fAlpha, fBeta] as never[]

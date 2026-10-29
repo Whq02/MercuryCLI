@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -30,7 +29,6 @@ console.log('§1 the pool bounds the fan-out and keeps the order')
   })
   check('in-flight work never exceeded the width (and the pool did run wide)', peak <= 4 && peak >= 2, `peak=${peak}`)
   check('results land in input order', out.length === 200 && out.every((v, i) => v === i * 2))
-
   const statted = await mapWithConcurrency(['a', 'missing', 'c'], 4, async file => {
     try {
       if (file === 'missing') throw new Error('ENOENT')

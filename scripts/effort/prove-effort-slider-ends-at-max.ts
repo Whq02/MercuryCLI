@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/effort/EffortPopup.tsx src/commands/effort/effort.tsx src/commands/effort/index.ts
+// gate-watch: src/commands.ts src/state/AppStateStore.ts src/utils/settings/settings.ts src/utils/settings/types.ts src/utils/effort.ts
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

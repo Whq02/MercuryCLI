@@ -81,7 +81,6 @@ export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: true; 
 
 interface GeminiKeyLoginOutcome {
   ok: boolean
-
   stored: boolean
   receipt: string
 }
@@ -170,6 +169,5 @@ export function geminiConnectFailedReceipt(error: unknown): string {
     : `Gemini connect failed: ${message} — retry from /logins.`
 }
 export const GEMINI_CONNECT_CANCELLED_RECEIPT = 'Gemini connect cancelled — nothing stored.'
-
 export const GEMINI_CONNECT_STOPPED_RECEIPT =
   'Gemini connect cancelled — if the exchange was already completing, the Google sign-in still lands; /accounts shows and removes it.'

@@ -31,7 +31,6 @@ watchdog.unref?.()
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-
 const wireKeys = (src: string, name: string): string => (src.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
 
 console.log('============================================================')
@@ -64,17 +63,13 @@ const D_EMPTY = { mcpOff: [], skillStates: {}, extensionsOff: [] }
 
 section('§P1 — THE STORE: named KitDeltasV1 snapshots in the global config')
 {
-
   t('P1-1 a fresh store lists nothing and the config file carries NO kitPresets field', deepEq(store.listKitPresets(), []) && !configBytes().includes('kitPresets'))
-
   const empty = store.kitPresetDeltas('writing')
   t("P1-2 an unknown preset on the empty store refuses typed ('unknown preset' + the none-saved words)", !empty.ok && empty.reason.startsWith("unknown preset 'writing'") && empty.reason.includes('none saved yet'), JSON.stringify(empty))
-
   const hook = await import('../../src/services/kitMenu/presetHook.ts')
   t('P1-3 the name grammar has ONE owner: presetHook re-exports presetStore’s presetNameProblem by identity', hook.presetNameProblem === store.presetNameProblem && hook.PRESET_NAME_PATTERN === store.PRESET_NAME_PATTERN && hook.PRESET_NAME_MAX === store.PRESET_NAME_MAX)
   const badName = store.saveKitPreset('review/kit', D_SMALL)
   t('P1-4 a save under a bad name refuses in the grammar’s own words', !badName.ok && badName.reason.includes('letters, digits, hyphens and spaces'))
-
   const saved = store.saveKitPreset('writing', D_WRITING)
   t("P1-5 the save lands with the counted receipt: preset 'writing' saved (5 deltas)", saved.ok && saved.receipt === "preset 'writing' saved (5 deltas)", JSON.stringify(saved))
   const back = store.kitPresetDeltas('writing')
@@ -82,27 +77,22 @@ section('§P1 — THE STORE: named KitDeltasV1 snapshots in the global config')
   if (back.ok) back.deltas.mcpOff.push('poisoned')
   const again = store.kitPresetDeltas('writing')
   t('P1-7 the answer is a COPY: mutating it never reaches the store', again.ok && deepEq(again.deltas, D_WRITING))
-
   const before = configBytes()
   const idem = store.saveKitPreset('writing', JSON.parse(JSON.stringify(D_WRITING)) as typeof D_WRITING)
   t("P1-8 a byte-identical save writes nothing and says so ('already saved — unchanged')", idem.ok && idem.receipt.includes('already saved — unchanged') && configBytes() === before)
-
   const upd = store.saveKitPreset('writing', D_SMALL)
   t("P1-9 an update names itself: 'updated (was 5 deltas, now 1 delta)'", upd.ok && upd.receipt === "preset 'writing' updated (was 5 deltas, now 1 delta)", JSON.stringify(upd))
   const updBack = store.kitPresetDeltas('writing')
   t('P1-10 the update resolves to the new deltas', updBack.ok && deepEq(updBack.deltas, D_SMALL))
-
   const allOn = store.saveKitPreset('all-on', D_EMPTY)
   const allOnBack = store.kitPresetDeltas('all-on')
   t("P1-11 an all-on preset is lawful: saved (0 deltas) and resolves the EMPTY deltas", allOn.ok && allOn.receipt === "preset 'all-on' saved (0 deltas)" && allOnBack.ok && deepEq(allOnBack.deltas, D_EMPTY))
   t('P1-12 the roster lists both, sorted', deepEq(store.listKitPresets(), ['all-on', 'writing']))
-
   const delUnknown = store.deleteKitPreset('ghost')
   t("P1-13 deleting an unknown preset refuses typed naming the roster", !delUnknown.ok && delUnknown.reason.includes("unknown preset 'ghost'") && delUnknown.reason.includes("'all-on'") && delUnknown.reason.includes("'writing'"))
   const del1 = store.deleteKitPreset('writing')
   const del2 = store.deleteKitPreset('all-on')
   t('P1-14 deletes land with receipts and the LAST delete drops the field whole (absent, never {})', del1.ok && del2.ok && deepEq(store.listKitPresets(), []) && !configBytes().includes('kitPresets'))
-
   saveGlobalConfig(current => ({ ...current, kitPresets: { damaged: { mcpOff: 'nope' } } }) as never)
   const damagedList = store.listKitPresets()
   const damaged = store.kitPresetDeltas('damaged')
@@ -112,7 +102,6 @@ section('§P1 — THE STORE: named KitDeltasV1 snapshots in the global config')
     void _all
     return bare as typeof current
   })
-
   saveGlobalConfig(current => ({
     ...current,
     kitPresets: Object.fromEntries(Array.from({ length: store.KIT_PRESET_CAP }, (_, i) => [`preset-${String(i).padStart(3, '0')}`, D_EMPTY])),
@@ -125,14 +114,12 @@ section('§P1 — THE STORE: named KitDeltasV1 snapshots in the global config')
     void _all
     return bare as typeof current
   })
-
   const oversized = store.saveKitPreset('too-big', { mcpOff: Array.from({ length: store.PRESET_LIST_CAP + 1 }, (_, i) => `s${i}`), skillStates: {}, extensionsOff: [] })
   t('P1-17 oversized deltas refuse typed at the save, and PRESET_LIST_CAP === the wire’s KIT_LIST_CAP', !oversized.ok && oversized.reason.includes(`cap ${store.PRESET_LIST_CAP}`) && store.PRESET_LIST_CAP === KIT_LIST_CAP)
 }
 
 section('§P1-ISO — the store touches NOTHING else: menu record · facts · layering')
 {
-
   kitStore.setSkillStateForWorkspace(PROJECT, 'deploy', 'invocable')
   const menuBefore = JSON.stringify(kitStore.kitDeltasForWorkspace(PROJECT))
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
@@ -143,7 +130,6 @@ section('§P1-ISO — the store touches NOTHING else: menu record · facts · la
   t('P1-18 save/update/delete leave the MENU record untouched (the workspace’s deltas byte-identical)', JSON.stringify(kitStore.kitDeltasForWorkspace(PROJECT)) === menuBefore)
   t('P1-19 store pens never arm the next-session facts (kit stays null; nothing else set)', facts.bootBirthFacts().kit === null && facts.bootBirthFacts().title === null)
   kitStore.setSkillStateForWorkspace(PROJECT, 'deploy', 'on')
-
   const src = read('src/services/mcp/presetStore.ts')
   t('P1-20 the store imports nothing from the daemon (the derivation imports the store, never the reverse)', !src.includes("from '../../daemon"))
   const { readdirSync } = await import('node:fs')
@@ -153,7 +139,6 @@ section('§P1-ISO — the store touches NOTHING else: menu record · facts · la
     .filter(f => read(f).includes('kitPresets'))
     .sort()
   t('P1-21 the one-writer census: kitPresets appears in src/ only at the schema and the store', deepEq(writers, ['src/services/mcp/presetStore.ts', 'src/utils/config/schema.ts']), writers.join(','))
-
   const laneNew = ['src/services/mcp/presetStore.ts']
   const packHits = laneNew.filter(f => /\bpacks?\b/i.test(read(f).replace(/"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g, '')))
   t("P1-22 the vocabulary law: no 'pack' in the kit sources", packHits.length === 0, packHits.join(','))
@@ -164,7 +149,6 @@ section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusa
   const hook = await import('../../src/services/kitMenu/presetHook.ts')
   hook._resetKitPresetHookForTesting()
   t('P2-1 the default binding is the store door itself (reset lands on STORE_PRESET_HOOK, never a refusal placeholder)', hook.kitPresetHook() === hook.STORE_PRESET_HOOK)
-
   const snapshot = {
     workspaceDir: PROJECT,
     deltas: { mcpOff: ['postgres'], skillStates: { deploy: 'invocable' as const }, extensionsOff: [] },
@@ -176,14 +160,12 @@ section('§P2 — THE MENU DOOR: the default hook IS the store (the typed-refusa
   t('P2-3 the members roster never leaks into the stored preset (deltas-only, the ruled shape)', back.ok && !JSON.stringify(back.deltas).includes('THIS-IS-NOT-A-DELTA'))
   const badName = hook.kitPresetHook().save('a/b', snapshot)
   t('P2-4 the store’s refusals reach the prompt through the hook (bad name → the grammar’s words)', !badName.ok && badName.reason.includes('letters, digits, hyphens and spaces'))
-
   let recorded = 0
   hook.bindKitPresetHook({ save: () => { recorded++; return { ok: true, receipt: 'recorded' } } })
   const rec = hook.kitPresetHook().save('door', snapshot)
   hook._resetKitPresetHookForTesting()
   t('P2-5 bindKitPresetHook still intercepts for proofs and reset restores the store door', rec.ok && rec.receipt === 'recorded' && recorded === 1 && hook.kitPresetHook() === hook.STORE_PRESET_HOOK)
   store.deleteKitPreset('door')
-
   const hookSrc = read('src/services/kitMenu/presetHook.ts')
   t('P2-6 the typed-refusal placeholder is dead in the source (no UNWIRED hook, no not-wired sentence)', !hookSrc.includes('UNWIRED_PRESET_HOOK') && !hookSrc.includes('not wired in this build'))
 }
@@ -194,7 +176,6 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
   const KIT_MENU = { schema: 1 as const, mcp: ['github', 'postgres'], skills: ['deploy'], invocable: [] }
   const KIT_WORN = { schema: 1 as const, mcp: ['github'], skills: [], invocable: [] }
-
   facts._resetBootBirthFactsForTesting()
   facts.setNextSessionFacts({ kit: KIT_MENU })
   facts.setNextSessionFacts({ presetKit: { name: 'writing', kit: KIT_WORN } })
@@ -222,7 +203,6 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   void kitTypes
   const biting = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: [] })
   t('P3-7 a biting delta shapes the worn kit (postgres off; deploy invocable) with nothing unmatched', biting.ok && deepEq(biting.kit, { schema: 1, mcp: ['github', 'ext:orchard-tools:db'], skills: ['review'], invocable: ['deploy'], mcpKnown: ['github', 'postgres', 'ext:orchard-tools:db'], extensions: { 'orchard-tools': 'on' } }) && biting.unmatched.length === 0, JSON.stringify(biting))
-
   const foreign = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres', 'no-such-server'], skillStates: { 'ghost-skill': 'off' }, extensionsOff: ['no-such-ext'] })
   const plainOff = wearMod.resolvePresetWear(rows, { mcpOff: ['postgres'], skillStates: {}, extensionsOff: [] })
   t("P3-8 foreign OFF deltas are kept off by name; foreign MCP names don't bite; membership lists stay identical; all NAMED", foreign.ok && plainOff.ok && deepEq(foreign.kit.mcp, plainOff.kit.mcp) && deepEq(foreign.kit.skills, plainOff.kit.skills) && deepEq(foreign.kit.invocable, plainOff.kit.invocable) && deepEq(foreign.kit.skillsOff, ['ghost-skill']) && foreign.kit.extensions?.['no-such-ext'] === 'off' && plainOff.kit.skillsOff === undefined && deepEq(foreign.unmatched, ['no-such-server (MCP)']) && deepEq(foreign.keptOff, ['ghost-skill (skill)', 'no-such-ext (extension)']), JSON.stringify(foreign))
@@ -259,12 +239,10 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   )
   t('P3-13 THE LIVE HOP: ok + liveHop:true on the answer — the carried kit deliberately ignored, nothing spawned', hopped.ok === true && (hopped as { liveHop?: true }).liveHop === true, JSON.stringify(hopped))
   t('P3-14 the live record’s kit did not move a byte (no re-stamp ran)', deepEq(liveRec.kit, REC_KIT))
-
   const born = read('src/services/switchboard/bornSession.ts')
   const hopSrc = read('src/services/switchboard/hopIntoSession.ts')
   t('P3-15 the birth door consumes at entry and spreads worn-else-carried', born.includes('const worn = takeWornPresetKit()') && born.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),'))
   t('P3-16 the resume door PEEKS, spreads worn-else-carried, and spends only when applied (liveHop gates the take)', hopSrc.includes('const worn = peekWornPresetKit()') && hopSrc.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hopSrc.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()'))
-
   t('P3-17 the wire carries the pure-hop fact end to end (daemon answer → protocol row → controlServer pass-through)', read('src/daemon/concourseWorkers.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
@@ -273,10 +251,8 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   const sk = await import('../../src/daemon/sessionKit.ts')
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
-
   const unknown = sk.deriveSessionKitForPreset('ghost', PROJECT)
   t('P4-1 an unknown preset refuses typed at the derivation (the closed-roster law — never the menu default)', !unknown.ok && unknown.reason.includes("unknown preset 'ghost'"), JSON.stringify(unknown))
-
   kitStore.setSkillStateForWorkspace(PROJECT, 'menu-only-skill', 'off')
   saveGlobalConfig(current => ({ ...current, mcpServers: { 'srv-on': { command: 'x' }, 'srv-off': { command: 'x' } } }) as never)
   store.saveKitPreset('coord', { mcpOff: ['srv-off', 'foreign-srv'], skillStates: { deploy: 'invocable' }, extensionsOff: [] })
@@ -286,12 +262,10 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   store.saveKitPreset('clean', { mcpOff: ['srv-off'], skillStates: {}, extensionsOff: [] })
   const clean = sk.deriveSessionKitForPreset('clean', PROJECT)
   t('P4-4 a fully-biting MCP-only preset derives with NO note (nothing to confess)', clean.ok && clean.note === undefined)
-
   saveGlobalConfig(current => ({ ...current, kitPresets: { ...(current.kitPresets ?? {}), mangled: { mcpOff: [42] }, 'bad-grammar': { mcpOff: ['no spaces allowed!'], skillStates: {}, extensionsOff: [] } } }) as never)
   const mangled = sk.deriveSessionKitForPreset('mangled', PROJECT)
   const badGrammar = sk.deriveSessionKitForPreset('bad-grammar', PROJECT)
   t("P4-5 a damaged entry refuses typed at the store's narrowing; a grammar-breaking name refuses typed at the wire's own law (validateKitDeltas)", !mangled.ok && mangled.reason.includes('damaged in the config') && !badGrammar.ok && badGrammar.reason.includes("preset 'bad-grammar' refused —"), JSON.stringify({ mangled, badGrammar }))
-
   const KIT_A = { schema: 1 as const, mcp: ['srv-on'], skills: [], invocable: [] }
   const KIT_B = { schema: 1 as const, mcp: [], skills: [], invocable: [], resolved: false as const, deltas: { mcpOff: ['srv-on'], skillStates: {}, extensionsOff: [] } }
   const { canonicalWorkspaceId } = await import('../../src/daemon/concourseWorkers.ts')
@@ -302,7 +276,6 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   const { readSessionReceipts } = await import('../../src/services/switchboard/sessionReceipts.ts')
   const restampRow = JSON.stringify(readSessionReceipts(getProjectDir(wsId), 'sess-restamp-proof'))
   t("P4-6 a preset re-stamp's receipt says the preset truth (never 'from the current menu') with source 'preset' in details", deepEq(rec.kit, KIT_B) && restampRow.includes('kit re-stamped from the named preset (preset)') && restampRow.includes('"source":"preset"') && !restampRow.includes('from the current menu'), restampRow.slice(0, 200))
-
   const sup = read('src/daemon/concourseWorkers.ts')
   const admitBody = sup.slice(sup.indexOf('export function makeConcourseAdmitHandler'))
   const presetDoorAt = admitBody.indexOf('if (req.kitPreset !== undefined) {')
@@ -310,24 +283,19 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   t('P4-8 the hoist folds the preset arm and BOTH mints and the replay of a standing birth speak the widened source + the preset name/note on their answers', sup.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && (sup.match(/kitSource: req\.kit !== undefined \? 'carried' : preset !== undefined \? 'preset' : 'derived',/g) ?? []).length === 3 && (sup.match(/presetName: preset\.name/g) ?? []).length === 3)
   t('P4-9 the reactivate takes the resolved preset whole (args.preset), re-stamps from it (source ternary) and answers the name on both applied roads', sup.includes('const kit = args.kit ?? args.preset?.kit ?? deriveSessionKitForWorkspace(rec.workspaceId)') && sup.includes("args.kit !== undefined ? 'carried' : args.preset !== undefined ? 'preset' : 'derived'") && (sup.match(/presetName: args\.preset\.name/g) ?? []).length === 2)
   t("P4-10 the union widened at its owner: KitStampSource carries 'preset' and the un-stamped live hop still answers liveHop (the twins' one truth)", read('src/daemon/sessionKit.ts').includes("export type KitStampSource = 'carried' | 'derived' | 'preset'") && sup.includes('liveHop: true,'))
-
   const proto = read('src/daemon/protocol.ts')
   const server = read('src/daemon/controlServer.ts')
   t('P4-11 both wire verbs carry kitPreset and the replies carry the widened source + preset fields', proto.split('kitPreset?: string').length === 3 && proto.split("kitSource?: 'carried' | 'derived' | 'preset'").length === 3 && proto.split('presetName?: string').length === 3)
-
   const admitKeys = wireKeys(server, 'ADMIT_WIRE_KEYS')
   const dispatchKeys = wireKeys(server, 'DISPATCH_WIRE_KEYS')
   t('P4-12 the server refuses a malformed kitPreset typed on BOTH verbs and forwards the narrowed name on both; the answers pass presetName/presetNote', (server.match(/kitPreset must be a saved preset name \(a non-empty string\)/g) ?? []).length === 2 && (server.match(/\? \{ kitPreset: raw\.kitPreset \} : \{\}/g) ?? []).length === 2 && /'presetName'/.test(admitKeys) && /'presetNote'/.test(admitKeys) && /'presetName'/.test(dispatchKeys) && /'presetNote'/.test(dispatchKeys) && server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') && server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'))
-
   const dispatchMod = await import('../../src/daemon/concourseDispatch.ts')
   void dispatchMod
   const disp = read('src/daemon/concourseDispatch.ts')
   t('P4-13 the held envelope banks kitPreset and the daemon-side replay re-supplies it (type + bank + replay spreads)', disp.includes('kitPreset?: string') && disp.includes('...(req.kitPreset !== undefined ? { kitPreset: req.kitPreset } : {})') && disp.includes('...(op.kitPreset !== undefined ? { kitPreset: op.kitPreset } : {})'))
-
   const tools = read('src/services/concourse/coordinatorTools.ts')
   t('P4-14 launch_session carries the preset input with the closed-roster sentence and forwards it on BOTH roads (dispatch kitPreset · admit kitPreset)', tools.includes('A SAVED KIT PRESET the session is born wearing') && tools.includes('...(str(p.preset) !== undefined ? { kitPreset: str(p.preset) } : {})') && tools.includes('...(args.preset !== undefined ? { kitPreset: args.preset } : {})'))
   t("P4-15 both launch receipts name the worn preset ahead of the kit-source word and carry the honesty note", (tools.match(/wearing preset '\$\{presetWorn\}'/g) ?? []).length === 2 && (tools.match(/presetNote,/g) ?? []).length === 2)
-
   store.deleteKitPreset('coord')
   store.deleteKitPreset('clean')
   saveGlobalConfig(current => {
@@ -340,7 +308,6 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
 
 section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation · one grammar at both doors · no world checks')
 {
-
   const LAW_SENTENCES = /"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g
   const PREEXISTING = /no wrapper\n?\s*(\/\/ )?pack, no crewmate contract/g
   const SWEEP_FILES = [
@@ -412,15 +379,12 @@ section('§P6 — ONE LAW AT BOTH DOORS (the lead\'s ruling): a preset\'s OFF st
   const wearMod = await import('../../src/services/kitMenu/presetWear.ts')
   const sk = await import('../../src/daemon/sessionKit.ts')
   const { completeSessionKitFromRoster } = await import('../../src/services/mcp/kitCompletion.ts')
-
   const LATE = { mcpOff: ['late-srv'], skillStates: { 'late-skill': 'off' as const, 'late-inv': 'invocable' as const }, extensionsOff: ['late-ext'] }
   const rows: import('../../src/services/kitMenu/kitTypes.ts').KitRow[] = [
     { kind: 'mcp', section: 'mcp', name: 'github', scope: 'user', extension: null },
     { kind: 'skill', section: 'skill', name: 'deploy', source: 'project settings', extension: null },
   ]
-
   const worn = wearMod.resolvePresetWear(rows, LATE)
-
   const completed = completeSessionKitFromRoster(
     { schema: 1, mcp: [], skills: [], invocable: [], resolved: false, deltas: LATE },
     { mcpNames: [], commands: [], extensions: [] },
@@ -434,10 +398,8 @@ section('§P6 — ONE LAW AT BOTH DOORS (the lead\'s ruling): a preset\'s OFF st
   t('P6-1 BOTH DOORS, ONE VERDICT on every later-born member (the asymmetry is the poison — off skills and extensions off-by-name; the server excluded by closed membership; the invocable delta not carried at either door)', worn.ok && deepEq(verdictOf(worn.kit), verdictOf(completed)) && verdictOf(completed)['late-skill'] === 'off-by-name' && verdictOf(completed)['late-ext'] === 'off-by-name' && verdictOf(completed)['late-srv'] === 'excluded-by-absence' && verdictOf(completed)['late-inv'] === 'unnamed', worn.ok ? JSON.stringify({ worn: verdictOf(worn.kit), completed: verdictOf(completed) }) : JSON.stringify(worn))
   t('P6-2 the worn carry is wire-legal (validateSessionKit accepts the skillsOff-carrying kit — DIALS widened the schema) and the roster-resolved members ride beside it', worn.ok && sk.validateSessionKit(worn.kit).ok && deepEq(worn.kit.mcp, ['github']) && deepEq(worn.kit.skills, ['deploy']))
   t("P6-3 the receipt splits the truth: kept-off named as biting, the MCP and invocable rows still as doesn't-bite", worn.ok && deepEq(worn.keptOff, ['late-skill (skill)', 'late-ext (extension)']) && deepEq(worn.unmatched, ['late-srv (MCP)', 'late-inv (skill)']))
-
   const illGrammar = wearMod.resolvePresetWear(rows, { mcpOff: [], skillStates: { 'bad name': 'off' as const }, extensionsOff: ['NOT-LOWER'] })
   t('P6-4 ill-grammared off names are filtered exactly like the completion filters them (doesn\'t-bite rows; the wear still lands lawful)', illGrammar.ok && illGrammar.kit.skillsOff === undefined && illGrammar.kit.extensions === undefined && deepEq(illGrammar.unmatched, ['bad name (skill)', 'NOT-LOWER (extension)']) && illGrammar.keptOff.length === 0, JSON.stringify(illGrammar))
-
   store.saveKitPreset('travel', LATE)
   const receipt = wearMod.wearPresetForNextSession('travel', rows)
   t("P6-5 the wear receipt names the kept-off members as biting ('kept off by name') beside the doesn't-bite census", receipt.ok && receipt.receipt.includes('2 off deltas name members this repo lacks (late-skill (skill), late-ext (extension)) — kept off by name') && receipt.receipt.includes("don't bite"), JSON.stringify(receipt))

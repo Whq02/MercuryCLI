@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/tools/toolOutputCheck.ts src/services/tools/toolExecution.ts src/utils/observability/invocationTrace.ts src/utils/debug.ts
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

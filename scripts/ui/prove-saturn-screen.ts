@@ -12,7 +12,6 @@ import { cronToHuman } from '../../src/utils/cron.js'
 const t = checker()
 
 {
-
   const NOW = new Date(2026, 7, 29, 14, 0, 0, 0).getTime()
   const at = (d: number, h: number, m: number): number => new Date(2026, 7, d, h, m, 0, 0).getTime()
 
@@ -143,7 +142,6 @@ t.section('§2 — THE BOARD COMPOSERS (the parity floor survives; state is word
   t.check('§2 the paused row never counts a next fire', saturnSummaryRows({ ...FIXTURE_FACTS, rows: [paused] }, FIXED_NOW)[1]!.value === '—')
   t.check('§2 the status line counts and stays read-only until a verb', saturnStatusLine(FIXTURE_FACTS).includes('5 schedules · 2 held'))
   t.check('§2 the unreadable-store status says what to do', saturnStatusLine({ rows: [], heldTotal: 0, sessions: 0, daemonReadable: false }).includes('press r'))
-
   const emptyDetail = saturnEmptyDetailLines(EMPTY_FACTS).join('\n')
   t.check('§2 the empty detail LEADS with the birth door (press a)', emptyDetail.includes('press a to schedule a session birth'))
   t.check('§2 the empty detail teaches the in-session road second', emptyDetail.includes('a session schedules itself') && emptyDetail.includes('press a') && emptyDetail.indexOf('press a') < emptyDetail.indexOf('a session schedules itself'))
@@ -212,7 +210,6 @@ t.section('§4 — THE REAL MOUNT (staticRender, injected facts) + route silence
   const routeTokens = ['surfaceRoute', 'enterRootChat', 'settleAbsentChat', 'armRootCommand', 'initialMessage']
   const routeHits = routeTokens.filter(tok => screenSrc.includes(tok))
   t.check('§4 the screen module never touches the surface-route bridge', routeHits.length === 0, routeHits.join(','))
-
   t.check("§4 the screen writes through 'set-schedule' and 'sessionDispatch' only", screenSrc.includes("action: 'set-schedule'") && screenSrc.includes("op: 'sessionDispatch'") && !/op: 'saturn/.test(screenSrc))
 }
 
@@ -297,13 +294,11 @@ t.section('§5 — THE FORM (seven facts · the verdict verbatim · honest previ
     t.check("§5 OS-3 the 'current' marker follows the form's own state", saturnOpeningRowIsCurrent(SATURN_OPENING_NONE_ROW, null) && saturnOpeningRowIsCurrent(SATURN_OPENING_AUDIT_ROW, SATURN_AUDIT_MISSION) && saturnOpeningRowIsCurrent(SATURN_OPENING_CUSTOM_ROW, 'my own mission') && !saturnOpeningRowIsCurrent(SATURN_OPENING_CUSTOM_ROW, SATURN_AUDIT_MISSION))
     const screenSrc3 = readFileSync(join(process.cwd(), 'src/components/BootSaturnScreen.tsx'), 'utf8')
     t.check('§5 OS-3 the opening arm opens the PICK; custom routes to the old prompt', screenSrc3.includes("setFormPick({ field: 'opening', options: saturnOpeningPickOptions() })") && screenSrc3.includes("setFormPrompt({ field: 'opening', draft: form?.opening ?? '' })"))
-
     const validated = validateSaturnSubmission({ when: { kind: 'at', atMs: Date.now() + 3_600_000 }, action: { kind: 'birth', birth: { workspaceDir: '/w', modelKey: 'm', presence: 'headless', opening: SATURN_AUDIT_MISSION } } })
     t.check('§5 OS-3 a canned mission survives the wire validator whole', validated.ok)
   }
 
   t.check('§5 the form legends (the submit verb lives beside its writer)', saturnFormLegendOf({ prompt: false, pick: false }) === '↑↓ move · pgup/pgdn page · ↵ edit · ⌫ clear · s schedule it · esc back' && saturnFormLegendOf({ prompt: true, pick: false }) === 'type · ↵ set · esc cancel' && saturnFormLegendOf({ prompt: false, pick: true }) === '↑↓ move · pgup/pgdn page · ↵ pick · esc back')
-
   const { saturnLegendOf } = await import('../../src/components/BootSaturnScreen.js')
   t.check("§5 the board legend teaches 'a schedule birth…'", saturnLegendOf({ busy: false }).includes('a schedule birth…'))
 
@@ -380,7 +375,6 @@ t.section('§7 — THE ROW AND THE DOOR (after Health · the fit fact · the fac
   t.check('§7 the row rides the SAME fit law as the menu/kit doors (no menu floor ⇒ no scheduler)', !(assembleCardRows({ ...FACTS, menuAvailable: false }) as Row[]).some(r => r.key === 'saturn'))
   t.check('§7 the ctx is the HOST-TRUTH channel (the wake-glance words when passed)', (assembleCardRows({ ...FACTS, saturnCtx: '3 schedules · next in 2h' }) as Row[]).find(r => r.key === 'saturn')?.ctx === '3 schedules · next in 2h')
   t.check('§7 a --chat world carries the same row (no world check)', (assembleCardRows({ ...FACTS, concourse: null }) as Row[]).some(r => r.key === 'saturn'))
-
   t.check('§7 the merged door stays LAST (proof-leg stability)', keys[keys.length - 1] === 'sessions')
 
   const coreSrc = readFileSync(join(process.cwd(), 'assets/splash/splash-core.mjs'), 'utf8')
@@ -437,7 +431,6 @@ t.section('§9 — THE REACTIVATION WARN (retained schedules say when they would
   t.check('§9 paused rows never warn; a ready world paints nothing', fn.includes("if (s.paused === true) continue") && fn.includes('if (worst === null) return'))
   t.check('§9 the row is display-only, warning-leveled, fail-soft (an empty catch: the courtesy never throws into the hop)', fn.includes('addDisplayRow') && fn.includes("'warning'") && /\} catch \{\s*(?:\/\*[\s\S]*?\*\/)?\s*\}/.test(fn))
   t.check('§9 every non-ready state has its typed sentence (the /logins doors named; the keyless arm its own server road)', fn.includes('signed out — /logins connects an account') && fn.includes('sign-in expired — re-login now (/logins)') && fn.includes('rate-limited — due fires hold') && fn.includes("known expiry lands before the next fire") && fn.includes('no local server answering'))
-
   t.check('§9 the severity walk is the verdict order', fn.includes("{ 'signed-out': 4, unreachable: 4, expired: 3, 'rate-limited': 2, expiring: 1, ready: 0 }"))
 }
 
@@ -474,9 +467,7 @@ t.section('§10 — ROUTE SILENCE around the real layer (no transition, no settl
   t.check('§10 the picker closes to the form', screenSrc.includes("active: formPick !== null") && screenSrc.includes('onClose: () => setFormPick(null)'))
   t.check('§10 the form closes to the board (and clears its note)', screenSrc.includes('active: form !== null && formPrompt === null && formPick === null') && screenSrc.includes('setForm(null)'))
   t.check('§10 the board closes through the mount contract alone', screenSrc.includes('active: form === null') && screenSrc.includes('onClose: () => onClose?.()'))
-
   const faceSrc = readFileSync(join(process.cwd(), 'src/components/BootSplashScreen.tsx'), 'utf8')
-
   t.check('§10 the face list parks behind the saturn layer', faceSrc.includes('!saturnOpen && !agentsOpen && !loginsOpen && !modelDefaultOpen,'))
 }
 

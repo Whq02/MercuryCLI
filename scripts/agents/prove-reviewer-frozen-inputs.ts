@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import '../lib/hermetic.ts'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

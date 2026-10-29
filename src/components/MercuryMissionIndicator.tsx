@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
@@ -9,7 +10,6 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 const MISSION_ACTIVE_GLYPH = '◎'
 
 export function MercuryMissionIndicator(): React.ReactNode {
-
   const tokens = useMercuryTokens()
 
   const mission = getActiveMission()
@@ -24,7 +24,6 @@ export function MercuryMissionIndicator(): React.ReactNode {
     let timer: ReturnType<typeof setTimeout> | undefined
     const schedule = () => {
       const elapsed = Date.now() - setAt
-
       const period = elapsed < 60_000 ? 1_000 : 60_000
       const delay = period - (elapsed % period)
       timer = setTimeout(() => {
@@ -43,7 +42,6 @@ export function MercuryMissionIndicator(): React.ReactNode {
   if (setAt === undefined) return null
 
   const elapsedMs = Date.now() - setAt
-
   const elapsedSuffix =
     elapsedMs < 1_000
       ? ''

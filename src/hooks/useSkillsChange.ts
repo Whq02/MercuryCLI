@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from 'react'
 import { watch, type FSWatcher } from 'node:fs'
 import { existsSync } from 'node:fs'
@@ -20,7 +21,6 @@ export function useSkillsChange(
 ): void {
   const onChangeRef = useRef(onCommandsChange)
   onChangeRef.current = onCommandsChange
-
   const maybeSetAppState = useSetAppStateMaybe()
   const setAppStateRef = useRef(maybeSetAppState)
   setAppStateRef.current = maybeSetAppState
@@ -35,7 +35,6 @@ export function useSkillsChange(
         void getCommands(cwd)
           .then(commands => {
             if (!alive) return
-
             const setAppState = setAppStateRef.current
             if (setAppState !== null) pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(commands))
             onChangeRef.current(commands)
@@ -62,7 +61,6 @@ export function useSkillsChange(
           watchers.push(watcher)
           return
         }
-
         let ancestor = dirname(resolve(dir))
         while (!existsSync(ancestor)) {
           const parent = dirname(ancestor)

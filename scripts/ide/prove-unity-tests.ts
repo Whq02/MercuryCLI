@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -127,7 +126,6 @@ section('§4 · the hand-off seam (rerun respelling + the convention path)')
 
 section('§5 · the XML attribute-value model (no backslash escaping)')
 {
-
   const tail = parseUnityTestResults(
     '<test-run result="Failed" total="1" failed="1">' +
       '<test-case fullname="Suite.EndsWithSlash\\" result="Failed"/></test-run>',
@@ -140,7 +138,6 @@ section('§5 · the XML attribute-value model (no backslash escaping)')
       tail.failures[0] === 'Suite.EndsWithSlash\\',
     tail.state === 'ok' ? JSON.stringify({ counts: tail.counts, failures: tail.failures }) : tail.reason,
   )
-
   const param = parseUnityTestResults(
     '<test-run result="Failed" total="1" failed="1">' +
       '<test-case fullname="Suite.PathTest(&quot;C:\\tmp\\&quot;)" result="Failed"/></test-run>',
@@ -154,7 +151,6 @@ section('§5 · the XML attribute-value model (no backslash escaping)')
 
 section('§6 · no-hang: the attribute scan is linear, not O(n²)')
 {
-
   const HANG_CEILING_MS = 4_000
   const bigTok = 'a'.repeat(2 * 1024 * 1024)
   for (const [label, xml] of [

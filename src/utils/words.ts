@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 
+
 const ADJECTIVES = [
   'able', 'acyclic', 'adaptive', 'affine', 'airy', 'aligned', 'amber', 'amortized', 'ample', 'applicative',
   'apricot', 'associative', 'auburn', 'autumn', 'azure', 'balanced', 'balmy', 'batched', 'bitwise', 'blissful',

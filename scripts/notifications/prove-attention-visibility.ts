@@ -40,7 +40,6 @@ t.section('§1 — raise → visible needs-you within the minted 250 ms budget (
   const settleLatencies: number[] = []
   let failures = 0
   for (let i = 0; i < 20; i++) {
-
     const row = await obl.upsertObligation({
       ref: `vis-${i}`,
       sessionId: 'sess-vis',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -73,7 +72,6 @@ t.section('§1 the stream survived three mid-flight geometry changes')
 
 t.section('§2 no blank frame in any resize phase (screens sampled mid-log)')
 {
-
   const phases: Array<{ label: string; cols: number; rows: number; atMs: number }> = [
     { label: 'wide 140 pre-resize (streaming)', cols: 140, rows: 40, atMs: 6200 },
     { label: 'canonical 120 (streaming)', cols: 120, rows: 40, atMs: 7200 },
@@ -96,7 +94,6 @@ run.cleanup()
 
 t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30, the viewport floor)')
 {
-
   const run80 = await runArtifactArena({
     turns: [{ kind: 'paced', deltas, gapMs: 50, settleDelayMs: 1200 }],
     sends: ['4500:stream the rendezvous journey', '5300:\\r'],

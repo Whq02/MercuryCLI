@@ -1,3 +1,4 @@
+
 import {
   registerAttentionGatherer,
 } from '../../services/attention/store.js'
@@ -28,7 +29,6 @@ const STATE_MAP: Record<string, { bucket: AttentionBucket; reason: AttentionReas
   settled: { bucket: 'completed', reason: 'settled' },
   succeeded: { bucket: 'completed', reason: 'run-completed' },
   finished: { bucket: 'completed', reason: 'run-completed' },
-
   stopped: { bucket: 'completed', reason: 'settled' },
   cancelled: { bucket: 'completed', reason: 'settled' },
   interrupted: { bucket: 'completed', reason: 'settled' },
@@ -171,7 +171,6 @@ export function gatherWithLifecycle(
     const prev = reported.get(f.subjectId)
     const firstSeen = prev?.firstSeen ?? f.sinceMs
     current.set(f.subjectId, { firstSeen, ...(f.title !== undefined ? { title: f.title } : {}) })
-
     if (firstSeen < f.sinceMs) f.sinceMs = firstSeen
   }
   for (const [subjectId, info] of reported) {

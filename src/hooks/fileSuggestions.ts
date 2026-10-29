@@ -1,3 +1,4 @@
+
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep, dirname, isAbsolute, relative, resolve } from 'node:path'
@@ -24,6 +25,7 @@ const WALK_TIMEOUT_MS = 10_000
 const REFRESH_FLOOR_MS = 5000
 const SIGNATURE_SAMPLES = 500
 
+
 export function canonicalizeSuggestionPath(path: string, separator: string = sep): string {
   return separator === '\\' ? path.replaceAll('\\', '/') : path
 }
@@ -42,7 +44,6 @@ let refreshInFlight = false
 let untrackedInFlight = false
 let lastRefreshAt = 0
 let lastIndexMtimeMs: number | null = null
-
 let indexKey: string | null = null
 
 function fileSuggestionIndexKey(): string {
@@ -188,7 +189,6 @@ async function walkFiles(cwd: string, signal: AbortSignal): Promise<string[]> {
     maxBuffer: 64 * 1024 * 1024,
   })
   if (outcome.code !== 0) return []
-
   return outcome.stdout
     .split('\n')
     .filter(line => line !== '')
@@ -197,7 +197,6 @@ async function walkFiles(cwd: string, signal: AbortSignal): Promise<string[]> {
 
 function relativise(paths: string[], base: string, cwd: string): string[] {
   if (base === cwd) return paths
-
   const canonicalCwd = canonicalizeSuggestionPath(cwd)
   const canonicalBase = canonicalizeSuggestionPath(base)
   const prefix = canonicalCwd.startsWith(canonicalBase)
@@ -273,7 +272,6 @@ function buildIndexFrom(paths: string[], merged: boolean, keyAtStart: string): v
     mergedSignature = signature
   } else {
     trackedSignature = signature
-
     mergedSignature = null
   }
   void queryable.then(() => emitBuildComplete())
@@ -299,14 +297,12 @@ function repositoryIndexMtime(gitRoot: string | null): number | null {
   try {
     return statSync(join(gitDir, 'index')).mtimeMs
   } catch {
-
     return null
   }
 }
 
 async function refresh(): Promise<void> {
   if (refreshInFlight) return
-
   const keyAtStart = fileSuggestionIndexKey()
   if (indexKey !== null && indexKey !== keyAtStart) {
     clearFileSuggestionCaches()
@@ -319,18 +315,15 @@ async function refresh(): Promise<void> {
     const mtime = repositoryIndexMtime(gitRoot)
     const mtimeChanged = mtime !== null && mtime !== lastIndexMtimeMs
     if (!mtimeChanged && now - lastRefreshAt < REFRESH_FLOOR_MS) return
-
     indexUnchanged = mtime !== null && !mtimeChanged && trackedOnly !== null
   }
   refreshInFlight = true
   const startGeneration = generation
   const abort = new AbortController()
-
   const timer = setTimeout(() => abort.abort(), WALK_TIMEOUT_MS)
   try {
     let paths: string[]
     if (gitRoot !== null && indexUnchanged) {
-
       kickUntrackedMerge(gitRoot, cwd, startGeneration, keyAtStart)
       lastRefreshAt = Date.now()
       return
@@ -356,7 +349,6 @@ async function refresh(): Promise<void> {
     if (generation !== startGeneration) return
     buildIndexFrom(paths, false, keyAtStart)
     lastRefreshAt = Date.now()
-
     lastIndexMtimeMs = repositoryIndexMtime(gitRoot)
   } catch (error) {
     logForDebugging(`file-suggestion refresh failed: ${error}`)
@@ -379,14 +371,12 @@ function kickUntrackedMerge(
       if (generation !== startGeneration) return
       if (index === null) return
       if (trackedOnly === null) return
-
       let relative = untracked.length > 0 ? relativise(untracked, gitRoot, cwd) : []
       if (relative.length > 0) {
         const matcher = ignoreMatcher(gitRoot, cwd)
         if (matcher !== null) relative = relative.filter(path => !matcher(path))
       }
       if (relative.length === 0) {
-
         if (mergedSignature !== null) buildIndexFrom([...trackedOnly], false, keyAtStart)
         return
       }
@@ -457,7 +447,6 @@ export async function generateFileSuggestions(
 
     startBackgroundCacheRefresh()
     if (staleProject) return []
-
     let query = canonicalizeSuggestionPath(partialPath)
     if (query.startsWith('./')) query = query.slice(2)
     if (query.startsWith('~')) query = canonicalizeSuggestionPath(join(homedir(), query.slice(1)))
@@ -474,6 +463,7 @@ export async function generateFileSuggestions(
     return []
   }
 }
+
 
 export function findLongestCommonPrefix(
   suggestions: SuggestionItem[],

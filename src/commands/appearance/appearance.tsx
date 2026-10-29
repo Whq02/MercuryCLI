@@ -28,7 +28,6 @@ type Props = {
 function AppearanceCenter({ onDone }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
   const accent = useSessionAccent()
-
   const settingsReduced = useSettings().view?.reducedMotion ?? false
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null)
   const reduced = motionOverride ?? settingsReduced

@@ -19,13 +19,11 @@ type BrowserOptionValue = 'yes' | 'yes-dont-ask-origin' | 'no'
 function originRuleContent(input: unknown, askingContext: { owner?: OwnerKey; agentId?: string }): string | null {
   const i = input as { op?: string; url?: string; secretRef?: string }
   if (i.op === 'provision') return null
-
   const origin =
     i.op === 'open' && typeof i.url === 'string'
       ? originOf(i.url)
       : originOf(activeSession(ownerFromToolUseContext(askingContext))?.page.url() ?? '')
   if (!origin.startsWith('http')) return null
-
   if (i.op === 'type' && typeof i.secretRef === 'string') return `secret:${i.secretRef}@${origin}`
   return `origin:${origin}`
 }

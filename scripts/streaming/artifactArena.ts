@@ -1,3 +1,4 @@
+
 import { spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -20,7 +21,6 @@ export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const API_KEY = 'fixture-key-000'
 const COMPOSER_READY_NEEDLE = 'Type a prompt'
-
 const COMPOSER_NOMINAL_MS = 4000
 
 interface TeeWrite {
@@ -102,39 +102,26 @@ export interface ArenaRun {
   sendLog: SendRecord[]
   ptyReads: PtyRead[]
   outcome: ArenaOutcome
-
   probe: ProbeDump | null
   driverOut: string
-
   anchorShiftMs: number
-
   paths: { home: string; cwd: string; drive: string; tee: string }
-
   cleanup: () => void
 }
 
 export interface ArenaOpts {
-
   turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])
-
   sends: Array<string | ObservedSend>
   seconds: number
   cols?: number
   rows?: number
-
   probe?: boolean
-
   keep?: boolean
-
   resizes?: string[]
-
   seedCwd?: Record<string, string>
-
   seedHome?: (configDir: string, cwd: string) => void | Promise<void>
-
   distPath?: string
   extraEnv?: Record<string, string>
-
   anchor?: { needle: string; atMs: number } | null
 }
 
@@ -158,12 +145,10 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const nodeBin = nodeBinPath()
 
   const home = mkdtempSync(join(tmpdir(), 'flux-arena-home-'))
-
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'flux-arena-cwd-')))
   for (const [rel, content] of Object.entries(opts.seedCwd ?? {})) {
     writeFileSync(join(cwd, rel), content)
   }
-
   const scripted = (typeof opts.turns === 'function' ? opts.turns(cwd) : opts.turns).map(
     (turn): ScriptedTurn => (turn.whenModel === undefined ? { ...turn, whenModel: 'opus' } : turn),
   )
@@ -179,11 +164,9 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
       hasCompletedOnboarding: true,
       customApiKeyResponses: { approved: [API_KEY.slice(-20)] },
       projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
-
       switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 5 },
     }),
   )
-
   if (opts.seedHome) {
     await opts.seedHome(configDir, cwd)
   }
@@ -192,9 +175,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const probeTee = join(home, 'flux-probe.json')
 
   const sendArgs: string[] = []
-
   sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
-
   const anchor = opts.anchor === undefined ? { needle: COMPOSER_READY_NEEDLE, atMs: COMPOSER_NOMINAL_MS } : opts.anchor
   if (anchor !== null) sendArgs.push('--anchor', `${anchor.needle}:${anchor.atMs}`)
   for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
@@ -220,14 +201,12 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
     {
       cwd,
       env: {
-
         ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
         HOME: home,
         TMPDIR: tmpdir(),
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
-
         MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
@@ -235,10 +214,8 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',
-
         MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
         ...(opts.probe ? { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: probeTee } : {}),
-
         MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',
@@ -256,7 +233,6 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   child.stderr.on('data', d => (driverOut += d))
   const spawnedAt = Date.now()
   let killedByWall = false
-
   const killer = setTimeout(() => {
     killedByWall = true
     child.kill('SIGKILL')
@@ -292,7 +268,6 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         .filter(Boolean)
         .map(l => JSON.parse(l) as Partial<SendRecord> & { anchor?: number; shiftMs?: number })
     : []
-
   const sendLog: SendRecord[] = driveRows.filter(
     (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
   )
@@ -375,6 +350,7 @@ export function driverOutcome(input: {
   }
 }
 
+
 const ESC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[A-Za-z@`~]|\x1b[()][0-9A-Za-z]|\x1b[A-Za-z=><]/g
 
 export function visibleText(s: string): string {
@@ -412,6 +388,7 @@ export function markEpochs(probe: ProbeDump, kind: string): number[] {
   return probe.allMarks.filter(m => m.k === kind).map(m => m.t + probe.epochMinusPerfNow)
 }
 
+
 export interface GrabbedScreen {
   atMs: number
   rows: string[]
@@ -425,7 +402,6 @@ export function grabScreens(
   rows: number,
   offsets: number[],
 ): GrabbedScreen[] {
-
   const shift = run.anchorShiftMs ?? 0
   const actual = (o: number): number => (o < 0 || o < COMPOSER_NOMINAL_MS ? o : Math.round(o + shift))
   const res = spawnSync(

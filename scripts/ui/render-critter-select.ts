@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -7,11 +6,9 @@ import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeTranscriptLine } from '../../src/utils/sessionStorage/vnext.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(import.meta.dir, '..', '..')
-
 const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
 const PROJECTS = join(CONFIG_HOME, 'projects', basename(getProjectDir(RUNTIME_CWD)))
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
@@ -34,7 +31,6 @@ function buildSession(): string {
   }
   if (!existsSync(PROJECTS)) mkdirSync(PROJECTS, { recursive: true })
   const path = join(PROJECTS, `${SID}.jsonl`)
-
   const { line: encoded } = encodeTranscriptLine(path, line)
   writeFileSync(path, encoded)
   return path
@@ -44,7 +40,6 @@ function shoot(cols: number): string {
   const out = `/tmp/critter-select-${cols}.html`
   const cfg = {
     argv: ['node', BIN, '--resume', SID],
-
     sends: [
       { atTick: 30, data: '/critter' },
       { atTick: 38, data: '\r' },
@@ -60,9 +55,7 @@ function shoot(cols: number): string {
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const env = {
     ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-
     MERCURY_CRITTER: 'crab',
   }
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
@@ -91,21 +84,14 @@ for (const cols of [80, 120]) {
   const scr = results[cols]!
   const lines = scr.split('\n')
   console.log(`\n── @ ${cols} cols ──`)
-
   expect('the picker mounted (Session theme header visible)', /Session theme/.test(scr))
-
   expect('all four critters listed', ['crab', 'octopus', 'jellyfish', 'clam'].every(n => scr.includes(n)))
-
   const rowEnvHits = lines.filter(
     l => /\b(crab|octopus|jellyfish|clam)\b/.test(l) && /MERCURY_CRITTER=/.test(l) && !/this session/.test(l),
   )
-
   expect('no per-row env tail (≤1 name+MERCURY_CRITTER= line — the preview key)', rowEnvHits.length <= 1, `${rowEnvHits.length} line(s)`)
-
   expect('the launch affordance is advertised', /↵ \/ click launch/.test(scr))
-
   expect('the live-switch note is present', /switches live/.test(scr))
-
   const html = readFileSync(`/tmp/critter-select-${cols}.html`, 'utf-8')
   expect('the critter eye-white bg (#EDE8DD) renders in the sprite', /ede8dd/i.test(html))
 }
@@ -114,7 +100,6 @@ for (const cols of [80, 120]) {
   const scr80 = results[80]!
   const tooWide = scr80.split('\n').filter(l => l.replace(/\s+$/, '').length > 80)
   expect('80-col: no rendered line exceeds 80 columns', tooWide.length === 0, `${tooWide.length} over-wide line(s)`)
-
   const recordLine = scr80
     .split('\n')
     .some(l => /^\s*│?\s*jellyfish\s*│?\s*$/.test(l))

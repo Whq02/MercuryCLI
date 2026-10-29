@@ -108,7 +108,6 @@ for (; turns < 8; turns++) {
     finalText = text
     break
   }
-
   reasoningReplayed += reasoningCount
   for (const call of calls) {
     const result = calc(call.input.op, call.input.a, call.input.b)

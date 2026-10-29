@@ -1,6 +1,7 @@
 import { getHistory } from '../../history.js'
 import { logForDebugging } from '../debug.js'
 
+
 type ShellHistoryMatch = {
   fullCommand: string
   suffix: string

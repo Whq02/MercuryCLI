@@ -1,3 +1,4 @@
+
 import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
 

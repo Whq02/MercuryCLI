@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/mcp/config.ts src/services/mcp/utils.ts src/components/MCPServerApprovalDialog.tsx src/components/MCPServerMultiselectDialog.tsx src/cli/handlers/mcp.tsx src/services/mcpServerApproval.tsx src/utils/projectConfig.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

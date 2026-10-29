@@ -1,3 +1,4 @@
+
 import { useCallback, useRef } from 'react'
 import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus, type HistoryRecord } from '../history.js'
 import type { HistoryEntry, PastedContent } from '../utils/config.js'
@@ -87,7 +88,6 @@ export function useHistorySearch(
   const matchRef = useRef<HistoryEntry | undefined>(undefined)
   const failedRef = useRef(false)
   const readerRef = useRef<Reader | null>(null)
-
   const corpusRef = useRef<Promise<HistoryCorpus> | null>(null)
   const seenRef = useRef(new Set<string>())
   const originalRef = useRef<{
@@ -98,9 +98,7 @@ export function useHistorySearch(
   } | null>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
   const scanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   const corpusValueRef = useRef<HistoryCorpus | null>(null)
-
   const scanInFlightRef = useRef(false)
   const scanEpochRef = useRef(0)
   const [, force] = useReducerLike()
@@ -117,7 +115,6 @@ export function useHistorySearch(
   pastesRef.current = currentPastedContents
 
   const closeReader = useCallback((): void => {
-
     void readerRef.current?.return?.(undefined as never)
     readerRef.current = null
   }, [])
@@ -126,7 +123,6 @@ export function useHistorySearch(
     (entry: HistoryEntry, query: string): void => {
       const mode = getModeFromInput(entry.display)
       onModeChange(mode)
-
       onInputChange(entry.display)
       setPastedContents(entry.pastedContents)
       const stripped = getValueFromInput(entry.display)
@@ -151,7 +147,6 @@ export function useHistorySearch(
       const token = ++scanEpochRef.current
       void (async () => {
         try {
-
           const corpus = await (corpusRef.current ??= loadHistoryCorpus())
           corpusValueRef.current = corpus
           if (abort.signal.aborted) return
@@ -162,7 +157,6 @@ export function useHistorySearch(
             const next = await reader.next()
             if (abort.signal.aborted) return
             if (next.done) {
-
               failedRef.current = true
               force()
               return
@@ -178,7 +172,6 @@ export function useHistorySearch(
             return
           }
         } finally {
-
           if (token === scanEpochRef.current) scanInFlightRef.current = false
         }
       })()
@@ -221,7 +214,6 @@ export function useHistorySearch(
     disarmHistoryScanTimer(scanDebounceRef.current)
     scanDebounceRef.current = null
     closeReader()
-
     corpusRef.current = loadHistoryCorpus()
     corpusValueRef.current = null
     scanInFlightRef.current = false
@@ -245,7 +237,6 @@ export function useHistorySearch(
       if (!searchingRef.current) return
       queryRef.current = query
       if (query === '') {
-
         disarmHistoryScanTimer(scanDebounceRef.current)
         scanDebounceRef.current = null
         scanAbortRef.current?.abort()
@@ -264,7 +255,6 @@ export function useHistorySearch(
         force()
         return
       }
-
       disarmHistoryScanTimer(scanDebounceRef.current)
       scanDebounceRef.current = armHistoryScanTimer(() => {
         scanDebounceRef.current = null
@@ -277,7 +267,6 @@ export function useHistorySearch(
   const nextMatch = useCallback((): void => {
     if (!searchingRef.current || queryRef.current === '') return
     if (scanDebounceRef.current !== null) {
-
       disarmHistoryScanTimer(scanDebounceRef.current)
       scanDebounceRef.current = null
       scan(queryRef.current, false)
@@ -345,7 +334,6 @@ export function useHistorySearch(
         return
       }
       if (match === undefined) {
-
         reset()
         return
       }

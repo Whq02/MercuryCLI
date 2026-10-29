@@ -11,25 +11,21 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'surface-strip-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-
 process.env.MERCURY_FULLSCREEN = '1'
 
 const t = checker()
 const route = await import('../../src/context/surfaceRoute.js')
-
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.js')
 type StripStop = import('../../src/context/surfaceRoute.js').StripStop
 type StripFacts = import('../../src/context/surfaceRoute.js').StripFacts
 type SurfaceKind = import('../../src/context/surfaceRoute.js').SurfaceKind
 
 const F = (concourseEnabled: boolean, chatBoot: boolean, chatPresent: boolean): StripFacts => ({ concourseEnabled, chatBoot, chatPresent })
-
 type Answer = StripStop | '—' | 'no chat open'
 type Row = {
   label: string
   facts: StripFacts
   stops: StripStop[]
-
   moves: Record<Exclude<SurfaceKind, 'session'>, [Answer, Answer]>
   hints: Record<Exclude<SurfaceKind, 'session'>, string>
 }
@@ -259,7 +255,6 @@ t.section('§4 — the plain world: --chat and the switch off drop the concourse
   t.check('the menu\'s row names the chat', route.stripKeyMapHint() === keyHintLabel('⇧→ chat'))
   const p3 = route.cycleSurface(-1)
   t.check('⇧→ from the menu lands the chat — the concourse skipped', p3.ok && p3.moved && kind() === 'repl')
-
   const door = route.enterConcourse()
   t.check('/concourse still opens the board in a --chat boot (an explicit door, not a stop)', door.ok && kind() === 'concourse')
   t.check('the board\'s row walks from its position: the face left, the chat right', route.stripKeyMapHint() === keyHintLabel('⇧← boot face · ⇧→ chat'), route.stripKeyMapHint())
@@ -316,7 +311,6 @@ t.section('§6 — the bridge: the chat route is reachable only with a chat pres
   const gen = route.surfaceGeneration()
   const home = route.enterRootChat()
   t.check('home with no chat: no movement and the typed refusal (the face\'s esc never bounces off the empty Chat)', !home.ok && home.code === 'no-chat' && kind() === 'boot-settings' && route.surfaceGeneration() === gen, JSON.stringify(home))
-
   route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)
   t.check('the argv-prompt road seeds the chat route sessionless (initializeSurfaceRoute, never a verb)', kind() === 'repl')
   const settled = route.settleAbsentChat()
@@ -343,7 +337,6 @@ t.section('§6 — the bridge: the chat route is reachable only with a chat pres
 
 route._resetSurfaceRouteForTesting()
 rmSync(SCRATCH, { recursive: true, force: true })
-
 t.section('§7 — the world is honest about itself: the why, the way back, one sentence')
 {
   const fleet = { concourseEnabled: true, chatBoot: false }
@@ -355,11 +348,9 @@ t.section('§7 — the world is honest about itself: the why, the way back, one 
   t.check("the switch off: why = 'concourse off'; the way back is --concourse-on or /config", route.plainWorldWhyOf(off) === 'concourse off' && route.concourseWayBackOf(off) === '`mercury --concourse-on` or /config turns it back')
   t.check('--chat over a saved off is no contradiction: the plain world, the why names both, the way back is the switch', route.chatOnlyBootOf(both) === true && route.plainWorldWhyOf(both) === '--chat · concourse off' && route.concourseWayBackOf(both) === '`mercury --concourse-on` or /config turns it back')
   t.check('the sentence composes the why and the way back', route.concourseOffSentenceOf(chat) === 'the Session Concourse is off in this boot (--chat) — a plain `mercury` boot has it' && route.concourseOffSentenceOf(off) === 'the Session Concourse is off in this boot (concourse off) — `mercury --concourse-on` or /config turns it back')
-
   const main = readFileSync(new URL('../../src/main.tsx', import.meta.url), 'utf8')
   t.check("--concourse-off and --concourse-on on one line: the later wins", main.includes("const lastSwitch = [...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')") && main.includes("setConcourseEnabled(lastSwitch === '--concourse-on')"))
   t.check('--chat beside --concourse-on: this boot plain by the mark (menu ⇄ chat), the switch on for the next', route.chatOnlyBootOf(chat) === true && route.stripStops({ ...chat, chatPresent: true }).join(',') === 'boot-settings,repl')
-
   const config = readFileSync(new URL('../../src/components/Settings/Config.tsx', import.meta.url), 'utf8')
   t.check("/config's Session concourse row says a --chat boot is the plain world whatever the switch says", config.includes('off this boot (--chat)') && config.includes('the switch governs the next plain `mercury` boot'))
   t.check('the router owns the sentence and no reader spells its own', !config.includes('is off in this boot') && readFileSync(new URL('../../src/utils/processUserInput/processSlashCommand.tsx', import.meta.url), 'utf8').includes('concourseOffSentence()'))

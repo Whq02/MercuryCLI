@@ -110,7 +110,6 @@ section('Drain law — bytes written before exit are in the result (pipe mode)')
 
 section('Process-group kill — descendants die with the leader (POSIX live)')
 if (process.platform !== 'win32') {
-
   const child = spawn('sh', ['-c', 'sleep 600 & sleep 600'], { detached: true })
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   await sleep(150)
@@ -134,7 +133,6 @@ if (process.platform !== 'win32') {
 
 section('ST-2 — timeout auto-background re-arms the hard cap; operator background does not')
 {
-
   const child = spawn('sleep', ['600'])
   const cmd = wrapSpawn(child, new AbortController().signal, 150, new TaskOutput(generateTaskId('local_bash'), null), true)
   let backgrounded = false
@@ -153,7 +151,6 @@ section('ST-2 — timeout auto-background re-arms the hard cap; operator backgro
   cmd.cleanup()
 }
 {
-
   const child = spawn('sleep', ['600'])
   const cmd = wrapSpawn(child, new AbortController().signal, 120, new TaskOutput(generateTaskId('local_bash'), null), true)
   let lateBackgroundAccepted: boolean | null = null
@@ -178,7 +175,6 @@ section('ST-6 — no phantom background task for an already-exited process')
   cmd.cleanup()
 }
 {
-
   const child = spawn('sh', ['-c', 'exit 7'])
   const cmd = wrapSpawn(child, new AbortController().signal, 60_000, new TaskOutput(generateTaskId('local_bash'), null))
   await cmd.result
@@ -196,7 +192,6 @@ section('ST-6 — no phantom background task for an already-exited process')
   check('settled from the REAL result (code 7 preserved)', task?.result?.code === 7, `code=${task?.result?.code}`)
   check('marked notified — no duplicate task notification', task?.notified === true)
   check('shellCommand reference released', task?.shellCommand === null)
-
   const env = await awaitTaskOutcome(getSessionId(), handle.taskId)
   check('envelope minted at the terminal transition (failed, exit 7)', env?.state === 'failed' && env?.exitCode === 7, JSON.stringify(env)?.slice(0, 100))
 }
@@ -217,7 +212,6 @@ section('Kill settlement receipt — a stop request is not settlement')
   const receipt = await killTask(handle.taskId, setAppState)
   check("killTask receipt: settled with the real exit code and the stop's provenance", receipt.settled === true && (receipt as any).exitCode === 137 && (receipt as any).interrupted === true, JSON.stringify(receipt))
   check("task state flipped to 'killed'", state.tasks[handle.taskId]?.status === 'killed', `status=${state.tasks[handle.taskId]?.status}`)
-
   const killedEnv = await awaitTaskOutcome(getSessionId(), handle.taskId)
   check("killed task's envelope minted as 'stopped' with the real exit", killedEnv?.state === 'stopped' && killedEnv?.exitCode === 137, JSON.stringify(killedEnv)?.slice(0, 100))
 }
@@ -242,7 +236,6 @@ section('ST-1 / XC-4 / ST-2-message — source pins at the BashTool caller')
   check('XC-4: recordBashAudit gated on a settled (non-backgrounded) result', auditGate)
   check('ST-2: timeout-backgrounded model message names the elapsed timeout + hard cap', bashToolSrc.includes('and was moved to the background with ID') && bashToolSrc.includes('absolute deadline of'))
   check('ST-2: timeout marker threads through the result contract', bashToolSrc.includes('timeoutAutoBackgroundedAfterMs'))
-
   const preflightBlocks = psToolSrc.split('preSpawnError:')
   check('SM-04: pwsh-not-found and spawn-catch legs carry preSpawnError (typed not-started)', preflightBlocks.length >= 3)
   check('SM-04: no pre-flight leg fabricates code 0 (not-started is never exit 0)', !/Pre-flight failure[\s\S]{0,400}?code: 0/m.test(psToolSrc))
@@ -265,7 +258,6 @@ section('ST-1 / XC-4 / ST-2-message — source pins at the BashTool caller')
 section('ST-5 — decision parsing survives the pipe-mode spill (live)')
 {
   const out = new TaskOutput(generateTaskId('local_bash'), null)
-
   const decision = JSON.stringify({ decision: 'block', reason: 'st5-proof-' + 'x'.repeat(5000) })
   out.writeStdout(decision + '\n')
   out.writeStdout('after-1\nafter-2\nafter-3\nafter-4\nafter-5\nafter-6\n')
@@ -287,18 +279,14 @@ section('ST-5 — decision parsing survives the pipe-mode spill (live)')
 section('ST-3/4/7/8, XC-1/2 — source pins at their owners')
 {
   const pins: [string, string, (src: string) => boolean][] = [
-
     ['ST-3: runAgent finally gates shared teardown on the executor claim', 'src/tools/AgentTool/runAgent.ts', s => s.includes('executorClaims') && /executorClaims\.get\(agentId\) === claim/.test(s)],
     ['ST-4: Monitor stop latch defers past pending stdio (setImmediate)', 'src/tools/MonitorTool/MonitorTool.ts', s => /result\.then\(async \(\) => \{[\s\S]{0,400}?setImmediate[\s\S]{0,200}?stopped = true/m.test(s)],
-
     ['ST-7: workflow output write is awaited before the notification (settleRun: manifest → transition → notification)', 'src/tools/WorkflowTool/WorkflowTool.tsx', s => s.includes('const outputWriteError = (await transition()) ?? undefined') && /await transition\(\)\) \?\? undefined[\s\S]{0,300}?enqueueWorkflowNotification\(/.test(s) && /completeWorkflowTask\(\s*taskId/.test(s)],
     ['ST-7: write failure reaches the notification args', 'src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx', s => s.includes('outputWriteError') && s.includes('the output file could not be written')],
     ['ST-8: daemon grace-kill settles from close (backstop-bounded), not finish(null)', 'src/daemon/headlessRun.ts', s => s.includes('finishOnCloseWithBackstop()') && !/SIGKILL'\)\s*\n\s*finish\(null\)/m.test(s)],
-
     ['XC-1: the restore is all-or-nothing on the commit core with typed refusals (the partial-restore class cannot exist)', 'src/utils/fileHistory.ts', s => s.includes('runTextChangeSetCommit') && s.includes("'restore-failed'")],
     ['XC-2: keychain delete reads the exit code (44 = idempotent success; the every-spelling delete loop)', 'src/utils/secureStorage/macOsKeychainStorage.ts', s => s.includes('result.exitCode !== 0 && result.exitCode !== 44') && s.includes('getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)')],
     ['PB-5: tcp bridge exits via drain + backstop, never a truncating exit(0) on close', 'src/services/tcpBridge/entry.ts', s => s.includes('process.exitCode = 0') && !s.includes("socket.on('close', () => process.exit(0))")],
-
     ['XC-6: cmake settles through the shared settle owner (close-drain + bounded timeout live in childSettle)', 'src/services/ide/cppBuild.ts', s => s.includes('settleChildRun(child, { timeoutMs })')],
     ['XC-7: a failed headersHelper fails the connection, never silent no-auth', 'src/services/mcp/headersHelper.ts', s => s.includes('The connection was not attempted without its auth headers')],
     ['F43A-C7-22: the headersHelper command string runs through the platform shell with its own quoting intact (shell: true on win32, /bin/sh elsewhere), never as a quoted cmd.exe argument', 'src/services/mcp/headersHelper.ts', s => s.includes("execFileNoThrowWithCwd(helper, [], {") && s.includes("shell: process.platform === 'win32' ? true : '/bin/sh'") && !s.includes("['cmd.exe', ['/c', helper]]")],

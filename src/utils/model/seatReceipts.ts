@@ -1,3 +1,4 @@
+
 type SeatReceipt = {
   text: string
   level: 'info' | 'warning'
@@ -5,10 +6,10 @@ type SeatReceipt = {
 
 const RECEIPT_QUEUE_CAP = 20
 
+
 const queue: SeatReceipt[] = []
 type Listener = { cb: (r: SeatReceipt) => void; takes: (r: SeatReceipt) => boolean }
 const listeners = new Set<Listener>()
-
 let latestWarning: { receipt: SeatReceipt; at: number } | null = null
 
 function deliver(r: SeatReceipt): boolean {

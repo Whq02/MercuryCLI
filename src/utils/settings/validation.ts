@@ -7,6 +7,7 @@ import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import { getValidationTip } from './validationTips.js'
 
+
 type FieldPath = string
 
 export type ValidationError = {
@@ -17,7 +18,6 @@ export type ValidationError = {
   invalidValue?: unknown
   suggestion?: string
   docLink?: string
-
   severity?: 'error' | 'warning' | 'held'
   unknownKeys?: string[]
   mcpErrorMetadata?: {
@@ -100,18 +100,15 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
         const quoted = (issue.values ?? []).map(value => `"${String(value)}"`).join(', ')
         message = `Invalid value; accepted values are: ${quoted}`
         expected = quoted
-
         break
       }
       case 'invalid_type': {
         const received = receivedTypeName(issue)
         if (issue.expected === 'object' && path === '' && received === 'null') {
-
           message = 'The settings file contains malformed JSON (or is empty)'
         } else {
           message = `Expected ${issue.expected ?? 'a different type'}, received ${received}`
         }
-
         invalidValue = received
         break
       }
@@ -236,7 +233,6 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
           path: `guardrails.${key}`,
           message: `Removed a non-string value from guardrails.${key}`,
           invalidValue: rule,
-
           severity: 'warning',
         })
         continue

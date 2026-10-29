@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -56,7 +55,6 @@ const routes: Array<[string | undefined, string]> = [
   ['deepseek-flash', 'deepseek'],
   ['compat/qwen3-32b', 'openai-compat'],
   ['compat/llama-3.3-70b-instruct', 'openai-compat'],
-
   ['openrouter/auto', 'openrouter'],
   ['openrouter/qwen/qwen3-coder', 'openrouter'],
   ['openrouter/openrouter/auto', 'openrouter'],
@@ -70,7 +68,6 @@ for (const [id, want] of routes) {
   const got = declaredRouteOf(id ?? '')
   check(`route(${JSON.stringify(id)}) = ${want}`, got === want, `got ${got}`)
 }
-
 check("route('') is ABSENCE — never a lane", classifyModelRoute('').kind === 'absence')
 check('route(undefined) is ABSENCE — never a lane', classifyModelRoute(undefined).kind === 'absence')
 
@@ -109,7 +106,6 @@ check(
 )
 
 section('3c · Mercury annotations never ride a wire (the wire-id truth law)')
-
 check(
   'a dressed qualified id still routes to openrouter (recognition is annotation-blind)',
   declaredRouteOf('openrouter/anthropic/claude-opus-5[1m]') === 'openrouter',
@@ -188,13 +184,11 @@ check('a bare Hub slug stays UNRECOGNISED (never a guessed family, and no lane b
 
 section('6 · the earned ride (the neutrality ruling): total classifier, admission-owned ride')
 {
-
   const { homeLaneAdmissionRefusal } = await import(
     '../../src/services/providers/homeLaneAdmission.ts'
   )
   const noFact = { firstPartyBaseUrl: () => true, env: {} }
   const refusal = homeLaneAdmissionRefusal('banana-brew-9', noFact)
-
   check("the classifier names the stranger 'unrecognised' — no lane by remainder", classifyModelRoute('banana-brew-9').kind === 'unrecognised')
   check(
     '…while the admission owner refuses its ride, byte-stable on the sentence head',
@@ -244,7 +238,6 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
   const { classifyModelRoute, declaredRouteOf, laneLabelForVerdict } = await import(
     '../../src/services/providers/routeLaw.ts'
   )
-
   const empty = {}
   check(
     "'' · '   ' · undefined are ABSENCE — never any family's remainder",
@@ -256,7 +249,6 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
   check('an id no family declares is UNRECOGNISED (bare shape)', unknown.kind === 'unrecognised' && !unknown.carrierShaped)
   const carrier = classifyModelRoute('qwen/qwen3-coder', empty)
   check('a bare vendor slug is UNRECOGNISED and carrier-shaped', carrier.kind === 'unrecognised' && carrier.carrierShaped)
-
   const matrix: Array<[string | undefined, 'route' | 'unrecognised' | 'absence']> = [
     ['glm-5.2', 'route'], ['glm', 'route'], ['GLM-5.2', 'route'], ['glm-5.2[1m]', 'route'],
     ['gpt-5.6-sol', 'route'], ['gpt', 'route'], ['kimi-k3', 'route'], ['moonshot-v2', 'route'],
@@ -299,7 +291,6 @@ section('7 · the honest verdict (phase 2): absence and unknownness first-class'
 
 section('8 · the remainder-era name stays dead (the kill ratchet)')
 {
-
   const { readFileSync: readSrc, readdirSync: walkSrc } = await import('node:fs')
   const { join: joinSrc } = await import('node:path')
   const SRC_ROOT = joinSrc(import.meta.dir, '..', '..')

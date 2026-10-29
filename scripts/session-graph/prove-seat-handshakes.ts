@@ -80,6 +80,7 @@ const bridge = await import('../../src/services/crew/seatBridge.ts')
 const caps = await import('../../src/services/crew/capabilities.ts')
 const dir = join(scratch, 'store')
 
+
 t.section('§2 — codex: the real app-server JSON-RPC initialize')
 {
   const codex = probe('codex')

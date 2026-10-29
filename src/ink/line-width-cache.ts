@@ -1,3 +1,4 @@
+
 import { stringWidth } from './stringWidth.js'
 
 const CACHE_LIMIT = 4096

@@ -1,3 +1,4 @@
+
 import { useRef, useSyncExternalStore } from 'react'
 import { formatDuration } from '../utils/format.js'
 import { lastClockTick, subscribeUiClock } from '../utils/cockpit/uiClock.js'
@@ -13,7 +14,6 @@ export function useElapsedTime(
   pausedMs: number = 0,
   endTime?: number | undefined,
 ): string {
-
   const frozenRef = useRef<number | null>(null)
   if (isRunning || endTime !== undefined) frozenRef.current = null
 

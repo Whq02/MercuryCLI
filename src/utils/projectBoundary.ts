@@ -15,7 +15,6 @@ const PROJECT_MARKER_NAMES: readonly string[] = [
   'CMakeLists.txt',
   'src',
 ]
-
 const PROJECT_MARKER_EXTENSIONS: readonly string[] = ['.sln', '.csproj']
 
 export const USER_ROOT_NAMES: readonly string[] = [
@@ -48,7 +47,6 @@ function sameFolder(a: string, b: string): boolean {
   const x = realOrSelf(a)
   const y = realOrSelf(b)
   if (x === y) return true
-
   return process.platform === 'win32' && x.toLowerCase() === y.toLowerCase()
 }
 
@@ -114,9 +112,7 @@ export function projectMarkerOf(dir: string): string | null {
 }
 
 interface EntryCount {
-
   count: number
-
   ceilingReached: boolean
 }
 
@@ -149,7 +145,6 @@ type GitInitRefusalKind = NonProjectRootKind | 'not-a-project'
 
 export interface GitInitRefusal {
   kind: GitInitRefusalKind
-
   words: string
 }
 

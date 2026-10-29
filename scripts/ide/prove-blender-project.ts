@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -158,7 +157,6 @@ section('§5 · readiness honesty (armed states)')
   )
   _resetBlenderVersionProbeForTesting()
   process.env.PATH = path.join(scratch, 'empty-bin')
-
   process.env.MERCURY_BLENDER_BIN = path.join(scratch, 'nope-blender')
   rows = blenderLaneReadinessRecords()
   check(

@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
 
 const HOME = mkdtempSync(join(tmpdir(), 'termination-notes-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -28,10 +28,12 @@ for (const k of [
   delete process.env[k]
 }
 
+
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://deepseek.fixture.invalid'
 process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/api/paas/v4'
 process.env.DEEPSEEK_API_KEY = 'sk-fixture-deepseek'
 process.env.ZAI_API_KEY = 'zai-fixture-key'
+
 
 type Scenario =
   | 'insufficient'
@@ -93,6 +95,7 @@ globalThis.fetch = (async (url: unknown) => {
   }
   return new Response(JSON.stringify({}), { status: 200, headers: { 'content-type': 'application/json' } })
 }) as typeof fetch
+
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()

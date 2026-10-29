@@ -1,3 +1,4 @@
+
 import { advanceStableBoundary } from '../../components/Markdown.js'
 import type { BoundaryScanner } from '../stablePrefix.js'
 

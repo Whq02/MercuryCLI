@@ -1,24 +1,16 @@
+
 export type ImageLimitFamily = 'anthropic' | 'openai' | 'gemini' | 'generic'
 
 export interface ImageLimits {
   family: ImageLimitFamily
-
   doc: string
-
   maxSidePx: number | null
-
   manyImages: { threshold: number; maxSidePx: number } | null
-
   maxBase64Bytes: number | null
-
   maxPatchesPerImage: { patchPx: number; count: number } | null
-
   nativeLongEdgePx: { standard: number; highResolution: number }
-
   toolResultRejectsAboveNative: boolean
-
   maxImagesPerRequest: number
-
   maxRequestBytes: number
 }
 

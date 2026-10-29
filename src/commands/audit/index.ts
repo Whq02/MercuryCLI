@@ -150,7 +150,6 @@ async function buildAuditPrompt(
   const allowedTools = parseSlashCommandToolsFromFrontmatter(
     (frontmatter as { 'allowed-tools'?: unknown })['allowed-tools'],
   )
-
   const baseState = context.getAppState()
   const overlaidPermissions = applyPermissionUpdate(baseState.toolPermissionContext, {
     type: 'addRules',

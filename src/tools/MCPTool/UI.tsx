@@ -12,9 +12,11 @@ import { formatNumber } from '../../utils/format.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
 import { getContentSizeEstimate, type MCPToolResult } from '../../utils/mcpValidation.js'
 
+
 const LARGE_RESPONSE_TOKEN_THRESHOLD = 10_000
 
 const PROGRESS_BAR_WIDTH = 20
+
 
 export function renderToolUseMessage(
   input: Record<string, unknown> | undefined,
@@ -24,6 +26,7 @@ export function renderToolUseMessage(
   if (entries.length === 0) return ''
   return entries.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(', ')
 }
+
 
 export function renderToolUseProgressMessage(
   progressMessages: ProgressMessage<MCPProgress>[],
@@ -51,7 +54,6 @@ export function renderToolUseProgressMessage(
       </MessageResponse>
     )
   }
-
   if (progressMessage) {
     return (
       <MessageResponse height={1}>
@@ -65,6 +67,7 @@ export function renderToolUseProgressMessage(
     </MessageResponse>
   )
 }
+
 
 const MESSAGE_LINK_TOKEN = '"message_link"'
 
@@ -137,6 +140,7 @@ function tryCraftStatusCompact(output: MCPToolResult): string | null {
   return `${name} — ${attached.headless === true ? 'headless session' : 'attached'}: ${attached.project}`
 }
 
+
 function ImagePlaceholder(): React.ReactNode {
   return (
     <MessageResponse height={1}>
@@ -158,7 +162,6 @@ function ContentBlocks({
     <Box flexDirection="column">
       {blocks.map((block, index) => {
         if (block.type === 'image') return <ImagePlaceholder key={index} />
-
         const text =
           block.type === 'text' && block.text !== undefined && block.text !== null
             ? String(block.text)

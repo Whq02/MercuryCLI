@@ -1,3 +1,4 @@
+
 import { execFile, spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync, fstatSync, readFileSync } from 'node:fs'
@@ -88,7 +89,6 @@ export function linuxProcessStartToken(pid: number, read: (path: string) => stri
 export function getProcessStartToken(pid: number): string | null {
   try {
     if (process.platform === 'win32') {
-
       const r = spawnSync(win32PsExe(), startTokenArgs(pid), {
         encoding: 'utf-8',
         timeout: 2000,
@@ -115,7 +115,6 @@ export function getProcessStartToken(pid: number): string | null {
 
 export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
   return new Promise(resolve => {
-
     const unknownErr = (err: unknown): boolean => {
       const e = err as NodeJS.ErrnoException & { killed?: boolean }
       return e?.code === 'ENOENT' || e?.killed === true
@@ -131,7 +130,6 @@ export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
               resolve(null)
               return
             }
-
             const exitCode = err ? (typeof (err as { code?: unknown }).code === 'number' ? ((err as { code: number }).code) : 1) : 0
             resolve(win32StartTokenVerdict({ ran: true, exitCode, stdout, stderr }))
           },
@@ -195,9 +193,7 @@ function ownerIdentityMatches(
 
 export const OWNER_WATCH_INTERVAL_MS = 4000
 export const OWNER_WATCH_GRACE_CHECKS = 2
-
 export const OWNER_IDENTITY_FLOOR_MS = 60_000
-
 export const OWNER_PROBE_BACKOFF_FACTOR = 4
 
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
@@ -236,12 +232,10 @@ export function decideOrphanShutdown(args: {
   return args.deadStreak >= args.graceChecks
 }
 
+
 export interface OwnerPipeHandleV1 {
-
   armed: boolean
-
   why?: string
-
   close(): void
 }
 
@@ -270,7 +264,6 @@ export function armOwnerPipe(fd: number, onClosed: () => void, log: (line: strin
   sock.on('end', gone)
   sock.on('close', gone)
   sock.on('error', (e: NodeJS.ErrnoException) => {
-
     if (e.code === 'ECONNRESET' || e.code === 'EPIPE' || e.code === 'EOF') {
       gone()
       return
@@ -290,22 +283,20 @@ export function armOwnerPipe(fd: number, onClosed: () => void, log: (line: strin
   }
 }
 
+
 type OwnerGoneWhy = 'owner-gone' | 'owner-replaced' | 'owner-pipe-eof'
 
 interface OwnerWatchPortsV1 {
   ownerPid: number
-
   baselineToken: string | null
   onOrphan: (why: OwnerGoneWhy) => void
   log: (line: string) => void
-
   alive?: (pid: number) => boolean
   probeToken?: (pid: number) => Promise<string | null>
   now?: () => number
   intervalMs?: number
   identityFloorMs?: number
   graceChecks?: number
-
   schedule?: boolean
 }
 
@@ -321,9 +312,7 @@ interface OwnerWatchFactsV1 {
 }
 
 export interface OwnerWatchHandleV1 {
-
   beat(): Promise<void>
-
   ownerPipeClosed(): void
   stop(): void
   facts(): OwnerWatchFactsV1

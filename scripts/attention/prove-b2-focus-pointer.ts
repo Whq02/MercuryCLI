@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -12,7 +11,6 @@ t.section('§1 — the focus graph nodes')
 {
   const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
   const keys = Object.keys(ACTION_GRAPH)
-
   for (const id of [
     'prompts:expand',
     'prompts:new-saved',
@@ -40,7 +38,6 @@ t.section('§2 — keyboard/pointer equivalence at the grammar')
     'footer action hints are InteractiveRows firing run(selectedRow) — every board action gains its pointer route at ONE seam',
     panes.includes(':hint:') && panes.includes('onActivate={() => a.run(selectedRow!)}') && panes.includes('headText.length + 3 + hintsWidth + footerTailText.length <= budget'),
   )
-
   const panel = readFileSync('src/components/prompts-panel/PromptsPanel.tsx', 'utf8')
   t.check('the prompts panel rides the shared panes shell (rows are InteractiveRows by construction)', panel.includes('<NavigablePanes<Row>'))
   t.check(

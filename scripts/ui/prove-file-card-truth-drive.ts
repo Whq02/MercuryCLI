@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
+// gate-watch: src/tools/FileEditTool/sectionEdit.ts src/tools/FileEditTool/UI.tsx src/tools/RecordConventionTool/RecordConventionTool.ts
+// gate-watch: src/components/permissions/GitPermissionRequest/GitPermissionRequest.tsx src/services/gitGraph/plan.ts src/services/gitGraph/observe.ts
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

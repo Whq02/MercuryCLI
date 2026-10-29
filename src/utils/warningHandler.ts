@@ -1,5 +1,6 @@
 import { logForDebugging } from './debug.js'
 
+
 const MAX_TRACKED_WARNING_KEYS = 1000
 
 const warningCounts = new Map<string, number>()
@@ -27,7 +28,6 @@ function handleWarning(warning: Error): void {
   try {
     const key = `${warning.name}:${warning.message.slice(0, 50)}`
     const existing = warningCounts.get(key)
-
     if (existing !== undefined || warningCounts.size < MAX_TRACKED_WARNING_KEYS) {
       warningCounts.set(key, (existing ?? 0) + 1)
     }

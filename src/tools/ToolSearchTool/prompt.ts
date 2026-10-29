@@ -20,7 +20,6 @@ function isMcpToolLike(tool: Tool): boolean {
 }
 
 export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
-
   void permissionMode
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true

@@ -65,7 +65,6 @@ export async function writeForkedFixture(opts: {
     liveUuids.push(a)
     parent = a
     if (t % opts.forkEvery === opts.forkEvery - 1 && t < opts.turns - 1) {
-
       let deadParent: string = a
       for (let d = 0; d < opts.deadPerFork; d++) {
         const du = uid()
@@ -88,7 +87,6 @@ export async function writeForkedFixture(opts: {
       }
     }
   }
-
   rows.splice(Math.floor(rows.length / 3), 0, { type: 'custom-title', customTitle: 'forked odyssey', sessionId })
   rows.splice(Math.floor(rows.length / 2), 0, { type: 'tag', tag: 'pruning', sessionId })
   rows.push({ type: 'summary', summary: 'a forked session', leafUuid: liveUuids[liveUuids.length - 1]! })

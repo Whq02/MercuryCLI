@@ -29,12 +29,12 @@ import type { SystemPrompt } from './systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from './toolResultStorage.js'
 import { createAgentId } from './uuid.js'
 
+
 export type CacheSafeParams = {
   systemPrompt: SystemPrompt
   userContext: { [k: string]: string }
   systemContext: { [k: string]: string }
   toolUseContext: ToolUseContext
-
   forkContextMessages: Message[]
   postFoldCarry?: Message[]
 }
@@ -43,22 +43,18 @@ type SubagentContextOverrides = {
   readFileState?: FileStateCache
   contentReplacementState?: ContentReplacementState
   abortController?: AbortController
-
   shareAbortController?: boolean
   getAppState?: () => AppState
   setAppState?: (f: (prev: AppState) => AppState) => void
-
   shareSetAppState?: boolean
   setResponseLength?: (f: (prev: number) => number) => void
   setSDKStatus?: ToolUseContext['setSDKStatus']
-
   shareSetResponseLength?: boolean
   options?: ToolUseContext['options']
   messages?: Message[]
   agentId?: AgentId
   agentType?: string
   standingRule?: string
-
   requireCanUseTool?: boolean
   alwaysCallCanUseTool?: boolean
 }
@@ -68,13 +64,11 @@ export type ForkedAgentParams = {
   cacheSafeParams: CacheSafeParams
   canUseTool: CanUseToolFn
   querySource: QuerySource
-
   forkLabel: string
   overrides?: SubagentContextOverrides
   maxOutputTokens?: number
   maxTurns?: number
   onMessage?: (message: Message) => void
-
   onStreamEvent?: (event: unknown) => void
   skipTranscript?: boolean
   skipCacheWrite?: boolean
@@ -92,6 +86,7 @@ type PreparedForkedContext = {
   baseAgent: AgentDefinition
   promptMessages: Message[]
 }
+
 
 let lastCacheSafeParams: CacheSafeParams | null = null
 
@@ -112,6 +107,7 @@ export function createCacheSafeParams(hookContext: TurnAnswerContext): CacheSafe
     forkContextMessages: hookContext.messages,
   }
 }
+
 
 const sentRequests = new Map<string, Message[]>()
 const SENT_REQUESTS_CAP = 32
@@ -147,13 +143,13 @@ export function continuationOfSentRequest(
       index++
       continue
     }
-
     const minted = row.type === 'user' && row.isMeta === true && !present.has(row.uuid)
     if (minted) continue
     return null
   }
   return { sent: [...sent], tail: current.slice(index) }
 }
+
 
 export function createGetAppStateWithAllowedTools(
   baseGetAppState: () => AppState,
@@ -162,6 +158,7 @@ export function createGetAppStateWithAllowedTools(
   if (allowedTools.length === 0) return baseGetAppState
   return () => withAllowedCommandRules(baseGetAppState(), allowedTools)
 }
+
 
 export async function prepareForkedCommandContext(
   command: PromptCommand & { name?: string },
@@ -190,6 +187,7 @@ export function extractResultText(messages: Message[], defaultText: string = 'Ex
   const text = extractTextContent(last.message.content, '\n')
   return text.length > 0 ? text : defaultText
 }
+
 
 export function createSubagentContext(parentContext: ToolUseContext, overrides: SubagentContextOverrides = {}): ToolUseContext {
   const shareWithParent = overrides.shareAbortController === true
@@ -247,6 +245,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
   }
 }
 
+
 function usageOf(event: unknown): Partial<NonNullableUsage> | undefined {
   const usage = (event as { usage?: Partial<NonNullableUsage> } | undefined)?.usage
   return usage && typeof usage === 'object' ? usage : undefined
@@ -269,7 +268,6 @@ export function foldForkUsageEvent(
   }
   return fold
 }
-
 export function settleForkUsageFold(fold: ForkUsageFold): NonNullableUsage {
   return fold.open === null ? fold.total : accumulateUsage(fold.total, fold.open)
 }
@@ -292,10 +290,8 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
   const startedAt = Date.now()
   const context: ToolUseContext = {
     ...createSubagentContext(cacheSafeParams.toolUseContext, overrides),
-
     rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext),
   }
-
   const messages: Message[] = [...cacheSafeParams.forkContextMessages, ...promptMessages]
   const collected: Message[] = []
   let fold: ForkUsageFold = EMPTY_FORK_USAGE_FOLD
@@ -350,7 +346,6 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       }
     }
   } finally {
-
     context.readFileState.clear()
     messages.length = 0
   }

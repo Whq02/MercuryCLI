@@ -1,3 +1,4 @@
+
 import { resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
 import { dirname, isAbsolute, join, sep } from 'node:path'
@@ -207,12 +208,10 @@ export function registerWardsGuard(
   if (!wardsEnabled()) return null
   if (wardsEngagedSessions.has(sessionId)) return WARDS_HOOK_ID
   const projectReport = loadProjectWardsWithReport(getCwd())
-
   for (const problem of projectReport.problems) {
     logForDebugging(`wards: ${problem}`)
   }
   if (projectReport.loss !== undefined) {
-
     enqueueNotification(setAppState, {
       key: 'wards-file',
       text: `project wards file ${projectReport.path ?? 'wards.json'}: ${projectReport.loss} this session`,

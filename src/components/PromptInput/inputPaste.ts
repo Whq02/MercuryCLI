@@ -1,3 +1,4 @@
+
 import type { PastedContent } from '../../utils/config.js'
 import { getPastedTextRefNumLines } from '../../history.js'
 

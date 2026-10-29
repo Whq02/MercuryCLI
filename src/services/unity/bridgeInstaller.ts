@@ -1,3 +1,4 @@
+
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { unityBridgeEnabled, unityBridgePort } from '../../utils/unity/bridgeGates.js'
@@ -81,7 +82,6 @@ export function applyUnityBridgeUninstall(projectRoot: string): string {
   const packageRoot = path.join(projectRoot, PACKAGE_DIR)
   const existed = existsSync(packageRoot)
   rmSync(packageRoot, { recursive: true, force: true })
-
   rmSync(packageRoot + '.meta', { force: true })
   rmSync(unityBridgeTokenPath(projectRoot), { force: true })
   const settingsFile = path.join(projectRoot, SETTINGS_REL)
@@ -97,7 +97,6 @@ export async function describeUnityBridgeStatus(projectRoot: string): Promise<st
   const s = unityBridgeInstallStatus(projectRoot)
   const port = unityBridgePort()
   const client = getUnityBridgeClient()
-
   const reachable = client?.status() === 'ready' ? true : await probeUnityBridgeReachable(port)
   const lines = [
     `flag: ${unityBridgeEnabled() ? 'armed (MERCURY_UNITY)' : 'OFF'} · project: ${projectRoot}`,

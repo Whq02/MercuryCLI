@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,7 +17,6 @@ const section = (t: string): void => {
 }
 
 delete process.env.NODE_ENV
-
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.ANTHROPIC_API_KEY
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'oauth-refresh-'))
@@ -51,7 +49,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         apiRequests.push({ bearer, status: 401 })
         res.writeHead(401, {
           'content-type': 'application/json',
-
           ...(bearer === 'at-stale-c' ? { 'x-should-retry': 'false' } : {}),
         })
         res.end(JSON.stringify({ type: 'error', error: { type: 'authentication_error', message: 'OAuth token revoked (fixture)' } }))
@@ -200,7 +197,6 @@ function seed(tokens: { accessToken: string; refreshToken: string; expiresAt: nu
 }
 
 section('A · proactive — an EXPIRED stored token refreshes before request 1')
-
 {
   seed({ accessToken: 'at-stale-a', refreshToken: 'rt-a', expiresAt: Date.now() - 60_000 })
   tokenGrant = { access: 'at-fresh-a' }
@@ -215,7 +211,6 @@ section('A · proactive — an EXPIRED stored token refreshes before request 1')
 }
 
 section('B · reactive — a server-revoked (unexpired) token 401s, refresh heals the retry')
-
 {
   seed({ accessToken: 'at-revoked-b', refreshToken: 'rt-b', expiresAt: Date.now() + 3_600_000 })
   revokedBearers.add('at-revoked-b')
@@ -233,9 +228,7 @@ section('B · reactive — a server-revoked (unexpired) token 401s, refresh heal
 }
 
 section('C · dead refresh token — invalid_grant is a typed, bounded refusal')
-
 {
-
   seed({ accessToken: 'at-stale-c', refreshToken: 'rt-dead', expiresAt: Date.now() - 60_000 })
   tokenGrant = { invalidGrant: true }
   const before = { posts: tokenPosts }

@@ -1,10 +1,10 @@
+
 export async function completeHandback(
   kind: 'detach' | 'valve-resume' | 'grant-workflows',
   sessionId: string,
   opts?: { mintedAtMs?: number },
 ): Promise<boolean> {
   try {
-
     const mintedAtMs = opts?.mintedAtMs ?? Date.now()
     const store = await import('../concourse/concourseSnapshot.js')
     await store.writeConcoursePendingHandback({ kind, sessionId, mintedAtMs })

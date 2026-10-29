@@ -1,18 +1,14 @@
+
 import { createHash } from 'node:crypto'
 import { randomUUID } from 'node:crypto'
 
 export const REVISION_KEY = '_rev'
 
 export interface StoreRevision {
-
   revision: number
-
   writerId: string
-
   operationId: string
-
   committedAt: string
-
   digest: string
 }
 
@@ -23,7 +19,6 @@ export type StoreReadResult<T> =
       state: 'recoverable'
       reason: string
       path: string
-
       lastGood?: T
     }
 
@@ -31,10 +26,8 @@ export type StoreChangeCause = 'local-commit' | 'watch' | 'catch-up' | 'recovery
 
 export interface StoreChange<T> {
   value: T
-
   revision: StoreRevision | null
   cause: StoreChangeCause
-
   skippedRevisions: number
 }
 

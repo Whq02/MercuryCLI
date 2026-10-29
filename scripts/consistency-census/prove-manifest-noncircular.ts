@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -19,7 +19,6 @@ export function createIdleTimeoutManager(isIdle: () => boolean): { start(): void
     if (delayMs === null) return
     timer = setTimeout(() => {
       timer = null
-
       if (!isIdle()) return
       if (Date.now() - idleSince < delayMs) return
       logForDebugging(`idleTimeout: idle for ${delayMs}ms; shutting down`)

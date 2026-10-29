@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/tools/AgentTool/agentPermissionPosture.ts src/tools/AgentTool/loadAgentsDir.ts src/tools/AgentTool/runAgent.ts
+// gate-watch: src/utils/permissions/decision/engine.ts src/services/agents/codec.ts src/types/permissions.ts
+// gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
+// gate-watch: scripts/lib/firstRunSeed.ts
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

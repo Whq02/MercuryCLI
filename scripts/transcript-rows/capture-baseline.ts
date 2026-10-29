@@ -23,7 +23,6 @@ const argAfter = (flag: string): string | undefined => {
 }
 const jsonOut = argAfter('--json')
 const framesDir = argAfter('--frames')
-
 const framesPrefix = argAfter('--frames-prefix') ?? 'before'
 const only = (argAfter('--scene') ?? 'A,B,C,D,E,F,G').split(',')
 
@@ -40,7 +39,6 @@ const firstPaint = (vis: Vis[], at: number, needle: string): number => {
   const hit = vis.find(t => t.ts >= at && t.v.includes(needle))
   return hit ? hit.ts - at : -1
 }
-
 const firstWrite = (vis: Vis[], at: number): number => {
   const hit = vis.find(t => t.ts >= at && t.v.length > 0)
   return hit ? hit.ts - at : -1
@@ -116,10 +114,8 @@ if (only.includes('A')) {
   const submit = sendTs(run, '\r')[0] ?? 0
 
   const t1 = firstWrite(vis, submit)
-
   const e0 = run.fixture.pacedEmits[0]
   const t2 = e0 ? firstPaint(vis, e0.at, visibleText(e0.text)) : -1
-
   const emits = run.fixture.pacedEmits
   const streamStart = emits[0]?.at ?? 0
   const streamEnd = emits.at(-1)?.at ?? 0
@@ -131,7 +127,6 @@ if (only.includes('A')) {
   }
   const streamWrites = writesIn(run, streamStart, streamEnd)
   const streamSec = (streamEnd - streamStart) / 1000
-
   const echo: number[] = []
   for (const g of GLYPHS) {
     const at = sendTs(run, g)[0]
@@ -139,13 +134,11 @@ if (only.includes('A')) {
     const d = firstPaint(vis, at, g)
     if (d >= 0) echo.push(d)
   }
-
   const offs = [streamEnd - base - 200, streamEnd - base + 500, streamEnd - base + 1200, -1]
   const screens = dumpFrames('A', run, offs, 'prose stream → settle swap → idle')
   const fpBefore = contentFingerprint(screens[0]!.rows, /liquid|cadence|anchor/)
   const fpAfter = contentFingerprint(screens[1]!.rows, /liquid|cadence|anchor/)
   const settleRowNoop = fpBefore.length > 0 && fpBefore.join('|') === fpAfter.join('|')
-
   const lastSpinner = [...vis].reverse().find(t => t.v.includes('tokens'))
   const t5 = lastSpinner ? lastSpinner.ts - streamEnd : -1
 
@@ -198,12 +191,9 @@ if (only.includes('B')) {
 
   const tool1 = run.fixture.toolEmits[0]
   const t7 = tool1 ? firstPaint(vis, tool1.at, 'liquid-notes.txt') : -1
-
   const t8 = tool1 ? firstPaint(vis, tool1.at, 'Read2files') : -1
-
   const t9at = tool1 ? tool1.at : 0
   const t9 = firstPaint(vis, t9at, 'liquid-notes2.txt')
-
   const resume = run.fixture.pacedEmits.find(e => e.turn === 3)
   const t10 = resume ? firstPaint(vis, resume.at, visibleText(resume.text)) : -1
 
@@ -248,11 +238,9 @@ if (only.includes('C')) {
     sends: [
       '4500:hello',
       '5300:\\r',
-
       '9000:Ξ',
       '9300:Ψ',
       '9600:Φ',
-
       '12000:\\r',
     ],
     seconds: 18,
@@ -264,9 +252,7 @@ if (only.includes('C')) {
   const submit = sendTs(run, '\r')[0] ?? 0
 
   const t11 = firstPaint(vis, submit, 'liquid-out.txt')
-
   const lastDraft = sendTs(run, 'Φ')[0] ?? 0
-
   const approve = sendTs(run, '\r')[1] ?? 0
   const t13run = approve ? firstPaint(vis, approve, 'Wrote') : -1
   const t13done = approve ? firstPaint(vis, approve, 'Alldonehere') : -1
@@ -277,7 +263,6 @@ if (only.includes('C')) {
     [submit - base + 800, lastDraft - base + 400, approve - base + 800, -1],
     'permission card → draft typed under it → approve → result',
   )
-
   const draftScreen = screens[1]!
   const draftVisible = ['Ξ', 'Ψ', 'Φ'].map(g => findRows(draftScreen.rows, g).length > 0)
   results.C = {
@@ -312,7 +297,6 @@ if (only.includes('D')) {
   const cleared = marks.find(m => m.k === 'lifecycle:stopping' && m.v === 0)
   const t14 = armed ? armed.t + off - esc : -1
   const t15 = cleared && armed ? cleared.t - armed.t : -1
-
   const t14paint = firstPaint(vis, esc, 'stopping')
   dumpFrames('D', run, [esc - base - 100, esc - base + 300, esc - base + 1200, -1], 'esc → stopping → settled')
   results.D = {
@@ -335,12 +319,10 @@ if (only.includes('E')) {
   const UP = '\\x1b[<64;60;20M'
   const DOWN = '\\x1b[<65;60;20M'
   const sends = ['4500:hello', '5300:\\r']
-
   for (let i = 0; i < 12; i++) sends.push(`${8000 + i * 25}:${UP}`)
   sends.push('8150:Ξ')
   for (let i = 0; i < 4; i++) sends.push(`${8600 + i * 25}:${DOWN}`)
   sends.push('8800:Ψ')
-
   for (let i = 0; i < 40; i++) sends.push(`${10000 + i * 5}:${UP}`)
   sends.push('10100:Φ')
   const run = await runArtifactArena({
@@ -384,7 +366,6 @@ if (only.includes('F')) {
   })
   const base = firstOutputTs(run)
   const w = writesIn(run, base + 5000, base + 13000)
-
   const offsets = Array.from({ length: 10 }, (_, i) => 5000 + i * 800)
   const screens = grabScreens(run, COLS, ROWS, offsets)
   const changed = new Set<number>()
@@ -490,7 +471,6 @@ if (only.includes('R')) {
     extraEnv: { MERCURY_LIVE_GLYPHS: '1', MERCURY_CRITTER_GAZE: '0' },
   })
   const submit = sendTs(run, '\r')[0] ?? 0
-
   const firstEmit = run.fixture.pacedEmits[0]?.at ?? submit + 4000
   const w = writesIn(run, submit + 300, firstEmit - 300)
   const winSec = (firstEmit - 300 - (submit + 300)) / 1000

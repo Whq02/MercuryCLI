@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
@@ -12,7 +11,6 @@ const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 const FIXTURE_SERVER = join(import.meta.dir, '_fixture-stdio-server.mjs')
-
 const CONFIG_HOME = mkdtempSync(join(tmpdir(), 'mcp-live-home-'))
 
 let failures = 0
@@ -38,7 +36,6 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(CONFIG_HOME, [FIX, realpathSync(FIX)])
 
 const mcpCfgPath = join(tmpdir(), `mcp-live-cfg-${process.pid}.json`)
-
 const clientInfoLog = join(tmpdir(), `mcp-live-clientinfo-${process.pid}.jsonl`)
 writeFileSync(
   mcpCfgPath,
@@ -62,7 +59,6 @@ writeFileSync(
   JSON.stringify({
     argv: ['node', BIN, '--only-mcp', '--mcp', mcpCfgPath],
     cwd: FIX,
-
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },
       { atTick: 90, minTick: 5, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: '/mcp\r' },

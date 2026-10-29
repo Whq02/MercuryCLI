@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -55,9 +54,7 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
       rows: 40,
       total: 200,
       sends: [
-
         { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-
         { atTick: 60, minTick: 5, requireAwait: true, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'first smoke prompt' },
         { requireAwait: true, awaitText: '❯ first smoke prompt', data: '\r' },
         { atTick: 130, minTick: 20, requireAwait: true, awaitText: 'stream settled', awaitSettleTicks: 4, data: 'second smoke prompt' },
@@ -69,7 +66,6 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
   )
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
-
     ANTHROPIC_API_KEY: 'proof-key-scripted-stream',
     MERCURY_SCRIPTED_STREAM: 'slow-text',
     MERCURY_LIVE_GLYPHS: '0',
@@ -92,7 +88,6 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
   if (res.status !== 0) return { ok: false, detail: (res.stderr ?? '').slice(-400), final: [], raw: Buffer.alloc(0), endReason: 'vshot-failed', endedAtTick: -1, lastOutputTick: -1 }
   const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Grid; endReason?: string; endedAtTick?: number; lastOutputTick?: number }
   const final = payload.grid.map(r => r.map(c => c.c).join(''))
-
   const tee = existsSync(teePath) ? readFileSync(teePath) : Buffer.alloc(0)
   const chunks: Buffer[] = []
   let off = 0
@@ -120,7 +115,6 @@ function tornSequences(raw: Buffer): number {
       break
     }
     if (next === 0x5b) {
-
       let j = i + 2
       while (j < n && raw[j]! >= 0x20 && raw[j]! <= 0x3f) j++
       if (j >= n || raw[j]! < 0x40 || raw[j]! > 0x7e) torn++
@@ -128,7 +122,6 @@ function tornSequences(raw: Buffer): number {
       continue
     }
     if (next === 0x5d || next === 0x50 || next === 0x5f) {
-
       let j = i + 2
       let closed = false
       while (j < n) {
@@ -147,7 +140,6 @@ function tornSequences(raw: Buffer): number {
       i = j + 1
       continue
     }
-
     if (next === 0x28 || next === 0x29) {
       if (i + 2 >= n) torn++
       i += 3
@@ -173,7 +165,6 @@ for (const leg of ['off', 'on'] as const) {
   check(`${leg}: C1 both prompts landed in the transcript`, flat.includes('first smoke prompt') && flat.includes('second smoke prompt'), flat.slice(0, 600))
   const settledCount = countOnGrid(r.final, 'Scripted stream settled')
   check(`${leg}: C2 the settled reply text appears EXACTLY twice on screen (two turns, one copy each)`, settledCount === 2, `count=${settledCount}`)
-
   const paneOnly = r.final.map(l => l.slice(24))
   check(`${leg}: C2 each prompt appears exactly once INSIDE the transcript pane (the rail's prompt rows are its own lawful estate)`, countOnGrid(paneOnly, 'first smoke prompt') === 1 && countOnGrid(paneOnly, 'second smoke prompt') === 1, `pane first=${countOnGrid(paneOnly, 'first smoke prompt')} second=${countOnGrid(paneOnly, 'second smoke prompt')}`)
   const torn = tornSequences(r.raw)

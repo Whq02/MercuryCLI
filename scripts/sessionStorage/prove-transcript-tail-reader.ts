@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { appendFileSync, mkdtempSync, readFileSync, renameSync, statSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -89,7 +88,6 @@ const canonical = (v: unknown): unknown => {
   }
   return v
 }
-
 const digestOf = (load: Awaited<ReturnType<typeof loading.loadTranscriptFile>>): string => JSON.stringify(canonical(load))
 
 const io = { reads: 0, bytes: 0, stats: 0 }
@@ -106,7 +104,6 @@ reader.setTranscriptReaderIoForTesting({
   },
 })
 const census = reader.transcriptReaderCensus
-
 const zeroCounts = (): void => {
   io.reads = 0
   io.bytes = 0
@@ -117,7 +114,6 @@ const zeroCounts = (): void => {
   census.bytesRead = 0
   census.chainDerivations = 0
 }
-
 const resetAll = (): void => {
   reader._resetTranscriptReaderForTesting()
   zeroCounts()
@@ -222,7 +218,6 @@ section('§C a truncation, a windowed byte flip, a replaced file and a grown rew
 
   const seeded = await seed()
   const flipped = readFileSync(file)
-
   const at = flipped.length - 10
   flipped[at] = flipped[at] === 0x61 ? 0x62 : 0x61
   writeFileSync(file, flipped)
@@ -246,7 +241,6 @@ section('§C a truncation, a windowed byte flip, a replaced file and a grown rew
   await seed()
   const lines = readFileSync(file, 'utf8').split('\n')
   const removed = lines.splice(3, 1)[0]!
-
   const filler = userLine(file, uid(), null, 999, `filler ${'x'.repeat(removed.length + 200)}`)
   writeFileSync(file, lines.join('\n') + filler)
   const grownRewrite = await reader.readTranscript(file)
@@ -275,7 +269,6 @@ section('§D five rounds of growth fold to the same facts as one full parse; the
     appendFileSync(file, encode(file, { type: 'context-collapse-commit', sessionId: SID, commitId: `c${round}`, collapsedSpans: [], timestamp: at(tick.i++) }))
     commits++
     if (round === 2) {
-
       const summaryUuid = uid()
       appendFileSync(file, userLine(file, summaryUuid, leaf, tick.i++, 'compact summary text'))
       const boundary = uid()
@@ -301,10 +294,8 @@ section('§D five rounds of growth fold to the same facts as one full parse; the
   const chainIncremental = (await reader.readTranscriptChainSince(file, cursor)).rows
   const oracle = await fullParse(file)
   check('the incremental fold equals the full parse (messages, every metadata map, commits, leaves)', digestOf(incremental) === digestOf(oracle))
-
   check(`no line folded twice: ${commits} collapse commits written, ${incremental.contextCollapseCommits.length} standing on both roads`, incremental.contextCollapseCommits.length === oracle.contextCollapseCommits.length && incremental.contextCollapseCommits.length > 0)
   check('the last title, tag, summary and pr-link won (last-write-wins across growth)', incremental.customTitles.get(SID as never) === 'title 4' && incremental.tags.get(SID as never) === 'tag-4' && incremental.prNumbers.get(SID as never) === 104 && incremental.agentNames.get(SID as never) === 'agent-4')
-
   process.env.MERCURY_TRANSCRIPT_READER = '0'
   const coldBefore = census.coldReads
   const chainCold = (await reader.readTranscriptChainSince(file, null)).rows
@@ -401,14 +392,12 @@ section('§G a revision and a rewind rewind the chain from the moved index; the 
   const leaf = appendTurns(file, null, 10, tick)
   const first = await reader.readTranscriptChainSince(file, null)
   check('premise: 20 rows', first.rows.length === 20)
-
   const tailUuid = (first.rows[19] as { uuid: string }).uuid
   const revised = asstLine(file, tailUuid, (first.rows[18] as { uuid: string }).uuid, tick.i++, 'the settled reply')
   appendFileSync(file, revised)
   const afterRevision = await reader.readTranscriptChainSince(file, first.cursor)
   check('a tail revision rewinds from the tail index only', afterRevision.rewound === true && afterRevision.since === 19 && afterRevision.rows.length === 20 && afterRevision.appended.length === 1, JSON.stringify({ since: afterRevision.since, rewound: afterRevision.rewound, len: afterRevision.rows.length }))
   check('the revised row is a fresh object with the new content; every earlier row keeps its identity', afterRevision.rows[19] !== first.rows[19] && JSON.stringify((afterRevision.rows[19] as { message: { content: unknown } }).message.content).includes('the settled reply') && first.rows.slice(0, 19).every((r, i) => afterRevision.rows[i] === r))
-
   const anchor = (first.rows[7] as { uuid: string }).uuid
   const rewound = uid()
   appendFileSync(file, userLine(file, rewound, anchor, tick.i++, 'after the rewind'))

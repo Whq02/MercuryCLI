@@ -1,13 +1,10 @@
+
 const KEY_PREFIX = 'mo1'
 
 export interface OwnerIdentity {
-
   workspace: string
-
   sessionId: string
-
   lane: string
-
   querySource?: string
 }
 

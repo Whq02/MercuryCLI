@@ -25,14 +25,12 @@ export const PERMISSION_HANDLERS: Record<
   (params: PermissionHandlerParams, options?: PermissionHandlerOptions) => void
 > = {
   'accept-once': (params, options) => {
-
     params.onDone()
     params.toolUseConfirm.onAllow(params.toolUseConfirm.input, [], options?.feedback)
   },
   'accept-session': (params, options) => {
     params.onDone()
     if (options?.scope !== undefined && options.pattern !== undefined) {
-
       const updates: PermissionUpdate[] = [
         {
           type: 'addRules',

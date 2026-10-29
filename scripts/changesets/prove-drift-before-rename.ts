@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -79,7 +78,6 @@ console.log('── D1 an external save inside the staging window is drift ─�
   const EXTERNAL = 'the editor saved this while the commit was staging\n'
   let saved = false
   seam?.(path => {
-
     if (path === c.paths[1] && !saved) {
       saved = true
       writeFileSync(c.paths[1]!, EXTERNAL)

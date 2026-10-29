@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -45,7 +44,6 @@ const tempsInDir = (): string[] => {
     return []
   }
 }
-
 const allBodiesWhole = (): boolean =>
   bodyFiles().every(f => {
     try {
@@ -75,7 +73,6 @@ console.log(`── mo3 task journey — live platform: ${process.platform}`)
 {
   const taskPath = tasks.getTaskPath(LIST, '1')
   const observations: string[] = []
-
   const sampleDuring = async (op: Promise<unknown>): Promise<void> => {
     let settled = false
     const guarded = op.catch(() => {}).finally(() => {
@@ -203,7 +200,6 @@ console.log(`── mo3 task journey — live platform: ${process.platform}`)
   if (IS_WIN) {
     await store.mutate(c => ({ n: c.n + 1 }))
     inject(null)
-
     for (const deadline = Date.now() + 3000; emissions < 1 && Date.now() < deadline; ) {
       await new Promise(r => setTimeout(r, 50))
     }

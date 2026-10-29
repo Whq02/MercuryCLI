@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -83,7 +82,6 @@ section('§2 pin × pending switch')
   check("re-picking the current model CANCELS the parked switch ('cancelled-pending', requested names the dropped pick)", cancelled.kind === 'cancelled-pending' && cancelled.receipt?.resolution === 'cancelled-pending' && cancelled.receipt.requested === 'gpt-5.6-sol' && cancelled.receipt.applied === 'claude-sonnet-5')
   if (cancelled.kind === 'cancelled-pending') cancel = { ...cancel, ...cancelled.patch }
   check('the cancel clears the pending slot', cancel.pendingModelSwitch === null)
-
   let replace: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } }
   const replaced = settleModelSelection(replace, 'glm-5.2', { turnActive: true })
   if (replaced.kind === 'queued') replace = { ...replace, ...replaced.patch }

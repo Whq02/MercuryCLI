@@ -111,7 +111,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001
 async function gameLeg(client: VulcanClient, proj: string): Promise<void> {
   writeFileSync(join(proj, 'stepper.gd'), STEPPER_GD)
   writeFileSync(join(proj, 'stepper.tscn'), STEPPER_TSCN)
-
   await expectOk(client, 'input_map_add', { action: 'jump', events: [{ key: 'Space' }] })
   await expectOk(client, 'input_map_add', { action: 'left', events: [{ key: 'Left' }] })
   await expectOk(client, 'editor_reload', { what: 'filesystem' })
@@ -280,7 +279,6 @@ if (!JSON.stringify(tree).includes('Hero')) {
   console.error('✗ scene_tree does not show the added node')
   process.exit(1)
 }
-
 const stale = (await client.request('node_set_property', { node: 'Hero', property: 'position', value: 'Vector2(5, 5)', expect: 'Vector2(9, 9)' }, 15_000)) as {
   ok: boolean
   error?: { code: string; message: string }
@@ -302,7 +300,6 @@ await expectOk(client, 'editor_undo')
 await expectOk(client, 'editor_undo')
 await expectOk(client, 'scene_save')
 await expectOk(client, 'scene_play', { scene: 'current' })
-
 let bridged = false
 for (let i = 0; i < 90 && !bridged; i++) {
   await new Promise(res => setTimeout(res, 2_000))
@@ -316,13 +313,11 @@ for (let i = 0; i < 90 && !bridged; i++) {
 }
 if (!bridged) {
   console.error('✗ runtime bridge never attached after scene_play (180s)')
-
   await client.request('scene_stop', undefined, 10_000)
   process.exit(1)
 }
 await expectOk(client, 'runtime_tree')
 await expectOk(client, 'scene_stop')
-
 const bundle = (await client.request(
   'playtest_run',
   { duration_ms: 1500, settle_ms: 300, screenshot: false, hitch_ms: 40 },

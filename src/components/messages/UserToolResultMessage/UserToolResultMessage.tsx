@@ -64,7 +64,6 @@ export function UserToolResultMessage({
   }
 
   if (param.is_error) {
-
     const hermesKill = (
       message.toolUseResult as { hermesKill?: HermesKillInfo } | undefined
     )?.hermesKill;

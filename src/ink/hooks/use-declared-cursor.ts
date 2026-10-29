@@ -1,3 +1,4 @@
+
 import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
 import CursorDeclarationContext from '../components/CursorDeclarationContext.js'
 import type { DOMElement } from '../dom.js'
@@ -23,7 +24,6 @@ export function useDeclaredCursor({
     if (active && node) {
       setDeclaration({ relativeX: column, relativeY: line, node })
     } else {
-
       setDeclaration(null, node)
     }
   })

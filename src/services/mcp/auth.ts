@@ -31,6 +31,8 @@ import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
 
+
+
 export class AuthenticationCancelledError extends Error {
   constructor(message = 'Authentication cancelled') {
     super(message)
@@ -101,6 +103,7 @@ type FlowFailureReason =
 function emitRefreshEvent(_outcome: 'success' | RefreshFailureReason): void {}
 function emitFlowEvent(_outcome: 'success' | FlowFailureReason): void {}
 
+
 export function getServerKey(serverName: string, serverConfig: McpServerConfig): string {
   const config = serverConfig as RemoteServerConfig
   const digest = createHash('sha256')
@@ -152,6 +155,7 @@ function stripDiscoveryState(state: StoredDiscoveryState | undefined): StoredDis
   if (state.resourceMetadataUrl !== undefined) stripped.resourceMetadataUrl = state.resourceMetadataUrl
   return stripped
 }
+
 
 const INVALID_GRANT_ALIASES = new Set(['invalid_refresh_token', 'expired_refresh_token', 'token_expired'])
 
@@ -209,6 +213,7 @@ const authFetch: FetchLike = async (input, init) => {
   }
 }
 
+
 async function fetchConfiguredMetadata(metadataUrl: string): Promise<AuthorizationServerMetadata> {
   if (!metadataUrl.startsWith('https://')) {
     throw new Error(`authServerMetadataUrl must use https:// (got ${metadataUrl})`)
@@ -227,7 +232,6 @@ async function discoverMetadata(serverUrl: string, config: RemoteServerConfig): 
   } catch (err) {
     logForDebugging(`mcp auth: RFC 9728/8414 discovery failed for ${serverUrl}: ${String(err)}`)
   }
-
   const url = new URL(serverUrl)
   if (url.pathname && url.pathname !== '/') {
     try {
@@ -248,8 +252,8 @@ function scopeFromMetadata(metadata: AuthorizationServerMetadata | undefined): s
   return undefined
 }
 
-const inFlightRefresh = new Map<string, Promise<OAuthTokens | undefined>>()
 
+const inFlightRefresh = new Map<string, Promise<OAuthTokens | undefined>>()
 const metadataCache = new Map<string, AuthorizationServerMetadata>()
 
 export class MercuryMcpAuthProvider implements OAuthClientProvider {
@@ -374,7 +378,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     )
     return {
       access_token: entry.accessToken,
-
       ...(pending || !entry.refreshToken ? {} : { refresh_token: entry.refreshToken }),
       expires_in: remainingS,
       scope: entry.scope,
@@ -408,7 +411,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     logForDebugging(
       `mcp auth [${this.serverName}]: authorization URL ${redactAuthUrl(url)} (scope ${fromQuery ? 'from URL' : scope ? 'from metadata' : 'unavailable'})`,
     )
-
     if (scope && !this.handleRedirection) {
       const entry = readEntry(this.serverKey)
       if (entry) {
@@ -420,7 +422,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     if (authorizationUrl.protocol !== 'http:' && authorizationUrl.protocol !== 'https:') {
       throw new Error(`Refusing to open authorization URL with scheme ${authorizationUrl.protocol}`)
     }
-
     this.onAuthorizationUrl?.(url)
     if (!this.skipBrowserOpen) {
       const opened = await openBrowser(url).catch(() => false)
@@ -562,7 +563,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
 
   async refreshAuthorization(refreshToken: string): Promise<OAuthTokens | undefined> {
     return this.withRefreshLock(async () => {
-
       const fresh = this.freshStoredTokens()
       if (fresh !== undefined) return fresh
       const stored = readEntry(this.serverKey)
@@ -599,7 +599,6 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
         } catch (err) {
           const oauthCode = err instanceof OAuthError ? err.code : undefined
           if (oauthCode === OAuthErrorCode.InvalidGrant) {
-
             const winner = this.freshStoredTokens()
             if (winner !== undefined) return winner
             this.invalidateCredentials('tokens')
@@ -623,6 +622,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
   }
 }
 
+
 export function wrapFetchWithStepUpDetection(baseFetch: FetchLike, provider: MercuryMcpAuthProvider): FetchLike {
   return async (input, init) => {
     const response = await baseFetch(input, init)
@@ -637,6 +637,7 @@ export function wrapFetchWithStepUpDetection(baseFetch: FetchLike, provider: Mer
     return response
   }
 }
+
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -700,7 +701,6 @@ export async function performMCPOAuthFlow(
   const cleanup = (): void => {
     if (server) {
       server.removeAllListeners()
-
       server.on('error', () => {})
       server.close()
       server = undefined
@@ -734,7 +734,6 @@ export async function performMCPOAuthFlow(
       }
       const error = url.searchParams.get('error')
       const state = url.searchParams.get('state')
-
       if (!error && state !== expectedState) {
         res.writeHead(400, { 'Content-Type': 'text/html' })
         res.end('<html><body><h1>Sign-in state mismatch</h1><p>Close this window and retry from Mercury.</p></body></html>')
@@ -887,6 +886,7 @@ function isInvalidClient(err: unknown): boolean {
   return (err instanceof OAuthError && err.code === OAuthErrorCode.InvalidClient) || /invalid_client/i.test(String(err))
 }
 
+
 async function revokeOne(
   endpoint: string,
   token: string,
@@ -912,7 +912,6 @@ async function revokeOne(
   }
   let response = await authFetch(endpoint, { method: 'POST', headers, body: body.toString() })
   if (response.status === 401 && accessToken) {
-
     body.delete('client_id')
     body.delete('client_secret')
     delete headers.Authorization
@@ -988,6 +987,7 @@ export function hasMcpDiscoveryButNoToken(serverName: string, serverConfig: McpS
   const entry = readEntry(getServerKey(serverName, serverConfig))
   return entry !== undefined && !entry.accessToken && !entry.refreshToken
 }
+
 
 export async function readClientSecret(): Promise<string> {
   const fromEnv = flagEnv('MERCURY_MCP_CLIENT_SECRET')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -144,7 +143,6 @@ function exchangeFetch(
 }
 
 {
-
   const seen: ExchangeSeen[] = []
   const notices: string[] = []
   const selectiveExchange: typeof fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {

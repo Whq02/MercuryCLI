@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 
+
 export type {
   PermissionUpdate,
   PermissionUpdateDestination,
@@ -19,7 +20,6 @@ export function permissionUpdateSchema() {
     z.object({ type: z.literal('removeRules'), rules: z.array(ruleValue), behavior, destination }),
     z.object({
       type: z.literal('setMode'),
-
       mode: z.enum(['default', 'dontAsk', 'implement', 'sovereign']),
       destination,
     }),

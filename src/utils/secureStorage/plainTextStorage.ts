@@ -9,6 +9,7 @@ import { getErrnoCode } from '../errors.js'
 import { safeParseJSON } from '../json.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
+
 const CREDENTIALS_FILENAME = '.credentials.json'
 
 function credentialsPath(): string {
@@ -92,7 +93,6 @@ export const plainTextStorage: SecureStorage = {
 
   update(data: SecureStorageData): { success: boolean; warning?: string; code?: string } {
     try {
-
       try {
         mkdirSync(getAuthConfigHomeDir())
       } catch (error) {
@@ -101,7 +101,6 @@ export const plainTextStorage: SecureStorage = {
       const path = credentialsPath()
       const probe = probeStore(path)
       if (probe.state === 'unreadable') {
-
         logForDebugging(
           `credential store: refusing to replace ${path} — it exists but could not be read (${probe.code}): ${probe.message}`,
           { level: 'error' },
@@ -115,7 +114,6 @@ export const plainTextStorage: SecureStorage = {
       if (probe.state === 'unparseable') {
         quarantineUnparseable(path)
       }
-
       if (process.platform === 'win32' && probe.state !== 'absent') {
         try {
           chmodSync(path, 0o600)
@@ -143,7 +141,6 @@ export const plainTextStorage: SecureStorage = {
       unlinkSync(credentialsPath())
       return true
     } catch (error) {
-
       return (error as { code?: string }).code === 'ENOENT'
     }
   },

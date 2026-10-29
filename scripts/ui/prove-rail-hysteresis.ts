@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   HELM_BOTH_RAILS_MIN,
   HELM_BOTH_RAILS_RELEASE,

@@ -1,3 +1,4 @@
+
 import { resolveWatchRoot } from '../utils/watchRoot.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { existsSync, realpathSync, watch as fsWatch, type FSWatcher as NodeFSWatcher } from 'node:fs'
@@ -38,11 +39,8 @@ export const STORE_LOCK_OPTIONS = {
     maxTimeout: 100,
     randomize: true,
   },
-
   stale: 10_000,
-
   update: 2_000,
-
   onCompromised: (err: Error): void => {
     logForDebugging(`[fileStore] lock compromised: ${err.message}`, { level: 'warn' })
   },
@@ -118,56 +116,36 @@ export function publishAtomicSync(
 export type ReadFailurePolicy = 'empty' | 'throw'
 
 export interface StoreConfig<T, A extends unknown[]> {
-
   name: string
-
   path: (...args: A) => string
-
   schemaVersion: number
-
   decode: (raw: unknown, path?: string) => T | null
-
   encode?: (value: T) => unknown
-
   empty: () => T
-
   onReadFailure: ReadFailurePolicy
-
   watchDebounceMs?: number
-
   pollFallbackMs?: number
-
   pollFloorMs?: number
-
   revisionOf?: (value: T) => number
 }
 
 export interface StoreHandle<T> {
-
   readonly path: string
-
   read(): Promise<T>
-
   readResult(): Promise<StoreReadResult<T>>
-
   update<R>(
     fn: (current: T) => { next: T; result: R } | Promise<{ next: T; result: R }>,
   ): Promise<R>
-
   mutate(fn: (current: T) => T | Promise<T>): Promise<void>
-
   write(value: T): Promise<void>
-
   subscribe(
     listener: (value: T) => void,
     opts?: { immediate?: boolean },
   ): () => void
-
   subscribeChanges(
     listener: (change: StoreChange<T>) => void,
     opts?: { immediate?: boolean },
   ): () => void
-
   _statsForProofs(): {
     listeners: number
     watcher: boolean
@@ -188,26 +166,17 @@ type Runtime = {
   watcher: FSWatcher | null
   watcherStarting: Promise<void> | null
   pollTimer: ReturnType<typeof setInterval> | null
-
   pollLadderStop: (() => void) | null
-
   pollFloorStop: (() => void) | null
   debounceTimer: ReturnType<typeof setTimeout> | null
   lastEmittedRaw: string | null
-
   lastStatKey: string | null
-
   lastSeenRevision: number | null
-
   lastEmittedOpId: string | null
-
   emissionSeq: number
-
   publishEpoch: number
-
   emitRunning: boolean
   emitDirty: boolean
-
   opChain: Promise<void>
 }
 
@@ -217,6 +186,7 @@ export function _setEmitReadGateForProofs(
 ): void {
   emitReadGateForProofs = gate
 }
+
 
 export function defineStore<T, A extends unknown[] = []>(
   cfg: StoreConfig<T, A>,
@@ -303,7 +273,6 @@ export function defineStore<T, A extends unknown[] = []>(
   let readDegradeRecorded = false
   const applyFailure = (e: unknown, path: string): T => {
     if (cfg.onReadFailure === 'throw') throw e
-
     logForDebugging(
       `[${cfg.name}] store read failed, degrading to empty (declared fail-open): ${e}`,
       { level: 'warn' },
@@ -381,7 +350,6 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const emitOnce = async (path: string, rt: Runtime): Promise<void> => {
     const epochAtRead = rt.publishEpoch
-
     let statKey: string
     try {
       statKey = statKeyOf(await stat(path))
@@ -398,15 +366,12 @@ export function defineStore<T, A extends unknown[] = []>(
     }
     if (statKey !== '' && rt.publishEpoch === epochAtRead) rt.lastStatKey = statKey
     if (emitReadGateForProofs) await emitReadGateForProofs()
-
     if (rt.publishEpoch !== epochAtRead) {
       rt.emitDirty = true
       return
     }
-
     if (rt.listeners.size === 0) return
     if (raw === rt.lastEmittedRaw) return
-
     if (rt.lastEmittedRaw === null && raw !== null && raw === encodeValue(cfg.empty())) {
       rt.lastEmittedRaw = raw
       return
@@ -424,17 +389,14 @@ export function defineStore<T, A extends unknown[] = []>(
         revision = revisionFor(parsed, decoded)
       }
     } catch (e) {
-
       logForDebugging(`[${cfg.name}] subscribe read failed, skipping emit: ${e}`)
       return
     }
-
     if (revision?.operationId && revision.operationId === rt.lastEmittedOpId) {
       rt.lastEmittedRaw = raw
       return
     }
     rt.lastEmittedRaw = raw
-
     const skipped = skippedBetween(rt.lastSeenRevision, revision)
     if (revision) rt.lastSeenRevision = revision.revision
     fanOut(rt, {
@@ -458,7 +420,6 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const scheduleEmit = (path: string, rt: Runtime): void => {
     if (rt.listeners.size === 0) return
-
     rt.lastStatKey = null
     if (rt.debounceTimer) clearTimeout(rt.debounceTimer)
     rt.debounceTimer = setTimeout(() => {
@@ -472,7 +433,6 @@ export function defineStore<T, A extends unknown[] = []>(
     if (rt.watcher || rt.watcherStarting || rt.pollTimer) return
     rt.watcherStarting = (async () => {
       try {
-
         try {
           await stat(path)
         } catch (e) {
@@ -486,7 +446,6 @@ export function defineStore<T, A extends unknown[] = []>(
         const watcher = chokidar.watch(resolveWatchRoot(path), {
           persistent: false,
           ignoreInitial: true,
-
           atomic: true,
           ignorePermissionErrors: true,
         })
@@ -494,7 +453,6 @@ export function defineStore<T, A extends unknown[] = []>(
         watcher.on('change', () => scheduleEmit(path, rt))
         watcher.on('unlink', () => {
           scheduleEmit(path, rt)
-
           void watcher.close().catch(() => {})
           if (rt.watcher === watcher) rt.watcher = null
           if (rt.pollFloorStop) {
@@ -510,17 +468,13 @@ export function defineStore<T, A extends unknown[] = []>(
           startPollFallback(path, rt)
         })
         rt.watcher = watcher
-
         if (rt.listeners.size === 0) {
           stopWatching(path, rt)
           return
         }
-
         scheduleEmit(path, rt)
-
         startPollFloor(path, rt)
       } catch (e) {
-
         logForDebugging(
           `[${cfg.name}] watch engine unavailable (${e}) — polling fallback at ${cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS}ms`,
         )
@@ -533,7 +487,6 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const startPollFallback = (path: string, rt: Runtime): void => {
     if (rt.pollTimer || rt.listeners.size === 0) return
-
     if (rt.pollFloorStop) {
       rt.pollFloorStop()
       rt.pollFloorStop = null
@@ -546,7 +499,6 @@ export function defineStore<T, A extends unknown[] = []>(
   }
 
   const startPollFloor = (path: string, rt: Runtime): void => {
-
     const floorMs = cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS
     if (!floorMs || floorMs <= 0) return
     if (rt.pollFloorStop || rt.listeners.size === 0) return
@@ -589,10 +541,8 @@ export function defineStore<T, A extends unknown[] = []>(
       ancestor = w
     } catch {
     }
-
     const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
     const stopFloor = subscribeUiClock(floorMs, () => void probe())
-
     rt.pollTimer = setInterval(() => {}, 0x7fffffff)
     rt.pollTimer.unref?.()
     rt.pollLadderStop = () => {
@@ -626,7 +576,6 @@ export function defineStore<T, A extends unknown[] = []>(
       clearTimeout(rt.debounceTimer)
       rt.debounceTimer = null
     }
-
     rt.lastEmittedRaw = null
     rt.lastStatKey = null
     rt.lastSeenRevision = null
@@ -644,7 +593,6 @@ export function defineStore<T, A extends unknown[] = []>(
     }
     const seed = durableTempName(path)
     try {
-
       await writeFile(seed, encodeValue(cfg.empty()), { flag: 'wx' })
       try {
         await link(seed, path)
@@ -667,7 +615,6 @@ export function defineStore<T, A extends unknown[] = []>(
       const encoded = (cfg.encode ?? (v => v as unknown))(value)
       const isObjectShaped =
         encoded !== null && typeof encoded === 'object' && !Array.isArray(encoded)
-
       const revision = isObjectShaped
         ? nextRevision(prevRevision, payloadDigest(jsonStringify(encoded)))
         : null
@@ -680,13 +627,9 @@ export function defineStore<T, A extends unknown[] = []>(
         : encoded
       const raw = jsonStringify(stampedPayload, null, 2) + '\n'
       await publishAtomic(path, raw)
-
       rt.lastStatKey = null
-
       const emitted = revision ?? revisionFor(null, value)
-
       const echoed = rt.lastEmittedRaw === raw
-
       rt.publishEpoch += 1
       rt.lastEmittedRaw = raw
       rt.lastEmittedOpId = revision?.operationId ?? null
@@ -709,9 +652,7 @@ export function defineStore<T, A extends unknown[] = []>(
       read: async () => {
         const { result: rr, raw } = await readResultAt(path, rt)
         if (rr.state === 'recoverable') {
-
           if (cfg.onReadFailure === 'throw') throw new Error(rr.reason)
-
           const resumedFrom = rr.lastGood !== undefined ? 'last-good' : 'empty'
           await quarantineDamagedStore({
             store: cfg.name,
@@ -727,7 +668,6 @@ export function defineStore<T, A extends unknown[] = []>(
           return {
             value: rr.lastGood ?? cfg.empty(),
             context: {
-
               prevRevision:
                 rt.lastSeenRevision !== null
                   ? {
@@ -750,7 +690,6 @@ export function defineStore<T, A extends unknown[] = []>(
           },
         }
       },
-
       beforePublish: () => assertStillHeld(path),
       publish: (next, ctx) => publish(next, ctx.prevRevision, ctx.cause),
     })
@@ -766,7 +705,6 @@ export function defineStore<T, A extends unknown[] = []>(
       rt.listeners.add(l)
       startWatcher(path, rt)
       if (opts?.immediate !== false) {
-
         const seqAtSubscribe = rt.emissionSeq
         void readResultAt(path, rt)
           .then(({ result: rr }) => {
@@ -774,7 +712,6 @@ export function defineStore<T, A extends unknown[] = []>(
             if (rt.emissionSeq !== seqAtSubscribe) return
             if (rr.state === 'recoverable') return
             const revision = rr.state === 'ready' ? rr.revision : null
-
             if (revision && rt.lastSeenRevision === null) {
               rt.lastSeenRevision = revision.revision
             }
@@ -803,7 +740,6 @@ export function defineStore<T, A extends unknown[] = []>(
       mutate: fn =>
         locked(async cur => ({ next: await fn(cur), result: undefined })),
       write: value => locked(async () => ({ next: value, result: undefined })),
-
       subscribe: (listener, opts) =>
         subscribeChanges(chg => listener(chg.value), opts),
       subscribeChanges,

@@ -1,3 +1,4 @@
+
 import type { SearchOrReadClassification } from '../../Tool.js'
 
 function normalizeToolName(toolName: string): string {

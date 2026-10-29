@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -118,7 +117,6 @@ const MODEL = 'gpt-5.6-sol'
 const coordinatorReceipts = () => q.readQualificationReceipts().filter(r => r.receipt.modelId === MODEL && r.receipt.role === 'coordinator')
 
 section('§0 — before any turn: the row is ready with NO label (the verdict-word removal)')
-
 {
   const reg = await composeCoordinatorModelRegistry()
   const row = reg.entries.find(e => e.modelId === MODEL)
@@ -133,7 +131,6 @@ section('§0 — before any turn: the row is ready with NO label (the verdict-wo
 }
 
 section("§1 — the coordinator's own call path settles against the fixture")
-
 const before = captured.length
 const proposal = await liveCoordinatorCallModel(
   {
@@ -165,7 +162,6 @@ const proposal = await liveCoordinatorCallModel(
 }
 
 section('§2 — the settlement mints a COORDINATOR receipt (current)')
-
 {
   const minted = coordinatorReceipts()
   check('ONE coordinator receipt for the model', minted.length === 1, JSON.stringify(q.readQualificationReceipts().map(r => [r.receipt.modelId, r.receipt.role])))
@@ -174,7 +170,6 @@ section('§2 — the settlement mints a COORDINATOR receipt (current)')
 }
 
 section("§3 — the registry reads the row 'ready'; the landed catalogue's words ride the rest")
-
 {
   const reg = await composeCoordinatorModelRegistry()
   const row = reg.entries.find(e => e.modelId === MODEL)
@@ -190,7 +185,6 @@ section("§3 — the registry reads the row 'ready'; the landed catalogue's word
 }
 
 section("§4 — the contrast: a side question on the same model mints 'primary'")
-
 {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')

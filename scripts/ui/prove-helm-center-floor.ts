@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   HELM_BOTH_RAILS_MIN,
   HELM_CENTER_FLOOR,
@@ -41,7 +40,6 @@ for (let c = 100; c <= 260; c++) {
   if (p.vitals !== expectBoth) vitalsTierExact = false
   if (expectBoth && firstBoth < 0) firstBoth = c
   if (expectBoth) {
-
     const railTotal = Math.max(2 * HELM_RAIL_W, Math.min(2 * HELM_RAIL_WIDE, c - 2 - centerPin))
     const expLanes = Math.ceil(railTotal / 2)
     if (p.lanesW !== expLanes || p.vitalsW !== railTotal - expLanes) wideTierExact = false
@@ -51,7 +49,6 @@ for (let c = 100; c <= 260; c++) {
     if (p.centerCols < centerPin) wideTierExact = false
     if (p.lanesW + p.vitalsW + 2 + p.centerCols !== c) widthsSum = false
   } else {
-
     const expectRailW = Math.max(HELM_RAIL_SLIM, Math.min(HELM_RAIL_W, c - 2 - HELM_CENTER_FLOOR))
     if (p.railW !== expectRailW || p.lanesW !== expectRailW) slimTierExact = false
   }

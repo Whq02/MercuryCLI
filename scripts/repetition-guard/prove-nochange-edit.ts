@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { createHash } from 'node:crypto'
@@ -110,7 +109,6 @@ console.log('── R. refusals preserved ──')
   check('R2 refusal wrote nothing', digestOf(p) === before)
 }
 {
-
   const p = join(fixtures, 'quotes.md')
   const original = 'He said “hello” to the crowd.\n'
   writeFileSync(p, original)
@@ -179,7 +177,6 @@ console.log('── N. identical hunk result ⇒ honest no-change ──')
   check('N10 multi-hunk identity is a no-change too', r2.ok && r2.effect.outcome === 'no-change' && digestOf(p) === before)
 }
 {
-
   _resetRepetitionPolicyForTesting()
   const p = join(fixtures, 'crlf.ts')
   writeFileSync(p, 'a\r\nb\r\n')

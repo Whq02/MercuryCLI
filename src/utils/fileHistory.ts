@@ -20,12 +20,11 @@ import { stripBOM } from './jsonRead.js'
 import { logError } from './log.js'
 import { recordFileHistorySnapshot } from './sessionStorage.js'
 
-export type FileHistoryBackup = {
 
+export type FileHistoryBackup = {
   backupFileName: string | null
   version: number
   backupTime: Date
-
   sourceSize?: number
   sourceMtimeMs?: number
   sourceMode?: number
@@ -40,7 +39,6 @@ export type FileHistorySnapshot = {
 export type FileHistoryState = {
   snapshots: FileHistorySnapshot[]
   trackedFiles: Set<string>
-
   snapshotSequence: number
   rewindUndo?: FileHistorySnapshot & { restoredDigests: Record<string, string | null> }
 }
@@ -53,7 +51,6 @@ const MAX_FAILURES_LISTED = 10
 const RACY_MTIME_WINDOW_MS = 2_000
 
 export const fileHistoryIoCensus = { stats: 0, reads: 0, copies: 0 }
-
 type StatResult = Stats
 const statCounted = (path: string): Promise<StatResult> => {
   fileHistoryIoCensus.stats++
@@ -63,7 +60,6 @@ const readCounted = (path: string): Promise<Buffer> => {
   fileHistoryIoCensus.reads++
   return readFile(path)
 }
-
 const copyCounted = async (source: string, target: string): Promise<void> => {
   await copyFile(source, target)
   fileHistoryIoCensus.copies++
@@ -76,6 +72,7 @@ function sourceHint(stats: StatResult): SourceHint {
 function hintMatches(prior: FileHistoryBackup, stats: StatResult): boolean {
   return prior.sourceSize === stats.size && prior.sourceMtimeMs === stats.mtimeMs && prior.sourceMode === stats.mode
 }
+
 
 function isSessionRunnerProcess(): boolean {
   return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
@@ -91,7 +88,6 @@ export function requestFileCheckpoints(on: boolean): void {
 }
 
 export function fileCheckpointSource(): FileCheckpointSource {
-
   const road: FileCheckpointSource = !getIsNonInteractiveSession() ? 'interactive' : isSessionRunnerProcess() ? 'seat' : fileCheckpointsRequested ? 'initialize' : 'headless'
   if (road === 'headless') return road
   if ((getGlobalConfig() as { fileCheckpointingEnabled?: unknown }).fileCheckpointingEnabled === false) return 'setting'
@@ -102,6 +98,7 @@ export function fileHistoryEnabled(): boolean {
   const source = fileCheckpointSource()
   return source === 'interactive' || source === 'seat' || source === 'initialize'
 }
+
 
 function toTrackingKey(filePath: string): string {
   if (!isAbsolute(filePath)) return filePath
@@ -148,6 +145,7 @@ async function createBackup(filePath: string, version: number): Promise<FileHist
   return { backupFileName: name, version, backupTime: new Date(), ...sourceHint(sourceStats) }
 }
 
+
 async function checkOriginFileChanged(
   originalFile: string,
   backupFileName: string,
@@ -170,10 +168,10 @@ async function checkOriginFileChanged(
     const [source, backup] = await Promise.all([readCounted(originalFile), readCounted(backupPath(backupFileName))])
     return !source.equals(backup)
   } catch {
-
     return true
   }
 }
+
 
 function captureState(updateState: StateUpdater): FileHistoryState | null {
   let captured: FileHistoryState | null = null
@@ -187,6 +185,7 @@ function captureState(updateState: StateUpdater): FileHistoryState | null {
 function latestSnapshot(state: FileHistoryState): FileHistorySnapshot | undefined {
   return state.snapshots[state.snapshots.length - 1]
 }
+
 
 export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: string, messageId: UUID): Promise<void> {
   try {
@@ -205,7 +204,6 @@ export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: 
     let persisted: FileHistorySnapshot | null = null
     updateState(prev => {
       const current = latestSnapshot(prev)
-
       if (!current || current.trackedFileBackups[key]) return prev
       const updatedSnapshot: FileHistorySnapshot = {
         ...current,
@@ -218,13 +216,13 @@ export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: 
       return { ...prev, snapshots, trackedFiles }
     })
     if (persisted) {
-
       await recordFileHistorySnapshot(messageId, persisted, true)
     }
   } catch (err) {
     logError(err)
   }
 }
+
 
 export async function fileHistoryMakeSnapshot(updateState: StateUpdater, messageId: UUID): Promise<void> {
   updateState(prev => {
@@ -235,7 +233,6 @@ export async function fileHistoryMakeSnapshot(updateState: StateUpdater, message
   try {
     if (!fileHistoryEnabled()) return
     const state = captureState(updateState)
-
     if (!state) return
     const previous = latestSnapshot(state)
     const backups: Record<string, FileHistoryBackup> = {}
@@ -255,13 +252,11 @@ export async function fileHistoryMakeSnapshot(updateState: StateUpdater, message
               return
             }
             if (prior && prior.backupFileName) {
-
               if (hintMatches(prior, fileStats)) {
                 backups[key] = prior
                 return
               }
               if (!(await checkOriginFileChanged(filePath, prior.backupFileName, fileStats))) {
-
                 backups[key] = {
                   backupFileName: prior.backupFileName,
                   version: prior.version,
@@ -300,6 +295,7 @@ export async function fileHistoryMakeSnapshot(updateState: StateUpdater, message
   }
 }
 
+
 function resolveTargetBackup(state: FileHistoryState, snapshot: FileHistorySnapshot, key: string): FileHistoryBackup | undefined {
   const own = snapshot.trackedFileBackups[key]
   if (own) return own
@@ -310,10 +306,12 @@ function resolveTargetBackup(state: FileHistoryState, snapshot: FileHistorySnaps
   return undefined
 }
 
+
 export function fileHistoryCanRestore(state: FileHistoryState, messageId: UUID): boolean {
   if (!fileHistoryEnabled()) return false
   return state.snapshots.some(snapshot => snapshot.messageId === messageId)
 }
+
 
 type FileHistoryRestoreRefusalKind = 'no-checkpoint' | 'drift' | 'backup-missing' | 'restore-failed'
 
@@ -523,7 +521,6 @@ export async function fileHistoryRestore(
   switch (outcome.kind) {
     case 'committed':
     case 'replayed':
-
       for (const target of targets) {
         if (target.kind === 'delete') {
           opts.drift?.delete?.(target.canonicalPath)
@@ -563,6 +560,8 @@ export async function fileHistoryRestore(
       }
   }
 }
+
+
 
 export function fileHistoryRestoreStateFromLog(
   snapshots: FileHistorySnapshot[],

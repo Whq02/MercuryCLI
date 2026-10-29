@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -30,12 +29,10 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   let expired: unknown = null
   const dl = armInactivityDeadline({ seam: 'prover seam', limitMs: 100, advice: 'try again', now, onExpire: e => (expired = e) })
   t('deadline arms', dl.armed && !dl.fired)
-
   clock = 1_080
   dl.touch()
   await sleep(110)
   t('progress before the limit resets the clock (no expiry at the original mark)', !dl.fired && expired === null)
-
   clock = 1_190
   await sleep(130)
   t('silence past the limit expires', dl.fired && expired instanceof DeadlineExceededError)
@@ -176,13 +173,11 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
     return Object.values(rows).find(r => r.ref === `permission:${idOf('expire')}`)
   }
   let row = readObligation()
-
   for (let waited = 0; row?.status !== 'withdrawn' && waited < 10_000; waited += 50) {
     await sleep(50)
     row = readObligation()
   }
   t('the obligation row settles withdrawn with the expiry named', row?.status === 'withdrawn' && /expired unanswered/.test(row?.settlement?.by ?? ''), row === undefined ? 'no obligation row appeared' : JSON.stringify(row))
-
   const asksSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'permissionAsks.ts'), 'utf8')
   t('every mint keeps its promise on the ask (obligationLanded) and every settle site (the five: expiry, cancel, the two answers, the respawn/exit retirement) awaits it through settleAskObligation; the unattended denial is minted settled',
     (asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length === 2 &&

@@ -18,6 +18,7 @@ type CursorPosResponse = Extract<TerminalResponse, { type: 'cursorPosition' }>
 type OscResponse = Extract<TerminalResponse, { type: 'osc' }>
 type XtversionResponse = Extract<TerminalResponse, { type: 'xtversion' }>
 
+
 export function decrqm(mode: number): TerminalQuery<DecrpmResponse> {
   return {
     request: csi(`?${mode}$p`),
@@ -69,6 +70,7 @@ export function xtversion(): TerminalQuery<XtversionResponse> {
   }
 }
 
+
 const SENTINEL = csi('c')
 
 type PendingQuery = {
@@ -101,7 +103,6 @@ export function terminalQuerierFor(stdout: NodeJS.WriteStream): TerminalQuerier 
 type QuerySettleOutcome = 'settled' | 'deadline'
 
 export class TerminalQuerier {
-
   private batches: Batch[] = [{ queries: [], sentinel: null, flushedAt: 0 }]
 
   private settleWaiters: Array<() => void> = []
@@ -170,7 +171,6 @@ export class TerminalQuerier {
       this.batches.push({ queries: [], sentinel: null, flushedAt: 0 })
       const bytes = this.pendingRequests + SENTINEL
       this.pendingRequests = ''
-
       termWrite(this.stdout, bytes, 'probe')
     })
   }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import type { Frame } from '../../src/ink/frame.js'
 import { FrameWriter } from '../../src/ink/frame-writer.js'
 import { optimizePatches as optimize } from '../../src/ink/patch-stream.js'

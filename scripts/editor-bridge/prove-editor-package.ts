@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -44,7 +43,6 @@ t.section('§2 locateBridgeVsix — beside the bundle, else dist/, else null')
   mkdirSync(empty, { recursive: true })
   process.chdir(empty)
   try {
-
     t.check('no package anywhere ⇒ null', locateBridgeVsix() === null, String(locateBridgeVsix()))
   } finally {
     process.chdir(here)

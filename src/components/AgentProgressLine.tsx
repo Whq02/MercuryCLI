@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../ink.js'
 import { plural } from '../utils/stringUtils.js'
@@ -8,10 +9,8 @@ type AgentProgressLineProps = {
   name?: string
   descriptionColor?: string
   taskDescription?: string
-
   model?: string
   toolUseCount: number
-
   tokensLabel?: string
   color?: string
   isLast: boolean
@@ -21,7 +20,6 @@ type AgentProgressLineProps = {
   shouldAnimate?: boolean
   lastToolInfo?: string
   hideType?: boolean
-
   statusLine?: string
 }
 

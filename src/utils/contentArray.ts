@@ -13,7 +13,6 @@ export function insertBlockAfterToolResults(content: unknown[], block: unknown):
   if (lastToolResultIndex !== -1) {
     content.splice(lastToolResultIndex + 1, 0, block)
     if (lastToolResultIndex + 1 === content.length - 1) {
-
       content.push({ type: 'text', text: '.' })
     }
     return

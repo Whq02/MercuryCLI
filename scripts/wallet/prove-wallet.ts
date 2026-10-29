@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -105,7 +104,6 @@ const { walletEntries, activeWalletEntry } = await import('../../src/services/wa
   const anthropicEntry = { id: 'anthropic:oauth:main', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude account', custodian: 'anthropic-slots' } as const
   check('empty wallet ⇒ the full refusal', notLoggedInGateDecision([], 'anthropic').state === 'not-logged-in')
   const repro = notLoggedInGateDecision([openaiEntry], 'anthropic')
-
   check("the operator's repro (OpenAI-only + Anthropic model) ⇒ provider-specific steering, NEVER the red refusal", repro.state === 'provider-missing' && repro.missingProvider === 'Anthropic')
   check('the steering names /model AND /login', repro.state === 'provider-missing' && repro.steering.includes('/model') && repro.steering.includes('/login'))
   check('OpenAI-only + a GPT model ⇒ NO banner', notLoggedInGateDecision([openaiEntry], 'openai').state === 'ok')

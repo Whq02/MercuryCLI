@@ -7,11 +7,8 @@ type SkillMenuState = 'off' | 'invocable'
 type SkillKitState = 'on' | SkillMenuState
 
 export interface KitDeltasV1 {
-
   mcpOff: string[]
-
   skillStates: Record<string, SkillMenuState>
-
   extensionsOff: string[]
 }
 
@@ -64,6 +61,7 @@ function omitKey(current: ProjectConfig, key: 'skillStates' | 'extensionStates')
   void _dropped
   return rest as ProjectConfig
 }
+
 
 export function setMcpServerEnabledForWorkspace(workspaceDir: string, name: string, enabled: boolean): void {
   saveProjectConfigForWorkspace(workspaceDir, current => withMcpServerEnabled(current, name, enabled))

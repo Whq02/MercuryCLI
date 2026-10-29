@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -28,7 +27,6 @@ for (const name of WORKFLOWS) {
   }
   const missing = [...refs].filter(r => !existsSync(join(ROOT, r)))
   check(`${name}: every path it references exists (${refs.size} refs)`, missing.length === 0, `missing: ${missing.join(', ')}`)
-
   const setupNode = [...text.matchAll(/uses: actions\/setup-node@[^\n]*\n((?:[ \t]+[^\n]*\n)*)/g)]
   const literalNode = setupNode.some(m => /\n[ \t]+node-version:/.test('\n' + (m[1] ?? '')))
   check(`${name}: setup-node selects the product Node through .node-version only`, setupNode.length > 0 && !literalNode && text.includes('node-version-file: .node-version'))
@@ -56,7 +54,6 @@ check('the dispatch input `unsigned` exists, boolean, default false', /unsigned:
 check('the package job reads the secret MERCURY_SIGNING_KEY into the signing step env only', signingStep.includes('MERCURY_SIGNING_KEY: ${{ secrets.MERCURY_SIGNING_KEY }}') && release.split('secrets.MERCURY_SIGNING_KEY').length === 2)
 check('every line of the key is masked before anything else', signingStep.includes('echo "::add-mask::$line"'))
 check('the key file is written under a 077 umask and chmod 600 in the runner temp', signingStep.includes('umask 077') && signingStep.includes('chmod 600 "$KEY_FILE"') && signingStep.includes('KEY_FILE="${RUNNER_TEMP//\\\\//}/mercury-signing.pem"'))
-
 const keyUses = release.split('$MERCURY_SIGNING_KEY').length - 1
 const tracesOn = release.split('\n').some(l => !l.trim().startsWith('#') && /\bset -x\b/.test(l))
 check('nothing prints the key: no set -x, and the value is used only to test, mask and write the file', !tracesOn && keyUses === 3 && signingStep.includes('[ -n "$MERCURY_SIGNING_KEY" ]') && signingStep.includes('done <<< "$MERCURY_SIGNING_KEY"') && signingStep.includes(`printf '%s\\n' "$MERCURY_SIGNING_KEY" > "$KEY_FILE"`) && !release.includes('${MERCURY_SIGNING_KEY'), `uses: ${keyUses}`)

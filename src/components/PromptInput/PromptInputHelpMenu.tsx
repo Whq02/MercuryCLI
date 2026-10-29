@@ -20,13 +20,11 @@ type Props = {
   fixedWidth?: boolean
   gap?: number
   paddingX?: number
-
   availableColumns?: number
 }
 
 export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const { dimColor, fixedWidth, gap, paddingX, availableColumns } = props
-
   const cockpitActive = React.useContext(CockpitActiveContext)
 
   const transcriptShortcut = formatShortcut(
@@ -59,7 +57,6 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const imagePasteShortcut = formatShortcut(
     useShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v'),
   )
-
   const paletteShortcut = formatShortcut(
     useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+x p'),
   )
@@ -69,11 +66,9 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const contentSearchShortcut = formatShortcut(
     useShortcutDisplay('app:contentSearch', 'Global', 'ctrl+x g'),
   )
-
   const sessionsShortcut = formatShortcut(
     useShortcutDisplay('command:sessions', 'Global', 'ctrl+x s'),
   )
-
   const { columns, rows: termRows } = useTerminalSize()
   const availCols = (availableColumns ?? columns) - 2 * (paddingX ?? 0)
 
@@ -93,13 +88,11 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   ]
   const groupChat: HelpRow[] = [
     { key: 'esc', text: 'double tap esc to clear input' },
-
     { key: 'mode', text: `${cycleModeShortcut} for implement mode` },
     { key: 'tsc', text: `${transcriptShortcut} for the transcript` },
     { key: 'todos', text: `${tasksShortcut} to toggle tasks` },
     { key: 'nl', text: getNewlineInstructions() },
   ]
-
   const stripRow = stripKeyMapHint()
   const groupGlobal: HelpRow[] = [
     ...(stripRow !== '' ? [{ key: 'strip', text: stripRow }] : []),
@@ -157,10 +150,8 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
 
   return (
     <Box paddingX={paddingX} flexDirection="column" ref={gridRef}>
-      {
-}
-      {
-}
+      {}
+      {}
       <Box flexDirection="row" gap={gap ?? 2} flexShrink={0}>
         {shownGroups.map((rows, i) => (
           <Box
@@ -184,8 +175,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
           </Text>
         </Box>
       ) : null}
-      {
-}
+      {}
       {isDeckPaneActive() ? (
         <Box flexDirection="column" marginTop={1}>
           <Box>
@@ -193,8 +183,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
               deck chips
             </Text>
           </Box>
-          {
-}
+          {}
           <Box flexDirection="row" flexWrap="wrap" columnGap={3} rowGap={0}>
             {[
               'subs N/M caps on/total',

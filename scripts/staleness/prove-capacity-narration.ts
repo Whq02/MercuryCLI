@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -48,6 +47,7 @@ const { saveGlobalConfig } = await import('../../src/utils/config.js')
   const words = cap.describeSeatReading(4)
   check('a non-stored ceiling keeps the live sentence (the guard)', words.includes("this machine's reading: 4 seats"), words)
 }
+
 
 {
   const { readFileSync } = await import('node:fs')

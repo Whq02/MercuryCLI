@@ -1,14 +1,12 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
+
 interface AgentCliSignature {
   id: string
   displayName: string
-
   pattern: RegExp
-
   sessionEnvVars?: readonly string[]
-
   tokenFdEnvVar?: string
 }
 
@@ -33,7 +31,6 @@ export const KNOWN_AGENT_CLIS: readonly AgentCliSignature[] = [
     id: 'codex-cli',
     displayName: 'Codex CLI',
     pattern: /@openai\/codex|\bcodex-cli\b/i,
-
     sessionEnvVars: ['CODEX_API_KEY', 'CODEX_ACCESS_TOKEN'],
   },
   {
@@ -80,11 +77,9 @@ function isMercuryDaemonRecord(parsed: unknown): boolean {
 type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-record'
 
 interface HarnessHomeArtifact {
-
   rel: string
   artifactClass: HarnessArtifactClass
   verdict: 'ours' | 'ours-stale' | 'foreign'
-
   tool?: { id: string; displayName: string }
   evidence: string
 }

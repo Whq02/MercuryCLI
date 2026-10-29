@@ -3,6 +3,7 @@ import type { LocalShellTaskState } from './LocalShellTask/guards.js'
 import type { LocalWorkflowTaskState } from './LocalWorkflowTask/LocalWorkflowTask.js'
 import type { MonitorMcpTaskState } from './MonitorMcpTask/MonitorMcpTask.js'
 
+
 export type TaskState =
   | LocalShellTaskState
   | LocalAgentTaskState

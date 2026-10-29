@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -16,7 +15,6 @@ type Row = {
   journey: string
   status: 'proven' | 'partial' | 'machine-gated'
   proof: string
-
   anchor?: string
   reason?: string
 }

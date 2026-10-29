@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -49,7 +48,6 @@ section('§1 the /mcp answer is the popup on every seat')
 section('§2 a tool call that dies mid-call names the server and the next step')
 {
   const clientSrc = read('src/services/mcp/client.ts')
-
   const callFn = clientSrc.slice(clientSrc.indexOf('async function callToolOnce('), clientSrc.indexOf('type UrlElicitation ='))
   check('an uncertain call names the server, tool and inspection before retry', callFn.includes('MCP tool "${tool}" on server "${connected.name}": unknown outcome; inspect the effect before retrying.'))
   check('only unsent or explicitly rejected requests can replay', callFn.includes('isMcpSessionExpiredError(err) || (err instanceof SdkError && err.code === SdkErrorCode.NotConnected)'))
@@ -64,7 +62,6 @@ section('§3 every failed re-mark carries a reason')
   check('a lost local connection is re-marked with why and the retry verb', registrySrc.includes('error: `the server closed its connection — a local server is not restarted on its own; /mcp reconnect ${name} starts it again`'))
   const menuSrc = read('src/components/mcp/MCPRemoteServerMenu.tsx')
   check('a cleared sign-in names itself on the failed row', menuSrc.includes('error: `signed out of ${server.name} — /mcp reconnect ${server.name} signs in again`'))
-
   const { execSync } = await import('node:child_process')
   const files = execSync("git ls-files 'src/**/*.ts' 'src/**/*.tsx'", { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean).filter(file => existsSync(join(ROOT, file)))
   const bareMints: string[] = []
@@ -74,7 +71,6 @@ section('§3 every failed re-mark carries a reason')
     let m: RegExpExecArray | null
     while ((m = re.exec(src)) !== null) {
       const literal = m[0]
-
       if (/\btype: 'failed'\s*\n\s+\w+\??:/.test(literal) || /^\{\s*type: 'failed';/.test(literal)) continue
       if (!/\berror\b/.test(literal)) bareMints.push(`${file}: ${literal.replace(/\s+/g, ' ').slice(0, 90)}`)
     }

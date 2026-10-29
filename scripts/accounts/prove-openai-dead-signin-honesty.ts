@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +28,6 @@ const AUTH_FILE = join(HOME, '.openai-auth.json')
 const writeStore = (tokens: Record<string, unknown> | null): void => {
   writeFileSync(AUTH_FILE, JSON.stringify(tokens === null ? { version: 1 } : { version: 1, tokens }))
 }
-
 const DEAD = {
   idToken: 'id.x.y',
   accessToken: 'at_dead',

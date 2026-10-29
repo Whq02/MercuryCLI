@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'

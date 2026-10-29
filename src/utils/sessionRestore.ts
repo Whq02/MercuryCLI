@@ -13,6 +13,7 @@ import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 
+
 export type ResumedConversationLog = {
   messages: Message[]
   sessionId?: string
@@ -71,7 +72,6 @@ export function restoreMissionContinuity(
   result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>,
 ): boolean {
   try {
-
     const adopted = adoptedSessionIdOf(result)
     migrateOrphanedMissionCard(adopted)
     return rearmMissionFromCard({ cardSessionId: adopted, armSessionId: adopted })
@@ -97,7 +97,6 @@ export function restoreAgentFromSession(
     return { agentDefinition: currentAgentDefinition, agentType: undefined }
   }
   if (agentSetting === undefined) {
-
     setMainThreadAgentType(undefined)
     return { agentDefinition: undefined, agentType: undefined }
   }
@@ -122,7 +121,6 @@ export function restoreAgentFromSession(
 
 export function restoreConversationModelFromMessages(messages?: Message[]): string | null {
   if (!messages || messages.length === 0) return null
-
   if (getEngineModelOverride() !== undefined) return null
 
   let servedModel: string | undefined

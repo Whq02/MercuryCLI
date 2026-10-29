@@ -4,9 +4,7 @@ import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
 
 type Headroom = {
-
   availableB: number
-
   source: 'vm_stat' | 'meminfo' | 'node:os'
 }
 

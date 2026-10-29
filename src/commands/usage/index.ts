@@ -7,6 +7,5 @@ export default {
   userPrivate: true,
   supportsNonInteractive: false,
   description: 'Show usage per provider — every family, honest absence included',
-
   load: () => import('./usage.js'),
 } satisfies Command

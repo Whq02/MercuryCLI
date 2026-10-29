@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
@@ -74,7 +73,6 @@ function localGreenTree(): { tree: string; headSha: string | null } | null {
 
 function ledgerGreenTrees(): Array<{ tree: string; headSha: string; kind: string }> {
   try {
-
     const rows = readLedger().filter(r => r.ok && !isAdvisoryKind(r.kind))
     const out: Array<{ tree: string; headSha: string; kind: string }> = []
     for (const row of rows.slice(-20)) {
@@ -86,7 +84,6 @@ function ledgerGreenTrees(): Array<{ tree: string; headSha: string; kind: string
     }
     return out
   } catch {
-
     return []
   }
 }
@@ -141,7 +138,6 @@ for (const row of fromLedger) {
     changed: changedFrom(row.tree),
   })
 }
-
 if (candidates.every(c => c.changed.length > 0)) {
   for (const ci of ciGreenTrees()) {
     if (ci.tree === local?.tree) continue
@@ -238,7 +234,6 @@ if (plan.ledger.sliceEstimateS !== null) {
     `  estimate: slice ≈ ${plan.ledger.sliceEstimateS}s pooled vs full pool ≈ ${plan.ledger.poolEstimateS}s (${pct}%)`,
   )
 } else {
-
   console.log(`  estimate: full pool ≈ ${plan.ledger.poolEstimateS}s (no slice wall — ${plan.kind})`)
 }
 
@@ -286,7 +281,6 @@ if (plan.kind === 'escalate') {
     console.log(`\n  ⚠ ${plan.message}`)
     console.log('  ESCALATING to the FULL gate now (a full run also re-anchors the slice rung).')
   }
-
   const support = fullPoolSupport(resolveExecutionProfile(ROOT))
   if (!support.supported) {
     console.log(`\n  ✋ full-pool escalation REFUSED before any spawn: ${support.reason}`)

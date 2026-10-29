@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -31,7 +30,6 @@ const argOf = (flag: string, def: string): string => (argv.includes(flag) ? argv
 const fixtureArg = argOf('--fixture', '1k')
 const CHAPTERS = fixtureArg === '1k' ? CHAPTERS_DEFAULT : fixtureArg === '5k' ? 260 : Math.max(1, Number(fixtureArg) || CHAPTERS_DEFAULT)
 const FIXTURE_LINES = 4 + CHAPTERS * 19
-
 const SETTLE = Math.max(9000, Math.round(9000 * (CHAPTERS / CHAPTERS_DEFAULT)))
 
 const b64 = (s: string): string => Buffer.from(s, 'latin1').toString('base64')
@@ -76,7 +74,6 @@ function diagnoseRun(label: string, run: CompassRun): void {
   console.error(`[selection-latency] ${label}: ${run.outs.length} output chunks · ${run.sends.length} sends fired — the child produced no journey`)
   const driver = run.driverOut.trim()
   if (driver) console.error(`  driver: ${driver.slice(-600).replace(/\n/g, '\n          ')}`)
-
   if (existsSync(run.paths.drive)) {
     const said: string[] = []
     for (const line of readFileSync(run.paths.drive, 'utf8').split('\n')) {
@@ -104,7 +101,6 @@ function readFlux(path: string): FluxDump | null {
     return null
   }
 }
-
 function ownersPerKey(run: CompassRun, dump: FluxDump | null, match: (b64: string) => boolean, ceilingMs = 1000): Record<string, number[]> {
   const out: Record<string, number[]> = Object.fromEntries(OWNERS.map(k => [k, []]))
   if (!dump) return out
@@ -340,7 +336,6 @@ const results: Record<string, unknown> = {
   keyGapMs: GAP,
   runs,
 }
-
 process.stderr.write(`[selection-latency] fixture ${FIXTURE_LINES} records · settle ${SETTLE} ms · load precheck…\n`)
 results.load = await legLoad()
 if (typeof (results.load as { verdict?: string }).verdict === 'string' && (results.load as { verdict: string }).verdict.startsWith('REFUSED')) {
@@ -363,7 +358,6 @@ for (const leg of legs) {
   }
   process.stderr.write(`[selection-latency] leg ${leg} done in ${((Date.now() - t0) / 1000).toFixed(1)}s\n`)
 }
-
 const empty = legs.filter(leg => {
   const r = results[leg] as Record<string, { n?: number } | unknown> | undefined
   if (!r || 'failed' in r) return true

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,7 +22,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const SCRATCH = mkdtempSync(join(tmpdir(), 'signing-surfaces-'))
-
 const NODE = process.execPath.includes('bun') ? 'node' : process.execPath
 
 console.log('signing surfaces — launcher + /health honesty, shipped verifier E2E')
@@ -67,7 +65,6 @@ function buildFixturePayload(name: string, opts: { sign?: boolean; tamper?: bool
 }
 
 try {
-
   const policy = parseEnginesNode(NODE_SUPPORT.range)
   const posix = posixLauncher(policy) as string
   const cmd = cmdLauncher(policy) as string
@@ -79,7 +76,6 @@ try {
     'POSIX verify is bare-boot-gated (the takeover decision: no verb, no flag) + interactive-gated (TTY test) + presence-guarded',
     /\[ "\$MERCURY_TAKEOVER" = "1" \] && \[ -t 0 \] && \[ -t 2 \] && \[ -f "\$dir\/verify-artifact\.mjs" \]/.test(posix),
   )
-
   check('POSIX verify runs BEFORE the runtime boot line', posix.indexOf('verify-artifact.mjs" --launcher') !== -1 && posix.indexOf('exec "$node_bin" "$dir/mercury.mjs" "$@"') !== -1 && posix.indexOf('verify-artifact.mjs" --launcher') < posix.indexOf('exec "$node_bin" "$dir/mercury.mjs" "$@"'))
 
   check('cmd launcher invokes the shipped verifier in --launcher mode', cmd.includes('verify-artifact.mjs" --launcher'))
@@ -137,7 +133,6 @@ try {
       const r = spawnSync(NODE, [shipped, ...args], { encoding: 'utf8', timeout: 60_000 })
       return { status: r.status ?? -1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' }
     }
-
     const eSigned = run(['--dir', signedDir, '--json', '--deep'])
     check('shipped verifier: ephemeral-signed payload → unrecognized-key, exit 4', eSigned.status === 4 && eSigned.stdout.includes('"unrecognized-key"'))
     const eUnsigned = run(['--dir', unsignedDir, '--json'])
@@ -171,7 +166,6 @@ try {
     const again = run(['--dir', vdir, '--launcher'])
     check('a changed verdict says the line again (unrecognized-key after unsigned) and re-records it', changed.status === 0 && changed.stderr.includes('trusted roster') && readFileSync(marker, 'utf8').startsWith('unrecognized-key\n'))
     check('and once only', again.stderr === '' && again.stdout === '')
-
     cpSync(tamperedDir, vdir, { recursive: true })
     const tamperedOnce = run(['--dir', vdir, '--launcher'])
     const tamperedAgain = run(['--dir', vdir, '--launcher'])

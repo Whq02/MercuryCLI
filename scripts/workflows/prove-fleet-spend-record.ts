@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -271,7 +270,6 @@ check('two agents in the record, both done', agents.length === 2 && agents.every
 const responsesAgent = agents.find(a => a.model === GPT)
 const anthropicAgent = agents.find(a => a.model !== GPT)
 check(`one agent ran on ${GPT} and one on the session's Anthropic model`, responsesAgent !== undefined && anthropicAgent?.model === 'claude-opus-4-8', agents.map(a => `${a.index}:${a.model}`).join(','))
-
 const served = fixture.captured.filter(h => h.lane === 'anthropic' || h.lane === 'responses')
 check('the fixture answered the run with two requests per wire (and the cut agent one more)', served.filter(h => h.lane === 'anthropic').length === 3 && served.filter(h => h.lane === 'responses').length === 2, served.map(h => h.lane).join(','))
 const expectAgent = (a: AgentRow | undefined, name: string): void => {

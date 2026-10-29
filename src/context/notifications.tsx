@@ -1,3 +1,4 @@
+
 import type * as React from 'react'
 import { useCallback, useEffect } from 'react'
 import { useAppStateStore, useSetAppState } from '../state/AppState.js'
@@ -8,11 +9,9 @@ type Priority = 'low' | 'medium' | 'high' | 'immediate'
 
 type BaseNotification = {
   key: string
-
   invalidates?: string[]
   priority: Priority
   timeoutMs?: number
-
   fold?: (accumulator: Notification, incoming: Notification) => Notification
 }
 
@@ -108,7 +107,6 @@ export function enqueueNotification(
   incoming: Notification,
 ): void {
   if (incoming.priority === 'immediate') {
-
     cancelExpiry()
     setAppState(prev => {
       const displaced = prev.notifications.current
@@ -153,14 +151,12 @@ export function enqueueNotification(
         }
       }
     }
-
     if (
       current?.key === incoming.key ||
       queue.some(entry => entry.key === incoming.key)
     ) {
       return prev
     }
-
     const invalidatesCurrent =
       current !== null && incoming.invalidates?.includes(current.key) === true
     if (invalidatesCurrent) cancelExpiry()
@@ -179,7 +175,6 @@ export function enqueueNotification(
       },
     }
   })
-
   if (foldedIntoCurrent !== null) {
     armExpiry(foldedIntoCurrent, setAppState)
     return

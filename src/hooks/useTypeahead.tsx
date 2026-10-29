@@ -1,3 +1,4 @@
+
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { Command } from '../commands.js'
 import type {
@@ -57,6 +58,7 @@ import { formatLogMetadata } from '../utils/format.js'
 import { logError } from '../utils/log.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 
+
 const liveTypeaheadTimers = new Set<ReturnType<typeof setTimeout>>()
 
 export function typeaheadTimerCensus(): number {
@@ -81,6 +83,7 @@ const FILE_FETCH_DEBOUNCE_MS = 50
 const CHANNEL_FETCH_DEBOUNCE_MS = 150
 const RESUME_TITLE_LIMIT = 10
 const THINKING_HINT_KEY = 'thinking-toggle-hint'
+
 
 export type SuggestionsState = {
   suggestions: Suggestion[]
@@ -230,7 +233,6 @@ function extractCompletionToken(
   const clamped = Math.max(0, Math.min(cursorPos, text.length))
 
   if (includeAtSymbol) {
-
     for (let i = clamped - 1; i >= 0; i--) {
       if (text[i] === '@' && text[i + 1] === '"') {
         const closing = text.indexOf('"', i + 2)
@@ -246,7 +248,6 @@ function extractCompletionToken(
       }
       if (text[i] === ' ' || text[i] === '\n') break
     }
-
     const before = text.slice(0, clamped)
     const at = before.lastIndexOf('@')
     if (at !== -1 && (at === 0 || /[\s]/.test(text[at - 1]!))) {
@@ -325,7 +326,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   const agentsRef = useRef(props.agents)
   agentsRef.current = props.agents
   const dismissedForInputRef = useRef<string | null>(null)
-
   const userNavigatedRef = useRef(false)
   const lastSearchTokenRef = useRef<string | null>(null)
   const lastBashInputRef = useRef('')
@@ -430,7 +430,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     return onIndexBuildComplete(() => {
       const token = lastSearchTokenRef.current
       if (token === null) return
-
       lastSearchTokenRef.current = null
       runUnifiedFetch(token)
     })
@@ -445,10 +444,8 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       clearSuggestions()
       return
     }
-
     if (dismissedForInputRef.current === input) return
     dismissedForInputRef.current = null
-
     if (inputRef.current !== input) {
       inputRef.current = input
       lastSearchTokenRef.current = null
@@ -484,7 +481,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         })
         .catch(error => logError(error))
     } else if (mode !== 'bash') {
-
       const beforeCursor = input.slice(0, cursor)
       const mention = beforeCursor.match(/(^|\s)@([\w-]*)$/)
       if (mention) {
@@ -541,7 +537,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     }
 
     if (mode === 'prompt') {
-
       const resume = input.match(/^\/sessions\s+(.*)$/)
       if (resume) {
         void searchSessionsByCustomTitle(resume[1]!, { limit: RESUME_TITLE_LIMIT })
@@ -578,7 +573,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
             command => command.userFacingName?.() === name || command.name === name,
           )
           if (exact || rest.trim() !== '') {
-
             let hint: string | undefined
             const command = commands.find(
               c => c.userFacingName?.() === name || c.name === name,
@@ -599,10 +593,8 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
             return
           }
         }
-
         const generated = generateCommandSuggestions(input, commands)
         if (generated.length > 0) {
-
           const longest = Math.max(
             0,
             ...commands
@@ -715,9 +707,9 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       ? promptGhost
       : (asyncGhostText ?? undefined)
 
+
   const rerunLadderForInput = useCallback(
     (nextInput: string): void => {
-
       const token = extractCompletionToken(nextInput, nextInput.length, true)
       if (!token) return
       const search = extractSearchToken(token)
@@ -778,14 +770,12 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
 
         switch (type) {
           case 'command': {
-
             if (
               viaEnter &&
               atIndex === undefined &&
               !userNavigatedRef.current &&
               !isNameAnchoredSuggestion(currentInput, suggestion)
             ) {
-
               clearSuggestions()
               onSubmit?.(currentInput, true)
               return
@@ -815,7 +805,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
           case 'directory': {
             if (currentInput.startsWith('/')) {
               if (viaEnter) {
-
                 clearSuggestions()
                 return
               }
@@ -834,7 +823,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
             }
             const token = extractCompletionToken(currentInput, cursor, true)
             if (!token) {
-
               clearSuggestions()
               return
             }
@@ -915,7 +903,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
               commonPrefix.length > search.length &&
               list.length > 1
             ) {
-
               const partial = formatReplacementValue({
                 displayText: commonPrefix,
                 mode,
@@ -971,7 +958,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
               return
             }
             if (completions.length > 0) {
-
               publish(
                 completions.map((completion, index) =>
                   index === 0
@@ -1063,7 +1049,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     markAccepted?.()
     const text = promptSuggestion.text
     const { getModeFromInput, getValueFromInput } =
-
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       require('../components/PromptInput/inputModes.js') as typeof import('../components/PromptInput/inputModes.js')
     const impliedMode = getModeFromInput(text)
@@ -1113,7 +1098,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
           return
         }
         if (inputRef.current.trim() === '') {
-
           if (cockpitActive) return
           event.stopImmediatePropagation()
           const chord = getShortcutDisplay('chat:thinkingToggle', 'Chat', 'meta+t')
@@ -1157,7 +1141,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       void input_
       void key
       if (currentSurfaceRoute().kind !== 'repl') return
-
       if (anyModalOverlayActive()) return
       const adapter = new KeyboardEvent(event.keypress)
       handleKeyboardEvent(adapter)

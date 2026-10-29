@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,7 +17,6 @@ enableConfigs()
 saveGlobalConfig(c => ({
   ...c,
   switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 },
-
   mcpServers: {
     alpha: { type: 'stdio', command: 'true', args: [], env: {} },
     beta: { type: 'stdio', command: 'true', args: [], env: {} },
@@ -131,7 +129,6 @@ if (ENSURE_SKIP !== '') {
 } else {
   const roster = new FakeRoster()
   const warmDeps = { roster: () => roster, dir: recordsDir }
-
   setMcpServerEnabledForWorkspace(wsA, 'beta', false)
   const derivedA = deriveSessionKitForWorkspace(wsA)
   check('G1 the scratch menu delta landed in the derivation (beta off, alpha on — the fixture is real)', derivedA.resolved === false && derivedA.mcp.includes('alpha') && !derivedA.mcp.includes('beta') && (derivedA.deltas?.mcpOff ?? []).includes('beta'))
@@ -140,16 +137,13 @@ if (ENSURE_SKIP !== '') {
   const bootKit = roster.registered.length === 1 ? specKitOf(roster.registered[0]!.spec) : null
   check('G1 POISON armed: the warm spec WEARS the derived kit (a kit-less warm boot is the whole-config process a kit-stamped record would lie about)', bootKit !== null && deepEq(bootKit, derivedA))
   check('G1 the spec kit round-trips the wire narrowing (the runner re-validates the daemon bytes)', bootKit !== null)
-
   const kept = await warm.ensureWarmRunner({ workspaceDir: wsA }, warmDeps)
   check('G3 a same-kit ensure KEEPS the one runner (no drift, no churn)', kept.state === 'kept' && roster.registered.length === 1 && roster.killed.length === 0)
-
   setMcpServerEnabledForWorkspace(wsA, 'beta', true)
   const drifted = await warm.ensureWarmRunner({ workspaceDir: wsA }, warmDeps)
   const rewarmKit = roster.registered.length === 2 ? specKitOf(roster.registered[1]!.spec) : null
   check('G3 kit drift at the ensure: the stale runner retires and the current kit warms (POISON: a kept runner wearing yesterday\'s kit)', drifted.state === 'warmed' && roster.killed.length === 1 && rewarmKit !== null && rewarmKit.mcp.includes('beta'))
   check('G3 one runner per workspace after the drift', warm.warmRunnerCount() === 1)
-
   warm.resetWarmRunnersForTesting()
   roster.registered.length = 0
   const CARRIED: Kit = { schema: 1, mcp: ['alpha'], skills: ['ns:review'], invocable: ['deploy'] }
@@ -166,7 +160,6 @@ if (ENSURE_SKIP !== '') {
   const { makeConcourseAdmitHandler, readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const { realpathSync } = await import('node:fs')
   const MODEL = AVAILABLE!
-
   {
     const roster = new FakeRoster()
     const warmDeps = { roster: () => roster, dir: recordsDir }
@@ -195,7 +188,6 @@ if (ENSURE_SKIP !== '') {
     check('G5 the pool is empty after the drift retire (the cold path owns the session)', warm.warmRunnerCount() === 0)
     warm.resetWarmRunnersForTesting()
   }
-
   {
     const roster = new FakeRoster()
     const warmDeps = { roster: () => roster, dir: recordsDir }
@@ -218,7 +210,6 @@ if (ENSURE_SKIP !== '') {
     check('G6 THE HEADLINE PIN: the claimed record wears EXACTLY the kit the process booted (record ≡ process — the poison this lane closes: a kit-stamped record over a whole-config warm process)', rec !== undefined && bootedKit !== null && deepEq(rec.kit, bootedKit))
     await new Promise(resolve => setTimeout(resolve, 25))
     check('G6 the post-claim rewarm carries the claimed kit (the pool re-arms wearing what births carry)', rewarms.length >= 1 && rewarms[0]!.kit !== undefined && deepEq(rewarms[0]!.kit, rec?.kit))
-
     rewarms.length = 0
     roster.claims.length = 0
     const wsJ = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-j-')))
@@ -235,7 +226,6 @@ if (ENSURE_SKIP !== '') {
     check('G6 the DECLINE-side rewarm carries the declined kit (one cold spawn is the whole price of a menu edit)', rewarms.length >= 1 && deepEq(rewarms[0]!.kit, SCREEN))
     warm.resetWarmRunnersForTesting()
   }
-
   {
     const roster = new FakeRoster()
     const warmDeps = { roster: () => roster, dir: recordsDir }
@@ -325,7 +315,6 @@ if (ENSURE_SKIP !== '') {
   const wsP = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-p-')))
   const derived = await admit({ workspaceDir: wsP, modelKey: MODEL, bornBlank: true })
   check("A2 a kit-less admit answers kitSource 'derived' (the fallback road, named)", derived.ok && derived.kitSource === 'derived', derived.ok ? derived.kitSource ?? 'absent' : derived.error)
-
   const liveSid = 'abcdabcd-9999-4888-8777-abcdabcdabcf'
   const wsQ = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-q-')))
   updateConcourseWorkers(workers => {
@@ -345,14 +334,12 @@ if (ENSURE_SKIP !== '') {
   }, recordsDir)
   const hop = await admit({ workspaceDir: wsQ, resumeSessionId: liveSid })
   check('A3 POISON armed: a live-hop answer carries NO kitSource (a hop stamps nothing — the answer never claims a stamp that did not happen)', hop.ok && hop.kitSource === undefined, hop.ok ? hop.kitSource ?? 'absent' : hop.error)
-
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const coord = read('src/services/concourse/coordinatorTools.ts')
   check('A4 the coordinator receipts speak the kit word on BOTH launch roads (contracted + plain)', coord.split('kit ${kitSource}').length === 3 && coord.split('{ kitSource }').length >= 3)
   const mgr = read('src/services/concourse/managerMode.ts')
   check('A4 the manager lane receipt speaks it too', mgr.includes('kit ${laneKitSource}'))
   const server = read('src/daemon/controlServer.ts')
-
   const wireList = (name: string): string => (server.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
   check(
     'A4 the server forwards kitSource on the admit AND dispatch answers (the wire-pick key lists carry it; both answers spread their list)',
@@ -367,7 +354,6 @@ console.log('\n── §C: non-session children never latch a stray kit ──')
 {
   const { readFileSync } = await import('node:fs')
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-
   const dmain = read('src/daemon/main.ts')
   check('C1 the daemon main registers no long-lived seat of its own (every seat is born through a spawn seam with its own strip)', !dmain.includes('registerLongLived('))
   const acp = read('src/services/acp/childSession.ts')

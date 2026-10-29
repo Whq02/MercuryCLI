@@ -1,3 +1,4 @@
+
 import {
   SIDS,
   JourneyWalker,
@@ -54,7 +55,6 @@ check('the draft survives the review excursion', draftSurvivesDiff)
 purgeDraft(sid)
 const walker = new JourneyWalker(sid, 'j5')
 const glance = walker.glance()
-
 check('the session resumes cleanly after excursions', hasProse(glance, 'resumed clean'))
 const sidecarAfter = readRunSidecar(sid)
 check(

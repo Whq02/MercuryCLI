@@ -32,14 +32,12 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_LINE_ANCHORS: ['', '0'],
   MERCURY_LSP: ['', '0'],
   MERCURY_CONTEXT_SELECTION: ['', 'preserve-all', 'bounded-optional'],
-
   MERCURY_COMPACT: ['', '0'],
   MERCURY_AUTO_COMPACT: ['', '0'],
   MERCURY_PROMPT_CACHING: ['', '0'],
   MERCURY_PROMPT_CACHING_HAIKU: ['', '0'],
   MERCURY_PROMPT_CACHING_SONNET: ['', '0'],
   MERCURY_PROMPT_CACHING_OPUS: ['', '0'],
-
   MERCURY_COMPAT_API_KEY: ['', 'sk-sweep'],
   MERCURY_COMPAT_BASE_URL: ['', 'http://127.0.0.1:9/v1'],
   MERCURY_COMPAT_LABEL: ['', 'sweep'],
@@ -60,7 +58,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_CAP_FAILOVER: ['', 'auto'],
   MERCURY_MOCK_LIMITS: ['', '1'],
   MERCURY_MOCK_USAGE_PAYLOAD: ['', '{"limit":1}'],
-
   MERCURY_RESUME_SNAPSHOT: ['', '0'],
   MERCURY_TRANSCRIPT_READER: ['', '0'],
   MERCURY_VOICE_BACKEND: ['', 'fixture'],
@@ -74,27 +71,19 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_SCRIPTED_STREAM: ['', '1'],
   MERCURY_THEME_PIN: ['', 'dark'],
   MERCURY_OASIS_BG: ['', '0'],
-
   MERCURY_SPECTRA_GROUND: ['', '0'],
   MERCURY_LIVE_GLYPHS: ['', '0'],
   MERCURY_CRITTER_GAZE: ['', '0'],
-
   MERCURY_LAUNCH_RIPPLE: ['', '0'],
   MERCURY_REDUCED_MOTION: ['', '1'],
-
   MERCURY_SPLASH_HANDOFF: ['', '1'],
   MERCURY_LAUNCH_ID: ['', 'sweep-launch-1'],
-
   MERCURY_FAULT_INJECT: ['', 'flush-file@cairn-never-hit:throw'],
-
   MERCURY_CONCOURSE: ['', 'auto', 'always'],
   MERCURY_CONCOURSE_WORKER: ['', '1'],
-
   MERCURY_SEATS: ['', '3'],
   MERCURY_MODEL_LANES: ['', '2'],
-
   MERCURY_ANCHOR_PATCH: ['', '1', '0'],
-
   MERCURY_EDIT_STALE_RECOVERY: ['', '0'],
   MERCURY_ENGINE_ASSERT: ['', '1', '0'],
   MERCURY_RENDER_ENGINE: ['', '1', '0'],
@@ -105,7 +94,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_FORCE_SYNC_OUTPUT: ['', '1', '0'],
   MERCURY_NO_SYNC_OUTPUT: ['', '1', '0'],
   MERCURY_STREAM_CARET: ['', '0'],
-
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
   MERCURY_SESSION_WORKFLOWS: ['', '0'],
   MERCURY_COMPUTER_USE: ['', '0'],
@@ -179,7 +167,6 @@ let assertionFailures = 0
 function probeVector(clusterName: string, cluster: string[], vec: string[]): void {
   const val = (env: string): string => vec[cluster.indexOf(env)] ?? ''
   const expectOn = (env: string): boolean => isOn(env, val(env))
-
   for (const env of cluster) {
     const spec = byEnv.get(env)!
     if (spec.kind === 'default-on' || spec.kind === 'opt-in') {
@@ -195,7 +182,6 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
       }
     }
   }
-
   if (clusterName === 'changeset') {
     const want = expectOn('MERCURY_CHANGESET') && expectOn('MERCURY_CHANGE_RECEIPTS') && expectOn('MERCURY_EDIT_HUNKS')
     if (changeSetEnabled() !== want) {
@@ -239,7 +225,6 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     }
   }
   if (clusterName === 'concourse') {
-
     const raw = val('MERCURY_CONCOURSE')
     const want = raw === 'auto' || raw === 'always' ? raw : 'off'
     if (resolveConcoursePolicy() !== want) {
@@ -248,7 +233,6 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     }
   }
   if (clusterName === 'spawn-switches') {
-
     for (const [kind, env] of [
       ['subagents', 'MERCURY_SESSION_SUBAGENTS'],
       ['workflows', 'MERCURY_SESSION_WORKFLOWS'],
@@ -272,7 +256,6 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     }
   }
   if (clusterName === 'splash-handover') {
-
     const own = flagEnv('MERCURY_LAUNCH_ID') || null
     const receipt = (id?: string): string =>
       JSON.stringify({ version: 1, ts: 1_000, action: 'continue', ...(id ? { launchId: id } : {}) })
@@ -300,7 +283,6 @@ for (const [name, cluster] of Object.entries(CLUSTERS)) {
   const excluded: Excluded[] = []
   const run: string[][] = []
   for (const vec of vectors) {
-
     let constraint: string | null = null
     for (let i = 0; i < cluster.length && !constraint; i++) {
       const env = cluster[i]!
@@ -322,7 +304,6 @@ for (const [name, cluster] of Object.entries(CLUSTERS)) {
     probeVector(name, cluster, vec)
     run.push(vec)
   }
-
   for (const env of cluster) {
     const spec = byEnv.get(env)!
     if (!spec.legacy) continue
@@ -339,7 +320,6 @@ for (const [name, cluster] of Object.entries(CLUSTERS)) {
       console.log(`     the bounded alias did not resolve for ${env} (${spec.legacy})`)
     }
   }
-
   let pairEdges = 0
   let statesCovered = 0
   for (const a of cluster) {
@@ -352,7 +332,6 @@ for (const [name, cluster] of Object.entries(CLUSTERS)) {
       const validStates = new Set<string>()
       for (const av of DOMAINS[a]!) {
         for (const bv of DOMAINS[b]!) {
-
           const aOn = isOn(a, av)
           const bOn = isOn(b, bv)
           const reqA = byEnv.get(a)?.requires ?? []
@@ -372,7 +351,6 @@ for (const [name, cluster] of Object.entries(CLUSTERS)) {
   }
   reports.push({ name, flags: cluster, vectorsRun: run.length, excluded, pairEdges, pairStatesCovered: statesCovered })
 }
-
 for (const [k, v] of saved) {
   if (v === undefined) delete process.env[k]
   else process.env[k] = v
@@ -431,7 +409,6 @@ for (const [k, v] of saved) {
         seenStates.add(`${isOn(a, av)}·${isOn(b, bv)}`)
       }
     }
-
     const validStates = new Set<string>()
     for (const av of domA) {
       for (const bv of domB) {
@@ -484,7 +461,6 @@ t.check(
 )
 const totalRun = reports.reduce((n, r) => n + r.vectorsRun, 0)
 const totalExcluded = reports.reduce((n, r) => n + r.excluded.length, 0)
-
 t.check(`a real sweep ran (${totalRun} valid vectors; ${totalExcluded} excluded with named constraints)`, totalRun >= 80 && totalExcluded >= 8)
 t.check(
   'every interactsWith pair edge is fully state-covered',

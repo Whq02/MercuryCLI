@@ -1,3 +1,4 @@
+
 import { z } from 'zod'
 import { evalNestedToolIds } from '../../services/eval/bridgeProgress.js'
 import { expandLspFamily, lspFamilyMatches } from '../../services/lsp/toolFamily.js'
@@ -89,6 +90,7 @@ import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
+
 
 export function filterToolsForAgent(args: {
   tools: Tools
@@ -184,7 +186,6 @@ export function resolveAgentTools(
         .filter(entry => entry !== '')
       validTools.push(spec)
       if (!isMainThread) {
-
         continue
       }
     }
@@ -216,6 +217,7 @@ export function resolveAgentTools(
     ...(allowedAgentTypes ? { allowedAgentTypes } : {}),
   }
 }
+
 
 export type AgentTerminalOutcome =
   | { status: 'completed'; promotedNarration: boolean }
@@ -299,10 +301,10 @@ export function stoppedPartWay(response: { messages: readonly Message[]; stopRea
   )
 }
 
+
 export const agentToolResultSchema = lazySchema(() =>
   z.object({
     agentId: z.string(),
-
     outcome: z
       .discriminatedUnion('status', [
         z.object({
@@ -316,7 +318,6 @@ export const agentToolResultSchema = lazySchema(() =>
         }),
       ])
       .optional(),
-
     structured: z
       .object({
         data: z.unknown().optional(),
@@ -325,7 +326,6 @@ export const agentToolResultSchema = lazySchema(() =>
         mode: z.enum(['permissive', 'strict']),
       })
       .optional(),
-
     agentType: z.string().optional(),
     content: z.array(
       z.object({ type: z.literal('text'), text: z.string() }),
@@ -333,7 +333,6 @@ export const agentToolResultSchema = lazySchema(() =>
     totalToolUseCount: z.number(),
     totalDurationMs: z.number(),
     totalTokens: z.number(),
-
     costUSD: z.number().optional(),
     unpricedTurns: z.number().optional(),
     usage: z.object({
@@ -411,7 +410,6 @@ export function finalizeAgentTool(
   },
   terminalFailure?: Extract<AgentTerminalOutcome, { status: 'failed' }>,
 ): AgentToolResult {
-
   const { startTime, agentType } = metadata
 
   const lastAssistant = getLastAssistantMessage(messages as Message[])
@@ -438,7 +436,6 @@ export function finalizeAgentTool(
 
   let promotedNarration = false
   if (content.length === 0 && !chantStopped) {
-
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i]!
       if (message.type !== 'assistant') continue
@@ -508,7 +505,6 @@ export function finalizeAgentTool(
     content,
     totalDurationMs: Date.now() - startTime,
     totalTokens,
-
     costUSD: ledger.costUSD,
     unpricedTurns: ledger.unpricedTurns,
     totalToolUseCount: countToolUses(messages),
@@ -552,7 +548,6 @@ function findLastStructuredYield(
     for (const block of contentBlocks) {
       const use = block as { type?: string; id?: string; name?: string; input?: unknown }
       if (use.type !== 'tool_use' || use.name !== structuredOutputToolName() || !use.id) continue
-
       for (let j = i + 1; j < messages.length; j++) {
         const candidate = messages[j]!
         if (candidate.type !== 'user') continue
@@ -736,6 +731,7 @@ export async function partialResultEnvelopeBlock(args: {
   }
 }
 
+
 export function recoveryBudgetCutOf(error: unknown): { words: string; resumeAfterMs: number } | null {
   const facts = recoveryBudgetSpentFactsOf(error)
   return facts === null ? null : { words: facts.words, resumeAfterMs: facts.resumeAfterMs }
@@ -758,7 +754,6 @@ export function windowPauseResumeDelayMs(resumesAtMs: number, nowMs: number = Da
 }
 
 const pendingAutomaticResumes = new Map<string, ReturnType<typeof setTimeout>>()
-
 const cutsAlreadyResumed = new WeakSet<AbortController>()
 
 export function automaticResumePending(taskId: string): boolean {
@@ -784,9 +779,7 @@ export function armBudgetCutResume(args: {
   invokingRequestId?: string
   delayMs?: number
   automaticResume?: boolean
-
   pause?: AgentPauseV1
-
   prompt?: string
   summary?: string
   resume?: (resumeArgs: {
@@ -1045,12 +1038,12 @@ export async function deliverOperatorMessagesAfterStop(
   }
 }
 
+
 export async function runAsyncAgentLifecycle(args: {
   taskId: string
   abortController: AbortController
   makeStream: (
     onCacheSafeParams?: (params: CacheSafeParams) => void,
-
     onQueryProgress?: (event: unknown) => void,
   ) => AsyncGenerator<Message, void>
   metadata: {
@@ -1067,7 +1060,6 @@ export async function runAsyncAgentLifecycle(args: {
   rootSetAppState: SetAppState
   agentIdForCleanup: string
   enableSummarization: boolean
-
   automaticResume?: boolean
   replyTarget?: 'parent' | 'operator'
   getWorktreeResult: () => Promise<{
@@ -1125,7 +1117,6 @@ export async function runAsyncAgentLifecycle(args: {
     for await (const message of stream) {
       accumulated.push(message)
       emitBackgroundAgentRows(toolUseContext.toolUseId, message)
-
       let retaining = false
       rootSetAppState(prev => {
         const task = prev.tasks[taskId]
@@ -1207,7 +1198,6 @@ export async function runAsyncAgentLifecycle(args: {
         settleFrame: !noticeFollows,
       })
       closeOverloadEpisode(taskId)
-
       try {
         const stateReader =
           toolUseContext.getAppState ??
@@ -1221,7 +1211,6 @@ export async function runAsyncAgentLifecycle(args: {
               NonNullable<ToolUseContext['getAppState']>
             >
           })
-
         const queuedTask = stateReader().tasks[taskId]
         const pending = isLocalAgentTask(queuedTask) ? [...(queuedTask.pendingMessages ?? [])] : []
         const operator = peekOperatorMessages(queuedTask)
@@ -1270,7 +1259,6 @@ export async function runAsyncAgentLifecycle(args: {
           status: windowPause !== null || overload !== null ? 'paused' : declined ? 'failed' : 'completed',
           finalText: finalMessage ?? '',
           usage: {
-
             totalTokens: getTokenCountFromTracker(tracker),
             toolUseCount: result.totalToolUseCount,
             durationMs: result.totalDurationMs,
@@ -1285,9 +1273,7 @@ export async function runAsyncAgentLifecycle(args: {
       taskId,
       description,
       status: declined ? 'failed' : 'completed',
-
       ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated), lastCalls: lastToolCallsOf(accumulated) } : {}),
-
       ...(windowPause !== null
         ? {
             statusWord: 'paused',
@@ -1301,7 +1287,6 @@ export async function runAsyncAgentLifecycle(args: {
           }
         : {}),
       setAppState: rootSetAppState,
-
       controller: args.abortController,
       replyTarget: args.replyTarget,
       finalMessage,
@@ -1318,13 +1303,11 @@ export async function runAsyncAgentLifecycle(args: {
   } catch (error) {
     if (error instanceof AbortError) {
       stopSummarization?.()
-
       const stopReason = agentStopReasonOf(args.abortController.signal.reason)
       const stopStatusWord = agentStopStatusWordOf(args.abortController.signal.reason)
       killAsyncAgent(taskId, rootSetAppState, stopReason, args.abortController)
       closeOverloadEpisode(taskId)
       const worktreeResult = await getWorktreeResult()
-
       await flushSessionStorage()
       const partialResult = extractPartialResult(accumulated)
       const usage = {
@@ -1360,7 +1343,6 @@ export async function runAsyncAgentLifecycle(args: {
       return
     }
     stopSummarization?.()
-
     const errMsg = errorMessage(error)
     const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
     const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
@@ -1400,7 +1382,6 @@ export async function runAsyncAgentLifecycle(args: {
       ...worktreeResult,
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
-
     const budgetCut = recoveryBudgetCutOf(error)
     if (overload !== null) {
       armOverloadProbe({ taskId, description, registration: args.abortController, toolUseContext, rootSetAppState, canUseTool: args.canUseTool, model: metadata.resolvedAgentModel, pause: overload.pause, afterDeath: true })
@@ -1419,7 +1400,6 @@ export async function runAsyncAgentLifecycle(args: {
     }
   } finally {
     stopSummarization?.()
-
     try {
       const { clearInvokedSkillsForAgent } = await import(
         '../../bootstrap/state.js'

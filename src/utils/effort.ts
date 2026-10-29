@@ -17,6 +17,7 @@ import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings } from './settings/settings.js'
 import { sessionThinkingEnabled } from './thinking.js'
 
+
 export type { EffortLevel }
 export type EffortValue = EffortLevel | number
 
@@ -25,9 +26,7 @@ export { EFFORT_LEVELS }
 export { modelOffersEffortLevel, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort, getMaxSupportedEffortLevel }
 
 const FIRST_PARTY_DEFAULT_LEVEL: EffortLevel = 'high'
-
 const EXTERNAL_DEFAULT_LABEL = 'default'
-
 export const NO_EFFORT_CONTROL_LABEL = 'no effort control'
 
 const ALIASES: Record<string, EffortLevel> = {
@@ -93,6 +92,7 @@ export function getEffortEnvOverride(): EffortLevel | null | undefined {
   return describeEffortEnvOverride().override
 }
 
+
 const agentEffortWords = new Map<string, EffortValue>()
 
 export function noteAgentEffortWord(agentId: string, word: EffortValue | undefined): void {
@@ -151,15 +151,12 @@ export type EffortResolution = {
   readonly adjustedFrom?: EffortLevel
   readonly providerVocabulary?: readonly string[]
   readonly providerDefault?: string
-
   readonly suppressedBy?: 'thinking-off'
-
   readonly flooredBy?: 'thinking-off'
 }
 
 export type EffortTruthContext = {
   readonly thinkingEnabled?: boolean
-
   readonly agentId?: string
 }
 
@@ -225,7 +222,6 @@ function resolveEffortTruthWithEnv(
 
     if (gptView.state === 'live') {
       const vocabulary = gptView.vocabulary
-
       const fallback = wireEffortForListDefault(gptView.defaultEffort, vocabulary)
       const wire =
         request === undefined ? fallback : (nearestSupportedWireEffort(request, vocabulary) ?? fallback)
@@ -247,7 +243,6 @@ function resolveEffortTruthWithEnv(
       })
     }
     if (gptView.state === 'known-empty') {
-
       return freeze({
         model,
         catalogue: 'gpt-known-empty',
@@ -264,7 +259,6 @@ function resolveEffortTruthWithEnv(
         ...(gptView.defaultEffort !== undefined ? { providerDefault: gptView.defaultEffort } : {}),
       })
     }
-
     return freeze({
       model,
       catalogue: gptView.state === 'unstated' ? 'gpt-unstated' : 'gpt-unavailable',
@@ -391,6 +385,7 @@ function resolveEffortTruthWithEnv(
   })
 }
 
+
 export type EffortAdjustedV1 = {
   model: string
   name: string
@@ -415,6 +410,7 @@ export function effortAdjustedReceiptLine(adjusted: EffortAdjustedV1): string {
     ? `effort ${adjusted.asked} is not served on ${adjusted.name} today — sent ${adjusted.sent}`
     : `effort ${adjusted.asked} is not served on ${adjusted.name} today — no effort key was sent (the model default applies)`
 }
+
 
 export function resolveAppliedEffort(
   model: string,
@@ -483,13 +479,13 @@ export function convertEffortValueToLevel(v: EffortValue): EffortLevel {
   return FIRST_PARTY_DEFAULT_LEVEL
 }
 
+
 const FAMILY_PROBES: Array<{ display: string; probes: string[] }> = [
   { display: 'Opus 4.5+', probes: ['claude-opus-4-5'] },
   { display: 'Opus 4.7+', probes: ['claude-opus-4-7'] },
   { display: 'Sonnet 4.6+', probes: ['claude-sonnet-4-6'] },
   { display: 'Sonnet 5', probes: ['claude-sonnet-5'] },
   { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1'] },
-
   { display: 'GPT', probes: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
 ]
 
@@ -544,6 +540,7 @@ function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
   return { ...DEFAULT_OPUS_EFFORT_CONFIG }
 }
 
+
 type LaunchFamily = 'opus47' | 'opus48' | 'fable5' | 'fable51' | 'sonnet55' | 'sonnet5' | 'opus55' | 'opus5'
 
 const LAUNCH_FAMILIES: Array<{ substring: string; flag: LaunchFamily; launchDefault: EffortLevel }> = [
@@ -595,27 +592,21 @@ export function getLaunchDefaultEffort(model: string): EffortLevel {
 }
 
 export function getDefaultEffortForModel(model: string): EffortValue | undefined {
-
   const gptDefault = gptModelDefaultEffort(model)
   if (gptDefault !== undefined) return gptDefault
-
   {
     const view = gptEffortVocabularyView(model)
     if (view.state !== 'not-gpt') return undefined
     if (isGlmModelId(model)) return undefined
   }
-
   if (isLaunchEffortPinned(model)) return getLaunchDefaultEffort(model)
-
   if (model.toLowerCase().includes('opus-4-6')) {
     if (isProSubscriber()) return 'medium'
     if ((isMaxSubscriber() || isCrewSubscriber() || isEnterpriseSubscriber()) && getOpusDefaultEffortConfig().enabled) {
       return 'medium'
     }
   }
-
   if (modelSupportsEffort(model)) return 'medium'
-
   return undefined
 }
 

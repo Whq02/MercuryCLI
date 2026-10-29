@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -108,7 +107,6 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     { value: 'fable[1m]', label: 'Fable 5.1', description: 'x' },
     { value: 'opus[1m]', label: 'Opus', description: 'x' },
   ]
-
   check(
     "dedup: a resumed literal 'claude-fable-5-1[1m]' resolves to the existing fable[1m] row",
     resolvesToExistingOption(rows, 'claude-fable-5-1[1m]') === true,

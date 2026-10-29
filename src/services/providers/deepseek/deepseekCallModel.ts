@@ -25,7 +25,6 @@ export const deepseekLaneProfile: CompatLaneProfile = {
     const failure = providerKeyCommandFailure('deepseek')
     return failure ? `the configured ${failure.message} — no DeepSeek API key detected.` : 'no DeepSeek API key detected — /logins deepseek stores one; DEEPSEEK_API_KEY works too.'
   },
-
   authRemedy:
     'set a valid DEEPSEEK_API_KEY, or store a new key via /logins deepseek (platform.deepseek.com issues them).',
   billingRemedy:

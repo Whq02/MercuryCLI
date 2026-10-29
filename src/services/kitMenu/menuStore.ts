@@ -12,9 +12,7 @@ export type KitDeltasShape = KitDeltasV1
 type KitWriteReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
 
 export interface KitMenuStore {
-
   read(workspaceDir: string): KitStates
-
   write(workspaceDir: string, row: KitRow, next: KitRowState): KitWriteReceipt
 }
 
@@ -89,7 +87,6 @@ export class RecordKitMenuStore implements KitMenuStore {
     } catch (error) {
       return { ok: false, reason: error instanceof Error ? error.message : String(error) }
     }
-
     const after = standingStateOf(this.read(workspaceDir), row)
     if (after !== next) return { ok: false, reason: `the record still reads ${after}` }
     return { ok: true, receipt: receiptFor(row, next, changed) }

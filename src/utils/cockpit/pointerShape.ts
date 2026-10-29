@@ -1,5 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
+
 type PointerShape = 'text' | 'default'
 
 function pointerShapeEnabled(): boolean {

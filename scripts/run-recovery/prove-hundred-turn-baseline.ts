@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -189,7 +188,6 @@ async function runTurn(n: number, shape: TurnShape): Promise<TurnEvidence> {
       uuid: nextUuid,
     } as never,
   })
-
   let r = await gen.next()
   while (!r.done) r = await gen.next()
   return { calls: call, toolRan, aborted: abortController.signal.aborted, abortedDuringStream }
@@ -215,7 +213,6 @@ for (let n = 1; n <= 100; n++) {
   if (shapeHolds(shape, evidence)) shapeRuns.set(shape, (shapeRuns.get(shape) ?? 0) + 1)
   else check(`turn ${n}: the ${shape} shape executed as named`, false, JSON.stringify(evidence))
   if (n % 20 === 0) {
-
     const live = plane
       .listExecutions(owner)
       .filter(rec => !['succeeded', 'failed', 'cancelled', 'indeterminate'].includes(rec.state))

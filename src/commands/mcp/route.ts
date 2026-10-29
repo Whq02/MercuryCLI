@@ -1,5 +1,6 @@
 import type { KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../services/engine-connector/types.js'
 
+
 type McpRouteArm = 'facts' | 'panel'
 
 export function mcpRouteArm(roster: McpRosterV1, screenClientCount: number): McpRouteArm {

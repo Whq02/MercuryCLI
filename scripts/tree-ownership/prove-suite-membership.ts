@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { census } from '../gate/prove-suite-class-census.ts'
@@ -24,13 +23,11 @@ console.log('============================================================')
 const orphans: string[] = []
 const staleExclusions: string[] = []
 let total = 0
-
 const everyRunnerText = readdirSync(SCRIPTS)
   .map(dir => join(SCRIPTS, dir, 'run-all.sh'))
   .filter(p => existsSync(p))
   .map(p => readFileSync(p, 'utf8'))
   .join('\n')
-
 const memberEnrolled = new Set<string>()
 for (const dir of readdirSync(SCRIPTS)) {
   const suffix = dir.endsWith('-drives') ? '-drives' : dir.endsWith('-boots') ? '-boots' : null
@@ -148,7 +145,6 @@ for (const dir of readdirSync(SCRIPTS)) {
   const runAll = join(SCRIPTS, dir, 'run-all.sh')
   if (!existsSync(runAll)) continue
   if (!readFileSync(runAll, 'utf8').includes('prove-*.ts')) continue
-
   let n = 0
   try {
     const entries = readdirSync(join(SCRIPTS, dir))

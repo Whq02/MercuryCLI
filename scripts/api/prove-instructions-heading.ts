@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/context.ts src/utils/userContextReminder.ts src/tools/AgentTool/runAgent.ts src/utils/attachments/userContext.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'

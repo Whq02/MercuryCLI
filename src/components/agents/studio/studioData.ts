@@ -36,9 +36,7 @@ export type StudioRow = {
   id: string
   kind: 'agent' | 'invalid'
   agent?: AgentDefinition
-
   invalid?: { path: string; error: string }
-
   shadowed?: boolean
 }
 
@@ -129,7 +127,6 @@ export function buildStudioRows(
 
   const query = opts.query.trim()
   if (query) {
-
     const haystacks = rows.map(
       (r, i) =>
         `${i} ${
@@ -143,7 +140,6 @@ export function buildStudioRows(
       .map(m => rows[Number(m.path.slice(0, m.path.indexOf(' ')))])
       .filter((r): r is StudioRow => r !== undefined)
   } else {
-
     rows = [...rows].sort((a, b) => {
       const rank = (r: StudioRow): number =>
         r.kind === 'invalid' ? 2 : r.shadowed ? 1 : 0

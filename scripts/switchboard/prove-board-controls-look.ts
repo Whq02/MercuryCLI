@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -38,10 +37,8 @@ interface Send {
   awaitText?: string
   minTick?: number
   awaitSettleTicks?: number
-
   awaitStableTicks?: number
   mark?: string
-
   requireAwait?: boolean
 }
 
@@ -51,7 +48,6 @@ seedFirstRun(scratch, [REPO])
 {
   const cfgPath = join(scratch, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
-
   cfg['switchboardCapacity'] = { askedAt: 1754000000000, allowed: true, recommendedSeats: 4 }
   cfg['customApiKeyResponses'] = { approved: ['fixture-key-000'], rejected: [] }
   writeFileSync(cfgPath, JSON.stringify(cfg))
@@ -102,7 +98,6 @@ writeFileSync(fixturePath, JSON.stringify(fixture))
 const sends: Send[] = [
   { data: 'run the overnight sweep', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
   { data: '\r', afterPrevTicks: 2 },
-
   { data: ESC, awaitText: "Past the machine's reading", requireAwait: true, awaitSettleTicks: 3, mark: 'seat-card' },
   { data: '\t', afterPrevTicks: 3 },
   { data: 'm', afterPrevTicks: 2, mark: 'live-legend' },
@@ -116,7 +111,6 @@ const sends: Send[] = [
 ]
 const out = join(OUT_DIR, 'board-controls-120x40.json')
 const cfgPath = join(scratch, 'vshot-cfg.json')
-
 writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 80, cols: 120, rows: 40, out }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
@@ -151,7 +145,6 @@ const mk = (label: string): string[] => marks.get(label) ?? []
 
 console.log('L1 — the seat-overload card + the 5/4· chip')
 check('the card is the STANDARD consent frame with the ruled title', has(mk('seat-card'), "Past the machine's reading"))
-
 check('the reading sentence is capacityCheck\'s own (never a bare number)', /the consented capacity reading from 2025-07-31: 4[\s\S]{0,160}?\bseats \(stored at the first-boot ask\)/.test(mk('seat-card').join('\n')))
 check('the over line names the next session over the reading', has(mk('seat-card'), 'session 5 over'))
 check('the No leg dispatches nothing, said plainly', has(mk('seat-card'), 'No, dispatch nothing (esc)'))

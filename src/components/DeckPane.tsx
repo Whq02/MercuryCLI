@@ -48,6 +48,7 @@ import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
 
+
 const MAX_TASKS = 4
 
 export function deckPaintsDock(cols: number): boolean {
@@ -56,21 +57,15 @@ export function deckPaintsDock(cols: number): boolean {
 
 export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tok = useMercuryTokens()
-
   const { accent: TERRA } = useSessionAccent()
-
   const cols = useTerminalSize().columns
-
   const compact = deckPaintsDock(cols)
-
   const servedModel = useFocusedServedModel()
   const processModel = useEngineModel()
   const rawModel = servedModel ?? processModel
-
   const model = useDisplayedSessionModel().compact
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
-
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
   const costFigure = unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`
   const added = usageFacts.totalLinesAdded
@@ -78,7 +73,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
 
   const vitals = useVitals()
   const git = vitals.git
-
   const tasks: readonly MissionRowV1[] | null = vitals.version === 0 ? null : vitals.tasks
   const fleet = {
     state: vitals.fleet.state as SnapshotState,
@@ -96,30 +90,22 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           killed: ownTrace.data.killed,
         }
       : { state: (ownTrace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
-
   const daemon = daemonSnapshot()
   const daemonUpSec = daemon.state === 'live' ? Number(daemon.reason?.match(/up (\d+)s/)?.[1]) : NaN
-
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
-
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
-
   useProviderUsageOnShow(true)
   const sourceUsage = activeSourceUsage()
-
   const stripFirst = sourceUsage.windows[0]
   const stripSecond =
     sourceUsage.binding !== undefined && stripFirst !== undefined && sourceUsage.binding.window.key !== stripFirst.key
       ? sourceUsage.binding.window
       : sourceUsage.windows[1]
-
   const now = useNowTick(30_000)
   const resetIn = (w: { resetsAtMs: number | null }): string | undefined =>
     w.resetsAtMs != null ? formatCountdown(w.resetsAtMs - now) : undefined
-
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const ctx = getLiveContextUsage()
-
   const ctxUsedK =
     ctx.usedTokens != null
       ? Math.round(ctx.usedTokens / 1000)
@@ -128,14 +114,12 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         : 0
   const ctxWinLabel = contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)
   const ctxRule = localWindowRuleWords(rawModel, ctx.window)
-
   const agent = agentStateSnapshot()
 
   const all = tasks ?? []
   const open = all.filter(t => t.status !== 'completed')
   const completed = all.filter(t => t.status === 'completed')
   const inProg = open.filter(t => t.status === 'in_progress')
-
   const allDone = all.length > 0 && open.length === 0
   const ordered = [
     ...inProg,
@@ -143,15 +127,12 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
     ...open.filter(t => t.status !== 'in_progress'),
   ]
   const shown = ordered.slice(0, MAX_TASKS)
-
   const openIds = new Set(open.map(t => t.id))
   const blockedCount = open.filter(
     t => (t.blockedBy ?? []).some(id => openIds.has(id)),
   ).length
-
   const ledger = new Map<string, { done: number; total: number }>()
   for (const t of all) {
-
     const lk = t.ledger ?? 'session'
     const g = ledger.get(lk) ?? { done: 0, total: 0 }
     g.total++
@@ -190,8 +171,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       ) : (
         <Text color={STATE_STYLE[trace.state].color}>{STATE_STYLE[trace.state].glyph}</Text>
       )}
-      {
-}
+      {}
       {trace.killed > 0 ? <Text color={tok.failure}>{` ${GLYPH.fail}${trace.killed}`}</Text> : null}
       {}
       {killCount > 0 ? <Text color={tok.failure}>{` · ${GLYPH.fail}kill ${killCount}`}</Text> : null}
@@ -207,14 +187,12 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       paddingX={1}
       width="100%"
     >
-      {
-}
+      {}
       {compact ? (
         (() => {
           const denseRow = (
             <Text wrap="truncate-end">
-              {
-}
+              {}
               <Crab />
               <Text color={tok.textMuted}> · </Text>
               <Text color={tok.textSecondary}>{model}</Text>
@@ -227,8 +205,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
                   {git.isClean ? null : <Text color={tok.warning}>*</Text>}
                 </>
               ) : null}
-              {
-}
+              {}
               {ctx.window > 0 && ctx.usedPct != null ? (
                 <>
                   <Text color={tok.textMuted}> · ctx </Text>
@@ -238,7 +215,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
             </Text>
           )
-
           return (
             <Box flexDirection="row">
               <Box flexShrink={0} marginRight={1}>
@@ -265,8 +241,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         </Text>
       )}
 
-      {
-}
+      {}
       {!compact ? (
       <Text wrap="truncate-end">
         {git === null ? (
@@ -281,8 +256,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
             ) : (
               <Text color={tok.warning}>uncommitted</Text>
             )}
-            {
-}
+            {}
             {git.unpushedCount > 0 ? (
               <Text color={tok.textSecondary}>{` · ↑${git.unpushedCount}`}</Text>
             ) : !git.isHeadOnRemote ? (
@@ -302,7 +276,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           </>
         ) : null}
         {((): React.ReactNode => {
-
           const age = stripFirst !== undefined ? usageAgeTail(stripFirst, now) : undefined
           if (age === undefined || stripFirst === undefined) return null
           return (
@@ -313,7 +286,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           )
         })()}
         {((): React.ReactNode => {
-
           if (sourceUsage.limited === undefined) return null
           return (
             <Text>
@@ -325,8 +297,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       </Text>
       ) : null}
 
-      {
-}
+      {}
       {!compact ? (
       <Text wrap="truncate-end">
         <Text color={tok.textMuted}>{`tasks (${completed.length}/${all.length}) `}</Text>
@@ -351,7 +322,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               <Text key={i}>
                 {i > 0 ? <Text color={tok.textMuted}> · </Text> : null}
                 {isActive ? (
-
                   <WorkingGlyph color={glyphCol} />
                 ) : (
                   <Text color={glyphCol}>{glyph}</Text>
@@ -375,8 +345,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       </Text>
       ) : null}
 
-      {
-}
+      {}
       {!compact && ledgerGroups.length > 1 ? (
         <Text wrap="truncate-end">
           <Text color={tok.textMuted}>ledger  </Text>
@@ -396,8 +365,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         </Text>
       ) : null}
 
-      {
-}
+      {}
       {!compact && ctx.window > 0 ? (
         <Text wrap="truncate-end">
           <Text color={tok.textMuted}>{'ctx '}</Text>
@@ -417,8 +385,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
         </Text>
       ) : null}
 
-      {
-}
+      {}
       {compact ? null : opsRow}
 
     </Box>

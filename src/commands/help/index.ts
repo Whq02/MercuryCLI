@@ -5,7 +5,6 @@ const help = {
   type: 'local-jsx',
   name: 'help',
   description: 'Browse every command Mercury answers to',
-
   get immediate() {
     return shouldNavCommandBeImmediate()
   },

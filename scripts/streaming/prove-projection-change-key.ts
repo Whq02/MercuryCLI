@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -38,7 +37,6 @@ section('§2 THE DEFECT PIN, live: two publishes, one mtime, two changes')
   const feed = new ProjectionFeed(dir, path, () => {
     changes++
   })
-
   let publishes = 0
   const publish = (bytes: string, mtime?: Date): void => {
     const tmp = `${path}.${process.pid}.${++publishes}.tmp`
@@ -56,18 +54,15 @@ section('§2 THE DEFECT PIN, live: two publishes, one mtime, two changes')
   }
   feed.start()
   check('an absent file is no change', changes === 0)
-
   const tie = new Date(Math.floor(Date.now() / 1000) * 1000)
   publish('{"text":"Hello"}\n', tie)
   check('the first publish fires onChange', await waitFor(1), `changes ${changes}`)
   const first = statSync(path)
-
   publish('{"text":null}\n', tie)
   const second = statSync(path)
   check('CONTROL (the disease\'s condition): the pair carries ONE mtime on this filesystem', second.mtimeMs === first.mtimeMs, `${first.mtimeMs} vs ${second.mtimeMs}`)
   check('…and the sizes differ (the term that tells the pair apart)', second.size !== first.size, `${first.size} vs ${second.size}`)
   check('THE DEFECT PIN: the same-mtime, different-size publish fires onChange', await waitFor(2), `changes ${changes}`)
-
   publish('{"text":"Hi"}\n', tie)
   const third = statSync(path)
   check('fixture: the third publish is equal-size and same-tick', third.size === second.size && third.mtimeMs === second.mtimeMs, `${second.size}/${second.mtimeMs} vs ${third.size}/${third.mtimeMs}`)
@@ -76,7 +71,6 @@ section('§2 THE DEFECT PIN, live: two publishes, one mtime, two changes')
   } else {
     console.log('  [NOTE] this filesystem reused the inode across the rename — the inode term is inert here (not a failure)')
   }
-
   const before = changes
   await new Promise(r => setTimeout(r, 900))
   check('no publish, no change (the heartbeat is idempotent per key)', changes === before, `changes ${changes} vs ${before}`)

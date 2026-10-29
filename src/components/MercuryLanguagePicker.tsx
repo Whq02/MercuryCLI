@@ -7,8 +7,8 @@ import { GLYPH, displayWidth, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
-const FIELD_WIDTH = 60
 
+const FIELD_WIDTH = 60
 const SUGGESTIONS = ['English', 'Español', '日本語', 'Français', 'Deutsch', '中文']
 
 export function MercuryLanguagePicker({
@@ -44,7 +44,6 @@ export function MercuryLanguagePicker({
         setValue(v => [...v].slice(0, -1).join(''))
         return
       }
-
       if (input && !key.ctrl && !key.meta && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow) {
         setValue(v => v + input)
       }

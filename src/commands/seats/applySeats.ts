@@ -10,6 +10,7 @@ import {
   type SeatCeilingFacts,
 } from '../../services/switchboard/capacityCheck.js'
 
+
 export function parseSeatsArg(input: string): number | 'auto' | undefined {
   const s = input.trim().toLowerCase()
   if (s === '') return undefined

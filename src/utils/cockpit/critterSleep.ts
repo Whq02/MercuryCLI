@@ -1,3 +1,4 @@
+
 import { getSessionId, onSessionSwitch } from '../../bootstrap/state.js'
 import {
   listExecutions,
@@ -24,9 +25,7 @@ export function critterSleepMode(): 'off' | 'forced' | 'live' {
 }
 
 interface AgentActivity {
-
   liveNow: boolean
-
   lastEventTs: number
 }
 
@@ -65,19 +64,16 @@ export function isAsleepAt(
   return now - lastActivityTs(s, baselineTs, now, agents) >= SLEEP_AFTER_MS
 }
 
+
 const listeners = new Set<() => void>()
 let unsubSignals: (() => void) | null = null
 let unsubExec: (() => void) | null = null
 let unsubClock: (() => void) | null = null
 let unsubSwitch: (() => void) | null = null
-
 let baselineTs = Date.now()
-
 let lastAgentEventTs = 0
-
 let sleepSince = 0
 let sessionKey = ''
-
 let swayAnchor: SwayAnchor = { phase: 0, at: 0 }
 
 function emit(): void {
@@ -118,7 +114,6 @@ function recompute(): void {
   if (mode === 'off') next = 0
   else if (mode === 'forced') next = sleepSince || now
   else {
-
     const agents: AgentActivity = {
       liveNow: agentsActiveNow() || daemonCrewLivenessSync().workersActive,
       lastEventTs: lastAgentEventTs,
@@ -126,7 +121,6 @@ function recompute(): void {
     next = isAsleepAt(turnSignals(), baselineTs, now, agents) ? sleepSince || now : 0
   }
   if (next !== sleepSince) {
-
     swayAnchor = { phase: swayPhaseAt(now, sleepSince !== 0, swayAnchor), at: now }
     sleepSince = next
     armClock()
@@ -161,7 +155,6 @@ export function subscribeCritterSleep(cb: () => void): () => void {
   listeners.add(cb)
   if (listeners.size === 1) {
     unsubSignals = subscribeTurnSignals(() => recompute())
-
     unsubExec = subscribeExecutionEvents(ev => {
       const record = 'record' in ev.event ? ev.event.record : undefined
       if (!record || !AGENT_EXECUTION_KINDS.has(record.spec.kind)) return
@@ -174,7 +167,6 @@ export function subscribeCritterSleep(cb: () => void): () => void {
   return () => {
     listeners.delete(cb)
     if (listeners.size === 0) {
-
       unsubSignals?.()
       unsubSignals = null
       unsubExec?.()

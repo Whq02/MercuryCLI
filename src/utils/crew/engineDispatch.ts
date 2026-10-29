@@ -181,7 +181,6 @@ type EngineProvider =
 
 export interface EngineDispatch {
   backend: EngineProvider
-
   model: string
   displayLabel: string
   note?: string
@@ -223,7 +222,6 @@ export function providerUnavailableRefusal(provider: EngineProvider, reason: str
 }
 
 async function requireProviderAvailable(provider: EngineProvider): Promise<void> {
-
   await refreshProviderDiscovery(provider)
   const snapshot = buildProviderSnapshot()
   const entry = snapshot.providers.find(p => p.id === provider)
@@ -277,7 +275,6 @@ async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
     }
   }
   if (evaluated.why.reason === 'catalogue-unavailable') {
-
     const pinned = GPT_DISPLAY_PINS.find(pin => pin.id === id.trim().toLowerCase())
     if (!pinned) {
       throw new Error(
@@ -321,7 +318,6 @@ async function resolveHuggingfaceExactModel(id: string): Promise<EngineDispatch>
     }
     return { backend: 'huggingface', model: `${HUGGINGFACE_MODEL_PREFIX}${live.id}${slug.includes(':') ? slug.slice(slug.lastIndexOf(':')) : ''}`, displayLabel: live.id }
   }
-
   const verdict = canonicalWireModelId(id)
   if (!verdict.ok) throw new Error(verdict.reason)
   return { backend: 'huggingface', model: id, displayLabel: `${slug} (catalogue unreachable — the router validates at dispatch)` }
@@ -477,7 +473,6 @@ async function resolveOpenrouterExactModel(id: string): Promise<EngineDispatch> 
     }
     return { backend: 'openrouter', model: `${OPENROUTER_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
   }
-
   const verdict = canonicalWireModelId(id)
   if (!verdict.ok) throw new Error(verdict.reason)
   return { backend: 'openrouter', model: id, displayLabel: `${slug} (catalogue unreachable — the router validates at dispatch)` }
@@ -532,7 +527,6 @@ async function resolveLocalExactModel(id: string): Promise<EngineDispatch> {
 export async function resolveEngineDispatch(
   modelParam: string | undefined,
 ): Promise<EngineDispatch | null> {
-
   if (isEngineDispatchModel(modelParam)) {
     if (modelParam === 'gpt') {
       await requireProviderAvailable('openai')
@@ -606,7 +600,6 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('fireworks')
       return resolveFireworksClassDispatch()
     }
-
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
     if (!first) {
@@ -616,7 +609,6 @@ export async function resolveEngineDispatch(
     }
     return { backend: 'openai-compat', model: first, displayLabel: first }
   }
-
   await readLiveListsForBareId(modelParam)
   if (isExactEngineModelId(modelParam)) {
     const id = modelParam!.trim()
@@ -746,7 +738,6 @@ export async function resolveEngineDispatch(
         return { backend: 'openai-compat', model: id, displayLabel: `${endpoint.wireId} (${endpoint.endpoint.label})` }
       }
       const named = compatSlotModelIds()
-
       if (named.length > 0 && !named.includes(id.toLowerCase())) {
         throw new Error(
           `compat model '${id}' is not in the slot's named list (${named.join(', ')}) — name one of them (mercury://models lists them), or the operator extends MERCURY_COMPAT_MODELS or the compatProvider config block; never switch to another provider on your own.`,
@@ -759,7 +750,6 @@ export async function resolveEngineDispatch(
         displayLabel: `${id.slice(COMPAT_MODEL_PREFIX.length)} (${label})`,
       }
     }
-
     await requireProviderAvailable('zai')
     return resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)
   }

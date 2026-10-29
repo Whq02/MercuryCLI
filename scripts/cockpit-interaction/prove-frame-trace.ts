@@ -22,9 +22,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'hz-ftrace-'))
 t.section('§1 — the schema is numbers + identifiers by construction')
 {
   const src = readFileSync('src/ink/root/frame-trace.ts', 'utf8')
-
   const iface = src.slice(src.indexOf('export interface FrameTraceRow'), src.indexOf('const RING_CAP'))
-
   const ALLOWED = new Set([
     'lastClearReason: string | null',
     'actionId: string | null',
@@ -106,7 +104,6 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       out,
       cwd: process.cwd(),
       sends: [
-
         { requireAwait: true, awaitText: '↑↓ choose', awaitPattern: '↑↓ choose', awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
         { requireAwait: true, awaitText: ' ready · ', awaitPattern: ' ready · [\\s\\S]*Type a prompt, start a slash command', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
         { requireAwait: true, awaitText: '│❯ x ', awaitPattern: '│❯ x ', awaitSettleTicks: 2, mark: 'typed-x', data: '\x7f' },
@@ -142,14 +139,12 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
     t.check('the journey completed (vshot exit 0)', r.status === 0, `exit=${r.status}`)
     t.check('refusals: no navigation send runs before its product-ready mark', marks.join(',') === 'boot-ready,chat-ready,typed-x,trace-requested', marks.join(','))
     if (r.status !== 0) console.log(r.stdout, r.stderr, text)
-
     t.check(
       'the frames section renders the sample count over the cap and the live span',
       new RegExp(`n=\\d+/${FRAME_TRACE_RING_CAP} · last \\d+(?:\\.\\d+)?[sm] · p50 `).test(text),
     )
     t.check('the slowest frame is stage-attributed', text.includes('slowest ') && text.includes('compose '))
     t.check(
-
       'keystroke attribution rendered (classified label, no content)',
       text.includes('input→frame') && /typed|chat:submit|chord/.test(text) && !text.includes("'x'"),
     )

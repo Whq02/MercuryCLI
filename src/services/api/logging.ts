@@ -6,8 +6,10 @@ import { logError } from '../../utils/log.js'
 import { extractConnectionErrorDetails } from './errorUtils.js'
 import { EMPTY_USAGE } from './emptyUsage.js'
 
+
 export { EMPTY_USAGE }
 export type { NonNullableUsage }
+
 
 type LogAPIErrorParams = {
   error: unknown
@@ -45,7 +47,6 @@ export function logAPIDuration({
   startIncludingRetries: number
 }): void {
   const now = Date.now()
-
   addToTotalDurationState(now - startIncludingRetries, now - start)
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
@@ -40,11 +39,9 @@ section('§2 current→consolidated transition: no double report')
   check('consolidated', r.consolidated, r.reason)
   const afterDoc = grepAll('primary region', { dir })
   check('exactly one hit after consolidation (doc)', afterDoc.length === 1 && afterDoc[0]!.slug === 'deploy', JSON.stringify(afterDoc))
-
   appendObservation({ text: 'primary region is fra', source: 'operator', topicHint: 'deploy' }, dir)
   const both = grepAll('primary region', { dir })
   check('re-observed identical text is NOT double-reported', both.length === 1 && both[0]!.slug === 'deploy', JSON.stringify(both))
-
   appendObservation({ text: 'primary region failover is ams', source: 'operator', topicHint: 'deploy' }, dir)
   const mixed = grepAll('primary region', { dir })
   check('new fact appears beside doc hits, labeled', mixed.length === 2 && mixed.some(h => h.slug === PENDING_SLUG), JSON.stringify(mixed))

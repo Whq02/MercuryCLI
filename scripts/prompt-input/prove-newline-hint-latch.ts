@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +24,6 @@ console.log('============================================================')
 
 const caps = await import('../../src/ink/session/capabilities.ts')
 const { getNewlineInstructions } = await import('../../src/components/PromptInput/utils.ts')
-
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 

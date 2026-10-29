@@ -1,17 +1,12 @@
+
 export const SHIMMER_TICK_MS = 80
-
 export const SHIMMER_GREETING_MS = 10_000
-
 const SHIMMER_EASE_IN_MS = 350
-
 export const SHIMMER_EASE_OUT_MS = 1500
-
 const SHIMMER_LEG_MS_PER_CELL = 55
 const SHIMMER_LEG_MIN_MS = 1300
 const SHIMMER_LEG_MAX_MS = 3200
-
 const SHIMMER_LIFT = 0.85
-
 export const SHIMMER_GAIN_LEVELS = 5
 
 export function shimmerRadius(spanCells: number): number {
@@ -26,11 +21,8 @@ function shimmerLegMs(spanCells: number): number {
 }
 
 export type ShimmerPhase = {
-
   peakCell: number
-
   gainLevel: number
-
   radiusCells: number
 }
 

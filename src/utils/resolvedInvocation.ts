@@ -1,3 +1,4 @@
+
 interface ResolvedInvocation {
   executablePath: string
   args: string[]
@@ -17,7 +18,6 @@ export function parseLegacyCommandString(raw: string, cwd?: string): ResolvedInv
       continue
     }
     if (quote === '"') {
-
       if (c === '"') quote = null
       else cur += c
       continue

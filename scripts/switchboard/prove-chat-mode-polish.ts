@@ -78,9 +78,7 @@ t.section('§E — the boot face per twin: no row in --chat; the live-view door 
   const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')
   t.check('the m phrase rides beside a strip hint, stands alone when the strip has no move, and is absent with the setting off', faceKeyMapHintOf('⇧→ concourse', true) === '⇧→ concourse · m to select model-default' && faceKeyMapHintOf('', true) === 'm to select model-default' && faceKeyMapHintOf('⇧→ concourse', false) === '⇧→ concourse' && faceKeyMapHintOf('', false) === '')
   t.check('the face reserves its last row for the key-map row wherever the block would otherwise fill the terminal (every world), and composes over the full height everywhere else', face.includes("let fit = composeOver(plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows);") && face.includes("if (keyMapHint !== '' && fit.faceRows === rows && fit.top + fit.composed.lines.length > rows - 1) {") && face.includes('fit = composeOver(Math.max(1, rows - 1));'))
-
   t.check("Projects / Continue / Resume ride the estate's own doors, none the concourse (the boot menu is the solo road — C4/B1: Projects never dims)", face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('setResumeOpen(true)') && face.includes('hop.focusResumedSession(p.sessionId') && !face.includes('projectsDim') && read('src/components/BootResumeScreen.tsx').includes('hop.focusResumedSession(String(sessionId)'))
-
   const core = read('assets/splash/splash-core.mjs')
   t.check('the shared core composes no concourse row for a null (both hosts)', core.includes('if (facts.concourse) {') && core.includes("key: 'concourse',"))
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
@@ -94,7 +92,6 @@ t.section('§E — the boot face per twin: no row in --chat; the live-view door 
 t.section('§F — the sweep: board vocabulary follows the world or falls silent')
 {
   const tips = read('src/services/tips/tipRegistry.ts')
-
   t.check('the two board tips (concourse · workflows) stay silent in the plain world; the retired seat-board tip is gone', (tips.match(/async isRelevant\(\) \{\n\s+return !chatOnlyBoot\(\)\n\s+\}/g) ?? []).length === 2 && tips.includes("id: 'concourse-board'") && tips.includes("id: 'workflows-board'") && !tips.includes("id: 'party-seats'") && !tips.includes('/party'))
   t.check('the /sessions tip stays in every world (the plain CLI\'s own)', /id: 'sessions-switch',[\s\S]*?async isRelevant\(\) \{\n\s+return true/.test(tips))
   const settings = read('src/components/BootSettingsScreen.tsx')
@@ -105,7 +102,6 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
   t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? <Text color={tokens.textMuted}>/workflows opens the run board</Text> : null") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it'}`") && read('src/components/tasks/RunDetailPane.tsx').includes("nothing to ${verb}${chatOnlyBoot() ? '' : '; R on the board resumes it from disk'}`"))
   t.check('the substrate catalogue lists /trace always-on in every world and names no concourse-only door', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on' }") && !/name: '[^']*\/(deck|fleet)/.test(read('src/utils/cockpit/substrateSnapshot.ts')))
-
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']
   for (const f of gatedFiles) {
     const src = read(f)
@@ -128,20 +124,16 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   const born = read('src/services/switchboard/bornSession.ts')
   t.check('THE ONE BIRTH DOOR reads the record through the precedence', born.includes('const screen = screenBirthModel()') && born.includes('const resolved = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const face = read('src/components/BootSplashScreen.tsx')
-
   t.check("the face's births pass NO explicit model — the door decides (New Session and the Projects birth, the one flip-first road)", !face.includes('model: getEngineModel()') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }))'))
   t.check("the board's tab passes none — the door decides; the screen births no session of its own", read('src/components/concourse/ConcourseRoute.tsx').includes('bornSession({ workspaceDir: ground })') && !read('src/screens/Chat.tsx').includes('bornSession('))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
   t.check("THE RESUME DOOR reads the record's posture when its caller passes none (the face's Continue, the picker, the parked row); the session's model and effort stay its own", hop.includes('opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined') && !hop.includes('model: bootBirthFacts'))
   const seam = read('src/services/switchboard/bootBirthFacts.ts')
-
   const seamRuntime = seam.replace(/^import type .*$/gm, '')
   t.check("the record's writers touch nothing running: no connector, no daemon, no RPC in the seam — and the settings write door is the SAME record", !seamRuntime.includes('engine-connector') && !seamRuntime.includes('daemon/') && !seamRuntime.includes('daemonControlRpc') && seam.includes('export const setNextSessionFacts = setBootBirthFacts'))
-
   const menu = await import('../../src/substrate/startupMenu.ts')
   const profPath = join(SCRATCH, 'boot-env.json')
   const a = menu.resolveEffectiveSettingsSnapshot({ sessionId: 's', path: profPath, env: {} })
-
   const menuRow = (menu.STARTUP_MENU as ReadonlyArray<{ env: string }>).find(r => menu.menuRowChoices(r as never).some(c => c.value !== null))
   t.check('a living menu row with a choice exists to carry the per-admission law', menuRow !== undefined, 'STARTUP_MENU offers no row with a choice')
   const choice = menuRow ? (menu.menuRowChoices(menuRow as never).find(c => c.value !== null)!.value as string) : ''
@@ -151,7 +143,6 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   const warm = read('src/daemon/warmRunner.ts')
   t.check('the warm pool never serves a stale snapshot (the settings-drift guard retires it; admission spawns fresh)', warm.includes('currentSnapshotId(args.workspaceId) !== entry.snapshotId') && warm.includes("retireWarmRunner(args.workspaceId, 'settings-drift', deps)"))
   t.check('the daemon resolves the snapshot per admission (the claim and the cold road both)', (read('src/daemon/concourseWorkers.ts').match(/resolveEffectiveSettingsSnapshot\(\{ sessionId/g) ?? []).length >= 2)
-
   const route = await import('../../src/context/surfaceRoute.ts')
   const plain = { concourseEnabled: true, chatBoot: true, chatPresent: false }
   t.check('--chat before a session: the menu alone; shift+→ moves nothing (the dim hint, no commit)', route.stripStops(plain).join(',') === 'boot-settings' && JSON.stringify(route.stripMove('boot-settings', 'right', route.stripStops(plain))) === JSON.stringify({ to: null, hint: 'no chat open' }))

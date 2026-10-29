@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import crypto from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,7 +26,6 @@ check('WorkflowHookDeps carries args (the doc comment sits above the field)', /i
 check('executor passes opts.args into makeHooks (no trailing comment, the argument stays)', /opts\.makeHooks\(\{[\s\S]{0,800}args: opts\.args,/.test(exec))
 
 section('behavioural mirror: seed + chain-key derivation (real crypto)')
-
 const canonicalize = (o: unknown): unknown => {
   if (typeof o === 'function') return undefined
   if (Array.isArray(o)) return o.map(canonicalize)
@@ -50,7 +48,6 @@ check('undefined args ⇒ "" seed (argless workflows: byte-identical resume)', a
 check('present args ⇒ non-empty seed', argsSeed({ q: 'find bugs', n: 3 }).startsWith('args:'))
 check('seed is key-order-independent (stable across runs)', argsSeed({ q: 'x', n: 3 }) === argsSeed({ n: 3, q: 'x' }))
 check('a CHANGED arg ⇒ a different seed', argsSeed({ q: 'x', n: 3 }) !== argsSeed({ q: 'x', n: 4 }))
-
 const sameAgent = (seed: string) => cacheKey('do the work', { model: 'opus' }, seed)
 check('same agent(prompt,opts) but changed args ⇒ DIFFERENT cache key (no stale replay)', sameAgent(argsSeed({ n: 3 })) !== sameAgent(argsSeed({ n: 4 })))
 check('same agent + same args ⇒ SAME cache key (legit resume still hits cache)', sameAgent(argsSeed({ n: 3 })) === sameAgent(argsSeed({ n: 3 })))

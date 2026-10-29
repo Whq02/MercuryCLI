@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -18,11 +17,9 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), '..', 'ui', 'vshot.py')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.ARSENAL_CARDS_CHILD) {
-
   const React = await import('react')
   const { render, Box, Text } = (await import('../../src/ink.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>
@@ -37,7 +34,6 @@ if (process.env.ARSENAL_CARDS_CHILD) {
 
   const cards: React.ReactNode[] = [
     h(Text as never, { key: 'h1' } as never, 'ARSENALCARDS'),
-
     structureUI.renderToolResultMessage(
       { op: 'preview', result: 'sp-abc [proposed] replace-callee — 2 match(es)', outcome: 'succeeded' },
       [],
@@ -53,7 +49,6 @@ if (process.env.ARSENAL_CARDS_CHILD) {
       [],
       opts,
     ),
-
     gitUI.renderToolResultMessage(
       { op: 'plan', result: 'gp-def [proposed] — 2 group(s) on digest abcd', outcome: 'succeeded' },
       [],
@@ -64,7 +59,6 @@ if (process.env.ARSENAL_CARDS_CHILD) {
       [],
       opts,
     ),
-
     journeyUI.renderToolResultMessage(
       { op: 'run', result: 'jy-1 [succeeded] verify the fixture', outcome: 'succeeded', journeyState: 'succeeded' },
       [],

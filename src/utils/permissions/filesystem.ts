@@ -30,6 +30,7 @@ import { suspiciousWindowsPattern } from './windowsPath.js'
 import { credentialStorePath, mercurySecretPath, mercurySecretReadIgnores, protectedPathForms } from './protectedPaths.js'
 import { runtimeWritePath } from './runtimeProtection.js'
 
+
 const DANGEROUS_FILES: string[] = [
   '.gitconfig',
   '.gitmodules',
@@ -83,6 +84,7 @@ function envFileFamilySpelling(path: string): string {
   return path.split(ENV_FILE_WILDCARD).join('*')
 }
 
+
 export function normalizeCaseForComparison(path: string): string {
   return path.toLowerCase()
 }
@@ -94,7 +96,6 @@ function toPosixPath(path: string, platform: ReturnType<typeof getPlatform> = ge
 export function relativePath(from: string, to: string, platform: ReturnType<typeof getPlatform> = getPlatform()): string {
   const a = toPosixPath(from, platform)
   const b = toPosixPath(to, platform)
-
   const aParts = a.split(posixPath.sep).filter(Boolean)
   const bParts = b.split(posixPath.sep).filter(Boolean)
   const fold = platform === 'windows' ? (part?: string) => part?.toLowerCase() : (part?: string) => part
@@ -124,6 +125,7 @@ function foldMacSymlinks(path: string): string {
 function normalizeForWorkingDirCompare(path: string): string {
   return normalizeCaseForComparison(toPosixPath(foldMacSymlinks(path)))
 }
+
 
 export function allWorkingDirectories(_context: ToolPermissionContext): Set<string> {
   return new Set([getStartingCwd()])
@@ -166,6 +168,7 @@ export function pathInAllowedWorkingPath(
   return realForms.every(inside)
 }
 
+
 const MERCURY_CONFIG_DIRECTORIES: ReadonlySet<string> = new Set(['hooks', 'agents', 'skills', 'extensions'])
 export const MERCURY_WORKING_FOLDERS: readonly string[] = ['verify', 'test-runs', 'unity-test-results', 'ide-transactions', 'reviews', 'health', 'engine', 'cache-clock']
 const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'dap-adapters.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
@@ -186,11 +189,9 @@ function isDangerousFileOrDirectory(expandedPath: string): boolean {
 
   const segments = expandedPath.split(platformSep)
   const lastSegment = segments[segments.length - 1] ?? ''
-
   if (DANGEROUS_FILES.some(name => name.toLowerCase() === lastSegment.toLowerCase())) {
     return true
   }
-
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i]?.toLowerCase() ?? ''
     if (segment === MERCURY_PROJECT_DIR) {
@@ -205,6 +206,8 @@ function isDangerousFileOrDirectory(expandedPath: string): boolean {
   }
   return false
 }
+
+
 
 export function getMercuryTempDirName(): string {
   if (getPlatform() === 'windows') return 'mercury'
@@ -260,6 +263,7 @@ export function getBundledSkillsRoot(): string {
   return bundledSkillsRootCache
 }
 
+
 export function isSettingsFilePath(filePath: string): boolean {
   const expanded = expandPath(filePath)
   const folded = normalizeCaseForComparison(expanded)
@@ -267,7 +271,6 @@ export function isSettingsFilePath(filePath: string): boolean {
   for (const file of ['settings.json', 'settings.local.json']) {
     if (folded.endsWith(`${sep}${MERCURY_PROJECT_DIR}${sep}${file}`)) return true
   }
-
   for (const source of getEnabledSettingSources()) {
     try {
       const path = getSettingsFilePathForSource(source as never)
@@ -363,7 +366,6 @@ export function checkPathSafetyForAutoEdit(
       }
     }
   }
-
   for (const resolved of resolvedForms) {
     if (isProductConfigPath(expandPath(resolved))) {
       return {
@@ -373,7 +375,6 @@ export function checkPathSafetyForAutoEdit(
       }
     }
   }
-
   for (const resolved of resolvedForms) {
     if (isDangerousFileOrDirectory(expandPath(resolved))) {
       return {
@@ -385,6 +386,7 @@ export function checkPathSafetyForAutoEdit(
   }
   return { safe: true }
 }
+
 
 export function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
   const cwd = getOriginalCwd()
@@ -401,7 +403,6 @@ export function getSkillScope(filePath: string): { skillName: string; pattern: s
     for (const separator of [platformSep, '/']) {
       const baseWithSep = normalizeCaseForComparison(dir) + separator
       if (!foldedPath.startsWith(baseWithSep)) continue
-
       const afterBase = expanded.slice(dir.length + separator.length)
       const nextSep = afterBase.search(/[/\\]/)
       if (nextSep === -1) return null
@@ -413,6 +414,7 @@ export function getSkillScope(filePath: string): { skillName: string; pattern: s
   }
   return null
 }
+
 
 export function checkEditableInternalPath(absolutePath: string, _input: unknown): PermissionResult {
   const path = expandPath(absolutePath)
@@ -483,7 +485,6 @@ function readableInternalCategory(path: string): string | null {
   if (pathHasSegmentContainment(folded, tasksDir)) return 'tasks directory'
   const bundledRoot = normalizeCaseForComparison(getBundledSkillsRoot())
   if (folded.startsWith(bundledRoot)) return 'bundled-skill extraction root'
-
   try {
     const projectStore = normalizeCaseForComparison(
       (require('../sessionStoragePortable.js') as { getProjectDir(p: string): string }).getProjectDir(getCwd()),
@@ -502,6 +503,7 @@ function readableInternalCategory(path: string): string | null {
   if (isMneme(path)) return 'memory directory'
   return ownGround(path)
 }
+
 
 function fileEditRuleToolNames(): string[] {
   return ['Write', 'NotebookEdit', 'Edit']
@@ -534,10 +536,8 @@ function rulesForToolAndBehavior(
   const bySource = (context as unknown as Record<string, Record<string, string[]>>)[key] ?? {}
   for (const [source, rules] of Object.entries(bySource)) {
     for (const ruleString of rules) {
-
       const parsed = permissionRuleValueFromString(ruleString)
       if (parsed.toolName !== toolName || parsed.ruleContent === undefined) continue
-
       map.set(parsed.ruleContent, {
         source: source as PermissionRule['source'],
         ruleBehavior: behavior,
@@ -554,14 +554,12 @@ export function rootForPattern(
   platform: ReturnType<typeof getPlatform> = getPlatform(),
 ): { root: string | null; relative: string } {
   if (platform === 'windows') {
-
     const drive = pattern.replace(/\\/g, '/').match(/^\/?([A-Za-z]):\/(.*)$/)
     if (drive) {
       return { root: `${(drive[1] as string).toUpperCase()}:${platformSep}`, relative: drive[2] as string }
     }
   }
   if (pattern.startsWith('//')) {
-
     if (platform === 'windows') {
       const drive = pattern.match(/^\/\/([A-Za-z])\/(.*)$/)
       if (drive) {
@@ -626,7 +624,6 @@ function walkMatchingRules(
   const groups = new Map<string | null, Array<{ pattern: string; rule: PermissionRule }>>()
   for (const [pattern, rule] of rules) {
     const { root } = rootForPattern(pattern, rule.source)
-
     if (root === undefined) continue
     const list = groups.get(root) ?? []
     list.push({ pattern, rule })
@@ -637,7 +634,6 @@ function walkMatchingRules(
   const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
 
   for (const [root, entries] of groups) {
-
     const base = root === null ? getCwd() : root
     const relative = relativePath(base, candidatePath === '' ? getCwd() : candidatePath)
     if (relativePathEscapes(relative)) continue
@@ -651,7 +647,6 @@ function walkMatchingRules(
     }
     const result = matcher.test(relative)
     if (result.ignored) {
-
       for (const { pattern, rule } of entries) {
         const { relative: rel } = rootForPattern(pattern, rule.source)
         const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
@@ -720,6 +715,7 @@ export function getFileReadIgnorePatterns(context: ToolPermissionContext): Map<s
   for (const [root, patterns] of mercurySecretReadIgnores()) byRoot.set(root, [...(byRoot.get(root) ?? []), ...patterns])
   return byRoot
 }
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ToolLike = { getPath?: (input: any) => string | undefined; name: string }
@@ -806,7 +802,6 @@ export function checkReadPermissionForTool(
     const remote = checkUncPathPermission(resolved, context)
     if (remote && remote.behavior !== 'allow') return remote
   }
-
   for (const resolved of resolutionSet) {
     if (suspiciousWindowsPattern(resolved)) {
       return ask(
@@ -815,34 +810,27 @@ export function checkReadPermissionForTool(
       )
     }
   }
-
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'read', 'deny')
     if (rule) return ruleDecision('deny', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'deny'))
   }
   const narrowedRead = toolsNarrowingDenial(path, resolutionSet, context, 'read')
   if (narrowedRead) return narrowedRead
-
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'read', 'ask')
     if (rule) return ruleDecision('ask', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
   }
   const envAsk = envFileReadAsk(path, context, resolutionSet)
   if (envAsk) return envAsk
-
   const writeDecision = checkWritePermissionForTool(tool, input, context, resolutionSet)
   if (writeDecision.behavior === 'allow') return writeDecision
-
   if (pathInAllowedWorkingPath(path, context, resolutionSet)) {
     return allow(input, { type: 'mode', mode: 'default' } as never)
   }
-
   const internal = checkReadableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
-
   const allowRule = matchingRuleForInput(path, context, 'read', 'allow')
   if (allowRule) return allow(input, { type: 'rule', rule: allowRule } as never)
-
   return {
     behavior: 'ask',
     message: `Permission to read from ${path} has not been granted.`,
@@ -912,13 +900,10 @@ export function checkWritePermissionForTool(
       return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false }, suggestions: generateSuggestions(path, 'write', context, resolutionSet) } as PermissionDecision
     }
   }
-
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
-
   const estate = sessionEstateAllow(path, context, input)
   if (estate) return estate
-
   if (
     (context.mode === 'apollo' || context.mode === 'implement') &&
     pathInAllowedWorkingPath(path, context, resolutionSet)
@@ -930,7 +915,6 @@ export function checkWritePermissionForTool(
       return allow(input, { type: 'mode', mode: context.mode } as never)
     }
   }
-
   if (context.mode === 'apollo') {
     return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' } as never)
   }
@@ -940,7 +924,6 @@ export function checkWritePermissionForTool(
     const suggestions = skill
       ? [narrowedSkillGrant(skill.pattern)]
       : generateSuggestions(path, 'write', context, resolutionSet)
-
     return {
       behavior: 'ask',
       message: safety.message,
@@ -952,19 +935,15 @@ export function checkWritePermissionForTool(
       suggestions,
     } as unknown as PermissionDecision
   }
-
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
     if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
   }
-
   if (context.mode === 'implement' && pathInAllowedWorkingPath(path, context, resolutionSet)) {
     return allow(input, { type: 'mode', mode: 'implement' } as never)
   }
-
   const allowRule = matchingRuleForInput(path, context, 'edit', 'allow')
   if (allowRule) return allow(input, { type: 'rule', rule: allowRule } as never)
-
   const outsideWorkingDir = !pathInAllowedWorkingPath(path, context, resolutionSet)
   return {
     behavior: 'ask',
@@ -1040,6 +1019,7 @@ function narrowedSkillGrant(pattern: string): PermissionUpdate {
   } as unknown as PermissionUpdate
 }
 
+
 export function generateSuggestions(
   filePath: string,
   operationType: 'read' | 'write' | 'create',
@@ -1079,6 +1059,7 @@ function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
   }
   return []
 }
+
 
 function getHomeDir(): string {
   return process.env.HOME || process.env.USERPROFILE || tmpdir()

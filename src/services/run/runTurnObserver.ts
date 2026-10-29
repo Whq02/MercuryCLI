@@ -1,3 +1,4 @@
+
 import type { QuerySource } from '../../constants/querySource.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { Message } from '../../types/message.js'
@@ -65,7 +66,6 @@ export function noteQueryTurnStart(params: {
       objective: objectiveFromRequest(root.text),
       rootMessageId: root.id,
     })
-
     beginModelTurnExecution(owner, objectiveFromRequest(root.text))
   } catch {
   }
@@ -84,9 +84,7 @@ export async function noteQueryTurnEnd(params: {
       reason: params.reason,
       aborted,
     })
-
     settleModelTurnExecution(owner, { aborted, reason: params.reason })
-
     markTreeSuspectAfterTurn()
   } catch {
   }

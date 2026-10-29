@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -105,7 +104,6 @@ function seedAnthropic(email: string, uuid: string): void {
       ...SIBLINGS,
     }),
   )
-
   config.saveGlobalConfig(current => ({
     ...current,
     oauthAccount: { accountUuid: uuid, emailAddress: email, organizationUuid: 'org-fixture', organizationName: 'Fixture Org' },
@@ -203,7 +201,6 @@ section('R3 removing the Claude login through the REAL owner lands the keyless s
   check('the scan: signed out, no identity', scope.authed === false && scope.email === undefined && scope.uuid === undefined, JSON.stringify(scope))
   const anthropicGroup = slots.deriveFamilySlotGroups().find(group => group.family.id === 'anthropic')
   check("the board: no Anthropic slot remains — the family's absent row, in the one grammar every family paints", anthropicGroup?.slots.length === 0 && slots.familyAbsentWords('anthropic') === 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY', JSON.stringify(anthropicGroup?.slots.map(s => s.id)))
-
   const { email: _email, uuid: _uuid, ...bareScope } = slot.scope!
   const gone: AccountSlot = { ...slot, signedIn: false, identity: 'not signed in', scope: { ...bareScope, authed: false } }
   const state = slots.slotSigninState(gone, staleRead)
@@ -230,7 +227,6 @@ section('R3 removing the Claude login through the REAL owner lands the keyless s
 
 section('R5 a stale row cannot exist — a snapshot with no login behind it')
 {
-
   writeFileSync(SNAPSHOT, JSON.stringify({ oauthAccount: { accountUuid: 'uuid-stale', emailAddress: 'stale@fixture.example' } }))
   identity.forgetScopeIdentity()
   const scope = scan.scanAccountScopes()[0]!

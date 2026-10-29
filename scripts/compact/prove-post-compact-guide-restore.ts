@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/services/compact/compact.ts src/services/instructions/** src/utils/config/globalConfig.ts src/utils/fileStateCache.ts src/state/AppStateStore.ts src/bootstrap/state.ts
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

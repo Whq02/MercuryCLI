@@ -4,11 +4,8 @@ import { isKitGovernedSkillCommand } from '../../skills/kitGovernance.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
 
 interface KitCompletionRoster {
-
   mcpNames: readonly string[]
-
   commands: readonly Command[]
-
   extensions: readonly string[]
 }
 
@@ -24,9 +21,7 @@ export function completeSessionKitFromRoster(unresolved: SessionKitV1, roster: K
     if (mcp.includes(name)) continue
     if (!isKitMcpName(name)) continue
     if (isMcpOrgan(name)) continue
-
     if (!kitMembership(unresolved, name)) continue
-
     const owner = extensionOwnerOf(name)
     if (owner !== null && deltas.extensionsOff.includes(owner)) continue
     mcp.push(name)
@@ -49,13 +44,11 @@ export function completeSessionKitFromRoster(unresolved: SessionKitV1, roster: K
     if (!isKitExtensionName(name)) continue
     extensions[name] = deltas.extensionsOff.includes(name) ? 'off' : 'on'
   }
-
   for (const name of deltas.extensionsOff) {
     if (isKitExtensionName(name) && !(name in extensions)) extensions[name] = 'off'
   }
   const resolved: SessionKitV1 = { schema: 1, mcp, skills, invocable }
   resolved.mcpKnown = [...new Set(roster.mcpNames.filter(name => isKitMcpName(name) && !isMcpOrgan(name))) ]
-
   const skillsOff = Object.entries(deltas.skillStates)
     .filter(([, state]) => state === 'off')
     .map(([name]) => name)

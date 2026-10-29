@@ -1,3 +1,4 @@
+
 import { useCallback, useContext, useLayoutEffect, useRef } from 'react'
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../components/TerminalSizeContext.js'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
@@ -44,7 +45,6 @@ export function useTerminalViewport(): [
     const altScreen = ink?.isAltScreenActive === true
     const viewportHeight = altScreen ? (liveSize ?? size).rows : size.rows
     const height = layout.getComputedHeight()
-
     const overflow = !altScreen && screenHeight > viewportHeight
     const scrolledOff = overflow ? screenHeight - viewportHeight + 1 : 0
     const viewportTop = scrolledOff

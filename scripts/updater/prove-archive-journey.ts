@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -22,7 +21,6 @@ const { readCompatFloor, releaseLayoutSection, unsignedArchiveName } = (await im
   releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
   unsignedArchiveName: (archiveName: string) => string
 }
-
 const TARGET = releaseTargetFor(process.platform, process.arch)
 const SIGNED_ASSET = assetNameFor(VERSION, process.platform, process.arch)
 const ASSET = SIGNED_ASSET
@@ -125,7 +123,6 @@ function run(cmd: string, args: string[]): { code: number; stdout: string; stder
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_VERSIONS_DIR: versionsDir,
       MERCURY_UPDATE_CHANNEL_REPO: SLUG,
-
       MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,
       MERCURY_GH_CMD: GH_CMD,
       GH_SHIM_FIXTURES: fixtures,

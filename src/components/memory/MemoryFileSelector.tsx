@@ -1,3 +1,4 @@
+
 import { mkdirSync } from 'fs'
 import * as React from 'react'
 import { use, useMemo, useState } from 'react'
@@ -13,6 +14,7 @@ import { getMnemeHome, isMnemeEnabled } from '../../mneme/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
 import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
+
 
 let lastSelectedPath: string | null = null
 
@@ -43,7 +45,6 @@ export function MemoryFileSelector({
   onSelect: (path: string) => void
   onCancel: () => void
 }): React.ReactNode {
-
   const files = use(getInstructionFiles())
 
   useExitOnCtrlCDWithKeybindings()
@@ -68,7 +69,6 @@ export function MemoryFileSelector({
   useKeybinding(
     'select:previous',
     () => {
-
       setFocusedToggle(index => Math.max(0, (index ?? 0) - 1))
     },
     { context: 'Select', isActive: toggleFocused },
@@ -76,7 +76,6 @@ export function MemoryFileSelector({
   useKeybinding(
     'select:next',
     () => {
-
       setFocusedToggle(index => {
         const next = (index ?? 0) + 1
         return next >= toggles.length ? null : next

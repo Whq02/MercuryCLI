@@ -1,3 +1,4 @@
+
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { noteUsageRecordChanged } from '../../anthropicLimits.js'
@@ -20,7 +21,6 @@ export type HuggingfaceLimitWindow =
   | { state: 'clear' }
 
 let observedLimit: { resetsAtMs: number; observedAtMs: number; remaining?: number } | null = null
-
 let observedRate: { remaining: number; resetsAtMs?: number; observedAtMs: number } | null = null
 
 export function parseRateLimitHeader(value: string | null): { remaining: number; resetSec?: number } | undefined {
@@ -99,6 +99,7 @@ export function forgetHuggingfaceObservedLimits(): void {
   observedFactsIdentity = 'none'
   lastFactsFailure = null
 }
+
 
 export type HuggingfaceBillingState =
   | { state: 'credit-exhausted'; observedAtMs: number }

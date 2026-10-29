@@ -1,3 +1,4 @@
+
 import { realpathSync } from 'node:fs'
 import * as path from 'node:path'
 import { z } from 'zod/v4'
@@ -39,7 +40,6 @@ export type Output = {
 }
 
 const LOCAL_OPS = new Set(['blender_status', 'blender_bridge_install', 'blender_bridge_uninstall'])
-
 const LOCAL_MUTATES = new Set(['blender_bridge_install', 'blender_bridge_uninstall'])
 
 const PATH_ARGS: Record<string, string> = { blend_open: 'path', render_still: 'outputPath' }
@@ -135,7 +135,6 @@ async function runOp(input: Input): Promise<string> {
   } else {
     text = `${input.op} failed: [${r.error.code}] ${r.error.message}${r.error.hint ? `\nhint: ${r.error.hint}` : ''}`
   }
-
   const events = client.drainEvents()
   if (events.length > 0) {
     const shown = events.slice(-8)
@@ -180,7 +179,6 @@ export const BlenderTool = buildTool({
       }
     }
     const spec = blenderBridgeVerb(input.op)
-
     if (!spec || spec.cls === 'read') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
@@ -199,7 +197,6 @@ export const BlenderTool = buildTool({
         message: `Blender exec: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} — starts a render job in Blender; the durable result is the image file at outputPath (render_finished reports the end)`,
       }
     }
-
     return {
       behavior: 'ask' as const,
       message: `Blender mutate: ${input.op}${summarizeArgs(input.args) ? ` (${summarizeArgs(input.args)})` : ''} switches the open .blend (no undo step; refuses with BLEND_DIRTY if there are unsaved changes)`,
@@ -231,7 +228,6 @@ export const BlenderTool = buildTool({
   renderToolUseMessage,
   renderToolUseErrorMessage,
   renderToolResultMessage,
-
   extractSearchText({ result }) {
     return result ?? ''
   },

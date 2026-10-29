@@ -10,15 +10,10 @@ import { GLYPH } from './mercury-ui/glyphs.js'
 const SLOT_OFFER_ENTER_ARM_MS = 400
 
 type Props = {
-
   familyName: string
-
   fromLabel: string
-
   toLabel: string
-
   headroomObserved: boolean
-
   resetText: string | null
   carryWords?: string | null
   onAccept: () => void
@@ -35,13 +30,11 @@ export function SlotOfferCard({
   onAccept,
   onDismiss,
 }: Props): React.ReactNode {
-
   useRegisterOverlay('slot-offer')
   const mountedAtRef = React.useRef(Date.now())
   useKeybinding(
     'confirm:yes',
     () => {
-
       if (Date.now() - mountedAtRef.current < SLOT_OFFER_ENTER_ARM_MS) return
       onAccept()
     },

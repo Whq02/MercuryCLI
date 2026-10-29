@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
 
 const HOME = mkdtempSync(join(tmpdir(), 'auth-journeys-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -43,6 +43,7 @@ for (const k of [
   delete process.env[k]
 }
 
+
 process.env.MERCURY_GEMINI_API_BASE = 'https://gemini.fixture.invalid/v1beta'
 process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = 'https://gauth.fixture.invalid/auth'
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'https://gauth.fixture.invalid/token'
@@ -60,6 +61,7 @@ process.env.MERCURY_NOUS_PORTAL_BASE = 'https://nous.fixture.invalid'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://oai-auth.fixture.invalid'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'https://oai-chatgpt.fixture.invalid/codex'
 process.env.MERCURY_OPENAI_API_BASE = 'https://oai-api.fixture.invalid/v1'
+
 
 type WireScenario =
   | 'http-401'
@@ -100,7 +102,6 @@ function fixtureChatResponse(): Response {
     case 'http-429':
       return new Response(JSON.stringify({ error: { message: 'rate limit reached' } }), {
         status: 429,
-
         headers: { 'content-type': 'application/json', 'retry-after': '1' },
       })
     case 'http-500':
@@ -147,7 +148,6 @@ globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
     }
     return fixtureChatResponse()
   }
-
   if (u.endsWith('/key')) {
     return new Response(
       JSON.stringify({ data: { label: 'Mercury', usage: 1.25, limit: 10, limit_remaining: 8.75 } }),
@@ -162,6 +162,7 @@ globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
   }
   return new Response(JSON.stringify({}), { status: 200, headers: { 'content-type': 'application/json' } })
 }) as typeof fetch
+
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -221,6 +222,7 @@ import type { Options } from '../../src/services/providers/anthropic/streamCore.
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import type { ProviderSnapshot } from '../../src/services/providers/modelRegistry.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -416,9 +418,7 @@ const localRecord = {
 interface MatrixLane {
   family: string
   run(model: string): AsyncGenerator<unknown, unknown>
-
   wireModel: string
-
   bearer: string | undefined
 }
 
@@ -533,7 +533,6 @@ for (const row of MATRIX) {
       errors.length === 1 && errors[0]!.error === 'rate_limit' && wire.chatHits === 2,
       `errors=${errors.length} error=${errors[0]?.error} hits=${wire.chatHits}`,
     )
-
     if (row.family === 'openrouter') check('openrouter: the 429 retry-after landed as a real limit window', openrouterLimitWindow().state === 'limited')
     if (row.family === 'gemini') check('gemini: the 429 retry-after landed as a real limit window', geminiLimitWindow().state === 'limited')
     if (row.family === 'huggingface') check('huggingface: the 429 landed as a limit window', huggingfaceLimitWindow().state === 'limited')
@@ -576,7 +575,6 @@ for (const row of MATRIX) {
   wire.scenario = 'happy'
   wire.chatHits = 0
   {
-
     const ledgerRow = getUsageForModel(compatDispatchModelId(model))
     const before = {
       input: ledgerRow?.inputTokens ?? 0,
@@ -591,7 +589,6 @@ for (const row of MATRIX) {
       errors.length === 0 && settled.length > 0 && wire.chatHits === 1,
       `errors=${errors.length} settled=${settled.length} hits=${wire.chatHits}`,
     )
-
     check(
       `${row.family}: usage joins the ledger under the persisted id (inclusive wire → disjoint ledger)`,
       (after?.inputTokens ?? 0) - before.input === 5 &&
@@ -610,7 +607,6 @@ check(
 {
   wire.scenario = 'refuse-all'
   wire.chatHits = 0
-
   const { errors } = await drain(
     compatChatCallModel(
       {
@@ -815,7 +811,6 @@ function jsonFetch(
     again === undefined && requestAuth === undefined && counter.posts === 1,
     `posts=${counter.posts}`,
   )
-
   writeFileSync(
     openaiAccounts.openaiAuthPathForDisplay(),
     JSON.stringify({
@@ -842,7 +837,6 @@ function jsonFetch(
   )
   const counter = { posts: 0 }
   const fetchImpl = jsonFetch(() => {
-
     writeFileSync(
       openaiAccounts.openaiAuthPathForDisplay(),
       JSON.stringify({
@@ -1086,7 +1080,6 @@ for (const [faultLabel, faultResponse] of [
     accessTokenExpiresAtMs: Date.now() - 60_000,
   })
   providerSecrets.writeStoredHuggingfaceApiKey(laneKey('hfpaste', 'BBBB'))
-
   const hfEnv = {
     ...process.env,
     HF_TOKEN: undefined,
@@ -1142,7 +1135,6 @@ providerSecrets.writeStoredOpenaiApiKey(laneKey('openai-stored', 'cc99'))
 providerSecrets.writeStoredNousApiKey(laneKey('nous-stored', 'cc28'))
 moonshotAccounts.writeMoonshotTokens({ accessToken: laneKey('moonshot-oauth', 'dd00') })
 openrouterAccounts.disconnectOpenrouterOauthKey()
-
 geminiAccounts.writePreferredGeminiSource(null)
 
 const fixtureProviders = FAMILIES.map(id => ({
@@ -1182,7 +1174,6 @@ const slotReads = {
     ['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'openrouter', 'gemini', 'openai-compat', 'huggingface', 'local', 'nous'].every(
       family => flat.some(s => s.family === family && s.id.endsWith(':stored-key')),
     ) &&
-
       flat.some(s => s.id === 'openai:api-key'),
   )
   const moonshotSlots = flat.filter(s => s.family === 'moonshot')
@@ -1246,13 +1237,11 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
       universe[0]!.name === 'primary',
     JSON.stringify(universe.map(u => ({ name: u.name, dir: u.dir }))),
   )
-
   const scanOwnerSrc = readFileSync(join(import.meta.dir, '../../src/utils/accounts/scopeScan.ts'), 'utf8')
   check(
     'universe: the scan cannot enumerate siblings (no readdir, no account- roster pattern)',
     !scanOwnerSrc.includes('readdirSync') && !scanOwnerSrc.includes("account-'"),
   )
-
   const foreignHome = join(HOME, '.codex')
   mkdirSync(foreignHome, { recursive: true })
   process.env.MERCURY_CONFIG_DIR = foreignHome
@@ -1265,7 +1254,6 @@ check("hygiene: maskedKeyTail refuses short values (nothing to mask ⇒ '')", ma
   )
   process.env.MERCURY_CONFIG_DIR = HOME
   ;(envUtils.getMercuryHome as unknown as { cache: { clear(): void } }).cache.clear()
-
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
   const walletSrc = readFileSync(join(import.meta.dir, '../../src/services/wallet/wallet.ts'), 'utf8')
   check(
@@ -1284,7 +1272,6 @@ const thinkingHistory: Message[] = [
     message: {
       role: 'assistant',
       content: [
-
         { type: 'thinking', thinking: 'pondering', signature: 'sig-native' },
         { type: 'text', text: 'answer', citations: null },
       ],

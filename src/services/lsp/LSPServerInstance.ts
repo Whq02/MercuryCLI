@@ -21,6 +21,7 @@ import { currentLspAbortSignal, noteLspRequestFault } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
 
+
 export type LSPServerInstance = {
   readonly name: string
   readonly config: ScopedLspServerConfig
@@ -41,7 +42,6 @@ export type LSPServerInstance = {
 }
 
 const DEFAULT_MAX_RESTARTS = 3
-
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 const CONTENT_MODIFIED_CODE = -32801
 
@@ -80,9 +80,9 @@ function isLspRequestSettlement(err: unknown): boolean {
 }
 const TRANSIENT_RETRIES = 3
 const TRANSIENT_BASE_DELAY_MS = 500
-
 const INIT_BACKOFF_BASE_MS = 15_000
 const INIT_BACKOFF_MAX_MS = 5 * 60_000
+
 
 const liveStateReaders = new Map<string, () => LspServerState>()
 
@@ -117,20 +117,19 @@ function projectState(name: string, state: LspServerState, error?: Error): void 
   )
 }
 
+
 function buildInitializeParams(config: ScopedLspServerConfig): InitializeParams {
   const folder = config.workspaceFolder ?? getCwd()
   const uri = pathToFileURL(folder).href
   const bridge = mercuryLspEnabled()
   return {
     processId: process.pid,
-
     initializationOptions: config.initializationOptions ?? {},
     workspaceFolders: [{ uri, name: basename(folder) }],
     rootPath: folder,
     rootUri: uri,
     capabilities: {
       workspace: {
-
         configuration: true,
         workspaceFolders: false,
         ...(bridge ? { symbol: { dynamicRegistration: false } } : {}),
@@ -174,6 +173,7 @@ function buildInitializeParams(config: ScopedLspServerConfig): InitializeParams 
   } as InitializeParams
 }
 
+
 export function createLSPServerInstance(name: string, config: ScopedLspServerConfig): LSPServerInstance {
   let state: LspServerState = 'stopped'
   let client: LSPClient | null = null
@@ -184,7 +184,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   let crashRecoveries = 0
   let generation = 0
   let inFlightStart: Promise<void> | null = null
-
   let initFailures = 0
   let lastInitFailureAt = 0
   let idleTimer: NodeJS.Timeout | null = null
@@ -234,10 +233,8 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
 
   function ensureClient(): Promise<LSPClient> {
     if (clientPromise !== null) return clientPromise
-
     clientPromise = import('./LSPClient.js').then(({ createLSPClient }) => {
       client = createLSPClient(name, error => {
-
         lastError = error
         crashRecoveries++
         setState('error', error)
@@ -285,7 +282,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       armIdleTimer()
     } catch (err) {
       if (spawned) {
-
         await lsp.stop().catch(() => {})
       }
       initFailures++
@@ -308,7 +304,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   async function start(): Promise<void> {
     if (state === 'running') return
     if (state === 'starting' && inFlightStart !== null) {
-
       return inFlightStart
     }
     const backoffMs = initBackoffRemainingMs()
@@ -368,7 +363,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   }
 
   async function restart(): Promise<LSPStopResult | undefined> {
-
     initFailures = 0
     lastInitFailureAt = 0
     let stopped: LSPStopResult | undefined
@@ -396,7 +390,6 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
   }
 
   function isContentModified(err: unknown): boolean {
-
     return typeof (err as { code?: unknown } | null)?.code === 'number' && (err as { code: number }).code === CONTENT_MODIFIED_CODE
   }
 

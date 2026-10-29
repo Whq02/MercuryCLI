@@ -386,7 +386,6 @@ section('§5 GENERATOR CONTRACT — a hermetic fixture: embed / mirror / skip, b
 
 section('§6 SOURCE↔MIRROR SYNC + the discovery budget')
 {
-
   for (const n of EXPECTED) {
     const drift = gen.checkSkill(n)
     check(drift.length === 0, `${n}: modules + mirror are byte-identical to a fresh render of the source (gen-bundled ran)`, drift.join(' | '))

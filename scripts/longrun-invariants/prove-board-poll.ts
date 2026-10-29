@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -96,7 +95,6 @@ section('§B listWorkflowRuns: unchanged run.json is not re-parsed; heartbeat in
     })
   const file = join(dirA, 'run.json')
   writeFileSync(file, manifest('running', 100))
-
   const pinned = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000)
   utimesSync(file, pinned, pinned)
 

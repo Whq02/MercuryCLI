@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,7 +18,6 @@ console.log('============================================================')
 
 const mainSrc = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
 check("process.title = 'mercury'", mainSrc.includes("process.title = 'mercury'"))
-
 check('entrypoint init stamps the one MERCURY_ENTRYPOINT spelling', mainSrc.includes("process.env.MERCURY_ENTRYPOINT = mcpServe ? 'mcp' : isNonInteractive ? 'headless' : 'cli'"))
 const mcpSrc = readFileSync(join(ROOT, 'src/entrypoints/mcp.ts'), 'utf8')
 check("mcp serve identity is 'mercury' (OP-4)", mcpSrc.includes("name: 'mercury'"))
@@ -45,7 +43,6 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
   const mcpClient = readFileSync(join(ROOT, 'src/services/mcp/client.ts'), 'utf8')
   check("OP-4: MCP clientInfo name is 'mercury' (the one construction, now that the SDK-host client is gone)", (mcpClient.match(/name: 'mercury'/g) ?? []).length === 1)
   const fsPerm = readFileSync(join(ROOT, 'src/utils/permissions/filesystem.ts'), 'utf8')
-
   check('ruling 3: the temp root is mercury-named', fsPerm.includes('`mercury-${uid}`'))
   const keychain = readFileSync(join(ROOT, 'src/utils/secureStorage/macOsKeychainHelpers.ts'), 'utf8')
   check('ruling 3: the keychain service is Mercury-named, keyed to the resolved home, with one canonicalisation fallback', keychain.includes('return `Mercury${') && keychain.includes('getRawSpellingKeychainStorageServiceName'))
@@ -59,7 +56,6 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
   check('ruling 2: built links emit mercury://', buildDeepLink({ query: 'hi' }).startsWith('mercury://open'))
   const viaNew = parseDeepLink('mercury://open?q=hello')
   check('ruling 2: mercury:// parses', viaNew.query === 'hello')
-
   let otherSchemeRefused = false
   try {
     parseDeepLink('otherscheme://open?q=hello')
@@ -76,7 +72,6 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
   check("P6: the MDM preference domain is Mercury's", mdmConsts.includes("MACOS_PREFERENCE_DOMAIN = 'com.mercury.harness'"))
   check('P6: the Policies key is Mercury-named', mdmConsts.includes("'HKLM\\\\SOFTWARE\\\\Policies\\\\Mercury'"))
   const managed = readFileSync(join(ROOT, 'src/utils/settings/managedPath.ts'), 'utf8')
-
   check('P6: managed-settings dir resolves the Mercury-only candidates', managed.includes("'/etc/mercury'") && managed.includes('exists(candidate)') && managed.includes('resolveManagedRoot(managedRootCandidates(getPlatform()), existsSync)'))
 }
 

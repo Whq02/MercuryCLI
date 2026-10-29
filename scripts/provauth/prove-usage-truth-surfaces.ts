@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -48,9 +47,7 @@ for (const key of [
 }
 const scratchHome = mkdtempSync(join(tmpdir(), 'prove-usage-truth-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://fixture.invalid/oauth'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'https://fixture.invalid/backend-api/codex'
 process.env.MERCURY_OPENAI_API_BASE = 'https://fixture.invalid/v1'
@@ -79,7 +76,6 @@ function surfaceFacts(family: ProviderFamilyId, model: string) {
   const row = presences.find(p => p.id === family)
   const plan = usageTab.usageSectionPlan(presences)
   const sectionRow = plan.find(s => s.id === family)
-
   const asu = providerUsage.activeSourceUsage({ model, reads: {} })
   const use = usability.resolveProviderUsability()[family as keyof ReturnType<typeof usability.resolveProviderUsability>]
   return { row, sectionRow, asu, use }
@@ -88,11 +84,8 @@ function surfaceFacts(family: ProviderFamilyId, model: string) {
 interface FamilyLeg {
   family: ProviderFamilyId
   model: string
-
   connect: () => void
-
   disconnect: () => void
-
   whyNotNames: string
 }
 
@@ -172,7 +165,6 @@ function assertState(
   check(`${name}: family row exists in the presence enumeration`, row !== undefined)
   check(`${name}: a /usage section mounts for the family`, sectionRow !== undefined)
   if (!row || !sectionRow) return
-
   check(
     `${name}: tab gate (presences.credentialed) reads ${connected}`,
     row.credentialed === connected,
@@ -240,7 +232,6 @@ for (const leg of LEGS) {
 
 section('§2 the operator frame cannot recur — sign-in lands after the boot prime; bands observed')
 {
-
   discovery.__resetProviderDiscoveryForTest()
   openaiLimits.__resetOpenaiLimitStateForTest()
   const boot = surfaceFacts('openai', 'gpt-5.6-sol')
@@ -259,9 +250,7 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
       },
     }),
   )
-
   noteCredentialChange()
-
   openaiLimits.recordOpenaiRateHeaders(
     new Headers({
       'x-codex-primary-used-percent': '0',
@@ -304,7 +293,6 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
 
 section('§3 one window decode per family — shared view fns + the anthropic endpoint fold')
 {
-
   const tabSource = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('tab: anthropic meters read anthropicWindowViews (the owner view)', tabSource.includes('anthropicWindowViews()'))
   check('tab: openai meters read openaiObservedWindowViews (the owner view)', tabSource.includes('openaiObservedWindowViews()'))

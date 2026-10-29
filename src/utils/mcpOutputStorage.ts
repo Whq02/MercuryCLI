@@ -7,6 +7,7 @@ import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 
+
 export function getFormatDescription(type: MCPResultType, schema?: unknown): string {
   switch (type) {
     case 'toolResult':

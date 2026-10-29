@@ -1,3 +1,4 @@
+
 import { randomBytes } from 'node:crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -80,6 +81,7 @@ export function reviewArtifactJournalExists(id: string): boolean {
   }
 }
 
+
 const LOCK_TIMEOUT_MS = 5000
 const LOCK_STALE_MS = 30_000
 
@@ -91,7 +93,6 @@ export function artifactLockOwnedBy(lock: string, token: string): boolean {
   try {
     return readFileSync(path.join(lock, 'owner'), 'utf8') === token
   } catch {
-
     return true
   }
 }
@@ -147,6 +148,7 @@ function fencedWrite<T>(id: string, fn: () => ReviewWriteResult<T>): ReviewWrite
   }
 }
 
+
 function appendEvents(id: string, events: ReviewJournalEvent[]): void {
   const dir = path.join(reviewArtifactsRoot(), id)
   mkdirSync(dir, { recursive: true })
@@ -164,6 +166,7 @@ function appendEvents(id: string, events: ReviewJournalEvent[]): void {
   }
   appendFileSync(file, (needsLeadingNewline ? '\n' : '') + lines, 'utf8')
 }
+
 
 function decodeEvent(line: string): ReviewJournalEvent | null {
   try {
@@ -199,7 +202,6 @@ function foldJournal(id: string, raw: string): ReviewArtifactState | null {
       case 'version': {
         const rec = ev.record
         if (rec?.schema !== 1 || rec.id !== id) continue
-
         if (rec.version !== state.latestVersion + 1) continue
         state.versions.push(rec)
         state.latestVersion = rec.version
@@ -219,10 +221,8 @@ function foldJournal(id: string, raw: string): ReviewArtifactState | null {
       case 'comment': {
         const c = ev.comment
         if (!c || typeof c.id !== 'string') continue
-
         if (typeof c.version !== 'number' || c.version < 1 || c.version > state.latestVersion) continue
         if (state.comments.some(x => x.id === c.id)) continue
-
         const parentOk =
           c.parentCommentId !== undefined && state.comments.some(x => x.id === c.parentCommentId)
         state.comments.push({
@@ -350,11 +350,11 @@ export function listReviewArtifactHeadsSource(filter?: {
 
 export function listReviewArtifactHeads(filter?: {
   sessionId?: string
-
   root?: string
 }): ReviewArtifactHead[] {
   return valueOr(listReviewArtifactHeadsSource(filter), [])
 }
+
 
 export type ReviewWriteResult<T> = { ok: true; value: T } | { ok: false; reason: string }
 
@@ -382,7 +382,6 @@ export function createReviewArtifact(input: {
     return { ok: false, reason: `body exceeds ${BODY_MAX_BYTES} bytes inline — link large payloads as resource refs` }
   }
   let id = `ra-${randomBytes(4).toString('hex')}`
-
   for (let i = 0; i < 8 && existsSync(path.join(reviewArtifactsRoot(), id)); i++) {
     id = `ra-${randomBytes(4).toString('hex')}`
   }
@@ -428,14 +427,12 @@ function mirrorReviewStatusToCrew(
       const conv = await import('../../services/crew/conversations.js')
       const ref = `mercury://artifact/${artifactId}`
       if (status === 'ready-for-review') {
-
         await conv.upsertUnresolvedEvent(conv.MAIN_CONVERSATION_ID, {
           kind: 'review-request',
           label: title.slice(0, 60),
           ref,
         })
       } else if (status === 'accepted' || status === 'reviewed' || status === 'revision-requested') {
-
         await conv.resolveEventByRef(conv.MAIN_CONVERSATION_ID, 'review-request', ref)
       }
       const mainAgent = await resolveAgent('principal:agent-mercury')
@@ -515,7 +512,6 @@ function reviseReviewArtifactLocked(input: {
     { v: 1, at, type: 'status', version: prior, status: 'superseded' },
     { v: 1, at, type: 'status', version, status: 'ready-for-review' },
   ]
-
   const relocation: RelocationReport = { relocated: [], outdated: [] }
   for (const comment of state.comments) {
     if (comment.state !== 'open') continue
@@ -545,7 +541,6 @@ function reviseReviewArtifactLocked(input: {
     }
   }
   appendEvents(input.id, events)
-
   mirrorReviewStatusToCrew(input.id, record.title, 'ready-for-review', version)
   return { ok: true, value: { version, relocation } }
 }
@@ -596,7 +591,6 @@ export function addReviewComment(input: {
   anchor: ReviewAnchor
   author: string
   authorRef?: ReviewActorRef
-
   parentCommentId?: string
   body: string
 }): ReviewWriteResult<{ commentId: string }> {
@@ -728,7 +722,6 @@ function validateScope(
         ? { ok: true }
         : { ok: false, reason: `no step '${scope.stepId}'` }
     case 'check':
-
       return scope.claim.trim() !== ''
         ? { ok: true }
         : { ok: false, reason: 'empty check claim' }

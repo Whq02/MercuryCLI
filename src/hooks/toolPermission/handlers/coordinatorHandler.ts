@@ -1,3 +1,4 @@
+
 import type { PermissionDecision, PermissionMode, PermissionUpdate } from '../../../types/permissions.js'
 import { logError } from '../../../utils/log.js'
 import type { PermissionContext } from '../PermissionContext.js'
@@ -17,7 +18,6 @@ export async function handleCoordinatorPermission(
     const hookDecision = await ctx.runHooks(permissionMode, suggestions, updatedInput)
     if (hookDecision) return hookDecision
   } catch (error) {
-
     logError(
       error instanceof Error
         ? error

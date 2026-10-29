@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   type Cell,
   CellWidth,
@@ -31,7 +30,6 @@ function freshScreen() {
     const cell: Cell = { char: ch, styleId: pool.none, width: CellWidth.Normal, hyperlink: undefined }
     setCellAt(s, x, y, cell)
   }
-
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) put(x, y, String.fromCharCode(65 + y))
     for (let x = X0; x < X1; x++) put(x, y, String.fromCharCode(97 + y))

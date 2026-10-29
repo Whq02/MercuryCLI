@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -29,7 +28,6 @@ const CONTINUE = 'switch-drive: continue'
 const FIXTURE_API_KEY = 'fixture-key-000'
 const FABLE = 'claude-fable-5-1'
 const OPUS = 'claude-opus-5'
-
 const INSPECT_BOUND_MS = 5_000
 
 type Route = 'launch' | 'launch-ack' | 'continue' | 'inspect-ack' | 'seat' | 'seat-ack' | 'side'
@@ -37,14 +35,10 @@ interface Hit {
   route: Route
   model: string
   seat: string | null
-
   pid: number | null
   atMs: number
-
   registry?: string
-
   notices?: number
-
   inspectMs?: number
 }
 interface Fixture {
@@ -104,7 +98,6 @@ function routeOf(body: unknown): { route: Route; seat: string | null; resultText
   const last = [...items].reverse().find(i => i.role === 'user')
   const text = last ? textOf(last.content) : ''
   if (text.includes('switch-seat:') && offersTool(body, 'Bash')) return { route: 'seat', seat: text.includes(SEAT_ONE) ? SEAT_ONE : SEAT_TWO, resultText: '', notices }
-
   if (text.includes('switch-drive:') && text.includes('continue') && offersTool(body, 'Inspect')) return { route: 'continue', seat: null, resultText: '', notices }
   if (text.includes('switch-drive:') && !text.includes('continue') && offersTool(body, 'Crewmate')) return { route: 'launch', seat: null, resultText: '', notices }
   return { route: 'side', seat: null, resultText: '', notices }
@@ -116,7 +109,6 @@ function offersTool(body: unknown, name: string): boolean {
 }
 
 type Answer = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
-
 function answer(model: string, blocks: Answer[], usage: { input: number; output: number }): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const parts: string[] = [
@@ -162,7 +154,6 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
   const hits: Hit[] = []
   let inspectAskedAt = 0
   let checks = 0
-
   const fixture: Fixture = { base: '', hits, killedPid: null, close: async () => {} }
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -226,7 +217,6 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
           break
         }
         case 'seat':
-
           blocks = [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 280', description: 'hold the seat', timeout: 300_000 } }]
           usage = { input: 900, output: 40 }
           break
@@ -346,9 +336,7 @@ const bootSends = (ask: string, faceReady = '↑↓ choose'): Array<Record<strin
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]
-
 const switchSends = (model: string, chipAfter: string, mark: string): Array<Record<string, unknown>> => [
-
   { data: `/model ${model}\r`, afterPrevTicks: 6 },
   { data: '\r', afterPrevTicks: 12, awaitText: 'Model switch preview', minTick: 2, awaitSettleTicks: 3 },
   { data: `${CONTINUE}\r`, atTick: 999, awaitText: chipAfter, requireAwait: true, minTick: 4, awaitSettleTicks: 3, mark },
@@ -385,7 +373,6 @@ async function switchLeg(): Promise<void> {
         argv: ['node', DIST, '--model', FABLE],
         sends: [
           ...bootSends(ASK),
-
           { data: '/crewmates', atTick: 999, awaitText: 'launched two in the background', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'launched' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-launched' },
@@ -458,7 +445,6 @@ async function restartLeg(): Promise<void> {
         argv: ['node', DIST, '--model', FABLE],
         sends: [
           ...bootSends(ASK, '↵ start'),
-
           { data: `${CONTINUE}\r`, atTick: 999, awaitText: 'launched two in the background', requireAwait: true, minTick: 2, awaitSettleTicks: 45, mark: 'launched' },
           { data: '/crewmates', atTick: 999, awaitText: 'check 1:', requireAwait: true, minTick: 4, awaitSettleTicks: 6, mark: 'after-restart' },
           { data: '\r', afterPrevTicks: 4 },
@@ -492,7 +478,6 @@ async function restartLeg(): Promise<void> {
   const crewRows = crew.split('\n').filter(line => line.includes(SEAT_ONE) || line.includes(SEAT_TWO) || line.includes('sub-agents'))
   check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('crew · 2 running') && crew.includes('Crewmates (2)'), crewRows.map(flat).join(' | ').slice(0, 300))
   check(`${tag}: the registry's own rows read running, never the store's word`, /\(running · harbour/.test(flat(marks['after-restart'] ?? '')) && /\(running · lantern/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'), flat(marks['after-restart'] ?? '').slice(0, 300))
-
   const afterRestart = flat((marks['after-restart'] ?? '').replace(/^│ ?/gm, ''))
   check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 2 running') && afterRestart.includes('notices 0'), afterRestart.slice(0, 300))
   const carryRow = 'runner restarted after a crash: 2 background crewmates relaunched, 0 delivered from their receipts, 0 stopped'

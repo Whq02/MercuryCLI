@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -176,7 +175,6 @@ function wireChecks(label: string, texts: string[], expectAppend: boolean): void
 }
 
 section('§1 Anthropic family — contradiction case')
-
 {
   captured.length = 0
   await drive('claude-fixture-sonnet', [FLOOR, HOSTILE_CUSTOM])
@@ -189,7 +187,6 @@ section('§1 Anthropic family — contradiction case')
 }
 
 section('§2 Anthropic family — append path + long-context assembly')
-
 {
   captured.length = 0
   await drive('claude-fixture-sonnet', [FLOOR, HOSTILE_CUSTOM, APPEND_TEXT])
@@ -198,7 +195,6 @@ section('§2 Anthropic family — append path + long-context assembly')
   if (req?.body) wireChecks('anthropic+append', anthropicSystemTexts(req.body), true)
 
   captured.length = 0
-
   const LONG_CUSTOM = `${HOSTILE_CUSTOM}\n${'x'.repeat(300_000)}\nEND-OF-LONG-PROMPT`
   await drive('claude-fixture-sonnet', [FLOOR, LONG_CUSTOM])
   const longReq = captured.find(c => c.url.includes('/v1/messages') && c.body)
@@ -212,7 +208,6 @@ section('§2 Anthropic family — append path + long-context assembly')
 }
 
 section('§3 provider-routed transport (OpenAI-compat loopback)')
-
 {
   captured.length = 0
   await drive('local/fixture-chat', [FLOOR, HOSTILE_CUSTOM, APPEND_TEXT])

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import {
@@ -30,6 +29,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
+
 function sseChunk(obj: unknown): string {
   return `data: ${JSON.stringify(obj)}\n\n`
 }
@@ -45,7 +45,6 @@ function responseFromChunks(chunks: string[], opts?: { status?: number; neverClo
     headers: { 'content-type': 'text/event-stream' },
   })
 }
-
 function byteSplit(text: string): string[] {
   return [...text]
 }
@@ -120,7 +119,6 @@ section('1 · request truth (url · headers · flat extras · no key in body)')
   const captured: Captured[] = []
   await collect(
     streamCompatChat({
-
       url: 'http://localhost:1234/v1/chat/completions',
       request: { model: 'qwen3-32b', messages: [{ role: 'user', content: 'hi' }] },
       fetchImpl: capturingFetch(HAPPY, captured),
@@ -183,7 +181,6 @@ section('2 · wire knobs (the pure lane builders)')
   check('openrouter: the documented ladder carries max verbatim', (orFull.reasoning as Record<string, unknown>)?.effort === 'max')
   const orNone = buildOpenrouterExtras({ ...base, wireModel: 'x', effortValue: 'max', vocabulary: [] })
   check('openrouter: no row vocabulary ⇒ no reasoning key', !('reasoning' in orNone))
-
   const orOff = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: 'max', vocabulary: orRow })
   check("openrouter: thinking disabled ⇒ the row's lowest rung (low on a low…xhigh row)", (orOff.reasoning as Record<string, unknown>)?.effort === 'low', JSON.stringify(orOff))
   const orOffNone = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: 'max', vocabulary: OPENROUTER_REASONING_EFFORTS })
@@ -267,7 +264,6 @@ section('3 · stream decode')
   check('the turn finishes on stop', events.some(e => e.type === 'finish' && e.reason === 'stop'))
 }
 {
-
   const chunks = [
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'a1', function: { name: 'alpha', arguments: '{"x":' } }] } }] }),
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 1, id: 'b2', function: { name: 'beta', arguments: '{"y":true}' } }] } }] }),
@@ -294,7 +290,6 @@ section('3 · stream decode')
   check('nothing malformed', calls.every(c => !c.malformed))
 }
 {
-
   const chunks = [
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c', function: { name: 'gamma', arguments: '{broken' } }] } }] }),
     sseChunk({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }),
@@ -313,7 +308,6 @@ section('3 · stream decode')
   check('malformed call flagged, never silent', calls.length === 1 && calls[0]!.malformed === true)
 }
 {
-
   for (const [reason, retryable] of [
     ['content_filter', false],
     ['insufficient_system_resource', true],
@@ -343,7 +337,6 @@ section('3 · stream decode')
   }
 }
 {
-
   const chunks = [
     sseChunk({ choices: [{ delta: { content: 'x' } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }),
     sseChunk({ choices: [{ delta: {}, finish_reason: 'brand_new_vendor_word' }] }),
@@ -365,7 +358,6 @@ section('3 · stream decode')
   check('unknown finish is NOT a truncation fault', !events.some(e => e.type === 'stream-fault'))
 }
 {
-
   const events = await collect(
     streamCompatChat({
       apiKey: 'k',
@@ -389,7 +381,6 @@ section('3 · stream decode')
   check('5xx retryable', f500.retryable === true && f500.code === 'http-503')
 }
 {
-
   const events = await collect(
     streamCompatChat({
       apiKey: 'k',
@@ -406,7 +397,6 @@ section('3 · stream decode')
   )
 }
 {
-
   const controller = new AbortController()
   const generator = streamCompatChat({
     apiKey: 'k',
@@ -428,7 +418,6 @@ section('3 · stream decode')
   )
 }
 {
-
   const events = await collect(
     streamCompatChat({
       apiKey: 'k',
@@ -524,7 +513,6 @@ section('4 · usage decode across the documented spellings')
 
 section('5 · usage delivery is an opt-in (the documented condition)')
 {
-
   const conditionalFetch: typeof fetch = (async (_url: unknown, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>
     const optedIn =
@@ -575,7 +563,6 @@ section('5 · usage delivery is an opt-in (the documented condition)')
 
 section('6 · mid-stream {"error"} payloads are typed faults, never clean stops')
 {
-
   const errorThenDone = [
     sseChunk({ error: { message: 'insufficient quota', type: 'quota', code: 'exceeded_current_quota_error' } }),
     'data: [DONE]\n\n',
@@ -634,7 +621,6 @@ section('6 · mid-stream {"error"} payloads are typed faults, never clean stops'
 
 section('7 · reasoning history: per-lane round-trip through the shared codec')
 {
-
   const history = [
     { role: 'user', content: 'q' },
     {
@@ -659,7 +645,6 @@ section('7 · reasoning history: per-lane round-trip through the shared codec')
       keptAssistants[0].content === 'answer' &&
       keptAssistants[0].tool_calls?.length === 1,
   )
-
   check(
     'opt-in: a thinking-only assistant message carries its reasoning (no longer an empty shell)',
     keptAssistants[1]?.reasoning_content === 'later thought' && keptAssistants[1].content === '',

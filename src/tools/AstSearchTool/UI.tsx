@@ -12,6 +12,7 @@ import { truncate } from '../../utils/format.js'
 import { extractTag } from '../../utils/messages.js'
 import { SearchResultSummary } from '../GrepTool/UI.js'
 
+
 type RenderOutput = {
   mode: 'matches' | 'count'
   text: string

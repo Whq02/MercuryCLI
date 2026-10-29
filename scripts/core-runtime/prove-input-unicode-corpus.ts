@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -211,7 +210,6 @@ const FAMILY = '\u{1f468}\u{200d}\u{1f469}\u{200d}\u{1f467}\u{200d}\u{1f466}'
       ctx, undefined, { altScreen: true },
     )
     const bytes = serialize(optimize(writer.render(empty, frame, true, true)))
-
     const replay = (): InstanceType<typeof AnsiEmulator> => {
       const emu = new AnsiEmulator(COLS, ROWS, true)
       emu.feed(CURSOR_HOME)

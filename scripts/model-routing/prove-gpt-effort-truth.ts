@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -30,7 +29,6 @@ for (const key of [
   delete process.env[key]
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-gpt-effort-'))
-
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
@@ -82,7 +80,6 @@ const liveModel = (efforts: string[], def?: string) =>
   check("the list word above max is never sent even where the list carries it: the row default rides with the adjustment named", p8.wireEffort === 'medium' && p8.source === 'unsupported-fallback' && p8.adjustedFrom === 'ultra', JSON.stringify(p8))
   const p9 = resolveGptReasoningProfile('ultra', full)
   check("…and on a low…max list the same: the default ('low'), never a step to max", p9.wireEffort === 'low' && p9.source === 'unsupported-fallback' && p9.adjustedFrom === 'ultra', JSON.stringify(p9))
-
   const aboveDefault = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'ultra')
   const p10 = resolveGptReasoningProfile(undefined, aboveDefault)
   check("a list default above the ladder: nothing asked ⇒ the convention word 'high' rides, source model-default", p10.wireEffort === 'high' && p10.source === 'model-default', JSON.stringify(p10))
@@ -102,7 +99,6 @@ const liveModel = (efforts: string[], def?: string) =>
   process.env.OPENAI_API_KEY = 'prover-key'
   __resetOpenaiCatalogueForTest()
   check('unfetched gpt: max cap TRUE (offering; dispatch re-validates live)', capabilities.modelSupportsMaxEffort('gpt-5.6-sol'))
-
   check('any gpt id: the same full offering (max + xhigh TRUE unfetched)', capabilities.modelSupportsMaxEffort('gpt-5.5') && capabilities.modelSupportsXHighEffort('gpt-5.5'))
 }
 
@@ -159,7 +155,6 @@ const liveModel = (efforts: string[], def?: string) =>
 
 {
   console.log('\n— 6 · the FULL provider vocabulary rides the resolution; a list word above the ladder is never offered or sent —')
-
   const ultraFetch: typeof fetch = (async () =>
     new Response(
       JSON.stringify({
@@ -244,7 +239,6 @@ const liveModel = (efforts: string[], def?: string) =>
     )) as unknown as typeof fetch
   __resetOpenaiCatalogueForTest()
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: listFetch })
-
   const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
   check('no memory ⇒ the list is the vocabulary (max offered on Sol; the listed word above it never is)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && !(effort.selectableEffortLevels('gpt-5.6-sol') as readonly string[]).includes('ultra') && store.readWireEffortVocabularies().length === 0)
   check("the LISTED words survive verbatim beside the served ones (the provider's word above max among them)", JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']))

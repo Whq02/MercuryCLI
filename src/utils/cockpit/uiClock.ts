@@ -1,18 +1,16 @@
+
 import { getIsScrollDraining } from '../../bootstrap/state.js'
 
 type Bucket = {
   timer: ReturnType<typeof setInterval>
   subs: Set<() => void>
-
   windowStartMs: number
   windowCostMs: number
   overStreak: number
   underStreak: number
   degraded: boolean
-
   skipNext: boolean
   lastProbeMs: number
-
   probeStartMs: number
 }
 
@@ -45,7 +43,6 @@ export function lastClockTick(ms: number): number {
 
 function fanOut(ms: number, bucket: Bucket): number {
   const t0 = performance.now()
-
   lastTickByCadence.set(ms, quantizedNow(ms))
   for (const s of bucket.subs) {
     try {
@@ -99,7 +96,6 @@ function tick(ms: number, bucket: Bucket): void {
     if (now - bucket.windowStartMs >= windowMs || ms >= 1000) closeWindow(ms, bucket, now, false)
     return
   }
-
   const probeMs = meterForProofs?.probeMs ?? PROBE_MS
   if (bucket.probeStartMs === 0 && now - bucket.lastProbeMs >= probeMs) {
     bucket.probeStartMs = now
@@ -127,7 +123,6 @@ export function subscribeUiClock(ms: number, cb: () => void): () => void {
   let bucket = buckets.get(ms)
   if (!bucket) {
     const subs = new Set<() => void>()
-
     lastTickByCadence.set(ms, quantizedNow(ms))
     const created: Bucket = {
       timer: setInterval(() => tick(ms, created), ms),

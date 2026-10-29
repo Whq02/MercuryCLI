@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, sep } from 'node:path'
 
@@ -28,7 +27,6 @@ check('compact.ts imports isInstructionFilePath from the instruction engine', /i
 
 {
   const p = (...seg: string[]): string => ['', 'proj', ...seg].join(sep)
-
   check(
     'isInstructionFilePath matches MERCURY.md / MERCURY.local.md anywhere',
     isInstructionFilePath(p('deep', 'child', 'MERCURY.md')) &&

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/cockpit/commandPopup.ts src/components/CommandPopupSlot.tsx src/components/FullscreenLayout.tsx src/components/PopupGutter.tsx
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 

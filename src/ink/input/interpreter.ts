@@ -1,4 +1,6 @@
+
 import { extendedKeysSupportedNow } from '../session/capabilities.js'
+
 
 export type ParsedKey = {
   kind: 'key'
@@ -13,7 +15,6 @@ export type ParsedKey = {
   raw: string | undefined
   code?: string
   isPasted: boolean
-
   x?: number
   y?: number
 }
@@ -43,7 +44,6 @@ export type ParsedResponse = {
 
 export type ParsedMouse = {
   kind: 'mouse'
-
   button: number
   action: 'press' | 'release'
   col: number
@@ -52,6 +52,7 @@ export type ParsedMouse = {
 }
 
 export type ParsedInput = ParsedKey | ParsedMouse | ParsedResponse
+
 
 const DECRPM_RE = /^\x1b\[\?(\d+);(\d+)\$y$/
 const DA1_RE = /^\x1b\[\?([\d;]*)c$/
@@ -112,6 +113,7 @@ export function interpretResponse(s: string): TerminalResponse | null {
   return null
 }
 
+
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/
 
 export function interpretMouse(s: string): ParsedMouse | null {
@@ -129,44 +131,32 @@ export function interpretMouse(s: string): ParsedMouse | null {
   }
 }
 
+
 const KEY_NAME: Record<string, string> = {
-
   OP: 'f1', OQ: 'f2', OR: 'f3', OS: 'f4',
-
   Op: '0', Oq: '1', Or: '2', Os: '3', Ot: '4',
   Ou: '5', Ov: '6', Ow: '7', Ox: '8', Oy: '9',
-
   Oj: '*', Ok: '+', Ol: ',', Om: '-', On: '.', Oo: '/',
   OM: 'return',
-
   '[11~': 'f1', '[12~': 'f2', '[13~': 'f3', '[14~': 'f4',
-
   '[[A': 'f1', '[[B': 'f2', '[[C': 'f3', '[[D': 'f4', '[[E': 'f5',
-
   '[15~': 'f5', '[17~': 'f6', '[18~': 'f7', '[19~': 'f8',
   '[20~': 'f9', '[21~': 'f10', '[23~': 'f11', '[24~': 'f12',
-
   '[A': 'up', '[B': 'down', '[C': 'right', '[D': 'left',
   '[E': 'clear', '[F': 'end', '[H': 'home',
   '[Q': 'f2', '[S': 'f4',
-
   OA: 'up', OB: 'down', OC: 'right', OD: 'left',
   OE: 'clear', OF: 'end', OH: 'home',
-
   '[1~': 'home', '[2~': 'insert', '[3~': 'delete',
   '[4~': 'end', '[5~': 'pageup', '[6~': 'pagedown',
-
   '[[5~': 'pageup', '[[6~': 'pagedown',
-
   '[7~': 'home', '[8~': 'end',
-
   '[a': 'up', '[b': 'down', '[c': 'right', '[d': 'left', '[e': 'clear',
   '[2$': 'insert', '[3$': 'delete', '[5$': 'pageup',
   '[6$': 'pagedown', '[7$': 'home', '[8$': 'end',
   Oa: 'up', Ob: 'down', Oc: 'right', Od: 'left', Oe: 'clear',
   '[2^': 'insert', '[3^': 'delete', '[5^': 'pageup',
   '[6^': 'pagedown', '[7^': 'home', '[8^': 'end',
-
   '[Z': 'tab',
 }
 
@@ -195,16 +185,13 @@ const SHIFT_CODES = new Set([
   '[a', '[b', '[c', '[d', '[e',
   '[2$', '[3$', '[5$', '[6$', '[7$', '[8$', '[Z',
 ])
-
 const CTRL_CODES = new Set([
   'Oa', 'Ob', 'Oc', 'Od', 'Oe',
   '[2^', '[3^', '[5^', '[6^', '[7^', '[8^',
 ])
 
 export const nonAlphanumericKeys = [
-
   ...Object.values(KEY_NAME).filter(v => v.length > 1),
-
   'escape',
   'backspace',
   'wheelup',
@@ -258,8 +245,8 @@ function resolveChordNameFromLayout(
   return undefined
 }
 
-const CSI_U_RE = /^\x1b\[(\d+)(?::(\d*))?(?::(\d*))?(?::\d*)*(?:;(\d+)(?::(\d+))?)?(?:;([\d:]+))?u$/
 
+const CSI_U_RE = /^\x1b\[(\d+)(?::(\d*))?(?::(\d*))?(?::\d*)*(?:;(\d+)(?::(\d+))?)?(?:;([\d:]+))?u$/
 const EVENT_TYPED_FUNCTIONAL_RE = /^(\x1b\[[\d;]*);(\d+):(\d+)([~A-Za-z])$/
 const MODIFY_OTHER_KEYS_RE = /^\x1b\[27;(\d+);(\d+)~/
 const META_KEY_CODE_RE = /^(?:\x1b)([a-zA-Z0-9\]\\_^])$/
@@ -328,11 +315,9 @@ export function interpretKey(s: string = ''): ParsedKey {
   }
 
   if ((match = CSI_U_RE.exec(s))) {
-
     if (match[5] === '3') return baseKey(s)
     const key = modifiedKey(s, parseInt(match[1]!, 10), match[4] ? parseInt(match[4], 10) : 1)
     if (key.name === undefined && (key.ctrl || key.meta || key.super)) {
-
       key.name = resolveChordNameFromLayout(match[3], match[2])
     }
     if (match[2] && key.shift && !key.ctrl && !key.meta && !key.super && !match[6]) {
@@ -340,7 +325,6 @@ export function interpretKey(s: string = ''): ParsedKey {
       if (isTypedCodepoint(shifted)) key.name = String.fromCodePoint(shifted)
     }
     if (match[6] && !key.ctrl && !key.meta) {
-
       const codepoints = match[6].split(':').map(cp => parseInt(cp, 10))
       if (codepoints.some(cp => !Number.isInteger(cp) || cp < 0 || cp > 0x10ffff)) return baseKey(s)
       const text = codepoints.map(cp => String.fromCodePoint(cp)).join('')
@@ -353,20 +337,17 @@ export function interpretKey(s: string = ''): ParsedKey {
     return interpretKey(`${match[1]};${match[2]}${match[4]}`)
   }
   if ((match = MODIFY_OTHER_KEYS_RE.exec(s))) {
-
     return modifiedKey(s, parseInt(match[2]!, 10), parseInt(match[1]!, 10))
   }
 
   if ((match = SGR_MOUSE_RE.exec(s))) {
     const button = parseInt(match[1]!, 10)
-
     const x = parseInt(match[2]!, 10)
     const y = parseInt(match[3]!, 10)
     if ((button & 0x43) === 0x40) return { ...navKey(s, 'wheelup', false), x, y }
     if ((button & 0x43) === 0x41) return { ...navKey(s, 'wheeldown', false), x, y }
     return navKey(s, 'mouse', false)
   }
-
   if (s.length === 6 && s.startsWith('\x1b[M')) {
     const button = s.charCodeAt(3) - 32
     const x = s.charCodeAt(4) - 32
@@ -400,7 +381,6 @@ export function interpretKey(s: string = ''): ParsedKey {
     key.meta = true
     key.shift = /^[A-Z]$/.test(parts[1]!)
   } else if ((parts = FN_KEY_RE.exec(s))) {
-
     const segs = [...s]
     if (segs[0] === '\u001b' && segs[1] === '\u001b') {
       key.option = true
@@ -437,6 +417,7 @@ export function interpretKey(s: string = ''): ParsedKey {
   return key
 }
 
+
 const ORPHAN_MOUSE_PROBE_RE =
   /^\[(?:<\d+;\d+;\d+[Mm]|M[\x20-\x7f][\x20-￿]{2})|\d+;\d+;\d+[Mm]/
 const ORPHAN_MOUSE_EVENT_RE =
@@ -462,7 +443,6 @@ export function extractOrphanMouseEvents(text: string, out: ParsedInput[]): void
     if (ORPHAN_MOUSE_EVENT_RE.lastIndex <= m.index) {
       ORPHAN_MOUSE_EVENT_RE.lastIndex = m.index + 1
     }
-
     if (m[0][0] !== '[') continue
     const resynthesized = '\x1b' + m[0]
     const mouse = interpretMouse(resynthesized)

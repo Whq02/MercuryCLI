@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { relative } from 'node:path'
 import type { Attachment, CapsuleSection, CapsuleWorkingRef } from './types.js'
@@ -12,7 +13,6 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 interface PriorCapsule {
   digest: string
   refs: string[]
-
   semDigest?: string
 }
 
@@ -120,7 +120,6 @@ export async function getContextCapsuleAttachment(
     const { projectIntelEnabled } =
       require('../../services/projectIntel/contracts.js') as typeof import('../../services/projectIntel/contracts.js')
     if (!projectIntelEnabled()) return []
-
     const inputTask = (() => {
       const trimmed = (input ?? '').trim()
       if (!trimmed) return null
@@ -182,19 +181,16 @@ export async function getContextCapsuleAttachment(
       recentFiles,
       pins,
       drops,
-
       snapshotRead,
     })
     if (!capsule) return []
     if (capsule.items.length === 0) return []
-
     if (!capsule.items.some(i => i.tier <= 4)) return []
 
     const refs = capsule.items.map(i => i.ref)
     const unseen = capsule.items.filter(i => i.reason !== RECENTLY_OBSERVED_REASON).map(i => i.ref)
     if (!capsuleShouldEmit(prior, { digest: capsule.digest, semDigest, refs: unseen })) return []
     const delta = prior ? deltaLine(prior, refs) : null
-
     if (lastAttached.size > 64) {
       const oldest = lastAttached.keys().next().value
       if (oldest !== undefined) lastAttached.delete(oldest)

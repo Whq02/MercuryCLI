@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/MercuryModelPicker.tsx src/utils/model/modelPickerGroups.ts src/utils/model/modelPickerFooter.ts
+// gate-watch: src/commands/model/mercuryModel.tsx src/commands/localsetup/words.ts
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'

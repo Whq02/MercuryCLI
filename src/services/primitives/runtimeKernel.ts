@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 
 interface RuntimeKernelCapabilities {
@@ -6,12 +7,10 @@ interface RuntimeKernelCapabilities {
   search: boolean
   process: boolean
   pty: boolean
-
   notes: Record<string, string>
 }
 
 interface HashKernel {
-
   id: string
   sha256Hex(data: string | Uint8Array): string
 }
@@ -20,6 +19,7 @@ interface RuntimeKernel {
   capabilities(): RuntimeKernelCapabilities
   hash: HashKernel
 }
+
 
 const nodeCryptoHash: HashKernel = {
   id: 'node:crypto',
@@ -30,6 +30,7 @@ const nodeCryptoHash: HashKernel = {
     return h.digest('hex')
   },
 }
+
 
 const K = new Uint32Array([
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1,
@@ -52,7 +53,6 @@ function rotr(x: number, n: number): number {
 function sha256Reference(data: string | Uint8Array): string {
   const bytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
   const bitLen = bytes.length * 8
-
   const padded = new Uint8Array((((bytes.length + 8) >> 6) + 1) << 6)
   padded.set(bytes)
   padded[bytes.length] = 0x80
@@ -105,6 +105,7 @@ export const referenceHashKernel: HashKernel = {
   id: 'reference-ts',
   sha256Hex: sha256Reference,
 }
+
 
 const kernel: RuntimeKernel = {
   capabilities: () => ({

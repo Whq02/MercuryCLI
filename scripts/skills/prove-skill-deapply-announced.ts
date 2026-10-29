@@ -58,7 +58,6 @@ const context = {
 } as never
 const list = async (): Promise<ListingAttachment[]> =>
   (await listing.getSkillListingAttachments(context)) as unknown as ListingAttachment[]
-
 const spokenNames = (await commands.getSkillToolCommands(PROJECT)).map(c => c.name)
 const nameOf = (base: string): string => spokenNames.find(n => n === base || n.endsWith(`:${base}`)) ?? base
 
@@ -131,7 +130,6 @@ section('§3 the ledger pruned: re-enable announces as an ADDITION')
 section('§4 a skill file deleted from disk announces too (one roster law)')
 {
   rmSync(join(skillDir, 'depa-alpha'), { recursive: true, force: true })
-
   commands.clearCommandsCache()
   const gone = await list()
   const a = gone[0]

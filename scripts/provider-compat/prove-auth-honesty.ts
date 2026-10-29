@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,7 +21,6 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 type Reject = { status: number; body: unknown }
-
 let answers: Array<Reject | 'ok'> = ['ok']
 type Hit = { path: string; bearer: string | undefined }
 let hits: Hit[] = []
@@ -176,9 +174,7 @@ type Family = {
   family: string
   model: string
   label: string
-
   remedy: string[]
-
   secret: string
   reject401: Reject
   reject402?: Reject
@@ -225,7 +221,6 @@ for (const f of FAMILIES.filter(f => f.reject402)) {
 
 section('§3 · refresh-on-401 for the OAuth families (one forced refresh, one retry, new bearer)')
 const now = Date.now()
-
 {
   delete process.env.GEMINI_API_KEY
   delete process.env.GOOGLE_API_KEY
@@ -238,7 +233,6 @@ const now = Date.now()
   check('gemini OAuth: the turn SETTLES after the refresh (no error message)', o.errors.length === 0 && o.settled.length > 0, o.text.slice(0, 200))
   check('gemini OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer gemini-at-old' && hits[1]?.bearer === 'Bearer gemini-at-new', JSON.stringify(hits))
   check('gemini OAuth: exactly ONE token POST to the pinned Google token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/gemini/oauth/token' && tokenPosts[0].body.includes('grant_type=refresh_token'), JSON.stringify(tokenPosts))
-
   geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' }, preferredSource: 'oauth', tokens: { accessToken: 'gemini-at-stale', refreshToken: 'gemini-rt', accessTokenExpiresAtMs: now + 3_600_000 } }))
   tokenAnswer = { status: 500, body: {} }
@@ -250,7 +244,6 @@ const now = Date.now()
   geminiAccounts.__resetGeminiAccountsForTest()
   writeFileSync(geminiAccounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1, client: { clientId: 'client-fixture' } }))
 }
-
 {
   delete process.env.HF_TOKEN
   hfAccounts.__resetHuggingfaceAccountsForTest()
@@ -261,14 +254,12 @@ const now = Date.now()
   check('huggingface OAuth: the turn SETTLES after the refresh', o.errors.length === 0 && o.settled.length > 0, o.text.slice(0, 200))
   check('huggingface OAuth: two wire hits, the retry carrying the NEW bearer', hits.length === 2 && hits[0]?.bearer === 'Bearer hf-at-old' && hits[1]?.bearer === 'Bearer hf-at-new', JSON.stringify(hits))
   check('huggingface OAuth: exactly ONE token POST to the pinned Hub token endpoint', tokenPosts.length === 1 && tokenPosts[0]?.path === '/hf/hub/oauth/token', JSON.stringify(tokenPosts))
-
   process.env.HF_TOKEN = KEYS.HF_TOKEN
   answers = [{ status: 401, body: { error: 'Invalid username or password.' } }]
   const keyed = await drive('huggingface/fixture-org/fixture-model')
   check('huggingface HF_TOKEN: the env key is refused once, no refresh, remedy names HF_TOKEN', keyed.errors.length === 1 && hits.length === 1 && tokenPosts.length === 0 && keyed.text.includes('HF_TOKEN'), `hits=${hits.length} tokenPosts=${tokenPosts.length}`)
   hfAccounts.writeHuggingfaceTokens(null)
 }
-
 {
   delete process.env.OPENAI_API_KEY
   openaiAccounts.__resetOpenaiAccountsForTest()
@@ -295,11 +286,9 @@ const now = Date.now()
 
 section('§4 · readiness derivations tell the truth the dispatch would tell')
 {
-
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
   const { writeStoredZaiApiKey } = await import('../../src/services/providers/providerSecrets.ts')
   const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-
   const { __resetLaneBillingStateForTest } = await import('../../src/services/providers/laneBillingState.ts')
   __resetLaneBillingStateForTest()
   delete process.env.ZAI_API_KEY
@@ -332,9 +321,7 @@ section('§4 · readiness derivations tell the truth the dispatch would tell')
 
 section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails fast and says so (item 11)')
 {
-
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
-
   const savedEnvBearer = process.env.ANTHROPIC_AUTH_TOKEN
   delete process.env.ANTHROPIC_AUTH_TOKEN
   const { mkdirSync, readFileSync } = await import('node:fs')
@@ -386,7 +373,6 @@ section('§5 · the ANTHROPIC lane: an OBSERVED-expired claude.ai sign-in fails 
   check("picker: the Anthropic group detail keys on presence.expired with the /logins line", pickerSrc.includes('anthropicPresence.expired') && pickerSrc.includes('sign-in expired — /logins reconnects'))
   const healthSrc = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
   check('health AUTH row: expired branch present (warn on the observed or checked state, the one line as the fix)', healthSrc.includes("presence.expired || fresh.state === 'expired'") && healthSrc.includes('— sign-in expired`') && healthSrc.includes('fix: anthropicSignInWords()'))
-
   seed({ accessToken: 'at-dead', refreshToken: '', expiresAt: Date.now() - 60_000, scopes: ['user:inference'], subscriptionType: 'pro', rateLimitTier: null })
   process.env.ANTHROPIC_AUTH_TOKEN = 'env-shadow-token'
   clearOAuthTokenCache()

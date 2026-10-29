@@ -1,6 +1,7 @@
 import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { Message } from '../types/message.js'
 
+
 type McpInstructionsDelta = {
   addedNames: string[]
   addedBlocks: string[]

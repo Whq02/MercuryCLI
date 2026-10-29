@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/utils/conversationRecovery* src/services/engine-connector/daemonConnector*
+// gate-watch: src/components/shell/OutputLine* src/components/permissions/**
+// gate-watch: src/components/messages/UserBashInputMessage* src/components/messages/UserTextMessage*
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

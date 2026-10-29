@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -109,7 +108,6 @@ const queue = [
 ]
 
 section('§1 the builder — every kind rides ONE attachment, in the product\'s words')
-
 const queuedIds = queuedNoticeTaskIds(queue as never)
 const out = getAgentRosterAttachment({ tasks: store as never, agentNameRegistry: registry, excludeAgentId: OWN_ID, queuedNoticeIds: queuedIds, nowMs: now })
 check('one attachment for the whole store', out.length === 1 && out[0]!.type === 'agent_roster', j(out.map(a => a.type)))
@@ -150,12 +148,10 @@ check('an empty store yields no attachment', getAgentRosterAttachment({ tasks: {
 check('a store holding only the compacting agent yields no attachment', getAgentRosterAttachment({ tasks: { [OWN_ID]: store[OWN_ID] } as never, excludeAgentId: OWN_ID, nowMs: now }).length === 0)
 
 section('§2 the queued-notice census reads the notification road\'s own tag')
-
 check('the task ids named by queued task notifications, and only those', j([...queuedIds]) === j(['adonequeued']), j([...queuedIds]))
 check('an empty queue names nothing', queuedNoticeTaskIds([]).size === 0)
 
 section('§3 the model-facing text and the null rendering')
-
 const projected = normalizeAttachmentForAPI(out[0] as never)
 check('the roster projects to ONE meta user row', projected.length === 1 && (projected[0] as { isMeta?: boolean }).isMeta === true, String(projected.length))
 const text = typeof projected[0]?.message.content === 'string' ? projected[0].message.content : j(projected[0]?.message.content)
@@ -171,7 +167,6 @@ check('an empty roster projects nothing', normalizeAttachmentForAPI({ type: 'age
 check('the roster is registered null-rendering (transcript-only, never painted)', (NULL_RENDERING_ATTACHMENT_TYPES as readonly string[]).includes('agent_roster') && isNullRenderingAttachment(createAttachmentMessage(out[0] as never) as never))
 
 section('§4 the summary template carries the tenth section')
-
 const NINE = [
   '1. Operator Intent: every explicit request, in detail.',
   '2. Technical Ground: technologies, patterns and frameworks in play.',
@@ -195,7 +190,6 @@ check('the partial prompts carry the tenth section too (from, up_to)', /10\. Age
 check('the from-prompt keeps its recent-messages scope', fromPrompt.includes('Summarise ONLY the recent portion'))
 
 section('§5 every fold road hands the roster its context')
-
 const smc = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')
 check('the session-memory strategy folds the roster in when its caller hands the context', smc.includes('createAsyncAgentAttachmentsIfNeeded(rosterContext'))
 const autoSrc = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
@@ -211,7 +205,6 @@ check('the summary fold assembles the roster through the one owner (assembleAtta
 check('no second announcer: the old per-task task_status road is gone from the fold', !compactSrc.includes("type: 'task_status'"))
 
 section('§6 the direct lane — a real fold on an engine family carries the roster')
-
 {
   const { startCrossfamilyFixture } = await import('../lib/crossfamilyConcourseFixture.ts')
   const fixture = await startCrossfamilyFixture({ port: FIXTURE_PORT })

@@ -1,13 +1,10 @@
+
 import { serialGenerationLane } from '../../substrate/serialGeneration.js'
 
 export interface SerialCoalescer {
-
   poke: () => void
-
   settled: () => Promise<void>
-
   release: () => void
-
   generation: () => number
 }
 
@@ -17,7 +14,6 @@ export function serialCoalescer(
   run: () => Promise<void>,
   name = 'coalescer',
 ): SerialCoalescer {
-
   let released = false
 
   const lane = serialGenerationLane<typeof REQUEST>({
@@ -39,7 +35,6 @@ export function serialCoalescer(
     },
     release: () => {
       released = true
-
       void lane.release()
     },
     generation: () => lane.state().accepted,

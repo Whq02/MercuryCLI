@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,7 +23,6 @@ check(
   'modalClaims is derived from modalPeek === 0 (one claim decision)',
   /const modalClaims = modalPeek === 0;/.test(src),
 )
-
 check(
   'recessOn derives from the painted modal and recessTargetFor (the ONE recess policy seam)',
   /const recessOn = modalUp && recessTargetFor\(t\) !== null;/.test(src),
@@ -33,14 +31,12 @@ check(
   'blankClaims = modalUp && modalClaims && !recessOn (the painted closed-gate blank claim)',
   /const blankClaims = modalUp && modalClaims && !recessOn;/.test(src),
 )
-
 check(
   'blank claim carries height={blankClaims ? terminalRows : undefined} (claim, not cap)',
   /height=\{blankClaims \? terminalRows : undefined\} maxHeight=\{Math\.max\(0, terminalRows - modalPeek\)\}/.test(
     src,
   ),
 )
-
 check(
   'flexGrow spacer above the ▔ divider, gated on blankClaims',
   /\{blankClaims && <Box flexGrow=\{1\} \/>\}\{modalSeparatorRows > 0 \? <Box flexShrink=\{0\}><Text color="info">/.test(
@@ -51,17 +47,14 @@ check(
   'flexGrow spacer BELOW the content too (blank claim centers short surfaces)',
   /\{modal\}<\/ModalPaneBody>\{blankClaims && <Box flexGrow=\{1\} \/>\}/.test(src),
 )
-
 check(
   'pane stays opaque={true} in BOTH modes (transparency is structurally banned)',
   /flexDirection="column" overflow="hidden" opaque=\{true\}>/.test(src),
 )
-
 check(
   'the pane registers elevated exactly while recessOn',
   /<Box ref=\{recessOn \? elevatedRef : undefined\} position="absolute"/.test(src),
 )
-
 check(
   'peek>0 path keeps the designed transcript sliver (height undefined off-claim)',
   /blankClaims \? terminalRows : undefined/.test(src),
@@ -99,7 +92,6 @@ check(
   'CommandCenter embedded body asks for no percent width',
   embeddedBody !== null && !/width="100%"/.test(embeddedBody[1]!),
 )
-
 console.log('-- the transcript gutter inside the frame')
 check(
   'the transcript area pads by the gutter (1 in the cockpit frame, 0 otherwise)',

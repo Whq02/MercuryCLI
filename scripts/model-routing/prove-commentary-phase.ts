@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -60,7 +59,6 @@ const finishOf = (events: OpenaiStreamEvent[]): Extract<OpenaiStreamEvent, { typ
 const typeList = (events: OpenaiStreamEvent[]): string[] => events.map(e => e.type)
 
 section('1 · the fold — the register rides the item events and the replay record')
-
 {
   const events = foldAll([
     { type: 'response.created', response: { id: 'resp_p1' } },
@@ -165,7 +163,6 @@ section('1 · the fold — the register rides the item events and the replay rec
 }
 
 section('2 · the runtime — one message item mints one text block, labelled')
-
 type Minted = { text: string; phase?: string; hasKey: boolean }
 type StartBlock = { phase?: string; hasKey: boolean }
 type Settled = { apexProviderTurn?: { items?: unknown[] } }
@@ -192,7 +189,6 @@ async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: M
   })
   const blocks: Minted[] = []
   const starts: StartBlock[] = []
-
   const settled: Settled[] = []
   let r = await gen.next()
   while (!r.done) {
@@ -296,7 +292,6 @@ const finishEvent = (finalText: string, orderedItems: unknown[] = []): Record<st
 }
 
 section('3 · the bridge — verbatim replay · derived items per register · a phase-less history unchanged')
-
 {
   const record = decodeOpenaiTurnRecord({
     provider: 'openai',

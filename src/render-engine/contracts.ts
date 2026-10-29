@@ -1,8 +1,8 @@
+
 export type RowIdentity = string
 
 export interface SettledRow {
   readonly identity: RowIdentity
-
   readonly lines: readonly string[]
 }
 
@@ -13,7 +13,6 @@ export interface SettledBatch {
 }
 
 export type LedgerAck =
-
   | { readonly kind: 'accepted'; readonly seq: number; readonly novelRows: number }
   | { readonly kind: 'repeat'; readonly seq: number }
   | { readonly kind: 'stale-epoch'; readonly seq: number; readonly currentEpoch: number }
@@ -23,7 +22,6 @@ export interface TailInput {
   readonly toolRows: readonly string[]
   readonly composerRows: readonly string[]
   readonly statusRows: readonly string[]
-
   readonly cursor: { readonly rowOffset: number; readonly col: number } | null
 }
 
@@ -41,9 +39,7 @@ export interface OverlayInput {
 }
 
 export interface EngineProfile {
-
   readonly syncOutput: boolean
-
   readonly syncWhy: string
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 import { parseArgs } from 'util'
 
@@ -33,7 +32,6 @@ if (mode === 'headless') {
 const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } =
   await import('../../src/constants/prompts.js')
 const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.js')
-
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { readPromptProvenance } = await import(
   '../../src/utils/cockpit/promptProvenance.js'

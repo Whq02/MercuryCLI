@@ -5,9 +5,9 @@ import { getMercuryLspServerSources } from './builtinServers.js'
 import { catalogueServerConfigs } from './serverCatalogue.js'
 import type { ScopedLspServerConfig } from './types.js'
 
+
 function loadExtensionServers(): Record<string, ScopedLspServerConfig> {
   try {
-
     const servers = getExtensionLspServers()
     const count = Object.keys(servers).length
     if (count > 0) logForDebugging(`lsp/config: ${count} extension language server(s)`)

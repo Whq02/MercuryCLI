@@ -11,6 +11,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, LIST_MCP_RESOURCES_TOOL_NAME, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
+
 const inputSchema = z.object({
   server: z
     .string()
@@ -55,7 +56,6 @@ export const ListMcpResourcesTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext) {
     const clients = context.options.mcpClients
-
     const selected = input.server
       ? clients.filter(client => client.name === input.server)
       : clients

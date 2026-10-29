@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+
 type InvocationEdge = {
   invokingRequestId?: string
   invocationKind?: 'spawn' | 'resume'
@@ -25,13 +26,13 @@ export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
   return storage.run(context, fn)
 }
 
+
 export function consumeInvokingRequestId():
   | { invokingRequestId: string; invocationKind?: 'spawn' | 'resume' }
   | undefined {
   const context = getAgentContext()
   if (!context) return undefined
   if (context.invocationEmitted) return undefined
-
   if (context.invokingRequestId === undefined) return undefined
   context.invocationEmitted = true
   return {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { marked } from 'marked'
@@ -50,7 +49,6 @@ check('over-width cells are ANSI-safe truncated with an ellipsis', /sliceAnsi\(c
 check('PreviewBox passes its inner box width to applyMarkdown', /applyMarkdown\(content, theme, highlight, effectiveMaxWidth - 4\)/.test(preview))
 
 section('HB-0167: budgeting algorithm behaviour (real sliceAnsi/stringWidth)')
-
 function renderTable(header: string[], rows: string[][], widthBudget: number): string {
   const columnWidths = header.map((h, i) => {
     let m = stringWidth(stripAnsi(h))

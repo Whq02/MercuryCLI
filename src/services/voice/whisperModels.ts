@@ -6,24 +6,18 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import lock from '../../../vendor/whisper-models.lock.json' with { type: 'json' }
 
 export const WHISPER_MODELS_LOCK_PATH = 'vendor/whisper-models.lock.json'
-
 export const WHISPER_MODELS_SEGMENTS = ['models', 'whisper'] as const
-
 export const WHISPER_MODELS_VENDOR_PATH = 'vendor/whisper-models'
 
 export type WhisperModelLanguage = 'en' | 'multilingual'
 
 export interface WhisperModelRow {
-
   name: string
-
   file: string
-
   url: string
   bytes: number
   sha256: string
   language: WhisperModelLanguage
-
   words: string
 }
 
@@ -166,7 +160,6 @@ interface WhisperModelDownload {
   bytes: number
   sha256: string
   ms: number
-
   reused: boolean
 }
 

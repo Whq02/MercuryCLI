@@ -167,7 +167,6 @@ export function openaiFaultToTypedError(
 ): NonNullable<AssistantMessage['error']> {
   if (MODEL_NOT_FOUND_CODE.test(fault.code)) return 'invalid_request'
   if (fault.kind === 'usage-limit') return 'rate_limit'
-
   if (fault.status !== undefined) {
     if (fault.status === 401 || fault.status === 403) return 'authentication_failed'
     if (fault.status === 402) return 'billing_error'
@@ -240,10 +239,8 @@ export function toBridgeMessages(
 ): { rows: BridgeMessage[]; reconstructedGptTurns: number; foreignRecordsDropped: number; foreignRecordModels: string[] } {
   const out: BridgeMessage[] = []
   const target = targetModelId.trim().toLowerCase()
-
   let foreignRecordsDropped = 0
   const foreignRecordModels = new Set<string>()
-
   const gptTurnIds = new Set<string>()
   const recordedTurnIds = new Set<string>()
   const settledTurnIds = new Set<string>()
@@ -260,7 +257,6 @@ export function toBridgeMessages(
       const decoded = decodeOpenaiTurnRecord(m.apexProviderTurn)
       const servedModel = typeof m.message.model === 'string' ? m.message.model : ''
       const sameModel = servedModel.trim().toLowerCase() === target
-
       const agrees = decoded !== undefined && recordAgreesWithContent(decoded, param.content)
       const record = decoded && sameModel && agrees ? decoded : undefined
       if (decoded && sameModel && !agrees) {
@@ -293,7 +289,6 @@ export function toBridgeMessages(
 }
 
 const reconstructionNoted = new Set<string>()
-
 const foreignRecordNoted = new Set<string>()
 
 function activeApexRole(options: Options): ApexGptRole {
@@ -310,7 +305,6 @@ async function buildApiShapedTools(
   model: string,
   conversationKey?: string,
 ): Promise<ApiShapedTool[]> {
-
   const schemas = await Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
@@ -382,9 +376,7 @@ export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSea
     input_tokens: Math.max(0, total - cached - written),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
-
     cache_creation_input_tokens: written,
-
     server_tool_use: { ...EMPTY_USAGE.server_tool_use, web_search_requests: webSearchRequests },
   }
 }
@@ -412,7 +404,6 @@ export function replayableItems(
   orderedItems: readonly OpenaiInputItem[],
   refused: readonly (Pick<RefusedToolCall, 'id'> & { code?: RefusedToolCall['code'] })[],
 ): OpenaiInputItem[] {
-
   const refusedIds = new Set(refused.filter(r => r.code !== 'duplicate-id').map(r => r.id))
   const seenCallIds = new Set<string>()
   const kept: OpenaiInputItem[] = []
@@ -482,7 +473,6 @@ async function qualifyRequestedModel(
 ): Promise<QualificationOutcome> {
   const sourceKind = auth.account.kind
   const snapshot = await refreshOpenaiCatalogue(sourceKind)
-
   if (requestedId === 'gpt') {
     const candidates = qualifiedGptCandidates('specialist', sourceKind)
     const head = candidates[0]
@@ -500,7 +490,6 @@ async function qualifyRequestedModel(
   }
   const why = evaluated.why
   if (why.reason === 'catalogue-unavailable') {
-
     return {
       kind: 'degraded',
       modelId: requestedId,
@@ -566,7 +555,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
-
     latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
@@ -583,7 +571,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
   const wireMessages = renderAdmissionRecordsAsText(projectedMessages)
-
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const kept = candidate === undefined ? liveGptEffortCatalogue(modelId) : undefined
@@ -593,9 +580,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     : remembered !== undefined
       ? resolveGptReasoningProfile(requestedEffort, { supportedReasoningEfforts: [...remembered.vocabulary], ...(remembered.defaultEffort !== undefined ? { defaultReasoningEffort: remembered.defaultEffort } : {}) })
       : { source: 'model-default' }
-
   const settlementNotes: string[] = []
-
   const accountRoad = auth.account.label
   const listedWords = candidate !== undefined ? liveGptListedEffortWords(modelId) : undefined
   const wireRefusedWord = (asked: string): boolean =>
@@ -647,7 +632,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       { level: 'info' },
     )
   }
-
   if (bridge.foreignRecordsDropped > 0 && !foreignRecordNoted.has(threadKey)) {
     foreignRecordNoted.add(threadKey)
     settlementNotes.push(
@@ -656,7 +640,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   }
 
   const contract = resolveBehaviourContract([...systemPrompt])
-
   const renderedInstructions = renderOpenaiInstructions(contract)
   const promptCacheKey = mintCacheDomainKey({
     providerScope: `openai:${auth.account.kind}`,
@@ -676,12 +659,9 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     ...(statedMaxOut !== undefined ? { maxOutputTokens: statedMaxOut } : {}),
     promptCacheKey,
-
     imagesSupported: imagesRide,
     pdfSupported: imagesRide && modelSupportsPDF(modelId),
-
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
-
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
     ...(nativeDeferral ? { deferredToolNames: plan.deferredNames, toolSearch: true } : {}),
     ...(options.toolChoice?.type === 'none' ? { toolChoice: 'none' as const } : {}),
@@ -742,7 +722,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     if (outcome.kind === 'done') {
       observeSignInResponse(signInRequest, 200)
       clearOpenaiUsageLimit(auth.account.kind)
-
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
         logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
@@ -750,7 +729,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       }
       openaiLiveProof = { at: Date.now(), model: modelId }
       recordLaneTurnSettled('openai')
-
       recordLiveQualification({
         modelId,
         role: activeApexRole(options),
@@ -758,7 +736,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
         behaviourContractDigest: contract.digest,
         ...(profile.wireEffort ? { liveEffort: profile.wireEffort } : {}),
       })
-
       if (profile.wireEffort !== undefined) {
         noteWireEffortAccepted({ modelId, sourceKind: auth.account.kind, word: profile.wireEffort })
       }
@@ -772,7 +749,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
     const typed = openaiFaultToTypedError(outcome.fault)
-
     if (
       typed === 'authentication_failed' &&
       outcome.retryEligible &&
@@ -821,7 +797,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
         return
       }
     }
-
     const refusal = candidate !== undefined ? effortVocabularyRefusalOf(outcome.fault, profile.wireEffort) : undefined
     const reissueAtServedWord =
       refusal !== undefined && candidate !== undefined && outcome.retryEligible && attempt < OPENAI_MAX_ATTEMPTS
@@ -829,11 +804,9 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       recordWireEffortRefusal({ modelId, sourceKind: auth.account.kind, refused: refusal.refused, levels: refusal.levels })
       const served = candidate.live.supportedReasoningEfforts.filter(level => refusal.levels.includes(level))
       profile = resolveGptReasoningProfile(requestedEffort, { ...candidate.live, supportedReasoningEfforts: served })
-
       effortAdjusted = receiptOf(profile, true)
       request = buildRequest(profile.wireEffort)
     }
-
     const askedMs = outcome.fault.retryAfterMs
     const wireDetail = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
     const singleShot = options.querySource === 'overload_probe'
@@ -903,7 +876,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       !providerWaitIsWindow(askedMs) &&
       (reissueAtServedWord || (busy === undefined && !singleShot && outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS))
     if (retryable) {
-
       const delayMs = Math.max(openaiRetryDelayMs(attempt), askedMs ?? 0)
       const notice = createSystemAPIErrorMessage(
         Object.assign(new Error(outcome.fault.message), {
@@ -921,10 +893,8 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
       continue
     }
     if (outcome.fault.kind === 'usage-limit' && typed === 'rate_limit') {
-
       noteOpenaiSourceIdentity(auth.account.kind, openaiSourceIdentity(auth.account.kind))
       recordOpenaiUsageLimit(outcome.fault.resetsAtMs, auth.account.kind)
-
       const slotAppendix = ((): string => {
         try {
           const { slotWallAppendix } =
@@ -934,9 +904,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
           return ''
         }
       })()
-
       await (await import('../catalogueOnDemand.js')).readCataloguesForOtherFamilies('openai')
-
       const laneRemedy = ((): string => {
         try {
           const { crossFamilyLaneRemedy } =
@@ -958,19 +926,16 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
           return ''
         }
       })()
-
       yield withEffort(stampProviderWait(
         markUnknownModel(apiErrorMessage(
           busyPrefix(`${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} request was refused (${outcome.fault.code}) — ${outcome.fault.message}${carryClause}. The next request goes to OpenAI again; resume any time. Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry now · pick another model via /model · switch the OpenAI source explicitly (s on the OpenAI row in /logins).'}${laneRemedy}`, outcome.fault, typed),
           openaiFaultToTypedError(outcome.fault),
-
           `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
         ), outcome.fault.status),
         outcome.fault.retryAfterMs,
       ))
       return
     }
-
     const detail = outcome.fault.message
       ? `${outcome.fault.code}: ${outcome.fault.message}`
       : outcome.fault.code
@@ -991,7 +956,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
           ? `${API_ERROR_MESSAGE_PREFIX}: OpenAI reports the ${auth.account.label} account out of credit (${detail}) — add credit to the OpenAI account, then retry; /model picks another model meanwhile.`
           : `${API_ERROR_MESSAGE_PREFIX}: OpenAI stream failed (${outcome.fault.code}) — ${outcome.fault.message}`
     if (typed === 'billing_error') {
-
       recordLaneBillingRefusal('openai', {
         detail,
         remedy: 'add credit to the OpenAI account, then retry; /model picks another model meanwhile.',
@@ -1014,7 +978,6 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
 }
 
 export async function* streamOneOpenaiAttempt(ctx: {
-
   _eventsForTesting?: AsyncIterable<OpenaiStreamEvent>
   request: OpenaiResponsesRequest
   auth: OpenaiRequestAuth
@@ -1022,18 +985,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
   tools: Tools
   options: Options
   modelId: string
-
   messages: Message[]
-
   settlementNotes: readonly string[]
-
   effortAdjusted?: EffortAdjustedV1
   effort?: EffortStampV1
-
   contractDigest: string
-
   deferredUnadmitted?: (name: string) => boolean
-
   attempt?: number
   busy?: { ladder: BusyRetryLadder; fault: OpenaiFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
@@ -1051,7 +1008,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
     container: null,
     context_management: null,
   }
-
   const streamEvent = (event: ApiStreamEvent): StreamEvent => ({
     type: 'stream_event',
     event,
@@ -1086,18 +1042,15 @@ export async function* streamOneOpenaiAttempt(ctx: {
 
   let messageStarted = false
   let firstEventSeen = false
-
   const blocks = {
     index: -1,
     open: null as
       | {
           kind: 'thinking' | 'text'
           value: string
-
           phase?: TextPhase
         }
       | {
-
           kind: 'tool'
           itemId: string
           callId: string
@@ -1106,9 +1059,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         }
       | null,
   }
-
   const livePaintComplete = new Set<string>()
-
   let pendingTextPhase: TextPhase | undefined
   const minted: AssistantMessage[] = []
   let usageSeen: OpenaiUsage | undefined
@@ -1127,7 +1078,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
       }
     | undefined
   let fault: OpenaiFault | undefined
-
   let settledOnFault: OpenaiInputItem[] = []
 
   function* ensureMessageStart(): Generator<StreamEvent> {
@@ -1138,7 +1088,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
   function* closeOpenBlock(): Generator<StreamEvent | AssistantMessage> {
     if (!blocks.open) return
     if (blocks.open.kind === 'tool') {
-
       blocks.open = null
       yield streamEvent({ type: 'content_block_stop', index: blocks.index })
       return
@@ -1187,7 +1136,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
           : { type: 'text_delta', text },
     })
   }
-
   function* emitSettledBlock(
     block: ContentBlock,
     deltas: ApiContentBlockDelta[],
@@ -1217,7 +1165,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
       decorate,
     )
   }
-
   let leadingNotesEmitted = false
   function* emitLeadingNotes(): Generator<StreamEvent | AssistantMessage> {
     if (leadingNotesEmitted) return
@@ -1238,11 +1185,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
       ...(auth.account.kind === 'api-key' && openaiSocketRoadChosen()
         ? { socket: { owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) } }
         : {}),
-
       idleTimeoutMs,
       silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: 'openai', cold, promptTokens, idleMs: idleTimeoutMs }),
       ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
-
       firstByte: {
         cold,
         promptTokens,
@@ -1267,17 +1212,14 @@ export async function* streamOneOpenaiAttempt(ctx: {
         yield* streamDelta('text', event.text)
         break
       case 'refusal-delta':
-
         refusalStreamed = true
         yield* streamDelta('text', event.text)
         break
       case 'text-item-start':
-
         if (blocks.open?.kind === 'text') yield* closeOpenBlock()
         pendingTextPhase = event.phase
         break
       case 'text-item-done':
-
         if (blocks.open?.kind === 'text') {
           if (event.phase && !blocks.open.phase) blocks.open.phase = event.phase
           yield* closeOpenBlock()
@@ -1285,7 +1227,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
         pendingTextPhase = undefined
         break
       case 'tool-args-start': {
-
         yield* ensureMessageStart()
         yield* emitLeadingNotes()
         yield* closeOpenBlock()
@@ -1318,7 +1259,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
       case 'tool-args-done': {
         if (blocks.open?.kind === 'tool' && blocks.open.itemId === event.itemId) {
           if (blocks.open.bytes === 0 && event.argsRaw !== '') {
-
             yield streamEvent({
               type: 'content_block_delta',
               index: blocks.index,
@@ -1340,7 +1280,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
           orderedItems: event.orderedItems,
           refusalText: event.refusalText,
           unknownItemTypes: event.unknownItemTypes,
-
           webSearchCalls: event.webSearchCalls ?? [],
           citations: event.citations ?? [],
           ...(event.incompleteDetail !== undefined
@@ -1366,16 +1305,13 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const nothingYielded = !messageStarted && minted.length === 0
   const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
   if (fault && nothingYielded && (!finish || retryTemporary)) {
-
     return { kind: 'fault', fault, retryEligible: true }
   }
-
   const typedEnd =
     fault !== undefined && !finish && !retryTemporary && !MODEL_NOT_FOUND_CODE.test(fault.code)
       ? typedStreamEndOf({
           fault,
           provider: 'OpenAI',
-
           tailStands:
             blocks.open === null &&
             minted.at(-1)?.message.content[0]?.type === 'text' &&
@@ -1418,7 +1354,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
     }
     if (refusal !== undefined) logForDebugging(`[openai] ${toolCallRefusalDiagnostic(refusal)}`, { level: 'warn' })
     if (livePaintComplete.has(call.callId)) {
-
       const m = mintBlock({
         type: 'tool_use',
         id: call.callId,
@@ -1431,7 +1366,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
       continue
     }
     yield* emitSettledBlock(
-
       { type: 'tool_use', id: call.callId, name: call.name, input },
       [{ type: 'input_json_delta', partial_json: verdict.ok ? call.argumentsRaw : JSON.stringify(input) }],
       { type: 'tool_use', id: call.callId, name: call.name, input: {} },
@@ -1444,7 +1378,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
     })
   }
   if (finish && finish.webSearchCalls.length > 0) {
-
     for (const call of finish.webSearchCalls) {
       const block: ContentBlock = { type: 'server_tool_use', id: call.id, name: 'web_search', input: call.query !== undefined ? { query: call.query } : {} }
       yield* emitSettledBlock(block, [], block)
@@ -1464,7 +1397,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
     )
   }
   if (finish?.reason === 'other-incomplete') {
-
     yield* emitNoteBlock(
       `[openai] the provider ended this response INCOMPLETE (${finish.incompleteDetail ?? 'no reason stated'}) — the turn was cut short by the provider, not finished; continue or retry as needed.`,
     )
@@ -1495,19 +1427,16 @@ export async function* streamOneOpenaiAttempt(ctx: {
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0)
   if (!usageSeen && fault !== undefined) {
-
     const estimated = estimateFaultedRequestUsage({ lane: 'openai', model: modelId, request, minted, faultCode: fault.code })
     addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
   }
   if (usageSeen) {
-
     addToTotalSessionCost(
       calculateUSDCost(modelId, finalUsage as never),
       finalUsage as never,
       modelId,
     )
   }
-
   if (usageSeen) {
     void checkResponseForCacheBreak(
       options.querySource,
@@ -1520,12 +1449,10 @@ export async function* streamOneOpenaiAttempt(ctx: {
   }
   const lastMessage = minted.at(-1)
   if (lastMessage) {
-
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
-
     const mintedCallIds = new Set([...accepted, ...answered].map(({ call }) => call.callId))
     const settledItems = finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : [])
     const replayItems = replayableItems(
@@ -1533,7 +1460,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
       refused,
     )
     if (replayItems.length > 0) {
-
       lastMessage.apexProviderTurn = {
         provider: 'openai',
         items: replayItems as unknown[],
@@ -1554,7 +1480,6 @@ export async function* streamOneOpenaiAttempt(ctx: {
   if (fault && MODEL_NOT_FOUND_CODE.test(fault.code)) return { kind: 'fault', fault, retryEligible: false }
   if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
-
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(auth.account.label, fault.code, fault.message),
       undefined,

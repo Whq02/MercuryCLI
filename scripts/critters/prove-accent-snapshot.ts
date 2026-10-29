@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { EventEmitter } from 'node:events'
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -41,7 +40,6 @@ t.section('§1 — stability: reads rebuild nothing; the accent object is the sa
 
 t.section('§2 — every store dimension rebuilds the snapshot exactly once')
 {
-
   const read = (): { v: string; b: number } => {
     const v = accent.getSessionAccentSnapshotKey()
     return { v, b: builds() }
@@ -117,7 +115,6 @@ t.section('§4 — M subscribers under ink: identical-state notifications render
   const inst = renderSync(React.createElement(Parent), { stdout: target, stdin: stdinStub(), patchConsole: false, exitOnCtrlC: false })
   flushPendingSyncWork()
   t.check(`the ${M} subscribers mounted and registered`, renders === M && listeners() >= M)
-
   renders = 0
   const b0 = builds()
   for (let i = 0; i < 25; i++) {

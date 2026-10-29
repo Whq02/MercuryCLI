@@ -1,3 +1,4 @@
+
 export function isPtyHostAvailable(): boolean {
   const maybeBun = (globalThis as { Bun?: { Terminal?: unknown } }).Bun
   if (maybeBun && typeof maybeBun.Terminal !== 'undefined') return true

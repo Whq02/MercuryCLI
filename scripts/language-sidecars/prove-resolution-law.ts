@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_LSP ??= '1'
-
 process.env.MERCURY_LSP_SIDECAR_ENTRY ??= join(import.meta.dir, '..', '..', 'src', 'services', 'lsp', 'tsSidecar', 'entry.ts')
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
@@ -19,6 +18,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+
 
 {
   const p = probeBuiltinTsServer()
@@ -39,6 +39,7 @@ function check(label: string, ok: boolean, detail = ''): void {
     check('ts: packaged version named', p.typescriptVersion === packaged.version || typeof p.typescriptVersion === 'string')
   }
 }
+
 
 {
   const ws = mkdtempSync(join(tmpdir(), 'vista-law-pyright-'))
@@ -97,6 +98,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   else process.env.MERCURY_PYRIGHT_VENDOR_DIR = prev
   _resetPyrightProbeCacheForTesting()
 }
+
 
 {
   const info = builtinImplementationInfo('mercury-ts')

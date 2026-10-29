@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,7 +16,6 @@ process.env.MERCURY_DEEPSEEK_API_BASE = 'https://fixture.invalid/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
 const CREDENTIAL_ENVS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'HF_TOKEN'] as const
 for (const name of CREDENTIAL_ENVS) delete process.env[name]
-
 process.env.ZAI_API_KEY = 'zai-fixture000'
 process.env.DEEPSEEK_API_KEY = 'sk-deepseek-fixture000'
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
@@ -56,7 +54,6 @@ section('§1 timed sign-ins newest first, the untimed credential after, the abse
   check('deepseek signs in first', ledger.recordSignIn('deepseek', 'api-key', { now: () => T + 1_000 }))
   check('zai signs in second', ledger.recordSignIn('zai', 'api-key', { now: () => T + 2_000 }))
   check('openrouter signs in last', ledger.recordSignIn('openrouter', 'oauth', { now: () => T + 3_000 }))
-
   check('a departed family (gemini) has a record but no credential', ledger.recordSignIn('gemini', 'oauth', { now: () => T + 9_000 }))
   const recency = recentSignIns().map(c => c.family)
   check('the shared owner orders the credentials: openrouter, zai, deepseek, then the untimed moonshot; gemini absent', recency.join(',') === 'openrouter,zai,deepseek,moonshot', recency.join(','))

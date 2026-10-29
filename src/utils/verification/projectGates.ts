@@ -1,3 +1,4 @@
+
 import { readFileSync, statSync } from 'node:fs'
 import { projectConfigCandidates } from '../projectConfig.js'
 import type { VerificationScope } from './verificationState.js'
@@ -20,7 +21,6 @@ const SCOPES: ReadonlySet<string> = new Set([
 
 interface CacheEntry {
   gates: DeclaredGate[]
-
   fingerprint: string
   at: number
 }

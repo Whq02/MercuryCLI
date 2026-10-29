@@ -7,6 +7,7 @@ import {
 import { Box, Text } from '../../ink.js'
 import type { Output } from './ExitWorktreeTool.js'
 
+
 export function renderToolUseMessage(): React.ReactNode {
   return 'Exiting worktree…'
 }

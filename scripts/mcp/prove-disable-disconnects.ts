@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -77,7 +76,6 @@ section('§1b derived managed paths all live UNDER the managed root')
   for (const [label, derived] of doors) {
     t(`§1b ${label} descends from the root`, typeof derived === 'string' && derived.startsWith(root + sep), `${String(derived)} is not under ${root}`)
   }
-
   const { readdirSync } = await import('node:fs')
   const offenders: string[] = []
   const walk = (dir: string): void => {
@@ -98,7 +96,6 @@ section('§1b derived managed paths all live UNDER the managed root')
 
 section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)')
 {
-
   const { getManagedFilePath } = await import('../../src/utils/settings/managedPath.ts')
   const { getFsImplementation, setFsImplementation, setOriginalFsImplementation } = await import(
     '../../src/utils/fsOperations.ts'
@@ -117,7 +114,6 @@ section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)'
     readFileSync: (path: string, _options: { encoding: BufferEncoding }): string => answer(path),
   })
   try {
-
     setFsImplementation(
       fakeFs(path => {
         if (path === policyFile) return JSON.stringify({ extensions: { exclusive: 12345 } })
@@ -131,10 +127,8 @@ section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)'
       invalidType.length === 1 && invalidType[0]!.issue.includes('invalid value of type number'),
       JSON.stringify(invalidType),
     )
-
     setFsImplementation(fakeFs(() => errnoThrow('ENOENT')))
     t('§1c an absent policy file stays quiet', detectManagedSettingsWarnings().length === 0)
-
     setFsImplementation(fakeFs(path => (path === policyFile ? errnoThrow('EACCES') : errnoThrow('ENOENT'))))
     const unreadable = detectManagedSettingsWarnings()
     t(
@@ -205,7 +199,6 @@ section('§2c mcp list/get report disabled instead of probing it (field F-3.1)')
   const disabledOutcome = await cli.probeServer(name, { ...serverConfig, scope: 'local' } as never)
   t('§2c a disabled server reports disabled', disabledOutcome.outcome === 'disabled', JSON.stringify(disabledOutcome))
   t('§2c the disabled server was NEVER spawned', !existsSync(pidsFile), 'spawner pids file exists — the probe started it')
-
   cfg.setMcpServerEnabled(name, true)
   const enabledOutcome = await cli.probeServer(name, { ...serverConfig, scope: 'local' } as never)
   t('§2c the re-enabled server connects (positive control)', enabledOutcome.outcome === 'connected', JSON.stringify(enabledOutcome))
@@ -222,11 +215,9 @@ section('§2c mcp list/get report disabled instead of probing it (field F-3.1)')
     }
     t('§2c the control server is reaped', gone, `pid ${controlServerPid}`)
   }
-
   const cliSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/cli/handlers/mcp.tsx'), 'utf8')
   t('§2c the disabled row has its own honest words', cliSrc.includes("'- disabled (enable from /mcp)'"))
   t('§2c list and get both ride the one probe', (cliSrc.match(/probeServer\(/g) ?? []).length >= 3)
-
   const deadOutcome = await cli.probeServer('dead-command-probe', {
     type: 'stdio',
     command: '/nonexistent-mercury-dead-probe-command',
@@ -247,7 +238,6 @@ section('§3 the disconnect rides the one cross-platform kill owner')
 {
   const clientSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/services/mcp/client.ts'), 'utf8')
   t('§3 cleanup imports endProcessTree from the owner', clientSrc.includes("await import('../../utils/processGroup.js')") && clientSrc.includes('endProcessTree(pid, \'SIGINT\')'))
-
   t('§3 graceful phase then a hard sweep of survivors', clientSrc.includes("endProcessTreeSurvivors(pid, graceful.survivors, 'SIGKILL')"))
   t('§3 no bespoke tree-kill invocation at the client (the owner runs it)', !/(execFile|exec|spawn)\(\s*['"]taskkill/.test(clientSrc))
 }

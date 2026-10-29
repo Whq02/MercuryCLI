@@ -1,3 +1,4 @@
+
 import { useMemo, useRef } from 'react'
 import type { Message, UserMessage } from '../types/message.js'
 
@@ -98,11 +99,9 @@ function collectEdit(turn: InProgressTurn, result: unknown): void {
     }
     turn.files.set(candidate.filePath, entry)
   }
-
   if (isCreate) entry.isNewFile = true
 
   if (structuredPatch.length === 0 && isCreate) {
-
     const lines = (candidate.content as string).split('\n')
     entry.hunks.push({
       oldStart: 0,
@@ -150,7 +149,6 @@ export function useTurnDiffs(messages: readonly Message[]): TurnDiff[] {
 
   return useMemo(() => {
     let cache = cacheRef.current
-
     if (
       cache.messagesRef !== messages &&
       messages.length <= cache.lastProcessedIndex
@@ -168,7 +166,6 @@ export function useTurnDiffs(messages: readonly Message[]): TurnDiff[] {
       const isToolResult = isToolResultMessage(message)
 
       if (!isToolResult && !message.isMeta) {
-
         if (cache.currentTurn) {
           const finished = finalizeTurn(cache.currentTurn)
           if (finished) cache.completedTurns.push(finished)

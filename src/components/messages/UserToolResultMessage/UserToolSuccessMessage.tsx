@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { Box, Text } from '../../../ink.js'
 import {
@@ -60,7 +61,6 @@ export function UserToolSuccessMessage({
   }
 
   const toolUseBlock = lookups.toolUseByToolUseID.get(toolUseID)
-
   let rendered: React.ReactNode
   try {
     rendered = tool.renderToolResultMessage?.(
@@ -92,8 +92,7 @@ export function UserToolSuccessMessage({
 
   return (
     <Box flexDirection="column" width={unconstrained ? undefined : width}>
-      {
-}
+      {}
       <RowErrorBoundary>{rendered ?? null}</RowErrorBoundary>
       <RowErrorBoundary>
         <HookProgressMessage

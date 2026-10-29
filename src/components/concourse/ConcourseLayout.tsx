@@ -23,6 +23,7 @@ import { useLiveTilesDegraded } from './liveTiles.js'
 import { NeedsYouRail, RAIL_MAX_ROWS } from './NeedsYouRail.js'
 import { ConcourseStatusRail } from './ConcourseStrips.js'
 
+
 type ConcourseProfile = 'stacked' | 'wide'
 
 export const ROW_PEEK_DESIRED_ROWS = 8
@@ -57,26 +58,18 @@ interface SwitchboardGeometry {
   railRows: number
   railWindowRows: number
   railRuleRows: 0 | 1
-
   mainBand: [number, number]
   mainRows: number
-
   liveComposerRows: number
   liveComposerBand: [number, number]
   statusTop: number
   helpTop: number
-
   coordCols: [number, number]
   rightCols: [number, number]
-
   listBand: [number, number]
-
   mirrorBand: [number, number]
-
   coordBand: [number, number]
-
   listContentRows: number
-
   peekRows: number
 }
 
@@ -88,7 +81,6 @@ export function switchboardGeometry(
   groupCount: number,
   liveDraftRows: number,
   tallOwner: 'mirror' | 'coordinator',
-
   expandedRows = 0,
   focusedRegion: ConcourseRegion = 'list',
 ): SwitchboardGeometry {
@@ -122,11 +114,9 @@ export function switchboardGeometry(
   const helpRows = 1
   let railWindowRows = needsYouCount > 0 ? Math.min(needsYouCount, RAIL_MAX_ROWS) : 0
   let railRuleRows: 0 | 1 = needsYouCount > 0 ? 1 : 0
-
   const railRowsOf = (): number => (needsYouCount > 0 ? 3 + railRuleRows + railWindowRows : 0)
   let mainFloor = 8
   const fixedRows = (): number => headerRows + railRowsOf() + statusRows + helpRows
-
   const ladder: Array<() => boolean> = [
     () => (railWindowRows > 1 ? ((railWindowRows -= 1), true) : false),
     () => (railRuleRows > 0 ? ((railRuleRows = 0), true) : false),
@@ -143,13 +133,11 @@ export function switchboardGeometry(
   const mainEnd = mainTop + mainRows - 1
   const statusTop = mainTop + mainRows
   const helpTop = statusTop + statusRows
-
   const liveAsk = Math.max(0, Math.min(3, liveDraftRows))
 
   const coordW = Math.max(28, Math.round((interior * 40) / 100))
   const coordCols: [number, number] = [3, 2 + coordW]
   const rightCols: [number, number] = [3 + coordW + 1, 2 + interior]
-
   const LIST_CHROME = 4
   const maxListContent = Math.max(4, Math.ceil(mainRows / 2) - 1 - LIST_CHROME)
   const listContentWide = Math.max(
@@ -157,16 +145,13 @@ export function switchboardGeometry(
     Math.min(sessionRowCount + Math.max(1, groupCount), maxListContent),
   )
   if (profile === 'wide') {
-
     let composerRows = liveAsk > 0 ? 2 + liveAsk + 1 : 0
     while (composerRows > 4 && LIST_CHROME + 1 + composerRows + 5 > mainRows) composerRows -= 1
     if (composerRows > 0 && LIST_CHROME + 1 + composerRows + 4 > mainRows) composerRows = 0
-
     const listRowsBase = Math.min(
       listContentWide + LIST_CHROME,
       Math.max(LIST_CHROME + 1, mainRows - 5 - composerRows),
     )
-
     const peekRows = Math.max(0, Math.min(expandedRows, mainRows - 5 - composerRows - listRowsBase))
     const listRows = listRowsBase + peekRows
     const listBand: [number, number] = [mainTop, mainTop + listRows - 1]
@@ -181,7 +166,6 @@ export function switchboardGeometry(
       peekRows,
     }
   }
-
   const fullCols: [number, number] = [3, 2 + interior]
   const TAIL_ROWS = 2
   const listRowsBase = Math.min(
@@ -197,11 +181,9 @@ export function switchboardGeometry(
     tallRows += fromTail
   }
   if (tallRows < 4 && composerRows > 0) {
-
     tallRows += composerRows
     composerRows = 0
   }
-
   let peekRows = Math.max(0, Math.min(expandedRows, tallRows - 4))
   tallRows -= peekRows
   if (peekRows < expandedRows && tailRows > 0) {
@@ -246,14 +228,11 @@ export const STATE_GLYPH: Record<string, { glyph: string; color: 'success' | 'wa
   queued: { glyph: GLYPH.squareOpen, color: 'textMuted' },
   starting: { glyph: '◐', color: 'textMuted' },
   paused: { glyph: '◌', color: 'textMuted' },
-
   stopped: { glyph: '◇', color: 'textMuted' },
   completed: { glyph: GLYPH.ok, color: 'textMuted' },
   cancelled: { glyph: GLYPH.circledSlash, color: 'textMuted' },
   draft: { glyph: GLYPH.typing, color: 'textMuted' },
-
   parked: { glyph: GLYPH.sparkFaint, color: 'textMuted' },
-
   elsewhere: { glyph: GLYPH.handoff, color: 'info' },
 }
 
@@ -280,12 +259,10 @@ export const STATE_WORD_RESERVE = Math.max(
 )
 
 export function stateWordCell(word: string | null): string {
-
   return ` ${(word ?? '').slice(0, STATE_WORD_RESERVE).padEnd(STATE_WORD_RESERVE)}`
 }
 
 interface ConcourseLayoutWiring {
-
   selectSession: (sessionId: string) => void
   enterSession: (sessionId: string) => void
   selectObligation: (index: number) => void
@@ -293,18 +270,12 @@ interface ConcourseLayoutWiring {
   openObligation: (obligationId: string) => void
   openBootSettings: () => void
   exitToChat: () => void
-
   focusComposer: () => void
-
   focusList?: () => void
-
   openCoordinatorModel?: () => void
   retrySnapshot?: () => void
-
   withdrawObligation?: (obligationId: string) => void
-
   openGroundPicker?: () => void
-
   newSession?: () => void
 }
 
@@ -350,41 +321,25 @@ export function ConcourseLayout({
   railIndex: number
   boardScrollStart?: number | undefined
   degraded?: boolean
-
   focusTall: 'mirror' | 'coordinator'
-
   liveDraftRows: number
-
   liveDraftEmpty?: boolean
-
   coordinatorDraftEmpty?: boolean
-
   modelPickerOpen?: boolean
-
   groundPickerOpen?: boolean
-
   rowPeekOpen?: boolean
   rowPeekNode?: (rows: number, width: number) => React.ReactNode
-
   rowChipRows?: number
-
   olderRows?: number
-
   armedSelected?: boolean
-
   closeChordStaged?: boolean
-
   markedIds?: ReadonlySet<string>
-
   coordinatorNode: (rows: number, width: number) => React.ReactNode
   mirrorNode: (rows: number, width: number) => React.ReactNode
   liveComposerNode?: (bandRows: number, width: number) => React.ReactNode
   wiring: ConcourseLayoutWiring
-
   newSessionNote?: ControlNoteState
-
   frameCols?: number
-
   splitOn?: boolean
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -405,12 +360,11 @@ export function ConcourseLayout({
     rowPeekOpen ? ROW_PEEK_DESIRED_ROWS : olderRows > 0 ? olderRows : rowChipRows,
     region,
   )
-
   const tilesDegraded = useLiveTilesDegraded()
-
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)
   const chat = chatPresent()
   const browseKeys = browseKeysFor({ chatPresent: chat, region })
+
 
   const interior = geo.interior
   const wide = geo.profile === 'wide'
@@ -421,7 +375,6 @@ export function ConcourseLayout({
   const coordRows = wide ? geo.mainRows : geo.coordBand[1] - geo.coordBand[0] + 1
 
   const selectedIdx = Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelectedId))
-
   const askBySession = new Map<string, string>()
   for (const o of snapshot.needsYou) {
     if (!askBySession.has(o.sessionId)) askBySession.set(o.sessionId, o.question)
@@ -439,7 +392,6 @@ export function ConcourseLayout({
     windowFor,
     i => groupOfRow.get(sessionRows[i]!.sessionId) ?? '',
   )
-
   let showHeadings = true
   {
     const groupsInWin = new Set<string>()
@@ -478,7 +430,6 @@ export function ConcourseLayout({
       width={wide ? rightWidth : undefined}
       height={listRows}
       overflow="hidden"
-
       borderStyle={geo.constrained ? undefined : paletteCollapsed() && region === 'list' ? 'bold' : 'round'}
       borderColor={region === 'list' ? t.info : t.borderSubtle}
       flexShrink={0}
@@ -503,8 +454,7 @@ export function ConcourseLayout({
         </Box>
       ) : <>
       <Box flexShrink={0} paddingX={1} flexDirection="row" overflow="hidden">
-        {
-}
+        {}
         <Box flexShrink={0} overflow="hidden">
           <InteractiveRow id="concourse:board:focus" directActivate hoverStyle="chrome-ink" onActivate={() => wiring.focusList?.()}>
             {hover => (
@@ -542,7 +492,6 @@ export function ConcourseLayout({
         </Text>
         </Box>
         {wiring.newSession !== undefined ? (
-
           <>
             <Box flexGrow={1} />
             <Box flexShrink={0} marginLeft={1} overflow="hidden">
@@ -575,7 +524,6 @@ export function ConcourseLayout({
       </Box>
       {(() => {
         const columnHeaderRow = (
-
           <Box key="columns" paddingX={1} flexShrink={0} height={1}>
             <Box flexGrow={1}>
               <Text color={t.textInstruction}>STATUS & TITLE</Text>
@@ -592,7 +540,6 @@ export function ConcourseLayout({
           </Box>
         )
         if (sessionRows.length === 0 && filterText.trim().length === 0) {
-
           return (
             <>
               <Box flexShrink={0} height={1} />
@@ -637,8 +584,7 @@ export function ConcourseLayout({
             <>
               {columnHeaderRow}
               <Box flexShrink={0} paddingX={1}>
-                {
-}
+                {}
                 <Text color={t.textSecondary}>no sessions match "{truncateToWidth(filterText, Math.max(8, interior - 24))}"</Text>
               </Box>
               <Box flexShrink={0} paddingX={1}>
@@ -689,7 +635,6 @@ export function ConcourseLayout({
             const isSel = r.sessionId === boardSelectedId
             const base = STATE_GLYPH[r.state] ?? { glyph: GLYPH.read, color: 'textMuted' as const }
             const sg = r.state === 'working' && isSel ? { glyph: GLYPH.ok, color: 'info' as const } : r.finishedUnseen === true ? { glyph: base.glyph, color: 'warning' as const } : base
-
             const ageBlock = padStartTo(r.state === 'queued' ? 'waits' : (r.ageLabel ?? '—'), 5)
             out.push(
               <Box key={r.sessionId} flexShrink={0} paddingX={1}>
@@ -705,17 +650,14 @@ export function ConcourseLayout({
                     <Text wrap="truncate-end">
                       {isSel ? <Text color={region === 'list' ? t.info : t.textPrimary}>{'▸ '}</Text> : <Text>{'  '}</Text>}
                       {markedIds?.has(r.sessionId) === true ? (
-
                         <Text color={t.info}>{GLYPH.check} </Text>
                       ) : null}
                       {r.state === 'working' ? (
-
                         <WorkingGlyph color={t.info} active />
                       ) : (
                         <Text color={t[sg.color]}>{sg.glyph}</Text>
                       )}
-                      {
-}
+                      {}
                       <Text color={t[sg.color]}>
                         {stateWordCell(
                           isSel && !r.sessionId.startsWith('older:')
@@ -725,7 +667,6 @@ export function ConcourseLayout({
                       </Text>
                       <Text> </Text>
                       {r.foreignProject !== undefined ? (
-
                         <Text color={t.info}>{GLYPH.sparkBright} </Text>
                       ) : null}
                       <Text color={t.textPrimary} bold={isSel}>
@@ -737,16 +678,14 @@ export function ConcourseLayout({
                     </Text>
                   </Box>
                   <Box width={colProject} flexShrink={0} paddingRight={1}>
-                    {
-}
+                    {}
                     <Text wrap="truncate-end">
                       {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
                       <Text color={t.textSecondary}>{r.projectLabel}</Text>
                     </Text>
                   </Box>
                   <Box width={nowWidth} flexShrink={0} paddingRight={1}>
-                    {
-}
+                    {}
                     <LiveNowCell row={r} ask={askBySession.get(r.sessionId)} />
                   </Box>
                   <Box width={colAge} justifyContent="flex-end" paddingRight={1} flexShrink={0}>
@@ -756,7 +695,6 @@ export function ConcourseLayout({
               </Box>,
             )
             if (isSel && geo.peekRows > 0 && rowPeekNode !== undefined) {
-
               const paneW = wide ? rightWidth : interior
               out.push(
                 <Box
@@ -885,7 +823,6 @@ export function ConcourseLayout({
             </Box>
           </Box>
         ) : (
-
           <Box flexGrow={1} flexDirection="column">
             {listPane}
             {focusTall === 'mirror' ? (
@@ -926,17 +863,13 @@ export function ConcourseLayout({
               {filtering
                 ? 'type to filter · ↵ apply · esc clear'
                 : (() => {
-
                     const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
-
                     const olderBrowse = olderRows > 0
-
                     const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
                     const composerEnter =
                       region === 'live' && liveDraftEmpty && !olderBrowse
                         ? armedSelected
                           ? [
-
                               { keys: '↵', label: 'enters (armed)' },
                               { keys: '→', label: 'enter' },
                             ]
@@ -952,7 +885,6 @@ export function ConcourseLayout({
                     const parts = [
                       ...browseKeys.filter(k => k.keys !== 'esc'),
                       ...composerEnter,
-
                       ...withSplitViewTruth(
                         regionKeysFor(region, {
                         newSession: wiring.newSession !== undefined,
@@ -964,7 +896,6 @@ export function ConcourseLayout({
                         }),
                         { splitOn },
                       ),
-
                       ...(helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
                       browseKeys.find(k => k.keys === 'esc')!,
                     ]
@@ -978,7 +909,6 @@ export function ConcourseLayout({
                               : k,
                       )
                       .map(k => ({ text: `${keyHintLabel(k.keys)} ${k.label}`, priority: prio(k.keys) }))
-
                     if (tilesDegraded)
                       parts.unshift({ text: '· tiles show summaries — the machine is busy', priority: 5 })
                     return shedToFit(parts, interior, ' · ')

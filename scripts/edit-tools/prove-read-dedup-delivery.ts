@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -8,7 +7,6 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'dedup-delivery-home-'))
 process.env.MERCURY_BARE = '1'
-
 process.env.MERCURY_TIME_BASED_MC = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
@@ -140,7 +138,6 @@ section('D4 — no over-invalidation: a surviving result still dedups')
 
 section('D5 — inspect mode never touches the ledger')
 {
-
   await readViaTool(files[0]!)
   const before = readFileState.has(files[0]!)
   await buildRequestContextPlan(
@@ -150,7 +147,6 @@ section('D5 — inspect mode never touches the ledger')
       querySource: 'main_thread' as never,
       contentReplacementState: undefined,
       skipToolNames: new Set<string>(),
-
       readFileState,
     },
     'inspect',

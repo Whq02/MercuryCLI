@@ -29,16 +29,13 @@ t.section('§1 — the branch glyph is vocabulary (D13)')
     const raw = readFileSync(join(ROOT, rel), 'utf8')
     if (!raw.includes('⌥')) continue
     if (rel.endsWith('mercury-ui/glyphs.ts')) continue
-
     const src = raw.replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
     for (const [i, line] of src.split('\n').entries()) {
       if (!line.includes('⌥')) continue
       const trimmed = line.trim()
       const comment = trimmed.startsWith('//') || trimmed.startsWith('*')
-
       const chordHint =
         (rel.endsWith('concourse/AttachedSessionScreen.tsx') && line.includes('⌥ drag')) ||
-
         rel.endsWith('mercury-ui/keyHintLabel.ts')
       if (!comment && !chordHint) offenders.push(`${rel}:${i + 1}`)
     }
@@ -92,7 +89,6 @@ t.section('§2 — the sigil sparkles derive (D12)')
 
 t.section('§3 — the crew estate adds no raw animation clocks')
 {
-
   const estate = ['src/components/prompts-panel', 'src/components/mercury-ui/screens']
   const found: string[] = []
   for (const dir of estate) {

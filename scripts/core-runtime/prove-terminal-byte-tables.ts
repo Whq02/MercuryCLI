@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/ink/termio/ansi.ts src/ink/termio/csi.ts src/ink/termio/display-types.ts src/ink/termio/osc.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import assert from 'node:assert/strict'

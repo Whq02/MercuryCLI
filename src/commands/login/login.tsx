@@ -33,10 +33,8 @@ export function Login({
   geometry: SettingsPopupGeometry
   scrollRef?: React.RefObject<ScrollBoxHandle | null>
   onDone: (success: boolean) => void
-
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
   startingMessage?: string
-
   initialFocus?: LoginFamilyFocus
 }): React.ReactNode {
   const settledRef = useRef(false)
@@ -88,7 +86,6 @@ function runPostLoginRefresh(context: LocalJSXCommandContext): void {
     context.getAppState().toolPermissionContext,
     context.setAppState,
   ).catch(logError)
-
   context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
 }
 
@@ -112,7 +109,6 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'huggingface':
     case 'hf':
       return 'huggingface'
-
     case 'moonshot':
     case 'kimi':
       return 'moonshot'
@@ -165,7 +161,6 @@ export async function call(
   context: LocalJSXCommandContext,
   args?: string,
 ): Promise<React.ReactNode> {
-
   const tokens = (args ?? '').trim().split(/\s+/).filter(Boolean)
   const returnToken = tokens.find(token => token.startsWith('--return='))
   const returnCommand = returnToken?.slice('--return='.length)
@@ -184,12 +179,10 @@ export async function call(
         const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
         onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
       } else {
-
         onDone('/logins closed — no credential changed', chain)
       }
     })()
   }
-
   const completeOpenai = (result: { ok: boolean; receipt: string }): void => {
     context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
     onDone(result.receipt, chain)

@@ -70,7 +70,6 @@ function computeEntrySpans(lines: string[]): FrontmatterEntrySpan[] {
       current = { key: m[1] ?? '', startLine: i, endLine: i + 1, style }
     } else if (current) {
       current.endLine = i + 1
-
       if (current.style === 'empty' && !isBlankOrComment(line)) {
         current.style = /^\s*-\s/.test(line) ? 'block-seq' : 'nested'
       }
@@ -80,7 +79,6 @@ function computeEntrySpans(lines: string[]): FrontmatterEntrySpan[] {
     current.endLine = lines.length
     spans.push(current)
   }
-
   for (let s = 0; s < spans.length - 1; s++) {
     const span = spans[s]!
     let end = span.endLine
@@ -123,7 +121,6 @@ function extractFields(
   const descRaw = frontmatter['description']
   let description = ''
   if (typeof descRaw === 'string' && descRaw) {
-
     description = descRaw.replace(/\\n/g, '\n')
   } else {
     diag(
@@ -428,7 +425,6 @@ export function decodeAgentDocument(
     const key = keyForField(field)
     const span = entries.find(e => e.key === key)
     if (!span) return undefined
-
     let keyLine = span.startLine
     while (
       keyLine < span.endLine &&
@@ -454,6 +450,7 @@ export function decodeAgentDocument(
     diagnostics,
   }
 }
+
 
 function quoteDouble(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\\\n')}"`
@@ -552,7 +549,6 @@ export function patchAgentDocument(
     const key = keyForField(field)
     const span = spans.find(e => e.key === key)
     if (span) {
-
       let keyLine = span.startLine
       while (keyLine < span.endLine && isBlankOrComment(lines[keyLine] ?? '')) {
         keyLine++
@@ -598,7 +594,6 @@ export function patchAgentDocument(
       newRaw = beforeBody + edit.body
     }
   } else {
-
     const body = edit.body !== undefined ? edit.body : doc.body
     newRaw = `---${cr}\n${newInner}---${cr}\n${cr}\n${body}`
   }
@@ -652,7 +647,6 @@ export function serializeAgentMarkdown(
   const push = (field: keyof AgentSpecFields): void => {
     const value = fields[field]
     if (value === undefined) return
-
     lines.push(...emitEntryLines(field, value, undefined))
   }
   push('name')

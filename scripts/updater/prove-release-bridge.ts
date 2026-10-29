@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -48,7 +47,6 @@ const die = (msg: string): never => {
 
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string; repository?: { url?: string } }
 const CANDIDATE_VERSION = PKG.version
-
 const targetAt = process.argv.indexOf('--target')
 const TARGET_ARG = targetAt === -1 ? null : (process.argv[targetAt + 1] ?? '')
 if (TARGET_ARG !== null && !isReleaseTarget(TARGET_ARG)) die(`--target wants one of ${RELEASE_TARGETS.join(', ')} (got ${TARGET_ARG || 'nothing'})`)
@@ -84,7 +82,6 @@ const extractArchive = (archive: string, dest: string): void => {
 }
 
 try {
-
   const slug = process.env.MERCURY_BRIDGE_SLUG ?? repoSlugFromUrl(PKG.repository?.url ?? '')
   if (!slug) die('no release repository: set MERCURY_BRIDGE_SLUG or a GitHub repository.url in package.json')
   let previousPath = process.env.MERCURY_BRIDGE_PREVIOUS ?? ''
@@ -97,7 +94,6 @@ try {
       CANDIDATE_VERSION,
     )
     if (previous.state === 'first-release') {
-
       console.log(`  [NEUTRAL] clean channel — ${slug} lists no previous convention-valid release (${parsedList.length} release record(s) seen); the candidate is the channel's FIRST release and there is no shipped reader to bridge from. The bridge law resumes at the next release.`)
       rmSync(scratch, { recursive: true, force: true })
       console.log('')
@@ -107,7 +103,6 @@ try {
     previousTag = previous.tag
     const prevVersion = previousTag.slice(1)
     const prevAsset = TARGET_ASSET(prevVersion)
-
     const prevAssets = (parsedList.find(r => r.tag_name === previousTag)?.assets ?? []).map(a => a.name).filter((n): n is string => typeof n === 'string')
     if (prevAssets.length > 0 && !prevAssets.includes(prevAsset)) {
       console.log(`  [NEUTRAL] ${previousTag} published no ${TARGET} archive (${prevAssets.length} asset(s) listed) — the candidate is this target's FIRST release and there is no shipped reader to bridge from. The bridge law resumes for ${TARGET} at the next release.`)
@@ -160,7 +155,6 @@ try {
 
   const fakeGhJs = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')
   if (IS_WIN) {
-
     const shimSrc = join(scratch, 'ghshim.cs')
     writeFileSync(
       shimSrc,
@@ -193,7 +187,6 @@ try {
   }
 
   const ghLog = join(scratch, 'gh.log')
-
   const prevRuntime = join(versionsDir, prevVersion, ...(IS_WIN ? ['vendor', 'node', 'node.exe'] : ['vendor', 'node', 'bin', 'node']))
   const prevNode = existsSync(prevRuntime) ? prevRuntime : 'node'
   console.log(`  · previous reader's runtime: ${prevNode === 'node' ? 'the PATH node (no vendored runtime in the previous archive)' : prevRuntime}`)

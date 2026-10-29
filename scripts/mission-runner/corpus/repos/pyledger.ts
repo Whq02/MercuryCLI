@@ -2,6 +2,7 @@ import type { BranchOverlay, FileMap, HelixRepoSpec } from '../contracts.js'
 
 const ACCOUNTS_BASE = `"""Chart of accounts with period balance carry-forward."""
 
+
 class Account:
     def __init__(self, code, name):
         self.code = code
@@ -11,6 +12,7 @@ class Account:
 
     def post(self, amount):
         self.balance += amount
+
 
 class ChartOfAccounts:
     def __init__(self):
@@ -58,6 +60,7 @@ Amounts are integer cents. Accounting-style parentheses negate:
 '(12.34)' == -1234, and a leading '-' also negates.
 """
 
+
 def parse_amount(token):
     token = token.strip()
     negative = False
@@ -77,6 +80,7 @@ def parse_amount(token):
     cents = int(whole) * 100 + int(frac)
     return -cents if negative else cents
 
+
 def parse_entries(text):
     entries = []
     for raw in text.splitlines():
@@ -90,6 +94,7 @@ def parse_entries(text):
         memo = parts[3] if len(parts) > 3 else ''
         entries.append({'date': date, 'code': code, 'amount': amount, 'memo': memo})
     return entries
+
 
 def total(entries):
     """Sum of entry amounts in cents (the ENTRY total — unrelated to
@@ -117,10 +122,12 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from .parse import parse_entries, total
 
+
 def to_currency(cents):
     """Cents -> currency string at 2 places."""
     quant = (Decimal(cents) / Decimal(100)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     return str(quant)
+
 
 def apply_rate(cents, rate_bp):
     """Apply a basis-point rate to a cent amount, HALF-UP to whole cents
@@ -128,8 +135,10 @@ def apply_rate(cents, rate_bp):
     raw = Decimal(cents) * Decimal(rate_bp) / Decimal(10000)
     return int(raw.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
+
 def balances(chart):
     return {code: chart.get(code).balance for code in chart.codes()}
+
 
 def trial_balance(chart):
     """Formatted rows plus the zero-check TOTAL row."""
@@ -139,6 +148,7 @@ def trial_balance(chart):
         rows.append('%s %s %s' % (code, acct.name, to_currency(acct.balance)))
     rows.append('TOTAL %s' % to_currency(chart.total()))
     return rows
+
 
 def post_entries(chart, text):
     entries = parse_entries(text)
@@ -177,6 +187,7 @@ const REPORT_SEPARATORS = REPORT_BASE.replace(
     grouped = '{:,}'.format(int(whole))
     return sign + grouped + '.' + frac
 
+
 def trial_balance(chart):
     """Formatted rows plus the zero-check TOTAL row (amounts grouped with
     thousands separators; to_currency itself stays plain)."""
@@ -194,6 +205,7 @@ const REPORT_SEPARATORS_NAIVE = REPORT_BASE.replace(
   `    quant = (Decimal(cents) / Decimal(100)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
     return '{:,}'.format(quant)`,
 )
+
 
 const HELPERS_SPEC = `# ledger.helpers — the eight helper functions (exact contracts)
 
@@ -219,26 +231,34 @@ acceptance oracle.
 
 const HELPERS_STUBS = `"""Small formatting/classification helpers (see SPEC.md)."""
 
+
 def fmt_code(code):
     raise NotImplementedError
+
 
 def is_debit(amount):
     raise NotImplementedError
 
+
 def is_credit(amount):
     raise NotImplementedError
+
 
 def abs_cents(amount):
     raise NotImplementedError
 
+
 def sign(amount):
     raise NotImplementedError
+
 
 def split_code(code):
     raise NotImplementedError
 
+
 def leaf_code(code):
     raise NotImplementedError
+
 
 def memo_slug(memo):
     raise NotImplementedError
@@ -248,17 +268,22 @@ const HELPERS_REFERENCE = `"""Small formatting/classification helpers (see SPEC.
 
 import re
 
+
 def fmt_code(code):
     return code.strip().upper()
+
 
 def is_debit(amount):
     return amount > 0
 
+
 def is_credit(amount):
     return amount < 0
 
+
 def abs_cents(amount):
     return abs(amount)
+
 
 def sign(amount):
     if amount > 0:
@@ -267,14 +292,17 @@ def sign(amount):
         return -1
     return 0
 
+
 def split_code(code):
     if ':' not in code:
         return ('', code)
     prefix, rest = code.split(':', 1)
     return (prefix, rest)
 
+
 def leaf_code(code):
     return code.rsplit(':', 1)[-1]
+
 
 def memo_slug(memo):
     text = memo.lower()
@@ -309,6 +337,7 @@ from ledger.helpers import (
     split_code,
 )
 
+
 class TestHelpers(unittest.TestCase):
     def test_fmt_code(self):
         self.assertEqual(fmt_code(' cash '), 'CASH')
@@ -339,9 +368,11 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(memo_slug('July invoice #12'), 'july-invoice-12')
 `
 
+
 const TEST_ACCOUNTS = `import unittest
 
 from ledger.accounts import ChartOfAccounts
+
 
 class TestAccounts(unittest.TestCase):
     def make_chart(self):
@@ -384,6 +415,7 @@ const TEST_PARSE = `import unittest
 
 from ledger.parse import parse_amount, parse_entries, total
 
+
 class TestParse(unittest.TestCase):
     def test_amounts(self):
         self.assertEqual(parse_amount('12.34'), 1234)
@@ -414,12 +446,14 @@ const TEST_REPORT = `import unittest
 from ledger.accounts import ChartOfAccounts
 from ledger.report import apply_rate, balances, post_entries, to_currency, trial_balance
 
+
 LEDGER_TEXT = (
     '2026-07-01 cash (1200.00) rent out\\n'
     '2026-07-01 rent 1200.00 rent in\\n'
     '2026-07-02 cash 25.50 refund\\n'
     '2026-07-02 fees (25.50) refund fee\\n'
 )
+
 
 class TestReport(unittest.TestCase):
     def make_chart(self):
@@ -471,6 +505,7 @@ class TestTrialBalanceSeparators(unittest.TestCase):
         self.assertEqual(to_currency(123456789), '1234567.89')
 `
 
+
 const PARSE_MEMO_SPLIT = PARSE_BASE.replace(
   `        parts = line.split(None, 3)`,
   `        parts = line.split()`,
@@ -479,6 +514,7 @@ const PARSE_MEMO_SPLIT = PARSE_BASE.replace(
 const TEST_MEMO = `import unittest
 
 from ledger.parse import parse_entries
+
 
 class TestMemo(unittest.TestCase):
     def test_multi_word_memo_survives(self):

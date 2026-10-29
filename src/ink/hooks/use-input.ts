@@ -1,3 +1,4 @@
+
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { InputEvent, Key } from '../events/input-event.js'
 import useStdin from './use-stdin.js'
@@ -5,7 +6,6 @@ import useStdin from './use-stdin.js'
 type InputHandler = (input: string, key: Key, event: InputEvent) => void
 
 type Options = {
-
   isActive?: boolean
 }
 
@@ -31,7 +31,6 @@ export default function useInput(handler: InputHandler, options: Options = {}): 
     wrapperRef.current = (event: InputEvent) => {
       if (!activeRef.current) return
       const { input, key } = event
-
       if (input === 'c' && key.ctrl && internal_exitOnCtrlC) return
       handlerRef.current(input, key, event)
     }

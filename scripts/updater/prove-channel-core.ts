@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   assetNameFor,
   BUNDLE_MEMBER_NAMES,
@@ -117,7 +116,6 @@ check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true 
 }
 check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1')], installed, 'linux', 'riscv64').state === 'unsupported-platform')
 {
-
   const s = selectRelease([rel('v1.2.0-beta.2'), rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
   check('newest sound release wins despite older malformed sibling', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
 }
@@ -173,7 +171,6 @@ console.log('── §6b the ONE payload contract — describePayload, arm by ar
 const WIN_MEMBERS = ['mercury.mjs', 'manifest.json', 'vendor', 'mercury.cmd', 'mercury.ps1', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs', 'install.ps1', 'README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'mercury-vscode.vsix']
 const SCHEMA2 = { schema: 2, name: 'mercury', version: '9.9.0-beta.2', bundle: 'mercury.mjs', bundleBytes: 21410918 }
 {
-
   const d = describePayload(SCHEMA2, ['mercury.mjs', 'manifest.json', 'vendor', 'mercury'], null)
   check('schema-2 mercury-only accepted (declared primary)', d.state === 'ok' && d.descriptor.generation === 'schema2-single' && d.descriptor.primary === 'mercury.mjs' && d.descriptor.launcher === 'mercury')
   const win = describePayload(SCHEMA2, WIN_MEMBERS, null)
@@ -184,7 +181,6 @@ const SCHEMA2 = { schema: 2, name: 'mercury', version: '9.9.0-beta.2', bundle: '
   check('unrecognized declared bundle refused', alien.state === 'refused')
 }
 {
-
   const mercuryOnly = describePayload({ version: '9.9.0-beta.1' }, ['mercury.mjs', 'manifest.json', 'vendor', 'mercury'], null)
   check('undeclared mercury-only accepted', mercuryOnly.state === 'ok' && mercuryOnly.descriptor.generation === 'legacy' && mercuryOnly.descriptor.primary === 'mercury.mjs')
   const otherOnly = describePayload({ version: '9.9.0-beta.1' }, ['other.mjs', 'manifest.json', 'vendor', 'mercury'], null)
@@ -197,7 +193,6 @@ const SCHEMA2 = { schema: 2, name: 'mercury', version: '9.9.0-beta.2', bundle: '
   check('unknown future schema without releaseLayout refused (shape-bounded decode)', future.state === 'refused')
 }
 {
-
   const rl = (over: object = {}) => ({
     schema: 2,
     version: '9.9.0-beta.3',

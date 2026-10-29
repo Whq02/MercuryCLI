@@ -1,3 +1,4 @@
+
 import { writeSync } from 'node:fs'
 import * as net from 'node:net'
 
@@ -110,17 +111,14 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
     backstop.unref?.()
   })
   socket.on('error', err => {
-
     try {
       writeSync(2, `mercury-tcp-bridge: socket error: ${err.message}\n`)
     } catch {
     }
     process.exit(1)
   })
-
   process.stdin.on('end', () => socket.end())
   process.stdin.on('error', () => socket.end())
-
   process.stdout.on('error', () => {
     socket.destroy()
     process.exit(1)

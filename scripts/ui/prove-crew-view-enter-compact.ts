@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/components.tsx src/components/mercury-ui/useCursorFollow.ts src/components/PopupForm.tsx src/components/FullscreenLayout.tsx src/state/vitalsBus.ts src/ink/ink.tsx
 import { EventEmitter } from 'node:events'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -258,6 +258,9 @@ async function pressTimes(scene: Scene, data: string, times: number): Promise<vo
   }
   await sleep(250)
 }
+
+
+
 
 const viewing = (): string | undefined => (storeRef?.getState() as { viewingAgentTaskId?: string } | undefined)?.viewingAgentTaskId
 const mainChat = (): string | undefined => (storeRef?.getState() as { mainChatTaskId?: string } | undefined)?.mainChatTaskId

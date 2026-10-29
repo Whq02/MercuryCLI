@@ -38,7 +38,6 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
     async buildExecCommand(command: string, opts: BuildExecCommandOptions) {
       const cwdFileInShell = posixPath.join(tmpdir(), cwdFileName(opts.id))
       const assembled = PLAIN_RENDER_PRELUDE + UTF8_OUTPUT_PRELUDE + command + buildTrailer(cwdFileInShell)
-
       return { commandString: assembled, cwdFilePath: cwdFileInShell }
     },
 
@@ -48,9 +47,7 @@ export function createPowerShellProvider(shellPath: string): ShellProvider {
 
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
       const overrides: Record<string, string> = {}
-
       for (const [key, value] of getSessionEnvVars()) overrides[key] = value
-
       if (process.platform === 'win32') {
         overrides.MSYS2_ARG_CONV_EXCL = '*'
         overrides.MSYS_NO_PATHCONV = '1'

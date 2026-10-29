@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,13 +32,11 @@ check('panelWidth honors the reserve', panelWidth(50, { cap: 62, reserve: 2 }) =
 check('panelWidth floors on narrow screens', panelWidth(18, { cap: 62, reserve: 2, min: 20 }) === 18, String(panelWidth(18, { cap: 62, reserve: 2, min: 20 })))
 check('panelWidth NEVER exceeds the terminal', panelWidth(15, { min: 20 }) === 15)
 check('panelWidth(0) = 0 (never negative)', panelWidth(0, { min: 20 }) === 0)
-
 check('viewportRows: zero available = ZERO (min cannot manufacture)', viewportRows(10, { reserve: 26, min: 4 }) === 0)
 check('viewportRows: min floors only within availability', viewportRows(13, { reserve: 11, min: 3 }) === 2)
 check('viewportRows honors the cap', viewportRows(100, { reserve: 26, cap: 12 }) === 12)
 check('viewportRows normal', viewportRows(40, { reserve: 26, min: 4, cap: 12 }) === 12)
 {
-
   let bad = 0
   for (let rows = 0; rows <= 60; rows++) {
     for (const reserve of [0, 4, 11, 26, 32]) {
@@ -183,7 +180,6 @@ console.log('== adoption pins: the real surfaces ride the contracts ==')
   check('CommandCenter footer budget floors at ZERO (no manufactured cells)', shell.includes('Math.max(0, cols - 4)') && !shell.includes('Math.max(10, cols - 4)'))
   check('NavigablePanes footer budget floors at ZERO', panes.includes('Math.max(0, cols - 4)') && !panes.includes('Math.max(10, cols - 4)'))
   check('NavigablePanes width floors are DEAD (owner clamp only)', !panes.includes('Math.max(20, innerPaneWidth') && !panes.includes('Math.max(16, innerWidth'))
-
   check('NavigablePanes height budget rides viewportRows (aspirational min)', panes.includes('viewportRows(termRows, {') && panes.includes("(regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE + Math.max(0, footerRows - 1)) +") && panes.includes('(composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0)') && !panes.includes('Math.max(3, termRows - VIEWPORT_RESERVE)'))
   check('NavigablePanes fold split rides viewportRows too', panes.includes('viewportRows(viewportBudget, { reserve: detailBaseRows + 1, min: 3 })'))
 }

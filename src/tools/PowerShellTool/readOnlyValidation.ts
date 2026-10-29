@@ -33,13 +33,13 @@ function flags(spec: string): string[] {
 
 const allowAll: CommandConfig = { allowAllFlags: true }
 
+
 const PATHEXT = /\.(?:exe|cmd|bat|com)$/i
 
 export function resolveToCanonical(name: string): string {
   let lower = name.toLowerCase()
   if (!/[\\/]/.test(lower)) lower = lower.replace(PATHEXT, '')
   const aliased = (COMMON_ALIASES as Record<string, string | undefined>)[lower]
-
   return aliased !== undefined ? aliased.toLowerCase() : lower
 }
 
@@ -51,6 +51,7 @@ export function isCwdChangingCmdlet(name: string): boolean {
   if (getPlatform() === 'windows' && (canonical === 'ndr' || canonical === 'mount')) return true
   return false
 }
+
 
 const argLeakCallback = (command: string, element?: ParsedCommandElement): boolean => argLeaksValue(command, element)
 
@@ -139,9 +140,7 @@ const CMDLET_ALLOWLIST: Record<string, CommandConfig> = Object.assign(Object.cre
   tree: { safeFlags: flags('/F /A /Q /L') },
   findstr: { safeFlags: flags('/B /E /L /R /S /I /X /V /N /M /O /P /C /G /D /A') },
   file: { safeFlags: flags('-b --brief -i --mime -L --dereference --mime-type --mime-encoding -z --uncompress -p --preserve-date -k --keep-going -r --raw -v --version -0 --print0 -s --special-files -l -F --separator -e -P -N --no-pad -E --extension') },
-
   git: {}, gh: {}, docker: {}, dotnet: {},
-
   ...Object.fromEntries(
     ['format-table', 'format-list', 'format-wide', 'format-custom', 'measure-object', 'select-object', 'sort-object', 'group-object', 'where-object', 'out-string', 'out-host'].map(name => [
       name, { allowAllFlags: true, additionalDanger: argLeakCallback } as CommandConfig,
@@ -158,6 +157,7 @@ const PIPELINE_TAIL = new Set(['format-table', 'format-list', 'format-wide', 'fo
 const SAFE_EXTERNAL = new Set(['where.exe'])
 
 const LEAK_METACHARS = /[$(@{[]/
+
 
 export function argLeaksValue(_command: string, element?: ParsedCommandElement): boolean {
   if (!element) return false
@@ -187,21 +187,17 @@ function argumentLeaks(element: ParsedCommandElement, types: readonly (string | 
   return false
 }
 
-export function isAllowlistedCommand(element: ParsedCommandElement, originalCommand: string): boolean {
 
+export function isAllowlistedCommand(element: ParsedCommandElement, originalCommand: string): boolean {
   if (element.nameType === 'application') {
     const rawFirst = (element.text.trim().split(/\s+/)[0] ?? '').toLowerCase()
     if (!SAFE_EXTERNAL.has(rawFirst)) return false
   }
-
   const direct = CMDLET_ALLOWLIST[element.name.toLowerCase()]
   const config = direct ?? CMDLET_ALLOWLIST[resolveToCanonical(element.name)]
   if (!config) return false
-
   if (config.regex && !config.regex.test(originalCommand)) return false
-
   if (config.additionalDanger && config.additionalDanger(originalCommand, element)) return false
-
   const types = element.elementTypes
   if (!types) return false
   for (let i = 0; i < element.args.length; i++) {
@@ -220,12 +216,10 @@ export function isAllowlistedCommand(element: ParsedCommandElement, originalComm
       }
     }
   }
-
   const canonical = resolveToCanonical(element.name)
   if (canonical === 'git' || canonical === 'gh' || canonical === 'docker' || canonical === 'dotnet') {
     return isExternalReadOnly(canonical, element.args)
   }
-
   return validatePsFlags(canonical, element, config)
 }
 
@@ -256,6 +250,7 @@ function normaliseDash(arg: string): string {
   return arg
 }
 
+
 function isExternalReadOnly(canonical: string, args: string[]): boolean {
   if (canonical === 'gh') return false
   if (canonical === 'git') return gitReadOnly(args)
@@ -280,7 +275,6 @@ function gitReadOnly(args: string[]): boolean {
     if (!arg.startsWith('-')) break
     const eq = arg.indexOf('=')
     const flagPart = eq === -1 ? arg : arg.slice(0, eq)
-
     if (arg.length > 2 && arg.startsWith('-c') && arg[2] !== '-') return false
     if (arg.length > 2 && arg.startsWith('-C')) return false
     if (GIT_REJECT_GLOBAL.has(flagPart)) return false
@@ -313,6 +307,7 @@ function dockerReadOnly(args: string[]): boolean {
   return validateFlags(args, 1, config, { commandName: 'docker' })
 }
 
+
 export function isAllowlistedPipelineTail(element: ParsedCommandElement, originalCommand: string): boolean {
   if (!PIPELINE_TAIL.has(resolveToCanonical(element.name))) return false
   return isAllowlistedCommand(element, originalCommand)
@@ -321,7 +316,6 @@ export function isAllowlistedPipelineTail(element: ParsedCommandElement, origina
 export function isProvablySafeStatement(statement: ParsedStatement): boolean {
   if (statement.statementType !== 'PipelineAst') return false
   if (statement.commands.length === 0) return false
-
   return statement.nestedCommands.length === 0
 }
 
@@ -356,6 +350,7 @@ export function isReadOnlyCommand(command: string, parsed?: ParsedPowerShellComm
   }
   return true
 }
+
 
 export function hasSyncSecurityConcerns(command: string): boolean {
   const trimmed = command.trim()

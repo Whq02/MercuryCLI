@@ -3,7 +3,6 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-
 import { Browser as CftBrowser, BrowserPlatform, computeExecutablePath } from '@puppeteer/browsers'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { whichSync } from '../../utils/which.js'
@@ -140,7 +139,6 @@ function findChromeExecutable(cacheRoot: string, entryName: string, dir: string)
           cacheDir: cacheRoot,
           platform,
         })
-
         if (existsSync(derived)) return derived
       } catch {
       }
@@ -215,7 +213,6 @@ export function driverNodeGate(): { ok: true } | { ok: false; note: string } {
 
 export interface BrowserResolution {
   state: 'ok'
-
   source: 'operator-pin' | 'installed' | 'managed-cache'
   family: BrowserFamily
   label: string
@@ -266,7 +263,6 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
   return {
     state: 'unavailable',
     note: 'no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent',
-
     remedies: [
       'op:"provision" — a consented download of a Chrome-for-Testing build into the managed cache (the ask names the build and disk cost; /browser install is the same road by hand)',
       '/browser install — the operator\'s one-time consent step; a headless request cannot approve the download',

@@ -1,3 +1,4 @@
+
 import { execFileSync } from 'node:child_process'
 import { languageServerEnv } from '../../utils/subprocessEnv.js'
 import { accessSync, constants, existsSync } from 'node:fs'
@@ -17,7 +18,6 @@ const VERSIONED_CLANGD_NAMES = Array.from(
 
 const CPP_EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.c': 'c',
-
   '.h': 'cpp',
   '.cpp': 'cpp',
   '.cc': 'cpp',
@@ -122,9 +122,7 @@ export function _resetClangdProbeCacheForTesting(): void {
 }
 
 interface CompileDbProbe {
-
   compileDb?: string
-
   cmakeLists?: string
 }
 

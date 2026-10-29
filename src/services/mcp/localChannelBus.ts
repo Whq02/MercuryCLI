@@ -1,3 +1,4 @@
+
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { watch } from 'fs'
@@ -41,7 +42,6 @@ function sanitizeRoom(raw: string): string {
 
 export function getLocalChannelRoom(): string {
   const override = flagEnv('MERCURY_CHANNEL_ROOM')?.trim()
-
   if (override) return sanitizeRoom(override)
   const cwd = resolve(getOriginalCwd() || process.cwd())
   const base = sanitizeRoom(basename(cwd) || 'default')
@@ -59,7 +59,6 @@ export function getLocalChannelInboxPath(): string {
 
 function ensureRoomDir(): void {
   const dir = getRoomDir()
-
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
 }
 
@@ -105,7 +104,6 @@ export function startLocalChannelBus(
   try {
     ensureRoomDir()
     path = getLocalChannelInboxPath()
-
     if (!existsSync(path)) appendFileSync(path, '', 'utf8')
   } catch (err) {
     logForDebugging(
@@ -120,7 +118,6 @@ export function startLocalChannelBus(
   } catch {
     offset = 0
   }
-
   let carry = ''
 
   const drainFrom = (): void => {
@@ -131,7 +128,6 @@ export function startLocalChannelBus(
       return
     }
     if (size < offset) {
-
       offset = 0
       carry = ''
     }
@@ -149,7 +145,6 @@ export function startLocalChannelBus(
       offset += read
       const chunk = carry + buf.toString('utf8', 0, read)
       const lines = chunk.split('\n')
-
       carry = lines.pop() ?? ''
       for (const line of lines) {
         const trimmed = line.trim()
@@ -173,7 +168,6 @@ export function startLocalChannelBus(
   let watcher: ReturnType<typeof watch> | null = null
   try {
     watcher = watch(resolveWatchRoot(path), { persistent: false }, () => drainFrom())
-
     watcher.on('error', e => logForDebugging(`[localChannelBus] watcher error: ${e}`))
   } catch (err) {
     logForDebugging(

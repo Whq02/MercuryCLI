@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -113,20 +112,17 @@ section('§2 the binding window is the model\'s own: its family\'s pool, the sha
     check(`${model}: the cap offer's accessor answers the same window`, accessor?.window.key === key && accessor?.windowName === name)
   }
   check('the pool claim for a model is the owner\'s one rule (fable/mythos · opus · sonnet · none)', limits.weeklyPoolClaimForModel('claude-fable-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-mythos-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-opus-5') === 'seven_day_opus' && limits.weeklyPoolClaimForModel('claude-sonnet-5') === 'seven_day_sonnet' && limits.weeklyPoolClaimForModel('claude-haiku-4-5') === undefined)
-
   const fable = providerLimitWarning({ model: 'claude-fable-5-1', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
   check('a Fable session is warned about the Fable week (87%)', /^Anthropic: 87% of the Fable limit used · resets /.test(fable?.text ?? ''), fable?.text ?? '(null)')
   const sonnet = providerLimitWarning({ model: 'claude-sonnet-5', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
   check('a Sonnet session is NOT warned about the Fable week (its own windows sit at 44 and 20)', sonnet === null, JSON.stringify(sonnet))
   const haiku = providerLimitWarning({ model: 'claude-haiku-4-5-20251001', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
   check('a Haiku session is capped by the shared pair alone (no warning at 44)', haiku === null)
-
   const pairBinds = owner.activeSourceUsage({
     model: 'claude-fable-5-1',
     reads: { ...subscriptionReads(), anthropicWindows: () => ({ fiveHour: { key: '5h', usedPct: 91, resetsAtMs: NOW + HOUR, state: 'live' }, sevenDay: { key: '7d', usedPct: 44, resetsAtMs: NOW + HOUR, state: 'live' } }) } as Reads,
   })
   check('when the session window binds harder than the pool, the session window is the binding one', pairBinds.binding?.window.key === '5h' && pairBinds.binding?.windowName === 'session limit')
-
   const gpt = owner.activeSourceUsage({
     model: 'gpt-5.6',
     reads: {
@@ -157,7 +153,6 @@ section('§3 feed + age: live reads say how old they are; stale reads say so; a 
   check("the narrow stale tail: '↻12m' while stale, nothing while live", fresh.usageStaleTail({ source: 'endpoint', observedAtMs: NOW - 12 * MIN }, NOW) === '↻12m' && fresh.usageStaleTail({ source: 'endpoint', observedAtMs: NOW - 12_000 }, NOW) === undefined)
   check('the age words: 12 s · 3 min · 2 h 5 min · 3 d', fresh.formatUsageAge(12_000) === '12 s' && fresh.formatUsageAge(3 * MIN) === '3 min' && fresh.formatUsageAge(2 * HOUR + 5 * MIN) === '2 h 5 min' && fresh.formatUsageAge(3 * 24 * HOUR) === '3 d')
   check('the one poll TTL is a minute, and every polling reader imports it', fresh.USAGE_POLL_TTL_MS === 60_000 && ['src/services/providers/openrouter/openrouterUsageState.ts', 'src/services/providers/deepseek/deepseekUsageState.ts', 'src/services/providers/moonshot/moonshotUsageState.ts'].every(f => src(f).includes('USAGE_POLL_TTL_MS')))
-
   limits.resetLimitsForCredentialSwitch()
   const iso = new Date(NOW + HOUR).toISOString()
   limits.foldUtilizationFromEndpoint({ five_hour: { utilization: 36, resets_at: iso }, seven_day: { utilization: 44, resets_at: iso }, seven_day_fable: { utilization: 87, resets_at: iso } }, undefined, NOW - 30_000)
@@ -319,7 +314,6 @@ section("§6 reset instants in the operator's local clock")
 {
   const at = NOW + 2 * HOUR + 10 * MIN
   const d = new Date(at)
-
   const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   const clock = new Date().toDateString() === d.toDateString() ? hhmm : `${weekday} ${hhmm}`
@@ -348,7 +342,6 @@ section('§7 one vocabulary: the feed + freshness words live in one module; no s
   check('the vocabulary is spelled in its one home', vocabulary.every(word => home.includes(`'${word}`) || home.includes(word)))
   for (const file of surfaces) {
     const text = src(file)
-
     const code = text
       .split('\n')
       .filter(line => !/^\s*(\/\/|\*|\/\*)/.test(line))

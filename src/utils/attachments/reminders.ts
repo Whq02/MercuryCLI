@@ -1,3 +1,4 @@
+
 import type { Message } from 'src/types/message.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
@@ -82,9 +83,7 @@ export async function getContractReminderAttachments(
   messages: Message[] | undefined,
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-
   if (toolUseContext.agentId !== undefined) return []
-
   if (flagEnv('MERCURY_CONCOURSE_WORKER') !== '1') return []
 
   let contract: { text: string; status: string; amendments: { length: number } } | undefined
@@ -96,16 +95,13 @@ export async function getContractReminderAttachments(
     )
     contract = rec?.contract
   } catch {
-
     return []
   }
   if (contract === undefined || contract.status === 'closed') return []
 
   const { turnsSinceLastTouch, turnsSinceLastReminder } = getContractReminderTurnCounts(messages ?? [])
   const due =
-
     (turnsSinceLastReminder === null && turnsSinceLastTouch === null) ||
-
     ((turnsSinceLastReminder === null || turnsSinceLastReminder >= CONTRACT_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS) &&
       (turnsSinceLastTouch === null || turnsSinceLastTouch >= CONTRACT_REMINDER_CONFIG.TURNS_SINCE_TOUCH))
   if (!due) return []

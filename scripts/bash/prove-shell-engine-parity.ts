@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { ROOT, engineLaneState, renderReport, runParity, summarize } from './shell-engine-parity.ts'
@@ -36,7 +35,6 @@ for (let i = 0; i < args.length; i++) {
 }
 
 const lane = engineLaneState()
-
 if (shell === undefined && !(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) shell = '/bin/bash'
 
 const enrolled = lane.state === 'wired' || all ? [...ENGINE_AWARE, ...OWNER_LEVEL] : ENGINE_AWARE

@@ -1,6 +1,7 @@
 import { accessSync, constants, statSync } from 'node:fs'
 import * as path from 'node:path'
 
+
 type BunWhich = { which?: (command: string, options?: { PATH?: string }) => string | null }
 
 function bunWhich(command: string): string | null | undefined {

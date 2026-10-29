@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -41,7 +40,6 @@ const MAX_TOOLS_LIST_PAGES = 50
 const MAX_MCP_TOOLS_PER_SERVER = 1000
 
 type Page = { tools: { name: string }[]; nextCursor?: string }
-
 function paginate(request: (cursor: string | undefined) => Page): {
   rawTools: { name: string }[]
   logs: string[]
@@ -98,7 +96,6 @@ function paginate(request: (cursor: string | undefined) => Page): {
 }
 
 {
-
   const { rawTools, logs } = paginate(() => ({
     tools: Array.from({ length: 600 }, (_, i) => ({ name: `x${i}` })),
     nextCursor: 'more',

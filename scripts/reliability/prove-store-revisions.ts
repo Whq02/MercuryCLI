@@ -57,7 +57,6 @@ const counterAt = (p: string) =>
     onDisk._v === 2 && onDisk._rev?.revision === 3 && typeof onDisk._rev?.operationId === 'string' && typeof onDisk._rev?.digest === 'string',
     '§1 `_rev` rides beside `_v` in the same atomic publication',
   )
-
   await s.mutate(v => v)
   const rr2 = await s.readResult()
   ok(
@@ -122,7 +121,6 @@ const counterAt = (p: string) =>
     '§4 the recovery is recorded in the ledger (resumedFrom last-good)',
   )
   ok(after._rev?.revision === 2, '§4 revision continuity survives the recovery (1 → 2)')
-
   const coldPath = join(tmp, 's4-cold.json')
   writeFileSync(coldPath, 'ALSO NOT JSON')
   const res = spawnSync(

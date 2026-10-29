@@ -13,7 +13,6 @@ type CapAction =
   | { kind: 'none' }
   | {
       kind: 'offer'
-
       trigger: 'rejected' | 'reset'
     }
   | { kind: 'auto-handoff'; trigger: 'rejected' | 'reset' }
@@ -35,10 +34,9 @@ export function decideCapAction(posture: CapPosture, state: CapWindowState | Cap
     : { kind: 'offer', trigger: 'rejected' }
 }
 
+
 export interface CapHandoffNote {
-
   homeModel: string | null
-
   homeFamily: string
 }
 
@@ -142,6 +140,7 @@ export function capLaneLineUntil(key: string | null, nowMs: number): number | nu
   return laneLine.armedAtMs + failoverLineMs()
 }
 
+
 const offerDismissals = new Set<string>()
 const offerAutoActions = new Set<string>()
 
@@ -180,6 +179,7 @@ export function _resetOfferMemoriesForTesting(): void {
   laneLine = null
 }
 
+
 type CapOfferDirection = 'handoff' | 'return'
 const answeredCapOffers = new Set<string>()
 const capOfferArmKey = (direction: CapOfferDirection, family: string): string =>
@@ -202,9 +202,7 @@ export function noteCapWindowObserved(family: string, state: CapWindowState): vo
 }
 
 interface CapReturnHomeFacts {
-
   window: CapWindowState | CapQuota
-
   credentialUsable: boolean
 }
 
@@ -221,6 +219,7 @@ export function decideCapReturn(
     : { kind: 'offer', trigger: 'reset' }
 }
 
+
 type SlotWallAction = { kind: 'none' } | { kind: 'offer' } | { kind: 'auto-switch' }
 
 export function decideSlotWallAction(
@@ -231,8 +230,8 @@ export function decideSlotWallAction(
   return posture === 'auto' ? { kind: 'auto-switch' } : { kind: 'offer' }
 }
 
-type CapWindowBasis =
 
+type CapWindowBasis =
   | 'observed'
   | 'stated-reset-elapsed'
   | 'none'
@@ -241,11 +240,8 @@ interface FamilyWindowFact {
   family: string
   state: CapWindowState
   basis: CapWindowBasis
-
   resetsAtMs?: number
-
   windowName?: string
-
   usedPct?: number
   warningTier?: UsageWarningTier
   staleWords?: string
@@ -255,19 +251,15 @@ interface FamilyWindowReads {
   now?: () => number
   anthropic?: () => {
     status: CapQuota
-
     observed: boolean
     resetsAtMs?: number
     windowName?: string
     usedPct?: number
   }
-
   anthropicWindows?: () => UsageWindowView[]
-
   anthropicPools?: () => UsageWindowView[]
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
-
   openaiBands?: () => Array<{
     usedPct: number
     resetsAtMs?: number
@@ -281,7 +273,6 @@ interface FamilyWindowReads {
   openrouterWall?: () => { resetsAtMs: number } | null
   geminiWall?: () => { resetsAtMs: number } | null
   huggingfaceWall?: () => { resetsAtMs: number } | null
-
   laneBilling?: (family: string) => { state: 'credit-exhausted' | 'clear' }
 }
 
@@ -368,6 +359,7 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
     ? { family, state: 'rejected', basis: 'observed', resetsAtMs: wall.resetsAtMs, windowName }
     : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
 }
+
 
 function bindingWindowOfSeat(
   model: string | null | undefined,
@@ -514,41 +506,31 @@ function stripUndefined<T extends object>(reads: T | undefined): Partial<T> {
   return out
 }
 
+
 interface CapFailoverCandidate {
   route: string
-
   model: string
 }
 
 interface CapFailoverExclusion {
   route: string
-
   why: string
 }
 
 export interface CapFailoverListedFamily {
   route: string
-
   model: string
-
   window: FamilyWindowFact | null
-
   atCap: boolean
-
   usable: boolean
-
   credential?: 'oauth' | 'api-key' | 'keyless' | 'none'
-
   blockers: string[]
 }
 
 interface CapFailoverCandidateSet {
-
   home: string | null
-
   candidates: CapFailoverCandidate[]
   excluded: CapFailoverExclusion[]
-
   listed: CapFailoverListedFamily[]
 }
 
@@ -585,7 +567,6 @@ export function deriveCapFailoverCandidates(
   usability: Record<string, { usable: boolean; blockers: string[]; credential?: 'oauth' | 'api-key' | 'keyless' | 'none' }>,
   targetModelOf: (route: string) => string | undefined,
   signInAt: (family: string) => number | undefined = () => undefined,
-
   windowOf?: (route: string, model: string) => FamilyWindowFact,
 ): CapFailoverCandidateSet {
   const candidates: CapFailoverCandidate[] = []
@@ -606,7 +587,6 @@ export function deriveCapFailoverCandidates(
     const hasModel = model !== undefined && model.trim() !== ''
     const window = hasModel && windowOf !== undefined ? windowOf(route, model) : null
     const atCap = window !== null && window.state === 'rejected'
-
     if (atCap && hasModel && lane.credential !== 'none') {
       capped.push({
         route,
@@ -697,7 +677,6 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
       return seat.state === 'ready' ? seat.ids[0] : undefined
     }
     const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
-
     return route === 'anthropic' && fact !== undefined
       ? newestFirstPartyFrontierMember(fact)
       : fact
@@ -707,7 +686,6 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
     resolveProviderUsability(),
     targetOf,
     family => ledger[family]?.at,
-
     (route, model) => observedFamilyWindow(route, undefined, { model }),
   )
 }
@@ -715,6 +693,7 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
 export function liveCapFailoverTarget(home: string | null): CapFailoverCandidate | null {
   return liveCapFailoverCandidates(home).candidates[0] ?? null
 }
+
 
 type LaneSpendKind = 'subscription' | 'metered' | 'local' | 'endpoint' | 'none'
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -8,7 +7,6 @@ import { removeScratch } from '../lib/removeScratch.ts'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'status-prune-'))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
-
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
 let failures = 0
@@ -30,7 +28,6 @@ const DAY = 24 * 60 * 60 * 1000
 const projectsRoot = getProjectsDir()
 
 const sid = (tail: string): string => `00000000-0000-4000-8000-${tail.padStart(12, '0')}`
-
 function seedFile(dir: string, name: string, bytes: number, days: number): string {
   mkdirSync(dir, { recursive: true })
   const file = join(dir, name)
@@ -122,7 +119,6 @@ console.log("B — the frozen offer is the honest set; the door unlinks exactly 
     join(process.cwd(), 'src/utils/sessionStorage/transcriptPruneDoor.ts'),
   ].sort()
   check('the door has exactly its THREE named callers — the two cards and the sessions delete verb (plus its own definition, nothing else)', callers.sort().join('|') === expected.join('|'), callers.join(', '))
-
   const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
   check('the shared picker core reaches no delete road (neither the function nor the module)', !core.includes('operatorPruneTranscripts') && !core.includes('transcriptPruneDoor'))
 }
@@ -137,7 +133,6 @@ console.log('C — the card opens answered No; esc/n leave without the door; the
   check('esc / n answer No before any commit road (the cancel line leads the branch)', pruneBranch.includes("if (key.escape || input === 'n')") && pruneBranch.indexOf("if (key.escape || input === 'n')") < pruneBranch.indexOf('runPrune'))
   check('the ONE commit road is the highlighted Yes over a non-empty offer', pruneBranch.includes("if (prune.answer === 'yes' && prune.offer.candidates.length > 0) {") && pruneBranch.includes('void runPrune(prune.offer)'))
   check('runPrune has exactly one call site (the gated Yes) beside its definition', view.split('runPrune(').length === 3)
-
   check('the door is operator-PRESSED: d opens it from the list and the footer names it in the key-map row', view.includes("if (input === 'd' && !key.ctrl && !key.meta) {") && view.includes('d prune'))
   check('the answer is never remembered (no settings write anywhere near the door)', !view.includes('saveGlobalConfig') && !view.includes('savedSettings'))
   check("the receipt is typed and says whose act it was (count · bytes · when · by the operator)", view.includes('by the operator') && view.includes('prune.receipt.deleted') && view.includes('formatFileSize(prune.receipt.bytesFreed)'))

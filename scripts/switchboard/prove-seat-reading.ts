@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +24,6 @@ const gb = (n: number): number => n * GB
 const COST = cap.SEAT_COST_BYTES[cap.SEAT_COST_KIND]
 
 {
-
   const vmStat = [
     'Mach Virtual Memory Statistics: (page size of 16384 bytes)',
     'Pages free:                                5294.',

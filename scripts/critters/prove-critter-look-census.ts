@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   applyGazeKey,
   GAZE_DEAD_ZONE,
@@ -22,6 +21,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }
+
 
 type Cell = { r: number; c: number }
 type Cluster = { rest: Cell; cells: Cell[]; cx: number; cy: number }
@@ -75,7 +75,6 @@ function gazeKeyViolations(art: readonly string[], clusters: Cluster[], key: str
     bad.push(`moves ${moves.length} of ${clusters.length} eyes — eyes sampled apart`)
   const o = offsetOfKey(key)
   if (o === 'MIXED') bad.push('pupil offsets disagree across eyes')
-
   for (const mv of moves) {
     const cl = clusters.find(c => c.rest.r === mv.from.r && c.rest.c === mv.from.c)
     if (!cl) {
@@ -85,7 +84,6 @@ function gazeKeyViolations(art: readonly string[], clusters: Cluster[], key: str
     if (!cl.cells.some(c => c.r === mv.to.r && c.c === mv.to.c))
       bad.push(`target ${mv.to.r},${mv.to.c} outside its eye aperture`)
   }
-
   const applied = applyGazeKey([...art], key)
   const rows = new Set<number>()
   for (const cl of clusters) {
@@ -95,7 +93,9 @@ function gazeKeyViolations(art: readonly string[], clusters: Cluster[], key: str
   return bad
 }
 
+
 const POOL = [...CRITTERS]
+
 
 function walk(art: readonly string[], points: Array<[number | null, number | null]>): { offsets: Offset[]; adjacent: boolean; detail: string } {
   let prev = ''
@@ -122,6 +122,7 @@ function walk(art: readonly string[], points: Array<[number | null, number | nul
   return { offsets, adjacent, detail }
 }
 
+
 function pupilsOf(frame: string[]): Cell[] {
   const out: Cell[] = []
   for (let r = 0; r < frame.length; r++) {
@@ -130,6 +131,7 @@ function pupilsOf(frame: string[]): Cell[] {
   }
   return out
 }
+
 
 console.log('— §A the gaze census over the square tier —')
 const SQUARE_SURFACES: Array<[string, (d: CritterDef) => string[]]> = [
@@ -162,18 +164,15 @@ for (const def of CRITTERS) {
       }
     }
     t(`${def.name} ${label}: every key over ${checked} samples is lawful`, bad.length === 0, bad.join(' · '))
-
     const fx = clusters.reduce((s, c) => s + c.cx, 0) / clusters.length
     const descent: Array<[number | null, number | null]> = []
     for (let py = -8; py <= H + 8; py += 1) descent.push([fx + 0.3, py])
     descent.push([null, null])
     const d = walk(art, descent)
     t(`${def.name} ${label}: the descent walks adjacent offsets`, d.adjacent, d.detail)
-
     const restRow = clusters[0]!.rest.r
     const restColGaps = clusters.slice(1).map(cl => cl.rest.c - clusters[0]!.rest.c)
     const squareOpts = { square: true as const }
-
     const defForCompose = def
     const rest = composeCritterFrame(defForCompose, { ...squareOpts, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
     t(`${def.name} ${label}: the rest frame is the authored grid (whole render, no slice)`, rest.art.join('\n') === art.join('\n'))
@@ -196,6 +195,7 @@ for (const def of CRITTERS) {
   }
 }
 
+
 console.log('— §B highlight bands: anatomy is registered, the octopus is uniform —')
 
 function bandRowsOf(art: readonly string[]): number[] {
@@ -207,13 +207,11 @@ function bandRowsOf(art: readonly string[]): number[] {
 }
 
 type BandEntry = { reason: string; rows: readonly number[] }
-
 const BAND_ANATOMY: Readonly<Record<string, BandEntry>> = {
   'crab · mini sleep': { reason: 'the belly band between the tucked claws', rows: [4] },
   'jellyfish · mini awake': { reason: "the jellyfish's lit skirt rim", rows: [4] },
   'jellyfish · mini sleep': { reason: 'the skirt rim on the sunken bell', rows: [4] },
   'clam · mini awake': { reason: "the clam's mantle band along the opening", rows: [4] },
-
   'jellyfish · square dock': { reason: "the jellyfish's lit skirt rim (the square dock)", rows: [4] },
   'clam · square dock': { reason: "the clam's mantle band along the opening (the square dock)", rows: [4] },
 }
@@ -246,8 +244,8 @@ for (const [label, art] of gridRoster) {
 t('the octopus registers NO band on any grid (uniform body — the ruling)', Object.keys(BAND_ANATOMY).every(k => !k.startsWith('octopus')))
 t('every registry key names a grid the sweep walked', Object.keys(BAND_ANATOMY).every(k => gridRoster.some(([label]) => label === k)), Object.keys(BAND_ANATOMY).filter(k => !gridRoster.some(([label]) => label === k)).join(' · '))
 
-console.log('— poison: the retired per-eye sampler trips the law —')
 
+console.log('— poison: the retired per-eye sampler trips the law —')
 function perEyeReferenceKey(art: readonly string[], px: number, py: number): string {
   const moves: string[] = []
   for (const eye of heroEyeClusters(art) as Cluster[]) {
@@ -298,7 +296,6 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
     }
   }
   t('poison: the per-eye sampler SPLITS the clam pupil rows (the wrap) and the census catches it', split !== null, split ?? 'no split found')
-
   let hop = false
   let last: Offset = { dr: 0, dc: 0 }
   for (const [px, py] of [[-12, 9], [32, -12], [-12, 9], [32, 24]] as Array<[number, number]>) {

@@ -25,7 +25,6 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
 }
 
 {
-
   const png = Buffer.from(
     '89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da63fcffff3f0300050201f92457350000000049454e44ae426082',
     'hex',
@@ -55,7 +54,6 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
     params: { textDocument: { uri: 'file:///t/a.css', version: 1, text: 'body { colr: red; }\n' } },
   })
   send({ jsonrpc: '2.0', id: 2, method: 'textDocument/diagnostic', params: { textDocument: { uri: 'file:///t/a.css' } } })
-
   {
     const deadline = Date.now() + 10_000
     while (Date.now() < deadline && !Buffer.concat(frames).toString('utf8').includes('"items"'))
@@ -93,7 +91,6 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   check('isolated: the puppeteer driver is IN the bundle', bundleText.includes('puppeteer-core'))
   const manifest = JSON.parse(readFileSync(join(stage, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
   check('manifest: selfContained', manifest.selfContained === true)
-
   const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
   const desktop = manifest.desktopDriver as { vendored?: boolean } | undefined
   const embedder = manifest.semanticEmbedder as { vendored?: boolean } | undefined
@@ -115,7 +112,6 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
     degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
   )
-
   const ip = manifest.imageProcessing as { vendored?: boolean; degradesTo?: string; remedy?: string } | undefined
   check(
     'manifest: imageProcessing honesty recorded',

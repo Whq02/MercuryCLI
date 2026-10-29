@@ -64,6 +64,7 @@ import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, pe
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { hookWaitWords } from '../../utils/hooks/wait.js'
 
+
 export type MessageUpdateLazy<M = Message> = {
   message: M
   contextModifier?: {
@@ -492,6 +493,7 @@ async function runTransactionBody(args: {
     return
   }
 
+
   if (isToolKilled(tool, toolUseContext.agentType)) {
     const reason = toolKillReason(tool, toolUseContext.agentType)
     const target = extractKillTarget(tool.name, input)
@@ -536,7 +538,6 @@ async function runTransactionBody(args: {
     const verdict = await tool.validateInput(parsedInput as never, toolUseContext)
     if (verdict && verdict.result === false) {
       traceOnce({ ok: false })
-
       try {
         const code = (verdict as { errorCode?: number }).errorCode
         if (tool.name === 'Edit' && code !== undefined) {
@@ -701,7 +702,6 @@ async function runTransactionBody(args: {
       (preventContinuation
         ? `Tool execution was stopped by a pre-tool hook${stopReason ? `: ${stopReason}` : ''}`
         : `Permission to use ${tool.name} was denied.`)
-
     const cannotPrompt =
       (toolUseContext.options.isNonInteractiveSession === true && getSessionKind() !== 'oculus') ||
       toolUseContext.getAppState().toolPermissionContext.shouldAvoidPermissionPrompts === true
@@ -727,7 +727,6 @@ async function runTransactionBody(args: {
         imagePasteIds,
       }),
     )
-
     for (const row of decidedRows) push(row)
     logForDebugging(`tool use refused: ${tool.name}`)
     return
@@ -766,7 +765,6 @@ async function runTransactionBody(args: {
   let failedShellOutcome: { code: number; pipelineStatus?: number[] } | undefined
 
   try {
-
     observeToolStart({
       owner: ownerFromToolUseContext(toolUseContext),
       toolName: tool.name,
@@ -830,7 +828,6 @@ async function runTransactionBody(args: {
       result.data as never,
       toolUseID,
     )
-
     try {
       await clampToolResultImageBlocks(mappedBlock as never)
     } catch (error) {
@@ -923,7 +920,6 @@ async function runTransactionBody(args: {
       push({ message })
     }
   } catch (error) {
-
     settleHookWait()
     durationMs = Date.now() - executionStartedAt
     success = false
@@ -942,7 +938,6 @@ async function runTransactionBody(args: {
     const message = cutText ?? (error instanceof Error ? error.message : String(error))
 
     if (error instanceof McpAuthError) {
-
       try {
         flipMcpClientToNeedsAuth(tool, toolUseContext)
       } catch (flipError) {
@@ -982,7 +977,6 @@ async function runTransactionBody(args: {
     const isSubagent =
       toolUseContext.agentId !== undefined && toolUseContext.preserveToolResults !== true
     const mcpMeta = (error as { mcpMeta?: { _meta?: Record<string, unknown> } }).mcpMeta
-
     const modelFacingText = formatError(error)
     const shellRun = shellRunOfError(tool, error)
     push({
@@ -1005,14 +999,12 @@ async function runTransactionBody(args: {
       push({ message: failureMessage })
     }
   } finally {
-
     if (executed) for (const row of decidedRows) push(row)
     if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) for (const note of hookNotes) push({ message: note })
     if (executed) {
       traceOnce({ durationMs, ok: success, ...(outputMismatch !== undefined ? { outputMismatch: true } : {}) })
       try {
-
         try {
           const op = result?.effect?.operation
           if (tool.name === 'Edit' && op === 'file.edit') {

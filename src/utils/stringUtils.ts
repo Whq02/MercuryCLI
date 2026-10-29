@@ -1,5 +1,6 @@
 import stripAnsi from 'strip-ansi'
 
+
 export function escapeRegExp(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

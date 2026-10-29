@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -60,7 +61,6 @@ const COUNT_BASE = await new Promise<string>((resolve, reject) => {
 function drive(prompt: string): { result: string; ok: boolean; refused: boolean; raw: string } {
   const res = spawnSync('node', [dist, 'run', prompt, '--format', 'json'], {
     encoding: 'utf-8',
-
     timeout: vshotBudgetMs(60000),
     cwd: repo,
     env: {
@@ -82,7 +82,6 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 
 {
   const { result, refused } = drive('/critter')
-
   check('run /critter answers a refused outcome (exit 1, status refused — the command did not run)', refused)
   check(
     '/critter (local-jsx) answers the interactive-surface reason',
@@ -93,7 +92,6 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 }
 
 {
-
   const { result } = drive('/concourse')
   check(
     '/concourse (interactive-only local) answers the foreground reason',

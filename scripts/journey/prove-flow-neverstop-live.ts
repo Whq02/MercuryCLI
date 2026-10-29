@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -101,9 +100,7 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol', '--mode', 'flow'],
   cwd: FIXTURE_CWD,
   sends: [
-
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'read both docs then summarize\r' },
   ],
   readyText: [FINAL_TEXT],

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -25,12 +24,10 @@ const ROOT = join(import.meta.dir, '../..')
 
 section('§A the retry wall: structured detail, no silent sleep, every retry visible')
 {
-
   const apiErr = Object.assign(new Error('overloaded'), { status: 529, name: 'APIError' })
   const msg = createSystemAPIErrorMessage(apiErr, 5000, 1, 3)
   check('errorDetail is always populated', msg.errorDetail?.name === 'APIError' && msg.errorDetail?.status === 529 && msg.errorDetail?.message === 'overloaded')
   const roundTrip = JSON.parse(JSON.stringify(msg)) as typeof msg
-
   check('a bare Error still serializes empty (the old class)', JSON.stringify(JSON.parse(JSON.stringify(createSystemAPIErrorMessage(new Error('overloaded'), 1, 1, 1))).error) === '{}')
   check('…but errorDetail survives the JSONL round-trip', roundTrip.errorDetail?.status === 529 && roundTrip.errorDetail?.message === 'overloaded')
 
@@ -51,7 +48,6 @@ section('§A the retry wall: structured detail, no silent sleep, every retry vis
 
 section('§B the externalEditor kill chain: unbound bell, guarded draft, async handoff, sealed OSC')
 {
-
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const ctrlG = DEFAULT_BINDINGS.filter(block => 'ctrl+g' in block.bindings).map(block => `${block.context}:${block.bindings['ctrl+g']}`)
   check('ctrl+g binds ONLY in the Confirmation context (the cards)', ctrlG.join(',') === 'Confirmation:chat:externalEditor')
@@ -61,7 +57,6 @@ section('§B the externalEditor kill chain: unbound bell, guarded draft, async h
   check('an empty draft never opens the editor (guard + notice)', prompt.includes('external-editor-empty') && prompt.includes('type a draft first'))
 
   const editor = readFileSync(join(ROOT, 'src/utils/promptEditor.ts'), 'utf8')
-
   check('the editor handoff is ASYNC (spawned child)', editor.includes('export async function editFileInEditor') && editor.includes('spawn(commandLine'))
   check('no synchronous exec remains in the editor hand-off', !/\b(?:execSync|execFileSync|spawnSync)\b/.test(editor))
 
@@ -83,7 +78,6 @@ section('§B the externalEditor kill chain: unbound bell, guarded draft, async h
 
 section('§C the Windows incident wave (intake F): evidence preserved, boundaries honest')
 {
-
   const { classifyGuiEditor } = await import('../../src/utils/editor.js')
   check("the Windows default 'start /wait notepad' classifies as GUI", classifyGuiEditor('start /wait notepad') === 'notepad')
   check('plain GUI editors still classify', classifyGuiEditor('code -w') === 'code')
@@ -137,7 +131,6 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
   const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('the unavailability error is agent-actionable', wtSrc.includes('Retry the same Crewmate call WITHOUT the isolation parameter'))
   const agentPrompt = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
-
 check('the isolation capability names its precondition', /requires a git repository/i.test(agentPrompt))
 
   const { needsPowerShellBom } = await import('../../src/utils/file.js')
@@ -177,7 +170,6 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
   const refBlob = join(refDir, 'output.txt')
   wf(refBlob, 'referenced payload')
   utimesSync(refBlob, old, old)
-
   const orphanDir = join(projectDir, sid, TOOL_RESULTS_SUBDIR, 'toolu_orphan')
   mkdirSync(orphanDir, { recursive: true })
   const orphanBlob = join(orphanDir, 'output.txt')
@@ -188,7 +180,6 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
     transcriptPath,
     JSON.stringify({ type: 'user', uuid: sid, timestamp: new Date().toISOString(), message: { role: 'user', content: `<persisted-output>\nFull output saved to: ${refBlob}\n</persisted-output>` } }) + '\n',
   )
-
   const sid2 = 'aaaaaaaa-bbbb-cccc-dddd-000000000002'
   const deadDir = join(projectDir, sid2, TOOL_RESULTS_SUBDIR, 'toolu_dead')
   mkdirSync(deadDir, { recursive: true })
@@ -203,7 +194,6 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
   check('an aged-but-REFERENCED blob under a live transcript SURVIVES', existsSync(refBlob))
   check('an aged unreferenced blob ages out', !existsSync(orphanBlob))
   check('the live transcript survives beside its payload', existsSync(transcriptPath))
-
   check("a dead session's blobs age out; its transcript is the operator's (never auto-deleted)", !existsSync(deadBlob) && existsSync(deadTranscript))
 }
 

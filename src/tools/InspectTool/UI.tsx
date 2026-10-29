@@ -21,6 +21,7 @@ export function renderToolUseErrorMessage(
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />;
 }
 
+
 export function renderToolResultMessage(
   output: Output,
   _progressMessages: unknown[],
@@ -46,7 +47,7 @@ export function renderToolResultMessage(
           <Text color={FAINT}>{`  … +${lines.length - shown.length} lines (ctrl+o expands)`}</Text>
         ) : null}
       </Box>
-
+  
       )}
     </WithCardTone>
   );

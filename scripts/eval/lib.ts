@@ -1,3 +1,4 @@
+
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,12 +21,10 @@ export function finish(name: string): never {
 }
 
 let scratch: string | null = null
-
 export function setup(): { home: string; work: string } {
   if (!scratch) {
     scratch = mkdtempSync(join(tmpdir(), 'mercury-eval-prover-'))
     process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-
     delete process.env.MERCURY_EVAL_PYTHON
   }
   const work = join(scratch, 'work')

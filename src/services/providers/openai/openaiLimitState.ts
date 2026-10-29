@@ -20,11 +20,9 @@ function noteObservedChanged(): void {
     }
   }
 }
-
 export function getOpenaiObservedVersion(): number {
   return observedVersion
 }
-
 export function subscribeOpenaiObserved(listener: () => void): () => void {
   observedListeners.add(listener)
   return () => {
@@ -74,9 +72,9 @@ export function noteOpenaiSourceIdentity(source: OpenaiLimitSource, identity: st
   return true
 }
 
+
 export interface OpenaiObservedWindow {
   usedPct?: number
-
   windowMinutes?: number
   resetsAtMs?: number
   observedAtMs: number

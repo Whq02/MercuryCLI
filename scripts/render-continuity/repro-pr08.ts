@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -157,9 +156,7 @@ const scenes: Scene[] = [
           },
         ],
       },
-
       { kind: 'text', text: 'done' },
-
       {
         kind: 'paced',
         deltas: ['charlie stream body after the tool. ', 'delta stream body closing. '],
@@ -259,7 +256,6 @@ for (const scene of scenes) {
         prevRow !== undefined &&
         curRow !== undefined &&
         prevRow.trim() !== curRow.trim() &&
-
         !curRow.trim().startsWith(prevRow.trim().slice(0, Math.max(8, prevRow.trim().length - 4)))
       ) {
         instability.push(`@${screens[i].atMs} ${tok}: "${prevRow.trim().slice(0, 60)}" -> "${curRow.trim().slice(0, 60)}"`)
@@ -276,7 +272,6 @@ for (const scene of scenes) {
   const userRowShifts =
     new Set(withText.filter(a => a.userRow !== -1).map(a => a.userRow)).size > 1
   const dupAnywhere = anats.some(a => a.dupTokens.length > 0)
-
   const settleWindowJump =
     lastLive &&
     settledA.visible.length > 0 &&

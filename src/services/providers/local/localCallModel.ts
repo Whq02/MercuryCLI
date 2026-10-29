@@ -177,7 +177,6 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     authRemedy:
       'the server rejected the request credential — set MERCURY_LOCAL_API_KEY to the key the server was started with (its --api-key), or start it keyless.',
     requestUrl: () => `${record.baseUrl}/chat/completions`,
-
     wireModelId: () => record.id,
     buildExtras: args => {
       thinkingEnabled = args.thinkingEnabled
@@ -203,7 +202,6 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
           outputCeiling: (modelId: string) => getMaxOutputTokensForModel(modelId),
         }
       : {}),
-
     requestFitRefusal: ({ estTokens, toolCount }) => {
       const guard = localGuardWindow(record)
       if (guard === undefined) return undefined

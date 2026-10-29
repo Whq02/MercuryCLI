@@ -19,9 +19,7 @@ const DEFAULT_CHARS: ReadonlyArray<readonly [string, string]> = [
 ]
 
 type ExtensionsBindings = {
-
   chars: Map<string, string>
-
   declined: string[]
 }
 
@@ -33,7 +31,6 @@ export function resolveExtensionsBindings(): ExtensionsBindings {
   const chars = new Map<string, string>(DEFAULT_CHARS)
   const declined: string[] = []
   const file = getKeybindingsPath()
-
   const limit = `the extensions board arms single keys — rebind it in ${basename(file)} under ${dirname(file)}`
 
   const stored: Array<{ pattern: string; chord: Chord; action: string | null }> = []
@@ -83,7 +80,6 @@ export function resolveExtensionsBindings(): ExtensionsBindings {
       declined.push(`${action} is bound to '${chordToString(chord)}' — ${limit}`)
       continue
     }
-
     for (const [held, heldChar] of chars) {
       if (held !== action && heldChar === char) {
         chars.delete(held)

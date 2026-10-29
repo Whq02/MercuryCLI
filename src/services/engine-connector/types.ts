@@ -16,12 +16,10 @@ import type { ContextFillView } from '../../utils/contextFill.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 
+
 export type SendWordsOptions = {
-
   mode?: PromptInputMode
-
   pastedContents?: Record<number, PastedContent>
-
   fromKeybinding?: boolean
 }
 
@@ -40,8 +38,8 @@ export type WithdrawReceiptV1 =
       retired?: true
     }
 
-export type SessionAskV1 = {
 
+export type SessionAskV1 = {
   id: string
   confirm: ToolUseConfirm
   toolName: string
@@ -53,9 +51,7 @@ export type SessionAskV1 = {
 export type AskAnswerV1 =
   | {
       kind: 'allow'
-
       updatedInput?: Record<string, unknown>
-
       permissionUpdates?: PermissionUpdate[]
       feedback?: string
       contentBlocks?: ContentBlockParam[]
@@ -66,6 +62,7 @@ export type AskAnswerV1 =
 export type AskReceiptV1 =
   | { ok: true }
   | { ok: false; detail: string }
+
 
 export type AgentControlReceiptV1 = {
   outcome: 'applied' | 'refused'
@@ -91,31 +88,24 @@ export type AdvisorFactsV1 = {
   model: string | null
 }
 
+
 export type ModelFactsV1 = {
-
   effective: string
-
   effectiveSource?: 'live' | 'record' | 'ambient'
-
   main: string
-
   setting: ModelSetting
-
   sessionPin: ModelSetting | null
-
   effort?: string | null
-
   effortSent?: string | null
-
   pendingSwitch: { setting: ModelSetting } | null
 }
 
 export type ModelSwitchReceiptV1 =
-
   | { state: 'applied'; note?: string }
   | { state: 'queued' }
   | { state: 'no-op' }
   | { state: 'refused'; detail: string }
+
 
 type LimitWarningFactV1 = {
   provider: string
@@ -136,13 +126,10 @@ export type UsageFactsV1 = {
   totalOutputTokens: number
   totalCacheReadInputTokens: number
   totalCacheCreationInputTokens: number
-
   hasUnknownModelCost: boolean
-
   unpricedTurns?: number
   modelSpend?: ModelSpendRowV1[]
   context?: ContextFactsV1
-
   limitWarning?: LimitWarningFactV1 | null
   openaiObserved?: {
     primary?: OpenaiObservedBandV1
@@ -235,18 +222,16 @@ export type LaneWindowFactV1 = {
 }
 
 export type SeatIdentityV1 = {
-
   firstPartyApi: boolean
   consoleBilling: boolean
   claudeAiBilling: boolean
-
   accountEmail: string | null
 }
+
 
 export type SkillsRosterEntryV1 = {
   name: string
   description: string
-
   state?: 'invocable' | 'off'
 }
 
@@ -261,21 +246,21 @@ export type McpRosterEntryV1 = {
   addedAt?: number
   signingIn?: boolean
   authorizationUrl?: string
-
   error?: string
 }
 
 export type McpRosterV1 = {
-
   clients: readonly McpRosterEntryV1[]
 }
 
 export type { McpToolEntryV1, McpToolsV1 } from '../../daemon/protocol.js'
 
+
 export type KitDialReceiptV1 = {
   outcome: 'applied' | 'queued' | 'noop' | 'refused'
   detail?: string
 }
+
 
 export type SpawnSwitchReceiptV1 = KitDialReceiptV1
 
@@ -307,52 +292,37 @@ export type WorkRowV1 = {
   agentId?: string
   kind: 'workflow' | 'agent' | 'shell' | 'monitor'
   name: string
-
   status: string
   startTime: number
   endTime?: number
   description?: string
   exitCode?: number
-
   model?: string
   error?: string
   totalTokens?: number
-
   inputTokens?: number
   outputTokens?: number
   cacheReadTokens?: number
-
   contextTokens?: number
   costUSD?: number
   unpricedTurns?: number
-
   toolUses?: number
   activity?: string
-
   wait?: string
-
   toolUseId?: string
-
   workflowRunId?: string
   phases?: WorkPhaseV1[]
   agentCount?: number
-
   pulse?: WorkflowPulseV1
-
   pendingAsks?: number
   pausedBy?: string
-
   agentType?: string
-
   crew?: string
   effort?: string
   transcriptAgentId?: string
   idle?: boolean
-
   stopReason?: string
-
   phase?: AgentWaitV1
-
   paused?: AgentPauseV1
   unreadNotices?: number
   command?: string
@@ -380,10 +350,8 @@ export type NoticeRowV1 = {
 }
 
 export type MissionRowV1 = {
-
   blocks?: readonly string[]
   blockedBy?: readonly string[]
-
   ledger?: string
   id: string
   subject: string
@@ -405,20 +373,18 @@ export type WorkRosterV1 = {
   rows: readonly WorkRowV1[]
   mission: readonly MissionRowV1[]
   samples?: readonly SampleRowV1[]
-
   reported?: boolean
   gone?: boolean
   pauseGate?: PauseGateFactsV1
 }
 
+
 export type WorkspaceFactsV1 = {
-
   cwd: string
-
   originalCwd: string
-
   projectRoot: string
 }
+
 
 export type CheckpointFactsV1 = {
   capture: 'on' | 'off' | 'unknown'
@@ -428,10 +394,8 @@ export type CheckpointFactsV1 = {
 }
 
 export type RewindRequestV1 = {
-
   userMessageId: string
   mode: SessionRewindMode
-
   dryRun?: boolean
   filePath?: string
   undo?: boolean
@@ -439,41 +403,35 @@ export type RewindRequestV1 = {
 
 export type RewindReceiptV1 = SessionRewindOutcomeV1
 
+
 export interface PermissionModeReceiptV1 {
   outcome: 'applied' | 'refused' | 'noop'
   detail?: string
 }
 
 export interface EngineConnectorV1 {
-
   readonly carrier: EngineCarrierKind
 
   sessionId(): string
 
   sendWords(text: string, opts?: SendWordsOptions): Promise<SendReceiptV1>
-
   sendAgentNote(agentId: string, text: string): Promise<SendReceiptV1>
 
   records(): readonly Message[]
   subscribeRecords(listener: () => void): () => void
-
   turnActive(): boolean
 
   asks(): readonly SessionAskV1[]
   subscribeAsks(listener: () => void): () => void
-
   answerAsk(askId: string, answer: AskAnswerV1): Promise<AskReceiptV1>
-
   settleAsk(askId: string): void
 
   interrupt(): boolean
 
   recallableSend(): RecallableSendV1 | null
-
   withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1>
 
   stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
-
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   backgroundShell(): Promise<AgentControlReceiptV1>
   sendNow(): Promise<AgentControlReceiptV1>
@@ -483,9 +441,7 @@ export interface EngineConnectorV1 {
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
-
   setModel(setting: ModelSetting, words?: string): Promise<ModelSwitchReceiptV1>
-
   setEffort(level: string): Promise<ModelSwitchReceiptV1>
 
   usage(): UsageFactsV1
@@ -499,12 +455,10 @@ export interface EngineConnectorV1 {
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
 
   spawnSwitches(): SpawnSwitchFacts
-
   setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1>
 
   checkpointFacts(): CheckpointFactsV1
   subscribeCheckpoints(listener: () => void): () => void
-
   rewind(req: RewindRequestV1): Promise<RewindReceiptV1>
 
   workRoster(): WorkRosterV1
@@ -514,7 +468,6 @@ export interface EngineConnectorV1 {
 
   permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void
-
   setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1>
 
   workspace(): WorkspaceFactsV1

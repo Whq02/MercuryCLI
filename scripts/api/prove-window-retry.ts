@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -96,7 +95,6 @@ section('W4 — the retry decision on the subscription road')
 section('W5 — the row carries the asked wait as a fact')
 {
   const before = Date.now()
-
   const wireAnswer = (status: number, headers: Record<string, string>): Error =>
     new APIError(status, { type: 'error', error: { type: 'rate_limit_error', message: 'refused' } }, `${status} refused`, new Headers(headers))
   const window = errors.getAssistantMessageFromError(wireAnswer(429, { 'retry-after': HOURS_3, 'anthropic-ratelimit-unified-status': 'rejected', 'anthropic-ratelimit-unified-representative-claim': 'five_hour', 'anthropic-ratelimit-unified-reset': String(Math.floor(before / 1000) + 3 * 3600) }), 'claude-opus-5')

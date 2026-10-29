@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { StringDecoder } from 'node:string_decoder'
 import { SseDecoder, type SseDecodeResult } from '../../src/services/providers/sseDecoder.js'
 
@@ -128,7 +127,6 @@ function drive(
 section('P1 · canonical wires, three deterministic fragmentations each')
 for (const [label, text] of WIRES) {
   const wire = Buffer.from(text, 'utf8')
-
   const byteCuts = Array.from({ length: wire.length }, (_v, i) => i + 1)
   const rand = lcg(wire.length * 2654435761)
   const randomCuts = Array.from(
@@ -157,7 +155,6 @@ for (const [label, text] of WIRES) {
 
 section('P2 · the CR/LF chunk-boundary law (a CR split from its LF)')
 {
-
   const live = new SseDecoder()
   const ref = new ReferenceSseDecoder()
   const a = [...live.push('data: x\r'), ...live.push('\ndata: y\r\n'), ...live.push('\r\n')]

@@ -79,7 +79,6 @@ section('collapse: an EARLIER emit is collapsed — the finally never doubles it
 {
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-trace-once-collapse-'))
   const traceOnce = makeTraceOnce()
-
   traceOnce({ ok: false })
   traceOnce({ durationMs: 999, ok: true })
   traceOnce({ killed: true, ok: false })
@@ -93,7 +92,6 @@ section('collapse: an EARLIER emit is collapsed — the finally never doubles it
 section('bare-stamp OR fully-off ⇒ traceOnce emits nothing')
 {
   process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mercury-trace-once-off-'))
-
   process.env.MERCURY_TRACE = '0'
   process.env.MERCURY_SUBSTRATE = '0'
   const traceOnce = makeTraceOnce()

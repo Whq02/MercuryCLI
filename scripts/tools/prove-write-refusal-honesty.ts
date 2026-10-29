@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +6,6 @@ import { join } from 'node:path'
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'write-refusal-')))
 const PROJ = join(SCRATCH, 'proj')
 mkdirSync(PROJ, { recursive: true })
-
 process.chdir(PROJ)
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })

@@ -12,7 +12,6 @@ export interface FamilyHeader {
   tree: string
   fold: string
   when: string
-
   promptChars: number | null
   promptTokensEst: number | null
   toolCount: number | null

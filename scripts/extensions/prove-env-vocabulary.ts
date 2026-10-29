@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -41,7 +40,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
 const ROOT = join(import.meta.dir, '..', '..')
-
 const J = (...parts: string[]): string => parts.join('')
 const RETIRED_ROOT = J('MERCURY_', 'PLUG', 'IN_ROOT')
 const RETIRED_DATA = J('MERCURY_', 'PLUG', 'IN_DATA')
@@ -133,7 +131,6 @@ console.log("[6] prose gets the placeholder; the child env gets the value; only 
     check('the prompt opens on the one base-directory line every skill shares (folder named, the reference-files clause present)', /^Base directory for this skill: \S+ \(read or grep files under it for the skill's own references\)\n\n/.test(text), text.slice(0, 160))
     check('${MERCURY_EXTENSION_ROOT} substitutes in prose', text.includes(installed.ok ? installed.root : '<nope>'))
   }
-
   const loaderSrc = readFileSync(join(ROOT, 'src', 'extensions', 'load', 'commands.ts'), 'utf8')
   check("Mercury's skill-dir spelling substitutes", loaderSrc.includes("replaceAll('${MERCURY_SKILL_DIR}'"))
   check("Mercury's session-id spelling substitutes", loaderSrc.includes("replaceAll('${MERCURY_SESSION_ID}'"))

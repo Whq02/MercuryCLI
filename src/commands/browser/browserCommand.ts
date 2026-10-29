@@ -10,6 +10,7 @@ import {
 import { driverVersion } from '../../services/browser/browserSession.js'
 import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
 
+
 function statusText(): string {
   const lines: string[] = []
   const gate = driverNodeGate()

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -68,13 +67,11 @@ if (g) {
 
 console.log('\n(B) generic install-promo tips removed (registry + dist)')
 {
-
   const P = ['plug', 'in'].join('')
   const M = ['market', 'place'].join('')
   const reg = src('src/services/tips/tipRegistry.ts')
   check(`no 'frontend-design-${P}' tip id`, !reg.includes(`id: 'frontend-design-${P}'`))
   check(`no 'vercel-${P}' tip id`, !reg.includes(`id: 'vercel-${P}'`))
-
   check('no install-command templates in registry',
     !reg.includes('install frontend-design@') && !reg.includes('install vercel@'))
   check('the store-relevance helper is gone', !reg.includes(`is${M[0]!.toUpperCase()}${M.slice(1)}${P[0]!.toUpperCase()}${P.slice(1)}Relevant(`))

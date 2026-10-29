@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -16,9 +15,7 @@ process.env.MERCURY_CRITTER_GAZE = '0'
 process.env.MERCURY_CRITTER_SLEEP = '0'
 process.env.MERCURY_LIVE_CLOCK = '0'
 process.env.MERCURY_LIVE_GLYPHS = '0'
-
 process.env.BROWSER = existsSync('/usr/bin/true') ? '/usr/bin/true' : '/bin/true'
-
 process.env.SSH_CONNECTION = 'proof'
 for (const key of [
   'TMUX',
@@ -61,7 +58,6 @@ function section(title: string): void {
 }
 
 const COLS = 120
-
 const ROWS = 80
 class FakeStdout extends EventEmitter {
   isTTY = true
@@ -103,7 +99,6 @@ class FakeStdin extends EventEmitter {
 }
 
 type Mounted = { push: (data: string) => void; screen: () => string; unmount: () => void }
-
 // eslint-disable-next-line no-control-regex
 const PROBE_CSI = /\x1b\[(?:[<>=][0-9;]*[a-zA-Z]|\?[0-9;]*\$p|\?[0-9;]*u|[0-9;]*c|6n)/g
 const emulatorRefusals: string[] = []
@@ -121,7 +116,6 @@ function mount(element: React.ReactElement): Mounted {
   ink.render(element)
   return {
     push: data => stdin.push(data),
-
     screen: () => {
       const emu = new AnsiEmulator(COLS, ROWS, false)
       for (const w of stdout.writes) {
@@ -145,12 +139,10 @@ async function waitFor(pred: () => boolean, ms: number): Promise<boolean> {
   }
   return pred()
 }
-
 function draftDots(frame: string): number | null {
   const m = /code: (•*)▌/.exec(frame)
   return m === null ? null : m[1]!.length
 }
-
 const CARD_FIELD = 'Paste code here if prompted >'
 function fieldAfter(frame: string): string | null {
   const line = frame.split('\n').find(l => l.includes(CARD_FIELD))
@@ -164,7 +156,6 @@ const CARD_HINT = 'press c to copy the URL'
 const CARD_ACK = 'Copied to clipboard'
 const ESC = '\x1b'
 const DOWN = '\x1b[B'
-
 async function typeAbc(m: Mounted): Promise<void> {
   m.push('a')
   await settle(60)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { join } from 'node:path'
 import { buildFixtureMcpTools } from './fixtureMcpEstate.ts'
 
@@ -18,7 +17,6 @@ if (!route || !model) {
 delete process.env.NODE_ENV
 delete process.env.MERCURY_SCRIPTED_STREAM
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 const { pinHermeticCredentialedHome } = await import('./hermeticHome.ts')
 const HOME = pinHermeticCredentialedHome('prefix-usage-home-')
 if (process.env.MERCURY_CONFIG_DIR !== HOME) throw new Error('the scratch config home did not pin')
@@ -54,7 +52,6 @@ const startedAt = Date.now()
 let usage: Record<string, number> | undefined
 let text = ''
 const errors: string[] = []
-
 let last: { message?: { usage?: Record<string, number> } } | undefined
 try {
   const stream = routedCallModel({

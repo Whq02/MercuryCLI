@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,7 +35,6 @@ for (const [name, board] of boards) check(`${name} does NOT .slice its section r
 
 section('behaviour: verbatim window math — sel always in-window, byte-identical small, last row reachable')
 const ROW_OVERSCAN = 12
-
 function win(N: number, listHeight: number, sel: number): { s: number; e: number } {
   const winSpan = listHeight + 2 * ROW_OVERSCAN
   const winStart =
@@ -44,7 +42,6 @@ function win(N: number, listHeight: number, sel: number): { s: number; e: number
   const winEnd = Math.min(N, winStart + winSpan)
   return { s: winStart, e: winEnd }
 }
-
 {
   const lh = 10
   const span = lh + 2 * ROW_OVERSCAN
@@ -56,7 +53,6 @@ function win(N: number, listHeight: number, sel: number): { s: number; e: number
     }
   check(`N ≤ winSpan ⇒ winStart=0, winEnd=N for every sel (byte-identical, all rows mounted)`, allFull)
 }
-
 {
   let selAlwaysIn = true
   let windowBounded = true
@@ -65,26 +61,22 @@ function win(N: number, listHeight: number, sel: number): { s: number; e: number
       for (let sel = 0; sel < N; sel++) {
         const { s, e } = win(N, lh, sel)
         if (!(sel >= s && sel < e)) selAlwaysIn = false
-
         if (e - s !== Math.min(N, lh + 2 * ROW_OVERSCAN)) windowBounded = false
       }
   check('large section: sel is ALWAYS inside [winStart, winEnd) (selected rowRef stays mounted)', selAlwaysIn)
   check('the mounted window is min(N, winSpan) — bounded by listHeight+24, never the full N when N>winSpan', windowBounded)
 }
-
 {
   const N = 500
   const { s, e } = win(N, 12, N - 1)
   check('the LAST row (sel = N-1) is inside the window (reachable by ↓, kills the cap-regression)', N - 1 >= s && N - 1 < e && e === N)
 }
-
 {
   const N = 300,
     lh = 12
   let noUndershoot = true
   for (let sel = 1; sel < N - 1; sel++) {
     const w = win(N, lh, sel)
-
     if (!(sel + 1 >= w.s && sel + 1 < w.e && sel - 1 >= w.s && sel - 1 < w.e)) noUndershoot = false
   }
   check('OVERSCAN(12) ≫ a 1-step ↑↓: sel±1 stays within the current window (no blank-viewport undershoot)', noUndershoot)
@@ -99,7 +91,6 @@ function win(N: number, listHeight: number, sel: number): { s: number; e: number
         const { s, e } = win(N, lh, sel)
         const totalHeight = s  + (e - s)  + (N - e)
         if (totalHeight !== N) heightOk = false
-
         const selOffset = s + (sel - s)
         if (selOffset !== sel) posOk = false
       }

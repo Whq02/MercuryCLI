@@ -1,3 +1,4 @@
+
 export type FrictionTransition = 'boot-interactive' | 'screen-switch' | 'picker-open'
 
 export const FRICTION_BUDGETS_MS: Record<FrictionTransition, number> = {
@@ -59,12 +60,9 @@ export function markTransitionEnd(
 interface FrictionRow {
   transition: FrictionTransition
   budgetMs: number
-
   lastMs: number | null
-
   worstMs: number | null
   samples: number
-
   over: boolean
 }
 

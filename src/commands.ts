@@ -105,7 +105,6 @@ export type {
   ResumeEntrypoint,
 } from './types/command.js'
 export { getCommandName } from './types/command.js'
-
 export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
 
 const require = createRequire(import.meta.url)
@@ -189,7 +188,6 @@ const COMMANDS = memoize((): Command[] => [
   permissions,
   hooks,
   exportCommand,
-
   logout,
   loginFactory(),
   tasks,
@@ -253,13 +251,11 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
       case 'claude-ai':
         return isClaudeAISubscriber()
       case 'console':
-
         return (
           !isClaudeAISubscriber() &&
           isFirstPartyAnthropicBaseUrl()
         )
       case 'any-provider-credential':
-
         return anyProviderCredentialed()
       default:
         requirement satisfies never
@@ -327,11 +323,9 @@ function dedupeCommandsByName(commands: Command[]): Command[] {
   for (const command of commands) {
     const winner = byName.get(command.name)
     if (winner) {
-
       const bothCustom = winner.source !== undefined && command.source !== undefined
       const collisionLine = `slash command collision on /${command.name}: the ${String(command.source)} copy is shadowed by the ${String(winner.source)} entry`
       if (bothCustom) {
-
         logError(new Error(collisionLine))
       } else if (winner.source !== command.source) {
         logForDebugging(collisionLine)
@@ -345,9 +339,7 @@ function dedupeCommandsByName(commands: Command[]): Command[] {
 }
 
 export async function getCommands(cwd: string): Promise<Command[]> {
-
   const loaded = await loadAllCommands(cwd)
-
   const kit = sessionKitOf()
   if (kit !== undefined) {
     noteBootSkillRoster(loaded.filter(isKitGovernedSkillCommand).map(command => command.name))
@@ -372,7 +364,6 @@ export async function getCommands(cwd: string): Promise<Command[]> {
         meetsAvailabilityRequirement(command) &&
         isCommandEnabled(command) &&
         !base.some(existing => existing.name === command.name) &&
-
         !builtInCommandNames().has(command.name) &&
         !kitDropsCommand(kit, command),
     )
@@ -478,7 +469,6 @@ export function formatDescriptionWithSource(cmd: Command): string {
     return description
   }
   if (cmd.source === 'bundled') {
-
     return `${description} (built-in)`
   }
   return `${description} (${getSourceDisplayName(cmd.source)})`

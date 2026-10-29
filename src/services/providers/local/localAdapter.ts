@@ -40,7 +40,6 @@ export function describeLocalProvider(): ProviderDescription {
         : { kind: 'keyless', label: record.label ?? 'local server (keyless)' }
       : record !== undefined && !record.probed
         ? {
-
             kind: 'none',
             label: 'local servers not probed yet (Ollama :11434 · LM Studio :1234 · vLLM :8000 · llama.cpp :8080)',
           }
@@ -58,7 +57,6 @@ export function describeLocalProvider(): ProviderDescription {
 export function localStatus(): ProviderStatus {
   const discovery = primeLocalDiscovery()
   if (discovery?.serverPresent) return { available: true }
-
   if (discovery !== null && !discovery.probed) {
     return { available: false, reason: 'discovery-pending:local' }
   }

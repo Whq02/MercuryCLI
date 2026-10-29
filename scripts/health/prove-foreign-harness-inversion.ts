@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.5.9' }
 
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -33,7 +32,6 @@ function makeHome(name: string): string {
 }
 
 try {
-
   const ours = makeHome('ours')
   writeFileSync(
     join(ours, 'daemon', 'daemon.log'),
@@ -175,7 +173,6 @@ try {
     subprocessSource.includes('...AGENT_CLI_SESSION_ENV_VARS') &&
       !subprocessSource.includes("'CLAUDE_CODE_OAUTH_TOKEN'"),
   )
-
   const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.js')
   check(
     'provider API keys sit in the CI scrub symmetrically (no provider special-cased by omission)',
@@ -187,7 +184,6 @@ try {
         needle => !subprocessSource.includes(needle),
       ),
   )
-
   const ownedDaemonSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'ownedDaemon.ts'), 'utf8')
   const subprocessEnvSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'subprocessEnv.ts'), 'utf8')
   check(

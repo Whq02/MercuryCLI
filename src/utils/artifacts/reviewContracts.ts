@@ -1,3 +1,4 @@
+
 import type { ActorRefV1 } from '../../services/crew/identity.js'
 
 export type ReviewActorRef = ActorRefV1
@@ -42,7 +43,6 @@ interface DiffBodyHunk {
   oldLines: number
   newStart: number
   newLines: number
-
   lines: string[]
 }
 
@@ -58,10 +58,8 @@ interface VisualBodyElement {
 }
 
 interface VisualBodyCapture {
-
   ref: string
   title?: string
-
   digest?: string
   elements?: VisualBodyElement[]
 }
@@ -74,14 +72,12 @@ export interface JourneyBodyStep {
   beforeRef?: string
   afterRef?: string
   targetRef?: string
-
   delta?: string
   result?: string
 }
 
 export interface WalkthroughClaim {
   text: string
-
   evidenceRefs: string[]
 }
 
@@ -95,9 +91,7 @@ export type ReviewArtifactBody =
 
 export interface ReviewArtifactVersion {
   schema: 1
-
   id: string
-
   version: number
   kind: ReviewArtifactKind
   title: string
@@ -108,6 +102,7 @@ export interface ReviewArtifactVersion {
   evidenceRefs: string[]
   priorVersion?: number
 }
+
 
 export type ReviewAnchor =
   | { t: 'md-block'; headingPath: string[]; blockDigest: string; ordinal: number }
@@ -129,13 +124,10 @@ type ReviewCommentState = 'open' | 'resolved' | 'outdated'
 export interface ReviewComment {
   id: string
   artifactId: string
-
   version: number
   anchor: ReviewAnchor
   author: string
-
   authorRef?: ReviewActorRef
-
   parentCommentId?: string
   body: string
   state: ReviewCommentState
@@ -143,6 +135,7 @@ export interface ReviewComment {
   createdAt: number
   updatedAt: number
 }
+
 
 export type ReviewScope =
   | { t: 'file'; path: string }
@@ -184,11 +177,9 @@ function reviewScopeKey(scope: ReviewScope): string {
 }
 
 export interface ScopeDecisionFold {
-
   latest: Map<string, ReviewScopeDecision>
   accepted: number
   revisionRequested: number
-
   suggestion: Extract<ReviewArtifactStatus, 'accepted' | 'revision-requested'> | null
 }
 
@@ -215,6 +206,7 @@ export function foldScopeDecisions(
       revisionRequested > 0 ? 'revision-requested' : accepted > 0 ? 'accepted' : null,
   }
 }
+
 
 export type ReviewJournalEvent =
   | { v: 1; at: number; type: 'version'; record: ReviewArtifactVersion }
@@ -266,13 +258,10 @@ export type ReviewJournalEvent =
 export interface ReviewArtifactState {
   id: string
   kind: ReviewArtifactKind
-
   title: string
   versions: ReviewArtifactVersion[]
-
   statuses: Record<number, ReviewArtifactStatus>
   comments: ReviewComment[]
-
   scopeDecisions: ReviewScopeDecision[]
   latestVersion: number
   createdAt: number

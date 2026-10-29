@@ -1,3 +1,4 @@
+
 export type Grid = Array<Array<{ c: string }>>
 type PaneRow = { row: number; text: string }
 export type Sig = { turn: number; sig: string; row: number }
@@ -20,14 +21,12 @@ function paneRows(grid: Grid): PaneRow[] {
       if (r[x0] === '╰') break
       inner.push({ row: y, text: r.slice(x0 + 1, x1) })
     }
-
     if (inner.length > 0 && /^\s*╭/.test(inner[0]!.text)) {
       const end = inner.findIndex(p => /^\s*╰/.test(p.text))
       return end >= 0 ? inner.slice(end + 1) : inner
     }
     return inner
   }
-
   const out: PaneRow[] = []
   let y = 0
   if (/^\s*╭/.test(rows[0] ?? '')) {

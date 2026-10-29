@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import type { Frame } from '../../src/ink/frame.js'
 import type { SgrState } from '../ink-runtime/ansiEmulator.js'
 import type { ComposeContext, FrameScene, SceneNode } from '../ink-runtime/frameHarness.js'
@@ -40,7 +39,6 @@ function serialize(diff: ReturnType<typeof optimize>, skipSync = true): string {
 }
 
 function expectedStyle(ctx: ComposeContext, styleId: number): SgrState {
-
   const str = ctx.stylePool.transition(ctx.stylePool.none, styleId)
   return sgrStateOfStyleString(str)
 }
@@ -48,7 +46,6 @@ function expectedStyle(ctx: ComposeContext, styleId: number): SgrState {
 function sameVisibleStyle(char: string, actual: SgrState | null, expected: SgrState): boolean {
   const a = actual ?? defaultSgr()
   if (char === ' ') {
-
     return (
       a.bg === expected.bg &&
       a.inverse === expected.inverse &&
@@ -105,7 +102,6 @@ function checkFrameState(
           )
         }
       } else if (cell === undefined) {
-
         check(`${label}: blank (${x},${y})`, emuChar === ' ' || emuChar === '', `terminal ${JSON.stringify(emuChar)}`)
         void modelChar
       }
@@ -141,7 +137,6 @@ function styledPane(step: number): FrameScene {
 }
 
 function linkScene(ctx: ComposeContext): Frame {
-
   const root = createNode('ink-root')
   applySceneStyle(root, { width: ALT_COLS, height: ALT_ROWS, flexDirection: 'column' })
   const box = createNode('ink-box')
@@ -159,7 +154,6 @@ function linkScene(ctx: ComposeContext): Frame {
   root.layoutNode!.calculateLayout(ALT_COLS, ALT_ROWS)
   const scene: FrameScene = { name: 'link', cols: ALT_COLS, rows: ALT_ROWS, root: { kind: 'box' } }
   void scene
-
   const createRenderer = require('../../src/ink/renderer.js').default as (
     r: unknown,
     p: unknown,
@@ -196,7 +190,6 @@ console.log('native-core T1 — writer contract (style-aware replay laws)')
       true,
     )
     if (prev === undefined) {
-
       const empty = composeScene(
         { name: 'empty', cols: ALT_COLS, rows: ALT_ROWS, root: { kind: 'box' } },
         ctx,
@@ -285,9 +278,7 @@ console.log('native-core T1 — writer contract (style-aware replay laws)')
     const edited = [...lines]
     edited[edited.length - 1] = { t: 'tail edited 漢字', c: 'yellow', b: true }
     steps.push(edited)
-
     steps.push(edited.slice(0, 12))
-
     const regrow12 = [...edited.slice(0, 12)]
     regrow12.push({ t: 'reborn 12', c: 'cyan' }, { t: 'reborn 13' })
     steps.push(regrow12)
@@ -295,7 +286,6 @@ console.log('native-core T1 — writer contract (style-aware replay laws)')
     const regrow = [...steps[steps.length - 1]!]
     for (let i = 0; i < 6; i++) regrow.push({ t: `regrow ${i}` })
     steps.push(regrow)
-
     steps.push([])
     steps.push([{ t: 'after empty', c: 'yellow' }, { t: 'second row' }])
   }

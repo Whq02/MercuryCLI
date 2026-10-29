@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   readFileSync,
   appendFileSync,
@@ -60,12 +59,10 @@ check(
 )
 check(
   'the real drain body moved to _drainWriteQueueInner (still splices the queue + appendToFile)',
-
   /private async _drainWriteQueueInner\(\): Promise<void> \{[\s\S]{0,1400}queue\.splice\(0\)/.test(
     storage,
   ),
 )
-
 const removeBody = storage.slice(
   storage.indexOf('async removeMessageByUuid'),
   storage.indexOf('async removeMessageByUuid') + 4400,
@@ -90,7 +87,6 @@ check(
     storage,
   ),
 )
-
 check(
   'removeMessageByUuid opens the file synchronously (openSync, not async fsOpen)',
   /openSync\(this\.sessionFile, 'r\+'\)/.test(removeBody) && !/await fsOpen\(this\.sessionFile/.test(removeBody),
@@ -178,13 +174,11 @@ class MirrorProject {
 
   removeMessageByUuid(uuid: string, windowHook?: () => Promise<void>): Promise<void> {
     return this.serialize(async () => {
-
       if (this.useSerializer) await this.drainInner()
       const fh = await fsOpen(this.file, 'r+')
       try {
         const { size } = await fh.stat()
         if (size === 0) return
-
         if (windowHook) await windowHook()
         const chunkLen = Math.min(size, LITE_READ_BUF_SIZE)
         const tailStart = size - chunkLen
@@ -224,22 +218,18 @@ async function runRace(opts: {
   const dir = await mkdtemp(join(tmpdir(), 'hb0113-'))
   const file = join(dir, 'session.jsonl')
   try {
-
     const seed = opts.orphanLast
       ? [{ uuid: 'U1' }, { uuid: 'ORPHAN' }]
       : [{ uuid: 'U1' }, { uuid: 'ORPHAN' }, { uuid: 'TRAIL' }]
     await writeFile(file, seed.map(e => enc(e) + '\n').join(''), { mode: 0o600 })
 
     const p = new MirrorProject(file, opts.useSerializer)
-
     p.enqueue({ uuid: 'FRESH' })
     const windowHook = async () => {
-
       void p.drain()
       await delay(25)
     }
     const removeP = p.removeMessageByUuid('ORPHAN', windowHook)
-
     let timedOut = false
     await Promise.race([
       (async () => {
@@ -276,7 +266,6 @@ async function demoLossOff(): Promise<void> {
     const a = await runRace({ useSerializer: false, orphanLast: true })
     if (!a.uuids.includes('FRESH')) lostA++
     const b = await runRace({ useSerializer: false, orphanLast: false })
-
     if (b.uuids.includes('<corrupt>') || !b.uuids.includes('FRESH') || !b.uuids.includes('TRAIL'))
       badB++
   }
@@ -346,7 +335,6 @@ const uuidsOf = (file: string): string[] =>
 
 async function demoSyncAppendRace(): Promise<void> {
   const N = 30
-
   let asyncLost = 0
   for (let i = 0; i < N; i++) {
     const u = await withFile(['U1', 'ORPHAN'], async (file, p) => {
@@ -362,7 +350,6 @@ async function demoSyncAppendRace(): Promise<void> {
     asyncLost > 0,
     asyncLost === 0 ? 'race never triggered — proof would be vacuous' : '',
   )
-
   let okBefore = 0
   let okAfter = 0
   for (let i = 0; i < N; i++) {
@@ -373,7 +360,6 @@ async function demoSyncAppendRace(): Promise<void> {
     })
     if (ub.includes('META') && !ub.includes('ORPHAN') && ub.includes('U1')) okBefore++
     const ua = await withFile(['U1', 'ORPHAN'], async (file, p) => {
-
       const t = delay(0).then(() => p.syncAppend({ uuid: 'META' }))
       p.removeSyncBlock('ORPHAN')
       await t

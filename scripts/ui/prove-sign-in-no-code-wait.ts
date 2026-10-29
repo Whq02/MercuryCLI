@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/mercury-ui/screens/anthropicLoginModel.ts src/components/ConsoleOAuthFlow.tsx src/components/BootLoginsScreen.tsx src/services/oauth/index.ts
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, firstOutputTs, firstPtyVisibility, grabScreens, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'

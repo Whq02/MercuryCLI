@@ -1,3 +1,4 @@
+
 import chalk from 'chalk'
 import { getSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { getGlobalConfig } from '../config.js'
@@ -8,12 +9,9 @@ import type { ThemeName, ThemeSetting } from '../theme.js'
 type TerminalColorMode = 'truecolor' | '256' | '16' | 'mono'
 
 type MercuryAppearanceSnapshot = {
-
   requestedTheme: ThemeSetting
-
   concreteTheme: ThemeName
   colorMode: TerminalColorMode
-
   accent: string
   motion: 'full' | 'reduced'
   changedAt: number

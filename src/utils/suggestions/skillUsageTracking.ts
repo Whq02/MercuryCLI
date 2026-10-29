@@ -1,5 +1,6 @@
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
 
+
 type SkillUsageRecord = Record<string, { usageCount: number; lastUsedAt: number }>
 
 const RECORD_DEBOUNCE_MS = 60_000
@@ -12,7 +13,6 @@ export function recordSkillUsage(skillName: string): void {
   const now = Date.now()
   const last = lastRecordedAt.get(skillName)
   if (last !== undefined && now - last < RECORD_DEBOUNCE_MS) return
-
   lastRecordedAt.set(skillName, now)
   saveGlobalConfig(config => {
     const usage: SkillUsageRecord = { ...((config as { skillUsage?: SkillUsageRecord }).skillUsage ?? {}) }

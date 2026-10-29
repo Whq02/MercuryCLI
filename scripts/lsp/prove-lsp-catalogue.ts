@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
@@ -92,7 +91,6 @@ console.log('— D. detection truth —')
   check('/health row says offered with the spawn story', rustRecord?.state === 'configured' && /offered/.test(rustRecord?.label ?? '') && /spawns lazily/.test(rustRecord?.detail ?? ''), JSON.stringify(rustRecord))
   const missing = records.find(r => r.state === 'unavailable')
   check('an absent binary reads unavailable WITH its remedy', missing !== undefined && typeof missing.remedy === 'string', JSON.stringify(missing?.id))
-
   const localBin = path.join(scratch, 'node_modules', '.bin')
   mkdirSync(localBin, { recursive: true })
   const localShim = path.join(localBin, 'rust-analyzer')

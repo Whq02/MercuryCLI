@@ -8,10 +8,11 @@ import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 
+
 export const LITE_READ_BUF_SIZE = 65536
 export const MAX_SANITIZED_LENGTH = 200
-
 export const SKIP_PRECOMPACT_THRESHOLD = 5 * 1024 * 1024
+
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -83,6 +84,7 @@ export function extractLastJsonStringField(text: string, key: string): string | 
   return raw === null ? undefined : unescapeJsonString(raw)
 }
 
+
 export function scanTailForEndedOnError(tail: string): boolean | undefined {
   if (tail === '') return undefined
   const lines = tail.split('\n')
@@ -93,7 +95,6 @@ export function scanTailForEndedOnError(tail: string): boolean | undefined {
     try {
       parsed = JSON.parse(line)
     } catch {
-
       continue
     }
     if (parsed === null || typeof parsed !== 'object') continue
@@ -111,6 +112,7 @@ export function scanTailForEndedOnError(tail: string): boolean | undefined {
   }
   return undefined
 }
+
 
 const INTERRUPT_MARKER = '[Request interrupted by user'
 const FIRST_PROMPT_MAX = 200
@@ -131,7 +133,6 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
   let commandNameFallback: string | null = null
   for (const line of head.split('\n')) {
     if (!line.includes('"kind":"input"')) continue
-
     if (line.includes('"tool_result"') || line.includes('"kind":"tool-result"')) continue
     if (line.includes('"isMeta":true') || line.includes('"isMeta": true')) continue
     if (line.includes('"isCompactSummary":true') || line.includes('"isCompactSummary": true')) continue
@@ -150,7 +151,6 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
     if (typeof record.schemaVersion === 'number' && record.payload && record.payload.kind === 'input') {
       const payloadContent = record.payload.content
       if (Array.isArray(payloadContent)) {
-
         content = payloadContent.map(block => {
           const candidate = block as { kind?: unknown; text?: unknown }
           if (candidate && candidate.kind === 'text' && typeof candidate.text === 'string') {
@@ -172,7 +172,6 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
         if (commandNameFallback === null) commandNameFallback = commandName[1] as string
         continue
       }
-
       const bashInput = /<bash-input>(.*?)<\/bash-input>/.exec(text)
       if (bashInput) return `! ${bashInput[1] as string}`
       if (/^\s*<[a-z]/.test(text)) continue
@@ -184,6 +183,7 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
   return opts.promptsOnly === true ? '' : (commandNameFallback ?? '')
 }
 
+
 function decodeWindow(buffer: Buffer, length: number, trimLeading: boolean, trimTrailing: boolean): string {
   let start = 0
   let end = length
@@ -191,7 +191,6 @@ function decodeWindow(buffer: Buffer, length: number, trimLeading: boolean, trim
     while (start < end && (buffer[start]! & 0xc0) === 0x80) start++
   }
   if (trimTrailing) {
-
     let index = end - 1
     let continuations = 0
     while (index >= start && (buffer[index]! & 0xc0) === 0x80) {
@@ -253,6 +252,7 @@ export async function readSessionLite(filePath: string): Promise<LiteSessionFile
     return null
   }
 }
+
 
 export function sanitizePath(name: string): string {
   return capSanitizedName(name.replace(/[^a-zA-Z0-9]/g, '-'), name)
@@ -350,8 +350,8 @@ export async function findProjectDir(projectPath: string): Promise<string | unde
   return undefined
 }
 
-const LOAD_CHUNK = 1024 * 1024
 
+const LOAD_CHUNK = 1024 * 1024
 const RECORD_PREFIX = Buffer.from('{"schemaVersion":')
 const SNAPSHOT_MARKER = Buffer.from('"payload":{"kind":"session-meta","metaKind":"attribution-snapshot"')
 const BOUNDARY_MARKER = Buffer.from('"payload":{"kind":"boundary","boundaryKind":"compact"')
@@ -381,7 +381,6 @@ function classifyLine(line: Buffer, requirePrefix: boolean): LineDisposition {
     if (requirePrefix && !hasRecordPrefix(line)) {
       return { kind: 'keep' }
     }
-
     try {
       const parsed = JSON.parse(line.toString('utf8')) as {
         payload?: {
@@ -449,7 +448,6 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
         const full = Buffer.concat([carried, headPart])
         const carriedStartOffset = chunkStart - carried.length
         carried = null
-
         const lineNoNewline = full.subarray(0, full.length - 1)
         const disposition = classifyLine(lineNoNewline, true)
         if (disposition.kind === 'snapshot') {
@@ -476,7 +474,6 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
         const withNewline = data.subarray(lineStart, newline + 1)
         const disposition = classifyLine(line, false)
         if (disposition.kind === 'snapshot') {
-
           lastSnapshot = Buffer.from(line)
         } else if (disposition.kind === 'boundary') {
           if (disposition.preserved) {
@@ -520,7 +517,6 @@ export async function readTranscriptForLoad(filePath: string, fileSize: number):
 
     return {
       boundaryStartOffset,
-
       postBoundaryBuf: output.subarray(0, outputLength),
       hasPreservedSegment,
     }

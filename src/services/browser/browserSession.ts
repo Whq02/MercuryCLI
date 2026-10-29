@@ -1,3 +1,4 @@
+
 import { ChildProcess } from 'node:child_process'
 import { chromeNetErrorFor, startMetadataProxy } from './metadataProxy.js'
 import * as fs from 'node:fs'
@@ -24,7 +25,6 @@ export interface ConsoleEntry {
 }
 
 export const CONSOLE_RING_CAP = 250
-
 export const CONSOLE_ENTRY_CAP = 300
 
 interface Session {
@@ -32,13 +32,9 @@ interface Session {
   page: Page
   resolution: BrowserResolution
   driverVersion: string
-
   consoleRing: ConsoleEntry[]
-
   nav: { seq: number; seen: number }
-
   sandboxDowngraded: boolean
-
   popups: { count: number; last: string }
   navFailure: { last: NavFailure | null }
   networkRefusal: { count: number; last: string | null }
@@ -75,12 +71,9 @@ export function isBrowserErrorPage(url: string): boolean {
 interface OwnerBrowserState {
   session: Session | null
   launching: boolean
-
   launchFlight: Promise<Session | EnsureSessionRefusal> | null
-
   disposed: boolean
   approvedOrigins: Set<string>
-
   approvedSecretPairings: Set<string>
   checkedActOrigin: { op: string; origin: string } | null
   goneAt: number | null
@@ -226,7 +219,6 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
-
     if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
     const session = state.session
     state.session = null
@@ -972,7 +964,6 @@ async function launchOwnerSession(
     const nav = { seq: 0, seen: 0 }
     const popups = { count: 0, last: '' }
     const capture = (kind: string, text: string): void => {
-
       const bounded =
         text.length > CONSOLE_ENTRY_CAP
           ? `${text.slice(0, CONSOLE_ENTRY_CAP)}… [+${text.length - CONSOLE_ENTRY_CAP} chars]`
@@ -980,7 +971,6 @@ async function launchOwnerSession(
       consoleRing.push({ at: Date.now(), kind, text: bounded })
       if (consoleRing.length > CONSOLE_RING_CAP) consoleRing.shift()
     }
-
     const redactUrl = (url: string): string => {
       const q = url.indexOf('?')
       return q === -1 ? url : `${url.slice(0, q)}?…`
@@ -1114,7 +1104,6 @@ async function launchOwnerSession(
         capture(message.type(), `${message.text()}${where}`)
         return
       }
-
       void Promise.all(args.map(a => a.jsonValue().catch(() => undefined)))
         .then(vals => {
           const rendered = vals
@@ -1133,7 +1122,6 @@ async function launchOwnerSession(
         .filter(Boolean)
       capture('pageerror', `${String(e?.message ?? err)}${stack.length > 0 ? ` | ${stack.join(' | ')}` : ''}`)
     })
-
     page.on('popup', popup => {
       if (!popup) return
       void (async () => {
@@ -1148,7 +1136,6 @@ async function launchOwnerSession(
         await popup.close().catch(() => {})
       })()
     })
-
     page.on('requestfailed', request => {
       const chromeText = request.failure()?.errorText ?? ''
       const relay = chromeText === 'net::ERR_ABORTED' ? null : relayFailureFor(request.url())
@@ -1170,7 +1157,6 @@ async function launchOwnerSession(
       if (status < 400) return
       capture('net', `${req.method()} ${redactUrl(response.url())} ${status} (${req.resourceType()})`)
     })
-
     page.on('dialog', dialog => {
       const kind = dialog.type()
       const verb = kind === 'beforeunload' ? 'accepted' : 'dismissed'
@@ -1180,7 +1166,6 @@ async function launchOwnerSession(
       })
     })
     if (typeof page.bringToFront === 'function') await page.bringToFront()
-
     if (state.disposed) {
       return {
         state: 'torn-down',
@@ -1193,7 +1178,6 @@ async function launchOwnerSession(
       browser,
       page,
       resolution,
-
       driverVersion: (puppeteerPkg as { version?: string }).version ?? 'bundled',
       consoleRing,
       nav,
@@ -1223,7 +1207,6 @@ async function launchOwnerSession(
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
-
     process.on('exit', () => {
       for (const key of ownerStates.owners()) {
         const st = ownerStates.peek(key)
@@ -1246,7 +1229,6 @@ export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ ou
   const state = ownerStates.peek(owner)
   if (!state) return { outcome: 'none' }
   clearIdleLease(state)
-
   if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
   if (!state.session) {
     if (state.goneAt === null) return { outcome: 'none' }

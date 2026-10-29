@@ -6,59 +6,38 @@ import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { decodeNavKey } from './navSemantics.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
+
 type NavLevel = 'list' | 'detail'
 
 type UseNavigablePanesArgs = {
-
   escOverride?: () => boolean
-
   sectionIds?: string[]
-
   sectionCount: number
-
   rowCount: number
   pageSize?: number | (() => number)
-
   onClose: () => void
-
   active?: boolean
-
   expandable?: boolean
-
   detailFloor?: number
   detailCeil?: number
-
   onActivateRow?: (section: number, sel: number) => void
-
   initialSection?: number
   initialSel?: number
-
   sectionRowKeys?: readonly (readonly string[])[]
 }
 
 type UseNavigablePanesResult = {
-
   section: number
-
   sel: number
-
   level: NavLevel
-
   drilled: boolean
-
   detailRows: number
-
   expanded: boolean
-
   pastBuffer: () => boolean
-
   rowRef: React.RefObject<DOMElement | null>
-
   setSection: (i: number) => void
-
   selectSection: (i: number) => void
   selectRow: (i: number) => void
-
   activateCurrent: () => void
 }
 
@@ -102,7 +81,6 @@ export function useNavigablePanes({
   const pastBuffer = useOpenEventGate()
 
   const maxSection = Math.max(0, sectionCount - 1)
-
   const activeSectionIdRef = useRef<string | null>(null)
   const idResolved =
     activeSectionIdRef.current !== null && sectionIds
@@ -156,15 +134,12 @@ export function useNavigablePanes({
   const overlayToken = useRegisterOverlay('board', true)
   useInput(
     (input, key, event) => {
-
       const action = decodeNavKey(input, key, {
         orientation: 'vertical',
         leftCloses: level === 'list' && sectionCount <= 1,
       })
       if (action === 'cancel') {
-
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
-
         if (escOverride?.()) {
           event.stopImmediatePropagation()
           return
@@ -183,7 +158,6 @@ export function useNavigablePanes({
 
   useInput(
     (input, key, event) => {
-
       const action = decodeNavKey(input, key, {
         orientation: 'horizontal',
         tabFocus: true,
@@ -199,7 +173,6 @@ export function useNavigablePanes({
         setSection(next)
         return
       }
-
       if (level === 'list' && input >= '1' && input <= '9') {
         const target = Number(input) - 1
         if (target < sectionCount) {
@@ -215,7 +188,6 @@ export function useNavigablePanes({
   usePopupListPaging(clampedSel, maxSel + 1, pageSize, setSel, navActive)
   useInput(
     (input, key, event) => {
-
       const action = decodeNavKey(input, key, {
         orientation: 'vertical',
         hierarchy: true,
@@ -225,19 +197,16 @@ export function useNavigablePanes({
         fn()
       }
       if (level === 'detail') {
-
         if (action === 'movePrevious') return act(() => setSel(s => Math.max(0, s - 1)))
         if (action === 'moveNext') return act(() => setSel(s => Math.min(maxSel, s + 1)))
         if (action === 'first') return act(() => setSel(0))
         if (action === 'last') return act(() => setSel(maxSel))
-
         if (expandable && input === '+') {
           return act(() => setDetailRows(r => Math.min(detailCeil, r + 1)))
         }
         if (expandable && input === '-' && detailRows > detailFloor) {
           return act(() => setDetailRows(r => Math.max(detailFloor, r - 1)))
         }
-
         if (action === 'leaveChild' || input === '-') {
           return act(() => {
             setLevel('list')
@@ -270,7 +239,6 @@ export function useNavigablePanes({
       }
       if (action === 'first') return act(() => setSel(0))
       if (action === 'last') return act(() => setSel(maxSel))
-
       if (action === 'activate' || action === 'enterChild') {
         return act(() => activateCurrent())
       }

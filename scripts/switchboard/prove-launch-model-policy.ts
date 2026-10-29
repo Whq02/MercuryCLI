@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -49,11 +48,9 @@ const tools = await import('../../src/services/concourse/coordinatorTools.ts')
 type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelEntryV1
 
 section('§1 — the seed: the operator’s own row, or a visible one')
-
 {
   const reg = (entries: Entry[]) => ({ schema: 1 as const, entries })
   const available = { session: { availability: 'available' }, crew: { availability: 'available' } } as const
-
   const refusedBothArms = {
     session: { availability: 'refused', refusal: 'no-credential:anthropic' },
     crew: { availability: 'refused', refusal: 'no-credential:anthropic' },
@@ -70,7 +67,6 @@ section('§1 — the seed: the operator’s own row, or a visible one')
     'no operator mark ⇒ the first AVAILABLE row, never a hard-coded family',
     wm.defaultWorkerModelId(reg([{ ...pricier, modelId: 'claude-sonnet-5', displayName: 'Sonnet 5' }, pricier]), 'session') === 'claude-sonnet-5',
   )
-
   const refusedOperator: Entry = { modelId: 'claude-haiku-4-5', displayName: 'Haiku 4.5', ...refusedBothArms, isOperatorDefault: true }
   const sonnet: Entry = { modelId: 'claude-sonnet-5', displayName: 'Sonnet 5', ...available, effort: 'high' }
   check(
@@ -88,9 +84,7 @@ section('§1 — the seed: the operator’s own row, or a visible one')
 }
 
 section('§2 — the live composition marks and seeds the operator’s default')
-
 {
-
   const { getEngineModel } = await import('../../src/utils/model/model.ts')
   const operatorDefault = await wm.canonicalWorkerModelId(getEngineModel())
   const registry = await wm.composeWorkerModelRegistry()
@@ -107,7 +101,6 @@ section('§2 — the live composition marks and seeds the operator’s default')
 }
 
 section('§3 — the receipt names the model the session started on')
-
 {
   const defs = tools.coordinatorToolSet()
   const launch = defs.find(d => d.name === 'launch_session')!
@@ -119,7 +112,6 @@ section('§3 — the receipt names the model the session started on')
       state: 'starting',
       sessionId: 'sess-model-1',
       runnerId: 'w-1',
-
       modelId: 'claude-opus-5',
       modelDisplayName: 'Opus 5',
     }),
@@ -145,7 +137,6 @@ section('§3 — the receipt names the model the session started on')
 }
 
 section('§4 — the contract: leave it out, never upgrade, ask when it matters')
-
 {
   const launch = tools.coordinatorToolSet().find(d => d.name === 'launch_session')!
   const text = launch.description

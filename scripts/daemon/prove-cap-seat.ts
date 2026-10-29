@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -196,7 +195,6 @@ const respawnAfterExit = (runnerId: string, nth: number): { exit: LedgerRow; spa
 }
 const AT_ONCE_MS = 700
 const clockOf = (atMs: number): string => new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-
 type Row = {
   payload?: { kind?: string; content?: Array<{ kind?: string; text?: string }> | string }
   annotations?: { isApiErrorMessage?: boolean; uuid?: string }
@@ -268,7 +266,6 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
-
     MERCURY_DAEMON_OWNER_FD: '3',
     MERCURY_DAEMON_OWNER_PID: String(process.pid),
   },
@@ -307,7 +304,6 @@ const say = async (prompt: string, target?: string, model?: string): Promise<{ o
     } as never,
     { timeoutMs: 30_000 },
   )) as { ok?: boolean; sessionId?: string; error?: string }
-
 const turnEnded = (sid: string): boolean => {
   const rec = readRec(sid)
   const facts = readFacts(sid)

@@ -1,3 +1,4 @@
+
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
@@ -10,7 +11,6 @@ const scratchHome = mkdtempSync(path.join(tmpdir(), 'mercury-verity-cat-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_DEV_SURFACES
-
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-verity-shape-probe'
 
 let failures = 0
@@ -70,7 +70,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   )
   check('every canonicalRoute resolves to a registered command', badCanonical.length === 0,
     badCanonical.map(s => `${s.name}→${s.canonicalRoute}`).join(', '))
-
   const memory = catalogue.find(s => s.name === 'memory')
   check("'chronicle' reaches the Memory Centre as a /memory alias", memory?.aliases.includes('chronicle') === true)
 }
@@ -82,7 +81,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
     uncurated.length === 0,
     uncurated.map(s => s.name).join(', '),
   )
-
   const uncuratedGated = effectiveCatalogue().filter(
     s => s.visibility === 'normal' && s.category === 'other',
   )
@@ -94,7 +92,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
 }
 
 {
-
   function unitFiles(unit: string): string[] {
     const p = path.join(repo, unit)
     if (!existsSync(p)) return []
@@ -154,7 +151,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
     for (const f of [...files, ...files.flatMap(oneHop)]) {
       if (seen.has(f)) continue
       seen.add(f)
-
       const src = readFileSync(path.join(repo, f), 'utf8')
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/^\s*\/\/.*$/gm, '')
@@ -177,7 +173,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
     check(`${dead} is deleted`, !existsSync(path.join(repo, dead)))
   }
   const helpV2 = readFileSync(path.join(repo, 'src/components/HelpV2/HelpV2.tsx'), 'utf8')
-
   check('HelpV2 filters isHidden', /\.filter\(\s*(\w+)\s*=>\s*!\1\.isHidden\)/.test(helpV2))
   const palette = readFileSync(path.join(repo, 'src/components/mercury-ui/PaletteView.tsx'), 'utf8')
   check('PaletteView filters isHidden', /!cmd\.isHidden/.test(palette))
@@ -229,7 +224,6 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
         `/${name}: the enabled member SWAPS with the posture (exact complement)`,
         enabledInteractive[0] !== undefined && enabledInteractive[0] !== enabledHeadless[0],
       )
-
       setIsInteractive(true)
       check(
         `/${name}: the non-interactive member is hidden outside run`,

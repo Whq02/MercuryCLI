@@ -1,3 +1,4 @@
+
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 
@@ -9,11 +10,8 @@ interface ResolvedExperienceControl {
 }
 
 interface TerminalExperienceResolution {
-
   terminalTitle: ResolvedExperienceControl
-
   accessibility: ResolvedExperienceControl
-
   virtualScroll: ResolvedExperienceControl
 }
 
@@ -36,3 +34,4 @@ export function resolveTerminalExperience(): TerminalExperienceResolution {
     virtualScroll: positiveControl('MERCURY_VIRTUAL_SCROLL', true),
   }
 }
+

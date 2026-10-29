@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -39,7 +38,6 @@ try {
   await store.write({ n: 1 })
   const seen: number[] = []
   const unsub = store.subscribe(v => seen.push(v.n))
-
   await sleep(FLOOR_MS * 3)
   const stats0 = store._statsForProofs()
   check('the watcher attached and the floor is armed', stats0.watcher && stats0.pollFloorTimer, JSON.stringify(stats0))

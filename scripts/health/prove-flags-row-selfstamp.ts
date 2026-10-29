@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -32,7 +31,6 @@ console.log('§1 the registry carries the fact')
 
 console.log("\n§2 the row counts the operator's variables only")
 {
-
   process.env.MERCURY_ENTRYPOINT = 'headless'
   const one = await flagsRow()
   const m = one.evidence.match(/(\d+) flag\(s\) overridden/)

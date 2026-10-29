@@ -13,6 +13,7 @@ import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { cockpitBottomSlotReserve, viewportRows } from './mercury-ui/geometry.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
+
 type SearchMatch = { file: string; line: number; text: string }
 type SearchLoader = (query: string, signal: AbortSignal) => Promise<SearchMatch[]>
 
@@ -38,7 +39,6 @@ const defaultLoad: SearchLoader = async (query, signal) => {
     import('../utils/ripgrep.js'),
     import('../utils/cwd.js'),
   ])
-
   const cwd = getCwd()
   const rel = (f: string) => (f.startsWith(cwd) ? f.slice(cwd.length).replace(/^[/\\]/, '') : f)
   const out: SearchMatch[] = []
@@ -91,15 +91,12 @@ export function MercuryContentSearch({
   onPick: (insertText: string) => void
   onClose: () => void
   isActive?: boolean
-
   loadMatches?: SearchLoader
 }): React.ReactNode {
-
   const overlayToken = useRegisterOverlay('content-search');
   const tokens = useMercuryTokens()
   const accent = tokens.accent
   const termRows = useTerminalSize().rows
-
   const cockpitActive = React.useContext(CockpitActiveContext)
   const rowCap = viewportRows(termRows, {
     reserve: cockpitActive ? cockpitBottomSlotReserve(termRows) : HEIGHT_RESERVE,
@@ -108,7 +105,6 @@ export function MercuryContentSearch({
   })
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
-
   const [cursorOffset, setCursorOffset] = useState(0)
   const [matches, setMatches] = useState<SearchMatch[] | null>(null)
   const genRef = useRef(0)
@@ -180,8 +176,7 @@ export function MercuryContentSearch({
     <CommandCenter view="search" elevated onClose={onClose} captureInput={false} footer={footer}>
       <Box marginTop={1}>
         <Text color={accent}>{GLYPH.prompt} </Text>
-        {
-}
+        {}
         <TextInput
           value={query}
           onChange={q => {

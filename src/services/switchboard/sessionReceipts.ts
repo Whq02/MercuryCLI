@@ -15,7 +15,6 @@ import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js
 export interface SessionReceiptEntry {
   readonly at: string
   readonly by: string
-
   readonly kind: 'agent-close' | 'machine-floor' | 'contract-close' | 'kit-restamp' | 'kit-refused' | 'kit-dial' | 'schedule-set' | 'schedule-fire' | 'schedule-held' | 'runner-restart' | 'build-behind' | 'clear-origin' | 'clear-model'
   readonly summary: string
   readonly details?: Readonly<Record<string, unknown>>
@@ -79,6 +78,7 @@ export function readSessionReceipts(home: string, sessionId: string): SessionRec
   return out
 }
 
+
 type SessionCloseSeam = 'settle' | 'park'
 
 interface MachineFloorDetails {
@@ -93,9 +93,7 @@ interface MachineFloorDetails {
   checks: Array<{ command: string; ok: boolean }>
   checksMore: number
   gitCommitCalls: number
-
   unreadLines?: number
-
   tailBytesSkipped?: number
 }
 
@@ -136,7 +134,6 @@ function fmtSpan(ms: number): string {
 interface WalkedTranscript {
   floor: MachineFloorDetails
   finalAssistant?: { text: string; at?: string; clippedFromChars?: number }
-
   hasConversation: boolean
 }
 
@@ -147,7 +144,6 @@ function readTranscriptWindow(path: string): { text: string; tailBytesSkipped: n
   const raw =
     read.cursor.carry === '' ? read.text : read.text === '' ? read.cursor.carry : `${read.text}\n${read.cursor.carry}`
   if (from === 0) return { text: raw, tailBytesSkipped: 0 }
-
   const nl = raw.indexOf('\n')
   const dropped = nl === -1 ? raw.length : nl + 1
   return { text: raw.slice(dropped), tailBytesSkipped: from + dropped }
@@ -162,9 +158,7 @@ export function deriveSessionFloor(home: string, sessionId: string, closedBy: Se
   let userTurns = 0
   let assistantTurns = 0
   const families = { edits: 0, writes: 0, shell: 0, other: 0 }
-
   const toolCalls = new Map<string, { name: string; input: unknown }>()
-
   const settlements = new Map<string, boolean>()
   let firstAtMs: number | undefined
   let lastAtMs: number | undefined
@@ -181,7 +175,6 @@ export function deriveSessionFloor(home: string, sessionId: string, closedBy: Se
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!.replace(/\r$/, '')
     if (line.trim().length === 0) continue
-
     let row: Record<string, unknown>
     try {
       row = JSON.parse(line) as Record<string, unknown>
@@ -189,7 +182,6 @@ export function deriveSessionFloor(home: string, sessionId: string, closedBy: Se
       unreadLines++
       continue
     }
-
     let entry: Record<string, unknown>
     if (typeof row.recordId === 'string' && row.payload !== undefined) {
       const payload = row.payload as { kind?: unknown; callId?: unknown; outcome?: unknown }

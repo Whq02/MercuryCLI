@@ -2,6 +2,7 @@ import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { logForDebugging } from '../debug.js'
 import { createSignal } from '../signal.js'
 
+
 const QUERY_LIMIT = 20
 const CALL_TIMEOUT_MS = 5000
 const CACHE_CAP = 50
@@ -38,8 +39,8 @@ const knownChannels = new Set<string>()
 let knownChannelsVersion = 0
 const knownChannelsSignal = createSignal<[]>()
 
-function recordKnownChannels(channels: string[]): void {
 
+function recordKnownChannels(channels: string[]): void {
   let grew = false
   for (const channel of channels) {
     if (!knownChannels.has(channel)) {
@@ -60,7 +61,6 @@ function parseChannelsFromResponse(raw: unknown): string[] {
     .filter(block => block.type === 'text' && typeof block.text === 'string')
     .map(block => block.text as string)
     .join('\n')
-
   if (text.trimStart().startsWith('{')) {
     try {
       const envelope = JSON.parse(text) as { results?: unknown }
@@ -89,7 +89,6 @@ function mcpQueryFor(searchToken: string): string {
 
 async function fetchChannels(client: ConnectedSlackClient, query: string): Promise<string[]> {
   const existing = inFlight.get(query)
-
   if (existing !== undefined) return existing
   const fetchPromise = (async () => {
     try {

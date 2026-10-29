@@ -1,6 +1,7 @@
 import { lastGrapheme } from './intl.js'
 import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 
+
 let capturing = false
 let capturedBuffer = ''
 let readableHandler: (() => void) | null = null
@@ -9,23 +10,19 @@ function processChunk(chunk: string): void {
   for (let i = 0; i < chunk.length; i++) {
     const code = chunk.charCodeAt(i)
     if (code === 3) {
-
       stopCapturingEarlyInput()
       process.exit(130)
     }
     if (code === 4) {
-
       stopCapturingEarlyInput()
       return
     }
     if (code === 127 || code === 8) {
-
       const cluster = lastGrapheme(capturedBuffer)
       capturedBuffer = capturedBuffer.slice(0, capturedBuffer.length - (cluster.length || 1))
       continue
     }
     if (code === 27) {
-
       let j = i + 1
       const intro = chunk.charCodeAt(j)
       if (intro === 0x5b || intro === 0x4f) {
@@ -60,12 +57,10 @@ export function startCapturingEarlyInput(): void {
     process.stdin.setEncoding('utf8')
     process.stdin.setRawMode?.(true)
     if (process.stdout.isTTY) {
-
       process.stdout.write('\u001b[0m')
     }
     process.stdin.ref()
     readableHandler = () => {
-
       let chunk: string | Buffer | null
       while ((chunk = process.stdin.read() as string | Buffer | null) !== null) {
         processChunk(typeof chunk === 'string' ? chunk : chunk.toString('utf8'))
@@ -73,7 +68,6 @@ export function startCapturingEarlyInput(): void {
     }
     process.stdin.on('readable', readableHandler)
   } catch {
-
     capturing = false
   }
 }

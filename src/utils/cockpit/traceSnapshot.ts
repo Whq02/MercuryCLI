@@ -17,11 +17,8 @@ export type CompactionAgg = {
 export type TraceData = {
   records: InvocationTrace[]
   total: number
-
   highRisk: number
-
   killed: number
-
   errors: number
   compaction: CompactionAgg
 }
@@ -81,7 +78,6 @@ export function aggregateCompaction(records: CompactionTrace[]): CompactionAgg {
 export type ToolAgg = {
   tool: string
   count: number
-
   failed: number
   surface: string
   risk: string
@@ -122,17 +118,12 @@ export function aggregateByTool(records: InvocationTrace[]): ToolAgg[] {
 }
 
 export type VelocityPulse = {
-
   perMin: number[]
   bins: number
   binMs: number
-
   total: number
-
   peakPerMin: number
-
   trend: 'rising' | 'falling' | 'steady'
-
   idleSec: number
 }
 
@@ -157,7 +148,6 @@ export function aggregateVelocity(
     total++
   }
   const peakPerMin = perMin.reduce((m, v) => Math.max(m, v), 0)
-
   const third = Math.max(1, Math.floor(bins / 3))
   const recent = perMin.slice(bins - third).reduce((a, b) => a + b, 0)
   const early = perMin.slice(0, third).reduce((a, b) => a + b, 0)

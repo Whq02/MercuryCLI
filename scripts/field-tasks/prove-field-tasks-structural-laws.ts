@@ -11,6 +11,7 @@ function ok(name: string, pass: boolean, detail = ''): void {
 const runnerSrc = readFileSync(join(repoRoot, 'scripts/mission-runner/live/runner.ts'), 'utf8')
 const ptydriveSrc = readFileSync(join(repoRoot, 'scripts/streaming/ptydrive.py'), 'utf8')
 
+
 ok(
   'CR-33: task workspaces materialize under the OS temp root',
   /mkdtempSync\(join\(tmpdir\(\)/.test(runnerSrc),
@@ -20,7 +21,6 @@ ok(
   runnerSrc.includes("options.configHome ?? process.env.MERCURY_CONFIG_DIR"),
 )
 {
-
   const scanDirs = ['scripts/mission-runner/corpus', 'scripts/mission-runner/live', 'scripts/field-tasks']
   const offenders: string[] = []
   for (const dir of scanDirs) {
@@ -33,6 +33,7 @@ ok(
   ok('CR-33: no absolute operator-home path in benchmark sources', offenders.length === 0, offenders.join(', '))
 }
 
+
 {
   const sites = runnerSrc.split('spawnSync(').slice(1)
   const bare = sites.filter(chunk => !chunk.slice(0, 900).includes('maxBuffer'))
@@ -44,6 +45,7 @@ ok(
 }
 ok('CR-34: the PTY driver owns a SIGTERM→SIGKILL kill ladder', /SIGTERM/.test(ptydriveSrc) && /SIGKILL/.test(ptydriveSrc))
 ok('CR-34: the interactive tape travels by file, never argv', runnerSrc.includes("'--send-file'"))
+
 
 ok(
   'CR-35: the miner reads wire model fields (never output-text grep)',

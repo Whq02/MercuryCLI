@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -21,7 +20,6 @@ const { resolveHealthPresentation, renderPlainCertificate } = await import(
 section('§1 THE PRESENTATION TABLE (HL-02..06)')
 {
   const rows: Array<[boolean | undefined, boolean, boolean, string, string]> = [
-
     [undefined, true, true, 'rich', 'both TTYs ⇒ rich'],
     [undefined, false, true, 'text', 'redirected stdout only ⇒ text (HL-05)'],
     [undefined, true, false, 'text', 'redirected stdin only ⇒ text — raw mode needs the input side (HL-04)'],
@@ -64,7 +62,6 @@ section('§2 THE PLAIN RENDERER (HL-07)')
 
 section('§3 THE DRAIN-AWARE EXIT (HL-30/31)')
 {
-
   const { spawn } = await import('node:child_process')
   const payloadScript = [
     `const { writeOutAndExit } = await import(${JSON.stringify(join(import.meta.dir, '../../src/cli/healthPresentation.ts'))})`,
@@ -114,7 +111,6 @@ section('§4 THE CHECK RUNNER (HL-26..28)')
     'post-settle continuation is fenced (the controller aborts after settle)',
     runner.includes("controller.abort(new Error('check settled'))"),
   )
-
   const { AbortController: AC } = globalThis
   void AC
   let postSettleWork = 0
@@ -128,7 +124,6 @@ section('§4 THE CHECK RUNNER (HL-26..28)')
         resolve({ status: 'unknown', evidence: 'aborted' })
       })
     })
-
   const controller = new AbortController()
   const deadline = setTimeout(() => controller.abort(new Error('check timed out after 30ms')), 30)
   const raced = await Promise.race([
@@ -200,7 +195,6 @@ section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
       JSON.stringify(conventionsForProfile('native').map(convention => convention.id)) === JSON.stringify(['mercury-native']) &&
       JSON.stringify(conventionsForProfile('auto').map(convention => convention.id)) === JSON.stringify(['mercury-native', 'agents-md']),
   )
-
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',
     src('src/utils/healthReport.ts').includes("id: 'instruction-profile'"),
@@ -258,7 +252,6 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
     'the health command description no longer claims stdio servers are spawned (HL-25)',
     src('src/main.tsx').includes('WITHOUT starting them'),
   )
-
   check(
     'Enter = the documented expand action; esc = the one close (HL-19)',
     certView.includes('if (key.return)') && certView.includes('onClose()'),

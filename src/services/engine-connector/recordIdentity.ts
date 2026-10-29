@@ -1,11 +1,8 @@
 import type { Message } from '../../types/message.js'
 
 interface RecordMergeResult {
-
   records: Message[]
-
   sigs: string[]
-
   reusedAll: boolean
 }
 

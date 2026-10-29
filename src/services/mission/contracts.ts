@@ -1,3 +1,4 @@
+
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -28,7 +29,6 @@ interface MissionFingerprint {
   headSha: string | null
   branch: string | null
   changedCount: number
-
   provenance: string | null
 }
 
@@ -61,7 +61,6 @@ interface MissionOutcome {
 
 export interface MissionView {
   schema: typeof MISSION_SCHEMA
-
   missionId: string
   workspace: string
   goal: MissionGoal
@@ -70,7 +69,6 @@ export interface MissionView {
   policy: MissionPolicy
   executions: MissionExecutionRef[]
   evidence: MissionEvidenceRef
-
   card: MissionCardView | null
   outcome: MissionOutcome | null
   generatedAtMs: number

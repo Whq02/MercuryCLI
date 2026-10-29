@@ -23,6 +23,7 @@ import {
 import { FRAME_TRACE_RING_CAP, readFrameTrace, type FrameTraceRow } from '../ink/root/frame-trace.js'
 import { resolveTerminalProfile } from '../ink/session/terminalProfile.js'
 
+
 const MAX_ROWS = 20
 const MAX_TOOLS = 8
 
@@ -49,11 +50,9 @@ function fmtIdle(sec: number): string {
 }
 
 export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode {
-
   const { trace: bus, refreshedAt } = useVitals()
   const snap = bus === null ? null : sessionTraceSnapshot(bus, conversationIdHere())
   const now = useNowTick()
-
   const pastOpenEvent = useOpenEventGate()
   useInput(input => {
     if (input === 'r' && pastOpenEvent()) pokeVitals()
@@ -78,8 +77,7 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
             hint={snap.reason}
           />
         </Box>
-        {
-}
+        {}
         <FrictionSection />
         <FrameSection />
       </CommandCenter>
@@ -104,10 +102,8 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
   const pulse = aggregateVelocity(records, now)
 
   return (
-
     <CommandCenter view="trace" onClose={onClose} footer="r refresh · display only — no cursor">
-      {
-}
+      {}
       <Box marginTop={1}>
         <Text>
           <Text color={IVORY}>{total}</Text>
@@ -120,8 +116,7 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
         <FreshnessLine at={refreshedAt} now={now} />
       </Box>
 
-      {
-}
+      {}
       {pulse.total > 0 ? (
         <Box marginTop={1}>
           <Text color={SECOND}>pulse  </Text>
@@ -134,8 +129,7 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
         </Box>
       ) : null}
 
-      {
-}
+      {}
       <FrictionSection />
       <FrameSection />
 
@@ -146,7 +140,6 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
             {`By tool (${byTool.length}${toolCount > MAX_TOOLS ? ` of ${toolCount}` : ''})`}
           </SectionHeader>
           {byTool.map(t => {
-
             const label = truncateToWidth(t.tool, 26)
             return (
               <Text key={t.tool}>
@@ -165,8 +158,7 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
         </>
       ) : null}
 
-      {
-}
+      {}
       {compaction && compaction.total > 0 ? (
         <>
           <SectionHeader>
@@ -193,6 +185,7 @@ export function TraceView({ onClose }: { onClose: () => void }): React.ReactNode
     </CommandCenter>
   )
 }
+
 
 function FrictionSection(): React.ReactNode {
   const tok = useMercuryTokens()
@@ -225,7 +218,6 @@ function FrictionSection(): React.ReactNode {
 }
 
 export function FrameSection(): React.ReactNode {
-
   const tok = useMercuryTokens()
   const rows = readFrameTrace()
   if (rows.length === 0) return null
@@ -251,8 +243,7 @@ export function FrameSection(): React.ReactNode {
       <SectionHeader>frames</SectionHeader>
       <Box>
         <Text>
-          {
-}
+          {}
           <Text color={tok.textMuted}>{`n=${rows.length}/${FRAME_TRACE_RING_CAP} · last ${frameSpanLabel(rows)} · p50 `}</Text>
           <Text color={tok.textPrimary}>{ms(pct(totals, 0.5))}</Text>
           <Text color={tok.textMuted}>{` · p95 `}</Text>

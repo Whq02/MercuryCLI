@@ -1,3 +1,4 @@
+
 import { fluxMark } from '../flux/fluxProbe.js'
 import { refuseGestureWhileModal } from '../permissions/permissionFocus.js'
 
@@ -50,12 +51,10 @@ type RailPane = 'lanes' | 'vitals'
 
 let focus: HelmPane = 'prompt'
 const cursor: Record<RailPane, number> = { lanes: 0, vitals: 0 }
-
 const cursorSig: Record<RailPane, string> = { lanes: '', vitals: '' }
 const rows: Record<RailPane, HelmRow[]> = { lanes: [], vitals: [] }
 const rowsSig: Record<RailPane, string> = { lanes: '', vitals: '' }
 let version = 0
-
 const paneVersion: Record<RailPane, number> = { lanes: 0, vitals: 0 }
 const listeners = new Set<() => void>()
 
@@ -92,7 +91,6 @@ function gestureName(row: HelmRow | undefined): string {
 }
 
 export function requestHelmRowActivation(pane: RailPane, index: number): void {
-
   if (refuseGestureWhileModal(gestureName(rows[pane][index]))) return
   const row = rows[pane][index]
   if (!row) return
@@ -108,7 +106,6 @@ export function setHelmCursorBySig(pane: RailPane, sig: string): void {
 export function requestHelmRowActivationBySig(pane: RailPane, sig: string): void {
   const row = rows[pane].find(r => helmRowSig(r) === sig)
   if (row === undefined) return
-
   if (refuseGestureWhileModal(gestureName(row))) return
   pendingActivation = { pane, sig }
   notify()
@@ -125,7 +122,6 @@ export function consumeHelmActivation(): HelmRowAction | null {
 let pendingCommand: string | null = null
 
 export function requestCommandDispatch(command: string): void {
-
   if (refuseGestureWhileModal(command)) return
   pendingCommand = command
   notify()
@@ -140,7 +136,6 @@ export function consumeCommandDispatch(): string | null {
 let pendingPrefill: string | null = null
 
 export function requestPromptPrefill(text: string): void {
-
   if (refuseGestureWhileModal('the prompt prefill')) return
   pendingPrefill = text
   notify()

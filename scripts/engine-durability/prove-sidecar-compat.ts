@@ -26,7 +26,6 @@ t.section('§1 — a sidecar from an OLDER build still loads')
 {
   const o = owner('compat-old')
   const path = guardWrite(ROOT, sidecar.runSidecarPath(o))
-
   const legacy = {
     schema: 1,
     writeSeq: 7,
@@ -67,7 +66,6 @@ t.section('§1 — a sidecar from an OLDER build still loads')
     'its runId survives verbatim',
     load.state === 'loaded' && load.snapshot.runId === 'legacy-run',
   )
-
   t.check(
     'the on-disk writeSeq is adopted as the revision (no regression)',
     sidecar.runRevision(o) >= 7,
@@ -124,7 +122,6 @@ t.section('§3 — the persisted top-level shape is pinned')
     }),
   )
   const raw = JSON.parse(readFileSync(sidecar.runSidecarPath(o), 'utf8')) as Record<string, unknown>
-
   const REQUIRED = ['schema', 'writeSeq', 'operationId', 'committedAt', 'snapshot']
   const OPTIONAL = ['writerEpoch', 'writerId']
   const keys = Object.keys(raw).sort()
@@ -141,7 +138,6 @@ t.section('§3 — the persisted top-level shape is pinned')
     raw.schema === RUN_SCHEMA_VERSION,
     `schema=${String(raw.schema)}`,
   )
-
   const back = await sidecar.loadRunSidecar(o)
   t.check('what this build writes, it reads back', back.state === 'loaded', `state=${back.state}`)
 }

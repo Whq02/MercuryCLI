@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +11,6 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SESSION_NEWBORN_GRACE_MINUTES
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-
 writeFileSync(
   join(process.env.MERCURY_CONFIG_DIR, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -62,7 +60,6 @@ console.log('N1 the birth grace at the sweep')
   killed.length = 0
   const retired = idle.sweepIdleEmptyConcourseSessions(roster, { dir, nowMs: now, thresholdMs: T })
   check('N1 the blank newborn is NOT retired (idle 30 min past a 10 min threshold)', !retired.some(r => r.runnerId === 'concourse-w1') && rec('concourse-w1')?.stoppedAt === undefined, JSON.stringify(retired))
-
   check('N1 the poison control: the same empty idle record WITHOUT the birth stamp gets its stop requested (the kill dispatched, the request stamped, the sweep reports it)', retired.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stopRequestedAt !== undefined && killed.includes('concourse-w2'))
   sup.updateConcourseWorkers(workers => {
     const w = workers['concourse-w2']

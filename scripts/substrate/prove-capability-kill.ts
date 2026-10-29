@@ -119,7 +119,6 @@ section('per-agent default posture (MERCURY_AGENT_CAP) — max-risk / deny-cat')
   setStamp(true)
   clearAllCapabilityKills()
   delete process.env.MERCURY_KILL
-
   const Bash = { name: 'Bash' }
   const Web = { name: 'WebFetch' }
   const Read = { name: 'Read', isReadOnly: () => true }
@@ -150,7 +149,6 @@ section('per-agent default posture (MERCURY_AGENT_CAP) — max-risk / deny-cat')
   setStamp(false)
   check('bare stamp ⇒ policy STILL applies (max-risk=low denies Bash)', isToolKilled(Bash, 'worker') === true)
   setStamp(true)
-
   process.env.MERCURY_AGENT_CAP = 'totally-malformed-no-colon'
   check('junk policy FAILS CLOSED — clamps all agents to max-risk=low (FC-145)', isToolKilled(Bash, 'worker') === true)
   delete process.env.MERCURY_AGENT_CAP

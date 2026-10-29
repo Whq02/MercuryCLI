@@ -94,7 +94,9 @@ import {
   foldStatusOnEvent,
 } from './foldStatus.js'
 
+
 void notifyCompaction
+
 
 export const POST_COMPACT_MAX_FILES_TO_RESTORE = 5
 export const POST_COMPACT_TOKEN_BUDGET = 50_000
@@ -103,12 +105,9 @@ export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000
 export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
-
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
-
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
   'This conversation could not be compacted: too much context. Start fresh with /clear, or choose a larger context window and run /compact again.'
-
 export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
   'Compaction interrupted before a summary arrived. Try /compact again.'
@@ -130,7 +129,6 @@ const PART_TEXT_CHUNK_CHARS = 40_000
 const PART_TEXT_CHUNK_FLOOR_CHARS = 2_000
 export const MODEL_REFUSAL_STOP_KEY = 'stop_reason: refusal'
 const PTL_TRUNCATION_MARKER = '[earlier turns folded for the compaction retry]'
-
 const LEGACY_PTL_TRUNCATION_MARKER = '[earlier conversation truncated for compaction retry]'
 const KEEPALIVE_INTERVAL_MS = 30_000
 const DEGRADED_SUMMARY_LENGTH = 80
@@ -344,6 +342,7 @@ function recordFoldRoad(
   })
 }
 
+
 export type CompactionResult = {
   boundaryMarker: SystemCompactBoundaryMessage
   operatorMessages?: AttachmentMessage
@@ -352,9 +351,7 @@ export type CompactionResult = {
   attachments: AttachmentMessage[]
   hookResults: Message[]
   preCompactTokenCount: number
-
   postCompactTokenCount: number
-
   truePostCompactTokenCount?: number
   compactionUsage?: NonNullableUsage
   notes?: string[]
@@ -367,6 +364,7 @@ export type RecompactionInfo = {
   autoCompactThreshold: number
   querySource?: string
 }
+
 
 export function buildPostCompactMessages(result: CompactionResult): Message[] {
   const { boundaryMarker, operatorMessages, summaryMessages, messagesToKeep, attachments, hookResults } = result
@@ -441,7 +439,6 @@ export function isCompactCapsuleMessage(message: Message): boolean {
 }
 
 export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Message): Message[] | null {
-
   const input = messages.filter(message => !isPtlMarkerMessage(message))
   const groups = groupMessagesByApiRound(input)
   if (groups.length < 2) return null
@@ -460,12 +457,9 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
       dropCount++
     }
   } else {
-
     dropCount = Math.max(1, Math.floor(groups.length * 0.2))
   }
-
   dropCount = Math.min(dropCount, groups.length - 1)
-
   while (dropCount > 0 && dropCount < groups.length - 1 && groups.slice(0, dropCount).flat().every(isCompactCapsuleMessage)) {
     dropCount++
   }
@@ -477,7 +471,6 @@ export function truncateHeadForPTLRetry(messages: Message[], ptlResponse: Messag
 
   const survivors = groups.slice(dropCount).flat()
   if (survivors.length > 0 && survivors[0]?.type === 'assistant') {
-
     return [...retained, createUserMessage({ content: PTL_TRUNCATION_MARKER, isMeta: true }), ...survivors]
   }
   return [...retained, ...survivors]
@@ -526,11 +519,10 @@ export function createCompactCanUseTool(): CanUseToolFn {
   })
 }
 
+
 function shouldExcludeFromPostCompactRestore(filename: string): boolean {
   const normalizedFilename = expandPath(filename)
-
   if (isInstructionFilePath(normalizedFilename)) return true
-
   try {
     const memoryPaths = MEMORY_TYPE_VALUES.map(memoryType => expandPath(getMemoryPath(memoryType)))
     if (memoryPaths.includes(normalizedFilename)) return true
@@ -540,7 +532,6 @@ function shouldExcludeFromPostCompactRestore(filename: string): boolean {
 }
 
 export function collectPreservedReadPaths(preserved: Message[], resultIds?: ReadonlySet<string>): Set<string> {
-
   const stubToolUseIds = new Set<string>()
   const shownToolUseIds = new Set<string>()
   for (const message of preserved) {
@@ -613,7 +604,6 @@ export async function createPostCompactFileAttachments(
   for (const attachment of generated) {
     if (attachment === null) continue
     const message = createAttachmentMessage(attachment)
-
     const estimate = roughTokenCountEstimation(JSON.stringify(message))
     if (total + estimate > POST_COMPACT_TOKEN_BUDGET) continue
     total += estimate
@@ -630,7 +620,6 @@ function truncateToTokenCeiling(
   maxTokens: number,
   marker: string,
 ): { content: string; truncated: boolean } {
-
   const budget = maxTokens * 4 - marker.length
   if (content.length <= budget) return { content, truncated: false }
   return { content: content.slice(0, Math.max(0, budget)) + marker, truncated: true }
@@ -640,13 +629,12 @@ function truncateSkillContent(content: string, maxTokens: number): { content: st
   return truncateToTokenCeiling(content, maxTokens, SKILL_TRUNCATION_MARKER)
 }
 
+
 const POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES = ['file', 'compact_file_reference', 'invoked_skills'] as const
 
 export type PostCompactFit = {
   result: CompactionResult
-
   estimate: number
-
   shed: string[]
 }
 
@@ -707,7 +695,6 @@ export function createSkillAttachmentIfNeeded(
   const invoked = getInvokedSkillsForAgent(agentId)
   if (invoked.size === 0) return null
   const inCatalogue = (name: string): boolean => catalogue === undefined || catalogue.some(command => command.name === name)
-
   const sorted = [...invoked.values()]
     .filter(skill => {
       if (inCatalogue(skill.skillName)) return true
@@ -737,6 +724,7 @@ export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContex
     queuedNoticeIds: queuedNoticeTaskIds(getCommandQueue()),
   }).map(createAttachmentMessage)
 }
+
 
 async function withKeepAlive<T>(context: ToolUseContext, work: () => Promise<T>): Promise<T> {
   let interval: NodeJS.Timeout | null = null
@@ -773,7 +761,6 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
-
       onStreamEvent: event => {
         bound.content()
         const inner = event as { type?: string; delta?: { type?: string; text?: string } }
@@ -789,7 +776,6 @@ async function summarizeViaCacheSharingFork(
           if (typeof status === 'object' && status !== null && 'streamActivity' in status) bound.touch()
           context.setSDKStatus?.(status)
         },
-
         getAppState: () => {
           const state = context.getAppState()
           return state.toolPermissionContext.shouldAvoidPermissionPrompts
@@ -801,7 +787,6 @@ async function summarizeViaCacheSharingFork(
         },
       },
     })
-
     if (bound.hitDeadline()) {
       const elapsedMs = Date.now() - startedAt
       logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsedMs} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
@@ -815,7 +800,6 @@ async function summarizeViaCacheSharingFork(
     const last = [...result.messages].reverse().find(message => message.type === 'assistant') as
       | AssistantMessage
       | undefined
-
     if (last !== undefined && last.isApiErrorMessage !== true) {
       const text = getAssistantMessageText(last)
       if (text !== null && text !== '') {
@@ -831,7 +815,6 @@ async function summarizeViaCacheSharingFork(
       recordFoldRoad(model, 'fork', startedAt, 'refused')
       return last
     }
-
     if (last !== undefined) {
       const malformed = malformedHistoryRefusalOf(last)
       if (malformed !== null) {
@@ -847,9 +830,7 @@ async function summarizeViaCacheSharingFork(
     recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (err) {
-
     if (err instanceof CompactionRefusedForHistoryError) throw err
-
     const elapsedMs = Date.now() - startedAt
     if (bound.hitDeadline()) {
       logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })
@@ -926,13 +907,11 @@ async function streamingFallbackAttempts(
       context.options.agentDefinitions.activeAgents,
       'compact',
     )
-
     const toolMap = new Map<string, (typeof context.options.tools)[number]>()
     for (const tool of context.options.tools) {
       if (!toolMap.has(tool.name)) toolMap.set(tool.name, tool)
     }
     if (toolMap.size === 0) {
-
       toolMap.set(FileReadTool.name, FileReadTool)
       if (toolSearchEnabled) toolMap.set(ToolSearchTool.name, ToolSearchTool)
     }
@@ -941,10 +920,8 @@ async function streamingFallbackAttempts(
     const afterBoundary = (() => {
       const index = findLastCompactBoundaryIndex(messages)
       const sliced = index >= 0 ? messages.slice(index + 1) : messages
-
       return projectRewoundWindows(sliced)
     })()
-
     const continuation = continuationOfSentRequest(
       lastSentRequestFor(String(rosterOwnerFromToolUseContext(context))),
       afterBoundary,
@@ -982,7 +959,6 @@ async function streamingFallbackAttempts(
           bound.touch()
           context.setSDKStatus?.({ streamActivity: atMs })
         },
-
         ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })
@@ -1005,15 +981,12 @@ async function streamingFallbackAttempts(
         }
       }
     } catch (err) {
-
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
       throw err
     }
-
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (bound.signal.aborted) throw new APIUserAbortError()
     if (captured?.isApiErrorMessage === true) {
-
       if (summaryAnswerFault(captured) !== null) return captured
       if (!isOverflowAnswer(captured) && !summaryRefusedByModel(captured)) {
         const malformed = malformedHistoryRefusalOf(captured)
@@ -1059,7 +1032,6 @@ async function runSummarization(
     ) {
       const viaFork = await summarizeViaCacheSharingFork(messages, cacheSafeParams, promptMessage, context)
       if (viaFork !== null) return viaFork
-
       if (context.abortController.signal.aborted) throw new APIUserAbortError()
     }
     return summarizeViaStreamingFallback(messages, cacheSafeParams, promptMessage, context)
@@ -1341,6 +1313,7 @@ function validateSummary(response: AssistantMessage, logMissing: boolean): strin
   return text
 }
 
+
 function snapshotAndClearReadState(context: ToolUseContext): Record<string, { content: string; timestamp: number }> {
   const snapshot: Record<string, { content: string; timestamp: number }> = {}
   for (const [path, state] of context.readFileState.entries()) {
@@ -1391,7 +1364,6 @@ async function assembleAttachments(
     ...getMcpInstructionsDeltaAttachment(context.options.mcpClients, context.options.tools, model, preserved),
   ]
   for (const delta of deltas) attachments.push(createAttachmentMessage(delta))
-
   if (!context.agentId) {
     for (const row of await getUserContextAttachment(preserved, projection?.userContext)) {
       attachments.push(createAttachmentMessage(row))
@@ -1503,6 +1475,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
     if (facts.trigger !== 'manual') context.setSDKStatus?.(null)
   }
 }
+
 
 export function withEngineModel<C extends ToolUseContext>(context: C, model: string): C {
   return { ...context, options: { ...context.options, engineModel: model } }
@@ -1773,11 +1746,9 @@ export async function compactConversation(
   customInstructions?: string,
   isAutoCompact: boolean = false,
   recompactionInfo?: RecompactionInfo,
-
   overflow?: OverflowSignal,
   summaryModel?: string,
 ): Promise<CompactionResult> {
-
   const transaction = prepareFoldContext(context)
   context = transaction.context
   let ceiling = recompactionInfo?.autoCompactThreshold
@@ -1913,7 +1884,6 @@ export async function compactConversation(
         }
       }
       if (tail !== null && tail.keep.length > 0) {
-
         messagesToKeep = stripThinkingFromIndex(tail.keep, 0)
         tailPrecedingUuid = tail.precedingUuid
         recentRounds = { requested: tail.roundsRequested, kept: tail.roundsKept, tokens: tail.estimatedTokens, reason: tail.reason }
@@ -1961,7 +1931,6 @@ export async function compactConversation(
         isVisibleInTranscriptOnly: true,
       }),
     ]
-
     if (messagesToKeep !== undefined) {
       annotateBoundaryWithPreservedSegment(boundary, summaryMessages.at(-1)!.uuid, messagesToKeep)
     }
@@ -1986,12 +1955,10 @@ export async function compactConversation(
       compactionUsage: usage,
       ...(proseSkippedReceipt !== undefined ? { notes: [proseSkippedReceipt] } : {}),
     }
-
     const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered)
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
     let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
-
     const room = landing ?? ceiling
     if (room !== undefined && truePostCompactTokenCount >= room) {
       const fit = fitPostCompactUnderThreshold(partial, room, landingCount)
@@ -2088,13 +2055,13 @@ export async function compactConversation(
       truePostCompactTokenCount,
     }
   } catch (err) {
-
     if (!isAutoCompact) notifyCompactionError(context, err)
     throw err
   } finally {
     restoreAfterCompaction(context)
   }
 }
+
 
 function isProgressMessage(message: Message): boolean {
   return message.type === 'progress'
@@ -2114,10 +2081,8 @@ export async function partialCompactConversation(
     const summarize = direction === 'from' ? allMessages.slice(pivotIndex) : allMessages.slice(0, pivotIndex)
     let kept: Message[]
     if (direction === 'from') {
-
       kept = allMessages.slice(0, pivotIndex).filter(message => !isProgressMessage(message))
     } else {
-
       kept = stripThinkingFromIndex(
         allMessages
           .slice(pivotIndex)
@@ -2153,7 +2118,6 @@ export async function partialCompactConversation(
     context.setResponseLength?.(() => 0)
     context.onCompactProgress?.({ type: 'compact_start' })
     const promptText = getPartialCompactPrompt(customInstructions, direction)
-
     const apiMessages = direction === 'up_to' ? summarize : allMessages
     const response = await summarizeWithPtlRetry(apiMessages, cacheSafeParams, promptText, context)
     const rawSummary = validateSummary(response, false)

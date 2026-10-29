@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync, existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 import { join, dirname } from 'node:path'
@@ -22,7 +21,6 @@ console.log(' LaunchRipple dead-chain deleted (HB-0169)')
 console.log('============================================================')
 
 section('reachability: the branch was UNCONDITIONALLY dead (exhaustive)')
-
 const launchTrueCallers = execSync(`grep -rn "setLaunchRipple(true)" "${join(root, 'src')}" || true`, {
   encoding: 'utf-8',
 }).trim()
@@ -34,7 +32,6 @@ check('Chat.tsx no longer has the launchRipple / launchElapsed state or the ms-c
 check('Chat.tsx no longer has the satellite-dead submitCountRef', !/submitCountRef/.test(repl))
 check('LaunchRipple.tsx is deleted', !existsSync(join(root, 'src', 'components', 'mercury-ui', 'LaunchRipple.tsx')))
 check('MercuryHome.tsx no longer exports the orphan LAUNCH_ORIGIN_*_FRAC consts', !/LAUNCH_ORIGIN_(COL|ROW)_FRAC/.test(home))
-
 const dangling = execSync(
   `grep -rnE "LaunchRipple|LAUNCH_ORIGIN|launchRippleEnabled|launchElapsed" "${join(root, 'src')}" || true`,
   { encoding: 'utf-8' },
@@ -46,7 +43,6 @@ check('submitCount STATE is kept (useFeedbackSurvey / housekeeping / notificatio
 check('the setSubmitCount(count => count + 1) increment is kept', /setSubmitCount\(count => count \+ 1\)/.test(repl))
 check('permissionOverlay (the live tool-permission overlay) is kept and threaded to the layout', /const permissionOverlay =/.test(repl) && /overlay=\{inVirtualTranscript \? undefined : permissionOverlay\}/.test(repl))
 check('the AlternateScreen wrap keeps mouseTracking + the tree child', /<AlternateScreen mouseTracking=\{isMouseTrackingEnabled\(\)\}>\{tree\}<\/AlternateScreen>/.test(repl))
-
 const RIPPLE = ['Temp', 'estRipple'].join('')
 const effort = readFileSync(join(root, 'src', 'commands', 'effort', 'EffortPopup.tsx'), 'utf-8')
 check(`the /effort popup never imports ${RIPPLE}`, !effort.includes(RIPPLE))

@@ -1,3 +1,4 @@
+
 import { createRequire } from 'node:module'
 import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -47,7 +48,6 @@ function hasCompilerApi(mod: unknown): mod is TsModule {
 function vendoredCandidates(): string[] {
   return [
     path.resolve(__dirname, 'vendor', 'typescript', 'typescript.js'),
-
     path.resolve(__dirname, '..', '..', '..', 'node_modules', 'typescript', 'lib', 'typescript.js'),
   ]
 }
@@ -57,7 +57,6 @@ export function resolvePackagedTypescript(): { modulePath: string; version?: str
     if (!existsSync(candidate)) continue
     let version: string | undefined
     try {
-
       const vendorJson = path.join(path.dirname(candidate), 'vendor.json')
       const pkgJson = path.resolve(path.dirname(candidate), '..', 'package.json')
       const meta = existsSync(vendorJson) ? vendorJson : pkgJson
@@ -106,7 +105,6 @@ function tryLoad(modulePath: string): TsModule | null {
   if (cached) return cached
   try {
     const req = createRequire(modulePath)
-
     const target: string = modulePath
     const mod = req(target)
     if (!hasCompilerApi(mod)) return null
@@ -149,7 +147,6 @@ export function isSupportedSourceFile(fileName: string): boolean {
 
 export interface ParsedSource {
   sourceFile: TS.SourceFile
-
   parseErrors: string[]
 }
 

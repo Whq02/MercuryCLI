@@ -70,7 +70,6 @@ section('record present + pid alive ⇒ live')
 
 section('record present + pid dead ⇒ unavailable (orphaned record)')
 {
-
   writeRec(2147483646)
   const s = daemonSnapshot()
   check('state === unavailable', s.state === 'unavailable', `state='${s.state}'`)

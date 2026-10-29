@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 
+
 const EFFORT_LEAD = 'effort  '
 const levelText = (level: string, current: string | undefined): string => (level === current ? `[${level}] ` : `${level} `)
 
@@ -15,9 +16,7 @@ export function EffortStrip({
   faint,
 }: {
   levels: readonly string[]
-
   current: string | undefined
-
   accent: string
   faint: string
 }): React.ReactNode {

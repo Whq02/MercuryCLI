@@ -45,7 +45,6 @@ function extractConversationContext(messages: Message[]): string {
   }
 
   const lastThree = assistantTexts.slice(-3)
-
   let budget = 1000
   const keptNewestFirst: string[] = []
   for (let i = lastThree.length - 1; i >= 0; i--) {

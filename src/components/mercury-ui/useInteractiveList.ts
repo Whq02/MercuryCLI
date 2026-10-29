@@ -11,16 +11,13 @@ import { useOpenEventGate } from './useOpenEventGate.js'
 import { useStableSelection } from './useStableSelection.js'
 import { popupPageRows } from '../CustomSelect/popup-list.js'
 
+
 export type AsyncListNote = { pending: string; result: Promise<string | null | undefined> }
 
 type ListAction<Row> = {
-
   key: string
-
   run: (row: Row | null) => string | null | undefined | AsyncListNote
-
   hint: string
-
   when?: (row: Row) => boolean
 }
 
@@ -28,7 +25,6 @@ type InteractiveListRowProps = {
   id: string
   selected: boolean
   unavailable: boolean
-
   reasonUnavailable?: string
   onSelect: () => void
   onActivate: () => void
@@ -49,20 +45,14 @@ export function useInteractiveList<Row>({
   pageSize,
 }: {
   rows: readonly Row[]
-
   rowId: (row: Row) => string
   onClose: () => void
   actions?: ListAction<Row>[]
   active?: boolean
-
   initialId?: string
-
   unavailable?: (row: Row) => boolean
-
   reasonUnavailable?: (row: Row) => string
-
   idNamespace?: string
-
   orientation?: NavOrientation
   pageSize?: number
 }): {
@@ -71,7 +61,6 @@ export function useInteractiveList<Row>({
   note: string | null
   ready: boolean
   hints: string | undefined
-
   motionHint: string
   moveTo: (i: number) => void
   activate: (i: number) => void
@@ -82,7 +71,6 @@ export function useInteractiveList<Row>({
   renderedRows.current = new Set()
   const visibleRowCount = (): number => Math.max(1, popupPageRows([...rowNodes.current].filter(([index]) => renderedRows.current.has(index)).map(([,node]) => node)) || renderedRows.current.size)
   const clampIndex = (i: number): number => Math.min(Math.max(0, i), Math.max(0, rows.length - 1))
-
   const initialIndex = ((): number => {
     if (rows.length === 0) return 0
     let idx = initialId != null ? rows.findIndex(r => rowId(r) === initialId) : 0
@@ -93,17 +81,13 @@ export function useInteractiveList<Row>({
     }
     return idx
   })()
-
   const stable = useStableSelection(rows, rowId, { initialIndex })
   const selectedIndex = stable.index
   const selectedRow = stable.selected
-
   const liveIndexRef = useRef(selectedIndex)
   liveIndexRef.current = selectedIndex
   const [note, setNote] = useState<string | null>(null)
-
   const noteSeqRef = useRef(0)
-
   const pendingActionSeqRef = useRef<number | null>(null)
   const applyActionResult = (res: string | null | undefined | AsyncListNote): void => {
     const seq = ++noteSeqRef.current
@@ -135,7 +119,6 @@ export function useInteractiveList<Row>({
     if (!active || rows.length === 0) return
     let idx = clampIndex(i)
     if (isUnavailable(rows[idx]!)) {
-
       const healed = skipDisabled(liveIndexRef.current, idx, rows.length, k => isUnavailable(rows[k]!))
       if (healed === idx || isUnavailable(rows[healed]!)) return
       idx = healed
@@ -163,11 +146,8 @@ export function useInteractiveList<Row>({
   useInput(
     (input, key, event) => {
       if (!active) return
-
       const action = decodeNavKey(input, key, { orientation, pageKeys: true })
-
       if (action === 'cancel') {
-
         if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
         event.stopImmediatePropagation()
         onClose()
@@ -185,9 +165,7 @@ export function useInteractiveList<Row>({
         }
         return
       }
-
       if (!pastBuffer()) return
-
       const liveRow = rows[liveIndexRef.current] ?? selectedRow
       if (action === 'activate') {
         event.stopImmediatePropagation()
@@ -201,7 +179,6 @@ export function useInteractiveList<Row>({
           (a.key.length === 1 && input === a.key)
         ) {
           event.stopImmediatePropagation()
-
           if (liveRow != null && isUnavailable(liveRow)) return
           if (liveRow != null && a.when && !a.when(liveRow)) return
           applyActionResult(a.run(liveRow))
@@ -227,7 +204,6 @@ export function useInteractiveList<Row>({
     id: `${idNamespace}:row:${rowId(row)}`,
     selected: i === selectedIndex,
     unavailable: isUnavailable(row),
-
     reasonUnavailable: isUnavailable(row) ? reasonUnavailable?.(row) : undefined,
     onSelect: () => select(i),
     onActivate: () => activate(i),

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execSync } from 'node:child_process'
@@ -113,7 +112,6 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
   check('--plan never runs a step', !/━━ /.test(out))
 }
 {
-
   const s = selectImpact(manifest, [
     'src/services/lsp/config.ts',
     'src/components/anything.tsx',

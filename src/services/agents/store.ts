@@ -110,7 +110,6 @@ async function appendReceipt(record: Record<string, unknown>): Promise<void> {
     const bounded = existing.slice(-RECEIPTS_KEEP)
     await durableAtomicPublish(receiptsPath(), bounded.join('\n') + '\n')
   } catch (e) {
-
     logForDebugging(
       `agent receipt append failed: ${e instanceof Error ? e.message : String(e)}`,
     )
@@ -121,7 +120,6 @@ export async function saveAgentDocument(
   target: AgentSaveTarget,
   document: AgentDocument,
 ): Promise<AgentSaveReceipt> {
-
   const idError = validateAgentIdentifier(document.fields.name)
   if (idError) throw new AgentStoreError('validation', idError)
   if (!document.fields.description) {
@@ -142,7 +140,6 @@ export async function saveAgentDocument(
 
   if (target.kind === 'existing') {
     path = target.identity.filePath
-
     let currentRaw: string
     try {
       currentRaw = readFileSync(path, 'utf-8')
@@ -213,6 +210,7 @@ export async function saveAgentDocument(
   await appendReceipt({ kind: 'save', ...receipt })
   return receipt
 }
+
 
 export type AgentTrashEntry = {
   id: string
@@ -315,7 +313,6 @@ export async function deleteAgentToTrash(
     trashId: id,
     at: entry.deletedAt,
   })
-
   const sidecars = listTrashSidecars()
   for (const stale of sidecars.slice(TRASH_KEEP)) {
     try {
@@ -378,14 +375,12 @@ export async function restoreAgentFromTrash(
   return { path: dest, revision: revisionDigest(raw) }
 }
 
+
 type AgentDraft = {
   version: 1
   savedAt: string
-
   baseIdentity?: AgentFileIdentity
-
   newTarget?: { scope: 'user' | 'project'; cwd: string }
-
   raw: string
 }
 

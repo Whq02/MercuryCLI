@@ -53,7 +53,6 @@ async function main(): Promise<void> {
       '../utils/messageQueueManager.js',
       '../utils/wards/wards.js',
       './guards.js',
-
       '../context/notifications.js',
       '../utils/messages/systemMessages.js',
       '../utils/path.js',
@@ -71,7 +70,6 @@ async function main(): Promise<void> {
 
   section('§3 model-seam deny sweep — no model call, no model-identity read')
   {
-
     const FORBIDDEN = [
       'queryModel',
       'queryWithModel',
@@ -107,7 +105,6 @@ async function main(): Promise<void> {
 
     const realFetch = globalThis.fetch
     let dialed = 0
-
     globalThis.fetch = ((..._args: unknown[]) => {
       dialed++
       throw new Error('wards verdict tried to dial')

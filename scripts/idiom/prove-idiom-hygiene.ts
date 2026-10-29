@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -17,7 +16,6 @@ console.log('============================================================')
 
 const loading = readFileSync(join(ROOT, 'src/utils/sessionStorage/loading.ts'), 'utf8')
 const reader = readFileSync(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
-
 const prunerAt = reader.indexOf('export function pruneRecordBranchesBeforeParse(')
 const pruner = prunerAt === -1 ? '' : reader.slice(prunerAt, reader.indexOf('\nexport ', prunerAt + 1))
 check(
@@ -27,6 +25,7 @@ check(
     pruner.includes('decodeTranscriptBuffer<Record<string, unknown>>(') &&
     pruner.includes("const parent = typeof cur.parentUuid === 'string' && cur.parentUuid ? cur.parentUuid : null"),
 )
+
 
 console.log(failures === 0 ? '\n ✅ HYGIENE GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

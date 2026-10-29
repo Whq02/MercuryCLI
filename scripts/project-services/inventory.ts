@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -37,7 +36,6 @@ const { LSP_READ_OPERATIONS } = await import('../../src/tools/LSPTool/schemas.ts
 const lspOps = [...LSP_READ_OPERATIONS]
 const dapSrc = readFileSync('src/tools/DebugTool/DebugTool.ts', 'utf8')
 const dapOpsBlock = dapSrc.match(/const OPS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
-
 const dapOps = [...dapOpsBlock
   .split('\n')
   .filter(l => !l.trim().startsWith('//'))

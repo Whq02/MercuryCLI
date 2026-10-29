@@ -4,7 +4,6 @@ import { fetchDeepseekBalance } from './deepseekUsageState.js'
 
 export interface DeepseekKeyLoginOutcome {
   ok: boolean
-
   stored: boolean
   receipt: string
 }

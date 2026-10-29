@@ -1,3 +1,4 @@
+
 import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import { readFile } from 'node:fs/promises'
 import type { Question } from '../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
@@ -24,9 +25,7 @@ import type {
 } from './contracts.js'
 
 export interface InterviewBoundary {
-
   onAllow: (updatedInput: Record<string, unknown>) => void
-
   onReject: () => void
 }
 
@@ -74,7 +73,6 @@ export function presentToolCall(init: {
   const isOpen = (s: InterviewSessionState): boolean =>
     s.sessionId !== null &&
     (s.phase === 'asking' || s.phase === 'discussing' || s.phase === 'reviewing')
-
   if (!isOpen(live)) {
     const declaredIds = init.input.questions.flatMap(q => {
       const d = q as Question & { id?: string; decisionId?: string }
@@ -91,7 +89,6 @@ export function presentToolCall(init: {
         mission: init.mission ?? init.input.questions[0]?.question ?? 'interview',
         toolUseId: init.toolUseId,
       })
-
   if (joinable && live.phase === 'discussing' && live.discussing) {
     appendInterviewEvent({
       kind: 'discussion-returned',
@@ -100,7 +97,6 @@ export function presentToolCall(init: {
       questionId: live.discussing,
     })
   }
-
   const sameCall =
     joinable && init.toolUseId !== undefined && live.toolUseId === init.toolUseId
   const questions = sameCall
@@ -117,6 +113,7 @@ export function presentToolCall(init: {
   })
   return { sessionId, questions }
 }
+
 
 export function draftAnswer(questionId: InterviewQuestionId, value: InterviewAnswerValue): void {
   appendInterviewEvent({ kind: 'answer-drafted', eventId: mintInterviewId('ie'), atMs: Date.now(), questionId, value })
@@ -147,6 +144,7 @@ export function attachContext(ref: InterviewContextRef, questionId?: InterviewQu
 export function detachContext(refId: string): void {
   appendInterviewEvent({ kind: 'context-detached', eventId: mintInterviewId('ie'), atMs: Date.now(), refId })
 }
+
 
 const IMAGE_MEDIA_BY_EXT: Record<string, string> = {
   png: 'image/png',
@@ -207,6 +205,7 @@ export async function buildContextBlocks(
   return blocks.length > 0 ? blocks : undefined
 }
 
+
 export function buildUpdatedInput(
   state: InterviewSessionState,
   originalInput: Record<string, unknown>,
@@ -232,7 +231,6 @@ export function buildUpdatedInput(
   }
   return {
     ...originalInput,
-
     questions: state.questionOrder
       .map(qid => state.questions[qid]?.question)
       .filter(Boolean)
@@ -258,7 +256,6 @@ export function buildUpdatedInput(
 export function submitInterview(boundary: InterviewBoundary, originalInput: Record<string, unknown>): void {
   const recordId = mintInterviewId('ir')
   appendInterviewEvent({ kind: 'submitted', eventId: mintInterviewId('ie'), atMs: Date.now(), decisionRecordId: recordId })
-
   const state = interviewSnapshot()
   persistDecisionRecord(buildDecisionRecord(state, interviewEvents(), recordId, Date.now()))
   boundary.onAllow(buildUpdatedInput(state, originalInput, { kind: 'answers-submitted', decisionRecordId: recordId }))
@@ -280,6 +277,5 @@ export function cancelInterview(boundary: InterviewBoundary, opts?: { preserveDr
     atMs: Date.now(),
     preserveDraft: opts?.preserveDraft ?? true,
   })
-
   boundary.onReject()
 }

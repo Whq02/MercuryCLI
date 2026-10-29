@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, mkdirSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -58,7 +57,6 @@ for (const [family, model] of FAMILY_MODELS) {
     bc.resolveBehaviourContract(turn1).sections.every(s => s.group !== 'segment'))
 
   section(`§2 signature moves only with inputs — ${family}`)
-
   setOriginalCwd(join(cwd, 'other-project'))
   const frozen = await prompts.getSystemPrompt(tools, model, [])
   check('within the conversation a changed input is frozen out (byte-identical render, same digest)', renderFor(family, frozen) === r1 && bc.resolveBehaviourContract(frozen).digest === d1)

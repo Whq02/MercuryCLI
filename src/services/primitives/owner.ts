@@ -1,3 +1,4 @@
+
 import {
   MAIN_LANE,
   makeOwnerKey,
@@ -34,7 +35,6 @@ type OwnerScope =
 interface OwnerDescriptor {
   key: OwnerKey
   scope: OwnerScope
-
   parent?: OwnerKey
   workspace: string
   sessionId?: string

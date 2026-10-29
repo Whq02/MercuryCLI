@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -181,7 +180,6 @@ const schemaOptions = (model: string) => ({
   agents: [],
   model,
 })
-
 const readOnGlm1 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
 const readOnClaude = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.anthropic!))
 const readOnGlm2 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
@@ -227,7 +225,6 @@ check(
 )
 const zaiJson = JSON.stringify(zaiTools)
 for (const forbidden of ['strict', 'eager_input_streaming', 'defer_loading', 'cache_control']) {
-
   check(`chat-completions codec: no Anthropic-only field '${forbidden}'`, !zaiJson.includes(`"${forbidden}":`))
 }
 
@@ -369,7 +366,6 @@ check(
   'WebFetch: the degraded passthrough restates the quote ceiling for untrusted domains',
   webFetchSource.includes('under 125 characters'),
 )
-
 const nativeSearchSource = readFileSync(new URL('../../src/services/search/nativeSearch.ts', import.meta.url), 'utf8')
 check(
   'WebSearch: a native provider failure settles as the TYPED provider-refused outcome',

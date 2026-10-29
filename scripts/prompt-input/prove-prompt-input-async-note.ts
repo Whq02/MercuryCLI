@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -11,7 +10,6 @@ process.env.MERCURY_CONFIG_DIR = home
 const stubDir = join(home, 'bin')
 mkdirSync(stubDir)
 const fireLog = join(home, 'gh-fires.log')
-
 writeFileSync(join(stubDir, 'gh'), `#!/bin/bash\necho "$(date +%s) $*" >> ${fireLog}\nsleep 4\nexit 1\n`)
 chmodSync(join(stubDir, 'gh'), 0o755)
 
@@ -48,15 +46,12 @@ function capture(tag: string, sends: unknown[], total: number): string[] {
 
 const ESC = '\u001b'
 const sends = [
-
   { atTick: 40, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/realms\r' },
-
   { requireAwait: true, awaitText: 'Trusted realms', awaitSettleTicks: 1, data: 'g' },
   { afterPrevTicks: 1, data: ESC },
 ]
 
 try {
-
   const mid = capture('mid', sends, 52)
   t('esc closes /realms while the auth probe is still running',
     !mid.some(r => r.includes('Trusted realms')))

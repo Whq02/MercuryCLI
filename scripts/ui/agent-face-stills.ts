@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -82,7 +81,6 @@ async function captureInchatFrames(): Promise<Record<string, string>> {
   }
 
   const frames: Record<string, string> = {}
-
   frames['inchat-create-guided'] = normalize(
     await renderToString(React.createElement(StudioEditor, { mode: 'create', ...shared, cwd: '/repo' } as never), 100),
   )
@@ -222,7 +220,6 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   machine.dispose()
 
   const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
-
   const fixtureCatalogue = [
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },

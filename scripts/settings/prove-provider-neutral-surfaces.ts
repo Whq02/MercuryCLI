@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -99,7 +98,6 @@ section('(2) usageSectionPlan — one /usage section per family (derived, never 
     'unknown family gets the honest generic section (never silence)',
     plan[2]?.title === 'acme usage' && plan[2]?.connect.includes('/capabilities') && plan[2]?.limitsNote.includes('No polled usage meter'),
   )
-
   check('every enumerated family mounts a section (no hidden lanes)', usageSectionPlan(fams).some(s => s.id === ('openai' as never)))
   const xaiPlan = usageSectionPlan([{ id: 'xai', available: true, credentialed: false }] as never)
   check(
@@ -121,9 +119,7 @@ section('(3) /config — derived account rows + the read-only model pointer')
   check('anthropic row: presence + the /accounts pointer', rows[0]?.valueText === 'Anthropic API key — /accounts')
   check('openai row: honest absent text with the connect route', rows[1]?.valueText === 'not signed in — /logins connects' && rows[1]?.credentialed === false)
   check('unknown family row appears, labeled by its id', rows[2]?.id === 'account-acme' && rows[2]?.label === 'acme account' && rows[2]?.valueText === 'ACME_API_KEY (env)')
-
   check('every family keeps its /config row (no hidden lanes)', configProviderRows(fams).some(r => r.id === 'account-openai'))
-
   const edgeRows = configProviderRows([
     { id: 'huggingface', available: true, credentialed: false },
     { id: 'local', available: true, credentialed: false },
@@ -132,7 +128,6 @@ section('(3) /config — derived account rows + the read-only model pointer')
     edgeRows[0]?.valueText === 'not signed in — /logins connects (or HF_TOKEN)', edgeRows[0]?.valueText ?? '')
   check('local row: the no-sign-in truth, never a sign-in route',
     edgeRows[1]?.valueText === 'no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up), or /localsetup sets one up', edgeRows[1]?.valueText ?? '')
-
   const keyLaneRows = configProviderRows([
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'zai', available: true, credentialed: false },
@@ -171,7 +166,6 @@ section('(3) /config — derived account rows + the read-only model pointer')
 section('(4) the /usage gate — UNGATED, proven OpenAI-only')
 {
   const usageCommand = (await import('../../src/commands/usage/index.ts')).default
-
   check(
     'the whole-panel gate is DEAD: /usage declares NO availability gate at all',
     (usageCommand as { availability?: unknown }).availability === undefined,
@@ -191,7 +185,6 @@ section('(4) the /usage gate — UNGATED, proven OpenAI-only')
       },
     }),
   )
-
   noteCredentialChange()
   const fams = providerFamilyPresences()
   const openai = fams.find(f => f.id === 'openai')

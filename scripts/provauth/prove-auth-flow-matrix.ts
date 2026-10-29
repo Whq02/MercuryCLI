@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -44,7 +43,6 @@ for (const key of [
 const home = mkdtempSync(join(tmpdir(), 'authhard-matrix-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_AUTH_SCOPE_DIR = home
-
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -750,7 +748,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       ...absentReads,
       geminiAccount: () => (gemini.geminiOauthRef() !== undefined ? { kind: 'oauth' as const } : undefined),
     }).gemini
-
   gemini.__resetGeminiAccountsForTest()
   writeFileSync(
     gemini.geminiAuthPathForDisplay(),
@@ -769,7 +766,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
       corrupted.blockers.join(' ').includes('/logins'),
     `connected=${gemini.geminiOauthConnected()} blockers=${JSON.stringify(corrupted.blockers)}`,
   )
-
   gemini.__resetGeminiAccountsForTest()
   writeFileSync(
     gemini.geminiAuthPathForDisplay(),
@@ -804,7 +800,6 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
 section('§4 expiry-mid-flight: the wall classifies, the line names the family and the door')
 
 {
-
   check(
     "revoked sign-in, 401 spelling ('OAuth access token has been revoked') → 'sign-in'",
     classifyCredentialWall(401, '{"type":"error","error":{"type":"authentication_error","message":"OAuth access token has been revoked."}}') === 'sign-in',
@@ -965,7 +960,6 @@ section('§6 re-login: always allowed for an existing slot; ADD refused at the c
       signinCeilingRefusal(family, 99) === undefined,
     )
   }
-
   writeStoredZaiApiKey('zai-fixture-key-000000000001')
   writeStoredZaiApiKey('zai-fixture-key-000000000002')
   check(
@@ -982,7 +976,6 @@ console.log(
 )
 
 const sleepMs = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 function exchangeGate(): {
   started: Promise<void>
   signalStarted: () => void
@@ -995,7 +988,6 @@ function exchangeGate(): {
   const released = new Promise<void>(resolve => (release = resolve))
   return { started, signalStarted, released, release }
 }
-
 const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   Promise.race([p, sleepMs(ms).then(() => 'timed-out' as const)])
 
@@ -1057,7 +1049,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
       (disclosed as { kind?: string }).kind === 'oauth-key',
     `verdict=${verdict} minted=${minted !== undefined} disclosed=${JSON.stringify(disclosed)}`,
   )
-
   const removal = executeSlotRemoval({
     family: 'openrouter',
     id: 'openrouter:oauth-key',
@@ -1190,7 +1181,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
     `flow=${String(flow)} status=${tab !== 'timed-out' ? (tab as Response).status : 'timeout'} tab=${JSON.stringify(tabText)}`,
   )
 }
-
 {
   gemini.__resetGeminiAccountsForTest()
   writeFileSync(gemini.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
@@ -1231,7 +1221,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   gemini.__resetGeminiAccountsForTest()
   writeFileSync(gemini.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
   const geminiEnv = { ...process.env, MERCURY_GEMINI_OAUTH_CLIENT_ID: 'client-fixture' }
-
   const geminiTokenUrl = (geminiEnv['MERCURY_GEMINI_OAUTH_TOKEN_BASE']?.trim() || 'https://oauth2.googleapis.com/token')
   const gate = exchangeGate()
   let disclosed: unknown = null
@@ -1371,7 +1360,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   const outcomeP = runHuggingfaceDeviceLogin({
     cancelled: () => cancelled,
     sleep: () => Promise.resolve(),
-
     refreshCatalogue: () => Promise.resolve(null),
     io: {
       env: hfEnv,
@@ -1450,7 +1438,6 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
             { status: 200 },
           )
         }
-
         gate.signalStarted()
         await gate.released
         return new Response('', { status: 500 })
@@ -1558,7 +1545,6 @@ section('§8 accounts-side refusal hygiene + the gemini no-probe gate copy')
         !/new Error\(`[^`]*\$\{[^}]*refresh_token/.test(text),
     )
   }
-
   check(
     'the four token-endpoint refusals carry status (+ error code), nothing else',
     openrouterSrc.includes('`openrouter key exchange returned HTTP ${response.status}`') &&
@@ -1676,7 +1662,6 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   }
   const ceiling = signinCeilingRefusal('anthropic', 2)
   if (ceiling) sentences.push(ceiling.message)
-
   const limitedMap = resolveProviderUsability({
     ...absentReads,
     anthropicApiKey: () => 'key-fixture-000000000001',
@@ -1747,15 +1732,12 @@ section('§9 the evidence pair end-to-end + the dead-door sweep')
   if (bootNotice !== null) sentences.push(bootNotice)
 
   const { effectiveCatalogue } = await import('../../src/commands/effectiveCatalogue.js')
-
   const registered = new Set(
     effectiveCatalogue().flatMap(surface => [surface.name, ...surface.aliases]),
   )
-
   const DOOR_RE = /(^|[\s(`,])\/([a-z][a-z0-9-]*)(?![a-z0-9-/])/g
   const doorsIn = (sentence: string): string[] =>
     [...sentence.matchAll(DOOR_RE)].map(match => match[2]!)
-
   check(
     'the fence catches backtick/comma-glued doors and refuses URL/wire paths',
     doorsIn('use `/logins` or (/accounts),/model now').join(',') === 'logins,accounts,model' &&
@@ -1779,7 +1761,6 @@ section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence
 
 {
   const { scheduleAccountVerdict } = await import('../../src/daemon/saturnAccount.js')
-
   const base = { credentialed: true, stranded: false, refreshable: true, expiresAt: NOW_MS + 60_000 }
   const verdictOf = (live: Record<string, unknown>): string =>
     scheduleAccountVerdict({
@@ -1879,7 +1860,6 @@ section('§10 the cross-account laws: SF1 spoken · the structural ceiling fence
       `${held.length} slots: ${held.map(s => s.id).join(', ')}`,
     )
   }
-
   const anthropicIds = (everything.find(g => (g.family.id as string) === 'anthropic')?.slots ?? []).map(s => s.id)
   check(
     'slot ids are identity-stable (the scope dir names the ring slot; family:kind names the rest)',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -29,14 +28,12 @@ const captureOnce = async (): Promise<string> => {
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(120000),
-
     env: { ...process.env },
   })
   if (res.status !== 0) {
     console.log('  vshot failed:', (res.stderr || '').slice(0, 300))
     return ''
   }
-
   const parsed = JSON.parse(readFileSync(gridPath, 'utf8')) as {
     grid?: Array<Array<{ c?: string }>>
   }

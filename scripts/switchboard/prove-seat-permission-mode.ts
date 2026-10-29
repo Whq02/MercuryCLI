@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,7 +31,6 @@ function resolveIn(opts: { defaultMode?: string; override?: string; home?: strin
       MERCURY_CONFIG_DIR: home,
       MERCURY_HOME: '',
       __OVERRIDE__: opts.override ?? '',
-
       MERCURY_DAEMON_PERMISSION_MODE: '',
     },
   })

@@ -1,3 +1,4 @@
+
 import { createTaskStateBase } from '../../Task.js'
 import {
   STATUS_TAG,
@@ -38,14 +39,11 @@ function recordedPrompt(value: unknown): string {
 }
 
 export interface BackgroundLaunchReceipt {
-
   toolUseId: string
-
   agentId: string
   description: string
   prompt: string
   agentType: string
-
   launchedAt: number
 }
 
@@ -233,7 +231,6 @@ export function settledLaunchIds(messages: readonly Message[]): Set<string> {
     if (message.type !== 'user') continue
     const text = textOf(message.message.content)
     if (!text.includes(`<${TASK_NOTIFICATION_TAG}>`)) continue
-
     if (pickTag(text, STATUS_TAG) === 'resumed') continue
     const toolUseId = pickTag(text, TOOL_USE_ID_TAG)
     const taskId = pickTag(text, TASK_ID_TAG)
@@ -269,7 +266,6 @@ export function stoppedRecordFor(receipt: BackgroundLaunchReceipt, now: number =
     startTime: receipt.launchedAt,
     endTime: now,
     isBackgrounded: true,
-
     retain: false,
     evictAfter: now + PANEL_GRACE_MS,
     error: 'stopped by a runner restart',

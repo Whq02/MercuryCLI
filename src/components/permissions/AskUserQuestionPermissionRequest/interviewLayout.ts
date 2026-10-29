@@ -1,3 +1,4 @@
+
 import { stringWidth } from '../../../ink/stringWidth.js'
 import type { InterviewQuestion } from '../../../services/interview/contracts.js'
 
@@ -5,24 +6,16 @@ type InterviewLayoutMode = 'side-by-side' | 'stacked' | 'minimal'
 
 interface InterviewLayout {
   mode: InterviewLayoutMode
-
   optionPaneWidth: number
-
   previewContentWidth: number
-
   previewMaxLines: number
-
   notesInline: boolean
-
   notesInputWidth: number
 }
 
 const PREVIEW_FRAME_CELLS = 4
-
 const PANE_GAP = 2
-
 const PREVIEW_CHROME_ROWS = 11
-
 const MIN_OPTION_PANE = 18
 const MIN_PREVIEW_CONTENT = 24
 const MIN_STACKED_WIDTH = 20
@@ -31,7 +24,6 @@ const MINIMAL_ROWS = 10
 export function measureOptionPane(question: InterviewQuestion): number {
   let widest = 0
   question.options.forEach((o, i) => {
-
     widest = Math.max(widest, 5 + stringWidth(`${i + 1}. `) - 3 + stringWidth(o.label) + 2)
   })
   return Math.max(MIN_OPTION_PANE, Math.min(widest, 40))

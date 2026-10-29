@@ -40,7 +40,6 @@ function interpretAnswer(answer: string, command: string): CommandPrefixResult |
   if (answer === 'git') return { commandPrefix: null }
   if (DANGEROUS_SHELL_PREFIXES.has(answer.toLowerCase())) return { commandPrefix: null }
   if (answer === NONE) return { commandPrefix: null }
-
   if (!command.startsWith(answer)) return { commandPrefix: null }
   return { commandPrefix: answer }
 }
@@ -61,9 +60,7 @@ export function createCommandPrefixExtractor(config: PrefixExtractorConfig) {
     abortSignal: AbortSignal,
     isNonInteractiveSession: boolean,
   ): Promise<CommandPrefixResult | null> => {
-
     if (process.env.NODE_ENV === 'test') return null
-
     const preChecked = config.preCheck?.(command)
     if (preChecked !== null && preChecked !== undefined) return preChecked
 
@@ -106,7 +103,6 @@ export function createSubcommandPrefixExtractor(
     isNonInteractiveSession: boolean,
   ): Promise<CommandSubcommandPrefixResult | null> => {
     const subcommands = await splitCommand(command)
-
     const [whole, ...subResults] = await Promise.all([
       getPrefix(command, abortSignal, isNonInteractiveSession),
       ...subcommands.map(sub => getPrefix(sub, abortSignal, isNonInteractiveSession)),

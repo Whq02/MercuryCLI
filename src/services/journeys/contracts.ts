@@ -1,3 +1,4 @@
+
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { ReadinessCondition } from '../projectServices/contracts.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -9,7 +10,6 @@ export function journeysEnabled(): boolean {
 export type JourneyStep =
   | {
       kind: 'service.start'
-
       name: string
       command: string
       args?: string[]
@@ -21,7 +21,6 @@ export type JourneyStep =
   | { kind: 'service.wait'; name: string; label?: string; timeoutMs?: number }
   | {
       kind: 'http.request'
-
       url: string
       method?: string
       body?: string
@@ -30,7 +29,6 @@ export type JourneyStep =
         status?: number
         bodyIncludes?: string
         headerIncludes?: Record<string, string>
-
         jsonPath?: string
         equals?: string
       }
@@ -55,7 +53,6 @@ export type JourneyStep =
     }
   | {
       kind: 'log.match'
-
       service: string
       pattern: string
       label?: string
@@ -63,14 +60,12 @@ export type JourneyStep =
     }
   | {
       kind: 'diagnostic.check'
-
       files: string[]
       label?: string
       timeoutMs?: number
     }
   | {
       kind: 'value.assert'
-
       jsonPath: string
       equals: string
       label?: string
@@ -81,7 +76,6 @@ export type JourneyStep =
 export interface JourneySpec {
   objective: string
   steps: JourneyStep[]
-
   cleanup?: 'stop-started' | 'keep'
 }
 
@@ -92,7 +86,6 @@ interface JourneyStepResult {
   kind: JourneyStep['kind']
   label: string
   state: JourneyStepState
-
   detail: string
   evidenceRef?: string
   elapsedMs: number
@@ -108,11 +101,8 @@ export interface JourneyRecord {
   settledAt?: number
   root: string
   steps: JourneyStepResult[]
-
   cleanup: { service: string; action: 'stopped' | 'kept' | 'stop-failed'; detail?: string }[]
-
   executionRef: string
   evidenceRefs: string[]
-
   failedStep?: number
 }

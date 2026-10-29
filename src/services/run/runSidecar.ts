@@ -1,3 +1,4 @@
+
 import { readFile, unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import * as path from 'node:path'
@@ -55,7 +56,6 @@ async function publishRunSidecar(
   snapshot: RunSnapshot,
   writer?: SidecarWriter,
 ): Promise<void> {
-
   if (!writeSeqByOwner.has(owner)) {
     try {
       const raw = await readFile(runSidecarPath(owner), 'utf8')
@@ -68,7 +68,6 @@ async function publishRunSidecar(
   }
   const seq = (writeSeqByOwner.get(owner) ?? 0) + 1
   writeSeqByOwner.set(owner, seq)
-
   await durableAtomicPublish(
     runSidecarPath(owner),
     JSON.stringify(
@@ -178,7 +177,6 @@ export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
   try {
     raw = await readFile(file, 'utf8')
   } catch (e) {
-
     const cls = classifyReadFailure(e)
     if (cls.state === 'empty') return { state: 'none' }
     return { state: 'unavailable', reason: cls.reason, retryable: cls.retryable }
@@ -189,7 +187,6 @@ export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
   } catch {
     return { state: 'recoverable', reason: 'sidecar is not valid JSON (torn or corrupt write)', raw }
   }
-
   if (typeof parsed.writeSeq === 'number' && Number.isFinite(parsed.writeSeq)) {
     if ((writeSeqByOwner.get(owner) ?? 0) < parsed.writeSeq) {
       writeSeqByOwner.set(owner, parsed.writeSeq)

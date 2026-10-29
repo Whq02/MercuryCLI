@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -75,7 +74,6 @@ section('§E D07 — one vocabulary, versioned projections, no parallel truth')
   const { execSync } = await import('node:child_process')
   const defs = execSync("grep -rl 'ACTIVITY_CLASSES = \\[' src --include='*.ts' --include='*.tsx'", { encoding: 'utf8' }).trim().split('\n')
   check('exactly ONE ACTIVITY_CLASSES definition tree-wide', defs.length === 1 && defs[0] === 'src/services/crew/activity.ts', defs.join(','))
-
   const acp = readFileSync(join(ROOT, 'src/services/acp/acpServer.ts'), 'utf8')
   check('the ACP crew surface consumes THE crew owners (same ids, same folds)', acp.includes("'_mercury/crew'") && acp.includes('resolveCrewSnapshot') && acp.includes('deriveInbox'))
 }
@@ -98,7 +96,6 @@ section('§G D03/D04 — role/handoff/delivery truth where it ships')
   const handoffSrc = readFileSync(join(ROOT, 'src/services/crew/consoleHandoff.ts'), 'utf8')
   check('handoff links BOTH lineages with no id change', handoffSrc.includes("linkConversation(sideConversationId, targetConversationId, 'handoff'"))
   check('a conversation cannot hand off to itself (typed refusal)', handoffSrc.includes('cannot hand off to itself'))
-
   for (const suite of ['scripts/helm-console/run-all.sh', 'scripts/crew/run-all.sh']) {
     const { existsSync } = await import('node:fs')
     check(`standing journey suite present: ${suite}`, existsSync(join(ROOT, suite)))

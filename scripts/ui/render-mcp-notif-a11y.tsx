@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -18,7 +17,6 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.A11Y_RENDER_CHILD) {
@@ -32,7 +30,6 @@ if (process.env.A11Y_RENDER_CHILD) {
     GLYPH: Record<string, string>
   }
   const h = React.createElement
-
   const line = (colored: React.ReactNode, tail: string) =>
     h(Text, { wrap: 'truncate' }, h(React.Fragment, null, colored, h(Text, { dimColor: true }, tail)))
   void render(
@@ -46,7 +43,6 @@ if (process.env.A11Y_RENDER_CHILD) {
   )
   setTimeout(() => process.exit(0), 1800)
 } else {
-
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
@@ -69,13 +65,11 @@ if (process.env.A11Y_RENDER_CHILD) {
         out: `/tmp/notif-${tag}.json`,
       }),
     )
-
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
       timeout: 30000,
       env: {
         ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME,
         NO_COLOR: '1',
         FORCE_COLOR: '0',
@@ -97,7 +91,6 @@ if (process.env.A11Y_RENDER_CHILD) {
 
   const narrow = capture(18, 'narrow')
   console.log(narrow.split('\n').filter(l => /✕|▲/.test(l)).join('\n'))
-
   check('NO_COLOR narrow: the leading ✕ survives truncation', /✕ 2 MCP servers/.test(narrow))
   check('NO_COLOR narrow: the leading ▲ survives truncation', /▲ 3 MCP servers/.test(narrow))
   check('NO_COLOR narrow: the trailing "· /mcp" hint is what gets clipped (truncated, not the glyph)', !/2 MCP servers failed · \/mcp/.test(narrow))

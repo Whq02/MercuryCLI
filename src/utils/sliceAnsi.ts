@@ -21,21 +21,18 @@ export default function sliceAnsi(str: string, start: number, end?: number): str
   for (const token of tokens) {
     const width = widthOf(token)
     if (token.type === 'control') {
-
       if (cell >= bound) break
       if (included) pieces.push(token.code)
       continue
     }
     if (cell + width > bound && token.type !== 'ansi') {
       if (width > 0) break
-
       if (!included) break
       pieces.push(token.value)
       continue
     }
     if (token.type === 'ansi') {
       if (cell >= bound) {
-
         break
       }
       if (included) {
@@ -52,17 +49,14 @@ export default function sliceAnsi(str: string, start: number, end?: number): str
       continue
     }
     if (cell < start && cell + width > start) {
-
       cell += width
       continue
     }
     if (!included && width === 0 && start > 0) {
-
       cell += width
       continue
     }
     if (!included) {
-
       active = reduceAnsiCodes(accumulated).filter(code => code.code !== code.endCode)
       for (const code of active) pieces.push(code.code)
       included = true
@@ -72,7 +66,6 @@ export default function sliceAnsi(str: string, start: number, end?: number): str
   }
 
   if (included) {
-
     const open = active.filter(code => code.code !== code.endCode)
     for (const code of undoAnsiCodes(open)) pieces.push(code.code)
   }

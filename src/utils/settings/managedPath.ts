@@ -5,6 +5,7 @@ import memoize from 'lodash-es/memoize.js'
 
 import { getPlatform, type Platform } from '../platform.js'
 
+
 export function managedRootCandidates(platform: Platform): string[] {
   switch (platform) {
     case 'macos':

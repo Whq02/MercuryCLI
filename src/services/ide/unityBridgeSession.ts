@@ -1,3 +1,4 @@
+
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { unityBridgeEnabled, unityBridgePort } from '../../utils/unity/bridgeGates.js'
@@ -24,6 +25,7 @@ export const UNITY_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Unity dev lanes") or MERCURY_UNITY=1'
 
 const BRIDGE_OP_TIMEOUT_MS = 8_000
+
 
 type UnityLaneArming =
   | { state: 'armed' }
@@ -59,13 +61,13 @@ interface UnityTestResultsTruth {
 
 interface UnityBridgeIdeSession {
   project: UnityProjectResult
-
   unityLane: UnityLaneArming
   bridge: UnityBridgeState
   editor: UnityEditorTruth
   tests: UnityTestResultsTruth
   collectedAt: number
 }
+
 
 function laneArming(armed: boolean): UnityLaneArming {
   return armed ? { state: 'armed' } : { state: 'disarmed', armSurface: UNITY_LANES_ARM_SURFACE }
@@ -122,7 +124,6 @@ async function collectEditorTruth(
           : 'bridge unreachable'
     return { state: 'unavailable', detail: `unavailable (${why}) — ${bridge.detail}` }
   }
-
   const client = getUnityBridgeClient()
   if (!client || findUnityProjectRoot() !== root) {
     return {
@@ -163,6 +164,7 @@ function testResultsLine(root: string | undefined, mode: 'EditMode' | 'PlayMode'
   )
 }
 
+
 export async function buildUnityBridgeIdeSession(
   from: string = getCwd(),
 ): Promise<UnityBridgeIdeSession> {
@@ -181,6 +183,7 @@ export async function buildUnityBridgeIdeSession(
     collectedAt: Date.now(),
   }
 }
+
 
 export function unityBridgeReadinessRecords(): Array<{
   id: string

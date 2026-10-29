@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   managedRootCandidates,
   resolveManagedRoot,

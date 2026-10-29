@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -75,7 +74,6 @@ for (const tip of tips) {
       else process.env.TERM_PROGRAM = prev
     }
     for (const m of rendered.matchAll(/(?:^|\s)\/([a-z][a-z0-9-]*)/g)) seenCommands.add(m[1]!)
-
     check(`no exclamation [${tip.id}]`, !/\S!/.test(rendered) && !/!$/.test(rendered), rendered)
     check(`no ellipsis flourish [${tip.id}]`, !rendered.includes('…') && !rendered.includes('...'), rendered)
     check(`no emoji [${tip.id}]`, !emojiRe.test(rendered), rendered)

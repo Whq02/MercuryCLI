@@ -15,10 +15,10 @@ import {
 } from '../../services/mcp/utils.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 
+
 type McpAuthOutput = {
   message: string
   authUrl?: string
-
   status: 'auth_url' | 'unsupported' | 'error'
 }
 
@@ -55,7 +55,6 @@ export function createMcpAuthTool(
             clients = [...clients]
             clients[existingIndex] = report.client
           }
-
           const tools = [
             ...excludeToolsByServer(prev.mcp.tools, serverName),
             ...report.tools,
@@ -111,7 +110,6 @@ export function createMcpAuthTool(
     renderToolUseErrorMessage: () => null,
     async call(_input: Record<string, never>, context: ToolUseContext) {
       const configType = config.type ?? 'stdio'
-
       if (configType === 'claudeai-proxy') {
         return {
           data: {
@@ -120,7 +118,6 @@ export function createMcpAuthTool(
           } satisfies McpAuthOutput,
         }
       }
-
       if (configType !== 'sse' && configType !== 'http') {
         return {
           data: {
@@ -141,7 +138,6 @@ export function createMcpAuthTool(
           undefined,
           { skipBrowserOpen: true },
         )
-
         void flowPromise
           .then(() => reconnectContinuation(context.setAppState))
           .catch(err => logMCPError(serverName, err))
@@ -159,7 +155,6 @@ export function createMcpAuthTool(
             } satisfies McpAuthOutput,
           }
         }
-
         return {
           data: {
             status: 'auth_url' as const,

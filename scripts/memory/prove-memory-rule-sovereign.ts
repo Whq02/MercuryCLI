@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/ruleCard.ts src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/components/memory/MemoryCentreView.tsx src/utils/permissions/PermissionMode.ts src/cli/run.ts src/cli/headless/runnerAsks.ts
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -1,3 +1,4 @@
+
 const foldFor = (platform: NodeJS.Platform) => (s: string): string => {
   const normalised = s.replace(/\\/g, '/')
   return platform === 'win32' ? normalised.toLowerCase() : normalised

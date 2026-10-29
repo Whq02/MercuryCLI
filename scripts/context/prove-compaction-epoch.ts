@@ -78,7 +78,6 @@ async function main(): Promise<void> {
       epochs.getContextEpoch(A).lastTransition?.tokensBefore === 180_000 &&
         epochs.getContextEpoch(A).lastTransition?.tokensAfter === 30_000,
     )
-
     let staleRan = false
     let currentRan = false
     epochs.advanceContextEpoch(A, {
@@ -96,7 +95,6 @@ async function main(): Promise<void> {
     })
     check('a stale sweep (older epoch) is dropped', !staleRan)
     check('a current-epoch sweep runs', currentRan)
-
     epochs.advanceContextEpoch(A, {
       kind: 'auto-compact',
       reason: 'threshold',

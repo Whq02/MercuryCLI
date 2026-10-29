@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -34,7 +33,6 @@ const SEAT_MARK = 'crew-seat:'
 const NOTES_FILE = 'crew-notes.txt'
 const SEATS = { one: 'crew-one', two: 'crew-two', three: 'crew-three' } as const
 type Seat = keyof typeof SEATS
-
 const SEAT_READS = 10
 const SEAT_STEP_MS = 2500
 const DECLINE_TEXT = 'CREW-FIXTURE-DECLINE'
@@ -53,7 +51,6 @@ const offersTool = (body: unknown, name: string): boolean => {
   const tools = (body as { tools?: unknown[] })?.tools
   return Array.isArray(tools) && tools.some(t => (t as { name?: string })?.name === name)
 }
-
 function answeredTool(items: Item[]): string | null {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return null
@@ -68,7 +65,6 @@ function answeredTool(items: Item[]): string | null {
   }
   return null
 }
-
 function seatOf(items: Item[]): Seat | null {
   const userText = items
     .filter(i => i.role === 'user')
@@ -88,7 +84,6 @@ type Answer =
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
 const USAGE = { input_tokens: 900, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
-
 function answer(model: string, blocks: Answer[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const parts: string[] = [
@@ -151,7 +146,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       const items = itemsOf(body)
       const lastUser = [...items].reverse().find(i => i.role === 'user')
       const lastUserText = lastUser ? textOf(lastUser.content) : ''
-
       const seat = seatOf(items)
       const answered = answeredTool(items)
       let route: Route
@@ -181,7 +175,6 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           break
         case 'seat':
           if (seat === 'three') {
-
             res.writeHead(400, { 'content-type': 'application/json' })
             res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: DECLINE_TEXT } }))
             return
@@ -323,7 +316,6 @@ function agentTranscripts(home: string): Array<{ path: string; seat: Seat | null
 
 const rowsWith = (frame: string | undefined, needle: string | RegExp): string[] =>
   (frame ?? '').split('\n').filter(line => (typeof needle === 'string' ? line.includes(needle) : needle.test(line)))
-
 const RUNNING_WORDS = /running|request sent|waiting for the first byte|first byte in|reasoning|streaming|Read/
 const runs = (row: string): boolean => RUNNING_WORDS.test(row)
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
@@ -353,25 +345,17 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-
         { data: 'crew-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '', afterPrevTicks: 8, mark: 'launched' },
-
         { data: '\x1b', awaitText: 'waiting on 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
-
         { data: '', afterPrevTicks: 15, mark: 'after-esc' },
-
         { data: '/crewmates\r', afterPrevTicks: 2 },
-
         { data: 'x', awaitText: SEATS.one, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew' },
         { data: 'x', afterPrevTicks: 3, mark: 'x1' },
         { data: '', afterPrevTicks: 12, mark: 'x2' },
-
         { data: 'r', afterPrevTicks: 5, mark: 'pre-resume' },
         { data: '', afterPrevTicks: 20, mark: 'resumed' },
-
         { data: '\x1b', afterPrevTicks: 2 },
         { data: 'crew-drive: fail\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'chat-again' },
         { data: '', afterPrevTicks: 60, mark: 'end' },
@@ -414,7 +398,6 @@ if (cap !== null) {
   check('K1 the crew view lists both agents as running (the status cell speaks the phase)', crewRows(SEATS.one).some(runs) && crewRows(SEATS.two).some(runs), [...crewRows(SEATS.one), ...crewRows(SEATS.two)].map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— K2 x twice within two seconds —')
-
   const cursorRow = rowsWith(m['crew'], /▸/).find(r => r.includes(SEATS.one) || r.includes(SEATS.two)) ?? ''
   const stoppedSeat: Seat = cursorRow.includes(SEATS.two) ? 'two' : 'one'
   const otherSeat: Seat = stoppedSeat === 'one' ? 'two' : 'one'
@@ -447,7 +430,6 @@ if (cap !== null) {
   check('K3 a notice arriving alone after the operator turn still takes the notice-only route', fixture.hits.some(h => h.route === 'note' && h.lastUserText.includes('<status>failed</status>') && !h.lastUserText.includes('crew-drive: fail')))
 
   console.log('\n— K4 resume —')
-
   const resumedHits = fixture.hits.filter(h => h.seat === stoppedSeat && h.atMs >= resumeAt - 200)
   const resumedFirst = resumedHits[0]
   check(`K4 after r the stopped seat called the fixture again (${resumedHits.length} calls)`, resumedHits.length >= 1)
@@ -458,7 +440,6 @@ if (cap !== null) {
   const transcripts = agentTranscripts(home)
   const stoppedTranscript = transcripts.find(t => t.seat === stoppedSeat)
   console.log(`  transcripts on disk: ${transcripts.map(t => `${t.seat ?? '?'}:${t.lines.length} lines`).join(', ') || 'none'}`)
-
   check('K4 the stopped agent\'s transcript stands on disk with the reads before the stop and the resume note after', stoppedTranscript !== undefined && stoppedTranscript.lines.some(l => /tool[-_]result/.test(l)) && stoppedTranscript.lines.some(l => /resumed/i.test(l) && /crew view/.test(l)))
 }
 

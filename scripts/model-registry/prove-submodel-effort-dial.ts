@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -42,7 +41,6 @@ process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 process.env.MERCURY_OPENROUTER_AUTH_BASE = 'https://fixture.invalid/auth'
 process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'ollama=http://fixture.invalid:11434'
-
 process.env.ANTHROPIC_API_KEY = 'sk-ant-api03-effort-dial-proof-00000000'
 process.env.OPENAI_API_KEY = 'prover-key'
 process.env.OPENROUTER_API_KEY = 'sk-or-v1-EFFORTDIALPROOF00000000'
@@ -384,7 +382,6 @@ section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and t
     for (let i = windows.length - 1; i >= 0; i--) {
       if (stripAnsi(windows[i]!).trim() !== '') return stripAnsi(windows[i]!)
     }
-
     const HEADER = 'main: '
     const segments = stripAnsi(output).split(HEADER)
     return segments.length > 1 ? HEADER + segments[segments.length - 1]! : stripAnsi(output)

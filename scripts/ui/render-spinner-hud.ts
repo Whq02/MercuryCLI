@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -9,7 +8,6 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BIN = join(root, 'dist', 'mercury.mjs')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
 if (!existsSync(VSHOT) || !existsSync(BIN)) {
@@ -28,12 +26,10 @@ const STREAM_PROMPT =
   'Count from 1 to 40, one number per line, each followed by a short desert-themed word. No preamble.'
 
 const drive = (cols: number, rows: number, total: number, tag: string): string => {
-
   execFileSync('sleep', ['4'])
   const cfg = `/tmp/vs-hud-${tag}.json`
   writeFileSync(cfg, JSON.stringify({
     argv: ['node', BIN],
-
     sends: [
       { atTick: 32, data: WARMUP_PROMPT }, { atTick: 36, data: '\r' },
       { atTick: 70, data: STREAM_PROMPT }, { atTick: 73, data: '\r' },
@@ -42,7 +38,6 @@ const drive = (cols: number, rows: number, total: number, tag: string): string =
     out: `/tmp/hud-${tag}.html`,
     title: `spinner hud ${tag}`,
   }))
-
   return execFileSync('/usr/bin/python3', [VSHOT, cfg], { encoding: 'utf-8', timeout: vshotBudgetMs(120000), env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_HIP: '1' } })
 }
 
@@ -67,11 +62,9 @@ for (const [cols, rows] of [[80, 30], [120, 30]] as const) {
   if (!/\d+% ctx/.test(grid)) grid = drive(cols, rows, 135, `${cols}-retry`)
   const line = bylineOf(grid)
   console.log(`  byline @${cols}: ${line.trim().slice(0, 78) || '(none)'}`)
-
   const inTurn = /\d+% ctx/.test(grid)
   if (inTurn) {
     console.log(`  [PASS] @${cols}: in-turn byline captured (live ctx gauge)`)
-
     check(`@${cols}: token-burn counter present ("tokens")`, /tokens/.test(grid))
   } else {
     console.log(`  [WARN] @${cols}: capture missed the in-turn window — HUD invariants covered by prove-spinner-hud + render-spinner-wif`)

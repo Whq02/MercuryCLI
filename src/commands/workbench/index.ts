@@ -1,6 +1,7 @@
 import type { Command } from '../../commands.js'
 import { workbenchEnabled } from '../../services/workbench/contracts.js'
 
+
 const workbenchCommand = {
   type: 'local-jsx',
   name: 'workbench',

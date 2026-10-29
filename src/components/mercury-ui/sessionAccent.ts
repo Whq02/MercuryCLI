@@ -1,3 +1,4 @@
+
 import { useSyncExternalStore } from 'react'
 import { CLAW, TERRA } from '../mercuryPalette.js'
 import { flagEnv, setFlagEnv } from '../../substrate/flagRegistry.js'
@@ -37,7 +38,6 @@ let activeKey: string | null = null
 
 function poolKeyOr(key: string): string {
   if (Object.hasOwn(CRITTERS, key)) return key
-
   for (const k of Object.keys(CRITTERS)) {
     if (CRITTERS[k]!.name === key) return k
   }
@@ -59,7 +59,6 @@ function currentKey(): string {
         : DEFAULT_CRITTER_KEY
     return activeKey
   } catch {
-
     return DEFAULT_CRITTER_KEY
   }
 }
@@ -72,7 +71,6 @@ function bumpAccentEpoch(): void {
 export function getAccentEpoch(): number {
   return accentEpoch
 }
-
 let accentOverride: Critter | null = null
 
 export function deepOf(hex: string): string {
@@ -117,7 +115,6 @@ let overrideTint: { base: Critter; override: Critter; value: Critter } | null = 
 
 export function getSessionAccent(): Critter {
   const base = CRITTERS[currentKey()] ?? CRITTERS.crab!
-
   if (accentOverride) {
     const memo = overrideTint
     if (memo !== null && memo.base === base && memo.override === accentOverride) return memo.value
@@ -153,7 +150,7 @@ export function cycleSessionCritter(): void {
 }
 
 export function persistSessionCritter(key: string): void {
-
+  
   const k = (key ?? '').trim().toLowerCase()
   if (!CRITTERS[k]) return
   try {
@@ -192,6 +189,5 @@ export function useSessionAccent(): Critter {
     getSessionAccentSnapshotKey,
     getSessionAccentSnapshotKey,
   )
-
   return getSessionAccent()
 }

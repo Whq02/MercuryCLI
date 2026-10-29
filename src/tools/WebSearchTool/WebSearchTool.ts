@@ -75,7 +75,6 @@ export const WebSearchTool = buildTool({
   },
   getToolUseSummary,
   async validateInput(input: Input) {
-
     if (!input.query) {
       return { result: false as const, message: 'Error: Missing query', errorCode: 1 }
     }
@@ -99,7 +98,6 @@ export const WebSearchTool = buildTool({
     return { data: await runSearch(input, context, onProgress) }
   },
   mapToolResultToToolResultBlockParam: mapSearchResult,
-
   extractSearchText(): string {
     return ''
   },

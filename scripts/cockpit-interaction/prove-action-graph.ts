@@ -65,7 +65,6 @@ t.section('§3 — totality: the defaults never bind an unregistered action')
 
 t.section('§4 — honest collisions with the reserved chords')
 {
-
   const ALLOWED = new Set([
     'cmd+c→selection:copy',
     'ctrl+c→app:interrupt',
@@ -97,7 +96,6 @@ t.section('§5 — authored meaning')
   t.check('every action carries a real description', blank.length === 0, blank.join(', ') || 'ok')
   const contextless = KEYBINDING_ACTIONS.filter(a => (graph[a]?.contexts ?? []).length === 0)
   t.check('every action declares its consumer contexts', contextless.length === 0, contextless.join(', ') || 'ok')
-
   const retired = [
     'app:toggleBrief', 'confirm:previousField', 'app:globalSearch', 'app:quickOpen',
     'crew:open-board', 'settings:search', 'confirm:toggle', 'confirm:nextField',

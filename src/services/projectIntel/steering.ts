@@ -1,3 +1,4 @@
+
 import { projectIntelEnabled } from './contracts.js'
 import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
 
@@ -40,7 +41,6 @@ function refsOn(): boolean {
 }
 
 export function searchSteeringLine(offered: OfferedTools = null): string | null {
-
   if (!projectIntelEnabled()) return null
   const parts: string[] = []
   if (lspOn(offered)) {

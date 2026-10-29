@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -59,7 +58,6 @@ section('§1 the mount predicate')
   const manager = mgr.getLspServerManager() as
     | { openFile(p: string, c: string): Promise<void>; getAllServers(): Map<string, { state: string }>; shutdown(): Promise<void> }
     | undefined
-
   const key = manager !== undefined ? [...manager.getAllServers().keys()].find(k => k === 'fakecrash' || k.endsWith(':fakecrash')) : undefined
   check('the manager initialised with the configured server', manager !== undefined && key !== undefined, manager !== undefined ? [...manager.getAllServers().keys()].join(',') : 'no manager')
   check('a configured server mounts the tool', mounted?.() === true)

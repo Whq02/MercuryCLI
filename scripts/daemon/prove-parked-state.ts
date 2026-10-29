@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -10,7 +9,6 @@ const SCRATCH = mkdtempSync(join(tmpdir(), 'parked-state-'))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
-
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-parked-state-probe'
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
@@ -42,7 +40,6 @@ const { getCwd } = await import('../../src/utils/cwd.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 
 const dir = process.env.MERCURY_DAEMON_DIR!
-
 const DEAD_PID = 2_147_000_000
 const T = 10 * 60_000
 const now = Date.now()
@@ -75,7 +72,6 @@ console.log('L1 the state ladder — the truth table')
   const bits = [false, true]
   const rows: Row[] = []
   for (const attached of bits) for (const parked of bits) for (const stopped of bits) for (const paused of bits) for (const crash of bits) for (const needsYou of bits) for (const alive of bits) for (const settled of bits) rows.push({ attached, parked, stopped, paused, crash, needsYou, alive, settled })
-
   const before = (r: Row): string =>
     r.attached ? 'attached' : r.stopped ? 'stopped' : r.paused ? 'paused' : r.crash ? 'needs-you' : r.needsYou ? 'needs-you' : r.alive ? (r.settled ? 'ready-to-review' : 'working') : 'starting'
   let oneState = 0
@@ -147,7 +143,6 @@ console.log('L2 the park verb')
   check('NEWBORN × PARKED: a chat born and never messaged is RELEASED, not parked (killed, endedAt set, no parkedAt)', newbornOut.outcome === 'applied' && newbornOut.released && killed.includes('concourse-w4') && rec('concourse-w4')?.endedAt !== undefined && rec('concourse-w4')?.parkedAt === undefined, JSON.stringify(newbornOut))
   const reasoned = sup.parkConcourseSession(sid('6'), 'daemon:test', roster, dir, { reason: 'parked — the runner refused to come back' })
   check('a reason rides the park (the failed-reactivate row line)', reasoned.outcome === 'applied' && rec('concourse-w6')?.parkReason === 'parked — the runner refused to come back')
-
   seed([
     { runnerId: 'concourse-w1', sessionId: sid('1'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5, parkedAt: now, parkedBy: 'operator:test' },
     { runnerId: 'concourse-w7', sessionId: sid('7'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 },
@@ -343,7 +338,6 @@ console.log('L4 the idle reaper never retires a parked record')
   killed.length = 0
   const swept = idle.sweepIdleEmptyConcourseSessions(roster, { dir, nowMs: now, thresholdMs: T })
   check('the sweep skips the parked record (parked with no runner is still parked)', !swept.some(r => r.runnerId === 'concourse-w1') && rec('concourse-w1')?.parkedAt !== undefined && rec('concourse-w1')?.stoppedAt === undefined)
-
   check('POISON CONTROL: the unparked empty idle twin gets its stop requested (the sweep reports it, the request is stamped)', swept.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stopRequestedAt !== undefined)
   sup.updateConcourseWorkers(workers => {
     const w = workers['concourse-w2']
@@ -368,13 +362,11 @@ console.log('L5 admission: a parked chat holds no room')
     kill: (short: string) => present.delete(short),
   }
   const admit = sup.makeConcourseAdmitHandler({ roster: () => fakeRoster as never, dir })
-
   present.add('concourse-w1')
   seed([{ runnerId: 'concourse-w1', sessionId: sid('m1'), pid: DEAD_PID, parkedAt: now - 1000, parkedBy: 'operator:test', lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }], sup.canonicalWorkspaceId(room))
   const born = await admit({ workspaceDir: room, bornBlank: true })
   check('a fresh exclusive session admits into the parked chat\'s room (no collision, no worktree, no git offer)', born.ok && sup.readSessionWorkers(dir)[born.runnerId]?.isolation === 'exclusive', JSON.stringify(born))
   check('the parked record keeps its own short; the birth mints another (never a recycled id)', born.ok && born.runnerId !== 'concourse-w1' && rec('concourse-w1')?.parkedAt !== undefined)
-
   present.clear()
   present.add('concourse-w1')
   seed([{ runnerId: 'concourse-w1', sessionId: sid('m1'), pid: process.pid, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }], sup.canonicalWorkspaceId(room))
@@ -393,7 +385,6 @@ console.log('L6 the board: one parked row, one parked group')
   const parkedSid = sid('b1')
   const liveSid = sid('b2')
   const reasonSid = sid('b3')
-
   const file = workerTranscriptPath({ sessionId: parkedSid, workspaceId: project })
   mkdirSync(dirname(file), { recursive: true })
   const userRow = { isSidechain: false, entrypoint: 'cli', cwd: project, sessionId: parkedSid, version: '1.0.0-beta.1', gitBranch: 'main', parentUuid: null, uuid: '00000000-0000-4000-8000-00000000b001', timestamp: new Date(now).toISOString(), type: 'user', message: { role: 'user', content: 'park me please' } }

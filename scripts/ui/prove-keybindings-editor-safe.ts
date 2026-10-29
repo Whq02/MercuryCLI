@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/commands/keybindings/keybindings.ts src/utils/editor.ts src/utils/promptEditor.ts src/utils/process.ts src/utils/gracefulShutdown.ts src/ink/ink.tsx src/ink/components/App.tsx
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { grabScreens, nodeBinPath, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'

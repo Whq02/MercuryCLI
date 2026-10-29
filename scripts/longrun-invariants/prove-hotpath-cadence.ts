@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -116,7 +115,6 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
   _resetProjectIntelForTesting()
   const fresh = getProjectSnapshot(ws, { maxStaleMs: 120_000 })
   check('cold read builds fresh', fresh?.from === 'fresh', fresh?.from)
-
   fresh!.snapshot.generation.scannedAtMs = Date.now() - 200_000
   const validated = getProjectSnapshot(ws, { maxStaleMs: 120_000 })
   check('the aged read validates against the live tree', validated?.from === 'cache-validated', validated?.from)
@@ -138,7 +136,6 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
     join(import.meta.dir, '..', '..', 'src', 'services', 'run', 'effectObserver.ts'),
     'utf8',
   )
-
   check('the effect observer passes its event cwd', eo.includes('markMutation(event.owner, event.effect.changedPaths, event.cwd, {'))
   const cc = readFileSync(
     join(import.meta.dir, '..', '..', 'src', 'utils', 'attachments', 'contextCapsule.ts'),

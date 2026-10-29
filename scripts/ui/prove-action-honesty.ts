@@ -14,7 +14,6 @@ check(
   !/mission:a:/.test(rail) && !/mission:q:/.test(rail) && !/section\('tasks'/.test(rail),
 );
 check(
-
   'wake glance is a selectable row opening /saturn',
   rail.includes("command: '/saturn', label: 'wake:glance'"),
 );
@@ -42,7 +41,6 @@ check(
   "RealmsView ↵ labeled for its true consequence ('launch command')",
   realms.includes("hint: 'launch command'"),
 );
-
 check(
   'RealmsView n/g/⌫ BEGIN their workflows via prefill',
   realms.includes("prefillAndClose('/realms add ')") &&

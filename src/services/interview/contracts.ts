@@ -1,3 +1,4 @@
+
 export const INTERVIEW_SCHEMA_VERSION = 1
 
 export type InterviewSessionId = string
@@ -30,7 +31,6 @@ export interface InterviewQuestion {
   header: string
   options: InterviewOption[]
   multiSelect: boolean
-
   recommendedOptionId?: InterviewOptionId
 }
 
@@ -64,7 +64,6 @@ export type InterviewEvent =
       eventId: InterviewEventId
       atMs: number
       questions: InterviewQuestion[]
-
       round: number
     }
   | {
@@ -93,7 +92,6 @@ export type InterviewEvent =
       eventId: InterviewEventId
       atMs: number
       ref: InterviewContextRef
-
       questionId?: InterviewQuestionId
     }
   | {
@@ -106,7 +104,6 @@ export type InterviewEvent =
       kind: 'navigated'
       eventId: InterviewEventId
       atMs: number
-
       target: InterviewQuestionId | 'review'
     }
   | {
@@ -120,7 +117,6 @@ export type InterviewEvent =
       eventId: InterviewEventId
       atMs: number
       questionId: InterviewQuestionId
-
       proposedValue?: InterviewAnswerValue
     }
   | {
@@ -141,7 +137,6 @@ export interface InterviewQuestionState {
   draft?: InterviewAnswerValue
   committed?: InterviewAnswerValue
   note?: string
-
   priorCommits: InterviewAnswerValue[]
 }
 
@@ -152,17 +147,13 @@ export interface InterviewSessionState {
   toolUseId?: string
   phase: InterviewPhase
   round: number
-
   questionOrder: InterviewQuestionId[]
   questions: Record<InterviewQuestionId, InterviewQuestionState>
   context: InterviewContextRef[]
-
   contextScope: Record<string, InterviewQuestionId | undefined>
   focus: InterviewQuestionId | 'review' | null
-
   discussing: InterviewQuestionId | null
   outcome: InterviewOutcome | null
-
   seenEventIds: ReadonlySet<string>
 }
 
@@ -225,7 +216,6 @@ function applyEvent(s: InterviewSessionState, event: InterviewEvent): InterviewS
       for (const q of event.questions) {
         const known = questions[q.id]
         if (known) {
-
           questions[q.id] = { ...known, question: q }
         } else {
           questions[q.id] = { question: q, priorCommits: [] }
@@ -309,7 +299,6 @@ function applyEvent(s: InterviewSessionState, event: InterviewEvent): InterviewS
       }
     }
     default: {
-
       return s
     }
   }

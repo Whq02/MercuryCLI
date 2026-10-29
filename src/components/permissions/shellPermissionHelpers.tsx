@@ -155,7 +155,6 @@ export function generateShellSuggestionsLabel(
       )
     }
     if (directories.length + readPaths.length === 1 && commands.length === 1) {
-
       return (
         <>
           Yes, and allow {grantPhrase(directories, readPaths)} plus {commandsPhrase(commands)} in{' '}

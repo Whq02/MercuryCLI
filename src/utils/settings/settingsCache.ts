@@ -1,10 +1,10 @@
 import type { SettingSource } from './constants.js'
 import type { SettingsJson } from './types.js'
 
+
 type SessionSettingsCacheValue = { settings: SettingsJson; errors: unknown[] }
 
 let sessionSettingsCache: SessionSettingsCacheValue | null = null
-
 const perSourceCache = new Map<SettingSource, SettingsJson | null>()
 const parsedFileCache = new Map<string, { settings: SettingsJson | null; errors: unknown[] }>()
 const lastGoodParsedFile = new Map<string, SettingsJson>()

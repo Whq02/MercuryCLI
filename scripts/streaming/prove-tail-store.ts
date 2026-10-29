@@ -41,7 +41,6 @@ function makeSim(intervalMs = 40): Sim {
     timersPending: () => timers.filter(t => !t.dead && t.at > clock).length,
     advance: ms => {
       const target = clock + ms
-
       for (;;) {
         const due = timers
           .filter(t => !t.dead && t.at <= target)
@@ -99,14 +98,12 @@ console.log('── FLUX S2 tail-store laws ──')
 
 {
   const sim = makeSim(40)
-
   for (let i = 0; i < 100; i++) {
     sim.store.update(cur => (cur ?? '') + 'x')
     sim.advance(2)
   }
   sim.advance(60)
   const total = sim.publishes.length
-
   check(`storm publishes bounded (got ${total}, cap 8)`, total <= 8 && total >= 3)
   check('final trailing publish carries the COMPLETE value', sim.store.getSnapshot() === 'x'.repeat(100))
   const partials = sim.publishes.filter(p => p !== null)

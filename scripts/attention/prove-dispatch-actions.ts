@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -41,7 +40,6 @@ function seatFakeConnector(): { calls: SendCall[]; release: () => void } {
 t.section('§1 — no chat open: the honest refusal (the dead-store lie is gone)')
 {
   q.resetCommandQueue()
-
   const r = await A.submitDispatch({ intentId: A.mintIntentId(), kind: 'board-dispatch', value: 'resume wf_x' })
   t.check(
     "with NO chat open the receipt is 'dispatch-unavailable' (the old road LIED 'dispatch-accepted' into a store nothing reads)",

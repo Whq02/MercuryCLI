@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -49,7 +48,6 @@ async function settledBoard(dist: string, cols: number, rows: number): Promise<s
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
       MERCURY_LIVE_GLYPHS: '0',
-
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_IDLE: '0',
       ANTHROPIC_API_KEY: 'fixture-key-000',
@@ -75,7 +73,6 @@ for (const size of [
   { cols: 120, rows: 40 },
   { cols: 100, rows: 30 },
 ]) {
-
   const ctrlA = await settledBoard(BASE_DIST, size.cols, size.rows)
   const ctrlB = await settledBoard(BASE_DIST, size.cols, size.rows)
   const ctrlDiffs: number[] = []

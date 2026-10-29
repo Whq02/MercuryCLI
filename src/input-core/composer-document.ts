@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'crypto'
 import stripAnsi from 'strip-ansi'
 import type { PastedContent } from '../utils/config.js'
@@ -10,7 +11,6 @@ export const SHELF_ITEM_KINDS = [
   'large-paste',
   'artifact',
   'session-ref',
-
   'resource',
 ] as const
 export type ShelfItemKind = (typeof SHELF_ITEM_KINDS)[number]
@@ -18,12 +18,9 @@ export type ShelfItemKind = (typeof SHELF_ITEM_KINDS)[number]
 export const SHELF_ITEM_TOO_LARGE_BYTES = 1_048_576
 
 export interface ShelfItem {
-
   id: string
   kind: ShelfItemKind
-
   ref: string
-
   label: string
   state: 'ready' | 'missing' | 'too-large'
   bytes?: number
@@ -33,7 +30,6 @@ export interface ShelfItem {
 export interface ComposerDocument {
   v: 1
   scope: string
-
   body: string
   items: ShelfItem[]
 }
@@ -81,7 +77,6 @@ export function addShelfItem(
   doc: ComposerDocument,
   item: Pick<ShelfItem, 'kind' | 'ref' | 'label'> & Partial<Pick<ShelfItem, 'state' | 'bytes' | 'lines'>>,
 ): ComposerDocument {
-
   const pureRefKinds: ShelfItemKind[] = ['file', 'artifact', 'session-ref', 'resource']
   if (pureRefKinds.includes(item.kind) && doc.items.some(i => i.kind === item.kind && i.ref === item.ref)) {
     return doc
@@ -124,7 +119,6 @@ export function migrateDraft(
   draft: string,
   pastedContents: Record<number, PastedContent> | undefined,
 ): ComposerDocument & {
-
   bodies: Map<string, string>
 } {
   const doc = Object.assign(createComposerDocument(scope), { bodies: new Map<string, string>() })

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -90,7 +89,6 @@ t.section('§1 attention at 1,000 mixed items (fold · mint · sorted buckets ·
 
 t.section('§2 the relationship graph at 1,000 edges (fold · spawned-by depth walk)')
 {
-
   const edges = Array.from({ length: 1000 }, (_, i) => {
     const root = Math.floor(i / 10)
     const depth = i % 10
@@ -139,7 +137,6 @@ t.section('§3 the render window is structural (any item count renders O(window)
 
 t.section('§4 the intent layer adds no weight to the delivery door (steer-removal re-cut)')
 {
-
   const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
   const refusal = await submitDispatch({ intentId: 'perf-intent-1', kind: 'prompt', value: '' })
   t.check('an empty-intent refusal settles typed, doorless', refusal.kind === 'dispatch-unavailable')

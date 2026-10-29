@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -78,9 +77,7 @@ const resolveRef = async (adapter: ResourceAdapter, raw: string) => {
 }
 
 console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical projection) ===')
-
 {
-
   const doneFile = join(scratch, 'agent-done.jsonl')
   writeAgentTranscript(doneFile, { finalText: 'All four spot-checked findings are genuinely closed in source. Final report.' })
   tasks['ag-done'] = { id: 'ag-done', type: 'agent', status: 'completed', description: 'verify docs', startTime: 1, endTime: 2, outputFile: doneFile }
@@ -137,7 +134,6 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
 }
 
 console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> (runs live beside the session\'s starting folder) ===')
-
 {
   const runId = 'wf-vigil-1'
   const startingFolderBefore = getOriginalCwd()
@@ -188,7 +184,6 @@ console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> (runs live 
     check('…child returns the PROJECTION (OUTCOME), not raw lines', t.includes('OUTCOME:') && t.includes('phase-1 agent report'))
     check('…no raw JSONL braces leak', !t.includes('"type":"assistant"'))
   }
-
   const raw = await resolveRef(workflowAdapter, `mercury://workflow/${runId}?child=a1&lines=1-2`)
   check('explicit lines selector still reads the raw stream', raw.state === 'ok' && (raw.resource.text ?? '').includes('"payload"'))
 

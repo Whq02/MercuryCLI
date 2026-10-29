@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import type { TestCaseResult, TestRunRecord } from './pythonTests.js'
 import { unityTestResultsPath } from './unityProject.js'
@@ -8,17 +9,13 @@ const MESSAGE_CAP = 2_000
 
 interface UnityTestRunParse {
   state: 'ok'
-
   result: string
   counts: { passed: number; failed: number; skipped: number; errored: number }
-
   inconclusive: number
   cases: TestCaseResult[]
   casesTruncated?: number
-
   failures: string[]
   durationMs?: number
-
   verdictNote?: string
 }
 
@@ -30,7 +27,6 @@ interface UnityTestRunRejected {
 type UnityTestResultsOutcome = UnityTestRunParse | UnityTestRunRejected
 
 function decodeXmlText(raw: string): string {
-
   const cdata = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/)
   const text = cdata?.[1] !== undefined ? cdata[1] : raw
   return text
@@ -43,7 +39,6 @@ function decodeXmlText(raw: string): string {
 
 function attrs(tag: string): Record<string, string> {
   const out: Record<string, string> = {}
-
   for (const m of tag.matchAll(/([A-Za-z][\w.-]{0,63})="([^"]*)"/g)) {
     if (m[1] !== undefined && m[2] !== undefined) out[m[1]] = decodeXmlText(m[2])
   }
@@ -59,7 +54,6 @@ export function parseUnityTestResults(xml: string): UnityTestResultsOutcome {
   if (Buffer.byteLength(xml, 'utf8') > INPUT_CAP_BYTES) {
     return { state: 'rejected', reason: `results file exceeds the ${INPUT_CAP_BYTES / (1024 * 1024)}MiB parser cap` }
   }
-
   if (/<!DOCTYPE/i.test(xml) || /<!ENTITY/i.test(xml)) {
     return {
       state: 'rejected',
@@ -78,7 +72,6 @@ export function parseUnityTestResults(xml: string): UnityTestResultsOutcome {
   let failed = 0
   let skipped = 0
   let inconclusive = 0
-
   const caseRe = /<test-case\b([^>]*?)(\/>|>([\s\S]*?)<\/test-case>)/g
   for (const m of xml.matchAll(caseRe)) {
     const a = attrs(m[1] ?? '')
@@ -98,7 +91,6 @@ export function parseUnityTestResults(xml: string): UnityTestResultsOutcome {
       outcome = 'skipped'
       skipped++
     } else if (result === 'inconclusive') {
-
       outcome = 'skipped'
       inconclusive++
     } else {
@@ -202,7 +194,6 @@ export function unityRunToRecord(
     root: string
     mode: 'EditMode' | 'PlayMode'
     resultsPath: string
-
     selection: string
     finishedAt?: number
   },

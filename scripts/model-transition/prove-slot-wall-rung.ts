@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { codeOnlyText } from '../lib/codeText.ts'
@@ -70,7 +69,6 @@ section('§C the wall-row appendix words')
   }
   const anthropicAsk = slotWallAppendix('anthropic', { reads: anthropicPair, posture: 'off' })
   check('anthropic: the appendix names the managed key and the /logins door', anthropicAsk.includes('Anthropic API key (/logins managed key)') && anthropicAsk.includes("s on the family's row in /logins"))
-
   check('anthropic: an UNOBSERVABLE window is spoken as such — never "headroom"', anthropicAsk.includes('unobserved') && !anthropicAsk.includes('signed in with headroom'))
   const anthropicAuto = slotWallAppendix('anthropic', { reads: anthropicPair, posture: 'auto' })
   check('anthropic auto: the armed-switch receipt claims the switch, not headroom', anthropicAuto.includes("'auto' is armed") && !anthropicAuto.includes('headroom'))
@@ -78,7 +76,6 @@ section('§C the wall-row appendix words')
 
 section('§C2 the wall row remedies are composed ONCE, where the row is created (FN-016 R9)')
 {
-
   const { composeAnthropicWallRemedies } = await import('../../src/services/rateLimitMessages.ts')
   const all = composeAnthropicWallRemedies({
     slotAppendix: () => 'The other slot is signed in — the wall card offers the switch in one key.',
@@ -125,7 +122,6 @@ section('§D the surfaces (structural)')
 
 section('§E the card never fights the keyboard, and the memories outlive the composer (FN-016 R7 + R8)')
 {
-
   const { offerDismissed, noteOfferDismissal, offerAutoDone, noteOfferAutoDone, _resetOfferMemoriesForTesting } =
     await import('../../src/services/capFailover.ts')
   _resetOfferMemoriesForTesting()
@@ -142,12 +138,9 @@ section('§E the card never fights the keyboard, and the memories outlive the co
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')
   check('the composer consults the session-scoped memories (no component-ref sets remain)',
     composer.includes('offerDismissed(slotKey)') && !composer.includes('slotDismissedRef') && !composer.includes('capDismissedRef') && !composer.includes('slotAutoOnceRef') && !composer.includes('capAutoOnceRef'))
-
   check('the slot offer defers while a turn is in flight', composer.includes('if (turnInFlightNow) return'))
   const card = readFileSync(join(ROOT, 'src/components/SlotOfferCard.tsx'), 'utf8')
-
   check('the card registers its overlay', card.includes("useRegisterOverlay('slot-offer')"))
-
   check('Enter arms after a short window (never a type-ahead flip)',
     card.includes('SLOT_OFFER_ENTER_ARM_MS') && card.includes('mountedAtRef'))
 }
@@ -155,7 +148,6 @@ section('§E the card never fights the keyboard, and the memories outlive the co
 section('§G a dismissed slot offer leaves the ladder standing (FN-016 R19)')
 {
   const composerCode = codeOnlyText('useComposerModelDoors.tsx', readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8'))
-
   check('the mount is followed by its own return (the rung took the screen)',
     /setOverlay\('slot-offer'\)\s*\n\s*return\s*\n\s*\}/.test(composerCode))
   check('the dismissed path falls through to the next rung (no return between the mount guard and the auto arm)',
@@ -175,7 +167,6 @@ section('§F the offer card speaks only what the estate observed (FN-016 R18)')
 
 section('§H the switch receipt is durable (FN-016 R20)')
 {
-
   const { slotSwitchTransient } = await import('../../src/services/providers/slotSwitch.ts')
   const receiptWords =
     'Anthropic active slot switched: Claude sign-in → Anthropic API key. The next turn rides it — session identity untouched; the sign-in stays connected.'
@@ -210,7 +201,6 @@ section('§H the switch receipt is durable (FN-016 R20)')
 
 section('§H the wall key is stable: a reset-moment shift never re-arms; an observed clear does')
 {
-
   const { slotWallKey, noteSlotWallObserved, offerDismissed, noteOfferDismissal, offerAutoDone, noteOfferAutoDone, _resetOfferMemoriesForTesting } =
     await import('../../src/services/capFailover.ts')
   _resetOfferMemoriesForTesting()
@@ -219,19 +209,15 @@ section('§H the wall key is stable: a reset-moment shift never re-arms; an obse
   check('the same wall re-stated with a shifted reset is the SAME key', slotWallKey('anthropic', 'subscription') === key)
   noteOfferDismissal(key)
   noteOfferAutoDone(key)
-
   noteSlotWallObserved('anthropic', 'subscription', true)
   check('a reset-moment shift without a material change does not re-arm the answered offer', offerDismissed(key))
   check('…nor the auto latch', offerAutoDone(key))
-
   noteSlotWallObserved('anthropic', 'subscription', false)
   check('a real reset (the wall observed clear) re-arms the offer', !offerDismissed(key))
   check('…and the auto latch', !offerAutoDone(key))
-
   noteOfferDismissal(key)
   noteSlotWallObserved('anthropic', 'api-key', false)
   check("the other seat's clear leaves this seat's answered wall alone", offerDismissed(key))
-
   check('a seat flip keys a new wall', slotWallKey('anthropic', 'api-key') !== key)
   _resetOfferMemoriesForTesting()
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerModelDoors.tsx'), 'utf8')

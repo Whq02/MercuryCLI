@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync } from 'node:fs'
 
@@ -29,7 +28,6 @@ const usageOf = (output: number): Record<string, number> => ({
 function messageStart(model: string): string {
   return `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_fx_${Date.now()}_${Math.floor(Math.random() * 1e4)}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: usageOf(1) } })}`
 }
-
 function streamFrames(model: string, blocks: Block[]): string[] {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const frames: string[] = [messageStart(model)]
@@ -54,7 +52,6 @@ function streamFrames(model: string, blocks: Block[]): string[] {
   )
   return frames
 }
-
 function jsonReply(model: string, blocks: Block[]): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
   const content = blocks.map((block, index) =>
@@ -135,7 +132,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const model = String(body.model ?? '')
     const streaming = body.stream === true
     const { marker, arm, toolResult } = readAsk(body)
-
     const route = marker === 'seat' ? 'seat' : marker === 'run' ? (toolResult ? 'parent-ack' : 'parent') : 'side'
     const nth = bump(`${route}:${arm}:${toolResult ? 'after-tool' : 'first'}:${streaming ? 'stream' : 'json'}`)
     record({ kind: 'request', route, arm, streaming, toolResult, nth, model, agentToolListed: offersTool(body, 'Crewmate') })
@@ -168,7 +164,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       answer([{ type: 'text', text: 'fixture answers' }])
       return
     }
-
     if (arm === '429-retry-after') {
       record({ kind: 'answered', route, arm, status: 429, retryAfter: 2, nth })
       refusal(res, 429, { 'retry-after': '2' }, RATE_LIMITED)
@@ -185,7 +180,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (arm === 'slow') {
-
       const frames = [
         messageStart(model),
         `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
@@ -211,7 +205,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (arm === 'held-alive') {
-
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
       res.write(messageStart(model))
       res.write(`event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`)
@@ -227,13 +220,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (arm === 'window') {
-
       record({ kind: 'answered', route, arm, status: 429, retryAfter: 10800, nth })
       refusal(res, 429, { 'retry-after': '10800' }, RATE_LIMITED)
       return
     }
     if (arm === 'hung') {
-
       if (!streaming) {
         record({ kind: 'held-json', route, arm, nth })
         return
@@ -245,7 +236,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (arm === 'quiet' || arm === 'drop') {
       if (toolResult) {
-
         if (nth === 1 && streaming) {
           record({ kind: 'answered', route, arm, status: 429, retryAfter: 1, nth, phase: 'after-tool' })
           refusal(res, 429, { 'retry-after': '1' }, RATE_LIMITED)
@@ -255,7 +245,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
       if (!streaming) {
-
         record({ kind: 'fallback-held', route, arm, nth, holdMs: FALLBACK_HOLD_MS })
         setTimeout(() => {
           if (dropped || res.writableEnded) return
@@ -270,7 +259,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         setTimeout(() => res.socket?.destroy(), 20)
         return
       }
-
       res.flushHeaders()
       record({ kind: 'held', route, arm, nth })
       return

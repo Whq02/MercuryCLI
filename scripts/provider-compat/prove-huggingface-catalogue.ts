@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -92,7 +91,6 @@ section('1 · decode: stated fields only')
 section('2 · derived facts over the live snapshot (seeded through the door, credentialed)')
 {
   __resetHuggingfaceCatalogueForTest()
-
   let doorCalls = 0
   const countingFetch = (async (url: unknown) => {
     doorCalls++
@@ -138,7 +136,6 @@ section('3 · the capability edge')
 
 section('4 · availability + the picker rows + the door')
 {
-
   writeStoredHuggingfaceApiKey(null)
   __resetHuggingfaceCatalogueForTest()
   let outCalls = 0
@@ -161,10 +158,8 @@ section('4 · availability + the picker rows + the door')
   check('signed in: ready with the live count and the source label', ready.state === 'ready' && ready.modelCount === 5 && ready.keySource === 'stored' && ready.source.includes('stored'))
   const inRows = getHuggingfaceModelOptions()
   check('signed in: live rows selectable, no action row', inRows.length === 5 && inRows.every(r => r.unavailable === undefined && r.value?.startsWith('huggingface/')))
-
   check('live rows carry no description (the neutral grammar)', inRows.every(r => r.description === ''), JSON.stringify(inRows.map(r => [r.value, r.description])))
   check('the widest stated window rides the typed statedContextWindow', inRows[0]?.statedContextWindow === 1_048_576, String(inRows[0]?.statedContextWindow))
-
   __resetHuggingfaceCatalogueForTest()
   const failing = (async () => jsonResponse(503, { error: 'down' })) as typeof fetch
   await refreshHuggingfaceCatalogue({ fetchImpl: failing, force: true })
@@ -172,13 +167,11 @@ section('4 · availability + the picker rows + the door')
   check('catalogue failed: still ready (credential present) with the honest note', pending.state === 'ready' && pending.modelCount === 0 && (pending.catalogueNote ?? '').includes('HTTP 503'))
   const pinRows = getHuggingfaceModelOptions()
   check('catalogue failed: the retry row leads and the dated pins stand in, SELECTABLE, no description (the pin window rides the typed field)', pinRows[0]?.value === HUGGINGFACE_CONNECT_OPTION_VALUE && pinRows.length === 1 + HUGGINGFACE_DISPLAY_PINS.length && pinRows.slice(1).every(r => r.unavailable === undefined && r.description === '' && r.statedContextWindow !== undefined))
-
   __resetHuggingfaceCatalogueForTest()
   const refusing = (async () => jsonResponse(401, { error: 'Invalid username or password.' })) as typeof fetch
   await refreshHuggingfaceCatalogue({ fetchImpl: refusing, force: true })
   const invalid = getHuggingfaceAvailability()
   check('a refused credential answers auth-invalid with the re-connect route', invalid.state === 'disabled' && invalid.why === 'auth-invalid')
-
   __resetHuggingfaceCatalogueForTest()
   const many = { object: 'list', data: Array.from({ length: 30 }, (_, i) => ({ id: i === 27 ? 'org/model-27[1m]' : `org/model-${i}`, object: 'model', providers: [{ provider: 'novita', status: 'live', context_length: 1000 }] })) }
   const manyFetch = (async () => jsonResponse(200, many)) as typeof fetch
@@ -191,7 +184,6 @@ section('4 · availability + the picker rows + the door')
   const full = getHuggingfaceFullModelOptions()
   check('the full-rows accessor returns EVERY snapshot row in the router\'s order, adjudicated like the bounded view, no door', full.length === 30 && full.every(r => r.value?.startsWith('huggingface/')) && full[29]?.value === 'huggingface/org/model-29' && full[27]?.unavailable !== undefined && full.slice(0, 24).map(r => r.value).join() === bounded.slice(0, 24).map(r => r.value).join(), JSON.stringify(full.map(r => [r.value, r.unavailable])))
   check('below the bound there is no door (the 5-row fixture above listed none)', !inRows.some(r => r.value === HUGGINGFACE_EXPAND_OPTION_VALUE))
-
   __resetHuggingfaceCatalogueForTest()
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   let darkCalls = 0

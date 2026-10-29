@@ -1,3 +1,4 @@
+
 import type { ChangeIntentProjection, ToolEffect } from '../../Tool.js'
 import {
   markMutation,
@@ -11,14 +12,11 @@ export interface ToolTerminalEvent {
   toolName: string
   toolUseId: string | undefined
   input: unknown
-
   ok: boolean
   durationMs: number | undefined
   effect: ToolEffect | undefined
-
   intentProjection?: ChangeIntentProjection
   cwd: string
-
   lifecycle?: 'terminal' | 'launch'
   shellOutcome?: { code: number; pipelineStatus?: number[] }
 }
@@ -66,7 +64,6 @@ export function _toolTerminalSubscriberCountForTesting(): number {
 export function observeToolTerminal(event: ToolTerminalEvent): void {
   try {
     if (event.effect) {
-
       if (
         verifyEvidenceEnabled() &&
         event.effect.outcome === 'succeeded' &&
@@ -79,7 +76,6 @@ export function observeToolTerminal(event: ToolTerminalEvent): void {
         })
       }
     } else {
-
       observeCompletedToolCall(
         event.toolName,
         event.input,

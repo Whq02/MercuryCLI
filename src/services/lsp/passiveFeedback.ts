@@ -9,6 +9,7 @@ import type { Diagnostic, DiagnosticFile } from '../diagnosticTracking.js'
 import { recordPublishedReport, registerPendingLSPDiagnostic } from './LSPDiagnosticRegistry.js'
 import type { LSPServerManager } from './LSPServerManager.js'
 
+
 type HandlerRegistrationResult = {
   totalServers: number
   successCount: number
@@ -29,7 +30,6 @@ function severityName(severity: unknown): Diagnostic['severity'] {
     case 4:
       return 'Hint'
     default:
-
       return 'Error'
   }
 }
@@ -40,7 +40,6 @@ function formatDiagnosticsForAttachment(publishParams: PublishDiagnosticsParams)
     try {
       uri = foldDriveCase(fileURLToPath(uri))
     } catch (err) {
-
       logForDebugging(`passiveFeedback: could not convert URI ${uri}: ${String(err)}`)
     }
   }
@@ -104,12 +103,10 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
           }
           const files = formatDiagnosticsForAttachment(payload)
           const version = typeof payload.version === 'number' ? payload.version : undefined
-
           if (files.length > 0) {
             recordPublishedReport(serverName, files[0] as DiagnosticFile, version)
           }
           if (files.length === 0 || (files[0] as DiagnosticFile).diagnostics.length === 0) {
-
             logForDebugging(`passiveFeedback: ${serverName} published an empty diagnostic set for ${payload.uri}`)
           }
           try {
@@ -120,7 +117,6 @@ export function registerLSPNotificationHandlers(manager: LSPServerManager): Hand
             recordFailure(serverName, err)
           }
         } catch (err) {
-
           logError(err)
           recordFailure(serverName, err)
         }

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import net from 'node:net'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -84,7 +83,6 @@ function startOldDaemon(opts: { version: string; jobs: Array<Record<string, unkn
     )
   })
   return new Promise(resolve => {
-
     try {
       unlinkSync(controlSockPath())
     } catch {
@@ -204,7 +202,6 @@ section('A · pre-handshake daemon, 1 live session: detected, honest line, never
     version: '1.5.6',
     jobs: [
       { short: 'concourse-w1', sessionId: 's1', prompt: '', source: 'user', state: 'ready', startedAt: 1, cliVersion: '1.5.6' },
-
       { short: 'concourse-w2', sessionId: 's2', prompt: '', source: 'user', state: 'ready', startedAt: 1, cliVersion: '1.5.6' },
     ],
   })
@@ -221,7 +218,6 @@ section('A · pre-handshake daemon, 1 live session: detected, honest line, never
   check('A6 the daemon was NEVER killed by the handshake', old.killed() === false)
   const list = await daemonControlRpc({ op: 'list' } as never, { timeoutMs: 500 })
   check('A7 old verbs still work — the client speaks the negotiated dialect', list.ok === true && (list as { op?: string }).op === 'list')
-
   forgetDaemonProtoForTesting()
   const before = old.received.filter(o => o === 'list').length
   const retried = await daemonControlRpc({ op: 'list' } as never, { timeoutMs: 500 })
@@ -253,7 +249,6 @@ section('B · pre-handshake daemon, idle: no silent kill; /daemon restart stops 
     tries: 80,
     spawn: async (spawnDir, posture) => {
       spawns.push({ dir: spawnDir, posture })
-
       await startVersionedDaemon({ proto: MERCURY_DAEMON_PROTO, version: '9.9.9', pid: 4242, live: 0, liveSessions: 0 })
       return 4242
     },
@@ -365,7 +360,6 @@ section('E · the real control server: hello answers while starting and needs no
   check('E2 ready ⇒ matched against this build (same version, proto, tree)', v.state === 'matched', v.state)
   const healed = await daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'pin-e' } as never, { timeoutMs: 500 })
   check('E3 restart-when-idle reaches the host with its attribution', healed.ok === true && restartAsks.join(',') === 'pin-e')
-
   const bare = await new Promise<Record<string, unknown>>(resolve => {
     const sock = net.connect(controlSockPath())
     let buf = ''
@@ -453,7 +447,6 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
 {
   const read = (p: string): string => readFileSync(join(import.meta.dir, '..', '..', p), 'utf8')
   const ensure = read('src/services/switchboard/ensureDaemon.ts')
-
   check('G1 the door handshakes BEFORE any spawn (never beside a live daemon)', ensure.indexOf('await hs.handshakeDaemon(') !== -1 && ensure.indexOf('await hs.handshakeDaemon(') < ensure.indexOf('spawnOwnedDaemon(getCwd()'))
   check('G2 the door heals and awaits the successor instead of spawning', ensure.includes('healDaemonVersion') && ensure.includes('awaitSuccessor'))
   const dmain = read('src/daemon/main.ts')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-core.mjs'
@@ -23,7 +22,6 @@ export function faceFacts(world: 'full' | 'chat'): Record<string, unknown> {
     cwdBase: 'orchard-src',
     continueTarget: { base: 'orchard-src', ageMs: 5 * 60000, cross: false },
     menuAvailable: true,
-
     concourse: world === 'chat' ? null : { ctx: 'the live board · 2 live' },
     projects: [
       { base: 'moodle', ageMs: 60 * 60000 },
@@ -59,7 +57,6 @@ export const SAMPLE_CATALOGUE: KitCatalogue = {
     { kind: 'extension', section: 'skill', name: 'orchard-tools', contributes: '2 skills · 1 server · 1 command · hooks' },
     { kind: 'skill', section: 'skill', name: 'orchard-tools:prune', source: 'orchard-tools extension', extension: 'orchard-tools' },
     { kind: 'skill', section: 'skill', name: 'orchard-tools:graft', source: 'orchard-tools extension', extension: 'orchard-tools' },
-
     { kind: 'note', section: 'skill', text: 'skills from MCP servers appear once a session connects them' },
   ],
 }
@@ -117,17 +114,13 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   { id: 'face-full-120x40', compose: () => composeFace('full', 120, 40) },
   { id: 'face-chat-100x34', compose: () => composeFace('chat', 100, 34) },
   { id: 'face-chat-120x40', compose: () => composeFace('chat', 120, 40) },
-
   { id: 'face-full-120x40-preset-armed', compose: () => composeFace('full', 120, 40, 'writing') },
   { id: 'manager-100x30', compose: () => composeManager(100, 30) },
   { id: 'manager-120x40', compose: () => composeManager(120, 40) },
-
   { id: 'manager-120x40-midcycle', compose: () => composeManager(120, 40, SAMPLE_CATALOGUE, 4, SAMPLE_STATES) },
   { id: 'manager-100x30-midcycle', compose: () => composeManager(100, 30, SAMPLE_CATALOGUE, 4, SAMPLE_STATES) },
-
   { id: 'manager-120x40-preset', compose: () => composeManager(120, 40, SAMPLE_CATALOGUE, 4, SAMPLE_STATES, { name: 'review kit', note: null }) },
   { id: 'manager-120x40-preset-saved', compose: () => composeManager(120, 40, SAMPLE_CATALOGUE, 4, SAMPLE_STATES, { name: 'review kit', note: "preset 'review kit' saved (4 deltas)" }) },
-
   { id: 'manager-120x40-presets-layer', compose: () => composePresetsLayer(120, 40) },
 ]
 

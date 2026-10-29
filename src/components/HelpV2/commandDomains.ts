@@ -1,3 +1,4 @@
+
 export type CommandDomain = {
   key: string
   label: string
@@ -6,7 +7,6 @@ export type CommandDomain = {
 
 export const COMMAND_DOMAINS: readonly CommandDomain[] = [
   {
-
     key: 'work',
     label: 'current work',
     names: ['run', 'runs', 'workbench', 'diff', 'mission', 'samples'],

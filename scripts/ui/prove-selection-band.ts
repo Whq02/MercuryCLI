@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 import { readFileSync } from 'node:fs'
@@ -29,7 +28,6 @@ const OCTOPUS = '#7A5FBE'
 
 section('§1 — the central contrast law, EVERY real accent × every derivable family')
 {
-
   const accents = new Map<string, string>()
   for (const c of Object.values(accentMod.CRITTERS)) {
     accents.set(c.key, c.accent)
@@ -99,7 +97,6 @@ section('§3 — the owner paints CURSOR rows only')
 section('§4 — colors only (the no-reflow law)')
 {
   const rowSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/InteractiveRow.tsx'), 'utf-8')
-
   const geometryTouch = /(width|height|padding|margin|flexGrow|flexShrink)\s*=\{[^}]*bandPainted/.test(rowSrc)
   check('bandPainted feeds backgroundColor and nothing geometric', !geometryTouch)
 }

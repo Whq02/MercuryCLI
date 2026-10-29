@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -195,7 +194,6 @@ section('B6 privacy: the `~` spelling, the bounded health, the gates')
   check('the home directory reads `~` (a path and the bare home)', spelled === 'at ~/.mercury/feedback/bug-1.json and ~', spelled)
   check('a longer name sharing the prefix is untouched', feedback.redactSensitiveInfo(`${home}xyz/file`) === `${home}xyz/file`)
   check('the secret classes still redact', feedback.redactSensitiveInfo('key sk-ant-abcdefghijklmnop end').includes('[REDACTED_API_KEY]'))
-
   const spellings = await import('../../src/services/providers/credentialEnvSpellings.ts')
   check('the value-shape table covers every family the env-spelling table covers (one key set)', JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES).sort()) === JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).sort()))
   const bare: Array<[string, string, string]> = [
@@ -274,7 +272,6 @@ if (!existsSync(BIN)) {
 } else {
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-
   function seedProject(id: string): string {
     const dir = join(SCRATCH, `proj-${id}`)
     mkdirSync(dir, { recursive: true })
@@ -325,7 +322,6 @@ if (!existsSync(BIN)) {
     delete env.MERCURY_ISSUES_REPO_URL
     const child = spawn(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { env, stdio: ['ignore', 'pipe', 'pipe'] })
     const result = await new Promise<Capture>(resolvePromise => {
-
       let tail = ''
       const guard = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(total * 200 + 30_000))
       child.stdout.on('data', () => {})
@@ -368,7 +364,6 @@ if (!existsSync(BIN)) {
       { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 3, awaitSettleTicks: 2, data: 'it opened the model picker twice' },
       { afterPrevTicks: 3, data: '\r' },
       { atTick: 400, requireAwait: true, awaitText: 'enter to file it', awaitStableTicks: 3, mark: 'review', data: '' },
-
       { afterPrevTicks: 2, data: '\u001b[6~' },
       { afterPrevTicks: 3, mark: 'paged', data: '\u001b[A' },
       { afterPrevTicks: 3, mark: 'lined', data: '\r' },
@@ -438,7 +433,6 @@ if (!existsSync(BIN)) {
       { atTick: 170, requireAwait: true, awaitText: 'What you expected', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 400, requireAwait: true, awaitText: 'enter to file it', awaitStableTicks: 3, mark: 'review', data: '\u001b' },
-
       { atTick: 440, requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 3, mark: 'kept', data: '' },
     ],
     460,
@@ -501,7 +495,6 @@ if (!existsSync(BIN)) {
   check('the browser-road journey delivered every send', road.status === 0, `exit ${road.status}: ${road.tail.trim().slice(-300)}`)
   const roadYml = parseTemplate('bug_report.yml')
   const unavailable = road.marks.unavailable ?? ''
-
   const stripped = unavailable.split('\n').map(l => l.replace(/^[│ ]+|[│ ]+$/g, ''))
   const unavailableWords = stripped.join(' ').replace(/\s+/g, ' ')
   const unavailableFlat = stripped.join('')
@@ -515,7 +508,6 @@ if (!existsSync(BIN)) {
   check('B5 the link never spells the home directory', !handedText.includes(homedir()))
   const roadGh = existsSync(roadGhLog) ? readFileSync(roadGhLog, 'utf8') : ''
   check('B5 no gh issue create rode the browser road', !roadGh.includes('gh issue create'))
-
   const closedRoad = road.marks.closed ?? ''
   check('B5 the dialog closed back to the composer', closedRoad.includes('Type a prompt') && !closedRoad.includes('enter to open the prefilled form'))
   const roadDir = join(HOME_ROAD, 'feedback')

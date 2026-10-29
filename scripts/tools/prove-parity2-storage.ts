@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -25,7 +24,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   saveGlobalConfig(current => ({ ...current, expandedView: 'tasks' }))
   t('the saved panel is read back', getGlobalConfig().expandedView === 'tasks')
   t('a relaunch seeds the default state from the remembered panel', getDefaultAppState().expandedView === 'tasks')
-
   const configPath = join(home, '.mercury.json')
   let raw: Record<string, unknown> = {}
   try {

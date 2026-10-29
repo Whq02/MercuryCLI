@@ -19,11 +19,8 @@ export function GroundPicker({
   onPick,
   onClose,
 }: {
-
   currentGround: string
-
   bootGround: string
-
   onPick: (dir: string | null) => void
   onClose: () => void
 }): React.ReactNode {
@@ -33,7 +30,6 @@ export function GroundPicker({
   const [known, setKnown] = useState<BootProjectFact[] | null>(null)
   useEffect(() => {
     let alive = true
-
     void import('../../utils/bootCardFacts.js')
       .then(m => {
         if (alive) setKnown(m.workedInProjects())
@@ -53,7 +49,6 @@ export function GroundPicker({
       seen.add(dir)
       out.push({ dir, base, isBoot })
     }
-
     push(bootGround, projectDisplayName(bootGround), true)
     for (const p of known ?? []) push(p.dir, p.base, false)
     return out.slice(0, ROW_CAP)
@@ -89,8 +84,7 @@ export function GroundPicker({
       overflow="hidden"
     >
       <Box height={1} flexShrink={0} overflow="hidden">
-        {
-}
+        {}
         <Text wrap="truncate-end">
           <Text color={t.infoText} bold>
             REPO
@@ -102,7 +96,6 @@ export function GroundPicker({
         <Text color={t.textMuted}>remembering the folders Mercury has worked in…</Text>
       ) : (
         (() => {
-
           const win = paneWindow(rows.length, list.selectedIndex, Math.min(WINDOW_ROWS, Math.max(1, (popup?.rows ?? 15) - 6)))
           return (
             <>

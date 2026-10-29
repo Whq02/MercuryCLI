@@ -71,7 +71,6 @@ t.section('§2 — scheduler interleavings: concurrent mutates lose nothing, dup
     await fc.assert(
       fc.asyncProperty(fc.scheduler(), fc.array(fc.integer({ min: 1, max: 99 }), { minLength: 2, maxLength: 6 }), async (s, xs) => {
         const { store, path } = freshStore()
-
         const jobs = xs.map((x, i) =>
           s
             .schedule(Promise.resolve(), `mutate-${i}`)
@@ -105,7 +104,6 @@ t.section('§3 — a generated corruption point quarantines + resumes from last-
         async (prefix, tail) => {
           const { store, path } = freshStore()
           for (const x of prefix) await store().mutate(v => ({ items: [...v.items, x] }))
-
           writeFileSync(guardWrite(root, path), '{ definitely not json')
           await store().mutate(v => ({ items: [...v.items, tail] }))
           const read = await store().read()
@@ -113,7 +111,6 @@ t.section('§3 — a generated corruption point quarantines + resumes from last-
             throw new Error(`recovery lost the last-good witness: got=[${read.items}] want=[${[...prefix, tail]}] — ${path}`)
           }
           const dir = join(root, 'stores')
-
           const quarantined = readdirSync(dir).some(n => n.startsWith(`${basename(path)}.damaged-`))
           if (!quarantined) throw new Error(`no quarantine copy beside ${path}`)
         },

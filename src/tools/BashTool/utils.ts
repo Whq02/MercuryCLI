@@ -16,6 +16,7 @@ import type {
   ToolResultBlockParam,
 } from '../../types/wire.js'
 
+
 export function stripEmptyLines(content: string): string {
   const normalised = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const lines = normalised.split('\n')
@@ -26,6 +27,7 @@ export function stripEmptyLines(content: string): string {
   if (start > end) return ''
   return lines.slice(start, end + 1).join('\n')
 }
+
 
 const IMAGE_DATA_URL_RE = /^data:image\/[a-z0-9.+_-]+;base64,/i
 const DATA_URI_RE = /^data:([^;]+);base64,([^\r\n]+)$/
@@ -70,9 +72,7 @@ export async function resizeShellImageOutput(
   if (!parsed) return null
   const buffer = Buffer.from(parsed.data, 'base64')
   const subtype = mediaSubtype(parsed.mediaType)
-
   const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.byteLength, subtype, { role: 'tool-result' })
-
   return imageDataUrl(resized.mediaType, resized.buffer)
 }
 
@@ -83,6 +83,7 @@ function mediaSubtype(mediaType: string): string {
   const parts = mediaType.split('/')
   return parts.length > 1 ? (parts[1] as string) : 'png'
 }
+
 
 const HEAD_SHARE = OUTPUT_HEAD_SHARE
 
@@ -159,3 +160,4 @@ export function outputBudgetClause(budget: OutputBudget): string | undefined {
   if (budget.clampedTo === undefined) return undefined
   return `[${clampClause('max_output_chars', budget.effective, budget.clampedTo, 'chars')}]`
 }
+

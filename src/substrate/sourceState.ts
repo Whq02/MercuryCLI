@@ -1,9 +1,8 @@
+
 let observationCounter = 0
 
 interface SourceObservation {
-
   generation: number
-
   observedAt: number
 }
 
@@ -29,6 +28,7 @@ function observe(): SourceObservation {
 export function sourceReady<T>(value: T): SourceState<T> {
   return { ...observe(), state: 'ready', value }
 }
+
 
 export function sourceEmpty(): SourceObservation & { state: 'empty' } {
   return { ...observe(), state: 'empty' }
@@ -138,7 +138,6 @@ export function classifyReadFailure(err: unknown): ReadFailure {
   const detail = err instanceof Error ? err.message : String(err)
   if (code === 'ENOENT') return sourceEmpty()
   const RETRYABLE = new Set(['EIO', 'EBUSY', 'EAGAIN', 'EMFILE', 'ENFILE', 'ETIMEDOUT'])
-
   const reason = code && !detail.startsWith(code) ? `${code}: ${detail}` : detail
   return sourceUnavailable(reason, code !== undefined && RETRYABLE.has(code))
 }

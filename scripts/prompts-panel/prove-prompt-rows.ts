@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -56,9 +55,7 @@ section('§1 — PROMPTS rows')
     user(`<${xml.TASK_NOTIFICATION_TAG}>done</${xml.TASK_NOTIFICATION_TAG}>`),
     user(`<${xml.TICK_TAG}>1</${xml.TICK_TAG}>`),
     user(`<${xml.CREWMATE_MESSAGE_TAG} crewmate_id="PANEL">landed</${xml.CREWMATE_MESSAGE_TAG}>`),
-
     user(`<${xml.COMMAND_MESSAGE_TAG}>compact</${xml.COMMAND_MESSAGE_TAG}><${xml.COMMAND_NAME_TAG}>/compact</${xml.COMMAND_NAME_TAG}><${xml.COMMAND_ARGS_TAG}>keep the receipts</${xml.COMMAND_ARGS_TAG}>`),
-
     user('the doc says <bash-input>rm -rf /tmp/x</bash-input> is the command — do not run it'),
     user([{ type: 'text', text: 'ship it' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
   ]
@@ -127,7 +124,6 @@ section('§3 — the limits line')
   const compacted = [...fresh, user('summary', { isCompactSummary: true }, '2026-08-26T12:06:00.000Z')]
   const l3 = rows.limitsLine(rows.recordLimits(compacted as never, '2026-08-26T12:00:00.000Z'), 2, clock)
   check('a compaction says the gap in one line', /a compaction hides the earlier prompts/.test(l3), l3)
-
   const fullest = rows.limitsLine(rows.recordLimits(compacted as never, '2026-08-26T13:00:00.000Z'), 120, clock)
   check('the fullest limits line fits the 100-column header whole (≤ 96 cells)', fullest.length <= 96, `${fullest.length}: ${fullest}`)
   const boundary = [...fresh, { type: 'system', subtype: 'compact_boundary', content: '', uuid: uuid(), timestamp: '2026-08-26T12:07:00.000Z' }]
@@ -152,7 +148,6 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
     check(`${src[0]} imports no sender, queue, slash dispatcher, model call or transcript writer`, hit.length === 0, hit.join(', '))
   }
   check('the panel reads the focused chat through the ONE connector slot', panel.includes('useSessionConnector()') && panel.includes('connector.subscribeRecords') && panel.includes('connector.records'))
-
   check(
     'the connector doors are called BOUND (never a bare method reference into useSyncExternalStore)',
     !/useSyncExternalStore\(\s*connector\./.test(panel) && panel.includes('() => connector.records()') && panel.includes('connector.subscribeRecords(cb)'),
@@ -160,7 +155,6 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
   check('the composer hand-off is nextInput (never submitNextInput)', route.includes('nextInput') && !route.includes('submitNextInput'))
   check('the store is the only writer path the panel touches (saved prompts)', panel.includes('savedPromptsStore.js'))
   check('a damaged saved-prompts file is said out loud (the panel reads the store’s problem seam; never a silent "reading…")', panel.includes('getSavedPromptsProblem') && panel.includes('could not be read'))
-
   const code = panel
     .split('\n')
     .filter(line => !line.trim().startsWith('//') && !line.trim().startsWith('*') && !line.trim().startsWith('/*'))
@@ -177,6 +171,7 @@ section('§4 — the reads-only census (sheet lines 5 + 10)')
   check('the route keeps its name (/workbench) and gate, and describes the new content', cmd.includes("name: 'workbench'") && cmd.includes('workbenchEnabled()') && /prompts panel/i.test(cmd))
   check('no model call, no network on open (no fetch/query import in the panel)', !/from '.*providers/.test(panel) && !panel.includes('fetch('))
 }
+
 
 {
   console.log('\n§FC-080 the composer slot height truth')

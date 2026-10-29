@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,7 +23,6 @@ console.log('============================================================')
 
 console.log('\n── §1 live: an aborted grep stream settles, its child dies ──')
 {
-
   const hay = join(SCRATCH, 'hay')
   mkdirSync(hay, { recursive: true })
   for (let i = 0; i < 40; i++) {
@@ -34,7 +32,6 @@ console.log('\n── §1 live: an aborted grep stream settles, its child dies �
   const controller = new AbortController()
   let sawLines = false
   const stream = ripGrepStream(['-n', '-e', 'needle'], hay, controller.signal, () => {
-
     sawLines = true
     controller.abort()
   }).then(

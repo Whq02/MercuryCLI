@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -22,7 +21,6 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 section('§1 split: an oversized doc divides at section boundaries')
 {
   const dir = mkdtempSync(join(tmpdir(), 'mneme-split-'))
-
   const long = 'x'.repeat(1900)
   for (let i = 0; i < 6; i++) appendObservation({ text: `${long} a${i}`, source: 'proof', topicHint: 'big topic' }, dir)
   const headingA: MnemeRewriter = ({ rows }) => ({

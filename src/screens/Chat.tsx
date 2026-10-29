@@ -1,3 +1,4 @@
+
 import type { UUID } from 'node:crypto';
 import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
@@ -194,7 +195,6 @@ export type Props = {
   commands: Command[];
   debug?: boolean;
   initialTools: Tool[];
-
   disabled?: boolean;
   disableSlashCommands?: boolean;
 };
@@ -211,7 +211,6 @@ const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
 const EDITOR_STATUS_MS = 4000;
 const RECEIPT_TIMEOUT_MS = 8000;
-
 const REWIND_SETTLE_WAIT_MS = 5000;
 
 function rewindReceiptLine(receipt: RewindReceiptV1): string {
@@ -226,7 +225,6 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
   }
   return `rewound: ${parts.join(' · ')}`;
 }
-
 const NO_CHAT_SETTLE_MS = 150;
 const PERSISTENT_NOTIFICATION_MS = 2_147_483_647;
 const MESSAGE_ACTION_UUID_PREFIX = 24;
@@ -252,10 +250,8 @@ setCrashConversationLocator(() => {
   }
 });
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
-
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
-
 const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
 );
@@ -263,7 +259,6 @@ const getFocusedTailActive = (): boolean => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? connector.tail().getSnapshot() !== null : false;
 };
-
 const getFocusedLiveResponseChars = (): number => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? (connector.turnChars?.() ?? 0) : 0;
@@ -314,16 +309,12 @@ function getFocusedInputDialog(args: {
   const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showCostThreshold, showCrashResume } = args;
   if (isExiting) return undefined;
   if (showMessageSelector) return 'message-selector';
-
   if (isPromptInputActive) return undefined;
-
   const blocked = toolJSX !== null && toolJSX.jsx !== null && toolJSX.shouldContinueAnimation !== true;
   if (blocked) return undefined;
   if (toolUseConfirmQueueLength > 0) return 'tool-permission';
-
   if (elicitationQueueLength > 0) return 'elicitation';
   if (showCostThreshold) return 'cost-threshold';
-
   if (showCrashResume) return 'crash-resume';
   return undefined;
 }
@@ -430,7 +421,6 @@ function TranscriptSearchBar({
     columns,
     backspaceExitsOnEmpty: false,
   });
-
   useEffect(() => {
     let live = true;
     const started = Date.now();
@@ -514,7 +504,6 @@ function TranscriptFooter({
   hasSearchBadge: boolean;
   virtualScroll: boolean;
   showAllSuppressed: boolean;
-
   showAll: boolean;
   status: string | null;
   badge: string | null;
@@ -523,7 +512,6 @@ function TranscriptFooter({
   const { columns } = useTerminalSize();
   let hints: string[];
   if (hasSearchBadge) {
-
     hints = ['n/N navigate matches'];
   } else if (virtualScroll) {
     hints = ['q quits', '/ search', 'g/G jump', 'arrows scroll', 'drag selects and copies'];
@@ -533,7 +521,6 @@ function TranscriptFooter({
     hints = [];
   }
   const right = status ?? badge ?? '';
-
   const rightBudget = right === '' ? 0 : Math.min(stringWidth(right), Math.max(16, Math.floor((columns - 3) / 2)));
   const rightWidth = right === '' ? 0 : rightBudget + 1;
   const left = packHints(
@@ -577,9 +564,7 @@ export function Chat({
   disableSlashCommands = false,
 }: Props): React.ReactNode {
   fluxMark('render:chat-root');
-
   const rootWhyRef = useRef<Record<string, unknown> | null>(null);
-
   if (flagEnv('MERCURY_RENDER_FAULT') === 'chat') {
     throw new Error('deterministic Chat render fault (MERCURY_RENDER_FAULT=chat)');
   }
@@ -596,7 +581,6 @@ export function Chat({
 
   const [fullscreen] = useState(() => isFullscreenEnvEnabled());
   const [virtualScrollEnabled] = useState(() => resolveTerminalExperience().virtualScroll.effective);
-
   const [terminalTitleEnabled] = useState(() => resolveTerminalExperience().terminalTitle.effective);
   const [dumpMode, setDumpMode] = useState(false);
   const inVirtualTranscriptMode = fullscreen && virtualScrollEnabled && !dumpMode;
@@ -628,10 +612,8 @@ export function Chat({
       receipt = settled;
       return { ...prev, ...settled.patch, lastModelTransition: settled.receipt };
     });
-
     const settledReceipt: ReturnType<typeof settlePendingAtBoundary> = receipt;
     if (settledReceipt) {
-
       const applied = settledReceipt.receipt.applied;
       const label = applied === null ? 'Default' : renderModelName(applied);
       addNotification({
@@ -651,18 +633,15 @@ export function Chat({
   const setToolJSX: SetToolJSXFn = useCallback(next => {
     setToolJSXState(prev => resolveToolJSX(prev, next));
   }, []);
-
   const [permissionStickyFooter, setPermissionStickyFooter] = useState<React.ReactNode>(null);
   const stickyFooterOwnerUp = permissionStickyFooter !== null;
   const [screen, setScreen] = useState<Screen>('prompt');
   const [showAllInTranscript, setShowAllInTranscript] = useState(false);
   const [showMessageSelector, setShowMessageSelector] = useState(false);
-
   const openMessageSelector = useCallback(() => setShowMessageSelector(true), []);
   const [messageSelectorPreselect, setMessageSelectorPreselect] = useState<UserMessage | undefined>(undefined);
   const [isExiting, setIsExiting] = useState(false);
   const [showExitFlow, setShowExitFlow] = useState(false);
-
   const [exitCommandJsx, setExitCommandJsx] = useState<React.ReactNode | null>(null);
   const [isPromptInputActive, setIsPromptInputActive] = useState(false);
   const [inputMode, setInputModeState] = useState<PromptInputMode>(() => pendingInput.mode());
@@ -671,7 +650,6 @@ export function Chat({
   const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const [remountKey, setRemountKey] = useState(0);
   const [showCostThreshold, setShowCostThreshold] = useState(false);
-
   const [crashResumeStaged, setCrashResumeStaged] = useState<{
     origin: string;
     component: string | null;
@@ -701,11 +679,9 @@ export function Chat({
     setToolsState(initialTools);
   }, [initialTools]);
   const mcpState = useAppState(state => state.mcp);
-
   useEffect(() => {
     publishMcpConnections(mcpState.clients);
   }, [mcpState.clients]);
-
   useMcpConnectivityStatus({ mcpClients: mcpState.clients });
   const toolPermissionContext = useAppState(state => state.toolPermissionContext);
   const agentDefinitions = useAppState(state => state.agentDefinitions);
@@ -727,7 +703,6 @@ export function Chat({
   }, [addNotification]);
 
   useState(() => {
-
     pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
     return null;
   });
@@ -761,11 +736,9 @@ export function Chat({
 
   useEffect(() => {
     return pendingInput.registerInterceptors({
-
       interceptSuggestion: () => false,
       onEmptyToNonempty: () => {
         if (!fullscreen) return;
-
         if (Date.now() - lastUserScrollAtRef.current < RECENT_SCROLL_REPIN_WINDOW_MS) return;
         repinToBottom();
       },
@@ -796,7 +769,6 @@ export function Chat({
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
   const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
-
   const chatSurfaceCovered = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => currentSurfaceRoute().kind !== 'repl',
@@ -809,7 +781,6 @@ export function Chat({
   }, [toolUseConfirmQueue.length]);
 
   const resolveHeadPermission = useCallback(() => {
-
     setResolvedConsentCount(c => c + 1);
     const focused = getFocusedSessionConnector();
     const head = focused.asks()[0];
@@ -857,7 +828,6 @@ export function Chat({
             });
           });
       }
-
       setTimeout(() => {
         for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
       }, 0);
@@ -878,7 +848,6 @@ export function Chat({
       const head = elicitationQueue[0];
       if (!head) return;
       head.respond({ action, content });
-
       const params = head.params as { mode?: string };
       if (action === 'accept' && params.mode === 'url') return;
       setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
@@ -889,7 +858,6 @@ export function Chat({
     (action: 'cancel' | 'retry' | 'dismiss') => {
       const head = elicitationQueue[0];
       if (!head) return;
-
       setAppState(prev => ({ ...prev, elicitation: { queue: prev.elicitation.queue.slice(1) } }));
       head.onWaitingDismiss?.(action);
     },
@@ -916,7 +884,6 @@ export function Chat({
     if (started !== null) seatStartTimeRef.current = started;
     else if (seatStartTimeRef.current === 0) seatStartTimeRef.current = Date.now();
   }
-
   const previousFocusedDialogRef = useRef<FocusedInputDialog | undefined>(undefined);
   useEffect(() => {
     const previous = previousFocusedDialogRef.current;
@@ -986,7 +953,6 @@ export function Chat({
           setAppState(prev => ({ ...prev, attribution: updater(prev.attribution) })),
         setConversationId: (id: UUID) => setConversationId(id),
         messages: currentMessages.concat(newMessages),
-
         setMessages: (updater: (prev: Message[]) => Message[]) => {
           for (const row of updater([])) paintScreenRow(row, getUserMessageText(row as UserMessage) ?? '');
         },
@@ -1028,7 +994,6 @@ export function Chat({
       })
       .catch(() => {});
   }, [setAppState, themeName, getReadFileState]);
-
   const wasLoadingRef = useRef(false);
   useEffect(() => {
     if (wasLoadingRef.current && !isLoading) {
@@ -1127,10 +1092,8 @@ export function Chat({
     }
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
-
   const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
   const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string }>>([]);
-
   const dialogSlotRef = useRef<DOMElement | null>(null);
   const [dialogPaints, setDialogPaints] = useState(false);
   useEffect(() => {
@@ -1144,7 +1107,6 @@ export function Chat({
   useLayoutEffect(() => {
     if (compactWork.read() === 'detail' && !compactDetailUp) compactWork.set('composer');
   }, [compactDetailUp, compactWork]);
-
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
@@ -1158,7 +1120,6 @@ export function Chat({
     const seatMode = pendingInput.mode();
     const seatPastes = pendingInput.pastedContents();
     const seatCommand = text.startsWith('/') && seatMode !== 'bash' ? resolveSlashCommand(text, commandsRef.current) : undefined;
-
     const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand);
     const takeComposer = (): void => {
       const composerLine = pendingInput.text().replace(/\s+$/, '');
@@ -1173,7 +1134,6 @@ export function Chat({
       }
       if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
     };
-
     const words = expandPastedTextRefs(text, seatPastes).trim();
     if (seatCommand === undefined && words.startsWith('/') && seatMode !== 'bash') {
       const gated = resolveGatedPlainWorldCommand(words, commandsRef.current);
@@ -1182,7 +1142,6 @@ export function Chat({
         paintScreenCommandReceipt(getCommandName(gated), '', unavailableCommandLine(gated));
         return;
       }
-
       const unknownName = resolveUnknownSlashName(words, commandsRef.current);
       if (unknownName !== undefined) {
         takeComposer();
@@ -1191,7 +1150,6 @@ export function Chat({
       }
     }
     if (seat === 'session') {
-
       if (landingInFlight() && !hasFocusedSession()) {
         takeComposer();
         setAppState(prev => ({
@@ -1208,7 +1166,6 @@ export function Chat({
       takeComposer();
       repinToBottom();
       setSubmitCount(count => count + 1);
-
       if (seatCommand !== undefined && isLoadingRef.current) {
         addNotification({
           key: 'session-command-queued',
@@ -1217,7 +1174,6 @@ export function Chat({
           timeoutMs: RECEIPT_TIMEOUT_MS,
         });
       }
-
       if (getFocusedSeatLive().phase === 'compacting') {
         addNotification({
           key: 'held-for-compaction',
@@ -1234,7 +1190,6 @@ export function Chat({
         })
         .then(receipt => {
           if (receipt.state !== 'refused') return;
-
           if (pendingInput.text() === '') {
             if (pendingInput.restoreStaged(input) === null) setInputValue(input);
             setPastedContents(seatPastes);
@@ -1252,11 +1207,9 @@ export function Chat({
     const spaceAt = text.indexOf(' ');
     const args = spaceAt === -1 ? '' : text.slice(spaceAt + 1).trim();
     if (seatCommand !== undefined && seatCommand.type === 'local' && seatCommand.uiRouteAlias === undefined) {
-
       takeComposer();
       void (async () => {
         try {
-
           if (seatCommand.interruptFirst === true && focusedNow.turnActive()) {
             focusedNow.interrupt();
           }
@@ -1273,7 +1226,6 @@ export function Chat({
     }
     const routeAlias = (seatCommand as { uiRouteAlias?: 'concourse' } | undefined)?.uiRouteAlias;
     if (seatCommand !== undefined && routeAlias) {
-
       if (pendingInput.text().replace(/\s+$/, '') === input) setInputValue('');
       const outcome = performUiRouteAlias(routeAlias);
       if (outcome.note) {
@@ -1282,11 +1234,9 @@ export function Chat({
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
-
       const dialogName = getCommandName(seatCommand);
       const inFlight = dialogInFlightRef.current;
       if (inFlight !== null) {
-
         takeComposer();
         queuedDialogCommandsRef.current.push({ input, name: dialogName });
         submitTrace('repl-dialog-queued', input, { name: dialogName, behind: inFlight.name });
@@ -1301,7 +1251,6 @@ export function Chat({
       const slot = { name: dialogName, mounted: false };
       dialogInFlightRef.current = slot;
       submitTrace('repl-dialog-dispatch', input, { name: dialogName, rearmed: options?.rearmed === true });
-
       const releaseDialogSlot = (): void => {
         if (dialogInFlightRef.current !== slot) return;
         dialogInFlightRef.current = null;
@@ -1339,13 +1288,11 @@ export function Chat({
       };
       try {
         const module = await seatCommand.load();
-
         const element = await module.call(onDone, context, args, text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         if (element && !completed) {
           slot.mounted = true;
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
         } else if (!element && !completed && !isSettingsPopupOpen()) {
-
           addNotification({
             key: `command-${seatCommand.name}`,
             text: `/${getCommandName(seatCommand)} had nothing to show`,
@@ -1369,7 +1316,6 @@ export function Chat({
   }, [addNotification, authWallHold, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
-
   useEffect(() => {
     if (toolJSX !== null) return;
     const slot = dialogInFlightRef.current;
@@ -1385,13 +1331,11 @@ export function Chat({
   const armedMessage = useAppState(state => state.initialMessage);
   useEffect(() => {
     if (armedMessage === null) return;
-
     if (landing) return;
     setAppState(prev => (prev.initialMessage === null ? prev : { ...prev, initialMessage: null }));
     const text = (getUserMessageText(armedMessage.message) ?? '').trim();
     if (text === '') return;
     void (async () => {
-
       if (armedMessage.bashMode) pendingInput.setMode('bash');
       await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);
     })();
@@ -1403,7 +1347,6 @@ export function Chat({
   useSettingsChange(() => {});
   useAgentsChange(getCwd());
   useSkillsChange(getCwd(), () => {});
-
   useKickOffCheckAndDisableSovereignIfNeeded();
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());
@@ -1423,9 +1366,7 @@ export function Chat({
   }, [stickyFooterOwnerUp, focusedInputDialog]);
 
   useEffect(() => {
-
     recordBootInteractive();
-
     setTimeout(() => {
       void import('../services/switchboard/ensureDaemon.js')
         .then(async m => {
@@ -1433,7 +1374,6 @@ export function Chat({
         })
         .catch(() => {});
     }, 0);
-
     setTimeout(() => {
       void import('../utils/model/contextWindowWarmup.js')
         .then(m => m.warmContextWindowSources())
@@ -1658,7 +1598,6 @@ export function Chat({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-
       void import('../services/projectIntel/snapshot.js')
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
         .catch(() => {});
@@ -1683,7 +1622,6 @@ export function Chat({
     startPreventSleep();
     return () => stopPreventSleep();
   }, [titleAnimating]);
-
   const diffReviewOpen = useOverlayOpen('diff-dialog');
   const cockpitActivity: ActivityState = isWaitingForApproval ? 'waiting' : diffReviewOpen ? 'review' : isLoading ? 'active' : 'calm';
   useEffect(() => {
@@ -1697,7 +1635,6 @@ export function Chat({
     if (costThresholdShownRef.current) return;
     const focused = getFocusedSessionConnector();
     if (focused.usage().totalCostUSD < COST_THRESHOLD_USD) return;
-
     costThresholdShownRef.current = true;
     if (focused.identity().consoleBilling) setShowCostThreshold(true);
   }, [messages.length]);
@@ -1804,7 +1741,6 @@ export function Chat({
     const timer = setTimeout(() => setEditorStatus(null), EDITOR_STATUS_MS);
     return () => clearTimeout(timer);
   }, [editorStatus]);
-
   const lastColumnsRef = useRef(columns);
   useEffect(() => {
     if (lastColumnsRef.current === columns) return;
@@ -1834,7 +1770,6 @@ export function Chat({
         const path = join(tmpdir(), `mercury-transcript-${Date.now()}.md`);
         writeFileSync(path, cleaned, 'utf8');
         if (generation !== editorGenerationRef.current) return;
-
         const { openFileInExternalEditor } = await import('../utils/editor.js');
         if (openFileInExternalEditor(path)) {
           setEditorStatus(`opening ${path}`);
@@ -1863,7 +1798,6 @@ export function Chat({
         return;
       }
       if ((input === 'n' || input === 'N') && !searchBarOpen && !dumpMode && searchMatchCount !== null && searchMatchCount > 0) {
-
         for (const ch of input) {
           if (ch === 'n') jumpRef.current?.nextMatch();
           else jumpRef.current?.prevMatch();
@@ -1875,7 +1809,6 @@ export function Chat({
         setScreen('prompt');
         return;
       }
-
       if (input === 'g' && !searchBarOpen) {
         scrollRef.current?.scrollTo(0);
         return;
@@ -1900,7 +1833,6 @@ export function Chat({
   const commitSearch = useCallback((query: string) => {
     setSearchBarOpen(false);
     if (query === '' || searchMatchCount === 0) {
-
       setCommittedSearchQuery('');
       setSearchMatchCount(null);
       setSearchMatchCurrent(0);
@@ -1935,7 +1867,6 @@ export function Chat({
   }, { isActive: searchBarOpen });
 
   const messageActionsDisabled = false;
-
   const messageCursorActive = useMessageCursorActive();
   const messageNavRef = useRef<MessageActionsNav | null>(null);
   const messageActions = useMessageActions(messageNavRef, {
@@ -1949,7 +1880,6 @@ export function Chat({
       const prefix = msg.uuid.slice(0, MESSAGE_ACTION_UUID_PREFIX);
       const raw = getFocusedSessionConnector().records().find(m => m.type === 'user' && m.uuid.startsWith(prefix)) as UserMessage | undefined;
       if (!raw) return;
-
       const resubmit = textForResubmit(raw);
       if (resubmit) {
         setInputValue(resubmit.text);
@@ -2002,7 +1932,6 @@ export function Chat({
   const { internal_eventEmitter } = useStdin();
   useEffect(() => {
     const onSuspend = (): void => {
-
       if (!fullscreen) {
         process.stdout.write('\nMercury suspended — `fg` brings it back (ctrl+z suspends, ctrl+_ undoes input)\n');
       }
@@ -2017,16 +1946,13 @@ export function Chat({
   }, [fullscreen, internal_eventEmitter]);
 
   const warmthVersion = useSyncExternalStore(subscribeSessionWarmth, sessionWarmthVersion, sessionWarmthVersion);
-
   const focusedSessionId = focusedConnector.sessionId();
   const paintedMessages = useMemo(
     () => paintedTranscriptOf(messages, enteringWarmth(), focusedSessionId),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the store version keys the warmth read
     [messages, warmthVersion, focusedSessionId],
   );
-
   const entryLoadingLine = entryLoadingLineOf(enteringWarmth(), messages.length === 0, focusedSessionId);
-
   useEffect(() => {
     const warmth = enteringWarmth();
     if (warmth === null) return;
@@ -2046,17 +1972,14 @@ export function Chat({
   const displayedMessages = inVirtualTranscript ? transcriptMessages : paintedMessages;
 
   const unseen = useUnseenDivider(messages.length, scrollRef);
-
   const rekeyedSessionRef = useRef(focusedSessionId);
   useEffect(() => {
     compactWork.set('composer');
     unseen.onRepin();
     repinToBottom();
     setConversationId(focusedSessionId);
-
     const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';
     if (!landing) setToolJSX(null);
-
     if (rekeyedSessionRef.current !== focusedSessionId) {
       rekeyedSessionRef.current = focusedSessionId;
       void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
@@ -2064,7 +1987,6 @@ export function Chat({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedSessionId]);
-
   const slotHasSession = useSyncExternalStore(subscribeFocusedSessionConnector, hasFocusedSession, hasFocusedSession);
   const toolJSXRef = useRef(toolJSX);
   toolJSXRef.current = toolJSX;
@@ -2097,7 +2019,6 @@ export function Chat({
     setMessageCursor(null);
     unseen.jumpToNew(scrollRef.current);
   }, [unseen]);
-
   const onTranscriptScroll = useCallback(
     (sticky: boolean, handle: ScrollBoxHandle) => {
       jumpRef.current?.disarmSearch();
@@ -2105,7 +2026,6 @@ export function Chat({
     },
     [onScroll],
   );
-
   const onTranscriptPillClick = useCallback(() => {
     const handle = scrollRef.current;
     if (!handle) return;
@@ -2120,11 +2040,9 @@ export function Chat({
   }, [lastMessage, repinToBottom]);
 
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
-
   const viewStreamMode: SpinnerMode =
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
-
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2168,7 +2086,6 @@ export function Chat({
     (isLoading || isStopping) &&
     !onlySleepToolActive;
   const showSpinner = spinnerSlotReserved && (
-
     !textActive || streamingSuppressed
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
@@ -2255,7 +2172,6 @@ export function Chat({
         }}
         onRerun={async message => {
           if (isLoadingRef.current) return { ok: false as const, reason: 'a run is in flight — esc to interrupt it first' };
-
           const focused = getFocusedSessionConnector() as PaintsRows;
           const sourceTranscriptPath = typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null;
           if (!sourceTranscriptPath) return { ok: false as const, reason: 'no transcript file to branch from — the chat owns no session yet' };
@@ -2329,7 +2245,6 @@ export function Chat({
           const staged = crashResumeStaged;
           setCrashResumeStaged(null);
           if (action !== 'resume' || staged === null) return;
-
           void (async () => {
             addNotification({
               key: 'session-switch',
@@ -2554,27 +2469,21 @@ export function Chat({
 
   const cancelRequestProps = {
     compactWork,
-
     isInterviewFocused:
       focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0]?.tool.name === ASK_USER_QUESTION_TOOL_NAME,
-
     isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
     screen,
-
     vimMode: isVimModeEnabled() ? vimMode : undefined,
     isLocalJSXCommand: dialogOwnsKeys,
     isSearchingHistory,
     isHelpOpen: helpOpen,
-
     isInputDialogFocused: focusedInputDialog !== undefined,
     streamMode: viewStreamMode,
-
     focusedTurnActive: seatLive.inFlight,
   };
   const cancelHandler = <CancelRequestHandler {...cancelRequestProps} />;
 
   if (legacyTranscript) {
-
     return (
       <KeybindingSetup>
         <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix animating={titleAnimating} />
@@ -2607,9 +2516,7 @@ export function Chat({
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
-
         onScroll={inVirtualTranscript ? onTranscriptScroll : (centredModalUp && dialogOwnsKeys) || permissionOverlay !== null ? undefined : onScroll}
-
         isModal={inVirtualTranscript ? !searchBarOpen : false}
         modalScrollRef={modalScrollRef}
         modalUp={centredModalUp && dialogOwnsKeys}
@@ -2622,9 +2529,7 @@ export function Chat({
         <FullscreenLayout
           scrollRef={scrollRef}
           statusBand={inVirtualTranscript ? undefined : workingStatusStrip}
-
           statusBandActive={inVirtualTranscript ? undefined : spinnerSlotReserved}
-
           overlay={inVirtualTranscript ? undefined : permissionOverlay}
           modal={inVirtualTranscript ? undefined : centredModalUp ? centredModal : undefined}
           modalActive={dialogOwnsKeys}
@@ -2650,14 +2555,12 @@ export function Chat({
           }
           bottom={
             <Box flexDirection="column">
-              {
-}
+              {}
               <Box flexDirection={isCompact ? "column-reverse" : "column"}>
                 <MercuryFrame model={focusedEffectiveModel} />
                 <CockpitBottomStatus>{workingStatusStrip}</CockpitBottomStatus>
               </Box>
-              {
-}
+              {}
               {!isCompact ? <FocusedSessionStatusRow /> : null}
               {permissionStickyFooter}
               {bottomImmediateJsx}

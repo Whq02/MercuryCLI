@@ -9,12 +9,12 @@ import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
+
 type MessageRole = 'user' | 'assistant'
 
 type AttachedAuthor = 'user' | 'coordinator' | 'agent' | 'saturn' | 'advisor'
 
 export function attachedPlateName(author: AttachedAuthor): string {
-
   return author === 'agent' ? 'Mercury' : author === 'coordinator' ? 'Coordinator' : author === 'saturn' ? SATURN_PLATE_NAME : author === 'advisor' ? ADVISOR_PLATE_NAME : userHandle()
 }
 
@@ -30,11 +30,8 @@ type MessageMeta = {
   uuid?: string
   timestamp?: string
   role: MessageRole
-
   attachedAuthor?: AttachedAuthor
-
   queued?: boolean
-
   heldFor?: 'compaction'
 }
 
@@ -53,7 +50,6 @@ export function MessageMetaProvider({
   message: { uuid?: string; type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction'; attachment?: { type?: string; commandMode?: string; sentAt?: string; deliveredAt?: string } }
   children: React.ReactNode
 }): React.ReactNode {
-
   const role: MessageRole =
     message?.type === 'assistant' ||
     message?.type === 'grouped_tool_use' ||
@@ -66,7 +62,6 @@ export function MessageMetaProvider({
   const deliveryMs = Date.parse(delivery ?? '')
   const timestamp = delivery !== undefined && Number.isFinite(deliveryMs) && (!Number.isFinite(sentMs) || deliveryMs >= sentMs) ? delivery : message?.timestamp
   const heldFor = queued && message?.heldFor === 'compaction' ? ('compaction' as const) : undefined
-
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
@@ -93,16 +88,13 @@ export function userHandle(): string {
     }
   }
   if (!h) h = (process.env.USER ?? process.env.LOGNAME ?? 'you').trim()
-
   const handle = truncateToWidth(h, 16) || 'you'
   cachedHandle = handle
   return handle
 }
 
 export const QUEUED_PLATE = 'queued'.padEnd(8)
-
 export const HELD_PLATE = 'held'.padEnd(8)
-
 export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
 const plateOf = (meta: { queued?: boolean; heldFor?: 'compaction' }): string => (meta.heldFor === 'compaction' ? HELD_PLATE : QUEUED_PLATE)
 
@@ -135,19 +127,15 @@ export function TranscriptNameplate(): React.ReactNode {
   const meta = React.useContext(MessageMetaContext)
   const isContinuation = React.useContext(NameplateContinuationContext)
   const critter = useSessionAccent()
-
   const { accentSoft: userBloom } = useMercuryTokens()
   const paneAccent = React.useContext(NameplateAccentContext)
   const crewmatePlate = React.useContext(CrewmatePlateContext)
 
   if (!meta) return null
-
   if (isContinuation) return null
   const clock = formatClock(meta.timestamp)
-
   if (!clock && !meta.attachedAuthor && crewmatePlate === null) return null
   const isAgent = meta.role === 'assistant'
-
   let name: string
   let nameColor: string
   if (crewmatePlate !== null) {

@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'live-smoke-home-'))
+
 
 const adapterKey = process.env.SMOKE_ADAPTER!
 const program = process.env.SMOKE_PROGRAM!
@@ -33,7 +33,6 @@ const session = await createDapSession({
   cwd: process.cwd(),
   breakpoints: new Map([[source, [line]]]),
 })
-
 const outcome = await session.waitForStopOutcome(20_000)
 check('stopped at the breakpoint', outcome.state === 'stopped' && outcome.info.reason === 'breakpoint', JSON.stringify(outcome.state === 'stopped' ? outcome.info : outcome))
 const stopSession = outcome.state === 'stopped' ? outcome.session : session
@@ -59,12 +58,10 @@ const evald = await stopSession.request('evaluate', {
   frameId: frames[0]!.id,
   context: 'repl',
 })
-
 check('evaluate a*10+b = 42', /\b42\b/.test(String(evald.result)), String(evald.result))
 stopSession.lastStopped = null
 await stopSession.request('continue', { threadId })
 const deadline = Date.now() + 15_000
-
 while (!session.treeTerminated() && Date.now() < deadline) await new Promise(r => setTimeout(r, 50))
 check('debuggee ran to completion', session.treeTerminated() === true, session.exitDetail)
 console.log(

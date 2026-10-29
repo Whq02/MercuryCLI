@@ -23,10 +23,9 @@ import { getMercuryDaemonStatus, type MercuryDaemonStatus } from '../../../daemo
 import { daemonSnapshot } from '../../../utils/cockpit/daemonSnapshot.js'
 import { deriveDaemonRows } from '../../../utils/cockpit/daemonRows.js'
 
+
 const MAX_ROWS = 12
-
 const COCKPIT_POLL_MS = 4000
-
 const NOTE_EXPIRE_MS = 2500
 
 const EMPTY_STATUS: MercuryDaemonStatus = {
@@ -48,17 +47,14 @@ const EMPTY_STATUS: MercuryDaemonStatus = {
 }
 
 export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNode {
-
   const { columns: termCols } = useTerminalSize()
   const detailBudget = Math.max(40, termCols - 24)
   const dirBudget = Math.max(40, termCols - 22)
   const accent = useSessionAccent().accent
-
   const pollEnabled = React.useMemo(
     () => (flagEnv('MERCURY_DAEMON_COCKPIT_POLL') === '0' ? false : true),
     [],
   )
-
   const sync = React.useMemo<{ state: string; reason?: string }>(() => {
     try {
       return daemonSnapshot()
@@ -68,13 +64,10 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   }, [])
   const [status, setStatus] = React.useState<MercuryDaemonStatus | null>(null)
   const [sel, setSel] = React.useState(0)
-
   const [selKey, setSelKey] = React.useState<string | null>(null)
   const [loadId, setLoadId] = React.useState(0)
   const [note, setNote] = React.useState<string | null>(null)
-
   const [probedAt, setProbedAt] = React.useState(0)
-
   const [detailOpen, setDetailOpen] = React.useState(false)
   const now = useNowTick()
 
@@ -96,7 +89,6 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
       .catch(() => {
         if (!alive) return
         setStatus(EMPTY_STATUS)
-
         setProbedAt(Date.now())
       })
     return () => {
@@ -113,9 +105,7 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
 
   const probing = status === null
   const v = deriveDaemonRows(status)
-
   const indexClamped = Math.min(sel, Math.max(0, v.workers.length - 1))
-
   const keyAt = selKey !== null ? v.workers.findIndex(w => w.short === selKey) : -1
   const clampedSel = keyAt >= 0 ? keyAt : indexClamped
   React.useEffect(() => {
@@ -137,7 +127,6 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
       }
       if (!pastOpenEvent()) return
       if (key.return) {
-
         if (visible.length > 0) setDetailOpen(o => !o)
         return
       }
@@ -162,7 +151,6 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
       subtitle="daemon + workers"
       onClose={onClose}
       captureInput={false} footer={footer} bodyOwnsPageKeys >{probing ? (
-
         <Box marginTop={1}>
           <Text color={FAINT}>{GLYPH.drifting} probing control socket … </Text>
           <Text color={sync.state === 'live' ? TEAL : FAINT}>{sync.reason || sync.state}</Text>
@@ -215,10 +203,8 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
             {
             visible.map((w, i) => {
               const active = winStart + i === clampedSel
-
               const settled = w.outcome !== undefined
               const failed = w.outcome === 'degraded' || w.outcome === 'crashed' || w.outcome === 'killed'
-
               const activity = settled
                 ? failed
                   ? `${GLYPH.fail} ${w.outcome}`
@@ -231,9 +217,7 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
                       : 'busy'
                   : 'idle'
               const leadInk = failed ? CRIMSON : settled ? FAINT : w.stalled ? AMBER : w.busy ? TEAL : SECOND
-
               const detail = `${w.state} · ${activity} · respawns ${w.respawns} · ctx ${w.ctx} · ${w.model}/${w.effort}`
-
               const drill: KVRow[] = [
                 { k: 'model', v: w.model, tone: IVORY },
                 { k: 'effort', v: w.effort, tone: IVORY },

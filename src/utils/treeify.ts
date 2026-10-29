@@ -2,6 +2,7 @@ import { color } from '../components/design-system/color.js'
 import { DEFAULT_THEME_SETTING } from './systemTheme.js'
 import type { Theme, ThemeName } from './theme.js'
 
+
 export type TreeNode = { [key: string]: unknown }
 
 type TreeifyOptions = {
@@ -13,7 +14,6 @@ type TreeifyOptions = {
     key?: keyof Theme
     value?: keyof Theme
   }
-
   useColors?: boolean
 }
 
@@ -41,7 +41,6 @@ export function treeify(obj: TreeNode, options?: TreeifyOptions): string {
   if (keys.length === 0) {
     return paintValue('(empty)')
   }
-
   if (keys.length === 1) {
     const only = keys[0] as string
     const value = obj[only]

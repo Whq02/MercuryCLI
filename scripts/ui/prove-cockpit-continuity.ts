@@ -36,7 +36,6 @@ check(
   /const showSpinner = spinnerSlotReserved && \(\s*\n(?:\s*\/\/[^\n]*\n)*\s*!textActive \|\| streamingSuppressed\s*\n\s*\);/.test(repl),
 );
 check(
-
   'the streaming hold keeps the 1-row slot while prose streams',
   /: spinnerSlotReserved \? <StreamingHoldRow [\s\S]{0,220}\/> : null\}/.test(repl),
 );
@@ -48,7 +47,6 @@ check(
 );
 
 const home = readFileSync('src/components/MercuryHome.tsx', 'utf8');
-
 check(
   'berth art rides a fixed dock-height slot, bottom-aligned',
   /height=\{SQUARE_DOCK_ART_LINES\}[\s\S]{0,120}justifyContent="flex-end"/.test(home.slice(home.indexOf('export function PinnedCritterBerth'))),

@@ -1,3 +1,4 @@
+
 export function getEnterWorktreeToolPrompt(): string {
   return `Split off an isolated git worktree and move this session into it.
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,7 +22,6 @@ process.env.MERCURY_EVOLUTION_LEDGER = '0'
 mkdirSync(join(scratch, 'home'), { recursive: true })
 mkdirSync(join(scratch, 'daemon'), { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 process.env.GEMINI_API_KEY = 'fixture-gemini-key-000'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 

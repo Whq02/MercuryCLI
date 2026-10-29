@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -49,9 +48,7 @@ type RunSpec = {
   end: [number, number]
   grabs: number[]
   seconds: number
-
   originBlank?: boolean
-
   originRail?: boolean
 }
 
@@ -102,7 +99,6 @@ const specs: RunSpec[] = [
     name: 'run4 BLANK-row origin (the clip-band miss shape)',
     turns: turnsSettled,
     dragAt: 9500,
-
     origin: [40, 22],
     path: [
       [60, 23],
@@ -118,7 +114,6 @@ const specs: RunSpec[] = [
     name: 'run5 RAIL-anchored origin escaping into the transcript',
     turns: turnsSettled,
     dragAt: 9500,
-
     origin: [8, 8],
     path: [
       [40, 12],
@@ -147,7 +142,6 @@ const frameDump: { name: string; frames: Frame[] }[] = []
 let inconclusive = false
 
 for (const spec of specs) {
-
   spawnSync('pbcopy', { input: 'poise-PR09-SENTINEL' })
 
   const dragSends = [
@@ -211,7 +205,6 @@ for (const spec of specs) {
   }
 
   const key = (c: number[]): string => `${c[0]},${c[1]}`
-
   const { getTheme: getTheme09 } = await import('../../src/utils/theme.js')
   const _rgb09 = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(String(getTheme09('dark').selectionBg))
   const SEL_BG = _rgb09
@@ -234,7 +227,6 @@ for (const spec of specs) {
   const overlayRows = [...new Set(overlay.map(([, y]) => y))].sort((a, b) => a - b)
   const overlayMinX = overlay.length ? Math.min(...overlay.map(([x]) => x)) : -1
   const overlayMaxX = overlay.length ? Math.max(...overlay.map(([x]) => x)) : -1
-
   const railOverlap = overlay.filter(([x]) => x <= 24)
 
   const copiedChanged = copied !== 'poise-PR09-SENTINEL'

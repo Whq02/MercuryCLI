@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
@@ -42,15 +43,12 @@ function sidecarEntryScript(): { script?: string; direct?: boolean; reason?: str
 export function probeBuiltinTsServer(): {
   available: boolean
   typescriptPath?: string
-
   typescriptSource?: 'project-local' | 'packaged'
   typescriptVersion?: string
   entryScript?: string
-
   directEntry?: boolean
   reason?: string
 } {
-
   const workspacePath = resolveWorkspaceTypescript(getCwd())
   let typescriptPath = workspacePath
   let typescriptSource: 'project-local' | 'packaged' | undefined = workspacePath ? 'project-local' : undefined
@@ -122,7 +120,6 @@ function builtinTsServer(): Record<string, ScopedLspServerConfig> {
   return {
     [MERCURY_TS_SERVER_NAME]: {
       command: process.execPath,
-
       args: probe.directEntry
         ? [probe.entryScript]
         : [probe.entryScript, '--lsp-ts-sidecar'],
@@ -186,7 +183,6 @@ function builtinWebServer(): Record<string, ScopedLspServerConfig> {
 }
 
 export function builtinImplementationInfo(name: string): { source: string; version?: string } | null {
-
   const recorded = spawnImplementation.get(name)
   if (recorded) return recorded
   if (name === MERCURY_TS_SERVER_NAME) {
@@ -213,7 +209,6 @@ export function builtinImplementationInfo(name: string): { source: string; versi
     return unityCsharpImplementationInfo()
   }
   if (name === MERCURY_WEB_SERVER_NAME) {
-
     return { source: 'packaged' }
   }
   return null
@@ -269,7 +264,6 @@ export function getMercuryLspServerSources(): {
     ...builtinRuffServer(),
     ...builtinWebServer(),
   }
-
   if (MERCURY_PYRIGHT_SERVER_NAME in builtin) {
     const p = probeBuiltinPyright()
     if (p.available && p.source) {

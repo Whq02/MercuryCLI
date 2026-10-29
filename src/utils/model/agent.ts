@@ -10,6 +10,7 @@ export function getDefaultSubagentModel(): string {
   return INHERIT
 }
 
+
 const FIRST_PARTY_TIER_WORDS = new Set([...FIRST_PARTY_FAMILY_WORDS, 'mythos'])
 
 function firstPartyFamilyToken(canonical: string): string | null {
@@ -29,12 +30,12 @@ function wordNamesParentFamily(word: string, parentModel: string): boolean {
   return parentFamily !== null && parentFamily === wordFamily
 }
 
+
 export function getAgentModel(
   agentModel: string | undefined,
   parentModel: string,
   toolSpecifiedModel?: string,
 ): string {
-
   if (toolSpecifiedModel !== undefined && toolSpecifiedModel !== '') {
     if (wordNamesParentFamily(toolSpecifiedModel, parentModel)) return parentModel
     return parseUserSpecifiedModel(toolSpecifiedModel)
@@ -56,3 +57,5 @@ export function getAgentModel(
   if (wordNamesParentFamily(declared, parentModel)) return parentModel
   return parseUserSpecifiedModel(declared)
 }
+
+

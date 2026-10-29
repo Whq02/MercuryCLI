@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,7 +38,6 @@ seedFirstRun(home, [work, work2])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const ALPHA_PAUSE_S = 8 * vshotBudgetScale()
-
 const api = await startFixtureApi([
   { kind: 'paced_tool_use', preDeltas: ['alpha-01 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: `sleep ${ALPHA_PAUSE_S}; echo a1`, description: 'alpha pause one' } }] },
   { kind: 'text', text: 'beta-01 settled body.' },
@@ -88,10 +86,8 @@ let alphaSid = ''
 let betaSid = ''
 try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
-
   const run = await runArtifactArena({
     turns: [],
-
     sends: [
       'after:Beta probe:2500:\t',
       'after:Beta probe:3300:\r',
@@ -111,7 +107,6 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, work2])
-
       const { execFileSync } = await import('node:child_process')
       execFileSync('git', ['init', '-q', '-b', 'main'], { cwd })
       execFileSync('git', ['-c', 'user.email=drive@fixture', '-c', 'user.name=drive', 'commit', '-q', '--allow-empty', '-m', 'ground'], { cwd })
@@ -121,7 +116,6 @@ try {
         op: 'concourseDispatch',
         clientMessageId: 'switch-a',
         prompt: 'stream the alpha chain',
-
         workspaceDir: cwd,
         title: 'Alpha probe',
         modelKey: 'claude-opus-5',
@@ -179,7 +173,6 @@ try {
         for (const r of g.rows) if (r.trim()) console.log(r.slice(0, COLS - 2))
       }
     }
-
     const entered: Array<{ atMs: number; kind: string }> = []
     let phase: 'want-e1' | 'want-b1' | 'want-e2' | 'want-b2' | 'want-e3' | 'done' = 'want-e1'
     for (const l of lane) {
@@ -201,7 +194,6 @@ try {
     check('E2 entering a DIFFERENT session takes (the repro core)', entered.length >= 2, laneStr)
     check('B2 backing out again returns the board', entered.length >= 2 && phase !== 'want-b2', laneStr)
     check('E3 re-entering the first session takes (place kept)', phase === 'done', laneStr)
-
     const liveAlphaEntered = lane.some(l => l.kind === 'alpha')
     check('the live session painted inside an entered view during the drive', liveAlphaEntered, laneStr)
   } finally {

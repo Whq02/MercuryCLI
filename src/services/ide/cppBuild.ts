@@ -1,3 +1,4 @@
+
 import { spawn } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -19,19 +20,13 @@ type CppBuildOp = 'configure-preset' | 'configure-conventional' | 'build' | 'cle
 export interface CppBuildRun {
   op: CppBuildOp
   ok: boolean
-
   argv: string[]
-
   exitCode: number | null
   signal?: string
   durationMs: number
-
   outputTail: string[]
-
   artifactRef?: string
-
   compileDb?: string
-
   compileDbVisibleToClangd?: boolean
   detail: string
 }
@@ -48,6 +43,7 @@ const OUTPUT_TAIL_LINES = 40
 const OUTPUT_MAX_BYTES = 2 * 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 300_000
 const CMAKE_PROBE_TTL_MS = 30_000
+
 
 let cmakeCache: { at: number; key: string; path: string | null } | null = null
 
@@ -67,6 +63,7 @@ function probeCmake(): string | null {
 
 const CMAKE_REMEDY =
   'cmake is not on PATH — install CMake (brew install cmake · apt install cmake) to use the build ops'
+
 
 function refusal(op: CppBuildOp, detail: string): CppBuildRun {
   return { op, ok: false, argv: [], exitCode: null, durationMs: 0, outputTail: [], detail }
@@ -103,7 +100,6 @@ async function runCmake(options: {
   args: string[]
   cwd: string
   from: string
-
   expectDbDir?: string
   timeoutMs?: number
 }): Promise<CppBuildRun> {
@@ -112,7 +108,6 @@ async function runCmake(options: {
   const lines: string[] = []
   let bytes = 0
   let truncated = false
-
   let partial = ''
   const push = (chunk: Buffer): void => {
     if (truncated) return
@@ -135,7 +130,6 @@ async function runCmake(options: {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const result = await new Promise<{ exitCode: number | null; signal?: string; timedOut: boolean }>(
     resolve => {
-
       const child = spawn(options.cmakePath, options.args, {
         windowsHide: true,
         cwd: options.cwd,
@@ -144,7 +138,6 @@ async function runCmake(options: {
       })
       child.stdout.on('data', push)
       child.stderr.on('data', push)
-
       void settleChildRun(child, { timeoutMs }).then(settlement => {
         if (settlement.spawnError !== undefined) {
           lines.push(`spawn error: ${settlement.spawnError}`)
@@ -185,6 +178,7 @@ async function runCmake(options: {
         : `cmake exited ${result.exitCode ?? `null (${result.signal ?? 'spawn failure'})`} — see outputTail${artifactRef ? ` / ${artifactRef}` : ''}`,
   }
 }
+
 
 export function listCMakePresets(from: string = getCwd()): CMakePresetListing {
   const profile = buildCppProjectProfile(from)
@@ -252,7 +246,6 @@ export async function configureConventional(
   opts?: { timeoutMs?: number },
 ): Promise<CppBuildRun> {
   const profile = buildCppProjectProfile(from)
-
   const listing = listCMakePresets(from)
   if (listing.configurePresets.length > 0) {
     return refusal(
@@ -310,7 +303,6 @@ export async function buildTarget(
       ...(options.timeoutMs !== undefined ? { timeoutMs: options.timeoutMs } : {}),
     })
   }
-
   const buildDir = firstConfiguredBuildDir(profile)
   if (!buildDir) {
     return refusal(

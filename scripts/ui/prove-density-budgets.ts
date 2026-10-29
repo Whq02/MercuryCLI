@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readManifest, readStoredGrid } from './visualBaseline.ts'
 
 const BORDER = new Set('╭╮╰╯│─┈┃━║═▔▁'.split(''))
@@ -14,13 +13,11 @@ const CEILINGS: Record<string, { borderPct: number; accent: number; bold: number
   'frame--60x18--dark--truecolor--full': { borderPct: 24, accent: 300, bold: 20 },
   'frame--80x24--dark--truecolor--full': { borderPct: 24, accent: 390, bold: 33 },
   'frame--97x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
-
   'frame--99x30--dark--truecolor--full': { borderPct: 31, accent: 550, bold: 50 },
   'frame--100x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
   'frame--101x30--dark--truecolor--full': { borderPct: 21, accent: 550, bold: 52 },
   'frame--120x40--dark--truecolor--full': { borderPct: 16, accent: 540, bold: 54 },
   'frame--149x40--dark--truecolor--full': { borderPct: 17, accent: 640, bold: 54, deepRows: 0 },
-
   'frame--150x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
   'frame--151x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
   'frame--160x50--dark--truecolor--full': { borderPct: 20, accent: 720, bold: 76, deepRows: 9 },
@@ -38,7 +35,6 @@ const CEILINGS: Record<string, { borderPct: number; accent: number; bold: number
   'resume-2turn--151x40--dark--truecolor--full': { borderPct: 25, accent: 660, bold: 76, deepRows: 9 },
   'resume-2turn--160x50--dark--truecolor--full': { borderPct: 20, accent: 720, bold: 76, deepRows: 9 },
   'resume-2turn--269x70--dark--truecolor--full': { borderPct: 13, accent: 720, bold: 76, deepRows: 9 },
-
   'sessions--120x40--dark--truecolor--full': { borderPct: 24, accent: 440, bold: 103 },
   'tool-cards--120x40--dark--truecolor--full': { borderPct: 16, accent: 545, bold: 85 },
   'help--120x40--dark--truecolor--full': { borderPct: 24, accent: 545, bold: 60 },
@@ -54,7 +50,6 @@ if (!manifest) {
 }
 
 for (const e of manifest.entries) {
-
   if (e.theme !== 'dark' || e.colorMode !== 'truecolor' || e.motion !== 'full') continue
   const grid = readStoredGrid(e, baselineDir)
   const total = e.cols * e.rows

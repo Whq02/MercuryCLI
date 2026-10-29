@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-class: cpu
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn } from 'node:child_process'
@@ -29,7 +29,6 @@ for (let i = 1; i <= 6; i++) {
   mkdirSync(ws, { recursive: true })
   workspaces.push(ws)
 }
-
 process.env.GIT_CONFIG_GLOBAL = join(SCRATCH, 'gitconfig-empty')
 process.env.GIT_CONFIG_SYSTEM = '/dev/null'
 process.env.XDG_CONFIG_HOME = join(SCRATCH, 'xdg')
@@ -144,7 +143,6 @@ const admit = async (workspaceDir: string, extra: Record<string, unknown> = {}):
 console.log('\n§1 — five real workers admit and run simultaneously (two isolated in ONE repo)')
 const admitted: Required<Pick<AdmitReply, 'workerId' | 'sessionId' | 'pid'>>[] = []
 for (let i = 0; i < 4; i++) {
-
   const r =
     i >= 2
       ? await admit(sharedRepo, { isolation: 'worktree-isolated' })
@@ -170,12 +168,10 @@ for (let i = 0; i < 4; i++) {
     recs.every(r => existsSync(join(r.worktreePath!, '.git')) && existsSync(join(r.worktreePath!, 'seed.txt'))),
   )
 }
-
 const aliasPath = join(SCRATCH, 'ws-1-alias')
 symlinkSync(workspaces[0]!, aliasPath)
 const aliased = await admit(aliasPath)
 check(
-
   'a symlink-aliased workspace COLLIDES through the alias (RR-01 live) — the git offer answers it',
   aliased.ok === false && aliased.refusal === 'no-repository' && /git offer/.test(aliased.error ?? ''),
   JSON.stringify(aliased),
@@ -218,7 +214,6 @@ console.log('\n§2 — refusals at the real socket')
 const sixth = await admit(workspaces[5]!)
 check(
   'the SIXTH request refuses (runtime-ceiling) before any worker use',
-
   sixth.ok === false && sixth.refusal === 'runtime-ceiling' && /every seat is taken/.test(sixth.error ?? ''),
   JSON.stringify(sixth),
 )
@@ -282,7 +277,6 @@ check(
   'the released worker process is gone (intentional stop — no respawn)',
   await untilAsync(() => (releasedPid === undefined ? true : !alive(releasedPid)), 30_000),
 )
-
 {
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const isoLive = Object.values(readSessionWorkers(daemonDir)).find(
@@ -291,7 +285,6 @@ check(
   check('an isolated worker is still live for the reap leg', isoLive !== undefined)
   if (isoLive) {
     const wtPath = isoLive.worktreePath!
-
     const rel2 = (await daemonControlRpc({ op: 'concourseRelease', runnerId: isoLive.runnerId } as never)) as ReleaseReply
     check('the isolated worker releases + settles', rel2.ok === true && rel2.settled === true, JSON.stringify(rel2))
     check(

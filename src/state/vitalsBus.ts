@@ -1,3 +1,4 @@
+
 import { useSyncExternalStore } from 'react'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { serialCoalescer, type SerialCoalescer } from '../services/workbench/serialCoalescer.js'
@@ -22,11 +23,8 @@ import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
 const TRANSCRIPT_DEBOUNCE_MS = 500
-
 const HEARTBEAT_MS = 15_000
-
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
-
 const WORKFLOWS_DISK_MAX = 10
 
 export type SessionGlanceSnapshot =
@@ -36,17 +34,12 @@ export type SessionGlanceSnapshot =
 export interface VitalsSnapshots {
   sessions: SessionGlanceSnapshot
   git: GitRepoState | null
-
   tasks: readonly MissionRowV1[]
   fleet: { state: string; crew?: string | null; conflicts: number; drifting: number }
-
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
-
   workflowsDisk: Array<WorkflowRunManifest & { mtimeMs: number }>
-
   refreshedAt: number
-
   version: number
 }
 
@@ -68,11 +61,8 @@ let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
 let unsubTasks: (() => void) | null = null
-
 let unsubExecutions: (() => void) | null = null
-
 let unsubGitFacts: (() => void) | null = null
-
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
@@ -87,7 +77,6 @@ function emit(): void {
 }
 
 async function gitStateForRefresh(): Promise<GitRepoState | null> {
-
   return getGitState({ untrackedFiles: 'normal' })
 }
 
@@ -119,7 +108,6 @@ async function refreshOnce(): Promise<void> {
         next.fleet = { state: s.state, crew: null, conflicts: 0, drifting: 0 }
       })
       .catch(() => {}),
-
     listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })
       .then(runs => {
         next.workflowsDisk = runs
@@ -133,13 +121,11 @@ async function refreshOnce(): Promise<void> {
       })
       .catch(() => {}),
   ])
-
   const kept: Partial<VitalsSnapshots> = {}
   for (const key of Object.keys(next) as Array<keyof VitalsSnapshots>) {
     const prev = snapshots[key]
     const fresh = next[key]
     if (jsonStringify(prev) === jsonStringify(fresh)) {
-
       continue
     }
     ;(kept as Record<string, unknown>)[key as string] = fresh
@@ -169,7 +155,6 @@ function scheduleDebounced(): void {
 
 function startEngine(): void {
   if (heartbeat) return
-
   coalescer = serialCoalescer(async () => {
     try {
       await refreshOnce()
@@ -180,10 +165,8 @@ function startEngine(): void {
   heartbeat = setInterval(() => pokeVitals(), HEARTBEAT_MS)
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
-
   unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
-
   unsubGitFacts = subscribeGitFacts(() => pokeVitals())
   pokeVitals()
 }
@@ -205,7 +188,6 @@ function stopEngine(): void {
   unsubExecutions = null
   unsubGitFacts?.()
   unsubGitFacts = null
-
   coalescer?.release()
   coalescer = null
 }

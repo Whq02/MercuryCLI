@@ -5,13 +5,10 @@ import { basename } from 'node:path'
 export const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'
 
 export interface GeneratedAssetRow {
-
   assets: string[]
   generator: string
-
   check: string | null
   sources: string[]
-
   line: number
 }
 
@@ -48,20 +45,15 @@ export function repoPathsIn(text: string): string[] {
 
 interface AssetVerdictInput {
   rows: readonly GeneratedAssetRow[]
-
   commitPaths: readonly string[]
-
   contentOf: (path: string) => string | null
   previousContentOf?: (path: string) => string | null
-
   readFile: (path: string) => string | null
-
   chainedVerifies: readonly string[]
 }
 
 interface OwedAsset {
   row: GeneratedAssetRow
-
   touched: { path: string; source: string }[]
 }
 
@@ -98,9 +90,7 @@ export function generatedAssetsOwed(input: AssetVerdictInput): OwedAsset[] {
       }
     }
     if (touched.length === 0) continue
-
     if (row.assets.every(asset => input.commitPaths.some(path => pathMatches(path, asset)))) continue
-
     if (row.check !== null && checkChained(row.check, input.chainedVerifies)) continue
     owed.push({ row, touched })
   }

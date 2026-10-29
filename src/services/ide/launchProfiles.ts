@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -32,13 +33,11 @@ type LaunchProfileSource = 'vscode' | 'python-tests' | 'cmake' | 'godot' | 'unit
 type LaunchProfileKind = 'debug' | 'run' | 'test' | 'build'
 
 export interface LaunchProfile {
-
   id: string
   source: LaunchProfileSource
   kind: LaunchProfileKind
   label: string
   language: 'python' | 'cpp' | 'js' | 'go' | 'dotnet' | 'ruby' | 'godot' | 'unity' | 'blender' | 'other'
-
   debug?: {
     adapter: string
     program: string
@@ -54,43 +53,30 @@ export interface LaunchProfile {
     port?: number
     pid?: number
   }
-
   test?: { framework: 'pytest' | 'unittest'; selection: string[]; selectionLabel: string }
-
   build?: { preset?: string; conventional?: boolean }
-
   godotScene?: { scene: string; path?: string }
-
   unityHeadless?: {
-
     editorPath?: string
-
     args: string[]
-
     commandLine: string
     note: string
   }
-
   blenderHeadless?: {
     blenderPath?: string
     args: string[]
     commandLine: string
     note: string
   }
-
   runnerRef?: { profileId: string; runner: string }
   preLaunchTask?: PreLaunchTask
-
   provenance: string
-
   droppedFields?: string[]
 }
 
 interface LaunchDiscovery {
   profiles: LaunchProfile[]
-
   skipped: Array<{ name: string; reason: string }>
-
   sourceErrors: Array<{ source: LaunchProfileSource; error: string }>
   collectedAt: number
 }
@@ -104,6 +90,7 @@ function profileId(source: string, kind: string, payload: unknown): string {
     .slice(0, 12)
   return `lp-${digest}`
 }
+
 
 export function stripJsonc(text: string): string {
   let out = ''
@@ -156,7 +143,6 @@ export function stripJsonc(text: string): string {
     }
     out += ch
   }
-
   return out.replace(/,(\s*[}\]])/g, '$1')
 }
 
@@ -248,7 +234,6 @@ function configEnvironment(
 
 const VSCODE_PY_TYPES = new Set(['python', 'debugpy'])
 const VSCODE_NATIVE_TYPES = new Set(['lldb', 'lldb-dap', 'cppdbg'])
-
 const VSCODE_TYPE_FAMILIES: ReadonlyArray<{
   types: Set<string>
   adapter: string
@@ -391,6 +376,7 @@ function vscodeProfiles(root: string): {
   return { profiles, skipped }
 }
 
+
 export async function discoverLaunchProfiles(from: string = getCwd()): Promise<LaunchDiscovery> {
   const profiles: LaunchProfile[] = []
   const skipped: Array<{ name: string; reason: string }> = []
@@ -422,7 +408,6 @@ export async function discoverLaunchProfiles(from: string = getCwd()): Promise<L
         provenance: `detected ${framework}${pyProfile.testFrameworks.pytest.evidence ? ` (${pyProfile.testFrameworks.pytest.evidence})` : ''} on ${pyProfile.interpreter.command}`,
       })
       const latest = latestRun(from)
-
       if (latest && latest.failures.length > 0 && (latest.framework === 'pytest' || latest.framework === 'unittest')) {
         const rerun = { framework: latest.framework, selection: latest.failures, selectionLabel: 'rerun-failed' }
         profiles.push({
@@ -624,7 +609,6 @@ export async function discoverLaunchProfiles(from: string = getCwd()): Promise<L
           'hermetic run: --factory-startup skips the user startup.blend; --python-exit-code 1 makes a raised Python exception exit 1 (zero disables — the doc string). Runs are yours to start.',
         ),
       )
-
       const { blenderDebugRecipe } = await import('./blenderDebug.js')
       const recipe = blenderDebugRecipe(bin ?? '<blender>')
       profiles.push(

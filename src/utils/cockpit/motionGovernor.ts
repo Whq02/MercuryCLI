@@ -5,17 +5,11 @@ import { critterIdleEnabled } from './critterIdle.js'
 import { liveGlyphsEnabled, REDUCED_TICK_MS } from './liveGlyphs.js'
 
 export const FRAME_BUDGET_MS = FRAME_INTERVAL_MS
-
 export const TRIP_RUN = 12
-
 export const TRIP_RUN_COST_MS = 600
-
 export const RELEASE_RUN = 48
-
 export const LOOP_BUSY_SHARE = 0.5
-
 export const REDUCED_FLOOR_MS = REDUCED_TICK_MS
-
 export const REDUCED_CEILING_MS = 2000
 
 type MotionPosture = 'auto' | 'full' | 'reduced' | 'off'
@@ -94,6 +88,7 @@ export function subscribeIdleMotion(fn: () => void): () => void {
   }
 }
 
+
 export function motionPosture(): MotionPosture {
   return S.posture
 }
@@ -103,6 +98,7 @@ export function setMotionPosture(posture: MotionPosture, options: { quiet?: bool
   S.posture = posture
   if (!options.quiet) notify()
 }
+
 
 export function governorLevel(): GovernorLevel {
   return S.level
@@ -174,7 +170,6 @@ export function noteFrameCost(costMs: number): void {
         S.overRun = 0
         S.overCostMs = 0
         const busy = S.meter.busyShare()
-
         if (busy === null || busy >= LOOP_BUSY_SHARE) tripTo('paint')
       }
     } else {
@@ -183,7 +178,6 @@ export function noteFrameCost(costMs: number): void {
     }
     return
   }
-
   let period = S.reducedPeriodMs
   if (costMs > period) period = Math.min(REDUCED_CEILING_MS, period * 2)
   else if (costMs * 4 < period) period = Math.max(REDUCED_FLOOR_MS, period / 2)
@@ -198,6 +192,7 @@ export function noteFrameCost(costMs: number): void {
     S.underRun = 0
   }
 }
+
 
 function postureLevel(): IdleMotionLevel {
   return S.posture === 'auto' ? S.level : S.posture
@@ -238,6 +233,7 @@ export function motionGovernorFacts(): {
   }
 }
 
+
 let padMs: number | null = null
 
 export function burnFrameCostPad(): void {
@@ -250,6 +246,7 @@ export function burnFrameCostPad(): void {
   while (perf.now() < until) {
   }
 }
+
 
 export function __setLoopMeterForTest(meter: LoopMeter | null): void {
   S.meter = meter ?? REAL_LOOP_METER

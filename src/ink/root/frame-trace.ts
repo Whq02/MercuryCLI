@@ -1,18 +1,16 @@
+
 import type { FramePhases } from '../frame.js'
 import { lastFrameDelivery, type FrameDelivery } from '../session/delivery.js'
 
 export interface FrameTraceRow {
   schema: 1
-
   seq: number
-
   at: number
   totalMs: number
   layoutMs: number
   paintMs: number
   wireBytes: number
   drainMs: number | null
-
   yogaMs: number
   commitMs: number
   rendererMs: number
@@ -20,14 +18,10 @@ export interface FrameTraceRow {
   optimizeMs: number
   writeMs: number
   patches: number
-
   fullClears: number
   lastClearReason: string | null
-
   inputToFrameMs: number | null
-
   actionId: string | null
-
   contexts: string[]
 }
 

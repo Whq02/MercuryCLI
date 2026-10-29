@@ -23,7 +23,6 @@ function chipTexts(
 ): string[] {
   const headers = questions.map((q, i) => q?.header || `Q${i + 1}`)
   if (availableForTabs <= 0) {
-
     return headers.map((h, i) => (i === currentQuestionIndex ? h.slice(0, 3) : ''))
   }
   const idealTotal = headers.reduce((sum, h) => sum + CHIP_OVERHEAD + stringWidth(h), 0)

@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getAllReleaseNotes, getStoredChangelog } from '../../src/utils/releaseNotes.js'
@@ -16,12 +17,12 @@ console.log('============================================================')
 console.log(' /health self-recognition — proof')
 console.log('============================================================')
 
+
 console.log('\n[1] release notes are bundled Mercury notes (no fetch, no disk cache)')
 {
   const t0 = Date.now()
   const changelog = await getStoredChangelog()
   const elapsed = Date.now() - t0
-
   check(`getStoredChangelog() resolves instantly (${elapsed}ms < 400)`, elapsed < 400)
   check(
     `bundled changelog is Mercury's own (names Mercury, carries ## ${PACKAGE_VERSION})`,

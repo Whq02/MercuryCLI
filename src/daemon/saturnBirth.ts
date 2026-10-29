@@ -13,7 +13,6 @@ interface SaturnBirthDoorsV1 {
     kitPreset?: string
     by?: string
   }): Promise<{ ok: boolean; sessionId?: string; workspaceId?: string; error?: string; heldReason?: string }>
-
   withdraw(clientMessageId: string): Promise<boolean>
   admit(req: ConcourseAdmitRequest): Promise<ConcourseAdmitResult>
   contract(sessionId: string, text: string, by: string): { outcome: 'applied' | 'noop' | 'refused'; detail?: string }
@@ -22,12 +21,10 @@ interface SaturnBirthDoorsV1 {
 export function makeSaturnBirthPort(doors: SaturnBirthDoorsV1): SaturnTickerPortsV1['birth'] {
   return async (spec: SaturnBirthSpecV1, opts: { scheduleId: string; dueAt: number; by: string; owner: string }) => {
     const { scheduleId, dueAt, by, owner } = opts
-
     const birthKey = `saturn-birth-${owner}-${scheduleId}-${dueAt}`
     let sessionId: string
     let workspaceId: string
     if (spec.opening !== undefined) {
-
       const r = await doors.dispatch({
         clientMessageId: birthKey,
         prompt: spec.opening,
@@ -40,14 +37,12 @@ export function makeSaturnBirthPort(doors: SaturnBirthDoorsV1): SaturnTickerPort
       })
       if (!r.ok) return { ok: false, detail: r.error ?? 'the dispatch door refused' }
       if (r.sessionId === undefined) {
-
         await doors.withdraw(birthKey)
         return { ok: false, detail: `held by the dispatch door${r.heldReason !== undefined ? ` (${r.heldReason})` : ''} — banked for retry` }
       }
       sessionId = r.sessionId
       workspaceId = r.workspaceId ?? spec.workspaceDir
     } else {
-
       const r = await doors.admit({
         workspaceDir: spec.workspaceDir,
         ...(spec.modelKey !== undefined ? { modelKey: spec.modelKey } : {}),
@@ -60,11 +55,9 @@ export function makeSaturnBirthPort(doors: SaturnBirthDoorsV1): SaturnTickerPort
       sessionId = r.sessionId
       workspaceId = r.workspaceId
     }
-
     if (spec.contract !== undefined && spec.contract !== null) {
       const set = doors.contract(sessionId, spec.contract.text, by)
       if (set.outcome === 'refused') {
-
         rowSaturnTickReceipt({ workspaceId, sessionId }, by, 'schedule-fire', `born by schedule '${scheduleId}' — contract pre-answer refused: ${set.detail ?? 'no detail'}`, {
           outcome: 'born',
           scheduleId,

@@ -52,7 +52,6 @@ async function main(): Promise<void> {
         evaluator.slice(evaluator.indexOf('interface StopEvaluationInput'), evaluator.indexOf('export function evaluateStop')),
       ),
     )
-
     const settledWrite = fold('write the report file', [
       { type: 'substantive', at: 2, reason: 'mutation landed' },
       {
@@ -77,7 +76,6 @@ async function main(): Promise<void> {
       d.kind === 'complete',
       d.kind,
     )
-
     const interactive = evaluateStop({
       ...defaults,
       snapshot: settledWrite,
@@ -113,7 +111,6 @@ async function main(): Promise<void> {
     const cwd = mkdtempSync(join(tmpdir(), 'speedster-bm-proj-'))
     const vOwner = ok.makeOwnerKey({ workspace: cwd, sessionId: 'bm-v', lane: 'main' })
     const target = join(cwd, 'lib.py')
-
     observeToolTerminal({
       owner: vOwner,
       toolName: 'Write',
@@ -138,13 +135,11 @@ async function main(): Promise<void> {
       demanded.size === 0,
       `demanded: ${[...demanded].join(', ') || 'none'}`,
     )
-
     v.observeCompletedToolCall('Write', { file_path: join(cwd, 'legacy.py'), content: 'y\n' }, true, cwd, vOwner)
     check(
       'BM-09 contrast: a digest-less legacy mutation KEEPS the read-back debt',
       v.demandedReadBackPaths(cwd, vOwner).size === 1,
     )
-
     v.observeCompletedToolCall('Bash', { command: 'python -m pytest -q' }, true, cwd, vOwner)
     const bornInside = readdirSync(cwd)
     check(
@@ -162,7 +157,6 @@ async function main(): Promise<void> {
   section('BM-14 — status/error/exit derive from one typed outcome')
   {
     const engine = src('src/rows/turn.ts')
-
     const settledAt = engine.indexOf("const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)")
     const gateAt = engine.indexOf("if (settled.status === 'completed') {", settledAt)
     const completedAt = engine.indexOf("endTurn('completed'", gateAt)
@@ -221,7 +215,6 @@ async function main(): Promise<void> {
   {
     const core = await import('../../src/utils/cache/cacheClockCore.js')
     const clock = src('src/utils/cache/cacheClock.ts')
-
     check(
       'E08: rollups live in the global per-project store (cross-process by construction)',
       clock.includes("join(getProjectDir(identity), 'cache-clock', 'sessions')") && !clock.includes('getProjectsDir()'),
@@ -234,7 +227,6 @@ async function main(): Promise<void> {
       'E08 adjudication: the cadence prior is NEVER domain-keyed (workflow property, project scope)',
       !clock.includes('mintCacheDomainKey'),
     )
-
     const gapPrior = { sessions: 5, gapSessions: 3 }
     check(
       'E09: disabled ⇒ null (default path byte-identical); an operator pin wins over eligibility',
@@ -248,7 +240,6 @@ async function main(): Promise<void> {
         JSON.stringify(core.decideInitialTtl({ enabled: true, pin: null, eligible: true, cls: 'interactive', prior: { sessions: 1, gapSessions: 1 } })) ===
           JSON.stringify({ ttl: '5m', escalation: true }),
     )
-
     const fiveM = { ttl: '5m', escalation: true } as const
     check(
       'E10: escalation fires ONLY at a cold boundary the 1h TTL would have survived ((5m,1h])',
@@ -265,14 +256,12 @@ async function main(): Promise<void> {
         verdict.result.coldRewrites.clock < verdict.result.coldRewrites.baseline5m,
       `green=${verdict.green} savings=${verdict.result.savingsPct}% cold=${verdict.result.coldRewrites.baseline5m}→${verdict.result.coldRewrites.clock}`,
     )
-
     check(
       'E11: junk rollups fail OPEN (priorFromRollups tolerates garbage; readPrior catch ⇒ empty prior)',
       JSON.stringify(core.priorFromRollups([null, 42, 'junk', {}])) === JSON.stringify({ sessions: 0, gapSessions: 0 }) &&
         JSON.stringify(core.priorFromRollups([{ v: 1, requests: 10, gapsOver5m: 2 }, 'junk'])) === JSON.stringify({ sessions: 1, gapSessions: 1 }) &&
         clock.includes('return { sessions: 0, gapSessions: 0 }'),
     )
-
     const fp = src('src/services/api/prefixFingerprint.ts')
     check(
       'E12: prefixFingerprint is pure/local (no usage/cache_read reads; estimate labeled, never a billing claim)',
@@ -292,7 +281,6 @@ async function main(): Promise<void> {
       },
       { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '{"text":' },
       { type: 'response.function_call_arguments.delta', item_id: 'fc_1', delta: '"four"}' },
-
       {
         type: 'response.output_item.done',
         item: { type: 'function_call', id: 'fc_1', call_id: 'call_bm04', name: 'EchoTool' },
@@ -358,7 +346,6 @@ async function main(): Promise<void> {
     const printSrc = src('src/cli/run.ts')
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', printSrc.includes('noteHeadlessActivity('))
     const mainSrc = src('src/main.tsx')
-
     check(
       "BM-15: numStartups semantics UNTOUCHED (interactive increment only; main.tsx's one ledger call is the verb stamp, never print/sdk)",
       mainSrc.includes('numStartups: (current.numStartups ?? 0) + 1') &&

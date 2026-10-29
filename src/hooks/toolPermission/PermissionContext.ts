@@ -1,3 +1,4 @@
+
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
@@ -32,6 +33,8 @@ import {
 } from './permissionLogging.js'
 
 export type { PermissionApprovalSource, PermissionRejectionSource }
+
+
 
 type PermissionQueueOps = {
   push(entry: ToolUseConfirm): void
@@ -166,7 +169,6 @@ export function createPermissionContext(
   setToolPermissionContext: (next: ToolPermissionContext) => void,
   queueOps?: PermissionQueueOps,
 ): PermissionContext {
-
   const logContext: PermissionLogContext = { toolUseID, toolUseContext }
   const ctx: PermissionContext = {
     tool,
@@ -192,7 +194,6 @@ export function createPermissionContext(
           updates,
         ),
       )
-
       return error === null && updates.some(update => supportsPersistence(update.destination))
     },
 

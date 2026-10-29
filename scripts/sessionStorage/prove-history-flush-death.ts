@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -20,7 +19,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const section = (t: string): void =>
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
-
 const waitFor = async (cond: () => boolean, wakeups = 100): Promise<boolean> => {
   for (let i = 0; i < wakeups; i++) {
     if (cond()) return true

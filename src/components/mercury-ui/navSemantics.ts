@@ -1,3 +1,4 @@
+
 import type { Key } from '../../ink/events/input-event.js'
 
 export type NavAction =
@@ -27,15 +28,10 @@ export type NavOrientation =
 
 export type NavDecodeOptions = {
   orientation: NavOrientation
-
   hierarchy?: boolean
-
   leftCloses?: boolean
-
   spaceToggles?: boolean
-
   pageKeys?: boolean
-
   tabFocus?: boolean
 }
 
@@ -158,7 +154,6 @@ export function skipDisabled(
   let i = to
   while (i >= 0 && i < length && isDisabled(i)) i += dir
   if (i < 0 || i >= length) {
-
     i = to
     while (i !== from && isDisabled(i)) i -= dir
     return isDisabled(i) ? from : i

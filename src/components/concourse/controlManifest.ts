@@ -1,3 +1,4 @@
+
 import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../../services/concourse/closeChordStage.js'
 import { SESSION_DEFAULTS_KEY_HINT } from '../../services/switchboard/sessionDefaultsKey.js'
 
@@ -6,83 +7,52 @@ type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirma
 type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
 
 interface ConcourseControlSpec {
-
   id: string
-
   action: string
   region: ConcourseFocusRegion | 'header' | 'status'
-
   modes: ConcourseMode[]
-
   keys: string[]
-
   pointer: 'activate' | 'select-then-activate' | 'none'
-
   receipt: string
-
   informational?: boolean
 }
 
 export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
-
   { id: 'crumb:boot', action: 'route:boot-settings', region: 'header', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'route-transition' },
   { id: 'crumb:focused-chat', action: 'route:root-repl', region: 'header', modes: ['browse'], keys: ['escape'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'crumb:concourse', action: 'none', region: 'header', modes: ['browse'], keys: [], pointer: 'none', receipt: 'none', informational: true },
-
   { id: 'needs-you:row', action: 'concourse:select-obligation', region: 'needs-you', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
   { id: 'needs-you:answer', action: 'concourse:answer-obligation', region: 'needs-you', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'obligation-settled' },
   { id: 'needs-you:open', action: 'concourse:open-session', region: 'needs-you', modes: ['browse'], keys: ['o'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'needs-you:withdraw', action: 'concourse:withdraw-obligation', region: 'needs-you', modes: ['browse'], keys: ['w'], pointer: 'none', receipt: 'obligation-settled' },
-
   { id: 'board:row', action: 'concourse:select-session', region: 'list', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
-
   { id: 'board:open', action: 'concourse:enter-session', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
-
   { id: 'board:arm', action: 'concourse:arm-session', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'selection' },
-
   { id: 'board:queued-room', action: 'concourse:open-queued-room', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'route-transition' },
-
   { id: 'board:peek', action: 'concourse:toggle-row-peek', region: 'list', modes: ['browse'], keys: ['right'], pointer: 'none', receipt: 'selection' },
-
   { id: 'board:older-browse', action: 'concourse:older-browse', region: 'list', modes: ['browse'], keys: ['return', 'right', 'up', 'down', 'escape'], pointer: 'select-then-activate', receipt: 'route-transition' },
   { id: 'board:group-heading', action: 'none', region: 'list', modes: ['browse'], keys: [], pointer: 'none', receipt: 'none', informational: true },
   { id: 'board:empty-start', action: 'concourse:focus-composer', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
-
   { id: 'board:empty-new', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'route-transition' },
-
   { id: 'board:focus', action: 'concourse:focus-list', region: 'list', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
   { id: 'coordinator:focus-title', action: 'concourse:focus-coordinator', region: 'coordinator', modes: ['browse'], keys: [], pointer: 'activate', receipt: 'focus-move' },
-
   { id: 'board:new-session', action: 'concourse:new-session', region: 'list', modes: ['browse'], keys: ['n'], pointer: 'activate', receipt: 'route-transition' },
   { id: 'board:model-default', action: 'concourse:model-default', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'mode-transition' },
-
   { id: 'board:rename', action: 'concourse:rename-session', region: 'list', modes: ['browse'], keys: ['r'], pointer: 'none', receipt: 'mode-transition' },
-
   { id: 'board:interrupt', action: 'concourse:interrupt-session', region: 'list', modes: ['browse'], keys: ['i'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:pause-resume', action: 'concourse:pause-resume-session', region: 'list', modes: ['browse'], keys: ['p'], pointer: 'none', receipt: 'row-control' },
   { id: 'board:set-model', action: 'concourse:set-session-model', region: 'list', modes: ['browse'], keys: ['m'], pointer: 'none', receipt: 'row-control' },
-
   { id: 'board:set-effort', action: 'concourse:set-session-effort', region: 'list', modes: ['browse'], keys: ['e'], pointer: 'none', receipt: 'row-control' },
-
   { id: 'board:mark', action: 'concourse:toggle-broadcast-mark', region: 'list', modes: ['browse'], keys: ['space'], pointer: 'none', receipt: 'selection' },
-
   { id: 'mirror:title', action: 'concourse:enter-session', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
-
   { id: 'live:send', action: 'concourse:live-send', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'row-control' },
-
   { id: 'board:split-toggle', action: 'concourse:toggle-split-view', region: 'list', modes: ['browse'], keys: ['s'], pointer: 'none', receipt: 'mode-transition' },
-
   { id: 'board:split-ratio', action: 'concourse:nudge-split-ratio', region: 'list', modes: ['browse'], keys: ['[', ']'], pointer: 'none', receipt: 'mode-transition' },
-
   { id: 'split:chat-enter', action: 'concourse:enter-session', region: 'chat', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
-
   { id: 'live:enter-selected', action: 'concourse:enter-session', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'route-transition' },
-
   { id: 'composer:send', action: 'concourse:composer-send', region: 'coordinator', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'coordinator-turn' },
   { id: 'composer:model-chip', action: 'concourse:coordinator-model', region: 'coordinator', modes: ['browse', 'coordinator-picker'], keys: ['ctrl+s'], pointer: 'activate', receipt: 'mode-transition' },
-
   { id: 'status:project-ground', action: 'concourse:ground-picker', region: 'status', modes: ['browse'], keys: ['ctrl+g'], pointer: 'activate', receipt: 'mode-transition' },
-
   { id: 'capacity-ask:allow', action: 'concourse:capacity-allow', region: 'coordinator', modes: ['confirmation'], keys: ['y'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'capacity-ask:decline', action: 'concourse:capacity-decline', region: 'coordinator', modes: ['confirmation'], keys: ['n', 'escape'], pointer: 'activate', receipt: 'mode-transition' },
   { id: 'compact:row', action: 'concourse:select-session', region: 'list', modes: ['browse'], keys: ['up', 'down'], pointer: 'select-then-activate', receipt: 'selection' },
@@ -96,7 +66,6 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
 const CONCOURSE_BROWSE_KEYS = [
   { keys: '↑↓', label: 'browse' },
   { keys: 'tab', label: 'panes' },
-
   { keys: '⌃g', label: 'ground' },
   { keys: 'esc', label: 'focused chat' },
 ] as const
@@ -113,26 +82,21 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: 'r', label: 'rename' },
     { keys: '→', label: 'peek' },
     { keys: '/', label: 'filter' },
-
     { keys: '⌃x ⌃x', label: 'stop · archive · delete' },
     { keys: 'm', label: 'message queued' },
-
     { keys: 'space', label: 'mark' },
     { keys: 's', label: 'split' },
   ],
-
   live: [
     { keys: '⇧↵/⌃j', label: 'newline' },
     { keys: 'pgup/pgdn', label: 'scroll' },
   ],
-
   coordinator: [
     { keys: '↵', label: 'send' },
     { keys: '⇧↵/⌃j', label: 'newline' },
     { keys: '⌃s', label: 'coordinator model' },
     { keys: 'pgup/pgdn', label: 'scroll' },
   ],
-
   chat: [
     { keys: '↵', label: 'full chat' },
     { keys: 's', label: 'full board' },
@@ -181,7 +145,6 @@ export function boardSelectionClassOf(
 }
 
 type CloseChordRung =
-
   | 'withdraw'
   | 'stop'
   | 'resend-stop'
@@ -266,28 +229,22 @@ export function regionKeysFor(
     chatSession?: boolean
     landing?: boolean
     olderBrowse?: boolean
-
     armed?: boolean
-
     liveDraftHeld?: boolean
-
     chordStaged?: boolean
     modelDefault?: boolean
   },
 ): ReadonlyArray<{ keys: string; label: string }> {
-
   if (opts.olderBrowse === true) {
     return [{ keys: '↵', label: 'bring it back' }]
   }
   const stageFilter = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
-
     opts.newSession
       ? rows
       : rows
           .filter(k => k.keys !== 'n' && k.keys !== 'r' && k.keys !== 's' && k.keys !== 'space' && k.keys !== '⇧↵/⌃j')
           .map(k => (k.keys === '↵↵' ? { keys: '↵', label: k.label } : k))
   if (region === 'chat') {
-
     if (opts.landing === true) return CONCOURSE_REGION_KEYS.chat.filter(k => k.keys !== '↵')
     return CONCOURSE_REGION_KEYS.chat.map(k =>
       k.keys === '↵' && opts.chatSession === false ? { keys: '↵', label: 'new session' } : k,
@@ -296,7 +253,6 @@ export function regionKeysFor(
   if (region !== 'list') {
     return stageFilter(CONCOURSE_REGION_KEYS[region])
   }
-
   const withEnterTruth = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
     rows.map(k =>
       k.keys === '↵↵' && opts.liveDraftHeld === true
@@ -314,7 +270,6 @@ export function regionKeysFor(
   const row = (keys: string): { keys: string; label: string } | undefined => base.find(k => k.keys === keys)
   const keep = (...names: string[]): Array<{ keys: string; label: string }> =>
     names.map(n => row(n)).filter((k): k is { keys: string; label: string } => k !== undefined)
-
   const chordRow = (selection: BoardSelectionClass): Array<{ keys: string; label: string }> => {
     const label = closeChordLegendOf(closeChordRungOf(selection, opts.chordStaged === true))
     return label === null ? [] : [{ keys: '⌃x ⌃x', label }]
@@ -323,7 +278,6 @@ export function regionKeysFor(
     switch (selection) {
       case 'live':
       case 'paused':
-
         return stageFilter([
           ...keep('↵↵'),
           { keys: 'i', label: 'interrupt' },
@@ -335,20 +289,16 @@ export function regionKeysFor(
           ...keep('n', 'space', 's'),
         ])
       case 'attached':
-
         return stageFilter([...keep('↵↵', 'n', 'r', '→', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'queued':
-
         return stageFilter([...keep('n', 'm', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'parked':
-
         return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'stopped':
         return stageFilter([...keep('n', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'door':
         return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
       case 'none':
-
         return stageFilter([...keep('n'), ...(opts.modelDefault === true ? [{ keys: 'm', label: SESSION_DEFAULTS_KEY_HINT }] : []), ...keep('/', 's')])
     }
   }

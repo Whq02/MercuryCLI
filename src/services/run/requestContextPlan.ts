@@ -1,3 +1,4 @@
+
 import type { DeadThinkingMark } from '../../types/message.js'
 import { createHash } from 'node:crypto'
 import type { QuerySource } from '../../constants/querySource.js'
@@ -48,19 +49,12 @@ interface RequestContextPlanInput {
   querySource: QuerySource
   engineModel?: string
   contentReplacementState: ContentReplacementState | undefined
-
   persistReplacements?: (records: ToolResultReplacementRecord[]) => void | Promise<void>
-
   skipToolNames: ReadonlySet<string>
-
   microcompact?: typeof microcompactMessages
-
   readFileState?: Pick<import('../../utils/fileStateCache.js').FileStateCache, 'delete'>
-
   selectionBudget?: SelectionBudget | null
-
   calibrationKey?: string | null
-
   harnessContextPolicy?: ContextPolicyClass | null
   pressurePrune?: true | { minimumTokensSaved: number }
   fixedRequest?: RequestGaugeFixed
@@ -68,34 +62,24 @@ interface RequestContextPlanInput {
 }
 
 export interface RequestContextPlan {
-
   planVersion: 2
   mode: 'apply' | 'inspect'
   owner: OwnerKey
   epoch: number
-
   sourceMessageCount: number
   afterBoundaryCount: number
-
   messages: Message[]
-
   reductions: {
     toolResultBudgetReplacements: number
     timeBasedCleared: number
-
     pressurePruned?: { cleared: number; tokensSaved: number }
-
     deadThinkingMarks?: DeadThinkingMark[]
     reasons: string[]
   }
-
   digest: string
   builtAt: number
-
   unknownFields: string[]
-
   selection: ContextSelectionPlan
-
   tokenEstimate: {
     key: string
     estimatedTokens: number
@@ -210,7 +194,6 @@ export async function buildRequestContextPlan(
   const unknownFields: string[] = []
   const reasons: string[] = []
   const sourceMessageCount = input.messages.length
-
   const afterBoundary = stripThinkingInPreservedTail(getMessagesAfterCompactBoundary(input.messages))
   const afterRewinds = projectRewoundWindows(afterBoundary)
   if (afterRewinds.length < afterBoundary.length) {
@@ -223,7 +206,6 @@ export async function buildRequestContextPlan(
 
   const policy = resolveSelectionPolicy(input.harnessContextPolicy ?? null)
   const selectionIndex = candidateIndexFor(input.owner, mode)
-
   const budgetResolution = resolveSelectionBudget(input.selectionBudget)
   const budget = budgetResolution.budget
   if (budgetResolution.note) unknownFields.push(budgetResolution.note)
@@ -253,7 +235,6 @@ export async function buildRequestContextPlan(
       view,
       state,
       mode === 'apply' ? input.persistReplacements : undefined,
-
       new Set([...(input.skipToolNames ?? []), ...PROTECTED_TOOL_NAMES]),
       input.engineModel,
     )
@@ -273,7 +254,6 @@ export async function buildRequestContextPlan(
   let pressurePruned: RequestContextPlan['reductions']['pressurePruned']
   let deadThinkingMarks: RequestContextPlan['reductions']['deadThinkingMarks']
   if (!input.preserveBodies) {
-
     const projected = projectTimeBasedMicrocompact(view, input.querySource)
     if (projected) {
       timeBasedCleared = projected.cleared
@@ -282,7 +262,6 @@ export async function buildRequestContextPlan(
       )
     }
     if (mode === 'apply') {
-
       const micro = input.microcompact ?? microcompactMessages
       const result = await micro(
         view,
@@ -297,7 +276,6 @@ export async function buildRequestContextPlan(
       )
       view = result.messages
       if (result.deadMarks !== undefined && result.deadMarks.length > 0) deadThinkingMarks = result.deadMarks
-
       if (result.pruned !== undefined && result.pruned.cleared > 0) {
         if (input.pressurePrune === true || (input.pressurePrune !== undefined && projected === null)) {
           pressurePruned = { cleared: result.pruned.cleared, tokensSaved: result.pruned.tokensSaved }

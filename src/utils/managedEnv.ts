@@ -6,7 +6,9 @@ import { clearProxyCache, configureGlobalAgents } from './proxy.js'
 import { isSettingSourceEnabled, type SettingSource } from './settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 
+
 type EnvObject = Record<string, string>
+
 
 const TUNNEL_PROTECTED_KEYS = [
   'MERCURY_API_UNIX_SOCKET',
@@ -40,6 +42,7 @@ function applyFiltered(env: EnvObject | undefined): void {
   }
 }
 
+
 const TRUSTED_SOURCES_BEFORE_POLICY: readonly SettingSource[] = ['userSettings', 'flagSettings']
 
 export function applySafeConfigEnvironmentVariables(): void {
@@ -57,6 +60,7 @@ export function applySafeConfigEnvironmentVariables(): void {
     applyFiltered(allowlisted)
   }
 }
+
 
 export function applyConfigEnvironmentVariables(): void {
   applyFiltered(getInitialSettings().environment?.values)

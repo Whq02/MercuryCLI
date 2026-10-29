@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -112,13 +111,11 @@ console.log('— K4 the geometry —')
   check('K4 a zero desire grants nothing (no chip, no row)', none.peekRows === 0)
   const open = layout.switchboardGeometry(120, 40, 0, 3, 1, 1, 'mirror', layout.ROW_PEEK_DESIRED_ROWS)
   check('K4 the open peek keeps its own grant', open.peekRows >= 1 && open.peekRows <= layout.ROW_PEEK_DESIRED_ROWS && open.peekRows >= wide.peekRows)
-
   check('K4 the list content rows exclude the grant (the window keeps its budget)', wide.listContentRows === none.listContentRows && stacked.listContentRows === layout.switchboardGeometry(100, 30, 0, 3, 1, 1, 'mirror', 0).listContentRows)
 }
 
 console.log('— K5 registration gates —')
 {
-
   const store = new tiles.LiveTileStore({ ...tiles.workChipStoreDeps(), armMachinery: false })
   check('K5 an unregistered session reads still', store.readTile('dispatch:nope').kind === 'still' && store.readTile(SID).kind === 'still')
 }

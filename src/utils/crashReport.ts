@@ -1,3 +1,4 @@
+
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
@@ -70,7 +71,6 @@ function crashIdentity(): {
       sessionId = String(getSessionId())
     } catch {}
   }
-
   let cwd: string | null = null
   try {
     const { getCwd } = require('./cwd.js') as typeof import('./cwd.js')
@@ -126,10 +126,8 @@ export function persistCrashReport(
         2,
       ),
     )
-
     lastReportPath = file
     lastReportRefusal = null
-
     try {
       const all = readdirSync(dir)
         .filter(f => f.startsWith('crash-'))
@@ -145,10 +143,10 @@ export function persistCrashReport(
       logForDebugging(`[crashReport] prune listing failed: ${listErr}`)
     }
   } catch (writeErr) {
-
     lastReportRefusal = writeErr instanceof Error ? writeErr.message : String(writeErr)
   }
 }
+
 
 type CrashReportSummary = {
   file: string
@@ -156,7 +154,6 @@ type CrashReportSummary = {
   at: string
   message: string
   component: string | null
-
   sessionId: string | null
   cwd: string | null
   pid: number | null
@@ -355,6 +352,7 @@ export function resolveCrashTranscript(
   }
   return null
 }
+
 
 const NOTICE_MARKER = '.boot-noticed'
 

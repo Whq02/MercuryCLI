@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'

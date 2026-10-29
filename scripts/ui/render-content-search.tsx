@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -18,7 +17,6 @@ import { resolveProofHome } from '../lib/proofHome.ts'
 
 const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 
 if (process.env.SEARCH_RENDER_CHILD) {
@@ -28,7 +26,6 @@ if (process.env.SEARCH_RENDER_CHILD) {
   }
   const { MercuryContentSearch } = await import('../../src/components/MercuryContentSearch.js')
   const h = React.createElement
-
   const mock = [
     { file: 'src/components/MercuryFrame.tsx', line: 60, text: '  // Mercury statusbar' },
     { file: 'MERCURY.md', line: 3, text: 'This is Mercury — a terminal harness' },
@@ -36,7 +33,6 @@ if (process.env.SEARCH_RENDER_CHILD) {
   ]
   const loadMatches = async () => mock
   void render(h(MercuryContentSearch, { onPick: () => {}, onClose: () => {}, loadMatches }))
-
   setTimeout(() => process.exit(0), 4500)
 } else {
   let failures = 0
@@ -58,7 +54,6 @@ if (process.env.SEARCH_RENDER_CHILD) {
       cfg,
       JSON.stringify({
         argv: [process.execPath, 'run', SELF],
-
         sends: [{ atTick: 10, data: 'mercury' }],
         total: 22,
         cols,
@@ -66,12 +61,10 @@ if (process.env.SEARCH_RENDER_CHILD) {
         out,
       }),
     )
-
     const grid = execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
       timeout: 30000,
       env: { ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME, SEARCH_RENDER_CHILD: '1' },
     })
     const cells: Cell[] = existsSync(out)

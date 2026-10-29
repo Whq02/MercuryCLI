@@ -22,7 +22,6 @@ type Props = {
   onDone(): void;
   commands?: Command[];
 };
-
 function toolAllowsBash(tool: string): boolean {
   return tool === BASH_TOOL_NAME || tool.startsWith(BASH_TOOL_NAME + "(");
 }
@@ -32,7 +31,6 @@ function isSkillOrExtensionCommandWithBash(command: Command): boolean {
 }
 
 export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
-
   const { servers: projectServers } = getMcpConfigsByScope("project");
   const hasMcpServers = Object.keys(projectServers).length > 0;
   const hasHooks = getHooksSources().length > 0;
@@ -64,7 +62,6 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
     }
     const isHomeDir = homedir() === getCwd();
     if (isHomeDir) {
-
       setSessionTrustAccepted(true);
     } else {
       saveCurrentProjectConfig(current => ({
@@ -77,7 +74,6 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
 
   const exitState = useExitOnCtrlCDWithKeybindings(() => exit());
   useKeybinding("confirm:no", () => {
-
     exit();
   }, { context: "Confirmation" });
 
@@ -93,15 +89,12 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
         ) : (
         <Text>Trust a folder only if you know what is in it: its settings can run hooks and helper commands, and its files can carry instructions for the model.</Text>
         )}
-        {
-}
+        {}
         {shortFrame ? null : <Text>Mercury reads, edits and runs files here.</Text>}
-        {
-}
+        {}
         {(() => {
           if (shortFrame) return null;
           const grantRoot = getProjectPathForConfig();
-
           if (grantRoot === normalizePathForConfigKey(getFsImplementation().cwd())) return null;
           return (
             <Text>

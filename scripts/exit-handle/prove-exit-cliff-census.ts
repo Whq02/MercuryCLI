@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
@@ -50,24 +49,19 @@ type Census = {
   requests: Req[]
   handles: { kind: string; fd?: number }[]
   activeResourcesInfo: Record<string, number>
-
   drainSeams?: string[] | null
   drainSkipped?: boolean
-
   drainReport?: { skipped: boolean; settled: string[]; failed: string[]; abandoned: string[]; elapsedMs: number } | null
 }
 type Run = {
   script: string
   arm: 'drain' | 'poison'
-
   allowed: string[]
   rc: number | null
   signal: string | null
   stdout: string
   stderr: string
-
   beforeDrain: Census | null
-
   census: Census | null
   home: string
   fix: string
@@ -183,10 +177,8 @@ const drainRuns: Array<Run & { spawnLog: string | null }> = []
 for (const script of [ANSWER_TEXT_SCRIPT, ...ONE_TOOL_SCRIPTS]) {
   drainRuns.push(await runCase(script, 'drain'))
 }
-
 drainRuns.push(await runCase('tool-bash-write', 'drain', ['Read', 'Glob']))
 drainRuns.push(await runCase(ANSWER_TEXT_SCRIPT, 'drain', ['Bash', 'Read', 'Glob'], true))
-
 const poison = await runCase(ANSWER_TEXT_SCRIPT, 'poison')
 
 section('§1 — the DRAIN arm: seven runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch · control with a probe-exit stdio server), the census BEFORE the drain and AT the cliff')

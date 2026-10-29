@@ -1,3 +1,4 @@
+
 import { getVitals } from '../../state/vitalsBus.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -46,6 +47,7 @@ const REFRESH_DEBOUNCE_MS = 300
 const HEARTBEAT_MS = 20_000
 const EXECUTIONS_MAX = 100
 
+
 let appStateProvider: (() => unknown) | null = null
 
 function withLiveAttention(snap: WorkbenchSnapshot): WorkbenchSnapshot {
@@ -56,6 +58,7 @@ function withLiveAttention(snap: WorkbenchSnapshot): WorkbenchSnapshot {
   })
   return snap
 }
+
 
 function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
   const out = new Map<string, RichTaskFact>()
@@ -95,7 +98,6 @@ export function pickRunFacts(snap: RunSnapshot | null): RunFacts | null {
   if (typeof s.lifecycle === 'string') facts.lifecycle = s.lifecycle
   if (typeof s.phase === 'string') facts.phase = s.phase
   if (typeof s.nextAction === 'string') facts.nextAction = s.nextAction
-
   const blocker = s.blocker as { description?: unknown; ownedBy?: unknown } | null | undefined
   if (blocker && typeof blocker.description === 'string') {
     facts.blocker =
@@ -113,6 +115,7 @@ export function pickRunFacts(snap: RunSnapshot | null): RunFacts | null {
   }
   return facts
 }
+
 
 const agentMetaCache = new Map<string, AgentMetaFact>()
 
@@ -146,9 +149,9 @@ function realpathSafe(p: string): string {
   }
 }
 
+
 export async function gatherWorkbenchInputs(opts?: {
   getAppState?: () => unknown
-
   lastGood?: Map<string, unknown>
 }): Promise<WorkbenchSourceInputs> {
   const now = Date.now()
@@ -273,7 +276,6 @@ function remember<T>(
     store.set(id, s.value)
     return s
   }
-
   if (s.state === 'empty') {
     store.delete(id)
     return s
@@ -286,7 +288,6 @@ async function listGitWorktreeLanes(): Promise<SourceState<WorkbenchSourceInputs
   try {
     const worktrees = await getGitWorktreeLanes()
     if (!Array.isArray(worktrees)) {
-
       return sourceUnavailable(worktrees.note, false)
     }
     const lanes = worktrees
@@ -304,7 +305,6 @@ async function listGitWorktreeLanes(): Promise<SourceState<WorkbenchSourceInputs
 }
 
 function listArtifactHeadFacts(cwd: string): SourceState<WorkbenchSourceInputs['artifacts']> {
-
   return mapSourceValue(listReviewArtifactHeadsSource({ root: cwd }), heads =>
     heads.map(h => ({
       id: h.id,
@@ -319,14 +319,13 @@ function listArtifactHeadFacts(cwd: string): SourceState<WorkbenchSourceInputs['
   )
 }
 
-let snapshot: WorkbenchSnapshot | null = null
 
+let snapshot: WorkbenchSnapshot | null = null
 const lastGood = new Map<string, unknown>()
 const listeners = new Set<() => void>()
 let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const engineUnsubs: Array<() => void> = []
-
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
@@ -340,7 +339,6 @@ function emit(): void {
 }
 
 async function refreshOnce(): Promise<void> {
-
   const gatherGeneration = coalescer?.generation() ?? 0
   const inputs = await gatherWorkbenchInputs({ lastGood })
   snapshot = withLiveAttention({
@@ -366,7 +364,6 @@ function scheduleDebounced(): void {
 
 function startEngine(): void {
   if (heartbeat) return
-
   coalescer = serialCoalescer(async () => {
     try {
       await refreshOnce()
@@ -376,7 +373,6 @@ function startEngine(): void {
   }, 'workbench')
   heartbeat = setInterval(() => pokeWorkbench(), HEARTBEAT_MS)
   heartbeat.unref?.()
-
   engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))
   engineUnsubs.push(subscribeRuns(() => scheduleDebounced()))
   engineUnsubs.push(subscribeExecutionEvents(() => scheduleDebounced()))
@@ -388,7 +384,6 @@ function stopEngine(): void {
     clearInterval(heartbeat)
     heartbeat = null
   }
-
   coalescer?.release()
   coalescer = null
   if (debounceTimer) {
@@ -424,7 +419,6 @@ export async function resolveWorkbenchSnapshot(opts?: {
   if (snapshot && listeners.size > 0) return snapshot
   const gatherOpts = opts?.getAppState ? { getAppState: opts.getAppState } : undefined
   const inputs = await gatherWorkbenchInputs(gatherOpts)
-
   const composed = withLiveAttention(
     composeWorkbenchSnapshot(inputs, { version: oneShotVersion }),
   )

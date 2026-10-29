@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -41,7 +40,6 @@ const QUEUE_PURE = new Set([
 function scanContent(content: string, path: string): { needle: NeedleName; line: number; text: string }[] {
   const hits: { needle: NeedleName; line: number; text: string }[] = []
   const lines = content.split('\n')
-
   lines.forEach((raw, i) => {
     const t = raw.trim()
     if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return
@@ -50,7 +48,6 @@ function scanContent(content: string, path: string): { needle: NeedleName; line:
       if (N[name].test(raw)) hits.push({ needle: name, line: i + 1, text: t })
     }
   })
-
   const importRe = /import\s+(type\s+)?({[^}]*}|\*\s+as\s+\w+)\s+from\s+'[^']*input-core\/command-queue(?:\.js)?'/g
   for (const m of content.matchAll(importRe)) {
     const typeOnly = m[1] !== undefined
@@ -119,18 +116,14 @@ const PURE_FACE: string[] = [
   'src/components/SwitchboardTagBar.tsx',
   'src/components/TaskListV2.tsx',
   'src/hooks/useCancelRequest.ts',
-
   ...(existsSync(join(process.cwd(), 'src/hooks/useCommandQueue.ts')) ? ['src/hooks/useCommandQueue.ts'] : []),
   'src/hooks/useDisplayedSessionModel.ts',
   'src/hooks/useSessionConnector.ts',
 ]
 
 const RESIDUE: Record<string, Partial<Record<NeedleName, number>>> = {
-
   'src/components/Messages.tsx': { bootstrapFacade: 1 },
-
   'src/hooks/useCancelRequest.ts': { queueModule: 1 },
-
   'src/components/PromptInput/Notifications.tsx': { modelResolution: 2 },
   'src/components/permissions/MediaPermissionRequest.tsx': { cwdOwner: 1 },
 }

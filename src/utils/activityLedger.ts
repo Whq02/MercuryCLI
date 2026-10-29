@@ -1,3 +1,4 @@
+
 import { getGlobalConfig, saveGlobalConfigDeferred } from './config/globalConfig.js'
 
 type HeadlessActivityKind = 'print' | 'sdk' | `verb:${string}`
@@ -19,7 +20,6 @@ export function noteHeadlessActivity(kind: HeadlessActivityKind): void {
       const next: HeadlessActivity = {
         print: prev.print + (kind === 'print' ? 1 : 0),
         sdk: prev.sdk + (kind === 'sdk' ? 1 : 0),
-
         verbs: kind.startsWith('verb:')
           ? { ...(prev.verbs ?? {}), [kind.slice(5)]: (prev.verbs?.[kind.slice(5)] ?? 0) + 1 }
           : (prev.verbs ?? {}),

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -15,7 +14,6 @@ delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN
 delete process.env.CI
 delete process.env.NODE_ENV
-
 process.env.MERCURY_API_KEY_HELPER_TTL_MS = '600000'
 const COUNT = join(SCRATCH, 'count')
 process.env.HELPER_COUNT_FILE = COUNT

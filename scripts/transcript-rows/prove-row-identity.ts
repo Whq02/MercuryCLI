@@ -83,7 +83,6 @@ console.log('── row-identity ratchet (shipped artifact) ──')
     JSON.stringify({ ...toolRows, ...toolRowsUn }),
   )
   const tailUn = markCounts(run, 'unmount:tail')
-
   check('the tail is one persistent mount across streams', tail['mount:tail'] === 1 && (tailUn['unmount:tail'] ?? 0) === 0, JSON.stringify({ ...tail, ...tailUn }))
 }
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -24,7 +23,6 @@ function capture(name: string, cols: number): string {
   const cfg = scenario(name, cols, 44)
   const out = join(home, `${name}-${cols}.json`)
   const cfgPath = join(home, `${name}-${cols}-cfg.json`)
-
   writeFileSync(cfgPath, JSON.stringify({ argv: cfg.argv, cwd: cfg.cwd, sends: cfg.sends ?? [], total: 150, readyText: ['already matches'], cols, rows: 44, out }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
@@ -42,7 +40,6 @@ try {
     const noChangeRows = grid.split('\n').filter(l => l.includes('No changes — stillpoint-demo.txt already matches'))
     t(`both no-change rows paint at ${cols}`, noChangeRows.length === 2, `${noChangeRows.length} row(s)`)
     if (noChangeRows.length !== 2) {
-
       console.log('      ┌ grid on failure (first 30 non-blank lines):')
       for (const line of grid.split('\n').filter(l => l.trim()).slice(0, 30)) {
         console.log(`      │ ${line.slice(0, 110)}`)

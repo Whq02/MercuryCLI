@@ -1,3 +1,4 @@
+
 import { randomUUID } from 'node:crypto'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
@@ -11,10 +12,8 @@ export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number]
 export type ObligationSettlementKind = Exclude<ObligationStatus, 'open'>
 
 export interface ObligationNotificationStateV1 {
-
   emittedRevision: number
   emittedAtMs: number
-
   acknowledgedRevision?: number
   acknowledgedAtMs?: number
 }
@@ -23,34 +22,22 @@ export interface ObligationSettlementAttemptV1 {
   kind: ObligationSettlementKind
   by?: string
   atMs: number
-
   applied: boolean
 }
 
 export interface ObligationV1 {
   schema: 1
-
   obligationId: string
-
   ref: string
-
   sessionId: string
-
   conversationId?: string
-
   sourceEventRef?: string
-
   question: string
-
   answerShape?: string
-
   principals: string[]
-
   owner: string
   status: ObligationStatus
-
   createdOrdinal: number
-
   revision: number
   createdAtMs: number
   updatedAtMs: number
@@ -58,24 +45,18 @@ export interface ObligationV1 {
   settlement?: {
     kind: ObligationSettlementKind
     by?: string
-
     answerRef?: string
-
     resumptionRef?: string
     supersededBy?: string
   }
-
   settlementAttempts: ObligationSettlementAttemptV1[]
-
   notifications: Record<string, ObligationNotificationStateV1>
   urgency?: 'normal' | 'high'
   expiresAtMs?: number
 }
 
 interface ObligationFileV1 {
-
   obligations: Record<string, ObligationV1>
-
   lastOrdinal: number
 }
 
@@ -264,7 +245,6 @@ export async function recordSettledObligation(
 export interface OpenObligationsScope {
   sessionId?: string
   owner?: string
-
   principal?: string
   dir?: string
   scope?: ObligationStoreScope
@@ -319,7 +299,6 @@ export async function resolveObligation(
     }
     const attempts = [...row.settlementAttempts, attempt].slice(-MAX_SETTLEMENT_ATTEMPTS)
     if (row.status !== 'open') {
-
       const updated: ObligationV1 = { ...row, settlementAttempts: attempts }
       return {
         next: { ...current, obligations: { ...current.obligations, [obligationId]: updated } },

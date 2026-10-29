@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -33,13 +32,11 @@ for (const name of ['dark', 'true-black'] as const) {
   check(`${name}: diffRemoved → DIFF_DEL_BG`, t.diffRemoved === DIFF_DEL_BG, t.diffRemoved)
   check(`${name}: diffAddedWord → DIFF_ADD_WORD`, t.diffAddedWord === DIFF_ADD_WORD, t.diffAddedWord)
   check(`${name}: diffRemovedWord → DIFF_DEL_WORD`, t.diffRemovedWord === DIFF_DEL_WORD, t.diffRemovedWord)
-
   check(`${name}: diffAddedDimmed is a dark tint (never light green)`, /^#0[0-9a-f]/i.test(t.diffAddedDimmed), t.diffAddedDimmed)
   check(`${name}: diffRemovedDimmed is a dark tint (never light red)`, /^#[0-3]/i.test(t.diffRemovedDimmed), t.diffRemovedDimmed)
 }
 
 section('the brand tints EXACTLY equal the native color-diff stamp branch (no drift)')
-
 const cd = readFileSync(join(ROOT, 'src', 'native-ts', 'color-diff', 'index.ts'), 'utf-8')
 const hexToRgb = (h: string): string => {
   const n = parseInt(h.slice(1), 16)

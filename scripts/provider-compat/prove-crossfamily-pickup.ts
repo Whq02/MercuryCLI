@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -185,7 +184,6 @@ function gptBornHistory(): Message[] {
       { type: 'text', text: 'Writing the plan now.', citations: null },
       { type: 'tool_use', id: 'call_bash_stopped', name: BASH, input: { command: 'cat services/auth/README.md' } },
     ], 'tool_use'),
-
     createUserInterruptionMessage({ toolUse: true }),
     createUserMessage({ content: 'pick up where the interview left off and finish the plan' }),
   ]
@@ -258,7 +256,6 @@ async function drive(model: string, history: Message[]): Promise<{
 }
 
 section('preflight · the plan names its losses by message BEFORE any wire')
-
 const gptHistory = gptBornHistory()
 const claudeHistory = claudeBornHistory()
 {
@@ -278,7 +275,6 @@ const claudeHistory = claudeBornHistory()
 }
 
 section('GPT → Claude · the incident direction (validating anthropic wire)')
-
 {
   const o = await drive('claude-opus-5', gptHistory)
   const body = o.body ?? {}
@@ -293,7 +289,6 @@ section('GPT → Claude · the incident direction (validating anthropic wire)')
 }
 
 section('Claude → GPT · the reverse direction (validating responses wire)')
-
 {
   rejected.length = 0
   const o = await drive('gpt-5.6-sol', claudeHistory)

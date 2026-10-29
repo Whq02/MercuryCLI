@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,7 +22,6 @@ section('§1 FC-043 — the detection module')
     '../../src/services/visual/imageDisplay.ts'
   )
   _resetImageProtocolForTesting()
-
   if (process.stdout.isTTY) {
     check('harness note: stdout unexpectedly a TTY — module leg skipped', true)
   } else {
@@ -62,7 +60,6 @@ section('§3 FC-049 — the measured polyglot count')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'polyglot-honest-')))
   const engineDir = realpathSync(mkdtempSync(join(tmpdir(), 'polyglot-engine-')))
-
   const src = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wasm')
   copyFileSync(join(src, 'tree-sitter.js'), join(engineDir, 'tree-sitter.js'))
   copyFileSync(join(src, 'tree-sitter.wasm'), join(engineDir, 'tree-sitter.wasm'))

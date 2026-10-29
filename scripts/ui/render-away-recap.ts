@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test';
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -18,7 +17,6 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const SELF = fileURLToPath(import.meta.url);
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname;
-
 const CONFIG_HOME = resolveProofHome([process.cwd()]);
 const NOW = Date.parse('2026-01-01T12:00:00.000Z');
 
@@ -70,12 +68,10 @@ if (process.env.RECAP_RENDER_CHILD) {
       out: `/tmp/recap-${cols}.html`,
       title: `away recap ${cols}`,
     }));
-
     return execFileSync('/usr/bin/python3', [VSHOT, cfg], {
       encoding: 'utf-8',
       timeout: vshotBudgetMs(30000),
       env: { ...process.env,
-
     MERCURY_CONFIG_DIR: CONFIG_HOME, RECAP_RENDER_CHILD: '1' },
     });
   };
@@ -90,13 +86,11 @@ if (process.env.RECAP_RENDER_CHILD) {
     check(`@${cols}: the highest-signal error flag survives first`, /Resumed — prior run ended on an error/.test(grid));
     check(`@${cols}: NO emoji in the grid`, !EMOJI.test(grid));
   }
-
   {
     const full = capture(120);
     check('@120: full line shows turns + uncommitted + a tool', /turns/.test(full) && /uncommitted/.test(full) && /Edit/.test(full));
     const narrow = capture(80);
     const narrowLine = (narrow.split('\n').find(l => /Resumed/.test(l)) ?? '').replace(/\s+$/, '');
-
     check('@80: single truncated line, width-clamped (<= 80 cells)', narrowLine.length > 0 && narrowLine.length <= 80, `len=${narrowLine.length}`);
   }
   console.log('='.repeat(60));

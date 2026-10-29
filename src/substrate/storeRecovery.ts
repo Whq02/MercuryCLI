@@ -1,3 +1,4 @@
+
 import { appendFile, readdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { mkdirSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
@@ -13,11 +14,8 @@ interface StoreRecoveryEvent {
   store: string
   path: string
   reason: string
-
   quarantinePath: string | null
-
   resumedFrom: 'last-good' | 'empty'
-
   kind?: 'quarantine' | 'read-degrade' | 'refused'
 }
 
@@ -43,7 +41,6 @@ export async function quarantineDamagedStore(args: {
       const target = join(dir, quarantineName(base))
       await writeFile(target, args.rawBytes, 'utf-8')
       quarantinePath = target
-
       const siblings = (await readdir(dir))
         .filter(n => n.startsWith(`${base}.damaged-`) && n.endsWith('.recovered'))
         .sort()

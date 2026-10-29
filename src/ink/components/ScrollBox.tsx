@@ -1,3 +1,4 @@
+
 import React, {
   forwardRef,
   type PropsWithChildren,
@@ -19,38 +20,25 @@ function markUnstick(scroll: { stickyScroll?: boolean }): void {
 export type ScrollBoxProps = PropsWithChildren<
   Omit<Styles, 'textWrap' | 'overflow' | 'overflowX' | 'overflowY'> & {
     readonly ref?: React.Ref<ScrollBoxHandle>
-
     readonly stickyScroll?: boolean
   }
 >
 
 export type ScrollBoxHandle = {
-
   scrollTo: (y: number) => void
-
   scrollToElement: (el: DOMElement, offset?: number) => void
-
   scrollBy: (dy: number) => void
-
   scrollToBottom: () => void
   getScrollTop: () => number
-
   getPendingDelta: () => number
-
   getScrollHeight: () => number
-
   getFreshScrollHeight: () => number
   getViewportHeight: () => number
-
   getViewportTop: () => number
   getElementTop: (el: DOMElement) => number | undefined
-
   isSticky: () => boolean
-
   subscribe: (listener: () => void) => () => void
-
   setClampBounds: (min: number | undefined, max: number | undefined) => void
-
   pinScrollTop: (y: number) => void
 }
 
@@ -178,7 +166,6 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
         markScrollActivity()
       },
     }),
-
     [],
   )
 

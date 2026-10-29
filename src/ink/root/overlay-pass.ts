@@ -16,27 +16,20 @@ import {
 export type SearchPositions = {
   positions: MatchPosition[]
   rowOffset: number
-
   colOffset: number
   currentIdx: number
 }
 
 type OverlayPassInput = {
   altScreen: boolean
-
   scrollTranslation: ScrollTranslation | null
-
   selection: SelectionState
-
   captureScreen: Screen
-
   screen: Screen
   stylePool: StylePool
   searchQuery: string
   searchPositions: SearchPositions | null
-
   onSelectionCleared: () => void
-
   record?: OverlayRecord
 }
 
@@ -52,12 +45,10 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
     selection.anchor.row <= scrollTranslation.viewportBottom
   ) {
     const { delta, viewportTop, viewportBottom } = scrollTranslation
-
     const capFirst = delta > 0 ? viewportTop : viewportBottom + delta + 1
     const capLast = delta > 0 ? viewportTop + delta - 1 : viewportBottom
     const side: 'above' | 'below' = delta > 0 ? 'above' : 'below'
     if (selection.isDragging) {
-
       if (hasSelection(selection)) {
         captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
@@ -67,7 +58,6 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
       !selection.focus ||
       (selection.focus.row >= viewportTop && selection.focus.row <= viewportBottom)
     ) {
-
       if (hasSelection(selection)) {
         captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
@@ -76,11 +66,9 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
       if (had && !hasSelection(selection)) input.onSelectionCleared()
       fluxMark('selection:xlate', 2000 + delta + 500)
     } else {
-
       fluxMark('selection:xlate', 3000 + delta + 500)
     }
   } else if (scrollTranslation && selection.anchor) {
-
     fluxMark('selection:xlate', 4000 + scrollTranslation.delta + 500)
   }
 

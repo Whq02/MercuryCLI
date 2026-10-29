@@ -26,7 +26,6 @@ console.log('============================================================')
 try {
   const projTemp = getProjectTempDir()
   mkdirSync(projTemp, { recursive: true })
-
   check('project temp dir is inside the pinned scratch (hygiene sanity)', realpathSync(projTemp).startsWith(realpathSync(TMP_SCRATCH)), projTemp)
 
   const root1 = join(projTemp, 'agent-a-scratch')
@@ -60,7 +59,6 @@ try {
   const { readFileSync } = await import('node:fs')
   const { buildSubagentMercurySections } = await import(join(ROOT, 'src/constants/subagentDoctrine.ts'))
   const doctrine = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } }).join('\n')
-
   check('subagent doctrine briefs scratch discipline (the ONE seam)',
     doctrine.includes('under your session scratchpad') &&
     doctrine.includes('never bare /tmp or the project tree') &&

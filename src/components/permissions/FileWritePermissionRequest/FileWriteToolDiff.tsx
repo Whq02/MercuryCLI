@@ -7,7 +7,6 @@ import { intersperse } from '../../../utils/array.js'
 import { getPatchForDisplay } from '../../../utils/diff.js'
 import { HighlightedCode } from '../../HighlightedCode.js'
 import { StructuredDiff } from '../../StructuredDiff.js'
-
 import {
   boundHunks,
   boundLines,
@@ -33,9 +32,7 @@ export function FileWriteToolDiff({
   oldContent,
 }: Props): React.ReactNode {
   const { columns, rows } = useTerminalSize()
-
   const [expanded, setExpanded] = useState(false)
-
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   })

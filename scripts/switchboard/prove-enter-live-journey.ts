@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,7 +34,6 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-
 const api = await startFixtureApi([
   { kind: 'paced_tool_use', preDeltas: ['stage-01 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 6; echo one', description: 'pause one' } }] },
   { kind: 'paced_tool_use', preDeltas: ['stage-02 live-body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 6; echo two', description: 'pause two' } }] },
@@ -46,7 +44,6 @@ const api = await startFixtureApi([
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
-
 const spawnDaemonWithHome = (configHome: string): void => {
   process.env.MERCURY_CONFIG_DIR = configHome
   daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', work], {
@@ -82,7 +79,6 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 let sessionId = ''
 let transcript = ''
 try {
-
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const hostTranscriptRows = (dir: string): { rows: number; digest: string } => {
     try {
@@ -112,7 +108,6 @@ try {
   }
   const run = await runArtifactArena({
     turns: [],
-
     sends: [
       'after:Enter live probe:1200:\t',
       'after:Enter live probe:1900:\r',
@@ -122,17 +117,14 @@ try {
     cols: 140,
     rows: 40,
     keep: true,
-
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work])
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
-
       const dispatched = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'enter-live-1',
         prompt: 'stream a long body',
-
         workspaceDir: cwd,
         title: 'Enter live probe',
         modelKey: 'claude-opus-5',
@@ -168,22 +160,18 @@ try {
         for (const r of g.rows) if (r.trim()) console.log(r.slice(0, 138))
       }
     }
-
     const entered = grabs.filter(g => !text(g).includes('SESSION CONCOURSE') && /stage-\d\d live-body/.test(text(g)))
     check('§1 the entered view paints the live transcript', entered.length > 0, `entered frames: ${entered.map(g => g.atMs).join(',') || 'none'}`)
     const tokenMax = (g: { rows: string[] }): number =>
       Math.max(-1, ...[...text(g).matchAll(/stage-(\d\d) live-body/g)].map(m => Number(m[1])))
     const maxes = entered.map(tokenMax)
     check('§1 …and keeps painting as the thought grows (later frames carry later stages)', maxes.length >= 2 && maxes[maxes.length - 1]! > maxes[0]!, `stage highs: ${maxes.join(',')}`)
-
     const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
     check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`)
-
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
     const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
     const stateDuring = recDuring ? concourseRecordState(recDuring, { needsYou: false, alive: true }) : 'missing'
     check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`)
-
     const hostHome = paths.getProjectDir(run.paths.cwd)
     const foreignFiles = ((): string[] => {
       try {

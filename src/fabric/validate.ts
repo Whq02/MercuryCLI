@@ -45,7 +45,6 @@ const usage = z
 
 const contentBlock: z.ZodType<unknown> = z.lazy(() =>
   z.discriminatedUnion('kind', [
-
     z.object({ kind: z.literal('text'), text: z.string(), citations: z.array(z.unknown()).nullable().optional(), extra: z.record(z.string(), z.unknown()).optional() }).strict(),
     z.object({ kind: z.literal('reasoning'), text: z.string(), receiptId: z.string().optional(), extra: z.record(z.string(), z.unknown()).optional() }).strict(),
     z.object({ kind: z.literal('redacted-reasoning'), receiptId: z.string().optional(), extra: z.record(z.string(), z.unknown()).optional() }).strict(),

@@ -31,7 +31,6 @@ export interface VisualManifest {
   sourceSha: string
   buildDigest: string
   generatedAt: string
-
   descoped: string[]
   entries: VisualBaselineEntry[]
 }
@@ -41,7 +40,6 @@ export interface StoredGrid {
   cols: number
   rows: number
   text: string[]
-
   styles: Array<Array<[number, number, string, string, number]>>
 }
 
@@ -61,18 +59,12 @@ export const DEFAULT_MASKS = [
   '\\b\\d{2}:\\d{2}:\\d{2}\\b',
   '\\b\\d+[smhd] ago\\b',
   '\\b\\d+[smhd] old\\b',
-
   '\\b\\d+ uncommitted \\(\\+\\d+/-\\d+\\) *',
-
   'health [▲●◌◐✕✓·◓] \\S+( · \\d+[smhd])? *',
-
   'row:\\S+ ⌥ ?[^…\\s]\\S*',
-
   'row:│ \\S+ │ ⤳',
   'FILES · [^│]*',
-
   '⌥ ?\\S+ *',
-
   'row: · \\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ?\\S+ · \\S+ +(?:⇧|shift\\+)← back',
   'row:^ ready · .+ {2,}(?:⇧|shift\\+)← back',
@@ -80,7 +72,6 @@ export const DEFAULT_MASKS = [
   ' *(?:⇧|shift\\+)← concourse *',
   'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
-
   'row:gate [✓◓✕·]',
   IDLE_MEASURE_MASK,
 ]
@@ -131,7 +122,6 @@ export function canonicalizeCheckoutRows(
     [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
   const clipped = new RegExp(`FILES · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
-
   const restoreAt = (row: string, start: number, end: number): number => {
     const before = / {2,}$/.exec(row.slice(0, start))
     const after = /^(?: {2,}|│)/.exec(row.slice(end))

@@ -1,3 +1,4 @@
+
 import { readFileSync } from 'node:fs'
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
@@ -115,7 +116,6 @@ const evalToolDef = buildTool({
     return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
   },
   async preparePermissionMatcher(input: EvalToolInput) {
-
     return (rulePattern: string) => rulePattern === '*' || rulePattern === input.language
   },
   async description() {

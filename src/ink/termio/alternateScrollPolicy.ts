@@ -1,13 +1,11 @@
+
 import type { ParsedInput, ParsedKey } from '../input/input-decoder.js'
 
 export const ALTERNATE_SCROLL_POLICY = 'scroll-first-in-native-selection' as const
 
 interface AlternateScrollState {
-
   altScreenActive: boolean
-
   mouseTrackingEnabled: boolean
-
   elevatedSurfaceActive: boolean
 }
 

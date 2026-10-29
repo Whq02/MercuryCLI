@@ -46,10 +46,8 @@ async function main(): Promise<void> {
     const macroKey = 'MACRO'
     const saved = (globalThis as Record<string, unknown>)[macroKey]
     ;(globalThis as Record<string, unknown>)[macroKey] = { VERSION: '0.0.0-src' }
-
     check('bare stamp ⇒ catalog STILL enabled (stamp-independence)', isDapToolCatalogEnabled() === true)
     ;(globalThis as Record<string, unknown>)[macroKey] = saved
-
     const pySpec = resolveAdapter('python')
     check(
       'builtin python adapter resolves (vendored-dir or module invocation)',
@@ -58,7 +56,6 @@ async function main(): Promise<void> {
         (pySpec.args.join(' ').includes('debugpy.adapter') || (pySpec.args[0] ?? '').endsWith('/debugpy/adapter')),
       pySpec ? `${pySpec.command} ${pySpec.args.join(' ')}` : 'null',
     )
-
     check('builtin lldb adapter resolves', /lldb-dap(\.exe)?$/.test(resolveAdapter('lldb')?.command ?? ''))
     check('env-table adapter resolves (mock)', resolveAdapter('mock')?.command === process.execPath)
     check('unknown adapter ⇒ null', resolveAdapter('nope') === null)

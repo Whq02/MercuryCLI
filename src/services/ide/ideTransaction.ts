@@ -13,6 +13,7 @@ export function ideLoopEnabled(): boolean {
   return flagEnabled('MERCURY_IDE_LOOP')
 }
 
+
 export const TX_STEP_KINDS = [
   'profile',
   'diagnose',
@@ -39,28 +40,21 @@ export interface TxStepAuto {
 
 export interface TxStep {
   kind: TxStepKind
-
   at: number
-
   summary: string
-
   refs: string[]
   outcome: TxStepOutcome
   auto?: TxStepAuto
 }
 
 export interface TxRecord {
-
   _v: 1
   id: string
   intent: string
-
   owner: OwnerKey
-
   projectRoot: string
   verdict: TxVerdict
   steps: TxStep[]
-
   unresolved: string[]
   openedAt: number
   finishedAt?: number
@@ -69,11 +63,11 @@ export interface TxRecord {
 
 export interface TxListRow {
   id: string
-
   intent: string
   verdict: TxVerdict
   openedAt: number
 }
+
 
 const STORE_SEGMENT = 'ide-transactions'
 const RECORD_PREFIX = 'tx-'
@@ -83,12 +77,12 @@ const SUMMARY_MAX = 300
 const LIST_MAX = 50
 const INTENT_ROW_MAX = 120
 const RECEIPT_REF_PREFIX = 'mercury://receipt'
-
 const ID_PATTERN = /^[a-z][a-z0-9-]{2,79}$/
 
 function isRecordId(id: string): boolean {
   return id !== 'latest' && ID_PATTERN.test(id)
 }
+
 
 const rootMemo = new Map<string, string>()
 const ROOT_MEMO_CAP = 256
@@ -106,6 +100,7 @@ export function resolveRoot(from?: string): string {
 function storeDir(root: string): string {
   return projectHomeStore(root, STORE_SEGMENT)
 }
+
 
 const KIND_SET: ReadonlySet<string> = new Set(TX_STEP_KINDS)
 const OUTCOME_SET: ReadonlySet<string> = new Set(['ok', 'failed', 'indeterminate', 'info'])
@@ -167,13 +162,13 @@ function decodeRecord(raw: unknown): TxRecord | null {
 function readRecordFile(dir: string, file: string, root: string): TxRecord | null {
   try {
     const record = decodeRecord(JSON.parse(readFileSync(path.join(dir, file), 'utf8')))
-
     if (record !== null && record.projectRoot === '') record.projectRoot = root
     return record
   } catch {
     return null
   }
 }
+
 
 export function getTransaction(id: string, from?: string): TxRecord | null {
   if (!isRecordId(id)) return null
@@ -218,6 +213,7 @@ export function listTransactions(from?: string): TxListRow[] {
   }
 }
 
+
 const openIndex = new Map<string, string | null>()
 
 export function openTransactionIdFor(from?: string): string | null {
@@ -235,12 +231,14 @@ export function openTransactionIdFor(from?: string): string | null {
   return id
 }
 
+
 async function persist(record: TxRecord, root: string): Promise<void> {
   const dir = storeDir(root)
   const body = JSON.stringify(record, null, 2) + '\n'
   await durableAtomicPublish(path.join(dir, `${record.id}.json`), body)
   await durableAtomicPublish(path.join(dir, POINTER_FILE), body)
 }
+
 
 export interface OpenTransactionOptions {
   owner: OwnerKey
@@ -272,6 +270,7 @@ export async function openTransaction(opts: OpenTransactionOptions): Promise<TxR
   return record
 }
 
+
 export interface NoteStepOptions {
   id: string
   owner: OwnerKey
@@ -281,7 +280,6 @@ export interface NoteStepOptions {
   outcome?: TxStepOutcome
   from?: string
   auto?: TxStepAuto
-
   getAppState?: () => unknown
 }
 
@@ -306,12 +304,10 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
     const already = record.steps.some(
       s => s.kind === opts.kind && s.auto !== undefined && s.auto.toolUseId === toolUseId,
     )
-
     if (already) return { state: 'ok', record }
   }
   const refs = opts.refs ?? []
   if (refs.length > 0) {
-
     const { resolveResource } = await import('../resources/registry.js')
     const cwd = opts.from ?? getCwd()
     for (const ref of refs) {
@@ -340,6 +336,7 @@ export async function noteStep(opts: NoteStepOptions): Promise<NoteStepResult> {
   await persist(record, root)
   return { state: 'ok', record }
 }
+
 
 export function appendTransactionStep(record: Pick<TxRecord, 'steps' | 'elided'>, step: TxStep): boolean {
   if (step.auto && record.steps.some(row => row.kind === step.kind && row.auto?.toolUseId === step.auto!.toolUseId)) return false
@@ -393,6 +390,7 @@ export function completionGapsFor(record: TxRecord): string[] {
   return gaps
 }
 
+
 export interface FinishTransactionOptions {
   id: string
   owner: OwnerKey
@@ -442,11 +440,11 @@ export async function finishTransaction(
   return { state: 'ok', record }
 }
 
+
 export interface ResumeTransactionOptions {
   id: string
   owner: OwnerKey
   from?: string
-
   getAppState?: () => unknown
 }
 
@@ -464,7 +462,6 @@ export async function resumeTransaction(
   const applyRefs = record.steps.filter(s => s.kind === 'apply').flatMap(s => s.refs)
   const applyRefChecks: ApplyRefCheck[] = []
   if (applyRefs.length > 0) {
-
     const { resolveResource } = await import('../resources/registry.js')
     const cwd = opts.from ?? getCwd()
     for (const ref of applyRefs) {

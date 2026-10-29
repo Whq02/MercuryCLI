@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 
@@ -25,18 +26,14 @@ export function isHandoffRequest(request: { body: unknown; raw?: string }): bool
 }
 
 type ScriptedTurnBody =
-
   | {
       kind: 'text'
       text: string
       stopReason?: string
       usage?: FixtureUsage
       thinking?: string
-
       inputTransformations?: unknown[]
-
       model?: string
-
       signature?: string
     }
   | {
@@ -49,7 +46,6 @@ type ScriptedTurnBody =
       inputTransformations?: unknown[]
       model?: string
       signature?: string
-
       usage?: FixtureUsage
     }
   | { kind: 'error'; status: number; errorType: string; message: string; headers?: Record<string, string> }
@@ -77,7 +73,6 @@ type ScriptedTurnBody =
 export interface CapturedRequest {
   path: string
   method: string
-
   headers: Record<string, string>
   body: unknown
   raw: string
@@ -86,11 +81,8 @@ export interface CapturedRequest {
 export interface UsageEndpointControl {
   mode: 'ok' | 'error' | 'hang'
   status: number
-
   payload: (n: number, bearer?: string) => unknown
-
   next?: (n: number) => void
-
   rateLimit?: { limit: number; windowMs: number; retryAfterS?: number }
 }
 
@@ -106,14 +98,10 @@ export interface FixtureApi {
   port: number
   url: string
   requests: CapturedRequest[]
-
   usage: UsageEndpointControl
   usageRequests: UsageRequestRecord[]
-
   pacedEmits: { turn: number; index: number; text: string; at: number }[]
-
   toolEmits: { turn: number; name: string; id: string; at: number }[]
-
   streamEmits: {
     turn: number
     blockIndex: number
@@ -122,15 +110,10 @@ export interface FixtureApi {
     text: string
     at: number
   }[]
-
   messageRequests(): CapturedRequest[]
-
   refusals: { request: number; message: string }[]
-
   destroyedReplays(): number
-
   messageRequestStarted(n: number): Promise<void>
-
   sawClientAbort(): boolean
   close(): Promise<void>
 }
@@ -146,12 +129,10 @@ function messageStart(id: string, usage?: FixtureUsage, inputTransformations?: u
       id,
       type: 'message',
       role: 'assistant',
-
       model: model ?? 'claude-opus-4-8',
       content: [],
       stop_reason: null,
       stop_sequence: null,
-
       ...(inputTransformations !== undefined ? { input_transformations: inputTransformations } : {}),
       usage: {
         input_tokens: usage?.input_tokens ?? 25,
@@ -364,7 +345,6 @@ export function bindingDropsFor(current: unknown): unknown[] {
   const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
   if (!cur || !Array.isArray(cur.messages)) return []
   const dropped: unknown[] = []
-
   let broken = false
   cur.messages.forEach((message, i) => {
     const row = message as { role?: string; content?: unknown }
@@ -444,15 +424,10 @@ export function apiRefusalOf(body: unknown): string | null {
 export async function startFixtureApi(
   turns: ScriptedTurn[],
   opts?: {
-
     apiChecks?: boolean
-
     destroyOnKeepAliveReuse?: boolean
-
     bindingCheck?: boolean
-
     messageHeaders?: Record<string, string>
-
     jsonForNonStream?: boolean
     captureAllHeaders?: boolean
   },
@@ -461,7 +436,6 @@ export async function startFixtureApi(
   const requests: CapturedRequest[] = []
   const usage: UsageEndpointControl = { mode: 'ok', status: 500, payload: () => ({}) }
   const usageRequests: FixtureApi['usageRequests'] = []
-
   const admittedUsageAt: number[] = []
   let usageWaitUntil = 0
   const refusals: { request: number; message: string }[] = []
@@ -495,7 +469,6 @@ export async function startFixtureApi(
       }
       messagesServedBySocket.set(req.socket, served + 1)
     }
-
     const rawChunks: Buffer[] = []
     req.on('data', c => rawChunks.push(c))
     req.on('end', () => {
@@ -577,7 +550,6 @@ export async function startFixtureApi(
 
       msgSeq++
       for (const [name, value] of Object.entries(opts?.messageHeaders ?? {})) res.setHeader(name, value)
-
       const requestedModel =
         typeof (body as { model?: unknown })?.model === 'string'
           ? ((body as { model: string }).model)
@@ -597,7 +569,6 @@ export async function startFixtureApi(
       if (opts?.apiChecks) {
         const refusal = apiRefusalOf(body)
         if (refusal !== null) {
-
           if (turn !== undefined) queue.unshift(turn)
           refusals.push({ request: msgSeq, message: refusal })
           res.writeHead(400, { 'content-type': 'application/json' })
@@ -606,7 +577,6 @@ export async function startFixtureApi(
         }
       }
       if (opts?.bindingCheck && turn !== undefined && (turn.kind === 'text' || turn.kind === 'tool_use')) {
-
         const judged = turn.inputTransformations === undefined ? bindingDropsFor(body) : turn.inputTransformations
         const refusal = bindingRefusalOf(body, judged)
         if (refusal !== null) {
@@ -623,12 +593,10 @@ export async function startFixtureApi(
         }
       }
       started.get(msgSeq)?.()
-
       void startedPromise(msgSeq)
       started.get(msgSeq)?.()
 
       if (!turn) {
-
         res.writeHead(400, { 'content-type': 'application/json' })
         res.end(
           JSON.stringify({
@@ -673,7 +641,6 @@ export async function startFixtureApi(
           'cache-control': 'no-store',
         })
       }
-
       const holdsHeaders =
         (turn.kind === 'paced' && turn.startDelayMs) ||
         (turn.kind === 'stream' && turn.headerDelayMs)
@@ -697,7 +664,6 @@ export async function startFixtureApi(
             }),
           )
         }
-
         const markAborted = (): void => {
           clientAborted = true
           openResponses.delete(res)
@@ -735,7 +701,6 @@ export async function startFixtureApi(
             delta: { type: 'text_delta', text: d },
           }),
         )
-
         if (dying === 0 && !turn.gapMs) {
           for (const frame of [...opening, ...deltaFrames]) res.write(frame)
           res.destroy()
@@ -808,7 +773,6 @@ export async function startFixtureApi(
       }
       if (turn.kind === 'stream') {
         const turnNo = msgSeq
-
         type PlannedChunk = {
           payload: string
           emit?: { blockIndex: number; blockType: 'thinking' | 'text'; index: number; text: string }
@@ -880,10 +844,8 @@ export async function startFixtureApi(
             i++
           }, turn.gapMs)
         }
-
         const startBody = (): void => {
           if (turn.firstChunkDelayMs) {
-
             res.flushHeaders()
             const hold = setTimeout(() => {
               if (res.destroyed || res.socket?.destroyed) return
@@ -936,7 +898,6 @@ export async function startFixtureApi(
               res.end(messageEnd(turn.stopReason ?? 'end_turn'))
               openResponses.delete(res)
             }
-
             if (turn.settleDelayMs) {
               const hold = setTimeout(finish, turn.settleDelayMs)
               hold.unref?.()

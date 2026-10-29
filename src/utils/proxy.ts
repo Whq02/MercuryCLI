@@ -1,6 +1,5 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios'
 import { HttpsProxyAgent } from 'https-proxy-agent'
-
 import { Agent, EnvHttpProxyAgent, fetch as undiciFetch, setGlobalDispatcher, type Dispatcher } from 'undici'
 
 import { logForDebugging } from './debug.js'
@@ -9,6 +8,7 @@ import { apiTimeoutMsOverride } from './envValidation.js'
 import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
+
 
 type EnvLike = Record<string, string | undefined>
 
@@ -51,6 +51,7 @@ export function shouldBypassProxy(url: string, noProxy: string | undefined = get
   return false
 }
 
+
 export type TransportKnobs = {
   connectTimeoutMs: number
   maxConnections: number | null
@@ -67,7 +68,6 @@ function positiveIntFromFlag<T>(name: string, fallback: T): number | T {
 }
 
 function apiBudgetMs(): number {
-
   return apiTimeoutMsOverride() ?? 600_000
 }
 
@@ -135,11 +135,11 @@ export function getApiFetch(): typeof fetch {
   return undiciFetch as unknown as typeof fetch
 }
 
+
 let keepAliveDisabled = false
 
 export function disableKeepAlive(): void {
   keepAliveDisabled = true
-
   apiDispatcher = null
 }
 
@@ -150,6 +150,7 @@ export function resetApiConnectionPool(): void {
 export function _resetKeepAliveForTesting(): void {
   keepAliveDisabled = false
 }
+
 
 function isBunRuntime(): boolean {
   return typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined'
@@ -172,9 +173,9 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): Reco
     return { ...base, dispatcher: getProxyAgent(proxyUrl) }
   }
   if (isBun) return { ...base, ...getTLSFetchOptions() }
-
   return { ...base, dispatcher: getApiDispatcher() }
 }
+
 
 export function getAddressFamily(options: { family?: number | string }): number {
   const family = options.family
@@ -183,6 +184,7 @@ export function getAddressFamily(options: { family?: number | string }): number 
   if (family === 'IPv4' || family === undefined) return 4
   throw new Error(`Unsupported address family: ${String(family)}`)
 }
+
 
 function tlsConnectMaterial(): Record<string, unknown> | undefined {
   const mtls = getMTLSConfig()

@@ -1,3 +1,4 @@
+
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import {
   readAgentTranscript,
@@ -28,7 +29,6 @@ export function readTailWindow(path: string, cap: number = AGENT_TAIL_READ_CAP_B
     readSync(fd, buffer, 0, length, total - length)
     let text = buffer.toString('utf8')
     if (length < total) {
-
       const newline = text.indexOf('\n')
       if (newline >= 0) text = text.slice(newline + 1)
     }
@@ -154,7 +154,6 @@ export const agentAdapter: ResourceAdapter = {
       if (!view) {
         return { state: 'absent', note: `transcript for '${ref.id}' is unreadable (${contentPath})` }
       }
-
       const running = task?.status === 'running'
       const status = task ? agentStatusWord(task.status) : transcriptEndWords(view.end)
       return {
@@ -163,7 +162,6 @@ export const agentAdapter: ResourceAdapter = {
           ref: `${ref.canonical}?child=report`,
           kind: 'agent',
           title: `${ref.id} — final report`,
-
           summary: `${status}${running ? ' · REPORT NOT FINAL' : ''} · ${view.toolCallsTotal}${view.truncatedRead ? '+' : ''} tool call(s) · ${view.entryCount}${view.truncatedRead ? '+' : ''} entries`,
           version: `${status}-${view.entryCount}`,
           mutable: false,
@@ -193,7 +191,6 @@ export const agentAdapter: ResourceAdapter = {
     if (contentPath) {
       try {
         const window = readTailWindow(contentPath)
-
         const view = boundedTextView(window.text, ref.selectors, 100, {
           defaultToTail: true,
         })
@@ -210,7 +207,6 @@ export const agentAdapter: ResourceAdapter = {
     } else {
       outputTail = '(output not readable — the task may not have produced any)'
     }
-
     const status = task
       ? agentStatusWord(task.status)
       : transcriptEndWords(contentPath ? (await readAgentTranscript(contentPath))?.end : undefined)
@@ -241,7 +237,6 @@ export const agentAdapter: ResourceAdapter = {
           type: task?.type ?? 'agent',
           status,
           ...(elapsed !== undefined ? { elapsedMs: elapsed } : {}),
-
           ...(page ? { page } : {}),
         },
       },

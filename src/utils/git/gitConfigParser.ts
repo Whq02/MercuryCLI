@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-function matchesSectionHeader(line: string, section: string, subsection: string | null): boolean {
 
+function matchesSectionHeader(line: string, section: string, subsection: string | null): boolean {
   let index = 1
   let name = ''
   while (index < line.length) {
@@ -14,7 +14,6 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   if (name.toLowerCase() !== section.toLowerCase()) return false
 
   if (subsection === null) {
-
     return line[index] === ']'
   }
 
@@ -27,7 +26,6 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
     if (char === '\\') {
       const next = line[index + 1]
       if (next === undefined) return false
-
       parsed += next
       index += 2
       continue
@@ -38,7 +36,6 @@ function matchesSectionHeader(line: string, section: string, subsection: string 
   }
   if (line[index] !== '"') return false
   if (line[index + 1] !== ']') return false
-
   return parsed === subsection
 }
 
@@ -47,7 +44,6 @@ function parseValueText(text: string): string {
   let inQuotes = false
   for (let index = 0; index < text.length; index++) {
     const char = text[index] as string
-
     if (!inQuotes && (char === '#' || char === ';')) break
     if (char === '"') {
       inQuotes = !inQuotes
@@ -70,7 +66,6 @@ function parseValueText(text: string): string {
         index++
         continue
       }
-
       value += char
       continue
     }
@@ -83,13 +78,11 @@ function parseValueText(text: string): string {
 }
 
 function parseKeyValueLine(line: string, key: string): string | null {
-
   const keyMatch = line.match(/^[A-Za-z0-9-]+/)
   if (!keyMatch || keyMatch[0] === '') return null
   if (keyMatch[0].toLowerCase() !== key.toLowerCase()) return null
   let index = keyMatch[0].length
   while (line[index] === ' ' || line[index] === '\t') index++
-
   if (line[index] !== '=') return null
   index++
   while (line[index] === ' ' || line[index] === '\t') index++
@@ -103,12 +96,10 @@ function parseConfigString(
   key: string,
 ): string | null {
   let inMatchingSection = false
-
   for (const rawLine of config.split('\n')) {
     const line = rawLine.trim()
     if (line === '' || line[0] === '#' || line[0] === ';') continue
     if (line[0] === '[') {
-
       inMatchingSection = matchesSectionHeader(line, section, subsection)
       continue
     }

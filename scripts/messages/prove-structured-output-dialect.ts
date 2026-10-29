@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -110,7 +109,6 @@ section('§1 the wire is the strict dialect for every product schema')
     const violations = strictViolations(wire, name, [])
     check(`${name}: zero strict-dialect violations on the wire`, violations.length === 0, violations.join(' · '))
   }
-
   const chatWire = wireSchemaOf({ type: 'json_schema', schema: opsPlanSchema() } as never)
   const ops = ((chatWire.properties as Node).ops as Node).items as Node
   const props = ops.properties as Node

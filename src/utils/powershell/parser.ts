@@ -6,6 +6,7 @@ import { errorMessage } from '../errors.js'
 import { getPlatform } from '../platform.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 
+
 type ElementClass =
   | 'ScriptBlock'
   | 'SubExpression'
@@ -70,6 +71,7 @@ type RawRedirection = Record<string, unknown>
 type RawPipelineElement = Record<string, unknown>
 type RawStatement = Record<string, unknown>
 
+
 export const COMMON_ALIASES: Record<string, string> = Object.assign(Object.create(null), {
   ls: 'Get-ChildItem', dir: 'Get-ChildItem', gci: 'Get-ChildItem',
   cat: 'Get-Content', type: 'Get-Content', gc: 'Get-Content',
@@ -118,14 +120,11 @@ export const COMMON_ALIASES: Record<string, string> = Object.assign(Object.creat
 
 export const PS_TOKENIZER_DASH_CHARS: ReadonlySet<string> = new Set(['-', '–', '—', '―'])
 
+
 const ASSIGNMENT_OVERHEAD = 21
-
 const WINDOWS_ARGV_CAP = 32767
-
 const ARGV_OVERHEAD = 200
-
 const BASE64_SAFETY_MARGIN = 100
-
 const NON_WINDOWS_BUDGET = 4500
 
 const PARSE_SCRIPT_BODY = buildAnalysisProgramBody()
@@ -140,6 +139,7 @@ function computeWindowsBudget(): number {
   const byteBudget = Math.floor((remainder * 3) / 4) - BASE64_SAFETY_MARGIN
   return Math.max(0, byteBudget)
 }
+
 
 const CMDLET_RE = /^[A-Za-z]+-[A-Za-z][A-Za-z0-9_]*$/
 
@@ -160,6 +160,7 @@ export function stripModulePrefix(name: string): string {
   const lastBackslash = name.lastIndexOf('\\')
   return name.slice(lastBackslash + 1)
 }
+
 
 const RECOGNISED_STATEMENT_TYPES: ReadonlySet<string> = new Set([
   'PipelineAst', 'PipelineChainAst', 'AssignmentStatementAst', 'IfStatementAst',
@@ -190,6 +191,7 @@ function mapElementType(typeName: string | undefined, wrappedTypeName?: string):
   const expression = typeName === 'CommandExpressionAst' ? wrappedTypeName : typeName
   return expression === undefined ? 'Other' : ELEMENT_CLASS_BY_AST.get(expression) ?? 'Other'
 }
+
 
 function asArray<T>(value: unknown): T[] {
   if (value === null || value === undefined) return []
@@ -222,7 +224,6 @@ function extractCommandName(elements: RawCommandElement[]): {
   } else {
     raw = (first.text as string) ?? ''
   }
-
   if (raw.length >= 2 && /['"]/.test(raw[0]!) && /['"]/.test(raw[raw.length - 1]!)) {
     raw = raw.slice(1, -1)
   }
@@ -315,11 +316,9 @@ function transformStatement(raw: RawStatement): ParsedStatement {
         commands.push(expr)
       }
     }
-
     redirections.push(...asArray<RawRedirection>(raw.redirections).map(transformRedirection))
     redirections = dedupeRedirections(redirections)
   } else {
-
     commands.push({
       name: (raw.text as string) ?? '',
       text: (raw.text as string) ?? '',
@@ -328,7 +327,6 @@ function transformStatement(raw: RawStatement): ParsedStatement {
       redirections: [],
       elementType: 'CommandExpressionAst',
     })
-
     redirections = asArray<RawRedirection>(raw.redirections).map(transformRedirection)
   }
 
@@ -373,6 +371,7 @@ function normaliseResult(raw: Record<string, unknown>): ParsedPowerShellCommand 
   return result
 }
 
+
 function invalidResult(command: string, errorId: string, message: string): ParsedPowerShellCommand {
   return {
     valid: false,
@@ -387,6 +386,7 @@ function invalidResult(command: string, errorId: string, message: string): Parse
 const TRANSIENT_ERROR_IDS: ReadonlySet<string> = new Set([
   'PwshSpawnError', 'PwshError', 'PwshTimeout', 'EmptyOutput', 'InvalidJson',
 ])
+
 
 function parseTimeoutMs(): number {
   return 5000
@@ -455,7 +455,6 @@ async function runAnalysis(
 }
 
 const parseImpl = async (command: string): Promise<ParsedPowerShellCommand> => {
-
   const byteLength = utf8ByteLength(command)
   if (byteLength > MAX_COMMAND_LENGTH) {
     logForDebugging(`PowerShell command too long: ${byteLength} bytes > ${MAX_COMMAND_LENGTH}`)
@@ -465,7 +464,6 @@ const parseImpl = async (command: string): Promise<ParsedPowerShellCommand> => {
       `Command is ${byteLength} bytes; the maximum is ${MAX_COMMAND_LENGTH} bytes.`,
     )
   }
-
   const pwshPath = await getCachedPowerShellPath()
   if (!pwshPath) {
     return invalidResult(command, 'NoPowerShell', 'No PowerShell executable could be found.')
@@ -488,6 +486,7 @@ export const parsePowerShellCommand = Object.assign(
   { cache: memoizedParse.cache },
 )
 
+
 function buildAnalysisProgramBody(): string {
   return [
     "$ErrorActionPreference='Stop'",
@@ -505,6 +504,7 @@ function buildAnalysisProgramBody(): string {
     "ConvertTo-Json @{valid=($e.Count -eq 0);statements=$stmts;variables=$vars;errors=@($e|%{@{message=$_.Message;errorId=$_.ErrorId}});hasStopParsing=$sp;command=$src} -Compress -Depth 10",
   ].join(';')
 }
+
 
 export function getAllCommands(parsed: ParsedPowerShellCommand): ParsedCommandElement[] {
   const out: ParsedCommandElement[] = []
@@ -571,7 +571,6 @@ export function commandHasArgAbbreviation(
   const full = fullName.toLowerCase()
   const min = minPrefix.toLowerCase()
   for (const arg of command.args) {
-
     const colon = arg.indexOf(':', 1)
     const withoutValue = colon === -1 ? arg : arg.slice(0, colon)
     const cleaned = withoutValue.replace(/`/g, '').toLowerCase()

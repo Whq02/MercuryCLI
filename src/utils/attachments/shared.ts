@@ -1,3 +1,4 @@
+
 import type { ToolPermissionContext } from '../../Tool.js'
 import { matchingRuleForInput } from '../permissions/filesystem.js'
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -28,14 +27,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'
-
 const FIRST = 'claude-sonnet-5'
-
 const FIRST_PROBE_MARK = 'sonnet'
 const SECOND = 'fable'
-
 const SECOND_LABEL = 'Fable 5.1'
-
 const PROBE_HOLD_MS = 3_000
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -57,14 +52,11 @@ interface Fixture {
   base: string
   probes: number
   holds: number
-
   asks: string[]
   close(): Promise<void>
 }
-
 const HOLD_ASK = 'hold this turn'
 const HOLD_MS = 5_000
-
 function lastUserText(body: { messages?: Array<{ role?: string; content?: unknown }> }): string {
   const last = [...(body.messages ?? [])].reverse().find(m => m.role === 'user')
   const content = last?.content
@@ -72,7 +64,6 @@ function lastUserText(body: { messages?: Array<{ role?: string; content?: unknow
   if (!Array.isArray(content)) return ''
   return (content as Array<{ type?: string; text?: string }>).filter(p => p.type === 'text' && typeof p.text === 'string').map(p => p.text as string).join('\n')
 }
-
 async function startFixture(): Promise<Fixture> {
   const state = { probes: 0, holds: 0, asks: [] as string[] }
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
@@ -106,7 +97,6 @@ async function startFixture(): Promise<Fixture> {
         }
       }
       if (streaming && Array.isArray(body.tools) && body.tools.length > 0 && ask.includes(HOLD_ASK)) {
-
         state.holds++
         const frames = streamedOk(model)
         const cut = frames.indexOf('event: content_block_delta')
@@ -115,7 +105,6 @@ async function startFixture(): Promise<Fixture> {
         setTimeout(() => res.end(frames.slice(cut)), vshotBudgetMs(HOLD_MS))
         return
       }
-
       if (model.includes(FIRST_PROBE_MARK)) {
         state.probes++
         setTimeout(answer, vshotBudgetMs(PROBE_HOLD_MS))
@@ -262,7 +251,6 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   const gap = name === 'law' ? 5 : 2
   const fixture = await startFixture()
   const { home, cwd } = seedWorld()
-
   const tracePath = join(home, 'submit-trace.jsonl')
   let cap: Capture
   try {
@@ -279,11 +267,8 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
           { data: '\r', afterPrevTicks: 2, mark: 'first-enter' },
           { data: `/model ${SECOND}`, afterPrevTicks: gap },
           { data: '\r', afterPrevTicks: 1, mark: 'second-enter' },
-
           { data: '', afterPrevTicks: 3, mark: 'after-second' },
-
           { data: '', afterPrevTicks: Math.ceil(PROBE_HOLD_MS / 200) + 4, mark: 'first-landed' },
-
           { data: '', afterPrevTicks: 40, mark: 'settled' },
         ],
         stableTicks: 5,
@@ -300,7 +285,6 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   check(`${tag}: the first row's model was validated on the wire (the held probe — the first command was in flight while the second landed)`, fixture.probes >= 1, `probes ${fixture.probes}`)
   const afterSecond = flat(marks['after-second'] ?? '')
   check(`${tag}: the composer said the second row was queued behind the first`, /\/model queued/.test(afterSecond), afterSecond.match(/[^.]*queued[^.]*/)?.[0] ?? 'no queued word')
-
   const trace = traceRows(tracePath)
   const events = trace.map(r => `${r.site.replace('repl-dialog-', '')}${r.rearmed === true ? ':rearmed' : ''}`)
   check(
@@ -342,7 +326,6 @@ async function keybindingLeg(): Promise<void> {
   console.log('\n— keybinding: a command:* naming no command is inert; a real one runs —')
   const fixture = await startFixture()
   const { home, cwd } = seedWorld()
-
   writeFileSync(join(home, 'keybindings.json'), JSON.stringify({ bindings: [{ context: 'Chat', bindings: { 'ctrl+x e': 'command:effortr', 'ctrl+x b': 'command:workbench' } }] }))
   const tracePath = join(home, 'submit-trace.jsonl')
   let cap: Capture
@@ -356,11 +339,9 @@ async function keybindingLeg(): Promise<void> {
         argv: ['node', DIST],
         sends: [
           ...bootSends,
-
           { data: '\x18', afterPrevTicks: 4 },
           { data: 'e', afterPrevTicks: 2 },
           { data: '', afterPrevTicks: 8, mark: 'after-bad' },
-
           { data: '\x18', afterPrevTicks: 2 },
           { data: 'b', afterPrevTicks: 2 },
           { data: '', atTick: 999, awaitText: 'PROMPTS', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'workbench' },
@@ -409,13 +390,10 @@ async function recallLeg(): Promise<void> {
         sends: [
           ...bootSends,
           { data: `${HOLD_ASK}\r`, afterPrevTicks: 2 },
-
           { data: `${RECALL_WORDS}\r`, afterPrevTicks: 8, mark: 'words-sent' },
-
           { data: '', atTick: 999, awaitText: 'queued', requireAwait: true, minTick: 2, awaitSettleTicks: 1, mark: 'queued' },
           { data: '\x1b[A', afterPrevTicks: 1 },
           { data: '', afterPrevTicks: 4, mark: 'recalled' },
-
           { data: '', afterPrevTicks: Math.ceil(HOLD_MS / 200) + 8, mark: 'settled' },
           { data: '\r', afterPrevTicks: 1 },
           { data: '', afterPrevTicks: 14, mark: 'resent' },
@@ -429,7 +407,6 @@ async function recallLeg(): Promise<void> {
   }
   const { marks } = cap
   if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`recall · ${label}`, frame)
-
   const composerLine = (frame: string): string | undefined => frame.split('\n').find(line => /^│❯ /.test(line))
   check('recall: the held turn kept the session busy (the fixture held one stream)', fixture.holds === 1, `${fixture.holds} holds`)
   check('recall: the words painted as the QUEUED row while the turn ran', /queued\s+\[sam\] ❯ the words to take back/.test(marks['queued'] ?? ''), flat(marks['queued'] ?? '').match(/[^│]*take back[^│]*/)?.[0] ?? 'no row')

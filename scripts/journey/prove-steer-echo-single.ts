@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -89,10 +88,8 @@ const cfg = {
   argv: ['node', DIST],
   cwd: FIXTURE_CWD,
   sends: [
-
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'explain the plan\r' },
-
     { requireAwait: true, minTick: 5, awaitText: 'tokenizer currently allocates', data: `${STEER}\r` },
   ],
   readyText: ['re-arm it instantly'],

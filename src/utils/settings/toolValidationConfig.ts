@@ -1,3 +1,4 @@
+
 type CustomValidationResult = {
   valid: boolean
   error?: string
@@ -26,7 +27,6 @@ function makeSearchTermValidator(toolName: string): (content: string) => CustomV
 }
 
 function validateWebFetchContent(content: string): CustomValidationResult {
-
   if (content.includes('://') || content.startsWith('http')) {
     return {
       valid: false,
@@ -43,7 +43,6 @@ function validateWebFetchContent(content: string): CustomValidationResult {
       examples: ['WebFetch(domain:example.com)', 'WebFetch(domain:*.example.com)'],
     }
   }
-
   return { valid: true }
 }
 
@@ -52,7 +51,6 @@ const TOOL_VALIDATION_CONFIG: ToolValidationConfig = {
   bashPrefixTools: new Set(['Bash']),
   customValidation: new Map([
     ['WebSearch', makeSearchTermValidator('WebSearch')],
-
     ['ProviderSearch', makeSearchTermValidator('ProviderSearch')],
     ['WebFetch', validateWebFetchContent],
   ]),

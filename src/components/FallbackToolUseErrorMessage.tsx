@@ -42,7 +42,6 @@ function deriveDisplayedError(
     return 'Tool execution failed'
   }
   const extractedError = extractTag(text, 'tool_use_error') ?? text
-
   const withoutErrorTags = extractedError.replace(/<\/?error>/g, '')
   const trimmed = withoutErrorTags.trim()
   if (trimmed.startsWith('Error: ') || trimmed.startsWith('Cancelled: ')) {
@@ -72,14 +71,12 @@ export function FallbackToolUseErrorMessage({
 }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
   const error = deriveDisplayedError(result, verbose)
-
   const rawText = contentText(result)
   const isDenied = rawText !== null && isDenialResultText(rawText)
   const headGlyph = isDenied ? GLYPH.fail : GLYPH.warn
 
   if (!verbose) {
     const classified = classifyToolError(error)
-
     const hiddenLines =
       classifyToolError(error, Number.MAX_SAFE_INTEGER).bodyLines.length -
       classified.bodyLines.length

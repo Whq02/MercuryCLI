@@ -11,6 +11,7 @@ import {
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 
+
 type PrefetchLookupResult = { stdout: string | null; timedOut: boolean }
 
 let prefetchInFlight: Promise<void> | null = null
@@ -35,7 +36,6 @@ function lookup(serviceName: string): Promise<PrefetchLookupResult> {
 }
 
 export function startKeychainPrefetch(): void {
-
   if (!keychainReachable()) return
   if (prefetchInFlight !== null) return
   if (isBareMode()) return
@@ -48,7 +48,6 @@ export function startKeychainPrefetch(): void {
         : Promise.resolve<PrefetchLookupResult>({ stdout: null, timedOut: false }),
       lookup(getMacOsKeychainStorageServiceName()),
     ])
-
     const credentialReads = [primary, raw]
     const found = credentialReads.find(r => !r.timedOut && r.stdout !== null)
     if (found !== undefined) {

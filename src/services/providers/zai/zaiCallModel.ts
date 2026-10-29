@@ -97,7 +97,6 @@ let zaiLiveProof: { at: number; model: string } | null = null
 export function zaiLiveProofState(): { at: number; model: string } | null {
   return zaiLiveProof
 }
-
 const ZAI_MAX_ATTEMPTS = 2
 const ZAI_RETRY_BACKOFF_MS = 400
 
@@ -151,7 +150,6 @@ async function buildApiShapedTools(
   conversationKey?: string,
   pool: Tools = tools,
 ): Promise<ApiShapedTool[]> {
-
   const schemas = await Promise.all(
     tools.map(tool =>
       toolToAPISchema(tool, {
@@ -243,7 +241,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
-
     latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
@@ -265,7 +262,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-
   const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   const vocabulary = glmEffortsFor(modelId)
@@ -275,7 +271,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
         ? effortValue
         : nearestSupportedWireEffort(effortValue, [...vocabulary])
       : undefined
-
   const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
   const zaiOutputFit = fitOutputTokensForRequest({
     asked: Math.min(options.maxOutputTokensOverride ?? ZAI_MAX_OUTPUT_TOKENS, ZAI_MAX_OUTPUT_TOKENS),
@@ -287,14 +282,12 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   const request = buildZaiChatRequest({
     model: modelId,
     system: systemText,
-
     messages: toBridgeMessages(healWalkableForWire(wireMessagesForBridge)),
     imagesSupported: imagesSupportedForCompatModel(modelId),
     tools: apiTools,
     ...(toolDeclarations.size > 0 ? { toolDeclarations } : {}),
     maxTokens: zaiOutputFit.tokens,
     ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
-
     thinkingEnabled: glmThinkingLocked(modelId) ? true : thinkingConfig.type !== 'disabled',
   })
   const effortOnWire: EffortStampV1 = effortStampOf(effortTruth.requested, zaiEffortWireFact(request, effortTruth.supportsEffort))
@@ -320,7 +313,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   let planTrial: { from: ZaiKeyPlanWord; fault: ZaiFault } | undefined
   for (let attempt = 1; attempt <= ZAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
-
     const signInRequest = captureSignInRequest('zai', apiKey)
     let outcome = yield* streamOneZaiAttempt({
       request,
@@ -365,7 +357,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       outcome = { kind: 'fault', fault: planTrial.fault, retryEligible: outcome.retryEligible }
     }
     observeSignInResponse(signInRequest, outcome.fault.status, outcome.fault.message)
-
     const askedMs = outcome.fault.retryAfterMs
     const typed = compatFaultToTypedError(outcome.fault)
     if (
@@ -449,7 +440,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     const retryable =
       !emptyEnd && busy === undefined && !singleShot && !providerWaitIsWindow(askedMs) && outcome.retryEligible && outcome.fault.retryable && attempt < ZAI_MAX_ATTEMPTS
     if (retryable) {
-
       const delayMs = Math.max(ZAI_RETRY_BACKOFF_MS * attempt, askedMs ?? 0)
       const notice = createSystemAPIErrorMessage(
         Object.assign(new Error(outcome.fault.message), {
@@ -467,7 +457,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       continue
     }
     if (typed === 'billing_error') {
-
       recordLaneBillingRefusal('zai', {
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
         remedy: ZAI_FAULT_PROFILE.billingRemedy,
@@ -486,7 +475,6 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       ))
       return
     }
-
     const terminalText = compatTerminalFaultText(ZAI_FAULT_PROFILE, outcome.fault, typed)
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
@@ -512,15 +500,12 @@ async function* streamOneZaiAttempt(ctx: {
   request: ReturnType<typeof buildZaiChatRequest>
   effort?: EffortStampV1
   apiKey: string
-
   requestUrl: string
   signal: AbortSignal
   tools: Tools
   options: Options
   modelId: string
-
   messages: Message[]
-
   deferredUnadmitted?: (name: string) => boolean
   busy?: { ladder: BusyRetryLadder; fault: ZaiFault }
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
@@ -538,7 +523,6 @@ async function* streamOneZaiAttempt(ctx: {
     container: null,
     context_management: null,
   }
-
   const streamEvent = (event: ApiStreamEvent): StreamEvent => ({
     type: 'stream_event',
     event,
@@ -576,7 +560,6 @@ async function* streamOneZaiAttempt(ctx: {
   let toolFragmentSeen = false
   let released = 0
   let firstEventSeen = false
-
   const blocks = {
     index: -1,
     open: null as { kind: 'thinking' | 'text'; value: string } | null,
@@ -618,7 +601,6 @@ async function* streamOneZaiAttempt(ctx: {
           : { type: 'text', text: '', citations: null },
     })
   }
-
   function* emitSettledBlock(
     block: ContentBlock,
     deltas: ApiContentBlockDelta[],
@@ -646,11 +628,9 @@ async function* streamOneZaiAttempt(ctx: {
     request,
     signal,
     baseUrl: requestUrl,
-
     idleTimeoutMs,
     silentAfterHeadersMs: silentAfterHeadersWindowMs({ route: 'zai', cold, promptTokens, idleMs: idleTimeoutMs }),
     ...(options.onStreamActivity ? { onStreamActivity: options.onStreamActivity } : {}),
-
     firstByte: {
       cold,
       promptTokens,
@@ -723,10 +703,8 @@ async function* streamOneZaiAttempt(ctx: {
   }
   const nothingYielded = !messageStarted && minted.length === 0
   if (fault && nothingYielded && !finish && !toolFragmentSeen) {
-
     return { kind: 'fault', fault, retryEligible: true }
   }
-
   const typedEnd =
     fault !== undefined && !finish
       ? typedStreamEndOf({
@@ -793,7 +771,6 @@ async function* streamOneZaiAttempt(ctx: {
       },
     )
   }
-
   const terminationNote = ((): string | undefined => {
     switch (finish?.reason) {
       case 'sensitive':
@@ -838,19 +815,16 @@ async function* streamOneZaiAttempt(ctx: {
     accepted.length > 0 || answered.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapZaiUsageToAnthropic(usageSeen)
   if (!usageSeen && fault !== undefined) {
-
     const estimated = estimateFaultedRequestUsage({ lane: 'zai', model: modelId, request, minted, faultCode: fault.code })
     addToTotalSessionCost(calculateUSDCost(modelId, estimated), estimated, modelId)
   }
   if (usageSeen) {
-
     addToTotalSessionCost(
       calculateUSDCost(modelId, finalUsage as never),
       finalUsage as never,
       modelId,
     )
   }
-
   if (usageSeen) {
     void checkResponseForCacheBreak(
       options.querySource,
@@ -863,7 +837,6 @@ async function* streamOneZaiAttempt(ctx: {
   }
   const lastMessage = minted.at(-1)
   if (lastMessage) {
-
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
@@ -877,7 +850,6 @@ async function* streamOneZaiAttempt(ctx: {
   yield streamEvent({ type: 'message_stop' })
 
   if (fault && typedEnd === null) {
-
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText('Z.AI', fault.code, fault.message),
       compatFaultToTypedError(fault),

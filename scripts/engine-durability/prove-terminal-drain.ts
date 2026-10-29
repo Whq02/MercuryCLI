@@ -54,7 +54,6 @@ async function runTurn(
 
   const it = queryEvents(paramsFor(owner) as never)
   await it.next()
-
   coord.noteRunEvent(owner, { type: 'substantive', at: 2, reason: 'edits landed' })
 
   const order: string[] = []

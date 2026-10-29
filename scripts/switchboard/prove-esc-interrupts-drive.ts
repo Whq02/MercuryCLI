@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -139,7 +138,6 @@ console.log('leg B — the born session, mid-thinking, 120x40')
     extraEnv: { MERCURY_DAEMON_DIR: daemonDir },
   })
   try {
-
     const escMs = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
       .map(s => sendStamp(run, s))

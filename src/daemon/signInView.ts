@@ -16,7 +16,6 @@ export function refreshSignInReads(force = false): boolean {
   lastLiveReadAt = now
   dropCredentialMemos()
   resetComputedDefaultMemo()
-
   return true
 }
 

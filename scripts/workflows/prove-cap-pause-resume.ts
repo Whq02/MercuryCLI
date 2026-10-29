@@ -31,7 +31,6 @@ function textEvent(text: string) {
     message: { content: [{ type: 'text', text }], usage: { input_tokens: 1, output_tokens: 30 }, stop_reason: 'end_turn' },
   }
 }
-
 function capEvent(text: string) {
   return {
     type: 'assistant' as const,

@@ -11,7 +11,6 @@ const t = checker()
 interface JourneyLeg {
   journey: string
   prover: string
-
   needles: string[]
 }
 

@@ -50,7 +50,6 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'MercuryFrame statusbar', symbol: 'MercuryFrame' },
   { cap: 'FullscreenLayout / no-flicker', symbol: 'FullscreenLayout' },
   { cap: 'Warm background paint', symbol: 'applyWarmBackground' },
-
   { cap: 'Skill discovery (getSkillToolCommands)', symbol: 'getSkillToolCommands' },
   { cap: 'render_tui MCP render-verify tool', symbol: 'renderTui' },
 ]
@@ -73,7 +72,6 @@ for (const { cap, symbol } of WIRING) {
 
 console.log('— command registration —')
 for (const name of COMMANDS) {
-
   const reByDir = new RegExp(`(import|require)\\b[^\\n]*commands/${name}/index`)
   const reByFile = new RegExp(`(import|require)\\b[^\\n]*commands/${name}(\\.js|')`)
   if (reByDir.test(commandsTs) || reByFile.test(commandsTs)) {

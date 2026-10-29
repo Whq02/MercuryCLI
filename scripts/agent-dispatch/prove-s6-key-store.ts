@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -42,7 +41,6 @@ const { zaiProviderAdapter } = await import('../../src/services/providers/zai/za
 __resetProviderDiscoveryForTest()
 
 section('1 · write/read/clear round-trip · mode 600 · unknown keys survive')
-
 {
   check('empty scope: no stored key', readStoredZaiApiKey() === undefined)
   writeStoredZaiApiKey('  zai-stored-proof-key  ')
@@ -67,7 +65,6 @@ section('1 · write/read/clear round-trip · mode 600 · unknown keys survive')
 }
 
 section('2 · resolution precedence — env WINS, store serves, sources honest')
-
 {
   check("no env: resolves the stored key, source 'stored'", resolveZaiApiKey() === 'zai-stored-proof-key' && zaiKeySource() === 'stored')
   process.env.ZAI_API_KEY = 'zai-env-proof-key'
@@ -76,7 +73,6 @@ section('2 · resolution precedence — env WINS, store serves, sources honest')
 }
 
 section('3 · the adapter flips on a stored key; the value never leaks')
-
 {
   const status = zaiProviderAdapter.status()
   check('status available on the STORED key alone', status.available === true, status.reason ?? '')
@@ -91,7 +87,6 @@ section('3 · the adapter flips on a stored key; the value never leaks')
 }
 
 section('4 · auth-scope isolation — a different scope sees no key')
-
 {
   process.env.MERCURY_CONFIG_DIR = scopeB
   __resetProviderDiscoveryForTest()

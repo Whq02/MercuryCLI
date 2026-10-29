@@ -2,17 +2,12 @@ import { createHash } from 'node:crypto'
 
 export type ModelCallReference = {
   v: 1
-
   model: string
-
   effortRequested: string | undefined
   maxOutputTokensOverride: number | undefined
-
   toolCount: number
   toolNames: readonly string[]
-
   toolPlanDigest: string
-
   digest: string
 }
 

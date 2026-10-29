@@ -13,7 +13,6 @@ import { baseDirLine } from './baseDirLine.js'
 type BundledSkillDefinition = {
   name: string
   description: string | (() => string)
-
   menuDescription?: string
   aliases?: string[]
   whenToUse?: string
@@ -22,13 +21,11 @@ type BundledSkillDefinition = {
   model?: string
   effort?: EffortValue
   disableModelInvocation?: boolean
-
   userInvocable?: boolean
   isEnabled?: () => boolean
   hooks?: HooksSettings
   context?: 'inline' | 'fork'
   agent?: string
-
   files?: Record<string, string> | (() => Readonly<Record<string, string>>)
   getPromptForCommand: (
     args: string,
@@ -94,6 +91,7 @@ function extractOnce(definition: BundledSkillDefinition): Promise<string | null>
   return promise
 }
 
+
 const registry: Command[] = []
 
 export function registerBundledSkill(definition: BundledSkillDefinition): void {
@@ -116,7 +114,6 @@ export function registerBundledSkill(definition: BundledSkillDefinition): void {
   const command: PromptCommand = {
     type: 'prompt',
     name: definition.name,
-
     description: '',
     progressMessage: 'running',
     contentLength: 0,

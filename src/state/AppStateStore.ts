@@ -24,6 +24,7 @@ import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 
+
 type ImmutablePrimitive =
   | undefined
   | null
@@ -45,7 +46,9 @@ export type DeepImmutable<T> = unknown extends T
         ? ReadonlySet<DeepImmutable<U>>
         : { readonly [K in keyof T]: DeepImmutable<T[K]> }
 
+
 export type FooterItem = 'tasks' | 'bagel' | 'bridge'
+
 
 export type CompletionBoundary =
   | { type: 'completion'; completedAt: number; outputTokens: number }
@@ -82,6 +85,7 @@ export type SpeculationResult = {
   timeSavedMs: number
 }
 
+
 export type InboxMessageStatus = 'pending' | 'processing' | 'processed' | 'held'
 
 export type InboxMessage = {
@@ -94,53 +98,40 @@ export type InboxMessage = {
   summary?: string
 }
 
+
 export type ExtensionsState = {
   roster: RosterEntry[]
-
   health: Record<string, Health | null>
-
   pending: boolean
-
   problems: string[]
-
   lastReloadLine: string | null
 }
 
-type AppStateImmutableHalf = {
 
+type AppStateImmutableHalf = {
   settings: Settings
   verbose: boolean
   expandedView: 'none' | 'tasks'
   spinnerTip?: string
-
   agent?: string
-
   footerSelection: FooterItem | null
-
   bagelActive?: boolean
 
   engineModel: string | null
   engineModelForSession: string | null
-
   pendingModelSwitch: { setting: string | null } | null
-
   lastModelTransition?: ModelTransitionReceipt | null
-
   foregroundTurnActive: boolean
 
   toolPermissionContext: ToolPermissionContext
 
   remoteSessionUrl?: string
   remoteConnectionStatus: 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
-
   remoteBackgroundTaskCount: number
-
   remoteControlEnabled: boolean
   bridgeActivated: boolean
   remoteControlOutboundOnly: boolean
-
   bridgeRegistered: boolean
-
   bridgeIngressOpen: boolean
   bridgeInErrorBackoff: boolean
   bridgeConnectUrl?: string
@@ -152,16 +143,14 @@ type AppStateImmutableHalf = {
   bridgeFirstRunCallout: boolean
 }
 
+
 type AppStateMutableHalf = {
-
   tasks: Record<string, TaskState>
-
   agentNameRegistry: Map<string, string>
   foregroundedTaskId?: string
   viewingAgentTaskId?: string | undefined
   mainChatTaskId?: string | undefined
   crewLedger: CrewLedger
-
   selectedIPAgentIndex: number
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
   standaloneAgentContext?: { name: string; color?: string }
@@ -171,7 +160,6 @@ type AppStateMutableHalf = {
     tools: Tool[]
     commands: Command[]
     resources: Record<string, ServerResource[]>
-
     extensionReconnectKey: number
   }
 
@@ -218,7 +206,6 @@ type AppStateMutableHalf = {
   authVersion: number
   initialMessage: {
     message: UserMessage
-
     bashMode?: boolean
     armedAtLanding?: boolean
   } | null
@@ -298,3 +285,4 @@ export function getDefaultAppState(): AppState {
     thinkingEnabled: shouldEnableThinkingByDefault(),
   }
 }
+

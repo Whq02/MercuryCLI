@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, realpathSync } from 'node:fs'
@@ -25,7 +24,6 @@ for (const k of [
 ]) {
   delete process.env[k]
 }
-
 process.env.ANTHROPIC_API_KEY = 'proof-key-runsurface'
 
 const realQueryModule = await import('../../src/query.ts')
@@ -208,6 +206,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 console.log('native-core T10-T12 — run-surface contract')
+
 
 type AnyMsg = Record<string, unknown> & { type?: string; subtype?: string }
 const settle = (): Promise<void> => new Promise(r => setTimeout(r, 5))
@@ -1577,12 +1576,10 @@ section('T10 ORDERING — transcript persistence discipline (source-anchored)')
     new URL('../../src/rows/turn.ts', import.meta.url),
     'utf8',
   )
-
   const recordAt = engineSrc.indexOf('if (isBoundary && !persistenceDisabled) {')
   const block = recordAt === -1 ? '' : engineSrc.slice(recordAt, recordAt + 1600)
   check(
     'assistant records are fire-and-forget; others await (the drain-timer deadlock rule)',
-
     /if \(message\.type === 'assistant'\) \{\s*\n\s*void recordDelta\(\)\s*\n\s*\} else \{\s*\n\s*await recordDelta\(\)/.test(
       block,
     ),
@@ -1599,7 +1596,6 @@ section('T10 ORDERING — transcript persistence discipline (source-anchored)')
   check(
     'progress + attachment records stay inline (the dedup-walk anchoring rule)',
     /case 'progress':[\s\S]{0,700}void recordDelta\(\)/.test(engineSrc) &&
-
       /case 'attachment':[\s\S]{0,1200}await recordDelta\(\)[\s\S]{0,300}void recordDelta\(\)/.test(engineSrc),
   )
 }

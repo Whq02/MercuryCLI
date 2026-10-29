@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -14,7 +13,6 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_WARM_RUNNER
 delete process.env.MERCURY_DAEMON_NO_SELF_WARM
 delete process.env.MERCURY_CONCOURSE_WORKER
-
 const gitConfig = join(SCRATCH, 'gitconfig')
 writeFileSync(gitConfig, '[user]\n\tname = prover\n\temail = prover@example.invalid\n[init]\n\tdefaultBranch = main\n')
 process.env.GIT_CONFIG_GLOBAL = gitConfig
@@ -135,7 +133,6 @@ const ws1 = mkrepo('ws1')
   }
   check('A1 the worktree estate stayed untouched (no worktrees/ dir)', !existsSync(workerWorktreeRoot(recordsDir)))
   check('A1 no mercury/* branch exists in the repo', mercuryBranches(ws1).length === 0, mercuryBranches(ws1).join(','))
-
   const defaulted = await admit({ workspaceDir: ws1, modelKey })
   check('A1c the defaulted admission still folds to the worktree estate', defaulted.ok, defaulted.ok ? '' : defaulted.error)
   if (defaulted.ok) {
@@ -168,19 +165,16 @@ console.log('\n── A3/A4: continue → menu → New Session → a clean secon
 {
   const ws4 = mkrepo('ws4')
   const resumeId = randomUUID()
-
   const resumed = await admit({ workspaceDir: ws4, isolation: 'shared', resumeSessionId: resumeId, modelKey })
   check('A3 the record-less resume admits in place', resumed.ok, resumed.ok ? '' : resumed.error)
   const resumedRec = resumed.ok ? readSessionWorkers(recordsDir)[resumed.runnerId] : undefined
   check('A3 the resume claims shared, carves nothing', resumedRec?.isolation === 'shared' && resumedRec?.worktreePath === undefined)
   check('A3 the resume continues the SAME durable session', resumed.ok && resumed.sessionId === resumeId)
   check('A3 the runner boots with --resume (a revival, not a birth)', resumed.ok && argvOf(specOf(resumed.runnerId)).includes('--resume'))
-
   const born = await admit({ workspaceDir: ws4, isolation: 'shared', bornBlank: true, modelKey })
   check('A3 New Session admits a clean SECOND session beside the continue', born.ok, born.ok ? '' : born.error)
   const bornRec = born.ok ? readSessionWorkers(recordsDir)[born.runnerId] : undefined
   check('A3 both live in place — distinct ids, zero carves, no branches', born.ok && resumed.ok && born.sessionId !== resumed.sessionId && born.runnerId !== resumed.runnerId && bornRec?.worktreePath === undefined && mercuryBranches(ws4).length === 0)
-
   check('A4 the born id is fresh (∉ every prior session)', born.ok && born.sessionId !== resumeId && !Object.values(readSessionWorkers(recordsDir)).some(r => r.sessionId === born.sessionId && r.runnerId !== born.runnerId))
   const bornArgv = born.ok ? argvOf(specOf(born.runnerId)) : []
   check('A4 the birth boots --session-id, never --resume', bornArgv.includes('--session-id') && !bornArgv.includes('--resume'))

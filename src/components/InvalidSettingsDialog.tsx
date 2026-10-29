@@ -9,7 +9,6 @@ type Props = {
   settingsErrors: ValidationError[];
   onContinue: () => void;
   onExit: () => void;
-
   onFix?: () => void;
   onRemove?: () => void;
 };
@@ -26,7 +25,6 @@ export function InvalidSettingsDialog({
   onFix,
   onRemove,
 }: Props): React.ReactNode {
-
   const [inputArmed, setInputArmed] = React.useState(false);
   React.useEffect(() => {
     const timer = setTimeout(() => setInputArmed(true), 350);
@@ -68,7 +66,6 @@ export function InvalidSettingsDialog({
     : [...removeOptions, continueOption, ...fixOptions, exitOption];
 
   const title = hasHardErrors ? 'Settings Error' : 'Settings Warning';
-
   const rawOnCancel = hasHardErrors ? onExit : onContinue;
   const onCancel = (): void => {
     if (inputArmed) rawOnCancel();

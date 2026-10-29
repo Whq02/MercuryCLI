@@ -11,6 +11,7 @@ import type { Ordinal } from './ordinal.js'
 
 export const SCHEMA_VERSION = 1
 
+
 export type ActorRef =
   | { role: 'operator' }
   | { role: 'assistant'; model?: string }
@@ -26,6 +27,7 @@ export type RecordSource =
   | { channel: 'channel-bus'; server: string }
   | { channel: 'recovery' }
 
+
 export type MercuryUsage = {
   inputTokens?: number
   outputTokens?: number
@@ -39,15 +41,13 @@ export type MercuryUsage = {
   inferenceGeo?: string | null
   iterations?: number | null
   speed?: string | null
-
   extra?: Record<string, unknown>
 }
 
-export type ContentBlock =
 
+export type ContentBlock =
   | { kind: 'text'; text: string; citations?: unknown[] | null; extra?: Record<string, unknown> }
   | {
-
       kind: 'reasoning'
       text: string
       receiptId?: ReceiptId
@@ -59,7 +59,6 @@ export type ContentBlock =
       callId: ToolCallId
       name: string
       input: unknown
-
       extra?: Record<string, unknown>
     }
   | {
@@ -72,12 +71,12 @@ export type ContentBlock =
   | { kind: 'image'; source: unknown; pasteId?: number; extra?: Record<string, unknown> }
   | { kind: 'document'; source: unknown; extra?: Record<string, unknown> }
   | {
-
       kind: 'opaque'
       provider: string
       blockType: string
       payload: unknown
     }
+
 
 export type TurnOutcome =
   | { result: 'completed'; stopReason?: string | null; stopSequence?: string | null }
@@ -90,15 +89,14 @@ export type TurnOutcome =
 
 type ToolOutcome = 'ok' | 'error' | 'aborted'
 
+
 export type RecordPayload =
   | {
-
       kind: 'input'
       content: string | ContentBlock[]
       meta?: InputMeta
     }
   | {
-
       kind: 'output'
       model: string
       providerMessageId?: string
@@ -110,11 +108,9 @@ export type RecordPayload =
       meta?: OutputMeta
     }
   | {
-
       kind: 'tool-settlement'
       callId: ToolCallId
       outcome: ToolOutcome
-
       synthetic?: boolean
       result: string | ContentBlock[]
       structuredResult?: unknown
@@ -122,20 +118,17 @@ export type RecordPayload =
       mcpMeta?: Record<string, unknown>
     }
   | {
-
       kind: 'progress'
       callId: ToolCallId
       parentCallId?: ToolCallId
       data: unknown
     }
   | {
-
       kind: 'attachment'
       attachmentType: string
       fields: Record<string, unknown>
     }
   | {
-
       kind: 'notice'
       noticeKind: string
       content?: string
@@ -143,7 +136,6 @@ export type RecordPayload =
       fields: Record<string, unknown>
     }
   | {
-
       kind: 'boundary'
       boundaryKind: 'compact' | 'microcompact' | 'fork' | 'rewind' | 'replacement'
       content?: string
@@ -151,7 +143,6 @@ export type RecordPayload =
       logicalParent?: RecordId
     }
   | {
-
       kind: 'receipt'
       receiptId: ReceiptId
       provider: string
@@ -159,13 +150,11 @@ export type RecordPayload =
       payload: unknown
     }
   | {
-
       kind: 'session-meta'
       metaKind: string
       fields: Record<string, unknown>
     }
   | {
-
       kind: 'unknown-retained'
       sourceKind: string
       fields: Record<string, unknown>
@@ -201,26 +190,22 @@ type OutputMeta = {
   effort?: EffortStampV1
 }
 
+
 export type MercuryRecord = {
   schemaVersion: number
-
   recordId: RecordId
   sessionId: SessionId
   threadId: ThreadId
   turnId?: TurnId
   itemId?: ItemId
   parentId?: RecordId
-
   updates?: RecordId
-
   creationOrdinal: Ordinal
-
   updateOrdinal: Ordinal
   occurredAt: string
   observedAt?: string
   actor: ActorRef
   source: RecordSource
   payload: RecordPayload
-
   annotations?: Record<string, unknown>
 }

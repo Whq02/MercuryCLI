@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   computeWheelStep,
   initWheelAccel,
@@ -53,11 +52,9 @@ console.log('prove-wheel-accel — discrete-notch cadence engages the curve')
   let t = 1_000
   computeWheelStep(s, 1, t); t += 100
   computeWheelStep(s, 1, t); t += 100
-
   computeWheelStep(s, -1, t); t += 100
   computeWheelStep(s, -1, t); t += 100
   check('reversal resets the cadence run (no engage from mixed directions)', s.wheelMode === false)
-
   computeWheelStep(s, -1, t); t += 100
   computeWheelStep(s, -1, t); t += 100
   computeWheelStep(s, -1, t)

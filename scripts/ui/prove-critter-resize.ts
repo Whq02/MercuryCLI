@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -19,7 +18,6 @@ writeFileSync(
     numStartups: 10,
     theme: 'dark',
     projects: { [REPO]: { hasTrustDialogAccepted: true } },
-
     ...(process.env.ANTHROPIC_API_KEY
       ? { customApiKeyResponses: { approved: [process.env.ANTHROPIC_API_KEY.slice(-20)], rejected: [] } }
       : {}),
@@ -43,13 +41,10 @@ writeFileSync(
   JSON.stringify({
     ...cfg,
     out: gridPath,
-
     total: 110,
-
     readyText: '❯ first task',
     readySettleTicks: 3,
     resizes: [
-
       { atTick: 25, cols: 60, rows: 18 },
       { atTick: 38, cols: 120, rows: 40 },
     ],
@@ -93,7 +88,6 @@ if (!baselineEntry) {
 } else {
   const baseline = readStoredGrid(baselineEntry)
   const finalGrid = compactGrid({ cols: payload.cols, rows: payload.rows, grid: payload.grid })
-
   const bText = baseline.text
   const fText = finalGrid.text
   const bArt = bText.filter(r => /[▀▄]{3,}/.test(r)).length

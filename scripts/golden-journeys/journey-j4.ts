@@ -1,3 +1,4 @@
+
 import {
   DIST,
   FIXTURE_CWD,
@@ -44,7 +45,6 @@ void torn
 
 const walker = new JourneyWalker(sid, 'j4')
 const bootB = walker.glance('boot-b')
-
 check('boot B renders after the torn boot', bootB.ok && hasProse(bootB, 'resumed clean'))
 const afterB = readRunSidecar(sid)
 const rowsAfter = conversationRowCount()
@@ -66,6 +66,7 @@ const reconciledOnResume =
 const runFacts = walker.probeFact('outcome', J3_OBJECTIVE.slice(0, 24), [{ cmd: '/run' }])
 const identityRecovered = runFacts.visibility !== 'not-visible'
 
+
 const beforePrint = readRunSidecar(sid)
 spawnSync('node', [DIST, 'run', 'continue the work', '--resume', sid], {
   encoding: 'utf-8',
@@ -75,7 +76,6 @@ spawnSync('node', [DIST, 'run', 'continue the work', '--resume', sid], {
 })
 const afterPrint = readRunSidecar(sid)
 check('B4: a run-mode resume preserves the durable runId (finding A)', afterPrint.snapshot.runId === beforePrint.snapshot.runId)
-
 check('B4: the print resume ADVANCES the sidecar (the reconcile engaged)', afterPrint.writeSeq > beforePrint.writeSeq)
 
 check('every walker capture painted (C3)', walker.failedCaptures.length === 0, walker.failedCaptures.join(' · '))

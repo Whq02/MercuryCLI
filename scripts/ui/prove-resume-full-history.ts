@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -28,7 +27,6 @@ console.log('============================================================')
   check('cursor at top ⇒ window at top', win(0, 100, 8).start === 0)
   const atEnd = win(99, 100, 8)
   check('cursor at index 99 of 100 is REACHABLE (window slides)', atEnd.end === 100 && atEnd.start === 92)
-
   let allReachable = true
   for (let i = 0; i < 500; i++) {
     const w = win(i, 500, 8)
@@ -40,7 +38,6 @@ console.log('============================================================')
 
 {
   const view = src('src', 'components', 'mercury-ui', 'screens', 'SessionManagerView.tsx')
-
   const model = src('src', 'components', 'mercury-ui', 'screens', 'sessionPickerModel.ts')
   const sessions = src('src', 'commands', 'sessions', 'sessions.tsx')
   check("a bare /sessions opens THIS PROJECT's switcher (the manager's own default scope); `a` widens it to every session /resume listed", sessions.includes('<SessionManagerView') && !sessions.includes('initialScope='))
@@ -85,7 +82,6 @@ console.log('============================================================')
 {
   const { markSessionCleared, unmarkSessionCleared, isSessionCleared, resetClearedSessionsMemo } =
     await import('../../src/utils/sessionStorage/clearedSessions.ts')
-
   const os = await import('node:os')
   const fs = await import('node:fs')
   const dir = fs.mkdtempSync(join(os.tmpdir(), 'cleared-proof-'))

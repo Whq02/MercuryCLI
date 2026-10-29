@@ -6,7 +6,6 @@ const HEREDOC_RE = /<<-?\s*(?:'[A-Za-z0-9_]+'|"[A-Za-z0-9_]+"|\\?[A-Za-z0-9_]+)/
 function containsHeredoc(command: string): boolean {
   if (DIGIT_SHIFT_RE.test(command)) return false
   if (ARITH_TEST_SHIFT_RE.test(command)) return false
-
   if (hasShiftInsideArithmetic(command)) return false
   return HEREDOC_RE.test(command)
 }

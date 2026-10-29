@@ -1,3 +1,4 @@
+
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { isReadOnlyDiagnostic } from './diagnosticReadOnly.js'
@@ -162,7 +163,6 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
   }
   const signal = opts?.signal
   const idx = join(idxDir, 'index')
-
   const objects = join(idxDir, 'objects')
   mkdirSync(objects, { recursive: true })
   const repoObjects = await new Promise<string | null>(resolve => {
@@ -200,7 +200,6 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
   try {
     if (signal?.aborted) return null
     if ((await run(['read-tree', 'HEAD'])) === null) return null
-
     if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
     const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
@@ -257,7 +256,6 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
         continue
       }
       if (ws !== repo && !ws.startsWith(repo + sep)) continue
-
       if (findGitRoot(ws) !== repo) continue
       const warm = (rec as { warm?: boolean }).warm === true
       runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
@@ -394,7 +392,6 @@ function runRemedyCmd(
       const child = spawn(cmd, args, { windowsHide: true, cwd: cwdDir, stdio: ['ignore', 'pipe', 'pipe'], env: { ...subprocessEnv() } })
       child.stdout?.on('data', push)
       child.stderr?.on('data', push)
-
       void settleChildRun(child, { timeoutMs }).then(settlement => {
         if (settlement.spawnError !== undefined) {
           resolve({ status: null, tail: `spawn error: ${settlement.spawnError}` })
@@ -447,7 +444,6 @@ const MB = 1024 * 1024
 const mb = (bytes: number) => `${(bytes / MB).toFixed(0)}MB`
 
 export function healthStateRoot(): string {
-
   return flagEnv('MERCURY_HEALTH_STATE_DIR') || getProjectRootSafe()
 }
 
@@ -462,7 +458,6 @@ function getProjectRootSafe(): string {
 }
 
 export function lastCertPath(): string {
-
   return join(projectHomeStore(healthStateRoot(), 'health'), 'last-cert.json')
 }
 
@@ -494,6 +489,7 @@ async function execGit(args: string[], cwd: string, timeoutMs = 1500): Promise<s
   })
 }
 
+
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 type CheckFn = (probeCtx?: { signal?: AbortSignal }) => Promise<CheckResult> | CheckResult
 
@@ -501,13 +497,9 @@ interface CheckSpec {
   id: string
   label: string
   run: CheckFn
-
   depth?: 'fast' | 'deep'
-
   probe?: 'functional' | 'configuration'
-
   timeoutMs?: number
-
   dependsOn?: string[]
 }
 
@@ -520,7 +512,6 @@ interface SectionSpec {
 export interface RunHealthReportOptions {
   depth?: 'fast' | 'deep'
   signal?: AbortSignal
-
   onProgress?: (event: {
     check: HealthCheck
     sectionId: string
@@ -531,6 +522,7 @@ export interface RunHealthReportOptions {
 }
 
 const HEALTH_CONCURRENCY = 4
+
 
 const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string }> = {
   anthropic: { label: 'Anthropic', signIn: 'Run /logins (or export ANTHROPIC_API_KEY)' },
@@ -664,13 +656,11 @@ function providerAuthChecks(): CheckSpec[] {
         run: async () => {
           const { checkAnthropicSignInFresh } = await import('./accounts/signInFreshness.js')
           const fresh = await checkAnthropicSignInFresh()
-
           const { anthropicCredentialPresence } =
             require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
           const presence = anthropicCredentialPresence()
           if (!presence.credentialed) {
             if (routedFamily !== 'anthropic') {
-
               return {
                 status: 'info' as const,
                 evidence: `absent — no bearer token or API key (session routes to ${routedFamily})`,
@@ -684,7 +674,6 @@ function providerAuthChecks(): CheckSpec[] {
               fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
-
           if (presence.expired || fresh.state === 'expired') {
             const { anthropicSignInWords } =
               require('../services/providers/anthropicRefusal.js') as typeof import('../services/providers/anthropicRefusal.js')
@@ -711,7 +700,6 @@ function providerAuthChecks(): CheckSpec[] {
         },
       }
     }
-
     return {
       id: `auth-${provider.id}`,
       label: meta.label,
@@ -806,7 +794,6 @@ export function clientContractCheck(): CheckSpec {
     id: 'client-contract',
     label: 'Client contract',
     run: async () => {
-
       const { describeAnthropicClientContract } = await import('../constants/oauth.js')
       const { clientContractRecordWords } = await import('../services/api/clientContractLearned.js')
       const contract = describeAnthropicClientContract()
@@ -888,9 +875,7 @@ function providerSlotsCheck(): CheckSpec {
     id: 'provider-slots',
     label: 'Provider slots',
     run: async () => {
-
       const { refreshProviderDiscovery } = await import('../services/providers/providerDiscovery.js')
-
       await Promise.all([
         refreshProviderDiscovery('openai'),
         refreshProviderDiscovery('zai'),
@@ -901,7 +886,6 @@ function providerSlotsCheck(): CheckSpec {
       const anthropic = snap.providers.find(p => p.id === 'anthropic')
       const classes = (['opus', 'sonnet', 'fable'] as const).map(c => snap.resolve(c))
       const engines = snap.providers.filter(p => p.id !== 'anthropic')
-
       const ENGINE_UNAVAILABLE_CODES = [
         'discovery-pending:',
         'no-executable:',
@@ -916,14 +900,12 @@ function providerSlotsCheck(): CheckSpec {
       const enginesHonest = engines.every(
         p => p.available || ENGINE_UNAVAILABLE_CODES.some(code => p.reason?.startsWith(code)),
       )
-
       const gptRef = snap.resolve('gpt')
       const glmRef = snap.resolve('glm')
       const seatLawHolds =
         (gptRef === null || (gptRef.provider === 'openai' && gptRef.modelClass === 'gpt')) &&
         (glmRef === null || (glmRef.provider === 'zai' && glmRef.modelClass === 'glm'))
       const ok = anthropic?.available === true && classes.every(c => c !== null) && enginesHonest && seatLawHolds
-
       const engineWords = new Map<string, string[]>()
       for (const p of engines) {
         const word = p.available ? 'configured' : (p.reason ?? 'unavailable')
@@ -1032,10 +1014,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'build-identity',
           label: 'Mercury build',
           run: async () => {
-
             const identity = describeArtifactIdentity(version)
             const profile = isMercurySubstrateProfileOn()
-
             const [{ resolveSplashAsset }, { runningBundlePayloadDir }] = await Promise.all([
               import('../substrate/directSplash.js'),
               import('../services/privateChannel/vendoredRuntime.js'),
@@ -1063,7 +1043,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'install-provenance',
           label: 'Install provenance',
           run: async () => {
-
             const [{ resolveInstallProvenance, provenanceGuidance, provenanceLine, NPM_WRAPPER_ROAD_WORDS }, { resolveLayoutRoots }, { commandOnPath, npmWrapperOnPath }] =
               await Promise.all([
                 import('../services/privateChannel/installProvenance.js'),
@@ -1124,7 +1103,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'artifact-signature',
           label: 'Artifact signature',
           run: async () => {
-
             const { resolveInstallProvenance } = await import('../services/privateChannel/installProvenance.js')
             const { artifactSignatureCheck } = await import('../services/privateChannel/artifactVerify.js')
             return artifactSignatureCheck(resolveInstallProvenance(), 'fast')
@@ -1146,7 +1124,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'wrapper',
           label: 'Mercury constitution',
           run: () => {
-
             return {
               status: 'ok',
               evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
@@ -1166,7 +1143,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const entryMtime = statSync(entry).mtimeMs
-
             const root = dirname(dirname(entry))
             if (!existsSync(join(root, 'build.ts')) || !existsSync(join(root, 'src'))) {
               return {
@@ -1174,7 +1150,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence: `running ${basename(entry)} from an installed location (no source checkout above it) — build freshness n/a`,
               }
             }
-
             const stampPath = join(dirname(entry), '.build-tree')
             if (existsSync(stampPath)) {
               try {
@@ -1206,7 +1181,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 status: 'stale',
                 evidence: `bundle built ${formatAge(Date.now() - entryMtime)}, but src/ last changed ${formatAge(Date.now() - commitMs)} (committed) — the running build predates the source`,
                 fix: 'Rebuild: bun run build.ts (then relaunch).',
-
                 ...(healthFixEnabled()
                   ? {
                       remedy: {
@@ -1248,7 +1222,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'deployed-assets',
           label: 'Deployed assets',
           run: async () => {
-
             const entry = process.argv[1]
             const root = entry ? dirname(dirname(entry)) : null
             if (
@@ -1267,7 +1240,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: a.status,
               evidence: a.evidence,
               ...(a.fix ? { fix: a.fix } : {}),
-
               ...(healthFixEnabled() && a.drifted.length > 0
                 ? {
                     remedy: {
@@ -1313,7 +1285,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               verdictRaw = null
             }
             const verdict = decodeGateVerdict(verdictRaw)
-
             if (!existsSync(join(cwd, 'scripts', 'run-all-suites.sh'))) {
               return {
                 status: 'info',
@@ -1333,7 +1304,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               interpreted.status === 'stale' || interpreted.status === 'fail' || interpreted.status === 'warn'
             return {
               ...interpreted,
-
               ...(fixable && healthFixEnabled() && existsSync(join(cwd, 'scripts', 'run-all-suites.sh'))
                 ? {
                     remedy: {
@@ -1370,7 +1340,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'verification',
           label: 'Mutation evidence',
           run: async () => {
-
             try {
               const { verificationSummary } = await import('./verification/verificationState.js')
               const s = verificationSummary(cwd)
@@ -1396,7 +1365,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'project-gates',
           label: 'Project gates',
           run: async () => {
-
             try {
               const { loadDeclaredGates } = await import('./verification/projectGates.js')
               const { workspaceVerifiable } = await import('./verification/verificationState.js')
@@ -1431,7 +1399,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'renders',
           label: 'Render-verify',
           run: async () => {
-
             const { renderTuiCheckoutRoot, renderTuiRuntime } = await import('../services/mcp/renderTuiTool.js')
             const root =
               renderTuiCheckoutRoot() ?? (existsSync(join(cwd, 'scripts', 'ui', 'render-tui.ts')) ? cwd : null)
@@ -1445,7 +1412,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const vshot = join(root, 'scripts', 'ui', 'vshot.py')
             const runtime = renderTuiRuntime()
             const runtimeWords = 'bun' in runtime ? `bun at ${runtime.bun}` : runtime.missing
-
             const python = whichSync('python3') ?? whichSync('python')
             if (process.platform === 'win32') {
               return {
@@ -1500,11 +1466,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               `${branchChip(repo.branchName)} @ ${sha7(repo.commitHash)}`,
               repo.isClean ? 'clean' : 'uncommitted changes',
             ]
-
             if (repo.unpushedCount > 0) parts.push(`${repo.unpushedCount} unpushed`)
             else if (repo.remoteUrl === null) parts.push('no remote configured')
             else if (!repo.isHeadOnRemote) parts.push('no upstream for this branch')
-
             const note = gitProbeNote()
             if (note !== null) return { status: 'warn', evidence: `${parts.join(' · ')} · ${note}` }
             return { status: 'ok', evidence: parts.join(' · ') + ' (getGitState)' }
@@ -1532,7 +1496,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'config-home',
           label: 'Config home',
           run: () => {
-
+            
             const home = getMercuryHome()
             const source = process.env.MERCURY_CONFIG_DIR
               ? 'explicit MERCURY_CONFIG_DIR'
@@ -1540,32 +1504,26 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 ? 'MERCURY_HOME'
                 : 'Mercury default home resolution'
             const problems: string[] = []
-
             const svc = getMacOsKeychainStorageServiceName()
             const authHome = getAuthConfigHomeDir()
             if (!/-[0-9a-f]{8}$/.test(svc)) {
               problems.push(`keychain service '${svc}' is UN-suffixed for the auth home ${authHome} — credential identity split`)
             }
-
             const globalFile = getGlobalMercuryFile()
             if (!globalFile.startsWith(home)) {
               problems.push(`global config ${globalFile} lives OUTSIDE the resolved home — config identity split`)
             }
-
             const dDir = daemonDir()
             if (!flagEnv('MERCURY_DAEMON_DIR') && !dDir.startsWith(home)) {
               problems.push(`daemon dir ${dDir} outside the resolved home — daemon-plane split`)
             }
-
             if (!crashReportDir().startsWith(home)) {
               problems.push(`crash dir ${crashReportDir()} outside the resolved home — forensics split`)
             }
             if (problems.length > 0) {
               return { status: 'fail', evidence: problems.join(' · '), fix: 'The config home resolved two ways — report this with `mercury health --json`.' }
             }
-
             const slotNote = authHome !== home ? ` · auth scope slotted → ${authHome}` : ''
-
             const daemonNote = flagEnv('MERCURY_DAEMON_DIR')
               ? ` · daemon plane OVERRIDDEN → ${dDir} (MERCURY_DAEMON_DIR)`
               : ' · global config + daemon plane inside the home'
@@ -1576,7 +1534,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'transcript-store',
           label: 'Transcript store',
           run: async () => {
-
             const { getProjectsDir } = await import('./sessionStorage/paths.js')
             const { statSync, accessSync, readdirSync, constants } = await import('node:fs')
             const dir = getProjectsDir()
@@ -1645,7 +1602,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'config-writes',
           label: 'Config writes',
           run: async () => {
-
             const { getConfigLocklessFallbackCount } = await import('./config/globalConfig.js')
             const n = getConfigLocklessFallbackCount()
             if (n === 0) {
@@ -1681,7 +1637,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'scratch-leases',
           label: 'Scratch leases',
           run: async () => {
-
             const { listScratchLeftovers } = await import('./scratchLeases.js')
             const leftovers = listScratchLeftovers()
             if (leftovers.length === 0) {
@@ -1703,7 +1658,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'isolation',
           label: 'Store isolation',
           run: async () => {
-
             const home = getMercuryHome()
             const expectedVersion =
               typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : undefined
@@ -1726,7 +1680,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 status: 'warn',
                 evidence: `foreign harness artifacts in ${home}: ${report.foreign.map(a => a.evidence).join(' · ')}`,
                 fix: `${writers.join(' + ')} wrote harness-state into the Mercury home (another tool was pointed at this home while it ran). Move or remove the foreign records.`,
-
                 ...(healthFixEnabled()
                   ? {
                       remedy: {
@@ -1739,7 +1692,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                             let movedCount = 0
                             for (const artifact of fresh.foreign) {
                               const src = harnessArtifactPath(home, artifact.rel)
-
                               const moved = await rename(src, join(archiveDest, artifact.rel.replace(/\//g, '_'))).then(
                                 () => true,
                                 () => false,
@@ -1773,7 +1725,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'daemon-sign-ins',
           label: 'Daemon sign-in view',
           run: async () => {
-
             const d = daemonSnapshot()
             if (d.state !== 'live') {
               return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
@@ -1783,7 +1734,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const reply = (await daemonControlRpc({ op: 'signIns', refresh: true } as never, { timeoutMs: 3000 })) as
               | { ok: true; view: DaemonSignInViewV1 }
               | { ok: false; code?: string; error?: string }
-
             const restart = restartDaemonWords(binaryName())
             if (!reply.ok) {
               return {
@@ -1829,7 +1779,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const d = daemonSnapshot()
             if (d.state === 'live') {
-
               const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon, reopenWayOut } = await import('../daemon/handshake.js')
               const hs = await handshakeDaemon({ timeoutMs: 1000 })
               const evidence = `daemon.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
@@ -1838,7 +1787,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }
               return { status: 'ok', evidence, link: '/daemon' }
             }
-
             let receipt = ''
             try {
               const { reconcileDaemonRecords } = await import('../daemon/reconcileRecords.js')
@@ -1911,9 +1859,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'history',
           label: 'Prompt history appends',
           run: () => {
-
             const h = getHistoryFlushHealth()
-
             const storePath = join(getMercuryHome(), 'history.jsonl')
             try {
               if (existsSync(storePath) && statSync(storePath).isDirectory()) {
@@ -1932,7 +1878,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 fix: 'Prompts are safe in memory this session. Check permissions or antivirus holds on <config-home>/history.jsonl.',
               }
             }
-
             const historyPath = join(getMercuryHome(), 'history.jsonl')
             try {
               if (existsSync(historyPath) && statSync(historyPath).isDirectory()) {
@@ -1972,7 +1917,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'boot-beacon',
           label: 'Boots complete',
           run: () => {
-
             const residue = readBootAttemptResidue()
             if (residue && residue.count >= 3) {
               return {
@@ -1993,14 +1937,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'launch-spine',
           label: 'Boot milestones',
           run: async () => {
-
             const { lastBootReachedInputLive, lastInteractiveBootSpine } = await import(
               '../substrate/launchMilestones.js'
             )
-
             const reached = lastBootReachedInputLive()
             if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
-
             const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
             const rungRows = lastInteractiveBootSpine().filter(r => r.milestone in RANK)
             const lastRungs = rungRows.map(r => r.milestone)
@@ -2008,7 +1949,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const setupScreenFirst = rungRows.some(r => r.milestone === 'first-frame' && r.beforeLaunch === true)
             const routeAt = lastRungs.indexOf('route-ready')
             const setupRoute = setupScreenFirst && lastRungs[0] === 'runtime-entry' && routeAt > 0 && routeAt === lastRungs.lastIndexOf('route-ready')
-
             const ranks = lastRungs.filter((_, i) => !setupRoute || i !== routeAt).map(m => RANK[m] ?? -1)
             const inOrder = ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1]!))
             if (reached && !inOrder) {
@@ -2031,7 +1971,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'invocation-record',
           label: 'Invocation record',
           run: async () => {
-
             const { readInvocationRecords } = await import('../substrate/invocationRecord.js')
             const rows = readInvocationRecords()
             const last = rows[rows.length - 1]
@@ -2046,7 +1985,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'invocation-trace',
           label: 'Trace appends',
           run: async () => {
-
             const { getTraceFlushHealth, getInvocationTracePath, isInvocationTraceEnabled } =
               await import('./observability/invocationTrace.js')
             if (!isInvocationTraceEnabled()) {
@@ -2083,7 +2021,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'cache-clock',
           label: 'Usage metering',
           run: async () => {
-
             const { cacheClockGateWords, cacheClockSnapshot, getCacheClockFlushHealth, NO_REQUEST_YET } = await import(
               './cache/cacheClock.js'
             )
@@ -2114,13 +2051,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'activity',
           label: 'Activity counts',
           run: async () => {
-
             const { getHeadlessActivity } = await import('./activityLedger.js')
             const { getGlobalConfig } = await import('./config/globalConfig.js')
             const a = getHeadlessActivity()
             const startups = getGlobalConfig().numStartups ?? 0
             const last = a.lastAt > 0 ? `last headless ${new Date(a.lastAt).toISOString()} (${a.lastKind})` : 'no headless activity recorded'
-
             const verbs = Object.values(a.verbs ?? {}).reduce((sum, n) => sum + n, 0)
             return {
               status: 'ok',
@@ -2132,7 +2067,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'pid-lock-release',
           label: 'Lock releases',
           run: async () => {
-
             const { pidLockReleaseHealth } = await import('../substrate/pidLock.js')
             const h = pidLockReleaseHealth()
             if (h.notRemoved.count > 0) {
@@ -2154,7 +2088,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'permission-posture',
           label: 'Sovereign mode',
           run: async () => {
-
             const { getCurrentProjectConfig, getProjectPathForConfig } = await import('./config/projectConfig.js')
             const { flagEnv } = await import('../substrate/flagRegistry.js')
             const { isEnvTruthy } = await import('./envUtils.js')
@@ -2193,7 +2126,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'lifecycle-collection',
           label: 'State cleanup',
           run: async () => {
-
             const { getLifecycleHealth } = await import('../substrate/stateLifecycle.js')
             const { statSync: statSentinel } = await import('node:fs')
             const { join: joinPath } = await import('node:path')
@@ -2229,7 +2161,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'image-decode',
           label: 'Inline image decode',
           run: async () => {
-
             const { detectImageProtocol } = await import(
               '../services/visual/imageDisplay.js'
             )
@@ -2253,7 +2184,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'agent-definitions',
           label: 'Agent definitions',
           run: async () => {
-
             const { existsSync, readdirSync } = await import('node:fs')
             const { join } = await import('node:path')
             const { getMercuryHome } = await import('./envUtils.js')
@@ -2275,7 +2205,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const user = countMd(userDir)
             const project = countMd(projectDir)
-
             const parts = [
               user === null ? 'user dir absent' : `user ${user} .md file(s)`,
               project === null ? 'project dir absent' : `project ${project} .md file(s)`,
@@ -2287,7 +2216,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'seats',
           label: 'Seats',
           run: async () => {
-
             const { seatCeilingFacts, seatCeilingValueWords, seatCostWarning } = await import('../services/switchboard/capacityCheck.js')
             const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../services/capacity/composeCeilings.js')
             const { seatNarrowingWords } = await import('../services/capacity/seatWords.js')
@@ -2309,7 +2237,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'spawn-switches',
           label: 'Crewmates & workflows',
           run: async () => {
-
             const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
             const { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } = await import('../services/switchboard/backgroundLaunch.js')
             const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
@@ -2476,7 +2403,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'preserved-thinking',
           label: 'Preserved thinking',
           run: async () => {
-
             const { preservedThinkingHealth, readThinkingDropLedger, forgetThinkingDropLedger } = await import(
               '../services/providers/anthropic/thinkingBinding.js'
             )
@@ -2520,14 +2446,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Settings',
           run: () => {
             const { errors } = getSettingsWithAllErrors()
-
             let sourcesLine = 'sources unreadable'
             try {
-
               sourcesLine = `sources: ${getEnabledSettingSources().join(' + ')}`
             } catch {
             }
-
             let lockLine = ''
             try {
               const lock = getSettingsForSource('policySettings')?.extensions?.exclusive
@@ -2542,7 +2465,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const first = errors[0]
-
             const firstLine = first
               ? [first.file, first.path, first.message].filter(Boolean).join(' · ')
               : 'unreadable'
@@ -2557,7 +2479,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'env-limits',
           label: 'Env output limits',
           run: async () => {
-
             const { validateBoundedIntEnvVar } = await import('./envValidation.js')
             const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT, SHELL_MAX_OUTPUT_ENV } = await import(
               './shell/outputLimits.js'
@@ -2580,7 +2501,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'keybindings',
           label: 'Keybindings',
           run: async () => {
-
             const { loadKeybindingsSyncWithWarnings } = await import('../keybindings/loadUserBindings.js')
             const warnings = loadKeybindingsSyncWithWarnings().warnings
             if (warnings.length === 0) {
@@ -2606,7 +2526,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } catch {
               pin = undefined
             }
-
             if (!isChooseAModel(session) && recognizeModelId(session).kind === 'unrecognised') {
               return {
                 status: 'warn',
@@ -2617,7 +2536,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!pin) {
               return { status: 'ok', evidence: `session model ${unresolvedDefaultRow() ?? (isChooseAModel(session) ? CHOOSE_A_MODEL_WORDS : session)} · no settings pin` }
             }
-
             let pinResolved = pin
             try {
               pinResolved = parseUserSpecifiedModel(pin)
@@ -2644,7 +2562,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'frontier',
           label: 'Default model',
           run: () => {
-
             const decision = computedDefault()
             const firstParty = frontierOperatorDecision()
             const order = firstParty.candidates
@@ -2686,7 +2603,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'instruction-profile',
           label: 'Instruction profile',
           run: async () => {
-
             const bundle = await getInstructionBundle()
             const { resolution, adapterId, skippedDuplicates, diagnostics, loadReason } =
               getInstructionCompositionState()
@@ -2770,7 +2686,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'request-context',
           label: 'Request context',
           run: async () => {
-
             const provenance = readPromptProvenance()
             const bundle = await getInstructionBundle()
             const instructionChars = bundle.entries.reduce(
@@ -2785,7 +2700,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                   `${bundle.entries.length} source(s) · ${instructionChars} chars`,
               }
             }
-
             const OVERSIZED_SECTION_CHARS = 20_000
             const oversized = provenance.sections.filter(
               se => se.cacheClass !== 'turn' && se.chars > OVERSIZED_SECTION_CHARS,
@@ -2825,11 +2739,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'flags',
           label: 'Env overrides',
           run: () => {
-
             const present = FLAG_REGISTRY.filter(f => flagEnv(f.env) !== undefined)
             const set = present.filter(f => f.selfStamped !== true)
             const stamped = present.filter(f => f.selfStamped === true)
-
             const overrides = set.filter(f => realEnvPin(f.env) !== null)
             const bootApplied = set.filter(f => realEnvPin(f.env) === null)
             const shortValue = (f: { env: string }): string => `${f.env}=${String(flagEnv(f.env)).slice(0, 12)}`
@@ -2846,7 +2758,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               .slice(0, 4)
               .map(f => {
                 const value = String(flagEnv(f.env))
-
                 return `${f.env}=${value.length > 12 ? `${value.slice(0, 12)}…` : value}`
               })
               .join(', ')
@@ -2865,7 +2776,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const kills = listCapabilityKills()
             const flat: string[] = []
             let unmatched = 0
-
             let builtinNamesFolded: Set<string> | null = null
             try {
               const { getAllBaseTools } = await import('../tools.js')
@@ -2888,7 +2798,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 }
               }
             }
-
             let capRejects: string[] = []
             try {
               const { getAgentCapParseRejects } = await import('./permissions/capabilityGate.js')
@@ -2928,7 +2837,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'wards',
           label: 'Content wards',
           run: async () => {
-
             const { wardsEnabled, loadProjectWardsWithReport } = await import('../guards/wardsGuard.js')
             const { BUILTIN_WARDS } = await import('./wards/wards.js')
             if (!wardsEnabled()) {
@@ -2951,7 +2859,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-
           id: 'memory-lifecycle',
           label: 'Memory lifecycle',
           run: async () => {
@@ -2985,21 +2892,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-
       checks: [...providerAuthChecks(), ...providerUsageChecks(), providerSlotsCheck(), modelListsCheck(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
       title: 'INTERFACE',
-
       checks: [
         {
           id: 'iface-terminal',
           label: 'Terminal profile',
-
           run: () => {
             const { resolveTerminalProfile } = require('../ink/session/terminalProfile.js') as typeof import('../ink/session/terminalProfile.js')
-
             const { describeTerminalHandback } = require('./terminalHandback.js') as typeof import('./terminalHandback.js')
             const handback = describeTerminalHandback()
             const p = resolveTerminalProfile()
@@ -3011,7 +2914,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               ...p.checks.map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`),
               handback.line,
             ].join('\n')
-
             if (!process.stdout.isTTY) {
               return {
                 status: 'info' as const,
@@ -3060,7 +2962,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return { status: 'info', evidence: 'no design-system/live/manifest.json in this project (the Mercury repo carries the baseline)' }
             }
             try {
-
               const m = JSON.parse(rf(manifestPath, 'utf8')) as { sourceSha?: unknown; entries?: unknown; generatedAt?: unknown }
               const entries = Array.isArray(m.entries) ? m.entries : null
               if (entries === null || entries.length === 0) {
@@ -3096,7 +2997,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'iface-voice',
           label: 'Voice input',
-
           run: async () => {
             const { describeVoiceReadiness } = await import('../services/voice/voiceSession.js')
             const readiness = describeVoiceReadiness()
@@ -3129,7 +3029,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'iface-image-processor',
           label: 'Image processor',
-
           run: async () => {
             const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
             const road = await describeImageProcessor()
@@ -3139,7 +3038,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'iface-shell-engine',
           label: 'Shell engine',
-
           run: async () => {
             const { engineSessionCeilingPinned, resolveEngineSessionCeiling, resolveShellEngine } = await import('./shell/engineSession.js')
             const { shellEngineArmWords } = await import('./shell/shellEngineArm.js')
@@ -3192,12 +3090,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'crash-reports',
           label: 'Crash reports',
           run: async () => {
-
             const { crashReportDirDisplay, listCrashReports } = await import('./crashReport.js')
             const reports = listCrashReports(3)
             if (reports.length === 0) return { status: 'ok', evidence: 'none recorded' }
             const newest = reports[0]!
-
             const where = [
               newest.sessionId !== null ? `session ${newest.sessionId.slice(0, 8)}` : null,
               newest.cwd !== null ? `in ${newest.cwd}` : null,
@@ -3210,15 +3106,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
           },
         },
-
         ...editOutcomeHealthChecks(),
         {
           id: 'runtime',
           label: 'Node & ripgrep',
           run: async () => {
-
             const rt = nodeRuntimeProjection(process.versions.node)
-
             const { runningRuntime } = await import('../services/privateChannel/updateService.js')
             const { runtimeLine } = await import('../services/privateChannel/vendoredRuntime.js')
             const which = runningRuntime()
@@ -3226,14 +3119,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               rt.verdict === 'supported'
                 ? `${runtimeLine(which)}${which.source === 'vendored' ? '' : ` · supported — ${rt.label} (${rt.range})`}`
                 : `${runtimeLine(which)} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
-
             await warmRipgrepStatus()
             const rg = getRipgrepStatus()
-
             const rgPresent = rg.present
             const evidence = `${nodePart} · ripgrep ${rg.mode} @ ${basename(rg.path)} ${rgPresent ? 'present' : 'MISSING'}${rg.working === false ? ' · probe FAILED' : ''}`
             if (rt.verdict !== 'supported') {
-
               const belowFloor = rt.verdict === 'too-old' && rt.observed?.startsWith(`${NODE_SUPPORT.major}.`)
               return {
                 status: 'fail',
@@ -3254,7 +3144,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'shell',
           label: 'Bash tool shell',
-
           run: async () => {
             const { describeWindowsShellRoad } = await import('./shell/windowsShellRoad.js')
             const shell = describeWindowsShellRoad()
@@ -3266,7 +3155,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'eval-kernels',
           label: 'Eval languages',
           run: async () => {
-
             const { evalEnabled } = await import('../services/eval/contracts.js')
             const { primeEvalAvailability } = await import('../services/eval/interpreters.js')
             const { getCwd } = await import('./cwd.js')
@@ -3299,7 +3187,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'color',
           label: 'Terminal color',
           run: () => {
-
             const level = chalk.level
             if (monochromeThemeActive()) {
               return {
@@ -3313,7 +3200,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence: `chalk level 0 — no color (${CHALK_DISABLED_FOR_NO_COLOR ? 'NO_COLOR honored' : 'non-TTY output'})`,
               }
             }
-
             const applied = process.stdout.isTTY === true
             const appliedNote = applied
               ? ''
@@ -3331,7 +3217,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence: `chalk level 3 — truecolor · ${colorDepthWhy()} · brand hues exact${appliedNote}`,
               }
             }
-
             if (level === 1) {
               return {
                 status: 'info',
@@ -3356,7 +3241,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const mcp = mcpGauge()
             const policyDesc = mcp.data.mcpPolicyHint
             const policyActive = mcp.data.mcpPolicyActive
-
             let policyRejects: string[] = []
             try {
               policyRejects = getMcpPolicyRejects()
@@ -3365,7 +3249,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const policyRejectFix =
               'MERCURY_MCP_MAX_RISK carries token(s) the parser cannot read (named in the evidence); the unread part keeps the permissive default. Grammar: low|medium|high, plus srv:low per server, comma-separated.'
             if (mcp.state === 'off') {
-
               return {
                 status: policyRejects.length > 0 ? 'warn' : 'off',
                 evidence: `no MCP servers configured · policy ${policyDesc} · ${describeUntrustedMcpHardening()}`,
@@ -3375,12 +3258,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (mcp.state !== 'live') {
               return { status: 'unknown', evidence: mcp.reason ?? 'mcp config unreadable' }
             }
-
             const hardening = describeUntrustedMcpHardening()
-
             const currency = describeMcpProtocolCurrency()
             const revLine = currency.line
-
             const auth = summarizeMcpAuthCurrency()
             const authLine =
               auth === null
@@ -3388,7 +3268,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 : auth.tokens === 0
                   ? 'no oauth tokens'
                   : `auth ${auth.tokens} token(s)${auth.expired > 0 ? ` · ${auth.expired} EXPIRED` : ''}${auth.expiringSoon > 0 ? ` · ${auth.expiringSoon} expiring <30m` : ''}`
-
             const serverList = mcp.data.servers
               .slice(0, 3)
               .map(s => `${s.name} (${s.state})`)
@@ -3412,7 +3291,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             if (!policyActive) {
-
               return {
                 status: 'info',
                 evidence,
@@ -3426,7 +3304,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'extensions',
           label: 'Extensions',
           run: () => {
-
             const row = extensionsHealthRow()
             if (row.problems.length > 0) {
               return {
@@ -3488,7 +3365,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const tsEvidence = probe.typescriptPath
               ? `typescript@${readTsVersion(probe.typescriptPath) ?? '?'}`
               : 'no workspace typescript'
-
             const laneSegments: string[] = []
             if (!mercuryLspCppEnabled()) {
               laneSegments.push('cpp lane off (MERCURY_LSP_CPP=0)')
@@ -3567,7 +3443,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'editor-door',
           label: 'Editor door',
           run: async () => {
-
             const { installedEditorExtensions } = await import('./editorExtensionPackage.js')
             const installed = installedEditorExtensions()
             const evidence = [
@@ -3605,7 +3480,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 evidence: `armed (port ${port}${lite}) · no project.godot from cwd — the Godot tool stays out of the catalog here`,
               }
             }
-
             const { vulcanInstallStatus } = await import('../services/vulcan/addonInstaller.js')
             const { probeVulcanEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
             const s = vulcanInstallStatus(root)
@@ -3650,10 +3524,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'resources',
           label: 'Device headroom',
           run: async () => {
-
             const { availableB, source } = await deviceHeadroom()
             const cores = Math.max(1, cpus().length)
-
             const loadKnown = process.platform !== 'win32'
             const load1 = loadavg()[0] ?? 0
             const perCore = load1 / cores
@@ -3706,7 +3578,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       ],
     },
     {
-
       id: 'durability',
       title: 'DURABILITY',
       checks: [
@@ -3786,7 +3657,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-
           id: 'interview-persistence',
           label: 'Interview settlement',
           run: async () => {
@@ -3889,7 +3759,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       ],
     },
     {
-
       id: 'native-ownership',
       title: 'TERMINAL RUNTIME',
       checks: [
@@ -3908,7 +3777,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       ],
     },
     {
-
       id: 'profile',
       title: 'PROFILE',
       checks: [
@@ -3954,7 +3822,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
       ],
     },
-
     {
       id: 'coding-loop-fast',
       title: 'CODING LOOP',
@@ -4002,7 +3869,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'ide-plane-fast',
           label: 'IDE plane',
           run: async () => {
-
             const { selectPythonInterpreter } = await import('../services/ide/pythonProject.js')
             const { probeBuiltinPyright } = await import('../services/lsp/pyrightLane.js')
             const { probeRuff } = await import('../services/lsp/ruffLane.js')
@@ -4022,7 +3888,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const db = probeCompileDb()
             const tx = latestTransaction()
             const test = latestRun()
-
             const debugAuth = darwinDebuggerAuthorisationHint()
 
             const pyLine =
@@ -4053,7 +3918,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'anvil-workbench-fast',
           label: 'Utility workbench',
           run: async () => {
-
             const { discoverRunnerProfiles } = await import('../services/ide/projectRunners.js')
             const { repoHostEnabled } = await import('../services/repoHost/repoHost.js')
             const { openTransactionIdFor } = await import('../services/ide/ideTransaction.js')
@@ -4068,12 +3932,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const runnersLine = profiles.length
               ? [...byRunner].map(([r, c]) => `${r} ${c.ok}/${c.total}`).join(' · ')
               : 'no runner manifests in this project'
-
             const ghOnPath = whichSync('gh') !== null
             const repoLine = repoHostEnabled()
               ? `repo host: ${ghOnPath ? 'gh on PATH (mercury://repo live)' : 'gh ABSENT — context unavailable (remedy: install gh + gh auth login)'}`
               : 'repo host: OFF (MERCURY_REPO_HOST=0)'
-
             const { structurePolyglotEnabled } = await import('../services/structure/contracts.js')
             const { resolveGrammarEngineDir, POLYGLOT_LANGUAGES } = await import('../services/structure/grammarFacility.js')
             let engineLine: string
@@ -4082,7 +3944,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } else {
               const engine = resolveGrammarEngineDir()
               if (engine.state === 'ok') {
-
                 let present = 0
                 try {
                   const { readdirSync } = await import('node:fs')
@@ -4127,7 +3988,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
       ],
     },
-
     {
       id: 'flux',
       title: 'TERMINAL FLUIDITY',
@@ -4154,7 +4014,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
       ],
     },
-
     {
       id: 'tool-capability-fast',
       title: 'TOOL CAPABILITY',
@@ -4168,7 +4027,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const c = buildToolCensus()
             const s = c.summary
             const undeclared = c.rows.filter(r => r.declared === null).map(r => r.name)
-
             const gaps = censusGapLines(c)
             const reasonless = gaps.filter(g => g.reason === CENSUS_NO_REASON).flatMap(g => g.tools)
             const detail = gaps
@@ -4232,7 +4090,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { searchToolsWithKeywords } = await import('../tools/ToolSearchTool/ToolSearchTool.js')
             const tools = getAllBaseTools()
             const deferred = tools.filter(t => t.shouldDefer === true)
-
             if (!tools.some(t => t.name === 'Git')) {
               return {
                 status: 'off' as const,
@@ -4253,7 +4110,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
       ],
     },
-
     {
       id: 'architecture-fast',
       title: 'ARCHITECTURE PRIMITIVES',
@@ -4384,7 +4240,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
 
   const depth = opts?.depth ?? 'fast'
   if (depth === 'deep') {
-
     const probes = await import('./healthDeepProbes.js')
     specs.push(
       {
@@ -4469,7 +4324,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         ],
       },
-
       {
         id: 'axiom-deep',
         title: 'ARCHITECTURE',
@@ -4514,7 +4368,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         ],
       },
-
       {
         id: 'arsenal-deep',
         title: 'TOOL CAPABILITY',
@@ -4565,7 +4418,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     const startedAt = Date.now()
     const timeoutMs = spec.timeoutMs ?? ((spec.depth ?? 'fast') === 'deep' ? 60_000 : 10_000)
     let result: CheckResult
-
     const controller = new AbortController()
     const onCallerAbort = (): void =>
       controller.abort(opts?.signal?.reason ?? new Error('health run cancelled'))
@@ -4595,7 +4447,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     } finally {
       clearTimeout(deadline)
       opts?.signal?.removeEventListener('abort', onCallerAbort)
-
       if (!controller.signal.aborted) controller.abort(new Error('check settled'))
     }
     const check: HealthCheck = {
@@ -4642,7 +4493,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     if (running.length > 0) {
       await Promise.race(running)
     } else if (!launched && queue.length > 0) {
-
       const item = queue.shift()!
       resultSlots[item.slot] = {
         id: item.spec.id,
@@ -4675,7 +4525,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     version,
     durationMs: Date.now() - t0,
     depth,
-
     nodeRuntime: nodeRuntimeProjection(process.versions.node),
   }
   return cert
@@ -4699,7 +4548,6 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
     } catch {
     }
   }
-
   if (!isReadOnlyDiagnostic()) {
     try {
       const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')

@@ -54,7 +54,6 @@ export function renderToolResultMessage(
   _progressMessages: unknown[],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-
   if (output.changeView && output.changeView.files.some(f => f.hunks.length > 0)) {
     return <InlineChangeView data={output.changeView} verbose={verbose} />;
   }
@@ -78,7 +77,7 @@ export function renderToolResultMessage(
           <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>
         ) : null}
       </Box>
-
+  
       )}
     </WithCardTone>
   );

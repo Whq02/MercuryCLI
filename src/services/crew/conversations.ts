@@ -1,3 +1,4 @@
+
 import { createHash, randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
@@ -33,10 +34,8 @@ export interface ConversationEventV1 {
   seq: number
   kind: ConversationEventKind
   atMs: number
-
   ref?: string
   label?: string
-
   requiresResolution?: boolean
   resolvedAtMs?: number
   actor?: ActorRefV1
@@ -60,11 +59,8 @@ export interface ConversationV1 {
   workItemRefs: string[]
   artifactRefs: string[]
   lineage: ConversationLineageV1[]
-
   lastEventSeq: number
-
   events: ConversationEventV1[]
-
   priority?: number
   createdAt: number
   updatedAt: number
@@ -72,7 +68,6 @@ export interface ConversationV1 {
 
 interface ConversationFile {
   conversations: Record<string, ConversationV1>
-
   cursors: Record<string, { seq: number; committedAt: number }>
 }
 
@@ -116,12 +111,10 @@ export interface MintConversationArgs {
   kind: ConversationKind
   title: string
   participants: ActorRefV1[]
-
   parentConversationId?: CrewConversationId
   sessionRefs?: string[]
   workItemRefs?: string[]
   artifactRefs?: string[]
-
   adoptId?: CrewConversationId
   dir?: string
 }
@@ -157,7 +150,6 @@ export async function mintConversation(args: MintConversationArgs): Promise<Conv
       ...current.conversations,
       [conversationId]: conversation,
     }
-
     if (args.parentConversationId && conversations[args.parentConversationId]) {
       const parent = conversations[args.parentConversationId]!
       conversations[args.parentConversationId] = {
@@ -172,7 +164,6 @@ export async function mintConversation(args: MintConversationArgs): Promise<Conv
     let cursors = current.cursors
     const ids = Object.keys(conversations)
     if (ids.length > MAX_CONVERSATIONS) {
-
       const owesNothing = (c: ConversationV1): boolean =>
         !c.events.some(e => e.requiresResolution === true && e.resolvedAtMs === undefined)
       const evictable = (c: ConversationV1): boolean =>
@@ -199,7 +190,6 @@ export async function mintConversation(args: MintConversationArgs): Promise<Conv
         if (!dropSet.has(c)) conversations[c.conversationId] = c
       }
       conversations[conversationId] = conversation
-
       const evictedIds = new Set([...dropSet].map(c => c.conversationId as string))
       cursors = Object.fromEntries(
         Object.entries(current.cursors).filter(([key]) => {

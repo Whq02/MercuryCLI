@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -53,7 +52,6 @@ section('§1 THE BOOT RESOLVER')
 
 section('§2 THE SETTINGS ROAD')
 {
-
   const settingsBorne = initialPermissionModeFromCLI({
     permissionModeCli: undefined,
     dangerouslySkipPermissions: false,

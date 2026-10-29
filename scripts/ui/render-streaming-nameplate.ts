@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -9,7 +8,6 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const BIN = join(root, 'dist', 'mercury.mjs')
-
 const CONFIG_HOME = resolveProofHome([process.cwd()])
 const VSHOT = new URL('./vshot.py', import.meta.url).pathname
 if (!existsSync(VSHOT) || !existsSync(BIN)) {
@@ -25,18 +23,15 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const drive = (prompt: string, cols: number, rows: number, total: number, tag: string): string => {
-
   execFileSync('sleep', ['4'])
   const cfg = `/tmp/vs-stream-${tag}.json`
   writeFileSync(cfg, JSON.stringify({
     argv: ['node', BIN],
-
     sends: [{ atTick: 32, data: prompt }, { atTick: 36, data: '\r' }],
     total, cols, rows,
     out: `/tmp/stream-${tag}.html`,
     title: `streaming nameplate ${tag}`,
   }))
-
   return execFileSync('/usr/bin/python3', [VSHOT, cfg], { encoding: 'utf-8', timeout: vshotBudgetMs(90000), env: { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_HIP: '1' } })
 }
 
@@ -57,12 +52,10 @@ const STREAM_PROMPT =
 
 for (const [cols, rows] of [[80, 30], [120, 30]] as const) {
   console.log(`\n  ── mid-stream @ ${cols} ──`)
-
   let grid = drive(STREAM_PROMPT, cols, rows, 70, `mid-${cols}`)
   if (!/\[Mercury\]/.test(grid)) grid = drive(STREAM_PROMPT, cols, rows, 60, `mid-${cols}-retry`)
   const line = namePlateLine(grid)
   console.log(`  nameplate line: ${line.trim().slice(0, 70) || '(none)'}`)
-
   const midStream = /esc (to )?interrupt/.test(grid) && /\[Mercury\]/.test(line)
     && !/\d\d:\d\d:\d\d\s*\[Mercury\]/.test(line)
   if (midStream) {
@@ -79,12 +72,9 @@ console.log('\n  ── post-finalize @ 100 ──')
   const grid = drive("Reply with exactly: hello there from mercury", 100, 30, 85, 'final')
   const settled = grid.split('\n').find(l => /\d\d:\d\d:\d\d\s*\[Mercury\]/.test(l)) ?? ''
   console.log(`  finalized line: ${settled.trim().slice(0, 70) || '(none)'}`)
-
   check('finalize: settled line reads HH:MM:SS [Mercury] (clock faded in)',
     /\d\d:\d\d:\d\d\s*\[Mercury\]/.test(settled))
-
   check('finalize: NO ● bullet on the settled line', !settled.includes(BULLET))
-
   check('finalize: the turn has settled (no esc interrupt)', !/esc (to )?interrupt/.test(grid))
 }
 

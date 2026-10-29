@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execSync } from 'node:child_process'
@@ -62,7 +61,6 @@ console.log('='.repeat(60))
     ],
   }))
   _resetDeclaredGatesForTesting()
-
   markMutation(undefined, [join(ws, '.mercury', 'gates.json')], ws)
   check('(2b) a declared-gates workspace is verifiable', workspaceVerifiable(ws) === true)
   const byArgv = classifyVerificationCommand('bash run_gates.sh', ws)
@@ -70,7 +68,6 @@ console.log('='.repeat(60))
   const byMatch = classifyVerificationCommand('python3 tools/soak_check.py --all', ws)
   check('(2d) declared match-regex classifies', byMatch !== null && byMatch.gateId === 'father-soak', JSON.stringify(byMatch))
   check('(2e) an undeclared command still classifies as nothing', classifyVerificationCommand('bash run_everything.sh', ws) === null)
-
   const noCwd = classifyVerificationCommand('bash run_gates.sh')
   check('(2f) declared identity is cwd-scoped (no cwd ⇒ no gateId)', noCwd === null || noCwd.gateId === undefined, JSON.stringify(noCwd))
 }
@@ -79,7 +76,6 @@ console.log('='.repeat(60))
   const ws = mkdtempSync(join(tmpdir(), 'pg-negcache-'))
   check('(3a) bare workspace reads not-verifiable (negative cached)', workspaceVerifiable(ws) === false)
   writeFileSync(join(ws, 'package.json'), JSON.stringify({ scripts: { test: 'node t.js' } }))
-
   markMutation(undefined, [join(ws, 'package.json')], ws)
   check('(3b) creating a real gate + observed mutation flips the verdict IMMEDIATELY', workspaceVerifiable(ws) === true)
 }
@@ -114,18 +110,15 @@ console.log('='.repeat(60))
   writeFileSync(join(ws, 'package.json'), JSON.stringify({ scripts: { test: 'node t.js' } }))
   _resetVerificationStateForTesting()
   markMutation(undefined, [join(ws, 'src.txt')], ws)
-
   observeCompletedToolCall('Bash', { command: 'npm test' }, true, ws, undefined, 'launch')
   const afterLaunch = verificationSummary(ws)
   check("(5a) a background launch mints NO evidence (state stays non-verified)", afterLaunch.state !== 'verified', `state=${afterLaunch.state}`)
-
   recordShellCommandOutcome('npm test', 1, ws)
   const afterRed = verificationSummary(ws)
   check('(5b) the terminal transition mints the REAL outcome (red)', afterRed.state === 'failed', `state=${afterRed.state}`)
   recordShellCommandOutcome('npm test', 0, ws)
   const afterGreen = verificationSummary(ws)
   check('(5c) a green terminal transition mints verified', afterGreen.state === 'verified', `state=${afterGreen.state}`)
-
   _resetVerificationStateForTesting()
   markMutation(undefined, [join(ws, 'src.txt')], ws)
   observeCompletedToolCall('Bash', { command: 'npm test' }, true, ws)
@@ -140,7 +133,6 @@ console.log('='.repeat(60))
   const spawnSites = [...src.matchAll(/\b(?:execFile|execFileSync|spawn|spawnSync)\(\s*([^,]*?),/g)].map(m => m[1]!.trim())
   const resolvedSites = spawnSites.filter(site => site === 'gitExe()')
   check('(6b) every spawn site takes the resolved git, the sync and async digest twins included', spawnSites.length >= 2 && resolvedSites.length === spawnSites.length && src.includes('execFileSync(gitExe(), gitArgs(args') && src.includes('await gitArgsAsync(args, cwd)') && src.includes('execFile(gitExe(), argv'), `${resolvedSites.length} of ${spawnSites.length} spawn sites resolved`)
-
   const classifier = src.slice(src.indexOf('export function classifyVerifySegment('), src.indexOf('\n}\n', src.indexOf('export function classifyVerifySegment(')))
   check('(6c) classifyVerifySegment mints NO regex per call (the static trio is hoisted)', !classifier.includes('new RegExp') && src.includes('const NPM_VERB_RE') && src.includes('const MAKE_VERB_RE') && src.includes('const JUST_VERB_RE'))
 }

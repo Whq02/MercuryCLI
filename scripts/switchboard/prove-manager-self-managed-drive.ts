@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -40,7 +39,6 @@ interface Send {
 
 const SHIFT_TAB = '\x1b[Z'
 const GOAL = 'ship the widget zq'
-
 const HONEST_HEAD = 'manager mode needs'
 const HONEST_TAIL = 'picks one'
 const GOAL_TAIL = 'the widget zq'
@@ -71,13 +69,10 @@ const env = {
 }
 
 const sends: Send[] = [
-
   { data: SHIFT_TAB, requireAwait: true, awaitText: 'COORDINATOR', awaitSettleTicks: 4 },
-
   { data: '', requireAwait: true, awaitText: 'manager mode on', awaitSettleTicks: 6, mark: 'armed' },
   { data: GOAL, afterPrevTicks: 1 },
   { data: '\r', afterPrevTicks: 4 },
-
   { data: '', afterPrevTicks: 10, mark: 'sent' },
   { data: SHIFT_TAB, afterPrevTicks: 1 },
   { data: '', requireAwait: true, awaitText: '↵ send · ⇧↵ newline', awaitSettleTicks: 2, mark: 'disarmed' },

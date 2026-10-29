@@ -1,3 +1,4 @@
+
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import crypto from 'node:crypto'
 import { existsSync, realpathSync } from 'node:fs'
@@ -126,7 +127,6 @@ type WorkflowInput = {
   args?: unknown
   scriptPath?: string
   resumeFromRunId?: string
-
   run_in_background?: boolean
 }
 
@@ -158,7 +158,6 @@ const DISPATCH_RETRACTED = {
 async function resolveScriptSource(input: WorkflowInput): Promise<ScriptSource> {
   if (input.scriptPath) {
     if (input.script) {
-
       return {
         script: input.script,
         resolvedScriptPath: path.resolve(getCwd(), input.scriptPath),
@@ -171,7 +170,6 @@ async function resolveScriptSource(input: WorkflowInput): Promise<ScriptSource> 
   if (input.name) {
     const found = await resolveWorkflowName(input.name, getCwd())
     if (found) {
-
       return { script: input.script ?? found.script, source: found.source }
     }
     const available = (await listWorkflows(getCwd())).map(w => w.name).join(', ')
@@ -258,7 +256,6 @@ export const inputSchema = lazySchema(() =>
           `Run ID of a prior Workflow invocation to resume from (unchanged agent() calls replay from the journal). ` +
             `Same-session only. Stop the prior run first (${TASK_STOP_TOOL_NAME}) before resuming.`,
         ),
-
       run_in_background: semanticBoolean(z.boolean().optional()).describe(
         'Ignored — workflows always run in the background; the tool returns immediately with a task ID.',
       ),
@@ -300,6 +297,7 @@ export const outputSchema = lazySchema(() =>
     error: z.string().optional().describe('Set if syntax check failed'),
   }),
 )
+
 
 function runDirectoryFor(runId: string): string {
   return path.join(workflowRunsRoot(getOriginalCwd()), runId)
@@ -370,10 +368,8 @@ const WorkflowToolDef = {
   name: WORKFLOW_TOOL_NAME,
   aliases: ['RunWorkflow'],
   searchHint: 'orchestrate crewmates with deterministic JavaScript workflow',
-
   shouldDefer: true,
   maxResultSizeChars: 1e5,
-
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,
 
   wireDescription() {
@@ -403,7 +399,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
     return outputSchema()
   },
   isConcurrencySafe() {
-
     return false
   },
   isReadOnly() {
@@ -431,7 +426,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         errorCode: 6,
       }
     }
-
     const launchAuthority = evaluateLaunchAuthority('workflows')
     if (!launchAuthority.allowed) {
       return { result: false, message: launchAuthority.reason, errorCode: 7 }
@@ -449,7 +443,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         errorCode: 2,
       }
     }
-
     if (input.script && scriptUsesNonDeterminism(parsed.scriptBody)) {
       return {
         result: false,
@@ -460,7 +453,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
       }
     }
     if (input.resumeFromRunId) {
-
       for (const [taskId, t] of Object.entries(context.getAppState().tasks)) {
         if (
           t.type === 'local_workflow' &&
@@ -560,7 +552,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
   },
 
   async call(input: WorkflowInput, context: ToolUseContext, canUseTool: CanUseToolFn) {
-
     const setAppState = context.setAppStateForTasks ?? context.setAppState
 
     const resolved = await resolveScriptSource(input)
@@ -597,7 +588,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
       (input.scriptPath ? resolvedScriptPath : undefined) ??
       path.join(runDir, 'workflow.js')
     const scriptDigest = crypto.createHash('sha256').update(script).digest('hex')
-
     const freshRunDir = !existsSync(runDir)
 
     const originCwd = realCanonicalPath(getCwd())
@@ -613,7 +603,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         )
       }
       priorManifest = prior
-
       if (recordedOwnerAlive(prior, prior.mtimeMs, Date.now())) {
         const parkedLive = prior.status === 'paused'
         throw new WorkflowInputError(
@@ -633,7 +622,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
                 `Nothing was started.`,
             )
           }
-
           executionCwd = recordedReal
         }
       }
@@ -695,7 +683,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         setAppState,
         realCanUseTool: canUseTool,
         getAgentControllers: () => task.agentControllers,
-
         getAppState: () => context.getAppState(),
       }),
     }
@@ -731,11 +718,9 @@ Scripts start with literal export const meta = {name, description, phases}; no T
       const live = context.getAppState().tasks?.[taskId] as
         | LocalWorkflowTaskState
         | undefined
-
       const liveTranscriptDir = getWorkflowTranscriptDir(runId)
       transcriptDirsSeen.add(liveTranscriptDir)
       const now = Date.now()
-
       const progressRows = final
         ? settleInFlightAgentRows(live?.workflowProgress ?? [], now)
         : (live?.workflowProgress ?? [])
@@ -901,7 +886,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
     }
 
     const driveRun = async (): Promise<void> => {
-
       let trailingManifestWrite: NodeJS.Timeout | null = null
       const batcher = createProgressBatcher({
         apply: events => updateWorkflowProgressBatch(taskId, events, setAppState),
@@ -940,7 +924,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         const result = await runWorkflowScript(
           compiled.vmScript,
           runCtx,
-
           () => {},
           {
             makeHooks: makeWorkflowHooks,
@@ -953,7 +936,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
             args: input.args,
             seedPhaseTitles: meta.phases?.map(p => p.title),
             tokenBudget,
-
             journal,
             getCwd,
             resolveWorkflow: resolveWorkflowName,
@@ -968,16 +950,13 @@ Scripts start with literal export const meta = {name, description, phases}; no T
         const totalTokens = live?.totalTokens ?? 0
         const usage = live?.usage
         const totalToolCalls = live?.totalToolCalls ?? 0
-
         const pausedLive = live?.status === 'paused'
 
         if (task.abortController?.signal.aborted) {
-
           await writeManifest({
             status: pausedLive ? 'paused' : 'killed',
             ...(stoppedBy !== undefined && !pausedLive ? { endedBy: stoppedBy } : {}),
           })
-
           if (!pausedLive) {
             enqueueWorkflowNotification({
               taskId,
@@ -1046,13 +1025,11 @@ Scripts start with literal export const meta = {name, description, phases}; no T
           },
         )
       } catch (e) {
-
         const msg = e instanceof Error ? e.message : String(e)
         logError(msg)
         const live = context.getAppState().tasks?.[taskId] as
           | LocalWorkflowTaskState
           | undefined
-
         if (live?.status === 'paused') {
           await writeManifest({ status: 'paused' })
           return
@@ -1132,7 +1109,6 @@ Scripts start with literal export const meta = {name, description, phases}; no T
       content += `\nRun ID: ${data.runId}\nTo resume after editing the script: Workflow({scriptPath: "${data.scriptPath}", resumeFromRunId: "${data.runId}"}) — completed crewmates return cached results.`
     }
     if (data.runId) {
-
       content += `\nLive status: Inspect mercury://workflow/${data.runId} (run/phase/liveness/crewmate state; per-crewmate detail via ?child=<agentId>).`
     }
     content +=

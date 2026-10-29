@@ -106,7 +106,6 @@ export const MonitorTool = buildTool({
     return outputSchema()
   },
   shouldDefer: true,
-
   isEnabled() {
     return true
   },
@@ -243,9 +242,7 @@ export const MonitorTool = buildTool({
       }, timeoutMs)
       timer.unref?.()
     }
-
     void shellCommand.result.then(async () => {
-
       await new Promise(resolve => setImmediate(resolve))
       stopped = true
       if (timer) clearTimeout(timer)

@@ -23,6 +23,7 @@ const persona = await import('../../src/services/concourse/coordinatorPersona.ts
 const call = await import('../../src/services/concourse/coordinatorCall.ts')
 const lane = await import('../../src/services/concourse/coordinatorLane.ts')
 
+
 const root = join(scratch, 'root')
 const outside = join(scratch, 'outside')
 mkdirSync(join(root, 'src'), { recursive: true })
@@ -75,6 +76,7 @@ t.section('§1 — the read sandbox refuses everything outside the workspace roo
   t.check('read_file reads the inside file', readIn.ok === true && String(readIn.text).includes('export const ok'), JSON.stringify(readIn).slice(0, 120))
 }
 
+
 type Call = { req: Record<string, unknown> }
 function recordingCtx(opts: {
   replies?: (req: Record<string, unknown>) => Record<string, unknown>
@@ -103,7 +105,6 @@ const toolByName = (name: string) => {
 t.section('§2 — Q3: stop on a workflows-allowed session is a TWO-STEP')
 {
   const tagged = { w1: { runnerId: 'concourse-w1', sessionId: 'sess-tagged', workflowsAllowed: true as const } }
-
   const { ctx, calls } = recordingCtx({ workers: tagged, replies: () => ({ ok: true, outcome: 'applied' }) })
   const stop = toolByName('stop_session')
   const first = await stop.run({ sessionId: 'sess-tagged' }, ctx)
@@ -180,7 +181,6 @@ t.section('§3 — launch mints durable idempotent identities; the tag grant rid
   const heldOut = JSON.parse(held.content) as Record<string, unknown>
   t.check('a refused launch NEVER grants (no second daemon call)', refused.calls.length === 1, String(refused.calls.length))
   t.check('…and relays the refusal typed', heldOut.ok === false && String(heldOut.error).includes('no seat frees'), held.content)
-
   t.check('…and with NO heldReason the receipt outcome stays refused', held.receipts?.[0]?.outcome === 'refused', JSON.stringify(held.receipts))
 
   const seatHeld = recordingCtx({
@@ -219,7 +219,6 @@ t.section('§3 — launch mints durable idempotent identities; the tag grant rid
 
 t.section('§3b — a CONTRACTED launch rides the manager road: born blank → contract set → the first turn (never admit-and-deliver)')
 {
-
   const launch = toolByName('launch_session')
   type Op = { op?: string; action?: string; sessionId?: string; targetSessionId?: string; prompt?: string; bornBlank?: boolean; contract?: { op?: string; text?: string }; by?: string; workspaceDir?: string; clientMessageId?: string; model?: string; title?: string; birthKey?: string }
   const { ctx, calls } = recordingCtx({
@@ -254,7 +253,6 @@ t.section('§3b — a CONTRACTED launch rides the manager road: born blank → c
     ops[2]?.op === 'sessionDispatch' && ops[2]?.targetSessionId === 'sess-c1' && ops[2]?.prompt === 'fix the parser' && String(ops[2]?.clientMessageId ?? '').startsWith('coord-launch-') && ops[2]?.by === 'coordinator-seat',
     JSON.stringify(ops[2]),
   )
-
   const dispatches = ops.filter(o => o.op === 'sessionDispatch')
   t.check('POISON: no sessionDispatch in the stream rides the admit-and-deliver form (every one carries targetSessionId)', dispatches.length === 1 && dispatches.every(o => typeof o.targetSessionId === 'string' && o.targetSessionId.length > 0))
   t.check(
@@ -336,7 +334,6 @@ t.section('§3b — a CONTRACTED launch rides the manager road: born blank → c
   const admitBody = server.slice(admitAt, server.indexOf("case 'concourseWithdraw'", admitAt))
   t.check(
     'controlServer’s sessionAdmit answer carries branchName · mainHolderTitle · modelId · modelDisplayName from the admit result (the dispatch door’s four receipt facts)',
-
     admitAt !== -1 &&
       admitBody.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') &&
       ['branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName'].every(f => new RegExp(`const ADMIT_WIRE_KEYS = \\[[^\\]]*'${f}'`).test(server)),
@@ -386,13 +383,11 @@ t.section('§5 — the persona: two names, plain words, one home')
   t.check('the lane contract IS the persona (one home)', lane.COORDINATOR_CONTRACT === text)
   t.check('the contract lineage advanced (v6+: the awareness pass)', lane.COORDINATOR_CONTRACT_VERSION === persona.COORDINATOR_PERSONA_VERSION && lane.COORDINATOR_CONTRACT_VERSION >= 6)
   t.check('the receipt digest binds the persona revision', lane.coordinatorContractDigest() === `cc${persona.COORDINATOR_PERSONA_VERSION}-${text.length}`)
-
   const contract = await import('../../src/prompt/mercuryContract.ts')
   const composed = [contract.MERCURY_CONSTITUTION, contract.MERCURY_COORDINATOR_SEAT, contract.MERCURY_COORDINATOR_CONTRACT, lane.COORDINATOR_CONTRACT].join('\n')
   t.check('the composed seat prompt carries exactly ONE identity statement (the constitution’s opening line)', (composed.match(/^You are /gm) ?? []).length === 1 && composed.startsWith(contract.MERCURY_CONSTITUTION))
   t.check('…with the seat fact behind it, stating the role and no second name', composed.indexOf(contract.MERCURY_COORDINATOR_SEAT) === contract.MERCURY_CONSTITUTION.length + 1 && contract.MERCURY_COORDINATOR_SEAT.includes('never a second name'))
   t.check('the persona opens on the seat, not on a second identity', text.startsWith('Your seat is the Mercury switchboard'))
-
   const flat = text.replace(/\s+/g, ' ')
   t.check('names the <switchboard> block as its knowledge', flat.includes('<switchboard> block') && flat.includes('your knowledge'))
   t.check('binds with-you = alive and live', flat.includes('a session with you is alive and counts as live'))
@@ -416,7 +411,6 @@ t.section('§6 — the caps + the operator-ruled tool roster')
     'stop_session',
     'grant_workflows',
     'revoke_workflows',
-
     'set_contract',
     'answer_permission',
     'read_file',
@@ -536,6 +530,7 @@ t.section('§7b — the reply clip is VISIBLE (the silent-downgrade class): over
   t.check('an under-cap reply rides whole, marker-free', short === 'a short reply', short)
 }
 
+
 t.section('§8 — the board view is the model’s whole world: every row, its state in plain words, with-you counted live')
 {
   const { updateConcourseWorkers, recordCollisionEvidence } = await import('../../src/daemon/concourseWorkers.ts')
@@ -576,7 +571,6 @@ t.section('§8 — the board view is the model’s whole world: every row, its s
     { schema: 1, kind: 'authored-work-retained', workspaceId: workspace, holders: [{ runnerId: 'concourse-w4', sessionId: sidEnded }], observedAt: Date.now() - 600_000, branchName: 'mercury/old-fork' },
     recDir,
   )
-
   const transcript = workerTranscriptPath({ sessionId: sidWorking, workspaceId: workspace })
   mkdirSync(join(transcript, '..'), { recursive: true })
   const stamp = new Date(Date.now() - 90_000).toISOString()
@@ -604,7 +598,6 @@ t.section('§8 — the board view is the model’s whole world: every row, its s
   const fork = view.finishedForks?.find(f => f.branch === 'mercury/old-fork')
   t.check('a finished fork rides finishedForks with its worktree (from the settled record) and commit state', fork !== undefined && fork.worktree === join(scratch, 'wt-old-fork') && typeof fork.commits === 'string', JSON.stringify(view.finishedForks))
   t.check('the ground names the repo the coordinator sits on', view.ground === workspace)
-
   const snap = await import('../../src/services/concourse/concourseSnapshot.ts')
   t.check('tailActivityLabel projects vNext records (the NOW cell was blank for every new session before)', snap.tailActivityLabel({ sessionId: sidWorking, workspaceId: workspace })?.startsWith('Bash') === true)
 }
@@ -629,22 +622,18 @@ t.section('§9 — the post-tool normalizer: refusals reach the model as full se
   const receipt = finished.receipts?.[0]
   t.check('the receipt row detail is the same sentence + next (never a clipped stub)', receipt?.outcome === 'refused' && String(receipt.detail).includes(withYouWhy) && String(receipt.detail).includes('next:'), receipt?.detail)
   t.check('…longer than any 48-char stub', String(receipt?.detail).length > 48)
-
   const label = lane.receiptLabelOf({ verb: 'session.redirect', objectRef: '3f2a9c1e-1111-2222-3333-444444444444', outcome: 'refused', detail: String(receipt?.detail) }, () => 'fix the parser')
   t.check('the conversation label leads with the verb + TITLE and keeps the whole reason (the refusal arm drops the colon — the ruled-screenshot polish)', label.startsWith('message to "fix the parser" refused — this session is with you') && !label.includes('3f2a9c1e'), label)
   const untitled = lane.receiptLabelOf({ verb: 'session.redirect', objectRef: '3f2a9c1e-1111-2222-3333-444444444444', outcome: 'applied', detail: 'delivered (working)' })
   t.check('an untitled row shortens the uuid instead of leading with 36 chars of it', untitled.startsWith('message to session 3f2a9c1e: applied'), untitled)
-
   const multiline = lane.compactRefusalWhy('git worktree add failed: Preparing worktree (new branch)\nfatal: a branch named mercury/x-2 already exists')
   t.check('a multi-line daemon error folds to one row line', !multiline.includes('\n') && multiline.includes('fatal: a branch named'), JSON.stringify(multiline))
-
   const okCtx = recordingCtx({ replies: () => ({ ok: true, state: 'working', outcome: 'applied' }) })
   const applied = tools.finishToolResult('message_session', await toolByName('message_session').run({ sessionId: 'sess-3', text: 'go' }, okCtx.ctx))
   t.check('an applied result is untouched and not an error', applied.isError === false && (JSON.parse(applied.content) as { ok: boolean }).ok === true)
   const tagged = recordingCtx({ workers: { w1: { runnerId: 'concourse-w1', sessionId: 'sess-tagged', workflowsAllowed: true as const } } })
   const ask = tools.finishToolResult('stop_session', await toolByName('stop_session').run({ sessionId: 'sess-tagged' }, tagged.ctx))
   t.check('needs-your-confirmation is a protocol result, never is_error', ask.isError === false && (JSON.parse(ask.content) as { needsConfirmation?: boolean }).needsConfirmation === true)
-
   const lost = recordingCtx({ replies: () => ({ ok: false, code: 'ETIMEOUT' }) })
   const lostOut = tools.finishToolResult('pause_session', await toolByName('pause_session').run({ sessionId: 'sess-3' }, lost.ctx))
   const lostJson = JSON.parse(lostOut.content) as Record<string, unknown>
@@ -672,7 +661,6 @@ t.section('§10 — launch_session sources: a consolidation brief NAMES each bra
   t.check('…every worktree path', ['/wt/w3', '/wt/w4', '/wt/w9'].every(w => block.includes(w)))
   t.check('…and every commit state', block.includes('uncommitted changes in 1 file') && block.includes('working tree clean') && block.includes('worktree not on disk'))
   t.check('…and says the sessions are not in the new session’s chat', block.includes('not in your chat'))
-
   const { ctx, calls } = recordingCtx({ replies: () => ({ ok: true, state: 'starting', sessionId: 'sess-new' }) })
   const refused = await toolByName('launch_session').run({ task: 'consolidate their work', sources: ['nothing like this'] }, ctx)
   const refusedOut = JSON.parse(refused.content) as Record<string, unknown>

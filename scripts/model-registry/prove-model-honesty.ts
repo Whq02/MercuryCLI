@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -104,7 +103,6 @@ const openaiFile = join(home, '.openai-auth.json')
 function setOpenai(present: boolean): void {
   if (present) writeFileSync(openaiFile, OPENAI_FIXTURE_AUTH)
   else rmSync(openaiFile, { force: true })
-
   primeOpenaiDiscovery()
 }
 
@@ -174,7 +172,6 @@ section('§2 the four account states — the rows each family paints on /model')
       const gpt = gptModelRows(options)
       const action = gptActionRow(options)
       if (!openai) {
-
         check(`[${tag}] the GPT action row is the sign-in row`, action?.label === 'GPT — sign in', String(action?.label))
         check(`[${tag}] the sign-in row says the ruled sentence`, (action?.description ?? '').includes('connect OpenAI to browse its models'), String(action?.description))
         check(`[${tag}] signed-out ⇒ NO GPT model rows (the connect row is the whole face)`, gpt.length === 0, JSON.stringify(gpt.map(o => [o.value, o.unavailable])))
@@ -215,7 +212,6 @@ section('§3 the sub-model picker reads the catalogue’s own words onto its sig
       )
       const gpt = registry.entries.filter(e => e.kind === 'model' && e.source === 'openai')
       if (!openai) {
-
         const connect = registry.entries.filter(e => e.kind === 'connect' && e.source === 'openai')
         check(`[${tag}] signed-out ⇒ NO GPT model entries`, gpt.length === 0, JSON.stringify(gpt.map(e => [e.modelId, e.state, e.reason])))
         check(
@@ -252,7 +248,6 @@ section('§4 the coordinator picker agrees row by row (the presence read is thre
         .map(o => parseUserSpecifiedModel(String(o.value)).replace(/\[1m]$/, '')),
     )
     check(`[${tag}] the three surfaces list the same Anthropic ids`, [...anthropicIds].every(id => registry.entries.some(e => e.modelId === id && e.source === 'anthropic') && subs.entries.some(e => e.modelId === id && e.source === 'anthropic')), [...anthropicIds].join(','))
-
     check(
       `[${tag}] Claude Fable 5.1 rides /model, the sub-model picker and the coordinator picker as 'Fable 5.1', no description`,
       anthropicIds.has('claude-fable-5-1') &&
@@ -294,7 +289,6 @@ section('§5 the REAL owner, no injection — the scrubbed home gates; a credent
   const freed = await composeCoordinatorModelRegistry()
   check("…the coordinator picker reads 'ready' on the same read", freed.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'ready'), JSON.stringify(freed.entries.filter(e => e.source === 'anthropic').map(e => [e.modelId, e.availability])))
   check('the presence enumeration and the single-family owner are one derivation', providerFamilyPresences().find(p => (p.id as string) === 'anthropic')?.credentialLabel === anthropicCredentialPresence().credentialLabel)
-
   const workers = await composeWorkerModelRegistry()
   const fable51Seat = workers.entries.find(e => e.modelId === 'claude-fable-5-1')
   check(
@@ -326,7 +320,6 @@ section('§6 the wiring (structural)')
 
 section('§7 the neutral catalog grammar — one description rule, vendor-blind, by predicate')
 {
-
   const violations = (options: ModelOption[]): string[] => {
     const out: string[] = []
     for (const o of options) {
@@ -344,7 +337,6 @@ section('§7 the neutral catalog grammar — one description rule, vendor-blind,
     }
   }
   setOpenai(false)
-
   const pins = [{ id: 'pin-1', displayName: 'Pin 1', observedAt: '2026-08-30', contextWindow: 1_000_000 }]
   for (const keyPresent of [true, false]) {
     const rows = keyLaneGroupRows({
@@ -370,7 +362,6 @@ section('§8 inline focus follows the actual model, including aliases')
     if (!statement) throw new Error(`Inline picker declaration missing: ${name}`)
     return statement.getText(source)
   }).join('\n')
-
   const evaluate = new Function('initial', 'getModelOptions', 'useMemo', 'isCatalogueDoorRow', 'resolvesToExistingOption', 'getPublicModelDisplayName', 'stripContext1m', ts.transpileModule(`${statements}\nreturn { options, focusDefault }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText)
   const focus = (initial: string, options: ModelOption[]) => evaluate(initial, () => options, (read: () => unknown) => read(), isCatalogueDoorRow, resolvesToExistingOption, getPublicModelDisplayName, stripContext1m) as { options: ModelOption[]; focusDefault: string }
   const credentials = JSON.parse(ANTHROPIC_FIXTURE_CREDS)

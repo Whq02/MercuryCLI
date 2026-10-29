@@ -1,17 +1,15 @@
+
 import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
 import { getGlobalConfig, type GlobalConfig } from './config.js'
 
 export const SUBAGENT_DEFAULT_EFFORT: EffortLevel = 'high'
-
 export const SUBAGENT_DEFAULT_MAX_CONCURRENT = 8
 
 type SubagentDefaultsRecord = NonNullable<GlobalConfig['agents']>
 
 type SubagentDefaults = {
   effort: EffortLevel
-
   effortSource: 'setting' | 'convention'
-
   model: string | undefined
   maxConcurrent: number
   maxConcurrentSource: 'setting' | 'convention'

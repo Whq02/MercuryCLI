@@ -1,6 +1,7 @@
 import { stringWidth } from '../ink/stringWidth.js'
 import { getGraphemeSegmenter } from './intl.js'
 
+
 const ELLIPSIS = '…'
 
 function graphemes(text: string): string[] {
@@ -45,7 +46,6 @@ export function truncateKeepingTail(text: string, maxWidth: number, keepTail?: n
   if (stringWidth(text) <= maxWidth) return text
   if (maxWidth <= 1) return ELLIPSIS
   const parts = graphemes(text)
-
   let tailStart = parts.length
   if (keepTail !== undefined) {
     let width = 0
@@ -58,7 +58,6 @@ export function truncateKeepingTail(text: string, maxWidth: number, keepTail?: n
   } else {
     const dash = text.lastIndexOf(' — ')
     if (dash !== -1) {
-
       const clauseAt = dash
       let seen = 0
       for (let index = 0; index < parts.length; index++) {

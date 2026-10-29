@@ -69,38 +69,30 @@ try {
 
   const a = addWorktree('agent-a3cb25bd1c6ce6f74')
   await age(a)
-
   const b = addWorktree('parcel-b1b2b3b4b5b6')
   writeFileSync(join(b, 'app.ts'), 'export const v = 99 // WIP\n')
   await age(b)
-
   const c = addWorktree('agent-a0123abc')
   writeFileSync(join(c, 'new.ts'), 'export const n = 1\n')
   git(['add', '.'], c)
   git(['commit', '--quiet', '-m', 'unpushed'], c)
   await age(c)
-
   addWorktree('parcel-d1d2d3d4d5d6')
-
   const e = join(wtHome, 'parcel-e1e2e3e4e5e6')
   mkdirSync(e, { recursive: true })
   writeFileSync(join(e, 'junk.txt'), 'x\n')
   await age(e)
-
   const w = addWorktree('parcel-f0f0f0f0f0f0')
   const f = join(wtHome, 'parcel-c0c0c0c0c0c0')
   cpSync(w, f, { recursive: true })
   await age(f)
-
   const g = join(wtHome, 'keepme')
   git(['worktree', 'add', '--quiet', '-b', 'worktree-keepme', g])
   await age(g)
-
   const h = join(repo, '.mercury', 'worktrees.adopting-4999999')
   mkdirSync(join(h, 'parcel-old'), { recursive: true })
   writeFileSync(join(h, 'parcel-old', 'junk.txt'), 'x\n')
   await age(h)
-
   const external = join(repo, '.other-tool', 'worktrees', 'parcel-abcdefabcdef')
   mkdirSync(external, { recursive: true })
   writeFileSync(join(external, 'junk.txt'), 'x\n')

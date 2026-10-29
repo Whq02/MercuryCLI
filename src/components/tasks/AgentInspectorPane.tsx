@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import type { DeepImmutable } from 'src/types/utils.js'
 import { AlternateScreen } from '../../ink/components/AlternateScreen.js'
@@ -43,7 +44,6 @@ function stateWord(state: WorkflowRunAgentSummary['state']): string {
     case 'progress':
       return 'running'
     default:
-
       return 'starting'
   }
 }
@@ -92,11 +92,9 @@ export function AgentInspectorPane({
   agentIndex,
   onBack,
 }: AgentInspectorPaneProps): React.ReactNode {
-
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
   const isLive = !!task
-
   const runLive = task?.status === 'running'
   const now = useNowTick(runLive ? 1000 : null)
   const clockNow = runLive
@@ -156,7 +154,6 @@ export function AgentInspectorPane({
 
   const showReasoning = rows >= 32
   const budget = Math.max(4, rows - (showReasoning ? 19 : 17))
-
   const promptH = expanded
     ? Math.min(24, Math.max(2, Math.floor(budget * 0.3)))
     : Math.min(8, Math.max(2, Math.floor(budget * 0.22)))
@@ -169,7 +166,6 @@ export function AgentInspectorPane({
       : Math.min(8, Math.max(2, Math.floor(budget * 0.2)))
     : 0
   const activityH = Math.max(2, budget - promptH - outH - reasoningH)
-
   const contentWidth = Math.max(16, innerWidth - 8)
   const estLines = (s: string | undefined, cap: number): number => {
     if (!s) return 1
@@ -183,7 +179,6 @@ export function AgentInspectorPane({
   const totalCalls = summary.toolCalls
   const headMeta: string[] = []
   if (model) headMeta.push(summary.effort ? `${model} @${summary.effort}` : model)
-
   if (summary.usage && usageSpeaks(summary.usage))
     headMeta.push(`${GLYPH.tokens} ${workflowSpendWords(summary.usage, formatTokens)}`)
   else if (typeof summary.tokens === 'number' && summary.tokens > 0)
@@ -198,7 +193,6 @@ export function AgentInspectorPane({
     headMeta.push(`${totalCalls} ${plural(totalCalls, 'tool')}`)
   const runtime = agentRuntime(summary, clockNow)
   if (runtime) headMeta.push(runtime)
-
   const pulse = agentPulse(summary, clockNow)
   if (pulse.kind === 'backoff' || pulse.kind === 'first-token' || pulse.kind === 'quiet')
     headMeta.push(agentPulseWord(pulse))
@@ -226,13 +220,11 @@ export function AgentInspectorPane({
   const recorded = summary.usage && usageSpeaks(summary.usage) ? summary.usage : undefined
   if (view?.usage && view.usage.contextTokens > 0) usageBits.push(`${GLYPH.tokens} ${formatTokens(view.usage.contextTokens)} context`)
   if (recorded) {
-
     usageBits.push(
       `${formatTokens(workflowUsageSpend(recorded))} spent (${formatTokens(recorded.inputTokens)} in / ${formatTokens(recorded.outputTokens)} out)`,
     )
     usageBits.push(`${recorded.apiTurns} api ${plural(recorded.apiTurns, 'turn')}${recorded.unsettledTurns > 0 ? ` · ${recorded.unsettledTurns} unmeasured` : ''}`)
   } else if (view?.usage) {
-
     usageBits.push(
       `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
     )
@@ -259,8 +251,7 @@ export function AgentInspectorPane({
           <Text color={FAINT}> — crewmate</Text>
         </Box>
 
-        {
-}
+        {}
         <Box flexShrink={0} marginTop={1}>
           <Box flexDirection="column" flexGrow={1} overflow="hidden" justifyContent="center">
             <Box height={1} overflow="hidden">
@@ -283,8 +274,7 @@ export function AgentInspectorPane({
             ) : null}
             {summary.error ? (
               <Box height={1} overflow="hidden">
-                {
-}
+                {}
                 <Text
                   color={summary.state === 'error' ? CRIMSON : FAINT}
                   wrap="truncate-end"
@@ -337,7 +327,6 @@ export function AgentInspectorPane({
           tail={
             view
               ? `${
-
                   shownCalls.length < view.toolCallsTotal
                     ? `last ${shownCalls.length} of ${view.toolCallsTotal}${view.truncatedRead ? '+' : ''} tool calls`
                     : `${view.toolCallsTotal}${view.truncatedRead ? '+' : ''} tool ${plural(view.toolCallsTotal, 'call')}`

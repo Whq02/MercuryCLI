@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -22,7 +21,6 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
   }
   check('the boot probe exists', typeof probes.probeJsDebugBoot === 'function')
   if (probes.probeJsDebugBoot) {
-
     process.env.MERCURY_JS_DEBUG_DAP = path.join(ROOT, 'dist', 'vendor', 'js-debug', 'src', 'dapDebugServer.js')
     const vendored = await probes.probeJsDebugBoot()
     check(
@@ -72,7 +70,6 @@ console.log('§2 FC-106 — the debugpy remedy names the actual fault')
     )
   }
   delete process.env.MERCURY_DEBUGPY_VENDOR_DIR
-
   const unpinned = resolver.resolvePythonDebugAdapter({ exclusive: true, candidates: ['/no/such/python-interpreter-2'] })
   check(
     'without a pin the standing remedy is untouched (control)',

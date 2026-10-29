@@ -4,11 +4,8 @@ import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
 
 export type RosterSnapshot = {
-
   ok: boolean
-
   entry: WireRosterEntry | null
-
   reason: string
 }
 
@@ -28,15 +25,13 @@ export async function daemonRosterSnapshot(short: string): Promise<RosterSnapsho
   }
 }
 
+
 type DaemonCrewLiveness = {
-
   engaged: boolean
-
   workersActive: boolean
 }
 
 const CREW_TTL_MS = 30_000
-
 function getSessionIdSafe(): string | null {
   try {
     return getSessionId()
@@ -54,7 +49,6 @@ function kickCrewRefresh(): void {
   crewRefreshInFlight = true
   void daemonRosterList()
     .then(r => {
-
       const ownSessionId = getSessionIdSafe()
       crewVerdict = {
         workersActive:
@@ -84,11 +78,8 @@ export function primeDaemonCrewLivenessForProofs(v: DaemonCrewLiveness | null): 
 }
 
 type RosterListSnapshot = {
-
   ok: boolean
-
   entries: WireRosterEntry[]
-
   reason: string
 }
 

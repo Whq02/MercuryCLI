@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { registerGeneratedAsset, registerOnlyRequested } from '../lib/generated-assets-map.mjs'
@@ -45,7 +44,6 @@ const walk = (dir: string): void => {
       if (/<Crab\b/.test(text)) push('crab')
       if (/<Wordmark\b/.test(text)) push('wordmark')
       if (/<SessionMark\b/.test(text)) push('session-mark')
-
       if (/color=\{[A-Z_]+\}[^<]*>\s*Mercury\b/.test(text) || /Mercury<\/Text>/.test(text) && /color=/.test(text)) {
         push('accent-mercury-text')
       }
@@ -55,7 +53,6 @@ const walk = (dir: string): void => {
 walk(SRC)
 
 const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
-
   'src/components/mercury-ui/components.tsx': {
     role: 'product-identity-header',
     why: 'CommandCenter — THE shared crab+wordmark lockup owner',
@@ -64,7 +61,6 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'product-identity-header',
     why: 'the Crab/Wordmark primitives themselves (the ramp lives here)',
   },
-
   'src/components/MercuryModelPicker.tsx': {
     role: 'product-identity-header',
     why: '/model header — routes through the shared ProductLockup (UN-23)',

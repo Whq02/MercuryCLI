@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, writeFileSync } from 'node:fs'
@@ -212,7 +211,6 @@ const toolUseIdsOfTurn = (rows: unknown[], messageId: string | undefined): Set<s
   }
   return ids
 }
-
 const unmintedRecordCalls = (rows: unknown[]): string[] => {
   const out: string[] = []
   for (const row of assistantRows(rows)) {
@@ -256,7 +254,6 @@ const isSummariserRequest = (body: Record<string, unknown>): boolean => {
   return /summar/i.test(text)
 }
 const errorTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOf)
-
 const freshErrorTexts = (yields: AnyMsg[], seed: unknown[]): string[] => {
   const seeded = new Set((seed as AnyMsg[]).map(m => String(m.uuid)))
   return errorTexts(yields.filter(y => !seeded.has(String(y.uuid))))
@@ -295,9 +292,7 @@ let historyA: unknown[]
 {
   fixture.script([
     ...historyScript('a'),
-
     { cut: { reasoning: reasoning(ROUNDS), text: CUT_TEXT, calls: [readCall(ROUNDS, 'a_read_cut')] } },
-
     { calls: [readCall(ROUNDS, 'a_read_again')], reasoning: reasoning(ROUNDS + 1) },
     { text: 'all ten notes files are read: the station keeps its notes tidy and its checks green.', reasoning: reasoning(ROUNDS + 2) },
   ])
@@ -356,11 +351,8 @@ section('R1 a history persisted with such a record heals on read — the wire re
 section('P1 the prune rung, then the automatic compaction — the summariser\'s request answers every function call')
 {
   fixture.script([
-
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-
     { text: 'SUMMARY: the notes files were read; the station keeps its notes tidy and its checks green; the operator asks what to keep.' },
-
     { text: 'the recovered answer', usage: { input: 700, output: 12 } },
   ])
   const priorReplacements = (ctxA.contentReplacementState as { replacements: Map<string, string> }).replacements
@@ -400,7 +392,6 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
   const historyB = transcriptAfter(seedB, a)
   fixture.script([
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
     { text: 'PART SUMMARY: the first notes files were read.' },
     { text: 'SUMMARY after the fold in parts: the later notes files were read.' },
@@ -460,7 +451,6 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   const a = await drive(ctxD, seedD)
   const historyD = transcriptAfter(seedD, a)
   const seed = [...historyD, createUserMessage({ content: SECOND_ASK })]
-
   const count = tokenCountWithEstimation(seed as never, MODEL)
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = String(count - 800)
   fixture.script([
@@ -560,7 +550,6 @@ section('C4 the cache-sharing path (the Anthropic wire): a pairing refusal is cl
   }
   const ctxF = makeCtx(ANTHROPIC_MODEL)
   const historyF = textHistory(5, ANTHROPIC_MODEL)
-
   fixture.script([{ error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { error: { status: 400, body: ANTHROPIC_PAIRING_REFUSAL } }, { text: 'never reached' }])
   const r = await compactOnce(ctxF, historyF)
   check('exactly one summary request reached the Anthropic wire (no hand-over to the direct call)', r.threw === undefined && r.wire.length === 1 && r.wire[0]!.dialect === 'anthropic', `threw=${r.threw ?? 'no'} requests=${JSON.stringify(r.wire.map(w => w.dialect))}`)

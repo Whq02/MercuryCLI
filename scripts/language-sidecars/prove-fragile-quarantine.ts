@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,7 +13,6 @@ const ENGINE_SRC = join(ROOT, 'node_modules', '@vscode', 'tree-sitter-wasm', 'wa
 const DIR = realpathSync(mkdtempSync(join(tmpdir(), 'fragile-fence-')))
 copyFileSync(join(ENGINE_SRC, 'tree-sitter.js'), join(DIR, 'tree-sitter.js'))
 copyFileSync(join(ENGINE_SRC, 'tree-sitter.wasm'), join(DIR, 'tree-sitter.wasm'))
-
 copyFileSync(join(ROOT, 'vendor', 'grammars', 'extracted', 'tree-sitter-json.wasm'), join(DIR, 'tree-sitter-json.wasm'))
 writeFileSync(join(DIR, 'not-a-grammar.wasm'), 'these bytes are no wasm at all')
 process.env.MERCURY_TREESITTER_VENDOR_DIR = DIR
@@ -87,7 +85,6 @@ section('§4 THE REGISTRY MARKING')
   check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason)
   const fragileCount = GRAMMAR_REGISTRY.filter(g => g.fragile).length
   check('exactly the one known-fragile grammar is marked (no blanket probing)', fragileCount === 1, String(fragileCount))
-
   const t = Date.now()
   const json = await engine.loadLanguage(GRAMMAR_REGISTRY.find(g => g.name === 'json') as never)
   check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000)
@@ -95,7 +92,6 @@ section('§4 THE REGISTRY MARKING')
 
 section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
 {
-
   const nodeBin = Bun.which('node')
   check('node binary available (the product runtime)', nodeBin !== null)
   if (nodeBin) {
@@ -126,7 +122,6 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       cure.status === 0 && cure.signal === null && cure.error === undefined,
       `exit ${cure.status ?? 'null'}${cure.signal ? `, signal ${cure.signal}` : ''}${cure.error ? `, ${String(cure.error)}` : ''}`,
     )
-
     const control = spawnSync(nodeBin, ['-e', childSource, DIR, join(DIR, 'not-a-grammar.wasm')], {
       env: process.env,
       timeout: 60_000,

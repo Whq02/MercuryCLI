@@ -29,7 +29,6 @@ export async function startMCPServer(
   cwd: string,
   debug: boolean,
 ): Promise<void> {
-
   const readFileStateCache = createFileStateCacheWithSizeLimit(100)
 
   setCwd(cwd)
@@ -53,7 +52,6 @@ export async function startMCPServer(
   server.setRequestHandler('tools/list', async () => {
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
-
     const surviving = pool.filter(tool => !isToolKilled(tool) && tool.name !== COMPUTER_TOOL_NAME)
     const tools = await Promise.all(
       surviving.map(async tool => {
@@ -66,14 +64,12 @@ export async function startMCPServer(
         const outputSchemaRaw = tool.outputSchema
           ? zodToJsonSchema(tool.outputSchema, 'output')
           : undefined
-
         const outputSchema =
           outputSchemaRaw &&
           typeof outputSchemaRaw === 'object' &&
           (outputSchemaRaw as { type?: string }).type === 'object'
             ? outputSchemaRaw
             : undefined
-
         const wire: McpTool = {
           name: tool.name,
           description,
@@ -98,18 +94,15 @@ export async function startMCPServer(
       options: {
         commands: [review],
         tools: pool,
-
         engineModel: null as unknown as string,
         maxThinkingTokens: 0,
         mcpClients: [],
         mcpResources: {},
         isNonInteractiveSession: true,
         debug,
-
         verbose: false,
         agentDefinitions: { activeAgents: [], allAgents: [] },
       },
-
       getAppState: () => ({ ...getDefaultAppState(), toolPermissionContext: permissionContext }),
       setAppState: () => {},
       messages: [],
@@ -124,7 +117,6 @@ export async function startMCPServer(
       if (!tool.isEnabled()) {
         throw new Error(`Tool ${tool.name} is not enabled`)
       }
-
       if (isToolKilled(tool)) {
         throw new Error(`CapabilityKilled: ${tool.name}`)
       }
@@ -137,7 +129,6 @@ export async function startMCPServer(
           `Tool ${tool.name} input validation failed: ${(validation as { message?: string }).message ?? 'invalid input'}`,
         )
       }
-
       const assistantMessage = createAssistantMessage({ content: '' })
       const decision = await hasPermissionsToUseTool(
         tool,

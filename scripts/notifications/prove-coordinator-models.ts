@@ -10,7 +10,6 @@ const { resetProviderSnapshotMemo } = await import('../../src/services/providers
 const scratch = mkdtempSync(join(tmpdir(), 'sg5-models-'))
 const authHome = join(scratch, 'auth-home')
 mkdirSync(authHome, { recursive: true })
-
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = authHome
 }
@@ -151,20 +150,17 @@ console.log('§3 the REAL presence owner — labels agree with providerFamilyPre
 console.log("§4 the file-backed OpenAI account — the operator's shape, read live")
 {
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-
   resetProviderSnapshotMemo()
   const reg = await composeCoordinatorModelRegistry()
   const apex = reg.entries.filter(e => e.source === 'openai')
   check("every GPT row reads 'ready' through the real owner (credential + catalogue facts only)", apex.every(e => e.availability === 'ready'), JSON.stringify(apex.map(e => [e.modelId, e.availability])))
   check("the Anthropic rows still read 'not-signed-in'", reg.entries.filter(e => e.source === 'anthropic').every(e => e.availability === 'not-signed-in'))
   check('the registry is selectable', reg.selectable === true)
-
   rmSync(join(authHome, '.openai-auth.json'))
   resetProviderSnapshotMemo()
   const signedOut = await composeCoordinatorModelRegistry()
   check("removing the file flips the GPT rows to 'not-signed-in' on the very next read", signedOut.entries.filter(e => e.source === 'openai').every(e => e.availability === 'not-signed-in'))
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-
   resetProviderSnapshotMemo()
 }
 
@@ -182,7 +178,6 @@ console.log('§5 digest currency is the STORE\'s fact — it never reaches a row
   const apex = reg.entries.find(e => e.modelId === 'gpt-5.6-sol')
   check("…but the row stays 'ready' — a receipt's currency never paints a label", apex?.availability === 'ready', apex?.availability)
   check('…with NO label', apex !== undefined && coordinatorModelStatusLabel(apex) === '')
-
   q.recordLiveQualification({ modelId: 'gpt-5.6-sol', role: 'coordinator', sourceKind: 'subscription' as never })
 }
 
@@ -202,7 +197,6 @@ console.log('§6 validateCoordinatorModelChoice (config never overrides the regi
   const engineSignedOut = await validateCoordinatorModelChoice('gpt-5.6-sol')
   check('a signed-out ENGINE choice validates with its label (never a credential refusal)', engineSignedOut.ok === true && engineSignedOut.entry.availability === 'not-signed-in')
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-
   resetProviderSnapshotMemo()
 }
 
@@ -213,7 +207,6 @@ console.log("§7 non-coordinator receipts never enter — the operator's store s
   const apexRows = reg.entries.filter(e => e.source === 'openai')
   const expected7 = new Set<string>([...GPT_DISPLAY_PINS.map(pin => pin.id), 'gpt-5.6-sol'])
   check('non-coordinator receipts add NO row (receipt ∪ baseline pins only)', apexRows.length === expected7.size && !apexRows.some(e => e.modelId === 'gpt-5.7-nova'), JSON.stringify(apexRows.map(e => e.modelId)))
-
   const qPath = q.__qualificationFilePathForTest()
   writeFileSync(qPath, JSON.stringify({ version: 1, receipts: [{ modelId: 'gpt-5.6-sol', role: 'primary', sourceKind: 'chatgpt-subscription', adapterDigest: 'x', architectureEpoch: 'x', roleCapabilityDigest: 'x', qualifiedAtMs: 1 }] }))
   const operatorShape = await composeCoordinatorModelRegistry()
@@ -253,7 +246,6 @@ console.log('§8 the safe-boundary switch owner')
     `${signedOutEngine.outcome}/${signedOutEngine.availability}`,
   )
   writeFileSync(join(authHome, '.openai-auth.json'), OPENAI_FIXTURE_AUTH)
-
   resetProviderSnapshotMemo()
   const unknown = await switchCoordinatorAssistModel('made-up-model-9')
   check(

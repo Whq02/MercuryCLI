@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -106,7 +105,6 @@ section('§4 compaction: the directive text is gone, the mission still holds')
 {
   setActiveMission(GOAL, { sessionId: S2 })
   const hook = stopClosure(S2)
-
   const verdict = await hook.callback([
     user('Summary of the conversation so far: the operator armed a standing goal about the parser suite; work continues.'),
     asst('picking the work back up'),
@@ -122,7 +120,6 @@ section('§4 compaction: the directive text is gone, the mission still holds')
 const S3 = 'cont-session-3'
 section('§5 resume: the process boundary')
 {
-
   writeMissionCard({
     schema: 1,
     sessionId: S3,

@@ -103,6 +103,7 @@ function isComplexColonValue(value: string): boolean {
   return value.includes(',') || value.startsWith('(') || value.startsWith('[') || value.startsWith('@{') || value.includes('`') || value.includes('@(') || value.includes('$')
 }
 
+
 type ExtractResult = { paths: string[]; operation: OperationType; unvalidatable: boolean; optionalWrite: boolean; hasConfig: boolean }
 
 function extractPaths(element: ParsedCommandElement): ExtractResult {
@@ -166,7 +167,6 @@ function extractPaths(element: ParsedCommandElement): ExtractResult {
           i++
         } else if (colon !== -1 && isComplexColonValue(value as string)) unvalidatable = true
       } else {
-
         unvalidatable = true
         if (colon !== -1 && !isComplexColonValue(norm.slice(colon + 1))) paths.push(norm.slice(colon + 1))
       }
@@ -183,6 +183,7 @@ function extractPaths(element: ParsedCommandElement): ExtractResult {
 function normDash(arg: string): string {
   return PS_DASH_RE.test(arg[0] ?? '') ? '-' + arg.slice(1) : arg
 }
+
 
 type ResolveResult = { allowed: boolean; resolvedPath: string; reason?: PermissionDecisionReason }
 
@@ -210,7 +211,6 @@ function resolveAndDecide(rawPath: string, cwd: string, context: ToolPermissionC
   if (drivePrefix.test(path)) return notAllowed(path, other(`The path ${path} uses a non-filesystem provider.`))
   if (/[*?[\]]/.test(path)) {
     if (operation !== 'read') return notAllowed(path, other('Globs are not allowed in write operations; provide an exact path.'))
-
     const base = path.slice(0, path.search(/[*?[\]]/)).replace(/\/[^/]*$/, '') || '.'
     const resolved = resolveOperandPath(base, cwd)
     const deny = matchDeny(resolved, context, 'read')
@@ -271,6 +271,7 @@ function other(reason: string): PermissionDecisionReason {
   return { type: 'other', reason }
 }
 
+
 export function isDangerousRemovalRawPath(path: string): boolean {
   let p = path
   if (/^['"]/.test(p)) p = p.slice(1)
@@ -286,6 +287,7 @@ export function dangerousRemovalDeny(path: string): PermissionResult {
     decisionReason: other(`Dangerous removal of a protected path: ${path}`),
   }
 }
+
 
 export function checkPowerShellCwd(cwd: string, context: ToolPermissionContext): PermissionResult | null {
   const decision = resolveAndDecide(`"${cwd}"`, getShellCwd(), context, 'read')

@@ -1,3 +1,4 @@
+
 import { plugin } from 'bun'
 
 plugin({
@@ -17,7 +18,6 @@ function setStamp(on: boolean): void {
 }
 
 const BASE = '../../src/utils/cockpit/'
-
 const BRIDGES: Array<[string, string]> = [
   ['substrateSnapshot', 'substrateSnapshot'],
   ['permissionsSnapshot', 'permissionsSnapshot'],

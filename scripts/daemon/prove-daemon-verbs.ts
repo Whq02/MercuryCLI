@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -109,13 +108,11 @@ section('(5) identity beyond the pid — the ENOCONN stop sweeps only a RECYCLED
 
 section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D arms (the convergence ruling)')
 {
-
   const rec = { startedAt: Date.UTC(2026, 7, 28, 9, 0, 0), startToken: 'Thu Aug 28 08:59:58 2026' }
   check('baseline byte-equal ⇒ the recorded daemon', daemonRecordIdentity(rec, 'Thu Aug 28 08:59:58 2026') === 'same-process')
   check('baseline mismatch ⇒ NOT the recorded process (a recycled pid, whatever its birth time parses to)', daemonRecordIdentity(rec, 'Thu Aug 28 08:00:00 2026') === 'not-recorded-process')
   check("a pid gone inside the probe window ('' vs a baseline) ⇒ not the recorded process", daemonRecordIdentity(rec, '') === 'not-recorded-process')
   check('a glitched probe (null) under a baseline ⇒ unknown, never a sweep verdict', daemonRecordIdentity(rec, null) === 'unknown')
-
   const pre = { startedAt: Date.UTC(2026, 7, 28, 9, 0, 0) }
   const bornAfter = new Date(pre.startedAt + START_TOKEN_SKEW_MS + 60_000).toUTCString()
   const bornBefore = new Date(pre.startedAt - 60_000).toUTCString()
@@ -123,7 +120,6 @@ section('(5b) THE ONE IDENTITY OWNER — daemonRecordIdentity unions the two D a
   check('pre-token record + a process born at-or-before ⇒ the recorded daemon', daemonRecordIdentity(pre, bornBefore) === 'same-process')
   check('pre-token record + an unparseable or absent token ⇒ unknown', daemonRecordIdentity(pre, 'Get-CimInstance : Access denied') === 'unknown' && daemonRecordIdentity(pre, null) === 'unknown' && daemonRecordIdentity({ ...pre, startToken: null }, null) === 'unknown')
   check('an explicit null baseline takes the fallback arm (a boot whose probe failed still gets the birth-time judgment)', daemonRecordIdentity({ ...pre, startToken: null }, bornAfter) === 'not-recorded-process')
-
   const reconcile = readFileSync(join(ROOT, 'src', 'daemon', 'reconcileRecords.ts'), 'utf8')
   check('the boot reconcile consults the ONE owner', reconcile.includes('daemonRecordIdentity(sup, await getProcessStartTokenAsync(sup.pid))'))
   check('the reconcile keeps the conservative polarity (only a not-recorded verdict falls through to the sweep gates)', reconcile.includes("if (verdict !== 'not-recorded-process') {"))

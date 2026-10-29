@@ -1,3 +1,4 @@
+
 import measureText from './measure-text.js'
 import { addPendingClear, nodeCache } from './node-cache.js'
 import { createLayoutNode } from './layout/engine.js'
@@ -21,24 +22,16 @@ export type ElementNames =
   | 'ink-raw-ansi'
 
 type ScrollState = {
-
   scrollTop?: number
-
   pendingScrollDelta?: number
-
   scrollClampMin?: number
   scrollClampMax?: number
-
   scrollHeight?: number
   scrollViewportHeight?: number
   scrollViewportTop?: number
-
   stickyScroll?: boolean
-
   scrollAnchor?: { el: DOMElement; offset: number }
-
   scrollClampGapPrev?: number
-
   lastStableAtBottom?: boolean
 }
 
@@ -51,18 +44,14 @@ export type DOMElement = {
   textStyles?: TextStyles
   layoutNode?: LayoutNode
   dirty: boolean
-
   isHidden?: boolean
   scroll?: ScrollState
   _eventHandlers?: Record<string, unknown>
-
   debugOwnerChain?: string[]
-
   onRender?: () => void
   onImmediateRender?: () => void
   onComputeLayout?: () => void
   focusManager?: FocusManager
-
   hasRenderedContent?: boolean
 }
 
@@ -70,7 +59,6 @@ export type TextNode = {
   nodeName: TextName
   parentNode: DOMElement | undefined
   nodeValue: string
-
   layoutNode?: undefined
 }
 
@@ -94,19 +82,15 @@ function wrapCells(width: number, widthMode: LayoutMeasureMode): number {
 function makeTextMeasureFunc(node: DOMElement) {
   return (width: number, widthMode: LayoutMeasureMode) => {
     const raw = squashTextNodes(node)
-
     const text = expandTabs(raw)
     const natural = measureText(text, Number.POSITIVE_INFINITY)
     const cells = wrapCells(width, widthMode)
     if (natural.width <= cells) return natural
-
     if (natural.width >= 1 && width > 0 && width < 1) return natural
     if (text.includes('\n')) {
       if (widthMode === LayoutMeasureMode.Undefined) {
-
         return measureText(text, Math.max(width, natural.width))
       }
-
       const textWrap = node.style.textWrap ?? 'wrap'
       const lines = text.split('\n')
       for (let i = 0; i < lines.length; i++) lines[i] = wrapText(lines[i]!, cells, textWrap)
@@ -208,7 +192,6 @@ function collectRemovalRects(
     addPendingClear(parent, rect, absolute)
     nodeCache.delete(node)
   } else if (absolute) {
-
     addPendingClear(parent, { x: 0, y: 0, width: 0, height: 0 }, true)
   }
   for (const child of node.childNodes) {
@@ -232,7 +215,6 @@ export function setAttribute(
   key: string,
   value: DOMNodeAttribute,
 ): void {
-
   if (key === 'children') return
   if (node.attributes[key] === value) return
   node.attributes[key] = value

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -31,9 +30,7 @@ console.log('── mo5 census ratchet + artifact survival')
 }
 
 {
-
   const rows: Array<[string, string | RegExp, RegExp]> = [
-
     ['src/keybindings/writeBindings.ts', "durablePublish.js'", /await rename\(tmp, path\)/],
     ['src/utils/realmRegistry.ts', "durablePublish.js'", /renameSync\(tmp, path\)/],
     ['src/utils/sessionStorage/resumeSnapshot.ts', "durablePublish.js'", /renameSync\(temp, target\)/],
@@ -41,7 +38,6 @@ console.log('── mo5 census ratchet + artifact survival')
     ['src/services/interview/decisionRecord.ts', "durablePublish.js'", /renameSync\(tmp, path\)/],
     ['src/utils/scratchLeases.ts', "durablePublish.js'", /renameSync\(tmp, target\)/],
     ['src/utils/observability/invocationTrace.ts', "durablePublish.js'", /await rename\(tmp, path\)/],
-
     ['src/services/changeTransaction/changeSetCommit.ts', 'renameWithWin32Retry', /await rename\(staged\[i\]!\.tmp/],
     ['src/utils/debug.ts', 'renameWithWin32Retry', /await rename\(path, rotated\)/],
     ['src/daemon/ownedDaemon.ts', 'renameWithWin32RetrySync', /renameSync\(logPath/],
@@ -49,9 +45,7 @@ console.log('── mo5 census ratchet + artifact survival')
     ['src/mneme/mnemeConsolidate.ts', 'renameWithWin32RetrySync', /renameSync\(current, consuming\)/],
     ['src/tools/LSPTool/mercuryOps.ts', 'renameWithWin32Retry', /await rename\(absolutePath, newAbs\)/],
     ['src/utils/file.ts', 'renameWithWin32RetrySync', /fs\.renameSync\(tempPath, targetPath\)/],
-
     ['src/services/privateChannel/installLayout.ts', 'WIN32_RENAME_RETRY_DELAYS_MS', /RENAME_RETRY_DELAYS_MS = \[50, 100, 200\]/],
-
     ['src/utils/healthReport.ts', 'if (moved) movedCount++', /\.catch\(\(\) => \{\}\)\n\s*movedCount\+\+/],
   ]
   let clean = true
@@ -87,7 +81,6 @@ console.log('── mo5 census ratchet + artifact survival')
 
 {
   const distPath = join(ROOT, 'dist', 'mercury.mjs')
-
   if (!existsSync(distPath)) {
     console.log('  ⚠ §5 SKIPPED — dist/mercury.mjs absent (no build on this leg; the gate dist job + local builds carry the survival proof)')
   }

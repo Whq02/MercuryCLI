@@ -1,3 +1,4 @@
+
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -13,37 +14,24 @@ export interface BootProjectFact {
   dir: string
   base: string
   ageMs: number
-
   sessionId: string | null
-
   transcriptPath: string | null
-
   firstChatAt: number | null
-
   firstSessionId: string | null
 }
 
 interface BootCardFacts {
-
   cwdProject: BootProjectFact | null
-
   recentLast: BootProjectFact | null
-
   pickerProjects: BootProjectFact[]
 }
 
 export interface ProjectIdentity {
-
   dir: string
-
   name: string
-
   key: string
-
   catalogued: boolean
-
   firstChatAt: number | null
-
   newestChat: { sessionId: string; transcriptPath: string; ageMs: number } | null
 }
 
@@ -96,7 +84,6 @@ export function scanBootCardFacts(cwd: string = process.cwd(), excludeSessionId?
   const empty: BootCardFacts = { cwdProject: null, recentLast: null, pickerProjects: [] }
   try {
     const seen = scanWorkedInProjects(excludeSessionId)
-
     const resumable = seen.filter(s => s.sessionId !== null)
     return {
       cwdProject: resumable.find(s => s.dir === cwd) ?? null,
@@ -110,11 +97,9 @@ export function scanBootCardFacts(cwd: string = process.cwd(), excludeSessionId?
 
 const HUSK_WALK = 4
 const HUSK_MAX_BYTES = 64 * 1024
-
 export function isAuthFailureHusk(file: string, size: number): boolean {
   if (size > HUSK_MAX_BYTES) return false
   try {
-
     const text = readHead(file, HUSK_MAX_BYTES)
     let outputs = 0
     for (const line of text.split('\n')) {
@@ -128,15 +113,13 @@ export function isAuthFailureHusk(file: string, size: number): boolean {
   }
 }
 
+
 export const PROJECT_CARD_FILE = 'project.json'
 
 interface ProjectCard {
   schema: 1
-
   dir: string
-
   firstChatAt: number
-
   firstSessionId: string
 }
 
@@ -157,7 +140,6 @@ function readProjectCard(store: string): ProjectCard | null {
 
 interface StoreDirFacts {
   card: ProjectCard | null
-
   newest: { file: string; mtime: number } | null
 }
 
@@ -179,7 +161,6 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
     }
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
-
   let picked: { file: string; mtime: number } | null = null
   for (const c of candidates.slice(0, HUSK_WALK)) {
     if (isAuthFailureHusk(c.file, c.size)) continue
@@ -210,10 +191,9 @@ function transcriptCwd(file: string): string | null {
   return null
 }
 
+
 export interface ParkedSessionFact {
-
   sessionId: string
-
   transcriptPath: string
   ageMs: number
 }
@@ -248,7 +228,6 @@ export function parkedSessionsOf(
     const home = getProjectDir(projectDir)
     const skip = opts.excludeSessionId ? `${opts.excludeSessionId}.jsonl` : null
     const cap = Math.max(0, opts.cap ?? PARKED_CAP)
-
     const since = opts.withinMs !== undefined ? (opts.nowMs ?? Date.now()) - opts.withinMs : Number.NEGATIVE_INFINITY
     const candidates: Array<{ file: string; mtime: number; size: number }> = []
     for (const f of readdirSync(home)) {
@@ -261,7 +240,6 @@ export function parkedSessionsOf(
     }
     candidates.sort((a, b) => b.mtime - a.mtime)
     const out: ParkedSessionFact[] = []
-
     for (const c of candidates.slice(0, cap + HUSK_WALK)) {
       if (isAuthFailureHusk(c.file, c.size)) continue
       out.push({ sessionId: sessionIdOf(c.file), transcriptPath: c.file, ageMs: Date.now() - c.mtime })
@@ -302,14 +280,12 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
   for (const d of capDirsByRecency(readdirSync(root), name => statSync(join(root, name)).mtimeMs)) {
     const facts = readStoreDirFacts(join(root, d), skip)
     if (facts === null) continue
-
     perDir.push({ facts, mtime: Math.max(facts.newest?.mtime ?? 0, facts.card?.firstChatAt ?? 0) })
   }
   perDir.sort((a, b) => b.mtime - a.mtime)
   const homeIsTmp = isTmpPath(root + '/')
   const seen: BootProjectFact[] = []
   for (const e of perDir.slice(0, 32)) {
-
     const sessionCwd = e.facts.card?.dir ?? (e.facts.newest !== null ? transcriptCwd(e.facts.newest.file) : null)
     if (!sessionCwd) continue
     if (!homeIsTmp && isTmpPath(sessionCwd)) continue
@@ -333,6 +309,7 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
   }
   return seen
 }
+
 
 export function projectIdentity(dir: string): ProjectIdentity {
   const key = getProjectDir(dir)

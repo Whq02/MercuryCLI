@@ -6,14 +6,10 @@ export type PermitLane = 'foreground' | 'background-session' | 'coordinator' | '
 
 export interface PermitRequest {
   lane: PermitLane
-
   callId: string
   sessionId?: string
-
   holder?: string
-
   signal?: AbortSignal
-
   onWait?: (words: string | null) => void
 }
 
@@ -21,11 +17,8 @@ export interface PermitGrant {
   permitId: string
   callId: string
   lane: PermitLane
-
   waitedMs: number
-
   reacquired: boolean
-
   holder: string
 }
 
@@ -38,9 +31,7 @@ interface Waiter {
 }
 
 export interface GovernorCeilings {
-
   modelLanes: number
-
   delegationLanes: number
 }
 
@@ -102,7 +93,6 @@ export function heldPermits(): readonly PermitGrant[] {
 }
 
 function backgroundAllowance(): number {
-
   return ceilings.modelLanes
 }
 
@@ -116,7 +106,6 @@ function mayAdmit(lane: PermitLane): boolean {
   const heldCount = held.size
   if (lane === 'foreground') return heldCount < ceilings.modelLanes
   if (heldCount >= backgroundAllowance()) return false
-
   if (lane === 'background-session') return heldDelegated() < ceilings.delegationLanes
   return true
 }
@@ -137,7 +126,6 @@ function admit(req: PermitRequest, waitedMs: number): PermitGrant {
 }
 
 function drainWaiters(): void {
-
   for (;;) {
     const idx = (() => {
       const fg = waiters.findIndex(w => w.req.lane === 'foreground')
@@ -170,7 +158,6 @@ export function acquireModelPermit(req: PermitRequest): Promise<PermitGrant> {
   return new Promise<PermitGrant>((resolve, reject) => {
     const waiter: Waiter = { req, enqueuedAt: Date.now(), resolve, reject }
     if (req.signal !== undefined) {
-
       waiter.onAbort = (): void => {
         const at = waiters.indexOf(waiter)
         if (at !== -1) waiters.splice(at, 1)

@@ -9,6 +9,7 @@ import { safeParseJSON } from './json.js'
 import { asSystemPrompt } from './systemPromptType.js'
 import { partiallySanitizeUnicode } from './sanitization.js'
 
+
 const DESCRIPTION_BUDGET = 1000
 
 export function extractConversationText(messages: Message[]): string {

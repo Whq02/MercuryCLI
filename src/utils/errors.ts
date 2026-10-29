@@ -1,5 +1,6 @@
 import { APIUserAbortError } from '../services/api/sdkErrors.js'
 
+
 class MercuryError extends Error {
   constructor(message?: string) {
     super(message)
@@ -79,6 +80,7 @@ export class TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS extends
   }
 }
 
+
 export function isAbortError(error: unknown): boolean {
   if (error instanceof AbortError) return true
   if (error instanceof APIUserAbortError) return true
@@ -111,6 +113,7 @@ export function errorMessageWithCause(value: unknown, maxDepth = 3): string {
   return parts.length > 1 ? `${parts[0]} (cause: ${parts.slice(1).join(' ← ')})` : parts[0]!
 }
 
+
 export function getErrnoCode(error: unknown): string | undefined {
   if (error !== null && typeof error === 'object' && 'code' in error) {
     const code = (error as { code?: unknown }).code
@@ -138,6 +141,7 @@ export function isFsInaccessible(error: unknown): error is NodeJS.ErrnoException
   return code !== undefined && FS_INACCESSIBLE_CODES.has(code)
 }
 
+
 export function describeInvalidArgTypeError(error: unknown): string | null {
   if (getErrnoCode(error) !== 'ERR_INVALID_ARG_TYPE') return null
   const err = toError(error)
@@ -148,7 +152,6 @@ export function describeInvalidArgTypeError(error: unknown): string | null {
     .map(line => line.trim())
     .filter(line => line.startsWith('at '))
   if (frames.length === 0) return `${err.message} ${note}`
-
   const isInternal = (frame: string): boolean =>
     frame.includes('node:internal') || frame.includes('(internal/') || frame.includes('node:path')
   const frame = frames.find(candidate => !isInternal(candidate)) ?? frames[0]

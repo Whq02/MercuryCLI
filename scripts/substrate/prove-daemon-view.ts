@@ -109,7 +109,6 @@ section('elapsed-on-turn + stall (busy too long ⇒ the AMBER heads-up)')
   check('busy 12m ⇒ elapsed "12m", STALLED', stalled!.elapsed === '12m' && stalled!.stalled === true)
   check('idle ⇒ no elapsed, never stalled (even with a stale turn clock)', idle!.elapsed === '' && idle!.stalled === false)
   check('busy w/o turn clock ⇒ no elapsed, not stalled', noclock!.elapsed === '' && noclock!.stalled === false)
-
   const rd = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
   const proto = rd('daemon', 'protocol.ts')
   check('WireRosterEntry carries turnElapsedMs (optional)', /turnElapsedMs\?:\s*number/.test(proto))
@@ -141,7 +140,6 @@ section('no daemon ⇒ honest-empty (NEVER a fake live)')
   check("empty hint points at this install's own `… daemon` start", (v.empty ?? '').startsWith(`run \`${thisMercuryCommand()} daemon\``), v.empty ?? '')
   check('zero rows', v.workers.length === 0)
   check('badge is NOT live', (v.badge as string) !== 'live')
-
   const vNull = deriveDaemonRows(null)
   check('null status ⇒ empty too', vNull.badge === 'off' && vNull.workers.length === 0)
 }
@@ -160,7 +158,6 @@ section('fire-outcome rollup + recent-trend (window is a real subset)')
   }))
   check('fireLine has total + useful-rate + last', /fires 30 · useful-rate 60% · last useful/.test(v.fireLine ?? ''))
   check('recentLine present (total>window)', /recent 10:/.test(v.recentLine ?? ''))
-
   const v2 = deriveDaemonRows(mkStatus({
     fireOutcomes: { total: 5, byOutcome: { useful: 5 }, usefulRate: 1, recentByOutcome: { useful: 5 }, recentWindow: 10 } as never,
   }))
@@ -200,7 +197,6 @@ section('getMercuryDaemonStatus never throws on a missing socket (daemon:null, w
   check('did not throw', !threw)
   check('daemon === null (no daemon)', st?.daemon === null)
   check('workers === [] (the additive field defaults honestly)', Array.isArray(st?.workers) && st?.workers.length === 0)
-
   check('derive(real no-daemon status) ⇒ honest-empty', deriveDaemonRows(st).empty !== null)
 }
 

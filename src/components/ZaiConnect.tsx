@@ -11,6 +11,7 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
+
 export function ZaiConnect({
   onResult,
 }: {
@@ -68,7 +69,6 @@ function ZaiKeyLeg({
   const submit = (raw: string): void => {
     const key = raw.trim()
     if (!key) return
-
     const guard = keyPasteGuardNote(key, { stores: `a ${zaiPlanLabel(plan)}` })
     if (guard !== null) {
       setNote(guard)

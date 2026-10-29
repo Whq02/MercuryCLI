@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { StreamBatcher } from '../../src/utils/messages/streamBatcher.js'
@@ -30,7 +29,6 @@ type Row = { index: number; unparsedToolInput: string }
       next[0] = { ...next[0]!, unparsedToolInput: next[0]!.unparsedToolInput + 'x' }
       return next
     })
-
     await sleep(10)
   }
   await sleep(40)
@@ -82,7 +80,6 @@ type Row = { index: number; unparsedToolInput: string }
 
 {
   const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), 'utf8')
-
   const connector = readFileSync(join(import.meta.dir, '../../src/services/engine-connector/daemonConnector.ts'), 'utf8')
   const seat = readFileSync(join(import.meta.dir, '../../src/daemon/sessionSeat.ts'), 'utf8')
   check('the face holds no stream batcher (no batcher.update, no streaming tool-use reset)', !repl.includes('batcher.update(') && !repl.includes('resetStreamingToolUses'))

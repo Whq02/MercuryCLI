@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -17,7 +16,6 @@ function section(t: string): void {
 
 section('structural — the three seams')
 {
-
   const hook = readFileSync('src/hooks/useTextInput.ts', 'utf8')
   check(
     'useTextInput consumes the range on backspace/delete/raw-DEL',
@@ -51,7 +49,6 @@ section('structural — the three seams')
     pi.includes('if (!inside(state.anchor) || !inside(state.focus)) {'),
   )
   check('screen selection ends at the last cell’s grapheme boundary, not one UTF-16 code unit after its start', pi.includes('cellSpanAt(last.col - rect.x, last.row - rect.y).end'))
-
   check(
     "the adapter maps against the rect of the gesture's own frame (a reflow never detaches the highlight)",
     pi.includes('selectionGestureRectRef.current ?? (box ? nodeCache.get(box) : undefined)') &&
@@ -70,7 +67,6 @@ section('structural — the three seams')
     'vim path untouched (props only on the TextInput branch)',
     !/VimTextInput[^>]*selectionRange/.test(pi),
   )
-
   check(
     "PromptInput registers the adapter on the selection bridge (the composer's own range first, the mapped screen selection behind it)",
     pi.includes('registerInputSelectionOwner({') &&
@@ -137,7 +133,6 @@ section('end-to-end — a real PTY drag + ⌫ (no API)')
   }
 
   if (row0 >= 0) {
-
     const y = row0 + 1
     const x1 = colStart0 + 1
     const x2 = colStart0 + 4

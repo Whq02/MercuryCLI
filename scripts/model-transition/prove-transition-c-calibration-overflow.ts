@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,14 +65,12 @@ section('§A C07 — epoch-keyed, typed absence, bounded EMA store')
   cal.noteMeasuredUsage(kA, 1000, 1200)
   const r1 = cal.calibrationFor(kA)
   check('one observation calibrates the key (ratio = measured/estimated)', r1.calibrated && Math.abs(r1.ratio - 1.2) < 1e-9)
-
   const kAotherEpoch = kA.replace(/c\d+$/, 'c999')
   check('a different codec epoch NEVER inherits calibration', cal.calibrationFor(kAotherEpoch).calibrated === false)
   check('a different model NEVER inherits calibration', cal.calibrationFor(cal.calibrationKeyFor('anthropic', 'claude-sonnet-5')).calibrated === false)
   cal.noteMeasuredUsage(kA, 1000, 1200)
   const r2 = cal.calibrationFor(kA)
   check('observations fold as an EMA with sample count', r2.calibrated && r2.samples === 2)
-
   for (let i = 0; i < cal.MAX_CALIBRATION_KEYS + 10; i++) {
     cal.noteMeasuredUsage(`synthetic:${i}:c1`, 100, 110)
   }
@@ -96,14 +93,12 @@ section('§B C07 — settlement reconciliation through the applied plan')
   check('the applied plan carries the epoch-keyed estimate', p1.tokenEstimate?.key === key && (p1.tokenEstimate?.estimatedTokens ?? 0) > 0)
   check('the first estimate is TYPED uncalibrated', p1.tokenEstimate?.calibration.calibrated === false)
   const est = p1.tokenEstimate!.estimatedTokens
-
   planMod.reconcileAppliedPlanUsage(owner, Math.round(est * 1.5))
   const read = cal.calibrationFor(key)
   check('reconciliation calibrates the key from the plan estimate', read.calibrated && Math.abs(read.ratio - 1.5) < 0.01, JSON.stringify(read))
   const p2 = await build(msgs, 'apply', owner, { calibrationKey: key })
   check('the NEXT plan estimates through the learned ratio', p2.tokenEstimate?.calibration.calibrated === true && p2.tokenEstimate!.estimatedTokens > est)
   check('no calibration key ⇒ tokenEstimate null (explicit absence)', (await build(msgs, 'inspect', owner)).tokenEstimate === null)
-
   const tm = readFileSync(join(import.meta.dir, '../../src/run-core/turn-machine.ts'), 'utf8')
   check("turn-machine passes calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)", tm.includes("calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)"))
   check('turn-machine reconciles ONLY the first call (c1)', tm.includes('`${iter.turnId}.c1`') && tm.includes('reconcileAppliedPlanUsage('))
@@ -113,7 +108,6 @@ section('§B C07 — settlement reconciliation through the applied plan')
 section('§C C08 — the SHIPPED typed ladder composes with selection')
 {
   process.env.MERCURY_CONTEXT_SELECTION = 'bounded-optional'
-
   process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '150000'
   const model = 'claude-opus-5'
   const levels = [
@@ -122,7 +116,6 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
     auto.calculateTokenWarningState(200_000, model).level,
   ]
   check("the real ladder speaks ok → … → blocked", levels[0] === 'ok' && levels[2] === 'blocked', levels.join(','))
-
   const msgs: AnyMessage[] = []
   for (let i = 1; i <= 40; i++) msgs.push(i % 2 ? userMsg(i, `q${i}`) : assistantMsg(i, `a${i}`))
   msgs.push(userMsg(999, 'the request'))
@@ -135,20 +128,16 @@ section('§C C08 — the SHIPPED typed ladder composes with selection')
     check(`closure retained under ladder level '${_level}'`, outUuids.has(u(999).replace('000000000999', '000000000999')) || outUuids.has((msgs.at(-1) as AnyMessage).uuid))
   }
   check('selection decisions are ladder-level-independent (one digest)', digests.size === 1)
-
   const owner2 = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ctm-c2-cx', lane: 'main' })
   const p = await build(msgs, 'inspect', owner2, { selectionBudget: { maxOptionalItems: 5, maxTotalItems: 3 } })
   const composed = { ladder: auto.calculateTokenWarningState(200_000, model).level, selection: p.selection.overflow }
   check('typed states compose honestly', composed.ladder === 'blocked' && composed.selection === 'closure-exceeds-budget')
-
   check('detectFixedPrefixOverflow stays live', typeof auto.detectFixedPrefixOverflow === 'function')
   check('the thrash guard stays live', typeof auto.rapidRefillCount === 'function' && auto.AUTOCOMPACT_THRASH_MESSAGE.length > 0)
-
   const tm = readFileSync(join(import.meta.dir, '../../src/run-core/turn-machine.ts'), 'utf8')
   const planAt = tm.indexOf('const requestPlan = await buildRequestContextPlan(')
   const gateAt = tm.indexOf('await deps.autocompact(')
   check('selection precedes the compaction gate (source order)', planAt !== -1 && gateAt !== -1 && planAt < gateAt)
-
   const selectedAt = tm.indexOf('let messagesForQuery = requestPlan.messages')
   const splitAt = tm.indexOf('splitCarriedOperatorTail(messagesForQuery)')
   check(
@@ -163,7 +152,6 @@ section('§D C08 — post-compact shape keeps its closure whole')
 {
   process.env.MERCURY_CONTEXT_SELECTION = 'bounded-optional'
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ctm-c2-d', lane: 'main' })
-
   const msgs: AnyMessage[] = [
     { type: 'user', uuid: u(1), isCompactSummary: true, message: { role: 'user', content: 'the continuation capsule' } },
   ]

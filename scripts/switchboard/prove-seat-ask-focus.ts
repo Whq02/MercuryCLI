@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -15,7 +14,6 @@ const seatCard = cards.slice(cards.indexOf('export function ManagerSeatAskCard')
 
 section('§1 THE FOCUS GATE')
 {
-
   const promptMatch = /<PermissionPrompt[\s\n]/.exec(seatCard)
   const promptAt = promptMatch?.index ?? -1
   const promptSlice = seatCard.slice(promptAt, promptAt + 400)

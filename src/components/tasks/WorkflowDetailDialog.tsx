@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import type { DeepImmutable } from 'src/types/utils.js'
 import { useElapsedTime } from '../../hooks/useElapsedTime.js'
@@ -50,7 +51,6 @@ const MAX_AGENTS_PER_PHASE = 12
 export type AgentNode = {
   index: number
   label: string
-
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
   tokens?: number
   toolCalls?: number
@@ -64,7 +64,6 @@ type PhaseGroup = {
   title: string
   detail?: string
   model?: string
-
   planned: boolean
   agents: AgentNode[]
 }
@@ -100,7 +99,6 @@ function agentStateLabel(state: AgentNode['state']): string {
       return 'running'
     case 'start':
     default:
-
       return 'starting'
   }
 }
@@ -112,7 +110,6 @@ export function statusTone(status: WorkflowTask['status'] | 'completed_with_fail
   switch (status) {
     case 'completed':
       return { color: TEAL, word: 'done' }
-
     case 'completed_with_failures':
       return { color: AMBER, word: 'partial' }
     case 'running':
@@ -139,7 +136,6 @@ export function buildTree(workflow: WorkflowTask): PhaseGroup[] {
       phaseEvents.push({ index: ev.index, title: ev.title || `Phase ${ev.index + 1}` })
     }
   }
-
   const agents = buildAgentSummaries(events)
   return groupAgentsByPhase(workflow.phases, phaseEvents, agents).map(g => ({
     index: g.index,
@@ -212,10 +208,8 @@ function PhaseBlock({
   const shown = group.agents.slice(0, MAX_AGENTS_PER_PHASE)
   const hiddenAgents = group.agents.slice(MAX_AGENTS_PER_PHASE)
   const hidden = hiddenAgents.length
-
   const hiddenErrs = hiddenAgents.filter(a => a.state === 'error')
   const hiddenDone = hiddenAgents.filter(a => a.state === 'done').length
-
   const settled =
     group.agents.length > 0 &&
     group.agents.every(a => a.state === 'done')
@@ -290,7 +284,6 @@ export function WorkflowDetailDialog({
     { context: 'Confirmation' },
   )
   const handleKeyDown = (e: KeyboardEvent) => {
-
     if (e.key === 'escape') {
       e.preventDefault()
       onDone()
@@ -342,8 +335,7 @@ export function WorkflowDetailDialog({
       autoFocus
       onKeyDown={handleKeyDown}
     >
-      {
-}
+      {}
       <Panel elevated title="Workflow">
         <Box flexDirection="column">
           {}
@@ -355,14 +347,12 @@ export function WorkflowDetailDialog({
             <StateBadge state={headerState} label={tone.word} />
           </Text>
 
-          {
-}
+          {}
           <Text color={FAINT}>
             {metrics.join(' · ')} · {elapsed}
           </Text>
 
-          {
-}
+          {}
           {isRunning
             ? (() => {
                 const pulse = workflowPulse(

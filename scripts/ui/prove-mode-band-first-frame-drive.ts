@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -36,7 +35,6 @@ if (!existsSync(BIN)) {
 const onlyArg = process.argv.find(a => a.startsWith('--only='))
 const ONLY = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean)) : null
 const KEEP = process.argv.includes('--keep')
-
 const FACTS_HOLD_MS = 2_000
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -61,19 +59,12 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [WORK])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
-
 const COMPOSER = 'Type a prompt'
-
 const CONSENT_ACCEPT = 'Yes, I accept'
-
 const BOARD_EMPTY = 'no sessions running'
-
 const CONTRACT_OFFER = 'Start with a contract?'
-
 const REPLY = 'Spare.'
-
 const WARM_TICKS = 25
-
 const FRAMES = 24
 
 type Send = Record<string, unknown>
@@ -245,13 +236,11 @@ const boardDoor = (): Send[] => [
   { afterPrevTicks: 3, data: 'n', mark: 'board-list' },
   { afterPrevTicks: 30, awaitText: CONTRACT_OFFER, awaitSettleTicks: 2, data: '\x1b', mark: 'contract' },
 ]
-
 const converse = (): Send[] => [
   { afterPrevTicks: 2, data: 'hi' },
   { afterPrevTicks: 2, data: '\r', mark: 'sent' },
   { afterPrevTicks: 80, awaitText: REPLY, awaitSettleTicks: 2, data: '', mark: 'reply' },
 ]
-
 const frames = (first: boolean): Send[] => {
   const out: Send[] = [first ? { atTick: 200, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 0, data: '', mark: 'f00' } : { afterPrevTicks: 150, awaitText: COMPOSER, awaitSettleTicks: 0, data: '', mark: 'f00' }]
   for (let k = 1; k <= FRAMES; k++) out.push({ afterPrevTicks: 1, data: '', mark: `f${String(k).padStart(2, '0')}` })

@@ -1,3 +1,4 @@
+
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { gh as spawnGh } from '../privateChannel/ghRelease.js'
 import { randomBytes } from 'node:crypto'
@@ -79,6 +80,7 @@ function parseJson<T>(raw: string, what: string): { state: 'ok'; data: T } | Una
     }
   }
 }
+
 
 interface PrSummary {
   number: number
@@ -177,12 +179,11 @@ export async function fetchChecks(
   return { state: 'ok', checks: rows.slice(0, CHECK_CAP), truncated: Math.max(0, rows.length - CHECK_CAP) }
 }
 
-interface ReviewFinding {
 
+interface ReviewFinding {
   class: 'defect' | 'question' | 'polish'
   severity: 'blocker' | 'major' | 'minor'
   path: string
-
   range: string
   claim: string
   evidence: string
@@ -200,7 +201,6 @@ interface ReviewRecord {
 }
 
 function reviewsDir(root: string): string {
-
   return projectHomeStore(root, 'reviews')
 }
 
@@ -258,6 +258,7 @@ export async function recordReview(opts: {
   await durableAtomicPublish(path.join(dir, 'latest.json'), JSON.stringify(record, null, 2) + '\n')
   return { state: 'ok', record }
 }
+
 
 interface ReviewContext {
   scope: 'worktree' | `pr#${number}`
@@ -369,6 +370,7 @@ export function localRepoSummary(root: string = getCwd()): {
   }
 }
 
+
 type HostSearchKind = 'code' | 'commits' | 'prs' | 'issues'
 
 interface HostSearchRow {
@@ -434,6 +436,7 @@ export async function searchHost(
   return { state: 'ok', kind, rows }
 }
 
+
 interface PrDiffFileRow {
   index: number
   path: string
@@ -476,7 +479,6 @@ export async function fetchPrDiffPage(
       lines: string[]
       additions: number
       deletions: number
-
       incompleteNote?: string
     }
   | Unavailable
@@ -496,7 +498,6 @@ export async function fetchPrDiffPage(
   const lines = parsed.hunks
     .filter(h => h.file === file)
     .flatMap(h => [h.header, ...h.lines])
-
   const reconstructed = lines.filter(l => l.startsWith('+') || l.startsWith('-')).length
   const incomplete = parsed.truncated && reconstructed < fileRow.additions + fileRow.deletions
   const pages = Math.max(1, Math.ceil(lines.length / DIFF_PAGE_LINES))
@@ -516,6 +517,7 @@ export async function fetchPrDiffPage(
       : {}),
   }
 }
+
 
 interface RunRow {
   id: string

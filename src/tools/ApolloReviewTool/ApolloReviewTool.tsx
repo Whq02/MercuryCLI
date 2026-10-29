@@ -1,3 +1,4 @@
+
 import { z } from 'zod'
 import { buildTool, type ToolPermissionContext } from '../../Tool.js'
 import { getAgentContext } from '../../utils/agentContext.js'
@@ -71,7 +72,6 @@ const outputSchema = z.object({
   buildStarted: z.boolean(),
   buildMode: z.string().optional(),
   buildModeTitle: z.string().optional(),
-
   interviewContinues: z.boolean().optional(),
   refineNote: z.string().optional(),
 })
@@ -95,7 +95,6 @@ export const ApolloReviewTool = buildTool({
   isConcurrencySafe(): boolean {
     return false
   },
-
   isReadOnly(): boolean {
     return false
   },
@@ -105,7 +104,6 @@ export const ApolloReviewTool = buildTool({
   requiresUserInteraction(): boolean {
     return true
   },
-
   async validateInput(_input: Input, context) {
     if (getAgentContext() !== undefined || context.agentId) {
       return {
@@ -125,7 +123,6 @@ export const ApolloReviewTool = buildTool({
     }
     return { result: true as const }
   },
-
   async checkPermissions(input: Input) {
     if ((input.blockers ?? []).length === 0) {
       return {

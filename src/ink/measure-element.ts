@@ -1,3 +1,4 @@
+
 import type { DOMElement } from './dom.js'
 
 export default function measureElement(node: DOMElement): {

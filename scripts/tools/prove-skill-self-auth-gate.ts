@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -36,6 +35,7 @@ check(
   'MCP skills still excluded from inline shell execution',
   /loadedFrom !== 'mcp'/.test(src),
 )
+
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

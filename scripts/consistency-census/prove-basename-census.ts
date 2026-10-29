@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -50,7 +49,6 @@ const OWNER_FILES = new Set([
 const strayOwners = census.sites.filter(
   s => s.cls === 'owner-internal' && !OWNER_FILES.has(s.file) && !/getMercuryHome|configHome|homeDir/.test(''),
 )
-
 const ownerFilesSeen = new Set(census.sites.filter(s => s.cls === 'owner-internal').map(s => s.file))
 check(
   `§C the owner-internal family stays bounded (${ownerFilesSeen.size} file(s))`,

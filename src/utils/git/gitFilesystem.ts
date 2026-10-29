@@ -8,6 +8,8 @@ import { getCwd } from '../cwd.js'
 import { findGitRoot } from '../git.js'
 import { parseGitConfigValue } from './gitConfigParser.js'
 
+
+
 const gitDirCache = new Map<string, string | null>()
 
 export function clearResolveGitDirCache(): void {
@@ -27,7 +29,6 @@ export async function resolveGitDir(startPath: string = getCwd()): Promise<strin
     const dotGitPath = join(root, '.git')
     const dotGitStat = await stat(dotGitPath)
     if (dotGitStat.isFile()) {
-
       const content = (await readFile(dotGitPath, 'utf8')).trim()
       if (content.startsWith('gitdir:')) {
         result = resolve(root, content.slice('gitdir:'.length).trim())
@@ -35,7 +36,6 @@ export async function resolveGitDir(startPath: string = getCwd()): Promise<strin
         return result
       }
     }
-
     result = dotGitPath
   } catch {
     result = null
@@ -44,13 +44,12 @@ export async function resolveGitDir(startPath: string = getCwd()): Promise<strin
   return result
 }
 
+
 function isSafeRefName(name: string): boolean {
   if (name === '') return false
-
   if (name.startsWith('-') || name.startsWith('/')) return false
   if (name.includes('..')) return false
   for (const component of name.split('/')) {
-
     if (component === '.' || component === '') return false
   }
   return /^[A-Za-z0-9/._+@-]+$/.test(name)
@@ -60,19 +59,18 @@ function isValidGitSha(s: string): boolean {
   return /^[0-9a-f]{40}$/.test(s) || /^[0-9a-f]{64}$/.test(s)
 }
 
+
 export async function readGitHead(
   gitDir: string,
 ): Promise<{ type: 'branch'; name: string } | { type: 'detached'; sha: string } | null> {
   try {
     const content = (await readFile(join(gitDir, 'HEAD'), 'utf8')).trim()
     if (content.startsWith('ref:')) {
-
       const target = content.slice('ref:'.length).trim()
       if (target.startsWith('refs/heads/')) {
         const name = target.slice('refs/heads/'.length)
         return isSafeRefName(name) ? { type: 'branch', name } : null
       }
-
       if (!isSafeRefName(target)) return null
       const sha = await resolveRef(gitDir, target)
       return { type: 'detached', sha: sha ?? '' }
@@ -104,12 +102,10 @@ async function resolveRefInDir(dir: string, ref: string): Promise<string | null>
     if (looseContent.startsWith('ref:')) {
       const target = looseContent.slice('ref:'.length).trim()
       if (!isSafeRefName(target)) return null
-
       return resolveRef(dir, target)
     }
     return isValidGitSha(looseContent) ? looseContent : null
   }
-
   try {
     const packed = await readFile(join(dir, 'packed-refs'), 'utf8')
     for (const line of packed.split('\n')) {
@@ -150,6 +146,7 @@ async function readRawSymref(gitDir: string, refPath: string, branchPrefix: stri
   }
 }
 
+
 const POLL_INTERVAL_MS = process.env.NODE_ENV === 'test' ? 10 : 1000
 
 type WatchListener = (curr: unknown, prev: unknown) => void
@@ -165,6 +162,7 @@ let cleanupRegistered = false
 const watchedPaths = new Map<string, WatchListener>()
 type CacheEntry = { value: unknown; dirty: boolean; inflight: Promise<unknown> | null }
 const cacheEntries = new Map<string, CacheEntry>()
+
 
 export type GitChangeSignal =
   | 'head'
@@ -196,7 +194,6 @@ function signalChange(signal: GitChangeSignal): void {
 }
 
 function watchPath(path: string, listener: WatchListener): void {
-
   const guarded: WatchListener = (curr, prev) => {
     const c = curr as { ino?: number; mtimeMs?: number }
     const p = prev as { ino?: number; mtimeMs?: number }
@@ -265,7 +262,6 @@ async function upstreamRefPath(gitDir: string, refsDir: string, branch: string):
 }
 
 async function onHeadChange(): Promise<void> {
-
   invalidateAllEntries()
   signalChange('head')
   await waitForScrollIdle()
@@ -307,7 +303,6 @@ async function ensureWatcherStarted(): Promise<void> {
     }
     if (gitDir === null) return
     watchedGitDir = gitDir
-
     watchedCommonDir = await getCommonDir(gitDir)
     if (generation !== startGeneration) return
     const commonDir = watchedCommonDir ?? gitDir
@@ -315,10 +310,8 @@ async function ensureWatcherStarted(): Promise<void> {
     watchPath(join(commonDir, 'config'), () => {
       invalidateAllEntries()
       signalChange('config')
-
       void reattachBranchWatch()
     })
-
     watchPath(join(gitDir, 'index'), () => signalChange('index'))
     watchPath(join(commonDir, 'packed-refs'), () => {
       invalidateAllEntries()
@@ -338,7 +331,6 @@ async function cachedRead<T>(key: string, compute: () => Promise<T>): Promise<T>
     const startGeneration = generation
     let entry = cacheEntries.get(key)
     if (entry && !entry.dirty) {
-
       if (entry.inflight !== null) return (await entry.inflight) as T
       return entry.value as T
     }
@@ -408,6 +400,7 @@ export async function getCachedDefaultBranch(): Promise<string> {
     return 'main'
   })
 }
+
 
 export async function readWorktreeHeadSha(worktreePath: string): Promise<string | null> {
   try {

@@ -25,7 +25,6 @@ function git(dir: string, ...args: string[]): string {
 
 export function materializeFixture(kind: 'ts' | 'py'): string {
   const src = join(FIXTURES, kind === 'ts' ? 'ts-app' : 'py-app')
-
   const dir = realpathSync(mkdtempSync(join(tmpdir(), `project-intel-fixture-${kind}-`)))
   cpSync(src, dir, { recursive: true })
   git(dir, 'init', '-q', '-b', 'main')

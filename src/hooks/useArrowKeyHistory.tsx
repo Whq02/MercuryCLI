@@ -1,3 +1,4 @@
+
 import React, { useCallback, useRef } from 'react'
 import { Text } from '../ink.js'
 import { getHistory } from '../history.js'
@@ -49,7 +50,6 @@ async function loadEntries(
     return loadedEntries
   }
   if (pendingLoad !== null) {
-
     if (pendingLoad.generation === loadGeneration && pendingLoad.filter === filter && pendingLoad.target >= target) {
       return pendingLoad.promise
     }
@@ -133,7 +133,6 @@ export function useArrowKeyHistory(
   const applyEntry = useCallback(
     (entry: HistoryEntry): void => {
       const mode = entryMode(entry)
-
       const value = mode === 'bash' ? getValueFromInput(entry.display) : entry.display
       onSetInput(value, mode, entry.pastedContents)
       if (setCursorOffset) {
@@ -148,7 +147,6 @@ export function useArrowKeyHistory(
   const onHistoryUp = useCallback((): void => {
     const wasAtBottom = indexRef.current === 0
     if (wasAtBottom) {
-
       filterRef.current = modeRef.current === 'bash' ? 'bash' : undefined
       dropLoadedEntries()
       if (inputRef.current.trim() !== '') {
@@ -159,14 +157,12 @@ export function useArrowKeyHistory(
         }
       }
     }
-
     const requested = indexRef.current + 1
     indexRef.current = requested
     void loadEntries(requested, filterRef.current).then(entries => {
       if (indexRef.current !== requested) return
       const entry = entries[requested - 1]
       if (entry === undefined) {
-
         indexRef.current = requested - 1
         return
       }
@@ -216,7 +212,6 @@ export function useArrowKeyHistory(
       const entry = entries[next - 1]
       if (entry === undefined) return
       applyEntry(entry)
-
       const mode = entryMode(entry)
       const value = mode === 'bash' ? getValueFromInput(entry.display) : entry.display
       setCursorOffset?.(value.length)

@@ -5,7 +5,6 @@ import { refreshOpenaiCatalogue } from './openaiCatalogue.js'
 
 interface OpenaiKeyLoginOutcome {
   ok: boolean
-
   stored: boolean
   receipt: string
 }
@@ -13,7 +12,6 @@ interface OpenaiKeyLoginOutcome {
 export async function storeOpenaiApiKeyLogin(
   key: string,
   io?: {
-
     refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>
   },
 ): Promise<OpenaiKeyLoginOutcome> {
@@ -28,7 +26,6 @@ export async function storeOpenaiApiKeyLogin(
       receipt: `Could not store the key: ${String((error as Error).message ?? error)}`,
     }
   }
-
   const snapshot = await refresh()
   const catalogueNote = snapshot?.lastError
     ? ` The live catalogue did not answer (${snapshot.lastError}) — the key is stored; /logins re-checks readiness.`

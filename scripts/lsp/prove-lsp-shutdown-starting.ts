@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -71,7 +70,6 @@ async function fresh(): Promise<Manager> {
   await manager.initialize()
   return manager
 }
-
 const keyOf = (manager: Manager, name: string): string =>
   [...manager.getAllServers().keys()].find(k => k === name || k.endsWith(`:${name}`)) ?? name
 const file = (name: string): string => {

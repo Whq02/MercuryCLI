@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -53,7 +52,6 @@ if (mod) {
 t.section('CS-17 — the board composer rides the ONE transaction (journey-final pins)')
 {
   const { readFileSync } = await import('node:fs')
-
   const dispatch = readFileSync('src/services/crew/dispatch.ts', 'utf8')
   t.check(
     'the ONE dispatch transaction owner stands (crew/dispatch)',

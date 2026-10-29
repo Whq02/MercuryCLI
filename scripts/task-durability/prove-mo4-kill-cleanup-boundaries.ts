@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import {
   chmodSync,
@@ -60,10 +59,8 @@ console.log(`── mo4 kill/cleanup/read-only/concurrency — live platform: ${
   ok(diedAbruptly(r), '§1 child died at the rename boundary', `signal=${r.signal} status=${r.status}`)
   ok(readFileSync(p, 'utf8') === 'old-complete', '§1 destination stays old-complete')
   ok(tempsIn(dir).length === 1, `§1 exactly one owned orphan temp (${tempsIn(dir).length})`)
-
   const early = await cleanupOrphanDurableTemps(dir, { olderThanMs: 10 * 60_000 })
   ok(early.length === 0 && tempsIn(dir).length === 1, '§1 age gate: a young temp survives the sweep (no live-writer race)')
-
   const aged = await cleanupOrphanDurableTemps(dir, { olderThanMs: 0 })
   ok(aged.length === 1 && tempsIn(dir).length === 0, '§1 the aged orphan is collected')
   ok(readFileSync(p, 'utf8') === 'old-complete', '§1 the sweeper never removed the previous good file')
@@ -89,7 +86,6 @@ console.log(`── mo4 kill/cleanup/read-only/concurrency — live platform: ${
   const spec = 'rename@target.json:eperm#1;rename@target.json:kill'
   const r = runChild(p, 'new-complete', spec)
   if (IS_WIN) {
-
     ok(diedAbruptly(r), '§3 win32: child died INSIDE the retry loop', `signal=${r.signal} status=${r.status}`)
     ok(readFileSync(p, 'utf8') === 'old-complete', '§3 win32: destination still old-complete')
     const orphans = tempsIn(dir)
@@ -97,7 +93,6 @@ console.log(`── mo4 kill/cleanup/read-only/concurrency — live platform: ${
     await cleanupOrphanDurableTemps(dir, { olderThanMs: 0 })
     ok(tempsIn(dir).length === 0, '§3 win32: the orphan sweeps clean')
   } else {
-
     ok(r.signal === null && r.status !== 0, '§3 POSIX: typed exit, kill point unreachable (single-attempt gate)')
     ok(readFileSync(p, 'utf8') === 'old-complete' && tempsIn(dir).length === 0, '§3 POSIX: old-complete, temp cleaned')
   }
@@ -163,7 +158,6 @@ if (!IS_WIN) {
     const a = `A${'a'.repeat(16 * 1024)}#${i}`
     const b = `B${'b'.repeat(512)}#${i}`
     const settled = await Promise.allSettled([durableAtomicPublish(p, a), durableAtomicPublish(p, b)])
-
     if (settled.some(s => s.status === 'rejected')) anomalies++
     else {
       const got = readFileSync(p, 'utf8')

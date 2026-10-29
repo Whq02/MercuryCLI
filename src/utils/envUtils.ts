@@ -8,6 +8,7 @@ import { memoize } from 'lodash-es'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
 
+
 export function defaultMercuryHome(): string {
   return join(homedir(), '.mercury')
 }
@@ -37,6 +38,7 @@ export function rawConfigHomePinSpelling(): string | null {
   const raw = process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME')
   return raw ? raw.normalize('NFC') : null
 }
+
 
 let authScope: string | undefined
 const scopedAuthHome = new AsyncLocalStorage<string>()
@@ -104,3 +106,4 @@ export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
 export function isBareMode(): boolean {
   return isEnvTruthy(process.env.MERCURY_BARE) || readSessionOption(process.argv.slice(2), '--lean').present
 }
+

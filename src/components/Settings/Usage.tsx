@@ -1,3 +1,4 @@
+
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/anthropicLimits.js'
 import { useSettingsPopupFrameIfAny } from './Settings.js'
@@ -82,7 +83,6 @@ import { liveMetaConnectFacts, metaMuseCodeTierWordsWithAge, metaStoredSourcesNo
 
 const WARN_PCT = 70
 const ERROR_PCT = 90
-
 const FULL_BAR_MIN_WIDTH = 62
 const FULL_BAR_WIDTH = 50
 
@@ -155,12 +155,10 @@ function Meter({
   limit: RateLimit
   subtext?: string
   hideResetTime?: boolean
-
   maxWidth?: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const pct = pctOf(limit)
-
   if (pct === null) return null
   const available = Math.max(1, Math.min(maxWidth ?? 80, 80))
   const barWidth = available >= FULL_BAR_MIN_WIDTH ? FULL_BAR_WIDTH : available
@@ -182,6 +180,7 @@ function Meter({
     </Box>
   )
 }
+
 
 function SlotHeading({ text }: { text: string }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -241,14 +240,11 @@ function ApiKeySlot({
   note,
   creditsLine,
 }: {
-
   presentLabel?: string
   isActive: boolean
   route: ProviderFamilyId
   spend: ProviderSessionSpend
-
   note?: string
-
   creditsLine?: string
 }): React.ReactNode {
   return (
@@ -334,7 +330,6 @@ function ObservedWindowMeter({
   maxWidth,
 }: {
   window: UsageWindowView
-
   title?: string
   maxWidth?: number
 }): React.ReactNode {
@@ -353,6 +348,7 @@ function ObservedWindowMeter({
   )
 }
 
+
 const ENGINE_USAGE_PRESENTATION: Record<
   string,
   { title: string; connect: string; limitsNote: string }
@@ -360,7 +356,6 @@ const ENGINE_USAGE_PRESENTATION: Record<
   openai: {
     title: 'OpenAI usage',
     connect: '/logins adds an OpenAI account',
-
     limitsNote: 'Usage bills to your OpenAI account; no polled limit meter exists here.',
   },
   zai: {
@@ -371,19 +366,16 @@ const ENGINE_USAGE_PRESENTATION: Record<
   openrouter: {
     title: 'OpenRouter usage',
     connect: '/logins adds OpenRouter (OAuth mints a key, or paste one)',
-
     limitsNote: 'Usage bills OpenRouter credits; the key endpoint serves live credit truth.',
   },
   gemini: {
     title: 'Gemini usage',
     connect: '/logins adds Gemini (API key, or Google OAuth with your own client)',
-
     limitsNote: 'Usage bills to your Google account; the connected section states what the provider publishes.',
   },
   moonshot: {
     title: 'Moonshot usage',
     connect: '/logins moonshot adds Kimi (device-code sign-in, or a Moonshot API key; MOONSHOT_API_KEY works too)',
-
     limitsNote: 'A Kimi sign-in meters its plan windows; a key bills to your Moonshot account balance.',
   },
   meta: {
@@ -394,7 +386,6 @@ const ENGINE_USAGE_PRESENTATION: Record<
   deepseek: {
     title: 'DeepSeek usage',
     connect: '/logins deepseek adds a DeepSeek API key (DEEPSEEK_API_KEY works too)',
-
     limitsNote: 'Usage bills to your DeepSeek account balance.',
   },
   xai: {
@@ -415,7 +406,6 @@ const ENGINE_USAGE_PRESENTATION: Record<
   huggingface: {
     title: 'Hugging Face usage',
     connect: '/logins adds Hugging Face (device-code sign-in, or paste a token; HF_TOKEN works too)',
-
     limitsNote: 'Usage bills to your Hugging Face account; the connected section states what the provider publishes.',
   },
   minimax: {
@@ -447,7 +437,6 @@ const ENGINE_USAGE_PRESENTATION: Record<
   local: {
     title: 'Local models usage',
     connect: `start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), ${LOCAL_SETUP_OFFER}`,
-
     limitsNote: 'local · no metering',
   },
   nous: {
@@ -461,9 +450,7 @@ export interface UsageSection {
   id: ProviderFamilyId
   kind: 'anthropic' | 'engine'
   title: string
-
   connect: string
-
   limitsNote: string
   family: ProviderFamilyPresence
 }
@@ -522,7 +509,6 @@ export function usageSectionPlan(families: ProviderFamilyPresence[]): UsageSecti
 }
 
 function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
-
   useCatalogueEpoch()
   useUsageLayout()
   useEffect(() => {
@@ -535,7 +521,6 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   const sub = view.entries.find(e => e.kind === 'subscription-oauth')
   const key = view.entries.find(e => e.kind === 'api-key')
   const windows = openaiObservedWindowViews()
-
   const owner = useOwnerUsage('openai', sub !== undefined || key !== undefined)
   const limited =
     view.limits.kind === 'openai-observed' && view.limits.window.state === 'limited'
@@ -646,7 +631,6 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   const plan = entries.find(e => e.kind === 'subscription-oauth')
   const key = entries.find(e => e.kind === 'api-key')
   const geminiSourcesNote = geminiStoredSourcesNote(liveGeminiStoredSourceFacts())
-
   const usage = usageForProvider('gemini')
   const planActive = active?.kind === 'subscription-oauth'
   const tierFigure = planActive ? usage.figures?.find(f => f.key === 'plan-tier') : undefined
@@ -713,7 +697,6 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
 }
 
 function HuggingfaceUsageSection(): React.ReactNode {
-
   useCatalogueEpoch()
   useUsageLayout()
   useEffect(() => {
@@ -722,7 +705,6 @@ function HuggingfaceUsageSection(): React.ReactNode {
   const account = resolveHuggingfaceAccount()
   const spend = providerSessionSpend('huggingface')
   const availability = getHuggingfaceAvailability()
-
   const usage = useOwnerUsage('huggingface', account !== undefined)
   const rate = usage.figures?.find(f => f.key === 'rate-remaining')
   const plan = usage.figures?.find(f => f.key === 'plan')
@@ -833,11 +815,9 @@ function RentalUsageSection({ rental }: { rental: NonNullable<ReturnType<typeof 
 }
 
 function EngineUsageSection({ section, width }: { section: UsageSection; width?: number }): React.ReactNode {
-
   const usage = useOwnerUsage(section.id, section.family.credentialed)
   const served = useFocusedServedModel()
   const rental = section.id === 'openai-compat' && section.family.credentialed ? hostRentalUsage(served ?? getEngineModel()) : undefined
-
   if (!section.family.credentialed) {
     return (
       <Box flexDirection="column">
@@ -876,7 +856,6 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
       />
       {figuresLine(usage) !== undefined ? <Text dimColor>{figuresLine(usage)}</Text> : null}
       {section.family.credentialed && usage.readerNote !== undefined ? (
-
         <Text dimColor>{usage.readerNote}</Text>
       ) : null}
       <Text dimColor>
@@ -1180,7 +1159,6 @@ function markOpenAsked(token: number): boolean {
 function AnthropicUsageSection({ width, openToken }: { width?: number; openToken?: number }): React.ReactNode {
   useUsageLayout()
   const tokens = useMercuryTokens()
-
   const subscriber = isClaudeAISubscriber()
   const [state, setState] = useState<{
     loading: boolean
@@ -1201,12 +1179,10 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-
     void refreshProviderUsage('anthropic', { reason: 'operator' }).then(settle)
   }, [subscriber, settle])
   useEffect(() => {
     if (!subscriber) return
-
     if (openToken !== undefined && !markOpenAsked(openToken)) {
       void refreshProviderUsage('anthropic', { reason: 'open' }).then(settle)
       return
@@ -1231,10 +1207,8 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
       return <Text dimColor>loading usage…</Text>
     }
     if (showingError) {
-
       const readerWords = typeof state.error === 'string' ? state.error : (humanizeUsageError(state.error) ?? '')
       const raw = state.error instanceof Error ? state.error.message : ''
-
       const isWait = usageForProvider('anthropic').readerWait === true
       return (
         <Box flexDirection="column">

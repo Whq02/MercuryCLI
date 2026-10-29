@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -26,7 +25,6 @@ function section(t: string): void {
 
 section('§A the consumption fence — the exact registered carriers')
 {
-
   const ALLOW = new Set([
     'src/types/message.ts',
     'src/services/providers/openai/openaiCallModel.ts',

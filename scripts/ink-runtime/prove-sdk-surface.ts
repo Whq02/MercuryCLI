@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 

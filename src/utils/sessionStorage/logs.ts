@@ -1,3 +1,4 @@
+
 import type { UUID } from 'crypto'
 import type { Dirent } from 'fs'
 import { readdir, stat } from 'fs/promises'
@@ -62,7 +63,6 @@ export async function loadTranscriptFromFile(
     const { messages, summaries, leafUuids } = fold
 
     if (messages.size === 0) {
-
       const head = (await readSessionLite(filePath))?.head ?? ''
       if (decodeTranscriptBuffer(head).refusal) {
         throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
@@ -324,7 +324,6 @@ export async function fillSessionListing(log: SessionListing): Promise<SessionLi
     }
 
     const transcript = buildConversationChain(messages, mostRecentLeaf)
-
     const sessionId = (mostRecentLeaf.sessionId ?? log.sessionId) as UUID
     return {
       ...log,
@@ -423,7 +422,6 @@ export function resumeFactsOf(
 export async function lastSession(
   sessionId: UUID,
 ): Promise<SessionListing | null> {
-
   const fold = await loadSessionFile(sessionId)
   const { messages, summaries } = fold
   if (messages.size === 0) return null
@@ -474,7 +472,6 @@ async function loadAllProjectsMessageLogsFull(
   const logsPerProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
     getLogsWithoutIndex(projectDir, limit),
   )
-
   return numbered(newestPerKey(logsPerProject.flat(), log => `${log.sessionId ?? ''}:${log.leafUuid ?? ''}`))
 }
 
@@ -487,7 +484,6 @@ interface ListingMemo {
 }
 let listingMemo: ListingMemo | null = null
 let listingFlight: { key: string; promise: Promise<SessionPage> } | null = null
-
 export const listingCensus = { sweeps: 0, served: 0, joined: 0 }
 
 async function listingTruth(projectsDir: string, projectDirs: string[]): Promise<string | null> {
@@ -538,7 +534,6 @@ export async function listSessionsAcrossProjectsProgressive(
     return shareListing(await listingFlight.promise)
   }
   const promise = sweepAllProjectsProgressive(projectDirs, limit, initialEnrichCount).then(result => {
-
     if (truth !== null) listingMemo = { key, truth, at: Date.now(), result }
     return result
   })
@@ -556,7 +551,6 @@ async function sweepAllProjectsProgressive(
   initialEnrichCount: number,
 ): Promise<SessionPage> {
   listingCensus.sweeps++
-
   const perProject = await mapWithConcurrency(projectDirs, discoveryPoolWidth(), projectDir =>
     sessionFilesLite(projectDir, limit),
   )
@@ -564,11 +558,8 @@ async function sweepAllProjectsProgressive(
 }
 
 export type SessionPage = {
-
   logs: SessionListing[]
-
   allStatLogs: SessionListing[]
-
   nextIndex: number
 }
 
@@ -595,9 +586,7 @@ export async function listRepoSessionsProgressive(
 }
 
 function worktreeStores(projectDirs: string[], worktreePaths: string[]): Array<{ dir: string; wtPath: string }> {
-
   const spelled = (name: string): string => (process.platform === 'win32' ? name.toLowerCase() : name)
-
   const slugs = worktreePaths
     .map(wtPath => ({ wtPath, prefix: spelled(sanitizePath(wtPath)) }))
     .sort((a, b) => b.prefix.length - a.prefix.length)
@@ -702,7 +691,6 @@ export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
   } catch {
     return {}
   }
-
   const agentIds = entries.flatMap(entry => {
     const agentId = entry.isFile() ? /^agent-(.*)\.jsonl$/.exec(entry.name)?.[1] : undefined
     return agentId === undefined ? [] : [agentId]
@@ -797,7 +785,6 @@ type LiteMetadata = {
   prUrl?: string
   prRepository?: string
   lastTimestamp?: string
-
   endedOnError?: boolean
 }
 
@@ -817,7 +804,6 @@ export async function listingsOfSessionFile(
     if (!leafUuids.has(leaf.uuid)) continue
     const chain = buildConversationChain(messages, leaf)
     if (chain.length === 0) continue
-
     chain.push(...rows.childrenOf(leaf.uuid).filter(row => !leafUuids.has(row.uuid)).sort(byTimestamp))
     const first = chain[0]!
     const sessionId = leaf.sessionId as UUID

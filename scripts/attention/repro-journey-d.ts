@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -24,7 +23,6 @@ t.check(
 t.section('Journey D — the side-branch surface is bound (RV-09)')
 {
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')
-
   t.check(
     "the Action Graph no longer names 'board:side-question' (retired with the WORK panel)",
     !/['"]board:side-question['"]/.test(ag),

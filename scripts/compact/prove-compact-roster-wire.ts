@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -42,10 +41,8 @@ const POST_DONE = 'ROSTER-POST-DONE'
 const NOTED = 'ROSTER-NOTED'
 const LAUNCHED = 'ROSTER-LAUNCHED'
 const SUMMARY_MARK = 'ROSTER-SUMMARY-BODY'
-
 const WF_READS = 7
 const WF_STEP_MS = 3000
-
 const PLAIN_READS = 1
 const PLAIN_STEP_MS = 800
 const SUMMARY_HOLD_MS = 6000
@@ -67,7 +64,6 @@ const textOf = (content: unknown): string =>
   typeof content === 'string' ? content : blocksOf(content).filter(b => b.type === 'text' && typeof b.text === 'string').map(b => b.text as string).join('\n')
 const offersTool = (body: Body | null, name: string): boolean =>
   Array.isArray(body?.tools) && body!.tools!.some(t => (t as { name?: string })?.name === name)
-
 function answeredTools(items: Item[]): string[] {
   const last = items[items.length - 1]
   if (!last || last.role !== 'user') return []
@@ -82,9 +78,7 @@ function answeredTools(items: Item[]): string[] {
   }
   return names
 }
-
 function seatOf(items: Item[]): Seat | null {
-
   const userText = items
     .filter(i => i.role === 'user')
     .map(i => textOf(i.content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, ''))
@@ -95,7 +89,6 @@ function seatOf(items: Item[]): Seat | null {
 }
 const readsOf = (items: Item[]): number =>
   items.filter(i => i.role === 'assistant' && blocksOf(i.content).some(b => b.type === 'tool_use' && b.name === 'Read')).length
-
 const userTextsOf = (items: Item[]): string[] =>
   items.filter(i => i.role === 'user').map(i =>
     typeof i.content === 'string'
@@ -112,7 +105,6 @@ type Answer =
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
 const SMALL_USAGE = { input_tokens: 900, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
-
 const FAT_USAGE = { input_tokens: 97_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
 function answer(model: string, blocks: Answer[], usage: typeof SMALL_USAGE): string {
   const stop = blocks.some(b => b.type === 'tool_use') ? 'tool_use' : 'end_turn'
@@ -279,12 +271,10 @@ function makeArena(fixtureBase: string, nodeBin: string): Arena {
       ANTHROPIC_API_KEY: 'fixture-key-000',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_THINKING_BINDING: 'drop_block',
-
       MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9',
     },
   }
 }
-
 function runStreaming(nodeBin: string, arena: Arena, args: string[], prompt: string, killAfterMs: number): Promise<RunResult> {
   return runTurns({ node: nodeBin, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: killAfterMs, turns: [prompt] })
 }
@@ -318,7 +308,6 @@ if (!existsSync(DIST)) {
     console.log(`  exit=${r.exit} · ${hits.length} requests`)
     for (const h of hits) console.log(`  #${h.seq} +${((h.atMs - t0) / 1000).toFixed(1)}s ${h.seat !== null ? `seat:${h.seat}` : h.route} model=${h.model} items=${itemsOf(h.body).length} · ${h.lastUserText.replace(/\s+/g, ' ').slice(0, 90)}`)
     const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
-
     const captureDir = process.env.COMPACT_ROSTER_CAPTURE_DIR
     if (captureDir) {
       mkdirSync(captureDir, { recursive: true })
@@ -356,7 +345,6 @@ if (!existsSync(DIST)) {
     const postAll = postTexts.join('\n')
     check('the post-fold request starts from the summary row (the fold happened)', postAll.includes('The context window turned over'))
     check('…and carries the summary whole, the tenth section included', postAll.includes(SUMMARY_MARK) && postAll.includes('10. Agents in flight'))
-
     const reminders = postAll.split('<system-reminder>').filter(t => t.includes('Agents in flight at the context turnover'))
     const roster = reminders[0] ?? ''
     for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 260)}`)

@@ -1,6 +1,8 @@
+
 import vm from 'node:vm'
 import { parse as parseSource } from 'acorn'
 import * as astWalk from 'acorn-walk'
+
 
 export const MAX_SCRIPT_BYTES = 524288
 
@@ -54,6 +56,7 @@ function severedError(message: string, name = 'Error', stack?: string): object {
   return { __proto__: null, name, message, stack: stack ?? rendered, toString }
 }
 
+
 const WRAP_HEAD = "(async () => {'use strict';\n"
 const WRAP_TAIL = '\n})()'
 
@@ -105,11 +108,9 @@ export function rewriteAwaits(body: string): string {
       settleWrap(node.argument as SyntaxNode)
     },
     ArrowFunctionExpression(node: SyntaxNode) {
-
       if (node.async && node.expression) settleWrap(node.body as SyntaxNode)
     },
     ForOfStatement(node: SyntaxNode) {
-
       if (node.await) adapterWrap(node.right as SyntaxNode)
     },
     ReturnStatement(node: SyntaxNode, _state: unknown, ancestors: SyntaxNode[]) {
@@ -119,7 +120,6 @@ export function rewriteAwaits(body: string): string {
         settleWrap(node.argument as SyntaxNode)
         return
       }
-
       if (node.argument) {
         const target = node.argument as SyntaxNode
         inserts.push({ at: target.start, text: ` await ${prefix}((` })
@@ -130,7 +130,6 @@ export function rewriteAwaits(body: string): string {
       const fn = enclosingFunction(ancestors)
       if (!(fn?.async && fn.generator)) return
       if (node.delegate) {
-
         if (node.argument) adapterWrap(node.argument as SyntaxNode)
       } else {
         settleWrap(node.argument as SyntaxNode)
@@ -139,12 +138,12 @@ export function rewriteAwaits(body: string): string {
   } as never)
 
   if (inserts.length === 0) return body
-
   inserts.sort((a, b) => b.at - a.at)
   let edited = parseText
   for (const { at, text } of inserts) edited = edited.slice(0, at) + text + edited.slice(at)
   return edited.slice(WRAP_HEAD.length, edited.length - WRAP_TAIL.length)
 }
+
 
 export interface CompileResult {
   ok: true
@@ -178,7 +177,6 @@ function adapterSourceFor(prefix: string): string {
 export function compileWorkflow(body: string): CompileResult | CompileError {
   const prefix = SETTLE_PREFIX
   try {
-
     // eslint-disable-next-line no-new-func
     Function(`async function _syntaxProbe() {'use strict';\n${body}\n}`)
 
@@ -190,7 +188,6 @@ export function compileWorkflow(body: string): CompileResult | CompileError {
       ok: true,
       vmScript: new vm.Script(compiledSource, {
         filename: 'workflow.js',
-
         importModuleDynamically: (() => {
           throw severedError('import() is not available in workflow scripts.')
         }) as unknown as undefined,
@@ -230,6 +227,7 @@ export function scriptUsesNonDeterminism(body: string): boolean {
   }
   return hit
 }
+
 
 export interface WorkflowPhaseMeta {
   title: string

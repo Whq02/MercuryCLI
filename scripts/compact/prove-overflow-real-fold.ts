@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync } from 'node:fs'
@@ -161,7 +160,6 @@ async function drive(model: string, rounds: number, inputTokens?: number, prior?
 const boundaryOf = (yields: AnyMsg[]): AnyMsg | undefined => yields.find(y => y.type === 'system' && (y as { subtype?: string }).subtype === 'compact_boundary')
 const lastAssistantText = (yields: AnyMsg[]): string => textOf(yields.filter(y => y.type === 'assistant').at(-1))
 const errorTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOf)
-
 function wireLastUserText(dialect: string, body: Record<string, unknown>): string {
   if (dialect === 'responses') {
     const input = (body.input as AnyMsg[] | undefined) ?? []
@@ -195,7 +193,6 @@ section('F1 the home lane — overflow → the real fold → the retry → a rep
   check('three requests reached the wire: the overflow, the summary call, the retry', r.wire.length === 3 && r.wire.every(w => w.dialect === 'anthropic'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))}`)
   check('the summary call carried the fold prompt', r.wire[1] !== undefined && /summar/i.test(wireText(r.wire[1].body)))
   const retry = r.wire[2]
-
   check('the retried request ends with the operator message VERBATIM', retry !== undefined && wireLastUserText('anthropic', retry.body).endsWith(OPERATOR_ASK), retry !== undefined ? wireLastUserText('anthropic', retry.body).slice(-80) : 'no retry')
   check('the retried request opens on the summary, not the folded history', retry !== undefined && wireText(retry.body).includes('SUMMARY: the earlier modules') && !wireText(retry.body).includes('reply 0: module 0 adjusted'))
   const boundary = boundaryOf(r.yields)
@@ -206,7 +203,6 @@ section('F1 the home lane — overflow → the real fold → the retry → a rep
   check('the last settled assistant is the reply', lastAssistantText(r.yields) === 'the recovered answer', lastAssistantText(r.yields))
   check('no API-error row ever yields (the refusal was withheld and recovered)', errorTexts(r.yields).length === 0, JSON.stringify(errorTexts(r.yields)))
   check('the notice speaks', r.yields.some(y => y.type === 'system' && String(y.content ?? '').includes('context overflowed (Anthropic: 213,462 tokens > 200,000) — folding the conversation and retrying')))
-
   const transcript = [...seed(5), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system' || y.type === 'attachment')]
   const fill = contextFill(transcript as never)
   check('the gauge after the recovery anchors on the retried turn\'s usage (source usage, the fixture\'s 640+12)', fill.source === 'usage' && fill.tokens === 652, JSON.stringify(fill))

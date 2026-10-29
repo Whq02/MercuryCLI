@@ -35,7 +35,6 @@ function hasFileArgs(command: string): boolean {
       continue
     }
     if (token.startsWith('-')) continue
-
     if (expressionFlagSeen) return true
     nonFlagCount++
     if (nonFlagCount >= 2) return true
@@ -46,7 +45,6 @@ function hasFileArgs(command: string): boolean {
 function extractSedExpressions(command: string): string[] {
   if (!/^sed\s/.test(command)) return []
   const argText = command.replace(/^sed\s+/, '')
-
   if (/-e\s*[wWe]/.test(argText) || /-w\s*[eE]/.test(argText)) {
     throw new Error('sed: dangerous combined flags')
   }
@@ -70,7 +68,6 @@ function extractSedExpressions(command: string): string[] {
         expressionFlagSeen = true
         i++
       }
-
       continue
     }
     if (/^(?:--expression=|-e=)/.test(token)) {
@@ -107,7 +104,6 @@ function isLinePrintingCommand(command: string, expressions: string[]): boolean 
       if (token === '-n' || token === '--quiet' || token === '--silent') quietPresent = true
       continue
     }
-
     if (/^-[a-zA-Z]{2,}$/.test(token)) {
       const letters = token.slice(1).split('')
       if (!letters.every(l => shortFlagLetters.has(l))) return false
@@ -146,7 +142,6 @@ function isSubstitutionCommand(command: string, expressions: string[], allowFile
   if (expressions.length !== 1) return false
   const expression = (expressions[0] as string).trim()
   if (!expression.startsWith('s/')) return false
-
   let slashes = 0
   for (let i = 2; i < expression.length; i++) {
     if (expression[i] === '\\') {
@@ -156,7 +151,6 @@ function isSubstitutionCommand(command: string, expressions: string[], allowFile
     if (expression[i] === '/') slashes++
   }
   if (slashes !== 2) return false
-
   const lastSlash = expression.lastIndexOf('/')
   const trailing = expression.slice(lastSlash + 1)
   let digits = 0
@@ -185,53 +179,35 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
   if (isLinePrintingCommand(command, expressions)) matched = 1
   else if (isSubstitutionCommand(command, expressions, allowFileWrites)) matched = 2
   if (matched === null) return false
-
   if (matched === 2 && expressions.some(e => e.includes(';'))) return false
-
   if (expressions.some(isDangerousExpression)) return false
   return true
 }
 
-function isDangerousExpression(expression: string): boolean {
 
+function isDangerousExpression(expression: string): boolean {
   for (const ch of expression) {
     const code = ch.codePointAt(0) ?? 0
     if (code < 0x0001 || code > 0x007f) return true
   }
-
   if (expression.includes('{') || expression.includes('}')) return true
-
   if (expression.includes('\n')) return true
-
   const firstHash = expression.indexOf('#')
   if (firstHash !== -1 && expression[firstHash - 1] !== 's') return true
-
   if (expression.startsWith('!')) return true
   if (/[/\d$]!/.test(expression)) return true
-
   if (/[\d,$]\s*~\s*\d/.test(expression)) return true
-
   if (expression.startsWith(',')) return true
-
   if (/,\s*[+-]/.test(expression)) return true
-
   if (/^s\\/.test(expression)) return true
   if (/\\[|#%@]/.test(expression)) return true
-
   if (/\\\/[\s\S]*[wW]/.test(expression)) return true
-
   if (/\/[^/]*\s+[wWeE]/.test(expression)) return true
-
   if (expression.startsWith('s/') && !/^s\/[^/]*\/[^/]*\/[^/]*$/.test(expression)) return true
-
   if (/^s.[\s\S]*[wWeE]$/.test(expression) && !isWellFormedSubstitutionWithoutWriteFlags(expression)) return true
-
   if (WRITE_COMMAND_RE.test(expression)) return true
-
   if (EXECUTE_COMMAND_RE.test(expression)) return true
-
   if (SUBSTITUTION_WRITE_FLAG_RE.test(expression)) return true
-
   if (/y[^\\\n]/.test(expression) && /[wWeE]/.test(expression)) return true
   return false
 }
@@ -240,7 +216,6 @@ function isWellFormedSubstitutionWithoutWriteFlags(expression: string): boolean 
   if (expression.length < 4 || expression[0] !== 's') return false
   const delimiter = expression[1] as string
   if (delimiter === '\\' || delimiter === '\n') return false
-
   let count = 0
   let flagsStart = -1
   for (let i = 1; i < expression.length; i++) {
@@ -261,12 +236,10 @@ function isWellFormedSubstitutionWithoutWriteFlags(expression: string): boolean 
 }
 
 const ADDR = String.raw`(?:\d+|\$|\/[^/\n]*\/[IMim]*|\d+,\d+|\d+,\$|\/[^/\n]*\/,\/[^/\n]*\/)`
-
 const WRITE_COMMAND_RE = new RegExp(String.raw`(?:^|${ADDR})\s*[wW]\s+\S`)
-
 const EXECUTE_COMMAND_RE = new RegExp(String.raw`^e|${ADDR}\s*e(?![a-zA-Z])`)
-
 const SUBSTITUTION_WRITE_FLAG_RE = /s([^\\\n])(?:\\.|(?!\1)[^\\\n])*\1(?:\\.|(?!\1)[^\\\n])*\1[gpiImM0-9]*[wWeE]/
+
 
 export function checkSedConstraints(input: { command: string }, context: ToolPermissionContext): PermissionResult {
   const allowFileWrites = context.mode === 'implement'

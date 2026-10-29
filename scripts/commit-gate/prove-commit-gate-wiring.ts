@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -13,7 +12,6 @@ const src = (...p: string[]) =>
 
 console.log('=== PROOF — commit-gate wiring (the one chokepoint) ===')
 const engine = src('rows', 'turn.ts')
-
 check('the turn engages the gate', /engageCommitGate\(sessionId\)/.test(engine))
 check(
   'the engagement rides the per-run hook block that serves EVERY session kind (beside the wards registration)',

@@ -9,12 +9,11 @@ import { paneWindow } from '../mercury-ui/paneWindow.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 
+
 type Props = {
   files: DiffFile[];
   selectedIndex: number;
-
   visibleRows: number;
-
   listWidth?: number;
   onSelect: (path: string) => void;
   onActivate: (path: string) => void;
@@ -79,7 +78,6 @@ function FileItem({
     <InteractiveRow
       id={`diff:file:${file.path}`}
       selected={isSelected}
-
       selectionBand={false}
       onSelect={onSelect}
       onActivate={onActivate}

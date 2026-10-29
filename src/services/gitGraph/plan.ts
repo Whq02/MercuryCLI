@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -69,6 +70,7 @@ function setPlanState(owner: OwnerKey, id: string, state: GitPlanState, patch: P
   owned.plans.set(id, next)
   return next
 }
+
 
 interface RawHunk {
   id: string
@@ -159,6 +161,7 @@ function simulateHunkSequence(
   }
 }
 
+
 interface PlanRefusal {
   state: 'refused'
   reason: string
@@ -168,7 +171,6 @@ export function preparePlan(
   owner: OwnerKey,
   root: string,
   groups: GitPlanGroup[],
-
   mercuryTouched?: ReadonlySet<string>,
 ): GitPlan | PlanRefusal {
   const status = gitStatus(root)
@@ -203,7 +205,6 @@ export function preparePlan(
       if (ids.length === 0) return { state: 'refused', reason: `'${file}' has an empty hunk selection` }
     }
   }
-
   const spanningFiles = [...appearances.entries()].filter(([, n]) => n > 1).map(([f]) => f)
   for (const f of spanningFiles) {
     for (const g of groups) {
@@ -238,7 +239,6 @@ export function preparePlan(
         }
       }
     }
-
     const sim = simulateHunkSequence(root, groups, patches)
     if (sim !== null) {
       return { state: 'refused', reason: `the commit sequence does not apply cleanly: ${sim} — nothing was staged or committed` }
@@ -278,6 +278,7 @@ export function preparePlan(
   return plan
 }
 
+
 function headSha(root: string): string | null {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).trim() || null
@@ -296,7 +297,6 @@ interface PlanApplyRefusal {
   state: 'refused'
   code: 'absent' | 'stale' | 'already-applied' | 'cancelled' | 'verify' | 'io'
   reason: string
-
   commitsCreated?: { sha: string; message: string }[]
 }
 
@@ -352,7 +352,6 @@ export function applyPlan(
     }
     const tmpIndex = path.join(tmpdir(), `mercury-gitplan-commit-${process.pid}-${Date.now()}-${index}`)
     try {
-
       const indexEnv = { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_INDEX_FILE: tmpIndex }
       const gitIndexed = (args: string[], input?: string): string =>
         execFileSync('git', gitArgs(args, plan.root), {
@@ -382,7 +381,6 @@ export function applyPlan(
         const patchText = `${[...patch.headerLines, ...chosen.flatMap(h => [h.header, ...h.raw])].join('\n')}\n`
         gitIndexed(['apply', '--cached', '--whitespace=nowarn', '-'], patchText)
       }
-
       const staged = (parent === null ? gitIndexed(['ls-files']) : gitIndexed(['diff', '--cached', '--name-only', parent]))
         .split('\n')
         .filter(Boolean)
@@ -392,7 +390,6 @@ export function applyPlan(
         throw new Error(`staged set [${staged.join(', ')}] ≠ planned [${wantedFiles.join(', ')}]`)
       }
       if (staged.length === 0) throw new Error('empty staged set — an empty commit is refused')
-
       gitIndexed(['commit', '--quiet', '--no-verify', '-m', group.message])
       const sha = git(plan.root, ['rev-parse', 'HEAD']).trim()
       git(plan.root, ['reset', '--quiet', '--', ...group.files])
@@ -412,7 +409,6 @@ export function applyPlan(
           commitsCreated: [...commits.map(c => ({ sha: c.sha, message: c.message })), { sha, message: group.message }],
         }
       }
-
       const txn = beginTransaction({
         owner,
         kind: 'git.commit',
@@ -453,6 +449,7 @@ export function applyPlan(
   const updated = setPlanState(owner, planId, 'applied', { appliedAt: Date.now(), commits })!
   return { state: 'applied', plan: updated, commits }
 }
+
 
 interface IndexOpOutcome {
   state: 'ok'
@@ -500,7 +497,6 @@ export function restoreStaged(root: string, files: string[]): IndexOpOutcome | P
   if (!isGitRepo(root)) return { state: 'refused', reason: 'not a git repository' }
   if (files.length === 0) return { state: 'refused', reason: 'restore needs files' }
   try {
-
     git(root, ['restore', '--staged', '--', ...files])
     return { state: 'ok', detail: `unstaged (working copy untouched): ${files.join(', ')}` }
   } catch (err) {

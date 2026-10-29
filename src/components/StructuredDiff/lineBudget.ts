@@ -1,3 +1,4 @@
+
 import type { StructuredPatchHunk } from '../../utils/diff.js'
 
 export const DIFF_LINE_RENDER_CAP = 2000
@@ -9,7 +10,6 @@ const boundedPatches = new WeakMap<StructuredPatchHunk, StructuredPatchHunk>()
 function boundLine(line: string): string {
   if (line.length <= DIFF_LINE_RENDER_CAP) return line
   const omitted = line.length - DIFF_LINE_RENDER_CAP
-
   return `${line.slice(0, DIFF_LINE_RENDER_CAP)} …[+${omitted.toLocaleString('en-US')} chars — the full line is in the file]`
 }
 

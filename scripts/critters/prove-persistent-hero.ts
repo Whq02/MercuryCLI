@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -38,7 +37,6 @@ t('the scrollback hero mounts, gated on NOT being in the cockpit (the berth owns
   messages.includes('<MercuryHero />') && /\{!inCockpit \?/.test(messages))
 t('…and the cockpit berth really carries the living critter',
   readFileSync('src/components/FullscreenLayout.tsx', 'utf8').includes('<PinnedCritterBerth />'))
-
 const furnitureCollapses = /\{!hasRealConversation \? <MercuryHome \/> : null\}/.test(messages)
 const brandRowSwaps = /hasRealConversation \? <MercuryBrandRow \/> : null/.test(messages)
 t('the hasRealConversation swap toggles FURNITURE only', furnitureCollapses && brandRowSwaps,
@@ -61,7 +59,6 @@ const gateIdx = hero.indexOf('return null')
 t('geometry gate exists (authored-or-absent)', gateIdx > 0 && hero.includes('rows < 10') && hero.includes('columns < 40'))
 const hookAt = hero.indexOf('useTerminalSize()')
 t('hook before the gate: useTerminalSize()', hookAt > 0 && hookAt < gateIdx)
-
 const homeImports = home.split('\n').filter(l => /^import /.test(l)).join('\n')
 t('hero never re-enters the chrome/layout-tier math', !/helmGeometry|useLayoutTier/.test(homeImports))
 t('click-to-morph rides the mini art (vshot cannot click — source lock)', mini.includes('onClick={cycleSessionCritter}'))

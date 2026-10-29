@@ -16,6 +16,7 @@ import { getInitialSettings, rawSettingsContainsKey } from './settings/settings.
 import { TOOL_RESULTS_SUBDIR } from './toolResultStorage.js'
 import { cleanupStaleAgentWorktrees } from './worktree.js'
 
+
 const DEFAULT_CLEANUP_PERIOD_DAYS = 30
 
 export function retentionWindowDays(): number {
@@ -68,7 +69,6 @@ async function cleanupOldMessageFiles(): Promise<CleanupResult> {
   try {
     baseEntries = await fs.readdir(cacheBase)
   } catch {
-
     return result
   }
   for (const baseEntry of baseEntries) {
@@ -99,7 +99,6 @@ async function cleanupOldMessageFiles(): Promise<CleanupResult> {
 
 const SCAN_CHUNK_BYTES = 4 * 1024 * 1024
 const SCAN_CARRY_BYTES = 1024
-
 export const blobScanCensus = { chunkReads: 0, wholeReads: 0, maxChunkBytes: 0 }
 
 export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: Date): Promise<Set<string> | null> {
@@ -111,7 +110,6 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
     const escapedSubdir = TOOL_RESULTS_SUBDIR.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const pattern = new RegExp(`${escapedSubdir}[/\\\\]+([A-Za-z0-9_.-]+)`, 'g')
     if (fs.readFileChunks === undefined) {
-
       blobScanCensus.wholeReads++
       const text = (await fs.readFileBytes(transcriptPath)).toString('latin1')
       for (const match of text.matchAll(pattern)) {
@@ -125,7 +123,6 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
       blobScanCensus.maxChunkBytes = Math.max(blobScanCensus.maxChunkBytes, chunk.length)
       const text = carry + chunk.toString('latin1')
       for (const match of text.matchAll(pattern)) {
-
         if ((match.index ?? 0) + match[0].length >= text.length) continue
         referenced.add(match[1] as string)
       }
@@ -154,7 +151,6 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
   }
 
   for (const projectEntry of projectEntries) {
-
     if (!projectEntry.isDirectory()) continue
     const projectDir = join(projectsRoot, projectEntry.name)
     let entries: Awaited<ReturnType<typeof fs.readdir>>
@@ -168,7 +164,6 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
     for (const entry of entries) {
       const entryPath = join(projectDir, entry.name)
       if (entry.isDirectory()) {
-
         const sessionDir = entryPath
         const toolResultsDir = join(sessionDir, TOOL_RESULTS_SUBDIR)
         let toolResultEntries: Awaited<ReturnType<typeof fs.readdir>> | null = null
@@ -178,7 +173,6 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
           toolResultEntries = null
         }
         if (toolResultEntries === null) {
-
           try {
             await fs.rmdir(sessionDir)
           } catch {
@@ -192,13 +186,11 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
         for (const toolResultEntry of toolResultEntries) {
           const toolResultPath = join(toolResultsDir, toolResultEntry.name)
           if (toolResultEntry.isDirectory()) {
-
             if (referenced?.has(toolResultEntry.name)) continue
             let blobEntries: Awaited<ReturnType<typeof fs.readdir>>
             try {
               blobEntries = await fs.readdir(toolResultPath)
             } catch {
-
               continue
             }
             for (const blobEntry of blobEntries) {
@@ -219,7 +211,6 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
             } catch {
             }
           } else if (toolResultEntry.isFile()) {
-
             if (referenced?.has(toolResultEntry.name)) continue
             try {
               const stats = await fs.stat(toolResultPath)
@@ -242,7 +233,6 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
         } catch {
         }
       } else if (entry.isFile()) {
-
         if (!entry.name.endsWith('.cast')) continue
         try {
           const stats = await fs.stat(entryPath)
@@ -320,7 +310,6 @@ async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Prom
       result.errors++
     }
   }
-
   const directories = entries.filter(entry => entry.isDirectory())
   try {
     if (concurrent) {
@@ -443,9 +432,7 @@ async function recallablePasteHashes(): Promise<Set<string>> {
 }
 
 export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
-
   const { errors: settingsErrors } = getSettingsWithAllErrors()
-
   if (settingsErrors.length > 0 && rawSettingsContainsKey('records.retentionDays')) {
     logForDebugging(
       'cleanup: skipped — settings have validation errors and records.retentionDays is (or may be) configured',
@@ -460,7 +447,6 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
   result = addCleanupResults(result, await cleanupOldDebugLogs())
 
   try {
-
     await cleanupOldImageCaches(computeCutoffDate())
   } catch {
     result = addCleanupResults(result, { messages: 0, errors: 1 })

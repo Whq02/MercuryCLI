@@ -39,7 +39,6 @@ async function main(): Promise<void> {
       outcome: 'succeeded',
       changedPaths: ['/tmp/w/parser.ts'],
     } as const,
-
     { type: 'tool-started', at: 6, toolName: 'Bash', toolUseId: 'tu2' } as const,
   ]
   const snapshot = interrupted.reduce(
@@ -178,7 +177,6 @@ async function main(): Promise<void> {
         /inspect the interrupted/.test(s.nextAction),
         s.nextAction,
       )
-
       const persisted = JSON.parse(readFileSync(sidecar.runSidecarPath(owner), 'utf8')) as {
         snapshot: { lifecycle: string }
       }
@@ -238,7 +236,6 @@ async function main(): Promise<void> {
 
   section('6. the interactive boot fold (FN-013 CRASH-02) — same fold, one notice')
   {
-
     const projection = (s: {
       lifecycle: string
       phaseReason?: string
@@ -275,7 +272,6 @@ async function main(): Promise<void> {
         ),
       )
     }
-
     const notice = coordinator.takeResumeFoldNotice()
     check('the boot fold latched its notice (1 interrupted tool, no blocker)', notice !== null && notice.interruptedTools === 1 && notice.blocker === null, JSON.stringify(notice))
     check('the notice is one-shot', coordinator.takeResumeFoldNotice() === null)

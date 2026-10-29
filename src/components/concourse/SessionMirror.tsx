@@ -42,6 +42,7 @@ import { rememberSessionWarmth } from '../../services/concourse/sessionWarmth.js
 import { readSessionReceipts, type SessionReceiptEntry } from '../../services/switchboard/sessionReceipts.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 
+
 const RECEIPT_ENTRIES_SHOWN = 4
 
 function planReceiptSection(
@@ -68,7 +69,6 @@ function useSessionReceiptsNewestFirst(
 ): SessionReceiptEntry[] {
   return useMemo(() => {
     try {
-
       return readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()
     } catch {
       return []
@@ -92,6 +92,7 @@ function receiptRowText(e: SessionReceiptEntry): string {
             : `contract: ${flat}`
 }
 
+
 export function SessionMirror({
   sessionId,
   workspaceId,
@@ -112,29 +113,19 @@ export function SessionMirror({
 }: {
   sessionId: string
   workspaceId: string
-
   state?: string
   nowLabel?: string | null
-
   title: string
-
   accent?: string
   paneRows: number
   paneWidth: number
   focused: boolean
-
   pointerOver?: boolean
-
   onEnter?: () => void
-
   note?: ControlNoteState
-
   bare?: boolean
-
   idScope?: string
-
   wheelBand?: [number, number]
-
   liveTailLine?: string | null
 }): React.ReactNode {
   const t = useMercuryTokens()
@@ -146,7 +137,6 @@ export function SessionMirror({
   const [, bucket] = useAnimationValue(changePending ? WORK_TICK_MS : null, time =>
     Math.floor(time / WORK_TICK_MS),
   )
-
   const armedBucketRef = useRef<number | null>(null)
   useEffect(() => {
     if (!changePending) {
@@ -164,7 +154,6 @@ export function SessionMirror({
   }, [changePending, bucket, sessionId, workspaceId])
 
   const { fold } = useWorkerTranscriptFold(body.sessionId, body.workspaceId)
-
   useEffect(() => {
     if (fold !== null && fold.messages.length > 0) rememberSessionWarmth(body.sessionId, fold.messages, fold.shed)
   }, [fold, body.sessionId])
@@ -173,7 +162,6 @@ export function SessionMirror({
   const tools = useMemo(() => getTools(toolPermissionContext), [toolPermissionContext])
   const derived = useMemo(() => deriveTranscriptRows(fold?.messages ?? [], tools), [fold, tools])
   const lastRecord = fold?.messages[fold.messages.length - 1]
-
   const turnLive = derived.inProgress.size > 0 || lastRecord?.type === 'user'
   const canAnimate = useIdleMotion('glyphs') !== 'off'
 
@@ -184,7 +172,6 @@ export function SessionMirror({
     scrollRef.current?.scrollToBottom()
     setAway(false)
   }, [])
-
   useEffect(() => {
     jumpNewest()
   }, [body.sessionId, body.workspaceId, jumpNewest])
@@ -212,11 +199,9 @@ export function SessionMirror({
   const wheelAccel = useRef<WheelAccelState | null>(null)
   useInput(
     (_input, key, event) => {
-
       const pagerTop = topOverlay()
       if (pagerTop?.ownsPageKeys === true && !pagerTop.id.startsWith('surface:')) return
       if (key.wheelUp || key.wheelDown) {
-
         const kp = event.keypress as { x?: number }
         if (wheelBand !== undefined && kp.x !== undefined && (kp.x < wheelBand[0] || kp.x > wheelBand[1])) {
           return
@@ -228,7 +213,6 @@ export function SessionMirror({
         if (step > 0) scrollRows(dir * step)
         return
       }
-
       if (focused && (key.pageUp || key.pageDown) && !key.ctrl && !key.meta) {
         event.stopImmediatePropagation()
         const viewport = scrollRef.current?.getViewportHeight() ?? 8
@@ -251,7 +235,6 @@ export function SessionMirror({
   )
 
   const hintVisible = onEnter !== undefined
-
   const noteView = note !== undefined ? controlNoteOf(note) : undefined
   const noteText =
     noteView === undefined
@@ -266,7 +249,6 @@ export function SessionMirror({
       ? nowLabel !== undefined && nowLabel !== null && nowLabel.length > 0
         ? truncateToWidth(nowLabel, Math.max(8, Math.floor(paneWidth / 3)))
         :
-
           'working…'
       : null
   const clusterDesired =
@@ -277,7 +259,6 @@ export function SessionMirror({
         : 0
   const clusterReserve = Math.min(clusterDesired, Math.max(10, Math.floor(paneWidth / 2)))
   const titleBudget = Math.max(8, paneWidth - clusterReserve - 2)
-
   const paneSize = useMemo(() => ({ columns: paneWidth, rows: paneRows }), [paneWidth, paneRows])
   return (
     <TerminalSizeContext.Provider value={paneSize}>
@@ -311,7 +292,6 @@ export function SessionMirror({
                   {truncateToWidth(noteText, clusterReserve)}
                 </Text>
               ) : hintVisible ? (
-
                 <Box flexDirection="row" overflow="hidden">
                   {state === 'working' ? (
                     <Box flexDirection="row" marginRight={1} overflow="hidden">
@@ -347,7 +327,6 @@ export function SessionMirror({
           <NameplateAccentContext.Provider value={identityInk}>
             <ScrollBox ref={scrollRef} stickyScroll flexGrow={1} flexDirection="column" marginTop={bare ? 0 : 1}>
               {fold.shed > 0 ? (
-
                 <Text color={t.textMuted} wrap="truncate-end">
                   {GLYPH.dot} older history capped here — {fold.shed} earlier record
                   {fold.shed === 1 ? '' : 's'} stay in the session&apos;s transcript
@@ -358,8 +337,7 @@ export function SessionMirror({
                   key={m.uuid}
                   value={isAssistantContinuationRow(derived.collapsed, i)}
                 >
-                  {
-}
+                  {}
                   <RowErrorBoundary>
                   <MessageRow
                     message={m}
@@ -394,7 +372,6 @@ export function SessionMirror({
         </AttachedAttributionContext.Provider>
       )}
       {receiptPlan !== null ? (
-
         <Box flexDirection="column" flexShrink={0} overflow="hidden">
           <Box height={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">
@@ -426,7 +403,6 @@ export function SessionMirror({
         </Box>
       ) : null}
       {liveTailLine !== undefined && liveTailLine !== null && liveTailLine.length > 0 ? (
-
         <Box height={1} flexShrink={0} overflow="hidden">
           <Text color={t.textMuted} wrap="truncate-start">
             {GLYPH.dot} {liveTailLine}
@@ -434,7 +410,6 @@ export function SessionMirror({
         </Box>
       ) : null}
       {away ? (
-
         <Box height={1} flexShrink={0}>
           <InteractiveRow id={`${idScope}:jump-newest`} directActivate hoverStyle="row-fill" onActivate={jumpNewest}>
             {hover => (

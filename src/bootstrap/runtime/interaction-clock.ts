@@ -1,3 +1,4 @@
+
 export class InteractionClockOwner {
   private lastInteractionTime: number
   private dirty = false

@@ -21,7 +21,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
   }
   const { ProgressBar } = await import('../../src/components/mercury-ui/components.js')
   const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-
   void render(
     React.createElement(
       ThemeProvider,
@@ -30,7 +29,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
         Box,
         { flexDirection: 'column' },
         React.createElement(ProgressBar, { value: 100, max: 100, width: 12 }),
-
         React.createElement(ProgressBar, { value: 40, max: 100, width: 12 }),
       ),
     ),
@@ -104,7 +102,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
       const ground = tokens.surface0
       for (const role of ROLES) {
         const ramp = tokens.spectral[role]
-
         const floor = role === 'dune' ? SPECTRAL_STRUCTURE_FLOOR : SPECTRAL_STATE_FLOOR
         t.check(
           `${family}/${role}: every stop clears its OWN floor (${floor}) on this appearance's ground`,
@@ -112,7 +109,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
             ramp.every(stop => (contrastRatio(stop, ground) ?? -1) >= floor),
           `${ramp.length} stops`,
         )
-
         t.check(
           `${family}/${role}: contrast rises monotonically across the shipped ramp`,
           ramp.length === 1 ||
@@ -142,7 +138,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
   {
     const readme = readFileSync('design-system/readme.md', 'utf8')
     t.check('the readme still forbids shadows', /no\s*\n?shadows/.test(readme), 'flat')
-
     t.check(
       'naming the bound (five discrete stops) rather than "gradients allowed"',
       /five\*{0,2} discrete stops/.test(readme),
@@ -204,7 +199,6 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
         const payload = JSON.parse(readFileSync(out, 'utf8')) as {
           grid: { c: string; fg: string }[][]
         }
-
         const rows = payload.grid.filter(cells => cells.some(cell => cell.c === '█'))
         return rows.map(rowCells =>
           rowCells.filter(cell => cell.c === '█').map(cell => String(cell.fg)),

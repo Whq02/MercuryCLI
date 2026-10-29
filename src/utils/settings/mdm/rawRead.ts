@@ -12,8 +12,8 @@ import {
   WINDOWS_REGISTRY_VALUE_NAME,
 } from './constants.js'
 
-export type RawReadResult = {
 
+export type RawReadResult = {
   plistStdouts: Array<{ stdout: string; label: string }> | null
   hklmStdout: string | null
   hkcuStdout: string | null
@@ -32,7 +32,6 @@ function runSubprocess(command: string, args: string[]): Promise<string | null> 
 }
 
 async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string }>> {
-
   const candidates = getMacOSPlistPaths().filter(candidate => {
     try {
       return existsSync(candidate.path)
@@ -46,7 +45,6 @@ async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string 
       stdout: await runSubprocess(PLUTIL_PATH, [...PLUTIL_ARGS_PREFIX, candidate.path]),
     })),
   )
-
   for (const { candidate, stdout } of outputs) {
     if (stdout !== null && stdout.trim() !== '') {
       return [{ stdout, label: candidate.label }]
@@ -56,7 +54,6 @@ async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string 
 }
 
 async function readWindowsRegistry(): Promise<{ hklmStdout: string | null; hkcuStdout: string | null }> {
-
   const [hklmStdout, hkcuStdout] = await Promise.all([
     runSubprocess('reg', ['query', WINDOWS_REGISTRY_KEY_PATH_HKLM, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
     runSubprocess('reg', ['query', WINDOWS_REGISTRY_KEY_PATH_HKCU, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
@@ -72,7 +69,6 @@ export async function fireRawRead(): Promise<RawReadResult> {
     const { hklmStdout, hkcuStdout } = await readWindowsRegistry()
     return { plistStdouts: null, hklmStdout, hkcuStdout }
   }
-
   return { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
 }
 

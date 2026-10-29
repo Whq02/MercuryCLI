@@ -31,7 +31,6 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_DAP
   delete process.env.MOCK_DAP_TERMINATE_CAP
   const scratch = mkdtempSync(join(tmpdir(), 'dap-cwd-'))
-
   const sessionCwd = realpathSync(scratch)
   const trace = join(scratch, 'trace.jsonl')
   process.env.MOCK_DAP_TRACE = trace

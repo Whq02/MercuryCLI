@@ -9,6 +9,7 @@ import {
   setActiveMission,
 } from '../../guards/mission.js'
 
+
 export const call = async (
   rawArg: string,
   context: LocalJSXCommandContext,
@@ -19,7 +20,6 @@ export const call = async (
   if (arg === '') {
     const mission = getActiveMission()
     if (!mission) {
-
       try {
         const { readMissionCard } = await import('../../services/mission/missionCard.js')
         const { getSessionId } = await import('../../bootstrap/state.js')
@@ -37,7 +37,6 @@ export const call = async (
       }
       return text('No mission set. Usage: `/mission <condition>`')
     }
-
     const stateLabel = mission.met
       ? 'Mission met'
       : mission.gaveUp

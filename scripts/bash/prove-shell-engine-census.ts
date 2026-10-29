@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
 import { spawnSync } from 'node:child_process'
@@ -39,6 +38,7 @@ for (let i = 0; i < args.length; i++) {
   else if (arg === '--show') print = true
 }
 
+
 interface Sample {
   command: string
   source: string
@@ -61,7 +61,6 @@ function walk(dir: string, into: string[]): void {
 }
 
 const TS_TOOL_USE = /name:\s*['"]Bash['"][^}]*?input:\s*\{\s*command:\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/g
-
 const JSON_COMMAND_FIRST = /"command":\s*"((?:\\.|[^"\\])*)"\s*\}\s*,?\s*"name":\s*"Bash"/g
 const JSON_NAME_FIRST = /"name":\s*"Bash"[^}]*?"input":\s*\{[^}]*?"command":\s*"((?:\\.|[^"\\])*)"/g
 
@@ -101,7 +100,6 @@ function collectCorpus(): { samples: Sample[]; files: number; templated: number 
     }
     for (const match of text.matchAll(TS_TOOL_USE)) add(unescapeTs(match[2] as string, match[1] as string), source)
   }
-
   const analysis = join(ROOT, 'scripts', 'decisions', 'command-analysis-corpus.json')
   if (existsSync(analysis)) {
     const parsed = JSON.parse(readFileSync(analysis, 'utf8')) as Record<string, Record<string, unknown>>
@@ -111,6 +109,7 @@ function collectCorpus(): { samples: Sample[]; files: number; templated: number 
   }
   return { samples: [...seen.values()], files: files.length, templated }
 }
+
 
 const CONSTRUCTS: Array<[string, RegExp]> = [
   ['pipe', /(?<!\|)\|(?!\|)/],
@@ -142,6 +141,7 @@ const CONSTRUCTS: Array<[string, RegExp]> = [
   ['escape', /\\/],
 ]
 const constructsOf = (command: string): string[] => CONSTRUCTS.filter(([, re]) => re.test(command)).map(([name]) => name)
+
 
 interface EngineSpec {
   name: string
@@ -191,6 +191,7 @@ const KNOWN_GAPS: Array<[string, RegExp]> = [
   ['signal traps (in progress upstream)', /\btrap\b[^\n;]*\b(INT|TERM|HUP|USR1|USR2|SIG[A-Z]+)\b/],
 ]
 const knownGapOf = (command: string): string | null => KNOWN_GAPS.find(([, re]) => re.test(command))?.[0] ?? null
+
 
 const { checkReadOnlyConstraints } = await import('../../src/tools/BashTool/readOnlyValidation.ts')
 
@@ -257,6 +258,7 @@ for (const sample of samples) {
   }
   rows.push(row)
 }
+
 
 const esc = (text: string): string => text.replace(/\|/g, '\\|').replace(/\n/g, '\\n')
 const lines: string[] = ['# Shell-engine compatibility census', '']

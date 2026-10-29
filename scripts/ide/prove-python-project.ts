@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -108,6 +107,7 @@ try {
     const system = proj.selectPythonInterpreter(bare)
     check('A7 bare dir falls to PATH python3 (system rung)', system.state === 'ok' && system.envKind === 'system', JSON.stringify(system).slice(0, 160))
   }
+
 
   section('(C) debug coupling — shared selection leads; pins never fall through')
   {

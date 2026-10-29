@@ -77,7 +77,6 @@ console.log('── SPLASH choreography: the one-scene motion laws ──')
   const { report, framesDir, exit } = cell('natural', 120, 38)
   check('natural run hands off (exit 0)', exit === 0, `exit=${exit}`)
   const pf = report.per_frame
-
   const arrivalIdx = pf.findIndex(f => f.fill > 0.02)
   check('an arrival frame paints the hero', arrivalIdx >= 0 && arrivalIdx <= 2, `idx=${arrivalIdx}`)
   const arrival = pf[arrivalIdx]!

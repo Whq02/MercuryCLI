@@ -29,7 +29,6 @@ if (process.env.MEASURE_CHILD) {
     Text: unknown
   }
   const { AppStateProvider } = await import('../../src/state/AppState.js')
-
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const h = React.createElement as (...a: unknown[]) => unknown
@@ -64,14 +63,12 @@ if (process.env.MEASURE_CHILD) {
       getPendingDelta: () => number
       getViewportHeight: () => number
     }
-
     const W = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'juliet', 'kilo', 'lima']
     const rowText = (i: number) =>
       `${String(i).padStart(3, '0')} ${W[i % 12]} ${W[(i * 5 + 3) % 12]} ${'▪'.repeat(1 + ((i * 7) % 40))} ${W[(i * 11 + 7) % 12]} ${String((i * 2654435761) >>> 20)}`
     const rows = Array.from({ length: 220 }, (_, i) =>
       h(Text as never, { key: `r${i}`, ...(i % 5 === 0 ? { color: 'cyan' } : {}) }, rowText(i)),
     )
-
     const Scroller = () => {
       const handle = React.useRef<Handle | null>(null)
       React.useEffect(() => {
@@ -135,7 +132,6 @@ if (process.env.MEASURE_CHILD) {
     const { SpinnerAnimationRow } = await import('../../src/components/Spinner/SpinnerAnimationRow.js')
     const responseLengthRef = ref(0)
     if (scene === 'turn-responding') {
-
       setInterval(() => {
         responseLengthRef.current += 120
       }, 100)
@@ -172,10 +168,8 @@ if (process.env.MEASURE_CHILD) {
     mounted = h(AlternateScreen as never, { mouseTracking: false }, tree)
   }
   void render(h(AppStateProvider as never, {}, mounted))
-
   setInterval(() => {}, 1 << 30)
 } else {
-
   type TeeLine = { ts: number; len: number }
   const SCENES = process.argv.slice(2).filter(a => !a.startsWith('-'))
   const scenes = SCENES.length
@@ -183,21 +177,17 @@ if (process.env.MEASURE_CHILD) {
     : ['idle-static', 'turn-thinking', 'turn-tools', 'turn-responding']
   const SECONDS = Number(process.env.MEASURE_SECONDS ?? '12')
   const budget = process.env.MEASURE_BUDGET === '1'
-
   const CEILINGS: Record<string, number> = {
     'idle-static': 1.0,
     'turn-thinking': 9,
     'turn-tools': 9,
     'turn-responding': 13,
-
     'scroll-fullwidth': 26,
     'scroll-cockpit': 26,
     'stream-deckstrip': 26,
     'stream-cockpit': 26,
   }
-
   const SCENE_COLS: Record<string, number> = { 'stream-deckstrip': 90 }
-
   const STEPPED: Record<string, number> = {
     'scroll-fullwidth': 20,
     'scroll-cockpit': 20,
@@ -219,13 +209,11 @@ if (process.env.MEASURE_CHILD) {
           PATH: process.env.PATH ?? '',
           HOME: process.env.HOME ?? '',
           TERM: 'xterm-256color',
-
           MERCURY_FORCE_SYNC_OUTPUT: '1',
           MEASURE_CHILD: '1',
           MEASURE_SCENE: scene,
           MEASURE_COLS: String(cols),
           INK_WRITE_TEE: tee,
-
           MERCURY_CONFIG_DIR: join(dir, 'config'),
           MERCURY_DAEMON_DIR: join(dir, 'daemon'),
         },
@@ -248,7 +236,6 @@ if (process.env.MEASURE_CHILD) {
       failed = true
       continue
     }
-
     const t0 = (lines[0]?.ts ?? 0) + 2000
     const steady = lines.filter(l => l.ts >= t0)
     const span = steady.length > 1 ? (steady.at(-1)!.ts - steady[0]!.ts) / 1000 : SECONDS - 2

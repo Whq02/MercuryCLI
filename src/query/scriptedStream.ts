@@ -66,13 +66,11 @@ const scriptedHammerBreaker: CallModel = async function* scriptedHammerBreaker(p
 export const ONE_TOOL_SCRIPTS = ['tool-read', 'tool-glob', 'tool-bash', 'tool-bash-write'] as const
 type OneToolScript = (typeof ONE_TOOL_SCRIPTS)[number]
 export const ANSWER_TEXT_SCRIPT = 'answer-text'
-
 export const CHATTY_BASH_SCRIPT = 'tool-bash-chatty'
 export const CHATTY_BASH_LINES = 6
 const CHATTY_BASH_COMMAND = `i=1; while [ $i -le ${CHATTY_BASH_LINES} ]; do echo "chatty line $i"; i=$((i+1)); sleep 0.5; done`
 export const ONE_TOOL_READ_FILE = 'one-tool-read-fixture.md'
 export const ONE_TOOL_SETTLED_TEXT = 'VERDICT-TURN-DONE'
-
 export const ONE_TOOL_WRITE_WITNESS = 'exit-cliff-write-witness.txt'
 
 const oneToolCalls = new Map<OneToolScript, number>()

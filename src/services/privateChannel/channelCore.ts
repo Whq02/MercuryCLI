@@ -5,9 +5,7 @@ interface PrivateVersion {
   major: number
   minor: number
   patch: number
-
   label: string
-
   counter: number
 }
 
@@ -39,12 +37,12 @@ export function comparePrivateVersions(a: PrivateVersion, b: PrivateVersion): nu
   return a.counter - b.counter
 }
 
+
 export interface ChannelRelease {
   tagName: string
   isDraft: boolean
   isPrerelease: boolean
   assetNames: string[]
-
   assetUrls?: Record<string, string>
 }
 
@@ -85,7 +83,6 @@ export type ReleaseSelection =
       version: PrivateVersion
       assetName: string
       checksumName: string
-
       assetUrl: string | null
       checksumUrl: string | null
     }
@@ -171,6 +168,7 @@ export function selectBridgePrevious(releases: Array<{ tagName: string; isDraft:
   return { state: 'previous', tag: pick.tag, version: pick.v }
 }
 
+
 type ChecksumLookup =
   | { state: 'ok'; sha256: string }
   | { state: 'missing-entry' }
@@ -190,6 +188,7 @@ export function lookupChecksum(manifestText: string, assetName: string): Checksu
   if (matches.length > 1) return { state: 'duplicate-entry', count: matches.length }
   return { state: 'ok', sha256: matches[0]! }
 }
+
 
 export const PAYLOAD_ROOT = 'mercury'
 export const BUNDLE_MEMBER_NAMES = ['mercury.mjs'] as const
@@ -219,16 +218,14 @@ export function judgeExtractedLayout(topLevelEntries: string[], payloadMembers: 
   return { state: 'ok' }
 }
 
+
 type PayloadGeneration = 'release-layout' | 'schema2-single' | 'legacy'
 
 export interface PayloadDescriptor {
   generation: PayloadGeneration
   version: string
-
   primary: string
-
   compatibility: string[]
-
   launcher: string | null
 }
 
@@ -333,6 +330,7 @@ export function describePayload(
   return { state: 'ok', descriptor: { generation: 'legacy', version, primary: recognized[0]!, compatibility: [], launcher } }
 }
 
+
 export const PUBLIC_HOME_SLUG = 'Whq02/MercuryCLI'
 
 export function repoSlugFromUrl(url: string): string | null {
@@ -343,7 +341,6 @@ export function repoSlugFromUrl(url: string): string | null {
 
 interface ChannelRepo {
   slug: string
-
   source: 'override' | 'packaged' | 'fallback'
 }
 
@@ -354,6 +351,7 @@ export function resolveChannelRepo(override: string | undefined, packagedUrl: st
   if (packaged) return { slug: packaged, source: 'packaged' }
   return { slug: PUBLIC_HOME_SLUG, source: 'fallback' }
 }
+
 
 export function rateLimitResetMinutes(
   headers: { rateLimitReset?: string | null; retryAfter?: string | null },

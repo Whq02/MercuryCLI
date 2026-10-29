@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -200,7 +199,6 @@ if (!only || only === 'splash') {
       captures.push(splashCapture(`splash-projects-${cols}x${rows}`, 'projects', cols, rows, { ...base, MERCURY_SPLASH_VIEW: 'projects' }))
     } else skipped.push(`— splash-projects-${cols}x${rows}: picker cannot fit (needs cols≥64 ∧ rows≥${nPicker + 9}) — skipped by contract`)
   }
-
   captures.push(splashCapture('splash-lockup-80x24-reduced-motion', 'lockup', 80, 24, { ...base, MERCURY_REDUCED_MOTION: '1' }))
   captures.push(splashCapture('splash-lockup-80x24-reduced-colour', 'lockup', 80, 24, { ...base, TERM: 'linux' }))
 }

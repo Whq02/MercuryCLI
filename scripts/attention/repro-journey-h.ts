@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -30,7 +29,6 @@ t.section('Journey H — the graph surface is bound (RV-13)')
 {
   const { readFileSync } = await import('node:fs')
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')
-
   t.check(
     "the Action Graph no longer names 'board:graph' (retired with the WORK panel)",
     !/['"]board:graph['"]/.test(ag),

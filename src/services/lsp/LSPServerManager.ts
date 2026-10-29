@@ -10,13 +10,11 @@ import { noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
 import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
 
+
 type LspRevalidationReport = {
   checked: number
-
   resynced: string[]
-
   closed: string[]
-
   failed: string[]
 }
 
@@ -42,17 +40,14 @@ export type LSPServerManager = {
 }
 
 type DocumentTracking = {
-
   openGeneration: number
   version: number
-
   disk?: { mtimeMs: number; size: number }
 }
 
 export function createLSPServerManager(): LSPServerManager {
   const servers = new Map<string, LSPServerInstance>()
   const extensionIndex = new Map<string, LSPServerInstance[]>()
-
   const tracking = new Map<string, Map<string, DocumentTracking>>()
 
   function uriFor(path: string): string {
@@ -96,7 +91,6 @@ export function createLSPServerManager(): LSPServerManager {
   async function initialize(): Promise<void> {
     const { servers: configured } = await getAllLspServers()
     for (const [name, config] of Object.entries(configured)) {
-
       if (!config.command) {
         logError(new Error(`LSP server ${name} skipped: no command configured`))
         continue
@@ -114,7 +108,6 @@ export function createLSPServerManager(): LSPServerManager {
         claimants.push(instance)
         extensionIndex.set(key, claimants)
       }
-
       instance.onRequest<{ items?: Array<{ section?: string }> }, unknown[]>('workspace/configuration', params => {
         const items = params?.items ?? []
         if (name === MERCURY_PYRIGHT_SERVER_NAME) {
@@ -126,10 +119,8 @@ export function createLSPServerManager(): LSPServerManager {
   }
 
   async function shutdown(): Promise<LSPShutdownResult> {
-
     const targets = [...servers.values()].filter(server => server.state !== 'stopped')
     const settled = await Promise.allSettled(targets.map(server => server.stop()))
-
     servers.clear()
     extensionIndex.clear()
     tracking.clear()
@@ -244,12 +235,10 @@ export function createLSPServerManager(): LSPServerManager {
   async function changeOn(server: LSPServerInstance, path: string, content: string): Promise<void> {
     const uri = uriFor(path)
     if (server.state !== 'running' || !isOpenOnCurrentGeneration(uri, server)) {
-
       await openOn(server, path, content)
       return
     }
     const entry = trackingFor(uri, server.name)
-
     const version = (entry?.version ?? 1) + 1
     await server.sendNotification('textDocument/didChange', {
       textDocument: { uri, version },
@@ -286,7 +275,6 @@ export function createLSPServerManager(): LSPServerManager {
           await server.sendNotification('textDocument/didClose', { textDocument: { uri } })
         }
       } finally {
-
         clearTracking(uri, server.name)
       }
     })
@@ -331,7 +319,6 @@ export function createLSPServerManager(): LSPServerManager {
 
   async function revalidateOpenDocuments(): Promise<LspRevalidationReport> {
     const report: LspRevalidationReport = { checked: 0, resynced: [], closed: [], failed: [] }
-
     const entries = [...tracking.entries()].map(
       ([uri, perDocument]) => [uri, [...perDocument.entries()].map(([serverName, entry]) => ({ serverName, ...entry }))] as const,
     )
@@ -348,7 +335,6 @@ export function createLSPServerManager(): LSPServerManager {
         stat = statSync(path)
       } catch (err) {
         if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
-
           try {
             await closeFile(path)
             report.closed.push(path)

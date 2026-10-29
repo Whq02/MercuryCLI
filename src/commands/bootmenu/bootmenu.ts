@@ -21,7 +21,6 @@ export const call: LocalCommandCall = async () => {
           : `Boot Settings is unavailable — ${res.reason}`,
     }
   }
-
   armBootSettingsLayerDeepLink()
   return {
     type: 'text',

@@ -43,12 +43,16 @@ import type { ValidationError, SettingsWithErrors } from './validation.js'
 import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../text/hiddenCharacterFindings.js'
 
+
+
+
 export function settingsMergeCustomizer(objValue: unknown, srcValue: unknown): unknown {
   if (Array.isArray(objValue) && Array.isArray(srcValue)) {
     return [...new Set([...objValue, ...srcValue])]
   }
   return undefined
 }
+
 
 function cloneParsed(value: { settings: SettingsJson | null; errors: ValidationError[] }): {
   settings: SettingsJson | null
@@ -76,14 +80,12 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
   try {
     raw = readFileSync(filePath)
   } catch (error) {
-
     if (isENOENT(error)) {
       logForDebugging(`settings file absent: ${filePath}`)
       forgetLastGoodParsedFile(filePath)
       forgetHiddenCharacters('settings', { path: filePath })
       return { settings: null, errors: [] }
     }
-
     logError(error)
     return {
       settings: null,
@@ -100,7 +102,6 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
   if (raw.trim() === '') {
     return { settings: {} as SettingsJson, errors: [] }
   }
-
   const shared = safeParseJSON(stripBOM(raw), false)
   const parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
   const duplicates = duplicateCompatEndpointNames(raw)
@@ -113,9 +114,7 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
   ]
   const result = SettingsSchema().safeParse(parsed)
   if (!result.success) {
-
     const { settings: salvaged, issues } = salvageValidSettings(parsed, result.error)
-
     const zodErrors =
       salvaged !== null
         ? formatZodError({ issues }, filePath).map(record => ({ ...record, severity: 'warning' as const }))
@@ -286,11 +285,11 @@ export function getSettingsWriteFilePathForSource(source: SettingSource): string
   }
 }
 
+
 export function loadManagedFileSettings(): { settings: SettingsJson | null; errors: ValidationError[] } {
   const errors: ValidationError[] = []
   let merged: SettingsJson | null = null
   const mergeIn = (settings: SettingsJson | null): void => {
-
     if (settings === null || Object.keys(settings).length === 0) return
     merged = merged === null ? settings : (mergeWith(merged, settings, settingsMergeCustomizer) as SettingsJson)
   }
@@ -312,7 +311,6 @@ export function loadManagedFileSettings(): { settings: SettingsJson | null; erro
       mergeIn(dropIn.settings)
     }
   } catch (error) {
-
     if (!isENOENT(error) && (error as { code?: string }).code !== 'ENOTDIR') {
       logError(error)
     }
@@ -373,6 +371,7 @@ export function getPolicySettingsOrigin(): 'plist' | 'hklm' | 'file' | 'hkcu' | 
   return null
 }
 
+
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
   if (source === 'policySettings') {
     const mdm = getMdmSettings()
@@ -397,7 +396,6 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
   const parsed = parseSettingsFile(filePath)
   let settings = parsed.settings
   if (source === 'flagSettings') {
-
     const inline = getFlagSettingsInline()
     if (inline !== null) {
       const result = SettingsSchema().safeParse(inline)
@@ -417,10 +415,10 @@ export function getSettingsForSource(source: SettingSource): SettingsJson | null
   return value
 }
 
+
 let mergedLoadInProgress = false
 
 export function getSettingsWithErrors(): SettingsWithErrors {
-
   if (mergedLoadInProgress) {
     return { settings: {} as SettingsJson, errors: [] }
   }
@@ -445,7 +443,6 @@ export function getSettingsWithErrors(): SettingsWithErrors {
       }
       const filePath = getSettingsFilePathForSource(source)
       if (filePath !== undefined) {
-
         const resolved = resolve(filePath)
         const dedupeKey = process.platform === 'win32' ? resolved.toLowerCase() : resolved
         const firstRead = !filesRead.has(dedupeKey)
@@ -536,6 +533,7 @@ export function rawSettingsContainsKey(key: string): boolean {
   return false
 }
 
+
 const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
   'userSettings',
   'flagSettings',
@@ -579,6 +577,7 @@ export function getApolloPreflightQuestions(): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 7
 }
 
+
 function applyWriteMerge(target: Record<string, unknown>, partial: Record<string, unknown>): void {
   for (const [key, value] of Object.entries(partial)) {
     if (value === undefined) {
@@ -612,7 +611,6 @@ function acquireSettingsWriteLock(file: string): (() => void) | null {
           lockfilePath: `${file}.lock`,
           realpath: false,
           onCompromised: (err: Error) => {
-
             logForDebugging(`settings write lock compromised for ${file}: ${err}`, { level: 'error' })
           },
         })
@@ -661,7 +659,6 @@ export function updateSettingsForSource(
         try {
           parsedRaw = JSON.parse(stripBOM(raw))
         } catch {
-
           logForDebugging(`settings write refused: ${writePath} is not parseable JSON (a file mid-edit is never overwritten)`, {
             level: 'error',
           })
@@ -681,7 +678,6 @@ export function updateSettingsForSource(
         }
       }
     }
-
     const resolvedPartial =
       typeof partial === 'function' ? partial(structuredClone(baseSettings)) : partial
     applyWriteMerge(baseSettings, resolvedPartial as Record<string, unknown>)
@@ -689,7 +685,6 @@ export function updateSettingsForSource(
     if (source === 'userSettings') {
       const schemaPath = ensureLocalSettingsSchema()
       if (schemaPath !== null) {
-
         delete baseSettings.$schema
         const rest = { ...baseSettings }
         for (const k of Object.keys(baseSettings)) delete (baseSettings as Record<string, unknown>)[k]
@@ -699,7 +694,6 @@ export function updateSettingsForSource(
     }
 
     markInternalWrite(writePath)
-
     durableAtomicPublishSync(writePath, `${jsonStringify(baseSettings, null, 2)}\n`)
     resetSettingsCache()
 
@@ -734,7 +728,6 @@ export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {
     unlinkSync(writePath)
     resetSettingsCache()
   } catch (error) {
-
     logForDebugging(`settings husk prune skipped for ${writePath}: ${errorMessage(error)}`)
   }
 }

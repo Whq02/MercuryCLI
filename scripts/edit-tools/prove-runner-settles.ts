@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -100,7 +99,6 @@ section('§1 a grandchild holding the pipes cannot hold the turn')
   }
   const pid = readPid(pidFile)
   if (pid) {
-
     check('a run that ENDED cleanly leaves its descendants alone (no gratuitous sweep)', alive(pid), 'the grandchild was killed by a clean exit')
     process.kill(pid, 'SIGKILL')
   }

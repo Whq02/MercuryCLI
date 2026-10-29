@@ -37,7 +37,6 @@ export function renderToolResultMessage(
 ): React.ReactNode {
   const lines = (output.result ?? '').split('\n');
   const shown = verbose ? lines : lines.slice(0, 14);
-
   return (
     <WithCardTone state={output.journeyState ?? output.outcome}>
       {({ glyph, tone }) => (
@@ -56,7 +55,7 @@ export function renderToolResultMessage(
           <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>
         ) : null}
       </Box>
-
+  
       )}
     </WithCardTone>
   );

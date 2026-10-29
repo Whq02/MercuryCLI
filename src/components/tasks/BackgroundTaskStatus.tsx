@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -15,10 +16,9 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isManageableTask } from './taskStatusUtils.js'
 
 const MAIN_PILL_LABEL = 'main'
-
 const EXPAND_CHORD = 'shift + ↓'
-
 const ARROW_WIDTH = 2
+
 
 function Pill({
   id,

@@ -1,3 +1,4 @@
+
 import React, { memo } from 'react'
 import { Box, Text } from '../ink.js'
 import type { ToolResultBlockParam } from '../types/wire.js'
@@ -153,7 +154,6 @@ function MessageInner({
 
       case 'system': {
         if (message.subtype === 'compact_boundary') {
-
           const landing = messages?.find(row => row.type === 'assistant' && row.foldLanding?.boundaryId === message.uuid)
           return (
             <CompactBoundaryMessage
@@ -227,7 +227,6 @@ function MessageInner({
                 />
               )
             case "redacted_thinking": {
-
               if (!isTranscriptMode && !verbose) return null
               return (
                 <AssistantRedactedThinkingMessage key={index} addMargin={addMargin} />
@@ -294,7 +293,6 @@ function MessageInner({
             )
           }
           if (block.type === 'image') {
-
             imageOrdinal += 1
             const pasteId = pasteIds[imageOrdinal - 1]
             return (
@@ -351,9 +349,7 @@ function MessageInner({
         uuid: (message as { sourceUuid?: string }).sourceUuid ?? message.uuid,
         type: message.type,
         timestamp: (display as { timestamp?: string } | null)?.timestamp,
-
         ...((display as { queued?: true } | null)?.queued === true ? { queued: true as const } : {}),
-
         ...((display as { heldFor?: 'compaction' } | null)?.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
       }}
     >
@@ -376,7 +372,6 @@ function MessageInner({
 
 function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.message.uuid !== next.message.uuid) return false
-
   if ((prev.message as { queued?: true }).queued !== (next.message as { queued?: true }).queued) return false
   if ((prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false
   if ((prev.message as { timestamp?: string }).timestamp !== (next.message as { timestamp?: string }).timestamp) return false
@@ -389,7 +384,6 @@ function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.verbose !== next.verbose) return false
   if (prev.isLatestShellOutput !== next.isLatestShellOutput) return false
   if (prev.isTranscriptMode !== next.isTranscriptMode) return false
-
   if (prev.width !== next.width) return false
   if (prev.isStatic && next.isStatic) return true
   return false

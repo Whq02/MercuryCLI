@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -106,7 +105,6 @@ section('§E safety gates — anything unexpected is untouched')
 {
   const foreign = Buffer.from('{"type":"user","message":{"role":"user","content":"other era"}}\n')
   check('a non-record buffer returns UNCHANGED (same reference)', pruneRecordBranchesBeforeParse(foreign) === foreign)
-
   const smallFx = await writeForkedFixture({
     path: join(scratch, 'mostly-live.jsonl'),
     turns: 40,
@@ -116,9 +114,7 @@ section('§E safety gates — anything unexpected is untouched')
   })
   const smallRaw = readFileSync(smallFx.path)
   check('a mostly-live file is untouched (the half-dead gate)', pruneRecordBranchesBeforeParse(smallRaw) === smallRaw)
-
   check('keepAllLeaves folds every row (the caller gate)', fullLoad.messages.size === fx.liveUuids.length + fx.deadUuids.length)
-
   const metaOnly = Buffer.concat([raw.subarray(0, raw.indexOf(0x0a) + 1)])
   check('a header-only buffer is untouched', pruneRecordBranchesBeforeParse(metaOnly) === metaOnly)
 }

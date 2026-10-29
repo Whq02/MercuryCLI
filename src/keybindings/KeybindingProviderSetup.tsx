@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useNotifications } from '../context/notifications.js'
 import type { InputEvent, Key } from '../ink/events/input-event.js'
@@ -20,7 +21,6 @@ import { resolveKeyWithChordState, unboundConsumes } from './resolver.js'
 import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js'
 
 const CHORD_TIMEOUT_MS = 2000
-
 const CHORD_TIMEOUT_GRACE_MS = 2000
 
 const WARNING_NOTIFICATION_KEY = 'keybinding-warnings'
@@ -46,7 +46,6 @@ function ChordInterceptor({
   handlerRegistryRef,
 }: InterceptorProps): null {
   useInput((input: string, key: Key, event: InputEvent) => {
-
     const capture = currentKeyCapture();
     if (capture) {
       capture(input, key);
@@ -100,7 +99,6 @@ function ChordInterceptor({
               }
             }
           }
-
           event.stopImmediatePropagation();
         }
         break bb
@@ -112,7 +110,6 @@ function ChordInterceptor({
       }
       case "unbound": {
         setPendingChord(null)
-
         if (wasInChord || unboundConsumes(input, key)) event.stopImmediatePropagation()
         break bb
       }
@@ -161,7 +158,6 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
   const setPendingChord = useCallback((pending: ParsedKeystroke[] | null) => {
     pendingChordRef.current = pending
     setPendingChordState(pending)
-
     publishPendingChord(pending)
     if (chordTimeoutRef.current !== null) {
       clearTimeout(chordTimeoutRef.current)
@@ -174,11 +170,9 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
         pendingChordRef.current = null
         setPendingChordState(null)
         publishPendingChord(null)
-
         if (expired !== null) expiredChordRef.current = { pending: expired, at: Date.now() }
       }, CHORD_TIMEOUT_MS)
     } else {
-
       expiredChordRef.current = null
     }
   }, [])
@@ -195,7 +189,6 @@ export function KeybindingSetup({ children }: { children: React.ReactNode }): Re
 
   useEffect(() => {
     void initializeKeybindingWatcher()
-
     const unsubscribe = subscribeToKeybindingChanges(result => {
       setLoadResult(result)
       setIsReload(true)

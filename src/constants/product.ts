@@ -1,3 +1,4 @@
+
 function resolveMercuryVersion(): string {
   if (typeof MACRO !== 'undefined' && MACRO.VERSION) return MACRO.VERSION
   try {

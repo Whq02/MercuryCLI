@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -37,7 +36,6 @@ interface Send {
   minTick?: number
   awaitSettleTicks?: number
   mark?: string
-
   requireAwait?: boolean
 }
 
@@ -75,7 +73,6 @@ const env = {
 
 {
   const DOWN = String.fromCharCode(27) + '[B'
-
   const sends: Send[] = [
     { data: '\t', awaitText: 'SESSIONS', requireAwait: true, awaitSettleTicks: 2 },
     { data: ' ', afterPrevTicks: 2 },

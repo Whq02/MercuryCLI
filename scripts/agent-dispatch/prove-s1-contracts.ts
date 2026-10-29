@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { getEmptyToolPermissionContext } from '../../src/Tool.js'
 import type { CustomAgentDefinition } from '../../src/tools/AgentTool/loadAgentsDir.js'
 import { anthropicProviderAdapter } from '../../src/services/providers/anthropic/anthropicAdapter.js'
@@ -31,7 +30,6 @@ console.log(' S1 — contract freeze (adapter surface · launch plan)')
 console.log('============================================================')
 
 section('1 · ProviderAdapter — exactly the frozen member set')
-
 {
   const FROZEN_MEMBERS = [
     'id',
@@ -53,7 +51,6 @@ section('1 · ProviderAdapter — exactly the frozen member set')
 }
 
 section('2 · buildAgentLaunchPlan — decision laws')
-
 {
   const mkDef = (over: Partial<CustomAgentDefinition> = {}): CustomAgentDefinition => ({
     agentType: 'orbit-probe',

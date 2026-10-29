@@ -1,3 +1,4 @@
+
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { appendFile, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -57,7 +58,6 @@ export async function flushTraceNow(): Promise<void> {
   flushInFlight = true
   try {
     if (pendingLines.length === 0) return
-
     const snapshot = pendingLines
     pendingLines = []
     const path = getInvocationTracePath()
@@ -66,7 +66,6 @@ export async function flushTraceNow(): Promise<void> {
       flushFailureStreak = 0
       lastFlushFailure = null
       lastWriteOkAt = Date.now()
-
       appendsSinceCheck += snapshot.length
       if (appendsSinceCheck >= CHECK_EVERY) {
         appendsSinceCheck = 0
@@ -104,7 +103,6 @@ function enqueueTraceLine(line: string): void {
   enforcePendingCap()
   if (!teardownRegistered) {
     teardownRegistered = true
-
     registerCleanup(async () => {
       await flushTraceNow()
       const remaining = pendingLines.length
@@ -144,7 +142,6 @@ export async function maybeTrimTrace(path: string): Promise<void> {
     let slice = buf.subarray(buf.length - TRACE_KEEP_BYTES)
     const nl = slice.indexOf(0x0a)
     if (nl >= 0 && nl + 1 < slice.length) slice = slice.subarray(nl + 1)
-
     await durableAtomicPublish(path, slice)
   } catch {
   } finally {
@@ -168,7 +165,6 @@ export interface InvocationTrace {
 }
 
 export function isInvocationTraceEnabled(): boolean {
-
   if (isEnvDefinedFalsy(flagEnv(TRACE_ENV_VAR))) return false
   return (
     (isEnvTruthy(flagEnv(TRACE_ENV_VAR)) || isMercurySubstrateProfileOn())
@@ -183,7 +179,6 @@ export function buildInvocationTrace(
     durationMs?: number
     ok?: boolean
     outputMismatch?: boolean
-
     callReadOnly?: boolean
   } = {},
 ): InvocationTrace {
@@ -253,6 +248,7 @@ export function emitInvocationTrace(
   } catch {
   }
 }
+
 
 const COMPACTION_TRACE_OPT_OUT = 'MERCURY_COMPACTION_TRACE'
 

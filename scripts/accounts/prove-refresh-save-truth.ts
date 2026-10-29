@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,12 +8,10 @@ const HOME = join(SCRATCH, 'home')
 process.env.MERCURY_CONFIG_DIR = HOME
 mkdirSync(HOME, { recursive: true })
 delete process.env.MERCURY_HOME
-
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.ANTHROPIC_API_KEY
 delete process.env.ANTHROPIC_AUTH_TOKEN
 delete process.env.MERCURY_OAUTH_TOKEN
-
 delete process.env.CI
 delete process.env.NODE_ENV
 delete process.env.MERCURY_ANTHROPIC_OAUTH_BASE
@@ -95,7 +92,6 @@ section('§1 A REFUSED SAVE HOLDS THE FRESH PAIR')
   })())
   auth.clearOAuthTokenCache()
   issue = { access: 'at_new', refresh: 'rt_new' }
-
   {
     const oauth = await import(join(SRC, 'services/oauth/client.ts'))
     try {
@@ -146,7 +142,6 @@ section('§4 A STORE THAT MOVES UNDER A HELD PAIR WINS')
   issue = { access: 'at_b', refresh: 'rt_b' }
   check('the refresh holds the pair (refused save)', (await auth.checkAndRefreshOAuthTokenIfNeeded()) === true && held() !== null && accessNow() === 'at_b')
   writable()
-
   const landed = getSecureStorage().update({
     claudeAiOauth: { accessToken: 'at_login', refreshToken: 'rt_login', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: null, rateLimitTier: null },
   }) as { success: boolean }

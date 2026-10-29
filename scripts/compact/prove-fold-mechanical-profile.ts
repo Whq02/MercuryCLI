@@ -278,7 +278,6 @@ section("§5 the operator's abort keeps its own sentence — never dressed as a 
 }
 
 await fixture.close()
-
 stallServer.closeAllConnections?.()
 await new Promise<void>(resolve => stallServer.close(() => resolve()))
 clearTimeout(guard)

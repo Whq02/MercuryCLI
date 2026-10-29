@@ -63,7 +63,6 @@ section('default-OFF gate truth table (DEFAULT-OFF, opt in MERCURY_COMMIT_GATE=1
 {
   delete process.env.MERCURY_COMMIT_GATE
   check('OFF (no flag): commitGateEnabled() === false', fh.commitGateEnabled() === false)
-
   check('OFF: engageCommitGate is a no-op (returns false, no throw)', fh.engageCommitGate(sid) === false)
   check('OFF: nothing registered (byte-identical — no gate)', gateEngaged() === false)
 
@@ -73,7 +72,6 @@ section('default-OFF gate truth table (DEFAULT-OFF, opt in MERCURY_COMMIT_GATE=1
 
 section('engage installs the Bash guard (no ReferenceError — the original crash is fixed)')
 {
-
   const installed = fh.engageCommitGate(sid)
   check('engageCommitGate returned true (installed)', installed === true)
   check('isCommitGateEngaged(sid) === true (session-keyed guards)', fh.isCommitGateEngaged(sid) === true)
@@ -92,7 +90,6 @@ section('the installed gate DENIES a non-green commit and ALLOWS a green-gated o
     check('a green-gated `bun run build.ts && git commit` is ALLOWED', (await allowed('bun run build.ts && git commit -m "done"')) === true)
     check('the canonical `bash scripts/run-all-suites.sh && git commit` is ALLOWED', (await allowed('bash scripts/run-all-suites.sh && git commit -m "x"')) === true)
     check('a non-commit Bash command passes straight through', (await allowed('ls -la')) === true)
-
     const allowedPS = async (cmd: string) => judge('PowerShell', cmd)
     check('PowerShell-tool bare `git commit` is DENIED (HB-0130)', (await allowedPS('git commit -m "wip"')) === false)
     check('PowerShell-tool green-gated commit is ALLOWED', (await allowedPS('bun run build.ts && git commit -m "ok"')) === true)
@@ -112,14 +109,11 @@ section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)"
   check('--no-verify → no-verify-flag deny', cg.evaluateCommitGate('npm test && git commit --no-verify -m "x"').allow === false)
   check('chained verify → chained-verify allow', cg.evaluateCommitGate('npm test && git commit -m "x"').rule === 'chained-verify')
   check('no commit at all → not-a-commit allow', cg.evaluateCommitGate('echo hi').allow === true)
-
   check('a commit MESSAGE containing "test" does NOT satisfy the gate', cg.evaluateCommitGate('git commit -m "add a test"').allow === false)
-
   check('no-op head `echo pytest && git commit` is DENIED (HB-0099)', cg.evaluateCommitGate('echo pytest && git commit -m "x"').allow === false)
   check('no-op head `true vitest && git commit` is DENIED (HB-0099)', cg.evaluateCommitGate('true vitest && git commit -m "x"').allow === false)
   check('no-op head `: green-gate && git commit` is DENIED (HB-0099)', cg.evaluateCommitGate(': green-gate && git commit -m "x"').allow === false)
   check('no-op head `test -f x && git commit` is DENIED (HB-0099)', cg.evaluateCommitGate('test -f x && git commit -m "x"').allow === false)
-
   check('real verify `pytest && git commit` is ALLOWED', cg.evaluateCommitGate('pytest && git commit -m "x"').allow === true)
   check('env-prefixed real verify `FOO=1 pytest && git commit` is ALLOWED', cg.evaluateCommitGate('FOO=1 pytest && git commit -m "x"').allow === true)
 
@@ -128,10 +122,8 @@ section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)"
   check('`pnpm -C pkg test && git commit` is ALLOWED', cg.evaluateCommitGate('pnpm -C pkg test && git commit -m "x"').allow === true)
   check('`yarn --cwd pkg test && git commit` is ALLOWED', cg.evaluateCommitGate('yarn --cwd pkg test && git commit -m "x"').allow === true)
   check('`npm -w app run build && git commit` is ALLOWED', cg.evaluateCommitGate('npm -w app run build && git commit -m "x"').allow === true)
-
   check('piped verify `npm test | tail -5 && git commit` stays DENIED', cg.evaluateCommitGate('npm test | tail -5 && git commit -m "x"').allow === false)
   check('subshell verify `(cd pkg && npm test) && git commit` is ALLOWED', cg.evaluateCommitGate('(cd pkg && npm test) && git commit -m "x"').allow === true)
-
   check('`npm --prefix` with no verb stays DENIED', cg.evaluateCommitGate('npm --prefix tools/x && git commit -m "x"').allow === false)
 }
 

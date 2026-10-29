@@ -148,7 +148,6 @@ const wipeMarkers = (work: string) => {
   const handlers = (work: string) => ({
     'relia-two-step': {
       rollForward: async () => {
-
         writeFileSync(join(work, 'marker-1'), 'one')
         writeFileSync(join(work, 'marker-2'), 'two')
       },
@@ -197,7 +196,6 @@ const wipeMarkers = (work: string) => {
         `§4 [${b.fault}] recovery ROLLED FORWARD — the fully-applied op completed`,
       )
     }
-
     const second = await recoverJournalDir(dir, handlers(work))
     ok(
       second.compensated.length === 0 && second.rolledForward.length === 0,
@@ -210,7 +208,6 @@ const wipeMarkers = (work: string) => {
   const dir = join(tmp, 'j5')
   const work = join(tmp, 'w5')
   mkdirSync(work, { recursive: true })
-
   spawnSync(BUN, ['run', CHILD], {
     env: {
       ...process.env,
@@ -247,7 +244,6 @@ const wipeMarkers = (work: string) => {
 {
   const dir = join(tmp, 'j6')
   mkdirSync(dir, { recursive: true })
-
   const child = Bun.spawn([BUN, '-e', 'setTimeout(() => {}, 30_000)'], { stdout: 'ignore', stderr: 'ignore' })
   try {
     const crafted: DurableOperation = {
@@ -275,7 +271,6 @@ const wipeMarkers = (work: string) => {
   } finally {
     child.kill()
   }
-
   const dirB = join(tmp, 'j6b')
   mkdirSync(dirB, { recursive: true })
   const ghost: DurableOperation = {

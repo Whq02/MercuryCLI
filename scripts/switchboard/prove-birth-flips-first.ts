@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -166,7 +165,6 @@ writeFileSync(
     theme: 'dark',
     hasCompletedOnboarding: true,
     projects: { [cwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
-
     switchboardCapacity: { askedAt: 0, allowed: true, recommendedSeats: 1 },
   }),
 )
@@ -197,7 +195,6 @@ const child = spawn(
       MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       MERCURY_DAEMON_DIR: daemonDir,
-
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_TERMINAL_TITLE: '0',
       MERCURY_CRITTER_IDLE: '0',
@@ -216,7 +213,6 @@ child.stderr.on('data', d => (driverOut += d))
 const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
 await driverClosed(child)
 clearTimeout(killer)
-
 const reaped: number[] = []
 type Worker = { pid?: number; endedAt?: number; sessionId?: string }
 let workers: Record<string, Worker> = {}
@@ -249,12 +245,10 @@ if (sendRecs.length === sends.length) {
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
-
   check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family — the rows say not signed in · /logins)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && /not signed in · \/logins/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
   check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
   check('…and the receipt says what frees a seat, levers first: stop or park a session on the Session Concourse, or /seats N', /stop or park a session on the Session Concourse/.test(t(refusedFrame)) && /\/seats N/.test(t(refusedFrame)), refusedFrame.rows[refusedFrame.rows.length - 1]?.trim().slice(0, 120) ?? '')
   check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
-
   const milestonesPath = join(configDir, 'launch-milestones.json')
   const rows = existsSync(milestonesPath)
     ? ((JSON.parse(readFileSync(milestonesPath, 'utf8')) as { rows?: Array<{ milestone: string; atMs: number }> }).rows ?? [])
@@ -264,7 +258,6 @@ if (sendRecs.length === sends.length) {
   const landed = names.indexOf('birth-landed')
   const refused = names.indexOf('birth-refused')
   check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, names.join(' → '))
-
   const records = Object.values(workers)
   const lastOut = recs.filter(r => r.ts !== undefined).map(r => r.ts!).pop() ?? 0
   check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board; the one record ends with the screen’s own shutdown)', records.length === 1 && new Set(records.map(w => w.sessionId)).size === 1 && records.every(w => w.endedAt === undefined || w.endedAt >= lastOut - 5000), text(records.map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, endedAfterTheDrive: w.endedAt === undefined ? null : w.endedAt - lastOut }))))
@@ -272,13 +265,11 @@ if (sendRecs.length === sends.length) {
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')
 {
-
   const socket = read('src/daemon/controlServer.ts')
   check('the admit answer carries the retained-model note across the control socket', /const ADMIT_WIRE_KEYS = \[[^\]]*'note'[^\]]*\]/.test(socket))
   const daemon6 = read('src/daemon/concourseWorkers.ts')
   check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', daemon6.includes("validated.reason.startsWith('no-credential:')") && daemon6.split('retainedNote !== undefined').length >= 4)
   check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
-
   const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
   const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
   const configDir2 = join(home2, '.mercury')
@@ -295,7 +286,6 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
     'w-old': { schema: 1, runnerId: 'w-old', sessionId: sessionId2, workspaceId: cwd2, isolation: 'shared', modelKey: 'claude-opus-5', spawnedAt: NOW - 7 * 60_000, lastLiveAt: NOW - 6 * 60_000, endedAt: NOW - 5 * 60_000 },
   }
   writeFileSync(join(daemonDir2, 'concourse-workers.json'), `${JSON.stringify({ version: 1, workers: workers2 }, null, 1)}\n`)
-
   const prevCfg = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = configDir2
   const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')

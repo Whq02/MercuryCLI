@@ -20,12 +20,11 @@ import { DEEPSEEK_DISPLAY_PINS } from '../../services/providers/deepseek/deepsee
 import { KIMI_DISPLAY_PINS } from '../../services/providers/moonshot/kimiPins.js'
 import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
 
+
 const TTL_ROW = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')!
 
 function readDialState(): {
-
   saved: string | null
-
   envPin: { spelling: string; value: string } | null
 } {
   const saved = readBootEnvChoices() ?? {}
@@ -35,7 +34,6 @@ function readDialState(): {
 
 interface FamilyCachingRow {
   route: CallModelRoute
-
   lines: string[]
   dial?: boolean
 }
@@ -62,7 +60,6 @@ function familyRows(): FamilyCachingRow[] {
       route: 'anthropic',
       dial: true,
       lines: [
-
         'how long Anthropic keeps your conversation cached between prompts — Anthropic calls only',
         `adaptive picks per session from how you actually work · 1h is explicit billing consent`,
         `cache economy: reads ${CACHE_COST.read}× input price · 5m writes ${CACHE_COST.write5m}× · 1h writes ${CACHE_COST.write1h}×`,
@@ -122,7 +119,6 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
   const cycle = (direction: 1 | -1): void => {
     if (!rows[cursor]?.dial) return
     if (dial.envPin !== null) {
-
       setNote(
         `pinned by the environment (${dial.envPin.spelling}=${dial.envPin.value}) — explicit env always wins; unset it to dial from here`,
       )
@@ -139,7 +135,6 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
     }
     setNote(null)
     setDial(readDialState())
-
     setReceipt(readBootDefaultsProfile()?.receipt ?? null)
   }
 
@@ -198,8 +193,7 @@ function CachingSurface({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Re
                   </Text>
                 ) : null}
               </Box>
-              {
-}
+              {}
               {row.lines.map((line, li) => (
                 <Box key={li} paddingLeft={3}>
                   <Text color={t.textInstruction}>{line}</Text>

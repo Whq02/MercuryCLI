@@ -75,7 +75,6 @@ async function verificationCommand(command: string, worktree: string, receipt: s
     if (!args[1] || !/^[A-Za-z0-9_.-]+$/.test(args[1])) return null
     const inner = await verificationCommand(quote(args.slice(2)), worktree, receipt)
     if (inner === null || inner.lockRoot !== undefined) return null
-
     const base = boxLockDirOfScript(path)
     if (!base) return null
     let lockRoot: string
@@ -95,7 +94,6 @@ function confinedVerification(command: string, worktree: string, receipt: string
   const bun = flagEnv('MERCURY_BUN') || whichSync('bun')
   const environment = [`HOME=${home}`, `TMPDIR=${scratch}`, `MERCURY_CONFIG_DIR=${home}`, 'MERCURY_CREDENTIAL_STORE=file', `XDG_CACHE_HOME=${join(scratch, 'cache')}`, ...(bun ? [`MERCURY_BUN=${bun}`, `BUN=${bun}`] : [])]
   if (process.platform === 'darwin') {
-
     const bin = join(scratch, 'bin')
     mkdirSync(bin)
     writeFileSync(join(bin, 'mktemp'), '#!/bin/sh\nexec /usr/bin/mktemp -p "${TMPDIR:?}" "$@"\n', { mode: 0o700 })
@@ -103,9 +101,7 @@ function confinedVerification(command: string, worktree: string, receipt: string
   }
   const inner = `cd ${quote([worktree])} && env ${quote(environment)} ${command}`
   const writeConfig = { allowOnly: [scratch, ...(lockRoot ? [lockRoot] : []), '/dev/null', '/dev/stdout', '/dev/stderr', '/dev/tty'], denyWithinAllow: [worktree, receipt] }
-
   if (process.platform === 'darwin') {
-
     const profilePath = join(scratch, 'filesystem.sb')
     writeConfig.denyWithinAllow.push(profilePath)
     const profile = ['(version 1)', '(allow default)', '(deny file-write*)', '(deny file-link)',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -31,7 +30,6 @@ console.log(' unified launch profiles — discovery · identity · execution')
 console.log('============================================================')
 
 const proj = mkdtempSync(path.join(tmpdir(), 'mercury-launch-'))
-
 writeFileSync(path.join(proj, 'pyproject.toml'), '[project]\nname = "launch-fixture"\nversion = "0.0.1"\n')
 writeFileSync(path.join(proj, 'hello.py'), 'import sys\nvalue = 21 * 2\nprint("answer:", value)\n')
 mkdirSync(path.join(proj, 'tests'))
@@ -184,7 +182,6 @@ try {
     const d2 = await launch.discoverLaunchProfiles(proj)
     check('B1 two discoveries agree on every id', JSON.stringify(d.profiles.map(p => p.id)) === JSON.stringify(d2.profiles.map(p => p.id)))
     writeFileSync(path.join(proj, 'hello.py'), 'print("changed")\n')
-
     const d3 = await launch.discoverLaunchProfiles(proj)
     check('B2 ids are payload-stable (a content edit does not reshuffle)', d3.profiles.some(p => p.id === d.profiles.find(q => q.label === 'hello (py)')?.id))
     writeFileSync(path.join(proj, 'hello.py'), 'import sys\nvalue = 21 * 2\nprint("answer:", value)\n')
@@ -228,7 +225,6 @@ try {
     const dap = await import('../../src/services/dap/dapClient.js')
     const { makeOwnerKey } = await import('../../src/services/run/ownerKey.js')
     void makeOwnerKey
-
     const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
     const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
     await disposeOwner(ownerFromToolUseContext(ctx))

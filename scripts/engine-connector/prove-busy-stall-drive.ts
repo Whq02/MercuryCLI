@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
@@ -41,7 +40,6 @@ const { runArtifactArena, grabScreens } = await import('../streaming/artifactAre
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { CARRIER_GONE_WORDS } = await import('../../src/services/engine-connector/daemonConnector.ts')
-
 const TAG = keyHintLabel('⇧← back')
 
 const api = await startFixtureApi([
@@ -58,7 +56,6 @@ function mkdirSyncTemp(tag: string): string {
 }
 process.env.MERCURY_DAEMON_DIR = daemonDir
 const logFd = openSync(join(daemonDir, 'drive-daemon.log'), 'a')
-
 const TRACE = join(daemonDir, '..', 'connector-trace.jsonl')
 
 let daemon: ReturnType<typeof spawn> | null = null
@@ -133,9 +130,7 @@ const killLeg = (async () => {
 
 const runPromise = runArtifactArena({
   turns: [],
-
   sends: ['8500:\t', '10000:\r', '11500:\r'],
-
   anchor: null,
   seconds: 92,
   cols: 120,
@@ -184,11 +179,9 @@ const runPromise = runArtifactArena({
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_CACHE_CLOCK: '0',
     DEBUG: '1',
-
     MERCURY_CONNECTOR_TRACE: TRACE,
   },
 })
-
 const proverStartedAt = Date.now()
 const teeWatcher = (async () => {
   const { readdirSync: rd, statSync: st } = await import('node:fs')
@@ -199,7 +192,6 @@ const teeWatcher = (async () => {
       for (const name of rd(base)) {
         if (!name.startsWith('flux-arena-home-')) continue
         const candidate = join(base, name, 'tee.jsonl')
-
         if (existsSync(candidate) && st(candidate).mtimeMs > proverStartedAt) {
           teePathForKill = candidate
           return true
@@ -235,7 +227,6 @@ mkdirSync(KEEP_DIR, { recursive: true })
   for (const g of grabs) {
     writeFileSync(join(KEEP_DIR, `at${String(g.atMs).padStart(6, '0')}.txt`), g.rows.map((r: string) => r.replace(/\s+$/, '')).join('\n') + '\n')
   }
-
   check(`pre-kill: the chat was ENTERED (the tag bar with the way back, over the held prompt) — read at arena+${attached?.atMs ?? 0}ms`, attached !== undefined && entered(attached), `no frame between the attach (+${attachedAtArenaMs}ms) and the kill (+${killedAtArenaMs}ms) carried both; see the kept capture`)
   const settledIdle = (g: { rows: string[] } | undefined): boolean => text(g).includes(CARRIER_GONE_WORDS) && /\bready ·/.test(text(g))
   check(`post-kill: 9 s after the kill the chat has settled idle through the carrier-gone road — the notice "${CARRIER_GONE_WORDS}" painted, the status row ready (the held prompt stays a transcript row)`, text(frozen).length > 0 && settledIdle(frozen), text(frozen).split('\n').filter(r => /ready ·|daemon ended|⇧← back/.test(r)).map(r => r.trim()).join(' | ').slice(0, 300) || '(no frame)')
@@ -262,7 +253,6 @@ mkdirSync(KEEP_DIR, { recursive: true })
           const body = readFileSync(p, 'utf8')
           if (body.includes('is gone (') && body.includes('settling idle, dropping its work rows, saying so')) settleSeen = true
           if (body.includes('busy turn stalled')) stallSeen = true
-
           if (p.includes(`${sep}debug${sep}`)) writeFileSync(join(KEEP_DIR, `debug-${name}`), body)
         }
       } catch {
@@ -271,7 +261,6 @@ mkdirSync(KEEP_DIR, { recursive: true })
     }
   }
   walkForSettle(run.paths.home, 0)
-
   let traceNote = 'no connector trace was written'
   try {
     const trace = readFileSync(TRACE, 'utf8')

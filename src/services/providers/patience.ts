@@ -5,13 +5,9 @@ import { getInitialSettings } from '../../utils/settings/settings.js'
 type PatienceMode = 'normal' | 'patient' | 'custom'
 
 interface PatienceNumbers {
-
   streamIdleMs: number
-
   quietStreamIdleMs: number
-
   fallbackCeilingMs: number
-
   recoveryBudgetMinutes: number
 }
 

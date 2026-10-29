@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -108,11 +107,9 @@ section('P6 the journal: one queue-operation row, operation pop, carrying the wo
   q.resetCommandQueue()
   q.enqueue(cmd(9, 'the words the journal keeps'))
   q.popById(String(uuid(9)))
-
   const { recordTranscript } = await import('../../src/utils/sessionStorage.ts')
   const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
   await recordTranscript([createUserMessage({ content: 'a real message materializes the file' })])
-
   const rows: Array<{ operation?: string; content?: string }> = []
   const deadline = Date.now() + 3000
   const walk = (dir: string): void => {

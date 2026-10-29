@@ -6,35 +6,26 @@ export type SlotKind = 'subscription' | 'api-key'
 
 export interface SlotSeatView {
   family: SwitchableFamily
-
   active?: SlotKind
-
   activeLabel?: string
-
   other?: {
     kind: SlotKind
     label: string
-
     walled: boolean
-
     wallKnown: boolean
     resetsAtMs?: number
   }
-
   envPinned?: string
 }
 
 export interface SlotSwitchReads {
-
   anthropicSubscriptionStored?: () => boolean
   anthropicManagedKeyPresent?: () => boolean
   anthropicSubscriberSeat?: () => boolean
   anthropicEnvCredential?: () => string | undefined
   anthropicSubscriptionLabel?: () => string
   anthropicWall?: () => { walled: boolean; resetsAtMs?: number }
-
   anthropicDepartedWall?: () => { kind: SlotKind; resetsAtMs: number } | null
-
   openaiSubscription?: () => { label: string } | undefined
   openaiKey?: () => { source: 'env' | 'stored' } | undefined
   openaiActiveKind?: () => ('chatgpt-subscription' | 'api-key') | undefined
@@ -92,7 +83,6 @@ function liveReads(): Required<SlotSwitchReads> {
         : { walled: false }
     },
     anthropicDepartedWall: () => {
-
       if (departedAnthropicWall !== null && departedAnthropicWall.resetsAtMs <= Date.now()) {
         departedAnthropicWall = null
       }
@@ -128,7 +118,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
     const subscription = r.openaiSubscription()
     const key = r.openaiKey()
     const activeKind = r.openaiActiveKind()
-
     const view: SlotSeatView = { family }
     if (activeKind !== undefined) {
       view.active = asSlotKind(activeKind)
@@ -147,7 +136,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
               ? (subscription?.label ?? 'ChatGPT subscription')
               : `OpenAI API key (${key?.source ?? 'stored'})`,
           walled: wall.state === 'limited',
-
           wallKnown: true,
           ...(wall.state === 'limited' ? { resetsAtMs: wall.resetsAtMs } : {}),
         }
@@ -155,7 +143,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
     }
     return view
   }
-
   const view: SlotSeatView = { family }
   const envPin = r.anthropicEnvCredential()
   if (envPin !== undefined) {
@@ -170,7 +157,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
     view.active = 'subscription'
     view.activeLabel = r.anthropicSubscriptionLabel()
     if (keyPresent) {
-
       view.other = {
         kind: 'api-key',
         label: 'Anthropic API key (/logins managed key)',
@@ -195,7 +181,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
         }
         return view
       }
-
       const departed = r.anthropicDepartedWall()
       if (departed !== null && departed.kind === 'subscription' && departed.resetsAtMs > Date.now()) {
         view.other = {
@@ -216,7 +201,6 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
     }
     return view
   }
-
   view.active = 'subscription'
   view.activeLabel = r.anthropicSubscriptionLabel()
   return view
@@ -226,9 +210,7 @@ export interface SlotSwitchWrites {
   writeOpenaiPreference?: (kind: 'chatgpt-subscription' | 'api-key') => void
   writeAnthropicPreference?: (kind: 'api-key' | null) => void
   resetAnthropicLimits?: () => void
-
   clearAuthHeaderCaches?: () => void
-
   noteAnthropicDepartedWall?: (wall: { kind: SlotKind; resetsAtMs: number } | null) => void
 }
 
@@ -276,10 +258,8 @@ export function slotWallAppendix(
     } — no headroom to offer.`
   }
   if (posture === 'auto') {
-
     return ` Cap failover posture 'auto' is armed: the active slot switches to the ${view.other.label} now — the next turn rides it (s on the family's row in /logins switches back).`
   }
-
   if (!view.other.wallKnown) {
     return ` The ${view.other.label} slot is signed in (its usage window is unobserved here); press one key on the wall card or s on the family's row in /logins to switch while keeping this sign-in connected.`
   }
@@ -329,7 +309,6 @@ export function switchActiveSlot(
   if (family === 'openai') {
     writes.writeOpenaiPreference(target === 'api-key' ? 'api-key' : 'chatgpt-subscription')
   } else {
-
     if (target === 'api-key' && view.active === 'subscription') {
       const activeWall = r.anthropicWall()
       if (activeWall.walled && activeWall.resetsAtMs !== undefined) {
@@ -338,11 +317,8 @@ export function switchActiveSlot(
     } else if (target === 'subscription') {
       writes.noteAnthropicDepartedWall(null)
     }
-
     writes.writeAnthropicPreference(target === 'api-key' ? 'api-key' : null)
-
     writes.resetAnthropicLimits()
-
     writes.clearAuthHeaderCaches()
   }
   const wallNote = view.other.walled

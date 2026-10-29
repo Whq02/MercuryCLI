@@ -1,3 +1,4 @@
+
 let graphemeSegmenter: Intl.Segmenter | null = null
 let wordSegmenter: Intl.Segmenter | null = null
 const relativeTimeFormats = new Map<string, Intl.RelativeTimeFormat>()
@@ -39,7 +40,6 @@ export function wordStartAfter(text: string, at: number): number {
 export function sliceHeadAtGrapheme(text: string, maxUnits: number): string {
   if (maxUnits <= 0) return ''
   if (text.length <= maxUnits) return text
-
   const windowStart = Math.max(0, maxUnits - 64)
   let end = windowStart
   for (const seg of getGraphemeSegmenter().segment(text.slice(windowStart, maxUnits + 64))) {

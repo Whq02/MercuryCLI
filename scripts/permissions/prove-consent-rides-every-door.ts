@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -12,7 +11,6 @@ delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_WARM_RUNNER
 delete process.env.MERCURY_DAEMON_NO_SELF_WARM
 delete process.env.MERCURY_SKIP_PERMISSIONS
-
 writeFileSync(
   join(HOME, '.credentials.json'),
   JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -167,7 +165,6 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   const recordsDir = mkdtempSync(join(tmpdir(), 'sovereign-doors-daemon-'))
   const roster = new FakeRoster()
   const deps = { roster: () => roster, dir: recordsDir }
-
   const ws = (): string => realpathSync(mkdtempSync(join(tmpdir(), 'sovereign-doors-ws-')))
   const claim = (workspaceDir: string, bypassConsent: boolean, permissionMode: string) =>
     warm.claimWarmRunner(
@@ -181,11 +178,9 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   const specA = roster.registered.at(-1)?.spec
   check('(a) a consented ensure warms a runner', a.state === 'warmed', a.detail ?? '')
   check('(a) …whose spec carries the consent and whose argv carries the allow flag', specA?.allowBypass === true && buildRunnerInvocation(specA!).argv.includes(ALLOW))
-
   const b = await claim(wsA, false, 'default')
   check('(b) an UNCONSENTED claim on the consented runner declines, naming the consent', b.claimed === false && /consent/i.test(b.claimed === false ? b.reason : ''), b.claimed === false ? b.reason : 'claimed')
   check('(b) …and the runner retires (never serves an unconsented birth)', roster.killed.length === 1 && warm.warmRunnerCount() === 0)
-
   const wsB = ws()
   const cEnsure = await warm.ensureWarmRunner({ workspaceDir: wsB }, deps)
   const specB = roster.registered.at(-1)?.spec
@@ -193,14 +188,12 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   const c = await claim(wsB, true, 'sovereign')
   check('(c) a CONSENTED sovereign claim on it declines (the runner could only refuse the posture)', c.claimed === false && /consent/i.test(c.claimed === false ? c.reason : ''), c.claimed === false ? c.reason : 'claimed')
   check('(c) …and that runner retires too', roster.killed.length === 2)
-
   const wsC = ws()
   const dEnsure = await warm.ensureWarmRunner({ workspaceDir: wsC, bypassConsent: true }, deps)
   const d = await claim(wsC, true, 'sovereign')
   const lastClaim = roster.claims.at(-1)?.params
   check('(d) an equal-consent claim LANDS on the consented runner', dEnsure.state === 'warmed' && d.claimed === true, d.claimed === false ? d.reason : '')
   check('(d) …with the sovereign posture riding session/claim', lastClaim !== undefined && lastClaim.mode === 'sovereign', JSON.stringify(lastClaim))
-
   const wsD = ws()
   const e1 = await warm.ensureWarmRunner({ workspaceDir: wsD }, deps)
   const killedBefore = roster.killed.length

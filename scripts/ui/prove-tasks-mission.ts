@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -58,7 +57,6 @@ console.log('\n── A. mission ledger + zero runs (120 cols) ─────�
 
 console.log('\n── B. runs only, empty ledger (80 cols) ────────────────────')
 {
-
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const { vshotBudgetMs: S } = await import('../lib/captureDriver.ts')
   const run = await runArtifactArena({
@@ -72,10 +70,8 @@ console.log('\n── B. runs only, empty ledger (80 cols) ───────
   try {
     const [snap] = grabScreens(run, 80, 40, [S(14500)])
     const all = snap!.rows.join('\n')
-
     check('the typed bang delivers (the echo row paints in the session as a shell row, "! sleep 300", never the prompt caret — F33A-B-SH-06)', all.includes('! sleep 300') && !all.includes('❯ sleep 300'), all.split('\n').filter(r => /sleep/.test(r)).join(' | ').slice(0, 200))
     check('no Mission header on an empty ledger (restraint)', !all.includes('Mission ('))
-
     check('EXPECTED-DEFECT: the running bang shell paints no background hint yet — its return re-pins the full journey', !all.includes('run in background'), all.split('\n').filter(r => /background/.test(r)).join(' | ').slice(0, 200))
   } finally {
     run.cleanup()
@@ -88,12 +84,9 @@ console.log('\n── source ratchet ──────────────�
   check('the unscoped "no tasks currently running" string stays retired', !src.includes('no tasks currently running'))
   check('the dialog reads the vitals bus (the rail\'s feed)', src.includes('useVitals'))
   check('back-from-detail is mission-aware (never closes past an open ledger)', src.includes('ledgerOpenCount === 0'))
-
   check('windowing reuses computeSessionWindow (the proven slider)', src.includes('computeSessionWindow(') && src.includes("from '../mercury-ui/screens/SessionManagerView.js'"))
   check('honest overflow counts frame the process area', src.includes('↑ {winStart} more') && src.includes('more</Text>'))
-
   check('every section renders only its windowed rows', (src.match(/\.filter\(inWin\)\.map\(/g) ?? []).length >= 5)
-
   check('the age column derives from the real startTime and stops at the real endTime', src.includes('item.task?.startTime ?? item.work?.startTime') && src.includes('const ended = item.task?.endTime ?? item.work?.endTime') && src.includes('const elapsed = boardRowElapsedMs(item, now)'))
 }
 

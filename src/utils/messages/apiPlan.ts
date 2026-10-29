@@ -7,7 +7,6 @@ import type {
   SystemLocalCommandMessage,
   UserMessage,
 } from '../../types/message.js'
-
 import {
   getImageTooLargeErrorMessage,
   getPdfInvalidErrorMessage,
@@ -73,11 +72,8 @@ export type PlannedMessage =
   | SystemLocalCommandMessage
 
 export type ApiConversationPlan = {
-
   selected: PlannedMessage[]
-
   stripTargets: Map<string, Set<string>>
-
   availableToolNames: Set<string>
 }
 

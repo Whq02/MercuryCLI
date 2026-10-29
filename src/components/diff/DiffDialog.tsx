@@ -1,3 +1,4 @@
+
 import { appendFileSync } from 'fs'
 import { isAbsolute, relative, resolve } from 'path'
 import * as React from 'react'
@@ -139,7 +140,6 @@ export function DiffDialog({
       { type: 'current' },
       { type: 'unstaged' },
       { type: 'staged' },
-
       ...[...turnDiffs].reverse().map(turn => ({ type: 'turn' as const, turn })),
       ...extraSources,
     ],
@@ -147,7 +147,6 @@ export function DiffDialog({
   )
 
   const [sourceIndexRaw, setSourceIndex] = useState(0)
-
   const sourceIndex = Math.min(sourceIndexRaw, Math.max(0, sources.length - 1))
   const source = sources[sourceIndex] ?? { type: 'current' as const }
   const currentSourceKey = sourceKey(source)
@@ -159,7 +158,6 @@ export function DiffDialog({
     open: false,
     text: '',
   })
-
   const [reviewRevision, setReviewRevision] = useState(0)
 
   const gitData = useDiffData(sourceGitSpec(source) ?? undefined)
@@ -188,11 +186,9 @@ export function DiffDialog({
     selectedIndex = files.findIndex(file => normalise(file.path) === wanted)
   }
   if (selectedIndex === -1) {
-
     selectedIndex = Math.min(rememberedIndexRef.current, Math.max(0, files.length - 1))
   }
   const selectedFile = files[selectedIndex]
-
   rememberedIndexRef.current = files.length > 0 ? selectedIndex : 0
   useEffect(() => {
     if (selectedFile && selectedFile.path !== selectedPath) {
@@ -239,10 +235,8 @@ export function DiffDialog({
     const next = (selectedIndex + delta + files.length) % files.length
     const file = files[next]
     if (file) setSelectedPath(file.path)
-
     setHunkIndex(0)
   }
-
   const discardComment = () => {
     setComposer({ open: false, text: '' })
     setNote('comment discarded')
@@ -273,7 +267,6 @@ export function DiffDialog({
       )
       return
     }
-
     void setClipboard(selectedFile.path).then(sequence => {
       if (sequence) process.stdout.write(sequence)
     })
@@ -323,7 +316,6 @@ export function DiffDialog({
       setNote('no hunk under the cursor to comment on')
       return
     }
-
     let targetArtifact = artifactId
     if (!targetArtifact) {
       const minted = await ensureDiffArtifact({
@@ -470,7 +462,6 @@ export function DiffDialog({
   bind('diff:sendAllComments', () => sendAction('all'))
 
   const wideSummary = columns >= SUMMARY_SIDE_BY_SIDE_MIN_COLS
-
   const bodyBudget = Math.max(4, (termRows || 24) - 12 - (wideSummary ? 0 : 7))
   const listRows = Math.max(4, Math.min(files.length, bodyBudget))
   usePopupListPaging(selectedIndex, files.length, listRows, next => { setSelectedPath(files[next]?.path ?? null); setHunkIndex(0); setNote(null) }, viewMode === 'list' && !composer.open)
@@ -525,7 +516,6 @@ export function DiffDialog({
     if (viewMode === 'list') {
       if (sources.length > 1) parts.push('←→ source')
       if (files.length > 1) parts.push('↑↓ file', 'pgup/pgdn page')
-
       if (files.length > 0) parts.push('↵ view', 'c copy path')
       if (files.length > 0 && editorConfigured) parts.push('o open')
     } else {
@@ -730,7 +720,6 @@ export function DiffDialog({
                 <TextInput
                   value={composer.text}
                   onChange={text =>
-
                     setComposer({ open: true, text: text.replace(/\r?\n/g, ' ') })
                   }
                   cursorOffset={composer.text.length}

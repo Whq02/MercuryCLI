@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   INITIAL_STATE,
   type KeyParseState,
@@ -54,7 +53,6 @@ const keys = (events: ParsedInput[]): ParsedKey[] =>
 console.log('native-core T4 — input interpretation contract')
 
 {
-
   const events = drive(['\x1b[<64;1', null, '0;5M', null])
   check('mid-flush: the held head and its tail make exactly one wheel key',
     keys(events).length === 1 && keys(events)[0]!.name === 'wheelup' && events.length === 1,
@@ -84,7 +82,6 @@ console.log('native-core T4 — input interpretation contract')
     check(`flush-split head ${JSON.stringify(head)}: no param bytes leak as text`,
       leaked === '', JSON.stringify(leaked))
   }
-
   {
     const ev = drive(['\x1b[114;1:3u', null]).filter(e => e.kind === 'key') as ParsedKey[]
     const text = ev.map(k => new InputEvent(k).input).join('')
@@ -177,7 +174,6 @@ console.log('native-core T4 — input interpretation contract')
   check('SGR click at 1;1 decodes',
     click.length === 1 && click[0]!.kind === 'mouse' && click[0]!.col === 1 && click[0]!.row === 1,
     JSON.stringify(click))
-
   const splitPress = drive(['\x1b[<0;35;15', '0M', null])
   check('SGR press split across two writes reassembles into ONE mouse event',
     splitPress.length === 1 && splitPress[0]!.kind === 'mouse' &&
@@ -194,7 +190,6 @@ console.log('native-core T4 — input interpretation contract')
   check('SGR release (m) decodes as release',
     release.length === 1 && release[0]!.kind === 'mouse' && release[0]!.action === 'release',
     JSON.stringify(release))
-
   const drag = drive(['\x1b[<32;4;4M', null])
   check('SGR drag decodes (button carries the motion bit)',
     drag.length === 1 && drag[0]!.kind === 'mouse' && drag[0]!.button === 32 &&
@@ -223,7 +218,6 @@ console.log('native-core T4 — input interpretation contract')
 }
 
 {
-
   const two = drive(['[<64;10;5M[<64;10;6M', null])
   const twoKeys = keys(two)
   check('orphan: two ESC-less wheels ⇒ 2 wheel keys',
@@ -259,7 +253,6 @@ console.log('native-core T4 — input interpretation contract')
     feeds.push(journey.slice(prev))
     feeds.push(null)
     const events = drive(feeds)
-
     const paste = keys(events).find(k => k.isPasted)
     check(`no-fabrication rep ${rep}: paste content exact`,
       paste !== undefined && paste.sequence === 'paste 内容', JSON.stringify(paste?.sequence))
@@ -277,7 +270,6 @@ console.log('native-core T4 — input interpretation contract')
 {
   const cases: Array<[string, string, (key: InputEvent['key'], input: string) => boolean]> = [
     ['escape', '\x1b', (key, input) => key.escape === true && input === ''],
-
     ['raw NUL (ctrl+`)', '\x00', (key, input) => key.ctrl === true && input === '`'],
     ['csi-u ctrl+space', '\x1b[32;5u', (key, input) => key.ctrl === true && input === ' '],
     ['up arrow', '\x1b[A', (key, input) => key.upArrow === true && input === ''],
@@ -288,7 +280,6 @@ console.log('native-core T4 — input interpretation contract')
     ['plain text', 'q', (key, input) => key.shift === false && input === 'q'],
     ['unmapped csi-u codepoint', '\x1b[57358;1u', (_key, input) => input === ''],
     ['pgup', '\x1b[5~', (key, input) => key.pageUp === true && input === ''],
-
     ['kitty tab press-tagged', '\x1b[9;1:1u', (key, input) => key.tab === true && input === ''],
     ['kitty tab REPEAT acts', '\x1b[9;1:2u', (key, input) => key.tab === true && input === ''],
     ['kitty tab release swallows', '\x1b[9;1:3u', (key, input) => key.tab === false && input === ''],
@@ -296,7 +287,6 @@ console.log('native-core T4 — input interpretation contract')
     ['kitty down release swallows', '\x1b[1;1:3B', (key, input) => key.downArrow === false && input === ''],
     ['kitty shifted-a with text field', '\x1b[97;2;65u', (key, input) => key.shift === true && input === 'A'],
     ['kitty alternate-keys subfield', '\x1b[97:65;1u', (_key, input) => input === 'a'],
-
     ['kitty ctrl+ф resolves base a', '\x1b[1092:1060:97;5u', (key, input) => key.ctrl === true && input === 'a'],
     ['kitty ctrl+а resolves base f', '\x1b[1072:1040:102;5u', (key, input) => key.ctrl === true && input === 'f'],
     ['kitty ctrl+ф empty-shifted subfield', '\x1b[1092::97;5u', (key, input) => key.ctrl === true && input === 'a'],
@@ -316,7 +306,6 @@ console.log('native-core T4 — input interpretation contract')
         JSON.stringify({ input: ev.input, key: ev.key }))
     }
   }
-
   {
     const { ENABLE_KITTY_KEYBOARD } = await import('../../src/ink/termio/csi.js')
     const m = /^\x1b\[>(\d+)u$/.exec(ENABLE_KITTY_KEYBOARD)
@@ -325,7 +314,6 @@ console.log('native-core T4 — input interpretation contract')
     check('request: the push keeps DISAMBIGUATE (0b1)', (flags & 0b1) !== 0, ENABLE_KITTY_KEYBOARD)
     check('request: report-all-keys / associated-text stay unset (plain typing stays plain)', (flags & 0b11000) === 0, ENABLE_KITTY_KEYBOARD)
   }
-
   {
     const glued = keys(drive(['abc\r', null]))
     check("split: 'abc\\r' is text + RETURN", glued.length === 2 && glued[1]?.name === 'return', JSON.stringify(glued.map(k => k.name)))
@@ -368,7 +356,6 @@ console.log('native-core T4 — input interpretation contract')
 
 {
   const { createScanner } = await import('../../src/ink/input/scanner.js')
-
   const families: Array<[string, string, string]> = [
     ['csi', '\x1b[1;5', 'csi'],
     ['ss3', '\x1bO', 'ss3'],
@@ -453,7 +440,6 @@ console.log('native-core T4 — input interpretation contract')
   const sealed = createScanner()
   sealed.feed('\x1b]11;rgb:aa')
   check('a bodied partial OSC still seals at the flush (the kill-chain guard stands)', sealed.flush().length === 0)
-
   const chordThenTyping = createScanner()
   chordThenTyping.feed('\x1b]abc')
   check('a chord followed by typing in ONE read seals at the first flush', chordThenTyping.flush().length === 0)
@@ -468,7 +454,6 @@ console.log('native-core T4 — input interpretation contract')
   check('the gate: win32 without WT_SESSION engages the paste law', dec.burstCrIsLineBreak('win32', {}) === true)
   check('the gate: Windows Terminal keeps the typed law (bracketed paste arrives there)', dec.burstCrIsLineBreak('win32', { WT_SESSION: 'x' }) === false)
   check('the gate: POSIX hosts keep the typed law', dec.burstCrIsLineBreak('darwin', {}) === false && dec.burstCrIsLineBreak('linux', {}) === false)
-
   check('the gate: VS Code on win32 keeps the typed law', dec.burstCrIsLineBreak('win32', { TERM_PROGRAM: 'vscode', TERM_PROGRAM_VERSION: '1.96' }) === false)
   check('the gate: mintty/MSYS on win32 keeps the typed law', dec.burstCrIsLineBreak('win32', { TERM_PROGRAM: 'mintty' }) === false && dec.burstCrIsLineBreak('win32', { MSYSTEM: 'MINGW64' }) === false)
   check('the gate: a version-less vscode marker stays conservative (paste law)', dec.burstCrIsLineBreak('win32', { TERM_PROGRAM: 'vscode' }) === true)

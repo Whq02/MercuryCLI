@@ -1,3 +1,4 @@
+
 import { updateConcourseWorkers } from './concourseWorkers.js'
 
 interface SessionContractAmendmentV1 {
@@ -7,15 +8,10 @@ interface SessionContractAmendmentV1 {
 }
 
 export interface SessionContractV1 {
-
   text: string
-
   status: 'draft' | 'acknowledged' | 'active' | 'amended' | 'closed'
-
   ackAt?: number
-
   amendedAt?: number
-
   amendments: SessionContractAmendmentV1[]
 }
 
@@ -23,7 +19,6 @@ type ContractOp = 'set' | 'ack' | 'amend' | 'close'
 
 interface ContractOpRequestV1 {
   op: ContractOp
-
   text?: string
 }
 
@@ -60,7 +55,6 @@ export function applyConcourseContractOp(
               standing === undefined
                 ? []
                 :
-
                   [...standing.amendments, { text: standing.text, at: Date.now(), by }],
           }
           out = { outcome: 'applied', detail: standing === undefined ? 'contract drafted' : 'contract drafted anew — the closed text is kept in its history' }

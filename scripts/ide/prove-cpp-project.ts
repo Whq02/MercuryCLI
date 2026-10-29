@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -144,7 +143,6 @@ section('(2) profile evidence — presets, configs, build dirs; ONE walk impleme
 
   const src = readFileSync(join(ROOT, 'src', 'services', 'ide', 'cppProject.ts'), 'utf8')
   check('cppProject REUSES probeCompileDb/compileDbRemedy from clangdLane', src.includes("from '../lsp/clangdLane.js'") && src.includes('probeCompileDb') && src.includes('compileDbRemedy'))
-
   check('…and implements no second verdict walk (no compile_flags.txt probing of its own)', !src.match(/existsSync\([^)]*compile_flags\.txt/) && !src.includes('COMPILE_DB_WALK'))
 }
 

@@ -63,7 +63,6 @@ async function waitFor(
 }
 
 await startAgentWatch(project)
-
 await new Promise(resolve => setTimeout(resolve, 200))
 
 {
@@ -104,7 +103,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
       afterAgent?.revision !== undefined &&
       beforeAgent.revision !== afterAgent.revision,
   )
-
   console.log('W6: in-flight object pinned to its start revision')
   check(
     'captured object untouched',
@@ -113,7 +111,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
 }
 
 {
-
   console.log('W4: an add in the (already-armed) native root notifies')
   const before = notifications
   mkdirSync(join(project, '.mercury', 'agents'), { recursive: true })
@@ -150,10 +147,8 @@ await new Promise(resolve => setTimeout(resolve, 200))
   const before = notifications
   noteSelfWrite(path)
   writeFileSync(path, agentFile('foundry-w5', 'self'))
-
   await new Promise(resolve => setTimeout(resolve, 900))
   check('no notification for the self-write', notifications === before, String(notifications - before))
-
   const result = await getAgentDefinitionsWithOverrides(project)
   check(
     'cache still invalidated (fresh read sees it)',
@@ -163,7 +158,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
 
 {
   console.log('W7: the REAL first-root probe — the scope\'s agents dir is ABSENT at arm time (AGENTVERIFY A6)')
-
   const project2 = join(scratch, 'project2')
   mkdirSync(join(project2, '.git'), { recursive: true })
   await startAgentWatch(project2)
@@ -203,7 +197,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
   }
   await waitFor('burst signal', () => notifications > before)
   await new Promise(resolve => setTimeout(resolve, 500))
-
   check('five writes coalesce', notifications - before <= 2, `delta=${notifications - before}`)
 }
 
@@ -211,7 +204,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
   console.log('W10: self-write suppression folds SPELLINGS (relative + symlink-divergent — the A6 ring fix)')
   const project2 = join(scratch, 'project2')
   await new Promise(resolve => setTimeout(resolve, 300))
-
   let before = notifications
   const prevCwd = process.cwd()
   process.chdir(project2)
@@ -220,7 +212,6 @@ await new Promise(resolve => setTimeout(resolve, 200))
   writeFileSync(join(project2, '.mercury', 'agents', 'self-rel.md'), agentFile('foundry-self-rel', 'self'))
   await new Promise(resolve => setTimeout(resolve, 900))
   check('a relative-spelled note suppresses its echo', notifications === before, `delta=${notifications - before}`)
-
   before = notifications
   const { realpathSync } = await import('node:fs')
   const realSpelled = join(realpathSync(join(project2, '.mercury', 'agents')), 'self-real.md')

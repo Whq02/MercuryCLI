@@ -16,9 +16,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 console.log('── FLUX S7 honest stopping state (shipped artifact) ──')
 
 const run = await runArtifactArena({
-
   turns: [{ kind: 'hang', deltas: ['thinking about it ', 'very carefully ', 'and slowly '], whenModel: 'opus' }],
-
   sends: ['4500:hello', '5300:\\r', 'after:thinking about it:800:\\x1b'],
   seconds: 15,
   probe: true,

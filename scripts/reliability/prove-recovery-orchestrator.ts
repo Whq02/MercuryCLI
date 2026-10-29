@@ -1,3 +1,4 @@
+
 import {
   mkdirSync,
   mkdtempSync,
@@ -105,7 +106,6 @@ console.log('— boot 2: idempotent re-run —')
 console.log('— boot 3: bounded epoch GC stays quiet —')
 {
   for (let i = 0; i < 80; i++) {
-
     mkdirSync(join(home, 'tasks', `plain-${i}`), { recursive: true })
   }
   for (let i = 0; i < 70; i++) {

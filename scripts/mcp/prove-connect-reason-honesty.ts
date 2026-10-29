@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -135,7 +134,6 @@ section('§3 LIVE — stdio')
 
 section('§4 LIVE — http and sse against a port nobody listens on')
 {
-
   const port = await new Promise<number>((resolve, reject) => {
     const probe = createServer()
     probe.once('error', reject)

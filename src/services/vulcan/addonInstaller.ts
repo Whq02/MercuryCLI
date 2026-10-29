@@ -1,3 +1,4 @@
+
 import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import * as path from 'node:path'
@@ -21,7 +22,6 @@ const ADDON_DIR = path.join('addons', 'mercury_vulcan')
 const PLUGIN_CFG_RES = 'res://addons/mercury_vulcan/plugin.cfg'
 const RUNTIME_AUTOLOAD = 'MercuryVulcanRuntimeBridge'
 const RUNTIME_AUTOLOAD_SCRIPT = 'res://addons/mercury_vulcan/core/runtime_bridge.gd'
-
 export const RUNTIME_AUTOLOAD_ROW_VALUE = `"*${RUNTIME_AUTOLOAD_SCRIPT}"`
 const RECEIPT_VALUE_CAP = 160
 
@@ -58,6 +58,7 @@ export function vulcanInstallStatus(projectRoot: string): VulcanInstallStatus {
   }
 }
 
+
 function projectGodotPath(projectRoot: string): string {
   return path.join(projectRoot, 'project.godot')
 }
@@ -78,14 +79,12 @@ function enabledPluginsFromText(text: string): string[] {
   return [...m[1]!.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(x => x[1]!)
 }
 
+
 export interface ProjectGodotEdit {
   section: string
   key: string
-
   previous?: string
-
   next?: string
-
   why: string
 }
 
@@ -127,11 +126,9 @@ export async function mutateProjectGodot(
     if (out.text === original) {
       return { ok: true, edits: [], receipts: [] }
     }
-
     if (road.before) await road.before(file)
     const tmp = `${file}.mercury-tmp-${process.pid}-${attempt}`
     writeFileSync(tmp, out.text)
-
     let current: string
     try {
       current = readFileSync(file, 'utf8')
@@ -145,7 +142,6 @@ export async function mutateProjectGodot(
       }
       continue
     }
-
     renameWithWin32RetrySync(tmp, file)
     road.after?.(file, original, out.text)
     return { ok: true, edits: out.edits, receipts: out.edits.map(formatProjectGodotReceipt) }
@@ -156,6 +152,7 @@ export async function mutateProjectGodot(
       'project.godot kept changing under concurrent edits (is the editor saving?) — no partial write was made; retry when the editor is idle',
   }
 }
+
 
 function sectionSpan(text: string, section: string): [number, number] | null {
   const m = new RegExp(`\\[${section}\\]`).exec(text)
@@ -235,6 +232,7 @@ function withEnabledPlugins(text: string, plugins: string[]): string {
   return text.replace(/\s*$/, `\n\n[editor_plugins]\n\nenabled=${arr}\n`)
 }
 
+
 export const PLUGIN_RELOAD_SCRIPT =
   'func run():\n' +
   '\tEditorInterface.call_deferred("set_plugin_enabled", "mercury_vulcan", false)\n' +
@@ -271,7 +269,6 @@ export async function reloadPluginOverBridge(projectRoot?: string, selector?: un
     }
     last = await client.request('editor_state', undefined, RELOAD_OP_TIMEOUT_MS)
     if (!last.ok) {
-
       dropped = true
       await sleep(Math.max(150, Math.min(client.backoffRemainingMs() + 50, 1_500)))
       continue
@@ -284,6 +281,7 @@ export async function reloadPluginOverBridge(projectRoot?: string, selector?: un
   return `plugin reload requested; the bridge ${dropped ? 'dropped and is back' : 'never dropped'} but the server start stamp did not change (${last.ok ? 'same server' : `[${last.error.code}] ${last.error.message}`}) — reload it by hand: Project > Project Settings > Plugins`
 }
 
+
 export async function applyVulcanInstall(
   projectRoot: string,
   road: ChangeRecordRoad = {},
@@ -294,7 +292,6 @@ export async function applyVulcanInstall(
   }
   const before = vulcanInstallStatus(projectRoot)
   const addonRoot = path.join(projectRoot, ADDON_DIR)
-
   let written = 0
   for (const f of VULCAN_ADDON_FILES) {
     const target = path.join(addonRoot, f.path)
@@ -309,7 +306,6 @@ export async function applyVulcanInstall(
     writeFileSync(target, f.content)
     written++
   }
-
   const mutated = await mutateProjectGodot(
     projectRoot,
     text => {
@@ -368,7 +364,6 @@ export async function applyVulcanUninstall(projectRoot: string, road: ChangeReco
   const addonRoot = path.join(projectRoot, ADDON_DIR)
   const existed = existsSync(addonRoot)
   rmSync(addonRoot, { recursive: true, force: true })
-
   const mutated = await mutateProjectGodot(
     projectRoot,
     text => {
@@ -428,7 +423,6 @@ export async function describeVulcanStatus(projectRoot: string, selector?: unkno
   if (presence.state !== 'bridge-up') lines.push(`next: ${presenceNudge(presence, s)}`)
   lines.push(`client: ${client ? client.status() : 'unavailable'}`)
   lines.push(`autoload row [autoload] ${RUNTIME_AUTOLOAD}: ${explainRuntimeAutoloadRow(readRuntimeAutoloadEntry(projectRoot), s.installed)}`)
-
   const { godotPortabilityReport } = await import('./portabilityHealth.js')
   const port2 = await godotPortabilityReport(projectRoot, { census: census.processes })
   lines.push(

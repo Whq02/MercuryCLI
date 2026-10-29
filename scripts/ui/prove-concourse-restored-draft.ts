@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/concourse/ConcourseScreen.tsx src/components/concourse/WorktreeLaunchCard.tsx src/components/concourse/boardModalOwner.ts
+// gate-watch: src/daemon/concourseDispatch.ts src/components/concourse/ConcourseRoute.tsx
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

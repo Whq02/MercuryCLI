@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -46,7 +45,6 @@ t.check(
 t.section('CS-11 — adapter event fixtures exist (current shapes + future-unknown)')
 {
   const { readFileSync } = await import('node:fs')
-
   for (const name of ['codex', 'opencode', 'goose']) {
     let hasEvents = false
     try {
@@ -66,7 +64,6 @@ t.section('CS-11 — adapter event fixtures exist (current shapes + future-unkno
 t.section('CS-12 — the feed UI (journey-final pins, land with the M5 board)')
 {
   const { readFileSync } = await import('node:fs')
-
   const crewCmd = readFileSync('src/commands/crew/index.ts', 'utf8')
   t.check(
     'the semantic activity feed keeps a production surface (/crew) after the board retired',

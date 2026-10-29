@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -79,13 +78,11 @@ const readRows = (): Row[] => {
   const store = JSON.parse(readFileSync(STORE, 'utf8')) as { rows?: Row[] }
   return Array.isArray(store.rows) ? store.rows : []
 }
-
 const lastSpine = (): Row[] => {
   const rows = readRows()
   const pid = rows[rows.length - 1]?.pid
   return pid === undefined ? [] : rows.filter(r => r.pid === pid)
 }
-
 const lastInteractiveSpine = (): Row[] => {
   const rows = readRows()
   const headless = new Set(rows.filter(r => r.boot === 'headless').map(r => r.pid))
@@ -96,7 +93,6 @@ const lastInteractiveSpine = (): Row[] => {
   return []
 }
 const ORDER = ['runtime-entry', 'route-ready', 'first-frame', 'input-live']
-
 const inOrder = (spine: Row[]): boolean => {
   const rungs = spine.filter(r => ORDER.includes(r.milestone))
   if (rungs.map(r => r.milestone).join('→') !== ORDER.join('→')) return false

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -66,11 +65,9 @@ try {
     readdirSync(project).every(name => name === '.mercury' || name === 'MERCURY.md'),
     readdirSync(project).join(','),
   )
-
   const harnessSpelling = (name: string): boolean =>
     (/^\.?mercury([._-].*)?$/i.test(name) && name !== '.mercury' && name !== 'mercury-nodejs')
   const offenders = readdirSync(home).filter(harnessSpelling)
-
   for (const xdg of ['.config', '.cache', join('.local', 'share'), join('.local', 'state')]) {
     const dir = join(home, xdg)
     if (existsSync(dir)) offenders.push(...readdirSync(dir).filter(harnessSpelling).map(n => join(xdg, n)))

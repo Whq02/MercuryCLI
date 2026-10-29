@@ -19,6 +19,7 @@ import type { ConcourseCallbacks } from './contracts.js';
 import { RowPickModal } from './RowPickModal.js';
 import { PopupFrameContext } from '../PopupGutter.js';
 
+
 type PickerRow =
   | { kind: 'mode' }
   | { kind: 'header'; source: CallModelRoute | 'unrecognised'; label: string }
@@ -58,7 +59,6 @@ function receiptLine(r: CoordinatorSwitchReceiptV1): string {
   }
   if (r.outcome === 'no-change') return `no change — ${r.value} already set${r.detail ? ` (${r.detail})` : ''}`;
   if (r.target === 'mode') return `mode set: ${r.value} — ${r.boundary}`;
-
   if (r.target === 'effort') return `coordinator effort set: ${r.value}${r.detail ? ` — ${r.detail}` : ''} · ${r.boundary}`;
   return `switched: ${r.value}${r.detail ? ` — ${r.detail}` : ''} · ${r.boundary}`;
 }
@@ -85,17 +85,13 @@ export function CoordinatorModelPicker({
 }: {
   callbacks: Pick<ConcourseCallbacks, 'switchCoordinatorModel' | 'switchCoordinatorMode' | 'switchCoordinatorEffort'>;
   onClose: () => void;
-
   nested?: boolean;
-
   allottedRows?: number;
-
   allottedWidth?: number;
 }): React.ReactNode {
   const t = useMercuryTokens();
   const popup = React.useContext(PopupFrameContext);
   const [facts, setFacts] = useState<PickerFacts | null>(null);
-
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const loadEpochRef = React.useRef(0);
   const load = useCallback(async (): Promise<void> => {
@@ -110,7 +106,6 @@ export function CoordinatorModelPicker({
         lane.resolveEffectiveCoordinator(),
       ]);
       const cfg = getGlobalConfig().concourseCoordinator;
-
       const configuredModel =
         cfg?.assistModel !== undefined
           ? await models.canonicalCoordinatorModelId(cfg.assistModel)
@@ -139,7 +134,6 @@ export function CoordinatorModelPicker({
 
   const [effortPick, setEffortPick] = useState<CoordinatorModelEntryV1 | null>(null);
   const [effortNote, setEffortNote] = useState<string | null>(null);
-
   const effortDoorArmedRef = React.useRef(false);
 
   const [query, setQuery] = useState('');
@@ -173,7 +167,6 @@ export function CoordinatorModelPicker({
       !key.rightArrow &&
       !key.pageUp &&
       !key.pageDown &&
-
       !(input === 'e' && query.length === 0 && effortDoorArmedRef.current)
     ) {
       event.stopImmediatePropagation();
@@ -196,7 +189,6 @@ export function CoordinatorModelPicker({
     e.displayName.toLowerCase().includes(q) ||
     e.modelId.toLowerCase().includes(q) ||
     providerDisplayName(e.source).toLowerCase().includes(q);
-
   const sourceOrder: Array<CallModelRoute | 'unrecognised'> = [];
   for (const e of facts?.registry.entries ?? []) {
     if (!sourceOrder.includes(e.source)) sourceOrder.push(e.source);
@@ -221,14 +213,11 @@ export function CoordinatorModelPicker({
     rowId: r => (r.kind === 'model' ? `model:${r.entry.modelId}` : r.kind === 'header' ? `header:${r.label}` : r.kind),
     onClose,
     idNamespace: 'coordinator-picker',
-
     active: effortPick === null,
     ...(facts?.configuredModel !== undefined ? { initialId: `model:${facts.configuredModel}` } : {}),
-
     unavailable: r => r.kind === 'header',
     actions: [
       {
-
         key: 'e',
         hint: 'effort',
         when: r => r.kind === 'model',
@@ -269,7 +258,6 @@ export function CoordinatorModelPicker({
       },
     ],
   });
-
   effortDoorArmedRef.current = list.selectedRow?.kind === 'model';
 
   const { rows: termRows } = useTerminalSize();
@@ -294,12 +282,10 @@ export function CoordinatorModelPicker({
       ? ''
       : selected.kind === 'mode'
         ? (facts?.fallbackReason ??
-
           'cycles Off / Rules only / Agent-assisted · applies at the next coordinator resolve')
         : selected.kind === 'model'
           ? selected.entry.availability === 'ready'
             ? [
-
                 ...(selected.entry.description !== undefined ? [selected.entry.description] : []),
                 `${providerDisplayName(selected.entry.source)} route`,
                 pickConsequence(selected.entry),
@@ -312,7 +298,6 @@ export function CoordinatorModelPicker({
           : '';
 
   return (
-
     <Box
       flexDirection="column"
       {...(nested ? {} : { borderStyle: 'round' as const, borderColor: t.info, paddingX: 1, marginTop: popup === null ? 1 : 0 })}
@@ -334,7 +319,6 @@ export function CoordinatorModelPicker({
         </Box>
       ) : null}
       {facts === null && loadFailed !== null ? (
-
         <Box flexDirection="column">
           <Text color={t.failure} wrap="truncate-end">
             the model registry failed to compose — {loadFailed}
@@ -385,7 +369,6 @@ export function CoordinatorModelPicker({
             const configured = r.entry.modelId === facts.configuredModel;
             const marker = configured ? (ready ? GLYPH.ok : GLYPH.warn) : ' ';
             const markerColor = configured ? (ready ? t.success : t.warning) : t.textMuted;
-
             return (
               <InteractiveRow key={props.id} {...props} width="100%" height={1}>
                 <Box flexShrink={0}>
@@ -431,7 +414,6 @@ export function CoordinatorModelPicker({
               { text: `${list.motionHint} browse`, priority: 3 },
               { text: 'pgup/pgdn page', priority: 3 },
               { text: '↵ select', priority: 2 },
-
               ...(list.selectedRow?.kind === 'model' && query.length === 0
                 ? [{ text: 'e effort', priority: 2 }]
                 : []),
@@ -446,7 +428,6 @@ export function CoordinatorModelPicker({
         </Text>
       </Box>
       {effortPick !== null ? (
-
         <RowPickModal
           cols={Math.max(40, allottedWidth ?? 40)}
           rows={allottedRows ?? 18}
@@ -456,7 +437,6 @@ export function CoordinatorModelPicker({
           options={coordinatorEffortOptions(effortPick.modelId)}
           onPick={id => {
             setEffortPick(null);
-
             if (id === '') return;
             void callbacks.switchCoordinatorEffort?.(id).then(r => {
               setEffortNote(receiptLine(r));

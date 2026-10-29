@@ -20,7 +20,6 @@ function describeOpenrouterProvider(): ProviderDescription {
   const snapshot = keySource ? getCachedOpenrouterCatalogue(keySource) : null
   return {
     transport: 'openrouter-chat-completions',
-
     capabilities: ['usage-accounting'],
     roles: [],
     account: keyPresent
@@ -49,7 +48,6 @@ function openrouterStatus(): ProviderStatus {
 }
 
 function listOpenrouterModels(): ProviderModel[] {
-
   return []
 }
 

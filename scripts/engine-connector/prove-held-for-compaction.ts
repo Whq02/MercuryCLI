@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -103,7 +102,6 @@ check('↑ still finds the latest held line', recall?.clientMessageId === late, 
 const receipt = await connector.withdrawSend(late)
 check('…and withdraws it on the runner\'s word', receipt.withdrawn === true && sendOf(late) === undefined, j(receipt))
 foldRunning(false)
-
 const settled = randomUUID()
 foldRunning(true)
 seed(settled, 'sent during a fold the turn settled', 'delivered')

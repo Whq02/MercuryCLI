@@ -37,18 +37,16 @@ const engine = new RenderEngine({
     syncOutput: false,
     syncWhy: 'profile withholds the probe (Apple-Terminal capability class)',
   },
-
   chokeHighWaterBytes: 16 * 1024,
   onFlatnessViolation: (identity, seq) => {
-
     console.error(`FLATNESS VIOLATION: ${identity} in batch ${seq}`)
     process.exitCode = 3
   },
 })
 
+
 let seed = 0x6d657263
 const rand = (): number => {
-
   seed ^= seed << 13
   seed ^= seed >>> 17
   seed ^= seed << 5
@@ -89,6 +87,7 @@ const wrapPlain = (text: string, width: number): string[] => {
   }
   return out
 }
+
 
 const stream = new StreamBodyCache((text, width) => wrapPlain(text, width))
 let body = ''
@@ -154,28 +153,24 @@ timers.push(
     engine.updateTail(tail())
   }, 2500 + Math.floor(rand() * 1500)),
 )
-
 timers.push(
   setInterval(() => {
     spin++
     engine.updateTail(tail())
   }, 100),
 )
-
 timers.push(
   setInterval(() => {
     typed = typed.length > 24 ? '' : typed + 'aeimnoprst'[Math.floor(rand() * 10)]!
     engine.noteKeystroke(tail())
   }, 90),
 )
-
 timers.push(
   setInterval(() => {
     frameTick++
     engine.updateTail(tail())
   }, 1000),
 )
-
 timers.push(
   setInterval(() => {
     if (overlayOpen) return
@@ -200,7 +195,6 @@ const finish = (): void => {
   if (finishing) return
   finishing = true
   for (const t of timers) clearInterval(t)
-
   const drainDeadline = Date.now() + 120_000
   const awaitDrain = (): void => {
     if (engine.doorRef().owedBytes() > 0 && Date.now() < drainDeadline) {

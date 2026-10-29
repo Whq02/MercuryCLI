@@ -1,12 +1,11 @@
+
 import type { SettledRow } from '../contracts.js'
 import { SettledRowLedger } from '../ledger.js'
 
 export interface ProjectedRow {
   readonly uuid: string
   readonly kind: string
-
   readonly turnHead: boolean
-
   readonly text: string
 }
 
@@ -18,9 +17,7 @@ interface CockpitLedgerReport {
 }
 
 interface CockpitLedgerOptions {
-
   onViolation?: (detail: string) => void
-
   turnLag?: number
 }
 
@@ -83,7 +80,6 @@ export class CockpitLedger {
         this.options.onViolation?.(
           `projection/ledger disagreement at index ${i}: projection ${rows[i]!.uuid} vs frozen ${held.identity}`,
         )
-
         return this.report()
       }
     }
@@ -97,7 +93,6 @@ export class CockpitLedger {
 
     if (boundary > frozen) {
       const batchRows: SettledRow[] = []
-
       const seen = new Map<string, number>()
       for (let i = 0; i < frozen; i++) seen.set(this.ledger.rowAt(i)!.identity, i)
       for (let i = frozen; i < boundary; i++) {

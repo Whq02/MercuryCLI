@@ -115,7 +115,6 @@ check(
 check('an unknown-duration suite defaults to the scheduler fallback (30s)',
   estimatePooledWallS(['never-seen'], { ...EST, classes: { 'never-seen': 'pure' } }) === 30)
 {
-
   const est = estimatePooledWallS(['ui', 'smoke', 'bigpure'], {
     durations: { ui: 100, smoke: 200, bigpure: 300 },
     classes: { ui: 'pty', smoke: 'cpu', bigpure: 'pure' },
@@ -138,7 +137,6 @@ check(
 
 section('§2 the NOT-FASTER refusal law (both directions)')
 {
-
   const pool = estimatePooledWallS(MANIFEST.suites, EST)
   check('the fixture pool estimate is the pty tail + the exclusive (1300s)', pool === 1300, `${pool}`)
   const p = planSlice(input({ changedPaths: ['src/utils/crew/bus.ts'] }))
@@ -149,7 +147,6 @@ section('§2 the NOT-FASTER refusal law (both directions)')
   )
 }
 {
-
   const p = planSlice(
     input({ changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'] }),
   )
@@ -165,7 +162,6 @@ section('§2 the NOT-FASTER refusal law (both directions)')
   )
 }
 {
-
   const p = planSlice(
     input({
       changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'],
@@ -185,7 +181,6 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 
 section('§3 the HUB FAN-OUT CEILING (boundary both sides, named)')
 {
-
   const wideManifest: ImpactManifest = {
     suites: ['s1', 's2', 's3', 's4', 's5'],
     watches: { s1: ['lib/hub.ts'], s2: ['lib/hub.ts'], s3: ['lib/hub.ts'], s4: ['lib/hub.ts'] },
@@ -251,7 +246,6 @@ section('§6 the plan hands the selector set (sorted) to the lanes')
   )
 }
 {
-
   check('parseClassHeader reads a declared class', parseClassHeader('#!/usr/bin/env bash\n# gate-class: pty\nset -u\n') === 'pty')
   check('parseClassHeader treats a misspelled class as undeclared', parseClassHeader('# gate-class: ptyy\n') === 'undeclared')
   check('parseClassHeader stops at the first non-comment line', parseClassHeader('#!/usr/bin/env bash\nset -u\n# gate-class: pty\n') === 'undeclared')

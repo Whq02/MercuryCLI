@@ -16,7 +16,6 @@ const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { resolveBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
 
 const MODEL = 'claude-opus-5'
-
 const DEFAULT_CTX = {
   mode: 'default',
   additionalWorkingDirectories: new Map(),
@@ -50,7 +49,6 @@ const rows: Row[] = contract.sections.map(s => ({
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 let describedOk = 0
 let toolSchemaBytes = 0
-
 const apiTools: unknown[] = []
 for (const t of tools) {
   const tool = t as {
@@ -84,12 +82,10 @@ let promptTokens: number | undefined
 let classTokens: Map<string, number> | undefined
 let toolSchemaTokens: number | undefined
 if (WANT_TOKENS) {
-
   try {
     const { countTokensWithAPI, countMessagesTokensWithAPI } = await import(
       '../../src/services/tokenEstimation.ts'
     )
-
     const textsByClass = new Map<string, string[]>()
     for (const r of rows) {
       textsByClass.set(r.cacheClass, [...(textsByClass.get(r.cacheClass) ?? []), ''])
@@ -112,7 +108,6 @@ if (WANT_TOKENS) {
       classTokens = undefined
       tokenSource = `refused: countTokensWithAPI returned ${JSON.stringify(res)}`
     }
-
     const dummyOnly = await countMessagesTokensWithAPI(
       [{ role: 'user', content: 'foo' }],
       [],
@@ -125,7 +120,6 @@ if (WANT_TOKENS) {
       toolSchemaTokens = withTools - dummyOnly
     }
   } catch (e) {
-
     classTokens = undefined
     toolSchemaTokens = undefined
     tokenSource = `unavailable: ${e instanceof Error ? e.message : String(e)}`

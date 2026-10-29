@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { appendFileSync, mkdtempSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -77,7 +76,6 @@ const zero = (): void => {
 
 async function measure(road: string, ask: string, one: () => Promise<unknown>): Promise<void> {
   reader._resetTranscriptReaderForTesting()
-
   await one()
   zero()
   const t0 = performance.now()

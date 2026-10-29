@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -72,7 +71,6 @@ const factsFor = (sessionId: string, usage: Facts['usage']): Facts => ({
   pendingModel: null,
   busy: false,
 })
-
 async function readBack(sessionId: string): Promise<Facts | null> {
   for (let i = 0; i < 40; i++) {
     const facts = projections.readSessionFacts(sessionId, daemonDir)
@@ -83,7 +81,6 @@ async function readBack(sessionId: string): Promise<Facts | null> {
 }
 
 section('§1 — additive on the payload: with the field, without the field')
-
 {
   projections.publishSessionFacts(
     factsFor('relay-with', { ...ZERO_USAGE, limitWarning: { provider: 'anthropic', text: 'Anthropic: 91% of the Fable limit used' } }),
@@ -107,9 +104,7 @@ section('§1 — additive on the payload: with the field, without the field')
 }
 
 section("§2 — not a verb: the wire's two hashed blocks did not move")
-
 {
-
   const src = readFileSync(join(REPO, 'src/daemon/protocol.ts'), 'utf8')
   const opsStart = src.indexOf('export type DaemonOp =')
   const opsEnd = src.indexOf('\n\n', opsStart)
@@ -128,7 +123,6 @@ section("§2 — not a verb: the wire's two hashed blocks did not move")
 }
 
 section('§3 — the precedence law (pure, the owner’s)')
-
 {
   const { preferSessionLimitWarning } = await import('../../src/services/providers/limitWarning.ts')
   const session = { provider: 'openai', text: 'OpenAI: 78% of weekly window used' }
@@ -140,7 +134,6 @@ section('§3 — the precedence law (pure, the owner’s)')
 }
 
 section('§4 — the two seams: the child answers from the one owner; the hook reads the session first')
-
 {
   const printSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   const caseStart = printSrc.indexOf("'session/facts': async () => {")
@@ -156,7 +149,6 @@ section('§4 — the two seams: the child answers from the one owner; the hook r
 }
 
 section('§5 — the resting slot carries no fact')
-
 {
   const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const resting = new NoSessionConnector()

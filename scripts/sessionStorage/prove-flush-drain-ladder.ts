@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -18,7 +17,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-
 const entry = (_uuid: string, words: string): never => ({ type: 'tag', tag: words, sessionId: 'flush-ladder' }) as never
 
 const poisoned = join(SCRATCH, 'session-as-dir.jsonl')
@@ -45,7 +43,6 @@ for (let i = 0; i < 2; i++) {
 }
 
 rmSync(poisoned, { recursive: true, force: true })
-
 await sleep(1_500)
 {
   let landed = ''

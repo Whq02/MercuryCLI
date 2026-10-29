@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -187,7 +186,6 @@ section('§D REAL writer, re-publication — settle after drain ⇒ TWO lines, o
     st.messages.size === 1 && folded?.message?.usage?.output_tokens === 888,
     `size=${st.messages.size} tokens=${folded?.message?.usage?.output_tokens}`,
   )
-
   const idKeyed = new Map(mine.map(r => [r.recordId, r]))
   const pairKeyed = new Map(mine.map(r => [`${r.recordId}@${r.updateOrdinal}`, r]))
   check(

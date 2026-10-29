@@ -7,6 +7,7 @@ import type {
 } from '../types/message.js'
 import type { ToolUseBlock } from '../types/wire.js'
 
+
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
 
 type GroupingResult = {

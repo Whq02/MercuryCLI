@@ -1,3 +1,4 @@
+
 import { env as detectedEnv } from '../../utils/env.js'
 import { truecolorFingerprint } from '../colorize.js'
 import {
@@ -21,15 +22,12 @@ interface ProfileCheckResult {
   label: string
   requirement: ProfileRequirement
   ok: boolean
-
   evidence: string
-
   remediation: string
 }
 
 export interface TerminalProfileResolution {
   version: number
-
   verdict: 'full' | 'capable' | 'unsupported'
   checks: ProfileCheckResult[]
 }
@@ -43,7 +41,6 @@ interface ProfileProbe {
   hyperlinks?: boolean
   progress?: boolean
   modernWindowsHost?: boolean
-
   osRelease?: string
 }
 
@@ -78,7 +75,6 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     id: 'term-vocabulary',
     label: 'cursor-addressable terminal',
     requirement: 'required',
-
     ok: platform === 'win32' ? true : term !== 'dumb',
     evidence: `TERM=${term ?? '(unset)'} platform=${platform}`,
     remediation: 'Use a VT-capable terminal (TERM=dumb has no cursor addressing).',
@@ -86,7 +82,6 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
 
   const release = platform !== 'win32' ? '' : probe.osRelease ?? (() => {
     try {
-
       return (require('node:os') as typeof import('node:os')).release()
     } catch {
       return ''
@@ -100,15 +95,12 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
       id: 'win32-conpty-host',
       label: 'ConPTY-era console',
       requirement: 'required',
-
       ok: conptyEra || modern || Boolean(env.ConEmuANSI) || Boolean(term),
       evidence: `os=${release || '(unknown)'} · ${fingerprints}`,
       remediation: 'Run Mercury on Windows 10 1809+ — every console there is ConPTY-era.',
     })
-
     const sync = probe.syncOutput ?? syncOutputCapabilityNow()
     const fingerprinted = Boolean(env.WT_SESSION) || env.TERM_PROGRAM === 'vscode'
-
     const minttyLike = env.TERM_PROGRAM === 'mintty' || Boolean(env.MSYSTEM)
     const firstClass = fingerprinted || (sync && !minttyLike)
     checks.push({
@@ -138,7 +130,6 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
       'This terminal advertises no 24-bit color, so Mercury paints in 256 colors unless MERCURY_TRUECOLOR=1 forces the full depth. The exact palette needs a terminal with 24-bit color: iTerm2, Ghostty, WezTerm, Kitty or Windows Terminal.',
   })
   const sync = probe.syncOutput ?? syncOutputSupportedNow()
-
   const syncWhy = probe.syncOutput !== undefined ? 'probe injection' : syncOutputStatusNow().why
   checks.push({
     id: 'synchronized-output',

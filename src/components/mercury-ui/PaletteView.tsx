@@ -17,9 +17,9 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useSessionAccent } from './sessionAccent.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
+
 type PaletteRow = {
   command: Command
-
   name: string
   description: string
 }
@@ -31,10 +31,8 @@ export function PaletteView({
   onPick,
 }: {
   onClose: () => void
-
   onPick: (commandName: string) => void
 }): React.ReactNode {
-
   const cols = useTerminalSize().columns
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
@@ -115,7 +113,6 @@ export function PaletteView({
       setQuery(q => q.slice(0, -1))
       return
     }
-
     if (input && !key.ctrl && !key.meta && !key.tab) {
       setQuery(q => q + input)
     }
@@ -141,7 +138,6 @@ export function PaletteView({
       onClose={onClose}
       captureInput={false}
       footer={
-
         results.length > 0 ? '↑↓ select · ↵ run · type to filter' : 'type to filter · backspace to widen'
       }
     >
@@ -162,7 +158,6 @@ export function PaletteView({
       ) : (
         results.map((r, i) => {
           const selected = i === sel
-
           const desc = truncateToWidth(r.description, Math.max(16, cols - 9 - stringWidth(r.name)))
           return (
             <Text key={r.name + ':' + r.command.type}>

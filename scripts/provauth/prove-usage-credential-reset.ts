@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -34,7 +33,6 @@ for (const key of [
 const scratchHome = mkdtempSync(join(tmpdir(), 'prove-usage-credential-reset-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://fixture.invalid/oauth'
 
 const { enableConfigs } = await import('../../src/utils/config.js')

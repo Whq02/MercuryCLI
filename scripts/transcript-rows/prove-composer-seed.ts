@@ -125,7 +125,6 @@ console.log('── composer type-through (shipped artifact) ──')
     'use-select-input falls through to trySeedComposer',
     /trySeedComposer\(input, key\)/.test(select),
   )
-
   check(
     'the fall-through sits AFTER the numeric hotkey branch',
     select.indexOf('/^\\d+$/.test(digits)') !== -1 && select.indexOf('/^\\d+$/.test(digits)') < select.indexOf('trySeedComposer(input, key)'),
@@ -143,7 +142,6 @@ console.log('── composer type-through (shipped artifact) ──')
       },
       { kind: 'text', text: 'Done.' },
     ],
-
     sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', 'after:Do you want to:300:w', `after:Do you want to:${300 + 600 / vshotBudgetScale()}:atch`],
     seconds: 20,
     probe: true,
@@ -151,13 +149,11 @@ console.log('── composer type-through (shipped artifact) ──')
   })
   const cardUp = (rows: string[]): boolean =>
     rows.some(r => /Do you want to (create|overwrite)/.test(r))
-
   const seedAt = stampOf(run, 'w')
   const lastKeyAt = stampOf(run, 'atch')
   const [t1, t2, t3] = grabScreens(run, 120, 40, [
     seedAt - 600,
     lastKeyAt + 800,
-
     lastKeyAt + 3300,
   ])
   check('card visible before any seed key', cardUp(t1!.rows))

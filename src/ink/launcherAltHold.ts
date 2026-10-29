@@ -22,7 +22,6 @@ export function consumeLauncherAltHold(): boolean {
   const v = heldPending
   heldPending = false
   if (v) {
-
     for (const mode of TRANSFERRED_MODES) noteModeReleased('launcher-splash', mode)
   }
   return v
@@ -31,7 +30,6 @@ export function consumeLauncherAltHold(): boolean {
 export function releaseLauncherAltHoldNow(): void {
   if (!heldPending) return
   heldPending = false
-
   const RESTORE = '\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h'
   try {
     if (process.stdout.isTTY) process.stdout.write(RESTORE)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,7 +38,6 @@ const a1 = rowA.options[0]!
 const a2 = rowA.options[1]!
 const b1 = rowB.options[0]!
 check('fixture: two live menu rows with declared choices', A !== B && a1 !== a2, `${A} ${B}`)
-
 for (const env of [A, B]) for (const sp of flagSpellings(env)) delete process.env[sp]
 
 const path = join(HERMETIC, 'boot-env.json')
@@ -115,7 +113,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
       byEnv.get(B)?.outcome === 'no-change',
     JSON.stringify(byEnv.get(A)),
   )
-
   const same: NodeJS.ProcessEnv = { [A]: a1 }
   menu.applyBootMenuEnv(path, same)
   check(
@@ -151,7 +148,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
 }
 
 {
-
   const daemon: NodeJS.ProcessEnv = { ...parentEnv }
   check(
     "inherited: a child that never applies reads the parent's copies as saved defaults",
@@ -160,7 +156,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
       rowOf(snapshot(daemon, path), B)?.source === 'profile',
   )
   const daemonId = snapshot(daemon, path, 'x').snapshotId
-
   const runner: NodeJS.ProcessEnv = { ...daemon }
   const rr = menu.applyBootMenuEnv(path, runner)
   check(
@@ -172,7 +167,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
     "parity: the daemon-side and child-side snapshot ids agree (the warm pool's fingerprint)",
     snapshot(runner, path, 'y').snapshotId === daemonId,
   )
-
   const moved = menu.saveBootDefaultsProfile({ [A]: a2 }, path)
   check('fixture: the profile moves (A changes, B cleared)', moved.ok === true, JSON.stringify(moved))
   const runner2: NodeJS.ProcessEnv = { ...daemon }
@@ -196,7 +190,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
     'parity: the daemon (still carrying the old copies) and the child agree after the move',
     snapshot(daemon, path, 'x').snapshotId === snapshot(runner2, path, 'y').snapshotId,
   )
-
   const deliberate: NodeJS.ProcessEnv = { ...daemon, [A]: a2 }
   check('inherited: a value that differs from the receipt is a real pin', menu.realEnvPin(A, deliberate)?.value === a2)
   const rr3 = menu.applyBootMenuEnv(path, deliberate)
@@ -205,7 +198,6 @@ let parentEnv: NodeJS.ProcessEnv = {}
     rr3 !== null && rr3.envWins.includes(A) && deliberate[A] === a2 && deliberate[B] === undefined,
     JSON.stringify(rr3),
   )
-
   const garbled: NodeJS.ProcessEnv = { ...daemon, MERCURY_BOOT_ENV_APPLIED: 'not json {' }
   check(
     'inherited: an unreadable receipt attributes nothing to the boot (a present value is a pin)',

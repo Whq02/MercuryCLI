@@ -1,3 +1,4 @@
+
 import {
   BASH_INPUT_TAG,
   COMMAND_ARGS_TAG,
@@ -14,18 +15,13 @@ export type PromptMode = 'plain' | 'bash' | 'slash'
 export type PromptRow = {
   kind: 'prompt'
   key: string
-
   n: number
-
   at: string
   mode: PromptMode
-
   firstLine: string
-
   text: string
   lines: number
   chars: number
-
   queued?: true
 }
 
@@ -36,13 +32,10 @@ export type CrewRow = {
   key: string
   at: string
   agent: string
-
   dir: CrewDirection
-
   via: 'launch' | 'message' | 'reply'
   firstLine: string
   text: string
-
   summary?: string
 }
 
@@ -50,7 +43,6 @@ export type CrewThreadRow = {
   kind: 'crew-thread'
   key: string
   agent: string
-
   count: number
   lastAt: string
 }
@@ -58,13 +50,11 @@ export type CrewThreadRow = {
 export type CrewTrafficRow = CrewThreadRow | CrewRow
 
 export type RecordLimits = {
-
   since: string | null
-
   compacted: boolean
-
   resumed: boolean
 }
+
 
 function textOf(content: UserMessage['message']['content']): string {
   if (typeof content === 'string') return content
@@ -107,6 +97,7 @@ export function classifyPrompt(raw: string): { mode: PromptMode; text: string } 
   return { mode: 'plain', text }
 }
 
+
 function drainedPromptTextOf(m: Message): string | null {
   if (m.type !== 'attachment') return null
   const att = m.attachment as { type?: string; prompt?: unknown; commandMode?: string; origin?: unknown; isMeta?: boolean }
@@ -144,6 +135,7 @@ export function promptRows(records: readonly Message[]): PromptRow[] {
   }
   return rows
 }
+
 
 const CREWMATE_OPEN = new RegExp(`<${CREWMATE_MESSAGE_TAG}\\b([^>]*)>([\\s\\S]*?)</${CREWMATE_MESSAGE_TAG}>`, 'g')
 
@@ -274,6 +266,7 @@ export function crewTrafficRows(records: readonly Message[]): CrewTrafficRow[] {
   return out
 }
 
+
 export function recordLimits(records: readonly Message[], processStartedAt?: string): RecordLimits {
   let since: string | null = null
   let compacted = false
@@ -289,7 +282,6 @@ export function recordLimits(records: readonly Message[], processStartedAt?: str
 
 export function limitsLine(limits: RecordLimits, promptCount: number, clock: (iso: string) => string, queuedCount = 0): string {
   const head = promptCount === 1 ? '1 prompt' : `${promptCount} prompts`
-
   const queued = queuedCount > 0 ? ` · ${queuedCount} queued` : ''
   if (limits.since === null) return `${head} · nothing sent in this chat yet${queued}`
   const parts = [`${head} since ${clock(limits.since)}`]

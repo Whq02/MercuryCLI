@@ -1,3 +1,4 @@
+
 import { abortWithCut, turnCutOf, turnCutWhy } from '../../utils/messages/turnCut.js'
 import crypto from 'node:crypto'
 import fsp from 'node:fs/promises'
@@ -72,26 +73,16 @@ import {
 export { STRUCTURED_OUTPUT_TOOL_NAME }
 
 const AGENT_LIFETIME_CAP = 1000
-
 const DEFAULT_STALL_MS = 900_000
-
 const MAX_STALL_RETRIES = 5
-
 const MAX_CAP_PAUSES = 3
-
 const CAP_KEEPALIVE_MS = 15_000
-
 const PREVIEW_MAX_CHARS = 400
-
 const JOURNAL_VERSION = 'v2'
-
 const THROTTLE_BACKOFF_MS = 45_000
-
 const RECOVERY_HEARTBEAT_MS = 30_000
-
 const MAX_STRUCTURED_OUTPUT_NUDGES = 2
 export const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}. Your work above is preserved; call ${STRUCTURED_OUTPUT_TOOL_NAME} now, once, with your final answer in the shape its input schema requires — the script reads only that call, not text.`
-
 const DETERMINISTIC_400_RE =
   /prompt is too long|prompt too long|maximum context length|context window exceeded|invalid_request_error/i
 
@@ -107,7 +98,6 @@ export class WorkflowAgentCapError extends Error {
     this.name = 'WorkflowAgentCapError'
   }
 }
-
 export class WorkflowBudgetExceededError extends Error {
   constructor(spent: number, total: number) {
     super(
@@ -148,7 +138,6 @@ export const WORKFLOW_SUBAGENT_DEF = {
   baseDir: 'built-in',
   tools: ['*'],
   disallowedTools: SUBAGENT_DISALLOWED_TOOLS,
-
   fixedOutputContract: true,
   getSystemPrompt: () => buildSubagentTextPrompt(),
 } as const
@@ -157,11 +146,11 @@ export const WORKFLOW_SUBAGENT_SCHEMA_DEF = {
   getSystemPrompt: () => buildSubagentSchemaPrompt(),
 } as const
 
+
 export interface JournalStartedEntry {
   type: 'started'
   key: string
   agentId: string
-
   epoch?: number
 }
 export interface JournalResultEntry {
@@ -169,7 +158,6 @@ export interface JournalResultEntry {
   key: string
   agentId: string
   result: unknown
-
   epoch?: number
 }
 export type JournalEntry = JournalStartedEntry | JournalResultEntry
@@ -261,7 +249,6 @@ export class LocalFileJournal {
     runDir: string,
     opts?: {
       onDegraded?: (reason: string) => void
-
       epoch?: number
     },
   ) {
@@ -269,7 +256,6 @@ export class LocalFileJournal {
     this.onDegraded = opts?.onDegraded
     this.epoch = opts?.epoch
   }
-
   degraded(): string | undefined {
     return this.firstDegradation
   }
@@ -315,7 +301,6 @@ export class LocalFileJournal {
       }
       await fsp.appendFile(this.path, JSON.stringify(row) + '\n', 'utf8')
     })
-
     this.pending = write.catch(e => {
       this.noteDegradation(
         `journal append failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -324,6 +309,7 @@ export class LocalFileJournal {
     return write
   }
 }
+
 
 export interface SpawnSubagentArgs {
   agentDefinition: unknown
@@ -335,20 +321,15 @@ export interface SpawnSubagentArgs {
   workflowRunId?: string
   agentId: string
   model?: string
-
   effort?: string
   maxTurns?: number
   worktreePath?: string
   description?: string
-
   seatHolder?: string
   onQueryProgress?: (message?: unknown) => void
   beforeQueryStep?: () => Promise<void> | undefined
-
   onWait?: (words: string | null) => void
-
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
-
   continuationMessages?: unknown[]
 }
 
@@ -390,7 +371,6 @@ async function* adapterSpawnStream(
   args: SpawnSubagentArgs,
 ): AsyncGenerator<SubagentStreamEvent, void> {
   type RunAgentOpts = Parameters<typeof runAgent>[0]
-
   const authority = evaluateLaunchAuthority('subagents')
   if (!authority.allowed) throw new Error(authority.reason)
   const view = args.toolUseContext as unknown as HookContextView
@@ -436,29 +416,24 @@ async function* adapterSpawnStream(
   yield* stream as AsyncIterable<SubagentStreamEvent>
 }
 
+
 export interface WorkflowHookDeps {
   toolUseContext: WorkflowToolContext
   canUseTool: unknown
   emitProgress: (frame: ProgressFrame) => void
   workflowRunId?: string
-
   onAgentController?: (agentId: string, ctrl: AbortController | null) => void
-
   seedPhaseTitles?: string[]
   budget?: TokenBudget
   journal?: WorkflowJournal
   journalSnapshot?: ExecutorJournalSnapshot | JournalSnapshot
-
   args?: unknown
 
   spawnSubagentStream?: SpawnSubagentStream
-
   getStructuredOutputTool?: (schema: unknown) =>
     | { tool: unknown; error?: undefined }
     | { error: string; tool?: undefined }
-
   resolveCustomAgentType?: (type: string, hasSchema: boolean) => unknown
-
   runDir?: string
 }
 
@@ -475,7 +450,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
   const spawnStream: SpawnSubagentStream =
     deps.spawnSubagentStream ?? adapterSpawnStream
-
   const buildStructuredTool: NonNullable<WorkflowHookDeps['getStructuredOutputTool']> =
     deps.getStructuredOutputTool ??
     ((schema: unknown) =>
@@ -495,7 +469,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
   let cacheChainTip = canonicalizeArgsSeed(deps.args)
   let replayWindowClosed = false
-
   const replayResults = (deps.journalSnapshot?.results ?? new Map()) as Map<string, unknown>
 
   function assertUnderAgentCap(): void {
@@ -545,7 +518,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         `No crewmate type named '${type}'; this session offers: ${registry.map(a => a.agentType).join(', ')}`,
       )
     }
-
     const ownPrompt =
       typeof found.getSystemPrompt === 'function' ? found.getSystemPrompt() : ''
     const contractSuffix = hasSchema ? SCHEMA_APPEND : TEXT_APPEND
@@ -610,7 +582,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
   const agent = errorTunnel(
     async (promptIn: unknown, optsIn?: unknown): Promise<unknown> => {
-
       let rawSchema: unknown
       try {
         const candidate = (optsIn as { schema?: unknown } | undefined)?.schema
@@ -638,13 +609,11 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           )
         }
       }
-
       validateWorkflowTier(opts?.tier)
       if (opts) {
         const routed = resolveWorkflowRoutedModel(opts)
         if (routed !== undefined) opts.model = routed
       }
-
       if (opts?.model !== undefined && opts.model !== null) {
         const engine = await resolveEngineDispatch(getAgentModel(undefined, contextView.options?.engineModel ?? getEngineModel(), String(opts.model)))
         if (engine) opts.model = engine.model
@@ -686,7 +655,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         const hit = replayWindowClosed ? undefined : replayResults.get(cacheKey)
         if (hit !== undefined) {
           const entry = hit as JournalResultEntry
-
           let recordedModel: string | undefined
           let recordedEffort: string | undefined
           if (opts?.model == null && entry.agentId) {
@@ -712,7 +680,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
                 opts?.model != null
                   ? String(opts.model)
                   : (recordedModel ?? 'provenance unknown'),
-
               effort:
                 opts?.effort != null
                   ? String(opts.effort)
@@ -768,11 +735,9 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           ...data,
         },
       })
-
       emit(
         queuedTile({
           agentType: opts?.agentType != null ? String(opts.agentType) : undefined,
-
           isolation: opts?.isolation === 'worktree' ? 'worktree' : undefined,
           state: 'start',
           lastProgressAt: Date.now(),
@@ -794,7 +759,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }),
         )
       } catch (e) {
-
         if (!anyAttemptStarted && !ctx.abortController?.signal.aborted) {
           emit(
             queuedTile({
@@ -824,7 +788,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   async function runAgentCall(job: AgentCallJob): Promise<unknown> {
     const { index, prompt, label, phaseTitle, phaseIndex, stallMs, opts, onAttemptStarted, queuedAt } = job
     if (ctx.abortController?.signal.aborted) throw new Error('Workflow aborted')
-
     assertBudgetRemains()
 
     let customDef: unknown
@@ -855,7 +818,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
     const carryover: CallFrameStatics['carryover'] = { tokens: 0, toolCalls: 0, durationMs: 0, usage: EMPTY_WORKFLOW_USAGE }
     const seenToolCalls = new Set<string>()
-
     const recovery: RecoveryBudget = makeRecoveryBudget()
     const statics: CallFrameStatics = {
       index,
@@ -890,7 +852,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       const pauseSeam = (ctx as { workflowPause?: WorkflowExecutionPause }).workflowPause
       const releasePauseHold = pauseSeam?.register(agentId)
       onAttemptStarted(agentId)
-
       if (modelOverride !== undefined) statics.model = modelOverride
 
       const childAbort = new AbortController()
@@ -904,10 +865,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       const attemptPromptPreview = previewOf(effectivePrompt)
       let lastToolName: string | undefined
       let lastToolSummary: string | undefined
-
       const responses = new Map<string, { message: { stop_reason?: string | null; usage?: Parameters<typeof foldResponseUsage>[1]['usage'] } }>()
       let newestResponse: { message: { stop_reason?: string | null } } | undefined
-
       let requestInFlight = false
       const attemptUsage = (attemptEnded: boolean): WorkflowUsageRollup => {
         let folded: WorkflowUsageRollup = EMPTY_WORKFLOW_USAGE
@@ -917,14 +876,12 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (attemptEnded && requestInFlight) folded = { ...folded, unsettledTurns: folded.unsettledTurns + 1 }
         return folded
       }
-
       const tileId = `workflow_agent_${statics.index}_${agentId}`
       const emitFrame = (
         state: 'start' | 'progress' | 'done' | 'error' | 'skipped',
         extra?: Record<string, unknown>,
       ): void => {
         const attemptEnded = state === 'done' || state === 'error' || state === 'skipped'
-
         const usage = addWorkflowUsage(statics.carryover.usage, attemptUsage(attemptEnded))
         emit({
           type: 'progress',
@@ -956,7 +913,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           },
         })
       }
-
       const noteResponseSettled = (evt: unknown): void => {
         const m = evt as { type?: string; event?: { type?: string } } | undefined
         if (m?.type !== 'stream_event' || m.event?.type !== 'message_delta') return
@@ -969,10 +925,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       let prefillGraceUsed = false
       let sawAssistant = false
       let recoveryHeartbeat: ReturnType<typeof setInterval> | undefined
-
       let budgetCut: ReturnType<typeof setTimeout> | undefined
       let lastDeclaredEndsAt: number | undefined
-
       let standingWait: RecoveryReservation | null = null
       const clearBudgetCut = (): void => {
         if (budgetCut !== undefined) clearTimeout(budgetCut)
@@ -991,7 +945,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         }
       }
       const onStallExpiry = (): void => {
-
         if (awaitingFirstToken && !prefillGraceUsed && !sawAssistant) {
           prefillGraceUsed = true
           emitFrame('progress', { waiting: 'prefill' })
@@ -1004,7 +957,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         clearStallTimer()
         if (stallMs > 0) stallTimer = setTimeout(onStallExpiry, stallMs)
       }
-
       const armStallTimerForRecovery = (honoredMs: number): void => {
         clearStallTimer()
         if (stallMs > 0) {
@@ -1014,7 +966,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
       let lastBumpAt = 0
       const bumpThrottleMs = Math.min(stallMs * 0.1, 1000)
-
       let parked = false
       const onQueryProgress = (evt?: unknown): void => {
         const m = evt as
@@ -1027,18 +978,15 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             }
           | undefined
         noteResponseSettled(m)
-
         const notice = recoveryNoticeFacts(m)
         if (notice !== null) {
           const isRealDelay = typeof m?.retryInMs === 'number' && m.retryInMs > 0
-
           settleRecoveryWait(recovery, standingWait)
           const { honoredMs, spent, reservation } = honourRecoveryWait(recovery, notice)
           standingWait = reservation
           lastDeclaredEndsAt = Date.now() + notice.declaredMs
           clearBudgetCut()
           if (spent && honoredMs <= 0) {
-
             clearHeartbeat()
             abortWithCut(childAbort, 'throttled')
             return
@@ -1051,7 +999,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             budgetCut.unref?.()
           }
           armStallTimerForRecovery(honoredMs)
-
           const window = isRealDelay
             ? { retryInMs: honoredMs }
             : { recoveryTimeoutMs: honoredMs }
@@ -1068,19 +1015,16 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }, RECOVERY_HEARTBEAT_MS)
           return
         }
-
         if (m !== undefined && m.type !== 'progress') {
           clearBudgetCut()
           settleRecoveryWait(recovery, standingWait)
           standingWait = null
         }
         if (recoveryAnswerRefills(m)) refillRecoveryBudget(recovery)
-
         if (m?.type === 'request_wait') {
           const wait = (m as { wait?: unknown }).wait
           if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
             const w = wait as { budgetMs?: unknown; sinceMs?: unknown }
-
             const waitWords =
               typeof w.budgetMs === 'number' && w.budgetMs > 0
                 ? agentWaitWords({ phase: 'first-byte', sinceMs: typeof w.sinceMs === 'number' ? w.sinceMs : Date.now(), budgetMs: w.budgetMs }, null)
@@ -1089,14 +1033,12 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }
           return
         }
-
         if (m?.type === 'stream_request_start') {
           awaitingFirstToken = true
           requestInFlight = true
         } else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
         if (parked) {
-
           if (m?.type === 'progress') return
           parked = false
           lastBumpAt = now
@@ -1116,9 +1058,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       let toolCalls = 0
       let schemaCallCount = 0
       let lastSchemaCallInput: unknown
-
       let terminal400: string | undefined
-
       const conversation: unknown[] = continuation
         ? [...continuation]
         : [createUserMessage({ content: effectivePrompt })]
@@ -1136,7 +1076,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           durationMs: carry.durationMs + elapsed,
         }
       }
-
       const deliveredSettle = (elapsed: number): AttemptReport => {
         emitFrame('done', {
           ...settledTotals(elapsed),
@@ -1155,7 +1094,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           lastSchemaCallInput,
         }
       }
-
       const apiErrorSettle = (elapsed: number, message: string): AttemptReport => {
         emitFrame('error', { error: message, ...settledTotals(elapsed) })
         return {
@@ -1184,7 +1122,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       ): AttemptReport => {
         const model = modelOverride ?? statics.model
         const family = providerFamilyOfSetting(model ?? null)
-
         const pausedWords = (): string => {
           const left = resetsAtMs !== undefined ? resetsAtMs - Date.now() : undefined
           const when =
@@ -1242,7 +1179,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           effort: opts?.effort != null ? String(opts.effort) : undefined,
           worktreePath,
           description: attemptPromptPreview,
-
           seatHolder: attemptLabel,
           continuationMessages: continuation,
           beforeQueryStep: () =>
@@ -1259,13 +1195,11 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               requestParkFrame({ agentId, getAppState: contextView.getAppState })
             }),
           onQueryProgress,
-
           onWait: words => {
             const runBy = pauseSeam?.pausedBy()
             const ownPark = words !== null && runBy !== undefined && words.startsWith(pauseGateWords(runBy))
             emitFrame('progress', words === null ? {} : ownPark ? { waiting: 'operator', pausedBy: runBy, waitWords: words } : { waiting: 'seat', waitWords: words })
           },
-
           onResolvedIdentity: identity => {
             const changed = identity.model !== statics.model || identity.effort !== statics.effort
             statics.model = identity.model
@@ -1275,7 +1209,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         })) {
           if (ev.type === 'attachment') {
             const att = (ev as Extract<SubagentStreamEvent, { type: 'attachment' }>).attachment
-
             if (att.type === 'structured_output') structured = att.data
             continue
           }
@@ -1298,7 +1231,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               abortWithCut(childAbort, 'terminal-400')
             }
           } else {
-
             const responseKey = typeof a.message.id === 'string' ? a.message.id : `#${responses.size}`
             responses.set(responseKey, a)
             newestResponse = a
@@ -1318,7 +1250,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             }
           }
           if (toolUsesHere > 0) {
-
             clearStallTimer()
             parked = true
           } else {
@@ -1337,18 +1268,15 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             : apiErrorSettle(elapsed, terminal400)
         }
         if (cutReason === 'throttled') {
-
           if (structured !== undefined) return deliveredSettle(elapsed)
           const message = recoveryBudgetSpentLine(recovery)
           if (recovery.lastStatus === 429) return capPauseSettle(elapsed, '', `provider busy: ${message}`, lastDeclaredEndsAt)
           return apiErrorSettle(elapsed, message)
         }
         if (cutReason === 'stalled' || cutReason === 'user-retry') {
-
           if (cutReason === 'stalled' && structured !== undefined) {
             return deliveredSettle(elapsed)
           }
-
           if (terminal400) return apiErrorSettle(elapsed, terminal400)
           emitFrame('error', {
             error:
@@ -1390,7 +1318,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           }
         }
         if (cutReason === 'user-skip') {
-
           emitFrame('skipped', {
             error: 'skipped by user',
             skipped: true,
@@ -1409,7 +1336,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             lastSchemaCallInput,
           }
         }
-
         const cutWords = cutReason === undefined ? null : turnCutWhy(turnCutOf(cutReason))
         emitFrame('error', {
           error: cutWords ?? (e instanceof Error ? e.message : String(e)),
@@ -1433,7 +1359,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         : ''
       const finalOutputTokens = lastAssistant?.message.usage?.output_tokens
       if (lastAssistant?.isApiErrorMessage && lastAssistant.error === 'rate_limit' && structured === undefined) {
-
         const model = modelOverride ?? statics.model
         const family = providerFamilyOfSetting(model ?? null)
         const window = ((): { resetsAtMs?: number; windowName?: string } => {
@@ -1455,7 +1380,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         return capPauseSettle(elapsed, finalText, words, lastAssistant.providerWaitEndsAtMs ?? window.resetsAtMs, finalOutputTokens)
       }
       if (lastAssistant?.isApiErrorMessage) {
-
         if (structured !== undefined) return deliveredSettle(elapsed)
         const apiError = finalText || 'API error'
         emitFrame('error', { error: apiError, ...settledTotals(elapsed) })
@@ -1475,7 +1399,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           lastSchemaCallInput,
         }
       }
-
       emitFrame('done', {
         ...settledTotals(elapsed),
         resultPreview: previewOf(statics.hasStructuredTool ? structured : finalText),
@@ -1583,7 +1506,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           `[stall] crewmate "${label}" ${why} after ${Math.round(report.durationMs / 1000)}s${schemaNote} — retrying (${a}/${MAX_STALL_RETRIES})`,
         )
         foldIn(report)
-
         const resumable = cutKind === 'stalled' ? balancedTranscriptPrefix(report.transcript) : null
         const seed = cutKind === 'stalled' && resumable === null ? transcriptSeed(report.transcript) : null
         report = resumable
@@ -1611,14 +1533,12 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         )
       }
       if (report.apiError) {
-
         const msg = `[${label}] failed: ${report.apiError}`
         failures.push(msg)
         log(msg)
         return null
       }
       if (structuredTool) {
-
         let nudges = 0
         while (report.structured === undefined && nudges < MAX_STRUCTURED_OUTPUT_NUDGES) {
           nudges++
@@ -1635,7 +1555,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               createUserMessage({ content: STRUCTURED_OUTPUT_NUDGE_PROMPT }),
             ],
           )
-
           if (report.skipped) return null
           if (report.stallCut) {
             throw new Error(
@@ -1658,7 +1577,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       }
       return report.text
     } finally {
-
       if (worktree) {
         try {
           const receipt = await settleAgentWorktree({
@@ -1670,7 +1588,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           if (receipt.outcome === 'preserved') {
             log(`worktree preserved (${receipt.summary}): ${worktree.worktreePath}`)
           } else if (receipt.outcome === 'retryable-partial' || receipt.outcome === 'inspection-unavailable') {
-
             log(`worktree not settled (${receipt.outcome}: ${receipt.detail}): ${worktree.worktreePath}`)
           }
         } catch (settleErr) {
@@ -1720,7 +1637,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         )
       }
     }
-
     const outcomes = await Promise.allSettled(thunks.map(t => settle(call(t))))
     return clone(collectSlots(outcomes, 'parallel')) as unknown[]
   })
@@ -1744,7 +1660,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           )
         }
       }
-
       const outcomes = await Promise.allSettled(
         items.map(async (item, index) => {
           let acc = await settle(item)
@@ -1833,32 +1748,21 @@ function waitForCapLift(pause: CapPause, signal: AbortSignal | undefined): Promi
 }
 
 interface AttemptReport {
-
   capPause?: CapPause
-
   structured: unknown
-
   text: string
-
   apiError?: string
-
   tokens: number
   toolCalls: number
-
   usage: WorkflowUsageRollup
   durationMs: number
-
   stallCut: boolean
   stallKind?: 'stalled' | 'user-retry'
-
   skipped: boolean
-
   stopReason?: string | null
   outputTokens?: number
-
   schemaCallCount: number
   lastSchemaCallInput: unknown
-
   transcript?: unknown[]
 }
 
@@ -1940,7 +1844,6 @@ interface WorktreeHandle {
   gitRoot?: string
   prepareFailure?: string
 }
-
 interface HookContextView {
   abortController?: AbortController
   getAppState(): {

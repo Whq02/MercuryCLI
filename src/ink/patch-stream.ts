@@ -1,5 +1,6 @@
 import type { Diff, Patch } from './frame.js'
 
+
 export function optimizePatches(diff: Diff): Diff {
   if (diff.length <= 1) return diff
 

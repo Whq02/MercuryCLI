@@ -55,7 +55,6 @@ function describeHuggingfaceProvider(): ProviderDescription {
   const live = huggingfaceLiveCatalogue()
   return {
     transport: 'openai-compat-chat-completions',
-
     capabilities: ['streaming', 'tool-calls', 'usage-accounting', 'cancellation', 'worktree-authoring'],
     roles: ALL_ROLES,
     account: record?.keyPresent

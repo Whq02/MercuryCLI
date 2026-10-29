@@ -67,6 +67,7 @@ type BashInput = {
   _simulatedSedEdit?: unknown
 }
 
+
 function stripComments(command: string): string {
   const lines = command.split('\n')
   const kept = lines.filter(line => {
@@ -114,23 +115,18 @@ function stripLeadingWrapper(command: string): string {
   let rest = command.slice(word.length).replace(/^[ \t]+/, '')
   if (word === 'timeout') {
     rest = stripTimeoutFlags(rest)
-
     rest = rest.replace(/^--[ \t]+/, '')
-
     rest = rest.replace(/^\d+(?:\.\d+)?[smhd]?[ \t]+/, '')
     return rest
   }
   if (word === 'nice') {
-
     rest = rest.replace(/^-n[ \t]+-?\d+[ \t]+/, '').replace(/^-\d+[ \t]+/, '')
   }
   if (word === 'stdbuf') {
-
     const flags = rest.match(/^(?:-[ioe](?:L|N|\d+)(?:[ \t]+|$))+/)
     if (!flags) return command
     rest = rest.slice(flags[0].length)
   }
-
   rest = rest.replace(/^--[ \t]+/, '')
   return rest
 }
@@ -140,7 +136,6 @@ function stripTimeoutFlags(rest: string): string {
   const noValueLong = /^(?:--foreground|--preserve-status|--verbose)[ \t]+/
   const valueLong = /^(?:--kill-after|--signal)(?:=|[ \t]+)[A-Za-z0-9_.+-]+[ \t]+/
   const shortNoValue = /^-v[ \t]+/
-
   const shortValue = /^-[ks](?:[ \t]+)?[A-Za-z0-9_.+-]+[ \t]+/
   let changed = true
   while (changed) {
@@ -173,11 +168,9 @@ export function stripAllLeadingEnvVars(command: string, blocklist?: RegExp): str
 }
 
 function consumeAggressiveAssignment(command: string): string | null {
-
   const head = command.match(/^[A-Za-z_]\w*(?:\[[^\]]*\])?\+?=/)
   if (!head) return null
   let i = head[0].length
-
   const segment = () => {
     if (command[i] === "'") {
       const end = command.indexOf("'", i + 1)
@@ -214,6 +207,7 @@ function consumeTrailingWhitespace(command: string, i: number): string {
   return command.slice(i + (ws ? ws[0].length : 0))
 }
 
+
 function suggestedCommandPrefix(command: string): string | null {
   let current = command.trim()
   for (;;) {
@@ -247,6 +241,7 @@ function isNormalizedCdCommand(command: string): boolean {
   return normalizedWords(command).some(argv => ['cd', 'pushd', 'popd'].includes(argv[0] ?? ''))
 }
 
+
 function withoutRedirections(command: string): string {
   return pinnedCommandAnalysis.extractOutputRedirections(command).commandWithoutRedirections
 }
@@ -262,7 +257,6 @@ function generateCandidates(command: string, mode: 'exact' | 'prefix', behavior:
     if (wrapperStripped !== base) candidates.add(wrapperStripped)
   }
   if (behavior === 'deny' || behavior === 'ask') {
-
     let changed = true
     while (changed) {
       changed = false
@@ -389,10 +383,12 @@ function askByRule(context: ToolPermissionContext, subject: string, ruleContent:
   return { behavior: 'ask', message: ruleSentence(subject, 'ask', rule), decisionReason: { type: 'rule', rule } }
 }
 
+
 function suggestionForCommand(command: string): ReturnType<typeof suggestionForExactCommand> {
   const prefix = suggestedCommandPrefix(command)
   return prefix === null ? suggestionForExactCommand(TOOL_NAME, command.trim()) : suggestionForPrefix(TOOL_NAME, prefix)
 }
+
 
 export function bashToolCheckExactMatchPermission(
   input: BashInput,
@@ -454,7 +450,6 @@ export function bashToolCheckPermission(
   if (exact.behavior === 'ask') return exact
 
   const command = input.command.trim()
-
   const skipCompoundGuard = astCommand !== undefined
   const deny = matchRules(command, context, 'deny', 'prefix', true)
   if (deny !== null) {
@@ -464,7 +459,6 @@ export function bashToolCheckPermission(
   if (ask !== null) {
     return askByRule(context, command, ask)
   }
-
   const path = checkPathConstraints(
     input,
     resolveShellCwd(input.cwd),
@@ -474,18 +468,15 @@ export function bashToolCheckPermission(
     astCommand ? [astCommand] : undefined,
   )
   if (path.behavior !== 'passthrough') return path
-
   if (exact.behavior === 'allow') return exact
   const prefixAllow = matchRules(command, context, 'allow', 'prefix', skipCompoundGuard)
   if (prefixAllow !== null) {
     return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(context, prefixAllow, 'allow') }
   }
-
   const sed = checkSedConstraints(input, context)
   if (sed.behavior !== 'passthrough') return sed
   const mode = checkPermissionMode(input, context)
   if (mode.behavior !== 'passthrough') return mode
-
   const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined, SHELL_C_MAX_DEPTH)
   if (readOnly.behavior === 'allow') {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
@@ -542,6 +533,7 @@ function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 0): str
   for (const span of spans.sort((a, b) => b.start - a.start)) rewritten = rewritten.slice(0, span.start) + span.text + rewritten.slice(span.end)
   return rewritten
 }
+
 
 type PrefixFn = (
   command: string,
@@ -781,7 +773,6 @@ async function decideBashPermission(
     const result = merged[i] as PermissionResult
     if (result.behavior === 'allow') return
     let rules = ('suggestions' in result && result.suggestions) || []
-
     if (result.behavior === 'ask' && rules.length === 0 && result.decisionReason?.type !== 'rule') {
       rules = suggestionForExactCommand(TOOL_NAME, sub)
     }
@@ -794,7 +785,6 @@ async function decideBashPermission(
     }
   })
   const reason = subcommandResultsReason(subcommands, decisions)
-
   const behavior = anySubcommandAsked ? 'ask' : 'passthrough'
   return {
     behavior,
@@ -949,6 +939,7 @@ function semanticsDenyCheck(input: BashInput, context: ToolPermissionContext, co
   }
   return null
 }
+
 
 function pickSignal(context: ToolPermissionContext): AbortSignal {
   const anyContext = context as unknown as { abortController?: { signal: AbortSignal } }

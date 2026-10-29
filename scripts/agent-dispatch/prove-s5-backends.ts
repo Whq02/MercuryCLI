@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_ZAI_API_BASE = 'https://zai.fixture.invalid/general/v4'
@@ -41,7 +40,6 @@ const { readFileSync } = await import('node:fs')
 const { join } = await import('node:path')
 
 section('1 · the callModel routing law')
-
 {
   check("'glm-5.2' → zai", declaredRouteOf('glm-5.2') === 'zai')
   check("'glm' → zai", declaredRouteOf('glm') === 'zai')
@@ -55,12 +53,10 @@ section('1 · the callModel routing law')
     declaredRouteOf('claude-opus-4-8[1m]') === 'anthropic',
   )
   check("'claude-sonnet-5' → anthropic", declaredRouteOf('claude-sonnet-5') === 'anthropic')
-
   check("'' is ABSENCE — never a lane", classifyModelRoute('').kind === 'absence')
   check('undefined is ABSENCE — never a lane', classifyModelRoute(undefined).kind === 'absence')
 
   const depsSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'query', 'deps.ts'), 'utf-8')
-
   check('productionDeps binds callModel: scripted ?? routedCallModel', depsSrc.includes('callModel: scripted ?? routedCallModel'))
   check(
     'deps imports the router seam',
@@ -69,14 +65,12 @@ section('1 · the callModel routing law')
 }
 
 section('1b · the home-lane admission at the dispatch seam (the neutrality ruling)')
-
 {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
   const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.js')
   const { FIRST_PARTY_MODEL_ENV_PINS } = await import('../../src/services/providers/idSpaces.js')
   const { createUserMessage } = await import('../../src/utils/messages.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-
   const savedFacts: Record<string, string | undefined> = {}
   for (const key of ['ANTHROPIC_BASE_URL', ...FIRST_PARTY_MODEL_ENV_PINS]) {
     savedFacts[key] = process.env[key]
@@ -136,7 +130,6 @@ section('1b · the home-lane admission at the dispatch seam (the neutrality ruli
       /ANTHROPIC_\* model pin/.test(refusalText) && /ANTHROPIC_BASE_URL/.test(refusalText),
       refusalText,
     )
-
     const absenceSeen: Array<{ err: boolean; text: string }> = []
     for await (const m of routedCallModel({
       messages: [createUserMessage({ content: 'hi' })],
@@ -257,7 +250,6 @@ const isApiErrorAssistant = (m: unknown): boolean => {
 }
 
 section('2 · zaiCallModel — the exact queryModelWithStreaming yield contract')
-
 {
   process.env.ZAI_API_KEY = 'zai-proof-fake-key'
   patchFetch(() =>
@@ -330,7 +322,6 @@ section('2 · zaiCallModel — the exact queryModelWithStreaming yield contract'
     JSON.stringify(toolBlock),
   )
   const last = assistants.at(-1)!
-
   check(
     'final usage written back onto the LAST message (direct mutation; inclusive wire → disjoint envelope)',
     last.message.usage?.input_tokens === 70 &&
@@ -363,9 +354,7 @@ section('2 · zaiCallModel — the exact queryModelWithStreaming yield contract'
 }
 
 section('3 · honest refusals + fault mapping (never a throw, never a fallthrough)')
-
 {
-
   delete process.env.ZAI_API_KEY
   const noKeyYield = await collectCall('glm-5.2')
   check(
@@ -417,13 +406,11 @@ section('3 · honest refusals + fault mapping (never a throw, never a fallthroug
   const retried = await collectCall('glm-5.2')
   restoreFetch()
   check('retryable pre-content fault: exactly two attempts (bounded)', fetchCalls === 2, String(fetchCalls))
-
   const retryNotices = retried.filter(m => (m as { type?: string; subtype?: string }).type === 'system' && (m as { subtype?: string }).subtype === 'api_error')
   check('…then ONE API-error assistant message, after ONE retry notice', retried.filter(isApiErrorAssistant).length === 1 && retryNotices.length === 1 && isApiErrorAssistant(retried[retried.length - 1]), JSON.stringify(retried.map(m => [(m as { type?: string }).type, (m as { subtype?: string }).subtype])))
 }
 
 section('4 · the launch-plan engine law (role→sandbox · denials · no floor)')
-
 {
   const GENERAL = {
     agentType: 'mercury-crew',
@@ -449,7 +436,6 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
   check("openai: real definition resolved", gptPlan.definition === (GENERAL as never))
   check("openai: engine backend recorded", gptPlan.engineBackend === 'openai')
   check('openai: the note names the engine', (gptPlan.modelNote ?? '').startsWith('engine:'), gptPlan.modelNote ?? 'undefined')
-
   check(
     'openai: no specialist tool denials on the plan (spawn surfaces kept)',
     !('engineToolDenials' in gptPlan),
@@ -509,7 +495,6 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
 }
 
 section('5 · the role registry access map is total')
-
 {
   check('six specialist roles', SPECIALIST_ROLES.length === 6)
   const total = SPECIALIST_ROLES.every(

@@ -1,3 +1,4 @@
+
 import { randomBytes } from 'node:crypto'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -44,7 +45,6 @@ export interface RecordEvidenceInput {
   claim: string
   refs?: string[]
   details?: Record<string, unknown>
-
   dedupeKey?: string
   id?: string
 }
@@ -109,6 +109,7 @@ export function evidenceById(owner: OwnerKey, id: string): EvidenceRecord | unde
 export function evidenceEvicted(owner: OwnerKey, id: string): boolean {
   return store.peek(owner)?.evicted.includes(id) ?? false
 }
+
 
 let installed = false
 export function installEvidenceProducers(): void {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,13 +27,11 @@ check('the quiet HUD has only elapsed, tokens and attention segments', HUD.inclu
 check('the gauge introduces NO raw hex (tokens only)', !/#[0-9a-fA-F]{3,6}\b/.test(HUD))
 
 check('context and tool gauges stay off the quiet HUD', !HUD.includes('showCtx') && !HUD.includes('showWif'))
-
 check('the metadata remains dimmed in its existing placement', ROW.includes('<Text dimColor>') && ROW.includes('metaNodes.map'))
 
 const SPIN = readFileSync(join(root, 'src/components/Spinner.tsx'), 'utf-8')
 const Chat = readFileSync(join(root, 'src/screens/Chat.tsx'), 'utf-8')
 console.log('\n  -- work-in-flight gauge --')
-
 check('Chat threads activeToolCount={viewInProgressToolUseIDs.size} to the spinner',
   /activeToolCount=\{viewInProgressToolUseIDs\.size\}/.test(Chat))
 check('Spinner.tsx forwards activeToolCount to SpinnerAnimationRow',

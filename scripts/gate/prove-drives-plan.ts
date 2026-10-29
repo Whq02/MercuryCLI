@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,7 +31,6 @@ function plannerEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
 
 interface Row {
   suite: string
-
   seed: number | null
   ceiling: number
   budget: number

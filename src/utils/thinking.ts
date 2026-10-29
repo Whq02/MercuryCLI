@@ -1,6 +1,7 @@
 import { getInitialSettings } from './settings/settings.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
+
 export { modelSupportsAdaptiveThinking, modelSupportsThinking } from './model/capabilities.js'
 
 export type ThinkingConfig =

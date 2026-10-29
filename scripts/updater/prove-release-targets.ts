@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -43,7 +42,6 @@ check('an older manifest without the record answers null', readBuildTargetRecord
 for (const target of RELEASE_TARGETS) {
   const p = buildPlatformOf(target)
   const key = platformKey(p.platform, p.arch)
-
   const imageKey = imagePackPlatform(p.platform, p.arch)
   const imageKeyHolds = platformKey(process.platform, process.arch) === key ? /^linux(musl)?-x64$/.test(imageKey) || imageKey === key : imageKey === key
   check(`${target}: every pack owner keys the pair (node ${nodePackPlatform(p.platform, p.arch)}, image ${imageKey}, voice ${voicePackPlatform(p.platform, p.arch)} → ${voiceCargoTriple(voicePackPlatform(p.platform, p.arch))}, shell engine ${brushPackPlatform(p.platform, p.arch)})`,

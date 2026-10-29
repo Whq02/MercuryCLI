@@ -1,20 +1,17 @@
+
 import { useContext, useMemo, useSyncExternalStore } from 'react'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
 import { type FocusMove, type SelectionState } from '../geometry/selection.js'
 import type Ink from '../ink.js'
 
 export type SelectionApi = {
-
   copySelection: () => string
-
   copySelectionNoClear: () => string
   copyText: (text: string) => void
   clearSelection: () => void
   hasSelection: () => boolean
-
   getState: () => SelectionState | null
   subscribe: (callback: () => void) => () => void
-
   moveFocus: (move: FocusMove) => void
   setSelectionBgColor: (color: string) => void
 }

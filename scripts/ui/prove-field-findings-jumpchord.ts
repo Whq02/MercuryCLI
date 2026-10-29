@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -30,7 +29,6 @@ console.log('§1 ctr-4 — the advertised chord fires')
   const layout = read('src/components/FullscreenLayout.tsx')
   check('the pill still advertises the chord it now has', layout.includes("'[ back to the bottom · alt+↓ ]'") && layout.includes('· alt+↓ ]`'))
 }
-
 console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it, alt+↓ jumps')
 {
   const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
@@ -47,10 +45,8 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
     const ALT_DOWN = '\x1b[1;3B'
     const CTRL_O = '\x0f'
     const PILL = '[ back to the bottom · alt+↓ ]'
-
     const cfg = scenario('cockpit-scrolled', 150, 40) as Record<string, unknown>
     const press = (n: number, data: string) => Array.from({ length: n }, () => ({ afterPrevTicks: 2, data }))
-
     const frame = (mark: string) => ({ afterPrevTicks: 4, awaitStableTicks: 3, data: '', mark })
     cfg.sends = [
       { atTick: 90, minTick: 40, awaitText: 'RECENT', awaitSettleTicks: 2, data: CTRL_O },
@@ -65,7 +61,6 @@ console.log('§2 the transcript viewer — PgUp paints the pill, PgDn clears it,
       frame('jumped'),
       ...press(8, PAGE_UP),
       frame('paged-up-third'),
-
       { afterPrevTicks: 1, targetText: 'back to the bottom', targetDx: 2, data: '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m' },
       frame('clicked'),
     ]

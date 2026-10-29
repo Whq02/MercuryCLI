@@ -147,7 +147,6 @@ console.log('\n§4 the floor: a signal inside the window dirties and arms the tr
   const unsub = subscribeGitFacts(() => {
     notified++
   })
-
   clockOffset += 61_000
   markGitTreeSuspect('git')
   await sleep(900)
@@ -161,7 +160,6 @@ console.log('\n§4 the floor: a signal inside the window dirties and arms the tr
   check('the upstream entry is dirty and deferred (inside its floor)', facts.entries.upstream.dirty && facts.entries.upstream.notBefore > Date.now(), JSON.stringify(facts.entries.upstream))
   check('the trailing recompute is armed', facts.trailingArmed)
   check('no upstream probe spawned inside the window', countShape(since(), 'rev-list') === 0, since().join(' | '))
-
   const state = await getGitState()
   const head = git(REPO, 'rev-parse', 'HEAD')
   check('the filesystem facts moved at once (HEAD)', state !== null && state.commitHash === head)
@@ -207,7 +205,6 @@ console.log('\n§6 a faulting git speaks once and backs off 4×; a working git r
   clockOffset += 61_000
   await getGitState()
   const unsub = subscribeGitFacts(() => {})
-
   process.env.PATH = EMPTY_BIN
   ;(gitMod.gitExe as unknown as { cache: { clear(): void } }).cache.clear()
   resetMark()
@@ -226,7 +223,6 @@ console.log('\n§6 a faulting git speaks once and backs off 4×; a working git r
   const again = _gitFactsForTesting()
   check('a second signal inside the back-off spawns no retry (failures stay 1)', again.entries.clean.failures === 1 && again.entries.upstream.failures === 1, JSON.stringify(again.entries))
   check('the notice is still the one line', again.notice === facts.notice)
-
   process.env.PATH = `${SHIM_DIR}:${REAL_PATH}`
   ;(gitMod.gitExe as unknown as { cache: { clear(): void } }).cache.clear()
   clockOffset += 241_000

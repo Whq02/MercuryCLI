@@ -14,6 +14,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import type { ConcourseSnapshotV1 } from './contracts.js';
 
+
 function useConcourseIdentity(): {
   markKey: string;
   accent: string;
@@ -60,18 +61,15 @@ function Breadcrumb({
 }: {
   active: ConcourseSnapshotV1['breadcrumb']['active']
   onBoot?: () => void
-
   onConcourse?: () => void
   onFocusedChat?: () => void
 }): React.ReactNode {
   const t = useMercuryTokens();
-
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const chat = chatPresent();
   const dest = (id: string, label: string, onGo?: () => void): React.ReactNode => (
     <InteractiveRow id={`concourse:crumb:${id}`} directActivate hoverStyle="chrome-ink" {...(onGo ? { onActivate: onGo } : {})} flexShrink={0}>
       {hover => (
-
         <Text color={hover ? t.info : t.textMuted}>
           {label}
         </Text>
@@ -112,25 +110,19 @@ export function ConcourseHeader({
   columns: paneColumns,
 }: {
   snapshot: ConcourseSnapshotV1
-
   onBoot?: () => void
   onFocusedChat?: () => void
-
   columns?: number
 }): React.ReactNode {
   const t = useMercuryTokens();
   const { columns: termColumns } = useTerminalSize();
   const columns = paneColumns ?? termColumns;
-
   const showBreadcrumb = columns >= 110;
   const showContextLabels = columns >= 92;
-
   const identity = useConcourseIdentity();
   const { isCompact } = useLayoutChrome();
-
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const chat = chatPresent();
-
   const markDef = React.useMemo(
     () => ({
       ...critterDefForKey(identity.markKey),
@@ -142,16 +134,14 @@ export function ConcourseHeader({
   const glow = identity.tokens.focalRamp.length > 1 ? identity.tokens.accentSoft : undefined;
   return (
     <Box flexDirection="row" flexShrink={0} overflow="hidden">
-      {
-}
+      {}
       {!isCompact ? <Box flexShrink={0} marginRight={1} flexDirection="column">
         <CritterArt def={markDef} square {...(glow !== undefined ? { glowToward: glow } : {})} />
       </Box> : null}
       <Box flexDirection="column" flexGrow={1} overflow="hidden">
         <Box height={1} overflow="hidden">
           <Box flexShrink={1} overflow="hidden">
-            {
-}
+            {}
             <ConcourseLockup />
           </Box>
           {showBreadcrumb ? (
@@ -164,7 +154,6 @@ export function ConcourseHeader({
               />
             </>
           ) : (
-
             <>
               <Box flexGrow={1} />
               {chat ? (
@@ -179,16 +168,14 @@ export function ConcourseHeader({
           <Box flexGrow={1} />
           {showContextLabels ? (
             <Box flexShrink={1} marginLeft={1} overflow="hidden">
-              {
-}
+              {}
               <Text color={t.textSecondary} wrap="truncate-end">
                 {snapshot.context.operatorHandle}
               </Text>
             </Box>
           ) : null}
         </Box>
-        {
-}
+        {}
       </Box>
     </Box>
   );

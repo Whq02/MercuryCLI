@@ -1,3 +1,4 @@
+
 import { writeFile } from 'node:fs/promises'
 
 import {
@@ -36,23 +37,18 @@ export type WorkflowProgressEvent =
   | { type: 'workflow_log'; message: string }
   | {
       type: 'workflow_phase'
-
       index: number
       title: string
       kind?: 'phase' | 'child'
     }
   | {
       type: 'workflow_agent'
-
       index: number
       label: string
-
       state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
       phaseIndex?: number
       phaseTitle?: string
-
       tokens?: number
-
       usage?: WorkflowUsageRollup
       toolCalls?: number
       durationMs?: number
@@ -76,7 +72,6 @@ export type PendingWorkflowPermission = {
 export type LocalWorkflowTaskState = Omit<TaskStateBase, 'status'> & {
   type: 'local_workflow'
   status: TaskStateBase['status'] | 'paused'
-
   script: string
   prompt: string
   scriptPath?: string
@@ -91,26 +86,18 @@ export type LocalWorkflowTaskState = Omit<TaskStateBase, 'status'> & {
   pausedBy?: string
   pausedAt?: WorkflowPausePosition
   workflowProgress: WorkflowProgressEvent[]
-
   progressVersion: number
   agentCount: number
-
   totalTokens: number
-
   usage?: WorkflowRunUsage
   totalToolCalls: number
   logs: string[]
   result?: unknown
   error?: string
-
   abortController?: AbortController
-
   agentControllers?: Map<string, AbortController>
-
   pendingPermissions?: Map<string, PendingWorkflowPermission>
-
   retain: boolean
-
   evictAfter?: number
 }
 
@@ -261,7 +248,6 @@ export function updateWorkflowProgressBatch(
       if (row.tokens) tokenSum += row.tokens
       if (row.toolCalls) toolCallSum += row.toolCalls
     }
-
     const usage = rollupWorkflowUsage(agentRows)
 
     return {
@@ -336,13 +322,11 @@ export function completeWorkflowTask(
   })
   if (snapshot === null) return Promise.resolve(null)
   void evictTaskOutput(taskId)
-
   const payload = JSON.stringify(
     { summary: snapshot.summary ?? snapshot.description, agentCount, logs, result },
     null,
     2,
   )
-
   return ensureTaskOutputDir()
     .then(() => writeFile(snapshot.outputFile, payload))
     .then(
@@ -391,7 +375,6 @@ export function killWorkflowTask(
 ): WorkflowActionReceipt {
   const snapshot = transitionWorkflowTask(taskId, setAppState, 'killed', {})
   if (snapshot) {
-
     abortSpeculation(setAppState)
     void evictTaskOutput(taskId)
   }
@@ -404,7 +387,6 @@ function signalOneAgent(
   reason: 'user-skip' | 'user-retry' | 'user-kill',
   setAppState: SetAppState,
 ): WorkflowActionReceipt {
-
   let receipt: WorkflowActionReceipt = 'run-settled'
   updateTaskState<LocalWorkflowTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
@@ -413,10 +395,8 @@ function signalOneAgent(
       controller.abort(reason)
       receipt = 'applied'
     } else {
-
       receipt = 'not-in-flight'
     }
-
     return task
   })
   return receipt
@@ -477,6 +457,7 @@ export const LocalWorkflowTask: Task = {
   },
 }
 
+
 export type WorkflowNotificationArgs = {
   taskId: string
   summary?: string
@@ -486,7 +467,6 @@ export type WorkflowNotificationArgs = {
   error?: string
   agentCount: number
   totalTokens: number
-
   usage?: WorkflowRunUsage
   totalToolCalls: number
   durationMs: number
@@ -497,7 +477,6 @@ export type WorkflowNotificationArgs = {
   scriptPath?: string
   workflowRunId?: string
   args?: unknown
-
   outputWriteError?: string
 }
 
@@ -541,7 +520,6 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
     }
   }
   let summaryText = describeSettled()
-
   if (args.outputWriteError) {
     summaryText += ` (warning: the output file could not be written — ${args.outputWriteError}; use the <result> section, not the output file)`
   }

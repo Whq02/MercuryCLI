@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { marked } from 'marked'
 import { configureMarked, hasMarkdownMarkers } from '../../src/utils/markdown.js'
 
@@ -16,7 +15,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 configureMarked()
 
 {
-
   const plainSentence = 'the quick brown fox jumps over a lazy dog and keeps running until sunset; '
   let prose = ''
   while (prose.length < 600) prose += plainSentence
@@ -47,7 +45,6 @@ configureMarked()
 }
 
 {
-
   const words = [
     'ledger', 'терминал', 'harness', '漢字テスト', 'output', 'cadence',
     'the', 'sings', 'quietly', 'beside', 'row', 'threshold', 'signal',
@@ -65,12 +62,10 @@ configureMarked()
         parts.push(words[Math.floor(rnd() * words.length)]!)
         if (rnd() < 0.2) parts.push(`${1 + Math.floor(rnd() * 900)}${punctuation[Math.floor(rnd() * punctuation.length)]!}`)
       }
-
       lines.push(parts.join(' '))
     }
     const text = lines.join('\n')
     if (hasMarkdownMarkers(text)) {
-
       continue
     }
     const tokens = marked.lexer(text)

@@ -10,9 +10,7 @@ type PresetWearResolution =
   | {
       ok: true
       kit: SessionKitV1
-
       unmatched: string[]
-
       keptOff: string[]
     }
   | { ok: false; reason: string }
@@ -35,7 +33,6 @@ export function resolvePresetWear(rows: readonly KitRow[], deltas: KitDeltasShap
   const kit = resolvedKitOf(rows, states)
   const unmatched: string[] = []
   const keptOff: string[] = []
-
   const carrySkillsOff: string[] = []
   const carryExtensionsOff: string[] = []
   for (const key of unmatchedKeys) {
@@ -55,7 +52,6 @@ export function resolvePresetWear(rows: readonly KitRow[], deltas: KitDeltasShap
     kit.extensions = { ...(kit.extensions ?? {}) }
     for (const name of carryExtensionsOff) kit.extensions[name] = 'off'
   }
-
   const verdict = validateSessionKit(kit)
   if (!verdict.ok) return { ok: false, reason: verdict.reason }
   return { ok: true, kit: verdict.kit, unmatched, keptOff }

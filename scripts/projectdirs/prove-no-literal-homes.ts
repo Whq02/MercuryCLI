@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -94,7 +93,6 @@ const proseCounts = new Map<string, number>()
 const joinLive = new Set<string>()
 const proseLive = new Set<string>()
 for (const full of walk(join(ROOT, 'src'))) {
-
   const rel = relative(ROOT, full).replaceAll('\\', '/')
   for (const line of maskComments(readFileSync(full, 'utf8')).split('\n')) {
     if (JOIN_RE.test(line)) {

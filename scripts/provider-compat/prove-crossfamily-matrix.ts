@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -225,14 +224,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
       if (path === '/localsrv/v1/models') {
-
         res.writeHead(200, { 'content-type': 'application/json' })
-
         res.end(JSON.stringify({ data: [{ id: 'qwen3-32b', object: 'model', owned_by: 'vllm', max_model_len: 131072 }] }))
         return
       }
       if (path === '/gemini/v1beta/models') {
-
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ models: [
           { name: 'models/gemini-3-pro', displayName: 'Gemini 3 Pro', supportedGenerationMethods: ['generateContent'] },
@@ -249,7 +245,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
       if (path === '/openrouter/api/v1/models') {
-
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ data: [
           { id: 'qwen/qwen3-coder', name: 'Qwen3 Coder' },
@@ -257,7 +252,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         ] }))
         return
       }
-
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ object: 'list', data: [], models: [] }))
       return
@@ -271,7 +265,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (isAnthropic || isResponses || isChat || isGeminiNative) {
         const nativeModel = isGeminiNative ? decodeURIComponent(/\/models\/([^/]+):streamGenerateContent$/.exec(path)?.[1] ?? '') : undefined
         captured.push({ family, path, body: nativeModel === undefined ? body : { ...body, model: nativeModel } })
-
         const kind: 'tool' | 'final' =
           sawToolResult(family, body) || text(body).includes('matrix-notool') ? 'final' : 'tool'
         res.writeHead(200, { 'content-type': 'text/event-stream' })
@@ -495,7 +488,6 @@ const WORKER_SPELLINGS: Record<Family, { model: string; wireId: string }> = {
   xai: { model: 'grok-4.7', wireId: 'grok-4.7' },
   meta: { model: 'muse-spark-1.3', wireId: 'muse-spark-1.3' },
   gemini: { model: 'gemini-3-pro', wireId: 'gemini-3-pro' },
-
   openrouter: { model: 'openrouter/qwen/qwen3-coder', wireId: 'qwen/qwen3-coder' },
   huggingface: {
     model: HUGGINGFACE_STATIC_CATALOGUE[0]!.id,
@@ -554,7 +546,6 @@ function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, exp
 }
 
 section('§B the orchestrator→worker ring — every family in both chairs')
-
 for (const { parent, worker } of RING) {
   const parentSpelling = WORKER_SPELLINGS[parent].model
   const workerSpelling = WORKER_SPELLINGS[worker]
@@ -577,7 +568,6 @@ for (const { parent, worker } of RING) {
 }
 
 section('§I the inherit legs — a model-less dispatch lands on the parent lane')
-
 for (const family of FAMILIES) {
   const spelling = WORKER_SPELLINGS[family]
   const o = await driveAgent({
@@ -588,7 +578,6 @@ for (const family of FAMILIES) {
 }
 
 section('§C the workflow driver — scripted fan-out across every family')
-
 {
   const { compileWorkflow } = await import('../../src/tools/WorkflowTool/compiler.ts')
   const { runWorkflowScript } = await import('../../src/tools/WorkflowTool/executor.ts')
@@ -711,7 +700,6 @@ section('§C the workflow driver — scripted fan-out across every family')
 }
 
 section('§D the coordinator seat — every family takes a coordinator turn')
-
 {
   const { COORDINATOR_CONTRACT, COORDINATOR_CONTRACT_VERSION } = await import('../../src/services/concourse/coordinatorLane.ts')
   const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
@@ -781,7 +769,6 @@ section('§D the coordinator seat — every family takes a coordinator turn')
 }
 
 section('§A the dispatch boundary — the engine grammar is TOTAL over the routing law')
-
 {
   const engine = await import('../../src/utils/crew/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
@@ -816,7 +803,6 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     { cls: 'nous', backend: 'nous', model: 'nous/anthropic/claude-sonnet-4.6' },
     { cls: 'zen', backend: 'zen', model: 'zen/glm-5.3' },
   ]
-
   const bootState = await import('../../src/bootstrap/state.ts')
   const priorOverride = bootState.getEngineModelOverride()
   bootState.setEngineModelOverride('claude-opus-4-8')

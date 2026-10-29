@@ -48,44 +48,34 @@ export type DriverPhase =
   | 'settling_idle'
 
 export type TurnDriverPorts = {
-
   dequeue(): QueuedCommand | undefined
   dequeueCommand(command: QueuedCommand): QueuedCommand | undefined
   peek(): QueuedCommand | undefined
   notifyLifecycle(uuid: string, event: 'started' | 'completed'): void
 
   enqueueOutput(message: RowDraft): void
-
   writeDirect(message: RowDraft): Promise<void>
-
   drainRows(): RowDraft[]
 
   executeTurn(
     command: QueuedCommand,
-
     batch: QueuedCommand[],
     onMessage: (message: RowDraft) => void,
     initialNotices?: QueuedCommand[],
   ): Promise<void>
-
   beforeCycle(): Promise<void>
-
   onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): void
   turnIdOf(): string
   openTurnRow(messageIds: string[]): RowDraft
   onTurnSettled(command: QueuedCommand): void
 
   hasWaitableBackgroundTasks(): boolean
-
   hasHoldableBackgroundAgents(): boolean
-
   waitableBackgroundTaskCount?(): number
-
   onAgentWait?(count: number, turnId: string): void
 
   settleIdle(): Promise<'reenter' | 'close' | 'stay'>
   wakeSettle?(): void
-
   closeOutput(): Promise<void>
   beforeCloseOutput?(): Promise<void>
 
@@ -102,16 +92,12 @@ export type TurnDriverPorts = {
 }
 
 export type TurnDriver = {
-
   kick(): void
   phase(): DriverPhase
   isRunning(): boolean
-
   hasHeldResult(): boolean
-
   releaseHold(): void
   endOperatorWait(): void
-
   closeOutputOnce(): Promise<void>
   hasDueQueued(): boolean
 }
@@ -122,7 +108,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let heldBackResult: RowDraft | null = null
   let outputClosed = false
   let anyTurnCompleted = false
-
   let holdReleased = false
   let noticesAwaitOperator = false
   let wakeAgentWait: (() => void) | undefined
@@ -336,10 +321,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       if (isOutcome(row)) {
         if (row.status === 'completed') anyTurnCompleted = true
         answered = true
-
         flushSdkEvents()
         openIfUnopened()
-
         if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
           heldBackResult = message
         } else {
@@ -347,7 +330,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           ports.enqueueOutput(message)
         }
       } else {
-
         flushSdkEvents()
         ports.enqueueOutput(message)
       }
@@ -383,18 +365,14 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     }
 
     try {
-
       let waitingForAgents = false
       do {
-
         flushSdkEvents()
 
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
         while ((command = nextDue())) {
-
           announceWait(0)
-
           if (
             command.mode !== 'prompt' &&
             command.mode !== 'bash' &&
@@ -413,10 +391,8 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           waitingForAgents = true
           if (ports.peek() === undefined || holding || wallHeld) {
             phase = 'waiting_for_agents'
-
             const running = ports.waitableBackgroundTaskCount?.() ?? (ports.hasWaitableBackgroundTasks() ? 1 : 0)
             announceWait(holding ? running : Math.max(1, running))
-
             await new Promise<void>(resolve => {
               wakeAgentWait = resolve
               void ports.clock.sleep(AGENT_WAIT_TICK_MS).then(resolve)
@@ -432,7 +408,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         heldBackResult = null
       }
     } catch (error) {
-
       try {
         await ports.writeDirect(ports.onCycleError(error, ports.turnIdOf()))
       } catch {
@@ -440,12 +415,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.shutdown(1)
       return
     } finally {
-
       announceWait(0)
       phase = 'finally'
       if (!ports.isShuttingDown()) {
         ports.notifySessionState('idle')
-
         flushSdkEvents()
       }
       phase = 'idle'
@@ -469,7 +442,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       await closeOutputOnce()
       return
     }
-
     if (dueQueued()) {
       void kick()
     }

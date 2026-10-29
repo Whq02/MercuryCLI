@@ -56,6 +56,7 @@ export function bornSpawnSwitch(kind: SpawnSwitchKind, env: NodeJS.ProcessEnv = 
   return { on: spawnSwitchOnFromValue(value), source: realEnvPin(row, env) !== null ? 'env' : 'boot-menu' }
 }
 
+
 let latched: Partial<Record<SpawnSwitchKind, SpawnSwitchState>> = {}
 
 export function spawnSwitch(kind: SpawnSwitchKind): SpawnSwitchState {
@@ -82,10 +83,9 @@ export function _resetSpawnSwitchesForTesting(): void {
   latched = {}
 }
 
+
 interface SpawnSwitchRecordView {
-
   spawnSwitches?: Partial<Record<SpawnSwitchKind, 'on' | 'off'>>
-
   settingsSnapshot?: { rows: ReadonlyArray<Pick<EffectiveSettingRow, 'env' | 'value' | 'source'>> }
 }
 
@@ -94,13 +94,13 @@ export function spawnSwitchOfRecord(rec: SpawnSwitchRecordView | undefined, kind
   if (toggled !== undefined) return { on: toggled === 'on', source: 'in-session' }
   const row = rec?.settingsSnapshot?.rows.find(r => r.env === SPAWN_SWITCH_ENV[kind])
   if (row === undefined || row.source === 'default') return { on: true, source: 'default' }
-
   return { on: spawnSwitchOnFromValue(row.value), source: row.source === 'profile' ? 'boot-menu' : 'env' }
 }
 
 export function spawnSwitchFactsOfRecord(rec: SpawnSwitchRecordView | undefined): SpawnSwitchFacts {
   return { subagents: spawnSwitchOfRecord(rec, 'subagents'), workflows: spawnSwitchOfRecord(rec, 'workflows') }
 }
+
 
 function spawnSwitchSourceLabel(source: SpawnSwitchSource): string {
   switch (source) {

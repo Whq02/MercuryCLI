@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,10 +38,8 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-
 const seatDeltas = Array.from({ length: 48 }, (_, i) => `seat-${String(i + 1).padStart(2, '0')} body. `)
 const api = await startFixtureApi([
-
   { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-01 body. '], gapMs: S(300), tools: [{ name: 'Bash', input: { command: `sleep ${Math.round(S(16_000) / 1000)}; echo one`, description: 'pause one' } }] },
   { kind: 'paced', whenModel: 'opus', deltas: seatDeltas, gapMs: S(600), settleDelayMs: S(2500) },
   { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-02 body. '], gapMs: S(300), tools: [{ name: 'Bash', input: { command: `sleep ${Math.round(S(16_000) / 1000)}; echo two`, description: 'pause two' } }] },
@@ -89,11 +86,9 @@ let boardSid = ''
 let boardLog = ''
 try {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
-
   const N = 'Busy probe'
   const run = await runArtifactArena({
     turns: [],
-
     sends: [
       `after:${N}:1500:seat body please`,
       `after:${N}:2600:\r`,
@@ -123,7 +118,6 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work])
-
       const { execFileSync } = await import('node:child_process')
       execFileSync('git', ['init', '-q', '-b', 'main'], { cwd })
       execFileSync('git', ['-c', 'user.email=drive@fixture', '-c', 'user.name=drive', 'commit', '-q', '--allow-empty', '-m', 'ground'], { cwd })
@@ -133,7 +127,6 @@ try {
         op: 'concourseDispatch',
         clientMessageId: 'seat-busy-b',
         prompt: 'stream the b chain',
-
         workspaceDir: cwd,
         title: N,
         modelKey: DEFAULT_OPUS,
@@ -161,7 +154,6 @@ try {
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const seatMax = (s: string): number => Math.max(-1, ...[...s.matchAll(/seat-(\d\d) body/g)].map(m => Number(m[1])))
     const stageMax = (s: string): number => Math.max(-1, ...[...s.matchAll(/b-stage-(\d\d) body/g)].map(m => Number(m[1])))
-
     const kind = (g: { rows: string[] }): 'board' | 'boot' | 'hopped' | 'other' => {
       const s = text(g)
       if (s.includes('SESSION CONCOURSE')) return 'board'
@@ -177,7 +169,6 @@ try {
         for (const r of g.rows) if (r.trim()) console.log(r.slice(0, COLS - 2))
       }
     }
-
     const stretches: Array<{ kind: 'boot' | 'hopped'; first: number; last: number; seat: number; stage: number }> = []
     let boardSince = -1
     for (const l of lane) {
@@ -195,44 +186,34 @@ try {
         stretches.push({ kind: l.kind, first: l.atMs, last: l.atMs, seat: l.seat, stage: l.stage })
       }
     }
-
     const kinds = stretches.map(s => s.kind)
     const bootVisits = kinds.filter(k => k === 'boot').length
     const hoppedVisits = kinds.filter(k => k === 'hopped').length
     check(`L1 every enter takes — entered views of both kinds, board between them [${COLS}x${ROWS}]`, bootVisits >= 2 && hoppedVisits >= 2, laneStr)
     check('L1 …five enters in the drive land five entered stretches', stretches.length >= 5, `stretches=${kinds.join(',')}`)
-
     const bootStretches = stretches.filter(s => s.kind === 'boot')
     check('L2 the session started at boot keeps working while another session is focused (a later visit shows later tokens)', bootStretches.length >= 2 && bootStretches[bootStretches.length - 1]!.seat > bootStretches[0]!.seat, `seat tokens per visit: ${bootStretches.map(s => s.seat).join(',')}`)
-
     const hoppedStretches = stretches.filter(s => s.kind === 'hopped')
     check('L3 the board session keeps working while off screen (a later visit shows later stages)', hoppedStretches.length >= 2 && hoppedStretches[hoppedStretches.length - 1]!.stage > hoppedStretches[0]!.stage, `stages per visit: ${hoppedStretches.map(s => s.stage).join(',')}`)
-
     const lastSeatToken = Math.max(...lane.map(l => l.seat))
     const firstHopAt = hoppedStretches[0]?.first ?? -1
     const bootBeforeFirstHop = Math.max(-1, ...lane.filter(l => l.atMs < firstHopAt).map(l => l.seat))
-
     const bootAtFirstHop = bootBeforeFirstHop >= 0 ? bootBeforeFirstHop : (bootStretches[0]?.seat ?? -1)
     check('both were mid-turn during the hops (the boot session had more to say when the first hop landed; it said it later)', firstHopAt > 0 && bootAtFirstHop >= 0 && bootAtFirstHop < seatDeltas.length && lastSeatToken > bootAtFirstHop, `boot-session token at first hop: ${bootAtFirstHop}, last seen: ${lastSeatToken}`)
-
     const said = (needle: string): number[] => grabs.filter(g => text(g).includes(needle)).map(g => g.atMs)
     for (const needle of ['did not commit', 'may be mid-turn', 'esc there', 'settling —', 'finishing this thought', 'restoring the session', 'a run is in flight']) {
       check(`L4 no frame says "${needle}"`, said(needle).length === 0, said(needle).join(','))
     }
-
     const seatHome = paths.getProjectDir(run.paths.cwd)
     const seatFiles = existsSync(seatHome) ? readdirSync(seatHome).filter(f => f.endsWith('.jsonl')).map(f => join(seatHome, f)) : []
-
     const seatFile = seatFiles.find(f => /seat-\d\d body/.test(readFileSync(f, 'utf8')))
     const seatText = seatFile !== undefined ? readFileSync(seatFile, 'utf8') : ''
     check('L5 the session started at boot wrote its own transcript', seatFile !== undefined, `${seatHome}: ${seatFiles.length} file(s)`)
     check('L5 the seat\'s file carries its LAST token (every record produced while another session was focused was logged)', seatText.includes(`seat-${String(seatDeltas.length).padStart(2, '0')} body`), `last token present: ${seatText.includes('seat-48 body')}`)
     check("L5 the boot session's file carries none of the board session's words", !seatText.includes('b-stage-'))
     const boardText = existsSync(boardLog) ? readFileSync(boardLog, 'utf8') : ''
-
     check("L5 the board session's file carries none of the boot session's words", boardText.length > 0 && !/seat-\d\d body/.test(boardText) && !boardText.includes('seat body please'))
     check("L5 the board session's file carries no foreign session id", !boardText.split('\n').some(l => l.includes('"sessionId"') && !l.includes(boardSid)))
-
     const rec = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === boardSid)
     check('L6 the record was never attached or valve-closed (nothing yielded)', rec !== undefined && rec.attachedAt === undefined && rec.attachRequestedAt === undefined, `attachedAt=${rec?.attachedAt} attachRequestedAt=${rec?.attachRequestedAt} pausedAt=${rec?.pausedAt}`)
     if (process.env.SWITCH_KEEP === '1') console.log(`[keep] arena home=${run.paths.home} cwd=${run.paths.cwd}`)

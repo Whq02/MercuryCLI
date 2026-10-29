@@ -119,7 +119,6 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
   }
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
-
     yield createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: no model id rides this call — the session's model resolves upstream (/model names one; the built-in default otherwise), and this dispatch was handed none.`,
       error: 'invalid_request',
@@ -128,7 +127,6 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
   }
   const request = { ...params, messages: await readStoredImageRefsForRequest(params.messages) }
   if (verdict.kind === 'unrecognised') {
-
     yield* homeLaneCall(request)
     return
   }
@@ -155,7 +153,6 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       yield* compatCallModel(request)
       return
     case 'openrouter':
-
       yield* openrouterCallModel(request)
       return
     case 'gemini':
@@ -168,7 +165,6 @@ async function* dispatchRoute(params: CallModelParams): CallModelStream {
       yield* localCallModel(request)
       return
     case 'anthropic':
-
       yield* homeLaneCall(request)
       return
     case 'mistral':

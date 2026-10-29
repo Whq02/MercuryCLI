@@ -1,11 +1,10 @@
+
 import { writeSync } from 'node:fs'
 import type { EngineClock, Unit } from './contracts.js'
 import { REAL_ENGINE_CLOCK } from './contracts.js'
 
 export interface DoorSyscalls {
-
   tryWrite(bytes: Buffer): number | 'EAGAIN' | 'closed'
-
   sleepSync(ms: number): void
 }
 
@@ -14,7 +13,6 @@ const TEARDOWN_SPIN_QUANTUM_MS = 2
 const TEARDOWN_BUDGET_MS = 400
 
 interface DoorEvents {
-
   onIdle?: () => void
 }
 
@@ -64,7 +62,6 @@ export class WriteDoor {
       const slice = head.offset === 0 ? head.buf : head.buf.subarray(head.offset)
       const res = this.syscalls.tryWrite(slice)
       if (res === 'closed') {
-
         this.closed = true
         this.owed = 0
         this.queue = []

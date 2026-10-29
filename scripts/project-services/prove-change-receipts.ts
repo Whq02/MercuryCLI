@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, statSync, writeFileSync } from 'node:fs'
@@ -227,7 +226,6 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
   )) {
     refusalEvents.push(msg)
   }
-
   check('T2 a pre-execution refusal mints no receipt (cancellation law)',
     rf(owner).length === 0 &&
     (await import('node:fs')).readFileSync(file2, 'utf8').includes('const y = 1'))

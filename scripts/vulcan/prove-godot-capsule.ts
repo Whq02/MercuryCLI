@@ -7,7 +7,6 @@ import { join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const { staticGodotCapsule } = await import(join(ROOT, 'src/services/vulcan/godotCapsule.ts'))
 const { derivePresence } = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
-
 const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
 const UNBRIDGED = derivePresence(
   6010,

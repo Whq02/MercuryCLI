@@ -16,7 +16,6 @@ interface KitDoors {
   dirSkills: (cwd: string) => Promise<readonly Command[]>
   extensionSkills: () => readonly Command[]
   activeExtensions: () => ReadonlyArray<Pick<ActiveExtension, 'manifest'>>
-
   skillRefusals?: () => readonly SkillLoadRefusal[]
 }
 
@@ -145,10 +144,8 @@ export async function enumerateKitCatalogue(cwd: string, doors: KitDoors = REAL_
     const itsServers = mcpByExtension.get(name) ?? []
     const itsSkills = skillByExtension.get(name) ?? []
     if (itsServers.length > 0) rows.push({ kind: 'extension', section: 'mcp', name, contributes }, ...itsServers)
-
     if (itsSkills.length > 0 || itsServers.length === 0) skillRows.push({ kind: 'extension', section: 'skill', name, contributes }, ...itsSkills)
   }
-
   for (const [owner, list] of mcpByExtension) if (!extensions.some(e => e.manifest.name === owner)) rows.push(...list)
   for (const [owner, list] of skillByExtension) if (!extensions.some(e => e.manifest.name === owner)) skillRows.push(...list)
 

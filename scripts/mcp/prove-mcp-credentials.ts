@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -141,14 +140,12 @@ section('the SDK auth adapter pin — the exact consumed entry points')
     join(import.meta.dir, '..', '..', 'src', 'services', 'mcp', 'auth.ts'),
     'utf8',
   )
-
   const PINNED_CLIENT_AUTH = [
     'discoverAuthorizationServerMetadata',
     'discoverOAuthServerInfo',
     'auth as sdkAuth',
     'refreshAuthorization as sdkRefreshAuthorization',
   ]
-
   const clientBlock = src.slice(
     src.indexOf("import {"),
     src.indexOf("from './sdk.js'"),

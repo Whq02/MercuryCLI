@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -169,7 +168,6 @@ try {
   {
     await manager.changeAndSaveFile(shopPy, readFileSync(shopPy, 'utf8'))
     const verdict = await awaitDiagnosticStabilization(manager, shopPy)
-
     check('the barrier lands with an HONEST verdict (never fabricated clean)', ['fresh', 'unchanged', 'unsupported', 'timed-out'].includes(verdict.state), JSON.stringify(verdict))
     const errors = 'errors' in verdict ? verdict.errors : undefined
     check('a resolved-clean state never reports residual errors', errors === undefined || errors === 0, JSON.stringify(verdict))

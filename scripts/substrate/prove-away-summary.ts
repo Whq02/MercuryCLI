@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -58,7 +57,6 @@ section('(a) gate — default-ON (substrate), =0 opt-out wins')
   delete process.env.MERCURY_AWAY_SUMMARY
   delete process.env.MERCURY_SUBSTRATE
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '0.0.0-src' }
-
   check('bare stamp ⇒ STILL enabled (stamp-independence)', isAwaySummaryEnabled() === true)
   ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 }
@@ -137,7 +135,6 @@ section('(g) end-state — "prior run ended on an error" when the last turn erro
 
 section('(g2) failed tool calls — is_error results excluded from files, surfaced honestly')
 {
-
   const asstWithIds = (when: string, uses: Array<{ id: string; name: string; file?: string }>) => ({
     type: 'assistant', uuid: uid(), timestamp: ts(when),
     message: { id: uid(), role: 'assistant', content: uses.map(u => ({ type: 'tool_use', id: u.id, name: u.name, input: u.file ? { file_path: u.file } : {} })) },
@@ -146,7 +143,6 @@ section('(g2) failed tool calls — is_error results excluded from files, surfac
     type: 'user', uuid: uid(), timestamp: ts(when),
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseId, content: isErr ? 'Denied.' : 'ok', ...(isErr ? { is_error: true } : {}) }] },
   })
-
   const bothFailed = [
     userTurn('flip the flag', '2026-01-01T09:00:00.000Z'),
     asstWithIds('2026-01-01T09:01:00.000Z', [{ id: 'td1', name: 'Edit', file: 'a.ts' }]),
@@ -158,7 +154,6 @@ section('(g2) failed tool calls — is_error results excluded from files, surfac
   check('two failed Edits ⇒ filesTouched 0 (denied/errored edits wrote nothing)', bf?.filesTouched === 0, String(bf?.filesTouched))
   check('two failed Edits ⇒ toolFailures 2', bf?.toolFailures === 2, String(bf?.toolFailures))
   check('line names the failures, no files clause', !!bf && bf.line.includes('2 tool calls failed') && !bf.line.includes('files touched'), String(bf?.line))
-
   const mixed = [
     userTurn('x', '2026-01-01T09:00:00.000Z'),
     asstWithIds('2026-01-01T09:01:00.000Z', [{ id: 'ok1', name: 'Edit', file: 'good.ts' }, { id: 'no1', name: 'Edit', file: 'bad.ts' }]),
@@ -168,7 +163,6 @@ section('(g2) failed tool calls — is_error results excluded from files, surfac
   const mx = buildAwayRecap(mixed as any, NOW)
   check('mixed ⇒ only the completed Edit touches its file', mx?.filesTouched === 1 && !!mx && mx.line.includes('1 file touched'), String(mx?.line))
   check('mixed ⇒ singular "1 tool call failed"', !!mx && mx.line.includes('1 tool call failed'), String(mx?.line))
-
   const retried = [
     userTurn('x', '2026-01-01T09:00:00.000Z'),
     asstWithIds('2026-01-01T09:01:00.000Z', [{ id: 'f1', name: 'Edit', file: 'same.ts' }]),
@@ -178,7 +172,6 @@ section('(g2) failed tool calls — is_error results excluded from files, surfac
   ]
   const rt = buildAwayRecap(retried as any, NOW)
   check('failed-then-clean on one file ⇒ still 1 file touched', rt?.filesTouched === 1, String(rt?.filesTouched))
-
   const bash = [
     userTurn('x', '2026-01-01T09:00:00.000Z'),
     asstWithIds('2026-01-01T09:01:00.000Z', [{ id: 'b1', name: 'Bash' }]),
@@ -186,7 +179,6 @@ section('(g2) failed tool calls — is_error results excluded from files, surfac
   ]
   const bs = buildAwayRecap(bash as any, NOW)
   check('failed Bash ⇒ toolFailures 1, filesTouched 0', bs?.toolFailures === 1 && bs?.filesTouched === 0)
-
   const cleanRun = buildAwayRecap([userTurn('x', '2026-01-01T09:00:00.000Z'), asst('2026-01-01T09:01:00.000Z', [{ name: 'Bash' }])] as any, NOW)
   check('no is_error results ⇒ toolFailures 0 + no failed clause', cleanRun?.toolFailures === 0 && !cleanRun?.line.includes('failed'))
 }
@@ -201,24 +193,19 @@ section('(h) buildAwayRecap — structured fields + buildAwaySummary stays a thi
     userTurn('x', '2026-01-01T09:00:00.000Z'),
     asst('2026-01-01T10:00:00.000Z', [{ name: 'Edit', file: 'a.ts' }, { name: 'Edit', file: 'b.ts' }, { name: 'Bash' }]),
   ]
-
   const err = buildAwayRecap([...base, errLast('2026-01-01T11:00:00.000Z')] as any, NOW)
   check('error tail ⇒ endedOnError true', err?.endedOnError === true)
   check('error tail ⇒ line carries the error flag first', !!err && err.line.startsWith('Resumed — prior run ended on an error'))
-
   const clean = buildAwayRecap(base as any, NOW)
   check('clean tail ⇒ endedOnError false', clean?.endedOnError === false)
   check('structured counts: turns=1 filesTouched=2', clean?.turns === 1 && clean?.filesTouched === 2)
   check('topTools space-joined desc', clean?.topTools === 'Edit×2 Bash×1', String(clean?.topTools))
   check('lastActiveGapMs = now − last ts (2h)', clean?.lastActiveGapMs === 2 * 3600_000, String(clean?.lastActiveGapMs))
-
   check('no-git ⇒ recap.gitDelta undefined + no clause', clean?.gitDelta === undefined && !clean?.line.includes('uncommitted'))
   const withGit = buildAwayRecap(base as any, NOW, { files: 3, added: 10, removed: 2 })
   check('git delta echoed back for the caller metadata', withGit?.gitDelta?.files === 3)
-
   check('wrapper: line identical', buildAwaySummary(base as any, NOW) === clean?.line)
   check('wrapper: null passthrough on empty', buildAwaySummary([], NOW) === null && buildAwayRecap([], NOW) === null)
-
   const noTs = buildAwayRecap([{ type: 'user', uuid: uid(), message: { role: 'user', content: [{ type: 'text', text: 'x' }] } }] as any, NOW)
   check('no parseable timestamp ⇒ lastActiveGapMs absent', noTs !== null && noTs.lastActiveGapMs === undefined)
 
@@ -239,7 +226,6 @@ section('(h) buildAwayRecap — structured fields + buildAwaySummary stays a thi
   check('sentinel user is not a counted turn', masked?.turns === 1)
   const cleanWithSentinels = buildAwayRecap([...base, sentinelUser, sentinelAsst] as any, NOW)
   check('clean tail + sentinels ⇒ still clean (no false ✕)', cleanWithSentinels?.endedOnError === false)
-
   const realSameText = buildAwayRecap(
     [...base, { type: 'assistant', uuid: uid(), timestamp: '2026-01-01T11:30:00.000Z', message: { id: uid(), role: 'assistant', content: [{ type: 'text', text: 'No response requested. Proceeding.' }] } }] as any,
     NOW,
@@ -284,12 +270,10 @@ section('(f) wiring — the resume hop builds the recap and paints the display c
   check('the hop gates on isAwaySummaryEnabled()', hop.includes('isAwaySummaryEnabled()'))
   check("the hop builds from the session's records + git delta", /buildAwayRecap\(records, Date\.now\(\), gitDelta\)/.test(hop))
   check('the hop gates on the records actually landing (bounded wait, empty ⇒ no card)', /records\.length === 0\) return/.test(hop))
-
   check('the hop paints the recap as a display row (addDisplayRow + factory)', /addDisplayRow\(createAwaySummaryMessage\(recap\.line, enriched\)/.test(hop))
   check('the hop stamps toolFailures into the card metadata when the prior run had any', /toolFailures: recap\.toolFailures/.test(hop))
   check('recapMetadata reads the cert snapshot at the writer (renderer stays props-pure)', hop.includes('healthCertSnapshot()'))
   check("recapMetadata reads the branch sync at the writer (the connector owns the cwd)", hop.includes('readBranchHeadSync(connector.workspace().cwd)'))
-
   const stm = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'SystemTextMessage.tsx'), 'utf-8')
  check('SystemTextMessage: recapMetadata ⇒ ResumeRecapCard (unconditional, convergence)', /if \(message\.recapMetadata\)/.test(stm) && stm.includes('<ResumeRecapCard'))
   check('SystemTextMessage: the plain ※ line branch is intact', stm.includes("{'※ '}"))

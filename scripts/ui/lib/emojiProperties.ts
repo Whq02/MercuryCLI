@@ -1,7 +1,7 @@
+
 export const EMOJI_DATA_UNICODE_VERSION = '17.0'
 
 export const TEXT_PRESENTATION_SELECTOR = 0xfe0e
-
 export const EMOJI_PRESENTATION_SELECTOR = 0xfe0f
 
 export const EMOJI_RANGES: ReadonlyArray<readonly [number, number]> = [

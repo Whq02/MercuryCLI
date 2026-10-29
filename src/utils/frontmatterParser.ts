@@ -2,6 +2,7 @@ import { logForDebugging } from './debug.js'
 import type { HooksSettings } from './settings/types.js'
 import { parseYaml } from './yaml.js'
 
+
 export type FrontmatterShell = 'bash' | 'powershell'
 
 export type FrontmatterData = {
@@ -28,7 +29,6 @@ export type FrontmatterData = {
 type ParsedMarkdown = {
   frontmatter: FrontmatterData
   content: string
-
   parseError?: { message: string }
 }
 
@@ -40,7 +40,6 @@ function quoteSpecialValues(block: string): string {
   return block
     .split('\n')
     .map(line => {
-
       const cr = line.endsWith('\r') ? '\r' : ''
       const match = /^([A-Za-z_-]+):\s*(.*)$/.exec(cr ? line.slice(0, -1) : line)
       if (!match) return line

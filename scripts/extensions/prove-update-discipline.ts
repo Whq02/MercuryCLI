@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -83,7 +82,6 @@ console.log('[1] a newer version upstream changes nothing until check')
 
 console.log('[2] the version key: pre-fetch; a lying catalogue refuses; a warm read needs no remote')
 {
-
   const cataloguePath = join(repo, 'mercury-extensions.json')
   const catalogue = JSON.parse(readFileSync(cataloguePath, 'utf8'))
   catalogue.extensions.find((e: { name: string }) => e.name === 'kitchen-sink').version = '2.0.0'
@@ -95,19 +93,16 @@ console.log('[2] the version key: pre-fetch; a lying catalogue refuses; a warm r
   const lied = await install.update(ID)
   check('the update refuses the lie naming both versions', !lied.ok && lied.reason === 'catalogue says 2.0.0, manifest says 1.1.0', lied.ok ? 'applied' : lied.reason)
   check('no 2.0.0 folder remains', !existsSync(paths.getInstalledVersionDir(ID, '2.0.0')))
-
   catalogue.extensions.find((e: { name: string }) => e.name === 'kitchen-sink').version = '1.1.0'
   writeFileSync(cataloguePath, JSON.stringify(catalogue, null, 2))
   git(['add', '-A'], repo)
   git(['commit', '-q', '-m', 'repair'], repo)
   check('re-check lands', (await sources.refreshSource('update-src')).ok)
-
   const record = records.installedOrEmpty()[ID]!
   check('the record path is the version-keyed folder', record.path === paths.getInstalledVersionDir(ID, '1.0.0'))
   removeScratch(repo)
   const warm = rosterMod.computeRoster({ cwd }).entries.find(e => e.id === ID)
   check('with the remote DELETED the copy still resolves under the key (no re-clone)', warm !== undefined && warm.root === record.path && warm.manifest !== null)
-
   cpSync(FIXTURE, repo, { recursive: true })
   bumpRestore()
 }
@@ -153,7 +148,6 @@ console.log('[3] update: a new folder, approval carried when the hash is unchang
 
 console.log('[4] previous: kept while broken, swapped back without re-approval')
 {
-
   const record = records.installedOrEmpty()[ID]!
   check('1.2.0 keeps 1.1.0 until its first clean load', record.previous?.version === '1.1.0')
   writeFileSync(join(record.path, 'mercury-extension.json'), '{ broken')
@@ -196,7 +190,6 @@ console.log('[6] no background updater: the request log stays empty across a ful
   })
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
   const archiveUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}/x.zip`
-
   records.updateSources(current => ({
     ...current,
     'remote-arch': { kind: 'archive', where: archiveUrl, ref: null, addedAt: new Date().toISOString(), checkedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(), commit: null, lastError: null },

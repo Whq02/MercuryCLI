@@ -33,6 +33,7 @@ export function getActiveAgentForInput(
   return { type: 'leader' }
 }
 
+
 export const VIEWABLE_TASK_TYPES = ['local_agent'] as const
 
 export const NON_VIEWABLE_TASK_TYPES = [
@@ -52,12 +53,12 @@ type IsEqual<A, B> =
 type Assert<T extends true> = T
 export type EveryTaskTypeClassified = Assert<IsEqual<TaskType, ClassifiedTaskType>>
 
+
 type ViewedAgent = {
   kind: 'local_agent'
   taskId: string
   name: string
   color?: string
-
   statusLabel: string
   isWorking: boolean
   subtitle: string

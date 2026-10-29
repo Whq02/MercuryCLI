@@ -1,3 +1,4 @@
+
 import { getGraphemeSegmenter } from '../../utils/intl.js'
 import { isHebrewArabicCombiningMark } from '../stringWidth.js'
 import { createScanner, type Scanner, type TokenKind } from '../input/scanner.js'
@@ -12,6 +13,7 @@ import type {
   UnderlineStyle,
 } from './display-types.js'
 import { defaultStyle } from './display-types.js'
+
 
 const WIDE_RANGES: readonly number[] = [
   0x1100, 0x115f,
@@ -41,7 +43,6 @@ function onlyHebrewArabicMarksAfterBase(grapheme: string, baseUnits: number): bo
 function graphemeWidth(grapheme: string): 1 | 2 {
   const first = grapheme.codePointAt(0)
   if (first === undefined) return 1
-
   const baseUnits = first > 0xffff ? 2 : 1
   if (grapheme.length > baseUnits && !onlyHebrewArabicMarksAfterBase(grapheme, baseUnits)) {
     return 2
@@ -60,6 +61,7 @@ function batchGraphemes(text: string): Grapheme[] {
   }
   return graphemes
 }
+
 
 const NAMED_COLORS: readonly NamedColor[] = [
   'black',
@@ -126,7 +128,6 @@ function resolveExtendedColor(
       return { color: { kind: 'indexed', index: g.sub[1]! }, extra: 0 }
     }
     if (g.sub[0] === 2 && g.sub.length >= 4) {
-
       const off = g.sub.length >= 5 ? 1 : 0
       return {
         color: {
@@ -139,7 +140,6 @@ function resolveExtendedColor(
       }
     }
   }
-
   const next = groups[i + 1]
   if (!next) return null
   if (next.n === 5 && groups[i + 2]?.n != null) {
@@ -260,12 +260,12 @@ function foldSgr(raw: string, prev: TextStyle): TextStyle {
         else if (code >= 40 && code <= 47) s.bg = { type: 'named', name: NAMED_COLORS[code - 40]! }
         else if (code >= 90 && code <= 97) s.fg = { type: 'named', name: NAMED_COLORS[code - 90 + 8]! }
         else if (code >= 100 && code <= 107) s.bg = { type: 'named', name: NAMED_COLORS[code - 100 + 8]! }
-
         break
     }
   }
   return s
 }
+
 
 function csiParams(paramStr: string): number[] {
   if (paramStr === '') return []
@@ -289,7 +289,6 @@ function splitCsi(rawSequence: string): CsiParts | null {
     privateMode = paramStr[0]!
     paramStr = paramStr.slice(1)
   }
-
   let intermediate = ''
   const m = paramStr.match(/([^0-9;:]+)$/)
   if (m) {
@@ -334,7 +333,6 @@ function interpretCsi(rawSequence: string): Action | null {
   }
 
   switch (finalByte) {
-
     case CSI.CUU:
       return { type: 'cursor', action: { type: 'move', direction: 'up', count: p0 } }
     case CSI.CUD:
@@ -398,6 +396,7 @@ function interpretCsi(rawSequence: string): Action | null {
   return { type: 'unknown', sequence: rawSequence }
 }
 
+
 const ESC_ACTIONS: Readonly<Record<string, Action | null>> = {
   c: { type: 'reset' },
   '7': { type: 'cursor', action: { type: 'save' } },
@@ -413,10 +412,10 @@ function interpretEsc(rawSequence: string): Action | null {
   if (chars.length === 0) return null
   const first = chars[0]!
   if (first in ESC_ACTIONS) return ESC_ACTIONS[first]!
-
   if ((first === '(' || first === ')') && chars.length >= 2) return null
   return { type: 'unknown', sequence: rawSequence }
 }
+
 
 function oscContent(rawSequence: string): string {
   let content = rawSequence.slice(2)
@@ -424,6 +423,7 @@ function oscContent(rawSequence: string): string {
   if (content.endsWith('\x1b\\')) return content.slice(0, -2)
   return content
 }
+
 
 export class Parser {
   private scanner: Scanner = createScanner()
@@ -478,7 +478,6 @@ export class Parser {
         return
       }
       case 'esc': {
-
         if (value.length < 2) {
           out.push({ type: 'unknown', sequence: value })
           return
@@ -487,7 +486,6 @@ export class Parser {
         if (action) out.push(action)
         return
       }
-
       default:
         out.push({ type: 'unknown', sequence: value })
         return
@@ -496,7 +494,6 @@ export class Parser {
 
   private emitText(text: string, out: Action[]): void {
     if (text.indexOf('\x07') === -1) {
-
       const graphemes = batchGraphemes(text)
       if (graphemes.length > 0) {
         out.push({ type: 'text', graphemes, style: { ...this.style } })

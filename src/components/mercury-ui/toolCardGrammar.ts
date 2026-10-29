@@ -1,3 +1,4 @@
+
 import type * as React from 'react'
 import { FAINT, SECOND } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
@@ -11,25 +12,20 @@ interface CardTone {
 }
 
 const CARD_TO_SPINE: Record<string, SnapshotState> = {
-
   succeeded: 'ready',
   ok: 'ready',
   ready: 'ready',
   completed: 'ready',
-
   failed: 'failed',
   error: 'failed',
   absent: 'failed',
   'timed-out': 'failed',
-
   queued: 'starting',
   starting: 'starting',
   running: 'starting',
   waiting: 'starting',
   stopping: 'starting',
-
   stopped: 'off',
-
   cancelled: 'gated',
   busy: 'gated',
   expired: 'stale',

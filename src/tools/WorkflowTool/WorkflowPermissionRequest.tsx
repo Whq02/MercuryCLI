@@ -1,3 +1,4 @@
+
 import * as React from 'react'
 import { useMemo } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -123,7 +124,6 @@ export function WorkflowPermissionRequest({
         onDone()
         break
       case 'yes-dont-ask-again': {
-
         const ruleContent = source.ruleKey ?? input.name ?? ''
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {

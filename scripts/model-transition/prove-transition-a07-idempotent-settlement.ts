@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync } from 'node:child_process'
@@ -70,7 +69,6 @@ section('§C crash before the boundary — the pending slot is in-memory only')
 {
   const fresh = getDefaultAppState() as unknown as Slice
   check('a fresh boot carries no pending switch', fresh.pendingModelSwitch === null || fresh.pendingModelSwitch === undefined)
-
   let hits: string[] = []
   try {
     hits = execFileSync(

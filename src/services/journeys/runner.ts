@@ -1,3 +1,4 @@
+
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash, randomBytes } from 'node:crypto'
@@ -79,6 +80,7 @@ function remember(owner: OwnerKey, record: JourneyRecord): void {
   }
 }
 
+
 const liveAborts = new Map<string, AbortController>()
 
 let domainInstalled = false
@@ -97,6 +99,7 @@ function installJourneyExecutionDomain(): void {
 }
 installJourneyExecutionDomain()
 
+
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
 function isLoopbackUrl(raw: string): boolean {
@@ -107,6 +110,7 @@ function isLoopbackUrl(raw: string): boolean {
     return false
   }
 }
+
 
 interface StepContext {
   owner: OwnerKey
@@ -324,6 +328,7 @@ async function runStep(
   }
 }
 
+
 interface RunJourneyOptions {
   owner: OwnerKey
   root: string
@@ -395,7 +400,6 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
     let out: { ok: boolean; detail: string }
     try {
       const timeoutMs = step.timeoutMs ?? DEFAULT_STEP_TIMEOUT[step.kind]
-
       const watchdogMs = timeoutMs + 2_000
       out = await Promise.race([
         runStep(step, ctx),
@@ -475,7 +479,6 @@ export async function runJourney(spec: JourneySpec, opts: RunJourneyOptions): Pr
   }
 
   if (cancelled) {
-
     try {
       settleExecution(opts.owner, id, 'cancelled', { outcome: { reason: 'journey cancelled' } })
     } catch {

@@ -8,7 +8,6 @@ export default () =>
     type: 'local-jsx',
     name: 'logins',
     aliases: ['login'],
-
     get description() {
       try {
         return anyProviderCredentialed()
@@ -20,7 +19,6 @@ export default () =>
     },
     argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek|xai|meta|mistral|nous|zen|minimax|together|cohere|groq|orcarouter|melious|cerebras|fireworks|qwen]',
     isEnabled: () => flagEnabled('MERCURY_LOGIN_COMMAND'),
-
     get immediate() {
       return shouldNavCommandBeImmediate()
     },

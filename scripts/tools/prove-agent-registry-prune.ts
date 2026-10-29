@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -18,14 +17,12 @@ console.log(' agent registry prune — evictTerminalTask drops stale routes (HB-
 console.log('============================================================')
 
 section('source: ONE by-value prune helper, applied on BOTH eviction roads')
-
 check('a helper collects registry names whose id === the evicted taskId', /function pruneAgentNameRegistry\([\s\S]{0,400}String\(agentId\) === taskId/.test(fw))
 check('it deletes those names (clone-on-write, only when something is removed)', /function pruneAgentNameRegistry\([\s\S]{0,700}new Map\(registry\)[\s\S]{0,120}\.delete\(name\)/.test(fw))
 check('evictTerminalTask applies it and returns the pruned registry', /export function evictTerminalTask[\s\S]{0,1200}agentNameRegistry: pruneAgentNameRegistry\(prevState\.agentNameRegistry, taskId\)/.test(fw))
 check('the batch sweep applies it for every evicted id', /export function applyTaskOffsetsAndEvictions[\s\S]{0,1600}registry = pruneAgentNameRegistry\(registry, taskId\)/.test(fw))
 
 section('behavioural mirror: evict prunes the matching route, keeps the rest')
-
 const evict = (
   state: { tasks: Record<string, { id: string; status: string; notified: boolean }>; registry: Map<string, string> },
   taskId: string,
@@ -53,7 +50,6 @@ check('routes to OTHER agents survive (beta→t2)', s1.registry.get('beta') === 
 check('registry no longer grows unbounded (size shrank)', s1.registry.size === 1)
 const sRunning = evict(s0, 't2')
 check('a non-terminal task is NOT evicted and its route is kept', sRunning.tasks.t2 !== undefined && sRunning.registry.has('beta'))
-
 const reused = new Map(s1.registry)
 reused.set('alpha', 't9')
 check('after prune, re-registering a freed name maps to the NEW agent (no stale shadow)', reused.get('alpha') === 't9')

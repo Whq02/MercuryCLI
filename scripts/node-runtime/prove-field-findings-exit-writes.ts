@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -33,7 +32,6 @@ for (const rel of [
   check(`${rel} carries no stream-write-then-exit pair`, !hasAdjacentStreamWriteExit(read(rel)))
 }
 {
-
   const cli = read('src/entrypoints/cli.tsx')
   check(
     'cli.tsx: the acp usage exit is a lazy writeSync, not the stream',
@@ -44,13 +42,11 @@ for (const rel of [
 console.log('§2 the discipline is in: writeSync beside the exits the audit fixed')
 {
   const wp = read('src/utils/windowsPaths.ts')
-
   check(
     'the git-bash refusal writes sync (the pin arm) and the remedy words stand',
     (wp.match(/writeSync\(\s*2,/g) ?? []).length >= 1 && wp.includes('requires git-bash'),
   )
   const main = read('src/main.tsx')
-
   check('the --version line writes sync', main.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))
   const auth = read('src/cli/handlers/auth.ts')
   check("both sign-in results write sync", (auth.match(/writeSync\(1, /g) ?? []).length >= 4)

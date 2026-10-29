@@ -24,7 +24,6 @@ export type FoldLandingRowFacts = { type?: string; subtype?: string; timestamp?:
 export function FoldStatusRow({ rows, conversationId }: { rows: readonly FoldLandingRowFacts[]; conversationId: string }): React.ReactNode {
   const live = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)
   const record = getFocusedSessionConnector().sessionId() === conversationId ? live : null
-
   const landingPainted =
     record !== null &&
     rows.some(row => isFoldLandingRow({ type: row.type, subtype: row.subtype, timestamp: row.timestamp, text: typeof row.content === 'string' ? row.content : '' }, record.startedAtMs))

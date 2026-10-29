@@ -32,7 +32,6 @@ const OLD_INPUT = {
 
 const OLD_ANSWERED = {
   ...OLD_INPUT,
-
   answers: { 'Which storage engine should the cache use?': 'In-memory' },
   annotations: {
     'Which storage engine should the cache use?': { notes: 'keep it local' },

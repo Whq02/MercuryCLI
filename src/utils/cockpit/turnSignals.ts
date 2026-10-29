@@ -1,21 +1,14 @@
+
 import type { Message } from '../../types/message.js'
 
 export interface TurnSignals {
-
   turnLive: boolean
-
   turnStartTs: number | null
-
   streaming: boolean
-
   awaitingPermission: boolean
-
   lastTurnEndTs: number | null
-
   lastTurnDurationMs: number | null
-
   lastTurnEndedInError: boolean
-
   lastTurnErrorTs: number | null
 }
 
@@ -46,7 +39,6 @@ export function publishTurnSignals(next: {
   turnLive: boolean
   streaming: boolean
   awaitingPermission: boolean
-
   endedInError?: boolean
 }): void {
   publishTurnSignalsAt(next, Date.now())
@@ -57,7 +49,6 @@ function publishTurnSignalsAt(
   now: number,
 ): void {
   const wasLive = signals.turnLive
-
   const endedInError = !next.turnLive && next.endedInError === true
   if (
     wasLive === next.turnLive &&
@@ -87,6 +78,7 @@ function publishTurnSignalsAt(
 export function turnSignals(): TurnSignals {
   return signals
 }
+
 
 export function subscribeTurnSignals(cb: () => void): () => void {
   listeners.add(cb)

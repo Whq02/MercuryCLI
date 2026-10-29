@@ -46,7 +46,6 @@ section('(a) default-ON (graduated); =0 ⇒ the byte-exact placeholder')
   const trs = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'toolResultStorage.ts'), 'utf-8')
   const m = trs.match(/TOOL_RESULT_CLEARED_MESSAGE\s*=\s*'([^']*)'/)
   check('placeholder equals toolResultStorage source-of-truth (drift guard)', !!m && m![1] === MC_CLEARED_PLACEHOLDER)
-
   const savedMacro = (globalThis as Record<string, unknown>)['MACRO']
   delete (globalThis as Record<string, unknown>)['MACRO']
   delete process.env.MERCURY_MC_DIGEST
@@ -86,7 +85,6 @@ section('(c) adversarial secrets — no byte reaches the label (zero-leak by con
     check(`${name}: label is structural-only`, STRUCTURAL.test(d))
     check(`${name}: no 4+char substring of the secret appears in the label`, !leaks(d, secret), d)
   }
-
   const all = SECRETS.map(s => s[1]).join('\n')
   const dAll = digestClearedToolResult([{ type: 'text', text: all } as never])
   check('all five in one block ⇒ structural-only, no secret bytes', STRUCTURAL.test(dAll) && SECRETS.every(([, s]) => !leaks(dAll, s)))
@@ -115,7 +113,6 @@ section('(e) idempotent · empty/whitespace/image-only ⇒ placeholder')
 
 section('(f) side-channel bound — the size label is a coarse length, cannot reconstruct content')
 {
-
   const labels = new Set<string>()
   for (let n = 20; n <= 200; n++) {
     const secret = 'x'.repeat(n)

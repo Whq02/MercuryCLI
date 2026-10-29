@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -21,13 +20,11 @@ const turns: ScriptedTurn[] = [
     },
     preText: 'Spawning the probe agent.',
   },
-
   {
     kind: 'paced',
     deltas: Array.from({ length: 18 }, (_, i) => `count ${i + 1}. `),
     gapMs: 900,
   },
-
   { kind: 'text', text: 'Probe launched.' },
 ]
 

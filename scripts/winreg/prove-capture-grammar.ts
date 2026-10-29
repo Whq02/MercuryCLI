@@ -15,16 +15,13 @@ const CFG_KEYS = [
   '"cols"', '"rows"', '"total"', '"argv"', '"sends"', '"out"',
   '"readyText"', '"readySettleTicks"', '"stableTicks"', '"resizes"', '"cwd"',
   '"stableRegion"', '"requireStable"',
-
   '"liveSeat"',
 ]
-
 const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPrevMs"']
 const SEND_KEYS = [
   '"atTick"', '"afterPrevTicks"', '"awaitText"', '"awaitRaw"', '"awaitPattern"',
   '"minTick"', '"awaitSettleTicks"', '"awaitStableTicks"', '"data"', '"mark"',
   '"requireAwait"', '"awaitStableRegion"', '"targetText"', '"targetDx"', '"awaitRedraws"',
-
   '"signal"',
   '"repeatEveryTicks"',
 ]
@@ -68,7 +65,6 @@ t.section('the shared capture laws hold in both engines')
     win.includes('WT_SESSION') && win.includes('vscode'),
     'operator ruling 3 — first-class hosts',
   )
-
   const campaign = readFileSync('scripts/winreg/campaign-win.py', 'utf8')
   t.check(
     'the wt profile is a simulated fingerprint: vshot-win sets WT_SESSION in the child environment and launches no Windows Terminal renderer',
@@ -84,7 +80,6 @@ t.section('the shared capture laws hold in both engines')
 
 t.section('every Windows driver parses (a syntax error must never cost a 2× billed run)')
 {
-
   const { spawnSync } = require('node:child_process') as typeof import('node:child_process')
   for (const f of ['scripts/ui/vshot.py', 'scripts/winreg/vshot-win.py', 'scripts/lib/capture_refusal.py', 'scripts/winreg/bringup-win.py', 'scripts/winreg/campaign-win.py']) {
     const r = spawnSync('/usr/bin/python3', ['-c', `import ast; ast.parse(open('${f}').read())`], { encoding: 'utf8' })
@@ -94,9 +89,7 @@ t.section('every Windows driver parses (a syntax error must never cost a 2× bil
 
 t.section('vshot.py did NOT grow tokens this prover does not pin')
 {
-
   const seen = new Set<string>()
-
   const code = posix
     .split('\n')
     .map(l => l.replace(/#.*$/, ''))

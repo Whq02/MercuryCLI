@@ -1,3 +1,4 @@
+
 import { existsSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { memoryGrade, recordGrade } from './memoryEvidence.js'
@@ -35,7 +36,6 @@ export function factMemoryState(
 type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
 
 export interface MemoryRef {
-
   refId: string
   kind: MemoryRefKind
   store: 'mneme'
@@ -44,15 +44,11 @@ export interface MemoryRef {
   confirmedAt?: string
   confidence?: number
   missingPaths?: readonly string[]
-
   summary: string
   source?: string
   capturedAt?: string
-
   why: string
-
   deref: string
-
   tier: number
   grade?: string
   library?: string
@@ -131,7 +127,6 @@ function pathFreshness(summary: string, projectRoot: string | null): { status: '
 interface CollectOpts {
   maxRefs?: number
   libraryDir?: string
-
   projectRoot?: string | null
   sessions?: readonly LedgerEntry[]
   now?: Date

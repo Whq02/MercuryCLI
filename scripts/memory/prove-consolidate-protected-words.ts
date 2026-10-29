@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/mnemeSimilarity.ts src/mneme/mnemePolarity.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'

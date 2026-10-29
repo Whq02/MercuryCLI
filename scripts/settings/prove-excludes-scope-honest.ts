@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -11,7 +10,6 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
-
 writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 process.chdir(PROJ)
 

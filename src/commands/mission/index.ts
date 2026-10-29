@@ -1,6 +1,7 @@
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import type { Command } from '../../commands.js'
 
+
 export const mission: Command = {
   type: 'local-jsx',
   name: 'mission',

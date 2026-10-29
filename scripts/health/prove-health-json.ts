@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -23,9 +22,7 @@ interface RunResult {
   status: number
   json: unknown
 }
-
 const scratchHome = mkdtempSync(join(tmpdir(), 'health-proof-home-'))
-
 function runHealth(cwd: string, env: Record<string, string | undefined> = {}, verb: 'health' = 'health', extraArgs: string[] = [], bin: string = BIN): RunResult {
   let stdout = ''
   let status = 0
@@ -68,7 +65,6 @@ const byId = (c: Cert, id: string): Check | undefined => allChecks(c).find(x => 
 
 const scratch = mkdtempSync(join(tmpdir(), 'health-proof-'))
 try {
-
   {
     const dir = join(scratch, 'bare')
     mkdirSync(dir, { recursive: true })
@@ -88,12 +84,9 @@ try {
     check('every status is in the 7-status enum', checks.every(c => STATUSES.has(c.status)))
     check('no gate in a bare project reads info (not fabricated ok/unknown)', byId(cert, 'gate')?.status === 'info')
     check('no sandbox row in RUNTIME', byId(cert, 'sandbox') === undefined)
-
     const mcp = byId(cert, 'mcp')
     check('mcp evidence carries the untrusted-hardening state', /untrusted-hardening off|untrusted servers clamped/.test(String(mcp?.evidence)))
-
     check('no retired estate row lingers in the certificate', byId(cert, 'party') === undefined && byId(cert, 'multiplayer') === undefined && byId(cert, 'room-snapshots') === undefined)
-
     const authSection = cert.sections.find(s => s.id === 'auth')
     check('AUTH section present', !!authSection)
     for (const provider of ['anthropic', 'openai', 'zai']) {
@@ -103,7 +96,6 @@ try {
         JSON.stringify(row))
     }
     check('the legacy single-provider auth row is gone', !authSection?.checks.some(c => c.id === 'auth'))
-
     const projectsDir = join(scratchHome, '.mercury', 'projects')
     const slugs = existsSync(projectsDir) ? readdirSync(projectsDir) : []
     check('the bare run wrote ONE project store under the config home', slugs.length === 1, JSON.stringify(slugs))
@@ -185,7 +177,6 @@ try {
     check("piped: the row reads neutral 'info'", pipedRow?.status === 'info', pipedRow?.status)
     check('piped: the evidence names the environmental condition', /environmental/.test(String(pipedRow?.evidence)), String(pipedRow?.evidence))
   }
-
   {
     const dir = join(scratch, 'only-json')
     mkdirSync(dir, { recursive: true })
@@ -231,7 +222,6 @@ try {
 
   console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')
   {
-
     const errFile = join(scratch, 'slow-reader.stderr')
     let piped = ''
     let status = 0

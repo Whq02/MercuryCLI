@@ -131,7 +131,6 @@ const getAgentFileMessages = memoize(
         const e = JSON.parse(line) as {
           annotations?: { uuid?: string }
         }
-
         const uuid = e.annotations?.uuid
         if (typeof uuid === 'string') set.add(uuid)
       } catch {
@@ -151,14 +150,12 @@ export function getProject(): Project {
 
     if (!cleanupRegistered) {
       registerCleanup(async () => {
-
         await project?.flush()
         try {
           project?.reAppendSessionMetadata()
         } catch {
         }
       })
-
       registerExitCliffSeam({
         name: 'transcript-writer',
         phase: 1,
@@ -215,7 +212,6 @@ export async function recordTranscript(
   const cleanedMessages = cleanForTranscript(messages, allMessages)
   const messageSet = await getSessionMessages(getSessionId() as UUID)
   const { unwritten: newMessages, parent: startingParentUuid } = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
-
   const preferLiveLeaf = messageSet.size > 0
   if (newMessages.length > 0) {
     await getProject().insertMessageChain(
@@ -228,7 +224,6 @@ export async function recordTranscript(
   }
   const lastRecorded = newMessages.findLast(isChainParticipant)
   if (lastRecorded) return lastRecorded.uuid as UUID
-
   if (preferLiveLeaf) {
     const leaf = getProject().currentSessionChainLeaf
     if (leaf !== undefined) return leaf
@@ -262,9 +257,7 @@ export async function removeTranscriptMessage(targetUuid: UUID): Promise<void> {
 }
 
 function lineAround(tail: Buffer, matchIdx: number, matchLength: number, bytesRead: number, windowAtFileStart: boolean): { start: number; end: number } | null {
-
   const prevNl = tail.lastIndexOf(0x0a, matchIdx)
-
   if (prevNl < 0 && !windowAtFileStart) return null
   const nextNl = tail.indexOf(0x0a, matchIdx + matchLength)
   return { start: prevNl + 1, end: nextNl >= 0 ? nextNl + 1 : bytesRead }
@@ -316,7 +309,6 @@ export function adoptResumedSessionFile(): void {
   const project = getProject()
   project.sessionFile = getTranscriptPath()
   project.reAppendSessionMetadata(true)
-
   project.currentSessionChainLeaf = undefined
 }
 
@@ -356,47 +348,38 @@ export async function flushSessionStorage(): Promise<void> {
 }
 
 class Project {
-
   currentSessionTag: string | undefined
   currentSessionTitle: string | undefined
   currentSessionAgentName: string | undefined
   currentSessionAgentColor: string | undefined
   currentSessionLastPrompt: string | undefined
-
   currentSessionChainLeaf: UUID | undefined
   private readonly recentChainLinks = new Map<UUID, { parent: UUID | null; quiet: boolean }>()
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
   currentSessionModel: string | undefined
-
   currentSessionWorktree: PersistedWorktreeSession | null | undefined
   currentSessionPrNumber: number | undefined
   currentSessionPrUrl: string | undefined
   currentSessionPrRepository: string | undefined
 
   sessionFile: string | null = null
-
   private pendingEntries: Entry[] = []
   private pendingWriteCount: number = 0
   private flushResolvers: Array<() => void> = []
-
   private writeQueues = new Map<
     string,
     Array<{ line: string; resolve: () => void }>
   >()
-
   private settleState = new Map<
     string,
     {
       file: string
       entry: Entry
       lastLine: string
-
       semanticLine: string
-
       creationOrdinal?: string
-
       queued?: { line: string; resolve: () => void }
     }
   >()
@@ -405,7 +388,6 @@ class Project {
   private activeDrain: Promise<void> | null = null
   private FLUSH_INTERVAL_MS = 100
   private readonly MAX_CHUNK_BYTES = 100 * 1024 * 1024
-
   private fileWriteChain: Promise<unknown> = Promise.resolve()
 
   readonly metadata = new SessionMeta({
@@ -471,7 +453,6 @@ class Project {
   }
 
   private enqueueWrite(filePath: string, entry: Entry): Promise<void> {
-
     return this.enqueueRawLine(
       filePath,
       encodeTranscriptLine(filePath, entry as Record<string, unknown>).line,
@@ -502,12 +483,9 @@ class Project {
     if (this.flushTimer) {
       return
     }
-
     const interval = Math.min(this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000)
-
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null
-
       this.runDrain().catch(() => {})
     }, interval)
   }
@@ -524,7 +502,6 @@ class Project {
         err => {
           if (this.drainFailureStreak === 0) logError(err)
           this.drainFailureStreak++
-
           if (this.drainFailureStreak >= 2) {
             setStoreHealth({ failing: true, sentence: err instanceof Error ? err.message : String(err) })
           }
@@ -533,7 +510,6 @@ class Project {
       )
       .finally(() => {
         if (this.activeDrain === run) this.activeDrain = null
-
         if (this.writeQueues.size > 0) {
           this.scheduleDrain()
         }
@@ -544,7 +520,6 @@ class Project {
     try {
       await fsAppendFile(filePath, data, { mode: 0o600 })
     } catch {
-
       try {
         await mkdir(dirname(filePath), { recursive: true, mode: 0o700 })
         await fsAppendFile(filePath, data, { mode: 0o600 })
@@ -556,12 +531,10 @@ class Project {
   }
 
   private drainWriteQueue(): Promise<void> {
-
     return this.serializeWrite(() => this._drainWriteQueueInner())
   }
 
   private async _drainWriteQueueInner(): Promise<void> {
-
     const failures: Array<{ filePath: string; error: unknown }> = []
     for (const [filePath, queue] of this.writeQueues) {
       if (queue.length === 0) {
@@ -577,7 +550,6 @@ class Project {
 
         for (const { line } of batch) {
           if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
-
             await this.appendToFile(filePath, content)
             for (let i = landed; i < landed + pending; i++) {
               batch[i]!.resolve()
@@ -624,7 +596,6 @@ class Project {
     this.pendingEntries = []
     this.settleState = new Map()
     this.settledBeforeRecord = new Map()
-
     this.currentSessionChainLeaf = undefined
   }
 
@@ -649,7 +620,6 @@ class Project {
     return this.trackWrite(() =>
       this.serializeWrite(async () => {
         if (this.sessionFile === null) return
-
         await this._drainWriteQueueInner()
         try {
           let fileSize = 0
@@ -672,7 +642,6 @@ class Project {
               const { start: lineStart, end: lineEnd } = line
               const absLineStart = tailStart + lineStart
               const afterLen = bytesRead - lineEnd
-
               ftruncateSync(fd, absLineStart)
               if (afterLen > 0) writeSync(fd, tail, lineEnd, afterLen, absLineStart)
               return
@@ -718,7 +687,6 @@ class Project {
   private async materializeSessionFile(): Promise<void> {
     if (this.shouldSkipPersistence()) return
     this.ensureCurrentSessionFile()
-
     this.reAppendSessionMetadata()
     for (const entry of this.pendingEntries.splice(0)) await this.appendEntry(entry)
   }
@@ -748,12 +716,10 @@ class Project {
     isSidechain: boolean = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
-
     preferLiveLeaf: boolean = false,
   ) {
     return this.trackWrite(() => this.serializeInsert(async () => {
       let parentUuid: UUID | null = startingParentUuid ?? null
-
       if (!isSidechain && (preferLiveLeaf || parentUuid === null)) {
         const leaf = this.currentSessionChainLeaf
         if (leaf !== undefined) parentUuid = leaf
@@ -790,7 +756,6 @@ class Project {
 
         const transcriptMessage: TranscriptMessage = {
           parentUuid: isCompactBoundary ? null : effectiveParentUuid,
-
           logicalParentUuid: isCompactBoundary
             ? (parentUuid ?? undefined)
             : undefined,
@@ -801,7 +766,6 @@ class Project {
           agentId,
           ...(message.type === 'assistant' ? { effort: effortNotOnWire() } : {}),
           ...message,
-
           entrypoint: getEntrypoint(),
           cwd: getCwd(),
           sessionId,
@@ -813,7 +777,6 @@ class Project {
         if (isChainParticipant(message)) {
           this.noteChainLink(message.uuid as UUID, transcriptMessage.parentUuid, !isCompactBoundary && (message.type === 'attachment' || message.type === 'system'))
           parentUuid = message.uuid
-
           if (!isSidechain) this.currentSessionChainLeaf = message.uuid as UUID
         }
       }
@@ -856,7 +819,6 @@ class Project {
 
   private async sessionFileFor(sessionId: UUID, entry: Entry): Promise<string | null> {
     if (sessionId === (getSessionId() as UUID)) {
-
       if (this.sessionFile !== null) return this.sessionFile
       this.pendingEntries.push(entry)
       return null
@@ -886,7 +848,6 @@ class Project {
     }
 
     if (entry.type === 'content-replacement') {
-
       const targetFile = entry.agentId
         ? (agentTranscriptDestinations.get(entry.agentId) ??
           getAgentTranscriptPath(entry.agentId))
@@ -903,7 +864,6 @@ class Project {
     const message = entry as TranscriptMessage
     const isAgentSidechain =
       message.isSidechain && message.agentId !== undefined
-
     const targetFile = isAgentSidechain
       ? (agentTranscriptDestinations.get(message.agentId!) ??
         getAgentTranscriptPath(asAgentId(message.agentId!)))
@@ -948,7 +908,6 @@ class Project {
         file,
         entry,
         lastLine: line,
-
         semanticLine: jsonStringify(entry) + '\n',
         ...(encoded.record
           ? { creationOrdinal: String(encoded.record.creationOrdinal) }
@@ -975,7 +934,6 @@ class Project {
     const settled = { ...cached.entry, ...cleaned } as Entry
     const semanticLine = jsonStringify(settled) + '\n'
     if (semanticLine === cached.semanticLine || isDeepStrictEqual(jsonParse(semanticLine), jsonParse(cached.semanticLine))) return
-
     const line = encodeTranscriptLine(
       cached.file,
       settled as Record<string, unknown>,
@@ -988,7 +946,6 @@ class Project {
     cached.entry = settled
     cached.semanticLine = semanticLine
     cached.lastLine = line
-
     const queue = this.writeQueues.get(cached.file)
     if (cached.queued && queue && queue.includes(cached.queued)) {
       cached.queued.line = line
@@ -1035,7 +992,6 @@ export function appendEntryToFile(
   try {
     fs.appendFileSync(fullPath, line, { mode: 0o600 })
   } catch {
-
     try {
       fs.mkdirSync(dirname(fullPath), { mode: 0o700 })
       fs.appendFileSync(fullPath, line, { mode: 0o600 })

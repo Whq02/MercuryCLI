@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeContradiction.ts
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pinScratchHome, releaseScratchHome } from '../lib/settingsPopupHarness.ts'

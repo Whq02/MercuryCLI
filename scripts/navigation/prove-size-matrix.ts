@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
@@ -30,7 +29,6 @@ for (const [cols, rows] of SIZES) {
     execFileSync(
       process.execPath,
       ['run', join(root, 'scripts/ui/render-tui.ts'), '--scenario', 'resume-2turn', '--cols', String(cols), '--rows', String(rows), '--out', `/tmp/compass-size-${cols}x${rows}.png`],
-
       { encoding: 'utf-8', timeout: vshotBudgetMs(150_000), cwd: RUNTIME_CWD },
     )
   } catch (e) {

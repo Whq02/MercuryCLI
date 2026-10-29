@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -14,7 +13,6 @@ delete process.env.ANTHROPIC_BASE_URL
 delete process.env.NODE_ENV
 delete process.env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
 delete process.env.MERCURY_EFFORT_LEVEL
-
 process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '5000'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -49,11 +47,8 @@ const deltaFrame = (usage: Usage): string => sse('message_delta', { type: 'messa
 const stopFrame = sse('message_stop', { type: 'message_stop' })
 
 type Script = {
-
   frames: string[]
-
   after: 'hold' | 'close'
-
   fallback?: Record<string, unknown>
 }
 type Wire = { streamRequests: number; fallbackRequests: number; fallbackServed: number }
@@ -63,7 +58,6 @@ function fixtureFetch(script: Script, wire: Wire): typeof fetch {
   return (async (input: unknown, init?: RequestInit) => {
     const body = init?.body ? (JSON.parse(String(init.body)) as { stream?: boolean }) : {}
     const signal = init?.signal ?? null
-
     if (signal?.aborted) throw abortError()
     if (body.stream === true) {
       wire.streamRequests++
@@ -75,7 +69,6 @@ function fixtureFetch(script: Script, wire: Wire): typeof fetch {
             controller.close()
             return
           }
-
           signal?.addEventListener(
             'abort',
             () => {
@@ -106,7 +99,6 @@ async function drive(script: Script, stop: 'abort' | 'return' | 'drain'): Promis
   const controller = new AbortController()
   const yielded: Yielded[] = []
   let thrown: string | null = null
-
   const deadline = setTimeout(() => controller.abort(), 30_000)
   const gen = queryModelWithStreaming({
     messages: [createUserMessage({ content: 'ledger fixture prompt' })],

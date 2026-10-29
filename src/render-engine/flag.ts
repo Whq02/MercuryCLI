@@ -1,3 +1,4 @@
+
 import { flagEnabled } from '../substrate/flagRegistry.js'
 
 export function renderEngineEnabled(): boolean {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +13,6 @@ function section(t: string): void {
 }
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const src = readFileSync(join(root, 'src', 'components', 'PromptInput', 'PromptInputFooterSuggestions.tsx'), 'utf-8')
-
 const fn = src.slice(src.indexOf('export function PromptInputFooterSuggestions'))
 
 console.log('============================================================')
@@ -23,7 +21,6 @@ console.log('============================================================')
 
 section('source: PromptInputFooterSuggestions AND SuggestionItemRow are de-_c-memoized (plain)')
 check('the function body has NO `const $ = _c(22)` and NO $[…] cache reads', !/const \$ = _c\(22\)/.test(fn) && !/\$\[\d+\]/.test(fn))
-
 check('SuggestionItemRow is de-_c-memoized as well (no _c in the file)', !/\b_c\(/.test(src))
 check('the function computes the name column directly (no cache slot)', /const derivedWidth =\s*Math\.max\(0, \.\.\.suggestions\.map\(item => displayWidth\(item\.displayText\)\)\) \+ 5/.test(fn) && /maxColumnWidth \?\? derivedWidth/.test(fn))
 
@@ -45,7 +42,6 @@ const budget = (overlay: boolean, rows: number, len: number) => {
   const totalRows = itemBudget + (hasOverflow ? 1 : 0)
   return { maxVisibleItems, hasOverflow, itemBudget, totalRows }
 }
-
 {
   let ok = true
   for (let rows = 4; rows <= 40; rows++)
@@ -55,7 +51,6 @@ const budget = (overlay: boolean, rows: number, len: number) => {
     }
   check('len ≤ maxVisibleItems ⇒ no overflow, full budget, no count row (unchanged)', ok)
 }
-
 {
   let ok = true
   for (let rows = 6; rows <= 40; rows++) {
@@ -66,20 +61,16 @@ const budget = (overlay: boolean, rows: number, len: number) => {
   }
   check('overflow + maxVisibleItems ≥ 2: itemBudget + count row == maxVisibleItems (prompt budget honored)', ok)
 }
-
 {
   const b = budget(false, 4, 100)
   check('maxVisibleItems==1 + overflow ⇒ 1 item (never 0) + 1 count = 2 rows (the documented floor edge)', b.maxVisibleItems === 1 && b.itemBudget === 1 && b.totalRows === 2)
 }
-
 {
   const len = 30
   const sel = 17
-
   const countStr = `${sel + 1} of ${len}`
   check('the count row reads "X of Y" with X=selectedSuggestion+1 and Y=total (honest under center-scroll)', countStr === '18 of 30')
 }
-
 {
   let reserved = true
   for (let rows = 6; rows <= 40; rows++) {

@@ -1,3 +1,4 @@
+
 import { colorStripped } from '../ink/colorize.js'
 
 export type CliHighlight = {
@@ -54,3 +55,4 @@ export function getCliHighlightPromise(): Promise<CliHighlight | null> {
   }
   return sharedApiPromise
 }
+

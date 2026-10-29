@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -212,10 +211,8 @@ section('§3 — no checkpoint: a point the store never saw answers typed')
 
 section('§4 — drift: a hand edit after the session\'s last touch refuses by name, restoring nothing')
 {
-
   writeFileSync(alpha, 'alpha-2\n')
   writeFileSync(beta, 'beta-1\n')
-
   const past = new Date(Date.now() - 60_000)
   utimesSync(beta, past, past)
   await sleep(20)
@@ -226,7 +223,6 @@ section('§4 — drift: a hand edit after the session\'s last touch refuses by n
   check("the restore refuses 'drift' NAMING alpha", drift?.outcome === 'refused' && drift.refusal === 'drift' && (drift.detail ?? '').includes('alpha.txt'), j(drift))
   check('…the hand edit survives (nothing was restored)', readFileSync(alpha, 'utf8') === 'alpha-HAND\n', readFileSync(alpha, 'utf8'))
   check('…and the sibling beta was NOT restored either (all or nothing)', readFileSync(beta, 'utf8') === 'beta-1\n', readFileSync(beta, 'utf8'))
-
   writeFileSync(alpha, 'alpha-2\n')
 }
 

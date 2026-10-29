@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/components/concourse/ConcourseScreen.tsx src/components/concourse/CoordinatorModelPicker.tsx src/services/concourse/coordinatorModels.ts src/state/onChangeAppState.ts
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { grabScreens, requireDist, runArtifactArena, firstOutputTs, type ArenaOpts } from '../streaming/artifactArena.ts'

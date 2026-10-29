@@ -1,15 +1,11 @@
+
 import type { OwnerKey } from './ownerKey.js'
 
 interface OwnerScopedStoreOptions<T> {
-
   name: string
-
   create: (owner: OwnerKey) => T
-
   dispose?: (state: T, owner: OwnerKey) => void | Promise<void>
-
   retain?: (state: T, owner: OwnerKey) => boolean
-
   cap?: number
   live?: true
 }
@@ -21,11 +17,8 @@ export class OwnerScopedStore<T> {
   #dispose?: (state: T, owner: OwnerKey) => void | Promise<void>
   #retain?: (state: T, owner: OwnerKey) => boolean
   #cap: number
-
   #states = new Map<OwnerKey, T>()
-
   #pending = new Set<Promise<void>>()
-
   #overCapacity = 0
 
   constructor(opts: OwnerScopedStoreOptions<T>) {
@@ -58,7 +51,6 @@ export class OwnerScopedStore<T> {
       this.#overCapacity = Math.max(0, this.#states.size - this.#cap)
       return
     }
-
     this.#overCapacity = Math.max(0, this.#states.size - this.#cap)
   }
 
@@ -90,7 +82,6 @@ export class OwnerScopedStore<T> {
     try {
       result = this.#dispose?.(state, owner)
     } catch {
-
       return Promise.resolve()
     }
     if (!(result instanceof Promise)) return Promise.resolve()

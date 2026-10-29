@@ -1,18 +1,15 @@
+
 import { connect as tlsConnect, type PeerCertificate } from 'node:tls'
 import { createHash } from 'node:crypto'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage } from './errors.js'
 import { getSecureStorage } from './secureStorage/index.js'
-
 import type { SecureStorageData } from './secureStorage/types.js'
 
 export interface EnterpriseGateway {
-
   url: string
-
   expiresAt: number
-
   idpRefreshToken?: string
 }
 
@@ -32,7 +29,6 @@ function probeGatewayTlsFingerprint(
   const port = parsed.port ? Number(parsed.port) : 443
 
   return new Promise((resolve, reject) => {
-
     let done = false
     const finish = (outcome: {
       value?: { hostname: string; fingerprint: string }
@@ -51,7 +47,6 @@ function probeGatewayTlsFingerprint(
       finish({ error: new Error('TLS fingerprint probe timed out') })
     const onHandshake = (): void => {
       try {
-
         const der = (socket.getPeerCertificate(true) as PeerCertificate)?.raw
         if (!der || der.length === 0) {
           finish({ error: new Error('could not read TLS certificate fingerprint') })
@@ -76,7 +71,6 @@ function probeGatewayTlsFingerprint(
       },
       onHandshake,
     )
-
     socket.setTimeout(timeoutMs)
     socket.once('error', onError)
     socket.once('timeout', onTimeout)
@@ -87,6 +81,7 @@ function pinnedFingerprints(store: SecureStorageData | null): Record<string, str
   return store?.gatewayTrust ?? {}
 }
 
+
 export async function restoreGatewayAuth(): Promise<void> {
   try {
     const tellUser = (line: string): void => {
@@ -95,7 +90,6 @@ export async function restoreGatewayAuth(): Promise<void> {
 
     const data = await getSecureStorage().readAsync()
     const gateway = data?.enterpriseGateway
-
     if (!gateway) return
 
     const host = new URL(gateway.url).hostname
@@ -116,7 +110,6 @@ export async function restoreGatewayAuth(): Promise<void> {
     try {
       const probe = await probeGatewayTlsFingerprint(gateway.url)
       if (probe.fingerprint !== pin) {
-
         tellUser(
           `Cloud gateway ${host} TLS certificate changed since you connected — run /logins to verify and reconnect.\n`,
         )
@@ -128,7 +121,6 @@ export async function restoreGatewayAuth(): Promise<void> {
         return
       }
     } catch (err) {
-
       logForDebugging(
         `[gateway] TLS fingerprint probe failed on restore for ${host} (${errorMessage(err)}); proceeding without re-verify`,
         { level: 'warn' },

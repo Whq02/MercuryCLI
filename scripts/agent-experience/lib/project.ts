@@ -16,15 +16,10 @@ export const FIXTURE_PAGE_HTML = `<!doctype html>
 `
 
 export interface ProjectFacts {
-
   srcLineCount: number
-
   defLine: number
-
   callLine: number
-
   testCount: number
-
   exports: string[]
 }
 

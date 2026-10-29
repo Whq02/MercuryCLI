@@ -1,3 +1,4 @@
+
 import { displayWidth } from '../components/mercury-ui/glyphs.js'
 import { resultResolvedNames } from '../tools/FileReadTool/FileReadTool.js'
 
@@ -14,7 +15,6 @@ function bashSummary(out: Record<string, unknown>): string | null {
   if (interrupted === true || isImage === true) return null
   if (persistedOutputPath != null || backgroundTaskId != null) return null
   const text = stdout.trim()
-
   if (text === '') return null
   if (text.includes('\n')) return null
   if (displayWidth(text) > MAX_INLINE_SUMMARY) return null
@@ -38,7 +38,6 @@ function readSummary(out: Record<string, unknown>): string | null {
       return 'Read PDF'
     case 'notebook': {
       const cells = file?.['cells']
-
       if (!Array.isArray(cells) || cells.length === 0) return null
       return `Read ${cells.length} cell${cells.length === 1 ? '' : 's'}`
     }
@@ -50,7 +49,6 @@ function readSummary(out: Record<string, unknown>): string | null {
 }
 
 function grepSummary(out: Record<string, unknown>): string | null {
-
   const numFiles = out['numFiles']
   if (typeof numFiles !== 'number') return null
   const mode = out['mode']
@@ -73,7 +71,6 @@ function grepSummary(out: Record<string, unknown>): string | null {
 function globSummary(out: Record<string, unknown>): string | null {
   const n = out['numFiles']
   if (typeof n !== 'number') return null
-
   return `Found ${n} file${n === 1 ? '' : 's'}`
 }
 

@@ -8,7 +8,6 @@ import { humanGap } from '../../utils/cockpit/awaySummary.js';
 type Props = {
   metadata: AwayRecapMetadata;
   addMargin: boolean;
-
   bg?: string;
 };
 
@@ -18,7 +17,6 @@ function repoHealthTail(m: AwayRecapMetadata): string {
   if (typeof m.dirtyCount === 'number' && m.dirtyCount > 0) {
     parts.push(`${m.dirtyCount} uncommitted${m.dirtyDelta ? ` (${m.dirtyDelta})` : ''}`);
   }
-
   if (m.certVerdict === 'none') {
     parts.push('health none — /health');
   } else if (m.certVerdict) {
@@ -36,7 +34,6 @@ function shapeCounts(m: AwayRecapMetadata): string {
   if (typeof m.filesTouched === 'number' && m.filesTouched > 0) {
     parts.push(`${m.filesTouched} file${m.filesTouched === 1 ? '' : 's'} touched`);
   }
-
   if (m.endedOnError && typeof m.toolFailures === 'number' && m.toolFailures > 0) {
     parts.push(`${m.toolFailures} tool call${m.toolFailures === 1 ? '' : 's'} failed`);
   }
@@ -64,14 +61,12 @@ export function ResumeRecapCard({ metadata, addMargin, bg }: Props): React.React
   const shape = shapeCounts(metadata);
   const tail = repoHealthTail(metadata);
   const won = launchWonRows(metadata);
-
   const toolFailures = metadata.toolFailures ?? 0;
   const verdictTone = metadata.endedOnError
     ? tokens.failure
     : toolFailures > 0
       ? tokens.warning
       : tokens.borderStrong;
-
   return (
     <Box
       flexDirection="column"

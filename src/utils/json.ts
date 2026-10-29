@@ -7,8 +7,8 @@ import { jsonParse, jsonStringify } from './slowOperations.js'
 
 export { stripBOM }
 
-const PARSE_CACHE_ENTRIES = 50
 
+const PARSE_CACHE_ENTRIES = 50
 const PARSE_CACHE_MAX_INPUT = 8 * 1024
 
 type ParseOutcome = { ok: true; value: unknown } | { ok: false; error: unknown }
@@ -79,6 +79,7 @@ export function addItemToJSONCArray(content: string, newItem: unknown): string {
     return single
   }
 }
+
 
 type NativeJsonl = {
   parseChunk: (input: string | Uint8Array) => { values: unknown[]; read: number; done: boolean; error?: unknown }

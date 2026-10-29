@@ -51,6 +51,7 @@ import {
 import { PERSISTED_OUTPUT_TAG } from './toolResultStorage.js'
 import { asSessionId, type SessionId } from '../types/ids.js'
 
+
 export type TurnInterruptionState =
   | { kind: 'none' }
   | { kind: 'interrupted_prompt'; message: NormalizedUserMessage }
@@ -65,6 +66,7 @@ type DeserializeResult = {
 export function getResumePrompt(): string {
   return 'The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.'
 }
+
 
 type LegacyAttachmentRecord = {
   type?: string
@@ -109,6 +111,7 @@ function scrubPermissionMode(message: Message): Message {
   return { ...message, permissionMode: undefined } as Message
 }
 
+
 const TURN_TERMINATING_TOOL_NAMES: ReadonlyArray<string | null> = [null, null, null]
 
 function isTurnTerminatingToolResult(messages: Message[], index: number): boolean {
@@ -126,7 +129,6 @@ function isTurnTerminatingToolResult(messages: Message[], index: number): boolea
     for (const block of blocks) {
       const use = block as { type?: string; id?: string; name?: string }
       if (use.type === 'tool_use' && use.id === first.tool_use_id) {
-
         return typeof use.name === 'string' && TURN_TERMINATING_TOOL_NAMES.includes(use.name)
       }
     }
@@ -140,7 +142,6 @@ function isSyntheticApiErrorAssistant(message: Message): boolean {
 
 function detectInterruption(messages: Message[]): InternalInterruptionState {
   if (messages.length === 0) return { kind: 'none' }
-
   let index = messages.length - 1
   while (index >= 0) {
     const candidate = messages[index] as Message
@@ -152,16 +153,13 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
   if (index < 0) return { kind: 'none' }
   const last = messages[index] as Message
   if (last.type === 'assistant') {
-
     return { kind: 'none' }
   }
   if (last.type === 'user') {
     if (last.isMeta || last.isCompactSummary) return { kind: 'none' }
-
     if (isToolUseResultMessage(last)) {
       return isTurnTerminatingToolResult(messages, index) ? { kind: 'none' } : { kind: 'interrupted_turn' }
     }
-
     return { kind: 'interrupted_prompt', message: last as NormalizedUserMessage }
   }
   if (last.type === 'attachment') {
@@ -169,6 +167,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
   }
   return { kind: 'none' }
 }
+
 
 function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
@@ -180,7 +179,6 @@ function deserializeMessagesWithInterruptDetection(serialized: Message[]): Deser
     let interruption: TurnInterruptionState = { kind: 'none' }
     const detected = detectInterruption(messages)
     if (detected.kind === 'interrupted_turn') {
-
       const continuation = normalizeMessages([
         createUserMessage({ content: getResumePrompt(), isMeta: true }),
       ])[0] as NormalizedUserMessage
@@ -220,7 +218,6 @@ export function deserializeLiveMessages(serialized: Message[]): Message[] {
 type LiveTurnState = {
   inFlight: boolean
   phase: 'thinking' | 'tool' | 'responding' | 'idle'
-
   agentsWaiting: 0
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
@@ -311,7 +308,6 @@ function settleTurn(acc: TurnAccumulator): LiveTurnState {
     else if (acc.lastAssistantKind === 'thinking') phase = 'thinking'
     else phase = 'thinking'
   }
-
   return { inFlight, phase, agentsWaiting: 0, inProgressToolUseIDs: unresolved, turnStartedAtMs: inFlight ? acc.lastPromptMs : null }
 }
 
@@ -342,6 +338,7 @@ export function liveTurnStateOf(messages: Message[]): LiveTurnState {
   return createLiveTurnFold().fold(messages, 0)
 }
 
+
 function restoreSkillStateFromMessages(messages: Message[]): void {
   let sawListing = false
   for (const message of messages) {
@@ -361,6 +358,7 @@ function restoreSkillStateFromMessages(messages: Message[]): void {
   }
   if (sawListing) suppressNextSkillListing()
 }
+
 
 const PERSISTED_PATH_PHRASE = 'Full output saved to: '
 
@@ -393,6 +391,7 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
     return keys.length === 0 || !existing.has(keys[0] as string)
   })
 }
+
 
 type WalkedTranscript = {
   messages: SerializedMessage[]
@@ -432,7 +431,6 @@ async function walkTranscriptFile(path: string): Promise<WalkedTranscript> {
 type ResumeResult = ResumeFacts & {
   messages: Message[]
   turnInterruptionState: TurnInterruptionState
-
   sessionId: UUID
   fullPath?: string
 }
@@ -453,7 +451,6 @@ export async function loadConversationForResume(
     let facts: ResumeFacts = {}
 
     if (source === undefined) {
-
       const logs = await listProjectSessions()
       log = logs[0]
     } else if (sourceJsonlFile !== undefined) {
@@ -462,7 +459,6 @@ export async function loadConversationForResume(
       sessionId = walked.sessionId as SessionId | undefined
       facts = walked.facts
     } else if (typeof source === 'string') {
-
       log = await lastSession(source as UUID)
       sessionId = asSessionId(source)
     } else {
@@ -500,11 +496,8 @@ export async function loadConversationForResume(
     }
 
     const asMessages = (messages ?? []) as unknown as Message[]
-
     if (!hasConversationTurn(asMessages)) return null
-
     restoreSkillStateFromMessages(asMessages)
-
     restoreBoundPrefixFromMessages(asMessages)
     try {
       const rebuilt = rebuildSeenLinesFromTranscript(sessionId === undefined ? processMainOwner() : mainOwnerOfSession(String(sessionId)), asMessages)

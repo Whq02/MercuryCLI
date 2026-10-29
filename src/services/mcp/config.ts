@@ -36,9 +36,9 @@ import {
 } from './types.js'
 import { getProjectMcpServerStatus } from './utils.js'
 
+
 type McpConfigError = {
   filePath: string
-
   path: string
   message: string
   suggestion?: string
@@ -65,6 +65,7 @@ function flat(result: ParseResult): ScopeRead {
   return { servers: result.config?.mcpServers ?? {}, errors: result.errors, notices: result.notices }
 }
 
+
 type ConfigFileRead =
   | { kind: 'absent' }
   | { kind: 'unreadable'; message: string }
@@ -81,7 +82,6 @@ function readConfigFile(filePath: string): ConfigFileRead {
     return { kind: 'unreadable', message: error instanceof Error ? error.message : String(error) }
   }
   try {
-
     return { kind: 'content', value: JSON.parse(stripBOM(raw)) }
   } catch (error) {
     return {
@@ -92,6 +92,7 @@ function readConfigFile(filePath: string): ConfigFileRead {
     }
   }
 }
+
 
 function expandServerConfig(
   config: McpServerConfig,
@@ -154,7 +155,6 @@ function expandServerConfig(
       ...(url === remote.url ? {} : { unexpanded: { url: remote.url } }),
     }
   }
-
   return { config, missingVars: [] }
 }
 
@@ -172,7 +172,6 @@ function windowsNpxWarning(
   return {
     filePath,
     path: serverName,
-
     message: `MCP server "${serverName}" invokes "npx" directly — on some Windows setups this fails to start without a shell wrapper`,
     suggestion: `If the server fails to start, change the command to "cmd" and prepend ["/c", "${command}"] to the arguments`,
     scope,
@@ -212,7 +211,6 @@ export function parseMcpConfig({
       notices: [],
     }
   }
-
   const mcpServers: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
   const errors: McpConfigError[] = []
   const entries = Object.entries(document.data.mcpServers)
@@ -314,6 +312,7 @@ export function parseMcpConfigFromFilePath({
       return parseMcpConfig({ configObject: read.value, expandVars, scope, filePath })
   }
 }
+
 
 function projectDirectoryChain(): string[] {
   const chain: string[] = []
@@ -469,6 +468,7 @@ export function getMcpConfigsByScope(scope: 'project' | 'user' | 'local' | 'ente
         : getEnterpriseMcpConfigs()
 }
 
+
 type PolicyEntry = { serverName: string } | { serverCommand: string[] } | { serverUrl: string }
 
 function urlGlobMatches(pattern: string, url: string): boolean {
@@ -579,6 +579,7 @@ export function filterMcpServersByPolicy<T>(
   return { allowed, blocked }
 }
 
+
 let enterpriseMcpConfigExists: boolean | null = null
 
 export function doesEnterpriseMcpConfigExist(): boolean {
@@ -598,6 +599,7 @@ export function areMcpConfigsAllowedWithEnterpriseMcpConfig(
     ([name, config]) => (config as { type?: string }).type === 'host' && name === 'mercury-editor',
   )
 }
+
 
 export function getMcpServerSignature(
   config: McpServerConfig | ScopedMcpServerConfig,
@@ -697,9 +699,9 @@ export function dedupAnthropicConnectors(
   return { servers, suppressed }
 }
 
+
 export type McpResolutionNotice = {
   kind: 'suppressed-duplicate'
-
   server: string
   extensionName: string
   duplicateOf: string
@@ -742,7 +744,6 @@ export async function getMercuryMcpConfigs(
   dynamicServers?: Record<string, ScopedMcpServerConfig>,
   extraDedupTargets?: Promise<Record<string, ScopedMcpServerConfig>>,
 ): Promise<{ servers: Record<string, ScopedMcpServerConfig>; errors: McpResolutionNotice[] }> {
-
   if (doesEnterpriseMcpConfigExist()) {
     const enterprise = getEnterpriseMcpConfigs()
     const { allowed } = filterMcpServersByPolicy(enterprise.servers)
@@ -751,7 +752,6 @@ export async function getMercuryMcpConfigs(
 
   const emptyRead: ScopeRead = { servers: {}, errors: [], notices: [] }
   const mcpLocked = isRestrictedToExtensionsOnly('mcp')
-
   const projectUntrusted = untrustedWorkspaceHeadless()
   if (projectUntrusted) {
     logForDebugging(
@@ -829,6 +829,7 @@ export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
   return null
 }
 
+
 function stripScope(config: McpServerConfig | ScopedMcpServerConfig): McpServerConfig {
   const { scope: _scope, ...rest } = config as ScopedMcpServerConfig
   return rest as McpServerConfig
@@ -885,6 +886,7 @@ export async function addMcpConfig(
     )
   }
 
+
   if (doesEnterpriseMcpConfigExist()) {
     throw new Error(
       `Cannot add MCP server: the managed MCP configuration file (${getEnterpriseMcpFilePath()}) is in force and alone decides which MCP servers exist`,
@@ -911,7 +913,6 @@ export async function addMcpConfig(
 
   switch (scope) {
     case 'project': {
-
       const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
@@ -955,7 +956,6 @@ export async function addMcpConfig(
 export async function removeMcpConfig(name: string, scope: ConfigScope): Promise<void> {
   switch (scope) {
     case 'project': {
-
       const mcpJsonPath = projectMcpFilePath(getCwd())
       if (!getFsImplementation().existsSync(mcpJsonPath)) {
         throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
@@ -999,6 +999,8 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
   const { forgetMcpNeedsAuth } = await import('./client.js')
   await forgetMcpNeedsAuth(name)
 }
+
+
 
 export function isMcpServerDisabled(name: string): boolean {
   return isMcpServerDisabledIn(getCurrentProjectConfig(), name)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync, spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, basename } from 'node:path'
@@ -33,33 +32,27 @@ const REPO = join(import.meta.dir, '..', '..')
 const SCENE_SETTLE_NEEDLES: Record<string, string[]> = { help: ['/keybindings to customize'] }
 
 const SIZES: Array<[number, number]> = [
-
   [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
   [149, 40], [150, 40], [151, 40], [160, 50], [269, 70],
 ]
 const CORE_AT_EVERY_SIZE = ['frame', 'resume-2turn']
-
 const WIDE_BOARDS = ['cockpit-wide', 'sessions', 'help', 'tool-cards']
 
 export function matrix(): CaptureSpec[] {
   const specs: CaptureSpec[] = []
-
   for (const [cols, rows] of SIZES) {
     for (const s of CORE_AT_EVERY_SIZE) {
       specs.push({ scenario: s, cols, rows, theme: 'dark', colorMode: 'truecolor', motion: 'full' })
     }
   }
-
   for (const s of WIDE_BOARDS) {
     specs.push({ scenario: s, cols: 120, rows: 40, theme: 'dark', colorMode: 'truecolor', motion: 'full' })
   }
-
   for (const colorMode of ['256', 'ansi', 'none'] as const) {
     for (const s of CORE_AT_EVERY_SIZE) {
       specs.push({ scenario: s, cols: 120, rows: 40, theme: 'dark', colorMode, motion: 'full' })
     }
   }
-
   specs.push({ scenario: 'frame', cols: 120, rows: 40, theme: 'dark', colorMode: 'truecolor', motion: 'reduced' })
   specs.push({ scenario: 'frame', cols: 120, rows: 40, theme: 'true-black', colorMode: 'truecolor', motion: 'full' })
   return specs
@@ -184,7 +177,6 @@ function captureSpec(
     const { grid, stdout } = runCaptureAttempts(id, attempt => {
       attemptsMade = attempt
       rmSync(gridPath, { force: true })
-
       const res = spawnSync(baselineDriverPython(), [join(import.meta.dir, 'vshot.py'), cfgPath], {
         encoding: 'utf-8',
         timeout: settleWallMs(SETTLE_LAW, vshotBudgetScale()),
@@ -193,11 +185,8 @@ function captureSpec(
           MERCURY_CONFIG_DIR: home,
           ANTHROPIC_API_KEY: FIXTURE_API_KEY,
           ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-
           MERCURY_AWAY_SUMMARY: '0',
-
           MERCURY_THEME_PIN: spec.theme,
-
           TERM_PROGRAM: 'kitty',
           MERCURY_CRITTER: DEFAULT_CRITTER_KEY,
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -313,7 +302,6 @@ function recordingCheckout(): { basename: string; branch: string } {
 }
 
 function currentShas(): { sourceSha: string; buildDigest: string } {
-
   const sourceSha = execSync('git rev-parse HEAD:src', { cwd: REPO, encoding: 'utf8' }).trim()
   const dist = JSON.parse(readFileSync(join(REPO, 'dist', 'manifest.json'), 'utf8')) as { buildTree: string }
   return { sourceSha, buildDigest: dist.buildTree }
@@ -414,7 +402,6 @@ async function main(): Promise<number> {
   }
 
   mkdirSync(live.gridsDir, { recursive: true })
-
   const held = readManifest(live.liveDir)
   const heldById = new Map<string, VisualBaselineEntry>((held?.entries ?? []).map(e => [e.id, e]))
   const prior = only ? held : null

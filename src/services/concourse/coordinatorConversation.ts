@@ -1,3 +1,4 @@
+
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
@@ -6,7 +7,6 @@ import { decodeManagerAsk, decodeManagerPlan, type ManagerAskV1, type ManagerPla
 export interface CoordinatorConversationReceiptV1 {
   verb: string
   outcome: string
-
   label: string
 }
 
@@ -15,22 +15,15 @@ export interface CoordinatorConversationEntryV1 {
   role: 'operator' | 'coordinator'
   text: string
   ts: number
-
   receipts?: CoordinatorConversationReceiptV1[]
-
   harness?: true
-
   summary?: true
-
   ask?: ManagerAskV1
-
   plan?: ManagerPlanV1
 }
 
 export interface CoordinatorContextGaugeV1 {
-
   contextTokens: number
-
   modelId: string
   ts: number
 }

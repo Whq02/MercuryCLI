@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { randomUUID } from 'node:crypto'
@@ -53,13 +52,11 @@ const turn = async (): Promise<{ stats: number; reads: number; copies: number }>
 }
 const hasFacts = (b: FileHistoryBackup): boolean =>
   typeof b.sourceSize === 'number' && typeof b.sourceMtimeMs === 'number' && typeof b.sourceMode === 'number'
-
 const still = (path: string, secondsAgo: number): void => {
   const t = (Date.now() - secondsAgo * 1000) / 1000
   utimesSync(path, t, t)
 }
 const blobPath = (b: FileHistoryBackup): string => join(home, 'file-history', String(bootstrap.getSessionId()), b.backupFileName ?? '')
-
 const blobMadeAgo = (key: string, secondsAgo: number): void => still(blobPath(latest()[key]!), secondsAgo)
 
 const N = 6
@@ -81,7 +78,6 @@ section('§0 the tracked set — turn 0, then N tracked edits')
   check(`tracking ${N} edits costs one source stat and one copy each`, t.stats === N && t.copies === N && t.reads === 0, JSON.stringify(t))
   check(`the latest snapshot holds ${N} version-1 backups under relative keys`, names.every(k => latest()[k]?.version === 1))
   check('each record carries the source facts (the files had been still for 10 s)', names.every(k => hasFacts(latest()[k]!)))
-
   for (const k of names) blobMadeAgo(k, 9)
 }
 
@@ -115,7 +111,6 @@ section('§3 a same-size real edit — detected; no facts inside the racy window
   check(`the cost: ${N} sweep stats + the edited file's backup-side stat and its two reads + the new backup's stat and copy`, t.stats === N + 2 && t.reads === 2 && t.copies === 1, JSON.stringify(t))
   check('a source modified inside the racy window carries NO facts (the byte-compare road keeps deciding)', !hasFacts(rec))
   check('the other files stayed on the one-stat road (version 1, facts kept)', names.slice(1).every(n => latest()[n]!.version === 1 && hasFacts(latest()[n]!)))
-
   still(f, 5)
   blobMadeAgo(k, 9)
   const t2 = await turn()

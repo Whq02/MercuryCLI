@@ -1,3 +1,4 @@
+
 import { getGraphemeSegmenter } from '../utils/intl.js'
 import { isVimWhitespace, isVimWordChar } from '../utils/Cursor.js'
 
@@ -47,6 +48,7 @@ export function findTextObject(
   return null
 }
 
+
 type RunClass = 'word' | 'space' | 'punct'
 
 function classify(ch: string, wordType: 'w' | 'W'): RunClass {
@@ -62,7 +64,6 @@ function findRunObject(
   isInner: boolean,
 ): TextObjectRange {
   const graphemes = graphemesOf(text)
-
   if (graphemes.length === 0) return null
 
   let gi = graphemes.length - 1
@@ -111,6 +112,7 @@ function findRunObject(
   return { start: graphemes[leadingStart]!.index, end: runEnd }
 }
 
+
 function findQuoteObject(
   text: string,
   offset: number,
@@ -125,7 +127,6 @@ function findQuoteObject(
   for (let i = lineStart; i < lineEnd; i++) {
     if (text[i] === quote) positions.push(i)
   }
-
   for (let p = 0; p + 1 < positions.length; p += 2) {
     const open = positions[p]!
     const close = positions[p + 1]!
@@ -136,6 +137,7 @@ function findQuoteObject(
   return null
 }
 
+
 function findBracketObject(
   text: string,
   offset: number,
@@ -143,7 +145,6 @@ function findBracketObject(
   close: string,
   isInner: boolean,
 ): TextObjectRange {
-
   let openIdx = -1
   let depth = 0
   for (let i = Math.min(offset, text.length - 1); i >= 0; i--) {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -57,14 +56,12 @@ section('§A B07 — three distinct actions on the confirm card')
   for (const gate of ['if (onViewOnly)', 'if (onBranchCreated)', 'if (onRerun)']) {
     check(`row gated on its callback: ${gate}`, selectorSrc.includes(gate))
   }
-
   check(
     'checkpointing-off still reaches the card when the timeline is wired',
     selectorSrc.includes(
       'onViewOnly !== undefined || onRerun !== undefined || onBranchCreated !== undefined',
     ) && selectorSrc.includes('if (!historyOn && !anyTimelineAction)'),
   )
-
   check(
     'view/branch/rerun each carry distinct confirm copy',
     selectorSrc.includes('Nothing changes — a read-only view of the history.') &&
@@ -90,7 +87,6 @@ section('§B B04 — the View-only path is projection-only')
   for (const forbidden of ['setMessages(', 'setConversationId', 'resetSessionFilePointer', 'removeTranscriptMessage', 'createBranchSession']) {
     check(`the Chat view callback never touches ${forbidden}`, !viewCb.includes(forbidden))
   }
-
   const enterBlock = between(replSrc, 'const handleEnterTranscript', 'const handleExitTranscript', 'enter handler')
   const exitBlock = between(replSrc, 'const handleExitTranscript', 'const globalKeybindingProps', 'exit handler')
   check('enter freezes display lengths only', enterBlock.includes('setFrozenTranscriptState({'))
@@ -128,7 +124,6 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
 {
   const before = readFileSync(SRC)
   const entries = await readAllTranscriptEntries(SRC)
-
   const anchorUuid = '00000000-0000-4000-8000-000000000005'
   const idx = entries.findIndex(e => (e as { uuid?: string }).uuid === anchorUuid)
   check('the anchor resolves in the committed ordinal universe', idx >= 1, `idx=${idx}`)
@@ -140,7 +135,6 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
     cwd: '/tmp/proj',
     providerOrigin: 'test-model',
   })
-
   const fork = createBranchSession({
     sourceTranscriptPath: SRC,
     forkOrdinal: idx + 1,
@@ -184,7 +178,6 @@ section('§C B07 — rerun ≠ replay: rewind-branch before the anchor, fork-bra
     )
     check('the manifests carry their distinct boundary kinds', rerun.manifest.boundaryKind === 'rewind' && fork.manifest.boundaryKind === 'fork')
   }
-
   const rerunCb = between(replSrc, 'onRerun={async', 'onClose={() =>', 'Chat onRerun')
   check("Chat rerun branches at forkOrdinal: idx (before the anchor)", rerunCb.includes('forkOrdinal: idx,'))
   check("Chat rerun uses boundaryKind: 'rewind'", rerunCb.includes("boundaryKind: 'rewind'"))

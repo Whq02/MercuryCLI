@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -57,12 +56,10 @@ const assistantRow = {
   message: { role: 'assistant', content: [{ type: 'text', text: 'done.' }] },
 }
 const progressRow = { type: 'progress' }
-
 const recapRow = {
   type: 'system', subtype: 'away_summary', content: 'resumed clean',
   recapMetadata: { turns: 2 },
 }
-
 const syntheticAssistant = {
   type: 'assistant',
   message: { role: 'assistant', content: [{ type: 'text', text: 'No response requested.' }] },
@@ -119,14 +116,12 @@ check('the bare `renderableMessages.length > 0` hasTurns predicate is DEAD',
   !/hasTurns=\{renderableMessages\.length > 0\}/.test(messagesTsx))
 check('the predicate memo computes over the PRE-SLICE renderable domain (collapsed)',
   /const hasRealConversation = useMemo\(\s*\(\) =>\s*computeHasRealConversation\(\s*collapsed as Parameters<typeof computeHasRealConversation>\[0\],\s*\),\s*\[collapsed\],\s*\)/.test(messagesTsx))
-
 const messagesTs = read('src/utils/messages/rejectionText.ts')
 const canonical = /export const NO_RESPONSE_REQUESTED = '([^']+)'/.exec(messagesTs)?.[1]
 const leaf = read('src/utils/cockpit/realConversation.ts')
 const mirrored = /const NO_RESPONSE_SENTINEL = '([^']+)'/.exec(leaf)?.[1]
 check('leaf sentinel literal matches utils/messages NO_RESPONSE_REQUESTED',
   canonical !== undefined && canonical === mirrored)
-
 check('the swap MercuryBrandRow/MercuryHome still rides the predicate (stamp branch intact)',
   /hasRealConversation \? <MercuryBrandRow \/> : null/.test(messagesTsx) && /!hasRealConversation \? <MercuryHome \/> : null/.test(messagesTsx))
 

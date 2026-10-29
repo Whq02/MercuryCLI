@@ -47,7 +47,6 @@ t.section('§1 — one schema')
 
 t.section('§2 — one mint, and the seam consumers are pinned')
 {
-
   const PINNED = [
     'src/services/changeTransaction/receipts.ts',
     'src/services/changeTransaction/repetitionPolicy.ts',

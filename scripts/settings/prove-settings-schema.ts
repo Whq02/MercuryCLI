@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -30,7 +29,6 @@ const { SettingsSchema } = await import('../../src/utils/settings/types.js')
 const { default: Ajv2020 } = await import('ajv/dist/2020.js')
 
 try {
-
   const generatedA = `${generateSettingsJSONSchema()}\n`
   const generatedB = `${generateSettingsJSONSchema()}\n`
   check('generation is deterministic', generatedA === generatedB)

@@ -14,14 +14,11 @@ type Props = {
   questions: Question[]
   currentQuestionIndex: number
   answers: Record<string, string>
-
   notes?: Record<string, string>
   allQuestionsAnswered: boolean
   permissionResult: PermissionDecision
   minContentHeight?: number
-
   onEditQuestion?: (questionText: string) => void
-
   initialFocusValue?: string
   onFinalResponse: (value: 'submit' | 'cancel') => void
 }

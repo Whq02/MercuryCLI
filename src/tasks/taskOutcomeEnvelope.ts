@@ -1,3 +1,4 @@
+
 import { readFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { durableAtomicPublish } from '../substrate/durablePublish.js'
@@ -16,18 +17,14 @@ export type TaskOutcomeState =
 export interface TaskOutcomeEnvelope {
   v: typeof TASK_OUTCOME_ENVELOPE_VERSION
   taskId: string
-
   taskType: string
   kind?: string
-
   command: string
   description?: string
-
   spawn: 'confirmed' | 'not-started' | 'indeterminate'
   state: TaskOutcomeState
   exitCode?: number
   interrupted: boolean
-
   terminationReason?: string
   startTime: number
   endTime: number
@@ -37,7 +34,6 @@ export interface TaskOutcomeEnvelope {
   output?: {
     totalLines?: number
     totalBytes?: number
-
     artifactPath?: string
   }
 }
@@ -56,7 +52,6 @@ interface EnvelopeFile {
 }
 
 const writeChainBySession = new Map<string, Promise<void>>()
-
 const cacheBySession = new Map<string, TaskOutcomeEnvelope[]>()
 
 async function loadFile(sessionId: string): Promise<TaskOutcomeEnvelope[]> {

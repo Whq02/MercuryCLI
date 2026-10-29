@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -104,7 +103,6 @@ async function drive(opts: {
 }
 
 section('§1 — recovered: overflow → the fold (marker names it) → the retried turn answers')
-
 {
   await reseed(12)
   const r = await drive({ id: 'ovf-1', script: ['overflow', 'reply'] })
@@ -115,13 +113,11 @@ section('§1 — recovered: overflow → the fold (marker names it) → the retr
   check('the retried call read the folded replay — the harness marker leads', marker !== undefined && marker.role === 'harness', JSON.stringify(r.seen[1]?.map(row => row.role)))
   check('the marker names the overflow, the family, the numbers, the retry', marker !== undefined && marker.text.includes(`(automatic — the context overflowed the ${MODEL} window: OpenAI: 135,000 tokens > 128,000; folded and the turn retried)`), marker?.text.slice(0, 220))
   const rows = await conv.readCoordinatorConversation()
-
   check('the durable store holds marker + tail + the reply', rows.some(row => row.summary === true && row.text.startsWith(coordinatorCompactMarkerLine(5))) && rows.some(row => row.id === 'co:ovf-1' && row.text === 'answered after the fold'), JSON.stringify(rows.map(row => row.id)))
   check('the kept tail is exactly the newest eight (the operator ask among them)', rows.filter(row => row.summary !== true && row.id !== 'co:ovf-1').length === 8, String(rows.length))
 }
 
 section('§2 — exhausted: the retry overflows too → one fold, two calls, the typed refusal')
-
 {
   await reseed(12)
   const r = await drive({ id: 'ovf-2', script: ['overflow', 'overflow'] })
@@ -135,7 +131,6 @@ section('§2 — exhausted: the retry overflows too → one fold, two calls, the
 }
 
 section('§3 — turning off early folds leaves emergency recovery enabled')
-
 {
   await reseed(12)
   process.env.MERCURY_AUTO_COMPACT = '0'
@@ -150,7 +145,6 @@ section('§3 — turning off early folds leaves emergency recovery enabled')
 }
 
 section('§4 — the legacy recovery switch cannot disable emergency folding')
-
 {
   await reseed(12)
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
@@ -160,7 +154,6 @@ section('§4 — the legacy recovery switch cannot disable emergency folding')
 }
 
 section('§5 — a non-overflow failure is untouched')
-
 {
   await reseed(12)
   const r = await drive({ id: 'ovf-5', script: ['plain-failure', 'reply'] })
@@ -169,7 +162,6 @@ section('§5 — a non-overflow failure is untouched')
 }
 
 section('§6 — the live seam: the real coordinator call throws the TYPED overflow')
-
 {
   const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
   const shape = OVERFLOW_WIRE_SHAPES.anthropic!
@@ -196,7 +188,6 @@ section('§6 — the live seam: the real coordinator call throws the TYPED overf
 }
 
 section('§7 — the typed overflow survives the fail-soft catch (FN-017 rank 3)')
-
 {
   const { readFileSync } = await import('node:fs')
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src/services/concourse/coordinatorCall.ts'), 'utf8')

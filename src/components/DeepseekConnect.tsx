@@ -9,12 +9,12 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
+
 export function DeepseekConnect({
   onResult,
   onBack,
 }: {
   onResult: (result: { ok: boolean; receipt: string }) => void
-
   onBack: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -29,7 +29,6 @@ export function DeepseekConnect({
   const submit = (raw: string): void => {
     const key = raw.trim()
     if (!key) return
-
     const guard = keyPasteGuardNote(key, { stores: 'a DeepSeek API key' })
     if (guard !== null) {
       setNote(guard)
@@ -38,7 +37,6 @@ export function DeepseekConnect({
     setStoring(true)
     void storeDeepseekApiKeyLogin(key).then(outcome => {
       if (!outcome.stored) {
-
         setStoring(false)
         setNote(outcome.receipt)
         return

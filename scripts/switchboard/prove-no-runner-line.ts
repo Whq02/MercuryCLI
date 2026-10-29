@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
@@ -15,7 +14,6 @@ console.log('============================================================')
 
 const LEAD = 'the session has no live runner — a replay revives it and delivers into the same chat'
 const ACTION = '↵ revives it'
-
 const RETIRED_IMPERATIVE = ['run `mercury', ' daemon`'].join('')
 const RETIRED_CONFLATION = ['painted from its transcript, but the daemon did not', ' admit it'].join('')
 
@@ -48,7 +46,6 @@ const RETIRED_CONFLATION = ['painted from its transcript, but the daemon did not
 }
 
 {
-
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
   const sup = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'concourseWorkers.ts'), 'utf8')

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const oauth = await import('../../src/constants/oauth.ts')
 const env = await import('../../src/utils/env.ts')

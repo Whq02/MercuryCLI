@@ -108,7 +108,6 @@ section('4. uninstall — the dir goes WHOLE (token and config ride along)')
 section('5. the no-home refusal — nothing guessed, nothing written')
 {
   resetEnv()
-
   process.env.MERCURY_BLENDER_BIN = path.join(scratch, 'no-such-blender')
   const receipt = installer.applyBlenderBridgeInstall()
   check('install refuses with the no-home reason', /no addon home to install into/.test(receipt))
@@ -133,7 +132,6 @@ section('6. status arms — flag, teaching, enablement honesty, reachability')
   check('enablement is reported unknowable-from-disk with the probe as proof', /unknowable from disk/.test(notInstalled) && /ANSWERING bridge/.test(notInstalled))
   check('unreachable carries the teaching hint (install + enable + status)', /not answering/.test(notInstalled) && /blender_bridge_install/.test(notInstalled))
   installer.applyBlenderBridgeInstall()
-
   const srv = await startFakeBlenderBridge()
   process.env.MERCURY_BLENDER_BRIDGE_PORT = String(srv.port)
   resetBlenderBridgeClientForTest()

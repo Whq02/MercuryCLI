@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -100,13 +99,10 @@ const throwingFetch: typeof fetch = (async () => {
 {
   __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT4', accessExpMs: Date.now() - 1000 })
-
   writeFileSync(lockPath, `99999 ${Date.now()}\n`, { mode: 0o600 })
-
   setTimeout(() => {
     seedAuthFile({ refreshToken: 'RT5', accessExpMs: Date.now() + 60 * 60_000 })
     try {
-
       require('node:fs').unlinkSync(lockPath)
     } catch {
     }
@@ -129,7 +125,6 @@ const throwingFetch: typeof fetch = (async () => {
   __resetOpenaiAccountsForTest()
   seedAuthFile({ refreshToken: 'RT8', accessExpMs: Date.now() - 1000 })
   const midFlightWinnerFetch: typeof fetch = (async () => {
-
     seedAuthFile({ refreshToken: 'RT9', accessExpMs: Date.now() + 60 * 60_000 })
     throw new Error('prover: simulated refresh failure')
   }) as unknown as typeof fetch

@@ -31,14 +31,10 @@ export type ProviderId =
   | 'qwen'
 
 export interface ProviderUsability {
-
   provider: ProviderId | 'unrecognised'
-
   credential: 'oauth' | 'api-key' | 'keyless' | 'none'
-
   limit: 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
   usable: boolean
-
   blockers: string[]
   limitBlocker?: string
   delegationCapped?: boolean
@@ -49,14 +45,12 @@ export interface ProviderUsability {
 export interface ProviderUsabilityReads {
   anthropicApiKey: () => string | null
   anthropicSubscriber: () => boolean
-
   anthropicBearerToken?: () => boolean
   anthropicLimitStatus: () => 'allowed' | 'allowed_warning' | 'rejected' | 'unknown'
   anthropicLimitObservation?: () => AnthropicWindowObservation | undefined
   anthropicSignInExpired?: () => boolean
   gptSeat: () => { state: 'ready' | 'disabled'; reason?: string; why?: string }
   zaiKeyPresent: () => boolean
-
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   deepseekKeyPresent?: () => boolean
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
@@ -78,12 +72,10 @@ export interface ProviderUsabilityReads {
   fireworksKeyPresent?: () => boolean
   qwenKeyPresent?: () => boolean
   compatConfigured?: () => boolean
-
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
   localServerPresent?: () => boolean
   localAccount?: () => { label: string; modelCount: number } | undefined
-
   openrouterKeyPresent?: () => boolean
   openrouterKeyRefused?: () => string | undefined
   geminiAccount?: () => { kind: 'oauth' | 'api-key' | 'plan' } | undefined
@@ -91,9 +83,7 @@ export interface ProviderUsabilityReads {
   openrouterLimitWindow?: () => { state: 'limited' | 'clear' }
   geminiLimitWindow?: () => { state: 'limited' | 'clear' }
   huggingfaceLimitWindow?: () => { state: 'limited' | 'clear' }
-
   huggingfaceBillingState?: () => { state: 'credit-exhausted' | 'clear' }
-
   laneBillingState?: (
     lane: ProviderId,
   ) => { state: 'credit-exhausted'; detail: string; remedy: string } | { state: 'clear' }
@@ -141,7 +131,6 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       try {
         return getAnthropicApiKey()
       } catch {
-
         return null
       }
     },
@@ -161,7 +150,6 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       return observedCredentialWall('anthropic') === 'sign-in'
     },
     gptSeat: () => getGptSeatAvailability(fetchCatalogues ? { fetch: true } : undefined),
-
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
         require('./providerDiscovery.js') as typeof import('./providerDiscovery.js')
@@ -292,7 +280,6 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       return resolveGeminiAccount()
     },
     openaiLimitWindow: () => {
-
       const { openaiLimitWindow, noteOpenaiSourceIdentity } =
         require('./openai/openaiLimitState.js') as typeof import('./openai/openaiLimitState.js')
       const { resolveOpenaiAccount, openaiSourceIdentity } =
@@ -347,10 +334,8 @@ export function resolveProviderUsability(
 }
 
 function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<ProviderId, ProviderUsability> {
-
   const subscriber = reads.anthropicSubscriber()
   const key = reads.anthropicApiKey()
-
   const bearer = reads.anthropicBearerToken?.() ?? false
   const anthropicCredential: ProviderUsability['credential'] = subscriber
     ? 'oauth'
@@ -381,7 +366,6 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const seat = reads.gptSeat()
   const openaiBlockers: string[] = []
   if (seat.state !== 'ready') openaiBlockers.push(seat.reason ?? 'OpenAI unavailable')
-
   const seatCredentialAbsent =
     seat.state !== 'ready' &&
     (seat.why === 'no-account' ||
@@ -449,7 +433,6 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   )
   const xaiAccount = reads.xaiAccount?.()
   const xai = keyLane('xai', reads.xaiKeyPresent?.() ?? xaiAccount !== undefined, 'no Grok sign-in or xAI API key — /logins xai (or XAI_API_KEY)', xaiAccount?.kind === 'grok-subscription' ? 'oauth' : 'api-key')
-
   const compatAccount = reads.compatAccount?.()
   const compat = keyLane(
     'openai-compat',
@@ -505,7 +488,6 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
       limitBlocker: windowBlocker,
     }
   }
-
   const applyObservedBilling = (
     lane: ProviderUsability,
     billing: { state: 'credit-exhausted' | 'clear' } | undefined,

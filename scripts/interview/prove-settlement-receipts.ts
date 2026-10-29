@@ -33,7 +33,6 @@ t.section('§1 — per-identity batching: a switch never cancels another identit
   store._resetInterviewForProofs()
   const a = store.openInterviewSession({ mission: 'identity A', atMs: 1 })
   const b = store.openInterviewSession({ mission: 'identity B', atMs: 2 })
-
   store.appendInterviewEvent(nav('ie_b1'))
   const receipt = await store.flushInterviewLog()
   t.check('the drain saw BOTH pending identities', receipt.drained === 2, `drained=${receipt.drained}`)
@@ -47,7 +46,6 @@ t.section('§2 — typed settlement + retryable generation: degradation observed
 {
   store._resetInterviewForProofs()
   rmSync(join(root, 'interview'), { recursive: true, force: true })
-
   writeFileSync(guardWrite(root, join(root, 'interview')), 'ENOTDIR fault seam')
   const a = store.openInterviewSession({ mission: 'doomed then healed', atMs: 3 })
   store.appendInterviewEvent(nav('ie_h1'))
@@ -58,7 +56,6 @@ t.section('§2 — typed settlement + retryable generation: degradation observed
     degraded.settlements[0]?.state === 'degraded' && Boolean(degraded.settlements[0]?.error),
     degraded.settlements[0]?.error?.slice(0, 60),
   )
-
   rmSync(join(root, 'interview'), { force: true })
   const healed = await store.flushInterviewLog()
   t.check('the retained generation settled after the fault cleared', healed.drained === 1 && healed.allSettled)
@@ -85,7 +82,6 @@ t.section('§3b — the REGISTERED shutdown cleanup itself drains every identity
   store._resetInterviewForProofs()
   const a = store.openInterviewSession({ mission: 'cleanup drain A', atMs: 30 })
   const b = store.openInterviewSession({ mission: 'cleanup drain B', atMs: 31 })
-
   await runCleanupFunctions()
   const sessions = durableSessions()
   t.check('the registered cleanup drained identity A', sessions[a] !== undefined)
@@ -98,7 +94,6 @@ t.section('§4 — a pending accepted generation outranks the older durable snap
   const a = store.openInterviewSession({ mission: 'rollback guard', toolUseId: 'toolu_ca16', atMs: 7 })
   await store.flushInterviewLog()
   store.appendInterviewEvent(nav('ie_newer'))
-
   const resumed = await store.resumeInterviewSession(a)
   t.check('resume finds the session', resumed)
   t.check(
@@ -106,7 +101,6 @@ t.section('§4 — a pending accepted generation outranks the older durable snap
     store.interviewEvents().length === 2,
     `events=${store.interviewEvents().length}`,
   )
-
   const receipt = await store.flushInterviewLog()
   t.check('the pending newer generation settled at the drain', receipt.allSettled)
   store._resetInterviewForProofs()

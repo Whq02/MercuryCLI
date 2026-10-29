@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -66,7 +65,6 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
       MERCURY_LIVE_GLYPHS: '0',
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_IDLE: '0',
-
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       BROWSER: 'true',
@@ -86,7 +84,6 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
       MERCURY_MOONSHOT_CODING_BASE: `${DEAD}/v1`,
       MERCURY_ZAI_API_BASE: `${DEAD}/v4`,
       MERCURY_DEEPSEEK_API_BASE: DEAD,
-
       TERM_PROGRAM: 'vscode',
     }
     for (const key of [

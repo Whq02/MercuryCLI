@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -29,9 +28,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 const tailDir = join(SCRATCH, 'daemon')
 
 let clock = 1_000_000
-
 let readCostMs = 0
-
 const activityBySession = new Map<string, { label: string; kind: 'tool' | 'text' } | null>()
 
 function makeStore(force = false): InstanceType<typeof LiveTileStore> {
@@ -43,7 +40,6 @@ function makeStore(force = false): InstanceType<typeof LiveTileStore> {
       return readSessionTail(id, tailDir)
     },
     activity: rec => activityBySession.get(rec.sessionId) ?? null,
-
     transcriptPath: rec => join(SCRATCH, 'transcripts', `${rec.sessionId}.jsonl`),
     nowMs: () => clock,
     forceDegrade: force,
@@ -119,14 +115,12 @@ console.log('L2 content-keyed emissions (calm)')
   store._drainForTesting()
   const base = emits
   check('first publish emits', base === 1, `emits=${base}`)
-
   for (let i = 0; i < 5; i++) {
     clock += 40
     publishSessionTail({ schema: 1, sessionId: 's-calm', atMs: clock, text: 'steady line' }, tailDir)
     store._drainForTesting()
   }
   check('same content never re-emits', emits === base, `emits=${emits}`)
-
   clock += 40
   publishSessionTail({ schema: 1, sessionId: 's-calm', atMs: clock, text: 'steady line grew' }, tailDir)
   store._drainForTesting()
@@ -186,7 +180,6 @@ console.log('L4 the budget: degrade and recover')
   store._drainForTesting()
   check('one cheap probe is not enough (hysteresis)', store.isDegraded())
   clock += 5000
-
   publishSessionTail({ schema: 1, sessionId: 's-load', atMs: clock, text: 'heavy words' }, tailDir)
   store._drainForTesting()
   check('two cheap probes recover', !store.isDegraded())
@@ -237,7 +230,6 @@ console.log('L6 peek geometry')
   const sClosed = switchboardGeometry(100, 30, 0, 4, 2, 1, 'mirror')
   const sOpen = switchboardGeometry(100, 30, 0, 4, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
   check('stacked grants what the tall band can give', sOpen.peekRows > 0 && sOpen.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${sOpen.peekRows}`)
-
   const sRail = switchboardGeometry(100, 30, 1, 2, 2, 1, 'mirror', ROW_PEEK_DESIRED_ROWS)
   check('stacked + rail still grants ≥4 (tail band yields)', sRail.peekRows >= 4, `granted=${sRail.peekRows}`)
   const sRailBands = (sRail.listBand[1] - sRail.listBand[0] + 1) + (sRail.mirrorBand[1] - sRail.mirrorBand[0] + 1) + Math.max(0, sRail.coordBand[1] - sRail.coordBand[0] + 1) + sRail.liveComposerRows
@@ -249,7 +241,6 @@ console.log('L6 peek geometry')
     sOpen.listBand[0] === sOpen.mainBand[0] && sOpen.coordBand[1] === sOpen.mainBand[1],
   )
   check('stacked row window budget untouched', sOpen.listContentRows === sClosed.listContentRows)
-
   const tiny = switchboardGeometry(100, 24, 3, 8, 3, 5, 'mirror', ROW_PEEK_DESIRED_ROWS)
   check('poison: a squeezed grant clamps at 0..8', tiny.peekRows >= 0 && tiny.peekRows <= ROW_PEEK_DESIRED_ROWS, `granted=${tiny.peekRows}`)
 }

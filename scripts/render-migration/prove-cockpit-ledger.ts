@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { CockpitLedger, type ProjectedRow } from '../../src/render-engine/cockpit/cockpitLedger.ts'
 
 let failures = 0
@@ -11,7 +10,6 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 
 const row = (uuid: string, kind = 'assistant', text = `text of ${uuid}`): ProjectedRow => ({ uuid, kind, turnHead: false, text })
-
 const head = (n: number): ProjectedRow => ({ uuid: `prompt-${n}`, kind: 'user', turnHead: true, text: `user prompt ${n}` })
 
 console.log('cockpit-ledger laws')
@@ -78,7 +76,6 @@ console.log('cockpit-ledger laws')
 }
 
 {
-
   const violations: string[] = []
   const ledger = new CockpitLedger(120, { onViolation: d => violations.push(d) })
   for (let n = 1; n <= 5; n++) ledger.feed(fiveTurns(n))
@@ -101,7 +98,6 @@ console.log('cockpit-ledger laws')
     violations2.length === 0 && after.divergences === 0 && after.flatnessDrops === 0 && after.settledCount > 0,
     JSON.stringify({ violations: violations2, report: after }),
   )
-
   const renamedTail = [row('compact-boundary', 'user', 'summary card'), head(4), row('d-RENAMED')]
   ledger2.feed(renamedTail.concat([head(5), row('e'), head(6), row('f'), head(7), row('g'), head(8), row('h'), head(9), row('i')]))
   check('L7 the agreement law stays armed within the replaced history', violations2.length > 0, JSON.stringify(violations2.slice(0, 1)))

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
@@ -13,7 +12,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 const BOARDS = [
-
   'src/components/extensions/ExtensionsBoard.tsx',
   'src/components/extensions/SourceView.tsx',
   'src/components/tasks/WorkflowsBoard.tsx',

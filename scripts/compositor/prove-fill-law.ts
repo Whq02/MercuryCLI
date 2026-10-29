@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.FORCE_COLOR = '3'
 delete process.env.NO_COLOR
 

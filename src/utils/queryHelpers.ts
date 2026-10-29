@@ -10,6 +10,7 @@ import { getFileModificationTime, stripLineNumberPrefix } from './file.js'
 import { isENOENT } from './errors.js'
 import { expandPath } from './path.js'
 
+
 const DEFAULT_EXTRACT_CACHE_SIZE = 10
 const SYSTEM_REMINDER_PATTERN = /<system-reminder>[\s\S]*?<\/system-reminder>/g
 
@@ -36,7 +37,6 @@ export function extractReadFilesFromMessages(
       if (typeof filePath !== 'string' || filePath === '') continue
       const absolute = expandPath(filePath, cwd)
       if (toolUse.name === FILE_READ_TOOL_NAME) {
-
         if (toolUse.input.offset === undefined && toolUse.input.limit === undefined) {
           reads.set(toolUse.id, { path: absolute })
         }
@@ -62,7 +62,6 @@ export function extractReadFilesFromMessages(
       const read = reads.get(result.tool_use_id)
       if (read) {
         if (typeof result.content !== 'string') continue
-
         if (result.content.startsWith(FILE_UNCHANGED_STUB) || result.content.startsWith(REPEATED_RESULT_TAG)) continue
         if (!timestamp) continue
         const cleaned = result.content
@@ -84,7 +83,6 @@ export function extractReadFilesFromMessages(
       if (edit && result.is_error !== true) {
         try {
           const diskContent = readFileSync(edit.path, 'utf8')
-
           const mtime = getFileModificationTime(edit.path)
           cache.set(edit.path, { content: diskContent, timestamp: mtime, offset: undefined, limit: undefined })
         } catch (err) {

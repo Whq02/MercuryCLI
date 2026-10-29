@@ -1,3 +1,4 @@
+
 type SearchResult = { path: string; score: number }
 
 const CHUNK_MS = 4
@@ -74,7 +75,6 @@ export class FileIndex {
   private precomputeOne(index: number): void {
     const path = this.paths[index]!
     const lower = path.toLowerCase()
-
     this.lowerPaths[index] = lower.replace(/\\/g, '/')
     this.bitmaps[index] = letterBitmap(lower)
     this.lengths[index] = path.length
@@ -96,7 +96,6 @@ export class FileIndex {
       resolveQueryable = resolve
     })
     const done = (async () => {
-
       const seen = new Set<string>()
       const unique: string[] = []
       let chunkStart = Date.now()
@@ -111,9 +110,7 @@ export class FileIndex {
         unique.push(path)
       }
       this.paths = unique
-
       this.computeTopLevel(unique)
-
       let queryableResolved = false
       chunkStart = Date.now()
       for (let i = 0; i < unique.length; i++) {
@@ -141,9 +138,7 @@ export class FileIndex {
       return this.topLevelCache.slice(0, limit)
     }
     const truncated = query.slice(0, MAX_QUERY_LENGTH)
-
     const caseSensitive = /[A-Z]/.test(truncated)
-
     const needle = (caseSensitive ? truncated : truncated.toLowerCase()).replace(/\\/g, '/')
     const queryBits = letterBitmap(truncated.toLowerCase())
 
@@ -153,10 +148,8 @@ export class FileIndex {
 
     for (let i = 0; i < this.readyCount; i++) {
       if ((this.bitmaps[i]! & queryBits) !== queryBits) continue
-
       const haystack = caseSensitive ? this.paths[i]!.replace(/\\/g, '/') : this.lowerPaths[i]!
       const original = this.paths[i]!
-
       let score = 0
       let previousMatch = -1
       let position = 0
@@ -175,7 +168,6 @@ export class FileIndex {
             score -= GAP_OPEN + GAP_EXTEND * (found - previousMatch - 1)
           }
         }
-
         if (found === 0) {
           if (q === 0) score += BONUS_FIRST_CHAR_START
           score += BONUS_BOUNDARY
@@ -214,5 +206,6 @@ export class FileIndex {
     })
   }
 }
+
 
 export default FileIndex

@@ -65,7 +65,6 @@ export function ApprovalCardView({
       onBack()
       return
     }
-
     if (key.ctrl || key.meta) return
     if (!pastGate()) return
     if (built.error !== null) return
@@ -76,7 +75,6 @@ export function ApprovalCardView({
   })
 
   const isUpdate = card.cardKind === 'update'
-
   const fetched = built.version ?? 'the fetched copy'
   const footer = [
     '↵ approve',
@@ -111,7 +109,6 @@ export function ApprovalCardView({
             {built.error !== null ? (
               <Text color={tokens.failure}>{built.error}</Text>
             ) : (
-
               built.lines.map((line, i) => <CardLine key={i} line={line} width={Math.max(10, cols - 4)} />)
             )}
           </Box>

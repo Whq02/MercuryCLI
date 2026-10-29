@@ -1,3 +1,4 @@
+
 import { assembleContextCapsule } from './capsule.js'
 import { projectImpact } from './impact.js'
 import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
@@ -8,12 +9,9 @@ interface WorkSplitSuggestion {
   generation: SnapshotGeneration
   perTask: Array<{
     task: string
-
     files: string[]
-
     tests: string[]
   }>
-
   contested: Array<{ path: string; tasks: number[]; note: string }>
   caps: { omissions: string[] }
 }
@@ -30,7 +28,6 @@ export function suggestWorkSplit(workspace: string, tasks: string[]): WorkSplitS
       task,
       budget: { maxItems: 16 },
     })
-
     const files = new Set<string>(
       (capsule?.items ?? []).filter(i => i.tier <= 3).map(i => i.path),
     )

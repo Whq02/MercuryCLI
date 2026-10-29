@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = {
   VERSION: '1.0.0',
@@ -19,7 +18,6 @@ const SELF = fileURLToPath(import.meta.url)
 const VSHOT = join(dirname(SELF), 'vshot.py')
 
 if (process.env.BAND_RENDER_CHILD) {
-
   const React = await import('react')
   const ink = (await import('../../src/ink.js')) as {
     render: (n: React.ReactNode) => Promise<unknown>

@@ -7,35 +7,23 @@ import type { RunnerStateFactV1 } from './seatProjections.js'
 
 export interface SessionLiveV1 {
   inFlight: boolean
-
   phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'waiting' | 'idle'
-
   agentsWaiting: number
-
   waitingOn?: WorkCountsV1
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
 }
 
 export interface SeatStatusV1 {
-
   title: string
   projectLabel: string
-
   interrupting: boolean
-
   hardStopping: boolean
-
   wait: RequestWaitV1 | null
-
   quietMs: number | null
-
   watchdogMs: number | null
-
   phaseMs: number | null
-
   toolBudgetMs: number | null
-
   stuck: boolean
   isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
   branchLabel?: string
@@ -66,14 +54,11 @@ export interface SeatLiveExtensionV1 {
   live(): SessionLiveV1
   subscribeLive(listener: () => void): () => void
   status(): SeatStatusV1
-
   tail(): StreamingTailStore
   tailAnchor?(): number
-
   turnChars?(): number
   turnOutputTokens?(): number | null
   turnFacts?(): LiveTurnFactsV1
-
   fold?(): FoldStatusV1 | null
   subscribeFold?(listener: () => void): () => void
   lostLine?(): LostLineV1 | null

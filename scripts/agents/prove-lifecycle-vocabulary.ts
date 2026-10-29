@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -24,7 +23,6 @@ const { deriveAgentLifecycle, IDLE_TTL_MS } = await import(
 const NOW = 1_000_000_000
 
 section('§A the derivation truth-table')
-
 {
   const running = deriveAgentLifecycle({ taskStatus: 'running', transcriptExists: true, now: NOW })
   check('running: not revivable, messages queue', running.state === 'running' && !running.revivable && running.basis.includes('queue'))
@@ -41,7 +39,6 @@ section('§A the derivation truth-table')
 }
 
 section('§B the reconciliation — Mercury keeps aborted revivable')
-
 {
   const killed = deriveAgentLifecycle({ taskStatus: 'killed', transcriptExists: true, now: NOW })
   check('killed + transcript: aborted AND revivable (the documented divergence)', killed.state === 'aborted' && killed.revivable && killed.basis.includes('revives'))
@@ -50,7 +47,6 @@ section('§B the reconciliation — Mercury keeps aborted revivable')
 }
 
 section('§C the revival honesty (structural pins)')
-
 {
   const resume = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
   check('a gone worktree reports cwdFallback on the result', resume.includes("cwdFallback: 'parent-checkout'"))
@@ -62,7 +58,6 @@ section('§C the revival honesty (structural pins)')
 }
 
 section('§D the consumers — the vocabulary is SPOKEN (no orphan module)')
-
 {
   const bridge = readFileSync(join(ROOT, 'src/components/tasks/taskStatusUtils.tsx'), 'utf8')
   check('taskStatusUtils bridges rows to the ONE derivation (agentLifecycleOf)', bridge.includes('deriveAgentLifecycle(') && bridge.includes('export function agentLifecycleOf'))
@@ -73,14 +68,12 @@ section('§D the consumers — the vocabulary is SPOKEN (no orphan module)')
 }
 
 section('§E the transcript\'s own end — one fact for every verb once the registry row is gone')
-
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { readAgentTranscript, transcriptEndWords } = await import('../../src/tools/WorkflowTool/agentTranscriptReader.ts')
   const { INTERRUPT_MESSAGE, turnCutLine } = await import('../../src/utils/messages/rejectionText.ts')
   const dir = mkdtempSync(join(tmpdir(), 'lifecycle-end-'))
-
   const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
   const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
   let seq = 0

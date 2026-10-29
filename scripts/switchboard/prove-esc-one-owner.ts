@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -50,7 +49,6 @@ section('§1 the sighting: a capacity ask pending BEHIND the open repo selector'
 
 section('§2 the whole paint-order law, pairwise')
 {
-
   const paintOrder: Array<[keyof Facts, string]> = [
     ['modelDefault', 'model-default'],
     ['rowPick', 'row-pick'],
@@ -119,7 +117,6 @@ section('§4 the overlay-stack esc law beside it (one esc, one layer)')
   const below = pushOverlay({ id: 'select', modal: true })
   const top = pushOverlay({ id: 'concourse-ground', modal: true })
   check('the later push is top (paint follows mount for stacked selects)', isTopOverlayNow(top) && !isTopOverlayNow(below))
-
   popOverlay(top)
   const belowActsInSameEvent = isTopOverlayNow(below)
   check(

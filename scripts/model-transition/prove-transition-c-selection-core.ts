@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -107,15 +106,12 @@ section('§B C02 — required closure first; the armed policy touches only optio
   check('exclusions happened', s.excluded.length > 0, `excluded=${s.excluded.length}`)
   check('required + optional partition the candidates', s.requiredCount + s.optionalCount === s.candidateCount)
   const outUuids = new Set(plan.messages.map(m => (m as AnyMessage).uuid))
-
   check('the instruction row survives', outUuids.has(u(1)))
   check('the operator request survives', outUuids.has((msgs.at(-1) as AnyMessage).uuid))
   check('the unresolved tool use survives', plan.messages.some(m => JSON.stringify((m as AnyMessage).message).includes('tool_unresolved')))
-
   const hasUse = plan.messages.some(m => JSON.stringify((m as AnyMessage).message).includes("tool_use\",\"id\":\"tool_pair_1") || JSON.stringify((m as AnyMessage).message).includes('"id":"tool_pair_1"'))
   const hasResult = plan.messages.some(m => JSON.stringify((m as AnyMessage).message).includes('"tool_use_id":"tool_pair_1"'))
   check('the output view never orphans a tool pair', hasUse === hasResult, `use=${hasUse} result=${hasResult}`)
-
   const excludedUuids = new Set(s.excluded.map(e => e.span.recordUuid))
   check('no exclusion hits the operator request/instruction rows', !excludedUuids.has(u(1)) && !excludedUuids.has((msgs.at(-1) as AnyMessage).uuid as string))
   delete process.env.MERCURY_CONTEXT_SELECTION
@@ -124,7 +120,6 @@ section('§B C02 — required closure first; the armed policy touches only optio
 section('§B2 C02 — supersession, file/evidence edges, typed closure overflow')
 {
   process.env.MERCURY_CONTEXT_SELECTION = 'bounded-optional'
-
   const msgs: AnyMessage[] = []
   let n = 1
   msgs.push({ type: 'user', uuid: u(n++), isCompactSummary: true, message: { role: 'user', content: 'OLD capsule (superseded)' } })
@@ -214,7 +209,6 @@ section('§E C05 — bounded index: hard cap, reap, decayed aggregates, exclusio
   big.push(userMsg(sel.MAX_CANDIDATES + 401, 'tail'))
   sel.updateCandidateIndex(idx, big as never)
   check('standing aggregates decay per fold round', idx.candidates.get(u(sel.MAX_CANDIDATES + 400))!.score < 1)
-
   process.env.MERCURY_CONTEXT_SELECTION = 'bounded-optional'
   const owner2 = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ctm-c-e2', lane: 'main' })
   const many: AnyMessage[] = []

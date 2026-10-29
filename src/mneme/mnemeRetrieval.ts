@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pendingRows, recentObservations } from './mnemeBuffer.js'
@@ -39,7 +40,6 @@ function grepText(slug: string, raw: string, pattern: string, maxHits: number, o
   try {
     re = new RegExp(pattern, 'i')
   } catch {
-
     re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
   }
   const lines = raw.split('\n')
@@ -130,11 +130,9 @@ export function grepDoc(slug: string, pattern: string, opts: { maxHits?: number;
 
 interface MnemeReadResult {
   slug: string
-
   from: number
   to: number
   content: string
-
   recent: Array<{ ts: string; source: string; text: string }>
 }
 
@@ -146,12 +144,10 @@ export function readDocLines(
   const p = join(dir, pageFileForSlug(slug))
   if (!existsSync(p)) return null
   const lines = readFileSync(p, 'utf8').split('\n')
-
   const nf = Number.isFinite(opts.from ?? 1) ? Math.floor(opts.from ?? 1) : 1
   const nt = Number.isFinite(opts.to ?? lines.length) ? Math.floor(opts.to ?? lines.length) : lines.length
   let from = Math.min(Math.max(1, nf), lines.length)
   let to = Math.min(lines.length, Math.max(from, nt))
-
   for (let i = from - 1; i >= 1; i--) {
     if (/^##\s/.test(lines[i - 1]!)) {
       from = i
@@ -159,7 +155,6 @@ export function readDocLines(
     }
     if (i === 1) from = 1
   }
-
   for (let i = to + 1; i <= lines.length; i++) {
     if (/^##\s/.test(lines[i - 1]!)) {
       to = i - 1

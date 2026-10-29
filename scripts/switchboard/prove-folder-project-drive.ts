@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -17,7 +16,6 @@ writeFileSync(join(FOO, 'README.md'), '# foo\n')
 mkdirSync(join(FOO, 'src'))
 writeFileSync(join(FOO, 'src', 'app.txt'), 'hello\n')
 writeFileSync(join(OTHER, 'notes.txt'), 'other\n')
-
 const gitOk = (() => {
   const run = (args: string[]): boolean => spawnSync('git', args, { cwd: FOO, stdio: 'ignore' }).status === 0
   return (
@@ -62,11 +60,8 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [FOO, OTHER, GAMMA_MERC])
 
 const READY_LINE = '↵ start  ·  ↑↓ choose'
-
 const COMPOSER = 'Type a prompt'
-
 const WARM_TICKS = 25
-
 const TOLERATED_PROJECT_KEYS = new Set(['hasTrustDialogAccepted', 'hasCompletedProjectOnboarding', 'exampleFiles', 'exampleFilesGeneratedAt', 'permissionPosture'])
 
 type Send = Record<string, unknown>
@@ -246,7 +241,6 @@ function reapHome(home: string): void {
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
-
 const QUIT: Send[] = [
   { afterPrevTicks: 3, data: '\x03' },
   { afterPrevTicks: 2, data: '\x03' },
@@ -310,7 +304,6 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   }
   check('D2 no transcript yet — the first chat is wordless', transcriptsOf(home).length === 0, transcriptsOf(home).join(','))
   reapHome(home)
-
   const d = await capture({
     id: 'd2b-listed-from-other',
     home,
@@ -323,7 +316,6 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   printFrame('d2b (the face from another folder)', d.lines)
   const face = markText(d, 'face')
   check('D2 the other folder is named as itself', face.includes('New Session in other'))
-
   check('D2 foo is a selectable project now — the face\'s project row counts it (the one list; no transcript needed)', /\b[1-9]\d* repos? · pick a session/.test(face.replace(/\n/g, ' ')), face.split('\n').filter(l => /Project/.test(l)).join(' | '))
   check('D2 foo\'s wordless chat is never a Continue target', !face.includes('Continue Last Session'), face.split('\n').filter(l => l.includes('Continue')).join(' | '))
   reapHome(home)

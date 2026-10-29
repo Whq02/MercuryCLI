@@ -12,7 +12,6 @@ export class CircularBuffer<T> {
       this.items.push(item)
       return
     }
-
     this.items[this.start] = item
     this.start = (this.start + 1) % this.capacity
   }

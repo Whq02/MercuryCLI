@@ -20,6 +20,7 @@ import { refreshMdmSettings, getHkcuSettings, getMdmSettings, setMdmSettingsCach
 import { getSettingsFilePathForSource } from './settings.js'
 import { resetSettingsCache } from './settingsCache.js'
 
+
 type TimingOverrides = {
   stabilityThresholdMs?: number
   pollIntervalMs?: number
@@ -41,10 +42,8 @@ let cleanupRegistered = false
 let mdmPollTimer: NodeJS.Timeout | null = null
 let mdmSnapshot: string | null = null
 const pendingDeletions = new Map<string, NodeJS.Timeout>()
-
 let knownSettingsFiles = new Map<string, SettingSource>()
 let dropInDir: string | null = null
-
 let watchedRoots = new Set<string>()
 let awaitedParents = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
@@ -63,7 +62,6 @@ function projectWatchRoots(cwd: string): string[] {
 }
 
 function normalizeEventPath(eventPath: string): string {
-
   return resolve(sep === '\\' ? eventPath.replace(/\//g, '\\') : eventPath)
 }
 
@@ -71,7 +69,6 @@ function sourceForPath(eventPath: string): SettingSource | null {
   const normalized = normalizeEventPath(eventPath)
   const known = knownSettingsFiles.get(normalized)
   if (known !== undefined) return known
-
   if (dropInDir !== null && normalized.startsWith(dropInDir + sep) && normalized.endsWith('.json')) {
     return 'policySettings'
   }
@@ -89,7 +86,6 @@ function handleChange(eventPath: string): void {
   const normalized = normalizeEventPath(eventPath)
   const pending = pendingDeletions.get(normalized)
   if (pending !== undefined) {
-
     clearTimeout(pending)
     pendingDeletions.delete(normalized)
   }
@@ -101,9 +97,7 @@ function handleUnlink(eventPath: string): void {
   const source = sourceForPath(eventPath)
   if (source === null) return
   const normalized = normalizeEventPath(eventPath)
-
   if (pendingDeletions.has(normalized)) return
-
   const graceMs = stabilityThresholdMs + pollIntervalMs + 250
   const timer = setTimeout(() => {
     pendingDeletions.delete(normalized)
@@ -114,7 +108,6 @@ function handleUnlink(eventPath: string): void {
 }
 
 function startMdmPolling(): void {
-
   mdmSnapshot = JSON.stringify({ mdm: getMdmSettings(), hkcu: getHkcuSettings() })
   mdmPollTimer = setInterval(() => {
     if (disposed) return
@@ -131,18 +124,15 @@ function startMdmPolling(): void {
       }
     })()
   }, mdmPollIntervalMs)
-
   mdmPollTimer.unref?.()
 }
 
 async function initialize(): Promise<void> {
-
   if (getIsRemoteMode()) return
   if (initialized || disposed) return
   initialized = true
   startMdmPolling()
   if (!cleanupRegistered) {
-
     cleanupRegistered = true
     registerCleanup(async () => {
       await dispose()
@@ -157,7 +147,6 @@ async function initialize(): Promise<void> {
     for (const root of projectConfigDirs(dir)) targets.push([join(root, 'mcp.json'), 'projectSettings'])
   }
   for (const source of SETTING_SOURCES) {
-
     if (source === 'flagSettings') continue
     const filePath = getSettingsFilePathForSource(source)
     if (filePath === undefined) continue
@@ -203,7 +192,6 @@ async function initialize(): Promise<void> {
     ignorePermissionErrors: true,
     atomic: true,
     ...(typeof Bun !== 'undefined' ? { usePolling: true, interval: bunPollIntervalMs } : {}),
-
     ignored: ignoringSpecialFiles((candidatePath: string) => {
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
@@ -234,7 +222,6 @@ async function initialize(): Promise<void> {
     timer.unref?.()
   })
   watcher.on('unlink', path => handleUnlink(path))
-
   watcher.on('error', error => {
     logError(error)
   })

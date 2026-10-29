@@ -19,6 +19,7 @@ import { firstLineOf } from '../../utils/stringUtils.js'
 import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import type { FileEditInput, FileEditOutput } from './types.js'
 
+
 export function userFacingName(input?: Partial<FileEditInput>): string {
   if (input?.old_string === '') return 'Create'
   return 'Update'
@@ -34,7 +35,6 @@ export function renderToolUseMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
-
   return (
     <FilePathLink filePath={input.file_path}>
       {getDisplayPath(input.file_path)}
@@ -58,7 +58,6 @@ export function renderToolResultMessage(
   _progressMessages: unknown,
   { verbose, style }: { verbose: boolean; style?: 'condensed' | 'default' },
 ): React.ReactNode {
-
   if (output.noChange) {
     return <NoChangeCard filePath={output.filePath} />
   }
@@ -81,7 +80,6 @@ export function renderToolUseRejectedMessage(
   if (!input?.file_path) {
     return <FallbackToolUseRejectedMessage />
   }
-
   if (input.old_string === '') {
     return (
       <MessageResponse>
@@ -89,7 +87,6 @@ export function renderToolUseRejectedMessage(
       </MessageResponse>
     )
   }
-
   return (
     <FileEditToolDiff
       file_path={input.file_path}

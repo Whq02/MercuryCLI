@@ -1,9 +1,7 @@
+
 const COMPACTION_DEFAULTS = Object.freeze({
-
   thresholdPct: 85,
-
   cooldownTurns: 8,
-
   rearmBelowPct: 55,
 })
 
@@ -21,7 +19,6 @@ export interface CompactionState {
 }
 
 interface DecideCompactionInput {
-
   usage?: { percentage?: number } | null
   state?: CompactionState | null
   turn?: number

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -23,7 +22,6 @@ if (driver.kind !== 'posix-pty') {
 
 const COLS = Number(process.env.MEASURE_COLS ?? '120')
 const ROWS = Number(process.env.MEASURE_ROWS ?? '40')
-
 const WINDOW_SKIP_MS = 2_000
 const WINDOW_MS = 60_000
 const VARIANTS: Record<string, Record<string, string>> = {
@@ -119,7 +117,6 @@ for (const variant of wanted) {
   const tee = join(outDir, `tee-${variant}.jsonl`)
   rmSync(tee, { force: true })
   rmSync(`${tee}.raw`, { force: true })
-
   const settleTicks = 50
   const total = 12 * 5 + settleTicks + Math.ceil((WINDOW_SKIP_MS + WINDOW_MS) / 200) + 25
   let cap: Awaited<ReturnType<typeof capture>> | null = null

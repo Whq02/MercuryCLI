@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync } from 'node:child_process'
@@ -107,13 +106,11 @@ const cfg = {
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
     { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
     { atTick: 260, minTick: 10, awaitText: 'ready · Opus 5 ·', requireAwait: true, awaitSettleTicks: 2, data: `${SLOW_INGEST_ASK}\r`, mark: 'ask-sent' },
-
     { atTick: 330, minTick: 2, awaitText: 'ingesting a', awaitSettleTicks: 2, data: '', mark: 'wait-seen' },
   ],
   readyText: [OPUS_REPLY],
   stableTicks: 4,
   total: 420,
-
   cols: 150,
   rows: 34,
   out,

@@ -6,10 +6,9 @@ import { isOptionSet } from './options.js'
 import { hashTree } from './tree.js'
 import type { Health, HealthOutcome, RosterEntry } from './types.js'
 
+
 export type RuntimeFacts = {
-
   servers?: Map<string, { state: 'connected' | 'pending' | 'failed' | 'disabled'; detail?: string; toolCount?: number }>
-
   language?: Map<string, { state: 'running' | 'starting' | 'stopped' | 'error'; detail?: string }>
 }
 
@@ -46,6 +45,7 @@ export function resetRuntimeCounters(): void {
   hookFailures.clear()
   droppedChannelPosts.clear()
 }
+
 
 function versionFloorUnmet(floor: string | undefined): string | null {
   if (!floor) return null
@@ -112,6 +112,7 @@ export function computeHealth(entry: RosterEntry, facts: RuntimeFacts = {}, opti
   const outcome: HealthOutcome = reasons.length === 0 ? 'loads' : 'partial'
   return { health: { outcome, reasons, notes }, resolution }
 }
+
 
 function healthGlyph(outcome: HealthOutcome): string {
   return outcome === 'loads' ? '●' : outcome === 'partial' ? '◑' : '✕'

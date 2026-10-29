@@ -4,6 +4,7 @@ import { SubModelPicker, type SubModelRoutePick } from '../../components/SubMode
 import { setSubModel, type SubModelContainer } from '../../utils/model/subModelSlots.js'
 import type { LocalJSXCommandCall, LocalJSXCommandOnDone } from '../../types/command.js'
 
+
 let parkedPick: { container: SubModelContainer; modelId: string } | null = null
 
 function SubModelsSurface({
@@ -49,7 +50,6 @@ function SubModelsSurface({
 }
 
 export const call: LocalJSXCommandCall = async (onDone, _context) => {
-
   const parked = parkedPick
   parkedPick = null
   let initialContainer: SubModelContainer = 'console'

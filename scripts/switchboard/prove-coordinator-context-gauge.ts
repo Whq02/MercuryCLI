@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -42,7 +41,6 @@ enableConfigs()
 const conv = await import('../../src/services/concourse/coordinatorConversation.ts')
 
 section('§1 — the store law: stamp, read, preserve, decode, clear')
-
 {
   const dir = join(scratch, 's1')
   mkdirSync(dir, { recursive: true })
@@ -57,14 +55,12 @@ section('§1 — the store law: stamp, read, preserve, decode, clear')
   await conv.clearCoordinatorConversation(dir)
   const afterClear = await conv.readCoordinatorGauge(dir)
   check('/clear clears the gauge with the conversation', afterClear === undefined, JSON.stringify(afterClear))
-
   await conv.stampCoordinatorGauge({ contextTokens: Number.NaN as never, modelId: 'x', ts: 1 }, dir)
   const junk = await conv.readCoordinatorGauge(dir)
   check('a junk stamp decodes to no gauge (NaN tokens)', junk === undefined, JSON.stringify(junk))
 }
 
 section('§2 — the assisted turn stamps the gauge (the lane seam)')
-
 {
   const lane = await import('../../src/services/concourse/coordinatorLane.ts')
   lane._resetCoordinatorLaneForTesting()
@@ -102,7 +98,6 @@ section('§2 — the assisted turn stamps the gauge (the lane seam)')
 }
 
 section('§3 — the threshold relation: the main chat’s own ladder over the gauge’s model')
-
 {
   const auto = await import('../../src/services/compact/autoCompact.ts')
   const model = 'claude-opus-5'

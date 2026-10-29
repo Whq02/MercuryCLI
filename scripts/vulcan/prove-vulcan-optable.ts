@@ -40,9 +40,7 @@ const EXEC_OPS = new Set([
   'animation_play', 'animtree_travel', 'particles_emit', 'nav_bake', 'audio_play',
   'test_run', 'test_assert', 'test_screenshot_baseline', 'test_screenshot_compare',
   'export_run', 'runtime_wait_signal',
-
   'project_refresh_classes',
-
   'runtime_pause', 'runtime_step', 'runtime_resume',
   'engine_run', 'engine_check', 'engine_capture', 'engine_profile', 'engine_node_call',
 ])
@@ -119,7 +117,6 @@ section('5. the game-driving verbs — a press is an event; step mode rides the 
   check('the 163 contract is untouched by the step verbs (all three above it)', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(n => vulcanOp(n)?.category === 'frontier'))
   const seq = vulcanOp('input_sequence')
   check('input_sequence steps accept step_frames and step_ms', /step_frames/.test(seq?.args.steps ?? '') && /step_ms/.test(seq?.args.steps ?? ''), seq?.args.steps)
-
   const jsonFigure = (JSON.parse(rawJson) as { step_wall_ms_per_frame?: unknown }).step_wall_ms_per_frame
   const gdFigure = Number(/^const STEP_WALL_MS_PER_FRAME := (\d+)$/m.exec(readFileSync(join(repo, 'assets', 'vulcan', 'addon', 'core', 'op_classes.gd'), 'utf8'))?.[1])
   check('the stepped-frame budget is ONE figure: optable.json = the TS constant = op_classes.gd', Number.isInteger(jsonFigure) && jsonFigure === VULCAN_STEP_WALL_MS_PER_FRAME && gdFigure === VULCAN_STEP_WALL_MS_PER_FRAME && VULCAN_STEP_WALL_MS_PER_FRAME >= 1, `json=${String(jsonFigure)} ts=${VULCAN_STEP_WALL_MS_PER_FRAME} gd=${gdFigure}`)

@@ -1,5 +1,6 @@
 export const READ_MCP_RESOURCE_TOOL_NAME = 'ReadMcpResource'
 
+
 export const DESCRIPTION = `Fetch one MCP resource, addressed by server name plus resource URI.
 
 Example call:

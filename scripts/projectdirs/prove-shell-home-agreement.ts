@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,7 +31,6 @@ for (const [label, dirs] of shapes) {
   const root = join(scratch, label.replace(/[^a-z]+/gi, '-'))
   mkdirSync(root, { recursive: true })
   for (const d of dirs) mkdirSync(join(root, d), { recursive: true })
-
   const ts = projectLocalPath(root, 'gate').replaceAll('\\', '/')
   const sh = shellResolve(root, 'gate').replaceAll('\\', '/')
   check(`${label}: shell === TS`, ts === sh, `ts=${ts} sh=${sh}`)

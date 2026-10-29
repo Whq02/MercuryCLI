@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++

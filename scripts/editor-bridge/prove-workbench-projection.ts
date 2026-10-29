@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync as _mkdtemp, readFileSync } from 'node:fs'
 import { tmpdir as _tmpdir } from 'node:os'
 import { join as _join } from 'node:path'
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-review-'))
-
 process.env.MERCURY_CONFIG_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-home-'))
 
 let failures = 0
@@ -146,9 +144,7 @@ section('(1) pure derivation — one root + three live children, owner-true rows
   check('crewmate blocker surfaces from the run kernel', mate?.blocker === 'a question is waiting')
   const wf = snap.threads.find(t => t.id === 'task-wf')
   check('workflow row: kind workflow', wf?.kind === 'workflow')
-
   check('no seat threads derive post-room (ratchet)', snap.threads.every(t => t.kind !== 'seat'))
-
   const sources = snap.lanes.map(l => l.source).sort()
   check(
     'the live lane source derives',
@@ -226,7 +222,6 @@ section('(4) engine laws — flag gate + stable reference')
   const live = await resolveWorkbenchSnapshot()
   check('live one-shot composes', live !== null && typeof live.version === 'number')
   check('live one-shot names this project root', live !== null && live.projectRoot.length > 0)
-
   const a = getWorkbenchSnapshot()
   const b = getWorkbenchSnapshot()
   check('getter returns a stable reference between refreshes', a === b)
@@ -290,7 +285,6 @@ section('(5) the mercury://workbench adapter through the REAL registry')
 
 section('(6) the gather path spawns nothing synchronously; one gather per change signal')
 {
-
   const cp = require('node:child_process') as Record<string, unknown>
   let syncSpawns = 0
   for (const fn of ['execFileSync', 'spawnSync', 'execSync']) {
@@ -319,7 +313,6 @@ section('(6) the gather path spawns nothing synchronously; one gather per change
   check('the gather names no sync spawn', !/execFileSync|spawnSync|execSync\(/.test(src))
   check('the lane list rides the git-facts owner (async)', src.includes('await getGitWorktreeLanes()'))
   check('the generation reads the owner\'s snapshot, not a rail one refresh behind', src.includes("await getGitState({ untrackedFiles: 'normal' })"))
-
   check('the engine no longer subscribes to the vitals bus', !src.includes('subscribeVitals('))
   check('the engine subscribes to the git-facts owner', src.includes('engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))'))
 

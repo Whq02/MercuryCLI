@@ -4,7 +4,6 @@ import { Text } from '../../ink.js'
 import { landingInFlight, subscribeFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 
 export const MODEL_PICKER_LANDING_WORDS = 'the session is still landing — the model picker opens when it has'
-
 export const MODEL_PICKER_LANDING_CEILING_MS = 4_000
 
 export function MercuryModelLandingGate({
@@ -12,7 +11,6 @@ export function MercuryModelLandingGate({
   ceilingMs = MODEL_PICKER_LANDING_CEILING_MS,
 }: {
   children: React.ReactNode
-
   ceilingMs?: number
 }): React.ReactNode {
   const landing = React.useSyncExternalStore(subscribeFocusedSessionConnector, landingInFlight, landingInFlight)

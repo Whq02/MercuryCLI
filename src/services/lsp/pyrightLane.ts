@@ -1,3 +1,4 @@
+
 import { existsSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,9 +29,7 @@ export function mercuryLspPythonEnabled(): boolean {
 
 interface PyrightProbe {
   available: boolean
-
   source?: 'project-local' | 'bundled' | 'path'
-
   entry?: string
   version?: string
   reason?: string
@@ -73,7 +72,6 @@ export function probeBuiltinPyright(): PyrightProbe {
     return probeCache.result
   }
   let result: PyrightProbe
-
   const pin = flagEnv('MERCURY_PYRIGHT_VENDOR_DIR')
   if (pin && pin !== '') {
     const pinned = pyrightVendorRoot()
@@ -147,7 +145,6 @@ export function pyrightWorkspaceConfiguration(section: string | undefined): unkn
     const selection = selectPythonInterpreter()
     return selection.state === 'ok' ? { pythonPath: selection.command } : {}
   }
-
   return null
 }
 
@@ -161,7 +158,6 @@ export function builtinPyrightServer(): Record<string, ScopedLspServerConfig> {
   const workspaceFolder = findPythonProjectRoot(getCwd()).root
   return {
     [MERCURY_PYRIGHT_SERVER_NAME]: {
-
       command: probe.source === 'path' ? probe.entry : process.execPath,
       args: probe.source === 'path' ? ['--stdio'] : [probe.entry, '--stdio'],
       extensionToLanguage: { ...PY_EXTENSION_TO_LANGUAGE },

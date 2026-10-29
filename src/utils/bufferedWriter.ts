@@ -22,7 +22,6 @@ export function createBufferedWriter(options: {
   let buffer: string[] = []
   let byteCount = 0
   let flushTimer: NodeJS.Timeout | undefined
-
   let pendingOverflow: string[] = []
   let overflowScheduled = false
 
@@ -46,7 +45,6 @@ export function createBufferedWriter(options: {
   }
 
   const flush = (): void => {
-
     drainOverflow()
     if (buffer.length === 0) return
     const batch = buffer
@@ -60,7 +58,6 @@ export function createBufferedWriter(options: {
     pendingOverflow.push(...buffer)
     buffer = []
     byteCount = 0
-
     clearFlushTimer()
     if (!overflowScheduled) {
       overflowScheduled = true

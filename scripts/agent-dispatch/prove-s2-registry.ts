@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,7 +6,6 @@ import type { DiscoveryIo } from '../../src/services/providers/providerDiscovery
 
 const savedConfigDir = process.env.MERCURY_CONFIG_DIR
 const savedOpenaiKey = process.env.OPENAI_API_KEY
-
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-s2-home-'))
 delete process.env.OPENAI_API_KEY
 
@@ -60,7 +58,6 @@ console.log(' S2 — evolved registry + discovery-owner proof')
 console.log('============================================================')
 
 section('1 · uncredentialed — precise stable codes, self-served probes')
-
 {
   __resetProviderDiscoveryForTest()
   check('cache read is null before any probe', getCachedProviderDiscovery('openai') === null)
@@ -78,7 +75,6 @@ section('1 · uncredentialed — precise stable codes, self-served probes')
 }
 
 section('2 · describe() — present, honest, secret-free, catalogue-verified')
-
 {
   const anth = anthropicProviderAdapter.describe()
   const oai = openaiProviderAdapter.describe()
@@ -96,7 +92,6 @@ section('2 · describe() — present, honest, secret-free, catalogue-verified')
     anth.catalogue.length === 3 && anth.catalogue.every(e => (e.contextWindow ?? 0) > 0),
     anth.catalogue.map(e => e.id).join(','),
   )
-
   check(
     'openai static catalogue mirrors the last-observed pin table 1:1 (ids, in order)',
     JSON.stringify(oai.catalogue.map(e => e.id)) ===
@@ -168,7 +163,6 @@ section('2 · describe() — present, honest, secret-free, catalogue-verified')
 }
 
 section('3 · discovery — account presence, key sources, TTL/force')
-
 {
   __resetProviderDiscoveryForTest()
 
@@ -186,7 +180,6 @@ section('3 · discovery — account presence, key sources, TTL/force')
       'the key VALUE never appears in the record',
       !JSON.stringify(rec).includes('sk-proof-fake-key'),
     )
-
     const savedOpenaiKey = process.env.OPENAI_API_KEY
     process.env.OPENAI_API_KEY = 'sk-proof-fake-key'
     try {
@@ -210,7 +203,6 @@ section('3 · discovery — account presence, key sources, TTL/force')
       'no account source → record without an account ref',
       rec?.provider === 'openai' && rec.account === undefined,
     )
-
     const status = openaiProviderAdapter.status()
     check(
       "openai status 'no-account:openai' with no source connected",
@@ -261,7 +253,6 @@ section('3 · discovery — account presence, key sources, TTL/force')
 }
 
 section('4 · snapshot — additive surface; uncredentialed never resolves an engine')
-
 {
   const snap = buildProviderSnapshot()
   check(

@@ -1,3 +1,4 @@
+
 import * as path from 'node:path'
 import {
   getExecution,
@@ -38,7 +39,6 @@ export function projectServiceExecution(cwd: string, record: ServiceRecord): voi
     }
 
     if (!current || isTerminalExecutionState(current.state)) {
-
       if (isTerminalExecutionState(target)) return
       const initial = REGISTERABLE.has(target) ? target : 'running'
       const registered = registerExecution({
@@ -65,7 +65,6 @@ export function projectServiceExecution(cwd: string, record: ServiceRecord): voi
     } else {
       transitionExecution(owner, id, target, { externalIdentity })
       if (target === 'ready') {
-
         recordCanonicalEvidence({
           owner,
           kind: 'check',

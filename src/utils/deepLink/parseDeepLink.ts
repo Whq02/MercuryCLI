@@ -1,5 +1,6 @@
 import { partiallySanitizeUnicode } from '../sanitization.js'
 
+
 export const DEEP_LINK_PROTOCOL = 'mercury'
 
 type DeepLinkAction = {
@@ -9,7 +10,6 @@ type DeepLinkAction = {
 }
 
 const MAX_CWD_LENGTH = 4096
-
 const MAX_QUERY_LENGTH = 5000
 
 // eslint-disable-next-line no-control-regex
@@ -48,11 +48,9 @@ export function parseDeepLink(uri: string): DeepLinkAction {
   const query = url.searchParams.get('q')
 
   if (cwd !== null) {
-
     if (!(cwd.startsWith('/') || /^[A-Za-z]:[\\/]/.test(cwd))) {
       throw new Error(`Deep link cwd must be an absolute path; got: ${cwd}`)
     }
-
     assertNoControlCharacters(cwd, 'cwd')
     if (cwd.length > MAX_CWD_LENGTH) {
       throw new Error(`Deep link cwd exceeds the ${MAX_CWD_LENGTH}-character limit (${cwd.length})`)
@@ -61,7 +59,6 @@ export function parseDeepLink(uri: string): DeepLinkAction {
   }
 
   if (repo !== null) {
-
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
       throw new Error(`Deep link repo must look like owner/name; got: ${repo}`)
     }
@@ -69,7 +66,6 @@ export function parseDeepLink(uri: string): DeepLinkAction {
   }
 
   if (query !== null && query.trim() !== '') {
-
     const sanitized = partiallySanitizeUnicode(query.trim())
     assertNoControlCharacters(sanitized, 'query')
     if (sanitized.length > MAX_QUERY_LENGTH) {

@@ -5,18 +5,14 @@ import { snapshotPathFor } from './resumeSnapshot.js'
 
 type PruneCandidate = {
   sessionId: string
-
   transcriptPath: string
-
   receiptsPath: string
-
   snapshotPath: string
   bytes: number
   modified: Date
 }
 
 export type PruneOffer = {
-
   scopeLabel: string
   windowDays: number
   candidates: PruneCandidate[]
@@ -31,9 +27,7 @@ export type PruneReceipt = {
   bytesFreed: number
   at: Date
   deletedSessionIds: string[]
-
   receiptsDeleted: number
-
   snapshotsDeleted: number
 }
 
@@ -117,13 +111,11 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
       receipt.bytesFreed += candidate.bytes
       receipt.deletedSessionIds.push(candidate.sessionId)
       removePrefixRecord(candidate.sessionId)
-
       try {
         await fs.unlink(candidate.receiptsPath)
         receipt.receiptsDeleted++
       } catch {
       }
-
       try {
         const snapBytes = (await fs.stat(candidate.snapshotPath)).size
         await fs.unlink(candidate.snapshotPath)

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,13 +31,11 @@ const src = readFileSync(join(root, 'src', 'ink', 'colorize.ts'), 'utf-8')
 check('honorNoColor() forces chalk.level = 0', /honorNoColor[\s\S]*?chalk\.level = 0/.test(src))
 check('MERCURY_HONORS_NO_COLOR derives from the pure rule', /MERCURY_HONORS_NO_COLOR = shouldHonorNoColor\(process\.env\)/.test(src))
 check('colorize() short-circuits to raw str when honoring (and under the Black and white theme)', /if \(MERCURY_HONORS_NO_COLOR \|\| monochromeTheme\) return str/.test(src))
-
 const noColorIdx = src.indexOf('CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()')
 const boostIdx = src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()')
 check('honorNoColor() runs BEFORE the chalk-level boosts', noColorIdx !== -1 && boostIdx !== -1 && noColorIdx < boostIdx)
 
 section('no-op when NO_COLOR unset — the normal colored path is byte-identical')
-
 check('module flag false in a normal (no-NO_COLOR) environment', shouldHonorNoColor({ TERM: 'xterm-256color' } as Record<string, string>) === false)
 
 console.log('\n' + '='.repeat(60))

@@ -100,7 +100,6 @@ const repo = join(import.meta.dir, '..', '..')
       classed = false
       console.log(`     unclassified row: ${r.id} (stateClass ${String(r.stateClass)})`)
     }
-
     if (r.migrated && r.stateClass !== 'authority') {
       ratchetHonest = false
       console.log(`     non-authority row marked migrated: ${r.id} (${r.stateClass})`)

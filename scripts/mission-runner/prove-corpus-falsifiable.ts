@@ -1,3 +1,4 @@
+//  deterministically seeded repo states. No model calls. gate-class: cpu.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

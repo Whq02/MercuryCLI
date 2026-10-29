@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/cli/headless/runnerAsks.ts src/cli/structuredIO.ts src/runner/wire/*
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdtempSync } from 'node:fs'

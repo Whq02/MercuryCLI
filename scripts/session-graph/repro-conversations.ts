@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -49,7 +48,6 @@ t.check(
 t.section('CS-14/16 — every surface rides the ONE registry (journey-final pins)')
 {
   const { readFileSync, readdirSync } = await import('node:fs')
-
   let consoleMints = false
   try {
     const helm = readFileSync('src/utils/cockpit/helmConsole.ts', 'utf8')
@@ -62,7 +60,6 @@ t.section('CS-14/16 — every surface rides the ONE registry (journey-final pins
     consoleMints,
     'helmConsole.ts does not touch the conversation registry yet',
   )
-
   let acpCursorWire = false
   try {
     const acp = readFileSync('src/services/acp/acpServer.ts', 'utf8')
@@ -75,7 +72,6 @@ t.section('CS-14/16 — every surface rides the ONE registry (journey-final pins
     acpCursorWire,
     'acpServer.ts carries no conversation/cursor wire yet',
   )
-
   const acp = readFileSync('src/services/acp/acpServer.ts', 'utf8')
   t.check(
     'the inbox owner keeps a production consumer after the board retired (the ACP crew wire)',

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -12,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
-
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 
 function runIn(home: string, body: string): Record<string, unknown> {
@@ -95,7 +93,6 @@ console.log('L4 poison — a held lock REFUSES the save (the lockless rewrite is
   const home = mkdtempSync(join(tmpdir(), 'cfg-lock-held-'))
   const file = join(home, '.mercury.json')
   writeFileSync(file, '{}')
-
   mkdirSync(`${file}.lock`)
   const now = new Date()
   utimesSync(`${file}.lock`, now, now)

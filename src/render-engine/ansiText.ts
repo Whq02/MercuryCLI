@@ -1,3 +1,4 @@
+
 import { stringWidth } from '../ink/stringWidth.js'
 
 const ESC = 0x1b
@@ -43,7 +44,6 @@ export function tokenizeAnsi(input: Buffer): AnsiToken[] {
       continue
     }
     flushText(i)
-
     if (i + 1 >= n) {
       out.push({ kind: 'truncated', raw: '\x1b' })
       i = n
@@ -51,7 +51,6 @@ export function tokenizeAnsi(input: Buffer): AnsiToken[] {
     }
     const intro = input[i + 1]!
     if (intro === 0x5b ) {
-
       let j = i + 2
       let params = ''
       let inter = ''
@@ -80,7 +79,6 @@ export function tokenizeAnsi(input: Buffer): AnsiToken[] {
       continue
     }
     if (intro === 0x5d ) {
-
       let j = i + 2
       while (j < n) {
         const c = input[j]!
@@ -120,7 +118,6 @@ export function tokenizeAnsi(input: Buffer): AnsiToken[] {
       continue
     }
     if (intro === 0x50  || intro === 0x5e  || intro === 0x5f  || intro === 0x58 ) {
-
       let j = i + 2
       let closed = false
       while (j < n) {
@@ -140,13 +137,11 @@ export function tokenizeAnsi(input: Buffer): AnsiToken[] {
       continue
     }
     if (intro >= 0x40 && intro <= 0x5f) {
-
       out.push({ kind: 'foreign', raw: input.toString('latin1', i, i + 2) })
       i += 2
       continue
     }
     if ((intro >= 0x30 && intro <= 0x7e) || intro === 0x20) {
-
       out.push({ kind: 'esc-pair', final: String.fromCharCode(intro), raw: input.toString('latin1', i, i + 2) })
       i += 2
       continue
@@ -180,7 +175,6 @@ export function clampRowToWidth(row: string, cols: number): string {
       out += piece
       continue
     }
-
     out +=
       t.kind === 'c0'
         ? String.fromCharCode(t.byte)

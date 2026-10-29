@@ -113,6 +113,8 @@ export function UserTextMessage({
     )
   }
 
+  
+
   if (head.startsWith('<bash-input>')) {
     return <UserBashInputMessage addMargin={addMargin} param={param} />
   }

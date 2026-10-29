@@ -36,6 +36,7 @@ import {
 import { isFixable } from '../../utils/healthCertCore.js'
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../../utils/healthFix.js'
 
+
 const TONE_COLOR: Record<(typeof HEALTH_STATUS_META)[HealthStatus]['tone'], string> = {
   ok: TEAL,
   warn: AMBER,
@@ -106,7 +107,6 @@ function healthPopupFooter(segments: { rows: number; cursor: number; fixable: bo
 }
 
 const LABEL_W = 18
-
 const labelCell = (label: string): string => padTo(truncateToWidth(label, LABEL_W), LABEL_W + 1)
 const CONTEXT_ROWS_ABOVE = 2
 
@@ -141,7 +141,6 @@ function CheckRow({
   active: boolean
   open: boolean
   width: number
-
   rowRef?: React.Ref<DOMElement>
   onSelect: () => void
   onActivate: () => void
@@ -282,7 +281,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
 
   const [cert, setCert] = useState<Cert | null>(null)
   const [loading, setLoading] = useState(true)
-
   const [loadError, setLoadError] = useState<string | null>(null)
   const [runToken, setRunToken] = useState(0)
   const [liveSections, setLiveSections] = useState<HealthSection[]>([])
@@ -317,7 +315,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
   useEffect(() => {
     let alive = true
     const ac = new AbortController()
-
     const acc = new Map<string, HealthSection>()
     report({
       depth: depthRef.current,
@@ -335,7 +332,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
     })
       .then(c => {
         if (!alive) return
-
         checksRef.current = flatChecks(c.sections)
         setCert(c)
         setLoadError(null)
@@ -369,7 +365,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
       return
     }
     if (selRowRef.current) {
-
       box.scrollToElement(selRowRef.current, -CONTEXT_ROWS_ABOVE)
     }
   }, [sel, openId, cert, frameRows, width])
@@ -405,7 +400,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
 
   useInput(
     (input, key, event) => {
-
       const flow = fixFlowRef.current
       if (flow) {
         event.stopImmediatePropagation()
@@ -418,7 +412,6 @@ function MercuryHealthCertificate({ onClose, report = runAndRecordHealthReport }
             const check = flow.check
             setFixFlow({ phase: 'running', check })
             void applyRemedy(check).then(outcome => {
-
               if (fixFlowRef.current?.phase === 'running' && fixFlowRef.current.check.id === check.id) {
                 setFixFlow({ phase: 'done', check, outcome })
               }

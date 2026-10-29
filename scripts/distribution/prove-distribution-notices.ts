@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -43,7 +42,6 @@ for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript c
   check(`vendor payload named: ${vendor}`, notices.includes(vendor))
 }
 {
-
   const glPath = join(ROOT, 'vendor', 'grammars.lock.json')
   if (existsSync(glPath)) {
     const gl = JSON.parse(readFileSync(glPath, 'utf8')) as {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -94,7 +93,6 @@ section('§1 a pure line shift recovers through the real tool, offset named')
   const ctx = makeContext()
   const staleAnchor = mintFileAnchor(v1)
   rememberAnchoredSnapshot(ownerFromToolUseContext(ctx as never), staleAnchor, v1, path)
-
   const banner = ['// gen 1', '// gen 2', '// gen 3', '// gen 4', '// gen 5'].join('\n')
   const v2 = banner + '\n' + v1
   writeFileSync(path, v2)
@@ -160,7 +158,6 @@ section('§4 a ring miss refuses with today\'s message')
   writeFileSync(path, v1)
   const ctx = makeContext()
   const staleAnchor = mintFileAnchor(v1)
-
   const v2 = '// pad\n' + v1
   writeFileSync(path, v2)
   primeRead(ctx, path)
@@ -183,12 +180,10 @@ section('§5 the off arm is the pre-law surface exactly; validate agrees with ca
   writeFileSync(path, v2)
   primeRead(ctx, path)
   const input = { file_path: path, expected_anchor: staleAnchor, hunks: [{ lines: '7', replace: "  return 'after'" }] }
-
   process.env.MERCURY_EDIT_STALE_RECOVERY = '0'
   const off = await editViaTool(input, ctx)
   check('flag off: the recoverable case refuses (error code 11), nothing written', off.ok === false && off.errorCode === 11 && readFileSync(path, 'utf8') === v2)
   delete process.env.MERCURY_EDIT_STALE_RECOVERY
-
   const on = await editViaTool(input, ctx)
   check('flag on: the same input recovers end to end', on.ok === true, on.ok === false ? on.error : '')
   check('…with the shift applied at the moved line', readFileSync(path, 'utf8').split('\n')[7] === "  return 'after'")

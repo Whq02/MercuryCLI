@@ -1,3 +1,4 @@
+
 import {
   existsSync,
   mkdirSync,
@@ -42,7 +43,6 @@ const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
 const nodeArgs = (args: string[]) => [DIST, ...args]
 
 function runHealth(deep: boolean): { status: number | null; cert: unknown } {
-
   const res = spawnSync(
     'node',
     nodeArgs(['health', '--json', ...(deep ? ['--deep'] : [])]),

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,6 +22,7 @@ const REFUSED = mkdtempSync(join(tmpdir(), 'interview-refused-'))
 const STILL_MS = SETTLE_LAW.stillTicks * SETTLE_LAW.tickMs
 
 const only = argValue(process.argv, '--only') ?? null
+
 
 const Q = (over: Record<string, unknown> = {}) => ({
   question: 'Which storage engine should the cache use?',
@@ -81,7 +81,6 @@ interface Journey {
   cols: number
   rows: number
   seconds: number
-
   screens: number[]
   ready?: string
 }
@@ -131,7 +130,6 @@ const JOURNEYS: Journey[] = [
         ] }),
       ]),
     ],
-
     sends: [PROMPT, SUBMIT, '12500:\t', '13000:\t', '13500:\t', '14000:\t'],
     cols: 120, rows: 40, seconds: 17,
     screens: [12_200, 13_200, 14_500, -1],
@@ -223,7 +221,6 @@ const JOURNEYS: Journey[] = [
     name: 'j08-discuss-exit',
     note: 'contract journey 8 (baseline defect) — "Chat about this" ENDS the interview via onReject(prose); the wire body of request 2 records the flattened feedback shape',
     turns: [AUQ([Q()]), DONE],
-
     sends: [PROMPT, SUBMIT, '12500:\x1b[B', '12900:\x1b[B', '13300:\x1b[B', '13700:\r'],
     cols: 120, rows: 40, seconds: 18,
     screens: [13_500, 15_500, -1],
@@ -242,7 +239,6 @@ const JOURNEYS: Journey[] = [
       ]),
       DONE,
     ],
-
     sends: [PROMPT, SUBMIT, '12500:\r', '13100:\r', '13700:\x1b[Z', '14100:\x1b[Z', '14600:\x1b[B', '15000:\r', '15600:\t'],
     cols: 120, rows: 40, seconds: 19,
     screens: [13_400, 14_300, 15_300, -1],
@@ -275,6 +271,7 @@ const JOURNEYS: Journey[] = [
     ready: CARD_READY,
   },
 ]
+
 
 requireDist()
 

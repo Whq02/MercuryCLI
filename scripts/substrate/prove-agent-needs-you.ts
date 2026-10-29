@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import {
   agentNeedsYouEnabled,
   classifyAgentStateHeuristic,
@@ -62,7 +61,6 @@ section('Heuristic — zero-token classification raises needs-attention')
 
 section('Heuristic — recency weighting fixes the verified false-positives')
 {
-
   const fixedThenDone = classifyAgentStateHeuristic('Fixed the error. All tests pass. Done.')
   check('"Fixed the error … Done." ⇒ done (not failed)', fixedThenDone?.state === 'done')
   check('done ⇒ tempo idle (no false needs-attention)', fixedThenDone?.tempo === 'idle')

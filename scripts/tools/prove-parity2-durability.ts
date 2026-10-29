@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -182,7 +181,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     const out = api.highlight(minified, { language: 'javascript' })
     t('the guarded bundle returns pathological input unpainted (same bytes)', out === minified)
   } else {
-
     const source = readFileSync('src/utils/cliHighlight.ts', 'utf8')
     t(
       'the guard wraps the bundle seam (structural - optional dep absent in-repo)',
@@ -281,7 +279,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
       })
       throw new Error('aborted by watchdog')
     }
-
     return index === 0 || index >= 100 ? healthy() : wedged()
   }
   const hooks = makeWorkflowHooks({

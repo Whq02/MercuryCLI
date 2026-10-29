@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -20,7 +19,6 @@ t.check(
 const kinds = mod?.RECEIPT_KINDS as unknown
 const hasKind = (k: string): boolean => Array.isArray(kinds) && (kinds as string[]).includes(k)
 t.check("RECEIPT_KINDS carries 'dispatch-accepted'", hasKind('dispatch-accepted'))
-
 t.check('RECEIPT_KINDS is exactly the delivery-law pair', Array.isArray(kinds) && (kinds as string[]).length === 2 && hasKind('dispatch-unavailable'))
 t.check('the dispatch intent exists (submitDispatch)', typeof mod?.submitDispatch === 'function')
 
@@ -28,7 +26,6 @@ t.section('Journey B — the board dispatch surface is bound (RV-06)')
 {
   const { readFileSync } = await import('node:fs')
   const ag = readFileSync('src/keybindings/actionGraph.ts', 'utf8')
-
   t.check(
     "the Action Graph no longer names 'board:dispatch' (retired with the WORK panel)",
     !/['"]board:dispatch['"]/.test(ag) && /['"]prompts:send-saved['"]/.test(ag),

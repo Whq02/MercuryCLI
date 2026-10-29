@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -24,7 +23,6 @@ const has = (src: string, needle: string | RegExp): boolean =>
   typeof needle === 'string' ? src.includes(needle) : needle.test(src)
 const missingIn = (rel: string, needles: Array<string | RegExp>): string[] =>
   needles.filter(n => !has(read(rel), n)).map(String)
-
 const stripComments = (src: string): string =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
@@ -63,7 +61,6 @@ const CAPTURE_RULES: Record<string, Rule> = {
       { file: 'src/components/mcp/ElicitationDialog.tsx', needles: ['isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}'] },
       { file: 'src/components/ExportDialog.tsx', needles: ["context: 'Settings',", "isActive: screen === 'filename',"] },
       { file: 'src/components/LogSelector.tsx', needles: ["context: 'Settings',", 'isActive: inRename,'] },
-
       { file: 'src/components/mcp/MCPRemoteServerMenu.tsx', needles: ['isCancelActive={pasteSubmit === null}', "{ context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null }"] },
     ],
   },
@@ -146,7 +143,6 @@ section('§1 the registry — every context that binds a bare printable declares
 
 section('§1b a design-system Dialog that hosts a text field turns its cancel off while the field has focus')
 {
-
   const DIALOG_FIELD_NOTES: Record<string, string> = {}
   const dialogHosts = files.filter(rel => hostsTextField(read(rel)) && /<Dialog\b/.test(read(rel)))
   check('the census is populated (≥ 2 Dialog text hosts)', dialogHosts.length >= 2, dialogHosts.join(' · '))
@@ -169,12 +165,9 @@ section('§1b a design-system Dialog that hosts a text field turns its cancel of
 section('§2 raw-input captures — a closed roster: the guard that scopes the capture, the legend that follows it')
 {
   type Row = {
-
     guard: Array<string | RegExp>
-
     legend: Array<string | RegExp>
     legendIn?: string
-
     commands?: 'none'
     reason: string
   }
@@ -218,7 +211,6 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
       reason: 'one composer that owns the whole card; it advertises no single key',
     },
   }
-
   const CAPTURE_NOTES: Record<string, { guardHolds: Array<string | RegExp>; verdict: string }> = {
     'src/components/BootLoginsScreen.tsx': {
       guardHolds: ["if (input === 'c' && !key.ctrl && !key.meta && h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined) {", "if (input === 'd' && !key.ctrl && !key.meta && h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === '') {"],
@@ -288,7 +280,6 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
       reason: 'k/j are the unadvertised vi aliases of the ↑↓ the popup hint lists; the whole row handler stands down while an entry field is open (the field takes every printable and owns esc through onOwnsEscape), and the row note that lists ↵ · space · ←/→ · ⌫ yields to the entry prompt (↵ saves, esc cancels)',
     },
   }
-
   const ACCOUNTS_HOSTS = new Set([
     'src/components/KimiConnect.tsx',
     'src/components/HuggingfaceConnect.tsx',
@@ -304,7 +295,6 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
     const src = read(rel)
     if (!hostsTextField(src)) return false
     const code = stripComments(src)
-
     return code.split('\n').some(line => /(?:^|[^.\w])_?input === '[a-zA-Z]'/.test(line) && !/(?:^|[^!\w])key\.ctrl &&/.test(line))
   })
   check('the census is populated (≥ 10 text hosts compare a raw letter)', letterHosts.length >= 10, `${letterHosts.length}`)

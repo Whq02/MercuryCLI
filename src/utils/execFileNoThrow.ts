@@ -5,6 +5,7 @@ import { logError } from './log.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgsAsync, isGitExecutable } from './git/spawnArgs.js'
 
+
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 const ONE_MEGABYTE = 1024 * 1024
 
@@ -45,7 +46,6 @@ export async function execFileNoThrow(
   options: OuterOptions = {},
 ): Promise<ExecOutcome> {
   const { timeout = DEFAULT_TIMEOUT_MS, preserveOutputOnError = true, useCwd = true } = options
-
   return execFileNoThrowWithCwd(file, args, {
     abortSignal: options.abortSignal,
     timeout,
@@ -68,10 +68,8 @@ export async function execFileNoThrowWithCwd(
       timeout,
       cancelSignal: options.abortSignal,
       cwd: options.cwd,
-
       env: { ...subprocessEnv(), ...(options.env ?? {}) },
       extendEnv: false,
-
       windowsHide: true,
       maxBuffer: options.maxBuffer,
       shell: options.shell,
@@ -96,7 +94,6 @@ export async function execFileNoThrowWithCwd(
       }
       const code = typeof failure.exitCode === 'number' ? failure.exitCode : 1
       if (preserveOutputOnError) {
-
         const error =
           failure.shortMessage ??
           failure.signal ??

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -91,7 +90,6 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   } else {
     warn(`${models.WHISPER_MODELS_VENDOR_PATH}/${row.file} is absent — the present leg is skipped (bun run scripts/vendor/fetch-whisper-models.ts fetches it)`)
   }
-
   process.env.MERCURY_WHISPER_MODEL = 'tiny.en-q5_1'
   let pin = models.resolveWhisperModelPin()
   check('the pin resolves a catalogue name', pin.kind === 'catalogue' && pin.row.name === 'tiny.en-q5_1' && pin.pinned)
@@ -111,7 +109,6 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), pin.kind === 'broken' ? pin.note : pin.kind)
   delete process.env.MERCURY_WHISPER_MODEL
   check('unset ⇒ the default, unpinned', models.resolveWhisperModelPin().kind === 'catalogue' && !(models.resolveWhisperModelPin() as { pinned: boolean }).pinned)
-
   const fake = (bytes: Buffer | null, status = 200): typeof fetch =>
     (async () => new Response(bytes === null ? null : new Blob([new Uint8Array(bytes)]), { status })) as unknown as typeof fetch
   const target = join(SCRATCH, 'downloads')
@@ -163,12 +160,10 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   writeFileSync(meets, "module.exports = { cpuFloor: () => ({ arch: 'x86_64', floor: 'AVX2, FMA and F16C', met: true, missing: [] }) }\n")
   const answers = join(fixtures, 'answers.js')
   writeFileSync(answers, "module.exports = { cpuFloor: () => ({ arch: 'x86_64', floor: 'AVX2, FMA and F16C', met: false, missing: ['avx2', 'fma'] }) }\n")
-
   const faults = join(fixtures, 'faults.js')
   writeFileSync(faults, "if (process.platform === 'win32') process.exit(3221225501); else process.kill(process.pid, 'SIGILL')\n")
   const throws = join(fixtures, 'throws.js')
   writeFileSync(throws, "throw new Error('not an addon')\n")
-
   const hangs = join(fixtures, 'hangs.js')
   writeFileSync(hangs, 'try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0) } catch { for (;;) {} }\n')
   const absent = join(fixtures, 'absent.js')
@@ -371,7 +366,6 @@ if (load.state === 'ok') {
     const words = speech.text.toLowerCase()
     check('the synthesized speech fixture answers its words, loosely (lighthouse · seven · ships)', ['lighthouse', 'seven', 'ships'].filter(w => words.includes(w)).length >= 2, speech.text)
     console.log(`  · fixture ⇒ ${JSON.stringify(speech.text)} in ${speech.ms} ms`)
-
     check('the engine holds no decode before', transcribe.localDecodesInFlight() === 0)
     const first = transcribe.transcribeWav(fixture, { choice, deadlineMs: 1 }).catch((e: unknown) => e)
     check('a decode past its bound still holds the engine', transcribe.localDecodesInFlight() === 1, String(transcribe.localDecodesInFlight()))

@@ -32,7 +32,6 @@ type AgentCandidateResolution = {
 
 export type AgentEstateEntry = {
   name: string
-
   winner?: AgentDefinition
   candidates: AgentCandidateResolution[]
 }
@@ -92,17 +91,11 @@ export function resolveAgentEstate(
 }
 
 type EffectiveAgentRuntime = {
-
   modelIntent: string
-
   model: string
-
   effortIntent?: EffortValue
-
   effort: EffortResolution
-
   tools?: ResolvedAgentTools
-
   override?: AgentOverrideProvenance
   disabled: boolean
 }
@@ -120,7 +113,6 @@ export function resolveEffectiveAgentRuntime(
     agent.model,
     ctx.parentModel,
   )
-
   const effortInput = agent.effort !== undefined ? agent.effort : ctx.sessionEffort
   const effort = resolveEffortTruth(model, effortInput)
   const override = (agent as { operatorOverride?: AgentOverrideProvenance })

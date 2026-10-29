@@ -3,11 +3,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 process.env.FORCE_COLOR = '3';
-
 const HOME = mkdtempSync(join(tmpdir(), 'thinking-grammar-home-'));
 process.env.MERCURY_CONFIG_DIR = HOME;
 process.env.MERCURY_CREDENTIAL_STORE = 'file';
-
 const ROOT = join(import.meta.dir, '..', '..');
 process.chdir(ROOT);
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts');
@@ -18,7 +16,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  ${cond ? '✓' : '✗'} ${label}${cond ? '' : ' — ' + detail}`);
   if (!cond) fail = 1;
 };
-
 const code = (src: string): string => src.split("\n").filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
 
 const message = readFileSync('src/components/Message.tsx', 'utf8');
@@ -70,7 +67,6 @@ check(
 );
 check(
   'isItemClickable deps include verbose (classification tracks the live flag)',
-
   /\}, \[tools, verbose(, [A-Za-z]+)*\]\);/.test(messages.slice(messages.indexOf('const isItemClickable'))),
 );
 
@@ -164,7 +160,6 @@ const React = (await import('react')).default;
 const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx');
 const { AppStateProvider } = await import('../../src/state/AppState.tsx');
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts');
-
 const mounted = (node: unknown): ReturnType<typeof React.createElement> =>
   React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() } as never, node as never);
 const { AssistantThinkingMessage } = await import('../../src/components/messages/AssistantThinkingMessage.tsx');
@@ -176,7 +171,6 @@ const rgbOf = (value: string): string | null => {
   const rgb = value.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
   return rgb ? `${rgb[1]};${rgb[2]};${rgb[3]}` : null;
 };
-
 const subtle = rgbOf(getTheme('dark').subtle);
 const accent = rgbOf(getSessionAccent().accent);
 check('fixture: the dark family\'s subtle and the accent are truecolor values', subtle !== null && accent !== null, `${subtle} / ${accent}`);

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -57,7 +56,6 @@ if (existsSync(dist) && existsSync(manifestPath)) {
   const printed = execFileSync('node', [dist, '--version'], { encoding: 'utf8', timeout: 60_000 }).trim()
   check('built --version prints exactly `Mercury <root>`', printed === `Mercury ${VERSION}`, printed)
 } else {
-
   console.log('  [NOTE] dist absent — build agreement not checkable here (the gate prebuilds; run `bun run build.ts`)')
 }
 
@@ -66,7 +64,6 @@ check('macos asset name matches the packager grammar', assetNameFor(VERSION, 'da
 check('intel macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'x64') === `mercury-v${VERSION}-macos-x64.tar.gz`)
 check('windows asset name matches the packager grammar', assetNameFor(VERSION, 'win32', 'x64') === `mercury-v${VERSION}-windows-x64.zip`)
 const packager = readFileSync(join(ROOT, 'scripts', 'release', 'package.mjs'), 'utf8')
-
 check('packager derives NAME from the owner (archiveBaseNameFor), never a second spelling', packager.includes('const NAME = archiveBaseNameFor(VERSION, TARGET)') && !packager.includes('`mercury-v${VERSION}-${TARGET}`'))
 {
   const rt = await import('../../src/services/privateChannel/releaseTarget.ts')

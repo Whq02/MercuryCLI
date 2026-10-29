@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,12 +34,10 @@ git(HOME_FX, 'init', '-q')
 git(HOME_FX, 'commit', '-q', '--allow-empty', '-m', 'mercury: base commit — forking unlocked')
 git(PICS, 'init', '-q')
 git(PICS, 'commit', '-q', '--allow-empty', '-m', 'pics')
-
 const voxelTop = git(VOXEL, 'rev-parse', '--show-toplevel')
 git(REAL, 'init', '-q')
 git(REAL, 'add', '.')
 git(REAL, 'commit', '-q', '-m', 'seed')
-
 writeFileSync(join(BIN, 'git'), `#!/bin/sh\nprintf '%s\\t%s\\n' "$PWD" "$*" >> '${LOG}'\nexec '${REAL_GIT}' "$@"\n`)
 chmodSync(join(BIN, 'git'), 0o755)
 writeFileSync(LOG, '')
@@ -132,7 +129,6 @@ console.log('\nB2 the probes from a folder under a home repository carry the bou
   check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')))
   check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')))
   check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')))
-
   check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1)
   const lsFiles = kinds(/ls-files/)
   check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '))

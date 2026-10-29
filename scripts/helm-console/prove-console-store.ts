@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 delete process.env.MERCURY_HELM_CONSOLE
-
 {
   const { mkdtempSync, mkdirSync } = require('node:fs') as typeof import('node:fs')
   const { tmpdir } = require('node:os') as typeof import('node:os')

@@ -73,7 +73,6 @@ function makeHarness(script: Array<(call: SpawnCall) => unknown[]>) {
     seedPhaseTitles: [],
     args: undefined,
     spawnSubagentStream: fakeSpawn as never,
-
     getStructuredOutputTool: () => ({
       tool: { name: STRUCTURED_OUTPUT_TOOL_NAME },
     }),

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -125,12 +124,10 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   check('the retired comment markers are gone from the launcher', !launcher.includes('# MERCURY-SPLASH-ACTION'))
   const deploy = readFileSync(join(ROOT, 'scripts', 'splash', 'deploy.sh'), 'utf8')
   check('the deploy script locates the block by the statement markers', deploy.includes(BEGIN.slice(2)) && deploy.includes(END.slice(2)))
-
   const arena = mkdtempSync(join(tmpdir(), 'direct-splash-block-'))
   const stub = join(arena, 'node-stub')
   writeFileSync(stub, '#!/bin/sh\nprintf \'%s\' "$2" > "$MERCURY_TEST_HEAL_OUT"\n')
   chmodSync(stub, 0o755)
-
   const strippedPath = join(arena, 'launcher-action-block.stripped.sh')
   writeFileSync(strippedPath, `${strippedBlock}\n`)
   type BlockForm = 'canonical' | 'stripped'
@@ -180,13 +177,11 @@ section('§3 THE EXIT-CODE TABLE — the launcher block executed vs the in-proce
   }
   check('the heal constant is the block\'s exact bytes', runBlock(7, undefined).heal === SPLASH_ABNORMAL_HEAL)
   {
-
     const env: Record<string, string | undefined> = {}
     let wrote = ''
     const verdict = applySplashExit(null, env, b => (wrote += b))
     check('no exit code at all reads as abnormal (heal, no markers, boot)', verdict === 'boot' && wrote === SPLASH_ABNORMAL_HEAL && env.MERCURY_SPLASH_HANDOFF === undefined && env.MERCURY_ALT_HELD === undefined)
   }
-
   check('a normal exit passes through', shellExitCodeOf({ status: 20, signal: null }) === 20 && shellExitCodeOf({ status: 0, signal: null }) === 0)
   check('a splash killed by SIGINT reads 130 — the cancel, as a shell reports it', shellExitCodeOf({ status: null, signal: 'SIGINT' }) === SPLASH_EXIT.CANCEL)
   check('a splash killed by SIGTERM reads 143 — abnormal, as a shell reports it', shellExitCodeOf({ status: null, signal: 'SIGTERM' }) === 143)
@@ -283,12 +278,10 @@ if (!existsSync(BIN)) {
   const ROWS = 30
   const HOME = resolveProofHome([ROOT])
   const scratch = mkdtempSync(join(tmpdir(), 'direct-splash-pty-'))
-
   const baseline = JSON.parse(readFileSync(join(ROOT, 'scripts', 'visual-contract', 'baselines', `splash-lockup-${COLS}x${ROWS}.json`), 'utf8')) as { grid: Array<Array<{ c: string }>> }
   const baselineRows = baseline.grid.map(row => row.map(c => c.c).join('').trim())
   const WORDMARK = baselineRows.find(r => r.includes('█')) ?? ''
   check('the baseline carries a lockup wordmark row', WORDMARK.length > 0)
-
   const HOLD_HINT = 'starting…  (stuck? type: reset↵)'
   const FACE_ROW = 'New Session'
 
@@ -309,7 +302,6 @@ if (!existsSync(BIN)) {
       MERCURY_SPLASH_IDLE_MS: '20000',
       ...extra,
     }
-
     for (const k of ['MERCURY_SPLASH', 'MERCURY_NO_BANNER', 'MERCURY_FULLSCREEN', 'MERCURY_ALT_HELD', 'MERCURY_SPLASH_HANDOFF', 'MERCURY_LAUNCH_ID', 'MERCURY_SPLASH_CHAT', 'MERCURY_SPLASH_VIEW', 'MERCURY_SPLASH_ONESHOT', 'MERCURY_REDUCED_MOTION', 'MERCURY_LAUNCH_RIPPLE', 'NO_COLOR', 'MERCURY_TRUECOLOR']) {
       if (!(k in extra)) delete env[k]
     }
@@ -327,7 +319,6 @@ if (!existsSync(BIN)) {
     raw: Buffer
     endReason: string
   }
-
   const capture = (tag: string, argv: string[], env: NodeJS.ProcessEnv, sends: unknown[], readyText: string | undefined, total: number): Capture => {
     const dir = join(scratch, tag)
     mkdirSync(dir, { recursive: true })
@@ -353,7 +344,6 @@ if (!existsSync(BIN)) {
     }
     let raw = Buffer.alloc(0)
     try {
-
       const tee = readFileSync(teePath)
       const chunks: Buffer[] = []
       let off = 0
@@ -422,7 +412,6 @@ if (!existsSync(BIN)) {
 
   {
     const driver = join(scratch, 'cancel-driver.py')
-
     writeFileSync(
       driver,
       [
@@ -488,7 +477,6 @@ if (!existsSync(BIN)) {
       check(`${tag}: Ctrl-C was sent while the splash held the screen`, res.sent && !res.holdSeenBeforeSend, res.sent ? 'the splash had already handed over' : 'the lockup never appeared')
       check(`${tag}: Mercury exited 0 (the launcher's stand-down, in-process)`, res.code === 0, `exit ${res.code}`)
       check(`${tag}: the screen was restored after the keystroke (alt screen closed, cursor shown — the tail)`, after.includes(Buffer.from('\x1b[?1049l')) && after.includes(Buffer.from('\x1b[?25h')))
-
       check(`${tag}: no handoff after the keystroke (no hold frame — the runtime never painted)`, !after.includes(Buffer.from(HOLD_HINT)))
       if (opts.onRepaint) {
         check(`${tag}: the Boot face never painted`, !res.final.some(row => row.includes(FACE_ROW)) && !after.includes(Buffer.from(FACE_ROW)))

@@ -1,34 +1,25 @@
+
 type LaneState = 'clean' | 'pending' | 'settled' | 'degraded'
 
 export interface LaneSettlement {
   state: LaneState
-
   accepted: number
-
   committed: number
-
   reason?: string
-
   attempts: number
   released: boolean
 }
 
 interface SerialGenerationLane<T> {
-
   accept: (value: T) => number
-
   poke: () => void
-
   settle: () => Promise<LaneSettlement>
-
   release: () => Promise<LaneSettlement>
   state: () => LaneSettlement
 }
 
 interface SerialGenerationOptions<T> {
-
   name: string
-
   commit: (value: T, ctx: { generation: number }) => Promise<void>
 }
 
@@ -43,7 +34,6 @@ export function serialGenerationLane<T>(
   let committed = 0
   let pendingValue: T | null = null
   let running: Promise<void> | null = null
-
   let active = false
   let reason: string | undefined
   let attempts = 0
@@ -58,13 +48,11 @@ export function serialGenerationLane<T>(
   }
 
   const pump = (): Promise<void> => {
-
     if (active && running) return running
     active = true
     running = (async () => {
       let commitsThisPump = 0
       try {
-
         while (!released && committed < accepted && pendingValue !== null) {
           if (commitsThisPump >= MAX_COMMITS_PER_PUMP) return
           commitsThisPump += 1
@@ -76,7 +64,6 @@ export function serialGenerationLane<T>(
             reason = undefined
             attempts = 0
           } catch (e) {
-
             attempts += 1
             reason = `[${opts.name}] ${e instanceof Error ? e.message : String(e)}`
             return
@@ -104,7 +91,6 @@ export function serialGenerationLane<T>(
       accepted += 1
       pendingValue = value
       if (released) {
-
         reason = `[${opts.name}] generation ${accepted} was accepted after release and cannot be committed`
       }
       return accepted
@@ -115,7 +101,6 @@ export function serialGenerationLane<T>(
     },
     settle,
     release: async () => {
-
       if (running) await running
       released = true
       return state()

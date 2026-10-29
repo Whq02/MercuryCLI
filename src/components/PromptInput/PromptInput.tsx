@@ -1,3 +1,4 @@
+
 import React, {
   useCallback,
   useContext,
@@ -159,7 +160,6 @@ export type PromptInputProps = {
     setInputWithCursor: (value: string, cursor: number) => void
     cursorOffset: number
   } | null>
-
   onAgentSubmit?: (text: string) => void
 }
 
@@ -168,7 +168,6 @@ const getFocusedComposerMainModel = (): string => getFocusedSessionConnector().m
 const getFocusedComposerEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 function PromptInputInner(props: PromptInputProps): React.ReactNode {
-
   fluxMark('render:composer')
   const {
     compactWork,
@@ -203,7 +202,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   } = props
 
   const tokens = useMercuryTokens()
-
   const composerBloom = tokens.accentSoft
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
@@ -222,7 +220,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     (s: AppState) => s.engineModelForSession,
   )
   const effortValue = useAppState((s: AppState) => s.effortValue)
-
   const viewedTask = useAppState((s: AppState) =>
     s.viewingAgentTaskId !== undefined ? s.tasks[s.viewingAgentTaskId] : undefined,
   )
@@ -232,13 +229,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const promptSuggestionEnabled = useAppState(
     (s: AppState) => s.promptSuggestionEnabled,
   )
-
   const speculationActive = useAppState(
     (s: AppState) =>
       (s as { speculation?: { status?: string } }).speculation?.status === 'active',
   )
   const fullscreen = isFullscreenEnvEnabled()
-
   const cockpitActive = useContext(CockpitActiveContext)
 
   const draft = useComposerDraft({
@@ -267,7 +262,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     deferredSpaceShiftRef,
     onChange,
   } = draft
-
   const focusedMainModel = useSyncExternalStore(
     subscribeFocusedComposerModel,
     getFocusedComposerMainModel,
@@ -281,14 +275,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const seatEffort = useFocusedServedEffort()
   const sentEffort = useFocusedSentEffort()
   const bornEffort = useFocusedBornEffort()
-
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
   const voiceReceiptSeqRef = useRef(0)
   useEffect(() => {
     const receipt = voice.receipt
     if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
     voiceReceiptSeqRef.current = receipt.seq
-
     addNotification({
       key: 'voice-receipt',
       text: receipt.text,
@@ -297,7 +289,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       timeoutMs: 8000,
     })
   }, [voice.receipt, addNotification])
-
   const composerWhyRef = useRef<Record<string, unknown> | null>(null)
   fluxWhy('composer', composerWhyRef, () => ({
     ...props,
@@ -327,7 +318,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const { inputSelectionRangeRef, inputBoxRef, selectionApi, clearOwnSelection } = selection
 
   const [overlay, setOverlay] = useState<OverlaySurface>(null)
-
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showFileOpen, setShowFileOpen] = useState(false)
   const [showContentSearch, setShowContentSearch] = useState(false)
@@ -391,11 +381,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       : undefined)
   const viewedAgentColor = undefined
 
+
   const suggestionApi = usePromptSuggestion({
     inputValue: input,
     isAssistantResponding: isLoading,
   })
-
   const suggestionDisplayable =
     suggestionApi.suggestion !== null && mode === 'prompt' && !viewedAgentName
   const markSuggestionShown = suggestionApi.markShown
@@ -435,9 +425,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       const previous = suggestionsMirrorRef.current
       const next =
         typeof update === 'function' ? update(previous) : update
-
       setSelectedSuggestionStore(next.selectedSuggestion)
-
       if (
         next.suggestions !== previous.suggestions ||
         next.commandArgumentHint !== previous.commandArgumentHint
@@ -497,14 +485,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     recallFitsOneRow,
   )
   historyRecallActiveRef.current = history.historyIndex !== 0
-
   const recallQueuedSend = useCallback((): boolean => {
     const focused = getFocusedSessionConnector()
     const queued = focused.recallableSend()
     if (queued === null) return false
     void focused.withdrawSend(queued.clientMessageId).then(receipt => {
       if (receipt.withdrawn) {
-
         const meanwhile = pendingInput.text()
         const value = meanwhile === '' ? receipt.text : `${receipt.text}${meanwhile}`
         applyRecalledEntry(value, receipt.mode, receipt.pastedContents)
@@ -576,7 +562,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getHelmVersion,
     getHelmVersion,
   )
-
   const routeVersion = useSyncExternalStore(
     subscribeSurfaceRoute,
     surfaceRouteVersion,
@@ -594,7 +579,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       switch (activation.type) {
         case 'crewmate':
           enterCrewmateView(activation.id, setAppState)
-
           setHelmFocus('prompt')
           break
         case 'main':
@@ -680,6 +664,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     suggestionsMirrorRef,
     viewedCrewmateRef,
   })
+
 
   const displayedValue = isSearchingHistory
     ? (historySearch.historyMatch?.display ?? input)
@@ -810,7 +795,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
     return () => setHoldToTalkEditor(null)
   }, [setCursorOffset])
-
   if (externalEditorActive) {
     return (
       <Box
@@ -839,7 +823,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     return (
       <MercuryCommandPalette
         commands={commands}
-
         actions={[
           {
             kind: 'open', action: 'app:fileOpen', context: 'Global',
@@ -909,7 +892,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         onSelect={next => {
           setAppState(prev => ({ ...prev, thinkingEnabled: next }))
           setOverlay(null)
-
           addNotification({
             key: 'thinking-toggled-hotkey',
             text: `Thinking ${next ? 'on' : 'off'}`,
@@ -930,9 +912,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       historyFailedMatch={historySearch.historyFailedMatch}
     />
   ) : undefined
-
   const helmOnPrompt = getHelmFocus() === 'prompt'
-
   const keyboardOwnedByOverlay =
     overlay !== null ||
     showCommandPalette ||
@@ -999,19 +979,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setMode('prompt')
       setHelpOpen(false)
     },
-
     onExit,
     onExitMessage: exitStateChange,
     onHistoryUp: () => {
-
       if (!historyNavAllowed('first')) return
-
       if (input === '' && recallQueuedSend()) return
       history.onHistoryUp()
     },
     onHistoryDown: () => {
       if (!historyNavAllowed('last')) return
-
       if (history.historyIndex === 0) {
         if (footerSelection === null && suggestionsMirrorRef.current.suggestions.length === 0) {
           if (isCompact) {
@@ -1043,11 +1019,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         ? suggestionApi.suggestion
         : placeholder,
     highlights,
-
     userTextColor: composerBloom,
     disableCursorMovementForUpDownKeys:
       footerSelection !== null || suggestionsMirrorRef.current.suggestions.length > 0,
-
     suppressEnterSubmit:
       typeahead.suggestions.length > 0 &&
       (typeahead.suggestionType === 'command' ||
@@ -1082,7 +1056,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             onModeChange={setVimMode}
           />
         ) : (
-
           <TextInput
             {...textInputProps}
             selectionRange={() => inputSelectionRangeRef.current()}
@@ -1121,6 +1094,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       </Box>
     )
 
+
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" maxHeight={isCompact ? Math.ceil(compactTransientRows / 2) : undefined} overflow="hidden">
@@ -1142,7 +1116,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         )
       ) : null}
       {hasSuppressedDialogs ? (
-
         <Box marginTop={isCompact ? 0 : 1} marginLeft={isCompact ? 0 : 2}>
           <Text dimColor wrap="truncate-end">Waiting for permission…</Text>
         </Box>
@@ -1152,7 +1125,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} vimInsert={vimEnabled && vimMode === 'INSERT'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
       {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
-
         <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden">
           <Notifications
             compact={isCompact}

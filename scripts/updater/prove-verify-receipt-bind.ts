@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -42,7 +41,6 @@ console.log('the verify-receipt bind certifies only the bundle it stages')
 
 section('§1 the pure decision')
 {
-
   const tree = (c: string): string => c.repeat(40)
   const T0 = tree('0')
   const T1 = tree('1')
@@ -172,7 +170,6 @@ section('§3 the packager consumes the one decision')
   check('the HEAD-diffing ancestor walk is gone', !/gradedTreeIsReceiptSafeAncestor/.test(packager) && !/'diff', '--name-only', c, 'HEAD'/.test(packager))
   check('a stale dist fails with no escape', /reason === 'stale-dist'/.test(packager) && /is STALE/.test(packager) && /no escape covers/.test(packager))
   check('the missing-row escape stays the loud dev door', /--allow-stale-verify-receipts/.test(packager))
-
   let nodeOk = true
   try {
     execFileSync('node', ['--check', join(ROOT, 'scripts/release/verifyReceiptBind.mjs')], { stdio: 'pipe' })

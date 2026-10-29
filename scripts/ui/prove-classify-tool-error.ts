@@ -49,7 +49,6 @@ const t = (name: string, ok: boolean, detail = '') => {
   const r = classifyToolError("ENOENT: no such file or directory, open '/tmp/x'\n    at Object.openSync (node:fs:601:3)")
   t('ENOENT ⇒ path hint + frame counted', r.hint === 'path does not exist — check the cwd/spelling' && r.stackFrameCount === 1, JSON.stringify(r))
 }
-
 const UNIX_PERM_HINT = 'permission denied — check file modes/ownership'
 t('EACCES ⇒ permission hint (posix arm)', classifyToolError("EACCES: permission denied, open '/etc/shadow'", undefined, 'darwin').hint === UNIX_PERM_HINT)
 t('EPERM ⇒ permission hint (posix arm)', classifyToolError('EPERM: operation not permitted, unlink', undefined, 'linux').hint === UNIX_PERM_HINT)

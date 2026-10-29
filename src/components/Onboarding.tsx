@@ -28,6 +28,7 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { connectableLoginFamilyWords } from './loginFamilyRows.js'
 
+
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
 
 const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
@@ -80,7 +81,6 @@ function FittingMascot({ rows }: { rows: number }): React.ReactNode {
   const accent = useSessionAccent()
   const def = critterDefForKey(accent.key)
   if (rows < 29) return null
-
   return <AnimatedCritterArt def={def} specimen />
 }
 
@@ -192,7 +192,6 @@ function ProviderStation({
   onSkip: () => void
   onBack: () => void
 }): React.ReactNode {
-
   const [epoch, setEpoch] = useState(0)
   const [note, setNote] = useState<string | null>(null)
   return (
@@ -297,7 +296,6 @@ function TerminalKeys({
         hint: '↵ select',
         run: r => {
           if (r?.id === 'install') {
-
             void setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme)
               .catch(() => {})
               .finally(onDone)
@@ -333,7 +331,6 @@ function TerminalKeys({
 }
 
 type Props = {
-
   onDone(completedRail: SetupRailStep[]): void
 }
 
@@ -357,7 +354,6 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
 
   const stepIds = useMemo(() => {
     const ids: StepId[] = ['theme']
-
     if (oauthEnabled) ids.push('provider')
     if (apiKeyNeedingApproval) ids.push('api-key')
     ids.push('guardrails')
@@ -423,7 +419,6 @@ export function Onboarding({ onDone }: Props): React.ReactNode {
       )
       break
     case 'provider':
-
       body = <ProviderStation onSignedIn={advance} onSkip={advance} onBack={back} />
       break
     case 'api-key':

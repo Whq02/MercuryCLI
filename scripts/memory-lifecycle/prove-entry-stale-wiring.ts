@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-
+// gate-watch: src/mneme/entryKnapsack.ts src/mneme/entryState.ts src/mneme/memoryRefs.ts src/mneme/mnemeUsage.ts src/mneme/mnemeLookup.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'

@@ -16,10 +16,8 @@ export function skillsRosterOf(commands: readonly Command[], offNames: readonly 
     .map(command => ({
       name: command.name,
       description: command.description ?? '',
-
       ...(command.disableModelInvocation === true ? { state: 'invocable' as const } : {}),
     }))
-
   const present = new Set(rows.map(row => row.name))
   for (const name of offNames) {
     if (present.has(name)) continue
@@ -41,7 +39,6 @@ export function mcpRosterEntriesOf(
     rows.push({
       name: client.name,
       type: client.type,
-
       ...(client.type === 'failed' && client.error !== undefined && client.error !== ''
         ? { error: client.error }
         : {}),

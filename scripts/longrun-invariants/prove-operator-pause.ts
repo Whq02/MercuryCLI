@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
-
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 {
   const { setIsInteractive } = await import('../../src/bootstrap/state.js')
   setIsInteractive(true)
@@ -50,7 +48,6 @@ const NONE: string[] = [
   'the workflow should stop retrying failed agents',
   'make the game support pause and resume',
   'fix the stop button styling',
-
   'after you finish the region generator, add a pause capability to the batch runner so long runs can be suspended and resumed from the manifest without losing agent state',
   '',
 ]
@@ -72,7 +69,6 @@ console.log('\n=== B. the pause settles BEFORE completion evaluation ===')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/vigil-pause', sessionId: 'vp1', lane: 'main' })
   const at = Date.now()
-
   await import('../../src/tasks.js')
   const tasksStore = await import('../../src/utils/tasks.js')
   const t1 = await tasksStore.createTask('vigil-pause-proof', {

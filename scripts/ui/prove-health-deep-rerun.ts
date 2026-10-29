@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from './renderScenarios.ts'
@@ -57,24 +56,20 @@ const run = runJobControlHost({
     { sleep: 0.5 },
     { observe: 'fast-settled' },
     { mark: 'fast' },
-
     { send: 'd' },
     { sleep: 0.7 },
     { send: 'r' },
     { mark: 'after-r' },
-
     { poll: true, seconds: 130, interval: 0.2, label: 'deep-1', until: 'issued' },
     { sleep: 0.5 },
     { observe: 'deep-settled' },
     { mark: 'deep-settled' },
-
     { send: 'r' },
     { sleep: 0.5 },
     { poll: true, seconds: 130, interval: 0.2, label: 'deep-2', until: 'issued' },
     { sleep: 0.5 },
     { observe: 'deep-settled-2' },
     { mark: 'deep-settled-2' },
-
     { send: '\x1b' },
     { wait: 'New Session', timeout: 15 },
     { sleep: 0.5 },

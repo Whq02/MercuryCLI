@@ -16,6 +16,7 @@ import { ripgrepCommand } from '../ripgrep.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { quote } from './shellQuote.js'
 
+
 type VersionedPathParts = {
   versionsRoot: string
   version: string
@@ -23,7 +24,6 @@ type VersionedPathParts = {
 }
 
 export function deriveVersionedPathParts(path: string): VersionedPathParts | null {
-
   const match = /^(.*[/\\]|)(versions)[/\\]([^/\\]+)([/\\].+)$/.exec(path)
   if (!match) return null
   return {
@@ -48,7 +48,6 @@ type SnapshotPathExecutor = (
 ) => Promise<{ exitCode?: number; stdout?: string }>
 
 const SNAPSHOT_PATH_PROBE_TIMEOUT_MS = 10_000
-
 const SNAPSHOT_PATH_PROBE_SETTLE_GRACE_MS = 250
 
 const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs) =>
@@ -73,7 +72,6 @@ const defaultSnapshotPathExecutor: SnapshotPathExecutor = (file, args, timeoutMs
       },
       (error, stdout) => {
         if (error) {
-
           const exitCode = typeof error.code === 'number' ? error.code : undefined
           settle({ exitCode, stdout })
           return
@@ -111,6 +109,7 @@ export async function resolveSnapshotPathValue(
     return processPath
   }
 }
+
 
 function buildArgv0Function(
   functionName: string,
@@ -230,7 +229,6 @@ async function getMercurySnapshotContent(binShell: string): Promise<string> {
 
   const sections: string[] = []
   sections.push('# Mercury search tools')
-
   sections.push(`if ! (unalias rg 2>/dev/null; command -v rg >/dev/null 2>&1); then
 ${rgIntegration.snippet}
 fi`)
@@ -241,6 +239,7 @@ fi`)
   sections.push(`export PATH=${quote([pathValue])}`)
   return sections.join('\n')
 }
+
 
 const MERCURY_CONTENT_DELIMITER = '__MERCURY_SNAPSHOT_CONTENT__'
 
@@ -268,7 +267,6 @@ function buildCaptureScript(args: {
   if (configExists) {
     lines.push('echo "# Functions" >> "$SNAPSHOT_FILE"')
     if (isZshLane) {
-
       lines.push(`for __mercury_fn in \${(k)functions}; do
   autoload +X -- "$__mercury_fn" >/dev/null 2>&1
 done
@@ -279,7 +277,6 @@ for __mercury_fn in \${(k)functions}; do
   esac
 done`)
     } else {
-
       lines.push(`for __mercury_fn in $(declare -F | awk '{print $NF}'); do
   case "$__mercury_fn" in
     _[!_]*) ;;
@@ -295,14 +292,12 @@ done`)
     if (isZshLane) {
       lines.push(`setopt | sed 's/^/setopt /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
     } else {
-
       lines.push(`shopt -p | head -n 1000 >> "$SNAPSHOT_FILE"`)
       lines.push(`set -o | grep on | awk '{print $1}' | sed 's/^/set -o /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
       lines.push('echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"')
     }
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
-
     const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
     if (isZshLane) {
       lines.push(`alias${winptyFilter} | sed 's/^/alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
@@ -310,7 +305,6 @@ done`)
       lines.push(`alias${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
     }
   } else if (!isZshLane) {
-
     lines.push('echo "shopt -s expand_aliases" >> "$SNAPSHOT_FILE"')
   }
 
@@ -325,6 +319,7 @@ fi`)
 
   return lines.join('\n')
 }
+
 
 type CaptureOutcome = {
   stdout: string
@@ -422,7 +417,6 @@ export async function createAndSaveSnapshot(shellPath: string): Promise<string |
         ].join('\n'),
       )
       logError(`shell snapshot creation failed: ${errorMessage(error)}`)
-
       return undefined
     }
 

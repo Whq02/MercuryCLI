@@ -151,7 +151,6 @@ export function saveCurrentSessionCosts(fpsMetrics?: FpsMetrics): void {
     lastTotalWebSearchRequests: getTotalWebSearchRequests(),
     lastFpsAverage: fpsMetrics?.averageFps,
     lastFpsLow1Pct: fpsMetrics?.low1PctFps,
-
     lastModelUsage: mapValues(getModelUsage(), usage => ({
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
@@ -251,6 +250,9 @@ export async function restoreCostStateForSession(
   return true
 }
 
+
+
+
 function labelled(label: string, value: string): string {
   return `${label.padEnd(VALUE_COLUMN)}${value}`
 }
@@ -265,7 +267,6 @@ function formatModelUsageRows(): string[] {
   if (models.length === 0) {
     return [labelled('Tokens spent:', '0 input, 0 output, 0 cache read, 0 cache write')]
   }
-
   const byShortName = new Map<
     string,
     {
@@ -300,7 +301,6 @@ function formatModelUsageRows(): string[] {
     row.unpricedTurns += unpriced[model] ?? 0
     byShortName.set(shortName, row)
   }
-
   const rows = ['Tokens spent by model:']
   for (const [shortName, row] of byShortName) {
     const metrics = [

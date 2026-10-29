@@ -19,7 +19,6 @@ export type ActiveExtension = {
 
 export type ActiveSet = {
   roster: RosterResult
-
   healthById: Map<string, Health | null>
   active: ActiveExtension[]
   computedAt: number
@@ -38,7 +37,6 @@ export function computeActiveSet(input: { cwd?: string; sessionPaths?: string[] 
   const active: ActiveExtension[] = []
   const contributing = new Set(activeEntries(roster.entries).map(e => e.id))
   for (const entry of roster.entries) {
-
     const approvalOnFile = entry.record?.approval != null || entry.home === 'session'
     const wantsHealth =
       contributing.has(entry.id) ||

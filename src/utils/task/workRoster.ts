@@ -18,6 +18,7 @@ import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
 import { crewStartOf } from '../crew/crewStart.js'
 import { clipWithEllipsis } from '../stringUtils.js'
 
+
 const MAX_NAME = 120
 const MAX_ERROR = 200
 const MAX_COMMAND = 4000
@@ -61,7 +62,6 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
     workflowRunId: task.workflowRunId,
     phases: workPhasesOf(task),
     agentCount: task.agentCount,
-
     pulse: workflowPulseFacts(
       (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[],
       task.startTime,
@@ -84,7 +84,6 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
     ...(typeof t.model === 'string' ? { model: t.model } : {}),
     ...(typeof t.error === 'string' ? { error: clipWithEllipsis(t.error, MAX_ERROR) } : {}),
-
     ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clipWithEllipsis(t.stopReason, MAX_ERROR) } : {}),
     ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
   }
@@ -142,7 +141,6 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
       : typeof last.toolName === 'string' && last.toolName !== ''
         ? last.toolName
         : undefined
-
   const phase =
     typeof p.phase === 'object' && p.phase !== null && typeof (p.phase as { phase?: unknown }).phase === 'string' && typeof (p.phase as { sinceMs?: unknown }).sinceMs === 'number'
       ? (p.phase as WorkRowV1['phase'])
@@ -158,7 +156,6 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
           outputTokens: output,
           totalTokens: input + output,
           ...(cached !== undefined && cached >= 0 ? { cacheReadTokens: cached } : {}),
-
           ...(context !== undefined && context > 0 ? { contextTokens: context } : {}),
         }
       : {}),
@@ -173,10 +170,8 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
     if (isLocalWorkflowTask(task)) {
       rows.push(workflowRow(task))
     } else if (isLocalAgentTask(task)) {
-
       if (task.agentType === 'main-session') continue
       rows.push({
-
         ...plainRow(task, 'agent', task.description || task.agentType),
         agentId: task.agentId,
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
@@ -184,9 +179,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...agentCounters(task),
         ...unreadNoticesOf(task.id, String(task.agentId)),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
-
         ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
-
         ...(task.paused !== undefined
           ? {
               paused: {

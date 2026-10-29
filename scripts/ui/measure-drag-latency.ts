@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -72,7 +71,6 @@ try {
     console.error(final.rows.slice(-12).join('\n'))
     process.exit(1)
   }
-
   colLo = 28
   colHi = 116
   anchor = { col: 32, row: Math.max(1, tailRow - 5) }
@@ -90,7 +88,6 @@ function focusAt(k: number): { col: number; row: number } {
   const perRow = colHi - colLo + 1
   const start = anchor.col - colLo + 1 + k
   const row = anchor.row + Math.floor(start / perRow)
-
   return { col: colLo + (start % perRow), row: Math.min(row, tailRow + 6) }
 }
 
@@ -122,7 +119,6 @@ async function legDrag(n: number, gap: number): Promise<Leg> {
   const lastF = focusAt(n - 1)
   sends.push(`${t + gap}:${sgrText(LEFT, lastF.col, lastF.row, true)}`)
   const seconds = Math.ceil((t + gap + 2500) / 1000)
-
   const fluxPath = `${SCRATCH}/flux-${n}-${gap}-${Date.now()}.json`
   const run = await runCompassArena({ sends, seconds, chapters: CHAPTERS, extraEnv: { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: fluxPath } })
   let paintEpochs: number[] = []
@@ -169,7 +165,6 @@ async function legDrag(n: number, gap: number): Promise<Leg> {
     const winOuts = run.outs.filter(x => x.ts > w0 && x.ts <= wEnd)
     const lastMotionSent = motions.at(-1)?.sent ?? w0
     const lastFrameTs = winFrames.length ? Math.max(...winFrames.map(f => f.ts)) : lastMotionSent
-
     let maxBacklog = 0
     let fi = 0
     const framesSorted = [...winFrames].sort((a, b) => a.ts - b.ts)
@@ -226,7 +221,6 @@ for (const l of results.legs as (Leg & { paintsPerEvent: Summary; paintsInWindow
     `drag n=${l.n} gap=${l.gapMs}ms (${l.eventsPerSecondSent} ev/s sent): motions=${l.motionsSent}  latency p50=${l.latencyMs.p50} p95=${l.latencyMs.p95} max=${l.latencyMs.max}  noPaintBeforeNext=${l.noPaintBeforeNext}  bytes/ev p50=${l.bytesPerEvent.p50} p95=${l.bytesPerEvent.p95}  frames/ev p50=${l.framesPerEvent.p50} mean=${l.framesPerEvent.mean}  paints/ev p50=${l.paintsPerEvent.p50} mean=${l.paintsPerEvent.mean}  cells/ev p50=${l.cellsPerEvent.p50}  window: ${l.dragWindow.frames} frames / ${l.paintsInWindow} paints (${l.zeroBytePaints} zero-byte) / ${l.dragWindow.bytes} B over ${l.dragWindow.spanMs} ms (${l.dragWindow.framesPerSecond} f/s)  trailingLag=${l.trailingLagMs}ms  maxBacklog=${l.maxBacklog}  frameLen p50=${l.frameLenSummary.p50}  writeWait p50=${l.writeWaitMs.p50} max=${l.writeWaitMs.max}  fluxFrames(whole run)=${l.fluxFrames ? `${l.fluxFrames.total} p50=${l.fluxFrames.p50} p95=${l.fluxFrames.p95} max=${l.fluxFrames.maxMs}` : 'n/a'}`,
   )
 }
-
 type AttrScreen = { atMs: number; rows: string[]; reverse: number[][]; bg: [number, number, string][] }
 function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
   const res = spawnSync(
@@ -240,7 +234,6 @@ function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
 
 async function legHold(holdMs: number): Promise<Record<string, unknown>> {
   const t0 = SETTLE
-
   const above = { col: anchor.col, row: 0 }
   const sends = [
     `${t0}:${sgrText(LEFT, anchor.col, anchor.row)}`,

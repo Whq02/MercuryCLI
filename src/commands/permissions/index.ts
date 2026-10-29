@@ -6,10 +6,8 @@ const permissions = {
   type: 'local-jsx',
   name: 'permissions',
   description: 'Shape the permission rules — what runs free, what asks first',
-
   currentValue: () => {
     if (!hasFocusedSession()) return undefined
-
     const mode = getFocusedSessionConnector().permissionMode()
     return mode === null ? undefined : permissionModeTitle(mode)
   },

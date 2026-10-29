@@ -221,7 +221,6 @@ section('7. parseBlenderBridgeFrame — total over hostile input, never throws')
   )
   const evt = parseBlenderBridgeFrame('{"event":"render_finished","data":{"ok":true}}')
   check('event data rides through intact', evt.kind === 'event' && (evt.data as { ok: boolean }).ok === true)
-
   check(
     'a non-numeric-id ok frame is not a response',
     parseBlenderBridgeFrame('{"ok":true,"id":null}').kind === 'hello-reply',

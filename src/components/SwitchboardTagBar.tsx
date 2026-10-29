@@ -48,6 +48,7 @@ const statusMotionWords = (): string => idleMotionLevel('clock') === 'reduced'
   ? motionPosture() === 'auto' && governorTrip() === 'wire' ? 'reduced · slow link' : 'reduced'
   : ''
 
+
 const subscribeFocusedSeat = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.subscribeLive(listener) : () => {},
 )
@@ -168,16 +169,13 @@ export function runnerStatusWords(runner: RunnerStateFactV1, nowMs: number): str
   }
   return `the runner crashed ${runner.respawns} times — the session has no live runner · ↵ revives it`
 }
-
 export function statusDuration(ms: number): string {
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
   return `${Math.floor(ms / 60_000)}m`
 }
 
 export type CrewClockV1 = {
-
   active: boolean
-
   line: string | null
 }
 
@@ -220,12 +218,10 @@ export function waitingStatusWords(live: SessionLiveV1): string {
 }
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
-
   if (s.hardStopping) return 'interrupting again — the request is torn down once more; x on its row stops the runner'
   if (s.interrupting) return 'interrupting — the request is torn down'
   if (s.runner !== undefined && s.runner !== null) return runnerStatusWords(s.runner, Date.now())
   if (live.inFlight) {
-
     if (s.wait !== null) {
       if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)
       const ownClock = s.wait.kind === 'first-byte' && s.wait.checkedMs !== undefined
@@ -235,14 +231,12 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClock
     }
     if (live.phase === 'waiting') {
       if (compact) return 'waiting on background work'
-
       return waitingStatusWords(live)
     }
     if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
       return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`
     }
   }
-
   if (crew !== null && crew.line !== null) return crew.line
   return live.inFlight ? '' : 'ready'
 }
@@ -311,7 +305,6 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const motionWords = useSyncExternalStore(subscribeIdleMotion, statusMotionWords, statusMotionWords)
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
-
   const workRows = useFocusedWorkRows()
   const samples = useFocusedSamples()
   const shellRunning = useFocusedShellRunning()
@@ -345,7 +338,6 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   }, [painting])
   if (!painting) return null
   const status: SeatStatusV1 = c.status()
-
   const line = composerCrewmate !== null ? crewmateStatusWords(crewmate, composerCrewmate, composerCrewmate.running) : statusLine(live, status, crew)
   const backHint =
     crewmate !== null && !crewmate.pinned
@@ -365,8 +357,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const fitted = plan.rest
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
-      {
-}
+      {}
       <Text wrap="truncate-end">
         {signedOut !== null ? (
           <Text>
@@ -402,8 +393,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
         <InteractiveRow id="switchboard:status:back" directActivate hoverStyle="chrome-ink" onActivate={() => enterConcourse()}>
           {hover => (
             <Text color={hover ? t.info : t.textMuted} bold={hover}>
-              {
-}
+              {}
               {' '}
               {backHint}{' '}
             </Text>

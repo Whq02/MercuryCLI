@@ -14,103 +14,64 @@ import { useMercuryTokens } from './useMercuryTokens.js'
 import { useNavigablePanes } from './useNavigablePanes.js'
 import { PopupScrollViewport } from '../CustomSelect/popup-list.js'
 
+
 export type ColumnDef<Row> = {
-
   key: string
-
   header: string
-
   width?: number
-
   align?: 'left' | 'right'
-
   cell: (row: Row) => React.ReactNode
 }
 
 export type RowAction<Row> = {
-
   key: string
-
   label: string
-
   hint?: string
-
   when: (row: Row) => boolean
-
   run: (row: Row) => void
 }
 
 export type SectionDef<Row> = {
   id: string
-
   label: string
-
   count?: number
-
   rows: Row[]
-
   emptyHint?: string
 }
 
 type NavigablePanesProps<Row> = {
-
   view: string
-
   subtitle?: string
-
   headerLine?: React.ReactNode
-
   sections: SectionDef<Row>[]
-
   columns: ColumnDef<Row>[]
   rowKey: (row: Row) => string
-
   renderDetail: (row: Row) => React.ReactNode
   onClose: () => void
-
   footerHints?: string
-
   detailFooterHints?: string
-
   composerSlot?: {
     active: boolean
     node: React.ReactNode
     onInput: (input: string, key: Record<string, boolean>) => void
     onEscape: () => void
-
     rows?: number
   }
-
   onTypeToCompose?: (row: Row, input: string) => void
-
   expandable?: boolean
-
   loading?: boolean
-
   emptyState?: { title: string; hint?: string }
-
   mouseTracking?: boolean
-
   onActivate?: (row: Row) => void
-
   rowActions?: RowAction<Row>[]
-
   initialRowKey?: string
-
   initialSectionId?: string
-
   onSectionChange?: (id: string, index: number) => void
-
   closeHint?: string
-
   maxContentWidth?: number
-
   headerRight?: React.ReactNode
-
   sideInfo?: (row: Row) => React.ReactNode
-
   detailTitle?: (row: Row) => string
-
   regionChrome?: {
     headerBlock: React.ReactNode
     aboveBody?: React.ReactNode
@@ -118,10 +79,8 @@ type NavigablePanesProps<Row> = {
     mainTitle: React.ReactNode
     sideTitle: (row: Row) => React.ReactNode
     sideWidthPct: number
-
     chromeRows: number
   }
-
   inputActive?: boolean
 }
 
@@ -129,11 +88,8 @@ const COL_GAP = 2
 const NAV_WIDTH = 22
 const DETAIL_WIDTH_WIDE = 40
 const DETAIL_WIDTH_MID = 34
-
 const VIEWPORT_RESERVE = 11
-
 const COMPOSER_SLOT_RESERVE = 2
-
 const ROW_OVERSCAN = 12
 
 type Layout = 'wide' | 'mid' | 'fold' | 'inline'
@@ -143,6 +99,7 @@ function pickLayout(cols: number): Layout {
   if (cols >= 100) return 'fold'
   return 'inline'
 }
+
 
 function ColumnHeader<R>({
   columns,
@@ -185,7 +142,6 @@ function PaneRow<R>({
   tokens,
 }: {
   row: R
-
   rowId: string
   columns: ColumnDef<R>[]
   selected: boolean
@@ -206,8 +162,7 @@ function PaneRow<R>({
       height={1}
       flexShrink={0}
     >
-      {
-}
+      {}
       <Box width={2} flexShrink={0}>
         <CursorCell focused={selected} color={tokens.accent} />
       </Box>
@@ -230,6 +185,7 @@ function PaneRow<R>({
   )
 }
 
+
 function SectionNav<R>({
   sections,
   active,
@@ -245,7 +201,6 @@ function SectionNav<R>({
   onSelectSection: (i: number) => void
   tokens: MercuryThemeTokens
 }): React.ReactNode {
-
   return (
     <Box flexDirection="column" width={width} flexShrink={0} marginRight={2}>
       <Box height={1} overflow="hidden">
@@ -262,7 +217,6 @@ function SectionNav<R>({
             directActivate
             onActivate={() => onSelectSection(i)}
             height={1}
-
             width="100%"
           >
             <Text color={on ? tokens.accent : tokens.textMuted} wrap="truncate-end">
@@ -315,6 +269,7 @@ function TabStrip<R>({
   )
 }
 
+
 export function NavigablePanes<Row>({
   view,
   subtitle,
@@ -350,7 +305,6 @@ export function NavigablePanes<Row>({
   const tokens = useMercuryTokens()
   const [footerRows, setFooterRows] = React.useState(1)
   const accent = tokens.accent
-
   const idBase = `np:${view}`
 
   const safeSections = sections.length > 0 ? sections : []
@@ -363,7 +317,6 @@ export function NavigablePanes<Row>({
         if (i >= 0) return { section: s, sel: i }
       }
     }
-
     if (initialSectionId !== undefined) {
       const s = safeSections.findIndex(sec => sec.id === initialSectionId)
       if (s >= 0) return { section: s, sel: 0 }
@@ -378,7 +331,6 @@ export function NavigablePanes<Row>({
     rowCount: liveRowCount,
     pageSize: () => listHeight,
     onClose,
-
     escOverride: () => {
       if (!composerSlot?.active) return false
       composerSlot.onEscape()
@@ -389,9 +341,7 @@ export function NavigablePanes<Row>({
     expandable,
     initialSection: seed.section,
     initialSel: seed.sel,
-
     sectionRowKeys: safeSections.map(s => s.rows.map(rowKey)),
-
     onActivateRow: onActivate
       ? (sectionIdx, selIdx) => {
           const sec = safeSections[sectionIdx] ?? safeSections[0]
@@ -416,9 +366,7 @@ export function NavigablePanes<Row>({
 
   const section = safeSections[nav.section] ?? safeSections[0]
   const sectionRows = section?.rows ?? []
-
   let sel = Math.min(nav.sel, Math.max(0, sectionRows.length - 1))
-
   const prevNavSelRef = useRef(nav.sel)
   const selKeyRef = useRef<string | null>(null)
   const selMoved = nav.sel !== prevNavSelRef.current
@@ -432,7 +380,6 @@ export function NavigablePanes<Row>({
   prevNavSelRef.current = nav.sel
   const selectedRow = sectionRows[sel]
   selKeyRef.current = selectedRow ? rowKey(selectedRow) : null
-
   useEffect(() => {
     if (sel !== nav.sel) nav.selectRow(sel)
   })
@@ -460,7 +407,6 @@ export function NavigablePanes<Row>({
 
   useInput(
     (input, key) => {
-
       const k = key as Record<string, boolean>
       if (k.ctrl || k.meta) return
       if (!nav.pastBuffer() || !selectedRow || !rowActions) return
@@ -480,7 +426,6 @@ export function NavigablePanes<Row>({
         !composerSlot?.active &&
         !!rowActions &&
         rowActions.length > 0 &&
-
         nav.level !== 'detail',
     },
   )
@@ -488,20 +433,17 @@ export function NavigablePanes<Row>({
   const scrollRef = useRef<ScrollBoxHandle>(null)
   useLayoutEffect(() => {
     if (nav.rowRef.current && scrollRef.current) {
-
       scrollRef.current.scrollToElement(nav.rowRef.current, -2)
     }
   }, [sel, nav.section, nav.rowRef])
 
   const detailVisible = nav.drilled && !!selectedRow
-
   const regionInner = Math.max(0, cols - 4)
   const regionSideWidth = regionChrome
     ? Math.max(24, Math.round((regionInner * regionChrome.sideWidthPct) / 100))
     : null
   const detailWidth =
     regionSideWidth ?? (layout === 'wide' ? DETAIL_WIDTH_WIDE : DETAIL_WIDTH_MID)
-
   const infoVisible =
     !!sideInfo && !!selectedRow && !detailVisible && (layout === 'wide' || layout === 'mid')
   const navW =
@@ -510,9 +452,7 @@ export function NavigablePanes<Row>({
       : 0
   const sideDetailW = (layout === 'wide' || layout === 'mid') && detailVisible ? detailWidth + 2 : 0
   const sideInfoW = infoVisible ? detailWidth + 2 : 0
-
   const innerWidth = regionChrome ? regionInner : innerPaneWidth(cols, { border: true, paddingX: 1 })
-
   const mainWidth = Math.max(0, innerWidth - navW - sideDetailW - sideInfoW - (regionChrome ? 5 : 0))
 
   const viewportBudget = viewportRows(termRows, {
@@ -521,22 +461,18 @@ export function NavigablePanes<Row>({
       (composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0),
     min: 3,
   })
-
   const detailBaseRows = nav.detailRows + 1
   const listCap =
     detailVisible && (layout === 'fold' || layout === 'inline')
       ? viewportRows(viewportBudget, { reserve: detailBaseRows + 1, min: 3 })
       : viewportBudget
-
   const contentRows = Math.max(sectionRows.length, showNav ? safeSections.length : 0, 1)
   const listHeight = Math.max(Math.min(1, listCap), Math.min(listCap, contentRows))
-
   const slackRows =
     detailVisible && (layout === 'fold' || layout === 'inline')
       ? Math.max(0, viewportBudget - listHeight - detailBaseRows - 2)
       : 0
   const splitDetailHeight = detailBaseRows + slackRows
-
   const idleSlack =
     !detailVisible && (layout === 'fold' || layout === 'inline') && !!sideInfo
       ? Math.max(0, viewportBudget - listHeight - 3)
@@ -552,11 +488,8 @@ export function NavigablePanes<Row>({
 
   const resizeActive =
     expandable && (layout === 'fold' || layout === 'inline') && slackRows === 0
-
   const listNavLive = !loading && !emptyState && safeSections.length > 0
-
   const composerOwnsInput = !!composerSlot?.active
-
   const actionHints =
     listNavLive && !composerOwnsInput && nav.level !== 'detail' && selectedRow && rowActions
       ? rowActions
@@ -594,7 +527,6 @@ export function NavigablePanes<Row>({
 
   let body: React.ReactNode
   if (loading) {
-
     body = (
       <Box marginTop={1} flexGrow={1} flexDirection="column" justifyContent="center" alignItems="center">
         <Text color={tokens.textMuted}>loading…</Text>
@@ -607,12 +539,10 @@ export function NavigablePanes<Row>({
       </Box>
     )
   } else {
-
     const totalWidth = maxContentWidth ? Math.min(mainWidth, maxContentWidth) : mainWidth
     const mainList = (
       <Box flexDirection="column" overflow="hidden">
-        {
-}
+        {}
         {(layout === 'fold' || layout === 'inline' || (layout === 'mid' && infoVisible)) &&
         showNav ? (
           <TabStrip
@@ -673,8 +603,7 @@ export function NavigablePanes<Row>({
 
     const rightDetail = selectedRow ? (
       <Box flexDirection="column" overflow="hidden">
-        {
-}
+        {}
         <Text bold color={accent} wrap="truncate-end">
           {(detailTitle?.(selectedRow) || '').trim() || 'detail'}
         </Text>
@@ -785,7 +714,6 @@ export function NavigablePanes<Row>({
         </Box>
       )
     } else {
-
       body = (
         <Box flexDirection="column" marginTop={regionChrome ? 0 : 1} overflow="hidden">
           <Box flexDirection="column" overflow="hidden">
@@ -814,17 +742,14 @@ export function NavigablePanes<Row>({
 
   return (
     <AlternateScreen mouseTracking={mouseTracking}>
-      {
-}
+      {}
       <Box
         flexDirection="column"
-
         borderStyle={regionChrome ? undefined : 'round'}
         borderColor={regionChrome ? undefined : accent}
         paddingX={regionChrome ? 2 : 1}
         width="100%"
         flexShrink={0}
-
         minHeight={Math.max(0, termRows - 1)}
       >
         {regionChrome ? (
@@ -832,10 +757,8 @@ export function NavigablePanes<Row>({
             {regionChrome.headerBlock}
           </Box>
         ) : (
-
           <Box flexShrink={0} height={1} overflow="hidden">
-            {
-}
+            {}
             <ProductLockup view={view} {...(subtitle !== undefined ? { subtitle } : {})} />
             {headerRight ? (
               <>
@@ -857,8 +780,7 @@ export function NavigablePanes<Row>({
         {}
         {body}
 
-        {
-}
+        {}
         <Box flexGrow={1} />
 
         {regionChrome?.belowBody ? (

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
 process.env.NODE_ENV = 'test'
 
 import { spawnSync } from 'node:child_process'
@@ -104,7 +103,6 @@ function seedSession(home: string): string {
       timestamp: '2026-07-30T12:00:04.000Z',
     }),
   ]
-
   writeFileSync(join(projects, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
   return SID
 }
@@ -178,7 +176,6 @@ t.section('§1 — the owners emit COMPLETE OSC 8 links on the flow path')
   )
   t.check(
     'FilePathLink (tool-card path owner) emits a complete file:// link',
-
     /\x1b\]8;[^;\x07]*;file:\/\/[^\x07]*README\.md\x07/.test(ansi) && ansi.includes('\x1b]8;;\x07'),
     JSON.stringify(ansi.slice(0, 160)),
   )

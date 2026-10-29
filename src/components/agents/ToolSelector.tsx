@@ -1,3 +1,4 @@
+
 import figures from 'figures'
 import React, { useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
@@ -52,7 +53,6 @@ export function ToolSelector({
   onComplete: (tools: string[] | undefined) => void
   onCancel?: () => void
 }): React.ReactNode {
-
   const candidates = useMemo(
     () =>
       filterToolsForAgent({ tools, isBuiltIn: false })
@@ -67,7 +67,6 @@ export function ToolSelector({
       ? [...candidates]
       : initialTools,
   )
-
   const selection = [...new Set(stored.filter(name => candidateSet.has(name)))]
   const selectionSet = new Set(selection)
 
@@ -149,7 +148,6 @@ export function ToolSelector({
   const runItem = (item: Item): void => {
     switch (item.kind) {
       case 'continue':
-
         onComplete(
           !explicitSelection && selection.length === candidates.length ? undefined : selection,
         )
@@ -165,7 +163,6 @@ export function ToolSelector({
       case 'advanced-toggle': {
         const next = !showAdvanced
         setShowAdvanced(next)
-
         if (!next) {
           const at = items.findIndex(i => i.kind === 'advanced-toggle')
           if (clampedFocus > at) setFocusIndex(at)

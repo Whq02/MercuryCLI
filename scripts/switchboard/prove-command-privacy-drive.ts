@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -82,7 +81,6 @@ let arenaCwd = ''
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
-
   sends: [
     'after:Alpha count:2500:\t',
     'after:Alpha count:4000:\r',
@@ -153,7 +151,6 @@ try {
   const chatFrames = grabs.filter(g => g.atMs >= S(12000) && g.atMs <= S(17000))
   check('§4 the /effort receipt painted on the status row (its tail survives the row\'s fit: "… Saved as your default for future sessions.")', chatFrames.some(g => /Saved as your default for future sessions/.test(text(g))), chatFrames.map(g => `${g.atMs}: ${text(g).split('\n').filter(r => /[Ee]ffort/.test(r)).join(' | ').trim().slice(0, 160)}`).join(' · '))
   const crewFrames = grabs.filter(g => g.atMs >= S(15000) && g.atMs <= S(24000))
-
   check(
     '§4 the /crew directory painted as the chat receipt',
     crewFrames.some(g => /sources: identity|the crew directory is empty/.test(text(g))),

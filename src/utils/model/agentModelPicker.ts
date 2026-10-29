@@ -10,14 +10,11 @@ import {
 const INHERIT = 'inherit'
 
 export type AgentModelPickerRow = {
-
   value: string
   label: string
   description: string
-
   group: string
   kind: 'inherit' | 'model' | 'connect'
-
   unavailable?: string
 }
 

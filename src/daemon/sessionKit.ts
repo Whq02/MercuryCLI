@@ -9,20 +9,13 @@ import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 
 export interface SessionKitV1 {
   schema: 1
-
   mcp: string[]
   mcpKnown?: string[]
-
   skills: string[]
-
   invocable: string[]
-
   skillsOff?: string[]
-
   extensions?: Record<string, 'on' | 'off'>
-
   resolved?: false
-
   deltas?: KitDeltasV1
 }
 
@@ -30,7 +23,6 @@ export const KIT_MCP_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/
 export const KIT_EXTENSION_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,39}$/
 const KIT_EXTENSION_SERVER_PATTERN = /^ext:[a-z0-9][a-z0-9-]{0,39}:[^\s\x00-\x1f\x7f]{1,128}$/
 const KIT_SKILL_NAME_PATTERN = /^[^\s/\\\x00-\x1f\x7f]{1,200}$/
-
 export const KIT_LIST_CAP = 2000
 
 type KitValidation = { ok: true; kit: SessionKitV1 } | { ok: false; reason: string }
@@ -135,6 +127,7 @@ export function cloneSessionKit(kit: SessionKitV1): SessionKitV1 {
   return JSON.parse(JSON.stringify(kit)) as SessionKitV1
 }
 
+
 export type KitStampSource = 'carried' | 'derived' | 'preset'
 
 export function kitStampOf(kit: SessionKitV1 | undefined): { kit: SessionKitV1 } | Record<string, never> {
@@ -152,7 +145,6 @@ export function restampSessionKit(rec: ConcourseWorkerRecordV1, next: SessionKit
       at: new Date().toISOString(),
       by,
       kind: 'kit-restamp',
-
       summary:
         source === 'preset'
           ? 'kit re-stamped from the named preset (preset); the kit this session parked with is history here, never reloaded'
@@ -184,6 +176,7 @@ export function noteRecordlessResumeKit(
     logForDebugging(`[kit] record-less-resume receipt failed for ${rec.sessionId}: ${err}`)
   }
 }
+
 
 export interface SessionKitEditV1 {
   mcp?: Array<{ name: string; on: boolean }>
@@ -321,7 +314,6 @@ export function applyKitEdit(kit: SessionKitV1, edit: SessionKitEditV1): Session
     }
   }
   for (const dial of edit.skills ?? []) {
-
     const standing = next.skills.includes(dial.name)
       ? 'on'
       : next.invocable.includes(dial.name)
@@ -363,6 +355,7 @@ export function resolveSessionKitOnRecord(rec: ConcourseWorkerRecordV1, resolved
   return true
 }
 
+
 export function deriveSessionKitForWorkspace(workspaceDir: string): SessionKitV1 {
   let deltas: KitDeltasV1 = emptyKitDeltas()
   let known: string[] = []
@@ -388,12 +381,12 @@ function knownMcpNamesForWorkspace(workspaceDir: string): string[] {
   return [...new Set([...user, ...local])]
 }
 
+
 type PresetKitDerivation = { ok: true; kit: SessionKitV1; note?: string } | { ok: false; reason: string }
 
 export function deriveSessionKitForPreset(presetName: string, workspaceDir: string): PresetKitDerivation {
   const resolved = kitPresetDeltas(presetName)
   if (!resolved.ok) return { ok: false, reason: resolved.reason }
-
   const verdict = validateKitDeltas(resolved.deltas)
   if (!verdict.ok) return { ok: false, reason: `preset '${presetName}' refused — ${verdict.reason}` }
   const deltas = verdict.deltas
@@ -401,7 +394,6 @@ export function deriveSessionKitForPreset(presetName: string, workspaceDir: stri
   try {
     known = knownMcpNamesForWorkspace(workspaceDir)
   } catch (err) {
-
     logForDebugging(`[kit] the preset census for ${workspaceDir} fell empty: ${err}`)
   }
   const unbiting = deltas.mcpOff.filter(name => !known.includes(name))

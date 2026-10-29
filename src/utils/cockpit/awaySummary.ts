@@ -5,8 +5,9 @@ import { isEnvTruthy } from '../envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isOperatorTurn } from '../messages/operatorTurns.js'
 
-export function isAwaySummaryEnabled(): boolean {
 
+export function isAwaySummaryEnabled(): boolean {
+  
   const flag = flagEnv('MERCURY_AWAY_SUMMARY')
   if (flag === '0' || flag?.toLowerCase() === 'false') return false
   if (isEnvTruthy(flag)) return true
@@ -63,19 +64,13 @@ function filesOf(input: unknown): string[] {
 }
 
 type AwayRecap = {
-
   line: string
-
   endedOnError: boolean
   turns: number
   filesTouched: number
-
   topTools: string
-
   toolFailures: number
-
   lastActiveGapMs?: number
-
   gitDelta?: { files: number; added: number; removed: number } | null
 }
 

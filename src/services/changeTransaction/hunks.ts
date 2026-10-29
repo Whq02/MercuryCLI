@@ -1,3 +1,4 @@
+
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { changeTransactionEnabled } from './contracts.js'
 import {
@@ -19,11 +20,8 @@ export function editHunksEnabled(): boolean {
 }
 
 export interface EditHunkInput {
-
   lines: string
-
   replace: string
-
   insert?: 'before' | 'after'
 }
 
@@ -79,7 +77,6 @@ export function planHunks(
       ? { start: parsedAnchor.startLine, end: parsedAnchor.startLine + parsedAnchor.lineCount - 1 }
       : null
   const spans: HunkSpan[] = []
-
   const outcomes: HunkOutcome[] = []
   const failures: string[] = []
   const refuse = (index: number, lines: string, message: string): void => {
@@ -129,7 +126,6 @@ export function planHunks(
       range = { start: range.start, end: totalLines }
       if (refs !== null && refs.length === 2) refs = [refs[0]!]
     }
-
     let drifted = false
     if (refs) {
       if (domainLines === null) domainLines = anchorDomainLines(content)

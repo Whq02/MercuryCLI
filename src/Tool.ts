@@ -43,6 +43,7 @@ import type {
 import type { ToolResultBlockParam } from './types/wire.js'
 import type { SystemPrompt } from './utils/systemPromptType.js'
 
+
 export type {
   AgentToolProgress,
   BashProgress,
@@ -116,9 +117,7 @@ export type ToolPermissionContext = {
   readonly isBypassPermissionsModeAvailable: boolean
   readonly isFlowAvailable?: boolean
   readonly strippedDangerousRules?: readonly string[]
-
   readonly shouldAvoidPermissionPrompts?: boolean
-
   readonly awaitAutomatedChecksBeforeDialog?: boolean
   readonly probedFrom?: InternalPermissionMode
 }
@@ -156,15 +155,11 @@ export type ToolEffectOutcome = 'succeeded' | 'failed' | 'no-change' | 'indeterm
 
 export type ToolEffect = {
   outcome: ToolEffectOutcome
-
   operation: string
-
   changedPaths: string[]
-
   evidence: string
   startedAt: number
   completedAt: number
-
   details?: AnyObject
 }
 
@@ -178,11 +173,8 @@ export type ToolResult<TOutput = unknown> = {
   data: TOutput
   effect?: ToolEffect
   changeIntent?: ChangeIntentProjection
-
   newMessages?: Message[]
-
   contextModifier?: (context: ToolUseContext) => ToolUseContext
-
   mcpMeta?: {
     _meta?: Record<string, unknown>
     structuredContent?: Record<string, unknown>
@@ -192,7 +184,6 @@ export type ToolResult<TOutput = unknown> = {
 export type McpToolInfo = {
   serverName: string
   toolName: string
-
   effectiveMaxPermission?: 'ask' | 'blocked' | string
   [key: string]: any
 }
@@ -269,11 +260,9 @@ export type ToolTerminalOptions = {
 export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   options: ToolSessionOptions
   abortController: AbortController
-
   readFileState: FileStateCache
   getAppState: () => AppState
   setAppState: SetToolAppState
-
   setAppStateForTasks?: SetToolAppState
   messages: Message[]
   updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
@@ -281,38 +270,25 @@ export type ToolUseContext = ToolTerminalOptions & ToolCallChainCarrier & {
   agentId?: AgentId
   agentType?: string
   agentKind?: 'crewmate' | 'workflow'
-
   seatHolder?: string
   pauseGate?: PauseGate
   roundHandle?: string
-
   owner?: OwnerKey
-
   rosterOwner?: OwnerKey
-
   toolDecisions?: Map<string, PermissionDecision>
   fileReadingLimits?: any
-
   nestedMemoryAttachmentTriggers?: Set<string>
-
   loadedNestedMemoryPaths?: Set<string>
   dynamicSkillDirTriggers?: Set<string>
   discoveredSkillNames?: Set<string>
-
   preserveToolResults?: boolean
-
   alwaysCallCanUseTool?: boolean
-
   requireCanUseTool?: boolean
   contentReplacementState?: ContentReplacementState
-
   renderedSystemPrompt?: SystemPrompt
-
   globLimits?: { maxResults?: number }
-
   toolUseId?: string
   shellInputId?: string
-
   userModifiedInput?: boolean
   standingRule?: string
 }
@@ -321,25 +297,17 @@ type SetToolAppState = (updater: (prevState: AppState) => AppState) => void
 
 interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   name: string
-
   aliases?: string[]
-
   inputJSONSchema?: ToolInputJSONSchema
   outputSchema?: ZodType
-
   strict?: boolean
   keepEmptyInputs?: readonly string[]
   straightQuoteInputs?: readonly string[]
-
   maxResultSizeChars: number
-
   shouldDefer?: boolean
-
   alwaysLoad?: boolean
   loadInFullOnCloud?: boolean
-
   searchHint?: string
-
   userFacingNameBackgroundColor?(input?: any): string | undefined
   description(
     input?: any,
@@ -354,22 +322,16 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
     tools: Tools
     agents: AgentDefinition[]
     allowedAgentTypes?: string[]
-
     model?: string
   }): Promise<string>
   wireDescription?(fullPrompt: string): string
-
   isOpenWorld?(input?: TInput): boolean
   requiresUserInteraction?(input?: TInput): boolean
   settleUnansweredAsk?(input: TInput, ask: PermissionAskDecision): PermissionAllowDecision | null
-
   isTransparentWrapper?(): boolean
-
   interruptBehavior?(): ToolInterruptBehavior
-
   isSearchOrReadCommand?: (input: unknown) => SearchOrReadClassification
   validateInput?(input: any, context: ToolUseContext): MaybePromise<ValidationResult>
-
   preparePermissionMatcher?(
     input: any,
     context?: ToolUseContext,
@@ -385,21 +347,15 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
     output: TOutput,
     toolUseID: string,
   ): ToolResultBlockParam
-
   backfillObservableInput?(input: TInput): void
-
   extractSearchText?(output: TOutput): string
-
   inputsEquivalent?(a: any, b: any): boolean
-
   getPath?(input: any): string | undefined
   shellCommandOf?(input: unknown): string | undefined
-
   capability?: ToolCapability
   getToolUseSummary?(input?: any): string | null
   getActivityDescription?(input?: any): string | null
   isResultTruncated?(output: TOutput): boolean
-
   renderToolUseMessage?(input?: any, options?: any): React.ReactNode | string | null
   renderToolUseProgressMessage?(progress?: any, options?: any): React.ReactNode
   renderToolUseQueuedMessage?(input?: any, options?: any): React.ReactNode
@@ -407,16 +363,11 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   renderToolUseErrorMessage?(error?: any, options?: any): React.ReactNode
   renderToolResultMessage?(output?: any, progressMessages?: any, options?: any): React.ReactNode
   renderGroupedToolUse?(...args: any[]): React.ReactNode
-
   renderToolUseTag?(input?: any, options?: any): React.ReactNode | string | null
-
   renderCompactSummary?(...args: any[]): React.ReactNode
-
   isMcp?: boolean
   mcpInfo?: McpToolInfo
-
   isLsp?: boolean
-
   isEnabled?(): boolean
   prepare?(input: TInput): Promise<void>
   isConcurrencySafe?(input: any): boolean
@@ -433,6 +384,7 @@ export interface ToolDef<
 > extends ToolMembers<ZodOutput<TSchema>, TOutput, TProgress> {
   inputSchema: TSchema
 }
+
 
 export type ToolDefaults = {
   isEnabled(): boolean
@@ -484,7 +436,6 @@ export function buildTool<D extends ToolDef<any, any, any>>(def: D): D & ToolDef
     isConcurrencySafe: () => false,
     isReadOnly: () => false,
     isDestructive: () => false,
-
     checkPermissions: async (input: any) =>
       ({ behavior: 'allow', updatedInput: input }) as PermissionResult,
     userFacingName: () => def.name,

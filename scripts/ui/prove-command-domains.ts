@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -84,5 +83,4 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 console.log(fail === 0 ? '✅ prove-command-domains GREEN' : '❌ prove-command-domains RED')
-
 process.exitCode = fail

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -78,7 +77,6 @@ console.log('§4 blob sweep — the loose-file arm honours the reference set')
   check('the directory arm still consults referenced', dirArm.includes('referenced?.has(toolResultEntry.name)'))
   check('poison gone: the file arm consults referenced too', fileArm.includes('referenced?.has(toolResultEntry.name)'))
   check('the file-arm guard precedes the stat/unlink', fileArm.indexOf('referenced?.has(toolResultEntry.name)') < fileArm.indexOf('await fs.unlink(toolResultPath)'))
-
   const pattern = /tool-results[/\\]+([A-Za-z0-9_.-]+)/g
   const hit = [...'Full output saved to: C:\\home\\proj\\sess\\tool-results\\toolu_9.txt'.matchAll(pattern)]
   check('the pointer capture yields the dirent name with its extension', hit.length === 1 && hit[0]?.[1] === 'toolu_9.txt')
@@ -111,7 +109,6 @@ console.log('§6 max-retries — the registry row and the refusal tell the truth
   check('the registry row names the refusal', registry.includes('refuse without one request'))
   check('the zero-attempt throw names the variable, not exhaustion', retry.includes('is not a non-negative integer — no request was attempted'))
   check('a genuine exhaustion still says exhausted', retry.includes("'retry attempts exhausted'"))
-
   const neverRuns = (n: number): boolean => !(1 <= n + 1)
   check('NaN and -1 are the zero-attempt shapes; 0 and 10 run', neverRuns(Number.NaN) && neverRuns(-1) && !neverRuns(0) && !neverRuns(10))
 }
@@ -149,7 +146,6 @@ console.log('§9 settings parse — the shared cache object is never mutated')
 {
   const settings = read('src/utils/settings/settings.ts')
   check('the reader clones before the in-place passes', settings.includes('structuredClone(shared)'))
-
   const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
   const dir = mkdtempSync(join(tmpdir(), 'sup2-settings-'))
   try {
@@ -175,7 +171,6 @@ console.log('§10 lsp catalogue — the offered-configs path never probes an unm
   check('catalogueServerConfigs passes the lazy mode', cat.includes("probeCatalogueEntry(entry, cwd, cwdEntries, 'when-root-matched')"))
   const records = cat.slice(cat.indexOf('export function serverCatalogueRecords'))
   check("the records view keeps the full probe (its detected-not-offered rows are the point)", records.includes('probeCatalogueEntry(entry, cwd, cwdEntries)') && !records.includes("'when-root-matched'"))
-
   const { probeCatalogueEntry } = await import('../../src/services/lsp/serverCatalogue.ts')
   const entry = { id: 'sup2-probe', label: 'x', languages: [], binaries: ['sup2-definitely-absent-binary'], rootMarkers: ['sup2.marker.never'], extensionToLanguage: {} } as unknown as Parameters<typeof probeCatalogueEntry>[0]
   const lazy = probeCatalogueEntry(entry, process.cwd(), ['README.md'], 'when-root-matched')
@@ -186,7 +181,6 @@ console.log('§11 tree digest — argv, never a shell')
 {
   const vs = read('src/utils/verification/verificationState.ts')
   check('poison gone: no execSync command strings remain', !vs.includes('execSync('))
-
   check('the four calls are argv execFileSync', vs.includes('execFileSync(gitExe(), gitArgs(args, cwd), {') && ["['read-tree', 'HEAD']", "['add', '-A', '--', '.'", "['reset', '-q', '--', ...HARNESS_DIRS]", "['write-tree', '--missing-ok'"].every(a => vs.includes(a)))
   check('the async twin still spells argv too', vs.includes('const argv = await gitArgsAsync(args, cwd)') && vs.includes('execFile(gitExe(), argv, { windowsHide: true, cwd, env,'))
 }
@@ -214,7 +208,6 @@ console.log('§13 git-bash refusal — the hold releases before the words')
 {
   const wp = read('src/utils/windowsPaths.ts')
   check('the hold-release owner is imported', wp.includes("import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'"))
-
   const releases = [...wp.matchAll(/releaseLauncherAltHoldNow\(\)/g)].length
   check('the one refusal arm (the pin that points nowhere) releases the hold', releases === 1)
   const overrideArm = wp.slice(wp.indexOf('const override = process.env.MERCURY_GIT_BASH_PATH'), wp.indexOf('for (const candidate of gitBashCandidatePaths'))
@@ -267,7 +260,6 @@ console.log('§16 cleanup barrier — the aggregate waits for every sibling')
   const reg = read('src/utils/cleanupRegistry.ts')
   check('poison gone: no bare Promise.all aggregate', !reg.includes('await Promise.all('))
   check('allSettled-then-throw is the shape', reg.includes('Promise.allSettled') && reg.includes('if (firstRejection) throw'))
-
   const { registerCleanup, runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
   let slowDone = false
   const un1 = registerCleanup(async () => {
@@ -298,7 +290,6 @@ console.log('§17 writer drain — no silent batch loss, no latch, tracked timer
   check('poison gone: no async timer callback in the writer (the tree-wide census shape)', !/setTimeout\(async/.test(writer.replace(/^\s*\/\/.*$/gm, '')))
   check('the drain run is tracked and activeDrain clears in a finally', writer.includes('if (this.activeDrain === run) this.activeDrain = null'))
   check('the un-landed tail requeues at the FRONT with its resolvers', writer.includes('queue.unshift(...batch.slice(landed))'))
-
   check('the requeue records the failure and the drain rethrows so flush() callers see the truth', /queue\.unshift\(\.\.\.batch\.slice\(landed\)\)\s*\n\s*failures\.push\(\{ filePath, error: err \}\)/.test(writer) && writer.includes('if (failures.length === 1) throw failures[0]!.error'))
   check('the retry backs off (100ms base, 5s cap)', writer.includes('this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000'))
   check('a failure streak reports once to the error ring', writer.includes('if (this.drainFailureStreak === 0) logError(err)'))
@@ -336,7 +327,6 @@ console.log('§21 /config revert — targeted undo, never the mount snapshot')
   check('the revert merges the snapshot values onto CURRENT (lock re-read respected)', cfg.includes('saveGlobalConfig(current => {') && cfg.includes('const restored = { ...current }'))
   check('an untouched dialog reverts no global key at all', cfg.includes('while (undoRef.current.length > 0)'))
   check('an absent leaf deletes on revert', cfg.includes('value === undefined') && cfg.includes('delete restored[key]'))
-
   check('guardrails revert moves ONLY the leaf written by this visit', cfg.includes('guardrails: { mode: next }') && cfg.includes('configUndoLeaves(source, raw, partial, [], true)') && cfg.includes('updateSettingsForSource(undo.source, partial)') && !cfg.includes('guardrails: snapshots.user.guardrails'))
 }
 
@@ -449,7 +439,6 @@ console.log('§27 sync-output — the hatch gates emission, never the host verdi
   const profile = read('src/ink/session/terminalProfile.ts')
   check('the host-class row reads CAPABILITY', profile.includes('const sync = probe.syncOutput ?? syncOutputCapabilityNow()'))
   check('the /health synchronized-output row still reads EMISSION (armed truth)', profile.includes('const sync = probe.syncOutput ?? syncOutputSupportedNow()'))
-
   const { isSynchronizedOutputSupported, syncOutputSupportedNow, syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../../src/ink/session/capabilities.ts')
   delete process.env.TMUX
   process.env.MERCURY_NO_SYNC_OUTPUT = '1'
@@ -587,7 +576,6 @@ console.log('§40 hook lane — bash prepends only to a leading .sh script')
 {
   const ex = read('src/utils/hooks/commandRunner.ts')
   check('poison gone: no whole-command .sh match', !ex.includes("command.trim().match(/\\.sh(\\s|$|\")/)"))
-
   const LEADING_SH_SCRIPT = /^("[^"]*\.sh"|'[^']*\.sh'|\S+\.sh)(?:\s|$)/
   check('the leading token decides (bare or quoted)', ex.includes(`const firstToken = /${LEADING_SH_SCRIPT.source}/.exec(trimmed)`) && ex.includes("if (!firstToken || trimmed.startsWith('bash ')) return command"))
   check('a compound with a trailing script is left alone', !LEADING_SH_SCRIPT.test('npm run format && ./fix.sh'))
@@ -642,7 +630,6 @@ console.log('§45 /help shortcuts — the rows resolve through the real registry
   for (const action of ['app:commandPalette', 'history:search', 'app:fileOpen', 'app:contentSearch', 'command:sessions']) {
     check(`${action} asks the Global context`, tab.includes(`{ action: '${action}', context: 'Global',`) && !tab.includes(`{ action: '${action}', context: 'Chat',`))
   }
-
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const { parseBindings } = await import('../../src/keybindings/parser.ts')
   const { getBindingDisplayText } = await import('../../src/keybindings/resolver.ts')

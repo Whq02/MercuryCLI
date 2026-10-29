@@ -11,7 +11,6 @@ interface RunGitOptions {
   cwd?: string
   timeoutMs?: number
   maxBuffer?: number
-
   env?: NodeJS.ProcessEnv
 }
 
@@ -29,7 +28,6 @@ export function runGit(args: string[], opts: RunGitOptions = {}): GitResult {
     return { state: 'unavailable', detail: `${err.code ?? 'ERR'}: ${err.message}` }
   }
   if (r.signal) {
-
     return { state: 'timeout' }
   }
   if (typeof r.status === 'number' && r.status !== 0) {

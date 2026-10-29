@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -19,6 +18,7 @@ import {
 requireDist()
 const OUT = join(import.meta.dir, 'baselines')
 mkdirSync(OUT, { recursive: true })
+
 
 const SRC_TREE = execSync('git rev-parse HEAD:src', { encoding: 'utf8' }).trim()
 const DIRTY = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0
@@ -105,6 +105,7 @@ function write(name: string, data: Record<string, unknown>): void {
   console.log(`  wrote ${path}`)
 }
 
+
 console.log('── b01-plain-boot-idle (142×38, 14 s) ──')
 {
   const spawnedAt = Date.now()
@@ -122,7 +123,6 @@ console.log('── b01-plain-boot-idle (142×38, 14 s) ──')
     const entries = driveEntries(run)
     const { total, chunks } = decodeBytes(entries)
     const lastTs = chunks.length ? chunks[chunks.length - 1]!.ts : base
-
     const idleStart = lastTs - 4000
     const idle = chunks.filter(c => c.ts >= idleStart)
     const screens = grabScreens(run, 142, 38, [3000, 8000, -1])
@@ -145,6 +145,7 @@ console.log('── b01-plain-boot-idle (142×38, 14 s) ──')
     run.cleanup()
   }
 }
+
 
 console.log('── b02-input-echo (20 keystrokes @250 ms) ──')
 {
@@ -180,6 +181,7 @@ console.log('── b02-input-echo (20 keystrokes @250 ms) ──')
     run.cleanup()
   }
 }
+
 
 console.log('── b03-resize-churn (142×38 → 100×30 → 142×38) ──')
 {

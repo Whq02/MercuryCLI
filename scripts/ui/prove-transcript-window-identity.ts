@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawnSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -38,7 +37,6 @@ if (driver.kind !== 'posix-pty') {
   console.error('  dist/mercury.mjs missing — bun run build.ts first')
   failures++
 } else {
-
   const base = scenario('resume-2turn', 120, 40)
   const projects = getProjectDir(RUNTIME_CWD)
   mkdirSync(projects, { recursive: true })
@@ -58,7 +56,6 @@ if (driver.kind !== 'posix-pty') {
   const UP = '\x1b[A'
   const ESC = '\x1b'
   const sends = [
-
     { requireAwait: true, awaitText: TAIL_SENTINEL, awaitStableTicks: 3, mark: 'loaded', data: '' },
     { afterPrevTicks: 2, data: PAGE_UP },
     { afterPrevTicks: 2, data: PAGE_UP },
@@ -67,18 +64,15 @@ if (driver.kind !== 'posix-pty') {
     { afterPrevTicks: 2, data: PAGE_UP },
     { afterPrevTicks: 2, data: PAGE_UP },
     { afterPrevTicks: 4, mark: 'scrolled', data: '' },
-
     { afterPrevTicks: 2, data: CTRL_HOME },
     { afterPrevTicks: 4, mark: 'home', data: PAGE_DOWN },
     ...Array.from({ length: 23 }, () => ({ afterPrevTicks: 1, data: PAGE_DOWN })),
     { afterPrevTicks: 5, mark: 'paged', data: '' },
-
     { afterPrevTicks: 2, data: SHIFT_UP },
     { requireAwait: true, awaitText: 'navigate', awaitSettleTicks: 1, mark: 'cursor', data: UP },
     { afterPrevTicks: 2, data: UP },
     { afterPrevTicks: 2, data: UP },
     { afterPrevTicks: 3, mark: 'walked', data: ESC },
-
     { atTick: 140, mark: 'resized', data: '' },
   ]
   const cfg = {
@@ -101,7 +95,6 @@ if (driver.kind !== 'posix-pty') {
       MERCURY_FULLSCREEN: '1',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
       MERCURY_CONNECTOR_TRACE: trace,
-
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     },
   })
@@ -118,14 +111,12 @@ if (driver.kind !== 'posix-pty') {
   const final = text(payload.grid)
 
   console.log('\n— the screen —')
-
   const paneRowsOf = (rows: string[]): number =>
     rows.slice(2, 36).filter(r => {
       const inner = r.replace(/^[^│]*│/, '').replace(/│\s*$/, '')
       return /\S/.test(inner)
     }).length
   const paneRows = (label: string): number => paneRowsOf((marks.get(label) ?? '').split('\n'))
-
   for (const [label, frame] of marks) {
     const rows = frame.split('\n')
     const nameplated = rows.filter(r => /\] ❯ /.test(r))
@@ -135,14 +126,12 @@ if (driver.kind !== 'posix-pty') {
   check('the 1k tail was on screen at the loaded mark', (marks.get('loaded') ?? '').includes(TAIL_SENTINEL))
   check('six page-ups scrolled the tail off screen (the window left the tail)', marks.has('scrolled') && !(marks.get('scrolled') ?? '').includes(TAIL_SENTINEL))
   check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows`)
-
   const HEAD_ROW = '] ❯ load the compass baseline fixture'
   check('ctrl+home reached the head (the first prompt’s row on screen)', (marks.get('home') ?? '').includes(HEAD_ROW))
   check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
   check('the pages down left the head behind (the first prompt’s row is off screen; its words may ride the sticky header)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW))
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
-
   const finalRows = rowsOf(payload.grid)
   const caret = composerCaret(finalRows)
   check('the composer is on screen after the resize', caret !== null)
@@ -153,7 +142,6 @@ if (driver.kind !== 'posix-pty') {
   )
   const borders = inspect(finalRows, 100, /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/)
   check('every border closed at the new width (no broken edge, bleed or clip)', borders.length === 0, borders.map(b => `${b.kind}: ${b.detail}`).join(' · '))
-
   const frames: Array<[string, string]> = [...marks.entries(), ['final', final]]
   const doubled: string[] = []
   for (const [label, frame] of frames) {
@@ -182,7 +170,6 @@ if (driver.kind !== 'posix-pty') {
     renders = lines.filter(r => r.ev === 'list-render') as unknown as ListRender[]
     requests = lines.filter(r => r.ev === 'scroll-request') as unknown as ScrollRequest[]
   }
-
   const receipts = payload.sendReceipts ?? []
   const sendIndexOf = (label: string): number => sends.findIndex(x => x.mark === label)
   const homeAt = receipts[sendIndexOf('home')]?.ts
@@ -200,7 +187,6 @@ if (driver.kind !== 'posix-pty') {
     check(`the presses travelled (${travelled} rows over ${pageRequests.length - 1} gaps of ${step}; the clamp did not swallow them)`, travelled >= Math.floor(asked * 0.75), `${travelled} of ${asked}`)
   }
   check('the list rendered under the trace seam (renders recorded)', renders.length > 0, `${renders.length}`)
-
   console.log(`  renders: ${renders.map(r => `[${r.range[0]},${r.range[1]})/${r.messages}${r.scroll ? `@${r.scroll.top}${r.scroll.pending ? `+${r.scroll.pending}` : ''}${r.scroll.sticky ? 's' : ''}/${r.scroll.height}` : ''}`).join(' ')}`)
   const viewports = [...new Set(renders.map(r => r.scroll?.viewport).filter((v): v is number => typeof v === 'number' && v > 0))]
   console.log(`  viewport rows seen: ${viewports.join(', ') || '(none)'} — a page step is viewport − 2`)
@@ -212,7 +198,6 @@ if (driver.kind !== 'posix-pty') {
   check('the mounted window left BOTH ends during the run (the keyed-map path was exercised)', offHead > 0, `${offHead} of ${renders.length}`)
   const reachedHead = renders.filter(r => r.range[0] === 0 && r.range[1] < r.messages).length
   check('the window reached the head (ctrl+home re-windowed the list)', reachedHead > 0, `${reachedHead} of ${renders.length}`)
-
   check('the list saw a long transcript (≥ 300 painted rows)', renders.some(r => r.messages >= 300), `max ${Math.max(0, ...renders.map(r => r.messages))}`)
   check('the key cache never outran the rows', renders.every(r => r.keys === r.messages), renders.filter(r => r.keys !== r.messages).slice(0, 2).map(r => `${r.keys}/${r.messages}`).join(' '))
 
@@ -220,7 +205,6 @@ if (driver.kind !== 'posix-pty') {
   if (failures === 0) {
     rmSync(scratch, { recursive: true, force: true })
   } else {
-
     const keep = join(tmpdir(), 'mercury-window-identity-diagnosis')
     rmSync(keep, { recursive: true, force: true })
     mkdirSync(keep, { recursive: true })

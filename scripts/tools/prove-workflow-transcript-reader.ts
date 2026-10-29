@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { entryToRecord } from '../../src/fabric/entryCodec.js'
 import { ordinalOf } from '../../src/fabric/ordinal.js'
@@ -45,15 +44,12 @@ const bigPrompt = 'P'.repeat(PROMPT_CAP_CHARS + 500)
 const bigOutcome = 'O'.repeat(OUTCOME_CAP_CHARS + 500)
 const entries: unknown[] = [
   user(bigPrompt),
-
   asst('m1', [{ type: 'thinking', thinking: 'let me think about this', signature: 'sig' }], { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 7, cache_creation_input_tokens: 3 }),
   ...Array.from({ length: 20 }, (_, i) =>
     asst('m1', [{ type: 'tool_use', id: `t${i}`, name: 'Bash', input: { command: `echo ${i}` } }], { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 7, cache_creation_input_tokens: 3 }),
   ),
-
   user([{ type: 'tool_result', tool_use_id: 't19', content: 'ok nineteen', is_error: false }]),
   user([{ type: 'tool_result', tool_use_id: 't18', content: [{ type: 'text', text: 'boom' }], is_error: true }]),
-
   asst('m2', [{ type: 'thinking', thinking: '', signature: 'sig2' }], { input_tokens: 10, output_tokens: 5 }),
   asst('m2', [{ type: 'redacted_thinking', data: 'x' }], { input_tokens: 10, output_tokens: 5 }),
   asst('m2', [{ type: 'text', text: bigOutcome }], { input_tokens: 10, output_tokens: 5 }),
@@ -68,7 +64,6 @@ const encLine = (e: unknown): string =>
       source: { channel: 'interactive' },
     } as never),
   )
-
 writeFileSync(file, entries.map(encLine).join('\n') + '\n{"schemaVersion":1,"recordId":"torn', 'utf8')
 writeFileSync(join(dir, `agent-${agentId}.meta.json`), JSON.stringify({ agentType: 'workflow-subagent', description: 'proof agent' }), 'utf8')
 
@@ -107,7 +102,6 @@ check('meta sidecar read', meta?.agentType === 'workflow-subagent' && meta.descr
 
 section('a row persisted twice counts once')
 {
-
   const twinFile = agentTranscriptFile(dir, 'twin')
   const twinEntries: unknown[] = [
     user('run one command'),

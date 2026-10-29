@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -130,7 +129,6 @@ mkdirSync(join(scratch, 'crew'), { recursive: true })
 const HOUR = 3_600_000
 
 section('§1 — the shaper: voice, age, settled, bound')
-
 {
   const now = 1_700_000_000_000
   const rows = replay.buildCoordinatorReplay(
@@ -149,7 +147,6 @@ section('§1 — the shaper: voice, age, settled, bound')
   check('a turn inside the freshness window wears none', rows[2]?.age === undefined && rows[3]?.age === undefined, JSON.stringify([rows[2]?.age, rows[3]?.age]))
   check('the ask the harness settled is flagged history', rows[0]?.settled === true, JSON.stringify(rows[0]))
   check('…and an ask the coordinator answered is NOT', rows[2]?.settled === undefined, JSON.stringify(rows[2]))
-
   const edge = (deltaMs: number): string | undefined =>
     replay.buildCoordinatorReplay([{ id: 'op:e', role: 'operator', text: 'x', ts: now - deltaMs }], now)[0]?.age
   check('inside the floor: no age', edge(replay.REPLAY_AGE_FLOOR_MS - 1_000) === undefined)
@@ -157,7 +154,6 @@ section('§1 — the shaper: voice, age, settled, bound')
   const many = Array.from({ length: 40 }, (_, i) => ({ id: `op:${i}`, role: 'operator' as const, text: `m${i}`, ts: now }))
   check('the tail stays bounded', replay.buildCoordinatorReplay(many, now).length === replay.REPLAY_TAIL)
   check('…and it is the NEWEST turns', replay.buildCoordinatorReplay(many, now)[replay.REPLAY_TAIL - 1]?.text === 'm39')
-
   const folded = [
     { id: 'co:sum', role: 'coordinator' as const, text: 'SUMMARY: the folded turns — three launches, one standing ask', ts: now, summary: true as const },
     ...Array.from({ length: 13 }, (_, i) => ({ id: `op:s${i}`, role: 'operator' as const, text: `after ${i}`, ts: now })),
@@ -169,7 +165,6 @@ section('§1 — the shaper: voice, age, settled, bound')
 }
 
 section('§2 — the round trip: a notice is STORED marked, a reply is not')
-
 {
   const failed = await lane.runOperatorMessageTurn(
     'launch one on the parser',
@@ -202,10 +197,8 @@ section('§2 — the round trip: a notice is STORED marked, a reply is not')
 }
 
 section('§3 — the next turn’s tail carries all three facts')
-
 let capturedTail: NonNullable<import('../../src/services/concourse/coordinatorLane.ts').CoordinatorTurnInput['conversation']> = []
 {
-
   await conv.appendCoordinatorConversation({
     id: 'op:stale-ask',
     role: 'operator',
@@ -235,7 +228,6 @@ let capturedTail: NonNullable<import('../../src/services/concourse/coordinatorLa
 }
 
 section('§4 — the wire: a notice is a bracketed note, never an assistant turn')
-
 {
   const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
   const before = captured.length
@@ -255,7 +247,6 @@ section('§4 — the wire: a notice is a bracketed note, never an assistant turn
   const wire = JSON.stringify(body.input ?? body)
   check('the notice rides the history as a bracketed harness note', wire.includes('[harness'), wire.slice(0, 300))
   check('…carrying the refusal text', wire.includes('Please run /logins'), wire.slice(0, 300))
-
   const items = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : []
   const assistantText = items
     .filter(i => i.role === 'assistant')

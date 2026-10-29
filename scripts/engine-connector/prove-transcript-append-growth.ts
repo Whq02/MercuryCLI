@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -64,7 +63,6 @@ async function appendPass(label: string, turns: number): Promise<{ ms: number; o
   await conn.attach()
   const before = conn.rawRecords.length
   const first = conn.rawRecords[0]
-
   conn.factsBusy = false
   conn.recomputeLive()
   const cadences = conn.feedCadencesForProofs()
@@ -126,7 +124,6 @@ check(
   check('§2 detach stops every heartbeat', gone.transcript === 0 && gone.facts === 0 && gone.asks === 0 && gone.tail === 0 && gone.progress === 0, JSON.stringify(gone))
 }
 {
-
   const home = mkdtempSync(join(tmpdir(), 'append-growth-absent-'))
   const sessionId = '12345678-1234-4123-8123-123456789abf'
   const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w4', title: 'absent', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
@@ -142,7 +139,6 @@ check(
   conn.detach()
 }
 {
-
   const home = join(mkdtempSync(join(tmpdir(), 'append-growth-nodir-')), 'missing')
   const sessionId = '12345678-1234-4123-8123-123456789abe'
   const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w3', title: 'nodir', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam

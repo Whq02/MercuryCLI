@@ -1,3 +1,4 @@
+
 import { createHash } from 'node:crypto'
 import type { RunSnapshot } from '../run/runKernel.js'
 import type { SnapshotRead } from '../projectIntel/contracts.js'
@@ -22,9 +23,7 @@ export interface MissionInputs {
   memoryRefs: MemoryRef[]
   executions: MissionExecutionRef[]
   evidenceDigest: string | null
-
   model: string | null
-
   card?: MissionCardView | null
   now: number
 }
@@ -35,9 +34,7 @@ export function composeMissionView(inputs: MissionInputs): MissionView | null {
     inputs.runObjective.trim() !== '' &&
     inputs.runLifecycle !== null &&
     inputs.runLifecycle !== 'idle'
-
   const armedCard = inputs.card && inputs.card.state === 'armed' ? inputs.card : null
-
   if (!hasRunGoal && armedCard === null) return null
 
   const goal: MissionView['goal'] = hasRunGoal
@@ -110,7 +107,6 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let snapshot: SnapshotRead | null = null
   try {
-
     const { getProjectSnapshotAsync } = await import('../projectIntel/snapshot.js')
     snapshot = await getProjectSnapshotAsync(workspace, { maxStaleMs: 30_000 })
   } catch {

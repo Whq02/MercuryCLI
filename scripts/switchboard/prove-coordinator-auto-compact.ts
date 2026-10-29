@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -57,7 +56,6 @@ const seed = async (dir: string, n: number): Promise<void> => {
 }
 
 section('§1 — quiet world: below the ceiling and the cap, nothing folds')
-
 {
   const dir = join(scratch, 'q')
   mkdirSync(dir, { recursive: true })
@@ -77,7 +75,6 @@ section('§1 — quiet world: below the ceiling and the cap, nothing folds')
 }
 
 section('§2 — the context-threshold arm: the gauge over the ceiling folds, naming the window')
-
 {
   const dir = join(scratch, 'ctx')
   mkdirSync(dir, { recursive: true })
@@ -99,7 +96,6 @@ section('§2 — the context-threshold arm: the gauge over the ceiling folds, na
 }
 
 section('§3 — the store-cap arm: near CONVERSATION_CAP the fold pre-empts the silent eviction')
-
 {
   const dir = join(scratch, 'cap')
   mkdirSync(dir, { recursive: true })
@@ -112,7 +108,6 @@ section('§3 — the store-cap arm: near CONVERSATION_CAP the fold pre-empts the
 }
 
 section('§4 — the kill switch gates both arms (the one law with the main chat)')
-
 {
   const dir = join(scratch, 'kill')
   mkdirSync(dir, { recursive: true })
@@ -132,9 +127,7 @@ section('§4 — the kill switch gates both arms (the one law with the main chat
 }
 
 section('§5 — the door folds FIRST, and the turn reads the folded tail')
-
 {
-
   const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, mode: 'agent-assisted' as const, assistModel: MODEL } }))
   check('the config took the assisted mode', getGlobalConfig().concourseCoordinator?.mode === 'agent-assisted')

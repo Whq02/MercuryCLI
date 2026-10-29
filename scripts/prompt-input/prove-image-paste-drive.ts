@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -16,7 +15,6 @@ if (!existsSync(BIN)) {
 
 const roadArg = process.argv.find(a => a.startsWith('--road='))
 if (roadArg === undefined) {
-
   let exit = 0
   for (const road of ['native', 'javascript', 'obligation']) {
     const child = spawnSync(process.execPath, ['run', import.meta.path, `--road=${road}`], { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
@@ -225,7 +223,6 @@ if (ROAD === 'obligation') {
 }
 
 console.log(`\n── ${TAG} ──`)
-
 const clipboard = join(SCRATCH, 'clipboard.png')
 const svg = Buffer.from(
   `<svg width="9000" height="3000" xmlns="http://www.w3.org/2000/svg"><rect width="9000" height="3000" fill="#f4f4f0"/>` +
@@ -265,7 +262,6 @@ const rowsOf = (g: { c: string }[][]): string[] => g.map(r => r.map(c => c.c || 
 
 const out = join(SCRATCH, 'grid.json')
 const cfgPath = join(SCRATCH, 'cfg.json')
-
 const sends = [
   { awaitText: 'Type a prompt', atTick: 90, minTick: 15, data: CTRL_V },
   { afterPrevTicks: 10, atTick: 100, data: '', mark: 't10' },

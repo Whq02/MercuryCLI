@@ -1,3 +1,4 @@
+
 import { wordStartAfter, wordStartBefore } from '../utils/intl.js'
 import { useCallback, useRef, useState } from 'react'
 import { useInput } from '../ink.js'
@@ -107,7 +108,6 @@ export function useSearchInput({
         e.ctrl && (lower === 'k' || lower === 'u' || lower === 'w')
       const isMetaBackspaceKill = e.meta && key === 'backspace'
       const isYankKey = (e.ctrl && lower === 'y') || (e.meta && lower === 'y')
-
       if (!isKillKey && !isMetaBackspaceKill) killAccumulatingRef.current = false
       if (!isYankKey) yankRef.current = null
 
@@ -137,19 +137,16 @@ export function useSearchInput({
       }
       if ((key === 'backspace' || (e.ctrl && lower === 'h')) && text === '') {
         e.stopImmediatePropagation()
-
         if (backspaceExitsOnEmpty) cancelOrExit()
         return
       }
       if (e.ctrl && lower === 'd' && text === '') {
-
         e.stopImmediatePropagation()
         cancelOrExit()
         return
       }
       if (e.ctrl && (lower === 'g' || lower === 'c')) {
         e.stopImmediatePropagation()
-
         onCancel?.()
         return
       }
@@ -204,7 +201,6 @@ export function useSearchInput({
         commit(text.slice(at), 0)
         return
       }
-
       if ((e.ctrl && lower === 'w') || ((e.ctrl || e.meta) && key === 'backspace')) {
         e.stopImmediatePropagation()
         const start = prevWordStart(text, at)
@@ -241,7 +237,6 @@ export function useSearchInput({
         e.stopImmediatePropagation()
         return
       }
-
       if (e.ctrl || e.meta) {
         e.stopImmediatePropagation()
         return
@@ -250,7 +245,6 @@ export function useSearchInput({
         e.stopImmediatePropagation()
         return
       }
-
       if (key.length >= 1 && key >= ' ') {
         e.stopImmediatePropagation()
         commit(text.slice(0, at) + key + text.slice(at), at + key.length)
@@ -262,7 +256,6 @@ export function useSearchInput({
   useInput(
     (input, key, event) => {
       const e = new KeyboardEvent(event.keypress)
-
       if (e.key === '' && input.length > 0 && !key.ctrl && !key.meta && !key.escape) {
         handleKeyDown(new KeyboardEvent({ ...event.keypress, name: undefined, sequence: input }))
         return

@@ -1,3 +1,4 @@
+
 import { mock } from 'bun:test'
 
 type PublishFn = (
@@ -11,11 +12,8 @@ const realExports = { ...realNamespace }
 const realPublish = realNamespace.durableAtomicPublish as PublishFn
 
 interface PublishHold {
-
   readonly entered: Promise<string>
-
   readonly settled: Promise<void>
-
   release(): void
 }
 

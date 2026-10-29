@@ -1,3 +1,4 @@
+
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { whichSync } from '../../utils/which.js'
@@ -16,12 +17,9 @@ const CS_EXTENSION_TO_LANGUAGE: Record<string, string> = {
 
 interface UnityCsharpProbe {
   available: boolean
-
   server?: 'csharp-ls' | 'omnisharp'
   path?: string
-
   args?: string[]
-
   reason?: string
 }
 

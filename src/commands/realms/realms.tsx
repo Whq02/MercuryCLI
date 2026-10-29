@@ -7,6 +7,7 @@ import {
 } from '../../utils/realmRegistry.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
+
 function Report({ message, onDone }: { message: string; onDone: (msg?: string) => void }): React.ReactNode {
   React.useEffect(() => {
     onDone(message)
@@ -33,7 +34,6 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     const [verb = '', ...rest] = argv.split(/\s+/)
     switch (verb.toLowerCase()) {
       case 'add': {
-
         const path = rest.join(' ')
         if (!path) return <Report message="usage: /realms add <path>" onDone={onDone} />
         const res = addRealm(path)
@@ -47,7 +47,6 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
         return <Report message={res.ok ? res.message : res.reason} onDone={onDone} />
       }
       case 'clone': {
-
         const [source] = rest
         const target = rest.length > 1 ? rest.slice(1).join(' ') : undefined
         if (!source) return <Report message="usage: /realms clone <github-url|owner/repo> [path]" onDone={onDone} />

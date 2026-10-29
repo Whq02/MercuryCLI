@@ -101,7 +101,6 @@ export function saveGlobalConfig(
   if (isReadOnlyDiagnostic()) return
   if (process.env.NODE_ENV === 'test') {
     const config = updater(TEST_GLOBAL_CONFIG_FOR_TESTING)
-
     if (config === TEST_GLOBAL_CONFIG_FOR_TESTING) {
       return
     }
@@ -115,9 +114,7 @@ export function saveGlobalConfig(
       getGlobalMercuryFile(),
       createDefaultGlobalConfig,
       current => {
-
         const config = updater(current)
-
         if (config === current) {
           return current
         }
@@ -125,12 +122,10 @@ export function saveGlobalConfig(
         return written
       },
     )
-
     if (didWrite && written) {
       writeThroughGlobalConfigCache(written)
     }
   } catch (error) {
-
     if (error instanceof ConfigReadError) {
       logForDebugging(
         `saveGlobalConfig: refusing the write — ${error.message}`,
@@ -138,7 +133,6 @@ export function saveGlobalConfig(
       )
       return
     }
-
     if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
       noteConfigContentionRefusal('saveGlobalConfig')
       return
@@ -147,7 +141,6 @@ export function saveGlobalConfig(
       level: 'error',
     })
     noteConfigLocklessFallback()
-
     let currentConfig: GlobalConfig
     try {
       currentConfig = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
@@ -169,7 +162,6 @@ export function saveGlobalConfig(
       return
     }
     const config = updater(foldPendingUpdaters(currentConfig))
-
     if (config === currentConfig) {
       return
     }
@@ -395,7 +387,6 @@ export function getGlobalConfig(): GlobalConfig {
     startGlobalConfigFreshnessWatcher()
     return config
   } catch {
-
     return getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
   }
 }
@@ -407,7 +398,6 @@ export function saveConfig<A extends object>(
 ): void {
   const dir = dirname(file)
   const fs = getFsImplementation()
-
   fs.mkdirSync(dir)
 
   const filteredConfig = pickBy(
@@ -415,7 +405,6 @@ export function saveConfig<A extends object>(
     (value: A[keyof A], key: string) =>
       jsonStringify(value) !== jsonStringify(defaultConfig[key as keyof A]),
   )
-
   writeFileAndFlushAtomically(
     file,
     jsonStringify(filteredConfig, null, 2),
@@ -448,7 +437,6 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
         break
       } catch (err) {
         if ((err as NodeJS.ErrnoException | null)?.code !== 'ELOCKED') {
-
           lastContention = undefined
           break
         }
@@ -520,14 +508,11 @@ export function saveConfigWithLock<A extends object>(
     const takeLock = (): (() => void) =>
       lockfile.lockSync(file, {
         lockfilePath: lockFilePath,
-
         realpath: false,
         onCompromised: (err: Error) => {
-
           logForDebugging(`Config lock compromised: ${err}`, { level: 'error' })
         },
       })
-
     release = (() => {
       let lastContention: unknown
       for (let attempt = 0; attempt < 12; attempt++) {
@@ -601,7 +586,6 @@ export function isConfigReadingAllowed(): boolean {
 
 export function enableConfigs(): void {
   if (configReadingAllowed) {
-
     return
   }
 
@@ -609,7 +593,6 @@ export function enableConfigs(): void {
   logForDiagnosticsNoPII('info', 'enable_configs_started')
 
   configReadingAllowed = true
-
   getConfig(
     getGlobalMercuryFile(),
     createDefaultGlobalConfig,

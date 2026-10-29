@@ -1,9 +1,9 @@
+
 import { getGraphemeSegmenter } from '../../utils/intl.js'
 import { displayWidth } from '../mercury-ui/glyphs.js'
 
 export interface LineDraft {
   text: string
-
   caret: number
 }
 
@@ -125,7 +125,6 @@ interface DraftWindow {
   windowRows: number
   hiddenAbove: number
   hiddenBelow: number
-
   bandRows: number
 }
 export function draftWindow(d: LineDraft, bandBudget: number): DraftWindow {
@@ -166,6 +165,7 @@ export function caretVerticalOp(
   }
 }
 
+
 type DraftEditKind = 'type' | 'delete' | 'paste' | 'clear'
 
 interface DraftUndo {
@@ -193,15 +193,10 @@ export function undoDraft(u: DraftUndo): LineDraft | null {
 }
 
 interface CaretLens {
-
   before: string
-
   at: string
-
   after: string
-
   clippedLeft: boolean
-
   clippedRight: boolean
 }
 
@@ -225,7 +220,6 @@ export function caretLens(d: LineDraft, width: number): CaretLens {
     beforeWidth += w
     beforeStart -= 1
   }
-
   const afterBudget = budget - beforeWidth
   let afterEnd = atEnd ? at : at + 1
   let afterWidth = 0

@@ -15,7 +15,6 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
 
 const OWNER_PIPE_STDIO_INDEX = 3
-
 const ownerPipeEnds = new Set<Socket>()
 
 function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boolean {
@@ -123,7 +122,6 @@ function reapDaemonOnSessionExit(pid: number): void {
   if (reapedPids.has(pid)) return
   reapedPids.add(pid)
   let gracefulAsked = false
-
   if (process.platform === 'win32') {
     registerCleanup(async () => {
       if (!daemonAlive(pid)) return
@@ -142,7 +140,6 @@ function reapDaemonOnSessionExit(pid: number): void {
     })
     if (verdict === 'already-down') return
     try {
-
       process.kill(pid, 'SIGTERM')
     } catch {
     }
@@ -159,7 +156,6 @@ export function adoptOwnedDaemonPid(pid: number): void {
 let ownedSpawnLabelThisProcess: string | null = null
 
 let envKeptAuthAtSpawn = false
-
 let freshSigninRestartAsked = false
 
 export function __resetOwnedDaemonFreshSigninForTest(opts?: {
@@ -172,7 +168,6 @@ export function __resetOwnedDaemonFreshSigninForTest(opts?: {
 }
 
 export async function restartOwnedDaemonForFreshSignin(opts?: {
-
   rpc?: (req: { op: 'restart-when-idle'; proto: number; by: string }, o: { timeoutMs: number }) => Promise<unknown>
 }): Promise<'asked' | 'not-applicable'> {
   if (!envKeptAuthAtSpawn || freshSigninRestartAsked) return 'not-applicable'
@@ -198,7 +193,6 @@ export async function restartOwnedDaemonForFreshSignin(opts?: {
 }
 
 function pokeDaemonSignIns(opts?: {
-
   rpc?: (req: { op: 'signIns'; refresh: true }, o: { timeoutMs: number }) => Promise<unknown>
 }): Promise<void> {
   const rpc =
@@ -223,6 +217,7 @@ export function armDaemonSignInPoke(opts?: Parameters<typeof pokeDaemonSignIns>[
   })
 }
 
+
 export function spawnOwnedDaemon(
   projectDir: string,
   opts?: { label?: string; extraEnv?: Record<string, string | undefined>; persist?: boolean; script?: string; node?: string; ownerPipe?: boolean },
@@ -234,7 +229,6 @@ export function spawnOwnedDaemon(
     logForDebugging(`[${label}] spawnOwnedDaemon: no process.argv[1]; cannot spawn daemon`)
     return undefined
   }
-
   const now = Date.now()
   const history = spawnHistory.get(label)
   const verdict = decideOwnedSpawn(history, now)
@@ -248,36 +242,29 @@ export function spawnOwnedDaemon(
   }
   spawnHistory.set(label, { lastAt: now, count: (history?.count ?? 0) + 1 })
   try {
-
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair(OWNER_PID_ENV, String(process.pid)) }
-
     const pinnedHome = process.env.MERCURY_CONFIG_DIR
     const homeStamped = !pinnedHome || canonicalHomeSpelling(pinnedHome) !== getMercuryHome()
     env.MERCURY_CONFIG_DIR = getMercuryHome()
-
     const storedTokenAtSpawn = hasStoredOAuthToken()
     if (storedTokenAtSpawn) {
       for (const k of STORED_TOKEN_SCRUB_VARS) {
         delete env[k]
       }
     }
-
     envKeptAuthAtSpawn =
       !storedTokenAtSpawn && STORED_TOKEN_SCRUB_VARS.some(k => (env[k] ?? '').trim() !== '')
     for (const [k, v] of Object.entries(opts?.extraEnv ?? {})) {
       if (v === undefined) delete env[k]
       else env[k] = v
     }
-
     let outFd: number | 'ignore' = 'ignore'
     try {
       const logDir = daemonDir()
       mkdirSync(logDir, { recursive: true })
       const logPath = join(logDir, 'daemon.log')
-
       try {
         if (statSync(logPath).size > 5 * 1024 * 1024) {
-
           renameWithWin32RetrySync(logPath, `${logPath}.1`)
         }
       } catch {
@@ -286,18 +273,13 @@ export function spawnOwnedDaemon(
     } catch {
       outFd = 'ignore'
     }
-
     const ownerPipe = process.platform !== 'win32' && opts?.ownerPipe !== false
     if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
-
     if (homeStamped) stampSpawnReceipt(env, ['MERCURY_CONFIG_DIR'])
     stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])
-
     const child = spawn(node, [script, 'daemon', 'run', projectDir], {
-
       cwd: projectDir,
       detached: true,
-
       windowsHide: true,
       stdio: ownerPipe ? ['ignore', outFd, outFd, 'pipe'] : ['ignore', outFd, outFd],
       env,
@@ -311,13 +293,11 @@ export function spawnOwnedDaemon(
       pipeEnd.once('close', () => ownerPipeEnds.delete(pipeEnd))
     }
     if (typeof outFd === 'number') {
-
       try {
         closeSync(outFd)
       } catch {
       }
     }
-
     child.on('error', e => logForDebugging(`[${label}] spawnOwnedDaemon: child error (ignored): ${e}`))
     child.unref()
     logForDebugging(`[${label}] spawnOwnedDaemon: spawned detached daemon (pid ${child.pid}) for ${projectDir}`)

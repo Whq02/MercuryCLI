@@ -10,7 +10,6 @@ type GatewayProbeVerdict =
 
 interface GatewayProbeRecord {
   verdict: GatewayProbeVerdict
-
   evidence: string
   status: number | null
   probedAt: string
@@ -23,8 +22,8 @@ interface ProbeStoreFile {
 
 const STORE_FILE = 'tool-deferral-probe.json'
 const REPROBE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
-
 export const PROBE_BETA_HEADER = 'advanced-tool-use-2025-11-20'
+
 
 let cache: { path: string; file: ProbeStoreFile } | null = null
 
@@ -80,6 +79,7 @@ export function _resetGatewayProbeStoreForTesting(): void {
   cache = null
 }
 
+
 export function gatewayProbeBody(model: string): Record<string, unknown> {
   return {
     model,
@@ -121,6 +121,7 @@ export function classifyGatewayProbe(answer: GatewayProbeAnswer): GatewayProbeCl
   if (status === 401 || status === 403) return { kind: 'indeterminate', reason: 'auth-refused', evidence }
   return { kind: 'indeterminate', reason: 'other-status', evidence }
 }
+
 
 export function gatewayProbePolicyAllows(env: Record<string, string | undefined> = process.env): boolean {
   if (flagEnv('MERCURY_TOOL_DEFER_PROBE') !== '1') return false

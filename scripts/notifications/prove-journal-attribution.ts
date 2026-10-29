@@ -30,7 +30,6 @@ console.log('§1 D3 — the receipt journal folds foreign rows exactly once')
   const receipts = await import('../../src/services/concourse/coordinatorReceipts.ts')
   const activity = await import('../../src/services/crew/activity.ts')
   activity._resetActivityFeedForTesting()
-
   const journalPath = join(crewDir, 'coordinator-receipt-journal.json')
   writeFileSync(
     journalPath,
@@ -86,7 +85,6 @@ console.log('§1 D3 — the receipt journal folds foreign rows exactly once')
     [{ verb: 'attention.raise', objectRef: 'sg7:journal', outcome: 'applied', actorAgentId: 'seat-x' }],
     { crewDir },
   )
-
   let after = { rows: [] } as { rows: Array<{ pid: number; payload: { kind: string } }> }
   for (const deadline = Date.now() + 3000; ; ) {
     after = JSON.parse(readFileSync(journalPath, 'utf8')) as typeof after

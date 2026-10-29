@@ -1,3 +1,4 @@
+
 import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
@@ -33,12 +34,10 @@ interface ClockState {
   initialized: boolean
   decision: Decision | null
   ineligible: string | null
-
   sessionsDir: string
   cls: CacheClockClass
   startedIso: string
   escalatedAtIso: string | null
-
   lastGapBasis: number | null
   requests: number
   gapsOver5m: number
@@ -202,7 +201,6 @@ function flushRollup(state: ClockState): void {
     lastRollupFailure = null
     lastRollupOkAt = Date.now()
   } catch (error) {
-
     rollupFailureStreak++
     lastRollupFailure = { at: Date.now(), message: String(error) }
     logForDebugging(
@@ -241,7 +239,6 @@ function ensureLatch(eligible: boolean, ineligible: string | null): ClockState {
     reapOldRollups(clock.sessionsDir)
     if (!rollupTeardownRegistered) {
       rollupTeardownRegistered = true
-
       registerCleanup(async () => {
         flushCacheClockNow()
         if (rollupFailureStreak > 0) {
@@ -335,7 +332,6 @@ export function cacheClockObserve(args: {
       base.costUnits + args.uncachedInputTokens * CACHE_COST.uncached
 
     state.observesSinceFlush++
-
     if (state.requests === 3 || state.observesSinceFlush >= ROLLUP_FLUSH_EVERY) {
       state.observesSinceFlush = 0
       flushRollup(state)

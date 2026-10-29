@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { readFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -179,7 +178,6 @@ section('§1b THE FREEZE — the array and every mark byte-identical across cons
   const JOINER_PLAIN = fixtureTool('Later')
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     clearToolRosterLatches()
-
     const convo = fresh()
     const first = await planFor(model, convo, { latchKey: 'proof' })
     const firstNames = first.roster.map(t => t.name).join(',')
@@ -237,11 +235,9 @@ section('§2 ADMISSION IS INERT ON THE WIRE — N distinct admissions ⇒ zero p
     check(`${route}: the roster never shrank`, monotone)
     check(`${route}: each request keeps its earlier order and adds only admitted definitions`, whole)
     check(`${route}: ${TEXT_APPEND.has(route) ? 'each admission appends exactly one declaration at the end of the messages, in admission order' : 'no declaration rides the messages'}`, declaredInOrder)
-
     const repeated = [...messages, ...admission(`toolu_${route}_rep`, ['WebFetch'])]
     const planRep = await planFor(model, repeated)
     check(`${route}: re-admitting an admitted tool changes nothing`, (await toolsTermDigest(planRep.roster, model)) === digest)
-
     const boundary = {
       type: 'system',
       subtype: 'compact_boundary',
@@ -284,7 +280,6 @@ section('§3 PENDING-SERVER HONESTY — a connecting server keeps ToolSearch, on
 section('§4 TYPED REFUSALS — the discovery path is named, the economy never refuses a real call')
 {
   const messages = fresh()
-
   const plan = await planFor(ROUTE_MODELS.anthropic!, messages)
   const hints = { deferredUnadmitted: plan.isDeferredUnadmitted }
   const textPlan = await planFor(OLDER_GPT, messages)
@@ -307,7 +302,6 @@ section('§4 TYPED REFUSALS — the discovery path is named, the economy never r
   check('once admitted, a schema miss is an ordinary schema refusal (no admission road named)', !admittedMiss.ok && !admittedMiss.refusal.reason.includes('select:WebFetch'))
   const nonDeferredMiss = gateToolCall(POOL as never, { id: 'c5', name: 'Read', argumentsRaw: '{}', malformed: false }, hints)
   check('a non-deferred tool never names the road', !nonDeferredMiss.ok && !nonDeferredMiss.refusal.reason.includes('select:'))
-
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     process.env.MERCURY_MODEL = model
     const hint = buildSchemaNotSentHint(DEFERRED_BUILTINS[0]!, messages, POOL as never)
@@ -372,7 +366,6 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
   check('streamCore: the beta header and defer_loading ride the block form only', /useToolSearch && blockForm \? getToolSearchBetaHeader\(\) : null/.test(core) && /const willDefer = \(t: Tool\) => useToolSearch && blockForm && deferredToolNames\.has\(t\.name\)/.test(core))
   check('streamCore: the text form renders admission records as text', /else if \(!blockForm\) \{[\s\S]*renderAdmissionRecordsAsText\(messagesForAPI\)/.test(core))
   check('streamCore: no minted tool head exists at the request seam', requestHeadIsPlain('anthropic', core) && FORBIDDEN_HEAD_WORDS.every(word => !core.includes(word)))
-
   const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')
   const compatLanes = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'local']
   for (const route of compatLanes) {
