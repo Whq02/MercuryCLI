@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -96,6 +96,20 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
 
   const pDev = gather(join(import.meta.dir, '../../dist/mercury.mjs'), join(SCRATCH, 'no-versions'))
   check('a confirmed checkout resolves DEVELOPMENT (IP-04)', pDev.kind === 'development', pDev.kind)
+
+  const deployed = join(SCRATCH, 'deployed', 'runtime', 'builds', 'tree-bundle')
+  mkdirSync(deployed, { recursive: true })
+  writeFileSync(join(deployed, 'mercury.mjs'), '')
+  writeFileSync(join(deployed, 'manifest.json'), '{}\n')
+  writeFileSync(join(deployed, 'runtime-manifest.json'), JSON.stringify({ schema: 1, sourceSha: 'a'.repeat(40), sourceTree: 'b'.repeat(40), dirty: false, bundleSha256: 'c'.repeat(64), deployedAt: '2026-10-29T00:00:00Z' }))
+  const current = join(SCRATCH, 'deployed', 'runtime', 'current')
+  symlinkSync(deployed, current, 'junction')
+  for (const entry of [join(deployed, 'mercury.mjs'), join(current, 'mercury.mjs')]) {
+    const pDeployed = gather(entry, join(SCRATCH, 'deployed', 'versions'))
+    check('the deployed build resolves DEVELOPMENT with source-build ownership', pDeployed.kind === 'development' && pDeployed.updateOwner === 'source-build', JSON.stringify(pDeployed))
+    check('the deployed build binds to the real entry and names runtime-manifest.json', pDeployed.activeRoot === deployed && pDeployed.invokedPath === join(deployed, 'mercury.mjs') && pDeployed.evidence.some(e => e.includes('runtime-manifest.json')), JSON.stringify(pDeployed))
+    check('the deployed build gets the deploy command, not the checkout rebuild command', provenanceGuidance(pDeployed) === 'redeploy with scripts/ops/deploy-runtime.sh', provenanceGuidance(pDeployed))
+  }
 
   const bare = join(SCRATCH, 'bare')
   mkdirSync(bare, { recursive: true })

@@ -14,7 +14,7 @@ export type InstallProvenanceKind =
 export const HOMEBREW_UPGRADE_COMMAND = 'brew upgrade Whq02/mercury/mercury'
 export const NPM_UPDATE_COMMAND = 'npm update -g mercury-tech-cli'
 export const NPM_WRAPPER_ROAD_WORDS = "installed through npm's wrapper, updated through Mercury's own channel"
-
+const DEPLOYED_SOURCE_EVIDENCE = 'runtime-manifest.json beside the entry — a deployed source build'
 export interface InstallProvenanceV1 {
   v: 1
   kind: InstallProvenanceKind
@@ -39,6 +39,7 @@ export interface InstallProbeFacts {
   homebrewKeg: string | null
   npmPackageDir: string | null
   entryManifestPresent: boolean
+  entryRuntimeManifestPresent: boolean
   entryLaunchersPresent: boolean
   devMarkersPresent: boolean
   managedCoResident: { root: string; current: string | null } | null
@@ -120,13 +121,13 @@ export function classifyInstallProvenance(f: InstallProbeFacts): InstallProvenan
     }
   }
 
-  if (f.devMarkersPresent) {
+  if (f.devMarkersPresent || f.entryRuntimeManifestPresent) {
     return {
       ...base,
       kind: 'development',
       activeRoot: dirname(f.invokedPath),
       updateOwner: 'source-build',
-      evidence: ['build.ts + src/ + .git above the entry — a confirmed source checkout (IP-04)'],
+      evidence: [f.devMarkersPresent ? 'build.ts + src/ + .git above the entry — a confirmed source checkout (IP-04)' : DEPLOYED_SOURCE_EVIDENCE],
       disagreements: [],
     }
   }
@@ -258,6 +259,7 @@ export function gatherInstallProbeFacts(overrides?: {
       : false
 
   const entryManifestPresent = entryDir ? existsSync(join(entryDir, 'manifest.json')) : false
+  const entryRuntimeManifestPresent = entryDir ? existsSync(join(entryDir, 'runtime-manifest.json')) : false
   const entryLaunchersPresent = entryDir
     ? ['mercury', 'mercury.cmd', 'mercury.ps1', 'mercury.sh'].some(l => existsSync(join(entryDir, l)))
     : false
@@ -295,6 +297,7 @@ export function gatherInstallProbeFacts(overrides?: {
     homebrewKeg,
     npmPackageDir,
     entryManifestPresent,
+    entryRuntimeManifestPresent,
     entryLaunchersPresent,
     devMarkersPresent,
     managedCoResident,
@@ -333,7 +336,9 @@ export function provenanceGuidance(p: InstallProvenanceV1): string {
     case 'npm':
       return `update with \`mercury update\` (it runs \`${NPM_UPDATE_COMMAND}\` after asking; \`--yes\` skips the question; check: \`mercury update --check\`)`
     case 'development':
-      return 'rebuild with `git pull && bun run build.ts`'
+      return p.evidence.includes(DEPLOYED_SOURCE_EVIDENCE)
+        ? 'redeploy with scripts/ops/deploy-runtime.sh'
+        : 'rebuild with `git pull && bun run build.ts`'
     case 'extracted-release':
       return 'update by extracting a newer release archive in place, or adopt the managed layout with `mercury install`'
     case 'unknown':
