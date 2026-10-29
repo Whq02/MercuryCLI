@@ -66,6 +66,7 @@ const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDom
 const { closeSettingsPopup, openSettingsPopup } = await import('../../src/utils/cockpit/settingsPopup.ts')
 const { configPopupRequest } = await import('../../src/commands/config/config.tsx')
 const { CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
+const { getVitals } = await import('../../src/state/vitalsBus.ts')
 const h = React.createElement
 
 const COMPOSER = 'Type a prompt'
@@ -246,6 +247,8 @@ for (const [cols, rows] of SIZES) {
   cockpitReadsAsPlanned(`${cols}x${rows} zen off`, before, cols, rows)
   check(`${cols}x${rows}: zen on saves`, setZenMode(true) === null)
   await scene.settle()
+  const counted = await until(() => /sessions? on/.test(summaryRow(scene.lines())))
+  check(`${cols}x${rows}: the status row counts the session once the vitals bus has published`, counted, JSON.stringify({ row: summaryRow(scene.lines()), sessions: getVitals().sessions.state, version: getVitals().version }))
   const during = scene.lines()
   save(`zen-on-${cols}x${rows}`, during)
   check(`${cols}x${rows}: the file reads view.zen true`, savedZen() === true, String(savedZen()))

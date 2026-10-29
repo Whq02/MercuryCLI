@@ -375,10 +375,11 @@ section('§4 an old type name is unknown exactly as a made-up one')
     { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "No crewmate type named 'mercury-frobnicate'" },
   ], ASK(word))
   const results = bodies(fixture).flatMap(toolResultsOf)
-  const oldRefusal = results.find(t => t.includes(`No crewmate type named '${oldName}'`)) ?? ''
-  const madeUpRefusal = results.find(t => t.includes("No crewmate type named 'mercury-frobnicate'")) ?? ''
+  const refusalOf = (text: string): string => text.split('\n')[0] ?? ''
+  const oldRefusal = refusalOf(results.find(t => t.includes(`No crewmate type named '${oldName}'`)) ?? '')
+  const madeUpRefusal = refusalOf(results.find(t => t.includes("No crewmate type named 'mercury-frobnicate'")) ?? '')
   check('the old name is refused as not found', oldRefusal !== '', results.join(' | ').slice(0, 400))
-  check('the made-up name is refused with the same words', madeUpRefusal !== '' && madeUpRefusal.replace('mercury-frobnicate', oldName) === oldRefusal, `${oldRefusal} ⇄ ${madeUpRefusal}`)
+  check('the made-up name is refused with the same words (the first use alone carries the tool manual beneath its refusal)', madeUpRefusal !== '' && madeUpRefusal.replace('mercury-frobnicate', oldName) === oldRefusal, `${oldRefusal} ⇄ ${madeUpRefusal}`)
   check('the refusal names the available roster: the two built-ins and the owner\'s agent', oldRefusal.includes('this session offers: mercury-crew, mercury-scout, harbour-counter'), oldRefusal)
   check('the lead settled', resultText(run).includes(`roster-drive ${word}: both refused`), `${resultText(run)} ${run.stderr.slice(-200)}`)
   drop(world)

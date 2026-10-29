@@ -8,6 +8,7 @@ if (!captureFile) {
   process.exit(2)
 }
 const TWO_ROUNDS_ASK = 'two tool rounds then a summary'
+const SILENT_ROUNDS_ASK = 'two tool rounds, the second silent, then a summary'
 const LONG_ROUND_ASK = 'answer then a long tool'
 const HEARD_LEAD = 'heard mid-turn: '
 const ROUND_ONE_SLEEP_SECONDS = 4
@@ -116,12 +117,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const ask = askIndex === -1 ? '' : askOf(items[askIndex]!.content).trim()
     const step = askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const lines = operatorLinesOf([...items].reverse().find(m => m.role === 'user'))
-    const arm = ask === TWO_ROUNDS_ASK ? 'two' : ask === LONG_ROUND_ASK ? 'long' : 'plain'
+    const arm = ask === TWO_ROUNDS_ASK ? 'two' : ask === SILENT_ROUNDS_ASK ? 'silent' : ask === LONG_ROUND_ASK ? 'long' : 'plain'
     record({ kind: 'request', n, arm, step, ask: ask.slice(0, 60), lines, at: Date.now() })
     if (arm === 'two') {
       if (step === 0) return answerSleep(res, n, model, `toolu_two_r1_c${n}`, ROUND_ONE_SLEEP_SECONDS)
       if (step === 1) return answerHeardThenSleep(res, n, model, lines, `toolu_two_r2_c${n}`, ROUND_TWO_SLEEP_SECONDS)
       return answerText(res, n, model, `done: ${TWO_ROUNDS_ASK}`)
+    }
+    if (arm === 'silent') {
+      if (step === 0) return answerSleep(res, n, model, `toolu_silent_r1_c${n}`, ROUND_ONE_SLEEP_SECONDS)
+      if (step === 1) return answerSleep(res, n, model, `toolu_silent_r2_c${n}`, ROUND_TWO_SLEEP_SECONDS)
+      return answerText(res, n, model, `done: ${SILENT_ROUNDS_ASK}`)
     }
     if (arm === 'long') {
       if (step === 0) return answerSleep(res, n, model, `toolu_long_r1_c${n}`, ROUND_ONE_SLEEP_SECONDS)

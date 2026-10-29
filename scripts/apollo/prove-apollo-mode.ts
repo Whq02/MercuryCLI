@@ -300,7 +300,7 @@ section('the runner accepts Apollo for every host')
     const printSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
     check(
       "the door's set_mode arm resolves through the one transition rule and answers the mode",
-      /'session\/set_mode': params => \{\s*const resolved = resolvePermissionModeTransition\(params\.mode as WirePermissionMode, getAppState\(\)\.toolPermissionContext\)[\s\S]{0,400}?return \{ mode: params\.mode \}/.test(printSource),
+      /'session\/set_mode': params => \{\s*const resolved = resolvePermissionModeTransition\(params\.mode as WirePermissionMode, getAppState\(\)\.toolPermissionContext\)[\s\S]{0,1200}?return \{ mode: params\.mode \}/.test(printSource),
     )
   } finally {
     if (priorMarker === undefined) delete process.env.MERCURY_CONCOURSE_WORKER

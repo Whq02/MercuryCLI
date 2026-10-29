@@ -44,7 +44,7 @@ try {
   const launch = toolResultOf(WORKFLOW_ID)
   tally.check('the Workflow tool answered', launch !== null, launch?.text.slice(0, 200))
   await session.waitFor('the lead never read the workflow notification', () => session.stdout().includes('NOTIFIED'), 120_000)
-  const notification = userTextsOf(world).find(text => text.includes('<task-notification>')) ?? ''
+  const notification = userTextsOf(world).find(text => text.includes('<task-notification>') && text.includes('</task-notification>')) ?? ''
   record('workflow-notification.txt', notification + '\n')
   const summaryLine = notification.split('\n').find(line => /Dynamic workflow/.test(line)) ?? ''
   record('workflow-summary-line.txt', summaryLine + '\n')

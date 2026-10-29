@@ -86,7 +86,7 @@ function makeContext(): unknown {
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
   }
 }
-type ImageData = { type: string; file: { base64: string; type: string; dimensions?: { originalWidth: number; originalHeight: number; displayWidth: number; displayHeight: number } } }
+type ImageData = { type: string; file: { base64: string; type: string; caption?: string; dimensions?: { originalWidth: number; originalHeight: number; displayWidth: number; displayHeight: number } } }
 type Outcome = { ok: true; data: ImageData; notes: string[] } | { ok: false; message: string }
 let serial = 0
 async function read(input: Record<string, unknown>): Promise<Outcome> {
@@ -96,8 +96,10 @@ async function read(input: Record<string, unknown>): Promise<Outcome> {
   if (verdict.result === false) return { ok: false, message: String(verdict.message) }
   try {
     const result = await (FileReadTool as { call: Function }).call(input, context, null, { uuid: `00000000-0000-0000-0000-${String(serial).padStart(12, '0')}`, message: { id: `msg_crop_${serial}` } })
-    const notes = ((result.newMessages ?? []) as Array<{ message?: { content?: unknown } }>).map(m => (typeof m.message?.content === 'string' ? m.message.content : JSON.stringify(m.message?.content ?? '')))
-    return { ok: true, data: result.data as ImageData, notes }
+    const data = result.data as ImageData
+    const caption = typeof data.file?.caption === 'string' ? [data.file.caption] : []
+    const notes = [...caption, ...((result.newMessages ?? []) as Array<{ message?: { content?: unknown } }>).map(m => (typeof m.message?.content === 'string' ? m.message.content : JSON.stringify(m.message?.content ?? '')))]
+    return { ok: true, data, notes }
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) }
   }

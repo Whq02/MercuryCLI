@@ -95,9 +95,11 @@ cpSync(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: t
 cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })
 if (sourceRef) writeFileSync(join(delivered, 'shared/bootstrap.mjs'), execFileSync('git', ['-C', root, 'show', `${sourceRef}:src/extensions/bundled/shared/bootstrap.mjs`], { encoding: 'utf8' }))
 const { adapter } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
-const { planInstall } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
+const { planInstall, hostPlatform } = await import(pathToFileURL(join(delivered, 'shared/install.mjs')).href)
 const { bootstrapTools } = await import(pathToFileURL(join(delivered, 'shared/bootstrap.mjs')).href)
 const dataDir = join(home, 'applications')
+const pinnedPlatforms = Object.keys((adapter.pins?.[0]?.platforms ?? {}) as Record<string, unknown>)
+if (pinnedPlatforms.length > 0 && !pinnedPlatforms.includes(hostPlatform())) process.env.MERCURY_CRAFT_PLATFORM = pinnedPlatforms[0]
 const plan = planInstall(adapter, { dataDir })
 const tools = bootstrapTools(adapter, plan)
 registerBundledAppInstall('ext:filmcraft:app', delivered, dataDir)

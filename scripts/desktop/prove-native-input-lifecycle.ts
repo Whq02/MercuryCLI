@@ -38,7 +38,7 @@ try {
     span('pub fn click(', 'pub struct DragTask'),
     span('pub struct DragTask', '#[napi(ts_return_type = "Promise<void>")]\npub fn drag'),
     span('fn chord_of(', 'pub struct TypeTask'),
-    lib.slice(lib.indexOf('fn held_answer(')).replaceAll('#[napi]\n', ''),
+    span('fn held_answer(', '#[cfg(any(target_os = "macos", windows))]\npub struct OcrTask'),
   ].join('\n')
   const source = join(scratch, 'input.rs')
   const binary = join(scratch, process.platform === 'win32' ? 'input.exe' : 'input')

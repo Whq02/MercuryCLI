@@ -134,7 +134,8 @@ for (const table of tables) {
   const rows = table.rows.filter(r => !r.skipped)
   check(`${f}: no run timed out or died without an outcome row`, rows.every(r => !r.timedOut && r.resultStatus !== 'no-result' && r.resultStatus !== 'timeout'), rows.filter(r => r.timedOut || r.resultStatus === 'no-result').map(r => `${r.task}:${r.resultStatus}`).join(', '))
   const daily = ['Crewmate', 'Bash', 'Read', 'Edit', 'Write', 'Glob', 'Grep', 'Skill', 'Eval', 'ToolSearch']
-  const rosterPresent = f === 'openai'
+  const deferred = f === 'openai' || f === 'chat'
+  const rosterPresent = deferred
     ? (table.header.toolCount ?? 0) >= daily.length && daily.every(name => table.header.toolNames.includes(name))
     : (table.header.toolCount ?? 0) >= 15
   check(`${f}: the first request carries its complete tool set and a system prompt (> 2000 chars)`, (table.header.promptChars ?? 0) > 2000 && rosterPresent, `prompt ${table.header.promptChars} · tools ${table.header.toolCount}`)

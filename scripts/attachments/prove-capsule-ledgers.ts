@@ -23,6 +23,8 @@ const check = (name: string, ok: boolean) => {
 try {
   const { enableConfigs } = await import(`${root}/src/utils/config/globalConfig.ts`)
   enableConfigs()
+  const { setSessionTrustAccepted } = await import(`${root}/src/bootstrap/state.ts`)
+  setSessionTrustAccepted(true)
   const listing = await import(`${root}/src/utils/attachments/skillListing.ts`)
   const { getEngineModel } = await import(`${root}/src/utils/model/model.ts`)
   const { SKILL_TOOL_NAME } = await import(`${root}/src/tools/SkillTool/constants.ts`)

@@ -302,7 +302,7 @@ if (driver.kind !== 'posix-pty') {
     writeFileSync(join(w.cwd, '.mercury', 'settings.local.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
     writeFileSync(join(w.cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { project: stubConfig({ name: 'project', args: ['--spawn-marker', marker] }) } }))
     const r = ptyBoot('i4', [], bootEnv(w.home, { MERCURY_WARM_RUNNER: '1' }), w.cwd, w.dir, {
-      sends: [FACE_ENTER, { awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '/mcp\r' }, { afterPrevTicks: 30, data: '\u001b' }, { afterPrevTicks: 10, data: '/mcp\r' }],
+      sends: [FACE_ENTER, { awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '/mcp\r' }, { awaitText: 'project · connected', requireAwait: true, awaitSettleTicks: 2, data: '\u001b' }, { awaitText: 'Type a prompt', awaitPattern: '^(?![\\s\\S]*Mercury · mcp)', requireAwait: true, awaitSettleTicks: 2, data: '/mcp\r' }],
       ready: null,
       totalTicks: RUNNER_TICKS,
     })

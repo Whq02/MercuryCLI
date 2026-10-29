@@ -22,13 +22,16 @@ const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.
 const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
 const { getInvocationTracePath, buildInvocationTrace } = await import(join(ROOT, 'src/utils/observability/invocationTrace.ts'))
-const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+const { getSessionId, setOriginalCwd, setCwdState } = await import(join(ROOT, 'src/bootstrap/state.ts'))
+setOriginalCwd(HOME)
+setCwdState(HOME)
+process.chdir(HOME)
 const traceModule = await import(join(ROOT, 'src/utils/cockpit/traceSnapshot.ts'))
 const { traceSnapshot } = traceModule
 const sessionTraceSnapshot = (traceModule as { sessionTraceSnapshot?: (s: unknown, id: string | null) => { state: string; data?: { total: number; highRisk: number; killed: number; errors: number; records: Array<{ sessionId?: string }> } } }).sessionTraceSnapshot ?? ((s: unknown) => s as never)
 const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
 const { setFocusedSessionConnector, conversationIdHere, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
-const { pokeVitals, getVitals } = await import(join(ROOT, 'src/state/vitalsBus.ts'))
+const { pokeVitals, getVitals, _statsForProofs } = await import(join(ROOT, 'src/state/vitalsBus.ts'))
 const { TraceView } = await import(join(ROOT, 'src/components/TraceView.tsx'))
 const h = React.createElement
 
@@ -102,7 +105,7 @@ section('§2 /trace — the view reads the focused session\'s own records throug
   pokeVitals()
   const deadline = Date.now() + 8000
   while (Date.now() < deadline && getVitals().trace?.state !== 'live') await settle(50)
-  check('the vitals bus read the box-wide trace once the view subscribed', getVitals().trace?.state === 'live', j(getVitals().trace?.state))
+  check('the vitals bus read the box-wide trace once the view subscribed', getVitals().trace?.state === 'live', j({ trace: getVitals().trace?.state ?? null, refreshedAt: getVitals().refreshedAt, version: getVitals().version, bus: _statsForProofs() }))
   await settle(600)
   const frame = strip(instance.lastFrame())
   instance.unmount?.()

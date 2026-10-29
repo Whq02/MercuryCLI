@@ -28,8 +28,9 @@ export function isReplyText(message: Pick<AssistantMessage, 'isApiErrorMessage' 
 }
 
 export function stampReply<M extends Pick<AssistantMessage, 'isApiErrorMessage' | 'message' | 'inReplyTo'>>(message: M, awaiting: ReplyMark[]): M {
-  if (awaiting.length === 0 || !isReplyText(message)) return message
-  message.inReplyTo = awaiting.splice(0)
+  if (awaiting.length === 0 || message.isApiErrorMessage === true) return message
+  const marks = awaiting.splice(0)
+  if (isReplyText(message)) message.inReplyTo = marks
   return message
 }
 

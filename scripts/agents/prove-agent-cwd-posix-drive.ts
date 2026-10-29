@@ -71,6 +71,7 @@ try {
   const declaration = source.slice(source.indexOf('function agentDirectoryOf('), source.indexOf('export function resolveAgentCwd('))
   check('the actual product declaration was found', declaration.startsWith('function agentDirectoryOf(') && declaration.includes('statSync('))
   const { posixPathToWindowsPath } = await import('../../src/utils/windowsPaths.ts')
+  const { hasControlCharacter } = await import('../../src/utils/path.ts')
   const nativeFolder = 'C:\\proof\\lane'
   const seen: string[] = []
   const lookup = (path: string) => {
@@ -78,7 +79,7 @@ try {
     if (win32.normalize(path).toLowerCase() !== nativeFolder.toLowerCase()) throw new Error('missing')
     return { isDirectory: () => true }
   }
-  const guard = new Function('isAbsolute', 'statSync', 'realpathSync', 'getCwd', 'getPlatform', 'posixPathToWindowsPath', new Bun.Transpiler({ loader: 'ts' }).transformSync(declaration) + '\nreturn agentDirectoryOf;')(win32.isAbsolute, lookup, (path: string) => { lookup(path); return nativeFolder }, () => 'C:\\proof', () => 'windows', posixPathToWindowsPath) as (path: string) => string
+  const guard = new Function('isAbsolute', 'hasControlCharacter', 'statSync', 'realpathSync', 'getCwd', 'getPlatform', 'posixPathToWindowsPath', new Bun.Transpiler({ loader: 'ts' }).transformSync(declaration) + '\nreturn agentDirectoryOf;')(win32.isAbsolute, hasControlCharacter, lookup, (path: string) => { lookup(path); return nativeFolder }, () => 'C:\\proof', () => 'windows', posixPathToWindowsPath) as (path: string) => string
   for (const path of ['/c/proof/lane', '/C/proof/lane', nativeFolder, 'C:/proof/lane']) {
     seen.length = 0
     let result = ''
@@ -142,7 +143,7 @@ try {
     check(`a relative spelling ${JSON.stringify(spelling)} is refused as such`, attempt(spelling).message === `cwd must be an absolute directory: ${spelling} (the session folder is ${sessionFolder})`, attempt(spelling).message || `resolved to ${attempt(spelling).value}`)
   }
   for (const spelling of spellings(inside).map(path => `${path}${String.fromCharCode(0)}`)) {
-    check(`an impossible spelling ${JSON.stringify(spelling)} is still refused as a missing folder`, attempt(spelling).message === `cwd does not exist: ${spelling} (the session folder is ${sessionFolder})`, attempt(spelling).message || 'resolved')
+    check(`an impossible spelling ${JSON.stringify(spelling)} is refused before any stat, as no directory spelling at all`, attempt(spelling).message === `cwd must be an absolute directory: ${spelling} (the session folder is ${sessionFolder})`, attempt(spelling).message || 'resolved')
   }
   if (!onWindows) {
     const posixDrive = `/c/${basename(scratch)}/lane`

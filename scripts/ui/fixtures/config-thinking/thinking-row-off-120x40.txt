@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ project · 82 settings · 3 set by you                                                     │ │
+NEXT                    │ │ project · 81 settings · 3 set by you                                                     │ │
   · /workflows…         │ │                                                                                          │ │
   · /health — health…   │ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │

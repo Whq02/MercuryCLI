@@ -30,15 +30,19 @@ const TURN_MS = 40_000
 delete process.env.MERCURY_HOME
 
 const TWO_ROUNDS_ASK = 'two tool rounds then a summary'
+const SILENT_ROUNDS_ASK = 'two tool rounds, the second silent, then a summary'
 const LONG_ROUND_ASK = 'answer then a long tool'
 const HEARD_LEAD = 'heard mid-turn: '
 const LINE_A = 'how long will this take?'
 const LINE_B = 'is the second step the slow one?'
+const LINE_C = 'did you see this one?'
 const U0 = '00000000-0000-4000-8000-000000000000'
 const UT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const UA = '11111111-1111-4111-8111-111111111111'
 const UL = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const UB = '22222222-2222-4222-8222-222222222222'
+const US = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+const UC = '33333333-3333-4333-8333-333333333333'
 
 section('P the pure laws: which drained row earns a mark, which envelope is the reply, the mark is spent once')
 {
@@ -53,12 +57,17 @@ section('P the pure laws: which drained row earns a mark, which envelope is the 
   check('a hidden row or a row without identity earns none', drain.replyMarkOf(row({ type: 'queued_command', prompt: 'x', source_uuid: UA, isMeta: true })) === null && drain.replyMarkOf(row({ type: 'queued_command', prompt: 'x' })) === null && drain.replyMarkOf(row({ type: 'file', filename: 'a' })) === null)
   check('a text envelope is a reply; a tool-only, an empty and an API-error envelope are not', drain.isReplyText(createAssistantMessage({ content: 'the answer' })) === true && drain.isReplyText(createAssistantMessage({ content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: {} }] })) === false && drain.isReplyText(createAssistantMessage({ content: '' })) === false && drain.isReplyText(createAssistantAPIErrorMessage({ content: 'boom' })) === false)
   const awaiting = [{ uuid: UA, at: 'A' }, { uuid: UB, at: 'B' }]
-  const toolOnly = drain.stampReply(createAssistantMessage({ content: [{ type: 'tool_use', id: 't2', name: 'Bash', input: {} }] }), awaiting)
-  check('a tool-only envelope leaves the marks waiting', toolOnly.inReplyTo === undefined && awaiting.length === 2)
+  const apiError = drain.stampReply(createAssistantAPIErrorMessage({ content: 'boom' }), awaiting)
+  check('an API-error envelope is not the model\'s message: it carries no mark and leaves the marks waiting', apiError.inReplyTo === undefined && awaiting.length === 2)
   const reply = drain.stampReply(createAssistantMessage({ content: 'the answer' }), awaiting)
   check('the first text envelope takes every waiting mark, in order, and the list is spent', j(reply.inReplyTo) === j([{ uuid: UA, at: 'A' }, { uuid: UB, at: 'B' }]) && awaiting.length === 0, j(reply.inReplyTo))
   const later = drain.stampReply(createAssistantMessage({ content: 'more text' }), awaiting)
   check('a later text envelope carries no mark (the address was spent)', later.inReplyTo === undefined)
+  const expiring = [{ uuid: UA, at: 'A' }]
+  const toolOnly = drain.stampReply(createAssistantMessage({ content: [{ type: 'tool_use', id: 't2', name: 'Bash', input: {} }] }), expiring)
+  check('a tool-only first envelope carries no mark and the marks expire with it (the list is spent)', toolOnly.inReplyTo === undefined && expiring.length === 0)
+  const afterToolOnly = drain.stampReply(createAssistantMessage({ content: 'text after the silent round' }), expiring)
+  check('the text after a tool-only first envelope carries no mark', afterToolOnly.inReplyTo === undefined)
 }
 
 if (!existsSync(DIST)) {
@@ -290,6 +299,31 @@ check("the turn's closing text (after the answer) is unmarked — the mark is th
   const answerLine = concise.find(row => row.startsWith(`assistant: ${HEARD_LEAD}`))
   check(`THE MARK ON THE mercury://transcript READER: the answer row ends "· ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message"`, answerLine !== undefined && answerLine.endsWith(` · ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message`), j(answerLine))
   check('no other assistant row of the reader carries the address', concise.filter(row => row.startsWith('assistant:') && row.includes(REPLY_ADDRESS_LEAD)).length === 1, j(concise.filter(row => row.includes(REPLY_ADDRESS_LEAD))))
+}
+
+section('R2b a question answered first by a tool call alone: the mark expires, no later text of the turn is labelled with it')
+const beforeSilent = lines.length
+void send(SILENT_ROUNDS_ASK, US)
+const s1 = await waitWire('the silent arm, round one', w => w.kind === 'request' && w.arm === 'silent' && w.step === 0, TURN_MS)
+check("round one's request went out", s1 !== null, stderrText.split('\n').slice(-5).join(' | '))
+const TC = new Date(Date.now() - 45_000).toISOString()
+await send(LINE_C, UC, TC)
+const s2 = await waitWire('the silent arm, round two', w => w.kind === 'request' && w.arm === 'silent' && w.step === 1 && w.n > (s1?.n ?? 0), TURN_MS)
+check('round two carried the line to the model', s2 !== null && j(s2.lines) === j([LINE_C]), j(s2?.lines))
+const silentResult = await waitFor('the silent turn', isResult, TURN_MS, beforeSilent)
+check("the turn ended on the fixture's summary", silentResult !== null && String(silentResult.answer ?? '').startsWith('done: '), j(silentResult?.answer))
+const rowsSilent = await settledRows(sessionId, rows => rows.some(r => r.type === 'assistant' && textOf(r).startsWith(`done: ${SILENT_ROUNDS_ASK}`)), 10_000)
+const idxLineC = rowsSilent.findIndex(r => r.type === 'attachment' && r.attachment?.type === 'queued_command' && r.attachment.source_uuid === UC)
+const idxUseSilent = rowsSilent.findIndex(r => r.type === 'assistant' && hasBlock(r, b => b.type === 'tool_use' && b.id === `toolu_silent_r2_c${s2?.n}`))
+check("the line's row lands on the transcript and the model's next message is the tool call alone", idxLineC >= 0 && idxUseSilent > idxLineC && textOf(rowsSilent[idxUseSilent]!).trim() === '', j({ idxLineC, idxUseSilent }))
+check('NO ROW OF THE TURN CARRIES THE MARK: the tool-only message spent it', rowsSilent.filter(r => r.type === 'assistant' && marksOf(r).some(m => m.uuid === UC)).length === 0, j(rowsSilent.filter(r => r.type === 'assistant' && marksOf(r).length > 0).map(r => [textOf(r).slice(0, 30), r.inReplyTo])))
+const silentTexts = lines.slice(beforeSilent).filter(f => f.type === 'text')
+check('no headless text row of the turn carries in_reply_to', silentTexts.length > 0 && silentTexts.every(f => rowMarksOf(f).length === 0), j(silentTexts.map(f => [String(f.text).slice(0, 30), f.in_reply_to])))
+{
+  const { jsonlConciseRows } = await import(join(SRC, 'services/resources/adapters/transcript.ts'))
+  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'utils/messages/replyAddress.ts'))
+  const concise = jsonlConciseRows(findTranscript(join(RUN_HOME, 'projects'), sessionId) ?? '') as string[]
+  check('the transcript reader shows no address for the line', !concise.some(row => row.includes(`${REPLY_ADDRESS_LEAD} ${formatClock(TC)} message`)), j(concise.filter(row => row.includes(REPLY_ADDRESS_LEAD))))
 }
 
 section('R3 esc after the answer is composed: the reply stays on the transcript, the cut row follows it')

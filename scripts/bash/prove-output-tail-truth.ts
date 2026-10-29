@@ -69,9 +69,9 @@ section('§2b the PowerShell family applies the in-memory head + tail cut Bash d
   )
   check(
     'Bash still cuts the same way (the law has one owner: formatOutput, spill-aware)',
-    bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: formatted.truncatedContent,'),
+    bash.includes('const formatted = formatOutput(out, { preExcerpted: result.outputFilePath !== undefined, maxLength: budget.effective })') && bash.includes('stdout: webNotice + formatted.truncatedContent,'),
   )
-  check('the error throws keep today’s bytes beside scrub attribution on both shells, once; each applies a per-call budget there only when one is given, and declares the error windowed when it did', ps.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && ps.includes("const error = new ShellError('', [thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("const error = new ShellError('', [thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, notice)") && [ps, bash].every(src => src.includes('throw budget.requested === undefined ? error : windowedError(error)')))
+  check('the error throws keep today’s bytes beside scrub attribution on both shells, once; each applies a per-call budget there only when one is given, and declares the error windowed when it did', ps.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && ps.includes("const error = new ShellError('', [thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, sessionEnvNoticeForResult({ scrubbed: scrubbedSessionEnv, commandText: input.command }))") && bash.includes("const thrown = budget.requested === undefined ? out : windowed ? formatOutput(out, { maxLength: budget.effective }).truncatedContent : formatExcerpt(out, budget.effective)") && bash.includes("const error = new ShellError('', [webNotice + thrown, clause].filter(Boolean).join('\\n'), result.code, result.interrupted, true, notice)") && [ps, bash].every(src => src.includes('throw budget.requested === undefined ? error : windowedError(error)')))
 }
 
 section('§3 the notebook path still receives a bounded string')
@@ -139,7 +139,7 @@ section('§5 spill finalization never blocks the thread (awaited async, both twi
   for (const rel of ['src/tools/BashTool/BashTool.tsx', 'src/tools/PowerShellTool/PowerShellTool.tsx'] as const) {
     const src = readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
     check(`${rel}: no sync stat/truncate/link/copy anywhere`, !/\b(?:statSync|truncateSync|linkSync|copyFileSync)\s*\(/.test(src))
-    check(`${rel}: the off-lining block awaits its streamed copy`, src.includes('await redactedCopy(result.outputFilePath, destination, redact)'))
+    check(`${rel}: the off-lining block awaits its streamed copy`, src.includes('await redactedCopy(result.outputFilePath, destination, redact)') || src.includes('await redactedCopy(result.outputFilePath, destination, text => {'))
   }
 }
 

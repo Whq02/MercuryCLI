@@ -171,7 +171,7 @@ for (const { road, model, label } of ROADS) {
   const text = apiErrorText(window)
   check(`${road}: ONE request, no retry, no notice`, requestsOf(road, 'window') === 1 && notices(window).length === 0, `requests=${requestsOf(road, 'window')} notices=${notices(window).length}`)
   check(`${road}: the turn ended on the error row, at once`, text !== null && window.thrown === null && window.elapsedMs < 5_000, `${text} | ${window.thrown} | ${window.elapsedMs}ms`)
-  check(`${road}: the row names the provider's wait`, text !== null && (/3h/.test(text) || /10800/.test(text)), text ?? '(none)')
+  check(`${road}: the row names the provider's wait (the one wait formatter's 3 h 0 min on the Anthropic and compat roads; the OpenAI road's 10800 s)`, text !== null && (/3 h 0 min/.test(text) || /10800 s/.test(text)), text ?? '(none)')
   const row = window.yielded.find(e => e.type === 'assistant' && (e as { isApiErrorMessage?: boolean }).isApiErrorMessage === true) as { error?: string } | undefined
   check(`${road}: the row is typed as the provider's refusal`, row?.error === 'rate_limit', JSON.stringify(row?.error))
 }

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { untilAsync } from '../lib/untilAsync.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 
@@ -45,17 +46,6 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
-}
-const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
-  const t0 = Date.now()
-  while (Date.now() - t0 < ms) {
-    try {
-      if (await pred()) return true
-    } catch {
-    }
-    await new Promise(r => setTimeout(r, 250))
-  }
-  return false
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -107,12 +97,12 @@ const clientBeat = startDaemonClientBeat()
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, ''))
-interface Send { atTick?: number; afterPrevTicks?: number; data: string; awaitText?: string; minTick?: number; awaitSettleTicks?: number; mark?: string }
+interface Send { data: string; awaitText: string; requireAwait: true; minTick?: number; awaitSettleTicks?: number; mark?: string }
 const marks = new Map<string, string[]>()
-const runScreen = (tag: string, cwd: string, sends: Send[], total: number): { child: ChildProcess; out: string; done: Promise<number | null> } => {
+const runScreen = (tag: string, cwd: string, sends: Send[], total: number, readyText: string): { child: ChildProcess; out: string; done: Promise<number | null> } => {
   const out = join(OUT_DIR, `${tag}.json`)
   const cfgPath = join(SCRATCH, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, cols: 120, rows: 40, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, readyText, cols: 120, rows: 40, out }))
   const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {
     env: { ...childEnv, MERCURY_CONCOURSE: 'always', MERCURY_SUBMIT_TRACE: join(SCRATCH, `${tag}-submit-trace.jsonl`) } as NodeJS.ProcessEnv,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -168,31 +158,33 @@ try {
   const liveIds = (): string[] => Object.values(sup.readSessionWorkers(daemonDir)).filter(r => r.endedAt === undefined).map(r => r.sessionId)
   check('both sessions live on the one daemon, in two folders', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','))
   await untilAsync(() => api.requests.length >= 2, 40_000)
-  await new Promise(r => setTimeout(r, 4000))
   const tA = join(paths.getProjectDir(sandbox), `${sidA}.jsonl`)
   const tB = join(paths.getProjectDir(ground), `${sidB}.jsonl`)
+  check('both probes answered on their own transcripts', await untilAsync(() => readFileSync(tA, 'utf8').includes('alpha is ready.') && readFileSync(tB, 'utf8').includes('beta is ready.'), 40_000))
   check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground))
 
+  const LIST_FOCUSED = 'new session · n'
+  const ARMED = 'armed — ↵ again enters'
+  const CHAT = '? for shortcuts'
   const screen1 = runScreen('beta-screen', ground, [
-    { atTick: 999, awaitText: 'beta probe', minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
-    { afterPrevTicks: 3, data: '\r', mark: 'list' },
-    { afterPrevTicks: 3, data: '\r', mark: 'armed' },
-    { atTick: 999, awaitText: '? for shortcuts', minTick: 3, awaitSettleTicks: 2, data: '', mark: 'chat-b' },
-    { afterPrevTicks: 150, data: '', mark: 'b-after-alpha-compact' },
-    { afterPrevTicks: 5, data: HELLO, mark: 'typed' },
-    { afterPrevTicks: 3, data: '\r', mark: 'sent' },
-    { atTick: 999, awaitText: 'Spare', minTick: 3, awaitSettleTicks: 10, data: '', mark: 'end' },
-  ], 400)
-  await new Promise(r => setTimeout(r, 12_000))
+    { awaitText: 'beta probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
+    { awaitText: LIST_FOCUSED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'list' },
+    { awaitText: ARMED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'armed' },
+    { awaitText: CHAT, requireAwait: true, awaitSettleTicks: 2, data: '', mark: 'chat-b' },
+    { awaitText: CHAT, requireAwait: true, minTick: 180, data: '', mark: 'b-after-alpha-compact' },
+    { awaitText: CHAT, requireAwait: true, awaitSettleTicks: 5, data: HELLO, mark: 'typed' },
+    { awaitText: HELLO, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'sent' },
+    { awaitText: 'Spare', requireAwait: true, awaitSettleTicks: 10, data: '', mark: 'end' },
+  ], 400, 'Spare')
   const screen2 = runScreen('alpha-screen', sandbox, [
-    { atTick: 999, awaitText: 'alpha probe', minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
-    { afterPrevTicks: 3, data: '\r', mark: 'list' },
-    { afterPrevTicks: 3, data: '\r', mark: 'armed' },
-    { atTick: 999, awaitText: '? for shortcuts', minTick: 3, awaitSettleTicks: 2, data: '/compact', mark: 'chat-a' },
-    { afterPrevTicks: 3, data: '\r', mark: 'typed-compact' },
-    { atTick: 999, awaitText: 'Error during compaction', minTick: 3, awaitSettleTicks: 4, data: '', mark: 'after-compact' },
-    { afterPrevTicks: 120, data: '', mark: 'end' },
-  ], 320)
+    { awaitText: 'alpha probe', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: '\t', mark: 'boot' },
+    { awaitText: LIST_FOCUSED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'list' },
+    { awaitText: ARMED, requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'armed' },
+    { awaitText: CHAT, requireAwait: true, awaitSettleTicks: 2, data: '/compact', mark: 'chat-a' },
+    { awaitText: '❯ /compact', requireAwait: true, awaitSettleTicks: 3, data: '\r', mark: 'typed-compact' },
+    { awaitText: 'Error during compaction', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'after-compact' },
+    { awaitText: 'Error during compaction', requireAwait: true, minTick: 160, data: '', mark: 'end' },
+  ], 320, 'Error during compaction')
   const [s1, s2] = await Promise.all([screen1.done, screen2.done])
   check('both screens ran their journeys to the end', s1 === 0 && s2 === 0, `${s1}/${s2}`)
   readMarks('beta-screen', screen1.out)

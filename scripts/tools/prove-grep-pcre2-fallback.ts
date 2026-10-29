@@ -76,7 +76,8 @@ const resolvedRg = (): { mode: string; rgPath: string; rgArgs: string[]; real: s
 if (ROAD !== 'engine') {
   const fixture = process.env.GREP_PCRE2_FIXTURE ?? ''
   const log = process.env.GREP_SHIM_LOG ?? ''
-  const spawns = (): string[] => readFileSync(log, 'utf8').split('\n').filter(line => line !== '' && !line.includes('--version'))
+  const isDocumentDiscovery = (line: string): boolean => line.split('\t').includes('--files')
+  const spawns = (): string[] => readFileSync(log, 'utf8').split('\n').filter(line => line !== '' && !line.includes('--version') && !isDocumentDiscovery(line))
   const reset = (): void => writeFileSync(log, '')
   console.log(`\n=== ${ROAD} road: a shimmed rg on PATH ${ROAD === 'absent' ? 'that refuses --pcre2 the way a build without PCRE2 does' : 'that logs every spawn'}`)
   const engine = resolvedRg()

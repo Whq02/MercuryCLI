@@ -329,6 +329,9 @@ const { z } = await import('zod/v4')
     runner.includes('mcpToolPartition(state.mcp.tools as Tool[], state.toolPermissionContext)') && !runner.includes('filterToolsByDenyRules('),
   )
   const serverName = 'ext:filmcraft:app'
+  const platforms = Object.keys((JSON.parse(readFileSync(join(root, 'src/extensions/bundled/filmcraft/server/filmcraft.lock.json'), 'utf8')) as { platforms?: Record<string, unknown> }).platforms ?? {})
+  const { hostPlatform } = (await import('../../src/extensions/bundled/shared/install.mjs')) as unknown as { hostPlatform: () => string }
+  if (!platforms.includes(hostPlatform())) process.env.MERCURY_CRAFT_PLATFORM = platforms[0]
   const delivered = mkdtempSync(join(proofHome, 'filmcraft-'))
   cpSync(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })
   cpSync(join(root, 'src/extensions/bundled/shared'), join(delivered, 'shared'), { recursive: true })

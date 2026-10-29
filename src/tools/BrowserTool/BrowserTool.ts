@@ -1137,7 +1137,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
     if (input.frame !== undefined && (!['click', 'type', 'scroll', 'waitFor', 'select', 'hover', 'extract', 'screenshot'].includes(input.op) || (['click', 'scroll', 'screenshot'].includes(input.op) && !input.selector) || (input.op === 'waitFor' && !input.selector && input.text === undefined))) {
       return { result: false as const, message: 'frame requires a selector act/read, a type target, or a selector/text wait', errorCode: 1 }
     }
-    if (input.force !== undefined && (input.op !== 'click' || !input.selector)) {
+    if (input.force === true && (input.op !== 'click' || !input.selector)) {
       return { result: false as const, message: 'force requires click with a selector', errorCode: 1 }
     }
     if (input.op === 'click' && !input.selector && !(typeof input.x === 'number' && typeof input.y === 'number')) {

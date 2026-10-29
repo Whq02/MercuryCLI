@@ -22,6 +22,7 @@ try {
   bootstrap.setOriginalCwd(cwd)
   bootstrap.setProjectRoot(cwd)
   bootstrap.setCwdState(cwd)
+  bootstrap.setSessionTrustAccepted(true)
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')

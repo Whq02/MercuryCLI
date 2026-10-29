@@ -2,7 +2,7 @@
 // gate-watch: src/utils/permissions/windowsPath.ts src/utils/permissions/filesystem.ts src/tools/GrepTool/GrepTool.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -90,10 +90,12 @@ section("§3 a relative path is read against the session's folder, never the pro
   mkdirSync(join(elsewhere, 'src'), { recursive: true })
   writeFileSync(join(elsewhere, 'src', 'a.ts'), 'const needle = 2\n')
   process.chdir(proofHome)
+  const projectReal = realpathSync(project)
+  const underProject = (form: string): boolean => form === project || form === projectReal || form.startsWith(project + '/') || form.startsWith(projectReal + '/')
   for (const path of ['.', './src', 'src']) {
     const away = verdict(path)
     const forms = getResolvedWorkingDirPaths(path)
-    check(`process elsewhere: Grep with path '${path}' is allowed and its real form sits under the starting folder`, away.behavior === 'allow' && forms.slice(1).every(form => form.startsWith(project)) && forms.length >= 2, `${JSON.stringify(away)} forms ${JSON.stringify(forms)}`)
+    check(`process elsewhere: Grep with path '${path}' is allowed and its real form sits under the starting folder`, away.behavior === 'allow' && forms.slice(1).every(underProject) && forms.length >= 2, `${JSON.stringify(away)} forms ${JSON.stringify(forms)}`)
   }
   process.chdir(project)
   runWithCwdOverride(elsewhere, () => {

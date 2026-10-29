@@ -8,7 +8,7 @@ export async function shellWebContentNotice(command: string): Promise<string> {
     const words = [...argv]
     while (words.length) {
       const word = words.shift()!
-      const name = word.split('/').pop()!
+      const name = word.split(/[\\/]/).pop()!.replace(/\.exe$/i, '')
       if (/^[A-Za-z_][A-Za-z_0-9]*=/.test(word) || ['env', 'command', 'exec'].includes(name) || word.startsWith('-')) continue
       return name === 'curl' || name === 'wget'
     }
@@ -16,6 +16,6 @@ export async function shellWebContentNotice(command: string): Promise<string> {
   }
   const web = parsed.kind === 'simple'
     ? parsed.commands.some(part => fetcher(part.argv))
-    : /(?:^|[;|&(\n])\s*(?:(?:command|exec|env)\s+)*(?:[^\s;|&()]*\/)?(?:curl|wget)(?:\s|$)/.test(command)
+    : /(?:^|[;|&(\n])\s*(?:(?:command|exec|env)\s+)*(?:[^\s;|&()]*[\\/])?(?:curl|wget)(?:\.exe)?(?:\s|$)/.test(command)
   return web ? `${WEB_CONTENT_NOTICE}\n` : ''
 }
