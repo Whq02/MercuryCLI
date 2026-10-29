@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type { McpServerConfig, ScopedMcpServerConfig } from '../../services/mcp/types.js'
 import { activeFor } from '../active.js'
 import { optionEnv, substituteOptionsInCommand, substituteRootAndData } from '../options.js'
@@ -44,7 +45,10 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
       if (id === MEDIA_EXTENSION_ID && config.type === 'stdio') {
         const media = readMediaSettings()
         if (!media.enabled) continue
-        try { config = { ...config, ...(media.serverPath ? { args: [media.serverPath] } : {}), env: { ...config.env, ...mediaEnvironment(media) } } } catch { continue }
+        try {
+          const server = media.serverPath ?? config.args?.[0]
+          config = { ...config, ...(server ? { args: [media.host ? join(dirname(server), 'remote-client.js') : server] } : {}), env: { ...config.env, ...mediaEnvironment(media) } }
+        } catch { continue }
       }
       out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id }
     }

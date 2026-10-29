@@ -162,3 +162,12 @@ export async function setMediaHostDefaults(settings: MediaSettings, patch: Media
   const state = await connectMediaHost(settings.host!, signal)
   await hostFetch(state, '/config', signal, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) })
 }
+
+export async function refreshMediaHostActivity(id: string): Promise<void> {
+  if (!readState(id)) return
+  const signal = AbortSignal.timeout(30000)
+  const state = await connectMediaHost(id, signal)
+  const value = await (await hostFetch(state, '/activity', signal)).json() as { at: number; now: number }
+  if (!Number.isFinite(value.at) || !Number.isFinite(value.now)) throw new Error('Media setup returned an unreadable response.')
+  if (value.at > 0) publishAtomicSync(join(dirname(mediaHostStatePath(id)), 'activity.json'), JSON.stringify({ at: Date.now() - Math.max(0, value.now - value.at) }), { mode: 0o600 })
+}

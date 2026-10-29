@@ -70,7 +70,9 @@ export async function mediaWorkflowModule(settings: MediaSettings = readMediaSet
 
 export function mediaEnvironment(settings: MediaSettings = readMediaSettings()): Record<string, string> {
   if (settings.serverPath && !isAbsolute(settings.serverPath)) throw new Error('media.serverPath must be an absolute path.')
-  return { MEDIA_ROOT: mediaRoot(settings) }
+  const root = mediaRoot(settings)
+  const remote = settings.host ? join(getMercuryHome(), 'host', 'media', settings.host) : undefined
+  return { MEDIA_ROOT: root, ...(remote ? { MEDIA_REMOTE_STATE: join(remote, 'connection.json'), MEDIA_REMOTE_ACTIVITY: join(remote, 'activity.json'), MEDIA_REMOTE_ID: settings.host! } : {}) }
 }
 
 export async function saveMediaSettings(patch: MediaSettings): Promise<void> {

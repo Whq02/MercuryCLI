@@ -563,6 +563,13 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   if (refusal !== null) return { name, type: 'failed', config: serverRef, error: refusal }
   const config = serverRef as RemoteConfig
   const type = config.type ?? 'stdio'
+  if (name === 'ext:mercury-media:engine' && type === 'stdio') {
+    const host = (serverRef as { env?: Record<string, string> }).env?.MEDIA_REMOTE_ID
+    if (host) {
+      try { await (await import('../media/host.js')).connectMediaHost(host, AbortSignal.timeout(20000)) }
+      catch (error) { return { name, type: 'failed', config: serverRef, error: error instanceof Error ? error.message : String(error) } }
+    }
+  }
   const startedAt = Date.now()
   let transport: Transport
   let inProcessServer: { close: () => Promise<void> } | null = null
@@ -1372,6 +1379,10 @@ async function callToolOnce(
   )
   try {
     if (requestController.signal.aborted) return { content: undefined }
+    if (connected.name === 'ext:mercury-media:engine' && (connected.config.type ?? 'stdio') === 'stdio') {
+      const host = (connected.config as { env?: Record<string, string> }).env?.MEDIA_REMOTE_ID
+      if (host) await (await import('../media/host.js')).connectMediaHost(host, requestController.signal)
+    }
     couldHaveExecuted = true
     const call = connected.client.callTool(
       {

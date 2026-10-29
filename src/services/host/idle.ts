@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import { hostMachineName } from '../../commands/llmhost/words.js'
 import { configuredCompatEndpoints } from '../providers/openaicompat/compatAccounts.js'
 import { compatEndpointLastTurnAt } from '../providers/openaicompat/compatPrefixCache.js'
@@ -25,12 +28,17 @@ export function hostEndpointLastTurnAt(record: HostRecord): number | undefined {
   } catch { return undefined }
 }
 
+function mediaLastRequestAt(id: string): number | undefined {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id)) return undefined
+  try { const { at } = JSON.parse(readFileSync(join(getMercuryHome(), 'host', 'media', id, 'activity.json'), 'utf8')) as { at?: unknown }; return finite(at) ? at : undefined } catch { return undefined }
+}
+
 export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): number | undefined {
   if (record.jobKind && record.jobKind !== 'setup') return undefined
   if (record.status === 'EXITED' || record.status === 'TERMINATED') return undefined
   if (record.jobState === 'paused') return record.advancedAt ?? record.steps?.findLast(row => row.step.startsWith('paused'))?.at
   if (record.jobState !== 'ready') return undefined
-  const marks = [record.steps?.findLast(row => row.step === 'ready')?.at, record.advancedAt, lastTurnAt(record)].filter(finite)
+  const marks = [record.steps?.findLast(row => row.step === 'ready')?.at, record.advancedAt, lastTurnAt(record), mediaLastRequestAt(record.id)].filter(finite)
   return marks.length ? Math.max(...marks) : undefined
 }
 
@@ -87,8 +95,14 @@ export async function sweepHostIdle(options: { now?: number; records?: HostRecor
     if (options.watched && seen?.marker !== marker) options.watched.set(row.id, { marker, at: now })
     const current = readHostRecord(row.id)
     if (!current || current.generation !== row.generation || current.jobState !== row.jobState) continue
-    const verdict = hostIdleVerdict(current, now, { watchedSince: options.watched ? (seen?.marker === marker ? seen.at : now) : undefined, lastTurnAt: options.lastTurnAt })
+    const timing = { watchedSince: options.watched ? (seen?.marker === marker ? seen.at : now) : undefined, lastTurnAt: options.lastTurnAt }
+    let verdict = hostIdleVerdict(current, now, timing)
     if (!verdict) continue
+    if (verdict.kind === 'idle') {
+      try { await (await import('../media/host.js')).refreshMediaHostActivity(current.id) } catch { continue }
+      verdict = hostIdleVerdict(current, now, timing)
+      if (!verdict) continue
+    }
     verdicts.push(verdict)
     await (options.release ?? releaseIdleRental)(current, verdict)
   }
