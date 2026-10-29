@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { join } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import type { LocalJSXCommandContext } from '../../types/command.js'
 import type { Tool } from '../../Tool.js'
 import { createAssistantMessage } from '../../utils/messages/factories.js'
 import { getCwd } from '../../utils/cwd.js'
 import { readMediaCatalogue, type MediaCatalogue } from './catalogue.js'
-import { mediaConfigModule, mediaRoot, readMediaSettings, MEDIA_SERVER_NAME, type MediaConfig, type MediaKind } from './settings.js'
+import { mediaConfigModule, mediaRoot, mediaWorkflowModule, readMediaSettings, MEDIA_SERVER_NAME, type MediaConfig, type MediaKind, type MediaSettings } from './settings.js'
 
 export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | undefined {
   if (tool.mcpInfo?.serverName !== MEDIA_SERVER_NAME) return undefined
@@ -26,13 +27,35 @@ export function mediaGenerationDetails(kind: MediaKind, input: Record<string, un
   const downsize = Number(input.downsize ?? model.downsize ?? 1)
   const upscale = Number(input.upscale ?? 1)
   const saved = kind === 'image' && (downsize > 1 || upscale > 1) ? ` · saved at ${Math.floor(Number(width) / downsize) * upscale}×${Math.floor(Number(height) / downsize) * upscale}` : ''
-  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}${kind === 'image' ? ` · strength ${input.strength ?? 0.75}${typeof input.mask === 'string' ? ` · mask ${input.mask}` : ''}` : ''}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
+  const workflow = typeof input.workflow === 'string' ? [`Workflow: ${input.workflow}${input.dry === true ? ' · dry run' : ''}`] : []
+  return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...workflow, ...(typeof reference === 'string' ? [`Reference: ${reference}${kind === 'image' ? ` · strength ${input.strength ?? 0.75}${typeof input.mask === 'string' ? ` · mask ${input.mask}` : ''}` : ''}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
+}
+
+function readRegistry(root: string, name: string): Record<string, unknown> | undefined {
+  const file = join(root, name)
+  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown> : undefined
+}
+
+export async function readMediaWorkflowRequest(input: Record<string, unknown>, catalogue: MediaCatalogue, cwd: string, settings: MediaSettings = readMediaSettings()): Promise<Record<string, unknown>> {
+  if (typeof input.workflow !== 'string') return input
+  const path = resolve(cwd, input.workflow)
+  const module = await mediaWorkflowModule(settings)
+  const root = mediaRoot(settings)
+  const plan = module.planWorkflow(module.parseWorkflow(readFileSync(path, 'utf8')), catalogue, { dir: dirname(path), overrides: input, registries: { loras: readRegistry(root, 'loras.json'), embeddings: readRegistry(root, 'embeddings.json') } })
+  const request = module.mergeWorkflowRequest(plan, input)
+  if (typeof request.reference_image === 'string' && (request.width === undefined || request.height === undefined)) {
+    const size = module.referenceDimensions(request.reference_image, catalogue.models.find(row => row.id === request.model)?.multiple ?? 64)
+    request.width ??= size.width
+    request.height ??= size.height
+  }
+  return { ...request, workflow: path, ...(input.dry === true ? { dry: true } : {}), ...(typeof input.cwd === 'string' ? { cwd: input.cwd } : {}) }
 }
 
 export async function readMediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, cwd: string): Promise<string> {
   const settings = readMediaSettings()
   const [catalogue, config] = await Promise.all([readMediaCatalogue(settings), mediaConfigModule(settings).then(module => module.readMediaConfig(mediaRoot(settings)))])
-  return mediaGenerationDetails(kind, input, catalogue, config, cwd)
+  const request = kind === 'image' ? await readMediaWorkflowRequest(input, catalogue, typeof input.cwd === 'string' ? input.cwd : cwd, settings) : input
+  return mediaGenerationDetails(kind, request, catalogue, config, cwd)
 }
 
 export type MediaTestImage = { path: string; png: Buffer }

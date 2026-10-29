@@ -52,6 +52,22 @@ export async function mediaConfigModule(settings: MediaSettings = readMediaSetti
   return module
 }
 
+export type MediaWorkflowMapping = { node: string; type: string; fields?: Record<string, unknown>; note?: string }
+export type MediaWorkflowPlan = { format: 'ui' | 'api'; request: Record<string, unknown>; mapping: MediaWorkflowMapping[]; skipped: MediaWorkflowMapping[]; overrides: string[] }
+type MediaWorkflowModule = {
+  parseWorkflow: (text: string) => unknown
+  planWorkflow: (graph: unknown, catalogue: { models: unknown[]; files: unknown[] }, options: { dir: string; overrides?: Record<string, unknown>; registries?: { loras?: Record<string, unknown>; embeddings?: Record<string, unknown> } }) => MediaWorkflowPlan
+  mergeWorkflowRequest: (plan: MediaWorkflowPlan, input: Record<string, unknown>) => Record<string, unknown>
+  referenceDimensions: (path: string, multiple: number) => { width: number; height: number }
+}
+
+export async function mediaWorkflowModule(settings: MediaSettings = readMediaSettings()): Promise<MediaWorkflowModule> {
+  const file = join(dirname(await mediaServerPath(settings)), 'workflow.js')
+  const module = await import(pathToFileURL(file).href) as MediaWorkflowModule
+  if (typeof module.parseWorkflow !== 'function' || typeof module.planWorkflow !== 'function' || typeof module.mergeWorkflowRequest !== 'function' || typeof module.referenceDimensions !== 'function') throw new Error('Media workflow reader is missing. Reinstall Mercury.')
+  return module
+}
+
 export function mediaEnvironment(settings: MediaSettings = readMediaSettings()): Record<string, string> {
   if (settings.serverPath && !isAbsolute(settings.serverPath)) throw new Error('media.serverPath must be an absolute path.')
   return { MEDIA_ROOT: mediaRoot(settings) }
