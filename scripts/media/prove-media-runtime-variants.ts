@@ -28,7 +28,7 @@ try {
     ['cpu', 'sd-server', [['sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64.zip', 27320021, '422bc495ca647d95e9bd88b04d3eaae52e641d89497ea0dda7335f44c46e9109']]],
   ])
   const old = parseMediaCatalogue({ runtime: { tag: 'master-1015-e41fbcf', ...MAC }, models: [], files: [] })
-  assert.deepEqual(old.runtime, { tag: 'master-1015-e41fbcf', platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [MAC] }] } })
+  assert.deepEqual(old.runtime, { tag: 'master-1015-e41fbcf', families: [], componentFamilies: [], platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [MAC] }] } })
   assert.deepEqual(parseMediaCatalogue(fixtureCatalogue).runtime.platforms['darwin-arm64']![0]!.files[0], { asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) })
   assert.throws(() => parseMediaCatalogue({ runtime: { tag: 't', platforms: { 'win32-x64': [] } }, models: [], files: [] }))
   assert.throws(() => parseMediaCatalogue({ runtime: { tag: 't', platforms: { 'win32-x64': [{ variant: 'vulkan', binary: 'sd-server.exe', files: [{ asset: 'x.tar', bytes: 1, sha256: 'a'.repeat(64) }] }] } }, models: [], files: [] }))

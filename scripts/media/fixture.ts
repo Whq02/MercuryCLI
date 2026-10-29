@@ -9,7 +9,8 @@ export const root = join(proofHome, 'media')
 const engine = join(proofHome, 'engine')
 export const serverPath = join(engine, 'dist', 'server.js')
 export const catalogue: MediaCatalogue = {
-  runtime: { tag: 'fixture-1', platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) }] }] } },
+  runtime: { tag: 'fixture-1', families: [], platforms: { 'darwin-arm64': [{ variant: 'metal', binary: 'sd-server', files: [{ asset: 'fixture.zip', bytes: 64, sha256: 'a'.repeat(64) }] }] } },
+  recipes: [],
   files: [
     { path: 'image.gguf', bytes: 8, repo: 'fixture/images', source: 'image.gguf', sha256: 'b'.repeat(64) },
     { path: 'other.gguf', bytes: 4, repo: 'fixture/images', source: 'other.gguf', sha256: 'c'.repeat(64) },
@@ -81,6 +82,7 @@ const server = createServer(async (req, res) => {
   else if (route === 'model-files') result = { files: (await readdir(join(root, 'models'))).map(path => ({ id: path, relative_path: path })) };
   else if (route === 'models/load') { recipe = body.recipe; result = { state: 'ready' }; }
   else if (route === 'models/unload') { recipe = null; result = { state: 'empty' }; }
+  else if (route === 'models/refresh') result = { errors: [] };
   else if (route === 'img_gen') result = { id: 'fixture-job' };
   else if (route === 'jobs/fixture-job') result = { status: 'completed', result: { images: [{ b64_json: png }] } };
   else { res.statusCode = 404; result = { error: route }; }

@@ -90,9 +90,13 @@ estimate from component sizes.
 | `qwen-image-21` | Image, reference editing | 14.10 GB | 18.83 GiB | 927.15 s | Qwen Research License, non-commercial |
 | `wan22-ti2v-5b` | Video | 12.85 GB | 15.90 GiB | 1054.56 s | Apache-2.0 |
 | `minimax-h3-fl2va` | Video with audio | 35.45 GB | 33.02 GiB estimate | Unmeasured | MiniMax H3 Community |
+| `sdxl-base-1.0` | Image | 7.11 GB | 11.27 GiB estimate | Unmeasured | CreativeML Open RAIL++-M |
+| `pixel-party-xl` | Image, pixel art | 7.11 GB | 11.27 GiB | 96.11 s | CreativeML OpenRAIL-M |
 
 Image timings are for 1024×1024: Z-Image at 9 steps, Klein at 4, Qwen Turbo
-at its fixed 8-step schedule and Qwen Base at 40. The Wan timing is for
+at its fixed 8-step schedule, Qwen Base at 40 and Pixel Party XL at 25.
+The SDXL base row copies Pixel Party's memory figure as an estimate for the
+same architecture. The Wan timing is for
 832×480, 17 frames, 20 steps, with CPU VAE decoding. MiniMax-H3 has no
 measured clip time or peak-memory figure.
 
@@ -100,14 +104,29 @@ Z-Image and Klein share their text encoder. The two Qwen-Image models share
 their encoder, vision projection and VAE. The pull card counts only what is
 still needed.
 
+An SDXL model is downloaded as four files, the UNet, both CLIP text encoders
+and the VAE, and is stored as one 7.11 GB file once the download completes;
+the four files are removed. The download therefore needs 14.2 GB free in the
+media folder, the four files and the finished file together, plus a 1 GiB
+margin; the row says `needs disk space` below that. The two SDXL models share
+their encoders and VAE as downloads but each ends as its own file, so pulling
+the second downloads those 1.97 GB again. Pixel Party XL appends
+`. in pixel art style` to the prompt, renders at 1024×1024 and saves the image
+at 128×128 with the full render beside it as `<name>.source.png`.
+
 Read the publishers' terms before downloading:
 [Z-Image](https://huggingface.co/Tongyi-MAI/Z-Image-Turbo),
 [Klein](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B),
 [Qwen-Image](https://huggingface.co/Qwen/Qwen-Image-2.1),
-[Wan](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B) and
-[MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE).
+[Wan](https://huggingface.co/Wan-AI/Wan2.2-TI2V-5B),
+[MiniMax H3](https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/LICENSE),
+[SDXL base](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0),
+[Pixel Party XL](https://huggingface.co/pixelparty/pixel-party-xl) and
+[SDXL-VAE-FP16-Fix](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix).
 The Qwen Research weights are non-commercial. MiniMax H3 has territorial and
-commercial-use restrictions; the pull card includes its licence notice.
+commercial-use restrictions; the pull card includes its licence notice. The
+Pixel Party XL card asks that the model is not hosted elsewhere; the pull
+takes it from the author's repository, and the pull card says so.
 The media server is Apache-2.0 and the runtime is MIT; weights keep their
 own terms.
 
@@ -124,7 +143,10 @@ own terms.
 | `media_result` | Reads a job's result, saved path and image or video poster; it can wait for completion. |
 
 Generation returns a job id by default. `wait: true` waits for the image or
-video poster. A `media_result` wait expiring does not cancel the render.
+video poster. `image_generate` also accepts `downsize`, a whole-number
+factor: the saved PNG is the render sampled once per block of that size with
+nearest-neighbour sampling, and the full render stays beside it as
+`<name>.source.png`. A `media_result` wait expiring does not cancel the render.
 Closing the submitting client cancels its unfinished jobs; completed files
 remain available. Image previews are at most 1024 pixels on their long side;
 the full image stays on disk. Video uses WebM when supported by the runtime,
@@ -181,3 +203,10 @@ calculation. Place the weights at those paths yourself; adding a catalogue
 entry does not download them. The model appears in setup and the default
 pickers and can be requested by id. The installed engine must support its
 architecture and weight format; a catalogue entry alone cannot add support.
+A catalogue can also define a recipe family under `recipes`, in the
+engine's user-recipe format, and name it in `runtime.families` when the
+pulled runtime runs it, and in `runtime.componentFamilies` when it loads
+the family's component files directly; a family named only in
+`runtime.families` needs a `checkpoint` entry on its recipe, and its rows are
+stored as one file after their download. A row whose family is not named is
+not listed.

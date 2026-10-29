@@ -1,16 +1,16 @@
 {
-  "version": "0.2.1",
+  "version": "0.2.3",
   "runtimeTag": "master-1015-e41fbcf",
   "files": {
     "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
     "NOTICE": "5ffd9faf11e3cca3c879a3121532d8f9a275541b33e97bd20e328130fa23a01f",
     "THIRD_PARTY_NOTICES": "16f39f4b840827f30d02c8c67080d4797333a44c044df3f8be0dcac5bace6e67",
-    "catalog.json": "243c4387dbf0125b18623dfe7b4df07a9d89f80639b83cbb1ece080bebf97798",
+    "catalog.json": "c72091da9ac857f8ee61d0bb8ae14da35d3228aea89506e1a086369a6a1787a6",
     "config.js": "fee197e8b72e245aeb83bbdf2e2c1ca5b708436d1f07061f1d929ef6292a5e4f",
-    "engine-host.js": "d4a806f9841b3efe3bd75b0703a0a8ba4ad444c5b9df93d73910632317b27402",
+    "engine-host.js": "f9e124a2ec9442cff938e13480d8c1cb235a7706b7a73aa62685b2bc4dfbee73",
     "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
     "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
-    "server.js": "15fd6fc9a3f73ec4bf7bafe8373281f5a8874c9115602786aab0002420433ccf",
-    "setup.js": "1f36beb7e5c8bdff2ed104c8bd51abcb9f0848283aece032efc2152e642193ae"
+    "server.js": "985ef4d863df735762c1a339a345301bbacc7dc1b22fb0453cea0f3802bfbaf4",
+    "setup.js": "8df4e3b2fe70c693e24f063c5f84ea5a6813c727206cb0fc6dbf1dbd282a6dcd"
   }
 }

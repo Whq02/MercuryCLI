@@ -6,7 +6,7 @@ import { gbWords, gibWords } from '../localServer/localServerMemory.js'
 import { resolveSetupIo } from '../localSetup/setupIo.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { mediaFileInstalled, mediaModelFiles, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
+import { mediaCheckpointFile, mediaCheckpointInstalled, mediaFileInstalled, mediaModelFiles, mediaModelJoined, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServerPath, readMediaSettings, type MediaConfig, type MediaSettings } from './settings.js'
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
@@ -36,7 +36,7 @@ export function mediaSizeWords(bytes: number): string {
   return `${Math.round(bytes)} B`
 }
 
-function fitMediaRecipeOn(model: MediaModel, catalogue: MediaCatalogue, machine: { totalMemoryBytes: number; usableMemoryBytes: number }, pullBytes: number, freeBytes: number): MediaFit {
+function fitMediaRecipeOn(model: MediaModel, catalogue: MediaCatalogue, machine: { totalMemoryBytes: number; usableMemoryBytes: number }, diskBytes: number, freeBytes: number): MediaFit {
   const files = mediaModelFiles(catalogue, model)
   const size = (slots: string[]) => Object.entries(model.slots).filter(([key]) => slots.includes(key)).reduce((n, [, path]) => n + (files.find(file => file.path === path)?.bytes ?? 0), 0)
   const encoder = size(['llm', 'llm_vision', 't5xxl', 'clip_l', 'clip_g'])
@@ -45,18 +45,22 @@ function fitMediaRecipeOn(model: MediaModel, catalogue: MediaCatalogue, machine:
   const workspace = (model.kind === 'image' ? 1.5 : model.slots.audio_vae ? 4.5 : 3.5) * GiB
   const residentBytes = model.residentBytes ?? (model.paramsBackend?.includes('te=disk') ? diffusion + vae : files.reduce((n, file) => n + file.bytes, 0)) + Math.max(workspace, 2 * GiB)
   const peakMetalBytes = model.peakMetalBytes ?? Math.max(encoder, diffusion + workspace, vae + 2 * GiB)
-  return { residentBytes, peakMetalBytes, fits: (model.peakBytes ?? residentBytes) <= Math.max(0, machine.totalMemoryBytes - 8 * GiB) && peakMetalBytes <= machine.usableMemoryBytes, diskFits: pullBytes <= freeBytes }
+  return { residentBytes, peakMetalBytes, fits: (model.peakBytes ?? residentBytes) <= Math.max(0, machine.totalMemoryBytes - 8 * GiB) && peakMetalBytes <= machine.usableMemoryBytes, diskFits: diskBytes <= freeBytes }
 }
 
-export function mediaRows(catalogue: MediaCatalogue, root: string, machine: { totalMemoryBytes: number; usableMemoryBytes: number }, freeBytes: number, installed = mediaFileInstalled): MediaRow[] {
+export function mediaRows(catalogue: MediaCatalogue, root: string, machine: { totalMemoryBytes: number; usableMemoryBytes: number }, freeBytes: number, installed = mediaFileInstalled, checkpointInstalled = mediaCheckpointInstalled): MediaRow[] {
   return catalogue.models.map(model => {
     const files = mediaModelFiles(catalogue, model)
     const bytes = files.reduce((n, file) => n + file.bytes, 0)
-    const missing = files.filter(file => !installed(root, file))
-    const pullBytes = missing.reduce((n, file) => n + file.bytes - mediaPartialBytes(root, file), 0)
-    const fit = fitMediaRecipeOn(model, catalogue, machine, pullBytes, freeBytes)
-    const words = [missing.length === 0 ? 'installed' : `pull ${gbWords(pullBytes)}`, `${gbWords(bytes)} disk`, `${gibWords(model.peakBytes ?? fit.residentBytes)} memory`, model.secondsPerImage === undefined ? `— s/${model.kind === 'video' ? 'clip' : 'image'}` : `${Math.round(model.secondsPerImage * 10) / 10} s/${model.kind === 'video' ? 'clip' : 'image'}`, !fit.diskFits ? 'needs disk space' : fit.fits ? 'fits' : 'needs more memory'].join(' · ')
-    return { model, installed: missing.length === 0, bytes, pullBytes, fit, words }
+    const joined = mediaModelJoined(catalogue, model)
+    const whole = checkpointInstalled(root, catalogue, model)
+    const missing = whole ? [] : files.filter(file => !installed(root, file))
+    const complete = whole || (!joined && missing.length === 0)
+    const pullBytes = complete ? 0 : missing.reduce((n, file) => n + file.bytes - mediaPartialBytes(root, file), 0)
+    const joinBytes = joined && !whole ? mediaCheckpointFile(model).bytes ?? bytes : 0
+    const fit = fitMediaRecipeOn(model, catalogue, machine, pullBytes + joinBytes, freeBytes)
+    const words = [complete ? 'installed' : `pull ${gbWords(pullBytes)}`, `${gbWords(bytes)} disk`, `${gibWords(model.peakBytes ?? fit.residentBytes)} memory`, model.secondsPerImage === undefined ? `— s/${model.kind === 'video' ? 'clip' : 'image'}` : `${Math.round(model.secondsPerImage * 10) / 10} s/${model.kind === 'video' ? 'clip' : 'image'}`, !fit.diskFits ? 'needs disk space' : fit.fits ? 'fits' : 'needs more memory'].join(' · ')
+    return { model, installed: complete, bytes, pullBytes, fit, words }
   })
 }
 
