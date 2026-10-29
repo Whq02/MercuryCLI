@@ -3,7 +3,7 @@
 # gate-watch: scripts/document/** src/tools/DocumentTool/** vendor/document-libs.lock.json
 # gate-watch: src/skills/bundled/research* src/skills/bundled/index.ts src/tools.ts package.json bun.lock
 # gate-watch: src/utils/permissions/filesystem.ts src/services/browser/browserResolver.ts
-# gate-watch: scripts/vendor/documentLibraries.ts vendor/document-licences/** mercury-skills/research/** build.ts
+# gate-watch: scripts/vendor/documentLibraries.ts vendor/document-licences/** mercury-skills/research/** build.ts .gitattributes
 # gate-watch: scripts/lib/hermetic.ts scripts/ast-tools/lib/harness.ts src/Tool.ts src/bootstrap/state.ts
 # gate-watch: src/services/changeTransaction/receipts.ts src/tools/ToolSearchTool/prompt.ts
 # gate-watch: src/services/browser/browserSession.ts src/services/run/ownerKey.ts

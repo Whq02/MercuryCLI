@@ -517,8 +517,8 @@ section('UI-124/125 — copy confirmations name the route that actually settled'
       src('src/screens/Chat.tsx').includes('text: receipt.confirmation'),
   )
   check(
-    'the win32 UTF-16LE+BOM law survives the receipt refactor (the ΓÇö paste class)',
-    osc.includes('windowsClipInput(text)') && osc.includes('0xff, 0xfe'),
+    'the win32 encoding law survives the receipt refactor (the ΓÇö paste class, the U+FEFF first character): Set-Clipboard decodes UTF-8 bytes itself, clip.exe is fed UTF-16LE with no byte-order mark',
+    osc.includes('input: windowsPowershellInput(text)') && osc.includes('input: windowsClipInput(text)') && !osc.includes('0xff, 0xfe'),
   )
 }
 

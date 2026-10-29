@@ -6,7 +6,7 @@
 # gate-watch: src/extensions/installConsent.ts src/extensions/bundled/shared/install.mjs
 # gate-watch: src/services/run/ownerLifecycle* src/tools/DebugTool/DebugTool*
 # gate-watch: src/services/lsp/clangdLane* src/services/lsp/mercuryLsp*
-# gate-watch: src/services/dap/debugpyResolver.ts src/services/dap/unityAdapter.ts
+# gate-watch: src/services/dap/debugpyResolver.ts src/services/dap/unityAdapter.ts scripts/lib/removeScratch.ts
 # gate-watch: src/services/lsp/builtinServers.ts src/services/resources/adapters/execution.ts
 # gate-watch: src/services/run/resolveOwner.ts src/tools/DebugTool/UI.tsx src/utils/* src/services/providers/toolCallGate.ts src/tools/DebugTool/prompt.ts
 # gate-watch: src/Tool.ts src/guards/guards.ts src/tools/BashTool/BashTool.tsx src/bootstrap/state.ts src/utils/config/globalConfig.ts src/utils/config/trust.ts src/utils/permissions/filesystem.ts

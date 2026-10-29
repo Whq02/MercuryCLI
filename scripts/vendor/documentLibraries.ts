@@ -4,6 +4,8 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, realpat
 import { dirname, join, resolve } from 'node:path'
 
 type Package = { name: string; version: string; license?: string }
+const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
+export const lockedForms = (bytes: Buffer): Buffer[] => [bytes, Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')]
 export async function vendorDocumentLibraries(root: string, output: string) {
   const lockPath = join(root, 'vendor/document-libs.lock.json')
   const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { packages: { name: string; version: string; license: string }[]; licenceSources: { name: string; version: string; file: string; sha256: string; url: string }[] }
@@ -33,10 +35,11 @@ export async function vendorDocumentLibraries(root: string, output: string) {
     const dest = join(destination, 'licences', `${pkg.name.replaceAll('/', '_')}@${pkg.version}`)
     mkdirSync(dest, { recursive: true })
     const files = sourceFiles.map(file => {
-      const bytes = readFileSync(file.path), sha256 = createHash('sha256').update(bytes).digest('hex')
-      if (file.sha256 && sha256 !== file.sha256) throw new Error(`Document licence differs from its lock: ${pkg.name}`)
+      const read = readFileSync(file.path)
+      const bytes = file.sha256 ? lockedForms(read).find(form => digest(form) === file.sha256) : read
+      if (!bytes) throw new Error(`Document licence differs from its lock: ${pkg.name}`)
       writeFileSync(join(dest, file.name), bytes)
-      return { name: file.name, bytes: bytes.length, sha256 }
+      return { name: file.name, bytes: bytes.length, sha256: digest(bytes) }
     })
     packages.push({ name: pkg.name, version: pkg.version, license: pkg.license ?? 'see licence file', files })
   }

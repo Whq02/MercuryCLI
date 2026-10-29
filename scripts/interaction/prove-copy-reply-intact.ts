@@ -19,7 +19,7 @@ delete process.env.SSH_CONNECTION
 delete process.env.TERM_PROGRAM
 
 const { call, collectReplies, copyResultLine, COPY_WORDS, fencedCodeBlocks, lastFencedCodeBlock } = await import('../../src/commands/copy/copy.ts')
-const { pbcopyLocaleEnv, setClipboardWithReceipt, terminalDropsOsc52 } = await import('../../src/ink/termio/osc.ts')
+const { pbcopyLocaleEnv, SET_CLIPBOARD_SCRIPT, setClipboardWithReceipt, terminalDropsOsc52, windowsClipInput, windowsPowershellEnv, windowsPowershellInput } = await import('../../src/ink/termio/osc.ts')
 const { execFileNoThrow } = await import('../../src/utils/execFileNoThrow.ts')
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
 const { findCommand, getCommands } = await import('../../src/commands.ts')
@@ -130,6 +130,19 @@ check('LC_ALL=C (which outranks LANG) is overridden', pbcopyLocaleEnv({ LC_ALL: 
 check('a UTF-8 LANG is kept as it is', pbcopyLocaleEnv({ LANG: 'en_GB.UTF-8' }) === undefined)
 check('a UTF-8 LC_CTYPE is kept as it is', pbcopyLocaleEnv({ LC_CTYPE: 'UTF-8' }) === undefined)
 
+section("§5c the Windows road's bytes from the Arabic reply: no byte-order mark, the first character first, every character and line end as the reply has them")
+{
+  const CRLF_REPLY = ARABIC_REPLY.replaceAll('\n', '\r\n')
+  const powershell = windowsPowershellInput(ARABIC_REPLY)
+  check('Set-Clipboard is handed the reply as UTF-8 with no byte-order mark (the first bytes are the first letter)', powershell.equals(Buffer.from(ARABIC_REPLY, 'utf8')) && !(powershell[0] === 0xef && powershell[1] === 0xbb && powershell[2] === 0xbf), powershell.subarray(0, 4).toString('hex'))
+  check('the script decodes those bytes itself and sets the string as it is', SET_CLIPBOARD_SCRIPT.includes('[Console]::OpenStandardInput()') && SET_CLIPBOARD_SCRIPT.includes('UTF8.GetString(') && SET_CLIPBOARD_SCRIPT.includes('Set-Clipboard -Value (') && !SET_CLIPBOARD_SCRIPT.includes('InputEncoding'))
+  check('a CRLF reply reaches Set-Clipboard with its CRLF ends; an LF reply with its LF ends', windowsPowershellInput(CRLF_REPLY).toString('utf8') === CRLF_REPLY && powershell.toString('utf8') === ARABIC_REPLY)
+  const clip = windowsClipInput(ARABIC_REPLY)
+  check('clip.exe is handed UTF-16LE with no byte-order mark: the first code unit is the first letter, not U+FEFF', clip.readUInt16LE(0) === ARABIC_REPLY.charCodeAt(0) && clip.readUInt16LE(0) !== 0xfeff, clip.subarray(0, 4).toString('hex'))
+  check('the clip.exe bytes decode to the reply exactly (the emoji surrogate pairs and the line ends included)', clip.toString('utf16le') === ARABIC_REPLY && clip.length === ARABIC_REPLY.length * 2)
+  check('a CRLF reply reaches clip.exe with its CRLF ends', windowsClipInput(CRLF_REPLY).toString('utf16le') === CRLF_REPLY)
+}
+
 if (process.platform === 'darwin') {
   const utf8 = { ...process.env, LC_ALL: 'en_US.UTF-8' }
   const pbpaste = (): Buffer => execFileSync('pbpaste', [], { env: utf8 })
@@ -172,8 +185,35 @@ if (process.platform === 'darwin') {
     restore()
     check('the clipboard holds what it held before the proof', pbpaste().equals(held))
   }
+} else if (process.platform === 'win32') {
+  const env = { ...process.env, ...windowsPowershellEnv() }
+  const powershell = (script: string, input?: Buffer): string => execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8', windowsHide: true, env, ...(input === undefined ? {} : { input }) }).trim()
+  const READ = '$text = Get-Clipboard -Raw; if ($null -eq $text) { $text = "" }; [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))'
+  const paste = (): string => Buffer.from(powershell(READ), 'base64').toString('utf8')
+  const held = paste()
+  const restore = (): void => {
+    if (held === '') powershell('Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::Clear()')
+    else powershell(SET_CLIPBOARD_SCRIPT, windowsPowershellInput(held))
+  }
+  try {
+    section('§6 the real clipboard on this Windows box: /copy delivers the Arabic, emoji, three-paragraph reply character for character, its first character first')
+    const { row } = await runCopy(transcript, '')
+    const pasted = paste()
+    check('Get-Clipboard returns the reply exactly: no U+FEFF, every character and line end as the reply has them', pasted === ARABIC_REPLY, `first ${JSON.stringify(pasted.slice(0, 1))} · ${pasted.length} of ${ARABIC_REPLY.length} chars · ${JSON.stringify(pasted.slice(0, 60))}`)
+    check('the row is copied · N characters', row === COPY_WORDS.copied([...ARABIC_REPLY].length), String(row))
+    const code = await runCopy(transcript, 'code')
+    check('/copy code delivers the last fence exactly', paste() === 'echo done 🙏' && code.row === COPY_WORDS.copied([...'echo done 🙏'].length), `${JSON.stringify(paste())} · ${String(code.row)}`)
+    const direct = await setClipboardWithReceipt(ARABIC_REPLY)
+    check('the receipt settles on powershell (Set-Clipboard) with noRoad false', direct.settled.includes('powershell') && direct.noRoad === false, JSON.stringify(direct.settled))
+    const crlf = ARABIC_REPLY.replaceAll('\n', '\r\n')
+    await setClipboardWithReceipt(crlf)
+    check('a CRLF reply arrives with its CRLF ends, an LF reply with its LF ends', paste() === crlf, JSON.stringify(paste().slice(0, 60)))
+  } finally {
+    restore()
+    check('the clipboard holds what it held before the proof', paste() === held)
+  }
 } else {
-  console.log('  (skip) the real clipboard sections run on macOS only')
+  console.log(`  (skip) the real clipboard sections run on macOS (pbcopy) and Windows (Set-Clipboard); this host is ${process.platform}`)
 }
 
 section('§7 the chord: ctrl+x y runs /copy; the same chord copies a focused message; the help lists it')

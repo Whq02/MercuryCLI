@@ -1,6 +1,8 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
+import { fakeCommand } from './fakeCommand.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'dap-bash-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -34,20 +36,14 @@ try {
   mkdirSync(join(process.env.MERCURY_CONFIG_DIR, 'adapters', 'bash', 'extension', 'out'), { recursive: true })
   writeFileSync(entry, '')
   check('adapter alone does not arm Bash', resolveAdapter('bash') === null)
-  for (const name of ['bash', 'bashdb', 'cat', 'mkfifo', 'pkill']) {
-    const file = join(bin, name)
-    writeFileSync(file, '#!/bin/sh\nprintf "GNU bash, version 3.2.57(1)-release\\n"\n')
-    chmodSync(file, 0o755)
-  }
+  for (const name of ['bash', 'bashdb', 'cat', 'mkfifo', 'pkill']) fakeCommand(bin, name, 'GNU bash, version 3.2.57(1)-release\n', scratch)
   const library = join(scratch, 'prefix', 'share', 'bashdb')
   mkdirSync(library, { recursive: true })
   writeFileSync(join(library, 'dbg-main.sh'), '')
   check('macOS-era Bash 3.2 refuses before spawn', resolveAdapter('bash')?.preflightError?.includes('Bash 4') === true)
   const compatible = join(scratch, 'compatible')
-  mkdirSync(compatible)
-  writeFileSync(join(compatible, 'bash'), '#!/bin/sh\nprintf "GNU bash, version 5.2.37(1)-release\\n"\n')
-  chmodSync(join(compatible, 'bash'), 0o755)
-  process.env.PATH = `${compatible}:${bin}`
+  fakeCommand(compatible, 'bash', 'GNU bash, version 5.2.37(1)-release\n', scratch)
+  process.env.PATH = [compatible, bin].join(delimiter)
   const row = resolveAdapter('bash')
   check('compatible Bash and bashdb arm installed adapter', row !== null && row.preflightError === undefined && row.command === process.execPath && row.args[0] === entry)
   check('Bash defaults carry its library and non-terminal transport', row?.launchDefaults?.pathBashdbLib === library && row?.launchDefaults?.terminalKind === 'debugConsole')
@@ -58,6 +54,6 @@ try {
   check('environment row overrides Bash preflight', resolveAdapter('bash')?.command === 'operator-bash-debug')
 } finally {
   process.env.PATH = savedPath
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 process.exitCode = failures ? 1 : 0

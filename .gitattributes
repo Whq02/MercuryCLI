@@ -24,3 +24,10 @@ integrations/vscode/LICENSE.txt text eol=lf
 *.cfg  text eol=lf
 *.py   text eol=lf
 scripts/vendor/patches/*.patch text eol=lf
+# The vendored document licences are hash-locked: vendor/document-libs.lock.json
+# names each file's sha256 and the build refuses a file whose bytes differ. Git
+# must deliver the committed bytes unchanged on every platform, so they are
+# excluded from line-end conversion in both directions (`-text`, not
+# `text eol=lf`, which would still rewrite a CRLF upstream licence at commit
+# time and change the bytes the lock names).
+vendor/document-licences/** -text

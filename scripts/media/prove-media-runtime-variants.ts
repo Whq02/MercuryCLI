@@ -142,7 +142,9 @@ try {
 
   const fallbackDir = join(dir, 'fallback')
   const script = `$ErrorActionPreference='Stop'\n$ProgressPreference='SilentlyContinue'\ntry { Expand-Archive -LiteralPath '${engineZip}' -DestinationPath '${fallbackDir}' -Force } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }\n`
-  const noTar = windows ? { ...process.env, PATH: '', SystemRoot: '', windir: '' } : { ...process.env, PATH: [join(dir, 'bin'), savedPath ?? ''].join(delimiter) }
+  const without = (env: NodeJS.ProcessEnv, names: string[]): NodeJS.ProcessEnv => Object.fromEntries(Object.entries(env).filter(([key]) => !names.some(name => name.toLowerCase() === key.toLowerCase())))
+  const noTar = windows ? without(process.env, ['PATH', 'SystemRoot', 'windir']) : { ...process.env, PATH: [join(dir, 'bin'), savedPath ?? ''].join(delimiter) }
+  if (windows) assert.equal(Object.keys(noTar).some(key => /^(path|systemroot|windir)$/i.test(key)), false, 'the no-tar environment carries no spelling of PATH, SystemRoot or windir, whatever case the launching shell hands them in')
   const fallback = engine.unpackCommand(engineZip, fallbackDir, 'win32', noTar)
   assert.equal(fallback.command, 'powershell.exe')
   assert.deepEqual(fallback.args.slice(0, 3), ['-NoProfile', '-NonInteractive', '-EncodedCommand'])
@@ -163,7 +165,7 @@ try {
   const bogus = join(dir, 'bogus.zip')
   writeFileSync(bogus, 'not an archive\n')
   mkdirSync(join(dir, 'bogus'), { recursive: true })
-  await assert.rejects(engine.unpack(bogus, join(dir, 'bogus'), undefined, 'win32'), (error: Error) => { assert.match(error.message, /^tar\.exe exited \d+: tar: /, error.message); return true })
+  await assert.rejects(engine.unpack(bogus, join(dir, 'bogus'), undefined, 'win32'), (error: Error) => { assert.match(error.message, /^tar\.exe exited \d+: tar(\.exe)?: /, error.message); return true })
   console.log('media runtime variants: table and old row parse; variant per platform, arch and GPU; row words per variant; pull plan with --variant; docs sizes; the vendored Windows unpack road through tar.exe with fixture archives, the powershell.exe fallback without PSModulePath, and a failed unpack naming the child\'s last stderr line; runtime.json carries the variant')
 } finally {
   process.env.PATH = savedPath

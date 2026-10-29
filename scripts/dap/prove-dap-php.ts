@@ -1,6 +1,8 @@
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
+import { fakeCommand } from './fakeCommand.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'dap-php-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -35,15 +37,10 @@ try {
   writeFileSync(join(plan.destination, '.vendor-manifest.json'), JSON.stringify({ sha256: plan.sha256, version: plan.version }))
   const absent = resolveAdapter('php')
   check('no PHP runtime refuses before adapter launch', absent?.preflightError?.includes('php') === true)
-  const php = join(bin, process.platform === 'win32' ? 'php.exe' : 'php')
-  writeFileSync(php, '#!/bin/sh\nprintf "[PHP Modules]\\nCore\\n"\n')
-  chmodSync(php, 0o755)
+  fakeCommand(bin, 'php', '[PHP Modules]\nCore\n', scratch)
   check('PHP without Xdebug refuses with module check', resolveAdapter('php')?.preflightError?.includes('php -m | grep -i xdebug') === true)
   const other = join(scratch, 'with-xdebug')
-  mkdirSync(other)
-  const enabled = join(other, process.platform === 'win32' ? 'php.exe' : 'php')
-  writeFileSync(enabled, '#!/bin/sh\nprintf "[PHP Modules]\\nCore\\nxdebug\\n[Zend Modules]\\nXdebug\\n"\n')
-  chmodSync(enabled, 0o755)
+  fakeCommand(other, 'php', '[PHP Modules]\nCore\nxdebug\n[Zend Modules]\nXdebug\n', scratch)
   process.env.PATH = other
   const ready = resolveAdapter('php')
   check('PHP adapter runs its script under the bundled runtime', ready?.command === process.execPath && ready?.args[0] === join(plan.destination, plan.entry))
@@ -54,6 +51,6 @@ try {
   check('PHP environment row overrides built-in preflight', resolveAdapter('php')?.command === 'operator-php-debug')
 } finally {
   process.env.PATH = savedPath
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 process.exitCode = failures ? 1 : 0

@@ -107,8 +107,20 @@ async function tmuxLoadBuffer(text: string): Promise<boolean> {
 }
 
 export function windowsClipInput(text: string): Buffer {
-  return Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')])
+  return Buffer.from(text, 'utf16le')
 }
+
+export function windowsPowershellInput(text: string): Buffer {
+  return Buffer.from(text, 'utf8')
+}
+
+export function windowsPowershellEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const overrides: NodeJS.ProcessEnv = {}
+  for (const key of Object.keys(base)) if (key.toUpperCase() === 'PSMODULEPATH') overrides[key] = undefined
+  return overrides
+}
+
+const POWERSHELL_TIMEOUT_MS = 5000
 
 type NativeRoute = 'pbcopy' | 'wl-copy' | 'xclip' | 'xsel' | 'clip.exe' | 'powershell'
 
@@ -140,8 +152,8 @@ export function pbcopyLocaleEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.Pr
   return /utf-?8/i.test(effective) ? undefined : { LC_ALL: 'en_US.UTF-8' }
 }
 
-const SET_CLIPBOARD_SCRIPT =
-  '[Console]::InputEncoding = [System.Text.Encoding]::UTF8; $text = [Console]::In.ReadToEnd(); Set-Clipboard -Value $text'
+export const SET_CLIPBOARD_SCRIPT =
+  '$stdin = [Console]::OpenStandardInput(); $bytes = New-Object System.IO.MemoryStream; $stdin.CopyTo($bytes); Set-Clipboard -Value ([System.Text.Encoding]::UTF8.GetString($bytes.ToArray()))'
 
 async function copyNative(text: string): Promise<NativeRoute | null> {
   try {
@@ -163,14 +175,19 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
         return null
       }
       case 'win32': {
-        const ok = await execFileNoThrow('clip', [], {
+        const set = await execFileNoThrow('powershell', ['-NoProfile', '-NonInteractive', '-Command', SET_CLIPBOARD_SCRIPT], {
+          useCwd: false,
+          timeout: POWERSHELL_TIMEOUT_MS,
+          input: windowsPowershellInput(text),
+          env: windowsPowershellEnv(),
+        })
+        if (set.code === 0) return 'powershell'
+        const clip = await execFileNoThrow('clip', [], {
           useCwd: false,
           timeout: SUBPROCESS_TIMEOUT_MS,
           input: windowsClipInput(text),
         })
-        if (ok.code === 0) return 'clip.exe'
-        const fallback = await runNative('powershell', ['-NoProfile', '-NonInteractive', '-Command', SET_CLIPBOARD_SCRIPT], text)
-        return fallback ? 'powershell' : null
+        return clip.code === 0 ? 'clip.exe' : null
       }
       default:
         return null

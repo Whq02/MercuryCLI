@@ -5,6 +5,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { isInside } from '../lib/platformPath.ts'
 
 delete process.env.NODE_ENV
 delete process.env.MERCURY_HOME
@@ -91,7 +92,7 @@ section("§3 a relative path is read against the session's folder, never the pro
   writeFileSync(join(elsewhere, 'src', 'a.ts'), 'const needle = 2\n')
   process.chdir(proofHome)
   const projectReal = realpathSync(project)
-  const underProject = (form: string): boolean => form === project || form === projectReal || form.startsWith(project + '/') || form.startsWith(projectReal + '/')
+  const underProject = (form: string): boolean => form === project || form === projectReal || isInside(form, project) || isInside(form, projectReal)
   for (const path of ['.', './src', 'src']) {
     const away = verdict(path)
     const forms = getResolvedWorkingDirPaths(path)
