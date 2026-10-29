@@ -160,6 +160,7 @@ edit `imageModel` and `videoModel` in `<media.root>/config.json`, never in
 | `media.enabled` | Enables the bundled local media extension; `false` by default. |
 | `media.root` | The absolute path of the media folder holding the runtime, models, config and logs; defaults to `~/.mercury/media`. |
 | `media.serverPath` | Optional absolute path to a development `server.js`, honoured in user settings only. |
+| `media.host` | The rented machine that runs image and video generation, chosen on the runtime row of `/imagesetup`; empty or absent runs them on this computer. |
 
 ## Permissions
 

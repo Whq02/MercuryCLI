@@ -54,7 +54,10 @@ const CENSUS: Record<string, { values: string[]; types: string[] }> = {
     values: ['OAuthErrorResponseSchema', 'OAuthMetadataSchema', 'OAuthTokensSchema'],
     types: [],
   },
-  server: { values: ['Server', 'McpServer', 'ResourceTemplate', 'createMcpHandler', 'validateHostHeader'], types: ['McpRequestContext'] },
+  server: {
+    values: ['Server', 'McpServer', 'ResourceTemplate', 'bearerAuthChallengeResponse', 'buildOAuthProtectedResourceMetadata', 'createMcpHandler', 'getOAuthProtectedResourceMetadataUrl', 'oauthMetadataResponse', 'requireBearerAuth', 'validateHostHeader'],
+    types: ['AuthInfo', 'McpRequestContext', 'OAuthMetadata', 'OAuthTokenVerifier'],
+  },
   'server/stdio': { values: ['serveStdio'], types: [] },
 }
 
@@ -63,6 +66,11 @@ const LAZY_SITES: ReadonlyArray<{ file: string; specifier: string; reason: strin
     file: 'src/services/mcp/mercuryServer.ts',
     specifier: 'server',
     reason: 'the in-process mercury server builds its SDK layer only when it is enabled and connected',
+  },
+  {
+    file: 'src/services/mcp/automationGateway.ts',
+    specifier: 'server',
+    reason: "the server package's OAuthError is a class of its own, distinct from the client's; the bearer challenge recognises only its own instances, and the doorway re-exports a name once",
   },
 ]
 

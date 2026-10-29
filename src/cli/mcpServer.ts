@@ -106,7 +106,7 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
   if (!address || typeof address === 'string') throw new Error('MCP listener has no TCP address')
   localOrigin = `http://${bind.includes(':') ? `[${bind}]` : bind}:${address.port}`
   if (oauthClients.length > 0) {
-    try { gateway = new AutomationGateway({ issuer: publicOrigin?.origin ?? localOrigin, clients: oauthClients, log: line => process.stderr.write(`${line}\n`) }) }
+    try { gateway = await AutomationGateway.create({ issuer: publicOrigin?.origin ?? localOrigin, clients: oauthClients, log: line => process.stderr.write(`${line}\n`) }) }
     catch (error) { await closeHandlers(); server.close(); throw error }
   }
   if (!options.tokenFile) process.stderr.write(`Bearer token: ${grants[0]!.token}\n`)

@@ -44,8 +44,6 @@ export {
 export {
   Server,
   McpServer,
-  OAuthError as ServerOAuthError,
-  OAuthErrorCode as ServerOAuthErrorCode,
   ResourceTemplate,
   bearerAuthChallengeResponse,
   buildOAuthProtectedResourceMetadata,

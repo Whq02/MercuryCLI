@@ -5,8 +5,6 @@ import { z } from 'zod/v4'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import type { AutomationOAuthClient } from './automationAccess.js'
 import {
-  ServerOAuthError as OAuthError,
-  ServerOAuthErrorCode as OAuthErrorCode,
   bearerAuthChallengeResponse,
   buildOAuthProtectedResourceMetadata,
   getOAuthProtectedResourceMetadataUrl,
@@ -16,6 +14,10 @@ import {
   type OAuthMetadata,
   type OAuthTokenVerifier,
 } from './sdk.js'
+
+type ServerSdk = typeof import('@modelcontextprotocol/server')
+type OAuthErrors = Pick<ServerSdk, 'OAuthError' | 'OAuthErrorCode'>
+type OAuthErrorCode = ServerSdk['OAuthErrorCode'][keyof ServerSdk['OAuthErrorCode']]
 
 const ACCESS_TOKEN_SECONDS = 3600
 const REFRESH_TOKEN_SECONDS = 30 * 24 * 3600
@@ -45,8 +47,8 @@ const digest = (value: string): string => createHash('sha256').update(value).dig
 const same = (a: string, b: string): boolean => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
 const fresh = (): string => randomBytes(32).toString('base64url')
 const escape = (value: string): string => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
-const oauthError = (status: number, code: OAuthErrorCode, description: string, headers: Record<string, string> = {}): Response =>
-  Response.json(new OAuthError(code, description).toResponseObject(), { status, headers: { 'cache-control': 'no-store', ...headers } })
+const oauthError = (errors: OAuthErrors, status: number, code: OAuthErrorCode, description: string, headers: Record<string, string> = {}): Response =>
+  Response.json(new errors.OAuthError(code, description).toResponseObject(), { status, headers: { 'cache-control': 'no-store', ...headers } })
 const html = (status: number, title: string, body: string): Response => new Response(
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem}input{font:inherit;padding:.4rem;width:8rem}button{font:inherit;padding:.4rem 1rem}</style></head><body><h1>${title}</h1>${body}</body></html>`,
   { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'", 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY' } },
@@ -64,7 +66,11 @@ export class AutomationGateway implements OAuthTokenVerifier {
   private readonly codes = new Map<string, IssuedCode>()
   private grants: Grant[] = []
 
-  constructor(private readonly options: { issuer: string; clients: readonly AutomationOAuthClient[]; log: (line: string) => void; path?: string }) {
+  static async create(options: { issuer: string; clients: readonly AutomationOAuthClient[]; log: (line: string) => void; path?: string }): Promise<AutomationGateway> {
+    const sdk = await import('@modelcontextprotocol/server')
+    return new AutomationGateway(options, { OAuthError: sdk.OAuthError, OAuthErrorCode: sdk.OAuthErrorCode })
+  }
+  constructor(private readonly options: { issuer: string; clients: readonly AutomationOAuthClient[]; log: (line: string) => void; path?: string }, private readonly errors: OAuthErrors) {
     this.issuer = new URL(options.issuer).origin
     this.resource = `${this.issuer}/mcp`
     this.resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(new URL(this.resource))
@@ -113,8 +119,8 @@ export class AutomationGateway implements OAuthTokenVerifier {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     const hash = digest(token)
     const grant = this.grants.find(row => same(row.access, hash))
-    if (!grant) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Unknown token')
-    if (grant.accessExpiresAt <= seconds()) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Token has expired')
+    if (!grant) throw new this.errors.OAuthError(this.errors.OAuthErrorCode.InvalidToken, 'Unknown token')
+    if (grant.accessExpiresAt <= seconds()) throw new this.errors.OAuthError(this.errors.OAuthErrorCode.InvalidToken, 'Token has expired')
     return { token, clientId: grant.client_id, scopes: [], expiresAt: grant.accessExpiresAt, resource: new URL(grant.resource), extra: { client: grant.client } }
   }
 
@@ -124,7 +130,7 @@ export class AutomationGateway implements OAuthTokenVerifier {
   }
 
   challenge(): Response {
-    return bearerAuthChallengeResponse(new OAuthError(OAuthErrorCode.InvalidToken, 'Bearer token required'), { resourceMetadataUrl: this.resourceMetadataUrl })
+    return bearerAuthChallengeResponse(new this.errors.OAuthError(this.errors.OAuthErrorCode.InvalidToken, 'Bearer token required'), { resourceMetadataUrl: this.resourceMetadataUrl })
   }
 
   async fetch(request: Request): Promise<Response | undefined> {
@@ -174,11 +180,11 @@ export class AutomationGateway implements OAuthTokenVerifier {
     if (!client || redirectUri === null || !client.redirect_uris.includes(redirectUri)) return notice(400, 'This sign-in request names a client or redirect address that the token file does not allow.')
     const state = query.get('state')
     const fail = (code: string, description: string): Response => this.bounce(redirectUri, state, { error: code, error_description: description })
-    if (query.get('response_type') !== 'code') return fail(OAuthErrorCode.UnsupportedResponseType, 'Only response_type=code is supported')
+    if (query.get('response_type') !== 'code') return fail(this.errors.OAuthErrorCode.UnsupportedResponseType, 'Only response_type=code is supported')
     const challenge = query.get('code_challenge')
-    if (challenge === null || !/^[A-Za-z0-9_-]{43}$/.test(challenge) || query.get('code_challenge_method') !== 'S256') return fail(OAuthErrorCode.InvalidRequest, 'PKCE with S256 is required')
-    if (query.get('resource') !== this.resource) return fail(OAuthErrorCode.InvalidTarget, `The resource must be ${this.resource}`)
-    if (state !== null && state.length > 1024) return fail(OAuthErrorCode.InvalidRequest, 'state is too long')
+    if (challenge === null || !/^[A-Za-z0-9_-]{43}$/.test(challenge) || query.get('code_challenge_method') !== 'S256') return fail(this.errors.OAuthErrorCode.InvalidRequest, 'PKCE with S256 is required')
+    if (query.get('resource') !== this.resource) return fail(this.errors.OAuthErrorCode.InvalidTarget, `The resource must be ${this.resource}`)
+    if (state !== null && state.length > 1024) return fail(this.errors.OAuthErrorCode.InvalidRequest, 'state is too long')
     const now = seconds()
     for (const [id, row] of this.pending) if (row.client.name === client.name || row.expiresAt <= now) this.pending.delete(id)
     const row: Pending = { id: fresh(), client, redirectUri, state, challenge, approval: String(randomInt(0, 1_000_000)).padStart(6, '0'), attempts: 0, expiresAt: now + APPROVAL_SECONDS }
@@ -197,7 +203,7 @@ export class AutomationGateway implements OAuthTokenVerifier {
     }
     if (form.get('decision') !== 'approve') {
       this.pending.delete(row.id)
-      return this.bounce(row.redirectUri, row.state, { error: OAuthErrorCode.AccessDenied, error_description: 'The operator denied the request' })
+      return this.bounce(row.redirectUri, row.state, { error: this.errors.OAuthErrorCode.AccessDenied, error_description: 'The operator denied the request' })
     }
     if (!same(row.approval, (form.get('code') ?? '').trim())) {
       row.attempts++
@@ -217,7 +223,7 @@ export class AutomationGateway implements OAuthTokenVerifier {
   private clientAuth(request: Request, form: URLSearchParams): AutomationOAuthClient | Response {
     const header = request.headers.get('authorization') ?? ''
     const basic = /^basic\s/i.test(header)
-    const refuse = (): Response => oauthError(401, OAuthErrorCode.InvalidClient, 'Client authentication failed', basic ? { 'www-authenticate': 'Basic realm="mercury"' } : {})
+    const refuse = (): Response => oauthError(this.errors, 401, this.errors.OAuthErrorCode.InvalidClient, 'Client authentication failed', basic ? { 'www-authenticate': 'Basic realm="mercury"' } : {})
     let id = form.get('client_id')
     let secret = form.get('client_secret')
     if (basic) {
@@ -248,15 +254,15 @@ export class AutomationGateway implements OAuthTokenVerifier {
 
   private async token(request: Request): Promise<Response> {
     const form = await this.form(request)
-    if (!form) return oauthError(400, OAuthErrorCode.InvalidRequest, 'Send application/x-www-form-urlencoded parameters')
+    if (!form) return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidRequest, 'Send application/x-www-form-urlencoded parameters')
     const client = this.clientAuth(request, form)
     if (client instanceof Response) return client
     const resource = form.get('resource')
-    if (resource !== null && resource !== this.resource) return oauthError(400, OAuthErrorCode.InvalidTarget, `The resource must be ${this.resource}`)
+    if (resource !== null && resource !== this.resource) return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidTarget, `The resource must be ${this.resource}`)
     const grantType = form.get('grant_type')
     if (grantType === 'authorization_code') return this.exchange(client, form)
     if (grantType === 'refresh_token') return this.refresh(client, form)
-    return oauthError(400, OAuthErrorCode.UnsupportedGrantType, 'Use authorization_code or refresh_token')
+    return oauthError(this.errors, 400, this.errors.OAuthErrorCode.UnsupportedGrantType, 'Use authorization_code or refresh_token')
   }
 
   private exchange(client: AutomationOAuthClient, form: URLSearchParams): Response {
@@ -265,13 +271,13 @@ export class AutomationGateway implements OAuthTokenVerifier {
     if (!issued) {
       const replayed = this.grants.find(row => same(row.code, hash))
       if (replayed) this.drop(replayed)
-      return oauthError(400, OAuthErrorCode.InvalidGrant, 'The authorization code is unknown, used or expired')
+      return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidGrant, 'The authorization code is unknown, used or expired')
     }
     this.codes.delete(hash)
     const verifier = form.get('code_verifier') ?? ''
     const bound = issued.expiresAt > seconds() && issued.client.name === client.name && form.get('redirect_uri') === issued.redirectUri
       && /^[A-Za-z0-9._~-]{43,128}$/.test(verifier) && same(createHash('sha256').update(verifier).digest('base64url'), issued.challenge)
-    if (!bound) return oauthError(400, OAuthErrorCode.InvalidGrant, 'The authorization code does not match this request')
+    if (!bound) return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidGrant, 'The authorization code does not match this request')
     const grant: Grant = { client: client.name, client_id: client.client_id, resource: this.resource, code: hash, access: '', accessExpiresAt: 0, refresh: '', refreshExpiresAt: 0, retired: [] }
     this.grants.push(grant)
     const tokens = this.mint(grant)
@@ -285,14 +291,14 @@ export class AutomationGateway implements OAuthTokenVerifier {
     if (!grant || grant.client !== client.name || grant.refreshExpiresAt <= seconds()) {
       const reused = this.grants.find(row => row.retired.some(old => same(old, hash)))
       if (reused) this.drop(reused)
-      return oauthError(400, OAuthErrorCode.InvalidGrant, 'The refresh token is unknown, rotated or expired')
+      return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidGrant, 'The refresh token is unknown, rotated or expired')
     }
     return this.mint(grant)
   }
 
   private async revoke(request: Request): Promise<Response> {
     const form = await this.form(request)
-    if (!form) return oauthError(400, OAuthErrorCode.InvalidRequest, 'Send application/x-www-form-urlencoded parameters')
+    if (!form) return oauthError(this.errors, 400, this.errors.OAuthErrorCode.InvalidRequest, 'Send application/x-www-form-urlencoded parameters')
     const client = this.clientAuth(request, form)
     if (client instanceof Response) return client
     const hash = digest(form.get('token') ?? '')
