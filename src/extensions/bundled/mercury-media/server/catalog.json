@@ -14,6 +14,7 @@
       ],
       "linux-x64": [
         {"variant":"vulkan","binary":"sd-server","files":[{"asset":"sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip","bytes":37644143,"sha256":"0ae9ef34eea1ff6a229b892144a65ed8c00b6438c5ba783cdeca77024b2fc697"}]},
+        {"variant":"cuda12","binary":"sd-server","files":[],"source":{"revision":"e41fbcf455e0fbb45e08bd535b00d6cba865e921","fallback":"vulkan"}},
         {"variant":"cpu","binary":"sd-server","files":[{"asset":"sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64.zip","bytes":27320021,"sha256":"422bc495ca647d95e9bd88b04d3eaae52e641d89497ea0dda7335f44c46e9109"}]}
       ]
     }
@@ -22,6 +23,8 @@
     {"schema_version":1,"id":"sdxl","name":"SDXL (components)","description":"An SDXL UNet with the base model's two CLIP text encoders and the fp16-fix VAE; no refiner.","size_multiple":64,"model_url":"https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0","slots":[{"id":"diffusion_model","required":true,"label":"SDXL UNet"},{"id":"clip_l","required":true},{"id":"clip_g","required":true},{"id":"vae","required":true,"label":"SDXL VAE (fp16 fix)"}],"defaults":{"sampling_method":"euler","scheduler":"discrete","cfg_scale":5,"steps":20,"width":1024,"height":1024},"features":["cache_unet","clip_skip","shifted_timestep"],"disabled_features":["cache_dit"],"checkpoint":{"recipe":"sdxl-checkpoint","layout":"sdxl"}}
   ],
   "files": [
+    {"path":"upscalers/RealESRGAN_x4plus_anime_6B.pth","url":"https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth","bytes":17938799,"sha256":"f872d837d3c90ed2e05227bed711af5671a6fd1c9f7d7e91c911a61f155e99da"},
+    {"path":"upscalers/RealESRGAN_x4plus.pth","url":"https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth","bytes":67040989,"sha256":"4fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1"},
     {"path":"controlnet/sd1-canny.safetensors","repo":"lllyasviel/control_v11p_sd15_canny","revision":"115a470d547982438f70198e353a921996e2e819","source":"diffusion_pytorch_model.fp16.safetensors","bytes":722598642,"sha256":"9ed3a7f834aca0d2b26f9c7f186b3ee29465de1d13e152459e8c9cbb25a0c0bc"},
     {"path":"controlnet/sd1-depth.safetensors","repo":"lllyasviel/control_v11f1p_sd15_depth","revision":"539f99181d33db39cf1af2e517cd8056785f0a87","source":"diffusion_pytorch_model.fp16.safetensors","bytes":722598642,"sha256":"838f3e848cb93231d41084d858d117416ab32907a5c8c80c421a131d101ba1ef"},
     {"path":"controlnet/sd1-pose.safetensors","repo":"lllyasviel/control_v11p_sd15_openpose","revision":"9ae9f970358db89e211b87c915f9535c6686d5ba","source":"diffusion_pytorch_model.fp16.safetensors","bytes":722598642,"sha256":"b25b1125e870275550b2a7de289056cb3c236c01c293bd5ba883657b1c006e3e"},
@@ -52,6 +55,8 @@
     ,{"path":"vae/sdxl_vae-fp16-fix.safetensors","repo":"madebyollin/sdxl-vae-fp16-fix","source":"sdxl_vae.safetensors","bytes":334641162,"sha256":"235745af8d86bf4a4c1b5b4f529868b37019a10f7c0b2e79ad0abca3a22bc6e1"}
   ],
   "models": [
+    {"id":"realesrgan-x4plus-anime-6b","kind":"image","recipe":"esrgan","upscaler":{"scale":4},"license":"BSD-3-Clause","steps":1,"multiple":1,"slots":{"upscale_model":"upscalers/RealESRGAN_x4plus_anime_6B.pth"}},
+    {"id":"realesrgan-x4plus","kind":"image","recipe":"esrgan","upscaler":{"scale":4},"license":"BSD-3-Clause","steps":1,"multiple":1,"slots":{"upscale_model":"upscalers/RealESRGAN_x4plus.pth"}},
     {"id":"controlnet-sd1-canny","kind":"image","recipe":"sd1-controlnet","control":{"family":"sd1","kind":"canny"},"license":"CreativeML OpenRAIL-M","steps":20,"multiple":64,"slots":{"control_net":"controlnet/sd1-canny.safetensors"},"checkpoint":{"bytes":722596464}},
     {"id":"controlnet-sd1-depth","kind":"image","recipe":"sd1-controlnet","control":{"family":"sd1","kind":"depth"},"license":"CreativeML OpenRAIL-M","steps":20,"multiple":64,"slots":{"control_net":"controlnet/sd1-depth.safetensors"},"checkpoint":{"bytes":722596464}},
     {"id":"controlnet-sd1-pose","kind":"image","recipe":"sd1-controlnet","control":{"family":"sd1","kind":"pose"},"license":"CreativeML OpenRAIL-M","steps":20,"multiple":64,"slots":{"control_net":"controlnet/sd1-pose.safetensors"},"checkpoint":{"bytes":722596464}},

@@ -1,16 +1,19 @@
 {
-  "version": "0.2.4",
+  "version": "0.2.5",
   "runtimeTag": "master-1015-e41fbcf",
   "files": {
     "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
     "NOTICE": "5ffd9faf11e3cca3c879a3121532d8f9a275541b33e97bd20e328130fa23a01f",
-    "THIRD_PARTY_NOTICES": "16f39f4b840827f30d02c8c67080d4797333a44c044df3f8be0dcac5bace6e67",
-    "catalog.json": "277be6ad8f8d61786caa978cf899c2f064fd759ee3c62347ba568be167c77b80",
-    "config.js": "fee197e8b72e245aeb83bbdf2e2c1ca5b708436d1f07061f1d929ef6292a5e4f",
-    "engine-host.js": "f9e124a2ec9442cff938e13480d8c1cb235a7706b7a73aa62685b2bc4dfbee73",
+    "THIRD_PARTY_NOTICES": "4c73eb1804f3427ea087d2904161202881c26eb56c8f516acd9255c8fa93a8c4",
+    "catalog.json": "2da18ed42316d8df910abe9fd82342635232eea7c2cf89703e19a7dbad89b6ef",
+    "config.js": "e5f4d64df2e30ab850447edaaf8c1a64289aa285e14ffa57aadb76ba1a3996f5",
+    "engine-host.js": "5733fb45551259c08bbfe279d1c2d695de2096af33e5c4a62a8d06ed0253d9f2",
     "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
     "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
-    "server.js": "8fcd942060ae88c8641e122b112b1721e5bacb922cd648cb2e1135d9c671a941",
-    "setup.js": "38450e850e372a4a9b6ebf01d1617c9cbdb134bf1c358dd9aea61ebd84991ed4"
+    "remote-client.js": "7e44a98fde440935918769c00308a1a4f7ef7df211def48512f0aee565458962",
+    "remote-server.js": "01c0787ae0e37d04a3b0d3955a4fec17ec8bc26406e9167c33e9b25b93b330ff",
+    "server.js": "b36d2d1a7a92ae6a4796eb21c0cb77c30caa5ad7a66c84c5f2c546668ac0a1ba",
+    "setup.js": "afc73012a5a072877a71d8b25e1d6a168e5e3bf5173431015fa6f4f0879eddf7",
+    "workflow.js": "19f906aee26c95dd861a81ae39276ac44de59b0a0cdbfa75e81e867ea714f185"
   }
 }
