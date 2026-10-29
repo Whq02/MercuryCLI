@@ -48,7 +48,15 @@ const shown = (v: Verdict): string => `${v.behavior}: ${v.message ?? ''}`
 const O = slashed(outside)
 const OD = slashed(outsideDir)
 const outsideAsk = (verb: string, path = outside): string => `Mercury needs permission to ${verb} ${path}, outside the starting folder ('${root}').`
-
+const xargsNeedsApproval = process.platform === 'win32'
+const xargsApprovalWords = (command: string): string => command.includes(' | ')
+  ? `One part of this Bash command needs approval: ${command.split(' | ').at(-1)}`
+  : `\`${command}\` requires approval: \`xargs\` is not a command Mercury can verify as read-only.`
+const checkRead = (command: string, v: Verdict): void => {
+  const approval = xargsNeedsApproval && /(?:^|\| )xargs\b/.test(command)
+  check(`${command} → ${approval ? 'approval on win32 (xargs is Unix-only)' : 'allow'}`,
+    approval ? v.behavior === 'passthrough' && v.message === xargsApprovalWords(command) : v.behavior === 'allow', shown(v))
+}
 console.log('prove-flagged-file-operands — a file a read-only command takes through a flag is an operand of the path check')
 
 console.log('\n1. the extractor table')
@@ -206,7 +214,7 @@ console.log('\n4. the same shapes inside the starting folder stay read-only and 
     'fmt README', 'pr README', 'expand README', 'unexpand README', 'tsort list', 'realpath README', 'readlink README', 'info -f README', 'man ./README', 'date -r README', 'test -f README', 'cat README',
   ]) {
     const v = await decide(command)
-    check(`${command} → allow`, v.behavior === 'allow', shown(v))
+    checkRead(command, v)
   }
   for (const command of ['rg -f list README', 'rg --ignore-file list alpha', 'pyright README', 'grep --file=list README', 'grep -rf list .']) {
     const v = await decide(command)
@@ -256,10 +264,11 @@ console.log('\n7. xargs with a reading target and no arg-file takes its paths fr
     check(`${command.replace(outside, '<outside>')} → needs approval naming the part (the engine resolves it to a card)`, v.behavior === 'passthrough' && v.message === `One part of this Bash command needs approval: ${part}`, shown(v))
   }
   const redirected = await decide('xargs head < list')
-  check('xargs head < list → not allowed, with the read-only words', redirected.behavior !== 'allow' && redirected.message === '`xargs head < list` requires approval: it is not a read-only form of `xargs`.', shown(redirected))
+  const redirectedWords = xargsNeedsApproval ? xargsApprovalWords('xargs head < list') : '`xargs head < list` requires approval: it is not a read-only form of `xargs`.'
+  check(`xargs head < list → not allowed (${xargsNeedsApproval ? 'Unix-only command on win32' : 'not a read-only form'})`, redirected.behavior === 'passthrough' && redirected.message === redirectedWords, shown(redirected))
   for (const command of ['echo README | xargs echo', "echo a b | xargs printf '%s\\n'", 'ls | xargs -n 1 echo', 'echo x | xargs -0 echo', 'xargs -a list head', 'xargs -a list wc -l', 'xargs -a list grep alpha', 'xargs --arg-file=list tail']) {
     const v = await decide(command)
-    check(`${command} → allow`, v.behavior === 'allow', shown(v))
+    checkRead(command, v)
   }
   const outsideList = await decide(`xargs -a ${O} head`)
   check('xargs -a <outside> head → ask for the arg-file', outsideList.behavior === 'ask' && outsideList.message === outsideAsk('read'), shown(outsideList))
