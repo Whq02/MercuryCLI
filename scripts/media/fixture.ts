@@ -113,9 +113,9 @@ process.on('SIGTERM', () => { server.close(); process.exit(0); });
 }
 
 export async function stopFixtureEngine(): Promise<void> {
-  const file = join(root, 'run', 'engine-image.json')
+  const file = join(root, 'run', 'engines.json')
   let record: { ownerPid: number; pid: number }
-  try { record = JSON.parse(readFileSync(file, 'utf8')) } catch { return }
+  try { record = JSON.parse(readFileSync(file, 'utf8')).image; if (!record) return } catch { return }
   const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true } catch { return false } }
   if (alive(record.ownerPid)) process.kill(record.ownerPid, 'SIGTERM')
   const deadline = Date.now() + 10000
