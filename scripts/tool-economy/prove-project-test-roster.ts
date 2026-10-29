@@ -29,10 +29,12 @@ try {
       const messages = [createUserMessage({ content: 'run the tests' })]
       const input = { model, tools, messages, agents: [], latchKey: project, getToolPermissionContext: async () => getEmptyToolPermissionContext() }
       const plan = await runWithCwdOverride(project, () => planToolPayload(input))
-      check(`${model} ${declared}: Test deferral follows the declared runner`, plan.deferredNames.has('Test') === !declared)
-      check(`${model} ${declared}: discovery uses the same predicate`, runWithCwdOverride(project, () => isDeferredToolFor(TestTool, model)) === !declared)
-      if (declared) check(`${model}: Test rides in the named roster without admission`, plan.roster.some(t => t.name === 'Test') && !plan.isDeferredUnadmitted('Test'))
-      else {
+      const cloud = !model.startsWith('local/')
+      const deferred = cloud || !declared
+      check(`${model} ${declared}: Test is deferred on a cloud route; the local lane follows the declared runner`, plan.deferredNames.has('Test') === deferred)
+      check(`${model} ${declared}: discovery uses the same predicate`, runWithCwdOverride(project, () => isDeferredToolFor(TestTool, model)) === deferred)
+      if (!deferred) check(`${model}: Test rides in the named roster without admission`, plan.roster.some(t => t.name === 'Test') && !plan.isDeferredUnadmitted('Test'))
+      else if (!declared) {
         writeFileSync(join(project, 'package.json'), JSON.stringify({ devDependencies: { vitest: '*' } }))
         const frozen = await runWithCwdOverride(project, () => planToolPayload(input))
         check(`${model}: a mid-turn manifest never changes the frozen mark`, frozen.deferredNames.has('Test'))

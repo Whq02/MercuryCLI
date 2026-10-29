@@ -29,10 +29,23 @@ export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   return Boolean(tool.shouldDefer)
 }
 
-export function loadsInFullFor(tool: Tool, model: string | undefined): boolean {
-  if (tool.loadInFullOnCloud !== true) return false
+function onCloudRoute(model: string | undefined): boolean {
   if (model === undefined || model.trim() === '') return false
   return qualifiedIdSpaceOf(model)?.route !== 'local'
+}
+
+export function loadsInFullFor(tool: Tool, model: string | undefined): boolean {
+  return tool.loadInFullOnCloud === true && onCloudRoute(model)
+}
+
+export const ECONOMY_DEFERRED: ReadonlySet<string> = new Set(['Crewmate', 'Skill', 'Test', 'LspRead', 'AstSearch'])
+
+export function isEconomyDeferred(tool: Pick<Tool, 'name'>): boolean {
+  return ECONOMY_DEFERRED.has(tool.name)
+}
+
+export function defersOnCloudFor(tool: Tool, model: string | undefined): boolean {
+  return isEconomyDeferred(tool) && onCloudRoute(model)
 }
 
 type HistoryMarks = { model: string | undefined; length: number; marks: ReadonlyMap<string, boolean> | null; carried: ReadonlySet<string> }
@@ -72,14 +85,14 @@ export function isDeferredToolFor(tool: Tool, model: string | undefined, permiss
     if (recorded !== undefined) return recorded
     if (history.carried.has(tool.name)) return false
   }
-  return isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)
+  return (isDeferredTool(tool, permissionMode) && !loadsInFullFor(tool, model)) || defersOnCloudFor(tool, model)
 }
 
 const ANNOUNCEMENT_LINE_HINT_LIMIT = 100
 
-export function formatDeferredToolLine(tool: Tool): string {
+export function formatDeferredToolLine(tool: Tool, unattended: boolean = false): string {
   const hint = (tool.searchHint ?? '').replace(/\s+/g, ' ').trim()
-  if (hint === '') return tool.name
+  if (hint === '' || (unattended && !isEconomyDeferred(tool))) return tool.name
   if (hint.length <= ANNOUNCEMENT_LINE_HINT_LIMIT) return `${tool.name} — ${hint}`
   const space = hint.lastIndexOf(' ', ANNOUNCEMENT_LINE_HINT_LIMIT)
   const cut = hint.slice(0, space === -1 ? ANNOUNCEMENT_LINE_HINT_LIMIT : space).replace(/[ ,;:—]+$/u, '')

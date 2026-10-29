@@ -45,11 +45,11 @@ export function searchSteeringLine(offered: OfferedTools = null): string | null 
   const parts: string[] = []
   if (lspOn(offered)) {
     parts.push(
-      'for a SYMBOL question (definition, references, callers, implementations) LspRead answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching',
+      'for a SYMBOL question (definition, references, callers, implementations) LspRead answers directly (goToDefinition · findReferences · incomingCalls; load it with ToolSearch) instead of text matching',
     )
   }
   if (astOn('AstSearch', offered)) {
-    parts.push('for code by its shape, AstSearch matches the parse tree rather than the text')
+    parts.push('for code by its shape, AstSearch (load it with ToolSearch) matches the parse tree rather than the text')
   }
   if (parts.length === 0) return null
   return `  - Semantic shortcut: ${parts.join('; ')}.`

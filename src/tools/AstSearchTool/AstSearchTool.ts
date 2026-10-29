@@ -115,7 +115,6 @@ function countText(matches: AstMatch[], capped: boolean): { rows: string[]; file
 
 export const AstSearchTool = buildTool({
   shouldDefer: true,
-  loadInFullOnCloud: true,
   name: AST_SEARCH_TOOL_NAME,
   strict: true,
   straightQuoteInputs: ['pattern', 'path', 'glob'],

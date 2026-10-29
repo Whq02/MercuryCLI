@@ -96,9 +96,9 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
   const queryModule = await import(join(REPO, 'src/services/structure/polyglotQuery.ts'))
   check('duplicate pattern and symbol pipelines do not exist', !existsSync(join(REPO, 'src/services/structure/polyglotSymbols.ts')) && !existsSync(join(REPO, 'src/services/structure/polyglotTransform.ts')) && !('runPolyglotQuery' in queryModule) && !('relocatePatternMatches' in queryModule))
   check('the shared walker, ignores and compiler stay exported', ['discoverPolyglotFiles', 'loadRootIgnoreRules', 'compileFor'].every(key => typeof (queryModule as any)[key] === 'function'))
-  check('search steering names only the offered shape owner', searchSteeringLine(new Set(['AstSearch'])) === '  - Semantic shortcut: for code by its shape, AstSearch matches the parse tree rather than the text.' && searchSteeringLine(new Set(['Structure'])) === null)
+  check('search steering names only the offered shape owner, with its loading road', searchSteeringLine(new Set(['AstSearch'])) === '  - Semantic shortcut: for code by its shape, AstSearch (load it with ToolSearch) matches the parse tree rather than the text.' && searchSteeringLine(new Set(['Structure'])) === null)
   check('edit steering names only the offered rewrite owner', editSteeringLine(new Set(['AstEdit'])) === 'Semantic shortcut: one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply).' && editSteeringLine(new Set(['Structure'])) === null)
-  check('AstEdit stays deferred and AstSearch loads in full', AstEditTool.shouldDefer === true && !AstEditTool.loadInFullOnCloud && AstSearchTool.loadInFullOnCloud === true)
+  check('AstEdit and AstSearch both stay deferred, neither loaded in full on cloud', AstEditTool.shouldDefer === true && !AstEditTool.loadInFullOnCloud && AstSearchTool.shouldDefer === true && !AstSearchTool.loadInFullOnCloud)
   for (const [tool, ceiling] of [[StructureTool, 4219], [AstSearchTool, 3659], [AstEditTool, 3050]] as const) {
     const wire = await toolToAPISchema(tool as never, { ...options, deferLoading: tool.name !== 'AstSearch' }) as any
     const bytes = Buffer.byteLength(JSON.stringify(wire))

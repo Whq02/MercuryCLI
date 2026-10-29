@@ -718,17 +718,19 @@ A crewmate keeps the same kind of record on its own transcript: one resumed
 after its run ended (via `ResumeCrewmate` or the Crew view) sends
 the tool list it first sent, regardless of later changes to the parent session's tools.
 
-On a hosted model, a conversation starts with `Crewmate`, `Bash`, `Glob`, `Grep`, `Read`,
-`Edit`, `Write`, `Skill`, `Eval`, `ScheduleWakeup` and `ToolSearch` loaded with their full
-descriptions when their settings and dependencies admit them, alongside `ChangeSet`,
-`AstSearch`, `LspRead` (whenever a language server is reachable) and `Test` (whenever a
-test runner profile or Python test signal is detected in the project). Routes that support
-deferral announce the remaining tools (among them `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
+On a hosted model, a conversation starts with `Bash`, `Glob`, `Grep`, `Read`,
+`Edit`, `Write`, `Eval`, `ScheduleWakeup` and `ToolSearch` loaded with their full
+descriptions when their settings and dependencies admit them, alongside `ChangeSet`.
+Routes that support deferral announce the remaining tools (among them `Crewmate`,
+`Skill`, `Test`, `LspRead`, `AstSearch`, `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
 `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`, `LspRequest`, `Monitor`,
-`Checkpoint`, `Rewind`, and `Test` when no test runner is detected) with a one-line
-summary and load their schemas on demand through `ToolSearch`. A local model
-loads the core daily tools in full and announces the remaining tools the
-same way. A deferrable tool discovered after the first request (such as a debug adapter)
+`Checkpoint` and `Rewind`) and load their schemas on demand through `ToolSearch`;
+the announcement carries a one-line summary of each tool in an interactive session,
+and in an unattended run the names alone except for `Crewmate`, `Skill`, `Test`,
+`LspRead` and `AstSearch`, which keep their summary in every posture. A local model
+loads the core daily tools in full (`Crewmate` and `Skill` among them, and `Test` whenever a
+test runner profile or Python test signal is detected in the project) and announces the
+remaining tools the same way. A deferrable tool discovered after the first request (such as a debug adapter)
 is announced and loadable at once; a tool that loads in full and is
 discovered after the first request joins at the next compaction or `/clear`,
 without changing the current conversation's prefix. Nothing is trimmed,

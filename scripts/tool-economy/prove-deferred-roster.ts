@@ -39,9 +39,11 @@ type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
 const EIGHT = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']
-const LOADED = ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch']
+const ECONOMY = ['Crewmate', 'Skill', 'LspRead', 'AstSearch']
+const LOADED = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch']
 const BENCH_ROSTER = [
   ...LOADED,
+  ...ECONOMY,
   ...EIGHT,
   'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest',
   'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow',
@@ -64,7 +66,7 @@ check('every tool of the bench roster this build offers is in the pool', missing
 const roster: Tool[] = BENCH_HERE.flatMap(name => pool.filter(tool => tool.name === name))
 const first = createUserMessage({ content: 'Reply with exactly: ok' }) as Message
 
-section('§1 the plan on the block form, first party — the eight are deferred and exactly thirteen load in full')
+section('§1 the plan on the block form, first party — the eight and the economy four are deferred and exactly nine load in full')
 for (const model of MODELS) {
   clearToolRosterLatches()
   const wire = deferralWireFormFor(model)
@@ -73,9 +75,11 @@ for (const model of MODELS) {
   check(`${model}: deferral is on`, plan.enabled === true)
   const notDeferred = EIGHT.filter(name => !plan.deferredNames.has(name))
   check(`${model}: deferredNames holds all eight (JevEval, Debug, Git, AstEdit, Test, Monitor, Checkpoint, Rewind)`, notDeferred.length === 0, `still loaded: ${notDeferred.join(', ')}`)
+  const economyLoaded = ECONOMY.filter(name => !plan.deferredNames.has(name))
+  check(`${model}: deferredNames holds the economy four (Crewmate, Skill, LspRead, AstSearch)`, economyLoaded.length === 0, `still loaded: ${economyLoaded.join(', ')}`)
   const loaded = plan.roster.map(tool => tool.name).filter(name => !plan.deferredNames.has(name)).sort()
   const expected = [...LOADED].sort()
-  check(`${model}: the roster names not in deferredNames are exactly the thirteen, with LspRead in full`, loaded.join(',') === expected.join(','), `loaded: ${loaded.join(', ')}`)
+  check(`${model}: the roster names not in deferredNames are exactly the nine, ChangeSet in full beside the daily set`, loaded.join(',') === expected.join(','), `loaded: ${loaded.join(', ')}`)
   const schemas = await Promise.all(EIGHT.map(async name => {
     const tool = roster.find(item => item.name === name)!
     const schema = await toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools: plan.roster, agents: [], model, deferLoading: plan.deferredNames.has(name) }) as { name?: string; defer_loading?: boolean }
@@ -86,7 +90,7 @@ for (const model of MODELS) {
     const tool = roster.find(item => item.name === name)!
     return toolToAPISchema(tool, { getToolPermissionContext: async () => permissionContext, tools: plan.roster, agents: [], model, deferLoading: plan.deferredNames.has(name) }) as { defer_loading?: boolean }
   }))
-  check(`${model}: none of the thirteen carries the mark`, loadedSchemas.every(schema => schema.defer_loading === undefined))
+  check(`${model}: none of the nine carries the mark`, loadedSchemas.every(schema => schema.defer_loading === undefined))
   const bytes = (schema: unknown): number => Buffer.byteLength(JSON.stringify(schema), 'utf8')
   const eightBytes = schemas.reduce((sum, { schema }) => sum + bytes(schema), 0)
   const loadedBytes = loadedSchemas.reduce((sum, schema) => sum + bytes(schema), 0)

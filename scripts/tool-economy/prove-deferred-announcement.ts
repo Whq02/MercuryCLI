@@ -47,11 +47,13 @@ const SPEC_BODY = [
   'ApolloReview — present the completed Apollo pre-flight spec for review',
   'AskUserQuestion — ask the user structured multiple-choice questions',
   'AstEdit — structural code rewrite by syntax pattern across files, dry-run diff then apply',
+  'AstSearch — structural code search by syntax pattern with meta-variables across languages',
   'Browser — drive a real browser: the native playwright puppeteer selenium alternative for end-to-end e2e…',
   'Checkpoint — checkpoint / mark context state before an exploration, rewindable',
   'Computer — computer use: see the screen, drive the mouse and keyboard, screenshot the desktop, click type…',
   'ContextLeft — how much context window is left: tokens used, window, tokens before autocompact',
   'Correct — correct project memory supersede amend retract',
+  'Crewmate — delegate a task to a crewmate that works on its own',
   'Debug — real debugger via DAP: launch/attach, breakpoints (conditional/hit-count/logpoints), function…',
   'EnterWorktree — switch this session into an isolated git worktree',
   'ExitWorktree — end the worktree session and return to the original directory',
@@ -64,6 +66,7 @@ const SPEC_BODY = [
   'LspFormat — format a file or a range of its lines, or organize its imports, through the language server',
   'LspMoveFile — move or rename a file or directory and update its imports through the language server',
   'LspMoveSymbol — move a top-level declaration into another file and rewrite its imports (TypeScript, JavaScript)',
+  'LspRead — language server questions: definition, references, hover, symbols, callers, type, diagnostics',
   'LspRename — rename a symbol in every file through the language server: preview the edits, then apply them',
   'LspRequest — send one raw language-server protocol request and read the raw answer',
   'Monitor — watch, monitor, or keep an eye on a process/log/command — stream each stdout line as a live…',
@@ -76,6 +79,7 @@ const SPEC_BODY = [
   'Rewind — rewind context to the checkpoint, carry a report back',
   'SendMessage — send a note to a running crewmate of this session; it never starts a finished one',
   'Service — named project services: start/observe/wait/logs/stop long-lived processes (web servers, watch…',
+  'Skill — invoke a slash-command skill by name',
   'Sleep — wait / pause / rest for a duration without a shell',
   'Structure — JS/TS AST query by node kind, previewed codemod: imports, calls, declarations, renames, import swaps',
   'TaskStop — kill or stop a running background task',
@@ -181,15 +185,15 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, here.filter(name => !roster.some(tool => tool.name === name)).join(', '))
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
-  const announced = computerToolEnabled() ? 44 : 43
+  const announced = computerToolEnabled() ? 48 : 47
   check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
-  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (3,817 bytes; 3,854 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 3817 && Buffer.byteLength(rendered(row as never), 'utf8') === 3854)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
+  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (4,127 bytes; 4,164 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 4127 && Buffer.byteLength(rendered(row as never), 'utf8') === 4164)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
-    for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']) {
+    for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'Crewmate', 'Skill', 'LspRead', 'AstSearch']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
     }
     check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)))
-    check('no loaded tool has a line', ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
+    check('no loaded tool has a line', ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
   }
 }
 
@@ -199,6 +203,11 @@ bootstrap.setAskChannel('none')
 const headlessPool = [ToolSearchTool, fixtureTool('Debug', { defer: true, hint: 'real debugger' }), fixtureTool('lookup', { mcp: 'fixture' })] as Tool[]
 const headless = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), headless.body)
+const economyPool = [...headlessPool, fixtureTool('Crewmate', { hint: 'delegate a task to a crewmate that works on its own' }), fixtureTool('Skill', { hint: 'invoke a slash-command skill by name' })] as Tool[]
+const headlessEconomy = getDeferredToolsDeltaAttachment(economyPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
+check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), headlessEconomy.body)
+const localEconomy = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
+check('the local lane never announces the economy-deferred tools: they stay in full there', !localEconomy.addedNames.includes('Crewmate') && !localEconomy.addedNames.includes('Skill'), localEconomy.body)
 bootstrap.setAskChannel('sdk')
 const hosted = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'))

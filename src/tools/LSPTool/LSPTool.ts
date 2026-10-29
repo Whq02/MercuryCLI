@@ -390,7 +390,7 @@ function makeLspTool(name: LspToolName): Tool {
   const scoped = (input: LspInput): LspInput => name === 'LspRead' ? readArguments(input) : input
   const writes = (input?: LspInput): boolean => name === 'LspRequest' || (name !== 'LspRead' && input?.apply === true)
   const tool: Tool = buildTool({
-    name, isLsp: true, shouldDefer: true, ...(name === 'LspRead' ? { loadInFullOnCloud: true } : {}),
+    name, isLsp: true, shouldDefer: true,
     straightQuoteInputs: STRAIGHT_QUOTES[name], maxResultSizeChars: 100_000,
     inputSchema: lspInputSchema(name), inputJSONSchema: LSP_INPUT_JSON_SCHEMAS[name] as unknown as NonNullable<Tool['inputJSONSchema']>, outputSchema,
     searchHint: LSP_SEARCH_HINTS[name],
