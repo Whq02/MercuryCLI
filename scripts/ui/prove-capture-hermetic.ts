@@ -9,7 +9,7 @@ const ENTRY = 'frame--120x40--dark--truecolor--full'
 const OWNER_MODEL = 'local/qwen3.5:27b'
 const PROOF_KEY = 'proof-key-ci-gate-not-a-real-key'
 const KEEP = process.argv.includes('--keep')
-const SCRATCH_ROOT = existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir()
+const SCRATCH_ROOT = tmpdir()
 const scratch = mkdtempSync(join(SCRATCH_ROOT, 'capture-hermetic-'))
 const BUN = process.env.BUN ?? process.execPath
 
