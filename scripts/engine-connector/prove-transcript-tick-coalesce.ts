@@ -28,14 +28,23 @@ const conn = new DaemonSessionConnector({
   home,
 })
 
-type Seam = { tick: () => Promise<void>; tickOnce?: () => Promise<void> }
+type Seam = {
+  tick: () => Promise<void>
+  tickOnce: () => Promise<void>
+  armTranscriptWatcher: () => void
+  armTranscriptTimer: () => void
+}
 const seam = conn as unknown as Seam
-const bodyName = typeof seam.tickOnce === 'function' ? 'tickOnce' : 'tick'
-const real = (seam as unknown as Record<string, () => Promise<void>>)[bodyName]!.bind(conn)
+seam.armTranscriptWatcher = () => {}
+seam.armTranscriptTimer = () => {}
+const real = seam.tickOnce.bind(conn)
 let passes = 0
-;(seam as unknown as Record<string, unknown>)[bodyName] = async () => {
+let hold: Promise<void> | null = null
+let entered: (() => void) | null = null
+seam.tickOnce = async () => {
   passes++
-  await new Promise(r => setTimeout(r, 5))
+  entered?.()
+  if (hold !== null) await hold
   return real()
 }
 
@@ -43,11 +52,18 @@ await conn.attach()
 const passesAfterAttach = passes
 
 passes = 0
-const burst: Array<Promise<void>> = []
-for (let i = 0; i < 40; i++) burst.push(seam.tick())
+let release: () => void = () => {}
+hold = new Promise<void>(resolve => { release = resolve })
+const inFlight = new Promise<void>(resolve => { entered = resolve })
+const burst = [seam.tick()]
+await inFlight
+for (let i = 1; i < 40; i++) burst.push(seam.tick())
+release()
 await Promise.all(burst)
+hold = null
+entered = null
 check(
-  `a 40-trigger burst costs at most 2 full passes (one in flight + one dirty rerun), not 40 [${bodyName} road]`,
+  'a 40-trigger burst costs at most 2 full passes (one in flight + one dirty rerun), not 40 [tickOnce road]',
   passes <= 2,
   `passes=${passes}`,
 )
