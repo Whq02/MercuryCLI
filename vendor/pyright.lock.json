@@ -1,13 +1,13 @@
 {
   "name": "pyright",
-  "version": "1.1.413",
-  "tarball": "pyright-1.1.413.tgz",
-  "url": "https://registry.npmjs.org/pyright/-/pyright-1.1.413.tgz",
-  "sha512": "d65a712ab8740c71e97c040e7dc899a36a23b9ada36ac7b7c303bd6adf2495d73e17fa753c1b1cc40e424371b5aa0e6530e3215e8e996a230b317100a800c802",
-  "integrity": "sha512-1lpxKrh0DHHpfAQOfciZo2ojua2jase3wwO9at8kldc+F/p1PBscxA5CQ3G1qg5lMOMhXo6ZaiMLMXEAqADIAg==",
+  "version": "1.1.414",
+  "tarball": "pyright-1.1.414.tgz",
+  "url": "https://registry.npmjs.org/pyright/-/pyright-1.1.414.tgz",
+  "sha512": "14f6596f9d637a90d7e1e3fb4c460378d16d984dd683092411c269bc7dff426512b23d04032dcb5eefb10784ff1560de8edb179427c5affadb5858f0bb0b97c3",
+  "integrity": "sha512-FPZZb51jepDX4eP7TEYDeNFtmE3WgwkkEcJpvH3/QmUSsj0EAy3LXu+xB4T/FWDejtsXlCfFr/rbWFjwuwuXww==",
   "license": "MIT",
   "licenseFiles": ["LICENSE.txt"],
   "nodeFloor": ">=14.0.0",
   "serverEntry": "langserver.index.js",
-  "notes": "Pinned 2026-07-14 at 1.1.411; re-pinned 2026-08-28 at 1.1.413 (the dependency refresh — metadata + integrity taken from the live registry document, the tarball sha512-verified by the fetch). Pyright language server (Microsoft, MIT) — the Python semantic lane. Pure JS under Mercury's node prerequisite; analyses the operator's selected Python environment, never a bundled runtime. Metadata + integrity reverified against live npm before pinning (1.1.411 was the live latest). Invocation: `node <vendor-root>/langserver.index.js --stdio`. Update procedure: bump version/url/sha512/integrity from `curl -s https://registry.npmjs.org/pyright/<ver>`, run `bun run scripts/vendor/fetch-pyright.ts`, rebuild, re-run `bash scripts/ide/run-all.sh`."
+  "notes": "Pinned 2026-07-14 at 1.1.411; re-pinned 2026-08-28 at 1.1.413 (the dependency refresh — metadata + integrity taken from the live registry document, the tarball sha512-verified by the fetch). Pyright language server (Microsoft, MIT) — the Python semantic lane. Pure JS under Mercury's node prerequisite; analyses the operator's selected Python environment, never a bundled runtime. Metadata + integrity reverified against live npm before pinning (1.1.411 was the live latest). Invocation: `node <vendor-root>/langserver.index.js --stdio`. Update procedure: bump version/url/sha512/integrity from `curl -s https://registry.npmjs.org/pyright/<ver>`, run `bun run scripts/vendor/fetch-pyright.ts`, rebuild, re-run `bash scripts/ide/run-all.sh`. Re-pinned 2026-10-29 at 1.1.414: version, url, integrity and sha512 taken from the live registry document (2026-10-29T23:44:38.517Z); the fetch verified the tarball digest before install."
 }
