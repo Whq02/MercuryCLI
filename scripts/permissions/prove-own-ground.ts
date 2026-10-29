@@ -2,6 +2,7 @@ import { plugin } from 'bun'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 plugin({
   name: 'stub-color-diff-napi',
@@ -71,21 +72,21 @@ try {
     check(`${mode}: a Write into the session's scratchpad never asks`, write.behavior === 'allow', JSON.stringify(write))
     const deep = await decide(FileWriteTool, { file_path: join(scratch, 'edge', 'site.json'), content: '{}\n' }, mode)
     check(`${mode}: a Write into a new folder of the scratchpad never asks`, deep.behavior === 'allow', JSON.stringify(deep))
-    const mkdir = await bash(`mkdir -p ${join(scratch, 'demo')}`, mode)
+    const mkdir = await bash(`mkdir -p ${slashed(join(scratch, 'demo'))}`, mode)
     check(`${mode}: mkdir in the scratchpad never asks`, mkdir.behavior === 'allow', JSON.stringify(mkdir))
-    const removal = await bash(`rm -rf ${join(scratch, 'demo')}`, mode)
+    const removal = await bash(`rm -rf ${slashed(join(scratch, 'demo'))}`, mode)
     check(`${mode}: rm -rf of a scratchpad folder never asks`, removal.behavior === 'allow', JSON.stringify(removal))
     const working = await decide(FileWriteTool, { file_path: join(project, '.mercury', 'test-runs', 'r1.json'), content: '{}\n' }, mode)
     check(`${mode}: a Write into Mercury's own working files under .mercury never asks`, working.behavior === 'allow', JSON.stringify(working))
   }
-  const hosted = await bash(`rm -rf ${join(scratch, 'demo')}`, 'flow', true)
+  const hosted = await bash(`rm -rf ${slashed(join(scratch, 'demo'))}`, 'flow', true)
   check('hosted Flow: rm -rf of a scratchpad folder never asks either', hosted.behavior === 'allow', JSON.stringify(hosted))
-  const chain = await bash(`mkdir -p ${join(scratch, 'demo')}; rm -f ${join(scratch, 'demo', 'todo.json')}`)
+  const chain = await bash(`mkdir -p ${slashed(join(scratch, 'demo'))}; rm -f ${slashed(join(scratch, 'demo', 'todo.json'))}`)
   check('a chain of own-ground mkdir and rm is allowed hostless', chain.behavior === 'allow', JSON.stringify(chain))
   const edit = await decide(FileEditTool, { file_path: join(scratch, 'run30.sh'), old_string: 'a', new_string: 'b' }, 'default')
   check('default: an Edit of a scratchpad file never asks', edit.behavior === 'allow', JSON.stringify(edit))
 
-  for (const command of ['rm -rf /', 'rm -rf ~', 'rm -rf /Users', `rm -rf ${join(world, 'outside')}`, 'rm -rf /tmp/handbook-out /tmp/blog-out', 'rm -rf generated', 'rm -r scratch-blog-check', 'rm -rf e2e']) {
+  for (const command of ['rm -rf /', 'rm -rf ~', 'rm -rf /Users', `rm -rf ${slashed(join(world, 'outside'))}`, 'rm -rf /tmp/handbook-out /tmp/blog-out', 'rm -rf generated', 'rm -r scratch-blog-check', 'rm -rf e2e']) {
     const result = await bash(command)
     check(`hostless Flow still refuses an rm of ground the run did not create: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
   }
@@ -103,7 +104,7 @@ try {
     const removal = await bash('rm -rf e2e', mode)
     check(`${mode}: rm -rf of the folder this run created never asks`, removal.behavior === 'allow', JSON.stringify(removal))
   }
-  const inside = await bash(`rm ${join(project, 'e2e', 'todo.json')} && rmdir generated/sub`)
+  const inside = await bash(`rm ${slashed(join(project, 'e2e', 'todo.json'))} && rmdir generated/sub`)
   check('rm of a file inside the created folder and rmdir of the created sub-folder are allowed hostless', inside.behavior === 'allow', JSON.stringify(inside))
   const kept = await bash('rm -rf generated')
   check('rm -rf of the pre-existing folder still keeps its ask', kept.behavior !== 'allow', JSON.stringify(kept))

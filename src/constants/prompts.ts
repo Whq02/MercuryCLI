@@ -1,5 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
-import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
+import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import { recordedComposition, recordCurrentStaticComposition } from '../prompt/recordedComposition.js'
@@ -37,7 +37,7 @@ import {
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
-import { getRuntimePostureSection, isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
@@ -196,7 +196,7 @@ export async function getSystemPrompt(
     return recorded
   }
   const [constitution] = await resolveSystemPromptSections([
-    systemPromptSection('constitution', () => isSessionMarkedNonInteractive() && !canAnswerAsks() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION),
+    systemPromptSection('constitution', () => isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION),
   ])
   const stockLaw = constitution ?? MERCURY_CONSTITUTION
   recordCurrentStaticComposition(stockLaw)

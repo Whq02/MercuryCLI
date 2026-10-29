@@ -56,8 +56,8 @@ git(repo, 'add', '-A')
 git(repo, 'commit', '-qm', 'seed')
 const wt = await import('../../src/daemon/concourseWorktrees.ts')
 const { projectScopePathspec } = await import('../../src/utils/projectBoundary.ts')
-const { GIT_SPAWN_CONFIG } = await import('../../src/utils/git/spawnArgs.ts')
-const BOUNDED = [...GIT_SPAWN_CONFIG, '-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)].join(' ')
+const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
+const BOUNDED = gitArgs(['-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)], repo).join(' ')
 
 console.log('§1 the probe is bounded')
 {

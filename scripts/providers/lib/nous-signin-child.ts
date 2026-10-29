@@ -8,7 +8,9 @@ if (mode === 'refresh') {
   let error: string | undefined
   let after: Awaited<ReturnType<typeof oauth.refreshNousTokens>>
   try {
-    after = await oauth.refreshNousTokens(undefined, true)
+    const refreshing = oauth.refreshNousTokens(undefined, true)
+    console.log(JSON.stringify({ about: 'refresh', beforeRefresh: before?.refreshToken }))
+    after = await refreshing
   } catch (e) {
     error = e instanceof Error ? e.message : String(e)
   }

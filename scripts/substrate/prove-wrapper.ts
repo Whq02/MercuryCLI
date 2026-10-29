@@ -42,7 +42,7 @@ const secs = getMercuryContractSections()
 check('the contract sections carry no identity or doctrine section', secs.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
 check('every section carries a semantic name + string text', secs.every(s => typeof s.name === 'string' && s.name.length > 0 && typeof s.text === 'string'))
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)))
-check('prompts.ts composes the constitution into the static group right after the head', PROMPTS.includes("const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION") && PROMPTS.includes('const staticSections: Array<string | null> = [frozenHead ?? head, law]'))
+check('prompts.ts composes the constitution into the static group right after the head', PROMPTS.includes("const law = layers === 'replace' ? promptReplacementText() : stockLaw") && PROMPTS.includes('const stockLaw = constitution ?? MERCURY_CONSTITUTION') && PROMPTS.includes("isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION") && PROMPTS.includes('const staticSections: Array<string | null> = [frozenHead ?? head, law]'))
 check('prompts.ts carries no behaviour prose of its own: no tone, no communication, no care, no doing-tasks section', !/# Tone and style|# Communicating with the user|# Acting with care|# Doing tasks|# System behaviour|# Using your tools|# Session-specific guidance/.test(PROMPTS))
 
 section('the seat contracts stay beside the constitution, one per seat')

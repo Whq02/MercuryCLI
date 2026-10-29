@@ -8,6 +8,7 @@ const { openaiFaultToTypedError, openaiRetryDelayMs } = await import(
   '../../src/services/providers/openai/openaiCallModel.ts'
 )
 const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.ts')
+const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -53,7 +54,7 @@ section('§2 D11 · THE STRUCTURED RESET FACT')
     typeof fault.resetsAtMs === 'number' && Math.abs(fault.resetsAtMs - expectedMs) < 10_000,
     String(fault.resetsAtMs),
   )
-  check('the short stated wait is named without replacing the provider answer', fault.message === 'rate limited — the provider asks for 3600 s — weekly limit reached')
+  check('the short stated wait is named in the house wait words without replacing the provider answer', fault.message === `rate limited — the provider asks for ${providerWaitWords(3600 * 1000)} — weekly limit reached` && providerWaitWords(3600 * 1000) === '1 h 0 min', fault.message)
   const plain = mapOpenaiHttpFailure(429, { error: { type: 'rate_limit_exceeded', message: 'slow down' } } as never, null)
   check('a reset-less 429 carries NO invented fact', plain.resetsAtMs === undefined)
 }

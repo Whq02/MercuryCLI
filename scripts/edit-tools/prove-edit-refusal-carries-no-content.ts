@@ -2,7 +2,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
-import { runScriptedTurn, startScriptedFixture, type SeenResult } from '../lib/scriptedTurn.ts'
+import { runScriptedTurn, startScriptedFixture, withoutTrailingReminders, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-edit-refusal-carries-no-content')
 const KEEP = process.argv.includes('--keep')
@@ -128,7 +128,8 @@ show('Edit of a file outside the project with no read', seen.outsideEdit)
 show('Edit of a file that changed after a windowed read', seen.movingEdit)
 show('Edit of a file that changed after a full read', seen.movingFullEdit)
 
-const textOf = (r: SeenResult | undefined): string => (r?.text ?? '').replace(/^<tool_use_error>/, '').replace(/<\/tool_use_error>$/, '')
+const textOf = (r: SeenResult | undefined): string => withoutTrailingReminders(r?.text ?? '').replace(/^<tool_use_error>/, '').replace(/<\/tool_use_error>$/, '')
+const carriesEditManual = (r: SeenResult | undefined): boolean => (r?.text ?? '').includes('# Tool manual: Edit')
 const carriesCanary = (text: string): string | null => CANARIES.find(c => text.includes(c)) ?? null
 const numberedRows = (text: string): number => text.split('\n').filter(line => /^\s*\d+(?:→|\t)/.test(line)).length
 const LAW = 'Read the file before editing it'
@@ -139,6 +140,7 @@ tally.check('A2 the Edit of the unread file is refused', seen.deniedEdit !== und
 tally.check('A3 the refusal carries no line of the file (RED on the base: the touched lines and their neighbours were shown)', seen.deniedEdit !== undefined && carriesCanary(textOf(seen.deniedEdit)) === null && numberedRows(textOf(seen.deniedEdit)) === 0, `canary: ${carriesCanary(textOf(seen.deniedEdit))}; numbered rows: ${numberedRows(textOf(seen.deniedEdit))}`)
 tally.check('A4 the refusal names the path and the reason and says what to do', textOf(seen.deniedEdit).startsWith(LAW) && textOf(seen.deniedEdit).includes(denied) && textOf(seen.deniedEdit).includes("was not read in this session"), textOf(seen.deniedEdit).slice(0, 300))
 tally.check('A5 the refusal does not claim the lines count as read', !/count(s)? as read/.test(textOf(seen.deniedEdit)), textOf(seen.deniedEdit).slice(0, 300))
+tally.check('A5b the Edit manual rides the first Edit result once, on first use, beside the refusal and never inside it; the later refusals carry none', carriesEditManual(seen.deniedEdit) && (seen.deniedEdit?.text ?? '').split('# Tool manual: Edit').length === 2 && !carriesEditManual(seen.deniedRetry) && !carriesEditManual(seen.deniedMissing) && !carriesEditManual(seen.deniedNotUnique), (seen.deniedEdit?.text ?? '').slice(-200))
 tally.check('A6 the same Edit again is refused by the read law again — the refusal recorded nothing a retry could ride (RED on the base: the retry passed the read gate and reached the write permission)', seen.deniedRetry !== undefined && seen.deniedRetry.isError && textOf(seen.deniedRetry).startsWith(LAW) && carriesCanary(textOf(seen.deniedRetry)) === null && readFileSync(denied, 'utf8').includes(`DB_PASS=${DENIED_SECOND}`), textOf(seen.deniedRetry).slice(0, 200))
 tally.check('A7 an old_string the file does not hold gets the same words as one it holds: no oracle on the content', seen.deniedMissing !== undefined && seen.deniedMissing.isError && textOf(seen.deniedMissing) === textOf(seen.deniedEdit), textOf(seen.deniedMissing).slice(0, 300))
 tally.check('A8 an old_string the file holds twice gets the same words too: no match count, no line numbers (RED on the base: "Found 2 matches" with the rows)', seen.deniedNotUnique !== undefined && seen.deniedNotUnique.isError && textOf(seen.deniedNotUnique) === textOf(seen.deniedEdit), textOf(seen.deniedNotUnique).slice(0, 300))

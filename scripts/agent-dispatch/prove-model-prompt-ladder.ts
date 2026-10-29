@@ -28,13 +28,21 @@ console.log('============================================================')
 ;(await import('../../src/utils/config.ts')).enableConfigs()
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+const { getAllBaseTools } = await import('../../src/tools.ts')
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.ts')
 const schema = zodToJsonSchema(AgentTool.inputSchema as never) as { properties?: Record<string, { description?: string }> }
-const modelWords = schema.properties?.model?.description ?? ''
+const wireWords = schema.properties?.model?.description ?? ''
+const permissionContext = getEmptyToolPermissionContext()
+const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
+const MODEL_SECTION = '\n## Model selection\n'
+const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
 const src = (rel: string): string => readFileSync(join(import.meta.dir, '../../', rel), 'utf8')
 
 section("§1 the launch tool's model parameter")
 {
+  check('the wire parameter is a short contract that names the two pages and points at the manual for the ladder', wireWords.length > 0 && Buffer.byteLength(wireWords) < 600 && wireWords.includes('mercury://models') && wireWords.includes('mercury://models/known') && wireWords.includes('The full manual'), wireWords)
+  check('the manual carries the ladder under its own heading (## Model selection), the last section of the manual', manual.includes(MODEL_SECTION) && modelWords.length > 200, manual.slice(-300))
   check('the parameter has words', modelWords.length > 200, modelWords.slice(0, 120))
   check('"must be in its live catalogue" has left the prompt (RED on the base)', !modelWords.includes('must be in its live catalogue'), modelWords.slice(-300))
   check('it says how to know what is reachable: read mercury://models and name one of its rows (RED on the base)', modelWords.includes('To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id'), modelWords)
@@ -44,7 +52,7 @@ section("§1 the launch tool's model parameter")
   check('never switch to another provider on your own — if the one asked for cannot run, say why and stop', modelWords.includes('Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop.'), modelWords)
   check('the family words keep their rows named (grok, glm, kimi, deepseek, muse, mistral)', modelWords.includes("'grok' (xAI's newest Grok row)") && modelWords.includes("'glm' (Z.AI's newest GLM row)") && modelWords.includes("'kimi' (Moonshot's newest Kimi row)") && modelWords.includes("'deepseek' (DeepSeek's newest row)") && modelWords.includes("'muse' (Meta's newest served Standard Muse Spark row)") && modelWords.includes("'mistral' (Mistral's newest row)"), modelWords)
   check(`the sentence is free of the tool's own name (${AGENT_TOOL_NAME})`, !new RegExp(`\\b${AGENT_TOOL_NAME}\\b`).test(modelWords) && !/\bCrewmate tool\b/.test(modelWords), modelWords)
-  check('no model-facing word says "catalogue-verified" or demands a live catalogue', !/catalogue-verified|live catalogue/.test(modelWords), modelWords)
+  check('no model-facing word, on the wire or in the manual, says "catalogue-verified" or demands a live catalogue', !/catalogue-verified|live catalogue/.test(modelWords) && !/catalogue-verified|live catalogue/.test(wireWords), modelWords)
 }
 
 section('§2 the same words wherever the model parameter repeats')

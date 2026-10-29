@@ -110,6 +110,12 @@ const BRAND_ALLOWLIST: ReadonlyArray<{ tool: string; pattern: RegExp; reason: st
     reason:
       'provider-enumeration — the subject IS the native-search family set (NATIVE_SEARCH_FAMILIES: the tool exists only because those wires carry a construct, and the prompt names which; an exemption with teeth over a spelling-dodge)',
   },
+  {
+    tool: 'Crewmate',
+    pattern: /## Model selection\n[^\n]+/g,
+    reason:
+      "provider-enumeration — the subject IS the family-word set (MODEL_PARAM_DESCRIPTION: each dispatch word names the family it selects — 'kimi' is Moonshot's row by definition; it rode the model parameter's schema text until fold 46bh moved it into the manual under its own heading, one line long)",
+  },
 ]
 function brandHits(toolName: string, text: string): string[] {
   let stripped = text
@@ -177,13 +183,16 @@ const schemaOptions = (model: string) => ({
 const readOnGlm1 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
 const readOnClaude = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.anthropic!))
 const readOnGlm2 = await toolToAPISchema(readTool, schemaOptions(EXEMPLARS.zai!))
-check('a foreign-lane render does not poison the anthropic render', (readOnClaude as { description: string }).description.includes(VISUAL_CLAIM))
+const wireOf = async (model: string): Promise<string> => readTool.wireDescription!(await readTool.prompt(promptOptions(model)))
+const claudeWire = await wireOf(EXEMPLARS.anthropic!)
+const glmWire = await wireOf(EXEMPLARS.zai!)
+check('the wire is the wire contract of the manual, never the manual itself', typeof readTool.wireDescription === 'function' && claudeWire.length < (await readTool.prompt(promptOptions(EXEMPLARS.anthropic!))).length)
+check('a foreign-lane render does not poison the anthropic render', (readOnClaude as { description: string }).description === claudeWire)
 const glmCaps = resolveModelCapabilities(EXEMPLARS.zai!)
 const glmText = (readOnGlm1 as { description: string }).description
 check(
   `the foreign render carries its own media truth (images=${glmCaps.media.images}, pdf=${glmCaps.media.pdf})`,
-  (glmCaps.media.images ? glmText.includes(VISUAL_CLAIM) && !glmText.includes(OCR_CLAIM) : glmText.includes(OCR_CLAIM) && !glmText.includes(VISUAL_CLAIM)) &&
-    glmText.includes(PDF_CLAIM),
+  glmText === glmWire && glmText.split('\n')[1] !== claudeWire.split('\n')[1] && glmText.includes('PDFs return numbered text'),
 )
 check('the two postures render different bytes', glmText !== (readOnClaude as { description: string }).description)
 check('same-posture renders are byte-stable (memo hit)', (readOnGlm1 as { description: string }).description === (readOnGlm2 as { description: string }).description)

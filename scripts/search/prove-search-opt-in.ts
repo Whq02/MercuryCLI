@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 ;(globalThis as any).MACRO = { VERSION: 'proof' }
+const home = mkdtempSync(join(tmpdir(), 'search-opt-in-'))
+for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const setting = await import('../../src/services/search/searchSetting.js')
@@ -101,4 +105,4 @@ try {
   if (!off.ok) assert.ok(off.message.includes('turned off in /config'))
   assert.equal(requests, finalCount)
   console.log('PASS scraping default: on for a fresh home and knocked only after the official doors found nothing, =0 and the saved off make no request, =1 overrides a saved off, terms once including failure, no host evasion')
-} finally { setting.setDuckduckgoScraping(false); await new Promise<void>(r => server.close(() => r())) }
+} finally { setting.setDuckduckgoScraping(false); await new Promise<void>(r => server.close(() => r())); rmSync(home, { recursive: true, force: true }) }

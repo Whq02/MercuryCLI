@@ -117,6 +117,10 @@ export function isSessionMarkedNonInteractive(): boolean {
   return nonInteractive
 }
 
+export function isUnattendedRun(): boolean {
+  return nonInteractive && !canAnswerAsks()
+}
+
 let memo: string | null | undefined
 
 export function getRuntimePostureSection(): string | null {

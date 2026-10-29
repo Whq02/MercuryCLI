@@ -13,6 +13,7 @@ const T = await import(join(root, 'src/services/api/transportEvidence.ts'))
 const O = await import(join(root, 'src/services/compact/operatorMessages.ts'))
 const N = await import(join(root, 'src/constants/messages.ts'))
 const X = await import(join(root, 'src/constants/xml.ts'))
+const I = await import(join(root, 'src/utils/messages/imageRequestFit.ts'))
 let checks = 0
 const only = process.argv.find(arg => arg.startsWith('--only='))?.slice(7)
 function test(name: string, body: () => void): void {
@@ -297,7 +298,8 @@ test('stripTargetsOf', () => {
   const stamped = F.createAssistantAPIErrorMessage({ content: 'other', mediaRefusal: { blockTypes: ['image'], category: 'fixture' } })
   assert.deepEqual([...P.errorDrivenStripTargets([meta, stamped]).get(meta.uuid)], ['image'])
   assert.equal(meta.message.content.length, 3)
-  assert.deepEqual(P.applyStripTargets(meta, new Map([[meta.uuid, new Set(['image', 'document'])]])).message.content, [{ type: 'text', text: 'keep' }])
+  assert.deepEqual(P.applyStripTargets(meta, new Map([[meta.uuid, new Set(['image', 'document'])]])).message.content, [{ type: 'text', text: I.IMAGE_ELIDED_TEXT }, { type: 'text', text: 'keep' }], 'a stripped image leaves its visible marker; a stripped document leaves nothing')
+  assert.ok(I.IMAGE_ELIDED_TEXT.includes('Read it again'))
 })
 
 test('context_capsule', () => {

@@ -118,5 +118,25 @@ section('§4 every form shares the head, the location, the direct-call sentence,
   check('the max_results field says the result bound and its default', (fields.max_results?.description ?? '') === 'Maximum number of results to return (default: 5)', fields.max_results?.description)
 }
 
+section('§5 the unattended run (no host answers asks, the roster names only): the location sentence tells that truth, the rest of the text is the hosted text')
+{
+  const { isUnattendedRun, markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const HOSTED_LOCATION = 'one per line: the name, then what the tool is for.'
+  const UNATTENDED_LOCATION = 'one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed.'
+  check('this proof renders the hosted posture (no session mark, so a screen may print the card)', isUnattendedRun() === false)
+  for (const form of ['block', 'text', 'text-append'] as const) {
+    const hosted = getPrompt(form)
+    const unattended = getPrompt(form, true)
+    check(`${form}: the unattended text differs from the hosted text in the location sentence alone`, hosted.includes(HOSTED_LOCATION) && !hosted.includes(UNATTENDED_LOCATION) && unattended.includes(UNATTENDED_LOCATION) && unattended.replace(UNATTENDED_LOCATION, HOSTED_LOCATION) === hosted, firstDifference(unattended, hosted))
+    check(`${form}: getPrompt(form, false) is the hosted text`, getPrompt(form, false) === hosted)
+  }
+  markSessionNonInteractive()
+  bootstrap.setAskChannel('none')
+  check('a session marked non-interactive with no ask channel renders the unattended text by default', isUnattendedRun() === true && getPrompt('block') === getPrompt('block', true) && (await ToolSearchTool.prompt({ model: 'claude-sonnet-5-5' })) === getPrompt('block', true))
+  bootstrap.setAskChannel('sdk')
+  check('a host that answers asks keeps the hosted text while the session is marked non-interactive', isUnattendedRun() === false && getPrompt('block') === SPEC_BLOCK)
+  resetRuntimePostureForTest()
+}
+
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

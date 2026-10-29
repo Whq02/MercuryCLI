@@ -42,7 +42,9 @@ eq "no identity tail remains"     "Identity, final word" 0
 eq "no wire prefix remains"       "source-built terminal coding harness" 0
 
 src "main-path contract splice"   "$prompts" "getMercuryContractSections"
-src "the constitution is the law" "$prompts" "promptReplacementText() : MERCURY_CONSTITUTION"
+src "the constitution is the law" "$prompts" "promptReplacementText() : stockLaw"
+src "the stock law is the constitution (its headless form only for a run no host attends)" "$prompts" "isUnattendedRun() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION"
+src "the stock law falls back to the constitution itself" "$prompts" "const stockLaw = constitution ?? MERCURY_CONSTITUTION"
 src "the static group: head, law" "$prompts" "[frozenHead ?? head, law]"
 src "bare-path: head and law"     "$prompts" '${head}\n\n${law}'
 src "the closing ask in source"   "$wrap"    "ask the smallest direct question and briefly explain what depends on the answer"

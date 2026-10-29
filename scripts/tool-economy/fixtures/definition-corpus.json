@@ -1,5 +1,5 @@
 {
-  "base": "6c725418eae1c74e51582cd4194942baf8c8a184",
+  "base": "48ae5ea488e7538fc95ee37b0fceb5f0a3dad835",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2049,7 +2049,7 @@
     },
     {
       "name": "AstSearch",
-      "description": "Find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. \"$FN($$$ARGS)\"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.\npath scopes a file/directory; glob is relative to it. lang selects the grammar, otherwise extensions decide. Ignored/build/dependency folders are skipped unless named in path; missing grammars and parse failures are reported. Results give file:line:col and captures; limit+offset page, mode:\"count\" counts. AstEdit rewrites these same matches.\nFull grammar and usage notes arrive on discovery or first use.",
+      "description": "Use this over Grep to find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. \"$FN($$$ARGS)\"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.\npath scopes a file/directory; glob is relative to it. lang selects the grammar, otherwise extensions decide. Ignored/build/dependency folders are skipped unless named in path; missing grammars and parse failures are reported. Results give file:line:col and captures; limit+offset page, mode:\"count\" counts. AstEdit rewrites these same matches.\nFull grammar and usage notes arrive on discovery or first use.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4270,7 +4270,7 @@
     },
     {
       "name": "ToolSearch",
-      "description": "Load the full schemas of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin \"Deferred tools:\", one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.\n\nQuery forms:\n- `select:WebFetch,Sleep` — names spelled as the list spells them\n- `notebook jupyter` — keyword search\n- `+slack send` — \"slack\" must appear in the name; remaining terms only rank",
+      "description": "Load the full schemas of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin \"Deferred tools:\", one per line: the name, then what the tool is for. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.\n\nQuery forms:\n- `select:WebFetch,Sleep` — names spelled as the list spells them\n- `notebook jupyter` — keyword search\n- `+slack send` — \"slack\" must appear in the name; remaining terms only rank",
       "input_schema": {
         "type": "object",
         "properties": {

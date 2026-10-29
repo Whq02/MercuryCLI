@@ -4,6 +4,7 @@ import { discoverRunnerProfiles, hasPythonSignal } from '../../services/ide/proj
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
+import { isUnattendedRun } from '../../utils/cockpit/runtimePosture.js'
 import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
 import {
   isSaturnExemptEnabled,
@@ -85,11 +86,13 @@ export function formatDeferredToolLine(tool: Tool): string {
   return `${tool.name} — ${cut}…`
 }
 
-export function getPrompt(wireForm: DeferralWireForm = 'block'): string {
+export function getPrompt(wireForm: DeferralWireForm = 'block', unattended: boolean = isUnattendedRun()): string {
   const head = `Load the full schemas of deferred tools so they become callable.
 
 `
-  const location = `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed.`
+  const location = unattended
+    ? `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed.`
+    : `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.`
   const hold = ` Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and `
   const direct = ` A tool already in your tool list needs no fetch: call it directly.`
   const miss = ` A select that names a tool this session does not have loads nothing; the result names the miss.`

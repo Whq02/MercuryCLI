@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { slashed } from '../lib/platformPath.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const original = process.cwd()
@@ -73,7 +74,7 @@ try {
   check('a read-only pipeline is allowed in default mode', readOnly.behavior === 'allow', JSON.stringify(readOnly))
   mkdirSync(join(world, 'elsewhere'), { recursive: true })
   writeFileSync(join(world, 'elsewhere', 'notes.txt'), 'x\n')
-  for (const command of [`pwd; ls -la ${join(world, 'elsewhere')} | head -20; node -e "console.log(1)"`, `cat ${join(world, 'elsewhere', 'notes.txt')} && npm test`, 'cat tests/*.mjs; npm test', 'ls /etc | head -3; npm test']) {
+  for (const command of [`pwd; ls -la ${slashed(join(world, 'elsewhere'))} | head -20; node -e "console.log(1)"`, `cat ${slashed(join(world, 'elsewhere', 'notes.txt'))} && npm test`, 'cat tests/*.mjs; npm test', 'ls /etc | head -3; npm test']) {
     const result = await decide(command)
     check(`a read Flow lets roam keeps roaming beside a command that requires approval: ${command.slice(0, 60)}`, result.behavior === 'allow', JSON.stringify(result))
   }
@@ -84,7 +85,7 @@ try {
   }
   const printing = await decide("sed -n '8,14p' sub/faq.html", 'implement')
   check('implement mode allows a line-printing sed outright, as default and flow do', printing.behavior === 'allow', JSON.stringify(printing))
-  for (const command of [`cp ${join(world, 'elsewhere', 'notes.txt')} here.txt; npm test`, `printf x > ${join(world, 'elsewhere', 'notes.txt')}; npm test`]) {
+  for (const command of [`cp ${slashed(join(world, 'elsewhere', 'notes.txt'))} here.txt; npm test`, `printf x > ${slashed(join(world, 'elsewhere', 'notes.txt'))}; npm test`]) {
     const result = await decide(command)
     check(`a write outside the project still asks beside it: ${command.slice(0, 60)}`, result.behavior === 'ask', JSON.stringify(result))
   }

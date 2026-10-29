@@ -32,7 +32,7 @@ writeFileSync(join(home, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: {
 let failures = 0
 const check = (name: string, passed: boolean) => { console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`); if (!passed) failures++ }
 try {
-  const hook = await startCommandHook({ name: 'fixture', command: `"${process.execPath}" "${script}" hook`, shell: 'bash', event: 'PreToolUse', index: 0, payloadJson: '{}', timeoutMs: 10_000, source: { kind: 'settings' }, cwd: home })
+  const hook = await startCommandHook({ name: 'fixture', command: `"${process.execPath}" "${script}" hook`, shell: 'bash', event: 'tool.before', index: 0, payloadJson: '{}', timeoutMs: 10_000, source: { kind: 'settings' }, cwd: home })
   const ended = await hook.result
   check('headless hook runs without inherited provider credentials', ended.kind === 'exited' && ended.code === 0 && ended.stdout.trim() === '{}')
   const server = await connectToServer('env-fixture', config)

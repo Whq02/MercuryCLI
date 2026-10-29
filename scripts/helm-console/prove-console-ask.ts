@@ -169,8 +169,8 @@ section('(3) the sandbox boundary — source pins at the owners')
     fork.includes('shouldAvoidPermissionPrompts: true') && fork.includes("overrides.shareSetAppState ? parentContext.setAppState : () => {}"),
   )
   check(
-    'the fork records a SIDECHAIN transcript under its own agent id (never the main chain)',
-    fork.includes('recordSidechainTranscript(messages, agentId)') && fork.includes('createAgentId(label)'),
+    'the fork records a SIDECHAIN transcript under its own agent id (never the main chain), the inherited history marked replayOf its source rows',
+    fork.includes('recordSidechainTranscript([...replay, ...promptMessages], agentId)') && fork.includes('replayOf: message.uuid') && fork.includes('createAgentId(label)'),
   )
   const writer = read('src/utils/sessionStorage/writer.ts')
   check(

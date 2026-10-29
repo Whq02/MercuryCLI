@@ -200,10 +200,16 @@ section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the
   const schema = AgentTool.inputSchema as { safeParse: (v: unknown) => { success: boolean }; shape: { model: { description?: string } } }
   check("the Crewmate tool schema accepts model 'haiku'", schema.safeParse({ description: 'test', prompt: 'test', model: 'haiku' }).success === true)
   const description = schema.shape.model.description ?? ''
-  check('the model description names no provider as the exact-id case', description.length > 0 && !/Anthropic/.test(description), description.slice(0, 200))
-  check("the model description says an exact id names its model exactly", /an exact id names its model exactly/.test(description), description.slice(0, 200))
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const permissionContext = getEmptyToolPermissionContext()
+  const manual = await AgentTool.prompt({ getToolPermissionContext: async () => permissionContext, tools: [...getAllBaseTools()], agents: [] })
+  const MODEL_SECTION = '\n## Model selection\n'
+  const modelWords = manual.includes(MODEL_SECTION) ? manual.slice(manual.indexOf(MODEL_SECTION) + MODEL_SECTION.length).split('\n## ')[0]! : ''
+  check('the model description, on the wire and in the manual, names no provider as the exact-id case', description.length > 0 && !/Anthropic/.test(description) && modelWords.length > 0 && !/Anthropic/.test(modelWords), description.slice(0, 200))
+  check("the wire says an exact id or a family word; the manual's model section says an exact id names its model exactly", /exact id or family word/.test(description) && /an exact id names its model exactly/.test(modelWords), description.slice(0, 200))
   check('the schema admits an exact gemini or openrouter id (the dispatch grammar validates it)', schema.safeParse({ description: 'test', prompt: 'test', model: 'gemini-2.5-pro' }).success === true && schema.safeParse({ description: 'test', prompt: 'test', model: 'openrouter/qwen/qwen3-coder' }).success === true)
-  check('the schema text enumerates no per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2'))
+  check('neither the schema text nor the manual enumerates a per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2') && !modelWords.includes('gpt-5.6-sol') && !modelWords.includes('glm-5.2'))
   const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
   const config = src('components', 'Settings', 'Config.tsx')

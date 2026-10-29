@@ -47,6 +47,7 @@ const { resolvePrimaryAgentBackend, describeAgentRuntimeRef, APEX_BACKEND_CONTRA
 const { classifyModelRoute, declaredRouteOf } = await import('../../src/services/providers/callModelRouter.js')
 const { collectReadiness } = await import('../../src/utils/readiness.js')
 const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')
+const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
 
 section('1 · routing agreement across id shapes')
 {
@@ -218,7 +219,7 @@ section('5 · A7 — usage-limit honesty (typed facts, no invented resets)')
     { error: { code: 'rate_limit_exceeded', message: 'window reached' } },
     { get: (name: string) => (name === 'retry-after' ? '3600' : null) },
   )
-  check("429 keeps its kind and names the explicit wait before the provider answer", fault.kind === 'usage-limit' && fault.retryAfterMs === 3600000 && fault.message === 'rate limited — the provider asks for 3600 s — window reached')
+  check("429 keeps its kind and names the explicit wait, in the house wait words, before the provider answer", fault.kind === 'usage-limit' && fault.retryAfterMs === 3600000 && fault.message === `rate limited — the provider asks for ${providerWaitWords(3600000)} — window reached` && providerWaitWords(3600000) === '1 h 0 min')
   const bare = mapOpenaiHttpFailure(429, {})
   check('429 without headers stays typed (no invented reset)', bare.kind === 'usage-limit' && !bare.message.includes('retry-after'))
 }

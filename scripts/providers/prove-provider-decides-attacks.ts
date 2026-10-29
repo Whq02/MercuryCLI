@@ -12,6 +12,7 @@ const { mapCompatHttpFailure } = await import('../../src/services/providers/open
 const { classifyAnthropicRefusal } = await import('../../src/services/providers/anthropicRefusal.js')
 const { getAssistantMessageFromError } = await import('../../src/services/api/errors.js')
 const { retryAfterHeaderMs } = await import('../../src/services/api/retryAfter.js')
+const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
 const SEVEN_DAYS_S = 7 * 24 * 60 * 60
 const httpDate = new Date(Date.now() + 20_000).toUTCString()
 
@@ -36,7 +37,7 @@ const dateMs = retryAfterHeaderMs(httpDate)
 check('the one reader: an HTTP date lands within a second of the stated moment', dateMs !== undefined && dateMs > 18_000 && dateMs <= 20_000, dateMs)
 check('the one reader: junk, zero, negative and blank are no clock', [retryAfterHeaderMs('soon'), retryAfterHeaderMs('0'), retryAfterHeaderMs('-5'), retryAfterHeaderMs(''), retryAfterHeaderMs('   ')].every(value => value === undefined))
 const sevenDays = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, new Headers({ 'retry-after': String(SEVEN_DAYS_S) }))
-check('OpenAI: a seven-day Retry-After is honoured as the clock and worded as the provider\'s ask', sevenDays.retryAfterMs === SEVEN_DAYS_S * 1000 && sevenDays.message.includes(`asks for ${SEVEN_DAYS_S} s`) && !sevenDays.message.includes('window is reached'), sevenDays)
+check('OpenAI: a seven-day Retry-After is honoured as the clock and worded as the provider\'s ask', sevenDays.retryAfterMs === SEVEN_DAYS_S * 1000 && sevenDays.message.includes(`asks for ${providerWaitWords(SEVEN_DAYS_S * 1000)}`) && providerWaitWords(SEVEN_DAYS_S * 1000) === '7 d 0 h' && !sevenDays.message.includes('window is reached'), sevenDays)
 const dated = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, new Headers({ 'retry-after': httpDate }))
 check('OpenAI: an HTTP-date Retry-After is honoured', dated.retryAfterMs !== undefined && dated.retryAfterMs > 17_000 && dated.retryAfterMs <= 20_000, dated)
 const junk = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, new Headers({ 'retry-after': 'soon' }))

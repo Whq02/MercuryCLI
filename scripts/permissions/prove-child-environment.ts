@@ -76,7 +76,8 @@ try {
 
   for (const [road, env] of environments) {
     check(`${road} inherits the user's exported variable`, env.M46_USER_EXPORT === 'user-export-present', String(env.M46_USER_EXPORT))
-    check(`${road} inherits a provider key the user exported`, env.OPENAI_API_KEY === 'fixture-user-exported-provider-key', String(env.OPENAI_API_KEY))
+    if (road === 'Bash') check('Bash inherits a provider key the user exported (the shell keeps the exported shell)', env.OPENAI_API_KEY === 'fixture-user-exported-provider-key', String(env.OPENAI_API_KEY))
+    else check(`${road} never inherits a provider key the user exported (the owner's ruling, fold 46bc: a hook or MCP child is granted a key only by its own env block)`, env.OPENAI_API_KEY === undefined, String(env.OPENAI_API_KEY))
     check(`${road} does not inherit Mercury's own stamps`, stamps.every(name => env[name] === undefined), stamps.filter(name => env[name] !== undefined).join(','))
     check(`${road} does not inherit the credential loaded from Mercury's store`, !JSON.stringify(env).includes(storeToken))
   }
@@ -84,9 +85,9 @@ try {
 
   const docs = readFileSync(join(import.meta.dir, '../../docs/HOOKS.md'), 'utf8')
   check('the hook docs say the user shell environment is inherited by default', docs.includes('inherits your shell environment by default'))
-  check('the hook docs say exported provider keys stay', docs.includes('including provider keys and\nother variables you exported'))
+  check('the hook docs say the exported variables reach the hook without provider keys', docs.includes('the variables you\nexported, without provider keys'))
   check('the hook docs say stored credentials are not added', docs.includes("credentials in Mercury's own store are\nnot added"))
-  check('the hook docs name the stamps and sensitive variable families removed', docs.includes('Mercury removes its own session stamps, session tokens, OpenTelemetry\nvariables and browser-secret variables'))
+  check('the hook docs name the provider keys, the stamps and the sensitive variable families removed', docs.includes('Mercury removes provider keys, its own session stamps, session tokens, OpenTelemetry\nvariables and browser-secret variables'))
 } finally {
   delete process.env.M46_USER_EXPORT
   delete process.env.OPENAI_API_KEY

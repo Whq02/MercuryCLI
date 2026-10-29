@@ -16,7 +16,11 @@ const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engi
 const { liveModelsReferenceText } = await import('../../src/services/resources/adapters/models.js')
 const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.js')
 const schema = zodToJsonSchema(AgentTool.inputSchema as never) as any
-assert.ok(schema.properties.model.description.includes(MODEL_LOOKUP_LADDER))
+assert.ok(schema.properties.model.description.includes('mercury://models/known'), 'the wire parameter points at the known page')
+assert.ok(schema.properties.model.description.includes('The full manual'), 'the wire parameter points at the manual for the ladder')
+const manual: string = await AgentTool.prompt({ getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: [], agents: [] })
+assert.ok(manual.includes('\n## Model selection\n'), 'the manual carries the ladder under its own heading')
+assert.ok(manual.slice(manual.indexOf('\n## Model selection\n')).includes(MODEL_LOOKUP_LADDER), 'the ladder rides in the manual')
 assert.ok(getWorkflowToolPrompt().includes(MODEL_LOOKUP_LADDER))
 const word = 'frobnicator-9000'
 assert.ok(unrecognisedModelWordRefusal(word)?.includes(MODEL_LOOKUP_LADDER))

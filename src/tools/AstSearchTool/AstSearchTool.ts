@@ -161,7 +161,7 @@ export const AstSearchTool = buildTool({
     return getAstSearchDescription()
   },
   wireDescription(fullPrompt: string) {
-    return `Find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. "$FN($$$ARGS)"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.
+    return `Use this over Grep to find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. "$FN($$$ARGS)"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.
 path scopes a file/directory; glob is relative to it. lang selects the grammar, otherwise extensions decide. Ignored/build/dependency folders are skipped unless named in path; missing grammars and parse failures are reported. Results give file:line:col and captures; limit+offset page, mode:"count" counts.${fullPrompt.includes('AstEdit rewrites') ? ' AstEdit rewrites these same matches.' : ''}
 Full grammar and usage notes arrive on discovery or first use.`
   },

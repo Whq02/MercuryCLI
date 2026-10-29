@@ -1,6 +1,5 @@
 import memoize from 'lodash-es/memoize.js'
-import { canAnswerAsks } from '../bootstrap/state.js'
-import { isSessionMarkedNonInteractive } from './cockpit/runtimePosture.js'
+import { isUnattendedRun } from './cockpit/runtimePosture.js'
 
 import type { Tool, ToolPermissionContext, Tools } from '../Tool.js'
 import { toolMatchesName } from '../Tool.js'
@@ -298,7 +297,7 @@ export function getDeferredToolsDelta(
   if (added.length === 0 && removed.length === 0) return null
   return {
     addedNames: added.map(tool => tool.name).sort(),
-    addedLines: added.map(tool => isSessionMarkedNonInteractive() && !canAnswerAsks() ? tool.name : formatDeferredToolLine(tool)).sort(),
+    addedLines: added.map(tool => isUnattendedRun() ? tool.name : formatDeferredToolLine(tool)).sort(),
     removedNames: removed.sort(),
   }
 }

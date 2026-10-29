@@ -1,8 +1,30 @@
 import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import assert from 'node:assert/strict'
+import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_BROWSER ??= '1'
+const { resolveBrowser } = await import('../../src/services/browser/browserResolver.ts')
+{
+  const resolved = await (async () => {
+    const first = resolveBrowser()
+    if (first.state === 'ok') return first
+    const { resolveExecutionProfile } = await import('../lib/executionProfile.ts')
+    if (resolveExecutionProfile(join(import.meta.dir, '..', '..')).kind === 'hosted-gate') {
+      const { provisionManagedBrowserForTheGate } = await import('../lib/provisionManagedBrowser.ts')
+      const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
+      const again = provisioned.ok ? resolveBrowser() : first
+      if (again.state === 'ok') return again
+      console.error(`FAIL hosted gate has no drivable browser — ${again.note}${provisioned.ok ? '' : `; provisioning failed: ${provisioned.note}`}`)
+      process.exit(1)
+    }
+    console.log(`__SUITE_SKIPPED browser: ${first.note}`)
+    console.log('  – no drivable browser on this machine — SKIP; the resolution law is pinned by scripts/language-sidecars/prove-browser-resolution.ts')
+    process.exit(0)
+  })()
+  console.log(`  driving: ${resolved.source} — ${resolved.executablePath}`)
+}
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { activeSession, disposeBrowserOwner } = await import('../../src/services/browser/browserSession.ts')
 const { makeOwnerKey } = await import('../../src/services/run/ownerKey.ts')
@@ -23,6 +45,8 @@ const run = async (input: Record<string, unknown>) => (await BrowserTool.call(in
 try {
   const opened = await run({ op: 'open', url })
   assert.equal(opened.outcome, 'succeeded', opened.result)
+  const laidOut = await run({ op: 'waitFor', frame: 1, selector: 'button', state: 'visible', timeoutMs: 5000 })
+  check('the child frame has laid out its button before the timed acts (a fresh bundle\'s first launch paints late)', laidOut.outcome === 'succeeded', laidOut.result)
   const s = activeSession(owner)!
   const framed = { op: 'click', frame: 1, selector: 'aria/Save[role="button"]', timeoutMs: 500 }
   const permission = await BrowserTool.checkPermissions(framed as never, context)

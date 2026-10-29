@@ -22,6 +22,13 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+async function until(what: string, holds: () => boolean, timeoutMs = 15_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!holds()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting until ${what}`)
+    await sleep(25)
+  }
+}
 const EXPIRED_LINE = 'Nous Portal sign-in expired — sign in again (/logins nous) or use an API key'
 const OFFER = '/logins nous retries the sign-in or stores an API key.'
 
@@ -72,12 +79,18 @@ async function signIn(): Promise<{ outcome: Awaited<ReturnType<typeof login.runN
   return { outcome, events, captures: fixture.requests.slice(before) }
 }
 
-function child(mode: 'refresh' | 'read'): Promise<Record<string, unknown>> {
+function child(mode: 'refresh' | 'read', onLine?: (line: string) => void): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, ['run', join(import.meta.dir, 'lib', 'nous-signin-child.ts'), mode], { env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''
     let err = ''
-    proc.stdout.on('data', chunk => { out += String(chunk) })
+    let announced = 0
+    proc.stdout.on('data', chunk => {
+      out += String(chunk)
+      if (!onLine) return
+      const lines = out.split('\n')
+      for (; announced < lines.length - 1; announced++) onLine(lines[announced]!)
+    })
     proc.stderr.on('data', chunk => { err += String(chunk) })
     proc.on('close', code => {
       const line = out.trim().split('\n').at(-1) ?? ''
@@ -151,9 +164,12 @@ try {
   fixture.oauth.tokenHold = new Promise<void>(resolve => { releaseHold = resolve })
   const raceBefore = fixture.requests.length
   const mine = oauth.refreshNousTokens(undefined, true)
+  await until('the first grant is in flight, held by the fixture', () => fixture.requests.slice(raceBefore).some(c => c.path === '/api/oauth/token'))
+  let peerRead = ''
+  const peer = child('refresh', line => { if (line.startsWith('{"about":"refresh"')) peerRead = line })
+  await until('the second process has read the stored pair and is about to refresh it', () => peerRead !== '')
+  check('the second process read the pair the first is rotating', JSON.parse(peerRead).beforeRefresh === 'rt-fixture-2', peerRead)
   await sleep(300)
-  const peer = child('refresh')
-  await sleep(1500)
   releaseHold()
   fixture.oauth.tokenHold = undefined
   const [mineDone, peerDone] = await Promise.all([mine, peer])

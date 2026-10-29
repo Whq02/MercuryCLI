@@ -24,6 +24,17 @@ const textOf = (content: unknown): string =>
       ? content.map(b => ((b as Block).type === 'text' ? ((b as Block).text ?? '') : '')).join('')
       : ''
 
+export function withoutTrailingReminders(text: string): string {
+  let body = text
+  for (;;) {
+    const trimmed = body.endsWith('\n') ? body.slice(0, -1) : body
+    if (!trimmed.endsWith('</system-reminder>')) return body
+    const start = trimmed.lastIndexOf('\n\n<system-reminder>')
+    if (start === -1) return body
+    body = trimmed.slice(0, start)
+  }
+}
+
 function askOf(content: unknown): string {
   if (typeof content === 'string') return content.trimStart().startsWith('<system-reminder>') ? '' : content
   if (!Array.isArray(content)) return ''

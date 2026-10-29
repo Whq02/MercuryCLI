@@ -65,6 +65,7 @@ const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const fixtureWords = await import('./cap-fixture-words.ts')
 const { SPEND_ASK, HOLD_ASK, ANTHROPIC_REPLY, OPENAI_REPLY, GPT_ID, RESET_IN_SECONDS } = fixtureWords
+const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.ts')
 
 const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
 const reapNow = (): void => {
@@ -371,7 +372,7 @@ try {
   const rec4 = readRec(sid)
   check('C1 the runner is ALIVE after the GPT cap', rec4 !== undefined && alive(rec4.pid) && rec4.pid === pid1, `pid ${rec4?.pid} alive=${alive(rec4?.pid)}`)
   const gptWall = lastAssistantText(sid)
-  check('C1 the GPT wall row is typed and carries the provider limit, plan and reset while the request stays on OpenAI', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && gptWall.includes('openai-usage_limit_reached') && gptWall.includes(`the plus window is reached — resets in ${RESET_IN_SECONDS} s`) && gptWall.includes('You have hit your usage limit.') && gptWall.includes('The next request goes to OpenAI again; resume any time.') && gptWall.includes('Mercury never reroutes across providers silently') && sinceHits(before4).filter(h => h.kind === 'openai').length === 1 && !sinceHits(before4).some(h => h.kind === 'anthropic'), gptWall)
+  check('C1 the GPT wall row is typed and carries the provider limit, plan and reset while the request stays on OpenAI', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && gptWall.includes('openai-usage_limit_reached') && gptWall.includes(`the plus window is reached — resets in ${providerWaitWords(RESET_IN_SECONDS * 1000)}`) && gptWall.includes('You have hit your usage limit.') && gptWall.includes('The next request goes to OpenAI again; resume any time.') && gptWall.includes('Mercury never reroutes across providers silently') && sinceHits(before4).filter(h => h.kind === 'openai').length === 1 && !sinceHits(before4).some(h => h.kind === 'anthropic'), gptWall)
   console.log(`      gpt wall row: ${gptWall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
   const swBack = await setModel(sid, 'claude-fable-5-1')
   check('the switch back to the Fable row lands in place', swBack.ok === true && swBack.outcome === 'applied', JSON.stringify(swBack))

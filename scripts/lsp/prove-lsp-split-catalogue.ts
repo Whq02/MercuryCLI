@@ -13,7 +13,7 @@ const tools = getAllBaseTools()
 const selected = names.map(name => tools.find(tool => tool.name === name))
 check('the catalogue carries seven language-service tools and no callable LSP', selected.every(Boolean) && !tools.some(tool => tool.name === 'LSP'), tools.filter(tool => /lsp/i.test(tool.name)).map(tool => tool.name).join(', '))
 const required = [['operation'], ['filePath', 'line', 'character', 'newName'], ['filePath', 'line', 'character', 'targetPath'], ['filePath', 'newPath'], ['filePath', 'line', 'character'], ['filePath'], ['filePath', 'method']]
-const bytes = [2497, 1787, 1788, 1380, 2090, 1599, 974]
+const bytes = [1851, 1787, 1788, 1380, 2090, 1599, 974]
 const quotes = [['filePath', 'query', 'paths'], ['filePath', 'newName'], ['filePath', 'targetPath'], ['filePath', 'newPath'], ['filePath'], ['filePath'], ['filePath']]
 for (let i = 0; i < names.length; i++) {
   const tool = selected[i]
@@ -21,8 +21,9 @@ for (let i = 0; i < names.length; i++) {
   const description = await tool.description()
   const input_schema = tool.inputJSONSchema
   const sent = await toolToAPISchema(tool, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools, agents: [], model: getEngineModel(), deferLoading: i !== 0 }) as { description: string; input_schema: unknown }
-  check(`${tool.name}: the wire carries the exact description and explicit schema`, sent.description === description && JSON.stringify(sent.input_schema) === JSON.stringify(input_schema))
-  const wire = { name: tool.name, description, input_schema, eager_input_streaming: true, ...(i ? { defer_loading: true } : {}) }
+  const expectedDescription = i === 0 ? tool.wireDescription!(description) : description
+  check(`${tool.name}: the wire carries ${i === 0 ? 'its wire contract (the manual arrives on discovery or first use)' : 'the exact description'} and the explicit schema`, typeof tool.wireDescription === (i === 0 ? 'function' : 'undefined') && sent.description === expectedDescription && JSON.stringify(sent.input_schema) === JSON.stringify(input_schema))
+  const wire = { name: tool.name, description: sent.description, input_schema, eager_input_streaming: true, ...(i ? { defer_loading: true } : {}) }
   check(`${tool.name}: exact serialized definition byte count ${bytes[i]}`, Buffer.byteLength(JSON.stringify(wire)) === bytes[i], `${Buffer.byteLength(JSON.stringify(wire))}`)
   check(`${tool.name}: the whole required set is advertised`, JSON.stringify(input_schema?.required) === JSON.stringify(required[i]))
   check(`${tool.name}: rejects undocumented keys`, !tool.inputSchema.safeParse({ ...Object.fromEntries(required[i]!.map(k => [k, ['line', 'character'].includes(k) ? 1 : 'value'])), nonsense: true }).success)

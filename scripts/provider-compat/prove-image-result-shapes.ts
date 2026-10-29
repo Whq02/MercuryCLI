@@ -79,7 +79,7 @@ section('§3 the builder each route reaches (structural)')
   check('the compat runtime maps through the shared codec', compatRuntime.includes('mapMessagesToZai') || compatRuntime.includes('buildZaiChatRequest'))
   for (const row of ROWS) {
     const text = source(row.callModel)
-    if (row.route === 'anthropic') check('anthropic: the tool_result rides as blocks (the media ceiling is the only edit)', text.includes('stripExcessMediaItems('))
+    if (row.route === 'anthropic') check('anthropic: the tool_result rides as blocks (the media fit, which elides the oldest past the ceiling with a visible marker, is the only edit)', text.includes('fitWireImages(') && !text.includes('stripExcessMediaItems('))
     else if (row.route === 'openai') check('openai: the Responses request is built with the images gate', text.includes('buildOpenaiResponsesRequest(') && text.includes('imagesSupported'))
     else if (row.route === 'zai') check('zai: the chat request is built by the shared codec', text.includes('buildZaiChatRequest('))
     else check(`${row.route}: the compat runtime carries it`, text.includes('compatChatCallModel('))

@@ -30,20 +30,22 @@ const expected = {
   }, required: ['language', 'code'], additionalProperties: false,
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
-for (const [enabled, hash, bytes] of [
-  ['1', '0bc92364b9d2aafcbf8d340e364852dba7700ce29711c29d9ed82153f6b9c0a5', 7932],
-  ['0', '286c75fa6ac7ef6e1a5bd36cbf99f57a8ddbbb0f58b13093bcab0f36348f4fb7', 5830],
+for (const [enabled, hash, manualBytes, bytes] of [
+  ['1', '863cb65c8d9934e606ba207405886d361a437e0363f7da741dd710fbeb7380af', 7375, 2004],
+  ['0', '93123c2a359d87ad856fdd6fa7ed664e019d9e9081d258e0337301a9add6b4d3', 5341, 1962],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled
   clearToolSchemaCache()
+  const manual = await EvalTool.prompt(options)
   const definition = await toolToAPISchema(EvalTool, options) as any
-  check(`samples=${enabled}: complete description matches fold 46as bridge accounting`, createHash('sha256').update(definition.description).digest('hex') === hash, definition.description)
+  check(`samples=${enabled}: the complete manual matches fold 46as bridge accounting with fold 46bc's read_file and Bash helper lines (${manualBytes} bytes)`, createHash('sha256').update(manual).digest('hex') === hash && Buffer.byteLength(manual) === manualBytes, `${Buffer.byteLength(manual)} bytes: ${manual}`)
+  check(`samples=${enabled}: the wire carries the Eval wire contract rendered from that manual (fold 46bh), the manual arriving on discovery or first use`, typeof EvalTool.wireDescription === 'function' && definition.description === EvalTool.wireDescription(manual) && definition.description.includes(enabled === '1' ? 'sample publishes only on an operator ask' : 'JS read_file needs await.\n'), definition.description)
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
   check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${contracts.EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`, definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
-  check(`samples=${enabled}: fold 46as compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
+  check(`samples=${enabled}: the fold 46bh wire definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
 check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.')
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })
