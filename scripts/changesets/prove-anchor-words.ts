@@ -58,6 +58,20 @@ const plan = planChangeSet([{ file_path: target, expected_anchor: good.slice(0, 
 const memberFault = (plan as { failures?: Array<{ code: string; message: string }> }).failures?.[0]
 check('the ChangeSet preflight refusal names the member fault (11 of 12 hex characters), nothing else', memberFault?.code === 'malformed-anchor' && /has 11 hex characters after "fa:" where the digest has exactly 12/.test(memberFault.message) && !/without the surrounding|is invalid/.test(memberFault.message), JSON.stringify(memberFault))
 
+const { ChangeSetTool } = await import(join(ROOT, 'src/tools/ChangeSetTool/ChangeSetTool.ts'))
+const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
+const { processMainOwner } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
+{
+  const readFileState = new Map<string, unknown>()
+  readFileState.set(target, { content: "import test from 'node:test'\ntest('ownerId', () => {})\n", timestamp: Date.now() + 60_000 })
+  const ctx = { owner: processMainOwner(), readFileState, userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'implement' } }) }
+  const wrong = mintFileAnchor('some other content\n')
+  const result = await (ChangeSetTool as { call: Function }).call({ op: 'apply', changes: [{ file_path: target, expected_anchor: wrong, edits: [{ old_string: 'ownerId', new_string: 'owner' }] }] }, ctx, null, { uuid: '00000000-0000-4000-8000-0000000000aa', message: { id: 'msg_fixture' } }).catch((error: Error) => ({ data: { result: error.message } }))
+  const text = String((result as { data?: { result?: string } }).data?.result ?? '')
+  check('a well-formed anchor that is not this file\'s, on a file read and unchanged since, is told so and handed the real anchor instead of a re-read', text.includes(`expected_anchor '${wrong}' is not the anchor of ${target} as read this session; the file is unchanged since that read and its anchor is ${good} — pass that value`), text.slice(0, 500))
+  check('and nothing was written', !text.includes('Applied'), text.slice(0, 120))
+}
+
 let appState = getDefaultAppState()
 const toolContext = {
   options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },

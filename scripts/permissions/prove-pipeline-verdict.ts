@@ -77,6 +77,13 @@ try {
     const result = await decide(command)
     check(`a read Flow lets roam keeps roaming beside a command that requires approval: ${command.slice(0, 60)}`, result.behavior === 'allow', JSON.stringify(result))
   }
+  writeFileSync(join(project, 'sub', 'faq.html'), '<p>x</p>\n')
+  for (const command of ["node x.mjs && sed -n '8,14p' sub/faq.html", "mkdir -p sub/out && node tooling/run.mjs build sites/handbook sub/out && sed -n '8,14p' sub/out/faq.html"]) {
+    const result = await decide(command)
+    check(`a line-printing sed beside a command that requires approval is admitted hostless: ${command.slice(0, 60)}`, result.behavior === 'allow', JSON.stringify(result))
+  }
+  const printing = await decide("sed -n '8,14p' sub/faq.html", 'implement')
+  check('implement mode allows a line-printing sed outright, as default and flow do', printing.behavior === 'allow', JSON.stringify(printing))
   for (const command of [`cp ${join(world, 'elsewhere', 'notes.txt')} here.txt; npm test`, `printf x > ${join(world, 'elsewhere', 'notes.txt')}; npm test`]) {
     const result = await decide(command)
     check(`a write outside the project still asks beside it: ${command.slice(0, 60)}`, result.behavior === 'ask', JSON.stringify(result))

@@ -176,12 +176,8 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
   }
 
   let matched: 1 | 2 | null = null
-  if (!allowFileWrites) {
-    if (isLinePrintingCommand(command, expressions)) matched = 1
-    else if (isSubstitutionCommand(command, expressions, false)) matched = 2
-  } else {
-    if (isSubstitutionCommand(command, expressions, true)) matched = 2
-  }
+  if (isLinePrintingCommand(command, expressions)) matched = 1
+  else if (isSubstitutionCommand(command, expressions, allowFileWrites)) matched = 2
   if (matched === null) return false
   if (matched === 2 && expressions.some(e => e.includes(';'))) return false
   if (expressions.some(isDangerousExpression)) return false

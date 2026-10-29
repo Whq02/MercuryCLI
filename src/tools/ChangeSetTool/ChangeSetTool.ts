@@ -275,6 +275,11 @@ function planContext(
       if (decision.behavior === 'deny') return 'denied by a rule'
       return null
     },
+    lastRead: (canonicalPath: string, requestedPath: string) => {
+      const entry = context.readFileState.get(canonicalPath) ?? context.readFileState.get(expandPath(requestedPath))
+      const whole = entry !== undefined && !entry.isPartialView && (entry.offset === undefined || (entry.offset === 0 && entry.limit === undefined))
+      return whole ? entry.content : null
+    },
     seenLinesCheck: (
       target: { canonicalPath: string; requestedPath: string },
       spans: Parameters<typeof checkSeenLines>[3],

@@ -21,7 +21,7 @@ import {
 } from './changeSetContracts.js'
 import { buildDiffHunks } from './diffBudget.js'
 import { applyHunks, countLines, planHunks, type EditHunkInput, type HunkSpan } from './hunks.js'
-import { checkAnchor, mintFileAnchor } from './snapshotAnchor.js'
+import { checkAnchor, mintFileAnchor, normalizeForAnchor } from './snapshotAnchor.js'
 import { relocateStaleHunksFromRing } from './stalePatchRecovery.js'
 
 type LineRange = { start: number; end: number }
@@ -41,6 +41,7 @@ interface ChangeSetPlanContext {
     touched?: LineRange[] | null
   }) => { ok: true } | { ok: false; message: string }
   scopeCheck?: (canonicalPath: string) => string | null
+  lastRead?: (canonicalPath: string, requestedPath: string) => string | null
   validateTarget?: (target: ChangeSetTargetPlan, plannedContent: string) => string | null
   seenLinesCheck?: (
     target: { canonicalPath: string; requestedPath: string },
@@ -475,10 +476,16 @@ export function planChangeSet(
           ? relocateStaleHunksFromRing(ctx.ownerKey as OwnerKey, member.expected_anchor, body, memberHunks, member.file_path)
           : null
       if (recovery === null) {
+        const lastRead = ctx.lastRead?.(canonical, member.file_path) ?? null
+        const unchangedSinceRead = lastRead !== null && normalizeForAnchor(lastRead) === normalizeForAnchor(content)
         failures.push({
           path: member.file_path,
           code: anchorCheck.reason === 'malformed' ? 'malformed-anchor' : 'stale-anchor',
-          message: anchorCheck.reason === 'malformed' ? anchorCheck.rereadHint : `stale anchor — ${anchorCheck.rereadHint}`,
+          message: unchangedSinceRead
+            ? `expected_anchor '${member.expected_anchor}' is not the anchor of ${member.file_path} as read this session; the file is unchanged since that read and its anchor is ${mintFileAnchor(content)} — pass that value`
+            : anchorCheck.reason === 'malformed'
+              ? anchorCheck.rereadHint
+              : `stale anchor — ${anchorCheck.rereadHint}`,
         })
         continue
       }
