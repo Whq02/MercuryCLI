@@ -17,7 +17,8 @@ sessions; it cannot enter an operator's session.
 ## Client tokens and reach
 
 Keep a private JSON file outside the served project. Each client has its own
-name and bearer token. For example:
+name and either a bearer token or, for ChatGPT, an `oauth` entry (see below).
+For example:
 
 ```json
 {
@@ -40,8 +41,9 @@ name and bearer token. For example:
 
 Replace the example tokens and session id. `openssl rand -hex 32` generates a
 suitable token. On macOS and Linux, protect the file with `chmod 600`.
-Names and tokens must be unique. Keep tokens in client secret configuration,
-not in prompts or shared files. Restart the server after changing the file.
+Names, tokens and client ids must be unique. Keep tokens in client secret
+configuration, not in prompts or shared files. Restart the server after
+changing the file.
 
 `run` defaults to `false`; `send` defaults to an empty list. A session UUID
 allows reports to that session only. `lead` resolves to the session that
@@ -75,8 +77,8 @@ mercury mcp-server --transport http --port 8787 --token-file "$HOME/.config/merc
 ```
 
 Replace the role ids with the sessions you intend to receive reports.
-The endpoint is `http://127.0.0.1:8787/mcp`. Every HTTP request, including
-discovery, must carry `Authorization: Bearer <that client's token>`.
+The endpoint is `http://127.0.0.1:8787/mcp`. Every request to it, including
+tool discovery, must carry `Authorization: Bearer <that client's token>`.
 The command never prints tokens read from a file.
 
 Without `--token-file`, HTTP generates and prints one bearer token to standard
@@ -146,16 +148,67 @@ or an authenticated MCP client used by a
 [Grok Bot routine](https://docs.x.ai/grok-bot/skills-routines-and-automations)
 can submit reports at that URL. It must send its own bearer header.
 
-A [GPT dot uses installed plugins](https://learn.chatgpt.com/docs/dots/computers-and-apps.md).
-ChatGPT's hosted plugins [expect OAuth 2.1](https://developers.openai.com/plugins/build/auth),
-so they need an authentication gateway that validates that sign-in and
-forwards requests with the correct client's Mercury token. This server does
-not implement that OAuth flow.
+A [GPT dot uses installed plugins](https://learn.chatgpt.com/docs/dots/computers-and-apps.md),
+and a ChatGPT [custom MCP server](https://developers.openai.com/api/docs/guides/custom-mcp-server)
+signs in with [OAuth 2.1](https://developers.openai.com/plugins/build/auth);
+the next section covers that.
 
 Neither bot has a public inbound conversation API today. Grok Bot's webhook
 triggers start routines; they are separate from a conversation API. Mercury
 supplies the receiving half. Bot-side installation, scheduling, authentication
 and notifications remain with the bot's platform.
+
+## ChatGPT and GPT dots
+
+ChatGPT connects a custom MCP server either without authentication or through
+OAuth 2.1; it cannot send a bearer token of its own. The HTTP transport
+provides that sign-in itself when a client in the token file carries an
+`oauth` entry in place of a token:
+
+```json
+{
+  "name": "gpt-dots",
+  "oauth": {
+    "client_id": "gpt-dots",
+    "client_secret": "<unique random secret, at least 32 characters>",
+    "redirect_uris": ["https://chatgpt.com/connector_platform_oauth_redirect"]
+  },
+  "run": false,
+  "send": ["lead"]
+}
+```
+
+`client_secret` is optional; without it the client is public and relies on
+PKCE alone. A redirect URI must match the one the client sends exactly.
+
+1. Start the HTTP server with the tunnel `--origin` as above. The server
+   publishes its sign-in details at `/.well-known/oauth-authorization-server`
+   and `/.well-known/oauth-protected-resource/mcp` on that origin, and answers
+   a request without a valid token with a `WWW-Authenticate` challenge that
+   points there. Sign-in requires PKCE with S256 and a `resource` parameter
+   naming the `/mcp` URL; every response carries `iss`.
+2. In ChatGPT, open Plugins, add a custom MCP server with the tunnel URL plus
+   `/mcp`, choose OAuth, and enter the client id and secret from the token
+   file. If ChatGPT shows a different redirect URI for the connection, put it
+   in `redirect_uris` and restart the server.
+3. When ChatGPT opens the sign-in page, the terminal running
+   `mercury mcp-server` prints a six-digit approval code. Enter it on that page
+   within ten minutes; three wrong codes end the request. Nothing is issued
+   without that code.
+
+The token ChatGPT then holds identifies that client only: reports arrive as
+**Outside report from gpt-dots**, its reach is the file's `send` list, and
+`run` stays `false` unless the file says otherwise. An access token lasts an
+hour and ChatGPT renews it with a refresh token; a connection survives a server
+restart on the same origin. To end a connection, remove or change its `oauth`
+entry and restart the server, or disconnect the plugin in ChatGPT. Grants are
+stored hashed in the config home under `mcp-server/oauth-grants.json`.
+
+Limitations: client ID metadata documents and dynamic client registration are
+not offered, so ChatGPT must be given the client id and secret; the sign-in
+page is served from the tunnel origin, which must stay reachable while ChatGPT
+connects; and a dot can use the plugin only where ChatGPT makes custom plugins
+available to its account.
 
 Stopping the server closes its client-owned SDK sessions. Their saved
 conversations remain. Sessions hosted by Mercury's daemon keep their own

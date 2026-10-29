@@ -41,6 +41,19 @@ export {
   OAuthMetadataSchema,
   OAuthTokensSchema,
 } from '@modelcontextprotocol/core'
-export { Server, McpServer, ResourceTemplate, createMcpHandler, validateHostHeader } from '@modelcontextprotocol/server'
-export type { McpRequestContext } from '@modelcontextprotocol/server'
+export {
+  Server,
+  McpServer,
+  OAuthError as ServerOAuthError,
+  OAuthErrorCode as ServerOAuthErrorCode,
+  ResourceTemplate,
+  bearerAuthChallengeResponse,
+  buildOAuthProtectedResourceMetadata,
+  createMcpHandler,
+  getOAuthProtectedResourceMetadataUrl,
+  oauthMetadataResponse,
+  requireBearerAuth,
+  validateHostHeader,
+} from '@modelcontextprotocol/server'
+export type { AuthInfo, McpRequestContext, OAuthMetadata, OAuthTokenVerifier } from '@modelcontextprotocol/server'
 export { serveStdio } from '@modelcontextprotocol/server/stdio'

@@ -6,17 +6,31 @@ import { readSessionWorkers, sessionOwnedByLiveWorker } from '../../daemon/conco
 import type { PermissionMode } from '../../../sdk/src/door.js'
 
 const name = z.string().trim().min(1).max(200).regex(/^[^\x00-\x1f\x7f]+$/)
+const secret = z.string().regex(/^[A-Za-z0-9._~+\/-]{32,}={0,2}$/)
+const loopback = new Set(['127.0.0.1', 'localhost', '[::1]'])
+const redirectUri = z.url().refine(value => {
+  const url = new URL(value)
+  return !url.hash && !url.username && !url.password && (url.protocol === 'https:' || (url.protocol === 'http:' && loopback.has(url.hostname)))
+}, 'A redirect URI must be HTTPS, or HTTP on the loopback address, without a fragment or credentials')
 export const automationAccessSchema = z.strictObject({
   clients: z.array(z.strictObject({
     name,
-    token: z.string().regex(/^[A-Za-z0-9._~+\/-]{32,}={0,2}$/),
+    token: secret.optional(),
+    oauth: z.strictObject({
+      client_id: z.string().min(1).max(200).regex(/^[\x21-\x7e]+$/),
+      client_secret: secret.optional(),
+      redirect_uris: z.array(redirectUri).min(1),
+    }).optional(),
     run: z.boolean().default(false),
     send: z.array(z.union([z.string().uuid(), z.enum(['lead', 'coordinator'])])).default([]),
-  })).min(1),
+  }).refine(client => (client.token === undefined) !== (client.oauth === undefined), 'Each client needs either a token or an oauth entry')).min(1),
 }).superRefine(({ clients }, ctx) => {
-  if (new Set(clients.map(client => client.name)).size !== clients.length || new Set(clients.map(client => client.token)).size !== clients.length) ctx.addIssue({ code: 'custom', message: 'Each client needs its own name and token' })
+  const tokens = clients.flatMap(client => client.token === undefined ? [] : [client.token])
+  const ids = clients.flatMap(client => client.oauth === undefined ? [] : [client.oauth.client_id])
+  if (new Set(clients.map(client => client.name)).size !== clients.length || new Set(tokens).size !== tokens.length || new Set(ids).size !== ids.length) ctx.addIssue({ code: 'custom', message: 'Each client needs its own name, token and client id' })
 })
 export type AutomationClient = { name: string; run: boolean; send: readonly string[] }
+export type AutomationOAuthClient = AutomationClient & { client_id: string; client_secret?: string; redirect_uris: readonly string[] }
 
 export class AutomationPermissionRefusal extends Error {
   readonly code = 'permission_denied'

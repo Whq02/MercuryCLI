@@ -7,10 +7,11 @@ import { pipeline } from 'node:stream/promises'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { isPathTrusted } from '../utils/config/trust.js'
 import { initialPermissionModeFromCLI } from '../utils/permissions/permissionSetup.js'
-import { createMcpHandler, serveStdio, validateHostHeader } from '../services/mcp/sdk.js'
+import { createMcpHandler, serveStdio, validateHostHeader, type AuthInfo } from '../services/mcp/sdk.js'
 import { AutomationBridge, type AutomationOptions } from '../services/mcp/automationBridge.js'
 import { automationServerFactory } from '../services/mcp/automationServer.js'
 import { automationAccessSchema, clientReach, launchingSession } from '../services/mcp/automationAccess.js'
+import { AutomationGateway } from '../services/mcp/automationGateway.js'
 
 const MCP_SERVER_HELP = 'Serve Mercury tools over MCP (stdio or authenticated HTTP)'
 type McpServerOptions = Omit<AutomationOptions, 'mode'> & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string; client?: string; lead?: string; coordinator?: string; maxMode?: AutomationOptions['mode'] }
@@ -33,9 +34,10 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
   const roles = { lead: options.lead ?? await launchingSession(cwd), coordinator: options.coordinator }
   const factories = grants.map(grant => ({
     name: grant.name,
-    expected: Buffer.from(`Bearer ${grant.token}`),
+    expected: grant.token === undefined ? undefined : Buffer.from(`Bearer ${grant.token}`),
     factory: automationServerFactory(new AutomationBridge({ ...options, cwd, mode: resolvedMode.mode as AutomationOptions['mode'], mercury: options.mercury ?? [process.execPath, process.argv[1]!] }, clientReach(grant, roles))),
   }))
+  const oauthClients = grants.flatMap(grant => grant.oauth === undefined ? [] : [{ name: grant.name, run: grant.run, send: clientReach(grant, roles).send, ...grant.oauth }])
   if (transport === 'stdio') {
     const selected = options.client ? factories.find(entry => entry.name === options.client) : factories.length === 1 ? factories[0] : undefined
     if (!selected) throw new Error('Choose a client from --token-file with --client')
@@ -51,16 +53,14 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
   const handlers = factories.map(entry => ({ ...entry, handler: createMcpHandler(entry.factory.create) }))
   const closeHandlers = async (): Promise<void> => { await Promise.all(handlers.map(async entry => { await entry.factory.close(); await entry.handler.close() })) }
   let localOrigin = ''
+  let gateway: AutomationGateway | undefined
   const server = createServer(async (incoming, outgoing) => {
     const reject = (status: number, text: string): void => { outgoing.writeHead(status, { 'content-type': 'text/plain', ...(status === 401 ? { 'www-authenticate': 'Bearer' } : {}) }); outgoing.end(text) }
-    const authorization = Buffer.from(incoming.headers.authorization ?? '')
-    let selected: typeof handlers[number] | undefined
-    for (const entry of handlers) if (authorization.length === entry.expected.length && timingSafeEqual(authorization, entry.expected)) selected = entry
-    if (!selected) { reject(401, 'Bearer token required'); return }
     if (!validateHostHeader(incoming.headers.host, allowed).ok) { reject(403, 'Host not allowed'); return }
     const origin = incoming.headers.origin
     if (origin !== undefined && origin !== localOrigin && origin !== publicOrigin?.origin) { reject(403, 'Origin not allowed'); return }
-    if (incoming.url !== '/mcp') { reject(404, 'Not found'); return }
+    const target = incoming.url ?? ''
+    if (!target.startsWith('/') || target.startsWith('//')) { reject(404, 'Not found'); return }
     const controller = new AbortController()
     outgoing.once('close', () => { if (!outgoing.writableEnded) controller.abort() })
     try {
@@ -69,16 +69,32 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
         if (Array.isArray(value)) for (const part of value) headers.append(key, part)
         else if (value !== undefined) headers.set(key, value)
       }
-      const request = new Request(`${localOrigin}/mcp`, {
+      const request = new Request(new URL(target, localOrigin), {
         method: incoming.method,
         headers,
         signal: controller.signal,
         ...(incoming.method === 'GET' || incoming.method === 'HEAD' ? {} : { body: Readable.toWeb(incoming) as ReadableStream<Uint8Array>, duplex: 'half' }),
       })
-      const response = await selected.handler.fetch(request)
-      outgoing.writeHead(response.status, Object.fromEntries(response.headers))
-      if (response.body) await pipeline(Readable.fromWeb(response.body as import('node:stream/web').ReadableStream), outgoing)
-      else outgoing.end()
+      const answer = async (response: Response): Promise<void> => {
+        outgoing.writeHead(response.status, Object.fromEntries(response.headers))
+        if (response.body) await pipeline(Readable.fromWeb(response.body as import('node:stream/web').ReadableStream), outgoing)
+        else outgoing.end()
+      }
+      const answered = await gateway?.fetch(request)
+      if (answered) { await answer(answered); return }
+      if (target !== '/mcp') { reject(404, 'Not found'); return }
+      const authorization = Buffer.from(incoming.headers.authorization ?? '')
+      let selected: typeof handlers[number] | undefined
+      for (const entry of handlers) if (entry.expected && authorization.length === entry.expected.length && timingSafeEqual(authorization, entry.expected)) selected = entry
+      let authInfo: AuthInfo | undefined
+      if (!selected && gateway) {
+        const verdict = await gateway.authenticate(request)
+        if (verdict instanceof Response) { await answer(verdict); return }
+        selected = handlers.find(entry => entry.name === verdict.client)
+        authInfo = verdict.authInfo
+      }
+      if (!selected) { reject(401, 'Bearer token required'); return }
+      await answer(await selected.handler.fetch(request, authInfo ? { authInfo } : undefined))
     } catch {
       if (!outgoing.headersSent) reject(500, 'MCP request failed')
       else outgoing.destroy()
@@ -89,6 +105,10 @@ async function startMcpServer(options: McpServerOptions): Promise<{ close: () =>
   const address = server.address()
   if (!address || typeof address === 'string') throw new Error('MCP listener has no TCP address')
   localOrigin = `http://${bind.includes(':') ? `[${bind}]` : bind}:${address.port}`
+  if (oauthClients.length > 0) {
+    try { gateway = new AutomationGateway({ issuer: publicOrigin?.origin ?? localOrigin, clients: oauthClients, log: line => process.stderr.write(`${line}\n`) }) }
+    catch (error) { await closeHandlers(); server.close(); throw error }
+  }
   if (!options.tokenFile) process.stderr.write(`Bearer token: ${grants[0]!.token}\n`)
   process.stderr.write(`${localOrigin}/mcp\n`)
   return {
