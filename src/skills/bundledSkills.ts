@@ -26,7 +26,7 @@ type BundledSkillDefinition = {
   hooks?: HooksSettings
   context?: 'inline' | 'fork'
   agent?: string
-  files?: Record<string, string>
+  files?: Record<string, string> | (() => Readonly<Record<string, string>>)
   getPromptForCommand: (
     args: string,
     context: ToolUseContext,
@@ -80,7 +80,8 @@ const extractionPromises = new Map<string, Promise<string | null>>()
 function extractOnce(definition: BundledSkillDefinition): Promise<string | null> {
   const existing = extractionPromises.get(definition.name)
   if (existing) return existing
-  const promise = extractSkillFiles(definition.name, definition.files ?? {}).catch(error => {
+  const files = typeof definition.files === 'function' ? definition.files() : definition.files
+  const promise = extractSkillFiles(definition.name, files ?? {}).catch(error => {
     logForDebugging(
       `bundled skill ${definition.name}: reference-file extraction into ${getBundledSkillExtractDir(definition.name)} failed: ${String(error)}`,
     )
@@ -95,7 +96,7 @@ const registry: Command[] = []
 
 export function registerBundledSkill(definition: BundledSkillDefinition): void {
   const userInvocable = definition.userInvocable !== false
-  const hasFiles = definition.files !== undefined && Object.keys(definition.files).length > 0
+  const hasFiles = typeof definition.files === 'function' || (definition.files !== undefined && Object.keys(definition.files).length > 0)
 
   const getPromptForCommand: PromptCommand['getPromptForCommand'] = hasFiles
     ? async (args, context) => {

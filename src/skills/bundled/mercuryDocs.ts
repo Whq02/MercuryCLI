@@ -21,10 +21,10 @@ function clip(text: string): string {
   return `${cut.replace(/[\s,;:(]+$/, '')}…`
 }
 
-const PAGES: Readonly<Record<string, string>> = Object.freeze(bundledDocPages())
+let pages: Readonly<Record<string, string>> | undefined
 
 export function mercuryDocPages(): Readonly<Record<string, string>> {
-  return PAGES
+  return pages ??= Object.freeze(bundledDocPages())
 }
 
 function htmlHeadingTitle(lines: readonly string[], start: number): string {
@@ -88,7 +88,7 @@ export function registerMercuryDocsSkill(): void {
       'Use when the user asks how to use Mercury itself (commands, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.',
     argumentHint: '<question about using Mercury>',
     allowedTools: ['Read', 'Grep', 'Glob'],
-    files: { ...mercuryDocPages() },
+    files: mercuryDocPages,
     getPromptForCommand: async args => [{ type: 'text', text: mercuryDocsPrompt(args) }],
   })
 }
