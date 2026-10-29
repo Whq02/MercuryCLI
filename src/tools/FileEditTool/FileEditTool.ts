@@ -742,6 +742,12 @@ export const FileEditTool = buildTool({
   async description(): Promise<string> {
     return 'A tool for editing files'
   },
+  wireDescription(fullPrompt: string) {
+    const steering = fullPrompt.split('\n').find(line => line.startsWith('- Semantic shortcut:')) ?? ''
+    return `Edit a previously read file. Supply old_string+new_string (unique exact match, or replace_all), anchored hunks, append, or section+new_string/append. Preserve indentation; never include Read's line-number prefix. Read coverage follows current content: stale or unread edits refuse without writing and name the recovery. expected_anchor is Read's bare fa:… or ra:… value. append needs no prior read; section names an exact unique Markdown heading.
+Success returns the changed lines with context; those count as read, so do not reread just to check the edit. New parse errors are reported. ${steering}
+Full usage notes arrive on discovery or first use.`
+  },
   async prompt({ tools, model }): Promise<string> {
     return getEditToolDescription(new Set(tools.map(tool => tool.name)), model)
   },

@@ -684,6 +684,10 @@ export const TestTool = buildTool({
   async description() {
     return 'Run project tests as structured transactions: discover, run, rerun failures, debug one test'
   },
+  wireDescription() {
+    return `Prefer this to Bash for structured test results, exact failure reruns and durable records. discover lists test nodes or runner profiles; run selects the suite, path, node, changed files or an exact profile; rerunFailed repeats only recorded failures; debug requires node and optionally file+lines, leaving Debug session "test" open; report reads latest or runId. Python uses pytest/unittest; manifests select node-test/vitest/jest/cargo/go. Ambiguity and missing debuggers are reported, not guessed.
+Execution follows permissions and returns argv, counts, typed failures, diagnostics and mercury://test/run/<id>; /latest and /failures track the newest run. Read spilled output by its artifact. Trust structured records when verdictNote reports an exit-code disagreement. Zero matched tests is neither a pass nor a failure: choose a discover result. Prefer run, fix, rerunFailed. Full selection and debugger notes arrive on discovery or first use.`
+  },
   async prompt() {
     return `Use this over running tests in Bash for structured results, precise failure reruns and durable test records.
 

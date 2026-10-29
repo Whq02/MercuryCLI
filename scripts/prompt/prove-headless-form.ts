@@ -1,0 +1,43 @@
+import { proofHome } from '../lib/hermetic.ts'
+import assert from 'node:assert/strict'
+
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+for (const key of ['MERCURY_BARE', 'MERCURY_PROMPT_LAYERS', 'MERCURY_PROMPT_REPLACE_FILE']) delete process.env[key]
+const bootstrap = await import('../../src/bootstrap/state.ts')
+bootstrap.setOriginalCwd(proofHome)
+bootstrap.setProjectRoot(proofHome)
+bootstrap.setCwdState(proofHome)
+const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
+enableConfigs()
+const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
+const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
+const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { staticCompositionChanged } = await import('../../src/prompt/recordedComposition.ts')
+posture.markSessionNonInteractive('flow')
+bootstrap.setAskChannel('none')
+bootstrap.setSessionKind('headless')
+const headless = await getSystemPrompt([], 'glm-5.3', [], 'flow')
+assert.notEqual(headless[1], MERCURY_CONSTITUTION, 'a run without a host gets its own work contract')
+assert.ok(Buffer.byteLength(headless[1]!) < Buffer.byteLength(MERCURY_CONSTITUTION))
+for (const rule of ['authoris', 'destructive', 'stop', 'pause', 'resume', 'denial', 'permission', 'evidence', 'verify', 'scope', 'delegat', 'failure', 'assumption']) {
+  assert.ok(headless[1]!.toLowerCase().includes(rule), `the headless work contract retains ${rule}`)
+}
+assert.ok(!headless[1]!.includes('Read the room.'))
+assert.ok(!headless.join('\n').includes('Write down important information from tool results'), 'the answer is not a second tool transcript')
+assert.ok(headless[1]!.includes('Do not replay tool output'))
+const sections = [...bootstrap.getSystemPromptSectionCache()].map(([name, entry]) => ({ name, ...entry }))
+assert.equal(staticCompositionChanged(sections), false, 'the recorded headless composition is current')
+posture.markSessionPermissionMode('sovereign')
+assert.deepEqual(await getSystemPrompt([], 'glm-5.3', [], 'sovereign'), headless, 'permission changes do not rewrite the prefix')
+bootstrap.setAskChannel('sdk')
+assert.deepEqual(await getSystemPrompt([], 'glm-5.3', [], 'sovereign'), headless, 'a later host does not rewrite the bound work contract')
+clearSystemPromptSections()
+posture.resetRuntimePostureForTest()
+posture.markSessionNonInteractive('flow')
+bootstrap.setSessionKind('oculus')
+const hosted = await getSystemPrompt([], 'glm-5.3', [], 'flow')
+assert.equal(hosted[1], MERCURY_CONSTITUTION, 'the operator-facing prompt stays verbatim')
+assert.equal(staticCompositionChanged(sections), false, 'restoring a headless prefix keeps its recorded mode')
+console.log(JSON.stringify({ stockBytes: Buffer.byteLength(MERCURY_CONSTITUTION), headlessBytes: Buffer.byteLength(headless[1]!), saved: Buffer.byteLength(MERCURY_CONSTITUTION) - Buffer.byteLength(headless[1]!) }))
+console.log('PASS headless work rules, hosted wording and byte-stable mode selection')

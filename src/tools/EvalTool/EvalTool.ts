@@ -126,6 +126,13 @@ const evalToolDef = buildTool({
   async prompt(options) {
     return buildEvalPrompt(options?.tools)
   },
+  wireDescription(fullPrompt: string) {
+    const languages = fullPrompt.split('Languages in this session:\n')[1]?.split('\n\n')[0] ?? ''
+    return `Run computation in a retained py or js runtime: data, numbers, plots or tool results that code must combine. Use Bash/Read/Edit directly for shell commands, builds, tests and ordinary file work. One call is one cell, ordered within a message; state is per agent/language/cwd, reaped after 15 minutes idle.
+${languages}
+JS has top-level await; Python helpers are synchronous. Helpers: tool.Name (JS object, Python keywords), tool.attempt, agent, completion, parallel, pipeline, display/display_markdown/display_json/display_image, read_file/write_file, env. Tool calls keep all permissions; never retry a denial. Bash returns {code,stdout,stderr}, nonzero is a value; stdout is the full interleaved capture. JS read_file needs await.${fullPrompt.includes('sample({name') ? ' sample publishes only on an operator ask.' : ''}
+JS declarations/imports persist; module/exports/__dirname/__filename/import.meta are absent. An ordinary throw keeps prior bindings; cancellation keeps Python state but resets JS. timeoutSeconds excludes bridge/permission time; cut output names its full file. Full helper signatures and sample formats arrive on discovery or first use.`
+  },
   getActivityDescription(input?: Partial<EvalToolInput>) {
     return input?.language ? `Running a ${input.language} cell` : 'Running an eval cell'
   },

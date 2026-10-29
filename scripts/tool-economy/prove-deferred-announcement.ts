@@ -193,5 +193,16 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   }
 }
 
+const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+markSessionNonInteractive()
+bootstrap.setAskChannel('none')
+const headlessPool = [ToolSearchTool, fixtureTool('Debug', { defer: true, hint: 'real debugger' }), fixtureTool('lookup', { mcp: 'fixture' })] as Tool[]
+const headless = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
+check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), headless.body)
+bootstrap.setAskChannel('sdk')
+const hosted = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
+check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'))
+resetRuntimePostureForTest()
+
 console.log(`\n${checks - failures}/${checks} checks passed`)
 process.exit(failures === 0 ? 0 : 1)

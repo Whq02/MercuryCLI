@@ -191,7 +191,7 @@ export const inputSchema = lazySchema(() => {
     model: z
       .string()
       .optional()
-      .describe(MODEL_PARAM_DESCRIPTION),
+      .describe("Model override: exact id or family word ([1m] selects the 1M variant; your own family keeps your exact model). Wins over the agent definition; omitted inherits yours. Read mercury://models for reachable ids, mercury://models/known if the signed-in provider's live list is unavailable. Family words use that family's current default; never switch providers without the operator's word. All engines keep this harness's tools. The full manual lists every alias and fallback."),
     effort: z
       .enum(EFFORT_LEVELS)
       .optional()
@@ -418,7 +418,7 @@ Full usage notes arrive when loaded or first used.`
       const rule = getDenyRuleForAgent(permissionContext, AGENT_TOOL_NAME, agent.agentType)
       if (rule) refusals.set(agent.agentType, refusalWithReason(ruleSentence('launching it', 'deny', rule), reasonForRule(permissionContext, rule)))
     }
-    return getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)
+    return `${await getPrompt(mcpEligible, false, options.allowedAgentTypes, new Set(options.tools.map(tool => tool.name)), refusals)}\n\n## Model selection\n${MODEL_PARAM_DESCRIPTION}`
   },
   isEnabled(): boolean {
     return evaluateLaunchAuthority('subagents').allowed

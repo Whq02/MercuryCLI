@@ -170,12 +170,13 @@ try {
   for (const mode of ['interactive', 'headless'] as const) {
     const segments = await assemble(mode)
     const text = segments.join('\n\n')
+    const law = mode === 'headless' ? contract.MERCURY_HEADLESS_CONSTITUTION : TEXT
     check(`${mode}: segment 0 is the head (the working directory alone: the constitution names the product, the user-context reminder carries the date)`, segments[0] === HEAD, j(segments[0]))
-    check(`${mode}: segment 1 is the constitution, verbatim, its own segment`, segments[1] === TEXT)
-    check(`${mode}: the constitution appears exactly once`, countOf(text, TEXT) === 1)
+    check(`${mode}: segment 1 is its constitution, verbatim, its own segment`, segments[1] === law)
+    check(`${mode}: its constitution appears exactly once`, countOf(text, law) === 1)
     check(`${mode}: exactly one "You are" line in the whole prompt`, (text.match(/^You are /gm) ?? []).length === 1)
-    const facts = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', ...(mode === 'headless' ? ['# Runtime posture'] : [])]
-    check(`${mode}: the fact sections follow the constitution, each once`, text.indexOf(TEXT) !== -1 && facts.every(f => countOf(text, f) === 1 && text.indexOf(f) > text.indexOf(TEXT)), facts.filter(f => countOf(text, f) !== 1).join(' · '))
+    const facts = ['# The project estate', '# Memory', '# Environment', 'Model currency:', ...(mode === 'headless' ? ['# Runtime posture'] : ['Write down important information from tool results'])]
+    check(`${mode}: the fact sections follow the constitution, each once`, text.indexOf(law) !== -1 && facts.every(f => countOf(text, f) === 1 && text.indexOf(f) > text.indexOf(law)), facts.filter(f => countOf(text, f) !== 1).join(' · '))
     if (mode === 'interactive') check('interactive: no posture block when nothing is armed (the ask, the kill gate and the policy speak for themselves)', !text.includes('# Runtime posture'))
     const leaked = DROPPED_PHRASES.filter(phrase => text.includes(phrase))
     check(`${mode}: none of the dropped sections' phrases survive`, leaked.length === 0, leaked.join(' · '))

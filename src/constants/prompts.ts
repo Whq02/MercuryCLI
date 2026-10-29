@@ -6,6 +6,7 @@ import { recordedComposition, recordCurrentStaticComposition } from '../prompt/r
 import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
   MERCURY_CONSTITUTION,
+  MERCURY_HEADLESS_CONSTITUTION,
   getMercuryContractSections,
   promptLayerSet,
   promptReplacementText,
@@ -36,7 +37,7 @@ import {
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
-import { getRuntimePostureSection } from '../utils/cockpit/runtimePosture.js'
+import { getRuntimePostureSection, isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../services/mcp/types.js'
@@ -194,11 +195,15 @@ export async function getSystemPrompt(
     noteSessionEngine(model)
     return recorded
   }
-  recordCurrentStaticComposition()
+  const [constitution] = await resolveSystemPromptSections([
+    systemPromptSection('constitution', () => isSessionMarkedNonInteractive() && !canAnswerAsks() ? MERCURY_HEADLESS_CONSTITUTION : MERCURY_CONSTITUTION),
+  ])
+  const stockLaw = constitution ?? MERCURY_CONSTITUTION
+  recordCurrentStaticComposition(stockLaw)
   const layers = promptLayerSet()
   const head = `Working directory: ${getOriginalCwd()}`
   if (layers === 'whole') return [head, promptReplacementText()]
-  const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION
+  const law = layers === 'replace' ? promptReplacementText() : stockLaw
   if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
@@ -235,7 +240,7 @@ export async function getSystemPrompt(
       'servers connect and disconnect between turns',
     ),
     keyedSystemPromptSection('frc', () => model, () => null),
-    systemPromptSection('summarize_tool_results', () => SUMMARIZE_TOOL_RESULTS_LINE),
+    systemPromptSection('summarize_tool_results', () => stockLaw === MERCURY_HEADLESS_CONSTITUTION ? null : SUMMARIZE_TOOL_RESULTS_LINE),
     systemPromptSection('runtime_posture', () => getRuntimePostureSection()),
     systemPromptSection('harness_map', () => getHarnessMapSection()),
   ]

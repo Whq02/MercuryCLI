@@ -1719,6 +1719,18 @@ export const FileReadTool = buildTool({
     }
     return text
   },
+  wireDescription(fullPrompt: string) {
+    const images = fullPrompt.includes('shown as the picture itself')
+      ? 'Images are shown; ocr returns recognised text. Read user-supplied screenshots here.'
+      : 'Images return OCR text, or an installation remedy when no engine is available.'
+    const targets = fullPrompt.includes('also reads directories')
+      ? 'Directories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.'
+      : 'Files only; use Bash to list directories.'
+    return `Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.
+${images} PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table).
+${targets}
+outline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.`
+  },
   async prompt(options?: { model?: string }): Promise<string> {
     const targetLines = readTargetsEnabled() ? readTargetPromptLines() : undefined
     const caps = resolveModelCapabilities(options?.model ?? getEngineModel())

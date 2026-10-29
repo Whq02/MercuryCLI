@@ -3,14 +3,14 @@ import { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry } from '.
 import type { BoundPrefixSection } from '../types/message.js'
 import { isOwnerKey, parseOwnerKey } from '../services/run/ownerKey.js'
 import { prefixLedgerPath } from '../services/providers/anthropic/prefixRecordStore.js'
-import { MERCURY_CONSTITUTION } from './mercuryContract.js'
+import { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } from './mercuryContract.js'
 
 const STATIC_SET = 'static-composition'
 const RECORDED_WHOLE = 'recorded-composition'
-const currentStaticSet = JSON.stringify(['head', 'constitution', MERCURY_CONSTITUTION])
+const currentStaticSets = [MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION].map(law => JSON.stringify(['head', 'constitution', law]))
 
-export function recordCurrentStaticComposition(): void {
-  setSystemPromptSectionCacheEntry(STATIC_SET, currentStaticSet, null)
+export function recordCurrentStaticComposition(law: string = MERCURY_CONSTITUTION): void {
+  setSystemPromptSectionCacheEntry(STATIC_SET, JSON.stringify(['head', 'constitution', law]), null)
 }
 
 export function carriesRecordedWhole(sections: readonly BoundPrefixSection[]): boolean {
@@ -19,7 +19,7 @@ export function carriesRecordedWhole(sections: readonly BoundPrefixSection[]): b
 
 export function staticCompositionChanged(sections: readonly BoundPrefixSection[]): boolean {
   const recorded = sections.findLast(section => section.name === STATIC_SET)
-  if (recorded) return recorded.value !== currentStaticSet
+  if (recorded) return !currentStaticSets.includes(recorded.value ?? '')
   const contract = sections.findLast(section => section.name === 'mercury-contract')
   if (typeof contract?.value !== 'string') return false
   try {

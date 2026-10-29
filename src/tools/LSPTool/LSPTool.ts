@@ -403,6 +403,8 @@ function makeLspTool(name: LspToolName): Tool {
     getPath: (input?: LspInput) => input?.filePath || getCwd(),
     description: async () => LSP_DESCRIPTIONS[name],
     prompt: async () => LSP_DESCRIPTIONS[name],
+    ...(name === 'LspRead' ? { wireDescription: () => `Read-only language-server queries; prefer over text search for symbols. goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls use filePath+line+character (1-based). documentSymbol uses filePath; workspaceSymbol uses query+limit, with optional filePath selecting its server. diagnostics uses paths or filePath: check edited files. serverStatus reports server availability and failures, optionally by filePath. Other arguments are ignored.
+Changes use LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat or LspRequest. After three server failures, retry only when a named file changes, the server restarts or the reported time passes. Full usage notes arrive on discovery or first use.` } : {}),
     async checkPermissions(input: LspInput, context: ToolUseContext) {
       const permissionContext = context.getAppState().toolPermissionContext
       if (writes(input) && !mercuryLspWriteOpsEnabled()) return {
