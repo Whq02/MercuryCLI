@@ -99,6 +99,12 @@ async def capabilities():
                 assert fixture.received[0]['params']['file_checkpoints'] is asked, (options, fixture.received[0]['params'])
                 assert session.options.session_id is None and 'MERCURY_CONCOURSE_WORKER' not in (session.options.env or {}), options
                 assert session.file_checkpoints == answered['result']['file_checkpoints']
+                request = session._request
+                async def slow_receipt(method, params=None, **kwargs):
+                    result = await request(method, params, **kwargs)
+                    if method == 'queue/add': await asyncio.sleep(0.02)
+                    return result
+                session._request = slow_receipt
                 try: await session.prompt('refused by the queue')
                 except sdk.MercuryError as error: assert 'prompt was not accepted' in str(error)
                 else: raise AssertionError('a refused prompt resolved')

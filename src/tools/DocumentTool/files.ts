@@ -15,7 +15,7 @@ export function documentPath(path: string): string {
   if (/^[a-z][a-z0-9+.-]*:/i.test(path) && !/^[a-z]:[\\/]/i.test(path)) throw new Error('Document paths must be local files')
   return expandPath(path)
 }
-export function imagePaths(markdown: string): string[] {
+function imagePaths(markdown: string): string[] {
   const paths: string[] = []
   marked.walkTokens(marked.lexer(markdown), token => { if (token.type === 'image') paths.push(token.href) })
   return paths
@@ -47,7 +47,7 @@ function physical(path: string): string {
   const parent = dirname(path)
   return parent === path ? path : join(physical(parent), basename(path))
 }
-export type Destination = { path: string; physical: string; before: Buffer | null; mode?: number }
+type Destination = { path: string; physical: string; before: Buffer | null; mode?: number }
 export function captureDestinations(input: DocumentInput): Destination[] {
   const targets = documentPaths(input).writes.map(path => {
     const stat = lstatSync(path, { throwIfNoEntry: false })

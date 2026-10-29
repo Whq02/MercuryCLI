@@ -1,7 +1,7 @@
 import type { DesktopApplication, DesktopTree } from '../../services/desktop/driver.js'
 import { targetMatches, targetWords } from './fastRoad.js'
 
-export interface WaitCondition {
+interface WaitCondition {
   role?: string
   name?: string
   text?: string

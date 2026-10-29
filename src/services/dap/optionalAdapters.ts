@@ -7,7 +7,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 
 interface Asset { archive: string; url: string; bytes: number; sha256: string; entry: string }
 interface Pin { title: string; version: string; repository: string; license: string; licenseFiles: string[]; licenseText?: string; platforms: Record<string, Asset> }
-export interface OptionalAdapterPlan extends Asset {
+interface OptionalAdapterPlan extends Asset {
   key: string
   title: string
   version: string

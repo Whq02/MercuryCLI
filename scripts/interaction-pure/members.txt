@@ -3,3 +3,5 @@ prove-chord-grace.ts
 prove-exit-copy-grammar.ts
 prove-interaction-coverage.ts
 prove-clipboard-fixture.ts
+prove-copy-focused-message.ts
+prove-copy-reply-intact.ts

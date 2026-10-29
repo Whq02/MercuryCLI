@@ -5,14 +5,15 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSyn
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bootRunner, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { answerOf, frameLines, isOutcome, isSession, type Frame } from '../lib/rows.ts'
-import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
+import { seedScratchHome, describeRequest } from '../lib/scriptedTurn.ts'
+import { startOverflowFixture } from '../compact/overflowFixture.ts'
 
 const tally = makeTally('prove-compact-rows-own-output')
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first or pass --dist`)
   process.exit(0)
 }
-console.log(`build under proof: ${DIST}`)
+console.log(`fold 46ag: the fixture history can shrink; build under proof: ${DIST}`)
 
 const SUMMARY_REQUEST = 'Produce the summary now'
 const FAILURE = 'No messages to compact'
@@ -20,11 +21,15 @@ const CONTEXT_HEAD = '## Context Usage'
 const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'compact-own-output-')))
 
 let summary: 'refused' | 'written' = 'written'
-const fixture = await startScriptedFixture(req =>
-  req.ask.includes(SUMMARY_REQUEST)
-    ? [{ type: 'text', text: summary === 'refused' ? '' : '<analysis>walk</analysis>\n<summary>\n1. Operator Intent: plain turns for a rows probe.\n</summary>' }]
-    : [{ type: 'text', text: `answered ${req.n}` }],
-)
+const fixture = await startOverflowFixture()
+let sequence = 0
+fixture.script(request => {
+  const req = describeRequest(request.body, ++sequence)
+  const text = req.ask.includes(SUMMARY_REQUEST)
+    ? summary === 'refused' ? '' : '<analysis>walk</analysis>\n<summary>\n1. Operator Intent: plain turns for a rows probe.\n</summary>'
+    : `answered ${req.n}\n${Array.from({ length: 400 }, (_, index) => `Module ${req.n}-${index}: parser revision ${(index * 7919 + req.n * 104729).toString(36)} handles quoted commas.`).join('\n')}`
+  return { text, usage: { input: Math.ceil(JSON.stringify(request.body).length / 4), output: Math.ceil(text.length / 4) } }
+})
 const port = Number(new URL(fixture.base).port)
 
 type World = { runHome: string; cwd: string; env: NodeJS.ProcessEnv }
@@ -107,7 +112,7 @@ const foldedOk = (run: Run): boolean => {
   const answer = answerOf(outcome)
   return run.exitCode === 0 && outcome?.status === 'completed' && answer.includes('Compacted') && answer.includes('kept verbatim')
 }
-const plain: Step[] = Array.from({ length: 9 }, (_, i) => ({ ask: `plain turn number ${i + 1}` }))
+const plain: Step[] = Array.from({ length: 14 }, (_, i) => ({ ask: `plain turn number ${i + 1}` }))
 
 tally.section('§1 the field shape — a session whose transcript holds a failed /compact (the one text-only failure left to a /compact since 1.0.0-beta.38: nothing to fold yet — a summariser answering nothing now lands the fold), then a /compact through the rows door that succeeds')
 const field = world('field')

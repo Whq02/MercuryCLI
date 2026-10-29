@@ -1,7 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
+import type { Writable } from 'node:stream'
 
-import { type CancellationToken } from 'vscode-jsonrpc'
+import { type CancellationToken, type Message, type MessageWriter } from 'vscode-jsonrpc'
 import {
   createMessageConnection,
   type MessageConnection,
@@ -39,6 +40,22 @@ const DEFAULT_GRACEFUL_TIMEOUT_MS = 2000
 
 type QueuedNotification = { method: string; handler: (params: unknown) => void }
 type QueuedRequest = { method: string; handler: (params: never) => unknown }
+
+export function createLspMessageWriter(output: Writable): MessageWriter {
+  const writer = new StreamMessageWriter(output)
+  const write = writer.write.bind(writer)
+  writer.write = async (message: Message) => {
+    if (output.destroyed || output.writableEnded) return
+    try {
+      await write(message)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException)?.code
+      if ((output.destroyed || output.writableEnded) && (code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END' || code === 'EPIPE')) return
+      throw error
+    }
+  }
+  return writer
+}
 
 export function createLSPClient(serverName: string, onCrash?: (error: Error) => void): LSPClient {
   let child: ChildProcess | null = null
@@ -170,7 +187,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
 
       const conn = createMessageConnection(
         new StreamMessageReader(proc.stdout),
-        new StreamMessageWriter(proc.stdin),
+        createLspMessageWriter(proc.stdin),
       )
       connection = conn
 

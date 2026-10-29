@@ -7,8 +7,8 @@ import { documentSchema, type DocumentInput, type DocumentProduct } from './sche
 import { captureDestinations, commitDocuments, digest, documentPath, documentPaths, documentPermission } from './files.js'
 
 export const DOCUMENT_TOOL_NAME = 'Document'
-export const DOCUMENT_WIRE = 'Create and handle local research documents. Ops: create, convert, merge, split, inspect, cite. output selects the format; source names an input. Writes use file permissions; replacing an output needs its expectedSha256 from inspect. DOI resolution contacts Crossref only when dois is supplied.'
-export const DOCUMENT_MANUAL = `Create and handle research documents locally. The output extension selects the format. Inputs, templates and image paths use read permissions; every destination uses write permissions. Existing outputs require expectedSha256 keyed by absolute path, using the digest returned by inspect. A changed destination refuses rather than replacing newer work.
+const DOCUMENT_WIRE = 'Create and handle local research documents. Ops: create, convert, merge, split, inspect, cite. output selects the format; source names an input. Writes use file permissions; replacing an output needs its expectedSha256 from inspect. DOI resolution contacts Crossref only when dois is supplied.'
+const DOCUMENT_MANUAL = `Create and handle research documents locally. The output extension selects the format. Inputs, templates and image paths use read permissions; every destination uses write permissions. Existing outputs require expectedSha256 keyed by absolute path, using the digest returned by inspect. A changed destination refuses rather than replacing newer work.
 
 create: output plus markdown or blocks (heading, paragraph, list, table, image, pageBreak, footnote). Outputs: docx, pdf, pptx, xlsx, html, md. titlePage, header, footer, metadata, paper (A4 or Letter), margin (points) and pageNumbers configure paged documents. Images are local PNG or JPEG files. Footnote text uses [^id] with a footnote block or a Markdown definition. CSV text, JSON record arrays and named sheets create XLSX. template plus replacements fills {{key}} placeholders in a DOCX while keeping its styles; do not combine a template with new blocks.
 
@@ -23,7 +23,7 @@ cite: bibtex, references or dois; style is apa, ieee, chicago or harvard. Return
 PDF creation uses the provisioned bundled browser for HTML typography, or pdf-lib with a plain layout when no browser is available. renderer can select browser or plain explicitly. The plain font cannot encode every script; use the browser for those characters. Conversion uses LibreOffice or pandoc when installed and suitable, with a separate temporary profile and no source overwrite; renderer can select either explicitly. External relationships, linked fields and embedded programs stay off external converters. Pure-JavaScript conversion reflows content; slide text fallback does not preserve slide layout. Results name the road and any conversion warnings. Check the exported pages before handing over a report.`
 
 export type DocumentIO = { read: (path: string) => Promise<Buffer>; signal: AbortSignal; owner?: import('../../services/run/ownerKey.js').OwnerKey }
-export async function renderDocument(input: DocumentInput, io: DocumentIO): Promise<DocumentProduct> {
+async function renderDocument(input: DocumentInput, io: DocumentIO): Promise<DocumentProduct> {
   if (input.op === 'create') return (await import('./create.js')).createDocument(input, io)
   if (input.op === 'convert') return (await import('./convert.js')).convertDocument(input, io)
   if (input.op === 'merge' || input.op === 'split') return (await import('./convert.js')).handlePdf(input, io)

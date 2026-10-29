@@ -5,7 +5,7 @@ import { AutomationBridge } from './automationBridge.js'
 import { AutomationPermissionRefusal } from './automationAccess.js'
 
 const id = z.string().uuid()
-export const automationSchemas = {
+const automationSchemas = {
   mercury_run: z.strictObject({ prompt: z.string().min(1), session_id: id.optional(), title: z.string().min(1).optional(), model: z.string().min(1).optional(), mode: z.enum(PERMISSION_MODES).optional() }),
   mercury_session_rows: z.strictObject({ session_id: id, limit: z.number().int().min(1).max(200).optional(), before: z.number().int().min(0).optional() }),
   mercury_sessions: z.strictObject({}),

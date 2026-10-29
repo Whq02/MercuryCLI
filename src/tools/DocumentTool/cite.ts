@@ -3,14 +3,14 @@ import { createDocument } from './create.js'
 import { documentSchema, type DocumentInput, type DocumentProduct, type Reference } from './schema.js'
 import type { DocumentIO } from './DocumentTool.js'
 
-export const CITATION_SOURCES = {
+const CITATION_SOURCES = {
   apa: 'https://github.com/citation-style-language/styles/blob/master/apa.csl',
   ieee: 'https://github.com/citation-style-language/styles/blob/master/ieee.csl',
   chicago: 'https://github.com/citation-style-language/styles/blob/master/chicago-author-date.csl',
   harvard: 'https://github.com/citation-style-language/styles/blob/master/harvard-cite-them-right.csl',
 }
-export const CROSSREF_TERMS = 'Crossref bibliographic metadata is publicly available without sign-up and may be used for any purpose; abstracts can carry publisher or author copyright. This tool requests bibliographic fields, not abstracts. https://www.crossref.org/documentation/retrieve-metadata/rest-api/'
-export const CITATION_SCOPE = 'Basic journal-article and book references, formatted locally; not a CSL processor. Preserve supplied title capitalisation. Chicago uses author-date; Harvard uses author-date. Check journal-specific requirements before submission.'
+const CROSSREF_TERMS = 'Crossref bibliographic metadata is publicly available without sign-up and may be used for any purpose; abstracts can carry publisher or author copyright. This tool requests bibliographic fields, not abstracts. https://www.crossref.org/documentation/retrieve-metadata/rest-api/'
+const CITATION_SCOPE = 'Basic journal-article and book references, formatted locally; not a CSL processor. Preserve supplied title capitalisation. Chicago uses author-date; Harvard uses author-date. Check journal-specific requirements before submission.'
 
 function splitNames(value: string): string[] {
   const names: string[] = []

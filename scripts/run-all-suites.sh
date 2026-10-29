@@ -547,9 +547,12 @@ fi
 if [ "$write_verdict" -eq 1 ]; then
   {
     mkdir -p "$(dirname "$VERDICT_FILE")"
-    head_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+    head_sha=""
     dirty=false
-    [ -n "$(git status --porcelain 2>/dev/null | head -c1)" ] && dirty=true
+    if [ "$HERMETIC" -eq 0 ]; then
+      head_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
+      [ -n "$(git status --porcelain 2>/dev/null | head -c1)" ] && dirty=true
+    fi
     tree_sha=""
     if [ -n "$head_sha" ]; then
       _ti=$(mktemp)

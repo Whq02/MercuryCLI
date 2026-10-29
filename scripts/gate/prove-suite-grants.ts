@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -62,12 +62,19 @@ try {
   writeFileSync(seed, 'granted\t20\nunlisted\t20\n')
   const verdict = join(scratch, 'verdict.json')
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('MERCURY_')))
+  const bin = join(scratch, 'bin')
+  const gitCalled = join(scratch, 'git-called')
+  mkdirSync(bin)
+  writeFileSync(join(bin, 'git'), `#!/bin/sh\nprintf x > '${gitCalled}'\nexit 1\n`)
+  chmodSync(join(bin, 'git'), 0o755)
+  env.PATH = `${bin}:${env.PATH ?? ''}`
   execFileSync('bash', ['scripts/run-all-suites.sh'], {
     cwd: ROOT,
     encoding: 'utf8',
     timeout: 30_000,
     env: { ...env, BUN: process.env.BUN ?? process.execPath, MERCURY_CONFIG_DIR: join(scratch, 'config'), MERCURY_HOME: join(scratch, 'home'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_GATE_SUITES_DIR: suites, MERCURY_GATE_SEED_FILE: seed, MERCURY_GATE_CEILING_FILE: fixtureGrants, MERCURY_GATE_VERDICT_FILE: verdict, MERCURY_GATE_JOBS: '1' },
   })
+  assert.ok(!existsSync(gitCalled), 'a synthetic suite verdict must not scan or bind the product working tree')
   const runs = (JSON.parse(readFileSync(verdict, 'utf8')) as { timeline: { runs: Array<{ suite: string; budgetS: number; rc: number }> } }).timeline.runs
   assert.equal(runs.find(run => run.suite === 'granted')?.budgetS, 1700)
   assert.equal(runs.find(run => run.suite === 'unlisted')?.budgetS, 600)

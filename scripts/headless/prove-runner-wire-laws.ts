@@ -594,12 +594,13 @@ section('M the method table is the one source')
 {
   const names = methods.METHOD_NAMES
   check('RUNNER_PROTOCOL is 1', methods.RUNNER_PROTOCOL === 1)
-  check(`${names.length} methods declared (38 in the design)`, names.length === 38, names.join(' '))
+  check(`fold 46aa: ${names.length} methods declared, including project/query`, names.length === 39, names.join(' '))
   check('every method name is noun/verb in snake case', names.every(n => /^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)), names.filter(n => !/^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)).join(' '))
   check('every spec names itself by its key', names.every(n => methods.METHODS[n].name === n))
   const table: Record<string, [string, number | null]> = {
     initialize: ['none', null],
     'session/claim': ['session', 45_000],
+    'project/query': ['none', 30_000],
     'session/facts': ['none', 30_000],
     'session/set_model': ['session', 5_000],
     'session/set_effort': ['session', 5_000],
@@ -623,7 +624,7 @@ section('M the method table is the one source')
     'schedule/roster': ['session', null],
   }
   const hostRequests = methods.methodsFrom('host', 'request').map(s => s.name)
-  check('the host requests are the twenty-three of the design', j([...hostRequests].sort()) === j(Object.keys(table).sort()), hostRequests.join(' '))
+  check('fold 46aa: the twenty-four host requests include the project query door', j([...hostRequests].sort()) === j(Object.keys(table).sort()), hostRequests.join(' '))
   check('each host request carries the design scope and deadline', Object.entries(table).every(([name, [scope, deadline]]) => methods.scopeOf(name) === scope && methods.deadlineOf(name) === deadline), Object.entries(table).filter(([name, [scope, deadline]]) => !(methods.scopeOf(name) === scope && methods.deadlineOf(name) === deadline)).map(([n]) => n).join(' '))
   check('host notifications: credentials/changed and $/cancel_request', j(methods.methodsFrom('host', 'notification').map(s => s.name).sort()) === j(['$/cancel_request', 'credentials/changed']))
   check('runner requests: permission, elicitation, schedule/edit and the editor fs/terminal methods', j(methods.methodsFrom('runner', 'request').map(s => s.name).sort()) === j(['elicitation/request', 'fs/read_text_file', 'fs/write_text_file', 'permission/request', 'schedule/edit', 'terminal/create', 'terminal/kill', 'terminal/output', 'terminal/release', 'terminal/wait_for_exit']))

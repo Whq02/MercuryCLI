@@ -6,7 +6,7 @@ import { createTaskStateBase, type SetAppState } from '../../Task.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentId } from '../../types/ids.js'
 import { asAgentId } from '../../types/ids.js'
-import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { publishAtomic } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isFsInaccessible } from '../../utils/errors.js'
 import { getSessionId } from '../../bootstrap/state.js'
@@ -15,7 +15,7 @@ import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
 import { AGENT_WINDOW_RESUME_NOTE, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
 
-export type AgentPauseRecordV1 = {
+type AgentPauseRecordV1 = {
   pause: AgentPauseV1 & { resumesAtMs: number }
   description: string
   armedAt: number
@@ -30,7 +30,7 @@ const writesInFlight = new Map<string, Promise<void>>()
 
 export async function writeAgentPauseRecord(agentId: string, record: AgentPauseRecordV1): Promise<void> {
   const previous = writesInFlight.get(agentId) ?? Promise.resolve()
-  const write: Promise<void> = previous.catch(() => undefined).then(() => durableAtomicPublish(agentPauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
+  const write: Promise<void> = previous.catch(() => undefined).then(() => publishAtomic(agentPauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
   writesInFlight.set(agentId, write)
   try {
     await write
@@ -48,7 +48,7 @@ export async function clearAgentPauseRecord(agentId: string): Promise<void> {
   }
 }
 
-export function decodeAgentPauseRecord(raw: unknown): AgentPauseRecordV1 | null {
+function decodeAgentPauseRecord(raw: unknown): AgentPauseRecordV1 | null {
   if (raw === null || typeof raw !== 'object') return null
   const record = raw as Record<string, unknown>
   const pause = decodeAgentPause(record.pause)
@@ -76,7 +76,7 @@ export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseR
   }
 }
 
-export async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record: AgentPauseRecordV1 }>> {
+async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record: AgentPauseRecordV1 }>> {
   const directory = join(dirname(getTranscriptPath()), String(getSessionId()), 'subagents')
   let names: string[]
   try {
@@ -96,7 +96,7 @@ export async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId;
   return rows.sort((a, b) => a.record.armedAt - b.record.armedAt)
 }
 
-export type PauseCarryPorts = {
+type PauseCarryPorts = {
   getAppState: () => AppState
   setAppState: SetAppState
   canUseTool?: CanUseToolFn

@@ -11,7 +11,7 @@ import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServe
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
 type MediaRow = { model: MediaModel; installed: boolean; bytes: number; pullBytes: number; fit: MediaFit; words: string }
-export type MediaRuntimeChoice = { variant: string; binary: string; words: string; bytes: number; args: string[] }
+type MediaRuntimeChoice = { variant: string; binary: string; words: string; bytes: number; args: string[] }
 export type MediaSnapshot = { root: string; runtimeInstalled: boolean; runtime?: MediaRuntimeChoice; catalogue: MediaCatalogue; config: MediaConfig; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number; rows: MediaRow[] }
 const GiB = 1024 ** 3
 const RUNTIME_WORDS: Record<string, string> = { metal: 'Metal', vulkan: 'Vulkan', cuda12: 'CUDA 12', cpu: 'CPU', rocm: 'ROCm' }

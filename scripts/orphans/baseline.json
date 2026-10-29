@@ -14,6 +14,51 @@
   ],
   "rows": [
     {
+      "file": "src/services/mcp/MCPConnectionManager.tsx",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac unmounted the screen's second MCP owner; scripts/mcp/prove-config-display-redaction.ts still mounts this manager as its isolated menu fixture. The session runner owns live MCP connections."
+    },
+    {
+      "file": "src/services/mcp/useManageMCPConnections.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac left the screen connection hook unmounted. scripts/media/prove-media-live-setup.ts mounts it for setup notification coverage, and the MCP redaction specimen uses it through MCPConnectionManager."
+    },
+    {
+      "file": "src/services/mcp/registry/serverRegistry.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac retired the screen registry's runtime consumer. scripts/mcp/prove-mcp-registry.ts and scripts/tools/prove-mcp-reconnect-singleflight.ts directly exercise this registry as a connection lifecycle specimen."
+    },
+    {
+      "file": "src/services/mcp/registry/livePorts.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac unmounted useManageMCPConnections, this adapter's runtime consumer. scripts/mcp/prove-kit-dials.ts still drives its process-kit toggle port directly."
+    },
+    {
+      "file": "src/services/mcp/channelAllowlist.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac removed the screen MCP hook's live edge. scripts/channels/prove-channel-bus.ts directly drives the allowlist matrix and the retained hook specimen imports it."
+    },
+    {
+      "file": "src/services/mcp/channelNotification.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac removed the screen MCP hook's live edge. This notification adapter remains a dependency of the hook mounted by scripts/media/prove-media-live-setup.ts and the MCP menu specimens."
+    },
+    {
+      "file": "src/services/mcp/channelsRoot.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac unmounted the screen-owned local channel bus. scripts/channels/prove-channel-bus-live.ts still exercises that bus and its contained config-home root."
+    },
+    {
+      "file": "src/services/mcp/localChannelBus.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac unmounted the screen's channel-bus owner. scripts/channels/prove-channel-bus-live.ts directly drives message delivery and scripts/channels/prove-channel-bus.ts checks its path containment."
+    },
+    {
+      "file": "src/services/mcp/toolsetReadmission.ts",
+      "class": "proof-or-fixture-only",
+      "reason": "Fold 46ac unmounted the screen MCP hook; its toolset readmission adapter remains part of the hook's complete dependency graph for scripts/media/prove-media-live-setup.ts."
+    },
+    {
       "file": "src/components/mcp/CapabilitiesSection.tsx",
       "class": "proof-or-fixture-only",
       "reason": "Count-line fixture imported by the stdio and remote menu specimens driven by scripts/mcp/prove-config-display-redaction.ts and prove-tool-discovery-retry.ts; the runtime uses commands/mcp/McpPopup.tsx."

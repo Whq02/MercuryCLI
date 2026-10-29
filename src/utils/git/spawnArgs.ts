@@ -1,11 +1,11 @@
 import { execFile, execFileSync } from 'node:child_process'
 import { existsSync, realpathSync, statSync } from 'node:fs'
-import { basename, delimiter, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { gitExe } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 
-export const GIT_SPAWN_CONFIG = ['--no-pager', '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat'] as const
-export const GIT_DIFF_CONFIG = ['--no-ext-diff', '--no-textconv'] as const
+const GIT_SPAWN_CONFIG = ['--no-pager', '-c', 'core.quotepath=false', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat'] as const
+const GIT_DIFF_CONFIG = ['--no-ext-diff', '--no-textconv'] as const
 
 const VALUE_GLOBALS = new Set(['-C', '-c', '--exec-path', '--git-dir', '--work-tree', '--namespace', '--super-prefix', '--shallow-file', '--config-env'])
 const PATCH_COMMANDS = new Set(['diff', 'show', 'log', 'format-patch', 'range-diff', 'blame'])
@@ -14,7 +14,7 @@ const NETWORK_COMMANDS = new Set(['fetch', 'ls-remote', 'remote', 'pull', 'push'
 
 type RepositoryFilters = {
   fingerprint: string
-  skipped: string[]
+  configured: string | null
 }
 
 const filterCache = new Map<string, RepositoryFilters>()
@@ -112,14 +112,15 @@ function configFingerprint(paths: string[]): string {
   return paths.map(path => {
     try {
       const stat = statSync(path)
-      return `${path}:${stat.mtimeMs}`
+      const identity = `${path}:${canonical(path)}:${stat.dev}:${stat.ino}`
+      return stat.isDirectory() ? identity : `${identity}:${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`
     } catch {
       return `${path}:absent`
     }
   }).join('|')
 }
 
-type RepositoryLayout = { root: string; gitDir: string; commonDir: string }
+type RepositoryLayout = { root: string; gitDir: string; commonDir: string; fingerprint: string }
 
 const layoutCache = new Map<string, RepositoryLayout>()
 
@@ -156,16 +157,29 @@ function readGitAsync(args: string[], cwd: string): Promise<string | null> {
 const LAYOUT_ARGS = ['rev-parse', '--show-toplevel', '--absolute-git-dir', '--git-common-dir']
 const FILTER_ARGS = ['config', '--get-regexp', '^filter\\..*\\.(clean|smudge|process)$']
 
+function layoutFingerprint(cwd: string, layout: Pick<RepositoryLayout, 'root' | 'gitDir'>): string {
+  const paths = [join(layout.gitDir, 'commondir')]
+  let directory = canonical(cwd)
+  for (;;) {
+    paths.push(join(directory, '.git'))
+    const parent = dirname(directory)
+    if (directory === layout.root || parent === directory) break
+    directory = parent
+  }
+  return configFingerprint(paths)
+}
+
 function knownLayout(cwd: string): RepositoryLayout | null {
   const known = layoutCache.get(cwd)
-  return known && existsSync(known.gitDir) && existsSync(known.commonDir) ? known : null
+  return known && existsSync(known.gitDir) && existsSync(known.commonDir) && known.fingerprint === layoutFingerprint(cwd, known) ? known : null
 }
 
 function layoutFrom(cwd: string, facts: string | null): RepositoryLayout | null {
   if (facts === null) return null
   const [rootLine, gitDirLine, commonLine] = facts.split('\n')
   if (!rootLine || !gitDirLine || !commonLine) return null
-  const layout = { root: canonical(rootLine), gitDir: canonical(gitDirLine), commonDir: canonical(resolve(cwd, commonLine)) }
+  const layout = { root: canonical(rootLine), gitDir: canonical(gitDirLine), commonDir: canonical(resolve(cwd, commonLine)), fingerprint: '' }
+  layout.fingerprint = layoutFingerprint(cwd, layout)
   layoutCache.set(cwd, layout)
   return layout
 }
@@ -178,10 +192,10 @@ async function repositoryLayoutAsync(cwd: string): Promise<RepositoryLayout | nu
   return knownLayout(cwd) ?? layoutFrom(cwd, await readGitAsync(LAYOUT_ARGS, cwd))
 }
 
-function cachedFilters(layout: RepositoryLayout): { fingerprint: string; skipped: string[] | null } {
+function cachedFilters(layout: RepositoryLayout): { fingerprint: string; configured: string | null | undefined } {
   const fingerprint = configFingerprint([join(layout.commonDir, 'config'), join(layout.gitDir, 'config.worktree')])
   const cached = filterCache.get(layout.commonDir)
-  return { fingerprint, skipped: cached?.fingerprint === fingerprint ? cached.skipped : null }
+  return { fingerprint, configured: cached?.fingerprint === fingerprint ? cached.configured : undefined }
 }
 
 function filtersFrom(layout: RepositoryLayout, fingerprint: string, configured: string | null): string[] {
@@ -195,22 +209,22 @@ function filtersFrom(layout: RepositoryLayout, fingerprint: string, configured: 
     filters.set(match[1]!, commands)
   }
   const skipped = [...filters.entries()].filter(([, commands]) => commands.some(command => executablePaths(command, root).some(path => existsSync(path) && (inside(path, root) || inside(path, gitDir) || inside(path, commonDir))))).map(([name]) => name).sort()
-  filterCache.set(commonDir, { fingerprint, skipped })
+  filterCache.set(commonDir, { fingerprint, configured })
   return skipped
 }
 
 function repositoryFilters(cwd: string): string[] {
   const layout = repositoryLayout(cwd)
   if (layout === null) return []
-  const { fingerprint, skipped } = cachedFilters(layout)
-  return skipped ?? filtersFrom(layout, fingerprint, readGitSync(FILTER_ARGS, layout.root))
+  const { fingerprint, configured } = cachedFilters(layout)
+  return filtersFrom(layout, fingerprint, configured === undefined ? readGitSync(FILTER_ARGS, layout.root) : configured)
 }
 
 async function repositoryFiltersAsync(cwd: string): Promise<string[]> {
   const layout = await repositoryLayoutAsync(cwd)
   if (layout === null) return []
-  const { fingerprint, skipped } = cachedFilters(layout)
-  return skipped ?? filtersFrom(layout, fingerprint, await readGitAsync(FILTER_ARGS, layout.root))
+  const { fingerprint, configured } = cachedFilters(layout)
+  return filtersFrom(layout, fingerprint, configured === undefined ? await readGitAsync(FILTER_ARGS, layout.root) : configured)
 }
 
 export function gitFilterSkipMessages(cwd: string): string[] {

@@ -266,6 +266,7 @@ class MercurySession(TypedRequests):
             send_signal(self.child, 'SIGTERM')
             await end_child(self.child)
         code = await self.child.wait()
+        with suppress(OSError): await self._stdin.wait_closed()
         untrack(self.child)
         if self._tools: await self._tools.close()
         await stderr
@@ -351,10 +352,14 @@ class MercurySession(TypedRequests):
         id = str(uuid.uuid4())
         accepted = False
         abandoned = False
+        completed: OutcomeRow | None = None
         future: asyncio.Future[OutcomeRow] = asyncio.get_running_loop().create_future()
         def done(row: OutcomeRow) -> None:
+            nonlocal completed
             matches = self._prompt_turns.get(id) == row['turn_id'] if self._correlated_turns else next(iter(self._prompt_turns), None) == id
-            if matches and 'parent_call_id' not in row and not future.done(): future.set_result(row)
+            if matches and 'parent_call_id' not in row and not future.done():
+                completed = row
+                if accepted: future.set_result(row)
         def fail(error: Exception) -> None:
             if not future.done(): future.set_exception(error)
         async def watch_cancel() -> None:
@@ -372,6 +377,7 @@ class MercurySession(TypedRequests):
                 receipt = await self.send_prompt(content, id=id, **({} if turn_schema is None else {'schema': turn_schema}))
                 if not receipt['accepted']: raise MercuryError('prompt was not accepted')
                 accepted = True
+                if completed is not None and not future.done(): future.set_result(completed)
                 if abandoned and interrupt_on_cancel and not self._closed: await self.interrupt()
             except Exception as error: fail(error)
         submission = asyncio.create_task(submit())

@@ -135,6 +135,10 @@ for (const [license, list] of [...byLicense.entries()].sort((a, b) => a[0].local
 }
 lines.push('## Vendored tool payloads (`dist/vendor/`)')
 lines.push('')
+const pdfjs = vendorLock('pdfjs.lock.json')
+const documents = JSON.parse(readFileSync(join(ROOT, 'vendor/document-libs.lock.json'), 'utf8')) as { packages: Array<{ name: string; version: string; license: string }> }
+lines.push(`- **pdfjs** ${pdfjs.version} — Mozilla PDF.js, ${pdfjs.license}. Receipt: vendor/pdfjs.lock.json; licence text ships at dist/vendor/pdfjs/LICENSE.`)
+lines.push(`- **document-libs** — ${documents.packages.map(row => `${row.name} ${row.version} (${row.license})`).join('; ')}. Receipt: vendor/document-libs.lock.json; the package and transitive licence texts ship under dist/vendor/document-libs/, with their hashes in licences.json.`)
 lines.push(
   `- **ripgrep** (via ${ripgrepMeta.name} ${ripgrepMeta.version}, ${ripgrepMeta.license}) — the platform search binary, © the ripgrep contributors, dual-licensed MIT / UNLICENSE (https://github.com/BurntSushi/ripgrep). Redistributed unmodified; the wrapper package's licence text lives at node_modules/@vscode/ripgrep/LICENSE.`,
 )

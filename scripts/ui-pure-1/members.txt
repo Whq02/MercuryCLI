@@ -82,3 +82,5 @@ prove-rtl-row-border.ts
 prove-tool-error-ansi.ts
 prove-powershell-single-quote-literals.ts
 prove-transport-retry-silent.ts
+prove-image-row-numbers.ts
+prove-notice-way-out.ts

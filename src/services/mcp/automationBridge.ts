@@ -5,12 +5,12 @@ import type { RunOptions } from '../../../sdk/src/client.js'
 import { AutomationOwnership, AutomationPermissionRefusal, modeWithinCeiling, type AutomationClient } from './automationAccess.js'
 import { OUTSIDE_REPORT_RULE } from '../../utils/messages/outsideReport.js'
 
-export type AutomationRun = { prompt: string; session_id?: string; title?: string; model?: string; mode?: PermissionMode }
+type AutomationRun = { prompt: string; session_id?: string; title?: string; model?: string; mode?: PermissionMode }
 export type AutomationOptions = Pick<RunOptions, 'mercury' | 'cwd' | 'env' | 'model' | 'mode' | 'allowSovereign' | 'effort'>
 const RESULT_CHARS = 100_000
 type Session = { session: MercurySession; mode: PermissionMode; busy: boolean }
 
-export function boundedRows(rows: readonly unknown[], limit = 50, before = rows.length): Record<string, unknown> {
+function boundedRows(rows: readonly unknown[], limit = 50, before = rows.length): Record<string, unknown> {
   const end = Math.min(before, rows.length)
   let start = end
   let chars = 0

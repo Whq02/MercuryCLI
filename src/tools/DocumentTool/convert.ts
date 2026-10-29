@@ -79,7 +79,7 @@ export function htmlMarkdown(html: string): string {
   })
   return turndown.turndown(html)
 }
-export async function sourceBlocks(source: string, bytes: Buffer, io: DocumentIO): Promise<{ blocks: Block[]; road: string; warnings?: string[] }> {
+async function sourceBlocks(source: string, bytes: Buffer, io: DocumentIO): Promise<{ blocks: Block[]; road: string; warnings?: string[] }> {
   const ext = extname(source).toLowerCase()
   if (ext === '.pdf') {
     const document = await parsePdfText(bytes)
@@ -140,7 +140,7 @@ async function externalConvert(input: DocumentInput, bytes: Buffer, io: Document
     return { road: office ? 'LibreOffice' : 'pandoc', files: [{ path: documentPath(input.output!), bytes: readFileSync(output) }] }
   } finally { rmSync(dir, { recursive: true, force: true }) }
 }
-export async function appendDocx(input: DocumentInput, bytes: Buffer, io: DocumentIO): Promise<DocumentProduct> {
+async function appendDocx(input: DocumentInput, bytes: Buffer, io: DocumentIO): Promise<DocumentProduct> {
   const entries = documentArchive(bytes), doc = xmlPart(entries, 'word/document.xml')
   const body = elements(doc, WORD_NS, 'body')[0]
   if (!body) throw new Error('DOCX has no document body')

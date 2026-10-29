@@ -108,10 +108,10 @@ try {
     check("the folded Read's file leaves the read ledger: an edit needs a fresh read", ![...(ctx as unknown as { readFileState: Map<string, unknown> }).readFileState.keys()].some(path => path.includes('giant')))
   }
 
-  console.log('L3 the core alone is over the landing line but under the threshold: the fold lands and says so once — no room left for a turn')
+  console.log('L3 fold 46ao: the content-counted core alone is over the landing line but under the threshold: no room left for a turn')
   {
     const threshold = 60_000
-    const history = [...stretch(2, 400, 'head', 76_000), ...stretch(10, 400, 'wide')]
+    const history = [...stretch(2, 400, 'head', 80_000), ...stretch(10, 400, 'wide')]
     const landing = foldLandingCeiling(threshold, history)
     const result = await fold(history, context(), threshold)
     const post = result.truePostCompactTokenCount ?? Infinity

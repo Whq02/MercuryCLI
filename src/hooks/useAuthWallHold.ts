@@ -5,11 +5,11 @@ import { signInLedgerEpoch } from '../utils/accounts/signInLedger.js'
 import { invalidateOnDiskChange } from '../utils/auth.js'
 import { promptBehindAuthWall, type AuthWallHold } from '../utils/messages/authWallHold.js'
 
-export type HeldPrompt = AuthWallHold & { epoch: number; model: string }
+type HeldPrompt = AuthWallHold & { epoch: number; model: string }
 
-export type ResendDoor = 'logins' | 'model'
+type ResendDoor = 'logins' | 'model'
 
-export type ResendFacts = {
+type ResendFacts = {
   door: ResendDoor
   epoch: number
   model: string
@@ -31,7 +31,7 @@ type Composer = {
   restore: (text: string) => void
 }
 
-export type AuthWallHoldHandle = {
+type AuthWallHoldHandle = {
   afterDoor: (door: ResendDoor, resend: (hold: HeldPrompt) => void) => void
   held: () => HeldPrompt | null
 }

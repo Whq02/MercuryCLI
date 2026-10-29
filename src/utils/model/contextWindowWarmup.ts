@@ -4,7 +4,7 @@ import { declaredRouteOf } from '../../services/providers/routeLaw.js'
 const SOURCE_WAIT_MS = 3_000
 const LOCAL_WINDOW_WAIT_MS = 10_000
 
-export interface ContextWindowSourceWait {
+interface ContextWindowSourceWait {
   timeoutMs?: number
   estTokens?: number
 }

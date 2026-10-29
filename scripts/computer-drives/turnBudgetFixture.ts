@@ -2,10 +2,10 @@ import { FakeDesktopDriver, FAKE_SCENE_DEFAULT, type FakeScene } from '../../src
 import type { DesktopApplication, DesktopBounds, DesktopDriver, DesktopPoint } from '../../src/services/desktop/driver.ts'
 
 export type Call = Record<string, unknown>
-export const ROUTINE = 'Example webhook routine'
+const ROUTINE = 'Example webhook routine'
 export const DIALOG = 'Webhook configuration'
 export const CARD = `Open routine ${ROUTINE}`
-export const VALUE_LABELS = ['Webhook URL', 'Webhook key'] as const
+const VALUE_LABELS = ['Webhook URL', 'Webhook key'] as const
 export const VALUES = [
   `https://fixture.invalid/ingest/${'example-route-'.repeat(26)}end-of-url`,
   `not-a-real-key-${'example-value-'.repeat(26)}end-of-key`,

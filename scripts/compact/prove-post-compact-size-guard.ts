@@ -34,6 +34,7 @@ const { createAttachmentMessage } = await import(join(SRC, 'utils/attachments/or
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
 const { getBlockingLimit } = await import(join(SRC, 'services/compact/autoCompact.ts'))
 const micro = await import(join(SRC, 'services/compact/microCompact.ts'))
+const { roughTokenCountEstimationForMessages } = await import(join(SRC, 'services/tokenEstimation.ts'))
 const compactMod = await import(join(SRC, 'services/compact/compact.ts'))
 
 type AnyMsg = Record<string, unknown> & { type?: string }
@@ -98,9 +99,9 @@ section('G0 the whole-context estimator counts what the round estimator skips')
   check('estimateContextTokens exists', estimateContext !== undefined)
   if (estimateContext !== undefined) {
     check('a string-content summary weighs', estimateContext([summary]) > 500, String(estimateContext([summary])))
-    check('an attachment weighs', estimateContext([attachment]) > 800, String(estimateContext([attachment])))
+    check('fold 46ao: an attachment weighs its normalized content through the shared estimator', estimateContext([attachment]) > 0 && estimateContext([attachment]) === roughTokenCountEstimationForMessages([attachment]), String(estimateContext([attachment])))
     check('a system row weighs its content line', estimateContext([boundary]) > 0 && estimateContext([boundary]) < 50, String(estimateContext([boundary])))
-    check('a block-array row agrees with the round estimator', estimateContext([createAssistantMessage({ content: 'hello '.repeat(100) })]) === micro.estimateMessageTokens([createAssistantMessage({ content: 'hello '.repeat(100) })]))
+    check('fold 46ao: a block-array row counts its text once, without the round estimator headroom', estimateContext([createAssistantMessage({ content: 'hello '.repeat(100) })]) === 150)
     check('a progress row weighs nothing', estimateContext([{ type: 'progress', uuid: 'p', timestamp: 't', data: { big: 'z'.repeat(10_000) } }]) === 0)
   }
 }

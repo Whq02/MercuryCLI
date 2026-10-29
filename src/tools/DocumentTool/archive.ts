@@ -11,7 +11,7 @@ export function parseXml(xml: string): Document {
   if (errors.length) throw new Error(`Invalid document XML: ${errors.join('; ')}`)
   return doc
 }
-export const serialiseXml = (doc: Node): string => new XMLSerializer().serializeToString(doc)
+const serialiseXml = (doc: Node): string => new XMLSerializer().serializeToString(doc)
 export function elements(node: Document | Element, namespace: string, name: string): Element[] {
   return Array.from(node.getElementsByTagNameNS(namespace, name))
 }

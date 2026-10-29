@@ -12,10 +12,10 @@ import { AutomationBridge, type AutomationOptions } from '../services/mcp/automa
 import { automationServerFactory } from '../services/mcp/automationServer.js'
 import { automationAccessSchema, clientReach, launchingSession } from '../services/mcp/automationAccess.js'
 
-export const MCP_SERVER_HELP = 'Serve Mercury tools over MCP (stdio or authenticated HTTP)'
-export type McpServerOptions = Omit<AutomationOptions, 'mode'> & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string; client?: string; lead?: string; coordinator?: string; maxMode?: AutomationOptions['mode'] }
+const MCP_SERVER_HELP = 'Serve Mercury tools over MCP (stdio or authenticated HTTP)'
+type McpServerOptions = Omit<AutomationOptions, 'mode'> & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string; client?: string; lead?: string; coordinator?: string; maxMode?: AutomationOptions['mode'] }
 
-export async function startMcpServer(options: McpServerOptions): Promise<{ close: () => Promise<void>; url?: string }> {
+async function startMcpServer(options: McpServerOptions): Promise<{ close: () => Promise<void>; url?: string }> {
   const cwd = await realpath(options.cwd ?? getOriginalCwd())
   if (!isPathTrusted(cwd)) throw new Error('Trust this folder in Mercury before starting mcp-server')
   const transport = options.transport ?? 'stdio'

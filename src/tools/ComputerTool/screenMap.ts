@@ -67,7 +67,7 @@ export function screenMapSizeWords(map: Pick<ScreenMap, 'imageWidth' | 'imageHei
   return `${map.imageWidth}×${map.imageHeight} px of ${map.pointWidth}×${map.pointHeight} pt`
 }
 
-export interface OutlineElement extends DesktopTreeElement {
+interface OutlineElement extends DesktopTreeElement {
   ref: number
   sourceIndices: number[]
 }

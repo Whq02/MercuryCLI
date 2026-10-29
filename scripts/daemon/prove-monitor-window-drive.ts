@@ -158,7 +158,7 @@ if (!existsSync(DIST)) {
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(30_000))
   check('the provider refused a turn for the usage window and the session observed it', refused !== null, j(wire.slice(-2)))
   const refusalRow = await runner.waitFor('the provider refusal result', rateLimited, bound(20_000))
-  check("the session records the provider's rate_limit words and stated wait", refusalRow !== null && j(refusalRow).includes('Rate limit exceeded') && /Anthropic is rate limited \(\d+ s wait\)/.test(j(refusalRow)), j(refusalRow))
+  check("fold 46p: the session records the provider's rate_limit words and the two-minute wait", refusalRow !== null && j(refusalRow).includes('Rate limit exceeded') && /Anthropic is rate limited \(2 min wait\)/.test(j(refusalRow)), j(refusalRow))
 
   await sleep(1_500)
   const appendedAt: number[] = []

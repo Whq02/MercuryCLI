@@ -213,7 +213,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A4')) {
-  section("A4 a line sent during a sub-agent's compaction fold reaches the session's own model once, at the handover boundary; the fold lands and the sub-agent goes on in the background")
+  section("A4 fold 46ao: a line sent during a sub-agent's content-sized compaction fold reaches the session's own model once, at the handover boundary; the fold lands and the sub-agent goes on in the background")
     const w = await openWorld('fold', 3, 800)
     const before = w.runner.frames.length
     void w.runner.prompt(FOLD_TURN_ASK, UT)
@@ -223,7 +223,7 @@ if (!existsSync(DIST)) {
     const result = await w.runner.waitFor("the fold turn's result", isOutcome, bound(120_000), before)
     handoverLaw(w, result, FOLD_TURN_ASK, 'agentfold', 1, ['subfold'], before)
     const wire = w.fx.wire()
-    const landed = wire.find(x => x.kind === 'fold-landed')
+    const landed = wire.find(x => x.kind === 'fold-landed' && x.n === fold?.n)
     const postFold = wire.filter(x => x.kind === 'request' && x.arm === 'subfold' && x.folded === true)
     check('the fold landed and the sub-agent went on to another tool round on the folded record', landed !== undefined && postFold.some(x => x.step === 0) && postFold.some(x => x.step === 1), j(postFold.map(x => [x.n, x.step])))
     check('the line was sent while the fold streamed', landed !== undefined && Date.parse(line.sentAt) < landed.at, `sent ${line.sentAt}, landed ${landed === undefined ? '-' : new Date(landed.at).toISOString()}`)
@@ -412,7 +412,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A10')) {
-    section('A10 a compact at the head of a queued batch keeps its summary before the following prompt')
+    section('A10 fold 46ag: a shrinkable compact at the head of a queued batch keeps its summary before the following prompt')
     const followUp = 'the follow-up after the compact'
     const w = await openWorld('compact-batch', 1, 0, { hold: true })
     try {

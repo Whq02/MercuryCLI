@@ -51,7 +51,7 @@ async function mercuryRun(args: string[], turns: ScriptedTurn[], reuse?: { home:
   }
 }
 
-const readNote: ScriptedTurn = { kind: 'paced_tool_use', preDeltas: ['Reading ', 'the ', 'note.'], gapMs: 500, tools: [{ name: 'Read', input: { file_path: 'note.txt' } }] }
+const readNote: ScriptedTurn = { kind: 'paced_tool_use', preDeltas: Array.from({ length: 40 }, () => 'Reading the note. '), gapMs: 50, tools: [{ name: 'Read', input: { file_path: 'note.txt' } }] }
 const sleepTwo: ScriptedTurn = { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 2' } }
 const answer: ScriptedTurn = { kind: 'text', text: 'The note says hello.' }
 const timeLimitSentence = (ms: number): string => OUTCOME_SENTENCES.time_limit({ maxTimeMs: ms })

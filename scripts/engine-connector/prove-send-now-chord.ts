@@ -65,7 +65,7 @@ const chat = Object.assign({}, ...(DEFAULT_BINDINGS as { context: string; bindin
 check('the default Chat binding of ctrl+s is the stash', chat['ctrl+s'] === 'chat:stash', JSON.stringify(chat['ctrl+s']))
 const composer = read('src/components/PromptInput/useComposerKeybindings.ts')
 check('the stash handler asks the latch first: the second press sends now, every other press stashes as today', composer.includes("'chat:stash': () => {\n        if (pressSendNow(focusedSendNowLive())) {\n          void sendFocusedWordsNow().then(receipt => {") && composer.includes('          return\n        }\n        performStash()\n      },'))
-check('an applied send paints nothing; a refusal paints its sentence on the notice row', composer.includes("if (receipt.outcome === 'applied') return") && composer.includes("addNotification({ key: 'send-now', text: receipt.detail ?? 'no reason given', priority: 'immediate' })"))
+check('fold 46ai: an applied send paints nothing; a refusal preserves its way out on the notice row', composer.includes("if (receipt.outcome === 'applied') return") && composer.includes("addNotification({ key: 'send-now', ...splitWayOut(receipt.detail ?? 'no reason given'), priority: 'immediate' })"))
 const reserved = read('src/keybindings/reservedShortcuts.ts')
 check('ctrl+s is not a terminal-reserved key here: the product owns it (flow control is off in the terminals it runs in)', !/key: 'ctrl\+[sq]'/.test(reserved))
 

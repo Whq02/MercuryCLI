@@ -130,6 +130,8 @@ src/services/concourse/concourseSnapshot.ts :: olderFactCache :: keyed-by-truth
 src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
 src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
 src/services/crew/projection.ts :: snapshot :: subscription-fed
+src/services/dap/dapClient.ts :: bashVersionMemo :: ttl-bounded
+src/services/dap/dapClient.ts :: phpModulesMemo :: ttl-bounded
 src/services/dap/dapClient.ts :: darwinDebuggerAuthMemo :: static-for-process
 src/services/dap/dapClient.ts :: gdbProbeCache :: ttl-bounded
 src/services/dap/dapClient.ts :: lldbDapMemo :: static-for-process
@@ -280,6 +282,8 @@ src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth
 src/utils/hooks/hooksConfigSnapshot.ts :: snapshot :: invalidator=captureHooksSnapshot
 src/utils/imageResizer.ts :: sizedImageCache :: keyed-by-truth
+src/utils/git/spawnArgs.ts :: filterCache :: keyed-by-truth
+src/utils/git/spawnArgs.ts :: layoutCache :: keyed-by-truth
 src/utils/imageStore.ts :: readBackMemo :: keyed-by-truth
 src/utils/lockfile.ts :: cached :: static-for-process
 src/utils/markdownConfigLoader.ts :: loadMarkdownFilesForSubdir :: keyed-by-truth

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
-import { lock } from '../../utils/lockfile.js'
+import { acquirePidLockWithRetry } from '../../substrate/pidLock.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { hostDirectory, patchHostRecord, readHostRecord, writeHostRecord, type HostRecord } from '../host/store.js'
 import { hostNotice } from '../host/notices.js'
@@ -30,7 +30,7 @@ export const computeRequests = [
   z.strictObject({ version: z.literal(1), op: z.literal('host.get'), id, owner }),
   z.strictObject({ version: z.literal(1), op: z.literal('host.update'), id, owner, patch: z.strictObject({ jobState: z.enum(['running', 'ready', 'paused', 'stopped']).optional(), step: z.string().optional(), error: z.string().nullable().optional() }), notice: z.strictObject({ id: z.string().min(1), text: z.string().min(1) }).optional() }),
 ] as const
-export type ComputeRequest = z.infer<(typeof computeRequests)[number]>
+type ComputeRequest = z.infer<(typeof computeRequests)[number]>
 interface Quote { vendor: 'runpod' | 'vast'; offer: HostOffer; expires: number; state: 'quoted' | 'creating' | 'rented'; owner?: string; connection?: { pod: HostPod; key: string } }
 export interface ComputeDeps {
   client?: (vendor: 'runpod' | 'vast') => HostVendor
@@ -58,7 +58,7 @@ export async function externalCompute(request: ComputeRequest, signal: AbortSign
   }
   if (request.op === 'host.rent') {
     const path = join(quotes, request.quote + '.json')
-    const release = await lock(path, { retries: 0 })
+    const { release } = await acquirePidLockWithRetry(path + '.lock', randomUUID(), { retries: 0, liveness: 'assume-alive' }).catch(cause => { throw Object.assign(new Error('Lock file is already being held', { cause }), { code: 'ELOCKED', file: path }) })
     try {
       const quote = JSON.parse(readFileSync(path, 'utf8')) as Quote
       if (quote.owner && quote.owner !== request.owner) throw new Error('Rental quote belongs to another external job')

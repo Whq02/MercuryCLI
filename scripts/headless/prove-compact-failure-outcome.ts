@@ -22,7 +22,7 @@ const second = randomUUID()
 const seed = join(root, 'synthetic.jsonl')
 writeFileSync(seed, encodeSeedTranscript([
   { type: 'user', uuid: first, parentUuid: null, sessionId: id, cwd, timestamp: '2026-10-07T00:00:00.000Z', message: { role: 'user', content: 'Implement a synthetic tags parser and run its tests.' } },
-  { type: 'assistant', uuid: second, parentUuid: first, sessionId: id, cwd, timestamp: '2026-10-07T00:00:01.000Z', message: { id: 'msg_synthetic', type: 'message', role: 'assistant', model, content: [{ type: 'text', text: 'The parser handles quoted commas and deduplicates tags. All 14 tests pass.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 200, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } },
+  { type: 'assistant', uuid: second, parentUuid: first, sessionId: id, cwd, timestamp: '2026-10-07T00:00:01.000Z', message: { id: 'msg_synthetic', type: 'message', role: 'assistant', model, content: [{ type: 'text', text: 'The parser handles quoted commas and deduplicates tags. All 14 tests pass.\n'.repeat(800) }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 200, output_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } } },
 ], id))
 
 function run(ask: string, resume = true): Promise<{ frames: Frame[]; stderr: string; code: number | null }> {
@@ -48,7 +48,7 @@ function failure(label: string, result: Awaited<ReturnType<typeof run>>, words: 
 }
 
 try {
-  console.log(`build under proof: ${DIST}`)
+  console.log(`fold 46ag: the seed is large enough to shrink; build under proof: ${DIST}`)
   fixture.script(() => ({ refusal: true }))
   failure('persistent model refusal', await run('/compact'), 'stop_reason: refusal')
   fixture.script(() => ({ error: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'synthetic fold request rejected' } } } }))

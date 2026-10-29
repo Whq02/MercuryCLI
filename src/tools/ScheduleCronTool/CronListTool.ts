@@ -43,7 +43,7 @@ export function pastDueFireRow(row: Pick<SaturnFactsRowV1, 'kind' | 'nextFireMs'
   return row.kind === 'fire' && row.paused !== true && row.nextFireMs !== null && row.nextFireMs < nowMs - PAST_FIRE_GRACE_MS
 }
 
-export function rosterPushedWords(pushedAtMs: number | undefined): string {
+function rosterPushedWords(pushedAtMs: number | undefined): string {
   return pushedAtMs === undefined ? '' : ` Roster as the daemon pushed it at ${new Date(pushedAtMs).toISOString()}.`
 }
 

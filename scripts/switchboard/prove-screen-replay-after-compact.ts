@@ -48,6 +48,8 @@ const work = join(SCRATCH, 'work')
 const runtime = join(home, 'runtime')
 const builds = join(runtime, 'builds')
 for (const d of [home, daemonDir, work, builds]) mkdirSync(d, { recursive: true })
+process.chdir(work)
+process.env.TMPDIR = '.'
 
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = daemonDir
@@ -558,16 +560,17 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     const text = fold
       ? '<analysis>the walk</analysis><summary>1. Operator Intent: the operator kept talking. 2. Technical Ground: none. 3. Files and Code Touched: none. 4. Errors and Corrections: none. 5. Problems Worked: none. 6. Operator Messages: the words so far. 7. Open Work: none. 8. Where Work Stands: idle. 9. Next Move (optional): none. 10. Agents in flight: none.</summary>'
-      : `heard ${ask.trim().split('\n').pop()} (#${n})${ask.trim().startsWith('carry ') ? ` ${Array.from({ length: 160 }, (_, k) => `fact ${n}-${k} of the carried log reads ${(k * 7919 + n * 104729).toString(36)}.`).join(' ')}` : ''}`
+      : `heard ${ask.trim().split('\n').pop()} (#${n})${ask.trim().split('\n').pop()?.startsWith('carry ') || ask.trim().split('\n').pop() === WORDS[0] ? ` ${Array.from({ length: 400 }, (_, k) => `fact ${n}-${k} of the carried log reads ${(k * 7919 + n * 104729).toString(36)}.`).join(' ')}` : ''}`
     if (!fold) replies.push(text)
+    const measured = { ...usage, input_tokens: Math.ceil(raw.length / 4), output_tokens: Math.ceil(text.length / 4) }
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
     res.end(
       [
-        sse('message_start', { type: 'message_start', message: { id: `msg_sr_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...usage, output_tokens: 1 } } }),
+        sse('message_start', { type: 'message_start', message: { id: `msg_sr_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...measured, output_tokens: 1 } } }),
         sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
         sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }),
         sse('content_block_stop', { type: 'content_block_stop', index: 0 }),
-        sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage }),
+        sse('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: measured }),
         sse('message_stop', { type: 'message_stop' }),
       ].join(''),
     )
@@ -694,7 +697,7 @@ const cleanup = async (): Promise<void> => {
 const WORDS = ['the first words of the session', 'the second words', 'the third words', 'the fourth words, after the first fold', 'the fifth words', 'the sixth words', 'the seventh words, after the second fold', 'the eighth words']
 
 try {
-  section('§B a daemon-hosted oculus session: the screen reads the transcript through the real connector while the runner compacts twice')
+  section('§B folds 46ag and 46ao: measured shrinkable turns let the runner compact twice while the screen reads through its real connector')
   check('daemon A came up', await untilAsync(async () => (await hello())?.pid === Apid, 45_000), read(logA).slice(-600))
   const born = await dispatch(WORDS[0]!)
   const sid = born.sessionId ?? ''

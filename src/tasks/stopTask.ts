@@ -125,7 +125,7 @@ export function finishedAgentWords(agent: FinishedAgent): string {
   return `Task ${agent.taskId}${named} had already ${agent.ended}${when}; nothing was stopped; its output file is ${agent.outputPath} — read it directly; ResumeCrewmate to that id resumes it`
 }
 
-export type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number }
+type PausedAgentStop = { description: string; pause: AgentPauseV1; leasesReleased: number }
 
 export function isPausedAgentRow(task: unknown): task is TaskStateBase & { paused: AgentPauseV1 } {
   return isLocalAgentTask(task) && task.status !== 'running' && task.paused !== undefined

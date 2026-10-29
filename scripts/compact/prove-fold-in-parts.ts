@@ -148,7 +148,7 @@ async function drive(model: string, messages: AnyMsg[]): Promise<Drive> {
 const wireText = (body: Record<string, unknown>): string => JSON.stringify(body)
 const lastAssistantText = (yields: AnyMsg[]): string => textOf(yields.filter(y => y.type === 'assistant').at(-1))
 const errorTexts = (yields: AnyMsg[]): string[] => yields.filter(y => y.type === 'assistant' && y.isApiErrorMessage === true).map(textOf)
-const messagesChars = (body: Record<string, unknown>): number => JSON.stringify(((body.messages as unknown[] | undefined) ?? []).slice(0, -1)).length
+const messagesChars = (body: Record<string, unknown>): number => ((body.messages as Array<{ content?: unknown }> | undefined) ?? []).slice(0, -1).reduce((sum, row) => sum + (typeof row.content === 'string' ? row.content.length : Array.isArray(row.content) ? row.content.reduce((chars, block) => chars + String(block.text ?? '').length, 0) : 0), 0)
 const lastUserTextOf = (body: Record<string, unknown>): string => {
   const rows = (body.messages as Array<{ content?: unknown }> | undefined) ?? []
   const last = rows.at(-1)?.content
@@ -177,7 +177,7 @@ function windowServer(limitChars: number, numbers: boolean): (request: Captured)
   }
 }
 
-section('P1 a session far over the window with no numbers in the refusal: the base gave up after three narrowing retries; the tip folds it in parts and lands')
+section('P1 fold 46ao: the fixture window counts message content, not JSON envelopes; a session far over it folds in parts and lands')
 {
   const forty = seed(40, 1_500) as AnyMsg[]
   fixture.script(windowServer(20_000, false))

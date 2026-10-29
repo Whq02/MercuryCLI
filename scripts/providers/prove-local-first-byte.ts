@@ -10,6 +10,8 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.NODE_ENV
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -383,7 +385,7 @@ section('a generic compat road under the same clock still cuts at its first-byte
   check('the generic road fired its 198 s budget as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === 'no first byte from kimi after 3m 18s (a 65k-token prompt ingesting uncached)', JSON.stringify(fault))
 }
 
-section('the runtime: the road feeds the transport the local law, and a dead-server cut is never reissued')
+section('fold 46b: the initialized runtime feeds the transport the local law, and a dead-server cut is never reissued')
 {
   const discovery = await import('../../src/services/providers/local/localDiscovery.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

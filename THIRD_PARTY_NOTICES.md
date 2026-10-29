@@ -93,6 +93,8 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 
 ## Vendored tool payloads (`dist/vendor/`)
 
+- **pdfjs** 6.4.299 — Mozilla PDF.js, Apache-2.0. Receipt: vendor/pdfjs.lock.json; licence text ships at dist/vendor/pdfjs/LICENSE.
+- **document-libs** — @xmldom/xmldom 0.8.15 (MIT); docx 9.15.0 (MIT); pdf-lib 1.17.1 (MIT); exceljs 4.4.0 (MIT); pptxgenjs 4.0.1 (MIT); mammoth 1.13.0 (BSD-2-Clause); marked 18.0.11 (MIT). Receipt: vendor/document-libs.lock.json; the package and transitive licence texts ship under dist/vendor/document-libs/, with their hashes in licences.json.
 - **ripgrep** (via @vscode/ripgrep 1.18.0, MIT) — the platform search binary, © the ripgrep contributors, dual-licensed MIT / UNLICENSE (https://github.com/BurntSushi/ripgrep). Redistributed unmodified; the wrapper package's licence text lives at node_modules/@vscode/ripgrep/LICENSE.
 - **debugpy** 1.8.21 — Microsoft, MIT (https://files.pythonhosted.org/packages/95/51/67e7cf11a53e40694f720457d5b3a1cdaaa3d5a9a633e482f225456b93ff/debugpy-1.8.21-py2.py3-none-any.whl). Receipt: vendor/debugpy.lock.json; licence text ships at dist/vendor/debugpy/…/licenses/LICENSE + ThirdPartyNotices.txt.
 - **pyright** 1.1.413 — Microsoft, MIT (https://registry.npmjs.org/pyright/-/pyright-1.1.413.tgz). Receipt: vendor/pyright.lock.json; licence text ships at dist/vendor/pyright/LICENSE.txt (+ typeshed LICENSE).

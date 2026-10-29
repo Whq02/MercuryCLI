@@ -1,15 +1,16 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { publishAtomicSync } from '../substrate/fileStore.js'
-import { lock } from '../utils/lockfile.js'
+import { acquirePidLockWithRetry } from '../substrate/pidLock.js'
 
 export const TUNE_DOOR_HELP = 'Train your own model on your own sessions'
 const pointerSchema = z.strictObject({ root: z.string(), repository: z.string() })
-export interface TuneDoorDeps { home?: string; execute?: typeof execute }
+interface TuneDoorDeps { home?: string; execute?: typeof execute }
 function execute(command: string, args: string[], cwd: string, inherit: boolean): Promise<number> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, env: subprocessEnv(), stdio: inherit ? 'inherit' : ['ignore', process.stderr, process.stderr], windowsHide: true })
@@ -41,7 +42,7 @@ export async function tuneDoor(args: string[], deps: TuneDoorDeps = {}): Promise
   }
   mkdirSync(home, { recursive: true, mode: 0o700 })
   const pointer = join(home, 'current.json'), versions = join(home, 'versions')
-  const release = await lock(home, { retries: 0 })
+  const { release } = await acquirePidLockWithRetry(home + '.lock', randomUUID(), { retries: 0, liveness: 'assume-alive' }).catch(cause => { throw Object.assign(new Error('Lock file is already being held', { cause }), { code: 'ELOCKED', file: home }) })
   let current: z.infer<typeof pointerSchema> | undefined
   try {
     if (existsSync(pointer)) {

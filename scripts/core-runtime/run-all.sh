@@ -166,5 +166,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-cron-billing.ts || {
 echo "── core-runtime: a surface entering the alternate screen leaves the main-screen cursor at the launcher's save point"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-alt-entry-restore-point.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-alt-entry-restore-point.ts "$__t" "$__rc"
 
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-restart-carry-identity.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-restart-carry-identity.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-bare-slash-words.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-bare-slash-words.ts "$__t" "$__rc"
 if [ "$fail" = "0" ]; then echo "core-runtime suite: green"; else echo "core-runtime suite: RED"; fi
 exit "$fail"

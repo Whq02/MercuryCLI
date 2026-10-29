@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/staleness/** src/tools/FileReadTool/outline.ts
+# gate-watch: scripts/staleness/** src/tools/FileReadTool/outline.ts src/utils/git/spawnArgs.ts
 # gate-watch: scripts/lib/firstRunSeed.ts
 # gate-watch: src/services/switchboard/harnessGround.ts src/utils/settings/changeDetector.ts
 # gate-watch: src/utils/config/projectConfig.ts src/ink/session/windowsHostSetup.ts

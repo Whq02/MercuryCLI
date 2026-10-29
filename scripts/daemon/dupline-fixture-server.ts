@@ -145,6 +145,7 @@ function countOf(raw: string, word: string): number {
 let calls = 0
 const usage = { input_tokens: 21, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 9 }
 type Usage = typeof usage
+const requestUsage = new Map<number, Usage>()
 function openMessage(res: ServerResponse, n: number, model: string, u: Usage = usage): void {
   res.writeHead(200, { 'content-type': 'text/event-stream' })
   res.write(sse('message_start', { type: 'message_start', message: { id: `msg_dupline_${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...u, output_tokens: 1 } } }))
@@ -154,22 +155,30 @@ const closeMessage = (stop: 'end_turn' | 'tool_use', index: number, u: Usage = u
   sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: u }) +
   sse('message_stop', { type: 'message_stop' })
 function answerText(res: ServerResponse, n: number, model: string, text: string, hold = false): void {
-  openMessage(res, n, model)
+  const u = { ...(requestUsage.get(n) ?? usage), output_tokens: Math.ceil(text.length / 4) }
+  openMessage(res, n, model, u)
   res.write(sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
   res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } }))
-  const end = (): void => { if (!res.destroyed) res.end(closeMessage('end_turn', 0)) }
+  const end = (): void => { if (!res.destroyed) res.end(closeMessage('end_turn', 0, u)) }
   if (hold) onceReleased(n, end)
   else end()
 }
 type ToolCall = { id: string; name: string; input: Record<string, unknown> }
-function answerTools(res: ServerResponse, n: number, model: string, calls: ToolCall[], u: Usage = usage): void {
+function answerTools(res: ServerResponse, n: number, model: string, calls: ToolCall[], u: Usage = usage, preface = ''): void {
   openMessage(res, n, model, u)
-  calls.forEach((call, index) => {
+  const offset = preface === '' ? 0 : 1
+  if (offset) {
+    res.write(sse('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
+    res.write(sse('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: preface } }))
+    res.write(sse('content_block_stop', { type: 'content_block_stop', index: 0 }))
+  }
+  calls.forEach((call, at) => {
+    const index = at + offset
     res.write(sse('content_block_start', { type: 'content_block_start', index, content_block: { type: 'tool_use', id: call.id, name: call.name, input: {} } }))
     res.write(sse('content_block_delta', { type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(call.input) } }))
-    if (index < calls.length - 1) res.write(sse('content_block_stop', { type: 'content_block_stop', index }))
+    if (at < calls.length - 1) res.write(sse('content_block_stop', { type: 'content_block_stop', index }))
   })
-  res.end(closeMessage('tool_use', calls.length - 1, u))
+  res.end(closeMessage('tool_use', calls.length - 1 + offset, u))
 }
 const answerTool = (res: ServerResponse, n: number, model: string, id: string, name: string, input: Record<string, unknown>, u: Usage = usage): void =>
   answerTools(res, n, model, [{ id, name, input }], u)
@@ -220,6 +229,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     } catch {
     }
     const n = ++calls
+    requestUsage.set(n, { ...usage, input_tokens: Math.ceil(raw.length / 4) })
     const model = typeof body.model === 'string' ? body.model : 'fixture'
     const tools = Array.isArray(body.tools) ? body.tools.length : 0
     const toolNames = Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => String(t.name ?? '')) : []
@@ -227,10 +237,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const askIndex = askIndexOf(items)
     const ask = askIndex === -1 ? '' : askOf(items[askIndex]!.content)
     const opening = firstAsk(items)
-    const step = askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const trimmedAsk = ask.trim()
     const openingTrimmed = opening.trim()
     const folded = messagesText(items).includes(FOLD_SUMMARY_MARK)
+    const step = folded
+      ? items.filter(item => Array.isArray(item.content) && (item.content as Block[]).some(block => block.type === 'tool_result' && block.tool_use_id?.startsWith('toolu_postfold_'))).length
+      : askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const subArm =
       openingTrimmed === AGENT_PROMPT
         ? 'subwork'
@@ -326,7 +338,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return answerText(res, n, model, 'agent done: the sleeping sub agent finished')
       case 'subfold':
         if (!folded) {
-          if (step === 0) return answerSleep(res, n, model, `toolu_prefold_c${n}`, 3, { ...usage, input_tokens: FOLD_TRIGGER_INPUT_TOKENS })
+          if (step === 0) return answerTools(res, n, model, [{ id: `toolu_prefill_c${n}`, name: 'Bash', input: { command: 'true', description: 'read the completed notes' } }], usage, Array.from({ length: 8000 }, (_, index) => `Module ${index}: revision ${(index * 7919 + n * 104729).toString(36)} was read and its checks were recorded in full.`).join('\n'))
+          if (step === 1) return answerSleep(res, n, model, `toolu_prefold_c${n}`, 3, { ...usage, input_tokens: FOLD_TRIGGER_INPUT_TOKENS })
           return answerText(res, n, model, 'agent done: the sub agent finished without folding')
         }
         if (step === 0) return answerSleep(res, n, model, `toolu_postfold_c${n}`, 2)
@@ -363,7 +376,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return answerText(res, n, model, doneText(THREE_ROUNDS_ASK))
       default: {
         const heard = ask === '' || tools === 0 ? 'svc' : `heard: ${trimmedAsk.split('\n').pop()} (#${n})`
-        return answerText(res, n, model, heard)
+        return answerText(res, n, model, HOLD_FILE && trimmedAsk === 'hello there' ? `${heard}\n${Array.from({ length: 1600 }, (_, index) => `Note ${n}-${index}: module ${(index * 7919 + n * 104729).toString(36)} was completed and its checks pass.`).join('\n')}` : heard)
       }
     }
   })

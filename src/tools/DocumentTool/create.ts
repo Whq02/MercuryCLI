@@ -10,7 +10,7 @@ import { printDocument } from './print.js'
 import type { DocumentInput, Block, DocumentProduct } from './schema.js'
 import type { DocumentIO } from './DocumentTool.js'
 
-export async function loadImages(blocks: Block[], io: DocumentIO): Promise<Map<string, { bytes: Buffer; type: 'png' | 'jpg' }>> {
+async function loadImages(blocks: Block[], io: DocumentIO): Promise<Map<string, { bytes: Buffer; type: 'png' | 'jpg' }>> {
   const images = new Map<string, { bytes: Buffer; type: 'png' | 'jpg' }>()
   for (const b of blocks) if (b.kind === 'image' && !images.has(b.path)) {
     let bytes: Buffer
@@ -22,7 +22,7 @@ export async function loadImages(blocks: Block[], io: DocumentIO): Promise<Map<s
   }
   return images
 }
-export async function documentHtml(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<string> {
+async function documentHtml(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<string> {
   const images = await loadImages(blocks, io)
   const parts = blocks.map(b => {
     if (b.kind === 'heading') return `<h${b.level ?? 1}>${inlineHtml(b.text)}</h${b.level ?? 1}>`
@@ -77,7 +77,7 @@ export async function buildDocxBody(blocks: Block[], io: DocumentIO) {
   }
   return { children, footnotes }
 }
-export async function createDocx(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<Uint8Array> {
+async function createDocx(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<Uint8Array> {
   if (input.template) {
     if (blocks.length || input.header || input.footer || input.titlePage) throw new Error('Template creation uses replacements; append a section in a separate call')
     const patches = Object.fromEntries(Object.entries(input.replacements ?? {}).map(([key, text]) => [key, { type: PatchType.PARAGRAPH, children: [new TextRun(text)] }]))
@@ -107,7 +107,7 @@ function wrap(text: string, font: PDFFont, size: number, width: number): string[
   }
   return lines
 }
-export async function plainPdf(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<Uint8Array> {
+async function plainPdf(input: DocumentInput, blocks: Block[], io: DocumentIO): Promise<Uint8Array> {
   const pdf = await PDFDocument.create()
   if (input.metadata?.title) pdf.setTitle(input.metadata.title)
   if (input.metadata?.author) pdf.setAuthor(input.metadata.author)

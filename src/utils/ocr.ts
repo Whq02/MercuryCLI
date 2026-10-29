@@ -6,9 +6,9 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 import { extractPDFPages, removePDFPages } from './pdf.js'
 
-export type OcrResult = { ok: true; engine: string; languages: string[]; text: string } | { ok: false; message: string }
+type OcrResult = { ok: true; engine: string; languages: string[]; text: string } | { ok: false; message: string }
 type NativeOcr = { recognise: (bytes: Buffer, page?: number) => Promise<string>; languages: string[] }
-export type OcrEngine = ({ kind: 'native'; name: string } & NativeOcr) | { kind: 'tesseract'; name: 'Tesseract'; languages: string[] } | { kind: 'unavailable'; message: string }
+type OcrEngine = ({ kind: 'native'; name: string } & NativeOcr) | { kind: 'tesseract'; name: 'Tesseract'; languages: string[] } | { kind: 'unavailable'; message: string }
 export const OCR_UNAVAILABLE = 'OCR is unavailable. Install Tesseract (macOS: `brew install tesseract`; Debian/Ubuntu: `sudo apt-get install tesseract-ocr`) or use a model with image input.'
 
 export async function resolveOcrEngine(options: { platform?: string; native?: () => NativeOcr | undefined; probe?: () => Promise<boolean>; listLanguages?: () => Promise<string[]> } = {}): Promise<OcrEngine> {

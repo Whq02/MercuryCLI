@@ -86,7 +86,7 @@ const INSIDER: RegExp[] = [/plain world/i, /classic feel/, /\breaped\b/, /Cells-
 
 console.log('§0 the walk')
 check('every page exits 0', [...exits.values()].every(code => code === 0), [...exits].filter(([, code]) => code !== 0).map(([key, code]) => `${key}=${code}`).join(', '))
-check('the walk reached the root, every verb and every sub-command (52 pages, sessions list and host among them)', pages.size === 52 && pages.has('sessions list') && pages.has('sessions delete') && pages.has('host'), `${pages.size}: ${[...pages.keys()].join(', ')}`)
+check('folds 46aa and 46au: the walk reaches all 55 pages, including mcp-server, tune and extension-api', pages.size === 55 && ['sessions list', 'sessions delete', 'host', 'mcp-server', 'tune', 'extension-api'].every(page => pages.has(page)), `${pages.size}: ${[...pages.keys()].join(', ')}`)
 
 console.log("§1 a name's first use on a page carries its plain words, once; later uses stand alone")
 let taught = 0

@@ -65,6 +65,12 @@ async def main():
     await expect(session.prompt('closed'), MercuryConnectionError)
     print('PASS Python close refuses requests immediately and ends every row iterator')
     session = await connect(mercury=mercury('backpressure'))
+    close_waits = []
+    wait_closed = session._stdin.wait_closed
+    async def observed_close():
+        close_waits.append(True)
+        return await wait_closed()
+    session._stdin.wait_closed = observed_close
     try:
         started = time.monotonic()
         error = await expect(session.request('queue/add', {'type': 'prompt', 'content': 'x' * (8 * 1024 * 1024)}, timeout=0.05), MercuryTimeoutError)
@@ -72,7 +78,8 @@ async def main():
     finally:
         session.child.terminate()
         await session.close()
-    print('PASS Python request timeout includes a blocked stdin drain')
+    assert close_waits, 'the stdin close future must be observed after the child exits, including a broken pipe'
+    print('PASS Python request timeout includes a blocked stdin drain and consumes the close result')
     def sync_edges():
         session = connect_sync(mercury=mercury('late'))
         def callback(message):

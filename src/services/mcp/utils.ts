@@ -387,7 +387,7 @@ function approvalMatch(entries: ReadonlyArray<string> | undefined, serverName: s
   return byName
 }
 
-export type ProjectMcpChoiceSource = 'userSettings' | 'localSettings'
+type ProjectMcpChoiceSource = 'userSettings' | 'localSettings'
 
 export function recordProjectMcpServerChoices(
   choices: {

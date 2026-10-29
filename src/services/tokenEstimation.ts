@@ -251,7 +251,7 @@ export function roughTokenCountEstimationForFileType(content: string, ext: strin
   return roughTokenCountEstimation(content, bytesPerTokenForFileType(ext))
 }
 
-function contentTokenWeight(content: unknown, model: string): number {
+function contentTokenWeight(content: unknown, model?: string): number {
   if (typeof content === 'string') return content.length / DEFAULT_BYTES_PER_TOKEN
   if (Array.isArray(content)) return content.reduce((sum, part) => sum + contentTokenWeight(part, model), 0)
   if (typeof content !== 'object' || content === null) return 0
@@ -262,7 +262,7 @@ function contentTokenWeight(content: unknown, model: string): number {
     case 'output_text':
       return contentTokenWeight(String(record.text ?? ''), model)
     case 'image':
-      return modelReceivesImageBlocks(model) ? MEDIA_BLOCK_TOKENS : contentTokenWeight('[image]', model)
+      return modelReceivesImageBlocks(model ?? getEngineModel()) ? MEDIA_BLOCK_TOKENS : contentTokenWeight('[image]', model)
     case 'image_url':
     case 'input_image':
     case 'document':
@@ -288,11 +288,11 @@ function contentTokenWeight(content: unknown, model: string): number {
   }
 }
 
-export function estimateContentTokens(content: unknown, model = getEngineModel()): number {
+export function estimateContentTokens(content: unknown, model?: string): number {
   return Math.ceil(contentTokenWeight(content, model))
 }
 
-function messageTokenWeight(message: Message, model: string): number {
+function messageTokenWeight(message: Message, model?: string): number {
   if (message.type === 'assistant' || message.type === 'user') return contentTokenWeight(message.message.content, model)
   if (message.type === 'attachment') {
     const normalized = normalizeAttachmentForAPI(message.attachment as never)
@@ -302,13 +302,14 @@ function messageTokenWeight(message: Message, model: string): number {
   return 0
 }
 
-export function roughTokenCountEstimationForMessages(messages: readonly Message[], model = getEngineModel()): number {
+export function roughTokenCountEstimationForMessages(messages: readonly Message[], model?: string): number {
   return Math.ceil(messages.reduce((sum, message) => sum + messageTokenWeight(message, model), 0))
 }
 
-export function estimateRequestTokens(body: unknown, model = getEngineModel()): number {
+export function estimateRequestTokens(body: unknown, model?: string): number {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return estimateContentTokens(body, model)
-  const request = body as { messages?: unknown[]; input?: unknown; system?: unknown; tools?: unknown[] }
+  const request = body as { model?: unknown; messages?: unknown[]; input?: unknown; system?: unknown; tools?: unknown[] }
+  model ??= typeof request.model === 'string' ? request.model : undefined
   const rows = request.messages ?? request.input
   if (!Array.isArray(rows)) return estimateContentTokens(body, model)
   let total = contentTokenWeight(request.system, model)
@@ -317,6 +318,6 @@ export function estimateRequestTokens(body: unknown, model = getEngineModel()): 
       ? messageTokenWeight(row as Message, model)
       : contentTokenWeight(row, model)
   }
-  if (request.tools?.length) total += (JSON.stringify(request.tools).length / (declaredRouteOf(model) === 'local' ? 3.9 : DEFAULT_BYTES_PER_TOKEN))
+  if (request.tools?.length) total += (JSON.stringify(request.tools).length / (model !== undefined && declaredRouteOf(model) === 'local' ? 3.9 : DEFAULT_BYTES_PER_TOKEN))
   return Math.ceil(total)
 }

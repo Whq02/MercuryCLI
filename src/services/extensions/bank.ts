@@ -1,7 +1,8 @@
 import { existsSync, lstatSync, mkdirSync, realpathSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod/v4'
-import { lock } from '../../utils/lockfile.js'
+import { acquirePidLockWithRetry } from '../../substrate/pidLock.js'
 import { bankFolder, bankFree, bankModelFolder, readBankRegistry, verifyBank, writeBankRegistry } from '../host/bank.js'
 import { hostRecipeSchema, hostWeightPathSchema } from '../host/recipesFile.js'
 import { hostDirectory } from '../host/store.js'
@@ -15,7 +16,7 @@ export const bankRequests = [
   z.strictObject({ version: z.literal(1), op: z.literal('bank.plan'), recipe, folder: z.string().min(1).optional() }),
   z.strictObject({ version: z.literal(1), op: z.literal('bank.register'), recipe, folder: z.string().min(1) }),
 ] as const
-export type BankRequest = z.infer<(typeof bankRequests)[number]>
+type BankRequest = z.infer<(typeof bankRequests)[number]>
 function destination(recipe: HostRecipe, requested?: string): { folder: string; path: string; key: string } {
   const named = requested ?? bankFolder()
   if (!named) throw new Error('Choose a Bank folder with --bank <folder>.')
@@ -26,7 +27,7 @@ function destination(recipe: HostRecipe, requested?: string): { folder: string; 
 export async function externalBank(request: BankRequest, signal: AbortSignal): Promise<unknown> {
   const target = destination(request.recipe, request.folder)
   if (request.op === 'bank.plan') return { ...target, exists: existsSync(target.path) || Boolean(readBankRegistry().models[target.key]), free: bankFree(target.folder) ?? null }
-  const release = await lock(hostDirectory(), { retries: 0, lockfilePath: join(hostDirectory(), 'external-bank.lock') })
+  const { release } = await acquirePidLockWithRetry(join(hostDirectory(), 'external-bank.lock'), randomUUID(), { retries: 0, liveness: 'assume-alive' }).catch(cause => { throw Object.assign(new Error('Lock file is already being held', { cause }), { code: 'ELOCKED', file: hostDirectory() }) })
   try {
     if (readBankRegistry().models[target.key]) throw new Error('Bank model already exists: ' + request.recipe.model)
     if (!lstatSync(target.path).isDirectory() || lstatSync(target.path).isSymbolicLink() || dirname(realpathSync(target.path)) !== realpathSync(target.folder)) throw new Error('Bank destination must be a regular directory')

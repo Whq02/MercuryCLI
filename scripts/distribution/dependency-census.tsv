@@ -6,6 +6,7 @@ package	class	purpose
 @modelcontextprotocol/core	protocol-sdk	MCP types and schemas
 @modelcontextprotocol/server	protocol-sdk	Mercury's own MCP server
 @puppeteer/browsers	tool	fetching the managed Chrome for Testing
+@xmldom/xmldom	library	XML document parsing and serialization
 acorn	library	JavaScript parser
 acorn-walk	library	AST walking for acorn
 ajv	library	JSON-schema validation
@@ -17,9 +18,11 @@ chokidar	library	file watching
 cli-boxes	library	box-drawing characters
 commander	library	the command-line parser
 diff	library	text diffs
+docx	library	DOCX creation and templates
 emoji-regex	library	emoji matching for the renderer
 env-paths	library	platform config and cache paths
 execa	library	child processes
+exceljs	library	XLSX workbook creation
 fflate	library	zip and gzip (the extensions reader)
 figures	library	terminal glyph fallbacks
 fuse.js	library	fuzzy search for pickers
@@ -31,9 +34,12 @@ indent-string	library	indentation
 jsonc-parser	library	JSON with comments (settings)
 lodash-es	library	utilities
 lru-cache	library	bounded caches
+mammoth	library	DOCX conversion to HTML
 marked	library	Markdown parsing
 p-map	library	bounded concurrency
+pdf-lib	library	PDF creation and page operations
 picomatch	library	glob matching
+pptxgenjs	library	PowerPoint presentation creation
 proper-lockfile	library	file locks
 puppeteer-core	tool	the browser driver behind the Browser tool
 react	library	the UI

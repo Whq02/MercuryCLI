@@ -11,7 +11,7 @@
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/launchReceipts.ts src/run-core/attachment-drain.ts
 # gate-watch: src/services/browser/browserResolver.ts src/services/compact/foldStatus.ts src/services/compact/compact.ts
 # gate-watch: src/services/engine-connector/seatWire.ts src/services/mcp/client.ts src/services/mcp/types.ts
-# gate-watch: src/services/providers/busyRetry.ts src/services/providers/streamIdleBudget.ts
+# gate-watch: src/services/providers/busyRetry.ts src/services/providers/streamIdleBudget.ts src/services/lsp/LSPClient.ts
 # gate-watch: src/services/run/effectObserver.ts src/services/tools/toolExecution.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/ruleReason.ts src/rows/vocabulary.ts src/rows/project.ts scripts/mcp/_fixture-stdio-server.mjs

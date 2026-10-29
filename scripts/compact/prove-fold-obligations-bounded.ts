@@ -105,7 +105,9 @@ try {
   const fourthBlockTokens = fourthBlock ? fourthBlock.messages.reduce((n, m) => n + roughTokenCountEstimation(m.text), 0) : 0
   const keptWide = keptAsks(third, 'wide')
   const keptWider = keptAsks(fourth, 'wider')
-  check(`a small window: fold 2 lands too (${fourth.truePostCompactTokenCount} < ${smallWindow}): every ask leaving the context rides whole (${fourthBlockTokens} tokens in the block; fold 1's ${12 - keptWide} named by count) and the tail narrows to ${fourth.boundaryMarker.compactMetadata.recentRounds?.kept} rounds to fit`, fourth.truePostCompactTokenCount !== undefined && fourth.truePostCompactTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 12 - keptWide && fourthBlock.messages.length === keptWide + 12 - keptWider && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify(fourth.boundaryMarker.compactMetadata.recentRounds))
+  const currentAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wider ask ')) ?? []
+  const earlierAsks = fourthBlock?.messages.filter(entry => entry.text.startsWith('wide ask ')) ?? []
+  check(`fold 46ao: fold 2 lands under ${smallWindow}, keeps every retiring ask whole and carries earlier asks within the 20k budget`, fourth.truePostCompactTokenCount !== undefined && fourth.truePostCompactTokenCount < smallWindow && fourthBlock !== undefined && fourthBlock.omitted === 24 - keptWider - fourthBlock.messages.length && currentAsks.length === 12 - keptWider && earlierAsks.length >= keptWide && fourthBlockTokens <= 20_000 && fourthBlock.messages.every(entry => fourthInput.some(row => row.type === 'user' && row.message.content === entry.text) || thirdBlock?.messages.some(prior => prior.text === entry.text)) && (fourth.boundaryMarker.compactMetadata.recentRounds?.kept ?? 0) >= 1 && thirdBlockTokens > 0, JSON.stringify({ rounds: fourth.boundaryMarker.compactMetadata.recentRounds, omitted: fourthBlock?.omitted, current: currentAsks.length, earlier: earlierAsks.length }))
 
   const paidBefore = api.messageRequests().length
   const events: Progress[] = []

@@ -396,7 +396,7 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
   const qwen = localRecordFor('local/qwen3:8b')!
   const profile = localLaneProfileFor(qwen)
   const refusal = profile.requestFitRefusal?.({ requestBytes: 240_000, estTokens: 60_000, toolCount: 63, wireModel: 'qwen3:8b' })
-  check('an over-window request refuses typed with the numbers, counted at the wire\'s 3.9 bytes per token (240,000 bytes ≈ 62k)', (refusal ?? '').includes('62k tokens') && (refusal ?? '').includes('32768'), String(refusal))
+  check('fold 46ao: an over-window request refuses with the shared content estimate (60k tokens), not a second byte conversion', (refusal ?? '').includes('60k tokens') && (refusal ?? '').includes('32768'), String(refusal))
   check('the sentence names the silent-truncation reason and the remedy ladder', (refusal ?? '').includes('silently truncate') && (refusal ?? '').includes('OLLAMA_CONTEXT_LENGTH') && (refusal ?? '').includes('--block-tools / --only-mcp'), String(refusal))
   check('the remedy names the in-app road FIRST (/config → Local model window · /model → the row) and the server env after it', (refusal ?? '').includes('/config → Local model window') && (refusal ?? '').indexOf('/config → Local model window') < (refusal ?? '').indexOf('OLLAMA_CONTEXT_LENGTH'), String(refusal))
   check('no borrowed doors (the ladder is windows/catalogs/models, never /logins)', !(refusal ?? '').includes('/logins'), String(refusal))

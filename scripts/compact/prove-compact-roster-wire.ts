@@ -55,7 +55,7 @@ const WF_SCRIPT = [
 
 type Route = 'launch' | 'launched' | 'summary' | 'post' | 'note' | 'seat' | 'side'
 type Seat = (typeof WF_SEATS)[number] | typeof PLAIN_SEAT
-type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
+type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; is_error?: boolean; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 type Body = { model?: string; system?: unknown; tools?: unknown[]; messages?: Item[] }
 const itemsOf = (body: Body | null): Item[] => (Array.isArray(body?.messages) ? body!.messages! : [])
@@ -325,9 +325,8 @@ if (!existsSync(DIST)) {
     const summary = hits.find(h => h.route === 'summary')
     const launchResults = itemsOf(summary?.body ?? null)
       .filter(i => i.role === 'user')
-      .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result').map(b => (typeof b.content === 'string' ? b.content : blocksOf(b.content).map(x => String(x.text ?? '')).join('\n'))))
-      .join('\n')
-    check('every launch landed (no permission refusal among the launch results)', summary !== undefined && !/permission|denied|approval/i.test(launchResults), launchResults.split('\n').filter(l => /permission|approval|denied/i.test(l)).slice(0, 3).join(' | ').slice(0, 400))
+      .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result' && /^toolu_roster_(wf|agent|shell)_/.test(String(b.tool_use_id))))
+    check('fold 46ah: every launch landed; the delivered manual is not a permission refusal', summary !== undefined && launchResults.length === 3 && launchResults.every(b => b.is_error !== true), j(launchResults.filter(b => b.is_error === true)).slice(0, 400))
     check('the fold fired on the cycle after the launches (the summariser request went out)', summary !== undefined, hits.map(h => h.route).join(' → '))
     check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
     const post = hits.find(h => h.route === 'post')

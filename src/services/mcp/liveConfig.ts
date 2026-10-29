@@ -13,7 +13,7 @@ import { getProjectMcpServerStatus, recordProjectMcpServerChoices } from './util
 import type { ScopedMcpServerConfig } from './types.js'
 
 type Configs = Record<string, ScopedMcpServerConfig>
-export type ProjectMcpApprovalAnswer = 'allow' | 'deny' | 'unanswered'
+type ProjectMcpApprovalAnswer = 'allow' | 'deny' | 'unanswered'
 type LivePorts = {
   hosted: boolean
   initial: Configs

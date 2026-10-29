@@ -8,15 +8,15 @@ import {
 } from '../auth.js'
 import { noteCredentialChange } from './signInLedger.js'
 
-export type SignInFamily = 'anthropic' | 'openai'
+type SignInFamily = 'anthropic' | 'openai'
 
-export type SignInFreshness = {
+type SignInFreshness = {
   family: SignInFamily
   state: 'valid' | 'expired' | 'absent' | 'unknown'
   probed: boolean
 }
 
-export function expiredSignInFamilies(checks: readonly SignInFreshness[]): SignInFamily[] {
+function expiredSignInFamilies(checks: readonly SignInFreshness[]): SignInFamily[] {
   return checks.filter(check => check.state === 'expired').map(check => check.family)
 }
 
@@ -63,7 +63,7 @@ export async function checkOpenaiSignInFresh(): Promise<SignInFreshness> {
   }
 }
 
-export async function checkSignInsFresh(): Promise<SignInFreshness[]> {
+async function checkSignInsFresh(): Promise<SignInFreshness[]> {
   return Promise.all([checkAnthropicSignInFresh(), checkOpenaiSignInFresh()])
 }
 
@@ -74,6 +74,6 @@ export function signInsCheckedAtOpen(): Promise<SignInFreshness[]> {
   return bootCheck
 }
 
-export function __resetSignInsCheckedAtOpenForTest(): void {
+function __resetSignInsCheckedAtOpenForTest(): void {
   bootCheck = null
 }

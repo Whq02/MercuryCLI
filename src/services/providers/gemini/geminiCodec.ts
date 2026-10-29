@@ -79,7 +79,7 @@ export function geminiPlanServesClaude(wireModel: string): boolean {
   return /^claude-/.test(wireModel)
 }
 
-export function anthropicToolCallId(id: string): string {
+function anthropicToolCallId(id: string): string {
   const allowed = id.replace(/[^A-Za-z0-9_-]/g, '_')
   return allowed === '' ? 'call' : allowed
 }

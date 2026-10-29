@@ -49,6 +49,8 @@ for (const args of [['init', '-q'], ['add', '-A'], ['-c', 'user.email=fixture@ex
 }
 process.env.MERCURY_CONFIG_DIR = configDir
 process.env.MERCURY_DAEMON_DIR = daemonDir
+process.chdir(work)
+process.env.TMPDIR = '.'
 delete process.env.MERCURY_HOME
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
@@ -431,9 +433,9 @@ try {
     if (arm === 'window') {
       const seatRequests = wire().filter(c => c.kind === 'request' && c.arm === arm && c.route === 'seat')
       check('L7 a wait past the budget is the provider\'s window: ONE request, no retry, no notice', seatRequests.length === 1 && leg.notices === 0, `requests=${seatRequests.length} notices=${leg.notices}`)
-      check('L7 the seat PAUSES on the window: the roster row carries why (a 429 with a stated reset is the usage limit), the provider\'s own words with its ask, and when it resumes by itself', leg.paused !== null && leg.paused.why === 'usage limit' && /Anthropic is rate limited \(10800 s wait\)/.test(leg.paused.words ?? '') && typeof leg.paused.resumesAtMs === 'number' && leg.paused.resumesAtMs > Date.now() + 2 * 3_600_000, JSON.stringify(leg.paused))
-      check('L7 the receipt says the seat paused, leads its trailer with the pause in the provider\'s own words, the countdown and the doors', leg.receipt !== null && /The crewmate paused before returning any output\./.test(leg.receipt) && /Crewmate execution failed: paused — API Error: Anthropic is rate limited \(10800 s wait\): [^·]+ · retries by itself at \d\d:\d\d \(in 2h5\dm\) · r retries now/.test(leg.receipt) && /a message resumes it now/.test(leg.receipt), leg.receipt ?? '(none)')
-      check('L7 the seat row settled with the provider\'s row as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /Anthropic is rate limited \(10800 s wait\)/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
+      check('L7 fold 46p: the seat PAUSES on the window: the roster row carries why (a 429 with a stated reset is the usage limit), the provider\'s own words with its ask, and when it resumes by itself', leg.paused !== null && leg.paused.why === 'usage limit' && /Anthropic is rate limited \(3 h 0 min wait\)/.test(leg.paused.words ?? '') && typeof leg.paused.resumesAtMs === 'number' && leg.paused.resumesAtMs > Date.now() + 2 * 3_600_000, JSON.stringify(leg.paused))
+      check('L7 the receipt says the seat paused, leads its trailer with the pause in the provider\'s own words, the countdown and the doors', leg.receipt !== null && /The crewmate paused before returning any output\./.test(leg.receipt) && /Crewmate execution failed: paused — API Error: Anthropic is rate limited \(3 h 0 min wait\): [^·]+ · retries by itself at \d\d:\d\d \(in 2h5\dm\) · r retries now/.test(leg.receipt) && /a message resumes it now/.test(leg.receipt), leg.receipt ?? '(none)')
+      check('L7 the seat row settled with the provider\'s row as its reason', leg.seatStatus === 'failed' && leg.seatError !== null && /Anthropic is rate limited \(3 h 0 min wait\)/.test(leg.seatError), `${leg.seatStatus} ${leg.seatError}`)
     }
     if (arm === 'hung') {
       const seatRequests = wire().filter(c => c.kind === 'request' && c.arm === arm && c.route === 'seat')
