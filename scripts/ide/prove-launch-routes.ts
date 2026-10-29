@@ -111,7 +111,7 @@ try {
     check('Transaction still counts launch.test as test and launch.build as build, not debug', classifyEffectStep(out.effect) === 'test' && classifyEffectStep({ ...out.effect, operation: 'launch.build' }) === 'build' && classifyEffectStep(dbg.effect) === null)
     const tAsk = await LaunchTool.checkPermissions({ op: 'test', profile: test.id }, ctx)
     const dAsk = await LaunchTool.checkPermissions({ op: 'debug', profile: hello.id }, ctx)
-    check('L6 permission asks reuse each owner’s exact words', tAsk.behavior === 'ask' && tAsk.message === `Launch test ${test.id} (run all tests (unittest)) → Test run (python lane: the shared project interpreter)` && dAsk.behavior === 'ask' && dAsk.message === `Launch debug ${hello.id} (hello (py)) → Debug launch: ${P}/hello.py (adapter python)`)
+    check('L6 permission asks reuse each owner’s exact words', tAsk.behavior === 'passthrough' && tAsk.message === `Launch test ${test.id} (run all tests (unittest)) → Test run (python lane: the shared project interpreter)` && dAsk.behavior === 'passthrough' && dAsk.message === `Launch debug ${hello.id} (hello (py)) → Debug launch: ${P}/hello.py (adapter python)`)
     for (const op of ['debug', 'run']) {
       const denied = await LaunchTool.checkPermissions({ op, profile: hello.id }, context(undefined, ['Debug']))
       check(`L7 ${op} cannot bypass a Debug deny`, denied.behavior === 'deny' && denied.message === `Launch ${op} runs through the Debug tool, which a deny rule blocks in this session — nothing ran. If the task needs Debug, say so to the user.`)

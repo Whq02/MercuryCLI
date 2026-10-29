@@ -116,7 +116,7 @@ section('A. the box\'s shape (F37W-8A-04): the session folder carries no manifes
   check('A6 rerunFailed with the path reruns the project\'s recorded failure by name, in the project', rerun.data.record?.selection === 'rerun-failed' && rerun.data.record?.cwd === vitest && argvOf(argvFile).includes('-t') && argvOf(argvFile)[argvOf(argvFile).indexOf('-t') + 1] === '^calc(?: > | )adds two numbers$' && firstLine(rerun).endsWith(` (in ${vitest})`), rerun.data.result)
 
   const permission = await ask(session, { op: 'run', path: vitest })
-  check('A7 the permission ask shows the project\'s own argv and where it will run', permission.behavior === 'ask' && (permission.message ?? '').startsWith(`Test run: ${vitest} — will run: ${path.join(vitest, 'node_modules', '.bin', 'vitest')} run --reporter=default --reporter=json (in ${vitest})`), permission.message ?? '')
+  check('A7 the permission ask shows the project\'s own argv and where it will run', permission.behavior === 'passthrough' && (permission.message ?? '').startsWith(`Test run: ${vitest} — will run: ${path.join(vitest, 'node_modules', '.bin', 'vitest')} run --reporter=default --reporter=json (in ${vitest})`), permission.message ?? '')
 
   const jest = await call(session, { op: 'run', framework: 'jest', path: vitest })
   check('A8 a framework the project does not declare is refused in the project\'s name, with what it does declare', jest.data.result === `no jest test profile in ${vitest}'s manifests — discovered: vitest/test` && jest.data.outcome === 'failed', jest.data.result)
@@ -174,7 +174,7 @@ section('C. a path to a folder elsewhere whose manifests sit one level down: the
   const vitest = await call(session, { op: 'run', framework: 'vitest', path: other })
   check('C2 framework:"vitest" is refused in the folder\'s name with what the packages declare', vitest.data.result === `no vitest test profile in ${other}'s manifests — one level down: package1/ (package.json, no test runner declared), package2/ (package.json, no test runner declared)` && vitest.data.outcome === 'failed', vitest.data.result)
   const permission = await ask(session, { op: 'run', path: other })
-  check('C3 the permission ask names the folder and runs nothing', permission.behavior === 'ask' && (permission.message ?? '').includes(`no single test runner at ${other}`), permission.message ?? '')
+  check('C3 the permission ask names the folder and runs nothing', permission.behavior === 'passthrough' && (permission.message ?? '').includes(`no single test runner at ${other}`), permission.message ?? '')
   rmSync(path.join(scratch, 'elsewhere-c'), { recursive: true, force: true })
   rmSync(session, { recursive: true, force: true })
 }

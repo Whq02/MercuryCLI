@@ -160,9 +160,9 @@ try {
     check('report is read-only', TestTool.isReadOnly({ op: 'report' } as never) === true)
     check('run is NOT read-only', TestTool.isReadOnly({ op: 'run' } as never) === false)
     const runPerm = await TestTool.checkPermissions({ op: 'run' } as never, {} as never)
-    check('run asks (executes project code)', runPerm.behavior === 'ask')
+    check('run requires approval (executes project code)', runPerm.behavior === 'passthrough')
     const discoverPerm = await TestTool.checkPermissions({ op: 'discover' } as never, {} as never)
-    check('discover asks too (collection imports modules)', discoverPerm.behavior === 'ask')
+    check('discover requires approval too (collection imports modules)', discoverPerm.behavior === 'passthrough')
     const reportPerm = await TestTool.checkPermissions({ op: 'report' } as never, {} as never)
     check('report rides free', reportPerm.behavior === 'allow')
     const report = (await TestTool.call({ op: 'report' } as never, { getAppState: () => ({}) } as never)) as { data: { result: string; outcome: string } }

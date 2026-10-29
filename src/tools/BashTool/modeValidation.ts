@@ -2,6 +2,8 @@ import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { preparedSecurityParse } from '../../utils/permissions/decision/commandAnalysis.js'
+import { ownGroundCommand } from '../../utils/permissions/ownGround.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
 
 const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'mkdir',
@@ -13,10 +15,14 @@ const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'sed',
 ])
 
-export function checkPermissionMode<I extends { command: string }>(
+export function checkPermissionMode<I extends { command: string; cwd?: string }>(
   input: I,
   toolPermissionContext: ToolPermissionContext,
 ): PermissionResult<I> {
+  const own = preparedSecurityParse(input.command)
+  if (own.kind === 'simple' && own.commands.length > 0 && own.commands.every(simple => ownGroundCommand(simple, resolveShellCwd(input.cwd)))) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: "the run's own ground" } }
+  }
   if (modeBypassesPermissions(toolPermissionContext.mode)) {
     return { behavior: 'passthrough', message: 'Bypass-posture mode handles this command.' }
   }

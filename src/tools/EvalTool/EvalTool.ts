@@ -112,10 +112,8 @@ const evalToolDef = buildTool({
   async checkPermissions(input: EvalToolInput) {
     const floor = await evalCodePermission(input.code, getCwd())
     if (floor) return floor
-    return {
-      behavior: 'ask' as const,
-      message: `Run a ${input.language} cell${input.title ? ` — ${input.title}` : ''}`,
-    }
+    const message = `Run a ${input.language} cell${input.title ? ` — ${input.title}` : ''}`
+    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
   },
   async preparePermissionMatcher(input: EvalToolInput) {
     return (rulePattern: string) => rulePattern === '*' || rulePattern === input.language

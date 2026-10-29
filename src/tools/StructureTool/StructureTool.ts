@@ -382,10 +382,8 @@ Records: mercury://structure/query/<id> · mercury://structure/preview/<id> (Ins
     if (input.op !== 'apply') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-    return {
-      behavior: 'ask' as const,
-      message: `Structure apply${input.previewId ? ` ${input.previewId}` : ''} (writes the previewed multi-file transformation)`,
-    }
+    const message = `Structure apply${input.previewId ? ` ${input.previewId}` : ''} (writes the previewed multi-file transformation)`
+    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
   },
   async validateInput(input: Input, context: ToolUseContext) {
     for (const file of input.files ?? []) {

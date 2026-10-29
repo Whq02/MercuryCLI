@@ -1,5 +1,6 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
 import { hiddenCommandCharacterReason } from '../sanitization.js'
+import { extractHeredocs } from './heredoc.js'
 import { PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, type Node } from './parser.js'
 
 export type Redirect = {
@@ -93,9 +94,15 @@ function refuseNode(node: Node): never {
 
 const UNKNOWN_SUBSTITUTION = '__MERCURY_UNKNOWN_SUBSTITUTION__'
 const UNKNOWN_VALUE = '__MERCURY_UNKNOWN_VALUE__'
+const UNKNOWN_INTEGER = '__MERCURY_UNKNOWN_INTEGER__'
+const GLOB_ITEM = '__MERCURY_GLOB_ITEM__'
 
 function isKnown(value: string): boolean {
-  return !value.includes(UNKNOWN_SUBSTITUTION) && !value.includes(UNKNOWN_VALUE)
+  return !value.includes(UNKNOWN_SUBSTITUTION) && !value.includes(UNKNOWN_VALUE) && !value.includes(UNKNOWN_INTEGER)
+}
+
+function integerValued(value: string | undefined): boolean {
+  return value !== undefined && (value === UNKNOWN_INTEGER || ARITHMETIC_INTEGER_RE.test(value))
 }
 
 type Scope = Map<string, string>
@@ -192,7 +199,8 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
 function preCheckReason(command: string): string | null {
   const hidden = hiddenCommandCharacterReason(command, false)
   if (hidden !== null) return hidden
-  for (const [trips, reason] of PRE_CHECKS) if (trips(command)) return reason
+  const outsideHeredocs = extractHeredocs(command, { quotedOnly: true }).processedCommand
+  for (const [trips, reason] of PRE_CHECKS) if (trips(outsideHeredocs)) return reason
   return null
 }
 
@@ -231,13 +239,18 @@ const SYSTEM_CALL_RE = /\bsystem\s*\(/
 
 type Reference = { value: string; unknown: boolean }
 
-function reference(node: Node, scope: Scope, insideString: boolean): Reference {
+function reference(node: Node, scope: Scope, insideString: boolean, operand?: Operand): Reference {
   const nameNode = childOfKind(node, 'variable_name') ?? childOfKind(node, 'special_variable_name')
   if (!nameNode) refuse('variable reference has no name', node.type)
   const name = nameNode.text
 
   if (scope.has(name)) {
     const tracked = scope.get(name) as string
+    if (tracked.startsWith(GLOB_ITEM)) {
+      if (operand === undefined) refuse(WILDCARD_REASON, node.type)
+      operand.glob = true
+      return { value: tracked.slice(GLOB_ITEM.length), unknown: false }
+    }
     if (!isKnown(tracked)) {
       if (node.type === 'expansion') refuseNode(node)
       if (insideString) return { value: tracked, unknown: true }
@@ -267,11 +280,12 @@ function reference(node: Node, scope: Scope, insideString: boolean): Reference {
 const ARITHMETIC_INTEGER_RE = /^(?:[0-9]+|0[xX][0-9A-Fa-f]+|[0-9]+#[0-9A-Za-z]+)$/
 const ARITHMETIC_OPERATORS_RE = /^[-+*/%^&|~!<>=?:(),]+$/
 
-function arithmetic(node: Node): void {
+function arithmetic(node: Node, scope: Scope): void {
   for (const child of node.children) {
     if (child.children.length === 0) {
       const text = child.text
       if (text === '$((' || ARITHMETIC_INTEGER_RE.test(text) || ARITHMETIC_OPERATORS_RE.test(text)) continue
+      if (child.type === 'variable_name' && integerValued(scope.get(text))) continue
       refuse(`arithmetic expression contains a non-literal term ${JSON.stringify(text)}`, node.type)
     }
     switch (child.type) {
@@ -279,8 +293,13 @@ function arithmetic(node: Node): void {
       case 'unary_expression':
       case 'ternary_expression':
       case 'parenthesized_expression':
-        arithmetic(child)
+        arithmetic(child, scope)
         break
+      case 'simple_expansion': {
+        const name = childOfKind(child, 'variable_name')?.text
+        if (name !== undefined && integerValued(scope.get(name))) break
+        refuse(`arithmetic expression contains a non-literal term ${JSON.stringify(child.text)}`, node.type)
+      }
       default:
         refuseNode(child)
     }
@@ -370,6 +389,23 @@ function assign(scope: Scope, assignment: Assignment): void {
 
 const VARIABLE_WRITERS: ReadonlySet<string> = new Set(['read', 'printf', 'getopts', 'wait'])
 const FOR_LITERAL_ITEMS_CAP = 64
+const SEQ_ARGUMENT_RE = /^-?[0-9]+$/
+
+function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
+  const [command] = commands
+  if (commands.length !== 1 || command === undefined || command.argv[0] !== 'seq' || command.envVars.length > 0 || command.redirects.length > 0 || command.globOperand) return null
+  const numbers = command.argv.slice(1)
+  if (numbers.length === 0 || numbers.length > 3 || !numbers.every(text => SEQ_ARGUMENT_RE.test(text))) return null
+  const values = numbers.map(Number)
+  const [first, increment, last] = values.length === 1 ? [1, 1, values[0]!] : values.length === 2 ? [values[0]!, 1, values[1]!] : [values[0]!, values[1]!, values[2]!]
+  if (increment === 0) return null
+  const items: string[] = []
+  for (let value = first; increment > 0 ? value <= last : value >= last; value += increment) {
+    if (items.length >= FOR_LITERAL_ITEMS_CAP) return null
+    items.push(String(value))
+  }
+  return items
+}
 
 function plainExpansion(node: Node): boolean {
   return node.type === 'expansion' && node.children.length === 3 && node.children[0]!.type === '${' && node.children[1]!.type === 'variable_name' && node.children[2]!.type === '}'
@@ -432,7 +468,10 @@ class Walk {
     if (node.type === 'subshell' || node.type === 'command_substitution') return
     if (node.type === 'variable_assignment') {
       const name = childOfKind(node, 'variable_name')?.text
-      if (name !== undefined) scope.set(name, UNKNOWN_VALUE)
+      const value = node.children.find(child => child.type !== 'variable_name' && child.type !== '=' && child.type !== '+=')
+      const previous = scope.get(name ?? '')
+      const integer = value !== undefined && (value.type === 'arithmetic_expansion' || (value.type === 'number' && value.children.length === 0)) && (previous === undefined || integerValued(previous))
+      if (name !== undefined) scope.set(name, integer ? UNKNOWN_INTEGER : UNKNOWN_VALUE)
     }
     if (node.type === 'unset_command') {
       for (const child of node.children) {
@@ -609,7 +648,7 @@ class Walk {
     return body
   }
 
-  quoted(node: Node, scope: Scope): Quoted {
+  quoted(node: Node, scope: Scope, operand?: Operand): Quoted {
     let value = ''
     let sawLiteral = false
     let sawUnknown = false
@@ -655,14 +694,14 @@ class Walk {
         case 'expansion':
           if (!plainExpansion(child)) refuseNode(child)
         case 'simple_expansion': {
-          const resolved = reference(child, scope, true)
+          const resolved = reference(child, scope, true, operand)
           value += resolved.value
           if (resolved.unknown) sawUnknown = true
           else sawLiteral = true
           break
         }
         case 'arithmetic_expansion':
-          arithmetic(child)
+          arithmetic(child, scope)
           value += UNKNOWN_VALUE
           sawUnknown = true
           break
@@ -700,7 +739,7 @@ class Walk {
       case 'raw_string':
         return node.text.slice(1, -1)
       case 'string':
-        return this.quoted(node, scope).value
+        return this.quoted(node, scope, operand).value
       case 'concatenation': {
         refuseBraceExpansion(node)
         let value = ''
@@ -708,13 +747,13 @@ class Walk {
         return value
       }
       case 'arithmetic_expansion':
-        arithmetic(node)
+        arithmetic(node, scope)
         return UNKNOWN_VALUE
       case 'expansion':
         if (!plainExpansion(node)) refuseNode(node)
-        return reference(node, scope, false).value
+        return reference(node, scope, false, operand).value
       case 'simple_expansion':
-        return reference(node, scope, false).value
+        return reference(node, scope, false, operand).value
       default:
         refuseNode(node)
     }
@@ -779,6 +818,10 @@ class Walk {
         case 'command_substitution':
           this.substitution(child, scope)
           value = UNKNOWN_SUBSTITUTION
+          break
+        case 'arithmetic_expansion':
+          arithmetic(child, scope)
+          value = UNKNOWN_INTEGER
           break
         case 'expansion':
           if (!plainExpansion(child)) refuseNode(child)
@@ -1041,13 +1084,18 @@ class Walk {
         case 'do_group':
           body = child
           break
-        case 'command_substitution':
+        case 'command_substitution': {
+          const before = this.commands.length
           this.substitution(child, scope)
-          literal = false
+          const counted = sequenceItems(this.commands.slice(before))
+          if (counted !== null) items.push(...counted)
+          else literal = false
           break
+        }
         default: {
-          const value = this.argument(child, scope)
-          if (isKnown(value) && !value.includes('~')) items.push(value)
+          const operand: Operand = { glob: false }
+          const value = this.argument(child, scope, operand)
+          if (isKnown(value) && !value.includes('~')) items.push(operand.glob ? GLOB_ITEM + value : value)
           else literal = false
           break
         }

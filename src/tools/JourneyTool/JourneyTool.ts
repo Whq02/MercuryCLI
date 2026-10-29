@@ -224,10 +224,8 @@ Everything inspectable: mercury://journey/<id> · mercury://execution/<id> · pe
       return { behavior: 'allow' as const, updatedInput: input }
     }
     const kinds = [...new Set((input.steps ?? []).map(s => s.kind))].join(', ')
-    return {
-      behavior: 'ask' as const,
-      message: `Journey run: ${input.objective?.slice(0, 80) ?? ''} (${input.steps?.length ?? 0} step(s): ${kinds} — runs local services/commands, loopback only)`,
-    }
+    const message = `Journey run: ${input.objective?.slice(0, 80) ?? ''} (${input.steps?.length ?? 0} step(s): ${kinds} — runs local services/commands, loopback only)`
+    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
   },
   async validateInput(input: Input) {
     if (!journeysEnabled()) {

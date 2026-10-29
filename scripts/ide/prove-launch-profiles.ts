@@ -208,7 +208,7 @@ try {
       LaunchTool.isReadOnly({ op: 'run' } as never) === false &&
       LaunchTool.isReadOnly({ op: 'build' } as never) === false)
     const perm = await LaunchTool.checkPermissions({ op: 'debug', profile: 'lp-x' } as never, {} as never)
-    check('C2 executing ops ask', perm.behavior === 'ask')
+    check('C2 executing ops require approval (rules and the mode decide)', perm.behavior === 'passthrough')
 
     const list = (await LaunchTool.call({ op: 'list' } as never, ctx)) as { data: { result: string } }
     const pyId = list.data.result.split('\n').find(l => l.includes('hello (py)'))?.split(' ')[0]

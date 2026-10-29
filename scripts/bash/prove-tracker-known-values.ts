@@ -52,6 +52,9 @@ try {
     ['x=1 || echo $x', [['echo', '1']]],
     ['for f in "a b" c; do echo "$f"; done', [['echo', 'a b'], ['echo', 'c']]],
     ['for f in a; do x=1; echo $x; done', [['echo', '1']]],
+    ['for f in *.txt; do cat $f; done', [['cat', '*.txt']]],
+    ['for f in ../outside/*.md; do cat $f; done', [['cat', '../outside/*.md']]],
+    ['n=0; for i in $(seq 1 3); do n=$((n+i)); done; echo "n=$n"', [['seq', '1', '3'], ['echo', 'n=__MERCURY_UNKNOWN_INTEGER__']]],
   ] as const) {
     const got = await argvOf(command)
     check(`known: ${command.slice(0, 90)}`, same(got, argv), JSON.stringify(got).slice(0, 300))
@@ -65,8 +68,9 @@ try {
     ['x=1 && unset x; echo $x', 'value of $x is not statically known'],
     ['for f in a b; do x=$f; done; echo $x', 'value of $x is not statically known'],
     ['for f in $(ls); do echo $f; done', 'value of $f is not statically known'],
-    ['for f in *.txt; do cat $f; done', 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'],
-    ['for f in ../outside/*.md; do cat $f; done', 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'],
+    ['for i in $(seq 1 100); do echo $i; done', 'value of $i is not statically known'],
+    ['for f in *.txt; do echo > "$f"; done', 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'],
+    ['n=abc; for i in 1 2; do n=$((n+1)); done', 'arithmetic expression contains a non-literal term "n"'],
     ['ls $(cat names)', 'a command substitution supplies an argument at runtime; spell out its value or run the inner command separately, or approve'],
     ['for f in "a b"; do ls $f; done', 'value of $f would be word-split or glob-expanded into a different argv'],
     ['for f in ~/x; do ls $f; done', 'value of $f is not statically known'],

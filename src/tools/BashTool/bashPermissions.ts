@@ -818,7 +818,7 @@ function unprovenAsk(reason: string): PermissionResult {
 function wildcardAnswered(command: SimpleCommand, context: ToolPermissionContext, compoundHasCd: boolean): boolean {
   const text = command.text.trim()
   if (matchRules(text, context, 'allow', 'exact', true) !== null || matchRules(text, context, 'allow', 'prefix', true) !== null) return true
-  return context.mode === 'flow' && checkPreparedReadOnlyConstraints({ command: text }, compoundHasCd, { ...command, redirects: [] }).behavior === 'allow'
+  return (context.mode === 'flow' || context.probedFrom === 'flow') && checkPreparedReadOnlyConstraints({ command: text }, compoundHasCd, { ...command, redirects: [] }).behavior === 'allow'
 }
 
 function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: Node | typeof PARSE_ABORTED): PermissionResult | null {

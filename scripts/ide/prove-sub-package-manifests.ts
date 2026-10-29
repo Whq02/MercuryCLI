@@ -75,7 +75,7 @@ section('A. the box\'s shape (F37W-7B-18): no manifest at the root, package.json
   const debug = await call(root, { op: 'debug', node: 'x' })
   check('A5 debug names the packages too', debug.data.result === words && debug.data.outcome === 'no-change', debug.data.result)
   const permission = await ask(root, { op: 'run' })
-  check('A6 the permission ask does not claim the python lane', permission.behavior === 'ask' && (permission.message ?? '').includes('no single test runner at this root') && !(permission.message ?? '').includes('python lane'), permission.message ?? '')
+  check('A6 the permission ask does not claim the python lane', permission.behavior === 'passthrough' && (permission.message ?? '').includes('no single test runner at this root') && !(permission.message ?? '').includes('python lane'), permission.message ?? '')
   const inside = await call(path.join(root, 'package1'), { op: 'run' })
   if (probe.available) {
     check('A7 run from the package, pytest importable: its manifest declares no runner, so the python lane reads the bare test_x.py under pytest — 1 passed, outcome succeeded, no zero-run words', inside.data.record?.framework === 'pytest' && inside.data.record?.verdict === undefined && inside.data.record?.counts.passed === 1 && inside.data.outcome === 'succeeded' && inside.data.result.includes('pytest all — 1 passed · 0 failed') && !inside.data.result.includes('ran 0'), inside.data.result)

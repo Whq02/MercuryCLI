@@ -170,6 +170,7 @@ export function pathInAllowedWorkingPath(
 
 
 const MERCURY_CONFIG_DIRECTORIES: ReadonlySet<string> = new Set(['hooks', 'agents', 'skills', 'extensions'])
+export const MERCURY_WORKING_FOLDERS: readonly string[] = ['verify', 'test-runs', 'unity-test-results', 'ide-transactions', 'reviews', 'health', 'engine', 'cache-clock']
 const MERCURY_CONFIG_FILES: ReadonlySet<string> = new Set(['mcp.json', 'dap-adapters.json', 'wards.json', 'gates.json', 'launch.json', 'keybindings.json', 'engine-suites.json', 'worktree-setup.json', 'agent-overrides.json'])
 
 function isHomeConfigEstate(prefix: string): boolean {
@@ -292,10 +293,16 @@ function isApolloPlanningDocument(paths: readonly string[]): boolean {
   })
 }
 
+function isMercuryWorkingFile(expandedPath: string): boolean {
+  const forms = protectedPathForms(joinWithSep(getOriginalCwd(), MERCURY_PROJECT_DIR))
+  return MERCURY_WORKING_FOLDERS.some(folder => forms.some(form => expandedPath === `${form}/${folder}` || expandedPath.startsWith(`${form}/${folder}/`)))
+}
+
 function isProductConfigPath(expandedPath: string, instructionEstate = false): boolean {
   const normalized = expandedPath.replace(/\\/g, '/')
   if (instructionEstate && INSTRUCTION_FILES.has(posixPath.basename(normalized).toLowerCase())) return true
   if (isSettingsFilePath(expandedPath)) return true
+  if (instructionEstate && isMercuryWorkingFile(expandedPath)) return false
   if (instructionEstate && /(?:^|\/)\.mercury(?:\/(?!worktrees(?:\/|$)).*|$)/i.test(normalized)) return true
   const cwd = getOriginalCwd()
   const folded = normalizeCaseForComparison(expandedPath)
@@ -449,6 +456,14 @@ function isMneme(path: string): boolean {
   }
 }
 
+function ownGround(path: string): string | null {
+  try {
+    return (require('./ownGround.js') as { ownGroundCategory(p: string): string | null }).ownGroundCategory(path)
+  } catch {
+    return null
+  }
+}
+
 function editableInternalCategory(path: string): string | null {
   const folded = normalizeCaseForComparison(path)
   const cwd = getOriginalCwd()
@@ -456,7 +471,7 @@ function editableInternalCategory(path: string): string | null {
     return 'preview launch config'
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
-  return null
+  return ownGround(path)
 }
 
 function readableInternalCategory(path: string): string | null {
@@ -485,7 +500,7 @@ function readableInternalCategory(path: string): string | null {
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
   if (isMneme(path)) return 'memory directory'
-  return null
+  return ownGround(path)
 }
 
 

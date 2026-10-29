@@ -34,6 +34,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
 import { controlCharacterPathRefusal, expandPath, hasControlCharacter } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { beginCreation, settleCreation } from '../../utils/permissions/ownGround.js'
 import { windowsPathNeedsPermission } from '../../utils/permissions/windowsPath.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
@@ -234,6 +235,7 @@ export const FileWriteTool = buildTool({
     }
     context.nestedMemoryAttachmentTriggers?.add(expandedPath)
 
+    const created = beginCreation(expandedPath)
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)
     }
@@ -428,6 +430,7 @@ export const FileWriteTool = buildTool({
     }
 
     countLinesChanged([], writtenContent)
+    settleCreation(created)
     const data: Output = {
       type: 'create',
       filePath: expandedPath,

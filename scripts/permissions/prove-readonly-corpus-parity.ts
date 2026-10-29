@@ -128,6 +128,12 @@ for (const command of [
 }
 
 const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { verdicts: [], rows: [] }
+for (const [head, target] of [
+  ["cat > /private/tmp/mw/lead29/drives/grok43/project/questions.json << 'EOF'\n", '/private/tmp/mw/lead29/drives/grok43/project/questions.json'],
+  ["cat > questions.json <<'EOF'\n", 'questions.json'],
+]) {
+  for (const row of fixture.rows) if (row[0].startsWith(head)) pinWrapped(row[0], { kind: 'writes', part: 'cat', target }, `it writes to \`${target}\``)
+}
 
 if (RECORD) {
   const corpusPath = process.argv[process.argv.indexOf('--record') + 1]

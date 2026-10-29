@@ -37,6 +37,24 @@ export function mintRangeAnchor(
   return `ra:${digest12(normalizeForAnchor(rangeContent))}:L${startLine}+${lineCount}`
 }
 
+export function anchorSpellingFault(anchor: string): string {
+  if (/\(\s*anchor\s*:/i.test(anchor) || /^\s*anchor\s*:/i.test(anchor)) {
+    return 'carries the "(anchor: …)" wrapper around the value; pass only the fa:… or ra:… value'
+  }
+  if (anchor !== anchor.trim()) return 'carries surrounding whitespace'
+  const parts = /^(fa|ra):([^:]*)(.*)$/.exec(anchor)
+  if (parts === null) {
+    return `starts with ${JSON.stringify(anchor.slice(0, 3))} where an anchor starts with "fa:" (the whole file) or "ra:" (a line range)`
+  }
+  const [, kind, digest, rest] = parts as unknown as [string, string, string, string]
+  if (!/^[0-9a-f]*$/.test(digest)) return `has a character outside 0-9 and a-f in its digest ${JSON.stringify(digest)}`
+  if (digest.length !== 12) return `has ${digest.length} hex characters after "${kind}:" where the digest has exactly 12`
+  if (kind === 'fa') return `carries ${JSON.stringify(rest)} after the 12-character digest; a whole-file anchor ends with the digest`
+  if (rest === '') return 'is missing its ":L<start>+<count>" range after the digest'
+  if (!/^:L[1-9]\d*\+[1-9]\d*$/.test(rest)) return `has a range ${JSON.stringify(rest)} that is not ":L<start>+<count>" with both counts above zero`
+  return 'is not a valid anchor'
+}
+
 export function parseAnchor(anchor: string): ParsedAnchor | null {
   if (!ANCHOR_RE.test(anchor)) return null
   if (anchor.startsWith('fa:')) {
@@ -69,7 +87,7 @@ export function checkAnchor(
     return {
       ok: false,
       reason: 'malformed',
-      rereadHint: `expected_anchor '${expectedAnchor}' is not a valid anchor — re-read ${filePath} and pass the bare fa:… or ra:… value the result shows after "anchor:", without the parentheses or the word anchor`,
+      rereadHint: `expected_anchor '${expectedAnchor}' ${anchorSpellingFault(expectedAnchor)}; the value to pass is the one a Read of ${filePath} shows after "anchor:"`,
     }
   }
   const normalized = normalizeForAnchor(currentFullContent)
@@ -99,10 +117,9 @@ export function formatAnchorFailure(
   check: Extract<AnchorCheck, { ok: false }>,
   expectedAnchor: string,
 ): string {
+  if (check.reason === 'malformed') return `Malformed anchor: ${check.rereadHint}`
   const lines = [
-    check.reason === 'malformed'
-      ? 'Malformed anchor: pass the bare fa:… or ra:… value in expected_anchor without the surrounding "(anchor: …)" text.'
-      : 'Stale anchor: the file content no longer matches the read that produced this anchor.',
+    'Stale anchor: the file content no longer matches the read that produced this anchor.',
     `expected_anchor: ${expectedAnchor}`,
     `Reread: ${check.rereadHint}`,
   ]

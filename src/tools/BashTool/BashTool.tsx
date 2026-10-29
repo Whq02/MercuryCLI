@@ -82,6 +82,7 @@ import { tailFile } from '../../utils/fsOperations.js'
 import { stat, truncate } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
+import { settleCreations, snapshotCreations } from '../../utils/permissions/ownGround.js'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
 import { createShellResultRedactor } from '../../utils/redactSecrets.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
@@ -305,6 +306,7 @@ async function* runBash(
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
+  const creations = snapshotCreations(input.command, cwd)
   const launchedAt = Date.now()
   let progressResolve: (() => void) | null = null
   let latest: { recent: string; all: string; lines: number; bytes: number; incomplete: boolean } = {
@@ -621,6 +623,7 @@ async function* runBash(
   async function postProcess(result: ExecResult): Promise<Out> {
     if (result.backgroundTaskId === undefined) {
       trackGitOperations(input.command, result.code, result.stdout)
+      settleCreations(creations, result.code)
     }
 
     const accumulator = new EndTruncatingAccumulator()

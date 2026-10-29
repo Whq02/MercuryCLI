@@ -1327,11 +1327,9 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
     return INSPECT_OPS.has(input.op)
   },
   async checkPermissions(input: Input) {
+    const approvalNeeded = (message: string) => ({ behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } })
     if (input.op === 'launch') {
-      return {
-        behavior: 'ask' as const,
-        message: `Debug launch: ${input.program ?? '?'}${input.args?.length ? ` ${input.args.join(' ')}` : ''} (adapter ${input.adapter ?? inferAdapter(input.program ?? '')})`,
-      }
+      return approvalNeeded(`Debug launch: ${input.program ?? '?'}${input.args?.length ? ` ${input.args.join(' ')}` : ''} (adapter ${input.adapter ?? inferAdapter(input.program ?? '')})`)
     }
     if (input.op === 'attach') {
       const target =
@@ -1344,16 +1342,10 @@ Unsupported adapter capabilities refuse by name. Stop waits use timeoutMs (defau
       const adapter =
         input.adapter ??
         (input.program ? inferAdapter(input.program) : input.port !== undefined ? 'python' : 'lldb')
-      return {
-        behavior: 'ask' as const,
-        message: `Debug attach: ${target} (adapter ${adapter})`,
-      }
+      return approvalNeeded(`Debug attach: ${target} (adapter ${adapter})`)
     }
     if (input.op === 'customRequest') {
-      return {
-        behavior: 'ask' as const,
-        message: `Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`,
-      }
+      return approvalNeeded(`Debug custom request: ${input.method ?? '?'}${input.body ? ` ${input.body.slice(0, 120)}` : ''}`)
     }
     return { behavior: 'allow' as const, updatedInput: input }
   },

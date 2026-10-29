@@ -93,9 +93,13 @@ async function settle(from: string, command: string): Promise<Entry> {
   }
 }
 
-const bindingRepins = new Map<string, { walk: unknown; semantics: unknown; string: unknown }>()
+const bindingRepins = new Map<string, { walk: unknown; semantics: unknown; string: unknown; abort?: unknown }>()
 function pinWalk(command: string, walk: unknown, semantics: unknown): void {
   bindingRepins.set(command, { walk, semantics, string: walk })
+}
+const hashedRepins = new Map<string, { walk: unknown; semantics: unknown; string: unknown; abort: unknown }>()
+function pinWalkByHash(commandHash: string, walk: unknown, semantics: unknown, abort: unknown): void {
+  hashedRepins.set(commandHash, { walk, semantics, string: walk, abort })
 }
 function simple(...commands: Array<[string[], string]>): unknown {
   return { kind: 'simple', commands: commands.map(([argv, text]) => ({ argv, envVars: [], redirects: [], text })) }
@@ -145,6 +149,14 @@ pinWalk('x=1 || echo $x', simple([["echo","1"], 'echo 1']), { ok: true })
 pinWalk('for f in a b; do echo $f; done', simple([["echo","a"], 'echo a'], [["echo","b"], 'echo b']), { ok: true })
 pinWalk('for f in a b; do echo "$f"; done', simple([["echo","a"], 'echo a'], [["echo","b"], 'echo b']), { ok: true })
 pinWalk('for f in a\ndo\necho "$f"\ndone', simple([["echo","a"], 'echo a']), { ok: true })
+pinWalk('for f in *.txt; do cat "$f"; done', stages(globbed(['cat', '*.txt'], "cat '*.txt'")), { ok: true })
+const parseAbort = refusal('the shell parser did not finish reading this command; split it into simpler commands, or approve', 'PARSE_ABORT')
+function heredocWrite(target: string, ...rest: Array<[string[], string]>): unknown {
+  return { kind: 'simple', commands: [{ argv: ['cat'], envVars: [], redirects: [{ op: '>', target }], text: 'cat' }, ...rest.map(([argv, text]) => ({ argv, envVars: [], redirects: [], text }))] }
+}
+pinWalkByHash('22324e863b644c32', heredocWrite('/private/tmp/mw/lead29/drives/grok43/project/questions.json'), { ok: true }, parseAbort)
+const questionsCheck = 'const q=JSON.parse(require("fs").readFileSync("questions.json","utf8"));console.log(q.length,q.every(x=>x.answers.length==4&&x.answers.filter(a=>a.correct).length==1),q.map(x=>x.answers.findIndex(a=>a.correct)).join(","))'
+pinWalkByHash('e060ab4c86995292', heredocWrite('questions.json', [['node', '-e', questionsCheck], `node -e '${questionsCheck}'`]), { ok: true }, parseAbort)
 
 function nodeTypeTable(entries: Entry[]): Record<string, number> {
   const names = new Set<string>(['', 'ERROR', 'PARSE_ABORT', 'command', 'program'])
@@ -180,7 +192,7 @@ if (!existsSync(FIXTURE)) {
     check('the grammar that builds the trees is the recorded one', recorded.grammar === grammarId, `${recorded.grammar} vs ${grammarId}`)
     const recordedKindsNow = Object.fromEntries(Object.keys(recorded.nodeTypeIds).map(name => [name, ast.nodeTypeId(name === 'undefined' ? undefined : name)]))
     check('nodeTypeId gives the recorded id for every recorded kind', same(recorded.nodeTypeIds, recordedKindsNow), JSON.stringify(recordedKindsNow))
-    check('each binding re-pin names an existing corpus command', [...bindingRepins.keys()].every(command => recorded.entries.some(entry => entry.command === command)))
+    check('each binding re-pin names an existing corpus command', [...bindingRepins.keys()].every(command => recorded.entries.some(entry => entry.command === command)) && [...hashedRepins.keys()].every(commandHash => recorded.entries.some(entry => hash16(entry.command) === commandHash)))
     check('checkSemantics over no commands is the recorded verdict', same(recorded.emptySemantics, fixture.emptySemantics), JSON.stringify(fixture.emptySemantics))
 
     section(`(2) the corpus — ${recorded.entries.length} commands, trees unchanged; verdicts exact with reviewed binding fixes`)
@@ -190,7 +202,7 @@ if (!existsSync(FIXTURE)) {
     const kinds = new Map<string, number>()
     for (let i = 0; i < recorded.entries.length; i++) {
       const stored = recorded.entries[i] as Entry
-      const want = { ...stored, ...bindingRepins.get(stored.command) }
+      const want = { ...stored, ...bindingRepins.get(stored.command), ...hashedRepins.get(hash16(stored.command)) }
       const got = current[i] as Entry
       perSource.set(want.from, (perSource.get(want.from) ?? 0) + 1)
       const kind = (want.walk as { kind: string }).kind

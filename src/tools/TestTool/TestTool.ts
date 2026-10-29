@@ -747,10 +747,8 @@ A run whose exit code disagrees with its structured records says so (verdictNote
       } catch {
       }
     }
-    return {
-      behavior: 'ask' as const,
-      message: `Test ${input.op}${input.node ? `: ${input.node}` : input.path ? `: ${input.path}` : input.changed ? ': changed files' : ''}${resolved || ' (runs project test code)'}`,
-    }
+    const message = `Test ${input.op}${input.node ? `: ${input.node}` : input.path ? `: ${input.path}` : input.changed ? ': changed files' : ''}${resolved || ' (runs project test code)'}`
+    return { behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } }
   },
   async validateInput(input: Input) {
     if (input.op === 'debug' && !input.node) {

@@ -619,7 +619,7 @@ function runPathChecker(
     }
   }
   const operands = PATH_EXTRACTORS[command](args)
-  const flowRead = context.mode === 'flow' && operationType === 'read' && command !== 'cd'
+  const flowRead = (context.mode === 'flow' || context.probedFrom === 'flow') && operationType === 'read' && command !== 'cd'
   const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
   const roots: string[] = []
   for (const operand of operands) {

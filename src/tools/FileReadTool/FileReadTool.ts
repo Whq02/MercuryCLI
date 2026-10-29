@@ -215,7 +215,7 @@ export type Output =
       type: 'parts'
       file: { filePath: string; originalSize: number; count: number; outputDir: string }
     }
-  | { type: 'file_unchanged'; file: { filePath: string } }
+  | { type: 'file_unchanged'; file: { filePath: string; anchor?: string } }
 
 const outputSchema = z.discriminatedUnion('type', [
   z.object({
@@ -269,7 +269,7 @@ const outputSchema = z.discriminatedUnion('type', [
       outputDir: z.string(),
     }),
   }),
-  z.object({ type: z.literal('file_unchanged'), file: z.object({ filePath: z.string() }) }),
+  z.object({ type: z.literal('file_unchanged'), file: z.object({ filePath: z.string(), anchor: z.string().optional() }) }),
 ])
 
 
@@ -1941,8 +1941,9 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
       try {
         const stats = await stat(fullFilePath)
         if (Math.floor(stats.mtimeMs) === entry.timestamp) {
+          const anchor = entry.offset === 0 && entry.limit === undefined && changeTransactionEnabled() ? mintFileAnchor(entry.content) : undefined
           return {
-            data: { type: 'file_unchanged', file: { filePath: fullFilePath } } satisfies Output,
+            data: { type: 'file_unchanged', file: { filePath: fullFilePath, ...(anchor !== undefined ? { anchor } : {}) } } satisfies Output,
           }
         }
       } catch {
@@ -2065,7 +2066,7 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
         return {
           tool_use_id: toolUseID,
           type: 'tool_result' as const,
-          content: FILE_UNCHANGED_STUB,
+          content: `${FILE_UNCHANGED_STUB}${data.file.anchor !== undefined ? `\n(anchor: ${data.file.anchor})` : ''}`,
         }
       case 'text': {
         const body = serializeTextResult(data.file, data)

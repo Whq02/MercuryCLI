@@ -121,8 +121,9 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   const suggestions = [...results.values()]
     .filter(result => result.behavior !== 'allow')
     .flatMap(result => ('suggestions' in result && result.suggestions) || [])
+  const anySegmentAsked = [...results.values()].some(result => result.behavior === 'ask')
   return {
-    behavior: 'ask',
+    behavior: anySegmentAsked ? 'ask' : 'passthrough',
     message: createPermissionRequestMessage('Bash', reason),
     decisionReason: reason,
     ...(suggestions.length > 0 ? { suggestions } : {}),

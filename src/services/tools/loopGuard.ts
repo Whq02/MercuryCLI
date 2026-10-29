@@ -185,7 +185,7 @@ function failureText(block: ToolResultBlockParam | undefined): string | null {
 }
 
 function isUnchangedReadAnswer(block: ToolResultBlockParam | undefined): boolean {
-  return block?.is_error !== true && block?.content === FILE_UNCHANGED_STUB
+  return block?.is_error !== true && typeof block?.content === 'string' && block.content.startsWith(FILE_UNCHANGED_STUB)
 }
 
 const ADDRESS_KEYS = new Set(['file_path', 'path', 'notebook_path', 'cwd', 'directory', 'name', 'tool', 'skill', 'task_id', 'shell_id'])

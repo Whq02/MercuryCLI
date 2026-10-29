@@ -478,10 +478,7 @@ export function planChangeSet(
         failures.push({
           path: member.file_path,
           code: anchorCheck.reason === 'malformed' ? 'malformed-anchor' : 'stale-anchor',
-          message:
-            anchorCheck.reason === 'malformed'
-              ? `expected_anchor '${member.expected_anchor}' is invalid: pass the bare fa:… or ra:… value without the surrounding "(anchor: …)" text`
-              : `stale anchor — ${anchorCheck.rereadHint}`,
+          message: anchorCheck.reason === 'malformed' ? anchorCheck.rereadHint : `stale anchor — ${anchorCheck.rereadHint}`,
         })
         continue
       }

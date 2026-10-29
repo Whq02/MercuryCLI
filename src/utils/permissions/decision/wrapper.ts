@@ -235,6 +235,7 @@ export const defaultWrapperPorts: WrapperPorts = {
           toolPermissionContext: {
             ...live.toolPermissionContext,
             mode: 'implement' as const,
+            probedFrom: live.toolPermissionContext.mode,
           },
         }
       },

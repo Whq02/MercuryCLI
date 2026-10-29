@@ -437,7 +437,8 @@ debug and test return that tool's own result plus the call they ran as. debug an
     if (input.op === 'list' || input.op === 'inspect' || input.op === 'last') {
       return { behavior: 'allow' as const, updatedInput: input }
     }
-    const ask = { behavior: 'ask' as const, message: `Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)` }
+    const approvalNeeded = (message: string) => ({ behavior: 'passthrough' as const, message, decisionReason: { type: 'other' as const, reason: message } })
+    const ask = approvalNeeded(`Launch ${input.op}: profile ${input.profile ?? '?'} (executes project code/builds)`)
     const p = input.profile ? await getLaunchProfile(input.profile) : null
     if (!p) return ask
     const request = resolveRequest(p, input)
@@ -457,10 +458,10 @@ debug and test return that tool's own result plus the call they ran as. debug an
         : await TestTool.checkPermissions(route.input, context)
       if (ownerAsk.behavior === 'allow') return { behavior: 'allow' as const, updatedInput: input }
       const taskNote = p.preLaunchTask && !('refused' in p.preLaunchTask) ? ` — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}` : ''
-      return { ...ownerAsk, message: `Launch ${input.op} ${p.id} (${p.label})${taskNote} → ${ownerAsk.message}` }
+      return approvalNeeded(`Launch ${input.op} ${p.id} (${p.label})${taskNote} → ${ownerAsk.message}`)
     }
     if (p.preLaunchTask && !('refused' in p.preLaunchTask)) {
-      return { ...ask, message: `${ask.message} — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}` }
+      return approvalNeeded(`${ask.message} — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}`)
     }
     return ask
   },

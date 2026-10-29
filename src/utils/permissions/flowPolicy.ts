@@ -6,6 +6,8 @@ import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { basename, resolve } from 'node:path'
 import { preparedSecurityParse, peelWrappers } from './decision/commandAnalysis.js'
 import { getCwd } from '../cwd.js'
+import { resolveShellCwd } from '../Shell.js'
+import { ownGroundCommand } from './ownGround.js'
 import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 
 function flowShellCommands(command: string): Array<{ text: string; words: string[]; opaque: boolean }> {
@@ -42,9 +44,15 @@ function flowShellCommands(command: string): Array<{ text: string; words: string
 
 export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unknown>): boolean {
   try {
-    return tool.isDestructive?.(input) === true ||
-      (tool.name === BASH_TOOL_NAME && typeof input.command === 'string' &&
-        flowShellCommands(input.command).some(command => getDestructiveCommandWarning(command.text) !== null))
+    if (tool.isDestructive?.(input) === true) return true
+    if (tool.name !== BASH_TOOL_NAME || typeof input.command !== 'string') return false
+    const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
+    const changesDirectory = flowShellCommands(input.command).some(command => ['cd', 'pushd', 'popd'].includes(command.words[0] ?? ''))
+    return flowShellCommands(input.command).some(command => {
+      if (getDestructiveCommandWarning(command.text) === null) return false
+      if (command.opaque || changesDirectory || !['rm', 'rmdir'].includes(command.words[0] ?? '')) return true
+      return !ownGroundCommand({ argv: command.words, envVars: [], redirects: [], text: command.text }, cwd)
+    })
   } catch {
     return true
   }
