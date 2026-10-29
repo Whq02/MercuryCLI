@@ -7,10 +7,10 @@ import { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } from './mercuryCo
 
 const STATIC_SET = 'static-composition'
 const RECORDED_WHOLE = 'recorded-composition'
-const currentStaticSets = [MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION].map(law => JSON.stringify(['head', 'constitution', law]))
+const currentStaticSets = [MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION].map(law => JSON.stringify(['head', 'constitution-by-session', law]))
 
 export function recordCurrentStaticComposition(law: string = MERCURY_CONSTITUTION): void {
-  setSystemPromptSectionCacheEntry(STATIC_SET, JSON.stringify(['head', 'constitution', law]), null)
+  setSystemPromptSectionCacheEntry(STATIC_SET, JSON.stringify(['head', 'constitution-by-session', law]), null)
 }
 
 export function carriesRecordedWhole(sections: readonly BoundPrefixSection[]): boolean {
