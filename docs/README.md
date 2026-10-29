@@ -78,7 +78,8 @@ reply to the clipboard (`/copy`).
 - [templates/extension-source-README.md](templates/extension-source-README.md): the source README template written by `mercury extensions scaffold --source`.
 - Releases: [releases/README.md](releases/README.md) lists the release pages,
   each naming what was added and fixed. [1.0.0-rc.1](releases/1.0.0-rc.1.md)
-  is the newest tag; [1.0.0](releases/1.0.0.md) is queued.
+  is the newest tag; [1.0.0](releases/1.0.0.md) is ready for
+  the tag; [1.0.1](releases/1.0.1.md) is queued.
   `/update-notes` shows the running release's notes in the chat, with earlier
   releases behind the transcript key. `mercury run /update-notes` prints the
   full release history.

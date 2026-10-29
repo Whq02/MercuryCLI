@@ -53,7 +53,8 @@ bundled changelog is the one source; the page points at it.
 | v1.0.0-beta.43 | published 2026-10-24 | [1.0.0-beta.43.md](1.0.0-beta.43.md) |
 | v1.0.0-beta.44 | published 2026-10-26 | [1.0.0-beta.44.md](1.0.0-beta.44.md) |
 | v1.0.0-rc.1 | published 2026-10-27 | [1.0.0-rc.1.md](1.0.0-rc.1.md) |
-| v1.0.0 | queued | [1.0.0.md](1.0.0.md) |
+| v1.0.0 | ready for the tag | [1.0.0.md](1.0.0.md) |
+| v1.0.1 | queued | [1.0.1.md](1.0.1.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
 `main`, runs the local pool, then one hosted gate run; the verdict is recorded
