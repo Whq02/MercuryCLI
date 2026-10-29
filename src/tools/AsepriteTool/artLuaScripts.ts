@@ -18,6 +18,13 @@ local function layerAt(name)
   walk(spr.layers, '')
   return assert(found, 'no layer: ' .. name)
 end
+local function editable(layer)
+  local current = layer
+  while current ~= spr do
+    assert(current.isEditable, 'layer is locked: ' .. current.name)
+    current = current.parent
+  end
+end
 local function frameAt(n)
   return assert(spr.frames[n + 1], 'no frame: ' .. n)
 end
@@ -57,9 +64,13 @@ local function draw()
   for _, op in ipairs(p.ops) do
     local layer = layerAt(op.layer)
     assert(layer.isImage and not layer.isTilemap, 'drawing needs an image layer: ' .. op.layer)
-    assert(layer.isEditable, 'layer is locked: ' .. op.layer)
+    editable(layer)
     local frame = frameAt(op.frame)
     app.activeFrame = frame
+    app.activeLayer = layer
+    app.range.layers = {layer}
+    app.range.frames = {frame}
+    app.command.UnlinkCel()
     local x, y, x2, y2 = op.x, op.y, op.x2, op.y2
     if op.kind == 'circle' then
       x, y, x2, y2 = x-op.radius, y-op.radius, x+op.radius, y+op.radius
@@ -84,7 +95,7 @@ local function copyPart(layer, source, target)
     return
   end
   assert(layer.isImage and not layer.isTilemap, 'duplicate needs image layers: ' .. layer.name)
-  assert(layer.isEditable, 'layer is locked: ' .. layer.name)
+  editable(layer)
   if source == target then return end
   local cel = layer:cel(source + 1)
   local old = layer:cel(target + 1)

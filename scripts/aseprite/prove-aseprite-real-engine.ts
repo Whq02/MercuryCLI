@@ -53,6 +53,7 @@ function pngSize(file: string): { width: number; height: number } | null {
   }
 }
 
+try {
 await runWithCwdOverride(tree, async () => {
   section('§1 · create + info (birth read back)')
   {
@@ -249,14 +250,40 @@ s:newCel(s.layers[1], 1, i)
 s:saveAs(s.filename)` })
     const invalidIndex = await audit('indexed.aseprite')
     check('invalid indexed values are reported, not silently fixed', invalidIndex.outsidePixels === 1 && invalidIndex.colours[0].index === 7, JSON.stringify(invalidIndex))
+    await run({ op: 'run-script', file: 'artist.aseprite', source: `
+local s = app.activeSprite
+local l = s.layers['Hero'].layers['Head']
+app.activeLayer = l
+app.range.layers = {l}
+app.range.frames = {1,2}
+app.command.LinkCels()
+assert(l:cel(1).image.id == l:cel(2).image.id)
+local tag = s:newTag(2,3)
+tag.name = 'later'
+s:saveAs(s.filename)` })
+    const linkedBefore = await art({ op: 'render', file: 'artist.aseprite', frame: 0 })
+    const onLinked = await art({ op: 'draw', file: 'artist.aseprite', frame: 1, ops: [{ kind: 'pixel', layer: 'Hero/Head', frame: 1, x: 15, y: 15, colour: { r: 128, g: 64, b: 32, a: 128 } }] })
+    check('draw targets one frame even when the input has linked cels', !!onLinked.preview && linkedBefore.preview?.base64 === (await art({ op: 'render', file: 'artist.aseprite', frame: 0 })).preview?.base64)
+    const tagged = await art({ op: 'render', file: 'artist.aseprite', tag: 'later', scale: 2 })
+    check('tag render selects its exact frames in timeline order', tagged.preview?.width === 64 && tagged.preview?.height === 32 && tagged.preview.frames.join(',') === '1,2')
+    if (onLinked.preview) {
+      const rgba = await sharp(Buffer.from(onLinked.preview.base64, 'base64')).ensureAlpha().raw().toBuffer()
+      check('RGBA alpha is preserved by replacement ink', [...rgba.subarray((15*16+15)*4, (15*16+15)*4+4)].join(',') === '128,64,32,128')
+    }
     const block = AsepriteTool.mapToolResultToToolResultBlockParam(drawn, 'real-art')
     check('render-back uses the existing image block shape', Array.isArray(block.content) && block.content[1]?.type === 'image')
+    if (process.argv[2] && failures === 0) {
+      writeFileSync(path.resolve(process.argv[2]), Buffer.from(drawn.preview.base64, 'base64'), { flag: 'wx', mode: 0o600 })
+      console.log(`Render-back PNG: ${path.resolve(process.argv[2])}`)
+    }
   } finally {
     for (const preview of previews) rmSync(preview, { force: true })
   }
 })
 
-rmSync(scratch, { recursive: true, force: true })
+} finally {
+  rmSync(scratch, { recursive: true, force: true })
+}
 
 console.log('\n============================================================')
 if (failures > 0) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -11,7 +11,6 @@ const scratch = mkdtempSync(path.join(tmpdir(), 'ase-art-'))
 const saved = process.env.MERCURY_ASEPRITE_BIN
 const log = path.join(scratch, 'runs.jsonl')
 const shim = path.join(scratch, 'aseprite')
-const ctx = {} as Parameters<typeof AsepriteTool.call>[1]
 const strokes = [
   { kind: 'pixel', x: 0, y: 0 },
   { kind: 'line', x: 0, y: 0, x2: 7, y2: 7 },
@@ -29,6 +28,10 @@ if (args[0] === '--version') { console.log('Aseprite 9.8.7-fake'); process.exit(
 const request = args.find(a => a.startsWith('request='))?.slice(8);
 const data = request ? JSON.parse(fs.readFileSync(request, 'utf8')) : {};
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, data, script: fs.readFileSync(args.at(-1), 'utf8'), userFolder: process.env.ASEPRITE_USER_FOLDER }) + '\\n');
+const fault = fs.existsSync(${JSON.stringify(path.join(scratch, 'fault'))}) ? fs.readFileSync(${JSON.stringify(path.join(scratch, 'fault'))}, 'utf8') : '';
+if (fault === 'exit') { console.error('fixture refused'); process.exit(2); }
+if (fault === 'no-report') process.exit(0);
+if (fault === 'drift') fs.writeFileSync(args[1], 'CONCURRENT');
 if (data.save) fs.writeFileSync(data.save, 'DRAWN');
 if (data.render) fs.writeFileSync(data.render, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64'));
 if (data.report) fs.writeFileSync(data.report, JSON.stringify({ op: data.op, applied: data.ops?.length, ...(data.render ? {render:{width:1,height:1,frames:[0]}} : {}), ...(data.op === 'palette-check' ? {outsidePixels:2,colours:[{colour:'#0000ffff',count:2,positions:[{layer:'Body',frame:0,count:2,first:{x:1,y:2},bounds:{x:1,y:2,width:2,height:1}}]}]} : {}) }));
@@ -45,12 +48,12 @@ try {
     const input = parsed.data!
     assert.equal(AsepriteTool.isReadOnly(input), false)
     assert.equal(AsepriteTool.isConcurrencySafe(input), false)
-    const ask = await AsepriteTool.checkPermissions(input, ctx)
+    const ask = await AsepriteTool.checkPermissions(input)
     assert.equal(ask.behavior, 'ask')
     assert.ok('message' in ask && ask.message?.includes('hero.aseprite'))
     for (const op of strokes) assert.ok('message' in ask && ask.message?.includes(op.kind))
     writeFileSync(path.join(scratch, 'hero.aseprite'), 'ORIGINAL')
-    const { data } = await AsepriteTool.call(input, ctx)
+    const { data } = await AsepriteTool.call(input)
     assert.match(data.result, /"applied":9/)
     const recorded = runs()
     assert.equal(recorded.length, 1, 'the ordered batch is one spawn')
@@ -60,7 +63,7 @@ try {
     assert.ok(recorded[0]!.userFolder, 'art runs cannot inherit user drawing preferences')
     assert.equal(readFileSync(path.join(scratch, 'hero.aseprite'), 'utf8'), 'DRAWN')
     assert.equal(existsSync(recorded[0]!.args.at(-1)!), false, 'bundled script removed')
-    const refused = await AsepriteTool.call({ ...input, file: '../outside.aseprite' }, ctx)
+    const refused = await AsepriteTool.call({ ...input, file: '../outside.aseprite' })
     assert.match(refused.data.result, /must stay inside the working tree/)
     assert.equal(runs().length, 1)
     const render = AsepriteTool.inputSchema.safeParse({ op: 'render', file: 'hero.aseprite', frame: 0, scale: 3 })
@@ -75,9 +78,9 @@ try {
     assert.deepEqual(Buffer.from(image.source.data, 'base64'), readFileSync(data.preview.path))
     rmSync(data.preview.path)
     const read = render.data!
-    assert.equal((await AsepriteTool.checkPermissions(read, ctx)).behavior, 'allow')
+    assert.equal((await AsepriteTool.checkPermissions(read)).behavior, 'allow')
     assert.equal(AsepriteTool.isReadOnly(read), true)
-    const viewed = await AsepriteTool.call(read, ctx)
+    const viewed = await AsepriteTool.call(read)
     assert.ok(viewed.data.preview)
     assert.equal(runs().length, 2)
     assert.equal(runs()[1]!.data.save, undefined)
@@ -90,25 +93,25 @@ try {
       { kind: 'hide', part: 'Body/Head' }, { kind: 'show', part: 'Body/Head' },
       { kind: 'reorder', part: 'Body/Head', index: 0 }, { kind: 'duplicate', part: 'Body', fromFrame: 0, toFrames: [1, 2] },
     ] })
-    const partsAsk = await AsepriteTool.checkPermissions(parts, ctx)
+    const partsAsk = await AsepriteTool.checkPermissions(parts)
     assert.equal(partsAsk.behavior, 'ask')
     assert.ok('message' in partsAsk && partsAsk.message?.includes('replaces target cels, extends timeline'))
     for (const kind of ['create', 'hide', 'show', 'reorder', 'duplicate']) assert.ok('message' in partsAsk && partsAsk.message?.includes(kind))
-    const partResult = await AsepriteTool.call(parts, ctx)
+    const partResult = await AsepriteTool.call(parts)
     assert.match(partResult.data.result, /"applied":6/)
     assert.ok(partResult.data.preview)
     rmSync(partResult.data.preview.path)
     assert.equal(runs().length, 3)
     assert.deepEqual(runs()[2]!.data.ops, parts.ops)
     const describe = AsepriteTool.inputSchema.parse({ op: 'describe', file: 'hero.aseprite' })
-    assert.equal((await AsepriteTool.checkPermissions(describe, ctx)).behavior, 'allow')
+    assert.equal((await AsepriteTool.checkPermissions(describe)).behavior, 'allow')
     assert.equal(AsepriteTool.isReadOnly(describe), true)
-    const described = await AsepriteTool.call(describe, ctx)
+    const described = await AsepriteTool.call(describe)
     assert.match(described.data.result, /"op":"describe"/)
     assert.equal(described.data.preview, undefined)
     assert.equal(runs()[3]!.data.save, undefined)
     const paletteInput = AsepriteTool.inputSchema.parse({ op: 'palette-check', file: 'hero.aseprite', palette: ['#ff0000', { r: 0, g: 255, b: 0 }] })
-    assert.equal((await AsepriteTool.checkPermissions(paletteInput, ctx)).behavior, 'allow')
+    assert.equal((await AsepriteTool.checkPermissions(paletteInput)).behavior, 'allow')
     assert.equal(AsepriteTool.isReadOnly(paletteInput), true)
     const checked = await AsepriteTool.call(paletteInput)
     const report = JSON.parse(checked.data.result.split('\n')[1]!)
@@ -137,6 +140,27 @@ try {
     assert.equal((await AsepriteTool.checkPermissions({ op: 'create', output: 'new.aseprite', width: 8, height: 8 })).behavior, 'ask')
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [] }).success, false)
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [{ ...strokes[0], x: 0.5 }] }).success, false)
+    const inner = path.join(scratch, 'inner')
+    mkdirSync(inner)
+    symlinkSync(scratch, path.join(inner, 'escape'), 'dir')
+    const beforeFence = runs().length
+    await runWithCwdOverride(inner, async () => {
+      const escaped = await AsepriteTool.call({ ...input, file: 'escape/hero.aseprite' })
+      assert.match(escaped.data.result, /must stay inside the working tree/)
+    })
+    assert.equal(runs().length, beforeFence)
+    for (const fault of ['exit', 'no-report', 'drift']) {
+      writeFileSync(path.join(scratch, 'fault'), fault)
+      const failed = await AsepriteTool.call(input)
+      assert.match(failed.data.result, /draw failed:/)
+      assert.equal(failed.data.preview, undefined)
+      assert.equal(readFileSync(path.join(scratch, 'hero.aseprite'), 'utf8'), fault === 'drift' ? 'CONCURRENT' : 'DRAWN')
+      assert.equal(existsSync(runs().at(-1)!.args.at(-1)!), false)
+    }
+    rmSync(path.join(scratch, 'fault'))
+    const noPreview = await AsepriteTool.call({ ...input, preview: false })
+    assert.equal(noPreview.data.preview, undefined)
+    assert.match(noPreview.data.result, /"applied":9/)
   })
   const doc = readFileSync(new URL('../../docs/ASEPRITE-BRIDGE.md', import.meta.url), 'utf8')
   for (const op of ['draw', 'render', 'parts', 'describe', 'palette-check']) assert.ok(doc.includes(`| \`${op}\` |`), `documented verb: ${op}`)

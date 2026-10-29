@@ -69,7 +69,8 @@ ambiguous paths refuse rather than selecting a part arbitrarily.
 
 Each `draw` operation names `layer`, `frame` and `colour`: either `{index: 1}`
 or `{r: 255, g: 128, b: 0, a: 255}` (alpha defaults to 255).
-RGBA colours on indexed sprites must match a palette entry exactly.
+RGBA colours on indexed sprites must match a palette entry exactly. Drawing
+unlinks the target cel first, so linked cels in other frames stay unchanged.
 
 | kind | inputs beyond layer, frame and colour | action |
 | --- | --- | --- |
