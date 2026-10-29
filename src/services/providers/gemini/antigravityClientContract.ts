@@ -15,7 +15,7 @@ export const ANTIGRAVITY_OAUTH_SCOPE = [
   'https://www.googleapis.com/auth/cclog',
   'https://www.googleapis.com/auth/experimentsandconfigs',
 ].join(' ')
-export const ANTIGRAVITY_CLIENT_CONTRACT_VERSION = '2.28.0'
+export const ANTIGRAVITY_CLIENT_CONTRACT_VERSION = '2.28.2'
 export const ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST = '963137146'
 export const ANTIGRAVITY_CLIENT_CONTRACT_AS_OF = '2026-10-29'
 export const ANTIGRAVITY_CLIENT_OS = 'darwin'
