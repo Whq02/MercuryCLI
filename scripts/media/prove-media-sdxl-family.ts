@@ -62,7 +62,7 @@ try {
   assert.equal(plan.source, 'huggingface.co/pixelparty/pixel-party-xl, huggingface.co/stabilityai/stable-diffusion-xl-base-1.0, huggingface.co/madebyollin/sdxl-vae-fp16-fix')
   assert.equal(mediaPullPlan(snapshot, 'sdxl-base-1.0').license, 'CreativeML Open RAIL++-M')
   const details = mediaGenerationDetails('image', { model: 'pixel-party-xl', prompt: 'cute dragon' }, shipped, { imageModel: 'z-image-turbo' }, root)
-  assert.equal(details, `pixel-party-xl\n1024×1024 · 25 steps · saved at 128×128\nOutput: ${root}/media\nPrompt: cute dragon`)
+  assert.equal(details, `pixel-party-xl\n1024×1024 · 25 steps · saved at 128×128\nOutput: ${join(root, 'media')}\nPrompt: cute dragon`)
   const unlisted = parseMediaCatalogue({ ...bundled, runtime: { ...bundled.runtime, families: [] } })
   assert.equal(unlisted.models.map(model => model.id).includes('pixel-party-xl'), false, 'a runtime that lists no family keeps the rows off every screen')
   assert.throws(() => mediaGenerationDetails('image', { model: 'pixel-party-xl', prompt: 'cute dragon' }, unlisted, { imageModel: 'z-image-turbo' }, root), /Choose the image model in \/imagesetup/)
