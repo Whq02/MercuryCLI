@@ -428,6 +428,30 @@ kept weights volumes exist on Runpod (one data centre or any) and on Vast.ai
 (one machine); choosing a Runpod-only feature for Vast.ai or Lambda explains
 that limit without sending a request.
 
+## Images and video on a rented GPU
+
+A running x64 Linux rental with SSH access can also run the media engine.
+Open `/imagesetup`, press Enter on the runtime row and choose the machine.
+The existing rental row shows its hourly price; selecting it does not rent
+another machine or stop its chat model. The two workloads share its memory,
+so choose models that fit together.
+
+Pull the runtime and image or video model with **p**, then confirm the card
+naming that machine. Setup builds the pinned `stable-diffusion.cpp` source
+with CUDA using the rented image's toolkit. If the build fails it downloads
+the pinned Vulkan archive; `/imagesetup` shows the installed backend.
+Weights, the build log and the runtime stay on the rental's disk. All setup
+and generation time is billed at the rental's existing hourly rate.
+
+The engine listens on remote loopback and Mercury uses the host SSH tunnel.
+Generation sends any referenced input files to the machine and saves results
+under the local project, including video posters. `remote` in the result
+names the machine. A stopped machine or lost tunnel returns an error; no
+replacement is rented. Manage or terminate the machine in `/llmhost`.
+Active media setup and generation count as activity for the two-hour idle
+rule. See [Images and video](MEDIA.md#run-on-a-rented-gpu) for the controls,
+local output settings and licence terms.
+
 ## Run a model on your own computer: `My computers` and `mercury host`
 
 Open `/llmhost` and choose **My computers** (or `More options →` → **One of my

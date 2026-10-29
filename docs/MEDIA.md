@@ -16,11 +16,43 @@ Open `/imagesetup` to download the runtime and models. Completing a model
 pull turns Local media on and connects it in the current session. The
 bundled runtime runs on Apple Silicon macOS, x64 Windows and x64 Linux.
 Apple Silicon gets the Metal build; Windows gets the Vulkan build, or the
-CUDA 12 build when an NVIDIA card is present; Linux gets the Vulkan build.
+CUDA 12 build when an NVIDIA card is present. Linux uses Vulkan or builds
+CUDA from source when an NVIDIA card is present, as described below.
 There is no build for arm64 Windows or arm64 Linux yet. On macOS and Linux
 the pull needs `curl` and `unzip`; Windows needs nothing beyond PowerShell
 5.1. Video posters, and on Windows and Linux image previews larger than
 1024 pixels, also need `ffmpeg` on PATH.
+
+## Run on a rented GPU
+
+In `/imagesetup`, select the runtime row and press Enter. Choose a running
+single-machine rental from `/llmhost`, or **Local images and video** to use
+your own computer. The choice is saved as `media.host`; an empty value selects
+the local engine. Only rentals with SSH access appear. Rent a machine through
+`/llmhost` first if needed; choosing it here never creates another rental.
+
+Press **p** on the runtime, then on the model. The download card names the
+machine as its destination. Models use the same catalogue, licences, file
+sizes and SHA-256 checks. Setup runs on the rented machine, and its hourly
+price continues to apply during downloads, compilation and generation.
+The runtime row names the machine and the backend actually installed.
+
+On an x64 Linux NVIDIA machine, setup builds `sd-server` from the pinned
+`e41fbcf455e0fbb45e08bd535b00d6cba865e921` source with CUDA enabled, using the
+machine's CUDA toolkit. It keeps the build log and records the binary's hash,
+which is checked before starting it again. If compilation fails, setup uses
+the pinned Linux Vulkan archive and the runtime row shows **Vulkan**.
+The upstream [CUDA build instructions](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf455e0fbb45e08bd535b00d6cba865e921/docs/build.md#build-with-cuda)
+describe the toolkit requirement.
+
+Image and video calls travel over the private SSH tunnel. Reference images,
+masks, control images, palette files and local LoRAs named in a call are sent
+to that machine. Results, including full images, batch frames and video
+posters, are saved to the project's `media/` folder, or the configured local
+output folder. Results include `remote` with the machine's name. Async jobs
+continue on the machine if the local client closes; `media_result` retrieves
+their output when you reconnect. A stopped machine or lost tunnel fails the
+call rather than starting a replacement. Use `/llmhost` to manage the rental.
 
 ## Set up a model
 
