@@ -78,11 +78,40 @@ local function draw()
   end
   return {op=p.op, applied=#p.ops}
 end
-local report
-app.transaction(function()
-  report = draw()
-end)
-assert(spr:saveAs(p.save), 'sprite save failed')
+local function render()
+  local first, last = 0, #spr.frames - 1
+  if p.frame ~= nil then
+    frameAt(p.frame)
+    first, last = p.frame, p.frame
+  elseif p.tag ~= nil then
+    local found = nil
+    for _, tag in ipairs(spr.tags) do
+      if tag.name == p.tag then
+        assert(found == nil, 'ambiguous tag: ' .. p.tag)
+        found = tag
+      end
+    end
+    assert(found, 'no tag: ' .. p.tag)
+    first, last = found.fromFrame.frameNumber - 1, found.toFrame.frameNumber - 1
+  end
+  local image = Image(spr.width * (last-first+1), spr.height, ColorMode.RGB)
+  image:clear()
+  local frames = {}
+  for frame=first,last do
+    image:drawSprite(spr, frame+1, Point((frame-first)*spr.width, 0))
+    frames[#frames+1] = frame
+  end
+  local scale = p.scale or 1
+  if scale ~= 1 then image:resize(image.width * scale, image.height * scale) end
+  assert(image:saveAs(p.render), 'PNG render failed')
+  return {width=image.width, height=image.height, frames=frames}
+end
+local report = {op=p.op}
+if p.op == 'draw' then
+  app.transaction(function() report = draw() end)
+end
+if p.render then report.render = render() end
+if p.save then assert(spr:saveAs(p.save), 'sprite save failed') end
 local out = assert(io.open(p.report, 'wb'))
 out:write(json.encode(report))
 out:close()

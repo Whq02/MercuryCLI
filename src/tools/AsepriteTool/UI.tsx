@@ -1,6 +1,8 @@
 ;
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import React from 'react';
+import { pathToFileURL } from 'node:url';
+import Link from '../../ink/components/Link.js';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
 import { Box, Text } from '../../ink.js';
 import type { Input, Output } from './AsepriteTool.js';
@@ -55,7 +57,7 @@ export function renderToolResultMessage(
   return (
     <Box flexDirection="column">
       {shown.map((line, i) => (
-        <Text key={i}>{line || ' '}</Text>
+        <Text key={i}>{line === output.preview?.path ? <Link url={pathToFileURL(line).href} fallback={line}>{line}</Link> : line || ' '}</Text>
       ))}
       {!verbose && lines.length > shown.length ? (
         <Text dimColor>… +{lines.length - shown.length} lines (ctrl+o expands)</Text>

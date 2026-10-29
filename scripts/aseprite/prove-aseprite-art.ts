@@ -30,7 +30,8 @@ const request = args.find(a => a.startsWith('request='))?.slice(8);
 const data = request ? JSON.parse(fs.readFileSync(request, 'utf8')) : {};
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, data, script: fs.readFileSync(args.at(-1), 'utf8'), userFolder: process.env.ASEPRITE_USER_FOLDER }) + '\\n');
 if (data.save) fs.writeFileSync(data.save, 'DRAWN');
-if (data.report) fs.writeFileSync(data.report, JSON.stringify({ op: data.op, applied: data.ops?.length }));
+if (data.render) fs.writeFileSync(data.render, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64'));
+if (data.report) fs.writeFileSync(data.report, JSON.stringify({ op: data.op, applied: data.ops?.length, ...(data.render ? {render:{width:1,height:1,frames:[0]}} : {}) }));
 `)
 chmodSync(shim, 0o755)
 process.env.MERCURY_ASEPRITE_BIN = shim
@@ -62,6 +63,27 @@ try {
     const refused = await AsepriteTool.call({ ...input, file: '../outside.aseprite' }, ctx)
     assert.match(refused.data.result, /must stay inside the working tree/)
     assert.equal(runs().length, 1)
+    const render = AsepriteTool.inputSchema.safeParse({ op: 'render', file: 'hero.aseprite', frame: 0, scale: 3 })
+    assert.ok(render.success, 'render accepts frame and nearest-neighbour scale')
+    assert.ok(data.preview)
+    const block = AsepriteTool.mapToolResultToToolResultBlockParam(data, 'draw-1')
+    assert.ok(Array.isArray(block.content))
+    assert.equal(block.content[1]?.type, 'image')
+    const image = block.content[1] as { source: { type: string; media_type: string; data: string } }
+    assert.equal(image.source.type, 'base64')
+    assert.equal(image.source.media_type, 'image/png')
+    assert.deepEqual(Buffer.from(image.source.data, 'base64'), readFileSync(data.preview.path))
+    rmSync(data.preview.path)
+    const read = render.data!
+    assert.equal((await AsepriteTool.checkPermissions(read, ctx)).behavior, 'allow')
+    assert.equal(AsepriteTool.isReadOnly(read), true)
+    const viewed = await AsepriteTool.call(read, ctx)
+    assert.ok(viewed.data.preview)
+    assert.equal(runs().length, 2)
+    assert.equal(runs()[1]!.data.save, undefined)
+    assert.equal(runs()[1]!.data.frame, 0)
+    assert.equal(runs()[1]!.data.scale, 3)
+    rmSync(viewed.data.preview.path)
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [] }).success, false)
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [{ ...strokes[0], x: 0.5 }] }).success, false)
   })

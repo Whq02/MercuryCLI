@@ -23,7 +23,7 @@ import {
   userFacingName,
 } from './UI.js'
 
-import { ART_OPS, artAsk, artFields, isArtOp, runArt } from './art.js'
+import { ART_OPS, artAsk, artFields, isArtOp, isArtRead, runArt, type ArtResult } from './art.js'
 
 const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
 
@@ -31,7 +31,7 @@ const SHEET_TYPES = ['horizontal', 'vertical', 'rows', 'columns', 'packed'] as c
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('status · info · export · create · run-script · draw'),
+    op: z.enum(OPS).describe('status · info · export · create · run-script · draw · render'),
     ...artFields(),
     file: z
       .string()
@@ -92,6 +92,7 @@ export type Input = z.infer<SchemaType>
 export type Output = {
   op: string
   result: string
+  preview?: ArtResult['preview']
 }
 
 const TIMEOUTS = { status: 15_000, info: 15_000, create: 30_000, export: 60_000 } as const
@@ -416,12 +417,13 @@ export const AsepriteTool = buildTool({
     return inputSchema()
   },
   isConcurrencySafe(input: Input) {
-    return input.op === 'status' || input.op === 'info'
+    return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
   },
   isReadOnly(input: Input) {
-    return input.op === 'status' || input.op === 'info'
+    return input.op === 'status' || input.op === 'info' || isArtRead(input.op)
   },
   async checkPermissions(input: Input) {
+    if (isArtRead(input.op)) return { behavior: 'allow' as const, updatedInput: input }
     if (isArtOp(input.op)) return { behavior: 'ask' as const, message: artAsk(input) }
     if (input.op === 'status' || input.op === 'info') {
       return { behavior: 'allow' as const, updatedInput: input }
@@ -468,6 +470,14 @@ export const AsepriteTool = buildTool({
     return { data: output }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
+    if (output.preview) return {
+      tool_use_id: toolUseId,
+      type: 'tool_result' as const,
+      content: [
+        { type: 'text' as const, text: output.result },
+        { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: output.preview.base64 } },
+      ],
+    }
     return {
       tool_use_id: toolUseId,
       type: 'tool_result' as const,
