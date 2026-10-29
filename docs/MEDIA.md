@@ -197,7 +197,7 @@ own terms.
 | `media_models` | Lists models, licences, installed sizes and defaults without loading weights. |
 | `media_status` | Reads both engines, their models, state and memory without starting them. |
 | `media_set_default` | Saves an image or video default without loading it. |
-| `image_generate` | Generates a PNG from a prompt, with an optional reference image, denoising strength and mask. |
+| `image_generate` | Generates a PNG from a prompt, with an optional reference image, denoising strength and mask, or from a ComfyUI workflow file. |
 | `video_generate` | Generates video from a prompt and optional starting image. Use frames or seconds, never both. |
 | `media_jobs` | Lists jobs and their generation progress. |
 | `media_result` | Reads a job's result, saved path and image or video poster; it can wait for completion. |
@@ -377,3 +377,69 @@ the family's component files directly; a family named only in
 `runtime.families` needs a `checkpoint` entry on its recipe, and its rows are
 stored as one file after their download. A row whose family is not named is
 not listed.
+
+## ComfyUI workflows
+
+Give `image_generate` a `workflow`: the path of a ComfyUI workflow JSON, either
+the editor's save file (nodes and links) or the API-format export. Mercury
+reads the graph from its SaveImage or PreviewImage node back to the checkpoint
+and turns it into one ordinary image request: the same fields as any other
+call, through the same engine. Fields given alongside `workflow`, such as
+`seed`, `width` or `model`, override what the graph says. The result names the
+workflow file, its format, and the mapping: which node became which field,
+the nodes that were skipped and why, and the fields you overrode. `dry: true`
+returns that mapping and the request without rendering. The Local image
+permission card shows the resolved model, size, steps, reference and prompt
+with a `Workflow:` line naming the file.
+
+| ComfyUI node | Becomes |
+| --- | --- |
+| `CheckpointLoaderSimple` | `model`: the catalogue row or registered checkpoint whose file name matches `ckpt_name`; otherwise refused by name. Name `model` in the call to choose a row instead. |
+| `LoraLoader`, `LoraLoaderModelOnly` | `loras`, in the order they are chained. `strength_model` is the weight; a `LoraLoader` with a different `strength_clip` is refused, because the runtime applies one strength to both. |
+| `CLIPSetLastLayer` | `clip_skip` (`-2` becomes `2`); it must sit on both prompts with the same value. |
+| `CLIPTextEncode` | `prompt` and `negative_prompt`. `embedding:name` references become the token with its file in `embeddings`. |
+| `EmptyLatentImage` | `width`, `height`; a `batch_size` above 1 becomes `count`, rendered with seed, seed+1 and so on. |
+| `LoadImage` into `VAEEncode` | `reference_image`; width and height come from the image, rounded down to the model's multiple. |
+| `VAEEncodeForInpaint`, `SetLatentNoiseMask` | `mask`. The mask may be the transparent area of the `LoadImage` (the editor's mask painter) or a `LoadImageMask` channel; `grow_mask_by` is applied. The pixels under the mask keep their colour. |
+| `KSampler`, `KSamplerAdvanced` | `seed`, `steps`, `cfg`, `sampler`, `scheduler`; `denoise` becomes `strength` when an image feeds the latent. An advanced sampler must run every step with noise added. |
+| `ControlNetLoader` with `ControlNetApply` or `ControlNetApplyAdvanced` | `control`: the kind from the file name (`canny`, `depth` or `pose`) or a catalogue control row, the image and the strength. A `Canny` node before a canny ControlNet is replaced by the engine's own edge detection. The advanced node must apply from 0 to 1. |
+| `UpscaleModelLoader` with `ImageUpscaleWithModel` | `upscaler` and `upscale` from the catalogue row matching the file name. |
+| `VAEDecode`, `SaveImage`, `PreviewImage` | The render, saved by Mercury. |
+| `PrimitiveNode`, `Reroute`, `Note`, `MarkdownNote` | Values and wires pass through; notes are listed as annotations. |
+
+Every other node on the path to the saved image is refused by name with its
+id, for example `node 14 (FaceDetailer) is not supported by the local
+runtime`, and one refusal lists every problem at once; nothing is dropped
+silently. A node that does not lead to the saved image is listed as skipped,
+as ComfyUI would not run it either. Bypassed nodes pass their input through;
+a muted node on the path is refused. A second checkpoint, sampler, ControlNet
+or upscaler is refused: one workflow is one render.
+
+Sampler names map onto the runtime's list: `euler`, `euler_cfg_pp`,
+`euler_ancestral`, `euler_ancestral_cfg_pp`, `heun`, `dpm_2`, `lms`,
+`dpmpp_2s_ancestral`, `dpmpp_2m`, `dpmpp_2m_sde`, `dpmpp_2m_sde_gpu`, `lcm`,
+`ipndm`, `ipndm_v`, `res_multistep` and `er_sde`; ComfyUI runs `ddim` as
+Euler, so it maps to `euler`. Schedulers `normal`, `karras`, `exponential`,
+`sgm_uniform`, `simple`, `beta` and `kl_optimal` keep their names. Any other
+sampler or scheduler is refused with the supported list. Seeds above
+9007199254740991 are refused.
+
+Image, LoRA and embedding file names are resolved beside the workflow file,
+or by an absolute path; a LoRA or embedding Mercury has applied before is
+found by its file name in the media folder's registry. A checkpoint is
+matched by the file name you registered with `/imagesetup add`.
+
+Add `export_workflow` with a path to write any image request, with or
+without `workflow`, as a ComfyUI API-format workflow JSON with the nodes
+above: `{"prompt":"a cottage","model":"sdxl-base-1.0","dry":true,"export_workflow":"cottage.json"}`.
+Omitted settings are written as the values the render would use. Importing
+the exported file gives the same request. Samplers and schedulers without a
+ComfyUI name, such as `tcd` or `ays`, cannot be exported and are refused by
+name. The file is never overwritten.
+
+The node inputs follow ComfyUI's [core node definitions](https://github.com/comfyanonymous/ComfyUI/blob/fd7639f477050e5c25b68fc38a9c2a6b6d988211/nodes.py)
+and [sampler names](https://github.com/comfyanonymous/ComfyUI/blob/fd7639f477050e5c25b68fc38a9c2a6b6d988211/comfy/samplers.py);
+the request fields are the runtime's
+[`img_gen` fields](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1img_gen):
+`clip_skip`, `strength`, `seed`, `sample_params.guidance.txt_cfg`, the
+`lora` array and the `init_image`, `mask_image` and `control_image` inputs.
