@@ -113,7 +113,7 @@ section('(2) the journey through the REAL Debug tool (bundled adapter)')
     check('setVariable b=7 lands (capability advertised)', setv.data.result.includes('b = 7'), setv.data.result)
 
     const cont = await call({ op: 'continue', session: 'forge-proof' })
-    check('continue runs to clean termination', cont.data.result.includes('terminated'), cont.data.result.split('\n')[0])
+    check('fold 46aj: continue reports code-zero termination', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && cont.data.result.split('\n')[0] === 'continue: debuggee exited (code 0)', cont.data.result.split('\n')[0])
 
     await new Promise(res => setTimeout(res, 200))
     const output = await call({ op: 'output', session: 'forge-proof' })

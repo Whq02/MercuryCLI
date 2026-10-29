@@ -538,7 +538,7 @@ try {
   console.log('── the schema grammar: every real tool definition rides the plan wire inside Google\'s Schema grammar; the fixture refuses anything outside it in Google\'s words ──')
   const { codeAssistSchema, GEMINI_SCHEMA_GRAMMAR } = await import('../../src/services/providers/gemini/geminiCodec.ts')
   const corpus = JSON.parse(readFileSync(new URL('../tool-economy/fixtures/definition-corpus.json', import.meta.url), 'utf8')) as { definitions: Array<{ name: string; description: string; input_schema: Record<string, unknown> }> }
-  check('the corpus is the product\'s own: 60 definitions, the same file the tool-economy parity proof keeps byte-identical to the live tools', corpus.definitions.length === 60 && corpus.definitions.some(d => d.name === 'Bash') && JSON.stringify(corpus.definitions).includes('"const"') && JSON.stringify(corpus.definitions).includes('"exclusiveMinimum"'))
+  check('fold 46av corpus: 61 definitions including fold 46am Document, kept byte-identical to the live tools by the parity proof', corpus.definitions.length === 61 && ['Bash', 'Debug', 'Document'].every(name => corpus.definitions.some(d => d.name === name)) && JSON.stringify(corpus.definitions).includes('"const"') && JSON.stringify(corpus.definitions).includes('"exclusiveMinimum"'))
   const rawViolations: string[] = []
   corpus.definitions.forEach((d, i) => schemaGrammarViolations(d.input_schema, `request.tools[0].function_declarations[${i}].parameters`, rawViolations))
   check('unreduced, the corpus carries keywords outside the grammar — const and exclusiveMinimum among them (the owner\'s live refusal)', rawViolations.some(v => v.includes('Unknown name "const"')) && rawViolations.some(v => v.includes('Unknown name "exclusiveMinimum"')), rawViolations.slice(0, 3).join(' | '))
@@ -549,7 +549,7 @@ try {
   const corpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   const sentDeclarations = (((corpusHit?.body?.request as Record<string, unknown>)?.tools as Array<Record<string, unknown>>)?.[0]?.functionDeclarations ?? []) as Array<Record<string, unknown>>
   const sentViolations = declarationViolations(corpusHit?.body)
-  check('all 60 real definitions ride the plan wire and Google\'s grammar accepts every one — the answer lands, no refusal', sentDeclarations.length === 60 && sentViolations.length === 0 && corpusEvents.some(e => e.type === 'finish') && !corpusEvents.some(e => e.type === 'stream-fault'), JSON.stringify({ sent: sentDeclarations.length, violations: sentViolations.slice(0, 3), fault: corpusEvents.find(e => e.type === 'stream-fault') }))
+  check('all 61 fold 46av definitions ride the plan wire and Google\'s grammar accepts every one — the answer lands, no refusal', sentDeclarations.length === 61 && sentDeclarations.some(d => d.name === 'Document') && sentViolations.length === 0 && corpusEvents.some(e => e.type === 'finish') && !corpusEvents.some(e => e.type === 'stream-fault'), JSON.stringify({ sent: sentDeclarations.length, violations: sentViolations.slice(0, 3), fault: corpusEvents.find(e => e.type === 'stream-fault') }))
   const sentText = JSON.stringify(sentDeclarations)
   check('no declaration on the wire carries a keyword outside Google\'s Schema grammar', ['const', 'exclusiveMinimum', 'exclusiveMaximum', 'propertyNames', '$schema', 'examples', 'multipleOf', 'uniqueItems', 'allOf'].every(key => !sentText.includes(`"${key}":`)), sentText.slice(0, 200))
   const bashSent = sentDeclarations.find(d => d.name === 'Bash')

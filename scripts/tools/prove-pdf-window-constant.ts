@@ -22,6 +22,6 @@ const described = renderPromptTemplate(LINE_FORMAT_INSTRUCTION, { pdf: true, ima
 const pdfSentence = described.split('\n').find(line => line.includes('PDFs open as numbered text')) ?? ''
 check('the Read description names default text and selected page pictures', pdfSentence.includes('offset, limit and ranges select text lines') && pdfSentence.includes('otherwise those pages as text'), pdfSentence)
 check('only the pages field states the page-picture cap', !pdfSentence.includes('per request') && source.includes('Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.'), pdfSentence)
-check('text extraction runs before the inline-document gate', source.indexOf('return readRichFormatLane(resolvedPath') < source.indexOf('const pageCount = document.pageCount'))
+check('fold 46al text extraction runs before the inline-document gate, with both anchors present', source.includes('return readRichFormatLane(resolvedPath') && source.includes('const pageCount = document.pageCount') && source.indexOf('return readRichFormatLane(resolvedPath') < source.indexOf('const pageCount = document.pageCount'))
 console.log(`pdf-window-constant: ${failures} failures`)
 process.exit(failures ? 1 : 0)

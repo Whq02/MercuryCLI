@@ -568,7 +568,9 @@ try {
     )
     check('permission law: crossing act runs in sovereign without asking', crossSov.decision.behavior === 'allow' && crossSov.trace.decidedBy === 'safetyCheckAsk')
 
-    await run({ op: 'open', url: `${ORIGIN_A}/` })
+    const reopenedForInput = await run({ op: 'open', url: `${ORIGIN_A}/` })
+    const pageFocused = await activeSession(OWNER)!.page.evaluate(() => document.hasFocus())
+    check('reopening a persistent profile activates the owned page before input', reopenedForInput.outcome === 'succeeded' && pageFocused, `${reopenedForInput.result}; document.hasFocus()=${pageFocused}`)
     const pwRefusal = await run({ op: 'type', selector: '#pw-target', text: 'plain-password' })
     check('refusal: plain text into password field refuses by name', pwRefusal.outcome === 'failed' && pwRefusal.result.includes('credential field'), pwRefusal.result)
     const secretAsk = await perm({ op: 'type', selector: '#pw-target', secretRef: 'NEW_SECRET' })

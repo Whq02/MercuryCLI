@@ -122,7 +122,7 @@ section('(A) js-debug — a Uint8Array patched in place; data/instruction breakp
     await new Promise(res => setTimeout(res, 300))
     const output = await call({ op: 'output' })
     const combined = `${cont.data.result}\n${output.data.result}`
-    check('the program ran on with the patched bytes (total: 42)', /terminated/.test(cont.data.result) && /total: 42/.test(combined), combined.slice(0, 300))
+    check('fold 46aj: the program ends without a reported failure after the patched bytes (total: 42)', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && /^continue: debuggee (?:ended \(no non-zero exit code reported\)|exited \(code 0\))$/m.test(cont.data.result) && /total: 42/.test(combined), combined.slice(0, 300))
     const disc = await call({ op: 'disconnect' })
     check('disconnect reaps the js-debug tree', /disconnected/.test(disc.data.result))
     check('session registry back at baseline', dap._dapSessionCountForTesting() === baseline, `${dap._dapSessionCountForTesting()} vs ${baseline}`)
@@ -161,7 +161,7 @@ section('(B) debugpy — the three ops answer the typed refusal on a live Python
       check(`${c.label} ⇒ refusal names ${c.capability}`, out.data.result.includes(`adapter 'python' does not support ${c.label} (capability ${c.capability} not advertised)`) && out.data.outcome === 'no-change', `${out.data.outcome}: ${out.data.result}`)
     }
     const cont = await call({ op: 'continue' })
-    check('the program still runs to a clean end', /terminated/.test(cont.data.result), cont.data.result.split('\n')[0])
+    check('fold 46aj: the program still runs to a reported code-zero exit', cont.data.debuggee === 'terminated' && cont.data.outcome === 'succeeded' && cont.data.result.split('\n')[0] === 'continue: debuggee exited (code 0)', cont.data.result.split('\n')[0])
     const disc = await call({ op: 'disconnect' })
     check('disconnect reaps', /disconnected/.test(disc.data.result))
     check('session registry back at baseline', dap._dapSessionCountForTesting() === baseline, `${dap._dapSessionCountForTesting()} vs ${baseline}`)

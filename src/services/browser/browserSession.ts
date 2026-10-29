@@ -1148,6 +1148,7 @@ async function launchOwnerSession(
       void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
       })
     })
+    if (typeof page.bringToFront === 'function') await page.bringToFront()
     if (state.disposed) {
       return {
         state: 'torn-down',

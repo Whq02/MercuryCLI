@@ -194,7 +194,8 @@ try {
     dispatchEvent() { inputEvents++; return true }
   }
   const field = new FixtureInput()
-  const document = { activeElement: field, body: {} }
+  let documentFocused = true
+  const document = { activeElement: field, body: {}, hasFocus: () => documentFocused }
   const evaluate = (fn: Function, ...args: unknown[]) => runInNewContext(`(${fn.toString()})(...args)`, {
     args,
     document,
@@ -244,9 +245,14 @@ try {
     const expected = resolve('BOUND_OTP', { origin })
     const result = (await BrowserTool.call(input, ctx)).data
     const after = resolve('BOUND_OTP', { origin })
-    check('the tool resolves the page origin and fills the code through the bound DOM write', result.outcome === 'succeeded' && [expected, after].some(code => code.state === 'ok' && code.value === field.value) && inputEvents === 1)
+    check('fold 46as: the focused document resolves the page origin and fills the code through the bound DOM write', result.outcome === 'succeeded' && [expected, after].some(code => code.state === 'ok' && code.value === field.value) && inputEvents === 1)
     check('the result contains neither the seed nor the minted code', field.value.length === 6 && !result.result.includes(field.value) && !result.result.includes('GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'))
     field.value = ''
+    documentFocused = false
+    await BrowserTool.checkPermissions(input, ctx)
+    const unfocused = (await BrowserTool.call(input, ctx)).data
+    check('fold 46as: an inactive document refuses the bound fill even when its input is active', unfocused.outcome === 'failed' && unfocused.result.includes('focus did not land') && field.value === '' && inputEvents === 1)
+    documentFocused = true
     driftOnFill = true
     await BrowserTool.checkPermissions(input, ctx)
     const drifted = (await BrowserTool.call(input, ctx)).data

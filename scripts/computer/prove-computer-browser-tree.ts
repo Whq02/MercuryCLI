@@ -40,12 +40,16 @@ const lib = sourceText('native/desktop/src/lib.rs')
 check('native tree order has no-input regression tests', lib.includes('focused_window_precedes_other_windows_and_menus'))
 const begin = lib.indexOf('pub fn tree_child_order(')
 const end = lib.indexOf('#[napi(object)]\npub struct CursorAnswer', begin)
-if (begin >= 0 && end > begin) {
+check('the native ordering source boundaries are present', begin >= 0 && end > begin)
+const compiler = Bun.which('rustc')
+if (compiler === null) {
+  console.log('  [SKIP] native ordering compile and Rust tests need rustc on PATH; install the Rust toolchain to run this leg. Adapter and source checks still ran.')
+} else if (begin >= 0 && end > begin) {
   const source = join(scratch, 'tree-order.rs')
   const binary = join(scratch, 'tree-order')
   writeFileSync(source, lib.slice(begin, end))
-  const built = spawnSync('rustc', ['--edition=2021', '--test', source, '-o', binary], { encoding: 'utf8', env: process.env })
-  check('the real native ordering code compiles without desktop APIs', built.status === 0, built.stderr)
+  const built = spawnSync(compiler, ['--edition=2021', '--test', source, '-o', binary], { encoding: 'utf8', env: process.env })
+  check('the real native ordering code compiles without desktop APIs', built.status === 0, `${built.error?.message ?? ''} ${built.stderr ?? ''} status=${built.status} signal=${built.signal}`)
   if (built.status === 0) {
     const tested = spawnSync(binary, ['--test-threads=1'], { encoding: 'utf8', env: process.env })
     check('focused-window ordering and unknown-window refusal pass in Rust', tested.status === 0 && tested.stdout.includes('1 passed'), tested.stdout + tested.stderr)

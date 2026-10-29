@@ -31,19 +31,19 @@ const expected = {
 }
 const options = { tools: [EvalTool, { name: 'Inspect' }] as never, agents: [], getToolPermissionContext: async () => getEmptyToolPermissionContext() }
 for (const [enabled, hash, bytes] of [
-  ['1', '1d5f673c1843a5061656abbbe2fd0620c6696ca9e857cf3c8b7da26f8fb07149', 7701],
-  ['0', 'd3a97eb056d7885b88fca3a8efb16316f70f557f156635e67aa03c65f190fe7c', 5599],
+  ['1', '0bc92364b9d2aafcbf8d340e364852dba7700ce29711c29d9ed82153f6b9c0a5', 7932],
+  ['0', '286c75fa6ac7ef6e1a5bd36cbf99f57a8ddbbb0f58b13093bcab0f36348f4fb7', 5830],
 ] as const) {
   process.env.MERCURY_SAMPLES = enabled
   clearToolSchemaCache()
   const definition = await toolToAPISchema(EvalTool, options) as any
-  check(`samples=${enabled}: complete description matches the specification`, createHash('sha256').update(definition.description).digest('hex') === hash, definition.description)
+  check(`samples=${enabled}: complete description matches fold 46as bridge accounting`, createHash('sha256').update(definition.description).digest('hex') === hash, definition.description)
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
   check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
   check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS} (a larger value runs at ${contracts.EVAL_MAX_TIMEOUT_SECONDS} and the result says so); 0 disables; bridge and permission time never counts.`, definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
-  check(`samples=${enabled}: compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
+  check(`samples=${enabled}: fold 46as compact definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
 }
 check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.')
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })

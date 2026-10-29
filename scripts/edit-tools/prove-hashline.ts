@@ -351,8 +351,8 @@ section('R. the anchored read mode (real FileReadTool)')
   const keysOff = probe('0')
   check('R9 schema keys: default-on carries line_anchors', keysDefault.includes('line_anchors'), keysDefault.join(','))
   check(
-    'R9b schema keys: =0 is the exact base field set',
-    JSON.stringify(keysOff) === JSON.stringify(['file_path', 'lossless', 'offset', 'limit', 'ranges', 'pages', 'crop']),
+    'R9b schema keys: =0 is the exact base field set after fold 46al (OCR and crop scale)',
+    JSON.stringify(keysOff) === JSON.stringify(['file_path', 'ocr', 'lossless', 'offset', 'limit', 'ranges', 'pages', 'scale', 'crop']),
     keysOff.join(','),
   )
   const fieldProbe = (gate: string | null): string | null => {

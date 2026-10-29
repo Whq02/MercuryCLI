@@ -56,7 +56,8 @@ git(repo, 'add', '-A')
 git(repo, 'commit', '-qm', 'seed')
 const wt = await import('../../src/daemon/concourseWorktrees.ts')
 const { projectScopePathspec } = await import('../../src/utils/projectBoundary.ts')
-const BOUNDED = ['-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)].join(' ')
+const { GIT_SPAWN_CONFIG } = await import('../../src/utils/git/spawnArgs.ts')
+const BOUNDED = [...GIT_SPAWN_CONFIG, '-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)].join(' ')
 
 console.log('§1 the probe is bounded')
 {
@@ -65,7 +66,7 @@ console.log('§1 the probe is bounded')
   const n0 = mark()
   const dirt = wt.classifyWorktreeDirt(repo)
   const r = since(n0)
-  check('the synchronous read issues one bounded status', r.length === 1 && r[0]!.argv === BOUNDED, r.map(x => x.argv).join(' | '))
+  check('the synchronous read issues one bounded status with fold 46i spawn settings', r.length === 1 && r[0]!.argv === BOUNDED, r.map(x => x.argv).join(' | '))
   check('…and reads clean', dirt.kind === 'clean')
   check("…never touching the user's index (no refresh written)", statSync(idx).mtimeMs === idxBefore && !existsSync(join(repo, '.git', 'index.lock')))
 }

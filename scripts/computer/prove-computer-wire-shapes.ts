@@ -176,7 +176,7 @@ section('§d the route matrix of modelReceivesImageBlocks')
     ['openai-compat', 'compat/fixture', null],
     ['openrouter', 'openrouter/org/model', null],
     ['huggingface', 'huggingface/org/model', null],
-    ['local', 'local/model', null],
+    ['local (fold 46ao: undeclared vision is not image-capable)', 'local/model', false],
   ]
   for (const [route, model, expected] of matrix) {
     const answer = modelReceivesImageBlocks(model)
