@@ -54,6 +54,9 @@ export function sshArguments(target: SshTarget): string[] {
   const knownHosts = join(hostDirectory(), 'known_hosts')
   return ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', '-o', 'StrictHostKeyChecking=accept-new', '-o', 'UserKnownHostsFile=' + (/[\s']/.test(knownHosts) ? '"' + knownHosts + '"' : knownHosts), ...(target.key ? ['-i', target.key] : []), ...(target.port ? ['-p', String(target.port)] : []), ...(target.user ? ['-l', target.user] : []), target.host]
 }
+export function scpArguments(target: SshTarget): string[] {
+  return sshArguments({ ...target, user: undefined }).slice(0, -1).map(arg => arg === '-p' ? '-P' : arg)
+}
 export function sshAliases(): string[] {
   try { return [...readFileSync(join(homedir(), '.ssh/config'), 'utf8').matchAll(/^\s*Host\s+([^#\n]+)/gmi)].flatMap(match => match[1]!.trim().split(/\s+/)).filter(name => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) } catch { return [] }
 }

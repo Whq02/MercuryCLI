@@ -25,6 +25,7 @@ try {
   ])
   assert.deepEqual(bundled.runtime.platforms['linux-x64']!.map(row => [row.variant, row.binary, row.files.map(file => [file.asset, file.bytes, file.sha256])]), [
     ['vulkan', 'sd-server', [['sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64-vulkan.zip', 37644143, '0ae9ef34eea1ff6a229b892144a65ed8c00b6438c5ba783cdeca77024b2fc697']]],
+    ['cuda12', 'sd-server', []],
     ['cpu', 'sd-server', [['sd-master-e41fbcf-bin-Linux-Ubuntu-24.04-x86_64.zip', 27320021, '422bc495ca647d95e9bd88b04d3eaae52e641d89497ea0dda7335f44c46e9109']]],
   ])
   const old = parseMediaCatalogue({ runtime: { tag: 'master-1015-e41fbcf', ...MAC }, models: [], files: [] })
@@ -39,7 +40,8 @@ try {
   assert.deepEqual(choice('win32', 'x64', 'amd'), ['vulkan', 'Vulkan', 29744345, ['pull-runtime', '--variant', 'vulkan']])
   assert.deepEqual(choice('win32', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', 343503038 + 563452046, ['pull-runtime', '--variant', 'cuda12']])
   assert.deepEqual(choice('linux', 'x64'), ['vulkan', 'Vulkan', 37644143, ['pull-runtime', '--variant', 'vulkan']])
-  assert.deepEqual(choice('linux', 'x64', 'nvidia'), ['vulkan', 'Vulkan', 37644143, ['pull-runtime', '--variant', 'vulkan']])
+  assert.deepEqual(choice('linux', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', undefined, ['pull-runtime', '--variant', 'cuda12']])
+  assert.deepEqual(bundled.runtime.platforms['linux-x64']!.find(row => row.variant === 'cuda12')!.source, { revision: 'e41fbcf455e0fbb45e08bd535b00d6cba865e921', fallback: 'vulkan' })
   assert.deepEqual(choice('linux', 'x64', 'amd'), ['vulkan', 'Vulkan', 37644143, ['pull-runtime', '--variant', 'vulkan']])
   assert.equal(choice('win32', 'arm64', 'nvidia'), undefined)
   assert.equal(choice('linux', 'arm64'), undefined)
@@ -61,7 +63,7 @@ try {
   assert.equal(plan.title, 'stable-diffusion.cpp')
   assert.deepEqual(mediaPullPlan(snapshot(undefined, false)).args, ['pull-runtime'])
   const docs = readFileSync(resolve(import.meta.dir, '../../docs/MEDIA.md'), 'utf8').replace(/\n {0,3}/g, ' ')
-  for (const words of ['37.6 MB on macOS', '29.7 MB for Vulkan on Windows', '907.0 MB for CUDA 12', '37.6 MB for Vulkan on Linux', 'Apple Silicon gets the Metal build; Windows gets the Vulkan build, or the CUDA 12 build when an NVIDIA card is present; Linux gets the Vulkan build.', 'There is no build for arm64 Windows or arm64 Linux yet.', 'Windows needs nothing beyond PowerShell 5.1.']) assert.ok(docs.includes(words), words)
+  for (const words of ['37.6 MB on macOS', '29.7 MB for Vulkan on Windows', '907.0 MB for CUDA 12', '37.6 MB for Vulkan on Linux', 'Apple Silicon gets the Metal build; Windows gets the Vulkan build, or the CUDA 12 build when an NVIDIA card is present. Linux uses Vulkan or builds CUDA from source when an NVIDIA card is present, as described below.', 'There is no build for arm64 Windows or arm64 Linux yet.', 'Windows needs nothing beyond PowerShell 5.1.']) assert.ok(docs.includes(words), words)
 
   const cuda = mediaRuntimeChoice(bundled, 'win32', 'x64', 'nvidia')!
   const vulkan = mediaRuntimeChoice(bundled, 'win32', 'x64')!

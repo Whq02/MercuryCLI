@@ -1,9 +1,10 @@
 import { randomBytes, createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import nodeLock from '../../../vendor/node.lock.json' with { type: 'json' }
 import { hostDirectory, hostRecords, readHostRecord, type HostRecord } from '../host/store.js'
-import { hostRunner, openHostTunnel, sshArguments, type HostRunner } from '../host/ssh.js'
+import { hostRunner, openHostTunnel, sshArguments, scpArguments, type HostRunner } from '../host/ssh.js'
 import { shQuote } from '../host/boxExecution.js'
 import { hostMachineName, LLM_HOST_WORDS } from '../../commands/llmhost/words.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
@@ -34,6 +35,10 @@ function readState(id: string): MediaHostState | undefined {
   if (!existsSync(path)) return undefined
   const state = JSON.parse(readFileSync(path, 'utf8')) as MediaHostState
   if (state.id !== id || !/^[a-f0-9]{64}$/.test(state.token) || !Number.isInteger(state.port) || state.port < 1024 || state.port > 65535) throw new Error('Media setup returned an unreadable response.')
+  if (state.url) {
+    const url = new URL(state.url)
+    if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('Media setup returned an unreadable response.')
+  }
   return state
 }
 function saveState(state: MediaHostState): void {
@@ -68,7 +73,13 @@ export function mediaHostInstallScript(bundle: string, token: string): string {
   const root = REMOTE_DIR + '/data'
   const config = JSON.stringify({ root, port: REMOTE_PORT, token })
   const start = 'export MEDIA_ROOT=' + shQuote(root) + '\nexport PATH=' + shQuote(REMOTE_DIR + '/node/bin') + ':$PATH\nexec ' + shQuote(REMOTE_DIR + '/node/bin/node') + ' ' + shQuote(bundle + '/remote-server.js') + ' ' + shQuote(REMOTE_DIR + '/server.json')
-  return 'set -eu\numask 077\ntest "$(uname -s)" = Linux\ntest "$(uname -m)" = x86_64\nmkdir -p ' + shQuote(REMOTE_DIR) + '\ncd ' + shQuote(REMOTE_DIR) + '\n'
+  return `set -eu
+umask 077
+test "$(uname -s)" = Linux
+test "$(uname -m)" = x86_64
+mkdir -p ${shQuote(REMOTE_DIR)}
+cd ${shQuote(REMOTE_DIR)}
+`
     + 'if ! test -x node/bin/node; then curl -fL --retry 3 ' + shQuote(node.url) + ' -o node.tar.gz; printf "%s  %s\\n" ' + shQuote(node.sha256) + ' node.tar.gz | sha256sum -c -; mkdir -p node; tar -xzf node.tar.gz --strip-components=1 -C node; rm node.tar.gz; fi\n'
     + 'for bin in unzip ffmpeg setsid git cmake c++; do if ! command -v "$bin" >/dev/null; then test "$(id -u)" = 0; apt-get update; DEBIAN_FRONTEND=noninteractive apt-get install -y unzip ffmpeg util-linux git cmake build-essential; break; fi; done\n'
     + 'node/bin/node --input-type=module -e ' + shQuote('import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; const dir=process.argv[1]; const m=JSON.parse(readFileSync(dir+"/manifest.json")); for(const [file,hash] of Object.entries(m.files)) { if(!/^[a-zA-Z0-9._-]+$/.test(file)||createHash("sha256").update(readFileSync(dir+"/"+file)).digest("hex")!==hash) throw Error("digest mismatch"); }') + ' ' + shQuote(bundle) + '\n'
@@ -86,8 +97,10 @@ export async function installMediaHost(settings: MediaSettings, signal: AbortSig
   const bundle = REMOTE_DIR + '/bundles/' + createHash('sha256').update(manifest).digest('hex').slice(0, 24)
   const args = sshArguments(record.target)
   const state = readState(record.id) ?? { id: record.id, name: hostMachineName(record.vendor ?? 'runpod', record.id), token: randomBytes(32).toString('hex'), port: REMOTE_PORT }
+  mkdirSync(dirname(mediaHostStatePath(record.id)), { recursive: true, mode: 0o700 })
+  publishAtomicSync(join(dirname(mediaHostStatePath(record.id)), 'activity.json'), JSON.stringify({ at: Date.now() }), { mode: 0o600 })
   await runner.run('ssh', [...args, 'umask 077; mkdir -p ' + shQuote(bundle)], signal)
-  const scp = args.slice(0, -1).flatMap((arg, index, all) => arg === '-l' || all[index - 1] === '-l' ? [] : [arg === '-p' ? '-P' : arg])
+  const scp = scpArguments(record.target)
   await runner.run('scp', [...scp, ...Object.keys(files).map(file => join(dir, file)), join(dir, 'manifest.json'), (record.target.user ? record.target.user + '@' : '') + record.target.host + ':' + bundle + '/'], signal, 300000)
   await runner.run('ssh', [...args, mediaHostInstallScript(bundle, state.token)], signal, 600000)
   saveState(state)
@@ -126,6 +139,12 @@ export async function readMediaHostSnapshot(settings: MediaSettings, runner: Hos
 }
 export async function runMediaHostSetup(args: string[], progress: (event: MediaProgress) => void, signal = new AbortController().signal, settings: MediaSettings, runner: HostRunner = hostRunner): Promise<void> {
   const state = await installMediaHost(settings, signal, runner)
+  if (args[0] === 'add-model' && args[1] && !/^https?:\/\//i.test(args[1])) {
+    const path = join(dirname(await mediaServerPath(settings)), 'remote-client.js')
+    const module = await import(pathToFileURL(path).href) as { RemoteMediaClient: new (root: string, state: string) => { upload(path: string, cwd?: string, signal?: AbortSignal): Promise<string> } }
+    const client = new module.RemoteMediaClient(mediaRoot(settings), mediaHostStatePath(state.id))
+    args = ['add-model', await client.upload(resolve(args[1]), undefined, signal)]
+  }
   const controller = new AbortController()
   const combined = AbortSignal.any([signal, controller.signal])
   let timer = setTimeout(() => controller.abort(), 30000)

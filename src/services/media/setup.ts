@@ -142,6 +142,7 @@ export class MediaSetupPaused extends Error {
 
 export async function runMediaSetup(args: string[], onProgress: (event: MediaProgress) => void, signal?: AbortSignal, settings: MediaSettings = readMediaSettings()): Promise<void> {
   signal?.throwIfAborted()
+  if (settings.host && args[0] === 'inspect-model') return runMediaSetup(args, onProgress, signal, { ...settings, host: '' })
   if (settings.host) return (await import('./host.js')).runMediaHostSetup(args, onProgress, signal, settings)
   const setup = join(dirname(await mediaServerPath(settings)), 'setup.js')
   signal?.throwIfAborted()

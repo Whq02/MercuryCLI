@@ -41,8 +41,9 @@ export function imageSetupIo(context: LocalJSXCommandContext): ImageSetupIo {
     choose: async host => { await saveMediaSettings({ host }); await refresh() },
     pull: async (args, onProgress, signal, settings) => {
       await runMediaSetup(args, onProgress, signal, settings)
-      if (['pull-model', 'add-model'].includes(args[0] ?? '') && !readMediaSettings().enabled) await saveMediaSettings({ enabled: true })
-      if (['pull-runtime', 'pull-model', 'add-model'].includes(args[0] ?? '')) await refresh()
+      const newlyEnabled = ['pull-model', 'add-model'].includes(args[0] ?? '') && !readMediaSettings().enabled
+      if (newlyEnabled) await saveMediaSettings({ enabled: true })
+      if (newlyEnabled || readMediaSettings().host && args[0] === 'pull-runtime') await refresh()
     },
     setDefault: (kind, model) => saveMediaSettings({ [kind === 'image' ? 'imageModel' : 'videoModel']: model }),
     test: (model, controller, onStart) => generateMediaTestImage(model, context, controller, onStart),
