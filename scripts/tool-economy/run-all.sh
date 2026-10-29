@@ -14,6 +14,7 @@
 # gate-watch: scripts/engine-durability/harness.ts
 # gate-watch: src/run-core/turn-machine.ts src/services/run/resolveOwner.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts
 # gate-watch: src/query.ts src/query/deps.ts src/services/compact/compact.ts src/utils/toolResultStorage.ts
+# gate-watch: src/utils/cockpit/runtimePosture.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
