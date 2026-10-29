@@ -68,7 +68,7 @@ try {
     control: { image: join(dir, 'sketch.png'), kind: 'canny', strength: 0.75 }, upscaler: 'realesrgan-x4plus', upscale: 4, workflow: join(dir, 'txt2img-ui.json'), dry: true
   })
   const card = await readMediaGenerationDetails('image', { workflow: join(dir, 'txt2img-ui.json'), dry: true }, proofHome)
-  assert.deepEqual(card.split('\n'), ['image-one', '512×448 · 20 steps', `Output: ${join(proofHome, 'media')}`, `Workflow: ${join(dir, 'txt2img-ui.json')} · dry run`, 'Prompt: a lighthouse on a cliff at dusk, (detailed:1.1)'])
+  assert.deepEqual(card.split('\n'), ['image-one', '512×448 · 20 steps · saved at 2048×1792', `Output: ${join(proofHome, 'media')}`, `Workflow: ${join(dir, 'txt2img-ui.json')} · dry run`, 'Prompt: a lighthouse on a cliff at dusk, (detailed:1.1)'])
   const inpaintCard = await readMediaGenerationDetails('image', { workflow: join(dir, 'inpaint-api.json'), cwd: dir }, proofHome)
   assert.deepEqual(inpaintCard.split('\n'), ['image-one', '64×64 · 12 steps', `Output: ${join(dir, 'media')}`, `Workflow: ${join(dir, 'inpaint-api.json')}`, `Reference: ${join(dir, 'wall.png')} · strength 1 · mask ${join(dir, 'wall.png')}`, 'Prompt: a red door'])
   await assert.rejects(readMediaGenerationDetails('image', { workflow: join(dir, 'unsupported-api.json') }, proofHome), (error: Error) => /node 40 \(FaceDetailer\) is not supported by the local runtime/.test(error.message) && /node 30 \(VAELoader\)/.test(error.message) && /sampler dpmpp_3m_sde/.test(error.message))

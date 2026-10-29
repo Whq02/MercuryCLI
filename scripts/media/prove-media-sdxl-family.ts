@@ -16,7 +16,7 @@ try {
   assert.deepEqual(bundled.models.filter(model => model.recipe === 'sdxl').map(model => [model.id, model.checkpoint]), [['sdxl-base-1.0', { bytes: 7105348108 }], ['pixel-party-xl', { bytes: 7105348108 }]])
   assert.deepEqual([bundled.runtime.families, bundled.runtime.componentFamilies], [['sdxl'], []], `runtime ${bundled.runtime.tag} runs SDXL through one joined checkpoint, not from components`)
   const shipped = parseMediaCatalogue(bundled)
-  assert.deepEqual(shipped.models.map(model => model.id), ['controlnet-sd1-canny', 'controlnet-sd1-depth', 'controlnet-sd1-pose', 'controlnet-sdxl-canny', 'controlnet-sdxl-depth', 'controlnet-sdxl-pose', 'z-image-turbo', 'flux2-klein-4b', 'qwen-image-21-turbo', 'qwen-image-21', 'wan22-ti2v-5b', 'minimax-h3-fl2va', 'sdxl-base-1.0', 'pixel-party-xl'], 'both SDXL rows are on the screen with the shipped runtime')
+  assert.deepEqual(shipped.models.map(model => model.id), ['realesrgan-x4plus-anime-6b', 'realesrgan-x4plus', 'controlnet-sd1-canny', 'controlnet-sd1-depth', 'controlnet-sd1-pose', 'controlnet-sdxl-canny', 'controlnet-sdxl-depth', 'controlnet-sdxl-pose', 'z-image-turbo', 'flux2-klein-4b', 'qwen-image-21-turbo', 'qwen-image-21', 'wan22-ti2v-5b', 'minimax-h3-fl2va', 'sdxl-base-1.0', 'pixel-party-xl'], 'both SDXL rows are on the screen with the shipped runtime')
   assert.equal(mediaModelSupported(shipped, { id: 'pixel-party-xl', recipe: 'sdxl' }), true)
   assert.equal(mediaModelJoined(shipped, { id: 'pixel-party-xl', recipe: 'sdxl' }), true)
   assert.equal(mediaModelJoined(shipped, { id: 'z-image-turbo' }), false)

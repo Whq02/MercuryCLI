@@ -9,12 +9,12 @@ const repo = resolve(import.meta.dir, '../..')
 const hostWord = ['host', 'name'].join('')
 const needles = [['Dock', 'er'], ['Orb', 'Stack'], ['wh', 'q'], ['on this', ' machine'], ['block', 'ed'], ['/Us', 'ers/'], ['mercury', '-handbook']].map(parts => parts.join(''))
 const surfaces = ['src/services/media', 'src/commands/imagesetup', 'src/components/Settings/Media.tsx', 'src/components/permissions/MediaPermissionRequest.tsx', 'scripts/media', 'docs/MEDIA.md', 'docs/README.md', 'src/extensions/bundled/mercury-media']
-const vendorIdentifiers = new Set(['src/extensions/bundled/mercury-media/server/config.js', 'src/extensions/bundled/mercury-media/server/server.js'])
+const vendorIdentifiers = new Set(['src/extensions/bundled/mercury-media/server/config.js', 'src/extensions/bundled/mercury-media/server/server.js', 'src/extensions/bundled/mercury-media/server/remote-client.js', 'src/extensions/bundled/mercury-media/server/remote-server.js'])
 function files(path: string): string[] {
   try { return readdirSync(join(repo, path), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(`${path}/${entry.name}`) : [`${path}/${entry.name}`]) } catch { return [path] }
 }
-function withoutUrlProperties(text: string): string {
-  const source = ts.createSourceFile('setup.js', text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS)
+function withoutUrlProperties(text: string, kind: ts.ScriptKind = ts.ScriptKind.JS): string {
+  const source = ts.createSourceFile(kind === ts.ScriptKind.JS ? 'setup.js' : 'surface.ts', text, ts.ScriptTarget.Latest, true, kind)
   const ranges: Array<[number, number]> = []
   const visit = (node: ts.Node): void => {
     if (ts.isPropertyAccessExpression(node) && node.name.text === hostWord) ranges.push([node.name.getStart(source), node.name.end])
@@ -36,6 +36,7 @@ try {
       remaining = remaining.replace(new RegExp(`\\b${hostWord}(?:\\d+|Const)?\\b`, 'g'), '')
     }
     if (file === 'src/extensions/bundled/mercury-media/server/setup.js') remaining = withoutUrlProperties(remaining)
+    if (file.endsWith('.ts')) remaining = withoutUrlProperties(remaining, ts.ScriptKind.TS)
     assert.equal(remaining.includes(hostWord), false, `${file}: ${hostWord}`)
     count++
   }
