@@ -20,6 +20,7 @@
 # gate-watch: src/components/skills/SessionSkillsDial.tsx src/components/tasks/*
 # gate-watch: src/hooks/* src/main.tsx src/screens/Chat.tsx
 # gate-watch: src/screens/ResumeConversation.tsx
+# gate-watch: docs/SESSIONS.md
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
