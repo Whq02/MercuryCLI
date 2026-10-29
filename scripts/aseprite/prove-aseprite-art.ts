@@ -31,7 +31,7 @@ const data = request ? JSON.parse(fs.readFileSync(request, 'utf8')) : {};
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, data, script: fs.readFileSync(args.at(-1), 'utf8'), userFolder: process.env.ASEPRITE_USER_FOLDER }) + '\\n');
 if (data.save) fs.writeFileSync(data.save, 'DRAWN');
 if (data.render) fs.writeFileSync(data.render, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64'));
-if (data.report) fs.writeFileSync(data.report, JSON.stringify({ op: data.op, applied: data.ops?.length, ...(data.render ? {render:{width:1,height:1,frames:[0]}} : {}) }));
+if (data.report) fs.writeFileSync(data.report, JSON.stringify({ op: data.op, applied: data.ops?.length, ...(data.render ? {render:{width:1,height:1,frames:[0]}} : {}), ...(data.op === 'palette-check' ? {outsidePixels:2,colours:[{colour:'#0000ffff',count:2,positions:[{layer:'Body',frame:0,count:2,first:{x:1,y:2},bounds:{x:1,y:2,width:2,height:1}}]}]} : {}) }));
 `)
 chmodSync(shim, 0o755)
 process.env.MERCURY_ASEPRITE_BIN = shim
@@ -107,6 +107,25 @@ try {
     assert.match(described.data.result, /"op":"describe"/)
     assert.equal(described.data.preview, undefined)
     assert.equal(runs()[3]!.data.save, undefined)
+    const paletteInput = AsepriteTool.inputSchema.parse({ op: 'palette-check', file: 'hero.aseprite', palette: ['#ff0000', { r: 0, g: 255, b: 0 }] })
+    assert.equal((await AsepriteTool.checkPermissions(paletteInput, ctx)).behavior, 'allow')
+    assert.equal(AsepriteTool.isReadOnly(paletteInput), true)
+    const checked = await AsepriteTool.call(paletteInput)
+    const report = JSON.parse(checked.data.result.split('\n')[1]!)
+    assert.equal(report.outsidePixels, 2)
+    assert.deepEqual(report.colours[0].positions[0].bounds, { x: 1, y: 2, width: 2, height: 1 })
+    assert.equal(runs()[4]!.data.save, undefined)
+    assert.deepEqual(runs()[4]!.data.colours, [{ r: 255, g: 0, b: 0, a: 255 }, { r: 0, g: 255, b: 0 }])
+    for (const ext of ['gpl', 'hex']) {
+      const result = await AsepriteTool.call({ ...paletteInput, palette: `palette.${ext}` })
+      assert.match(result.data.result, /"outsidePixels":2/)
+      assert.equal(runs().at(-1)!.data.paletteFile, path.join(scratch, `palette.${ext}`))
+    }
+    const count = runs().length
+    const outsidePalette = await AsepriteTool.call({ ...paletteInput, palette: '../palette.gpl' })
+    assert.match(outsidePalette.data.result, /must stay inside the working tree/)
+    assert.equal(runs().length, count)
+    assert.equal(readFileSync(path.join(scratch, 'hero.aseprite'), 'utf8'), 'DRAWN')
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [] }).success, false)
     assert.equal(AsepriteTool.inputSchema.safeParse({ ...input, ops: [{ ...strokes[0], x: 0.5 }] }).success, false)
   })

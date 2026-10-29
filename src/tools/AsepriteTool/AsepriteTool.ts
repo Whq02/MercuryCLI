@@ -31,7 +31,7 @@ const SHEET_TYPES = ['horizontal', 'vertical', 'rows', 'columns', 'packed'] as c
 
 const inputSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(OPS).describe('status · info · export · create · run-script · draw · render · parts · describe'),
+    op: z.enum(OPS).describe('status · info · export · create · run-script · draw · render · parts · describe · palette-check'),
     ...artFields(),
     file: z
       .string()

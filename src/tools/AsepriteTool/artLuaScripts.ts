@@ -150,6 +150,81 @@ local function describe()
   return {op=p.op, width=spr.width, height=spr.height, colourMode=spr.colorMode == ColorMode.RGB and 'rgb' or (spr.colorMode == ColorMode.INDEXED and 'indexed' or 'gray'),
     frames=frames, tags=tags, parts=rows, paletteSize=#spr.palettes[1]}
 end
+local function paletteCheck()
+  local pc = app.pixelColor
+  local external = nil
+  if p.paletteFile then external = Palette{fromFile=p.paletteFile} end
+  if p.colours then
+    external = Palette(#p.colours)
+    for i,c in ipairs(p.colours) do external:setColor(i-1, Color{r=c.r, g=c.g, b=c.b, a=c.a or 255}) end
+  end
+  if external then assert(#external > 0, 'palette contains no colours') end
+  local rows, byColour = {}, {}
+  local scanned, transparent, outside = 0, 0, 0
+  local function key(c)
+    return string.format('#%02x%02x%02x%02x', c.red, c.green, c.blue, c.alpha)
+  end
+  local function walk(layers, prefix)
+    for _, layer in ipairs(layers) do
+      local name = prefix .. layer.name
+      if layer.isGroup then walk(layer.layers, name .. '/')
+      else
+        assert(not layer.isTilemap, 'palette-check needs image layers; tilemap: ' .. name)
+        for _, cel in ipairs(layer.cels) do
+          local frame = cel.frame.frameNumber - 1
+          local palette = paletteAt(frame)
+          local allowed = {}
+          local reference = external or palette
+          for i=0,#reference-1 do allowed[key(reference:getColor(i))] = true end
+          local positions = {}
+          for pixel in cel.image:pixels() do
+            local value = pixel()
+            local c, invalid, skip = nil, nil, false
+            if spr.colorMode == ColorMode.INDEXED then
+              if value == spr.transparentColor and not layer.isBackground then skip = true
+              elseif value >= #palette then invalid = value
+              else c = palette:getColor(value) end
+            elseif spr.colorMode == ColorMode.GRAY then
+              local v = pc.grayaV(value)
+              c = Color{r=v, g=v, b=v, a=pc.grayaA(value)}
+            else c = Color{r=pc.rgbaR(value), g=pc.rgbaG(value), b=pc.rgbaB(value), a=pc.rgbaA(value)} end
+            scanned = scanned + 1
+            if skip or (c and c.alpha == 0) then transparent = transparent + 1
+            else
+              local colour = c and key(c) or nil
+              if invalid or not allowed[colour] then
+                outside = outside + 1
+                local id = invalid and ('index:' .. invalid) or colour
+                local row = byColour[id]
+                if not row then
+                  row = {colour=colour, index=invalid, count=0, positions={}}
+                  byColour[id] = row
+                  rows[#rows+1] = row
+                end
+                row.count = row.count + 1
+                local x, y = cel.position.x + pixel.x, cel.position.y + pixel.y
+                local pos = positions[id]
+                if not pos then
+                  pos = {layer=name, frame=frame, count=0, first={x=x,y=y}, bounds={x=x,y=y,width=1,height=1}}
+                  positions[id] = pos
+                  row.positions[#row.positions+1] = pos
+                end
+                pos.count = pos.count + 1
+                local b = pos.bounds
+                local right, bottom = math.max(b.x+b.width-1,x), math.max(b.y+b.height-1,y)
+                b.x, b.y = math.min(b.x,x), math.min(b.y,y)
+                b.width, b.height = right-b.x+1, bottom-b.y+1
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+  walk(spr.layers, '')
+  return {op=p.op, palette=p.paletteFile and p.palette or (p.colours and 'list' or 'sprite'),
+    scannedPixels=scanned, transparentPixels=transparent, outsidePixels=outside, colours=rows}
+end
 local function render()
   local first, last = 0, #spr.frames - 1
   if p.frame ~= nil then
@@ -184,6 +259,7 @@ if p.op == 'draw' then
 elseif p.op == 'parts' then
   app.transaction(function() report = parts() end)
 elseif p.op == 'describe' then report = describe()
+elseif p.op == 'palette-check' then report = paletteCheck()
 end
 if p.render then report.render = render() end
 if p.save then assert(spr:saveAs(p.save), 'sprite save failed') end

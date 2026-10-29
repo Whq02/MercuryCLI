@@ -6,13 +6,12 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { SPRITE_ART_LUA } from './artLuaScripts.js'
 
-export const ART_OPS = ['draw', 'render', 'parts', 'describe'] as const
+export const ART_OPS = ['draw', 'render', 'parts', 'describe', 'palette-check'] as const
 const integer = () => z.number().int()
 const channel = () => integer().min(0).max(255)
-const colour = () => z.union([
-  z.strictObject({ index: integer().min(0) }),
-  z.strictObject({ r: channel(), g: channel(), b: channel(), a: channel().optional() }),
-])
+const rgba = () => z.strictObject({ r: channel(), g: channel(), b: channel(), a: channel().optional() })
+const colour = () => z.union([z.strictObject({ index: integer().min(0) }), rgba()])
+const palette = () => z.union([z.string().min(1), z.array(z.union([z.string().regex(/^#?[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/), rgba()])).min(1)])
 const target = () => ({ layer: z.string().min(1), frame: integer().min(0), colour: colour(), x: integer(), y: integer() })
 const corners = () => ({ x2: integer(), y2: integer() })
 const stroke = () => z.discriminatedUnion('kind', [
@@ -36,6 +35,7 @@ export function artFields() {
     ops: z.array(z.union([stroke(), part()])).min(1).optional().describe('draw: ordered primitives with kind, layer path, 0-based frame, colour {index} or {r,g,b,a?}, x,y; line/rect/ellipse add inclusive x2,y2; circle adds radius; fill defaults false. parts: ordered create/show/hide/reorder/duplicate operations'),
     frame: integer().min(0).optional().describe('render/draw/parts: 0-based frame to view; absent = all frames side by side, or tag'),
     preview: z.boolean().optional().describe('draw/parts: return a PNG render after the batch (default true); scale is a positive integer for nearest-neighbour viewing'),
+    palette: palette().optional().describe('palette-check: .gpl/.hex file inside the tree, or a list of RGB(A) hex strings / {r,g,b,a?}; absent = sprite palette at each frame'),
   }
 }
 const artSchema = () => z.discriminatedUnion('op', [
@@ -43,10 +43,11 @@ const artSchema = () => z.discriminatedUnion('op', [
   z.strictObject({ op: z.literal('render'), file: z.string().min(1), ...viewing() }),
   z.strictObject({ op: z.literal('parts'), file: z.string().min(1), ops: z.array(part()).min(1), preview: z.boolean().optional(), ...viewing() }),
   z.strictObject({ op: z.literal('describe'), file: z.string().min(1) }),
+  z.strictObject({ op: z.literal('palette-check'), file: z.string().min(1), palette: palette().optional() }),
 ]).refine(p => !('frame' in p) || p.frame === undefined || p.tag === undefined, 'choose frame or tag, not both')
 export type ArtResult = { result: string; preview?: { path: string; base64: string; width: number; height: number; frames: number[] } }
 export function isArtOp(op: string): boolean { return (ART_OPS as readonly string[]).includes(op) }
-export function isArtRead(op: string): boolean { return op === 'render' || op === 'describe' }
+export function isArtRead(op: string): boolean { return op === 'render' || op === 'describe' || op === 'palette-check' }
 export function artAsk(input: unknown): string {
   const p = artSchema().parse(input)
   if (p.op !== 'draw' && p.op !== 'parts') throw new Error('not a mutation')
@@ -64,6 +65,20 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
   const file = fence(`${p.op}: file`, p.file)
   if (file.refusal) return { result: file.refusal }
   if (!/\.(aseprite|ase)$/i.test(file.resolved!)) throw new Error(`${p.op} needs a native .aseprite/.ase sprite`)
+  let paletteFile: string | undefined
+  let colours: Array<{ r: number; g: number; b: number; a?: number }> | undefined
+  if (p.op === 'palette-check' && p.palette !== undefined) {
+    if (typeof p.palette === 'string') {
+      const checked = fence('palette-check: palette', p.palette)
+      if (checked.refusal) return { result: checked.refusal }
+      if (!/\.(gpl|hex)$/i.test(checked.resolved!)) throw new Error('palette file must be .gpl or .hex')
+      paletteFile = checked.resolved
+    } else colours = p.palette.map(c => {
+      if (typeof c !== 'string') return c
+      const hex = c.replace(/^#/, '')
+      return { r: parseInt(hex.slice(0, 2), 16), g: parseInt(hex.slice(2, 4), 16), b: parseInt(hex.slice(4, 6), 16), a: hex.length === 8 ? parseInt(hex.slice(6), 16) : 255 }
+    })
+  }
   const before = readFileSync(file.resolved!)
   const mode = statSync(file.resolved!).mode
   const dir = mkdtempSync(path.join(ensureScratchpadDir(), 'aseprite-'))
@@ -76,7 +91,7 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
     const save = mutation ? path.join(dir, 'sprite.aseprite') : undefined
     const render = p.op === 'render' || (mutation && p.preview !== false) ? path.join(dir, 'render.png') : undefined
     writeFileSync(script, SPRITE_ART_LUA, { mode: 0o600 })
-    writeFileSync(request, JSON.stringify({ ...p, save, render, report }), { mode: 0o600 })
+    writeFileSync(request, JSON.stringify({ ...p, save, render, report, paletteFile, colours }), { mode: 0o600 })
     const r = await runAseprite(bin, [file.resolved!, '--script-param', `request=${request}`, '--script', script], {
       timeoutMs: 60_000, env: { ASEPRITE_USER_FOLDER: dir },
     })
