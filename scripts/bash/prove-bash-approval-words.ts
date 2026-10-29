@@ -51,13 +51,13 @@ const shown = (o: Outcome): string => `${o.decision.behavior} [${o.wrapper.decid
 
 console.log("prove-bash-approval-words — Bash's approval words name the operator and quote the part as written")
 
-console.log('\n1. the piped python3 -c: the part is quoted as sent, with its quotes and its 2>&1 whole')
+console.log('\n1. the piped python3 -c: the part is quoted as sent, with its quotes whole; its redirection and pipe never change the verdict')
 {
   const command = `python3 -c "import ast; ast.parse(open('${bigPy}').read())" 2>&1 | tail -5`
   const o = await decide(command)
   const message = o.decision.message ?? ''
   check('the engine asks', o.decision.behavior === 'ask', shown(o))
-  check('the message quotes the part as written', message.includes(`python3 -c "import ast; ast.parse(open('${bigPy}').read())" 2>&1`), shown(o))
+  check('the message quotes the part as written, its quotes whole; the redirection is not part of the verdict', message.includes(`python3 -c "import ast; ast.parse(open('${bigPy}').read())"`) && !message.includes('2>&1'), shown(o))
   check("the message carries neither a doubled quote nor a split 2 >& 1", !message.includes("''") && !message.includes('2 >& 1'), shown(o))
   check('the sentence is the several-parts sentence', message.startsWith('One part of this Bash command needs approval: '), shown(o))
 }

@@ -6,9 +6,9 @@ import { MERCURY_PROJECT_DIR } from '../projectConfig.js'
 import { preparedSecurityParse, type SimpleCommand } from './decision/commandAnalysis.js'
 import { getProjectTempDir, getScratchpadDir, MERCURY_WORKING_FOLDERS, pathInWorkingPath } from './filesystem.js'
 
-export const OWN_GROUND_SCRATCHPAD = "the session's scratchpad"
-export const OWN_GROUND_CREATED = 'a path this session created'
-export const OWN_GROUND_WORKING_FILES = "Mercury's own working files"
+const OWN_GROUND_SCRATCHPAD = "the session's scratchpad"
+const OWN_GROUND_CREATED = 'a path this session created'
+const OWN_GROUND_WORKING_FILES = "Mercury's own working files"
 
 const LEDGER_FILE = 'created-paths.txt'
 const ledgers = new Map<string, Set<string>>()
@@ -40,7 +40,7 @@ function ledger(): Set<string> {
   return loaded
 }
 
-export function recordCreatedPaths(paths: readonly string[], cwd?: string): void {
+function recordCreatedPaths(paths: readonly string[], cwd?: string): void {
   if (paths.length === 0) return
   const store = ledger()
   const added: string[] = []
@@ -77,7 +77,7 @@ export function ownGroundCategory(path: string): string | null {
   return null
 }
 
-export function isOwnGround(path: string, cwd?: string): boolean {
+function isOwnGround(path: string, cwd?: string): boolean {
   return ownGroundCategory(canonical(path, cwd)) !== null
 }
 
@@ -105,7 +105,7 @@ export function ownGroundCommand(command: SimpleCommand, cwd: string): boolean {
   return operands.every(operand => isOwnGround(operand, cwd))
 }
 
-export type CreationSnapshot = { cwd: string; targets: string[] }
+type CreationSnapshot = { cwd: string; targets: string[] }
 
 function topmostMissing(path: string): string | null {
   let current = path
@@ -154,6 +154,6 @@ export function settleCreation(created: string | null): void {
   if (created !== null && existsSync(created)) recordCreatedPaths([created])
 }
 
-export function _resetOwnGroundForTesting(): void {
+function _resetOwnGroundForTesting(): void {
   ledgers.clear()
 }

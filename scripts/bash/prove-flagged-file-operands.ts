@@ -253,7 +253,7 @@ console.log('\n7. xargs with a reading target and no arg-file takes its paths fr
   ]
   for (const [command, part] of piped) {
     const v = await decide(command)
-    check(`${command.replace(outside, '<outside>')} → ask naming the part`, v.behavior === 'ask' && v.message === `One part of this Bash command needs approval: ${part}`, shown(v))
+    check(`${command.replace(outside, '<outside>')} → needs approval naming the part (the engine resolves it to a card)`, v.behavior === 'passthrough' && v.message === `One part of this Bash command needs approval: ${part}`, shown(v))
   }
   const redirected = await decide('xargs head < list')
   check('xargs head < list → not allowed, with the read-only words', redirected.behavior !== 'allow' && redirected.message === '`xargs head < list` requires approval: it is not a read-only form of `xargs`.', shown(redirected))

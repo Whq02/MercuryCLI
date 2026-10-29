@@ -126,7 +126,7 @@ async function main(): Promise<void> {
       { op: 'launch', program: '/tmp/demo.py' } as never,
       {} as never,
     )
-    check('launch ⇒ permission ask', perm.behavior === 'ask')
+    check('launch ⇒ needs approval (the engine resolves it to a card)', perm.behavior === 'passthrough')
     const permStack = await DebugTool.checkPermissions({ op: 'stack' } as never, {} as never)
     check('stack ⇒ allow (rides the session)', permStack.behavior === 'allow')
     const bad = await DebugTool.validateInput?.({ op: 'launch' } as never, {} as never)

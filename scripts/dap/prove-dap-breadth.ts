@@ -172,7 +172,7 @@ console.log('— P. attach by port/host —')
   check('a connect-shaped attach with nothing listening refuses at once in one line naming the dial', r3.data.outcome === 'failed' && new RegExp(`^attach failed: nothing is listening at 127\\.0\\.0\\.1:${idlePort} \\(ECONNREFUSED\\) — start the program`).test(r3.data.result), r3.data.result.slice(0, 220))
 
   const perm = await (DebugTool as { checkPermissions: Function }).checkPermissions({ op: 'attach', port: 5005 })
-  check('a bare-port attach auto-picks the python adapter at the gate', perm.behavior === 'ask' && /adapter python/.test(perm.message), JSON.stringify(perm))
+  check('a bare-port attach auto-picks the python adapter at the gate', perm.behavior === 'passthrough' && /adapter python/.test(perm.message), JSON.stringify(perm))
 }
 
 console.log('— T. tcp connect with a substituted port —')

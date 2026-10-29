@@ -112,7 +112,7 @@ async function main(): Promise<void> {
       {} as never,
     )
     const stack = await DebugTool.checkPermissions({ op: 'stack' } as never, {} as never)
-    check('launch asks', (launch as { behavior?: string }).behavior === 'ask')
+    check('launch needs approval', (launch as { behavior?: string }).behavior === 'passthrough')
     check('inspection allows', (stack as { behavior?: string }).behavior === 'allow')
   }
 
