@@ -245,16 +245,16 @@ export async function waitHostEngine(target: SshTarget, recipe: HostRecipe, runn
   const minutes = (ms: number): string => (ms >= 60_000 ? Math.round(ms / 60_000) + ' min' : Math.max(1, Math.round(ms / 1000)) + ' s')
   throw new Error('Engine not ready. The engine printed nothing new for ' + minutes(Date.now() - progressedAt) + ' after its ' + minutes(timeoutMs) + ' setup budget; it may still be loading on the machine. Last engine lines: ' + last)
 }
-export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, preferredPort?: number): Promise<number> {
+export async function openHostTunnel(id: string, target: SshTarget, runner: HostRunner, signal: AbortSignal, preferredPort?: number, service: { port: number; path: string; headers?: Record<string, string> } = { port: 30000, path: '/v1/models' }): Promise<number> {
   tunnels.get(id)?.stop()
   const port = await new Promise<number>((resolve, reject) => { const server = createServer(); server.once('error', reject); server.listen(preferredPort ?? 0, '127.0.0.1', () => { const address = server.address(); const port = typeof address === 'object' && address ? address.port : 0; server.close(() => resolve(port)) }) })
   const args = sshArguments(target)
-  const tunnel = runner.tunnel(['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + port + ':127.0.0.1:30000', ...args])
+  const tunnel = runner.tunnel(['-N', '-o', 'ExitOnForwardFailure=yes', '-o', 'ServerAliveInterval=30', '-o', 'ServerAliveCountMax=3', '-L', '127.0.0.1:' + port + ':127.0.0.1:' + service.port, ...args])
   try {
     for (let n = 0; n < 100; n++) {
       signal.throwIfAborted()
       const failed = tunnel.failed(); if (failed) throw new Error(failed)
-      try { const response = await fetch('http://127.0.0.1:' + port + '/v1/models', { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error' }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch {}
+      try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch {}
       await delay(100, undefined, { signal })
     }
     throw new Error('The SSH tunnel did not answer on local port ' + port)

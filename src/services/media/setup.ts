@@ -12,7 +12,7 @@ import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServe
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
 type MediaRow = { model: MediaModel; installed: boolean; bytes: number; pullBytes: number; fit: MediaFit; words: string }
 type MediaRuntimeChoice = { variant: string; binary: string; words: string; bytes: number; args: string[] }
-export type MediaSnapshot = { root: string; runtimeInstalled: boolean; runtime?: MediaRuntimeChoice; catalogue: MediaCatalogue; config: MediaConfig; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number; rows: MediaRow[] }
+export type MediaSnapshot = { root: string; location?: string; host?: string; runtimeInstalled: boolean; runtime?: MediaRuntimeChoice; catalogue: MediaCatalogue; config: MediaConfig; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number; rows: MediaRow[] }
 const GiB = 1024 ** 3
 const RUNTIME_WORDS: Record<string, string> = { metal: 'Metal', vulkan: 'Vulkan', cuda12: 'CUDA 12', cpu: 'CPU', rocm: 'ROCm' }
 
@@ -72,6 +72,7 @@ function freeDisk(root: string): number {
 }
 
 export async function readMediaSnapshot(settings: MediaSettings = readMediaSettings()): Promise<MediaSnapshot> {
+  if (settings.host) return (await import('./host.js')).readMediaHostSnapshot(settings)
   const root = mediaRoot(settings)
   const [catalogue, config, truth] = await Promise.all([
     readMediaCatalogue(settings),
@@ -141,6 +142,7 @@ export class MediaSetupPaused extends Error {
 
 export async function runMediaSetup(args: string[], onProgress: (event: MediaProgress) => void, signal?: AbortSignal, settings: MediaSettings = readMediaSettings()): Promise<void> {
   signal?.throwIfAborted()
+  if (settings.host) return (await import('./host.js')).runMediaHostSetup(args, onProgress, signal, settings)
   const setup = join(dirname(await mediaServerPath(settings)), 'setup.js')
   signal?.throwIfAborted()
   await new Promise<void>((resolve, reject) => {

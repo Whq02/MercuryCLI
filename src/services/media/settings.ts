@@ -6,7 +6,7 @@ import { getInitialSettings, getSettingsForSource, updateSettingsForSource } fro
 import { getMercuryHome } from '../../utils/envUtils.js'
 
 export type MediaKind = 'image' | 'video'
-export type MediaSettings = { enabled?: boolean; root?: string; imageModel?: string; videoModel?: string; serverPath?: string }
+export type MediaSettings = { enabled?: boolean; root?: string; host?: string; imageModel?: string; videoModel?: string; serverPath?: string }
 export type MediaConfig = { imageModel?: string; videoModel?: string; outputs?: string; logs?: string; jobCap?: number; ports?: { image?: number; video?: number }; nice?: number; deadlines?: Record<string, number> }
 type MediaConfigModule = {
   readMediaConfig: (root: string) => MediaConfig | Promise<MediaConfig>
@@ -23,11 +23,11 @@ export function readMediaSettings(): MediaSettings {
 }
 
 export function mediaRoot(settings: MediaSettings = readMediaSettings()): string {
-  const path = settings.root?.trim()
-  if (!path) return join(getMercuryHome(), 'media')
+  const path = settings.root?.trim() || join(getMercuryHome(), 'media')
   const expanded = path === '~' ? homedir() : path.startsWith('~/') ? join(homedir(), path.slice(2)) : path
   if (!isAbsolute(expanded)) throw new Error('Media folder must be an absolute path.')
-  return resolve(expanded)
+  if (settings.host && !/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(settings.host)) throw new Error('Media setup returned an unreadable response.')
+  return settings.host ? join(resolve(expanded), 'hosts', settings.host) : resolve(expanded)
 }
 
 export async function mediaBundleRoot(): Promise<string> {

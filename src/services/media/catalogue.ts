@@ -18,7 +18,7 @@ const ModelSchema = z.object({
 }).passthrough()
 const digest = z.string().regex(/^[a-f0-9]{64}$/i)
 const RuntimeFileSchema = z.object({ asset: z.string().regex(/^[A-Za-z0-9._-]+\.zip$/), bytes: positive, sha256: digest }).passthrough()
-const RuntimeVariantSchema = z.object({ variant: z.string().regex(/^[a-z0-9]+$/), binary: z.string().regex(/^[A-Za-z0-9._-]+$/), files: z.array(RuntimeFileSchema).min(1) }).passthrough()
+const RuntimeVariantSchema = z.object({ variant: z.string().regex(/^[a-z0-9]+$/), binary: z.string().regex(/^[A-Za-z0-9._-]+$/), files: z.array(RuntimeFileSchema), source: z.object({ revision: z.string().regex(/^[a-f0-9]{40}$/), fallback: z.string().regex(/^[a-z0-9]+$/) }).optional() }).passthrough().refine(row => row.files.length > 0 || row.source !== undefined)
 const recipeId = z.string().regex(/^[A-Za-z0-9._-]{1,128}$/)
 const RuntimeTableSchema = z.object({ tag: z.string().min(1), families: z.array(recipeId).default([]), componentFamilies: z.array(recipeId).default([]), platforms: z.record(z.string().regex(/^[a-z0-9]+-[a-z0-9]+$/), z.array(RuntimeVariantSchema).min(1)) }).passthrough()
 const RuntimeRowSchema = z.object({ tag: z.string().min(1), asset: z.string().min(1), bytes: positive, sha256: digest }).passthrough()
