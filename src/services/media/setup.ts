@@ -16,10 +16,11 @@ export type MediaSnapshot = { root: string; location?: string; host?: string; ru
 const GiB = 1024 ** 3
 const RUNTIME_WORDS: Record<string, string> = { metal: 'Metal', vulkan: 'Vulkan', cuda12: 'CUDA 12', cpu: 'CPU', rocm: 'ROCm' }
 
-export function mediaRuntimeChoice(catalogue: MediaCatalogue, platform: string = process.platform, arch: string = process.arch, gpu?: 'nvidia' | 'amd'): MediaRuntimeChoice | undefined {
+export function mediaRuntimeChoice(catalogue: MediaCatalogue, platform: string = process.platform, arch: string = process.arch, gpu?: 'nvidia' | 'amd', installed?: { tag?: string; variant?: string; requestedVariant?: string }): MediaRuntimeChoice | undefined {
   const variants = catalogue.runtime.platforms[`${platform}-${arch}`]
   if (!variants?.length) return undefined
-  const chosen = (gpu === 'nvidia' ? variants.find(row => row.variant === 'cuda12') : undefined) ?? variants[0]!
+  const requested = (gpu === 'nvidia' ? variants.find(row => row.variant === 'cuda12') : undefined) ?? variants[0]!
+  const chosen = requested.source && installed?.tag === catalogue.runtime.tag && installed.requestedVariant === requested.variant && installed.variant === requested.source.fallback ? variants.find(row => row.variant === installed.variant) ?? requested : requested
   return { variant: chosen.variant, binary: chosen.binary, words: RUNTIME_WORDS[chosen.variant] ?? chosen.variant, bytes: chosen.source ? undefined : chosen.files.reduce((n, file) => n + file.bytes, 0), args: ['pull-runtime', '--variant', chosen.variant] }
 }
 
@@ -80,7 +81,7 @@ export async function readMediaSnapshot(settings: MediaSettings = readMediaSetti
     resolveSetupIo().readTruth(),
   ])
   const freeBytes = freeDisk(root)
-  const runtime = mediaRuntimeChoice(catalogue, process.platform, process.arch, truth.machine.gpu)
+  const runtime = mediaRuntimeChoice(catalogue, process.platform, process.arch, truth.machine.gpu, runtimeRecord(root))
   return { root, runtimeInstalled: mediaRuntimeInstalled(catalogue, root, runtime), ...(runtime ? { runtime } : {}), catalogue, config, totalMemoryBytes: truth.machine.totalMemoryBytes, usableMemoryBytes: truth.machine.usableMemoryBytes, freeBytes, rows: mediaRows(catalogue, root, truth.machine, freeBytes) }
 }
 
@@ -198,9 +199,9 @@ export function mediaProgressWords(event: MediaProgress): string {
   return event.event === 'error' ? stripTerminalControls(event.message ?? 'Download failed.') : ''
 }
 
-function runtimeRecord(root: string): { tag?: string; variant?: string } | undefined {
+function runtimeRecord(root: string): { tag?: string; variant?: string; requestedVariant?: string } | undefined {
   try {
-    const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: unknown; variant?: unknown }
-    return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}) }
+    const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: unknown; variant?: unknown; requestedVariant?: unknown }
+    return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}), ...(typeof record.requestedVariant === 'string' ? { requestedVariant: record.requestedVariant } : {}) }
   } catch { return undefined }
 }

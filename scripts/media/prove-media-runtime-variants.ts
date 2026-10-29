@@ -43,6 +43,10 @@ try {
   assert.deepEqual(choice('linux', 'x64', 'nvidia'), ['cuda12', 'CUDA 12', undefined, ['pull-runtime', '--variant', 'cuda12']])
   assert.deepEqual(bundled.runtime.platforms['linux-x64']!.find(row => row.variant === 'cuda12')!.source, { revision: 'e41fbcf455e0fbb45e08bd535b00d6cba865e921', fallback: 'vulkan' })
   assert.deepEqual(choice('linux', 'x64', 'amd'), ['vulkan', 'Vulkan', 37644143, ['pull-runtime', '--variant', 'vulkan']])
+  const installedFallback = mediaRuntimeChoice(bundled, 'linux', 'x64', 'nvidia', { tag: bundled.runtime.tag, variant: 'vulkan', requestedVariant: 'cuda12' })!
+  assert.equal(installedFallback.variant, 'vulkan')
+  assert.equal(mediaRuntimeInstalled(bundled, root, installedFallback, { tag: bundled.runtime.tag, variant: 'vulkan' }, 'ok'), true)
+  assert.equal(mediaRuntimeChoice(bundled, 'win32', 'x64', 'nvidia', { tag: bundled.runtime.tag, variant: 'vulkan', requestedVariant: 'cuda12' })!.variant, 'cuda12')
   assert.equal(choice('win32', 'arm64', 'nvidia'), undefined)
   assert.equal(choice('linux', 'arm64'), undefined)
   assert.equal(choice('darwin', 'x64'), undefined)
