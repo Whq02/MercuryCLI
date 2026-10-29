@@ -85,6 +85,26 @@ Each LoRA must match the selected model's family. The result names the files
 and weights applied. Omit `loras`, or pass an empty array, for an image without
 LoRAs. LoRA links use the same download and hash checks as checkpoints.
 
+## Textual-inversion embeddings
+
+Give `image_generate` an `embeddings` array alongside `loras`, for example
+`[{"path":"/path/to/style.safetensors"}]`. Local `.safetensors` and `.gguf`
+files and public Hugging Face `resolve` links are accepted. Their tensor
+widths must match SD 1.x, SD 2.x or SDXL; other families are refused before
+loading. Links use the same download and SHA-256 checks as LoRAs.
+
+The filename without its extension is the prompt token; `token` can override
+it. Mention the token in the positive or negative prompt to choose where it
+applies. A token absent from both is appended to the positive prompt. The
+result names each source, token, family and hash. Each request selects its
+own embedding set; omitting `embeddings` leaves the next request without
+those embeddings. Changing the set reloads the engine.
+
+The runtime's `--embd-dir` flag selects the directory. Its
+[embedding loader](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/common/common.cpp#L847)
+and [CLIP conditioning](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/src/conditioning/conditioner.hpp#L272)
+describe the token and text-encoder matching.
+
 ## The two default slots
 
 The initial image slot is `z-image-turbo`; the initial video slot is
@@ -113,6 +133,8 @@ estimate from component sizes.
 
 | Model id | Kind | Disk | Memory | Time | Licence |
 | --- | --- | ---: | ---: | ---: | --- |
+| `realesrgan-x4plus-anime-6b` | Image upscaler | 0.02 GB | 2.02 GiB estimate | Unmeasured | BSD-3-Clause |
+| `realesrgan-x4plus` | Image upscaler | 0.07 GB | 2.06 GiB estimate | Unmeasured | BSD-3-Clause |
 | `z-image-turbo` | Image | 11.19 GB | 16.37 GiB | 130.88 s | Apache-2.0 |
 | `flux2-klein-4b` | Image, reference editing | 8.92 GB | 11.32 GiB | 65.04 s | Apache-2.0 |
 | `qwen-image-21-turbo` | Image, reference editing | 14.10 GB | 18.67 GiB | 153.70 s | Qwen Research License, non-commercial |
@@ -223,6 +245,26 @@ The engine's [image preprocessing](https://github.com/leejet/stable-diffusion.cp
 and [native image API](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1img_gen)
 describe the resize and mask inputs.
 
+## Samplers and schedulers
+
+`image_generate` accepts `sampler` and `scheduler` for that request alone,
+for example `{"sampler":"dpm++2m","scheduler":"karras"}`. Omit either to
+keep the selected family's default. Unknown names return the supported list.
+The result names the sampler and scheduler from the runtime's resolved
+[generation record](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/docs/generation_metadata.md).
+An explicit scheduler replaces a model's fixed sigma schedule, including
+Qwen Turbo's; omitting it preserves that schedule and its step count.
+
+The runtime's `--sampling-method` list is `euler`, `euler_a`, `heun`, `dpm2`,
+`dpm++2s_a`, `dpm++2m`, `dpm++2mv2`, `ipndm`, `ipndm_v`, `lcm`,
+`ddim_trailing`, `tcd`, `res_multistep`, `res_2s`, `er_sde`, `euler_cfg_pp`,
+`euler_a_cfg_pp`, `euler_ge`, `dpm++2m_sde`, `dpm++2m_sde_bt` and `lms`.
+Its `--scheduler` list is `discrete`, `karras`, `exponential`, `ays`, `gits`,
+`sgm_uniform`, `simple`, `smoothstep`, `kl_optimal`, `lcm`, `bong_tangent`,
+`ltx2`, `logit_normal`, `flux2`, `flux`, `beta` and `llada_image`;
+`normal` selects `discrete`. These are passed through the
+[native image API's sample parameters](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1img_gen).
+
 ## Guided images, batches and pixel-art palettes
 
 `image_generate` accepts `control: { image, kind, strength }` with an SD 1.5
@@ -256,6 +298,31 @@ palette of 2 to 256 colours instead. A `.hex` file has one `RRGGBB` colour
 per line, optionally prefixed with `#`. Palette mapping follows downsizing
 and preserves alpha. For a four-frame pixel-art sheet, use `count: 4`,
 `downsize: 4`, `palette: 16` and `sheet: { columns: 2 }`.
+
+## Upscalers
+
+Pull `realesrgan-x4plus-anime-6b` (17.94 MB, 4×) or `realesrgan-x4plus`
+(67.04 MB, 4×) through its existing `/imagesetup` row. Both are
+[RealESRGAN](https://github.com/xinntao/Real-ESRGAN) weights under BSD-3-Clause,
+pinned by release URL, size and SHA-256. Upscaler rows cannot be image defaults.
+
+Set `upscale: 4` on `image_generate`; optional `upscaler` selects a row by id.
+Otherwise an installed matching row is chosen, preferring fewer passes.
+A missing model returns the row to pull, without downloading. Whole-number
+factors such as 2, 3 and 4 are accepted: the model runs at its native scale,
+then RGB is resized bilinearly to the requested factor if needed. Larger
+factors use repeated passes. The runtime allows at most four passes and
+8192 pixels on either native-output axis. `upscale: 1` leaves it off.
+
+The order is render, `downsize`, `palette`, upscale, then optional sheet.
+Upscaling may introduce colours beyond the palette. Each frame is saved at
+the enlarged size, and the result names the upscaler and factor. Alpha is kept
+with nearest-neighbour resizing. The runtime's
+[ESRGAN guide](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/docs/esrgan.md)
+describes `.pth` weights and `--upscale-model` for CLI generation. Mercury uses
+`--hires-upscalers-dir` and the separate
+[upscale API](https://github.com/leejet/stable-diffusion.cpp/blob/e41fbcf/examples/server/api.md#post-sdcppv1upscale)
+so its postprocessing runs in this order without another diffusion pass.
 
 ## Files and settings
 
