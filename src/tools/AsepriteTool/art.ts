@@ -6,7 +6,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { SPRITE_ART_LUA } from './artLuaScripts.js'
 
-export const ART_OPS = ['draw', 'render'] as const
+export const ART_OPS = ['draw', 'render', 'parts', 'describe'] as const
 const integer = () => z.number().int()
 const channel = () => integer().min(0).max(255)
 const colour = () => z.union([
@@ -23,25 +23,41 @@ const stroke = () => z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('circle'), ...target(), radius: integer().min(0), fill: z.boolean().optional() }),
   z.strictObject({ kind: z.literal('flood-fill'), ...target() }),
 ])
+const part = () => z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('create'), name: z.string().min(1).regex(/^[^/]+$/), parent: z.string().min(1).optional(), group: z.boolean().optional() }),
+  z.strictObject({ kind: z.literal('show'), part: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('hide'), part: z.string().min(1) }),
+  z.strictObject({ kind: z.literal('reorder'), part: z.string().min(1), index: integer().min(0) }),
+  z.strictObject({ kind: z.literal('duplicate'), part: z.string().min(1), fromFrame: integer().min(0), toFrames: z.array(integer().min(0)).min(1) }),
+])
 const viewing = () => ({ frame: integer().min(0).optional(), tag: z.string().min(1).optional(), scale: integer().min(1).optional() })
 export function artFields() {
   return {
-    ops: z.array(stroke()).min(1).optional().describe('draw: ordered primitives, each with kind, layer path, 0-based frame and colour {index} or {r,g,b,a?}; rect/ellipse use inclusive x,y,x2,y2; circle uses centre x,y and radius; fill defaults false'),
-    frame: integer().min(0).optional().describe('render/draw: 0-based frame to view; absent = all frames side by side, or tag'),
-    preview: z.boolean().optional().describe('draw: return a PNG render after the batch (default true); scale is a positive integer for nearest-neighbour viewing'),
+    ops: z.array(z.union([stroke(), part()])).min(1).optional().describe('draw: ordered primitives with kind, layer path, 0-based frame, colour {index} or {r,g,b,a?}, x,y; line/rect/ellipse add inclusive x2,y2; circle adds radius; fill defaults false. parts: ordered create/show/hide/reorder/duplicate operations'),
+    frame: integer().min(0).optional().describe('render/draw/parts: 0-based frame to view; absent = all frames side by side, or tag'),
+    preview: z.boolean().optional().describe('draw/parts: return a PNG render after the batch (default true); scale is a positive integer for nearest-neighbour viewing'),
   }
 }
 const artSchema = () => z.discriminatedUnion('op', [
   z.strictObject({ op: z.literal('draw'), file: z.string().min(1), ops: z.array(stroke()).min(1), preview: z.boolean().optional(), ...viewing() }),
   z.strictObject({ op: z.literal('render'), file: z.string().min(1), ...viewing() }),
-]).refine(p => p.frame === undefined || p.tag === undefined, 'choose frame or tag, not both')
+  z.strictObject({ op: z.literal('parts'), file: z.string().min(1), ops: z.array(part()).min(1), preview: z.boolean().optional(), ...viewing() }),
+  z.strictObject({ op: z.literal('describe'), file: z.string().min(1) }),
+]).refine(p => !('frame' in p) || p.frame === undefined || p.tag === undefined, 'choose frame or tag, not both')
 export type ArtResult = { result: string; preview?: { path: string; base64: string; width: number; height: number; frames: number[] } }
 export function isArtOp(op: string): boolean { return (ART_OPS as readonly string[]).includes(op) }
-export function isArtRead(op: string): boolean { return op === 'render' }
+export function isArtRead(op: string): boolean { return op === 'render' || op === 'describe' }
 export function artAsk(input: unknown): string {
   const p = artSchema().parse(input)
-  if (p.op !== 'draw') throw new Error('not a mutation')
-  return `Aseprite draw: ${p.file} - ${p.ops.map((op, i) => `${i + 1}. ${op.kind}${'fill' in op && op.fill ? ' fill' : ''} on ${op.layer} frame ${op.frame}`).join('; ')} - replaces the named sprite inside the working tree`
+  if (p.op !== 'draw' && p.op !== 'parts') throw new Error('not a mutation')
+  const summary = p.ops.map((op, i) => {
+    const target = 'layer' in op ? `${op.layer} frame ${op.frame}`
+      : op.kind === 'create' ? `${op.parent ? `${op.parent}/` : ''}${op.name} (${op.group ? 'group' : 'layer'})`
+      : op.kind === 'duplicate' ? `${op.part} frame ${op.fromFrame} to ${op.toFrames.join(',')} (replaces target cels, extends timeline)`
+      : op.kind === 'reorder' ? `${op.part} to index ${op.index}` : op.part
+    return `${i + 1}. ${op.kind}${'fill' in op && op.fill ? ' fill' : ''} on ${target}`
+  }).join('; ')
+  return `Aseprite ${p.op}: ${p.file} - ${summary} - replaces the named sprite inside the working tree`
 }
 export async function runArt(input: unknown, bin: string, fence: (label: string, value: string) => { resolved?: string; refusal?: string }): Promise<ArtResult> {
   const p = artSchema().parse(input)
@@ -56,8 +72,9 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
     const script = path.join(dir, 'program.lua')
     const request = path.join(dir, 'request.json')
     const report = path.join(dir, 'report.json')
-    const save = p.op === 'draw' ? path.join(dir, 'sprite.aseprite') : undefined
-    const render = p.op === 'render' || p.preview !== false ? path.join(dir, 'render.png') : undefined
+    const mutation = p.op === 'draw' || p.op === 'parts'
+    const save = mutation ? path.join(dir, 'sprite.aseprite') : undefined
+    const render = p.op === 'render' || (mutation && p.preview !== false) ? path.join(dir, 'render.png') : undefined
     writeFileSync(script, SPRITE_ART_LUA, { mode: 0o600 })
     writeFileSync(request, JSON.stringify({ ...p, save, render, report }), { mode: 0o600 })
     const r = await runAseprite(bin, [file.resolved!, '--script-param', `request=${request}`, '--script', script], {
@@ -65,7 +82,7 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
     })
     if (r.code !== 0) throw new Error(`exit ${r.code}${r.error ? ` (${r.error})` : ''}\n${r.stderr}\n${r.stdout}`)
     const value = JSON.parse(readFileSync(report, 'utf8')) as { op?: string; applied?: number; render?: { width: number; height: number; frames: number[] } }
-    if (value.op !== p.op || (p.op === 'draw' && value.applied !== p.ops.length)) throw new Error('Aseprite returned an incomplete batch report; sprite unchanged')
+    if (value.op !== p.op || ((p.op === 'draw' || p.op === 'parts') && value.applied !== p.ops.length)) throw new Error('Aseprite returned an incomplete batch report; sprite unchanged')
     if (render) {
       const png = readFileSync(render)
       if (!value.render || png.length < 24 || png.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || png.readUInt32BE(16) !== value.render.width || png.readUInt32BE(20) !== value.render.height) throw new Error('Aseprite returned no valid PNG render; sprite unchanged')

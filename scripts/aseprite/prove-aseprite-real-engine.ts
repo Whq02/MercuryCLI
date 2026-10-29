@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import sharp from 'sharp'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -150,6 +151,71 @@ await runWithCwdOverride(tree, async () => {
   {
     const s = await run({ op: 'status' } as ToolInput)
     check('status: version + rung + sprite census', s.includes('Aseprite') && s.includes('rung') && s.includes('sprite file'), s)
+  }
+
+  section('§8 · drawing, render-back and parts')
+  const previews: string[] = []
+  const art = async (value: unknown) => {
+    const input = AsepriteTool.inputSchema.parse(value)
+    const { data } = await AsepriteTool.call(input)
+    if (data.preview) previews.push(data.preview.path)
+    return data
+  }
+  const structure = async () => JSON.parse((await art({ op: 'describe', file: 'artist.aseprite' })).result.split('\n')[1]!)
+  try {
+    await run({ op: 'create', output: 'artist.aseprite', width: 16, height: 16 })
+    const made = await art({ op: 'parts', file: 'artist.aseprite', ops: [
+      { kind: 'create', name: 'Hero', group: true },
+      ...['Body', 'Head', 'Arm'].map(name => ({ kind: 'create', name, parent: 'Hero' })),
+    ] })
+    check('parts create a group and three layers in one batch', made.result.includes('"applied":4'), made.result)
+    const dark = { r: 24, g: 32, b: 48, a: 255 }
+    const teal = { r: 40, g: 192, b: 160, a: 255 }
+    const skin = { r: 248, g: 184, b: 112, a: 255 }
+    const ops = [
+      { kind: 'rect', layer: 'Hero/Body', x: 5, y: 8, x2: 10, y2: 13, fill: true, colour: dark },
+      { kind: 'rect', layer: 'Hero/Body', x: 5, y: 8, x2: 10, y2: 13, colour: teal },
+      { kind: 'flood-fill', layer: 'Hero/Body', x: 7, y: 10, colour: teal },
+      { kind: 'circle', layer: 'Hero/Head', x: 7, y: 4, radius: 3, fill: true, colour: skin },
+      { kind: 'circle', layer: 'Hero/Head', x: 7, y: 4, radius: 3, colour: dark },
+      { kind: 'pixel', layer: 'Hero/Head', x: 6, y: 4, colour: dark },
+      { kind: 'pixel', layer: 'Hero/Head', x: 8, y: 4, colour: dark },
+      { kind: 'line', layer: 'Hero/Head', x: 6, y: 6, x2: 8, y2: 6, colour: dark },
+      { kind: 'ellipse', layer: 'Hero/Arm', x: 2, y: 8, x2: 4, y2: 12, fill: true, colour: teal },
+      { kind: 'ellipse', layer: 'Hero/Arm', x: 2, y: 8, x2: 4, y2: 12, colour: dark },
+    ].map(op => ({ ...op, frame: 0 }))
+    const initial = readFileSync(path.join(tree, 'artist.aseprite'))
+    const drawn = await art({ op: 'draw', file: 'artist.aseprite', ops, scale: 8 })
+    check('every primitive draws and returns a PNG', !!drawn.preview && drawn.result.includes('"applied":10'), drawn.result)
+    if (!drawn.preview) throw new Error(drawn.result)
+    const pixels = await sharp(Buffer.from(drawn.preview.base64, 'base64')).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+    const at = (x: number, y: number) => [...pixels.data.subarray((y * pixels.info.width + x) * 4, (y * pixels.info.width + x) * 4 + 4)].join(',')
+    check('render is 128x128 nearest-neighbour', pixels.info.width === 128 && pixels.info.height === 128 && at(6*8, 4*8) === '24,32,48,255' && at(6*8+7, 4*8+7) === '24,32,48,255')
+    check('render has skin, body and transparent background pixels', at(7*8, 3*8) === '248,184,112,255' && at(7*8, 10*8) === '40,192,160,255' && at(0, 0) === '0,0,0,0')
+    const native = readFileSync(path.join(tree, 'artist.aseprite'))
+    writeFileSync(path.join(tree, 'artist.aseprite'), initial)
+    const repeated = await art({ op: 'draw', file: 'artist.aseprite', ops, scale: 8 })
+    check('same input produces identical sprite and PNG bytes', native.equals(readFileSync(path.join(tree, 'artist.aseprite'))) && drawn.preview.base64 === repeated.preview?.base64)
+    const invalid = await art({ op: 'draw', file: 'artist.aseprite', ops: [ops[0], { ...ops[0], layer: 'missing' }] })
+    check('late batch failure leaves the original sprite unchanged', invalid.result.includes('no layer: missing') && native.equals(readFileSync(path.join(tree, 'artist.aseprite'))), invalid.result)
+    const hidden = await art({ op: 'parts', file: 'artist.aseprite', ops: [{ kind: 'hide', part: 'Hero/Head' }, { kind: 'reorder', part: 'Hero/Arm', index: 0 }] })
+    check('hide and reorder succeed', hidden.result.includes('"applied":2'), hidden.result)
+    let desc = await structure()
+    check('describe returns visibility and sibling order', desc.parts.find((p: any) => p.path === 'Hero/Head')?.visible === false && desc.parts.find((p: any) => p.path === 'Hero/Arm')?.index === 0)
+    const copied = await art({ op: 'parts', file: 'artist.aseprite', ops: [{ kind: 'show', part: 'Hero/Head' }, { kind: 'duplicate', part: 'Hero', fromFrame: 0, toFrames: [1, 2] }] })
+    check('show and group duplication extend to three frames', copied.result.includes('"applied":2'), copied.result)
+    desc = await structure()
+    check('describe sees independent parts across three frames', desc.frames.length === 3 && desc.parts.find((p: any) => p.path === 'Hero/Head')?.cels.length === 3)
+    const a = await art({ op: 'render', file: 'artist.aseprite', frame: 0 })
+    const b = await art({ op: 'render', file: 'artist.aseprite', frame: 2 })
+    check('duplicated part renders identical pixels across frames', !!a.preview && a.preview.base64 === b.preview?.base64)
+    await art({ op: 'draw', file: 'artist.aseprite', ops: [{ kind: 'pixel', layer: 'Hero/Head', frame: 2, x: 0, y: 0, colour: teal }] })
+    const source = await art({ op: 'render', file: 'artist.aseprite', frame: 0 })
+    check('duplicate cels are not linked', a.preview?.base64 === source.preview?.base64)
+    const block = AsepriteTool.mapToolResultToToolResultBlockParam(drawn, 'real-art')
+    check('render-back uses the existing image block shape', Array.isArray(block.content) && block.content[1]?.type === 'image')
+  } finally {
+    for (const preview of previews) rmSync(preview, { force: true })
   }
 })
 

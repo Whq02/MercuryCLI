@@ -78,6 +78,78 @@ local function draw()
   end
   return {op=p.op, applied=#p.ops}
 end
+local function copyPart(layer, source, target)
+  if layer.isGroup then
+    for _, child in ipairs(layer.layers) do copyPart(child, source, target) end
+    return
+  end
+  assert(layer.isImage and not layer.isTilemap, 'duplicate needs image layers: ' .. layer.name)
+  assert(layer.isEditable, 'layer is locked: ' .. layer.name)
+  if source == target then return end
+  local cel = layer:cel(source + 1)
+  local old = layer:cel(target + 1)
+  if old then spr:deleteCel(old) end
+  if cel then
+    local copy = spr:newCel(layer, target + 1, Image(cel.image), cel.position)
+    copy.opacity = cel.opacity
+    copy.zIndex = cel.zIndex
+  end
+end
+local function parts()
+  for _, op in ipairs(p.ops) do
+    if op.kind == 'create' then
+      local parent = spr
+      if op.parent then
+        parent = layerAt(op.parent)
+        assert(parent.isGroup and parent.isEditable, 'parent must be an editable group')
+      end
+      for _, child in ipairs(parent.layers) do assert(child.name ~= op.name, 'part already exists: ' .. op.name) end
+      local layer = op.group and spr:newGroup() or spr:newLayer()
+      layer.name = op.name
+      layer.parent = parent
+    else
+      local layer = layerAt(op.part)
+      if op.kind == 'show' then layer.isVisible = true
+      elseif op.kind == 'hide' then layer.isVisible = false
+      elseif op.kind == 'reorder' then
+        assert(op.index < #layer.parent.layers, 'part index out of range')
+        layer.stackIndex = op.index + 1
+      elseif op.kind == 'duplicate' then
+        frameAt(op.fromFrame)
+        for _, target in ipairs(op.toFrames) do
+          while #spr.frames <= target do spr:newEmptyFrame() end
+          copyPart(layer, op.fromFrame, target)
+        end
+      end
+    end
+  end
+  return {op=p.op, applied=#p.ops}
+end
+local function describe()
+  local rows = {}
+  local function walk(layers, prefix)
+    for _, layer in ipairs(layers) do
+      local name = prefix .. layer.name
+      local row = {path=name, kind=layer.isGroup and 'group' or (layer.isTilemap and 'tilemap' or 'layer'),
+        visible=layer.isVisible, editable=layer.isEditable, index=layer.stackIndex-1, opacity=layer.opacity}
+      if layer.isImage then
+        row.cels = {}
+        for _, cel in ipairs(layer.cels) do
+          row.cels[#row.cels+1] = {frame=cel.frame.frameNumber-1, x=cel.position.x, y=cel.position.y,
+            width=cel.image.width, height=cel.image.height, opacity=cel.opacity}
+        end
+      end
+      rows[#rows+1] = row
+      if layer.isGroup then walk(layer.layers, name .. '/') end
+    end
+  end
+  walk(spr.layers, '')
+  local frames, tags = {}, {}
+  for _, frame in ipairs(spr.frames) do frames[#frames+1] = frame.duration end
+  for _, tag in ipairs(spr.tags) do tags[#tags+1] = {name=tag.name, from=tag.fromFrame.frameNumber-1, to=tag.toFrame.frameNumber-1} end
+  return {op=p.op, width=spr.width, height=spr.height, colourMode=spr.colorMode == ColorMode.RGB and 'rgb' or (spr.colorMode == ColorMode.INDEXED and 'indexed' or 'gray'),
+    frames=frames, tags=tags, parts=rows, paletteSize=#spr.palettes[1]}
+end
 local function render()
   local first, last = 0, #spr.frames - 1
   if p.frame ~= nil then
@@ -109,6 +181,9 @@ end
 local report = {op=p.op}
 if p.op == 'draw' then
   app.transaction(function() report = draw() end)
+elseif p.op == 'parts' then
+  app.transaction(function() report = parts() end)
+elseif p.op == 'describe' then report = describe()
 end
 if p.render then report.render = render() end
 if p.save then assert(spr:saveAs(p.save), 'sprite save failed') end
