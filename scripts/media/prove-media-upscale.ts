@@ -39,6 +39,7 @@ try {
     assert.equal(ran, true)
     assert.throws(() => mediaGenerationDetails('image', { model: model.id }, bundled, {}, proofHome), /Choose the image model/)
   }
+  assert.match(mediaGenerationDetails('image', { model: 'z-image-turbo', width: 256, height: 256, downsize: 2, upscale: 4 }, bundled, {}, proofHome), /saved at 512×512/)
   const local = JSON.parse(readFileSync(join(root, 'catalog.json'), 'utf8'))
   for (const row of upscalers) local.files.push({ path: row.slots.upscale_model, bytes: 3, sha256: createHash('sha256').update('map').digest('hex') })
   writeFileSync(join(root, 'catalog.json'), JSON.stringify(local))
@@ -67,7 +68,12 @@ try {
   const request = calls.find(call => call.route === 'upscale').body
   const input = Buffer.from(request.image.split(',')[1], 'base64')
   assert.deepEqual([input.readUInt32BE(16), input.readUInt32BE(20), request.repeats], [16, 16, 1])
-  assert.equal((await generate({ upscale: 3 })).isError, true)
+  assert.equal((await generate({ upscale: 0 })).isError, true)
+  const smaller = await generate({ upscale: 2, upscaler: 'realesrgan-x4plus' })
+  assert.equal(smaller.isError ?? false, false, JSON.stringify(smaller))
+  const resized = JSON.parse((smaller.content as Array<{ text: string }>)[0]!.text)
+  assert.equal(resized.width, 128)
+  assert.equal(readFileSync(resized.path).readUInt32BE(16), 128)
   assert.deepEqual(await client.listTools(), tools)
   console.log('media upscalers: pinned pull rows, consent, default exclusion, SDK inputs, missing weights and post-render dimensions')
 } finally {

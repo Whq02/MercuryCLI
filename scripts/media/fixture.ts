@@ -95,7 +95,7 @@ const server = createServer(async (req, res) => {
   else if (route === 'models/refresh') result = { errors: [] };
   else if (route === 'upscale') {
     const source = Buffer.from(body.image.split(',').at(-1), 'base64');
-    const scale = body.upscaler.includes('x2plus') ? 2 : 4;
+    const scale = 4;
     const width = source.readUInt32BE(16) * scale ** body.repeats, height = source.readUInt32BE(20) * scale ** body.repeats;
     result = { images: [{ b64_json: sizedPng(width, height) }], upscaler: body.upscaler, scale, repeats: body.repeats, width, height, output_format: 'png' };
   }

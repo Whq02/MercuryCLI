@@ -24,7 +24,8 @@ export function mediaGenerationDetails(kind: MediaKind, input: Record<string, un
   const length = kind === 'video' ? ` · ${input.seconds !== undefined ? `${input.seconds} s` : `${input.frames ?? model.frames ?? (minimax ? 56 : 49)} frames`} · ${input.fps ?? model.fps ?? 24} fps` : ''
   const reference = input.reference_image ?? input.image
   const downsize = Number(input.downsize ?? model.downsize ?? 1)
-  const saved = kind === 'image' && downsize > 1 ? ` · saved at ${Math.round(Number(width) / downsize)}×${Math.round(Number(height) / downsize)}` : ''
+  const upscale = Number(input.upscale ?? 1)
+  const saved = kind === 'image' && (downsize > 1 || upscale > 1) ? ` · saved at ${Math.floor(Number(width) / downsize) * upscale}×${Math.floor(Number(height) / downsize) * upscale}` : ''
   return [`${model.id}${input.model === undefined ? ` · default ${kind}` : ''}`, `${width}×${height} · ${input.steps ?? model.steps} steps${length}${saved}`, `Output: ${output}`, ...(typeof reference === 'string' ? [`Reference: ${reference}${kind === 'image' ? ` · strength ${input.strength ?? 0.75}${typeof input.mask === 'string' ? ` · mask ${input.mask}` : ''}` : ''}`] : []), ...(typeof input.prompt === 'string' ? [`Prompt: ${input.prompt}`] : [])].join('\n')
 }
 
