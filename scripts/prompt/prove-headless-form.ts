@@ -26,7 +26,7 @@ for (const rule of ['authoris', 'destructive', 'stop', 'pause', 'resume', 'denia
 }
 assert.ok(!headless[1]!.includes('Read the room.'))
 assert.ok(!headless.join('\n').includes('Write down important information from tool results'), 'the answer is not a second tool transcript')
-assert.ok(headless[1]!.includes('Do not replay tool output'))
+assert.ok(headless[1]!.includes('Provide the result, the checks and any unresolved blockers in direct, concise, plain language.'))
 const sections = [...bootstrap.getSystemPromptSectionCache()].map(([name, entry]) => ({ name, ...entry }))
 assert.equal(staticCompositionChanged(sections), false, 'the recorded headless composition is current')
 posture.markSessionPermissionMode('sovereign')

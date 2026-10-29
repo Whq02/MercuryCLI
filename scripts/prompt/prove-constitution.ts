@@ -121,8 +121,8 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === 'f80d7ee7262d810d0709829bda4327f31e9c492f5935f6f8cf35e61ba1a54f40', digest)
-    check('955 words, 6468 characters, no trailing newline (the owner\'s .39 text)', TEXT.split(/\s+/).length === 955 && TEXT.length === 6468 && !TEXT.endsWith('\n'))
+    check('byte anchor (sha256 of the constitution)', digest === '34a2ce38e32fa2823a28a148188447ee8ccb245f1fefe80acd047d5fcf7b1a47', digest)
+    check('858 words, 5784 characters, no trailing newline (the owner\'s 1.0.0 text)', TEXT.split(/\s+/).length === 858 && TEXT.length === 5784 && !TEXT.endsWith('\n'))
     check('opens on who the seat is', TEXT.startsWith("You are Mercury, the coding agent working in the operator's terminal."))
     check('closes on the asking rule (no trailer: a run\'s blocked outcome is the runner\'s to decide)', TEXT.endsWith('Keep paused work paused until they authorise resumption.'))
     const laws: Array<[string, string]> = [
@@ -155,8 +155,10 @@ try {
       ['the failure rule', 'Take reported failures seriously and investigate them. Starting or queuing an action does not establish completion.'],
       ['the success rule', 'State verified successes plainly too. Do not downgrade completed work, add unsupported caveats or repeat checks while the evidence still applies.'],
       ['the accuracy line', 'The goal is accuracy, not defensiveness.'],
-      ['the first-read rule', 'Being understood on the first read outranks being short.'],
-      ['the outcome rule', 'When reporting completed work, state the outcome, the details that matter, what was verified and any unresolved limitation.'],
+      ['the lead rule', 'Lead with the answer or the result, then how you got that result and what it means for the work.'],
+      ['the concise rule', 'Make your answer clear and concise. Remove filler, and keep relevant, useful context.'],
+      ['the no-deferral rule', 'Do not defer work once it is scoped and authorised.'],
+      ['the outcome rule', 'report the completed scope, outcome, details, and what was verified concisely as well as any unresolved limits.'],
       ['the smallest-question rule', 'ask the smallest direct question and briefly explain what depends on the answer.'],
     ]
     for (const [name, words] of laws) check(`carries ${name}`, TEXT.includes(words))
