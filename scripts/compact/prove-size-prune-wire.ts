@@ -80,8 +80,10 @@ const placeholder = (text: string): boolean => text.startsWith('[stale tool resu
 const measurements: Array<Record<string, unknown>> = []
 let nextCall = 0
 let refusals = 0
+let watchdog: ReturnType<typeof setTimeout> | undefined
 fixture.inputRule = true
 fixture.script((request): Turn => {
+  watchdog?.refresh()
   const results = resultsOf(request)
   const input = Math.ceil(JSON.stringify(request.body).length / 4)
   const requestRows = request.dialect === 'responses' ? request.body.input : request.body.messages
@@ -158,7 +160,7 @@ let stdout = ''
 let stderr = ''
 proc.stdout.on('data', chunk => { stdout += String(chunk) })
 proc.stderr.on('data', chunk => { stderr += String(chunk) })
-const watchdog = setTimeout(() => { stderr += '\nfixture deadline exceeded\n'; proc.kill('SIGTERM') }, 210_000)
+watchdog = setTimeout(() => { stderr += '\nfixture made no request progress for 210s\n'; proc.kill('SIGTERM') }, 210_000)
 const exit = await new Promise<number | null>((resolveExit, reject) => { proc.once('exit', resolveExit); proc.once('error', reject) })
 clearTimeout(watchdog)
 await fixture.close()
