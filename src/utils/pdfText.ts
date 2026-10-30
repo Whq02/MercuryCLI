@@ -25,6 +25,7 @@ export interface PdfTextDocument {
 export async function parsePdfText(bytes: Uint8Array, maxBytes = PDF_MAX_EXTRACT_SIZE): Promise<PdfTextDocument> {
   if (bytes.byteLength > maxBytes) throw new Error(`The PDF file exceeds the ${maxBytes}-byte limit for text extraction.`)
   if (Buffer.from(bytes.subarray(0, 5)).toString('ascii') !== '%PDF-') throw new Error('The file is not a valid PDF (missing the %PDF- header).')
+  if (!/%%EOF\s*$/.test(Buffer.from(bytes.subarray(Math.max(0, bytes.length - 1024))).toString('latin1'))) throw new Error('The PDF is truncated: its end marker is missing.')
   const here = dirname(fileURLToPath(import.meta.url))
   const root = [join(here, 'vendor/pdfjs'), resolve(here, '../../vendor/pdfjs/extracted')].find(dir => existsSync(join(dir, 'legacy/build/pdf.mjs')))
   if (!root) throw new Error('PDF text extraction is unavailable: the PDF.js pack is missing. Run bun scripts/vendor/fetch-pdfjs.ts and rebuild.')
@@ -55,7 +56,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   if (info.size > max) throw new Error(`The PDF file exceeds the ${max}-byte limit for text extraction.`)
   const bytes = await readFile(filePath, { signal: options.signal })
   const digest = createHash('sha256').update(bytes).digest('hex')
-  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v2-${digest}.json`)
+  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v3-${digest}.json`)
   try {
     const cached = JSON.parse(await readFile(path, 'utf8')) as PdfTextDocument
     if (cached.pages.length === cached.pageCount && cached.pages.every(p => typeof p.text === 'string' && typeof p.hasTextLayer === 'boolean')) return cached
@@ -63,7 +64,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   let job = pending.get(path)
   if (!job) {
     job = (async () => {
-      const result = await parsePdfText(bytes, max)
+      const result = await parsePdfText(bytes, max).catch(error => { throw new Error(`${filePath}: ${error instanceof Error ? error.message : 'PDF text extraction failed.'}`) })
       await ensureToolResultsDir()
       const stage = `${path}.${randomUUID()}`
       await writeFile(stage, JSON.stringify(result), { mode: 0o600 })

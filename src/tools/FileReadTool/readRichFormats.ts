@@ -115,10 +115,12 @@ export function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEn
     const totalEntries = buf.readUInt16LE(eocd + 10)
     const cdSize = buf.readUInt32LE(eocd + 12)
     const cdOffset = buf.readUInt32LE(eocd + 16)
+    const corrupt = () => new Error(`${filePath}: corrupt ZIP central directory.`)
+    const end = cdOffset + cdSize
+    if (end > eocd || eocd + 22 + buf.readUInt16LE(eocd + 20) > buf.length || buf.readUInt16LE(eocd + 8) !== totalEntries) throw corrupt()
     let pos = cdOffset
-    const end = Math.min(buf.length, cdOffset + cdSize)
-    for (let i = 0; i < totalEntries && pos + 46 <= end; i++) {
-      if (buf.readUInt32LE(pos) !== 0x02014b50) break
+    for (let i = 0; i < totalEntries; i++) {
+      if (pos + 46 > end || buf.readUInt32LE(pos) !== 0x02014b50) throw corrupt()
       const flags = buf.readUInt16LE(pos + 8)
       const method = buf.readUInt16LE(pos + 10)
       const entryCrc = buf.readUInt32LE(pos + 16)
@@ -131,6 +133,7 @@ export function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEn
       const localHeaderOffset = buf.readUInt32LE(pos + 42)
       const name = buf.subarray(pos + 46, pos + 46 + nameLen).toString('utf8')
       const length = 46 + nameLen + extraLen + commentLen
+      if (pos + length > end || localHeaderOffset + 30 > cdOffset) throw corrupt()
       entries.push({
         name,
         uncompressedSize,
@@ -142,6 +145,7 @@ export function readZipEntries(buf: Buffer, filePath = 'archive.zip'): ArchiveEn
       })
       pos += length
     }
+    if (pos !== end) throw corrupt()
     return entries
   }
   let pos = 0
@@ -721,9 +725,8 @@ function extractEpubText(buf: Buffer, filePath: string): string {
     const containerXml = containerRaw.toString('utf8')
     opfPath = /full-path="([^"]+)"/.exec(containerXml)?.[1]
   }
-  if (!opfPath) {
-    opfPath = [...byName.keys()].find(k => k.endsWith('.opf'))
-  }
+  if (!containerRaw) throw new Error(`${filePath}: EPUB is missing META-INF/container.xml.`)
+  if (!opfPath || !byName.has(opfPath)) throw new Error(`${filePath}: EPUB container.xml names no readable package.`)
 
   const orderedDocs: string[] = []
   if (opfPath && byName.has(opfPath)) {
@@ -763,7 +766,7 @@ function extractEpubText(buf: Buffer, filePath: string): string {
   return parts.join('\n\n')
 }
 
-function extractRtfText(rtf: string): string {
+function extractRtfText(rtf: string, filePath: string): string {
   const out: string[] = []
   const skipDestinations = new Set([
     'fonttbl',
@@ -798,7 +801,8 @@ function extractRtfText(rtf: string): string {
     }
     if (ch === '}') {
       const prev = stack.pop()
-      if (prev) skip = prev.skip
+      if (!prev) throw new Error(`${filePath}: RTF has unbalanced groups.`)
+      skip = prev.skip
       i++
       continue
     }
@@ -847,6 +851,12 @@ function extractRtfText(rtf: string): string {
         const word = wordMatch[1]!.toLowerCase()
         const param = wordMatch[2]
         i += wordMatch[0].length
+        if (word === 'bin' && param !== undefined) {
+          const count = Number(param)
+          if (count < 0 || i + count > len) throw new Error(`${filePath}: truncated RTF binary data.`)
+          i += count
+          continue
+        }
         if (skipDestinations.has(word)) {
           skip = true
           continue
@@ -886,6 +896,7 @@ function extractRtfText(rtf: string): string {
     i++
   }
 
+  if (stack.length) throw new Error(`${filePath}: RTF has unbalanced groups.`)
   return out
     .join('')
     .replace(/[ \t]+\n/g, '\n')
@@ -900,6 +911,7 @@ export function renderDocumentTarget(filePath: string, ext: string): string {
 
 export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `document.${ext}`): string {
   if (buf.length > RICH_CONTAINER_MAX_BYTES) throw new Error(`Container file (${formatFileSize(buf.length)}) exceeds the maximum allowed container size (${formatFileSize(RICH_CONTAINER_MAX_BYTES)}): ${filePath}`)
+  if (ext !== 'rtf' && findEocdOffset(buf) === -1) throw new Error(`${filePath}: truncated ZIP; central directory is missing.`)
   let body = ''
   switch (ext) {
     case 'docx':
@@ -920,7 +932,7 @@ export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `docume
       body = extractEpubText(buf, filePath)
       break
     case 'rtf':
-      body = extractRtfText(buf.toString('latin1'))
+      body = extractRtfText(buf.toString('latin1'), filePath)
       break
   }
   return `(document: ${ext})\n${body}`.trimEnd()

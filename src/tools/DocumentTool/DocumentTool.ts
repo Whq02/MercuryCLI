@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { extname } from 'node:path'
+import { findEocdOffset, readZipEntries } from '../FileReadTool/readRichFormats.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
@@ -94,11 +95,19 @@ export const DocumentTool = buildTool({
           if (result.behavior !== 'allow') throw new Error(result.message)
         }
         approved.add(file)
-        return readFileSync(file)
+        const bytes = readFileSync(file)
+        if (/^\.(?:docx|xlsx|pptx|odt|ods|odp|epub)$/i.test(extname(file))) {
+          if (findEocdOffset(bytes) === -1) throw new Error(`${file}: truncated ZIP; central directory is missing.`)
+          readZipEntries(bytes, file)
+        }
+        return bytes
       },
     }
     const targets = captureDestinations(input)
-    const product = await renderDocument(input, io)
+    const product = await renderDocument(input, io).catch(error => {
+      const message = error instanceof Error ? error.message : 'Document could not be read.'
+      throw new Error(input.source && !message.includes(input.source) ? `${input.source}: ${message}` : message)
+    })
     io.signal.throwIfAborted()
     const changedPaths = commitDocuments(product, targets, io.signal)
     const files = product.files.map(file => ({ path: file.path, bytes: file.bytes.byteLength, sha256: digest(file.bytes) }))

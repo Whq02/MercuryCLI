@@ -37,9 +37,10 @@ try {
   const { root, bytes } = workerData
   const api = await import(pathToFileURL(join(root, 'legacy/build/pdf.mjs')).href)
   api.GlobalWorkerOptions.workerSrc = pathToFileURL(join(root, 'legacy/build/pdf.worker.mjs')).href
-  const task = api.getDocument({ data: bytes, verbosity: 0, isEvalSupported: false, useWorkerFetch: false, useSystemFonts: false, cMapUrl: `${root}/cmaps/`, cMapPacked: true, standardFontDataUrl: `${root}/standard_fonts/`, disableFontFace: true, isOffscreenCanvasSupported: false, isImageDecoderSupported: false })
+  const task = api.getDocument({ data: bytes, verbosity: 1, stopAtErrors: true, isEvalSupported: false, useWorkerFetch: false, useSystemFonts: false, cMapUrl: `${root}/cmaps/`, cMapPacked: true, standardFontDataUrl: `${root}/standard_fonts/`, disableFontFace: true, isOffscreenCanvasSupported: false, isImageDecoderSupported: false })
   try {
     const doc = await task.promise
+    if (diagnostics.some(line => /Indexing all PDF objects/.test(line))) throw new Error('The PDF cross-reference table is damaged.')
     const metadata = {}
     const meta = await doc.getMetadata()
     for (const [key, value] of Object.entries(meta.info ?? {})) if (typeof value === 'string') metadata[key] = value
@@ -58,5 +59,5 @@ try {
     parentPort.postMessage({ result: { pageCount: doc.numPages, pages, metadata }, diagnostics })
   } finally { await task.destroy() }
 } catch (error) {
-  parentPort.postMessage({ error: error instanceof Error ? error.message : String(error) })
+  parentPort.postMessage({ error: error?.name === 'InvalidPDFException' ? 'Invalid or damaged PDF structure.' : error instanceof Error ? error.message : 'PDF text extraction failed.' })
 }
