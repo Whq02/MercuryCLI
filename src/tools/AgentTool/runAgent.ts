@@ -57,7 +57,7 @@ import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { createAttachmentMessage } from '../../utils/attachments.js'
 import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
-import { usageOf, type OutcomeStatus } from '../../rows/vocabulary.js'
+import { usageOf, OUTCOME_SENTENCES, type OutcomeStatus } from '../../rows/vocabulary.js'
 import { turnCutOf } from '../../utils/messages/rejectionText.js'
 import { agentStopReasonOf } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -793,8 +793,19 @@ export async function* runAgent(
     }
   }
   const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
+  let runDeadlineTimer: ReturnType<typeof setTimeout> | undefined
 
   try {
+    const deadline = toolUseContext.options.runDeadline
+    if (deadline !== undefined) {
+      const cut = (): void => abortController.abort(new Error(OUTCOME_SENTENCES.time_limit({ maxTimeMs: deadline.limitMs })))
+      if (Date.now() >= deadline.at) {
+        cut()
+        throw new AbortError()
+      }
+      runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
+      runDeadlineTimer.unref?.()
+    }
     swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true)
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
@@ -998,6 +1009,7 @@ export async function* runAgent(
       shareSetResponseLength: true,
       options: {
         isNonInteractiveSession,
+        runDeadline: parentOptions.runDeadline,
         ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
@@ -1312,6 +1324,7 @@ export async function* runAgent(
     }
     throw thrown
   } finally {
+    if (runDeadlineTimer !== undefined) clearTimeout(runDeadlineTimer)
     await endProjectLeases()
     await fireCrewmateEnd()
     watchdog.cancel()

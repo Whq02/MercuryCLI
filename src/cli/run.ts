@@ -1543,7 +1543,11 @@ export async function runHeadless(
     dequeueCommand: command => dequeue(queued => queued === command),
     peek: () => peek(isMainThreadCommand),
     notifyLifecycle: notifyCommandLifecycle,
-    enqueueOutput: message => io.outbound.enqueue(message),
+    enqueueOutput: message => {
+      if (isOutcome(message as never) && (message as OutcomeRow).status === 'completed' && maxTime !== undefined && Date.now() >= maxTime.at) {
+        io.outbound.enqueue({ ...message, status: 'time_limit', error: { class: 'time_limit', message: OUTCOME_SENTENCES.time_limit({ maxTimeMs: maxTime.limitMs }) } } as RowDraft)
+      } else io.outbound.enqueue(message)
+    },
     writeDirect: async message => {
       await writeLine(message)
     },

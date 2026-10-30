@@ -445,6 +445,7 @@ export class Conversation {
         agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
         theme: getGlobalConfig().theme,
         maxBudgetUsd: config.maxBudgetUsd,
+        runDeadline: config.maxTime,
         querySource: 'sdk',
       },
       abortController: this.abortController,

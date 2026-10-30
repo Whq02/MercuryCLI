@@ -226,6 +226,7 @@ export type ToolSessionOptions = {
   mcpResources?: Record<string, any[]>
   isNonInteractiveSession: boolean
   hostHoldsAsks?: boolean
+  runDeadline?: { at: number; limitMs: number }
   agentDefinitions: AgentDefinitionsState
   budget?: any
   customSystemPrompt?: string
