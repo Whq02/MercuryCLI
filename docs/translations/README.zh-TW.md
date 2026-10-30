@@ -9,7 +9,7 @@ Mercury CLI（mercury-cli.ai，npm 套件 `mercury-tech-cli`）在終端機中�
 代理人會讀取與編輯檔案、執行 shell 指令、逐步執行測試與偵錯器，並檢查結果。你可以選擇模型供應商、模型，以及允許代理人執行哪些操作：
 
 - **多工作階段 Concourse 與隔離的工作樹：** 可在 Session Concourse（`/concourse`）上並排執行多個工作階段，並將平行工作委派給跨供應商的 crewmate（`Crewmate`）。它們會在隔離的 `git worktree` 檢出副本中工作，並透過專案檔案租約，讓平行的代理人不會互相覆寫。
-- **20 個模型供應商、`/llmhost` 與 `/localsetup`：** 可同時保持全部 20 個供應商都已登入（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI），並可在對話中切換供應商與模型。開啟 `/llmhost` 即可選擇模型、檢視其量化方式、`conversations × context` 的切分方式與思考層級，然後在租用的 GPU（Runpod、Vast.ai 或 Lambda）上、在你自己的電腦（`mercury host`）上，或在既有的伺服器上執行。也可以執行 `/localsetup`，安裝或連接 Ollama，並與 LM Studio、vLLM 與 llama.cpp 並列使用。
+- **22 個模型供應商、`/llmhost` 與 `/localsetup`：** 可同時保持全部 22 個供應商都已登入（OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot/Kimi、Z.AI/GLM、OpenRouter、Hugging Face、xAI/Grok、Meta/Muse、Mistral、Nous Portal、OpenCode Zen、Qwen、MiniMax、Together AI、Cohere、Groq、Cerebras、Fireworks AI、Melious AI、OrcaRouter），並可在對話中切換供應商與模型。開啟 `/llmhost` 即可選擇模型、檢視其量化方式、`conversations × context` 的切分方式與思考層級，然後在租用的 GPU（Runpod、Vast.ai 或 Lambda）上、在你自己的電腦（`mercury host`）上，或在既有的伺服器上執行。也可以執行 `/localsetup`，安裝或連接 Ollama，並與 LM Studio、vLLM 與 llama.cpp 並列使用。
 - **Mneme 混合 RAG 專案記憶：** 使用裝置端的 118 MB BGE 語意嵌入模型（`bge-base-en-v1.5`），並包含 BM25 詞彙排序與引用追蹤、逐字保留的釘選規則、感知分支的啟動上下文、寫入時的矛盾檢查、工作階段交接筆記，以及 `/memory page` 瀏覽器圖譜。
 - **編譯器、AST 與 DAP 偵錯工具：** 連接 LSP 程式碼智慧與可預覽的重構（`LspRead`、`LspRename`、`LspMoveSymbol`、`LspMoveFile`、`LspCodeAction`、`LspFormat`），支援 23 種語言的 tree-sitter AST 結構搜尋與改寫（`AstSearch`、`AstEdit`），並提供內建的 Debug Adapter Protocol（`Debug`）偵錯器（`debugpy`、`js-debug`、`lldb`、`gdb`、`dlv`），用於單步進入失敗的 Python、Node、Go 與 Rust 測試，另有可持續保存狀態的 Python 與 JavaScript `Eval` 儲存格。
 - **無需金鑰的 `WebSearch` 與 Markdown 格式的 `WebFetch`：** 透過供應商原生搜尋、Brave 或 Tavily 金鑰、官方 API（Stack Exchange、npm、PyPI、crates.io、GitHub、Hacker News、Wikipedia）、SearXNG，以及無需金鑰的 DuckDuckGo 進行搜尋，並在 38,000 字元的單次呼叫預算內，以 Markdown 格式擷取公開文件。
@@ -246,7 +246,7 @@ Boot Menu 的 Performance 區段包含 Motion 設定：`auto`、`full`、`reduce
 - **Together AI** 與 **Cohere：** API 金鑰。
 - **Groq**、**Cerebras** 與 **Fireworks AI：** API 金鑰；任何供應商系列的金鑰，也可以來自 `credentials.keyCommands.<family>` 所指定的指令。
 
-Mistral、Nous Portal 與 OpenCode Zen 也能透過 `/logins` 連結，總計 20 個登入供應商系列。本機模型伺服器（Ollama、LM Studio、vLLM 與 llama.cpp）以及自訂的 OpenAI 相容端點，無需供應商登入即可使用。執行 `/localsetup` 可安裝或啟動 Ollama、拉取適合你記憶體容量的模型、設定其上下文視窗，或連接正在執行的 LM Studio、vLLM 或 llama.cpp 伺服器（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。每個供應商都使用自己的協定、憑證與錯誤處理方式，請求絕不會改由其他供應商處理。參見 [docs/ENGINES.md](../ENGINES.md)。
+Mistral、Nous Portal 與 OpenCode Zen 也能透過 `/logins` 連結，總計 22 個登入供應商系列。本機模型伺服器（Ollama、LM Studio、vLLM 與 llama.cpp）以及自訂的 OpenAI 相容端點，無需供應商登入即可使用。執行 `/localsetup` 可安裝或啟動 Ollama、拉取適合你記憶體容量的模型、設定其上下文視窗，或連接正在執行的 LM Studio、vLLM 或 llama.cpp 伺服器（[docs/LOCAL-SETUP.md](../LOCAL-SETUP.md)）。每個供應商都使用自己的協定、憑證與錯誤處理方式，請求絕不會改由其他供應商處理。參見 [docs/ENGINES.md](../ENGINES.md)。
 
 `/llmhost` 會列出你可以代管的模型，並顯示每個模型目前可在何處執行：在從 Runpod、Vast.ai 或 Lambda 租用的 GPU 上、在你自己的電腦或已儲存的 SSH 電腦（`mercury host`）上，或在既有的模型伺服器上。每個模型頁面都會顯示量化選項、GPU 顯示記憶體預算如何分配給平行對話（`conversations × context`），以及預設的思考層級（`/effort` 可依請求變更）。租用 GPU 需要明確確認每小時價格；若你關閉彈出視窗，設定會在背景繼續進行。在 Runpod 上，你還可以在租用前或在執行中的 pod 上（`Tune`）調整品質、上下文分配與思考設定，將權重保存在快速載入的磁碟區上，並設定 5 秒級的庫存監看。Vast.ai 與 Lambda 的租用功能是 1.0.0-beta.40 的新增功能，已依各廠商公開的 API 在測試用固定資料（fixtures）上驗證（未執行實際租用）。參見 [docs/LLM-HOST.md](../LLM-HOST.md)。
 
