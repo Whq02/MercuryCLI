@@ -453,17 +453,40 @@ export function withoutNullToolMetadata(tool: unknown): unknown {
   return out
 }
 
+const RESPONSE_STREAM_ENDED = 'mercury/response-stream-ended'
+
+export function isResponseStreamEndedError(error: unknown): boolean {
+  return error instanceof ProtocolError && (error.data as { reason?: unknown } | undefined)?.reason === RESPONSE_STREAM_ENDED
+}
+
 class ToolListClient extends Client {
   override async connect(...args: Parameters<Client['connect']>): Promise<void> {
     const [transport] = args
     const requests = new Set<string | number>()
+    const awaiting = new Set<string | number>()
     const send = transport.send.bind(transport)
     transport.send = (message, options) => {
-      if ('method' in message && message.method === 'tools/list' && 'id' in message) requests.add(message.id)
-      return send(message, options)
+      if (!('method' in message) || !('id' in message) || message.id === undefined) return send(message, options)
+      const id = message.id
+      if (message.method === 'tools/list') requests.add(id)
+      awaiting.add(id)
+      const onRequestStreamEnd = (): void => {
+        options?.onRequestStreamEnd?.()
+        if (!awaiting.has(id)) return
+        setTimeout(() => {
+          if (!awaiting.delete(id)) return
+          transport.onmessage?.({
+            jsonrpc: '2.0',
+            id,
+            error: { code: ProtocolErrorCode.InternalError, message: 'the server closed the response stream before answering', data: { reason: RESPONSE_STREAM_ENDED } },
+          })
+        }, 0)
+      }
+      return send(message, { ...options, onRequestStreamEnd })
     }
     const onmessage = transport.onmessage
     transport.onmessage = (message, extra) => {
+      if ('id' in message && message.id !== undefined && ('result' in message || 'error' in message)) awaiting.delete(message.id)
       if ('id' in message && message.id !== undefined && requests.delete(message.id) && 'result' in message) {
         const result = message.result
         if (Array.isArray(result.tools) && this._wireCodec().validateResult('tools/list', { ...result, tools: [] }).ok) {
@@ -1579,6 +1602,13 @@ async function callToolOnce(
     if (oversizedLimit !== undefined && isConnectionClosedError(err)) {
       logMCPError(connected.name, `tool ${tool}: the server sent one message over ${oversizedLimit} bytes; the connection was dropped`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(mcpOversizedMessageWords(tool, connected.name, oversizedLimit), 'MCP stdio message over the limit')
+    }
+    if (isResponseStreamEndedError(err)) {
+      logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
+      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
+        'MCP tool call response stream ended',
+      )
     }
     if (couldHaveExecuted && !(err instanceof ProtocolError)) {
       requestController.abort()
