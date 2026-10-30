@@ -104,7 +104,7 @@ check('empty list is no-releases', selectRelease([], installed, 'linux', 'x64').
 check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true }), rel('v1.1.0-beta.1')], installed, 'linux', 'x64').state === 'current')
 {
   const s = selectRelease([rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
-  check('non-prerelease newest refused as malformed', s.state === 'malformed-release')
+  check('a newer beta without the pre-release flag is selected all the same', s.state === 'update-available' && s.tag === 'v1.2.0-beta.1')
 }
 {
   const s = selectRelease([rel('v1.2.0-beta.1', { assetNames: [`mercury-v1.2.0-beta.1-linux-x64.tar.gz`] })], installed, 'linux', 'x64')
@@ -117,12 +117,18 @@ check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true 
 check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1')], installed, 'linux', 'riscv64').state === 'unsupported-platform')
 {
   const s = selectRelease([rel('v1.2.0-beta.2'), rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
-  check('newest sound release wins despite older malformed sibling', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
+  check('the newest wins whatever its older siblings are flagged', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
 }
 
 for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'], ['1.0.0', '1.0.1'], ['1.0.0', '1.1.0']] as const) {
-  const picked = selectRelease([rel(`v${to}`, { isPrerelease: to.includes('-') })], v(from), 'linux', 'x64')
-  check(`${from} updates to ${to}`, picked.state === 'update-available' && picked.tag === `v${to}`, JSON.stringify(picked))
+  for (const isPrerelease of [true, false]) {
+    const picked = selectRelease([rel(`v${to}`, { isPrerelease })], v(from), 'linux', 'x64')
+    check(`${from} updates to ${to} (${isPrerelease ? 'flagged pre-release' : 'not flagged'})`, picked.state === 'update-available' && picked.tag === `v${to}`, JSON.stringify(picked))
+  }
+}
+for (const [from, to] of [['1.0.0', '1.0.1-rc.1'], ['1.0.0', '1.1.0-beta.1'], ['1.0.1', '1.0.2-rc.3']] as const) {
+  const picked = selectRelease([rel(`v${from}`), rel(`v${to}`)], v(from), 'linux', 'x64')
+  check(`${from} stays current under ${to} (a full-release install never takes a pre-release)`, picked.state === 'current', JSON.stringify(picked))
 }
 
 console.log('── §4b the bridge gate\'s previous reader (clean channel ⇒ first release) ──')

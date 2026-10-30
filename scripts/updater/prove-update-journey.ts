@@ -156,7 +156,7 @@ seedInstalled(V_OLD)
   check('user state survives the whole journey', existsSync(stateMarker))
 }
 
-console.log('── §2 discovery filtering (drafts · non-prerelease · foreign tags · no asset) ──')
+console.log('── §2 discovery filtering (drafts · the pre-release flag · the install\'s channel · foreign tags · no asset) ──')
 seedInstalled(V_OLD)
 {
   const f = makeFixtures('draft-only', [{ version: V_OLD }, { version: V_NEW, draft: true }])
@@ -166,7 +166,27 @@ seedInstalled(V_OLD)
 {
   const f = makeFixtures('non-prerelease', [{ version: V_OLD }, { version: V_NEW, prerelease: false }])
   const r = runCli(['update', '--check'], { fixtures: f })
-  check('a non-prerelease newest is refused as malformed (exit 1)', r.code === 1 && (r.stderr + r.stdout).includes('not marked prerelease'))
+  check('a newer beta published without the pre-release flag is offered (exit 0)', r.code === 0 && r.stdout.includes(`update available: v${V_NEW}`), r.stdout + r.stderr)
+}
+{
+  const V_RC = '9.9.0-rc.1'
+  const V_FINAL = '9.9.0'
+  const V_NEXT_RC = '9.9.1-rc.1'
+  const V_NEXT = '9.9.1'
+  seedInstalled(V_RC)
+  const out = makeFixtures('rc-to-final', [{ version: V_RC }, { version: V_FINAL, prerelease: false }])
+  const r1 = runCli(['update', '--check'], { fixtures: out })
+  check('a release candidate is offered the full release published without the flag (FRC2W-S-02)', r1.code === 0 && r1.stdout.includes(`update available: v${V_FINAL}`) && r1.stdout.includes(V_RC), r1.stdout + r1.stderr)
+  seedInstalled(V_FINAL)
+  const candidateOnly = makeFixtures('final-under-candidate', [{ version: V_FINAL, prerelease: false }, { version: V_NEXT_RC }])
+  const r2 = runCli(['update', '--check'], { fixtures: candidateOnly })
+  check('a full-release install is current when the only newer tag is a release candidate (exit 0)', r2.code === 0 && r2.stdout.includes(`Mercury is current: ${V_FINAL}`), r2.stdout + r2.stderr)
+  const r2b = runCli(['update', '--allow-unsigned'], { fixtures: candidateOnly })
+  check('mercury update leaves a full-release install on its version under a release candidate', r2b.code === 0 && r2b.stdout.includes(`Mercury is current: ${V_FINAL}`) && currentPointer() === V_FINAL, r2b.stdout + r2b.stderr)
+  const nextFinal = makeFixtures('final-to-next-final', [{ version: V_FINAL, prerelease: false }, { version: V_NEXT_RC }, { version: V_NEXT, prerelease: true }])
+  const r3 = runCli(['update', '--check'], { fixtures: nextFinal })
+  check('a full-release install is offered the next full release past its candidate, the flag on that tag notwithstanding', r3.code === 0 && r3.stdout.includes(`update available: v${V_NEXT}`), r3.stdout + r3.stderr)
+  seedInstalled(V_OLD)
 }
 {
   const f = join(fixturesRoot, 'foreign-tags')

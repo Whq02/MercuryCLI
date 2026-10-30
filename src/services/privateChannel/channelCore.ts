@@ -114,17 +114,11 @@ export function selectRelease(
     .sort((a, b) => comparePrivateVersions(b.v, a.v))
   if (candidates.length === 0) return { state: 'no-releases' }
 
-  const newer = candidates.filter(c => comparePrivateVersions(c.v, installed) > 0)
+  const onChannel = installed.label === '' ? candidates.filter(c => c.v.label === '') : candidates
+  const newer = onChannel.filter(c => comparePrivateVersions(c.v, installed) > 0)
   if (newer.length === 0) return { state: 'current' }
 
   const pick = newer[0]!
-  if (pick.v.label !== '' && !pick.r.isPrerelease) {
-    return {
-      state: 'malformed-release',
-      tag: pick.r.tagName,
-      note: 'The release is not marked prerelease; it was not selected.',
-    }
-  }
   const version = formatPrivateVersion(pick.v)
   const assetName = assetNameFor(version, platform, arch)
   if (assetName === null) return { state: 'unsupported-platform', note: platformNote(platform, arch) }
