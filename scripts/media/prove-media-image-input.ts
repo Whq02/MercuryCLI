@@ -24,8 +24,10 @@ try {
   const transport = new StdioClientTransport({ command: 'node', args: [serverPath], cwd: proofHome, env: { PATH: process.env.PATH!, MEDIA_ROOT: root }, stderr: 'pipe' })
   await client.connect(transport)
   const tool = (await client.listTools()).tools.find(row => row.name === 'image_generate')!
-  const schema = tool.inputSchema.properties as Record<string, { type?: string; minimum?: number; maximum?: number }>
-  assert.deepEqual([schema.strength.minimum, schema.strength.maximum, schema.mask.type], [0, 1, 'string'])
+  const schema = tool.inputSchema.properties as Record<string, { anyOf: Array<{ type?: string; minimum?: number; maximum?: number }> }>
+  const strength = schema.strength.anyOf.find(schema => schema.type === 'number')!
+  assert.deepEqual([strength.minimum, strength.maximum], [0, 1])
+  assert.deepEqual(schema.mask.anyOf.map(schema => schema.type), ['string', 'null'])
   const call = (args: Record<string, unknown>) => client.callTool({ name: 'image_generate', arguments: { model: 'image-one', prompt: 'a blue dragon', width: 64, height: 64, wait: true, cwd: proofHome, ...args } })
   const invalid = await call({ reference_image: 'dragon.png', strength: 2 })
   assert.equal(invalid.isError, true)
@@ -42,6 +44,11 @@ try {
   const roundTrip = await call({ reference_image: output.path })
   assert.equal(roundTrip.isError ?? false, false, JSON.stringify(roundTrip))
   assert.equal(JSON.parse((roundTrip.content as Array<{ text: string }>)[0]!.text).strength, 0.75)
+  const nullOptionals = await call({ reference_image: null, strength: null, mask: null, control: null, loras: null, embeddings: null })
+  assert.equal(nullOptionals.isError ?? false, false, JSON.stringify(nullOptionals))
+  const withoutReference = JSON.parse((nullOptionals.content as Array<{ text: string }>)[0]!.text)
+  assert.equal(withoutReference.status, 'completed')
+  for (const key of ['reference_image', 'strength', 'mask', 'control', 'loras', 'embeddings']) assert.equal(withoutReference[key], undefined, key)
   console.log('media image inputs: the existing Reference line carries strength and mask; the bundled MCP discovers and forwards both, refuses invalid strength before loading, and round-trips a PNG')
 } finally {
   await client.close()
