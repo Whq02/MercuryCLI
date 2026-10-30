@@ -389,7 +389,8 @@ function scanMarkdownIntegrity(file: string, text: string, baseText?: string): I
         excerpt: `unbalanced parentheses (${opens} open vs ${closes} close): ${paraLines[0]!.trim().slice(0, 80)}`,
       })
     }
-    const words = stripped.toLowerCase().split(/\s+/).filter(Boolean)
+    const enumerated = withoutDouble.replace(/`[^`]*`(?:,\s*`[^`]*`){2,}/g, 'enumeration').replace(/`[^`]*`/g, 'code')
+    const words = enumerated.toLowerCase().split(/\s+/).filter(Boolean)
     let foundClauseRepeat = false
     for (let w = 0; w + 16 <= words.length && !foundClauseRepeat; w++) {
       const runWords = words.slice(w, w + 8)
@@ -469,6 +470,14 @@ function selfTest(): void {
   )
   if (!dupTenWords.some(h => h.kind === 'repeated-line-or-clause')) {
     console.error('self-test FAILED: 10-word repeated clause was not caught')
+    process.exit(1)
+  }
+  const enumeration = scanMarkdownIntegrity(
+    'fixture.md',
+    '# Title\n\nRoutes announce the remaining tools (among them `Crewmate`,\n`Skill`, `Test`, `LspRead`, `AstSearch`, `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,\n`LspFormat`) with a one-line purpose each.\n',
+  )
+  if (enumeration.some(h => h.kind === 'repeated-line-or-clause')) {
+    console.error('self-test FAILED: a comma-separated run of code spans is an enumeration, not a repeated clause')
     process.exit(1)
   }
   const cutParen = scanMarkdownIntegrity('fixture.md', '# Title\n\nPages (`Retain`, `Recall`,\nRecall fuses the model.\n')
