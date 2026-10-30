@@ -2,6 +2,7 @@
 // gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/readOnlyValidation.ts
 // gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts
 // gate-watch: src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts src/Tool.ts src/utils/config.ts
+import { mock } from 'bun:test'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -21,11 +22,14 @@ delete process.env.NODE_ENV
 
 import { z } from 'zod/v4'
 
+const platformModule = await import('../../src/utils/platform.js')
+let platform: ReturnType<typeof platformModule.getPlatform> = platformModule.getPlatform()
+mock.module('../../src/utils/platform.js', () => ({ ...platformModule, getPlatform: () => platform }))
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 await import('../../src/Tool.js')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.js')
-const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { bashToolHasPermission, isCurrentFolderSpelling } = await import('../../src/tools/BashTool/bashPermissions.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
 let failures = 0
@@ -98,6 +102,23 @@ console.log('\n5. the other one-part reasons')
   check('a cd to the starting folder is not quoted; the part is', cwdPrefixed.decision.message === '`npm test` requires approval: `npm` is not a command Mercury can verify as read-only.', shown(cwdPrefixed))
   const long = await decide(`node -e "${'x'.repeat(130)}"`, 'default')
   check('a part longer than 120 characters is cut with an ellipsis', (long.decision.message ?? '').startsWith(`\`node -e "${'x'.repeat(111)}…\` requires approval: \`node\` is not a command Mercury can verify as read-only.`), shown(long))
+}
+
+console.log('\n6. on Windows the starting folder is read in its three spellings: as written, C:/…, /c/… — and in no other')
+{
+  const hostPlatform = platform
+  platform = 'windows'
+  const cwd = 'C:\\Users\\Dev\\proj'
+  for (const spelled of ['C:\\Users\\Dev\\proj', 'C:/Users/Dev/proj', '/c/Users/Dev/proj', 'c:\\Users\\Dev\\proj', 'c:/Users/Dev/proj', '/C/Users/Dev/proj', 'C:\\Users\\Dev\\proj\\', 'C:/Users/Dev/proj/', '/c/Users/Dev/proj/']) {
+    check(`${spelled} is the starting folder ${cwd}`, isCurrentFolderSpelling(spelled, cwd))
+  }
+  for (const other of ['C:/Users/Dev/proj2', 'C:/Users/Dev', 'C:/Users/Dev/proj/sub', 'D:/Users/Dev/proj', '/d/Users/Dev/proj', 'Users/Dev/proj', '/Users/Dev/proj', 'C:Users/Dev/proj', 'C:/users/dev/proj', '//server/Users/Dev/proj']) {
+    check(`${other} is not ${cwd}`, !isCurrentFolderSpelling(other, cwd))
+  }
+  check('the MSYS spelling of the starting folder also reads a C:/ cd as the same folder', isCurrentFolderSpelling('C:/Users/Dev/proj', '/c/Users/Dev/proj') && isCurrentFolderSpelling('C:\\Users\\Dev\\proj', '/c/Users/Dev/proj'))
+  check('a drive root: C:\\, C:/ and /c are one folder', isCurrentFolderSpelling('C:/', 'C:\\') && isCurrentFolderSpelling('/c', 'C:\\') && !isCurrentFolderSpelling('/c/x', 'C:\\'))
+  platform = hostPlatform
+  check('on this platform the spelling is exact: the folder as written, with no trailing separator and no case folding', isCurrentFolderSpelling(root, root) && !isCurrentFolderSpelling(`${root}/`, root) && !isCurrentFolderSpelling(root.toUpperCase() === root ? root.toLowerCase() : root.toUpperCase(), root))
 }
 
 process.chdir(previousCwd)

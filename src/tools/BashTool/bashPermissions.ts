@@ -243,10 +243,19 @@ function isNormalizedCdCommand(command: string): boolean {
 }
 
 
+function folderKey(path: string): string {
+  if (getPlatform() !== 'windows') return path
+  const posix = windowsPathToPosixPath(path).replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive: string) => `/${drive.toLowerCase()}`)
+  return posix.length > 1 && posix.endsWith('/') ? posix.slice(0, -1) : posix
+}
+
+export function isCurrentFolderSpelling(spelled: string, cwd: string): boolean {
+  return folderKey(spelled) === folderKey(cwd)
+}
+
 function isCurrentDirectoryCommand(command: SimpleCommand, cwd: string): boolean {
-  const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
   return command.argv.length === 2 && command.argv[0] === 'cd' &&
-    (command.argv[1] === cwd || command.argv[1] === posixCwd) &&
+    isCurrentFolderSpelling(command.argv[1] ?? '', cwd) &&
     command.envVars.length === 0 && command.redirects.length === 0 &&
     isCurrentDirectoryBareGitRepo(cwd) === false
 }
