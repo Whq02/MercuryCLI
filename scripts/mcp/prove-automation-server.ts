@@ -15,6 +15,7 @@ import { buildConcoursePromptRow } from '../../src/daemon/concourseDispatch.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const binary = process.env.MERCURY_PROOF_DIST ?? join(root, 'dist/mercury.mjs')
+const version = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }).version
 const f = await compatRoadFixture()
 const sender = 'fixture-bot'
 const token = 'fixture-mcp-bearer-token-not-a-real-secret'
@@ -94,6 +95,8 @@ async function exercise(transport: 'stdio' | 'http', mode: 'auto' | 'legacy' = '
   configure()
   let host = await start(transport, mode)
   let c = host.c
+  assert.deepEqual(c.getServerVersion(), { name: 'mercury', title: 'Mercury CLI', version, websiteUrl: 'https://mercury-cli.ai' })
+  check(`${label} server identity names Mercury CLI, its build version and website`)
   const listed = await c.listTools()
   assert.deepEqual(listed.tools.map(tool => tool.name).sort(), Object.keys(schemaPins).sort())
   for (const tool of listed.tools) assert.equal(createHash('sha256').update(JSON.stringify(canonical(tool.inputSchema))).digest('hex'), schemaPins[tool.name])

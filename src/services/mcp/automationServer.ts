@@ -3,6 +3,7 @@ import { McpServer, ResourceTemplate, type CallToolResult, type McpRequestContex
 import { PERMISSION_MODES } from '../../../sdk/src/door.js'
 import { AutomationBridge } from './automationBridge.js'
 import { AutomationPermissionRefusal } from './automationAccess.js'
+import { MERCURY_VERSION } from '../../constants/product.js'
 
 const id = z.string().uuid()
 const automationSchemas = {
@@ -24,7 +25,7 @@ const safely = async (action: () => Promise<Record<string, unknown>>): Promise<C
 export function automationServerFactory(bridge: AutomationBridge): { create: (context: McpRequestContext) => McpServer; close: () => Promise<void> } {
   return {
     create() {
-      const server = new McpServer({ name: 'mercury', version: typeof MACRO !== 'undefined' ? MACRO.VERSION : '0' })
+      const server = new McpServer({ name: 'mercury', title: 'Mercury CLI', version: MERCURY_VERSION, websiteUrl: 'https://mercury-cli.ai' })
       server.registerTool('mercury_run', { description: 'Read an outside report in a client-owned session, only when this client may run. Never joins an operator session or grants permission. Returns SDK rows.', inputSchema: automationSchemas.mercury_run, annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true } }, (input, ctx) => safely(() => bridge.run(input, ctx.mcpReq.signal)))
       server.registerTool('mercury_session_rows', { description: 'Read the last rows of a session within this client’s reach; before pages backwards.', inputSchema: automationSchemas.mercury_session_rows, annotations: { readOnlyHint: true } }, input => safely(() => bridge.query({ op: 'rows', ...input })))
       server.registerTool('mercury_sessions', { description: 'List saved project sessions within this client’s reach.', inputSchema: automationSchemas.mercury_sessions, annotations: { readOnlyHint: true } }, () => safely(() => bridge.query({ op: 'sessions' })))
