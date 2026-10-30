@@ -3,7 +3,7 @@
 
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'delete-ward-quoted-home-'))
 process.env.HOME = join(scratch, 'home')
@@ -28,9 +28,10 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const home = homedir()
-mkdirSync(join(home, 'Developer'), { recursive: true })
+const projectPath = join(home, 'Developer', '.delete-ward-quoted-proof')
+mkdirSync(projectPath, { recursive: true })
 const realHome = realpathSync(home)
-const project = realpathSync(mkdtempSync(join(home, 'Developer', '.delete-ward-quoted-proof-')))
+const project = realpathSync(projectPath)
 const plainProject = realpathSync(mkdtempSync(join(tmpdir(), 'delete-ward-quoted-plain-')))
 for (const root of [project, plainProject]) {
   mkdirSync(join(root, '.git'), { recursive: true })
@@ -54,7 +55,7 @@ console.log(' the home-delete ward of an autonomous session fires on a quoted op
 console.log('============================================================')
 console.log(` home ${home} · project under the home ${project} · plain project ${plainProject}`)
 check('the autonomous delete ward is armed (MERCURY_SPAWNED_BY set)', deleteWardActive())
-
+check('the in-project fixture is beneath its home', project.startsWith(`${realHome}${sep}`), `${project} outside ${realHome}`)
 console.log('\n§1 a quoted home path is stopped as the bare one is (RED on 015ac050c0 and on the base: every quoted form was allowed)')
 const homeDeletes: Array<[string, string]> = [
   ['double quotes', `rm -rf "${home}/Documents"`],
