@@ -51,6 +51,18 @@ export function promptSchemaRefusal(row: InputRow): string | null {
   return `the prompt row${row.id === undefined ? '' : ` ${row.id}`} carries a schema that is not a JSON schema — ${compiled.error}`
 }
 
+export function schemaFlagRefusal(text: string): string | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    return `--schema is not JSON — ${error instanceof Error ? error.message : String(error)}`
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return '--schema must be a JSON object: the JSON schema the answer has to satisfy'
+  const compiled = compileJsonSchema(parsed)
+  return compiled.ok ? null : `--schema is not a JSON schema — ${compiled.error}`
+}
+
 export function inputRefusal(parsed: unknown): string | null {
   const check = InputRowSchema().safeParse(parsed)
   const type = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined

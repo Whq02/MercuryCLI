@@ -1316,6 +1316,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (opts.ephemeral === true && !runMode) {
     failCli('--ephemeral requires mercury run: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
   }
+  const schemaFlag = runMode ? typedString(opts.schema) : undefined
+  if (schemaFlag !== undefined) {
+    const { schemaFlagRefusal } = await import('./cli/structuredIO.js')
+    const refusal = schemaFlagRefusal(schemaFlag)
+    if (refusal !== null) failCli(refusal)
+  }
 
   if (opts.lean) {
     setFlagEnv('MERCURY_BARE', '1')
@@ -2157,12 +2163,9 @@ async function runLaunch(args: {
       './tools/SyntheticOutputTool/SyntheticOutputTool.js'
     )
     if (isSyntheticOutputToolEnabled({ isNonInteractiveSession: true })) {
-      try {
-        parsedJsonSchema = JSON.parse(jsonSchemaOpt) as Record<string, unknown>
-        const synthetic = createSyntheticOutputTool(parsedJsonSchema)
-        if ('tool' in synthetic) tools = [...tools, synthetic.tool]
-      } catch {
-      }
+      parsedJsonSchema = JSON.parse(jsonSchemaOpt) as Record<string, unknown>
+      const synthetic = createSyntheticOutputTool(parsedJsonSchema)
+      if ('tool' in synthetic) tools = [...tools, synthetic.tool]
     }
   }
   profileCheckpoint('action_tools_loaded')
