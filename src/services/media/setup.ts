@@ -60,7 +60,7 @@ export function mediaRows(catalogue: MediaCatalogue, root: string, machine: { to
     const pullBytes = complete ? 0 : missing.reduce((n, file) => n + file.bytes - mediaPartialBytes(root, file), 0)
     const joinBytes = joined && !whole ? mediaCheckpointFile(model).bytes ?? bytes : 0
     const fit = fitMediaRecipeOn(model, catalogue, machine, pullBytes + joinBytes, freeBytes)
-    const words = [complete ? 'installed' : `pull ${gbWords(pullBytes)}`, `${gbWords(bytes)} disk`, ...(joinBytes > 0 ? [`${gbWords(pullBytes + joinBytes)} during the download`] : []), `${gibWords(model.peakBytes ?? fit.residentBytes)} memory`, model.secondsPerImage === undefined ? `— s/${model.kind === 'video' ? 'clip' : 'image'}` : `${Math.round(model.secondsPerImage * 10) / 10} s/${model.kind === 'video' ? 'clip' : 'image'}`, !fit.diskFits ? 'needs disk space' : fit.fits ? 'fits' : 'needs more memory'].join(' · ')
+    const words = [complete ? 'installed' : `pull ${mediaSizeWords(pullBytes)}`, `${mediaSizeWords(bytes)} disk`, ...(joinBytes > 0 ? [`${mediaSizeWords(pullBytes + joinBytes)} during the download`] : []), `${gibWords(model.peakBytes ?? fit.residentBytes)} memory`, model.secondsPerImage === undefined ? `— s/${model.kind === 'video' ? 'clip' : 'image'}` : `${Math.round(model.secondsPerImage * 10) / 10} s/${model.kind === 'video' ? 'clip' : 'image'}`, !fit.diskFits ? 'needs disk space' : fit.fits ? 'fits' : 'needs more memory'].join(' · ')
     return { model, installed: complete, bytes, pullBytes, fit, words }
   })
 }

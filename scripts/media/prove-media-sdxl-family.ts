@@ -27,6 +27,10 @@ try {
   const base = rows.find(row => row.model.id === 'sdxl-base-1.0')!
   assert.equal(pixel.words, 'pull 7.1 GB · 7.1 GB disk · 14.2 GB during the download · 11.3 GiB memory · 96.1 s/image · fits', 'the row keeps the shape of every other row and names what the download needs while it runs')
   assert.equal(base.words, 'pull 7.1 GB · 7.1 GB disk · 14.2 GB during the download · 11.3 GiB memory · — s/image · fits')
+  const anime = rows.find(row => row.model.id === 'realesrgan-x4plus-anime-6b')!
+  const upscaler = rows.find(row => row.model.id === 'realesrgan-x4plus')!
+  assert.match(anime.words, /^pull 17\.9 MB · 17\.9 MB disk · /, 'a row under a gigabyte says its size in megabytes, never "pull 0.0 GB"')
+  assert.match(upscaler.words, /^pull 67\.0 MB · 67\.0 MB disk · /)
   assert.equal(pixel.bytes, 7105317250)
   assert.equal(pixel.pullBytes, 7105317250)
   assert.equal(pixel.model.license, 'CreativeML OpenRAIL-M')
