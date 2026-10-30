@@ -154,5 +154,38 @@ console.log('\n§6 outside reports never start a turn or merge into a completion
   check('the report is consumed once without executing its slash text', rig.queue.length === 0 && rig.turns.every(turn => turn.command.value !== '/clear'))
 }
 
+console.log('\n§7 an outside report queued while crewmates run leaves the driver waiting on its tick, never spinning')
+{
+  const rig = makeRig()
+  let peeks = 0
+  let sleeps = 0
+  let running = 7
+  const basePeek = rig.ports.peek
+  rig.ports.peek = () => {
+    peeks++
+    if (peeks > 20_000) throw new Error('the agent-wait loop spun 20,000 passes without sleeping')
+    return basePeek()
+  }
+  rig.ports.hasWaitableBackgroundTasks = () => running > 0
+  rig.ports.hasHoldableBackgroundAgents = () => running > 0
+  rig.ports.waitableBackgroundTaskCount = () => running
+  rig.ports.clock = { sleep: ms => { sleeps++; return new Promise(resolve => setTimeout(resolve, Math.min(ms, 2))) }, now: () => Date.now() }
+  const driver = createTurnDriver(rig.ports)
+  const report: QueuedCommand = { value: 'ping from the bot', mode: 'task-notification', origin: { kind: 'outside-report', sender: 'grokbot', via: 'mcp-server' }, priority: 'next', ridesNextWords: true, skipSlashCommands: true }
+  rig.queue.push(report)
+  driver.kick()
+  await new Promise(resolve => setTimeout(resolve, 150))
+  check('the driver slept on its tick while the report waited for the next words', sleeps >= 1, `sleeps=${sleeps} peeks=${peeks}`)
+  check('the loop made a bounded number of passes, not a spin', peeks < 20_000, `peeks=${peeks}`)
+  check('the report still waits, unconsumed, and no turn ran', rig.turns.length === 0 && rig.queue[0] === report)
+  rig.queue.push(prompt('What did the bot say?'))
+  driver.kick()
+  await settle(12)
+  check('the next words carry the report', rig.turns.length === 1 && rig.turns[0]!.initialNotices[0] === report)
+  running = 0
+  driver.kick()
+  await settle(12)
+}
+
 console.log(`\n${failures === 0 ? '✅ a queued notice rides the next prompt — PROVEN' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

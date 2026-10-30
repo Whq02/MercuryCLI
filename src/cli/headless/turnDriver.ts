@@ -369,7 +369,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
+        let ranCommand = false
         while ((command = nextDue())) {
+          ranCommand = true
           announceWait(0)
           if (
             command.mode !== 'prompt' &&
@@ -387,7 +389,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         waitingForAgents = false
         if (!holdReleased && (ports.hasWaitableBackgroundTasks() || dueQueued())) {
           waitingForAgents = true
-          if (ports.peek() === undefined || holding || wallHeld) {
+          if (!ranCommand || holding || wallHeld) {
             phase = 'waiting_for_agents'
             const running = ports.waitableBackgroundTaskCount?.() ?? (ports.hasWaitableBackgroundTasks() ? 1 : 0)
             announceWait(holding ? running : Math.max(1, running))
