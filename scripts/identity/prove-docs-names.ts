@@ -128,6 +128,7 @@ const SETTINGS_LOOKALIKES = new Map<string, string>([
 const REPO_PATHS_NOT_IN_TREE = new Map<string, string>([
   ['vendor/model', 'fetched by setup'],
   ['vendor/node/bin/node', 'fetched by setup'],
+  ['vendor/node', 'fetched by scripts/vendor/fetch-node.ts before a build'],
   ['vendor/python', 'fetched by scripts/vendor/fetch-python.ts before a build'],
   ['vendor/embed', 'built for the platform by the build'],
   ['assets/boat.png', 'a file in the reader\'s own project'],

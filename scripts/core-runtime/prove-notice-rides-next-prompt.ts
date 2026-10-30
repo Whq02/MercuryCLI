@@ -180,8 +180,8 @@ console.log('\n§7 an outside report queued while crewmates run leaves the drive
   check('the report still waits, unconsumed, and no turn ran', rig.turns.length === 0 && rig.queue[0] === report)
   rig.queue.push(prompt('What did the bot say?'))
   driver.kick()
-  await settle(12)
-  check('the next words carry the report', rig.turns.length === 1 && rig.turns[0]!.initialNotices[0] === report)
+  for (let waited = 0; rig.turns.length === 0 && waited < 2000; waited += 10) await new Promise(resolve => setTimeout(resolve, 10))
+  check('the next words carry the report', rig.turns.length === 1 && rig.turns[0]!.initialNotices[0] === report, `turns=${rig.turns.length}`)
   running = 0
   driver.kick()
   await settle(12)

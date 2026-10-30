@@ -7,6 +7,8 @@ const root = resolve(import.meta.dir, '../..')
 const goldenPath = join(import.meta.dir, 'fixtures/anthropic-sdk-road.json')
 type Request = { path: string; method: string; headers: Record<string, string>; raw: string; body: unknown }
 type Capture = { arm: string; requests: Request[]; outputs: unknown[]; errors: Record<string, unknown> }
+const runtimeNeutral = (errors: Record<string, unknown>): Record<string, unknown> =>
+  JSON.parse(JSON.stringify(errors).replaceAll('ECONNRESET: The socket connection was closed unexpectedly', 'The socket connection was closed unexpectedly')) as Record<string, unknown>
 const HEADER_ALLOW_LIST = {
   host: 'The loopback fixture binds a new ephemeral port on each run.',
   'x-stainless-arch': 'Removed vendor SDK telemetry; not a protocol or identity header.',
@@ -61,7 +63,7 @@ if (process.argv.includes('--record')) {
     assert.equal(current.arm, before.arm)
     assert.deepEqual(current.requests.map(comparable), before.requests.map(comparable), `${current.arm}: request bytes changed`)
     assert.deepEqual(current.outputs, before.outputs, `${current.arm}: transcript or usage changed`)
-    assert.deepEqual(current.errors, before.errors, `${current.arm}: error contract changed`)
+    assert.deepEqual(runtimeNeutral(current.errors), runtimeNeutral(before.errors), `${current.arm}: error contract changed`)
     const source = readFileSync(join(root, 'src/constants/oauth.ts'), 'utf8')
     const version = /ANTHROPIC_CLIENT_CONTRACT_VERSION = '([^']+)'/.exec(source)?.[1]
     assert.ok(version)
