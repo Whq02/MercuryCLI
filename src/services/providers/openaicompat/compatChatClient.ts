@@ -229,7 +229,7 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
     ...(billing ? { classification: 'billing_error' as const } : throttled ? { classification: 'rate_limit' as const } : {}),
     ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
     ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
-    retryable: !billing && (throttled || status === 429 || status === 408 || status >= 500 || vendor?.retryable === true),
+    retryable: !billing && (throttled || status === 429 || status === 408 || status === 409 || status >= 500 || vendor?.retryable === true),
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
