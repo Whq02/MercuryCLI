@@ -112,7 +112,6 @@ function makeRig(reads: unknown): Rig {
     waitableBackgroundTaskCount: () => 0,
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
-    notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},

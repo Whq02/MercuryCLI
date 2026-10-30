@@ -16,7 +16,6 @@ import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
 import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
-import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
@@ -50,7 +49,7 @@ interface AskChannel {
 }
 
 export interface AskHost extends AskChannel {
-  createCanUseTool(onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn
+  createCanUseTool(): CanUseToolFn
   handleElicitation(serverName: string, message: string, requestedSchema?: Record<string, unknown>, signal?: AbortSignal, mode?: 'form' | 'url', url?: string, elicitationId?: string): Promise<ElicitResult>
   denyPendingPermissionRequests(cause: string): number
   recheckPendingPermissionRequests(): Promise<void>
@@ -120,7 +119,7 @@ export function decisionOfAnswer(
   }
 }
 
-function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details: RequiresActionDetails) => void): CanUseToolFn {
+function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
   const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision) => {
     const key = randomUUID()
     const parentSignal = toolUseContext.abortController.signal
@@ -138,14 +137,6 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
       const wireMode = (PERMISSION_MODES as readonly string[]).includes(permissionMode) ? (permissionMode as PermissionMode) : undefined
       askLimit = askLimitMs({ mode: permissionMode, crewmate: toolUseContext.agentId !== undefined })
       const askResult = engineResult as { suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: PermissionDecisionReason }
-
-      onPermissionPrompt?.({
-        tool_name: tool.name,
-        action_description: describeToolAction(tool as Tool, input),
-        tool_use_id: toolUseID,
-        request_id: key,
-        input,
-      })
 
       const hookDecisionPromise = (async (): Promise<HookFireResult | null> => {
         const asked = await fireHooks(
@@ -238,7 +229,6 @@ function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (details
     } finally {
       if (awayTimer !== undefined) clearTimeout(awayTimer)
       parentSignal.removeEventListener('abort', forwardParentAbort)
-      if (channel.parkedAsks() === 0) notifySessionStateChanged('running')
     }
   }
   return canUseTool
@@ -314,7 +304,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
 
   return {
     ...channel,
-    createCanUseTool: onPermissionPrompt => createHostCanUseTool(channel, onPermissionPrompt),
+    createCanUseTool: () => createHostCanUseTool(channel),
     async handleElicitation(serverName, message, requestedSchema, signal, mode, url, elicitationId): Promise<ElicitResult> {
       if (!capabilities().elicitation) {
         logForDebugging(`elicitation for ${serverName}: the host declared no elicitation; answered cancel`)

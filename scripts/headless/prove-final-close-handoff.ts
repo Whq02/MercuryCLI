@@ -44,7 +44,7 @@ try {
       },
       hasWaitableBackgroundTasks: () => waiting, hasHoldableBackgroundAgents: () => waiting,
       settleIdle: async () => 'close', beforeCloseOutput: async () => { await exit.leaveNoteBeforeExit({ run }) },
-      closeOutput: async () => closed(), notifySessionState: () => {}, isShuttingDown: () => false,
+      closeOutput: async () => closed(), isShuttingDown: () => false,
       idleTimerStop: () => {}, idleTimerStart: () => {}, onCycleError: () => ({ type: 'outcome', status: 'failed' }), shutdown: () => {},
       clock: { sleep: async () => {
         assert.equal(driver.phase(), 'waiting_for_agents')

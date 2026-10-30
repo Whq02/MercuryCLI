@@ -67,7 +67,6 @@ function makeRig(withWall: boolean): Rig {
     waitableBackgroundTaskCount: () => rig.running,
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
-    notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},

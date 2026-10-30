@@ -73,7 +73,6 @@ function makeRig(withWindow: boolean): Rig {
     },
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
-    notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},

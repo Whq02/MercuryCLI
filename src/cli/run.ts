@@ -236,10 +236,7 @@ import {
   saveSessionModel,
 } from '../utils/sessionStorage.js'
 import { restoreAgentFromSession, restoreConversationModel, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
-import {
-  notifySessionStateChanged,
-  setPermissionModeChangedListener,
-} from '../utils/sessionState.js'
+import { setPermissionModeChangedListener } from '../utils/sessionState.js'
 import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
 import { currentHiddenCharacterLines, untoldHiddenCharacterLines } from '../utils/text/hiddenCharacterFindings.js'
@@ -783,7 +780,7 @@ export async function runHeadless(
           messages,
           getAppState,
           setAppState,
-          canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
+          canUseTool: asks.createCanUseTool(),
           relaunchContext,
         })
         recoveredCommandIds = carried.recoveredCommandIds
@@ -806,7 +803,7 @@ export async function runHeadless(
       const carried = await carryPausedCrewmatesOnResume({
         getAppState,
         setAppState,
-        canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
+        canUseTool: asks.createCanUseTool(),
         relaunchContext,
       })
       if (carried.length > 0) {
@@ -933,7 +930,7 @@ export async function runHeadless(
     return !rules.some(rule => rule === tool.name)
   })
   const sessionTools: Tool[] = [...tools, ...startingMcpTools]
-  const canUseTool = asks.createCanUseTool(() => notifySessionStateChanged('requires_action'))
+  const canUseTool = asks.createCanUseTool()
   registerProcessOutputErrorHandlers()
   noteRunPhase('config_auth')
 
@@ -1142,7 +1139,6 @@ export async function runHeadless(
     setEngineModelOverride(model)
     setFlagEnv('MERCURY_MODEL', model)
     saveSessionModel(model)
-    notifySessionStateChanged('idle')
     if (model !== previous) {
       await injectModelSwitchBreadcrumbs(model, previous, words)
       if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
@@ -1598,7 +1594,6 @@ export async function runHeadless(
       logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
       io.outbound.done()
     },
-    notifySessionState: state => notifySessionStateChanged(state),
     isShuttingDown,
     idleTimerStop: () => idleTimeout.stop?.(),
     idleTimerStart: () => idleTimeout.start?.(),

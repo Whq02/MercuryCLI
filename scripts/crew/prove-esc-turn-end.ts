@@ -43,7 +43,6 @@ const turns: string[] = []
 const waits: number[] = []
 const sleeps: Array<() => void> = []
 let now = 0
-let loading = false
 const driver = createTurnDriver({
   dequeue: () => queue.shift(),
   dequeueCommand: command => {
@@ -77,7 +76,6 @@ const driver = createTurnDriver({
   onAgentWait: count => waits.push(count),
   settleIdle: async () => 'stay',
   closeOutput: async () => {},
-  notifySessionState: value => { loading = value === 'running' },
   isShuttingDown: () => false,
   idleTimerStop: () => {},
   idleTimerStart: () => {},
@@ -98,19 +96,19 @@ const arrive = (id: string): void => {
 
 driver.kick()
 await flush()
-check('the base turn waits on a real running crew record', loading && driver.phase() === 'waiting_for_agents' && driver.hasHeldResult())
+check('the base turn waits on a real running crew record', driver.phase() === 'waiting_for_agents' && driver.hasHeldResult())
 driver.releaseHold()
 await flush()
-check('esc releases the loading edge without waiting for the polling clock', !loading && !driver.hasHeldResult(), `loading=${loading}, phase=${driver.phase()}`)
+check('esc releases the held result without waiting for the polling clock', !driver.hasHeldResult(), `phase=${driver.phase()}`)
 await tick()
-check('the interrupted turn settles while the crew keeps running', !loading && driver.phase() === 'idle' && !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew)
+check('the interrupted turn settles while the crew keeps running', driver.phase() === 'idle' && !task.abortController!.signal.aborted && JSON.stringify(projectWorkRoster(state.tasks)) === beforeCrew)
 
 arrive('first-worker')
 await flush()
 const row = createNoticeRow(notice('first-worker'), stamp.getTime())
 const painted = (await renderToString(createElement(MessageMetaProvider, { message: row }, createElement(Text, null, createElement(NameplateClock), 'Agent "first-worker" completed')), 178)).replace(/\s+/g, ' ').trim()
 console.log(`notice row: "${painted}"`)
-check('a notice after esc stays held without reopening the lead turn', !loading && !driver.isRunning() && queue.length === 1 && turns.length === 1, `loading=${loading}, phase=${driver.phase()}`)
+check('a notice after esc stays held without reopening the lead turn', !driver.isRunning() && queue.length === 1 && turns.length === 1, `phase=${driver.phase()}`)
 check('the held row quotes the arrival clock', painted.includes('held since 18:58:01'), painted)
 arrive('second-worker')
 await flush()
@@ -119,7 +117,7 @@ const repl = readFileSync(join(import.meta.dir, '../../src/screens/Chat.tsx'), '
 const gate = repl.match(/if \(seatCommand !== undefined && isLoadingRef\.current\) \{[\s\S]*?\n      \}/)?.[0]
 if (!gate) throw new Error('the session-command queued gate was not found')
 const receipts: string[] = []
-new Function('seatCommand', 'isLoadingRef', 'addNotification', 'getCommandName', 'RECEIPT_TIMEOUT_MS', gate)({ name: 'compact' }, { current: loading }, (notice: { text: string }) => receipts.push(notice.text), (command: { name: string }) => command.name, 1)
+new Function('seatCommand', 'isLoadingRef', 'addNotification', 'getCommandName', 'RECEIPT_TIMEOUT_MS', gate)({ name: 'compact' }, { current: driver.isRunning() }, (notice: { text: string }) => receipts.push(notice.text), (command: { name: string }) => command.name, 1)
 console.log(`command row: "${receipts[0] ?? '/compact runs now'}"`)
 check('a command typed after esc never paints queued behind the crew', receipts.length === 0, receipts.join(' | '))
 queue.push({ mode: 'prompt', value: '/compact', queueId: 'operator-compact' })

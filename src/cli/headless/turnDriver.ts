@@ -79,7 +79,6 @@ export type TurnDriverPorts = {
   closeOutput(): Promise<void>
   beforeCloseOutput?(): Promise<void>
 
-  notifySessionState(state: 'running' | 'idle'): void
   isShuttingDown(): boolean
   idleTimerStop(): void
   idleTimerStart(): void
@@ -352,7 +351,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   async function cycle(): Promise<void> {
     phase = 'starting'
     holdReleased = false
-    ports.notifySessionState('running')
     ports.idleTimerStop()
 
     await ports.beforeCycle()
@@ -418,7 +416,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       announceWait(0)
       phase = 'finally'
       if (!ports.isShuttingDown()) {
-        ports.notifySessionState('idle')
         flushSdkEvents()
       }
       phase = 'idle'

@@ -73,7 +73,6 @@ console.log('\nA1 the driver announces the agent wait and its end')
     onAgentWait: count => announced.push(count),
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
-    notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},

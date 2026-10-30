@@ -65,7 +65,6 @@ function makeRig(): Rig {
     closeOutput: async () => {
       rig.closes++
     },
-    notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
