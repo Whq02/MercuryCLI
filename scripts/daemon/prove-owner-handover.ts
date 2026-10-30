@@ -185,7 +185,7 @@ section('§B the real daemon: the owner cockpit goes, ownership passes, the daem
 section('§C the wiring (source pins)')
 {
   const main = read(join(ROOT, 'src/daemon/main.ts'))
-  check('the owner watch is armed through the re-armable closure', main.includes('const armOwnerWatch = (pid: number, withPipe: boolean)'))
+  check('the owner watch reads its baseline asynchronously before arming the re-armable closure', main.includes('const armOwnerWatch = async (pid: number, withPipe: boolean)') && main.includes('const ownerStartToken = await getProcessStartTokenAsync(pid)') && main.includes('if (shuttingDown || currentOwnerPid !== pid) return'))
   check('the hand-over passes ownership to the next live cockpit before shutting down', main.includes('const next = nextLiveCockpitOwner(pid)') && main.includes('currentOwnerPid = next') && main.includes('armOwnerWatch(next, false)'))
   check('parkAllThenShutdown fires only when no live cockpit remains', main.includes('no live cockpit remains') && main.includes("void parkAllThenShutdown('owner-orphaned')"))
   check('the hello facts and the record read the live owner, not the env stamp', main.includes('ownerPid: currentOwnerPid') && !main.includes('ownerPid: parseOwnerPid()'))

@@ -1571,11 +1571,12 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
-    const armOwnerWatch = (pid: number, withPipe: boolean): void => {
+    const armOwnerWatch = async (pid: number, withPipe: boolean): Promise<void> => {
       ownerWatch?.stop()
       ownerPipe?.close()
       ownerPipe = undefined
-      const ownerStartToken = getProcessStartToken(pid)
+      const ownerStartToken = await getProcessStartTokenAsync(pid)
+      if (shuttingDown || currentOwnerPid !== pid) return
       ownerWatch = startOwnerWatch({
         ownerPid: pid,
         baselineToken: ownerStartToken,
@@ -1591,7 +1592,7 @@ async function daemonRun(args: string[]): Promise<void> {
               .catch(() => {})
             // eslint-disable-next-line no-console
             console.error(`[daemon] owner pid ${pid} gone (${why}) — ownership passes to the live cockpit pid ${next}; the daemon stays up`)
-            armOwnerWatch(next, false)
+            void armOwnerWatch(next, false)
             return
           }
           // eslint-disable-next-line no-console
@@ -1612,7 +1613,7 @@ async function daemonRun(args: string[]): Promise<void> {
       }
     }
     if (currentOwnerPid !== null && !persist) {
-      armOwnerWatch(currentOwnerPid, true)
+      void armOwnerWatch(currentOwnerPid, true)
     }
   })
 }

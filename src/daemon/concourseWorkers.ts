@@ -12,7 +12,7 @@ import { lockSync } from '../utils/lockfile.js'
 import { daemonHomeStands, publishInDaemonHome, publishTransientInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
-import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
+import { getProcessStartToken, getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
 import { observeSessionStates } from './sessionStateHooks.js'
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
@@ -430,9 +430,9 @@ export function markConcourseWorkerCrash(
   }
 }
 
-function pidFieldsOf(pid: number | undefined): { pid?: number; procStart?: string } {
+function pidFieldsOf(pid: number | undefined, startToken = pid === undefined ? null : getProcessStartToken(pid)): { pid?: number; procStart?: string } {
   if (pid === undefined) return {}
-  const token = getProcessStartToken(pid) ?? getProcessStartTokenCachedOrRefresh(pid)
+  const token = startToken ?? getProcessStartTokenCachedOrRefresh(pid)
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
 }
 
@@ -1167,6 +1167,7 @@ export function makeConcourseAdmitHandler(
         console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes session ${claimSessionId}`)
         const runnerId = claimed.short
         const snapshot = resolveEffectiveSettingsSnapshot({ sessionId: claimSessionId })
+        const pidFields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartTokenAsync(claimed.pid))
         updateConcourseWorkers(workers => {
           workers[runnerId] = {
             schema: 1,
@@ -1182,7 +1183,7 @@ export function makeConcourseAdmitHandler(
             ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
             spawnedAt: Date.now(),
             lastLiveAt: Date.now(),
-            ...pidFieldsOf(claimed.pid),
+            ...pidFields,
             ...buildTreeFields(),
             settingsSnapshot: snapshot,
             workspaceKind: workspaceKindOf(workspaceId),
@@ -1333,6 +1334,7 @@ export function makeConcourseAdmitHandler(
     carryBuildNotices(sessionId)
     const reg = roster.registerLongLived(runnerId, spec)
     if (!reg.ok) return { ok: false, code: 'spawn-failed', error: reg.error ?? 'registerLongLived refused' }
+    const pidFields = pidFieldsOf(reg.pid, reg.pid === undefined ? null : await getProcessStartTokenAsync(reg.pid))
     updateConcourseWorkers(workers => {
       workers[runnerId!] = {
         schema: 1,
@@ -1349,7 +1351,7 @@ export function makeConcourseAdmitHandler(
         ...(req.seatsMax === 1 || req.seatsMax === 2 ? { seatsMax: req.seatsMax } : {}),
         spawnedAt: Date.now(),
         lastLiveAt: Date.now(),
-        ...pidFieldsOf(reg.pid),
+        ...pidFields,
         ...buildTreeFields(),
         settingsSnapshot: snapshot,
         workspaceKind,
@@ -2171,6 +2173,7 @@ export async function reactivateConcourseSession(
       // eslint-disable-next-line no-console
       console.error(`[daemon] warm claim acked in ${Date.now() - claimStartedAt}ms: ${claimed.short} takes back session ${rec.sessionId} (${rec.runnerId} reactivated in place)`)
       const short = claimed.short
+      const fields = pidFieldsOf(claimed.pid, claimed.pid === undefined ? null : await getProcessStartTokenAsync(claimed.pid))
       updateConcourseWorkers(workers => {
         const current = workers[rec.runnerId]
         if (!current || current.endedAt !== undefined) return
@@ -2180,7 +2183,6 @@ export async function reactivateConcourseSession(
         else delete next.keyless
         if (claimed.pid !== undefined) {
           next.pid = claimed.pid
-          const fields = pidFieldsOf(claimed.pid)
           if (fields.procStart !== undefined) next.procStart = fields.procStart
           else delete next.procStart
         } else {
