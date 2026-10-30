@@ -1,5 +1,5 @@
 {
-  "base": "dc251716502122f195921c30cc1b49576f7ff911",
+  "base": "7fa81ccd49188c9450cf5eb247303d8d24b87d64",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -249,19 +249,19 @@
             "type": "boolean"
           },
           "offset": {
-            "description": "The line number reading starts from (a negative integer -N starts N lines from the end of the file); pass it only when the whole file is too large for a single read",
+            "description": "The first line to read (a negative -N starts N lines from the end); only when the whole file is too large for one read",
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
           "limit": {
-            "description": "The maximum number of lines to return; pass it only when the whole file is too large for a single read.",
+            "description": "The most lines to return; only when the whole file is too large for one read",
             "type": "integer",
             "exclusiveMinimum": 0,
             "maximum": 9007199254740991
           },
           "ranges": {
-            "description": "Optional list of up to 32 1-based line ranges to read in one call (e.g., [\"1-20\", \"85-100\", \"-15\"]), each keeping its continuation mark.",
+            "description": "Up to 32 1-based line ranges read in one call ([\"1-20\", \"85-100\", \"-15\"]), each keeping its continuation mark",
             "maxItems": 32,
             "type": "array",
             "items": {
@@ -269,16 +269,16 @@
             }
           },
           "pages": {
-            "description": "Page range for PDF files (e.g., \"2-6\", \"9\", \"12-24\"). Only applicable to PDF files. Maximum 20 pages per request.",
+            "description": "PDF page range (\"2-6\", \"9\", \"12-24\"), at most 20 pages per call",
             "type": "string"
           },
           "scale": {
-            "description": "Upscale an image crop by this factor before reading it, for example 2. Requires crop; the existing image output budget still applies.",
+            "description": "Upscale the crop by this factor (for example 2) before reading; requires crop, within the same image output budget",
             "type": "number",
             "minimum": 1
           },
           "crop": {
-            "description": "For an image: a box [x1, y1, x2, y2] in the original pixels, cut out before any downscale so small text stays crisp — zoom into a screenshot by re-reading it with a box; refused when it reaches outside the image or is inverted.",
+            "description": "For an image: a box [x1, y1, x2, y2] in original pixels, cut before any downscale so small text stays crisp (zoom into a screenshot by re-reading it with a box); refused when it reaches outside the image or is inverted",
             "minItems": 4,
             "maxItems": 4,
             "type": "array",
@@ -289,11 +289,11 @@
             }
           },
           "outline": {
-            "description": "Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.",
+            "description": "True returns a structural outline (signatures kept, function and method bodies elided, original line numbers kept) from the vendored tree-sitter grammar for the file type; off, the full window",
             "type": "boolean"
           },
           "line_anchors": {
-            "description": "Set true to stamp each text line prefix with its content anchor (\"N#hhhh\") — the copyable address for anchor-qualified Edit hunks. Off, the output is the plain numbered form.",
+            "description": "True stamps each text line prefix with its content anchor (\"N#hhhh\"), the copyable address for anchor-qualified Edit hunks; off, the plain numbered form",
             "type": "boolean"
           }
         },
@@ -328,7 +328,7 @@
             "type": "boolean"
           },
           "expected_anchor": {
-            "description": "The staleness anchor from your most recent Read of this file — carry the parenthesised \"(anchor: …)\" value across exactly",
+            "description": "The staleness anchor from your most recent Read of this file: the parenthesised \"(anchor: …)\" value, carried across exactly",
             "type": "string"
           },
           "hunks": {
@@ -339,7 +339,7 @@
               "properties": {
                 "lines": {
                   "type": "string",
-                  "description": "A 1-based line number (\"12\"), inclusive range (\"12-18\"), or anchor-qualified spelling copied exactly from a line_anchors read (\"12#ab3f\", \"12#ab3f-18#9c2e\"). Anchor-qualified endpoints are verified against the current content: a drifted line refuses and the refusal answers the current anchors — re-aim from those, never retype content."
+                  "description": "A 1-based line number (\"12\"), inclusive range (\"12-18\"), or anchor-qualified spelling copied exactly from a line_anchors read (\"12#ab3f\", \"12#ab3f-18#9c2e\"); an anchored endpoint is checked against the current content, and a drifted line refuses with the current anchors — re-aim from those, never retype content."
                 },
                 "replace": {
                   "type": "string",
@@ -362,11 +362,11 @@
             }
           },
           "append": {
-            "description": "Text to add at the end of the file, on its own line (the file is created when absent); no prior read needed. With `section`, the text lands at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.",
+            "description": "Text added at the end of the file on its own line (the file is created when absent), no prior read needed; with `section`, at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.",
             "type": "string"
           },
           "section": {
-            "description": "A Markdown heading line, exactly as it stands in the file (\"## Checks\"), naming the section to edit: the heading through the line before the next heading of the same or a higher level. With new_string the whole section (heading included) becomes new_string; with append the text is added inside the section. The heading must occur once. Mutually exclusive with old_string/hunks.",
+            "description": "A Markdown heading line exactly as it stands in the file (\"## Checks\"), which must occur once, naming the section (the heading through the line before the next heading of the same or a higher level): with new_string the whole section, heading included, becomes new_string; with append the text is added inside it. Mutually exclusive with old_string/hunks.",
             "type": "string"
           }
         },
@@ -374,13 +374,13 @@
           "file_path"
         ],
         "additionalProperties": false,
-        "description": "One of four shapes: old_string + new_string (replace the text; both required together, replace_all rewrites every occurrence) · hunks (line-addressed hunks against the anchored snapshot) · append (text at the end of the file, or at the end of section) · section + new_string (replace the Markdown section named by section)"
+        "description": "One of four shapes: old_string + new_string (both required together; replace_all rewrites every occurrence) · hunks · append · section + new_string"
       },
       "eager_input_streaming": true
     },
     {
       "name": "Write",
-      "description": "Puts the given content on disk at the path you name.\n\nUsage:\n- An existing file at the path is overwritten in place.\n- Overwriting? Read has to have read the file first — an unread overwrite fails.\n- Edit sends only the diff; this tool sends the entire file, so it is for new files and complete rewrites.\n- A newly introduced syntax error in a supported source file or JSON/YAML/TOML is reported after writing when no LSP covers it; an unavailable grammar never blocks the write.\n- Documentation files (*.md, READMEs) appear only on an explicit request — never proactively.",
+      "description": "Puts the given content on disk at the path you name: the entire file, for new files and complete rewrites (Edit sends only the diff). An existing file is overwritten in place, and Read has to have read the file first — an unread overwrite fails. A newly introduced syntax error in a supported source file or JSON/YAML/TOML is reported after writing when no LSP covers it; an unavailable grammar never blocks the write. Documentation files (*.md, READMEs) appear only on an explicit request — never proactively.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2138,7 +2138,7 @@
     },
     {
       "name": "ChangeSet",
-      "description": "Use this over Edit when the same change spans several files: one coordinated review and apply.\n\nAtomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.\n\nOperations:\n1. { op: \"apply\", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.\n2. { op: \"preview\", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: \"apply\", plan_id: \"cs-…\" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.\n3. { op: \"status\", plan_id } — plan state + per-file freshness.\n4. { op: \"discard\", plan_id } — retire a prepared plan.\n\nEach changes[] member targets one existing text file with the Edit vocabulary:\n  { file_path, expected_anchor (required — the \"(anchor: …)\" value from your Read), hunks: [{ lines: \"N\" | \"N-M\", replace, insert?: \"before\"|\"after\" }] or edits: [{ old_string, new_string, replace_all? }], op?: \"edit\" | \"delete\" | \"move\", new_path? }\nHunks are 1-based against the anchored snapshot and must be disjoint; \"\" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string occurring once unless replace_all, and must address disjoint text; a member carries hunks or edits, not both. op \"delete\" removes the file (neither); op \"move\" renames it to new_path, which must not exist, after any hunks or edits. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.\n\nThe contract:\n· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;\n· a normal apply reaches the complete planned state, verified by reread;\n· a midway interruption is journaled and deterministically reconciled at the next boot;\n· if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.\n\nAlready-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.\n\nBounds (an exceeded bound names the limit and the smallest recovery): 16 files/set · 32 hunks/file · 128 hunks/set · 4MB staged content/set · 16 retained plans · 30-minute plan lifetime.\n\nNot this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).",
+      "description": "Use this over Edit when the same change spans several files: one call preflights every target before the first write, takes one operator decision for the whole set, applies, and refuses a drifted target; an interrupted apply is journaled and reconciled at the next boot.\n\nOperations:\n1. { op: \"apply\", changes: [...] } — preflight every member, one aggregate decision, apply; for when you hold fresh Read anchors for every file.\n2. { op: \"preview\", changes: [...] } — build an immutable content-addressed plan (cs-…) and write nothing; then { op: \"apply\", plan_id: \"cs-…\" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.\n3. { op: \"status\", plan_id } — plan state and per-file freshness.\n4. { op: \"discard\", plan_id } — retire a prepared plan.\n\nEach changes[] member targets one existing text file with the Edit vocabulary:\n  { file_path, expected_anchor (required — the \"(anchor: …)\" value from your Read), hunks: [{ lines: \"N\" | \"N-M\", replace, insert?: \"before\"|\"after\" }] or edits: [{ old_string, new_string, replace_all? }], op?: \"edit\" | \"delete\" | \"move\", new_path? }\nHunks are 1-based against the anchored snapshot and disjoint; \"\" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string once unless replace_all, on disjoint text; a member carries hunks or edits, not both. op \"delete\" removes the file (neither); op \"move\" renames it to new_path, which must not exist, after any hunks or edits. Read knowledge is keyed to content: a Read of the touched lines, a content-mode Grep that showed them, or expected_anchor from a full Read all count.\n\nAny preparation, validation, scope or drift failure writes nothing — never the valid subset of an invalid set. A normal apply reaches the complete planned state, verified by reread; when later bytes prevent safe reconciliation the unresolved paths are named, never reported as success. Already-satisfied members are omitted from writes and reported as noChangePaths; an all-satisfied set is one no-change result with zero writes; applying a committed plan replays its result without writing twice.\n\nBounds (an exceeded bound names the limit and the smallest recovery): 16 files/set · 32 hunks/file · 128 hunks/set · 4MB staged content/set · 16 retained plans · 30-minute plan lifetime.\n\nNot this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -2167,7 +2167,7 @@
                   "description": "REQUIRED staleness anchor from a prior Read of this file (the \"(anchor: …)\" value)"
                 },
                 "hunks": {
-                  "description": "Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); an edit member (op \"edit\", the default) carries hunks or edits, a move optionally, a delete neither",
+                  "description": "Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); a member carries hunks or edits, a move optionally, a delete neither",
                   "type": "array",
                   "items": {
                     "type": "object",
@@ -2197,7 +2197,7 @@
                   }
                 },
                 "edits": {
-                  "description": "Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary), instead of hunks; each old_string must occur once unless replace_all",
+                  "description": "Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary) instead of hunks; each old_string occurs once unless replace_all",
                   "type": "array",
                   "items": {
                     "type": "object",
