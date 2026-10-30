@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const CACHE = join(ROOT, 'dist', 'vendor', 'pyright')
+const PINNED = (JSON.parse(readFileSync(join(ROOT, 'vendor', 'pyright.lock.json'), 'utf8')) as { version: string }).version
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -57,7 +58,7 @@ if (existsSync(CACHE)) {
   process.env.MERCURY_PYRIGHT_VENDOR_DIR = CACHE
   pyright._resetPyrightProbeCacheForTesting()
   const bundled = pyright.probeBuiltinPyright()
-  check('cache tree probes as BUNDLED with the pinned version', bundled.available && bundled.source === 'bundled' && bundled.version === '1.1.413', JSON.stringify(bundled))
+  check(`cache tree probes as BUNDLED with the pinned version (vendor/pyright.lock.json: ${PINNED})`, bundled.available && bundled.source === 'bundled' && bundled.version === PINNED, JSON.stringify(bundled))
 
   const empty = mkdtempSync(join(tmpdir(), 'no-pyright-'))
   try {
