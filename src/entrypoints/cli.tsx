@@ -2,6 +2,7 @@ import {
   evaluateNodeRuntime,
   nodeRefusalMessage,
 } from '../utils/runtime/nodePolicy.js'
+import { cwdIsMissing, MISSING_CWD_LINE } from '../utils/runtime/missingCwd.js'
 
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
@@ -39,6 +40,13 @@ async function main(): Promise<void> {
       process.exitCode = 1
       return
     }
+  }
+
+  if (cwdIsMissing()) {
+    const { writeSync } = await import('node:fs')
+    writeSync(2, `${MISSING_CWD_LINE}\n`)
+    process.exitCode = 1
+    return
   }
 
   if (args.length === 0 && process.stdout.isTTY && !hasProjectRoot) {

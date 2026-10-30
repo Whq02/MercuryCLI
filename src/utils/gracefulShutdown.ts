@@ -11,6 +11,7 @@ import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
+import { isMissingCwd, MISSING_CWD_LINE } from './runtime/missingCwd.js'
 import { profileReport } from './startupProfiler.js'
 
 
@@ -137,15 +138,6 @@ export function isModuleLoadFailure(reason: unknown): boolean {
   if (typeof code === 'string' && MODULE_LOAD_CODES.has(code)) return true
   return /^Cannot find (?:module|package) /.test(reason.message)
 }
-
-export function isMissingCwd(reason: unknown): boolean {
-  if (!(reason instanceof Error)) return false
-  const e = reason as NodeJS.ErrnoException
-  return e.code === 'ENOENT' && (e.syscall === 'uv_cwd' || /uv_cwd/.test(reason.message))
-}
-
-export const MISSING_CWD_LINE =
-  'the folder you started in no longer exists; start Mercury from another folder'
 
 export type LoudFailureOrigin = 'boot' | 'unhandled-rejection' | 'uncaught-exception'
 
