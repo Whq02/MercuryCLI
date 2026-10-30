@@ -22,6 +22,8 @@ const {
   payloadDigestOf,
   POINTER_HELD_REMEDY,
   PointerHeldError,
+  pointerValueOf,
+  powershellEntryContent,
   readCurrentVersion,
   readCurrentVersionState,
   readPreviousVersion,
@@ -557,6 +559,52 @@ console.log('── §14 pointer tri-state (UPD-11 — absent · empty · unread
   check('the compat reader collapses only for legacy callers', readCurrentVersion(roots) === '9.9.0-beta.8')
 }
 
+console.log('── §14b f06/f07: one pointer law — the runtime reader and the stable command read every spelling alike ──')
+{
+  const spellings: Array<[label: string, body: string, value: string]> = [
+    ['plain', '1.0.1\n', '1.0.1'],
+    ['leading blank line (f07)', '\n1.0.1\n', '1.0.1'],
+    ['UTF-8 byte-order mark (f06)', '\uFEFF1.0.1\n', '1.0.1'],
+    ['byte-order mark + CRLF', '\uFEFF1.0.1\r\n', '1.0.1'],
+    ['CRLF', '1.0.1\r\n', '1.0.1'],
+    ['trailing spaces', '1.0.1   \n', '1.0.1'],
+    ['leading spaces', '   1.0.1\n', '1.0.1'],
+    ['a whitespace-only line, then the version', ' \t\n1.0.1\n', '1.0.1'],
+    ['byte-order mark, a blank line, then the version', '\uFEFF\n1.0.1\n', '1.0.1'],
+    ['no trailing newline', '1.0.1', '1.0.1'],
+    ['empty file', '', ''],
+    ['a lone newline', '\n', ''],
+    ['whitespace only', '  \n\t\n', ''],
+  ]
+  for (const [label, body, value] of spellings) check(`pointerValueOf: ${label}`, pointerValueOf(body) === value, JSON.stringify(pointerValueOf(body)))
+  check('pointerValueOf drops a byte-order mark only at the start of the file', pointerValueOf('\n\uFEFF1.0.1\n') === '\uFEFF1.0.1')
+  if (process.platform === 'win32') {
+    console.log('  [SKIP] live sh drive — POSIX hosts only')
+  } else {
+    const live = mkdtempSync(join(tmpdir(), 'pointer-law-'))
+    const shim = join(live, 'mercury')
+    writeFileSync(shim, shimContent(false))
+    chmodSync(shim, 0o755)
+    for (const [label, body, value] of spellings) {
+      const root = join(live, label.replace(/\W+/g, '-'))
+      mkdirSync(join(root, '1.0.1'), { recursive: true })
+      writeFileSync(join(root, '1.0.1', 'mercury'), '#!/bin/sh\necho RAN\n')
+      chmodSync(join(root, '1.0.1', 'mercury'), 0o755)
+      writeFileSync(join(root, 'current.txt'), body)
+      const reader = readCurrentVersionState({ versionsDir: root, binDir: live, shimPath: shim, isWindows: false })
+      const r = spawnSync('/bin/sh', [shim], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', MERCURY_VERSIONS_DIR: root, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, encoding: 'utf8' })
+      const ran = r.status === 0 && r.stdout.trim() === 'RAN'
+      const agree = value === '' ? reader.state === 'empty' && !ran && r.stderr.includes('is empty') : reader.state === 'ok' && reader.value === value && ran
+      check(`reader and stable command agree: ${label}`, agree, `reader=${JSON.stringify(reader)} shim=exit ${r.status} ${JSON.stringify((r.stdout + r.stderr).trim().slice(0, 80))}`)
+    }
+    rmSync(live, { recursive: true, force: true })
+  }
+  const ps1 = powershellEntryContent()
+  check('the PowerShell entry reads the first non-blank line and trims both edges (ReadAllLines drops a byte-order mark)', ps1.includes("if ($line.Trim() -ne '') { $ver = $line; break }") && ps1.includes(".Replace('\"', '').Trim()"))
+  const cmd = shimContent(true)
+  check('the cmd entry trims leading spaces and tabs as well as trailing ones', cmd.includes(':trimlead') && cmd.includes('if "%MVER:~0,1%"==" " set "MVER=%MVER:~1%" & goto trimlead') && cmd.indexOf(':trimlead') < cmd.indexOf('%MVER:..=%'))
+}
+
 console.log('── §15 seamark SM-I: activation renames + PATH identity + hostile roots ──')
 {
   const winBin = join(scratch, 'win-bin')
@@ -690,7 +738,8 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   check('VP-01: the refusal never echoes pointer content into a parsed line', !cmdShim.split('\r\n').some(l => l.includes('echo') && l.includes('%MVER%')))
   const shShim = shimContent(false)
   check('VP-01 parity: the sh shim reads current.txt first-non-blank-line (IFS= read -r loop, no cat)',
-    shShim.includes('while IFS= read -r ver; do [ -n "$ver" ] && break; done < "$root/current.txt"') &&
+    shShim.includes('while IFS= read -r line || [ -n "$line" ]; do') &&
+      shShim.includes('if [ -n "$line" ]; then ver="$line"; break; fi\ndone < "$root/current.txt"') &&
       !shShim.includes('$(cat "$root/current.txt")'))
   check('VP-01 parity: the sh shim refuses an empty pointer plainly', shShim.includes('[ -z "$ver" ]'))
 }

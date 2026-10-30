@@ -57,6 +57,13 @@ section('§1 THE POSIX SHIM LIVE')
 
   const padded = runShim('1.2.3   ')
   check('a trailing-space pointer still launches (FC-055)', padded.rc === 0 && padded.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: padded.rc }))
+
+  const bom = runShim('\uFEFF1.2.3')
+  check('a pointer saved with a UTF-8 byte-order mark launches (f06: the status reader already read it as the version)', bom.rc === 0 && bom.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: bom.rc, err: bom.err.slice(0, 80) }))
+  const blankFirst = runShim('\n1.2.3')
+  check('a pointer with a leading blank line launches, as the status reader now reads it (f07)', blankFirst.rc === 0 && blankFirst.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: blankFirst.rc }))
+  const escapeAfterBom = runShim('\uFEFF../outside/evil')
+  check('the byte-order mark buys no escape: a traversal pointer behind it still refuses', escapeAfterBom.rc === 1 && !escapeAfterBom.out.includes('ESCAPED-THE-ROOT'), `rc=${escapeAfterBom.rc}`)
 }
 
 section('§2 THE CMD TEMPLATE (structural)')

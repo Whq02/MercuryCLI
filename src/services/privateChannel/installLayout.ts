@@ -178,6 +178,15 @@ export type PointerState =
   | { state: 'empty' }
   | { state: 'unreadable'; note: string }
 
+export function pointerValueOf(raw: string): string {
+  const text = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw
+  for (const line of text.split('\n')) {
+    const value = line.replace(/^[ \t\r\f\v]+|[ \t\r\f\v]+$/g, '')
+    if (value !== '') return value
+  }
+  return ''
+}
+
 function readPointerState(path: string): PointerState {
   let raw: string
   try {
@@ -191,7 +200,7 @@ function readPointerState(path: string): PointerState {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { state: 'absent' }
     return { state: 'unreadable', note: e instanceof Error ? e.message.slice(0, 200) : String(e) }
   }
-  const value = raw.split(/\r?\n/)[0]?.trim() ?? ''
+  const value = pointerValueOf(raw)
   if (!value) return { state: 'empty' }
   return { state: 'ok', value }
 }
@@ -571,6 +580,9 @@ export function shimContent(isWindows: boolean): string {
       ':trimver',
       'if "%MVER:~-1%"==" " set "MVER=%MVER:~0,-1%" & goto trimver',
       'if "%MVER:~-1%"=="\t" set "MVER=%MVER:~0,-1%" & goto trimver',
+      ':trimlead',
+      'if "%MVER:~0,1%"==" " set "MVER=%MVER:~1%" & goto trimlead',
+      'if "%MVER:~0,1%"=="\t" set "MVER=%MVER:~1%" & goto trimlead',
       'set "MBAD="',
       'if not "%MVER:\\=%"=="%MVER%" set "MBAD=1"',
       'if not "%MVER:/=%"=="%MVER%" set "MBAD=1"',
@@ -610,17 +622,17 @@ if [ ! -f "$root/current.txt" ]; then
   echo "mercury: no managed install at $root — run "'\`mercury install\`'" from an extracted release archive" >&2
   exit 1
 fi
-# VP-01 parity: current.txt is the ONE hand-editable recovery
-# file — FIRST LINE ONLY (read -r; a multi-line edit can never garble the
-# exec path), and an empty pointer refuses plainly.
-# F2/D4: the first NON-BLANK line (parity with cmd's for /f
-# blank-skip — a leading blank routed into the empty-refusal branch).
 ver=""
-while IFS= read -r ver; do [ -n "$ver" ] && break; done < "$root/current.txt"
-# FC-055: IFS= deliberately keeps inner spacing, so trailing whitespace
-# survives the read and refused a pointer update --status called healthy.
-# Strip trailing whitespace only (parity with the cmd twin's :trimver).
-ver="\${ver%"\${ver##*[![:space:]]}"}"
+line=""
+first=1
+bom=$(printf '\\357\\273\\277')
+while IFS= read -r line || [ -n "$line" ]; do
+  [ "$first" = 1 ] && line="\${line#"$bom"}"
+  first=0
+  line="\${line%"\${line##*[![:space:]]}"}"
+  line="\${line#"\${line%%[![:space:]]*}"}"
+  if [ -n "$line" ]; then ver="$line"; break; fi
+done < "$root/current.txt"
 if [ -z "$ver" ]; then
   # D1: single-quoted segment keeps the backticks LITERAL — an interpolated
   # \`mercury update\` EXECUTED as command substitution and recursed the
@@ -779,7 +791,7 @@ export function powershellEntryContent(): string {
     '}',
     "$ver = ''",
     "foreach ($line in [System.IO.File]::ReadAllLines($pointer)) { if ($line.Trim() -ne '') { $ver = $line; break } }",
-    "$ver = $ver.Replace('\"', '').TrimEnd()",
+    "$ver = $ver.Replace('\"', '').Trim()",
     "if ($ver -eq '') {",
     "  [Console]::Error.WriteLine('mercury: ' + $pointer + ' is empty - run `mercury update`, or set it to an installed version directory name')",
     '  exit 1',
