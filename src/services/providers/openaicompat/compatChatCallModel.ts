@@ -990,10 +990,10 @@ async function* streamOneCompatAttempt(ctx: {
   let settledUsage: typeof EMPTY_USAGE | undefined
   const settleUsage = (faultCode?: string): typeof EMPTY_USAGE => {
     if (settledUsage !== undefined) return settledUsage
-    const estimate = usageSeen === undefined && faultCode !== undefined && (contentStarted || toolFragmentSeen)
+    const estimate = usageSeen === undefined && (contentStarted || toolFragmentSeen || finish !== undefined)
     settledUsage = estimate
       ? estimateFaultedRequestUsage({
-          lane: profile.lane, model: modelId, request, faultCode,
+          lane: profile.lane, model: modelId, request, faultCode: faultCode ?? 'usage-not-reported',
           minted: [{ message: { ...partial, content: [{ type: 'text', text: ' '.repeat(streamedCharacters), citations: null }] } }],
         })
       : mapCompatUsageToAnthropic(usageSeen)

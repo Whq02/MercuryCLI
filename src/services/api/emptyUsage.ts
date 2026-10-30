@@ -1,4 +1,5 @@
 export type NonNullableUsage = {
+  usage_source?: 'estimated'
   input_tokens: number
   cache_creation_input_tokens: number
   cache_read_input_tokens: number

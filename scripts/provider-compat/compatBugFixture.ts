@@ -15,7 +15,7 @@ export function sse(chunks: unknown[]): Response {
   return new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 }
 export const answer = () => sse([{ model: 'deepseek-chat', choices: [{ delta: { content: 'hello' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }])
-export async function turn(reply: (attempt: number) => Response | Promise<Response>) {
+export async function turn(reply: (attempt: number) => Response | Promise<Response>, model = 'deepseek-chat') {
   const requests: Record<string, any>[] = []
   const times: number[] = []
   const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(request: Request) {
@@ -30,7 +30,7 @@ export async function turn(reply: (attempt: number) => Response | Promise<Respon
     for await (const event of compatChatCallModel(deepseekLaneProfile, {
       messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Say hello.' } }],
       systemPrompt: asSystemPrompt(['Be helpful.']), thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal,
-      options: { model: 'deepseek-chat', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [] },
+      options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [] },
     })) events.push(event)
     return { events, requests, times }
   } finally { server.stop(true) }

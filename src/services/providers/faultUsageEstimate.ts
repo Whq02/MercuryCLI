@@ -40,7 +40,7 @@ export function estimateFaultedRequestUsage(args: {
   const input = roughTokenCountEstimation(' '.repeat(requestCharsOf(args.request)))
   const output = roughTokenCountEstimation(' '.repeat(streamedCharsOf(args.minted)))
   logForDebugging(
-    `[${args.lane}] the stream faulted after content (${args.faultCode}) with no usage frame — settling ${args.model} into the ledger at the character estimate (≈${input} in / ≈${output} out) rather than zero`,
+    `[${args.lane}] the stream ended (${args.faultCode}) with no usage frame — settling ${args.model} into the ledger at the character estimate (≈${input} in / ≈${output} out) rather than zero`,
   )
-  return { ...EMPTY_USAGE, input_tokens: input, output_tokens: output }
+  return { ...EMPTY_USAGE, input_tokens: input, output_tokens: output, usage_source: 'estimated' }
 }

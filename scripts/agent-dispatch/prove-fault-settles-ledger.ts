@@ -226,7 +226,7 @@ section('§5 the shape')
 {
   for (const file of ['src/services/providers/openai/openaiCallModel.ts', 'src/services/providers/openaicompat/compatChatCallModel.ts', 'src/services/providers/zai/zaiCallModel.ts']) {
     const src = readFileSync(join(ROOT, file), 'utf8')
-    check(`${file.split('/').pop()}: settles a faulted request at the estimate before the usage-gated ledger call`, /if \(!usageSeen && fault !== undefined\) \{[\s\S]*?estimateFaultedRequestUsage\(/.test(src) || /usageSeen === undefined && faultCode !== undefined[\s\S]{0,200}estimateFaultedRequestUsage\(/.test(src))
+    check(`${file.split('/').pop()}: settles a faulted request at the estimate before the usage-gated ledger call`, /if \(!usageSeen && fault !== undefined\) \{[\s\S]*?estimateFaultedRequestUsage\(/.test(src) || /usageSeen === undefined && \(contentStarted \|\| toolFragmentSeen \|\| finish !== undefined\)[\s\S]{0,200}estimateFaultedRequestUsage\(/.test(src))
   }
   const helper = readFileSync(join(ROOT, 'src/services/providers/faultUsageEstimate.ts'), 'utf8')
   check('the estimate rides the one character-ratio estimator over the request as sent and the minted blocks', /roughTokenCountEstimation\(/.test(helper) && /requestCharsOf\(args\.request\)/.test(helper) && /streamedCharsOf\(args\.minted\)/.test(helper))
