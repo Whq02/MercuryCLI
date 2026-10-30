@@ -281,7 +281,7 @@ the server definitions themselves.
 | `routing.openrouter.requireParameters` | Requires support for every request parameter; `true` by default. |
 | `routing.openrouter.allowFallbacks` | Permits OpenRouter provider fallback; `true` by default. |
 | `routing.openrouter.zeroDataRetention` | Requires zero data retention; `false` by default. |
-| `routing.openai.transport` | The OpenAI API-key road's transport: `http` by default, or `websocket` — one connection per conversation that sends only the new input against the previous response and falls back to `http` on any connect or stream fault before the response begins. |
+| `routing.openai.transport` | The OpenAI API-key road's transport: `http` by default, or `websocket`: one connection per conversation that sends only the new input against the previous response and falls back to `http` on any connect or stream fault before the response begins. |
 
 Custom patience uses `patience.streamIdleSeconds`,
 `patience.quietStreamIdleSeconds`, `patience.fallbackCeilingSeconds` and

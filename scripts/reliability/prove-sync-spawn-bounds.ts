@@ -15,6 +15,7 @@ const EXEMPT: Record<string, [number, string]> = {
   'src/utils/editor.ts': [2, 'interactive — the $EDITOR session runs on the user\'s terminal (stdio inherit); killing it under them loses their edit'],
   'src/utils/runtime/win32Console.ts': [1, 'bounded through chcpSpawnShape\'s built options (timeout: 5_000 rides the options variable the extractor cannot see through)'],
   'src/substrate/directSplash.ts': [1, 'interactive (stdio inherit — the launch splash asset IS the screen until the operator chooses; a bound would end the enter screen mid-choice)'],
+  'src/extensions/bundled/content.generated.ts': [4, "the media engine's two remote bundles carry cross-spawn's own spawnSync definition and call (the MCP SDK's stdio client transport pulls the module in); the engine spawns asynchronously and its sources carry no sync spawn, so nothing reaches these four"],
 }
 
 const files = execSync(`grep -rln --include='*.ts' --include='*.tsx' -e 'spawnSync(' -e 'execFileSync(' -e 'execSync(' src`, {

@@ -42,7 +42,7 @@ For example:
 Replace the example tokens and session id. `openssl rand -hex 32` generates a
 suitable token. On macOS and Linux, protect the file with `chmod 600`.
 Names, tokens and client ids must be unique. Keep tokens in client secret
-configuration, not in prompts or shared files. Restart the server after
+configuration; never in prompts or shared files. Restart the server after
 changing the file.
 
 `run` defaults to `false`; `send` defaults to an empty list. A session UUID

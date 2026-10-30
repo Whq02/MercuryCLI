@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { collapseWhitespace, stripTerminalControls } from '../../utils/stringUtils.js'
 import { MEDIA_SERVER_NAME } from './settings.js'
+import { PROJECT_CONFIG_DIR_NAMES } from '../../utils/projectConfig.js'
 
 const pipelineIdentity = z.object({ name: z.string().min(1), hash: z.string().regex(/^[a-f0-9]{64}$/), path: z.string().optional() }).passthrough()
 const stepRecord = z.object({
@@ -30,7 +31,7 @@ export async function discoverMediaPipelines(cwd: string): Promise<string[]> {
     const dir = pending.pop()!
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       const path = join(dir, entry.name)
-      if (entry.isDirectory() && !['.git', '.mercury', 'node_modules'].includes(entry.name)) pending.push(path)
+      if (entry.isDirectory() && !['.git', 'node_modules', ...PROJECT_CONFIG_DIR_NAMES].includes(entry.name)) pending.push(path)
       else if (entry.isFile() && entry.name.endsWith('.pipeline.json')) paths.push(path)
     }
   }

@@ -65,7 +65,7 @@ byte count and first line.
 The batch is saved only when every operation and its requested render succeed.
 A failed operation leaves the original file unchanged. All coordinates and
 frame numbers are 0-based. Layer paths include their groups, such as `Hero/Head`;
-ambiguous paths refuse rather than selecting a part arbitrarily.
+an ambiguous path is refused; no part is chosen for you.
 
 Each `draw` operation names `layer`, `frame` and `colour`: either `{index: 1}`
 or `{r: 255, g: 128, b: 0, a: 255}` (alpha defaults to 255).
@@ -96,7 +96,7 @@ Each `parts` operation has a `kind` and the following inputs.
 | `duplicate` | `part`, `fromFrame`, `toFrames` | copies independent cels, including group descendants; replaces target cels, clears them when the source is empty, and extends the timeline with empty frames when needed |
 
 `draw` and `parts` return render-back in the same batch. Set `preview: false`
-to omit it. `frame` or `tag` selects the render, not the operations' targets;
+to omit it. `frame` or `tag` selects the render; the operations keep their own targets;
 `scale` is a positive integer and affects only the PNG. With neither selector,
 all frames appear side by side in timeline order. Render files live in the
 session scratchpad; use `export` for a permanent project image. Call `render`
@@ -115,7 +115,7 @@ The report gives `outsidePixels`, `scannedPixels`, `transparentPixels` and
 `colours`. Each outside colour or invalid index has a count and per-layer/frame
 `positions`: a first pixel, a count and a bounding rectangle in canvas
 coordinates. Fully transparent pixels are counted separately and excluded
-from outside colours. Tilemaps refuse rather than producing a partial audit.
+from outside colours. A tilemap is refused; a partial audit is never produced.
 No palette check quantises, replaces or otherwise repairs colours.
 
 ## Paths and the fence

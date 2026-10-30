@@ -52,7 +52,7 @@ posters, are saved to the project's `media/` folder, or the configured local
 output folder. Results include `remote` with the machine's name. Async jobs
 continue on the machine if the local client closes; `media_result` retrieves
 their output when you reconnect. A stopped machine or lost tunnel fails the
-call rather than starting a replacement. Use `/llmhost` to manage the rental.
+call; no replacement is started. Use `/llmhost` to manage the rental.
 
 ## Set up a model
 
@@ -287,10 +287,12 @@ The result names the sampler and scheduler from the runtime's resolved
 An explicit scheduler replaces a model's fixed sigma schedule, including
 Qwen Turbo's; omitting it preserves that schedule and its step count.
 
-The runtime's `--sampling-method` list is `euler`, `euler_a`, `heun`, `dpm2`,
-`dpm++2s_a`, `dpm++2m`, `dpm++2mv2`, `ipndm`, `ipndm_v`, `lcm`,
-`ddim_trailing`, `tcd`, `res_multistep`, `res_2s`, `er_sde`, `euler_cfg_pp`,
-`euler_a_cfg_pp`, `euler_ge`, `dpm++2m_sde`, `dpm++2m_sde_bt` and `lms`.
+The runtime's `--sampling-method` list has 21 names. The Euler family is
+`euler`, `euler_a`, `euler_cfg_pp`, `euler_a_cfg_pp` and `euler_ge`. The DPM
+family is `dpm2`, `dpm++2s_a`, `dpm++2m`, `dpm++2mv2`, `dpm++2m_sde` and
+`dpm++2m_sde_bt`. The multistep and distilled samplers are `ipndm`, `ipndm_v`,
+`lcm`, `tcd`, `res_multistep`, `res_2s` and `er_sde`. The rest are `heun`,
+`ddim_trailing` and `lms`.
 Its `--scheduler` list is `discrete`, `karras`, `exponential`, `ays`, `gits`,
 `sgm_uniform`, `simple`, `smoothstep`, `kl_optimal`, `lcm`, `bong_tangent`,
 `ltx2`, `logit_normal`, `flux2`, `flux`, `beta` and `llada_image`;
@@ -517,11 +519,11 @@ and control needs its control image and kind. `file` copies a local image
 into the run; `output` selects an image to return. `workflow-import` expands
 a ComfyUI file into inspectable steps through the workflow mapper.
 
-Every step offers `image`, a single path, and `images`, an array of paths.
+Every step takes `image`, a single path, and `images`, an array of paths.
 Use `{"step":"draw","output":"image"}` as an image input, or an `images`
 reference for a sheet. References must name an earlier step and the right
 output type. Unsupported kinds, fields and references are refused by step
-id rather than omitted.
+id, never omitted.
 
 A run from `step` reuses earlier outputs only while their inputs and saved
 file hashes still match. Changed or missing ancestors run again; the chosen
