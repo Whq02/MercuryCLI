@@ -50,9 +50,16 @@ const V_NEW = '9.9.0'
 const fixtures = mintFixtures(fixturesRoot, 'releases', [{ version: V_OLD }, { version: V_NEW }])
 const server = await spawnFixtureReleaseServer({ fixtures, log: serverLog })
 
+const userPathFile = join(scratch, 'user-path.json')
+const userPathEnv = (path: string): Record<string, string> => {
+  if (!IS_WIN) return {}
+  writeFileSync(userPathFile, JSON.stringify({ kind: 'ExpandString', value: path }))
+  return { MERCURY_USER_PATH_FILE: userPathFile }
+}
 const env = (path: string, extra: Record<string, string> = {}): Record<string, string> => ({
   ...(IS_WIN ? (process.env as Record<string, string>) : {}),
   PATH: path,
+  ...userPathEnv(path),
   HOME: home,
   ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
   SHELL: '/bin/zsh',
