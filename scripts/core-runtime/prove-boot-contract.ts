@@ -168,8 +168,8 @@ function staticImports(src: string): {
     main.value.some(s => s.endsWith('boot/launchGraph.js')),
   )
   check(
-    'eager-front: main.tsx type-only imports = 6 (erased at runtime)',
-    main.typeOnly.length === 6,
+    'eager-front: main.tsx type-only imports = 5 (erased at runtime)',
+    main.typeOnly.length === 5,
     String(main.typeOnly.length),
   )
   const heavy = [
