@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import { bundledDocPagesPacked } from '../../src/skills/bundled/mercuryDocsPages.ts'
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -35,7 +36,7 @@ writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'result.json'), JSON.stringi
   const built = await Bun.build({
     entrypoints: [entry], outdir: scratch, naming: 'fixture.mjs', target: 'node', format: 'esm', minify: true,
     loader: { '.md': 'text', '.txt': 'text', '.sh': 'text', '.py': 'text', '.html': 'text', '.xml': 'text', '.dot': 'text' },
-    define: { MACRO: JSON.stringify({ VERSION: '1.0.0' }), 'process.env.NODE_ENV': JSON.stringify('test') },
+    define: { MACRO: JSON.stringify({ VERSION: '1.0.0' }), MERCURY_DOC_PAGES_PACKED: JSON.stringify(bundledDocPagesPacked()), 'process.env.NODE_ENV': JSON.stringify('test') },
     plugins: [{ name: 'source-imports', setup(build: { onResolve: (options: { filter: RegExp }, resolve: (args: { path: string }) => { path: string; external?: boolean } | undefined) => void }) {
       build.onResolve({ filter: /^src\// }, args => {
         const base = resolve(root, args.path.replace(/\.(js|jsx)$/, ''))
