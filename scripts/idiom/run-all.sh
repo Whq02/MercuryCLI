@@ -8,7 +8,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts scripts/navigation/fixture1k.ts src/components/Message.tsx src/services/api/client.ts src/services/api/errorUtils.ts
 # gate-watch: src/services/api/errors.ts src/services/api/logging.ts src/services/api/sdkErrors.ts src/services/api/withRetry.ts src/services/providers/anthropic/cacheAndUsage.ts src/services/providers/anthropic/requestParams.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/responsesBridge.ts src/services/providers/zai/zaiCodec.ts src/services/rateLimitMocking.ts src/services/tokenEstimation.ts src/services/vcr.ts
-# gate-watch: src/tasks.ts src/types/wire.ts src/utils/attachments/types.ts src/utils/messages/factories.ts src/utils/messages/streamBatcher.ts src/utils/messages/structuredOutputDialect.ts
+# gate-watch: src/tasks.ts src/types/wire.ts src/utils/attachments/types.ts src/utils/messages/factories.ts src/utils/messages/streamingTailStore.ts src/utils/messages/structuredOutputDialect.ts
 # gate-watch: src/utils/model/validateModel.ts src/services/projectLocal/paths.ts src/utils/settings/managedPath.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

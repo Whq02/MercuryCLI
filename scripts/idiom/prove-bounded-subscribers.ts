@@ -6,7 +6,7 @@ import { join } from 'node:path'
 const HOME = mkdtempSync(join(tmpdir(), 'idiom-backpressure-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 
-const { StreamBatcher } = await import('../../src/utils/messages/streamBatcher.js')
+const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -17,89 +17,33 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-section('§A fast producer + slow sink: frame-bounded commits, byte-exact final')
+section('§A fast producer + slow subscriber: bounded publishes, byte-exact final')
 {
   let pending: (() => void) | null = null
+  let clock = 0
   let commits = 0
-  let lastSeen = ''
-  const b = new StreamBatcher<string>('', {
-    sink: (v: string) => {
-      commits++
-      lastSeen = v
-    },
-    intervalMs: 16,
-    setTimer: (fn: () => void) => {
-      pending = fn
-      return 1
-    },
-    clearTimer: () => {
-      pending = null
-    },
+  let lastSeen: string | null = null
+  const tail = createStreamingTailStore({
+    now: () => clock,
+    setTimer: fn => { pending = fn; return 1 },
+    clearTimer: () => { pending = null },
   })
-
-  let value = ''
+  tail.subscribe(() => { commits++; lastSeen = tail.getSnapshot() })
   for (let i = 1; i <= 500; i++) {
-    value += 'x'
-    b.update(() => value)
-    if (i % 16 === 0 && pending) {
-      const fire = pending
-      pending = null
-      fire()
+    tail.update(cur => (cur ?? '') + 'x')
+    if (i % 32 === 0) {
+      clock += 32
+      ;(pending as (() => void) | null)?.()
     }
   }
-  if (pending) {
-    const fire: () => void = pending
-    pending = null
-    fire()
-  }
-  b.dispose()
-
-  check(`commits are frame-bounded: ${commits} ≪ 500 deltas`, commits > 0 && commits < 120, String(commits))
-  check('the FINAL value is byte-exact (the last chunk never dropped)', lastSeen === 'x'.repeat(500), `len=${lastSeen.length}`)
-}
-
-section('§B length changes flush immediately; inner appends batch')
-{
-  let pending: (() => void) | null = null
-  const seen: number[] = []
-  const b = new StreamBatcher<string[]>([], {
-    sink: (v: string[]) => seen.push(v.length),
-    intervalMs: 16,
-    flushNow: (prev: string[], next: string[]) => prev.length !== next.length,
-    setTimer: (fn: () => void) => {
-      pending = fn
-      return 1
-    },
-    clearTimer: () => {
-      pending = null
-    },
-  })
-
-  let arr: string[] = []
-  let updates = 0
-  for (let block = 0; block < 3; block++) {
-    arr = [...arr, '']
-    b.update(() => arr)
-    updates++
-    for (let d = 0; d < 50; d++) {
-      arr = [...arr.slice(0, -1), arr[arr.length - 1]! + 'y']
-      b.update(() => arr)
-      updates++
-      if (updates % 16 === 0 && pending) {
-        const fire: () => void = pending
-        pending = null
-        fire()
-      }
-    }
-  }
-  if (pending) {
-    const fire: () => void = pending
-    pending = null
-    fire()
-  }
-  b.dispose()
-  check('every length change committed immediately (3 opens present)', [1, 2, 3].every(n => seen.includes(n)), seen.join(','))
-  check(`inner deltas batched: ${seen.length} commits ≪ 153 updates`, seen.length < 60, String(seen.length))
+  clock += 32
+  ;(pending as (() => void) | null)?.()
+  check('the live tail bounds commits below the delta count', commits > 0 && commits < 30, String(commits))
+  check('the final publish is byte-exact', lastSeen === 'x'.repeat(500) && tail.read() === lastSeen)
+  tail.update(() => null)
+  check('settlement publishes immediately and preserves the final text', tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(500))
+  tail.dispose()
+  check('disposal leaves no trailing timer', pending === null)
 }
 
 section('§C 200 rapid settlements collapse in-queue; final state lands intact')

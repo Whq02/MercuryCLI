@@ -286,11 +286,7 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   check('the dead transcript store is gone (no screen-side engine lane exists)', !existsSync(join(import.meta.dirname, '../../src/state/transcriptStore.ts')))
   const busSrc = readFileSync(join(import.meta.dirname, '../../src/state/vitalsBus.ts'), 'utf8')
   check('the vitals bus rides the focused records door (never a lane nothing writes)', busSrc.includes('subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))') && !busSrc.includes('transcriptStore'))
-  const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useLogMessages.ts'), 'utf8')
-  check(
-    'useLogMessages returns before recordTranscript when ignored',
-    hookSrc.indexOf('if (ignore) return') !== -1 && hookSrc.indexOf('if (ignore) return') < hookSrc.indexOf('void recordTranscript('),
-  )
+  check('the unmounted screen transcript writer is absent', !existsSync(join(import.meta.dirname, '../../src/hooks/useLogMessages.ts')))
 }
 
 console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, PAUSED honesty, the consolidate brief')

@@ -30,40 +30,25 @@ console.log('============================================================')
 }
 
 {
-  const { StreamBatcher } = await import('../../src/utils/messages/streamBatcher.ts')
-  type Item = { index: number; unparsedToolInput: string }
+  const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
+  let pending: (() => void) | null = null
   let sinks = 0
-  const timers: Array<() => void> = []
-  const b = new StreamBatcher<Item[]>([], {
-    sink: () => {
-      sinks++
-    },
-    flushNow: (prev, next) => prev.length !== next.length,
-    setTimer: fn => {
-      timers.push(fn)
-      return timers.length
-    },
-    clearTimer: () => {},
+  const tail = createStreamingTailStore({
+    now: () => 0,
+    setTimer: fn => { pending = fn; return 1 },
+    clearTimer: () => { pending = null },
   })
-  b.update(cur => [...cur, { index: 0, unparsedToolInput: '' }])
-  check('block start commits immediately', sinks === 1)
-  for (let i = 0; i < 100; i++) {
-    b.updateSilent(cur => {
-      const next = cur.slice()
-      next[0] = { ...next[0]!, unparsedToolInput: next[0]!.unparsedToolInput + 'x' }
-      return next
-    })
-  }
-  check('100-delta storm schedules ZERO sinks', sinks === 1, `sinks=${sinks}`)
-  check('100-delta storm arms ZERO timers', timers.length === 0, `timers=${timers.length}`)
-  check('the accumulated input stays ref-fresh', b.current[0]!.unparsedToolInput.length === 100)
-  b.flushSilent()
-  check('content_block_stop commits the finished input', sinks === 2)
-  b.flushSilent()
-  check('a text-block stop (nothing silent-dirty) commits nothing', sinks === 2)
-  b.updateSilent(cur => cur)
-  b.flushSilent()
-  check('identity silent update never dirties', sinks === 2)
+  tail.subscribe(() => sinks++)
+  tail.update(() => '')
+  check('the live tail opening publishes immediately', sinks === 1)
+  for (let i = 0; i < 100; i++) tail.update(cur => (cur ?? '') + 'x')
+  check('the storm coalesces behind one trailing publish', sinks === 1 && pending !== null)
+  check('the live tail stays ref-fresh during the storm', tail.read() === 'x'.repeat(100))
+  ;(pending as (() => void) | null)?.()
+  check('the trailing publish carries the complete value', sinks === 2 && tail.getSnapshot() === tail.read())
+  tail.update(() => null)
+  check('settlement clears immediately and retains the final text', sinks === 3 && tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100))
+  tail.dispose()
 }
 {
   const streaming = src('src', 'utils', 'messages', 'streaming.ts')

@@ -13,10 +13,6 @@ const { makeMaybe, getAttachments } = await import('../../src/utils/attachments/
 const { getProjectSnapshot, _resetProjectIntelForTesting } = await import(
   '../../src/services/projectIntel/snapshot.js'
 )
-const { isTurnBoundaryRow } = await import('../../src/hooks/useLogMessages.js')
-const { cleanForTranscript } = await import(
-  '../../src/utils/sessionStorage/chain.js'
-)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -83,6 +79,7 @@ section('C1 §end-to-end — phase-one exhaustion cannot unbound the collection'
   process.env.MERCURY_PULSE_FIXTURE = 'stuck-user-input-producer=2600,stuck-producer=4000'
   const ctx = {
     agentId: 'cadence-probe-agent',
+    messages: [],
     getAppState: () => ({ tasks: {} }),
     options: { agentDefinitions: { activeAgents: [] }, tools: [], engineModel: 'claude-opus-5' },
   } as never
@@ -147,35 +144,23 @@ section('C2 — a successful validation refreshes currency; scoped invalidation'
     cc.includes('semanticallyUnchanged ? Number.POSITIVE_INFINITY : 120_000'))
 }
 
-section('C3 — the flush fires on turn boundaries')
+section('C3 — the runner records its new tail and owns the durable flush')
 {
-  const userPrompt = { type: 'user', message: { role: 'user', content: 'do it' } } as never
-  const toolResult = {
-    type: 'user',
-    toolUseResult: { ok: true },
-    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1' }] },
-  } as never
-  const midLoop = {
-    type: 'assistant',
-    message: { content: [{ type: 'text', text: 'now I will' }, { type: 'tool_use', id: 't2', name: 'Bash', input: {} }] },
-  } as never
-  const finalText = {
-    type: 'assistant',
-    message: { content: [{ type: 'text', text: 'all done' }] },
-  } as never
-  check('a real user prompt is a boundary', isTurnBoundaryRow(userPrompt) === true)
-  check('a tool result (user-shaped) is NOT a boundary', isTurnBoundaryRow(toolResult) === false)
-  check('a mid-loop tool-use assistant row is NOT a boundary', isTurnBoundaryRow(midLoop) === false)
-  check('the settling assistant text IS a boundary', isTurnBoundaryRow(finalText) === true)
-
-  const hook = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'hooks', 'useLogMessages.ts'),
-    'utf8',
-  )
-  check('the hook records only its new tail', hook.includes('messages.slice(lastRecordedLengthRef.current)'))
-  check('the flush barrier is boundary-driven with a bounded max latency',
-    hook.includes('slice.some(isTurnBoundaryRow)') &&
-      hook.includes('FLUSH_MAX_LATENCY_MS'))
+  const runner = readFileSync(join(import.meta.dir, '../../src/rows/turn.ts'), 'utf8')
+  check('the runner records only the new message suffix', runner.includes('const pending = turnMessages.slice(this.recordCursor)') && runner.includes('this.recordCursor = turnMessages.length'))
+  check('the runner serialises recording through its parent-hint chain', runner.includes('this.recordChain = this.recordChain.then(hint =>') && runner.includes('recordTranscript(pending,'))
+  const { recordTranscript, flushSessionStorage, setSessionFileForTesting } = await import('../../src/utils/sessionStorage/writer.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
+  const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+  const file = join(HOME, 'runner-tail.jsonl')
+  setSessionFileForTesting(file)
+  const prompt = createUserMessage({ content: 'do it' })
+  const reply = createAssistantMessage({ content: 'all done' })
+  const parent = await recordTranscript([prompt])
+  await recordTranscript([reply], parent ?? undefined, [prompt, reply])
+  await flushSessionStorage()
+  const rows = decodeTranscriptBuffer<{ uuid?: string; parentUuid?: string }>(readFileSync(file)).entries
+  check('the flush lands each row once and preserves the parent chain', rows.filter(row => row.uuid === prompt.uuid).length === 1 && rows.filter(row => row.uuid === reply.uuid).length === 1 && rows.find(row => row.uuid === reply.uuid)?.parentUuid === prompt.uuid)
 }
 
 rmSync(HOME, { recursive: true, force: true })

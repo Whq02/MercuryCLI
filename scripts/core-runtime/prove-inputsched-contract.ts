@@ -18,7 +18,6 @@ const q = await import('../../src/input-core/command-queue.js')
 const draft = await import('../../src/utils/promptDraft.js')
 const seed = await import('../../src/utils/cockpit/composerSeed.js')
 const { textForResubmit } = await import('../../src/utils/messages/text.js')
-const { StreamBatcher } = await import('../../src/utils/messages/streamBatcher.js')
 const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
 const { RenderScheduler } = await import('../../src/ink/root/render-scheduler.js')
 const { FRAME_INTERVAL_MS } = await import('../../src/ink/constants.js')
@@ -733,63 +732,12 @@ function makeWheel(): Wheel {
 {
   const reg = await import('../../src/ink/root/flush-registry.ts')
   const probesBefore = reg.flushProbeCount()
-  const w = makeWheel()
-  const bt = w.timer('batcher')
-  let sunk = ''
-  const b = new StreamBatcher<string>('', { sink: v => (sunk = v), setTimer: bt.set, clearTimer: bt.clear })
-  check('registry: batcher construction registers a probe', reg.flushProbeCount() === probesBefore + 1)
-  let maxPending = 0
-  let maxRegistryPending = 0
-  for (let i = 0; i < 200; i++) {
-    b.update(cur => cur + 'x')
-    maxPending = Math.max(maxPending, w.pending('batcher'))
-    for (const p of reg.pendingFlushes()) {
-      maxRegistryPending = Math.max(maxRegistryPending, p.pending)
-    }
-    w.advance(1)
-  }
-  check('registry: the armed flush is visible by name mid-storm', maxRegistryPending === 1)
-  w.advance(20)
-  check('registry: the settled estate reports zero pending flushes',
-    reg.pendingFlushes().every(p => p.name !== 'stream-batcher'))
-  check('bound: the batcher holds ≤1 pending flush across a 200-delta storm', maxPending <= 1, String(maxPending))
-  check('bound: the storm settles with zero timers armed', w.pending('batcher') === 0)
-  check('bound: the trailing flush carries the complete value', sunk === 'x'.repeat(200) && b.current === sunk)
-  check('bound: frame-cadence commits over the storm (~1/16ms)', b.sinkCalls >= 11 && b.sinkCalls <= 14, String(b.sinkCalls))
-  b.dispose()
-  check('registry: dispose unregisters the probe', reg.flushProbeCount() === probesBefore)
-
-  const w2 = makeWheel()
-  const bt2 = w2.timer('batcher')
-  let silentSinks = 0
-  const bs = new StreamBatcher<string>('', { sink: () => silentSinks++, setTimer: bt2.set, clearTimer: bt2.clear })
-  for (let i = 0; i < 100; i++) bs.updateSilent(cur => cur + 'y')
-  check('bound: silent updates arm nothing and sink nothing', w2.pending('batcher') === 0 && silentSinks === 0)
-  bs.flushSilent()
-  check('bound: flushSilent commits the accumulation once', silentSinks === 1 && bs.current === 'y'.repeat(100))
-  bs.flushSilent()
-  check('bound: a clean flushSilent is a no-op', silentSinks === 1)
-
-  const w3 = makeWheel()
-  const bt3 = w3.timer('batcher')
-  const rows = new StreamBatcher<string[]>([], {
-    sink: () => {},
-    flushNow: (prev, next) => prev.length !== next.length,
-    setTimer: bt3.set,
-    clearTimer: bt3.clear,
-  })
-  rows.update(cur => [...cur, 'row0'])
-  rows.update(cur => [cur[0] + '.'])
-  check('bound: a same-length delta arms the one trailing timer', w3.pending('batcher') === 1)
-  rows.update(cur => [...cur, 'row1'])
-  check('bound: an immediate flush consumes the pending trailing timer (no stack)', w3.pending('batcher') === 0)
-  rows.dispose()
-  rows.update(cur => [...cur, 'late'])
-  check('bound: a post-dispose update never re-arms', w3.pending('batcher') === 0)
-
   const w4 = makeWheel()
   const tt = w4.timer('tail')
   const tail = createStreamingTailStore({ setTimer: tt.set, clearTimer: tt.clear, now: w4.now })
+  check('registry: the live tail registers one flush probe', reg.flushProbeCount() === probesBefore + 1)
+  let publishes = 0
+  tail.subscribe(() => publishes++)
   tail.reset('')
   let maxTail = 0
   for (let i = 0; i < 100; i++) {
@@ -799,28 +747,24 @@ function makeWheel(): Wheel {
   }
   w4.advance(50)
   check('bound: the tail store holds ≤1 pending publish across the storm', maxTail <= 1, String(maxTail))
-  check('bound: the tail settles complete with zero timers', w4.pending('tail') === 0 && tail.getSnapshot() === 'z'.repeat(100))
+  check('bound: the tail settles complete with zero timers', w4.pending('tail') === 0 && tail.getSnapshot() === 'z'.repeat(100) && tail.read() === tail.getSnapshot())
+  check('bound: the live tail coalesces the storm at its 32 ms cadence', publishes >= 4 && publishes <= 5, String(publishes))
+  check('registry: the settled live tail reports no pending flush', reg.pendingFlushes().every(p => p.name !== 'streaming-tail'))
   tail.update(() => null)
   check('bound: the clear boundary publishes immediately (no timer)', tail.getSnapshot() === null && w4.pending('tail') === 0)
   tail.dispose()
+  check('registry: dispose unregisters the live tail probe', reg.flushProbeCount() === probesBefore)
 }
 
 {
   const w = makeWheel()
   const events: Array<{ t: number; kind: string }> = []
   const sched = new RenderScheduler(() => events.push({ t: w.now(), kind: 'echo-paint' }), w.clock)
-  const bt = w.timer('batcher')
-  const batcher = new StreamBatcher<string>('', {
-    sink: () => events.push({ t: w.now(), kind: 'stream-sink' }),
-    setTimer: bt.set,
-    clearTimer: bt.clear,
-  })
   const tt = w.timer('tail')
   const tail = createStreamingTailStore({ setTimer: tt.set, clearTimer: tt.clear, now: w.now })
   w.advance(150)
   tail.reset('base')
   events.length = 0
-  batcher.update(cur => cur + 'delta')
   tail.update(cur => cur + '+')
   tail.subscribe(() => events.push({ t: w.now(), kind: 'tail-publish' }))
   w.advance(2)
@@ -830,12 +774,11 @@ function makeWheel(): Wheel {
   w.advance(60)
   const kinds = events.map(e => e.kind)
   check('echo: an idle keystroke paints before every armed nonessential flush',
-    kinds[0] === 'echo-paint' && kinds.includes('stream-sink') && kinds.includes('tail-publish'), kinds.join(','))
+    kinds[0] === 'echo-paint' && kinds.includes('tail-publish'), kinds.join(','))
   check('echo: the idle leading edge adds zero latency', echoAt === 152, String(echoAt))
   check('echo: the nonessential flushes still land after (never starved)',
     events.filter(e => e.kind !== 'echo-paint').every(e => e.t > 152))
   tail.dispose()
-  batcher.dispose()
 
   const w2 = makeWheel()
   const paints: number[] = []

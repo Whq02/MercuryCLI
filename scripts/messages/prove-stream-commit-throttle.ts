@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { StreamBatcher } from '../../src/utils/messages/streamBatcher.js'
+import { createStreamingTailStore } from '../../src/utils/messages/streamingTailStore.js'
 
 let fail = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -9,73 +9,42 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!fail && !cond) fail++
   else if (!cond) fail++
 }
-const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
-
-console.log('prove-stream-commit-throttle — frame-cadence commits under a delta storm')
-
-type Row = { index: number; unparsedToolInput: string }
+console.log('prove-stream-commit-throttle — live tail commits under a delta storm')
 
 {
+  let clock = 0
+  let timer: { at: number; fire: () => void } | null = null
   let commits = 0
-  const b = new StreamBatcher<Row[]>([{ index: 0, unparsedToolInput: '' }], {
-    sink: () => {
-      commits++
-    },
+  const tail = createStreamingTailStore({
+    now: () => clock,
+    setTimer: (fire, ms) => { timer = { at: clock + ms, fire }; return 1 },
+    clearTimer: () => { timer = null },
   })
-  const t0 = Date.now()
+  tail.subscribe(() => commits++)
+  tail.update(() => '')
+  check('the opening publishes synchronously', commits === 1)
   for (let i = 0; i < 100; i++) {
-    b.update(cur => {
-      const next = cur.slice()
-      next[0] = { ...next[0]!, unparsedToolInput: next[0]!.unparsedToolInput + 'x' }
-      return next
-    })
-    await sleep(10)
+    tail.update(cur => (cur ?? '') + 'x')
+    clock += 10
+    const due = timer as { at: number; fire: () => void } | null
+    if (due && due.at <= clock) due.fire()
   }
-  await sleep(40)
-  const elapsed = Date.now() - t0
-  check(`storm of 100 deltas commits ≤70 (got ${commits} in ${elapsed}ms)`, commits <= 70 && commits >= 1)
-  check('ref stayed fresh through the storm (esc-interrupt read path)', b.current[0]!.unparsedToolInput.length === 100)
-  b.dispose()
-}
-
-{
-  let commits = 0
-  let lastLen = -1
-  const b = new StreamBatcher<Row[]>([], {
-    sink: v => {
-      commits++
-      lastLen = v.length
-    },
-    flushNow: (prev, next) => prev.length !== next.length,
-  })
-  b.update(cur => [...cur, { index: 0, unparsedToolInput: '' }])
-  check('append (content_block_start) commits SYNCHRONOUSLY', commits === 1 && lastLen === 1)
-  b.update(cur => {
-    const next = cur.slice()
-    next[0] = { ...next[0]!, unparsedToolInput: 'a' }
-    return next
-  })
-  check('a same-length delta right after does NOT commit synchronously', commits === 1)
-  await sleep(30)
-  check('…but the trailing frame flush lands it', commits === 2)
-  b.dispose()
-}
-
-{
-  let commits = 0
-  const b = new StreamBatcher<Row[]>([], { sink: () => commits++ })
-  b.update(cur => cur)
-  await sleep(30)
-  check('identity update schedules nothing', commits === 0)
-  b.update(cur => [...cur, { index: 0, unparsedToolInput: '' }])
-  b.reset([])
-  check('reset flushes immediately and empties the value', b.current.length === 0 && commits >= 1)
+  const trailing = timer as { at: number; fire: () => void } | null
+  if (trailing) { clock = trailing.at; trailing.fire() }
+  check('100 deltas stay within the live tail cadence', commits >= 1 && commits <= 40, String(commits))
+  check('fresh and published tails contain every byte', tail.read() === 'x'.repeat(100) && tail.getSnapshot() === tail.read())
   const before = commits
-  b.update(cur => [...cur, { index: 1, unparsedToolInput: '' }])
-  b.dispose()
-  const wasFlushedAtDispose = commits
-  await sleep(30)
-  check('dispose kills the pending trailing flush', commits === wasFlushedAtDispose && commits >= before)
+  tail.update(cur => cur)
+  check('identity updates schedule no work', commits === before && timer === null)
+  tail.update(() => null)
+  check('the close publishes immediately and retains the last text', tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100) && timer === null)
+  tail.update(() => 'next')
+  tail.update(cur => cur + ' pending')
+  tail.dispose()
+  check('dispose cancels the trailing publish', timer === null)
+  const disposed = commits
+  tail.update(() => 'late')
+  check('late updates never resurrect the subscriber', commits === disposed)
 }
 
 {

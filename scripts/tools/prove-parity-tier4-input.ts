@@ -41,19 +41,22 @@ t(
   !unescapeXml(escapeXml('x < y & z')).includes('&amp;') && !unescapeXml(escapeXml('x < y & z')).includes('&lt;'),
 )
 
-const { retainFullscreenScrollback } = await import('../../src/utils/messages/fullscreenScrollback.ts')
-const m = (id: string) => ({ uuid: id })
-const prev = [m('a1'), m('b1-boundary'), m('a2'), m('b2-boundary'), m('tail1'), m('tail2')]
-const keptAll = retainFullscreenScrollback(prev, undefined)
-t('with no re-yielded tail, the FULL history is kept', keptAll.length === prev.length)
-const keptTrimmed = retainFullscreenScrollback(prev, 'tail1')
-t(
-  'the re-yielded verbatim tail is dropped, everything before it kept',
-  keptTrimmed.map(x => x.uuid).join(',') === 'a1,b1-boundary,a2,b2-boundary',
-)
-t(
-  'earlier intervals are NOT dropped (both prior boundaries survive)',
-  keptTrimmed.some(x => x.uuid === 'b1-boundary') && keptTrimmed.some(x => x.uuid === 'b2-boundary'),
-)
+const { emptyFoldState, applyTranscriptEntry } = await import('../../src/utils/sessionStorage/fold.ts')
+const { buildScreenConversation } = await import('../../src/utils/sessionStorage/chain.ts')
+const state = emptyFoldState()
+const ids = ['a1', 'b1-boundary', 'a2', 'b2-boundary', 'tail1', 'tail2']
+const rows = ids.map((uuid, i) => ({
+  uuid,
+  parentUuid: ids[i - 1] ?? null,
+  timestamp: new Date(i * 1000).toISOString(),
+  ...(uuid.includes('boundary') ? { type: 'system', subtype: 'compact_boundary', compactMetadata: { trigger: 'manual', preTokens: 1 } } : { type: 'user', message: { role: 'user', content: uuid } }),
+}))
+for (const row of rows) applyTranscriptEntry(state, row as never)
+const original = buildScreenConversation(state.messages)
+t('the live screen chain retains the full linked history', original.map(row => row.uuid).join(',') === ids.join(','))
+for (const row of rows.slice(-2)) applyTranscriptEntry(state, { ...row } as never)
+const replayed = buildScreenConversation(state.messages)
+t('replaying the same tail creates no duplicate screen rows', replayed.length === ids.length && new Set(replayed.map(row => row.uuid)).size === ids.length)
+t('both prior boundaries survive the tail replay', ['b1-boundary', 'b2-boundary'].every(id => replayed.some(row => String(row.uuid) === id)))
 
 process.exit(failures)

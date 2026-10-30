@@ -99,11 +99,6 @@
       "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
     },
     {
-      "file": "src/hooks/useLogMessages.ts",
-      "class": "superseded-unreachable",
-      "reason": "The old screen's transcript recorder — the session RUNNER owns the transcript writer now (the w0 law pins the screen holds none). Kept unmounted: hotpath-cadence and w0-laws exercise its pure units (isTurnBoundaryRow, the engine-lane law); unit extraction owed, then delete (a named deferral)."
-    },
-    {
       "file": "src/render-engine/ansiText.ts",
       "class": "proof-or-fixture-only",
       "reason": "The render engine core's ANSI tokenizer + row clamp (the width law every composed row rides), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
@@ -197,21 +192,6 @@
       "file": "src/utils/deepLink/registerProtocol.ts",
       "class": "proof-or-fixture-only",
       "reason": "The OS protocol-handler identity owner for the mercury:// scheme (the bundle id and the handler name). No registration machinery is built in this tree, so no runtime path imports it; its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which pins that the OS registration claims only the Mercury identity. Its last type-only reference left with fold 44bc."
-    },
-    {
-      "file": "src/utils/messages/appendRow.ts",
-      "class": "superseded-unreachable",
-      "reason": "The one-uuid-one-row append law's reference implementation — the runner's one-writer architecture closes the doubled-turn class live; transcript-rows/prove-append-identity and render-migration/prove-doubles-growth-curve drive this unit as the law's spec; re-point or move with the law named, then delete (a named deferral)."
-    },
-    {
-      "file": "src/utils/messages/fullscreenScrollback.ts",
-      "class": "superseded-unreachable",
-      "reason": "Fullscreen compaction scrollback retention for the in-process transcript — the connector paints from records now; parity tier4 drives the unit; class-note + re-point owed, then delete (a named deferral)."
-    },
-    {
-      "file": "src/utils/messages/streamBatcher.ts",
-      "class": "superseded-unreachable",
-      "reason": "The frame-cadence stream batcher — the connector's file-tail projection (400ms heartbeat + deduped watch reads) bounds repaint cadence by construction; five cadence pins (stream-commit-throttle, hotpath-cadence, stream-contract, doubles-growth-curve, tui-weight) drive this unit as the cadence spec; per-prover re-point owed, then delete (a named deferral)."
     }
   ]
 }

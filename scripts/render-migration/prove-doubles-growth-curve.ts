@@ -191,7 +191,7 @@ const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { appendRowWithIdentity } = await import('../../src/utils/messages/appendRow.ts')
+const { createTranscriptRows, transcriptRows } = await import('../../src/utils/sessionStorage/rowGraph.ts')
 const { handleMessageFromStream, isDroppedLateStreamFrame } = await import('../../src/utils/messages/streaming.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
@@ -273,16 +273,17 @@ function makeCtx(model: string): Record<string, unknown> {
 type StreamingToolUseT = { index: number; contentBlock: { id: string }; unparsedToolInput: string }
 
 class UiSession {
-  transcript: AnyMsg[] = []
+  private readonly rows = createTranscriptRows()
+  get transcript(): AnyMsg[] { return [...this.rows.values()] as unknown as AnyMsg[] }
   streamingToolUses: StreamingToolUseT[] = []
   streamingText: string | null = null
   fold: InstanceType<typeof RecordFold> | null = null
 
-  private onMessage = (message: AnyMsg): void => {
-    this.transcript = appendRowWithIdentity(this.transcript as never, message as never) as AnyMsg[]
+  append = (message: AnyMsg): void => {
+    transcriptRows(this.rows).set(message.uuid as never, message as never)
   }
   private onTombstone = (message: AnyMsg): void => {
-    this.transcript = this.transcript.filter(m => m.uuid !== message.uuid)
+    transcriptRows(this.rows).delete(message.uuid as never)
   }
 
   consumeRunEvent(runEventIn: AnyRunEvent, aborted: boolean): void {
@@ -308,7 +309,7 @@ class UiSession {
     if (isDroppedLateStreamFrame(event as { type: string }, aborted)) return
     handleMessageFromStream(
       event as never,
-      this.onMessage as never,
+      this.append as never,
       () => {},
       () => {},
       (f: (prev: StreamingToolUseT[]) => StreamingToolUseT[]) => {
@@ -405,10 +406,7 @@ async function driveLane(lane: string, model: string, foldOn: boolean): Promise<
 
     const ctx = makeCtx(model)
     const controller = (ctx as { abortController: AbortController }).abortController
-    ui.transcript = appendRowWithIdentity(
-      ui.transcript as never,
-      createUserMessage({ content: `user turn ${t}` }) as never,
-    ) as AnyMsg[]
+    ui.append(createUserMessage({ content: `user turn ${t}` }) as unknown as AnyMsg)
     const canUseTool = (async (_tool: unknown, input: Record<string, unknown>) => ({
       behavior: 'allow',
       updatedInput: input,
