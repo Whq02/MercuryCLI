@@ -52,6 +52,7 @@ import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotR
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
 import { gitArgs } from '../../utils/git/spawnArgs.js'
+import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 
@@ -241,6 +242,14 @@ function isNormalizedCdCommand(command: string): boolean {
   return normalizedWords(command).some(argv => ['cd', 'pushd', 'popd'].includes(argv[0] ?? ''))
 }
 
+
+function isCurrentDirectoryCommand(command: SimpleCommand, cwd: string): boolean {
+  const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
+  return command.argv.length === 2 && command.argv[0] === 'cd' &&
+    (command.argv[1] === cwd || command.argv[1] === posixCwd) &&
+    command.envVars.length === 0 && command.redirects.length === 0 &&
+    isCurrentDirectoryBareGitRepo(cwd) === false
+}
 
 function withoutRedirections(command: string): string {
   return pinnedCommandAnalysis.extractOutputRedirections(command).commandWithoutRedirections
@@ -477,6 +486,10 @@ export function bashToolCheckPermission(
   if (sed.behavior !== 'passthrough') return sed
   const mode = checkPermissionMode(input, context)
   if (mode.behavior !== 'passthrough') return mode
+  if (!compoundHasCd && astCommand !== undefined &&
+    isCurrentDirectoryCommand(astCommand, resolveShellCwd(input.cwd))) {
+    return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'The directory is already current' } }
+  }
   const readOnly = checkPreparedReadOnlyConstraints(input, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined, SHELL_C_MAX_DEPTH)
   if (readOnly.behavior === 'allow') {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
@@ -550,21 +563,6 @@ function asWrittenSingle(command: string, fallback: string, cwd: string): string
   return written.length === 1 ? (written[0] as string) : fallback
 }
 
-function filterCwdSubcommands(
-  subcommands: string[],
-  parsed: (SimpleCommand | undefined)[],
-  cwd: string,
-): { subcommands: string[]; parsed: (SimpleCommand | undefined)[] } {
-  const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
-  const outSub: string[] = []
-  const outParsed: (SimpleCommand | undefined)[] = []
-  subcommands.forEach((sub, i) => {
-    if (sub === `cd ${cwd}` || sub === `cd ${posixCwd}`) return
-    outSub.push(sub)
-    outParsed.push(parsed[i])
-  })
-  return { subcommands: outSub, parsed: outParsed }
-}
 
 const identityCheckers: CommandIdentityCheckers = {
   isGitCommand: isNormalizedGitCommand,
@@ -646,7 +644,8 @@ async function decideBashPermission(
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) return unprovenAsk(semantic.reason)
       astCommands = parsed.commands
-      compoundHasCd ||= astCommands.some(simple => isNormalizedCdCommand(simple.text))
+      compoundHasCd ||= shellCCommands(astCommands).some(simple =>
+        isNormalizedCdCommand(simple.text) && !isCurrentDirectoryCommand(simple, cwd))
     }
   } else {
     return earlyExitDenyCheck(input, context) ?? uploadAsk ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
@@ -661,7 +660,7 @@ async function decideBashPermission(
   const operator = await checkCommandOperatorPermissions(
     input,
     segmentInput => decideBashPermission(segmentInput, context, prefixFn, depth, inheritedHasCd),
-    identityCheckers,
+    compoundHasCd ? identityCheckers : { ...identityCheckers, isDirectoryChange: () => false },
     astRoot,
   )
   if (operator.behavior !== 'passthrough') {
@@ -673,17 +672,14 @@ async function decideBashPermission(
     return operator
   }
 
-  const rawSubcommands = astCommands.map(simple => simple.text)
-  const rawParsed = astCommands
-  const filtered = filterCwdSubcommands(rawSubcommands, rawParsed, cwd)
-  const subcommands = filtered.subcommands
-  const parsedSubcommands = filtered.parsed
+  const subcommands = astCommands.map(simple => simple.text)
+  const parsedSubcommands = astCommands
 
-  if (subcommands.filter(sub => isNormalizedCdCommand(sub)).length > 1) {
+  if (compoundHasCd && subcommands.filter(sub => isNormalizedCdCommand(sub)).length > 1) {
     return { behavior: 'ask', message: MULTIPLE_CD_REASON, decisionReason: { type: 'other', reason: MULTIPLE_CD_REASON } }
   }
 
-  if (subcommands.some(isNormalizedCdCommand) && subcommands.some(isNormalizedGitCommand)) {
+  if (compoundHasCd && subcommands.some(isNormalizedCdCommand) && subcommands.some(isNormalizedGitCommand)) {
     return { behavior: 'ask', message: CD_GIT_BARE_REPO_REASON, decisionReason: { type: 'other', reason: CD_GIT_BARE_REPO_REASON } }
   }
 
