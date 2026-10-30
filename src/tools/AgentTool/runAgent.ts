@@ -900,7 +900,11 @@ export async function* runAgent(
     try {
       const started = await fireHooks(
         'crewmate.start',
-        { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => (message.type === 'user' || message.type === 'assistant' ? extractTextContent(message.message.content as never, '\n') : '')).filter(Boolean).join('\n'), model: resolvedAgentModel, directory: cwd ?? getCwd() },
+        { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => {
+          if (message.type !== 'user' && message.type !== 'assistant') return ''
+          const content = message.message.content
+          return typeof content === 'string' ? content : extractTextContent(content, '\n')
+        }).filter(Boolean).join('\n'), model: resolvedAgentModel, directory: cwd ?? getCwd() },
         { scope: hookScope, signal: abortController.signal, toolUseContext, crewmateType: agentDefinition.agentType },
       )
       for (const row of hookRowsOfResult(started)) hookContextMessages.push(createAttachmentMessage(row) as Message)
