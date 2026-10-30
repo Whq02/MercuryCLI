@@ -6,6 +6,17 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-lane-priced-'))
 delete process.env.MERCURY_MODEL
+for (const key of ['MERCURY_HOME', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[key]
+const ollamaModels = [{ name: 'llama3.1:8b' }, { name: 'cloud', remote_model: 'upstream', remote_host: 'https://ollama.com' }]
+const ollama = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(req: Request) {
+  const path = new URL(req.url).pathname
+  if (path === '/api/tags') return Response.json({ models: ollamaModels })
+  if (path === '/api/version') return Response.json({ version: 'fixture' })
+  if (path === '/api/ps') return Response.json({ models: ollamaModels.map(row => ({ name: row.name, context_length: 131072 })) })
+  if (path === '/api/show') return Response.json({ capabilities: ['completion', 'tools'] })
+  return new Response('not found', { status: 404 })
+} })
+process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${ollama.port}`
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -18,8 +29,13 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 
-const { getModelCosts, calculateUSDCost, COST_TIER_5_25 } = await import('../../src/utils/modelCost.ts')
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const { getModelCosts, calculateUSDCost, resolveModelPricing, COST_TIER_5_25 } = await import('../../src/utils/modelCost.ts')
 const state = await import('../../src/bootstrap/state.ts')
+const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+await refreshLocalDiscovery({ force: true })
 const { deepseekDisplayPin } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
 const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
 
@@ -60,12 +76,21 @@ section('§1 DeepSeek and Kimi price at their own recorded rates (the base price
   check('pinned lanes never raise the unknown-cost flag', state.hasUnknownModelCost() === false)
 }
 
-section('§2 the local lane is a recorded zero, never an unknown cost')
+section('§2 a discovered local model is a recorded zero, never an unknown cost; a remote model served through the local server is unpriced')
 {
+  check('the fixture discovered llama3.1:8b as a model running on this machine', localRecordFor('local/llama3.1:8b')?.executionOrigin?.kind === 'local', JSON.stringify(localRecordFor('local/llama3.1:8b')))
   const tier = getModelCosts('local/llama3.1:8b')
   check('a local server prices at zero on every axis', tier.inputTokens === 0 && tier.outputTokens === 0 && tier.promptCacheReadTokens === 0 && tier.promptCacheWriteTokens === 0 && tier.webSearchRequests === 0, JSON.stringify(tier))
+  check('the zero is recorded, not unpriced', resolveModelPricing('local/llama3.1:8b').basis === 'recorded', resolveModelPricing('local/llama3.1:8b').basis)
   check('a local turn costs $0.00 (the base recorded $0.635 with the caveat)', calculateUSDCost('local/llama3.1:8b', usage(100_000, 10_000)) === 0)
   check('…and the unknown-cost caveat is NOT raised for it (a zero is the truth, not a guess)', state.hasUnknownModelCost() === false)
+  check('the fixture discovered cloud as a remote model behind the local server', localRecordFor('local/cloud')?.executionOrigin?.kind === 'remote', JSON.stringify(localRecordFor('local/cloud')))
+  const remote = getModelCosts('local/cloud')
+  check('a remote model is unpriced: the zero tier under the unknown-cost flag, never the local zero as a recorded price', remote.inputTokens === 0 && remote.outputTokens === 0 && resolveModelPricing('local/cloud').basis === 'unpriced' && state.hasUnknownModelCost() === true, `${resolveModelPricing('local/cloud').basis} flag=${state.hasUnknownModelCost()}`)
+  state.setHasUnknownModelCost(false)
+  const unlisted = getModelCosts('local/not-served')
+  check('a local id no server listed is unpriced too (nothing is known about it): the zero tier under the flag', unlisted.inputTokens === 0 && resolveModelPricing('local/not-served').basis === 'unpriced' && state.hasUnknownModelCost() === true)
+  state.setHasUnknownModelCost(false)
 }
 
 section('§3 a lane with no recorded rate lands unpriced: zero USD under the unknown-cost flag, never another vendor\'s tier')
@@ -98,10 +123,11 @@ section('§5 the shape')
 {
   const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
   check('each pinned engine has its OWN owner row: the GPT, DeepSeek and Kimi pins', /openai: \(model, promptTokens\) => \{[\s\S]*?recorded\(engineTier\(gptPriceTierFor\(pin, promptTokens\)\)\)/.test(src) && /const pin = gptDisplayPin\(model\)/.test(src) && /deepseek: model => recorded\(engineTier\(deepseekDisplayPin\(model\)\)\)/.test(src) && /moonshot: model => recorded\(engineTier\(kimiDisplayPin\(model\)\)\)/.test(src))
-  check('the local lane resolves at its recorded zero through its own owner row', /local: \(\) => \(\{ costs: COST_LOCAL_SERVER, basis: 'recorded' \}\)/.test(src))
+  check('the local lane resolves at its recorded zero through its own owner row, by the discovered record: a remote origin or no record is unpriced', /local: model => \{[\s\S]*?const record = localRecordFor\(model\)[\s\S]*?record === undefined \|\| record\.executionOrigin\?\.kind === 'remote' \? undefined : \{ costs: COST_LOCAL_SERVER, basis: 'recorded' \}/.test(src))
   const pins = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekPins.ts'), 'utf8')
   check('the DeepSeek pin comment no longer claims the ledger never uses these rates', !/the ledger never invents USD from these/.test(pins))
 }
 
+ollama.stop(true)
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-lane-priced-ledger${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)
