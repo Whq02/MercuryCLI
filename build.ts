@@ -543,6 +543,65 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
   }
 }
 
+const { PYTHON_PACK_PATH: pythonRelPath, pythonPackPlatform, pythonBinaryFor } = await import('./src/services/privateChannel/vendoredPython.ts');
+let pythonVendored = false;
+let pythonMeta: { version: string; release: string; platform: string; license: string; archiveSha256: string; binary: string; binarySha256: string } | null = null;
+{
+  const pythonDest = resolve(OUT, pythonRelPath);
+  rmSync(pythonDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_PYTHON === '1';
+  const packPlatform = pythonPackPlatform(SHIP.platform, SHIP.arch);
+  const lockPath = resolve(ROOT, 'vendor', 'python.lock.json');
+  const extractedDir = packPlatform ? resolve(ROOT, 'vendor', 'python', 'extracted', packPlatform) : null;
+  const vendorManifestPath = extractedDir ? resolve(extractedDir, '.vendor-manifest.json') : null;
+  if (!forceNo && packPlatform && extractedDir && vendorManifestPath && statSync(lockPath, { throwIfNoEntry: false })?.isFile() && statSync(vendorManifestPath, { throwIfNoEntry: false })?.isFile()) {
+    try {
+      const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { version: string; release: string; license: string; platforms: Record<string, { sha256: string }> };
+      const vman = JSON.parse(readFileSync(vendorManifestPath, 'utf8')) as { version: string; release: string; platform: string; archiveSha256: string; binary: string };
+      const pinned = lock.platforms[packPlatform];
+      const binary = pythonBinaryFor(packPlatform);
+      const binaryPath = resolve(extractedDir, ...binary.split('/'));
+      if (pinned && vman.version === lock.version && vman.release === lock.release && vman.platform === packPlatform && vman.archiveSha256 === pinned.sha256 && vman.binary === binary && statSync(binaryPath, { throwIfNoEntry: false })?.isFile()) {
+        const { cpSync } = await import('node:fs');
+        cpSync(extractedDir, pythonDest, { recursive: true });
+        const shipped = resolve(pythonDest, ...binary.split('/'));
+        if (process.platform !== 'win32') chmodSync(shipped, 0o755);
+        pythonVendored = true;
+        pythonMeta = {
+          version: lock.version,
+          release: lock.release,
+          platform: packPlatform,
+          license: lock.license,
+          archiveSha256: pinned.sha256,
+          binary,
+          binarySha256: createHash('sha256').update(readFileSync(shipped)).digest('hex'),
+        };
+        console.log(`VENDORED python ${lock.version} ${packPlatform} (pinned python-build-standalone ${lock.release} archive, sha256-verified cache)\n  -> ${pythonDest}`);
+      } else {
+        console.error(
+          'BUILD FAILED: vendor/python cache does not match vendor/python.lock.json ' +
+            `(cache ${vman.version} ${vman.platform}, lock ${lock.version} ${packPlatform}) — the lock was re-pinned without refetching.\n` +
+            '  remedy: bun run scripts/vendor/fetch-python.ts   (then rebuild)\n' +
+            '  (a missing cache degrades honestly instead — only a PRESENT-but-wrong cache fails the build)',
+        );
+        process.exit(1);
+      }
+    } catch (e) {
+      console.error(
+        `BUILD FAILED: vendor/python cache present but unreadable (${String(e)}) — ` +
+          'refetch it: bun run scripts/vendor/fetch-python.ts (a missing cache degrades honestly instead)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_PYTHON=1 — python runtime NOT vendored (degraded: python-runtime; proof seam).');
+  } else if (!packPlatform) {
+    console.warn(`python-build-standalone publishes no interpreter archive Mercury vendors for ${SHIP_KEY} — the artifact ships WITHOUT a bundled Python (degraded: python-runtime; the Python debugger runs on a PATH python3).`);
+  } else {
+    console.warn(`no python vendor cache for ${packPlatform} — the artifact ships WITHOUT the bundled Python (degraded: python-runtime; the Python debugger runs on a PATH python3). Prepare it: bun run scripts/vendor/fetch-python.ts${CROSS ? ` --platform ${packPlatform}` : ''}`);
+  }
+}
+
 const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/services/voice/voicePack.ts');
 let voiceVendored = false;
 let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
@@ -1157,6 +1216,19 @@ const manifest = {
         remedy:
           'prepare the pinned Node runtime cache (`bun run scripts/vendor/fetch-node.ts`), then re-run `bun run build.ts` — the launchers run MERCURY_NODE or a PATH node inside the supported range meanwhile',
       },
+  pythonRuntime: pythonVendored && pythonMeta
+    ? {
+        vendored: true,
+        path: pythonRelPath,
+        name: 'python',
+        ...pythonMeta,
+      }
+    : {
+        vendored: false,
+        path: pythonRelPath,
+        remedy:
+          'prepare the pinned Python runtime cache (`bun run scripts/vendor/fetch-python.ts`), then re-run `bun run build.ts` — the Python debugger runs on a PATH python3 meanwhile',
+      },
   splash: {
     path: 'splash.mjs',
     core: 'splash-core.mjs',
@@ -1312,6 +1384,7 @@ const manifest = {
     ...(pyrightVendored ? [] : ['python-intelligence']),
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
+    ...(pythonVendored ? [] : ['python-runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
     ...(whisperVendored ? [] : ['on-device-transcriber']),
     ...(embedVendored ? [] : ['semantic-embedder']),

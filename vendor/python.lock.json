@@ -1,0 +1,86 @@
+{
+  "name": "python",
+  "version": "3.14.10",
+  "release": "20261026",
+  "repository": "https://github.com/astral-sh/python-build-standalone",
+  "license": "Python-2.0",
+  "licenseFiles": [
+    "LICENSE.txt",
+    "licenses/LICENSE.bdb.txt",
+    "licenses/LICENSE.bzip2.txt",
+    "licenses/LICENSE.expat.txt",
+    "licenses/LICENSE.libedit.txt",
+    "licenses/LICENSE.libffi.txt",
+    "licenses/LICENSE.liblzma.txt",
+    "licenses/LICENSE.libuuid.txt",
+    "licenses/LICENSE.mpdecimal.txt",
+    "licenses/LICENSE.ncurses.txt",
+    "licenses/LICENSE.openssl-3.txt",
+    "licenses/LICENSE.sqlite.txt",
+    "licenses/LICENSE.zlib.txt",
+    "licenses/LICENSE.zlib-ng.txt",
+    "licenses/LICENSE.zstd.txt"
+  ],
+  "licenceTexts": {
+    "LICENSE.bdb.txt": "3bdff06e69991c94664f2ef5c5f8096f60b7dbec071756ea6cc26b445e06ec5b",
+    "LICENSE.bzip2.txt": "1f38bbc7caacafd65169276d759c0d88c991b753b643ce35d0e45ea1971dd441",
+    "LICENSE.expat.txt": "122f2c27000472a201d337b9b31f7eb2b52d091b02857061a8880371612d9534",
+    "LICENSE.libedit.txt": "29cea33c32bbc9785142386377915612a2fa786482c46843383384aded2e09b1",
+    "LICENSE.libffi.txt": "deaf3a42effb551a5b140fa9afefed183a27f1341c6d1bf430d106a5e6931fc0",
+    "LICENSE.liblzma.txt": "9a4062de0a2c388a98cf35a35d348b62fa97c838a71c3c28ee1a2d7d0a565b02",
+    "LICENSE.libuuid.txt": "122ee1f7e258f2c3c0e538a75c037684f420454bf3850ddc74ce750bbf5fe86b",
+    "LICENSE.mpdecimal.txt": "669512af7219f58be03a398766d7c9da11a3b3df9d3f05cb74c5ceca25c8da3b",
+    "LICENSE.ncurses.txt": "87a4c4442337b8968ef956031c406b74f9cb7149b7ba87311bdaba534816201c",
+    "LICENSE.openssl-3.txt": "7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a",
+    "LICENSE.sqlite.txt": "38bef3d28b24f145ea293bd3b6eb4b20396982abc8303128fb493986ea5bc719",
+    "LICENSE.zlib.txt": "818922b2620f12801a12bf78e399644a30990e66824abd8ca8ec24d451d6f92c",
+    "LICENSE.zlib-ng.txt": "6c9f0d975b41afaa34d22f55bb8986ce69e5cb7ad327cb2b28820cd425edf5ee",
+    "LICENSE.zstd.txt": "7055266497633c9025b777c78eb7235af13922117480ed5c674677adc381c9d8"
+  },
+  "checksums": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/SHA256SUMS",
+  "platforms": {
+    "darwin-arm64": {
+      "target": "aarch64-apple-darwin",
+      "archive": "cpython-3.14.10+20261026-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "95eb8c87d16af37c54e9765e31d8c56c0d8ffa9968ea0f704f73a9b83f84e9f9",
+      "sizeBytes": 26753457
+    },
+    "darwin-x64": {
+      "target": "x86_64-apple-darwin",
+      "archive": "cpython-3.14.10+20261026-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-apple-darwin-install_only_stripped.tar.gz",
+      "sha256": "2fd8becd48cf0ff5f0a15df3c0db7cae7aa708dcaacf901bd30d6cdd6229370b",
+      "sizeBytes": 26943401
+    },
+    "linux-x64": {
+      "target": "x86_64-unknown-linux-gnu",
+      "archive": "cpython-3.14.10+20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "4d3c16c59ed0802a3d1d34d8bce504b15ceeaff39d62dadecc6a9fa803412aed",
+      "sizeBytes": 36776589
+    },
+    "linux-arm64": {
+      "target": "aarch64-unknown-linux-gnu",
+      "archive": "cpython-3.14.10+20261026-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "90f48337bc3dd4ae6eda81e001e4c981236d403b6b5a07778bbdf94ee423dc00",
+      "sizeBytes": 30635900
+    },
+    "win-x64": {
+      "target": "x86_64-pc-windows-msvc",
+      "archive": "cpython-3.14.10+20261026-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "c1876a9795d3a94ee49a1499a69cd91e26ca3e2829593f93fa6e4db90d05402b",
+      "sizeBytes": 23294761
+    },
+    "win-arm64": {
+      "target": "aarch64-pc-windows-msvc",
+      "archive": "cpython-3.14.10+20261026-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261026/cpython-3.14.10%2B20261026-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "2b6cf82a67cb99ef0db0932dd69ee24080077add6f98435cea5de850c144327d",
+      "sizeBytes": 22285335
+    }
+  },
+  "notes": "The vendored Python runtime: the interpreter the Debug tool's Python road runs the bundled debugpy adapter on, so a release install debugs Python without a Python on the machine (Apple's stock /usr/bin/python3 is 3.9 and debugpy 1.8.22 needs 3.10). Pinned 2026-10-30 to the python-build-standalone release 20261026 (one stable CPython minor, 3.14; debugpy 1.8.22 classifies 3.10 through 3.15): one upstream install_only_stripped archive per platform, every sha256 copied from that release's SHA256SUMS asset (the checksums url above), never computed locally; the six platform keys are the Node pack's spelling. The fetch (bun run scripts/vendor/fetch-python.ts) verifies the archive digest BEFORE extraction and installs only the pack law's members (src/services/privateChannel/vendoredPython.ts): the interpreter as bin/python3 (python.exe and its DLLs on Windows), the standard library without ensurepip, idlelib, site-packages (pip), test, tkinter, turtledemo and bytecode caches, the extension modules without the tk and test ones, CPython's LICENSE.txt at the pack root and the licence texts of the components the upstream build links statically (vendor/python-licences, tracked, each verified against licenceTexts) under licenses/; headers, man pages, pkgconfig, the embedding library and the tcl/tk libraries stay out. The build vendors the shipped platform's cache at the fixed path dist/vendor/python; the release archive carries it beside the Node runtime, the manifest records version · release · platform · archive digest · shipped-binary digest, and install/update refuse a payload that declares the pack and does not carry it. Update procedure: pick the release tag and version, rewrite every platform's archive name, url and sizeBytes, take each sha256 from the new SHA256SUMS, run `bun run scripts/vendor/fetch-python.ts --all`, rebuild, re-run `bun run scripts/updater/prove-python-pack.ts` and `bun run scripts/ide/prove-debugpy-journey.ts`."
+}

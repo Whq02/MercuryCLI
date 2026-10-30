@@ -59,6 +59,7 @@ const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
 const jsDebug = vendorLock('js-debug.lock.json')
 const nodeRuntime = vendorLock('node.lock.json')
+const pythonRuntime = vendorLock('python.lock.json') as { version?: string; release?: string; license?: string; repository?: string; licenseFiles?: string[] }
 const brush = vendorLock('brush.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
@@ -174,6 +175,9 @@ lines.push(
 }
 lines.push(
   `- **Node.js runtime** ${nodeRuntime.version ?? '(not vendored on this checkout)'} — OpenJS Foundation and Node.js contributors, ${nodeRuntime.license ?? 'MIT'} (https://nodejs.org/dist/v${nodeRuntime.version ?? '<version>'}/). Receipt: vendor/node.lock.json (one official nodejs.org archive + sha256 per platform, every digest from that release's SHASUMS256.txt); the release archive ships the platform's runtime binary and Node's own LICENSE at dist/vendor/node/ — that LICENSE carries the notices of the components Node bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest).`,
+)
+lines.push(
+  `- **Python runtime** ${pythonRuntime.version ?? '(not vendored on this checkout)'} — CPython, Python Software Foundation, ${pythonRuntime.license ?? 'Python-2.0'} (https://www.python.org/), as built by python-build-standalone release ${pythonRuntime.release ?? '<release>'} (${pythonRuntime.repository ?? 'https://github.com/astral-sh/python-build-standalone'}). Receipt: vendor/python.lock.json (one upstream install_only_stripped archive + sha256 per platform, every digest from that release's SHA256SUMS); the release archive ships the platform's interpreter and standard library at dist/vendor/python/ with CPython's own LICENSE.txt at the pack root and, under licenses/, the licence texts of the components the upstream build links into it (Berkeley DB, bzip2, Expat, libedit, libffi, liblzma, libuuid, mpdecimal, ncurses, OpenSSL 3, SQLite, zlib, zlib-ng and zstd; vendor/python-licences carries the same texts, each pinned by sha256 in the lock). The Python debugger runs its bundled adapter on this interpreter; pip, IDLE, tkinter, the test suite and the headers stay out of the pack.`,
 )
 {
   lines.push(

@@ -19,6 +19,7 @@ vendor/pdfjs/
 vendor/grammars/
 vendor/js-debug/
 vendor/node/
+vendor/python/
 # The shell engine pack is FETCHED as an upstream release binary (brush),
 # never tracked: the binary and its licences land here per platform.
 vendor/brush/
