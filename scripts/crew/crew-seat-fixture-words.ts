@@ -1,7 +1,0 @@
-export const SEAT_SPEND_ASK = 'spend the window'
-export const SEAT_REPLY_PREFIX = 'the seat answers: '
-const SEAT_NAME = 'mate'
-const SEAT_MODEL = 'claude-fable-5-1'
-const FIRST_NOTE = 'FIRST-NOTE: remember the word tangerine'
-const SECOND_NOTE = 'SECOND-NOTE: what word did I ask you to remember'
-const THIRD_NOTE = 'THIRD-NOTE: you were stopped; this message wakes you'
