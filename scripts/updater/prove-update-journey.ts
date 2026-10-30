@@ -156,6 +156,27 @@ seedInstalled(V_OLD)
   check('user state survives the whole journey', existsSync(stateMarker))
 }
 
+console.log('── §1b f08: a third update prunes the version behind the rollback target ──')
+{
+  const V_NEWER = '9.9.0-beta.3'
+  const onDisk = (): string[] => readdirSync(versionsDir).filter(n => /^\d/.test(n)).sort()
+  check('before: three versions would pile up — two are on disk and a third is coming', onDisk().join() === `${V_OLD},${V_NEW}` && currentPointer() === V_NEW && previousPointer() === V_OLD)
+  const third = makeFixtures('third', [{ version: V_OLD }, { version: V_NEW }, { version: V_NEWER }])
+  const r = runCli(['update', '--allow-unsigned'], { fixtures: third })
+  check('the third update exits 0 and names the version it removed', r.code === 0 && r.stdout.includes(`updated: ${V_NEW} → ${V_NEWER}`) && r.stdout.includes(`removed older versions: ${V_OLD}`), r.stdout + r.stderr)
+  check('only the current and the rollback target stay on disk', onDisk().join() === `${V_NEW},${V_NEWER}` && currentPointer() === V_NEWER && previousPointer() === V_NEW, onDisk().join())
+  const status = runCli(['update', '--status'], { fixtures: third })
+  check('status lists the two that stay', status.stdout.includes(`versions present:  ${V_NEWER}, ${V_NEW}`), status.stdout)
+  const back = runCli(['update', '--rollback'], { fixtures: third })
+  check('rollback still returns to the kept previous version', back.code === 0 && currentPointer() === V_NEW && existsSync(join(versionsDir, V_NEWER, 'mercury.mjs')), back.stdout + back.stderr)
+  const again = runCli(['update', '--allow-unsigned'], { fixtures: third })
+  check('forward again removes nothing (the two on disk are the current and the previous)', again.code === 0 && !again.stdout.includes('removed older versions') && onDisk().join() === `${V_NEW},${V_NEWER}`, again.stdout)
+  runCli(['update', '--rollback'], { fixtures: third })
+  const j = runCli(['update', '--allow-unsigned', '--json'], { fixtures: third })
+  const parsed = JSON.parse(j.stdout) as { state?: string; pruned?: string[] }
+  check('the JSON update record carries the pruned list', j.code === 0 && parsed.state === 'updated' && Array.isArray(parsed.pruned) && parsed.pruned.length === 0, j.stdout.slice(0, 200))
+}
+
 console.log('── §2 discovery filtering (drafts · the pre-release flag · the install\'s channel · foreign tags · no asset) ──')
 seedInstalled(V_OLD)
 {

@@ -24,6 +24,7 @@ const {
   PointerHeldError,
   pointerValueOf,
   powershellEntryContent,
+  pruneSupersededVersions,
   readCurrentVersion,
   readCurrentVersionState,
   readPreviousVersion,
@@ -537,6 +538,31 @@ console.log('── §13 reconciling sweep (dead-pid residue; parked copies REST
   check('parked .replaced-* with PRESENT version dir is garbage (removed)', !existsSync(join(roots.versionsDir, `.replaced-${vHere}-${dead}`)))
   check('OWN-pid residue is untouched (a live transaction owns it)', existsSync(join(roots.versionsDir, `.download-${process.pid}`)))
   rmSync(join(roots.versionsDir, `.download-${process.pid}`), { recursive: true, force: true })
+}
+
+console.log('── §13b f08: superseded versions are pruned — the current, the rollback target and the running copy stay ──')
+{
+  const pruneScratch = mkdtempSync(join(tmpdir(), 'prune-'))
+  const pRoots: LayoutRoots = { versionsDir: join(pruneScratch, 'versions'), binDir: join(pruneScratch, 'bin'), shimPath: join(pruneScratch, 'bin', 'mercury'), isWindows: false }
+  for (const v of ['9.9.0-beta.1', '9.9.0-beta.2', '9.9.0-beta.3', '9.9.0-beta.4', '9.9.0-beta.5']) makePayload(join(pRoots.versionsDir, v), v)
+  writeFileSync(join(pRoots.versionsDir, 'current.txt'), '9.9.0-beta.5\n')
+  writeFileSync(join(pRoots.versionsDir, 'previous.txt'), '9.9.0-beta.4\n')
+  writeFileSync(join(pRoots.versionsDir, 'notes.txt'), 'not a version\n')
+  const report = pruneSupersededVersions(pRoots, join(pRoots.versionsDir, '9.9.0-beta.2'))
+  check('f08: every version older than the rollback target goes, except the one this process runs from', report.removed.join() === '9.9.0-beta.3,9.9.0-beta.1' && [...report.kept].sort().join() === '9.9.0-beta.2,9.9.0-beta.4,9.9.0-beta.5' && report.left.length === 0, JSON.stringify(report))
+  check('f08: the kept directories, both pointers and the stray file are untouched', ['9.9.0-beta.2', '9.9.0-beta.4', '9.9.0-beta.5'].every(v => existsSync(join(pRoots.versionsDir, v, 'mercury.mjs'))) && readCurrentVersion(pRoots) === '9.9.0-beta.5' && readPreviousVersion(pRoots) === '9.9.0-beta.4' && existsSync(join(pRoots.versionsDir, 'notes.txt')))
+  check('f08: the removed directories are gone', !existsSync(join(pRoots.versionsDir, '9.9.0-beta.1')) && !existsSync(join(pRoots.versionsDir, '9.9.0-beta.3')))
+  check('f08: a second prune removes nothing more', pruneSupersededVersions(pRoots, join(pRoots.versionsDir, '9.9.0-beta.2')).removed.length === 0)
+  const outside = pruneSupersededVersions(pRoots, join(pruneScratch, 'archive', 'mercury'))
+  check('f08: run from outside the layout (an extracted archive), the running copy is not a reason to keep anything', outside.removed.join() === '9.9.0-beta.2' && outside.kept.join() === '9.9.0-beta.5,9.9.0-beta.4', JSON.stringify(outside))
+  makePayload(join(pRoots.versionsDir, '9.9.0-beta.1'), '9.9.0-beta.1')
+  process.env.MERCURY_UPDATE_FAULT = 'prune-rm'
+  const faulted = pruneSupersededVersions(pRoots, join(pruneScratch, 'archive', 'mercury'))
+  delete process.env.MERCURY_UPDATE_FAULT
+  check('f08: a removal that fails is reported as left, never thrown — an update is never failed by its pruning', faulted.left.join() === '9.9.0-beta.1' && faulted.removed.length === 0 && existsSync(join(pRoots.versionsDir, '9.9.0-beta.1', 'mercury.mjs')))
+  const svc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
+  check('f08: the update and the install transactions prune after the stable command is written, and the outcome carries what went', svc.split('pruneSupersededVersions(roots).removed').length === 3 && svc.indexOf('const shim = writeShim(roots)\n    const pruned = pruneSupersededVersions') !== -1 && svc.includes('pruned: string[]'))
+  rmSync(pruneScratch, { recursive: true, force: true })
 }
 
 console.log('── §14 pointer tri-state (UPD-11 — absent · empty · unreadable are distinct) ──')

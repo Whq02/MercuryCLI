@@ -83,6 +83,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
     const lines = [
       `installed: ${result.version} → ${result.versionDir}${result.changed ? '' : ' (already present — no bytes changed)'}`,
       `active version: ${result.version} (pointer: ${roots.versionsDir})`,
+      ...(result.pruned.length > 0 ? [`removed older versions: ${result.pruned.join(', ')}`] : []),
       `signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}`,
       ...(result.receiptPath ? [`receipt: ${result.receiptPath}`] : []),
     ]

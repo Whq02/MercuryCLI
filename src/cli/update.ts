@@ -350,8 +350,9 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
             : ''
       const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
       const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
+      const prunedLine = result.pruned.length > 0 ? `\n  removed older versions: ${result.pruned.join(', ')}` : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${prunedLine}${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
       )
     }
     case 'no-update':

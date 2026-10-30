@@ -526,6 +526,45 @@ export function versionDirIntact(roots: LayoutRoots, version: string): boolean {
   return validatePayloadDir(join(roots.versionsDir, version)).state === 'ok'
 }
 
+export interface PruneReport {
+  removed: string[]
+  kept: string[]
+  left: string[]
+}
+
+export function pruneSupersededVersions(roots: LayoutRoots, running: string = runningPayloadDir()): PruneReport {
+  const keep = new Set<string>()
+  for (const pointer of [readCurrentVersion(roots), readPreviousVersion(roots)]) if (pointer !== null) keep.add(pointer)
+  const runningResolved = (() => {
+    try {
+      return realpathSync.native(running)
+    } catch {
+      return running
+    }
+  })()
+  const report: PruneReport = { removed: [], kept: [], left: [] }
+  for (const version of listInstalledVersions(roots)) {
+    const dir = join(roots.versionsDir, version)
+    let resolved = dir
+    try {
+      resolved = realpathSync.native(dir)
+    } catch {
+    }
+    const isRunning = roots.isWindows ? resolved.toLowerCase() === runningResolved.toLowerCase() : resolved === runningResolved
+    if (keep.has(version) || isRunning) {
+      report.kept.push(version)
+      continue
+    }
+    try {
+      removeWithRetry(dir, 'prune-rm', roots.isWindows)
+      report.removed.push(version)
+    } catch {
+      report.left.push(version)
+    }
+  }
+  return report
+}
+
 
 export const SHIM_MARKER_FAMILY = 'mercury-managed-shim'
 export const SHIM_MARKER = `${SHIM_MARKER_FAMILY} v3`

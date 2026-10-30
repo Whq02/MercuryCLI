@@ -64,7 +64,8 @@ Use `mercury update` with any installation method.
 For an installation made with the shell or PowerShell installer, or with
 `mercury install`, it updates Mercury in place. `--check` checks for updates,
 `--status` reports update status, and `--rollback` returns to the previous
-version, which stays on disk.
+version, which stays on disk. Versions older than that are removed when an
+update completes, and the update names them.
 
 For Homebrew, it asks before running `brew upgrade Whq02/mercury/mercury`.
 The default answer is no; enter `y` to approve. Mercury streams the command's

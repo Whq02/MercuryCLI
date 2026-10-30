@@ -31,6 +31,7 @@ import {
   listInstalledVersions,
   pathEntryEquals,
   PointerHeldError,
+  pruneSupersededVersions,
   readCurrentVersion,
   readCurrentVersionState,
   readPreviousVersion,
@@ -199,6 +200,7 @@ type UpdateOutcome =
       from: string
       to: string
       previousKept: boolean
+      pruned: string[]
       shim: ShimOutcome
       road: ChannelRoadName
       signature: SignatureVerdict['state']
@@ -471,12 +473,14 @@ async function acquireAndActivate(
       }
     }
     const shim = writeShim(roots)
+    const pruned = pruneSupersededVersions(roots).removed
     progress('complete', check.version)
     return {
       state: 'updated',
       from,
       to: check.version,
       previousKept: previous !== null && versionDirIntact(roots, previous),
+      pruned,
       shim,
       road: check.road,
       signature: provenance.verdict.state,
@@ -546,6 +550,7 @@ type InstallVerbOutcome =
       versionDir: string
       changed: boolean
       activated: boolean
+      pruned: string[]
       shim: ReturnType<typeof writeShim>
       binDirOnPath: boolean
       path: PathEntryOutcome
@@ -625,6 +630,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       return { state: 'refused', reason: `post-activation smoke failed: ${post.note}`, remedy: 'the previous pointer was restored' }
     }
     const shim = writeShim(roots, { force: opts.force })
+    const pruned = pruneSupersededVersions(roots).removed
     const binDirOnPath = (process.env.PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
@@ -640,6 +646,7 @@ async function performInstallTransaction(roots: LayoutRoots, progress: Progress,
       versionDir: installed.versionDir,
       changed: installed.changed,
       activated: true,
+      pruned,
       shim,
       binDirOnPath,
       path,
