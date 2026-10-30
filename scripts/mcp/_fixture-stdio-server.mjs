@@ -60,6 +60,9 @@ rl.on('line', line => {
       result: {
         tools: [
           ...(process.env.MCP_FIXTURE_MALFORMED_TOOLS ? [{ name: 'bad_schema', inputSchema: { type: 'array' } }, { name: 42, inputSchema: { type: 'object' } }] : []),
+          ...(process.env.MCP_FIXTURE_PROTO_NAMED_TOOLS
+            ? ['constructor', '__proto__', 'toString', 'valueOf'].map(name => ({ name, description: `a tool named ${name}`, inputSchema: { type: 'object', properties: {} } }))
+            : []),
           ...(process.env.MCP_FIXTURE_NULL_METADATA_TOOLS
             ? [
                 { name: 'null_description', description: null, inputSchema: { type: 'object', properties: {} } },

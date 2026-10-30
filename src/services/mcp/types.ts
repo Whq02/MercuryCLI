@@ -25,12 +25,19 @@ function secureMetadataUrl(value: string | undefined): boolean {
 }
 
 const strings = () => z.record(z.string(), z.string())
+const isStringRecord = (value: unknown): value is Record<string, string> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) && Object.values(value as Record<string, unknown>).every(item => typeof item === 'string')
+const everyKeyKept = (value: Record<string, string>): Record<string, string> => {
+  const out: Record<string, string> = {}
+  for (const [key, item] of Object.entries(value)) Object.defineProperty(out, key, { value: item, enumerable: true, writable: true, configurable: true })
+  return out
+}
 const oauth = once(() => z.object({
   clientId: z.string().optional(),
   callbackPort: z.number().int().positive().optional(),
   authServerMetadataUrl: z.string().optional().refine(secureMetadataUrl, { message: 'authServerMetadataUrl must be a valid https:// URL' }),
 }))
-const toolPermissions = once(strings)
+const toolPermissions = once(() => z.custom<Record<string, string>>(isStringRecord, { message: 'expected tool names mapped to permission words' }).transform(everyKeyKept))
 const remoteFields = () => ({ url: z.string(), headers: strings().optional(), headersHelper: z.string().optional() })
 const authenticatedFields = () => ({ oauth: oauth().optional(), toolPermissions: toolPermissions().optional() })
 

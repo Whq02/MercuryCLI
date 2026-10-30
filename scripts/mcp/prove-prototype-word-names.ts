@@ -33,7 +33,8 @@ enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(cwd)
 const config = await import('../../src/services/mcp/config.ts')
-
+const { connectToServer, fetchToolsForClient, clearServerCache } = await import('../../src/services/mcp/client.ts')
+const { mcpToolPartition } = await import('../../src/tools.ts')
 const { parseMcpConfig } = config
 
 const fixture = join(import.meta.dir, '_fixture-stdio-server.mjs')
@@ -81,6 +82,34 @@ console.log('[4] "__proto__" is refused as a server name, with the next step')
   const refused = await attempt(() => config.addMcpConfig('__proto__', server, 'local'))
   check('the add names the problem and says to choose another name', refused.includes('__proto__') && refused.includes('choose another'), refused)
   check('nothing was stored under it', config.getMcpConfigByName('__proto__') === null)
+}
+
+console.log('[5] a tool-permission ceiling on a tool named after an Object.prototype member holds, __proto__ included')
+{
+  const fileText = '{"mcpServers":{"probe":{"type":"http","url":"https://127.0.0.1:1/x","toolPermissions":{"constructor":"blocked","toString":"blocked","__proto__":"blocked","fix_ping":"ask"}}}}'
+  const parsed = parseMcpConfig({ configObject: JSON.parse(fileText), expandVars: false, scope: 'project', filePath: join(cwd, 'x.json') })
+  const ceilings = (parsed.config?.mcpServers.probe as { toolPermissions?: Record<string, string> } | undefined)?.toolPermissions
+  check('the parser keeps every ceiling the file names', ceilings !== undefined && ['constructor', 'toString', '__proto__', 'fix_ping'].every(name => Object.hasOwn(ceilings, name) && ceilings[name] === (name === 'fix_ping' ? 'ask' : 'blocked')), JSON.stringify(ceilings))
+  check('…as a plain object that stringifies back to the file', JSON.stringify(ceilings) === '{"constructor":"blocked","toString":"blocked","__proto__":"blocked","fix_ping":"ask"}', JSON.stringify(ceilings))
+  const connection = await connectToServer('proto-tools', { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [fixture], env: { MCP_FIXTURE_PROTO_NAMED_TOOLS: '1' }, toolPermissions: ceilings } as never)
+  try {
+    check('the fixture with prototype-named tools connects', connection.type === 'connected')
+    if (connection.type === 'connected') {
+      const tools = await fetchToolsForClient(connection)
+      const info = (tool: unknown) => (tool as { mcpInfo?: { toolName: string; effectiveMaxPermission?: unknown } }).mcpInfo
+      const listed = tools.map(tool => info(tool)?.toolName).sort()
+      check('the server lists constructor, __proto__, toString, valueOf and fix_ping', JSON.stringify(listed) === JSON.stringify(['__proto__', 'constructor', 'fix_ping', 'toString', 'valueOf']), listed.join(', '))
+      const unset = tools.find(tool => info(tool)?.toolName === 'valueOf')
+      check('a tool with no ceiling of its own carries none (valueOf)', unset !== undefined && info(unset)?.effectiveMaxPermission === undefined, String(info(unset)?.effectiveMaxPermission))
+      const ctx = { alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, mode: 'default' }
+      const kept = mcpToolPartition(tools, ctx as never).map(tool => info(tool)?.toolName).sort()
+      check('the blocked filter removes constructor, toString and __proto__', JSON.stringify(kept) === JSON.stringify(['fix_ping', 'valueOf']), kept.join(', '))
+      const asked = tools.find(tool => info(tool)?.toolName === 'fix_ping')
+      check('an ask ceiling rides on its tool', asked !== undefined && info(asked)?.effectiveMaxPermission === 'ask')
+    }
+  } finally {
+    await clearServerCache('proto-tools', { type: 'stdio', scope: 'dynamic', command: process.execPath, args: [fixture], env: { MCP_FIXTURE_PROTO_NAMED_TOOLS: '1' }, toolPermissions: ceilings } as never)
+  }
 }
 
 console.log(failures === 0 ? '\nPASS prove-prototype-word-names' : `\nFAIL prove-prototype-word-names (${failures})`)

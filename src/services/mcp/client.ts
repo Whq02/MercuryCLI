@@ -964,7 +964,8 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
   const rawDescription = (sdkTool.description ?? '') + (serverName === 'ext:mercury-media:engine' && toolName === 'pipeline_describe' ? ' Without a pipeline, also lists project .pipeline.json files.' : '')
   const description = withMcpToolCardHeader(serverName, rawDescription, annotations)
   const inputJSONSchema = sdkTool.inputSchema
-  const effectiveMaxPermission = (client.config as ToolWithPermissions).toolPermissions?.[toolName]
+  const ceilings = (client.config as ToolWithPermissions).toolPermissions
+  const effectiveMaxPermission = ceilings !== undefined && Object.hasOwn(ceilings, toolName) ? ceilings[toolName] : undefined
   const displayName = `${serverName} - ${(annotations as { title?: string } | undefined)?.title ?? toolName} (MCP)`
 
   const tool = {
