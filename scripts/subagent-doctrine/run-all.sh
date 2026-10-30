@@ -11,6 +11,7 @@
 # gate-watch: src/services/run/ownerLifecycle.ts src/services/run/ownerScopedStore.ts src/services/run/resolveOwner.ts src/services/eval/kernelManager.ts src/services/eval/procKernel.ts src/services/projectServices/serviceManager.ts src/services/journeys/runner.ts
 # gate-watch: src/services/browser/browserSession.ts src/services/dap/dapClient.ts src/services/primitives/evidencePlane.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tasks/LocalShellTask/killShellTasks.ts src/utils/ShellCommand.ts src/utils/task/TaskOutput.ts src/Task.ts src/utils/processGroup.ts src/utils/cleanupRegistry.ts
 # gate-watch: src/tools/TaskStopTool/TaskStopTool.ts
+# gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/ToolSearchTool/ToolSearchTool.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
