@@ -192,7 +192,14 @@ section('§2 nothing listens at the port: the attach refuses at once in one plai
 
 section('§3 a port held by a program that is not a DAP listener')
 {
-  const silent = createServer((socket: Socket) => socket.on('error', () => undefined))
+  const accepted: Socket[] = []
+  let left = 0
+  const silent = createServer((socket: Socket) => {
+    accepted.push(socket)
+    socket.resume()
+    socket.on('error', () => undefined)
+    socket.on('close', () => { left++ })
+  })
   const port = await new Promise<number>(resolve =>
     silent.listen(0, '127.0.0.1', () => {
       const address = silent.address()
@@ -204,6 +211,10 @@ section('§3 a port held by a program that is not a DAP listener')
   check('the failure names the listening program and the question to ask of it', /the program listening at 127\.0\.0\.1:\d+ did not answer initialize within \d+ms — is it a debugpy --listen socket\?/.test(outcome.error ?? ''), (outcome.error ?? '').slice(0, 200))
   check(`the verdict lands inside the request window (${outcome.ms}ms)`, outcome.ms < 10_000)
   check('no adapter of our own was started for a port that is taken', !existsSync(marker))
+  const until = Date.now() + 5_000
+  while (left < accepted.length && Date.now() < until) await new Promise(r => setTimeout(r, 25))
+  check(`the dial is hung up after the refusal: the listening program sees its one client leave (${accepted.length} accepted, ${left} gone)`, accepted.length === 1 && left === 1)
+  for (const socket of accepted) if (!socket.destroyed) socket.destroy()
   await new Promise<void>(done => silent.close(() => done()))
 
   const hangsUp = createServer((socket: Socket) => socket.destroy())
