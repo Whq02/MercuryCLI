@@ -8,7 +8,7 @@ import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile }
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
-import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
+import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwenBoundConsole, qwenChatCompletionsUrl, qwenConsolePage, qwenConsoleWords, qwenEndpointWhere, rememberQwenBoundBase, resolveQwenAccount, resolveQwenCredential } from './qwenAccounts.js'
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking, qwenWireEffort } from './qwenPins.js'
 import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
@@ -35,16 +35,22 @@ function qwenWrongRegionRemedy(boundBase: string | undefined): string {
   return `${where} — a ${QWEN_CONSOLES} key answers only the region and plan it was minted in; /logins qwen re-binds the key to its endpoint, or ${QWEN_BASE_OVERRIDE_ENV} names the endpoint it was minted for. A 403 "Access to model denied" means the service or the model is not activated for the account — ${qwenBoundConsole() === 'Model Studio' ? 'the Model Studio console (Model Gallery)' : "the account's console"} activates it.`
 }
 
-const qwenLaneProfile: CompatLaneProfile = {
+function qwenLaneProfile(): CompatLaneProfile {
+  let boundRequestUrl: string | undefined
+  return {
   lane: 'qwen', providerLabel: 'Qwen',
   resolveCredential: async () => {
     const credential = await resolveQwenCredential()
+    boundRequestUrl = credential?.requestUrl
     return credential ? { apiKey: credential.apiKey, requestUrl: credential.requestUrl } : undefined
   },
   recoverCredential: async () => {
     if (!configuredProviderKeyCommand('qwen')) return null
+    const base = boundRequestUrl?.replace(/\/chat\/completions$/, '')
     const fresh = recoverProviderKeyCommand('qwen')
-    return fresh ? { apiKey: fresh } : undefined
+    if (!fresh) return undefined
+    if (base !== undefined) rememberQwenBoundBase(fresh, base)
+    return { apiKey: fresh, requestUrl: boundRequestUrl ?? qwenChatCompletionsUrl() }
   },
   get credentialHint(): string {
     const failure = providerKeyCommandFailure('qwen')
@@ -62,6 +68,7 @@ const qwenLaneProfile: CompatLaneProfile = {
   keepsReasoningHistory: model => qwenPreservesThinking(model),
   buildExtras: buildQwenExtras,
   toolDeclarationRow: toolDeclarationRowInResult,
+  }
 }
 
 export function qwenLiveProofState(): { at: number; model: string } | null {
@@ -71,8 +78,9 @@ export function qwenLiveProofState(): { at: number; model: string } | null {
 export async function* qwenCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   const account = resolveQwenAccount()
+  const profile = qwenLaneProfile()
   if (!account) {
-    yield* compatChatCallModel(qwenLaneProfile, params)
+    yield* compatChatCallModel(profile, params)
     return
   }
   let onAbort: () => void = () => {}
@@ -110,6 +118,6 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
     ? [`Qwen model list unavailable — the named id '${model}' is sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`]
     : scope === 'pay-as-you-go' && !qwenListedModel(snapshot, chosen!) ? [`'${model}' is a pinned Model Studio id the endpoint's list does not name — sent for ${qwenConsoleWords(qwenBoundConsole())} to decide.`] : undefined
   yield* compatChatCallModel({
-    ...qwenLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
+    ...profile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!,
   }, { ...params, options: { ...params.options, model: model! } })
 }

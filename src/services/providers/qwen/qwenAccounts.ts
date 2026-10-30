@@ -73,7 +73,11 @@ export function qwenProbeLane(key: string, env: NodeJS.ProcessEnv = process.env)
 
 function qwenEndpointForBase(baseUrl: string, env: NodeJS.ProcessEnv = process.env): QwenEndpoint | undefined {
   const wanted = baseUrl.replace(/\/+$/, '')
-  return qwenProbeEndpoints(env).find(endpoint => qwenEndpointBase(endpoint, env) === wanted)
+  const listed = qwenProbeEndpoints(env).find(endpoint => qwenEndpointBase(endpoint, env) === wanted)
+  if (listed) return listed
+  const workspace = /^https:\/\/([a-z0-9][a-z0-9-]{0,63})\.([a-z0-9-]+)\.maas\.aliyuncs\.com\/compatible-mode\/v1$/.exec(wanted)
+  const region = workspace ? WORKSPACE_REGIONS.find(row => row.region === workspace[2]) : undefined
+  return region ? { id: region.id, label: region.label, plan: 'pay-as-you-go', baseUrl: wanted } : undefined
 }
 
 export function qwenListAnswersEveryCaller(baseUrl: string, env: NodeJS.ProcessEnv = process.env): boolean {
@@ -172,6 +176,24 @@ function qwenApiBase(env: NodeJS.ProcessEnv = process.env): string {
 
 export function qwenChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${qwenApiBase(env)}/chat/completions`
+}
+
+export function qwenPricingRegion(env: NodeJS.ProcessEnv = process.env): 'singapore' | 'beijing' | 'hongkong' | 'frankfurt' | 'virginia' | 'tokyo' | undefined {
+  const base = qwenBoundBase(env)
+  const endpoint = base === undefined ? undefined : qwenEndpointForBase(base, env)
+  if (endpoint?.plan !== 'pay-as-you-go') return undefined
+  const region = endpoint.id.replace(/^workspace-/, '')
+  switch (region) {
+    case 'singapore':
+    case 'beijing':
+    case 'hongkong':
+    case 'frankfurt':
+    case 'virginia':
+    case 'tokyo':
+      return region
+    default:
+      return undefined
+  }
 }
 
 export function qwenBoundEndpointLabel(env: NodeJS.ProcessEnv = process.env): string | undefined {
