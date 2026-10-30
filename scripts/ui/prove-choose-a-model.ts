@@ -4,7 +4,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { firstOutputTs, firstPtyVisibility, grabScreens, nodeBinPath, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
+import { nodeBinPath, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 
 requireDist()
 
@@ -27,17 +27,9 @@ const arg = (key: string): string | undefined => (process.argv.includes(key) ? p
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
-const squash = (s: string): string => s.replace(/\s+/g, '')
-const painted = (run: ArenaRun, words: string, notBefore = 0): { ts: number; text: string } | undefined => firstPtyVisibility(run.ptyReads, squash(words), notBefore)
 const steady = (row: string): string => row.replace(/flux-arena-cwd-[A-Za-z0-9]+/g, 'the-project').replace(/\b\d\d:\d\d:\d\d\b/g, 'hh:mm:ss').replace(/\s+$/, '')
 const saveFrame = (name: string, rows: string[] | null): void => {
   if (frameDir && rows) writeFileSync(join(frameDir, `${name}.txt`), rows.map(steady).join('\n') + '\n')
-}
-const SETTLE_MS = 700
-function screenAfter(run: ArenaRun, paint: { ts: number } | undefined, settleMs = SETTLE_MS): string[] | null {
-  if (paint === undefined) return null
-  const [frame] = grabScreens(run, COLS, ROWS, [Math.max(0, paint.ts - firstOutputTs(run) + settleMs)])
-  return frame ? frame.rows : null
 }
 const rowsWith = (rows: string[] | null, needle: string): string[] => (rows ?? []).filter(l => l.includes(needle))
 const statusRow = (rows: string[] | null): string => (rows ?? []).find(l => /(?:⇧←|shift\+←) back$/.test(l)) ?? ''
@@ -71,10 +63,12 @@ section('§1 a home with no sign-in: the first screen, the cockpit, a sent promp
 const run = await runArtifactArena({
   turns: [],
   sends: [
-    `after:${COMPOSER_READY}:1500:${PROMPT}`,
-    `after:${COMPOSER_READY}:2600:\\r`,
-    `after:${DOOR}:1800:/model`,
-    `after:${DOOR}:2900:\\r`,
+    { awaitText: [FACE_READY, 'New Session'], text: '' },
+    { awaitText: [COMPOSER_READY, 'not signed in · /logins ·'], text: PROMPT },
+    { awaitText: `❯ ${PROMPT}`, text: '\r' },
+    { awaitText: DOOR, text: '\x15/model' },
+    { awaitText: '❯ /model', text: '\r' },
+    { awaitText: 'type to search by name or id', text: '' },
   ],
   seconds: 50,
   cols: COLS,
@@ -85,13 +79,11 @@ const run = await runArtifactArena({
   extraEnv: { BROWSER: '/usr/bin/true', MERCURY_UPDATE_NOTICE: '0', ANTHROPIC_API_KEY: '' },
 })
 try {
-  const home = screenAfter(run, painted(run, FACE_READY))
-  const chatPaint = painted(run, 'not signed in · /logins ·')
-  const chat = screenAfter(run, chatPaint)
-  const doorPaint = painted(run, DOOR, chatPaint?.ts ?? 0)
-  const afterSend = screenAfter(run, doorPaint)
-  const pickerPaint = painted(run, 'type to search by name or id', doorPaint?.ts ?? 0)
-  const picker = screenAfter(run, pickerPaint, 1200)
+  const frameAt = (step: number): string[] | null => run.sendLog.find(row => row.step === step)?.screen?.map(row => row.trimEnd()) ?? null
+  const home = frameAt(0)
+  const chat = frameAt(1)
+  const afterSend = frameAt(3)
+  const picker = frameAt(5)
   saveFrame('keyless-home', home)
   saveFrame('keyless-chat', chat)
   saveFrame('keyless-after-send', afterSend)
