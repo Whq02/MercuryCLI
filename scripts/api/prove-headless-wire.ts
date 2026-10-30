@@ -48,12 +48,15 @@ try {
   const first = requests[0]!.body
   assert.ok(first.messages[0].content.includes('running unattended'))
   assert.ok(!first.messages[0].content.includes('Write down important information from tool results'))
-  assert.deepEqual(first.tools.map((tool: any) => tool.function.name).sort(), ['AstSearch', 'Bash', 'ChangeSet', 'Crewmate', 'Edit', 'Eval', 'Glob', 'Grep', 'LspRead', 'Read', 'Skill', 'Test', 'ToolSearch', 'Write'].sort())
+  const economyDeferred = ['AstSearch', 'Crewmate', 'LspRead', 'Skill', 'Test']
+  assert.deepEqual(first.tools.map((tool: any) => tool.function.name).sort(), ['Bash', 'ChangeSet', 'Edit', 'Eval', 'Glob', 'Grep', 'Read', 'ToolSearch', 'Write'])
   const announcement = first.messages.find((message: any) => typeof message.content === 'string' && message.content.startsWith('<system-reminder>\nDeferred tools:'))
   assert.ok(announcement)
   const lines = announcement.content.split('\n').slice(2, -1)
   assert.ok(lines.includes('Debug') && lines.includes('Browser') && lines.includes('AskUserQuestion'))
-  assert.ok(lines.every((line: string) => !line.includes(' — ')))
+  const announced = (line: string): string => line.split(' — ')[0]!
+  assert.deepEqual(lines.map(announced).filter((name: string) => economyDeferred.includes(name)).sort(), economyDeferred, lines.join('\n'))
+  assert.ok(lines.every((line: string) => economyDeferred.includes(announced(line)) ? / — \S/.test(line) : !line.includes(' — ')), lines.join('\n'))
   const hashes: string[] = []
   for (let i = 0; i < 4; i++) {
     const { body, bytes } = requests[i]!
