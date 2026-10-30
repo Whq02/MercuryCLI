@@ -18,7 +18,7 @@ import { cohereDisplayPin } from '../services/providers/cohere/coherePins.js'
 import { groqDisplayPin } from '../services/providers/groq/groqPins.js'
 import { cerebrasDisplayPin } from '../services/providers/cerebras/cerebrasPins.js'
 import { fireworksDisplayPin } from '../services/providers/fireworks/fireworksPins.js'
-import { qwenDisplayPin, qwenPriceTierFor } from '../services/providers/qwen/qwenPins.js'
+import { qwenRegionalPrice, qwenResolvedPricing } from '../services/providers/qwen/qwenPricing.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
@@ -279,10 +279,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   cerebras: model => recorded(engineTier(cerebrasDisplayPin(model))),
   fireworks: model => recorded(engineTier(fireworksDisplayPin(model))),
-  qwen: (model, promptTokens) => {
-    const pin = qwenDisplayPin(model)
-    return pin === undefined ? undefined : recorded(engineTier(qwenPriceTierFor(pin, promptTokens)))
-  },
+  qwen: (model, promptTokens) => qwenResolvedPricing(model, promptTokens),
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number; startedAtMs?: number }): ResolvedModelPricing {
@@ -357,5 +354,6 @@ export function formatModelPricing(costs: ModelCosts): string {
 export function getModelPricingString(model: string): string | undefined {
   if (declaredRouteOf(model) === 'melious') return (require('../services/providers/melious/meliousCatalogue.js') as typeof import('../services/providers/melious/meliousCatalogue.js')).meliousPricingString(model)
   const resolved = resolveModelPricing(model)
+  if (declaredRouteOf(model) === 'qwen' && qwenRegionalPrice(model) !== undefined) return formatModelPricing(resolved.costs)
   return resolved.basis === 'recorded' || resolved.basis === 'floor' ? formatModelPricing(resolved.costs) : undefined
 }
