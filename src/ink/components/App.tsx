@@ -52,6 +52,7 @@ import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.j
 import {
   extendedKeysSupportedNow,
   isDecrqmProbeSafe,
+  isExtendedCsiSafe,
   isXtermJs,
   markSyncProbeOutstanding,
   setXtversionName,
@@ -334,7 +335,7 @@ export default class App extends PureComponent<Props, State> {
   private async probeTerminalIdentity(): Promise<void> {
     let finishWidthProbe: (() => void) | null = null
     try {
-      const versionQuery = this.querier.send(xtversion())
+      const versionQuery = isExtendedCsiSafe() ? this.querier.send(xtversion()) : Promise.resolve(undefined)
       let backgroundQuery: Promise<{ type: 'osc'; code: number; data: string } | undefined> =
         Promise.resolve(undefined)
       const warmBackground = isWarmBackgroundEnabled()
@@ -344,7 +345,7 @@ export default class App extends PureComponent<Props, State> {
       }
       if (isDecrqmProbeSafe()) markSyncProbeOutstanding(true)
       const syncQuery = isDecrqmProbeSafe() ? this.querier.send(decrqm(2026)) : Promise.resolve(undefined)
-      const kittyQuery = this.querier.send(kittyKeyboard())
+      const kittyQuery = isExtendedCsiSafe() ? this.querier.send(kittyKeyboard()) : Promise.resolve(undefined)
       finishWidthProbe = queueTerminalWidthProbe(this.querier, this.props.stdout, () => {
         instances.get(this.props.stdout)?.forceRedraw()
       }, instances.get(this.props.stdout)?.isAltScreenActive === true)

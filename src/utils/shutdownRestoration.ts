@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { getIsInteractive, getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import instances from '../ink/instances.js'
 import { noteModeSettledEverywhere, shutdownReleaseObligations } from '../ink/root/terminalModeLedger.js'
+import { isExtendedCsiSafe } from '../ink/session/capabilities.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import { DISABLE_KITTY_KEYBOARD, DISABLE_MODIFY_OTHER_KEYS } from '../ink/termio/csi.js'
 import { DBP, DFE, DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, EXIT_ALT_SCREEN, SHOW_CURSOR } from '../ink/termio/dec.js'
@@ -44,8 +45,10 @@ export function cleanupTerminalModes(): void {
 
     open = new Set(shutdownReleaseObligations())
     if (open.has('kitty-kbd')) {
-      writeSync(1, DISABLE_KITTY_KEYBOARD)
-      writeSync(1, DISABLE_MODIFY_OTHER_KEYS)
+      if (isExtendedCsiSafe()) {
+        writeSync(1, DISABLE_KITTY_KEYBOARD)
+        writeSync(1, DISABLE_MODIFY_OTHER_KEYS)
+      }
       noteModeSettledEverywhere('kitty-kbd')
     }
     if (open.has('focus-events')) {

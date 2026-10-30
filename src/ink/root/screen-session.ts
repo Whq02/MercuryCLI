@@ -1,3 +1,4 @@
+import { isExtendedCsiSafe } from '../session/capabilities.js'
 import {
   CURSOR_HOME,
   DISABLE_KITTY_KEYBOARD,
@@ -25,13 +26,12 @@ const CURSOR_SHOW = '\u001b[?25h'
 const CURSOR_HIDE = '\u001b[?25l'
 
 export function extendedKeysReenable(extendedKeys: boolean): string {
-  return extendedKeys ? DISABLE_KITTY_KEYBOARD + ENABLE_KITTY_KEYBOARD + ENABLE_MODIFY_OTHER_KEYS : ''
+  return extendedKeys && isExtendedCsiSafe() ? DISABLE_KITTY_KEYBOARD + ENABLE_KITTY_KEYBOARD + ENABLE_MODIFY_OTHER_KEYS : ''
 }
 
 export function enterEditorBytes(opts: { altActive: boolean; mouseTracking: boolean }): string {
   return (
-    DISABLE_KITTY_KEYBOARD +
-    DISABLE_MODIFY_OTHER_KEYS +
+    (isExtendedCsiSafe() ? DISABLE_KITTY_KEYBOARD + DISABLE_MODIFY_OTHER_KEYS : '') +
     DISABLE_ALTERNATE_SCROLL +
     (opts.mouseTracking ? DISABLE_MOUSE_TRACKING : '') +
     (opts.altActive ? '' : ENTER_ALT_SCREEN) +
@@ -78,11 +78,11 @@ export function resizeReassertBytes(mouseTracking: boolean): string {
 }
 
 export function rawModeArmBytes(extendedKeys: boolean): string {
-  return EBP + EFE + (extendedKeys ? ENABLE_KITTY_KEYBOARD + ENABLE_MODIFY_OTHER_KEYS : '')
+  return EBP + EFE + (extendedKeys && isExtendedCsiSafe() ? ENABLE_KITTY_KEYBOARD + ENABLE_MODIFY_OTHER_KEYS : '')
 }
 
 export function rawModeDisarmBytes(): string {
-  return DISABLE_MODIFY_OTHER_KEYS + DISABLE_KITTY_KEYBOARD + DFE + DBP
+  return (isExtendedCsiSafe() ? DISABLE_MODIFY_OTHER_KEYS + DISABLE_KITTY_KEYBOARD : '') + DFE + DBP
 }
 
 export function reassertModesBytes(opts: {

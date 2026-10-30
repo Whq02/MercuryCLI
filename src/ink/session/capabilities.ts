@@ -32,6 +32,11 @@ function sniffSynchronizedOutput(): boolean {
   return namedTerm || Boolean(hostMarker) || parseInt(env.VTE_VERSION ?? '', 10) >= 6800
 }
 
+export function isExtendedCsiSafe(env: Record<string, string | undefined> = process.env): boolean {
+  const version = Number.parseInt(env.VTE_VERSION ?? '', 10)
+  return !Number.isFinite(version) || version >= 5300
+}
+
 export function isDecrqmProbeSafe(): boolean {
   return process.env.TERM_PROGRAM !== 'Apple_Terminal'
 }
