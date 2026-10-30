@@ -2,7 +2,8 @@ import { readdir, readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { collapseWhitespace, stripTerminalControls } from '../../utils/stringUtils.js'
-import { MEDIA_SERVER_NAME } from './settings.js'
+import { MEDIA_SERVER_NAME, readMediaSettings } from './settings.js'
+import { mediaHostLocation } from './host.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../../utils/projectConfig.js'
 
 const pipelineIdentity = z.object({ name: z.string().min(1), hash: z.string().regex(/^[a-f0-9]{64}$/), path: z.string().optional() }).passthrough()
@@ -16,7 +17,7 @@ const stepRecord = z.object({
 const runRecord = z.object({
   version: z.literal(1), runId: z.string().min(1), pipeline: pipelineIdentity,
   pipelineHash: z.string().regex(/^[a-f0-9]{64}$/), document: z.unknown(),
-  status: z.string(), fromStep: z.string().optional(), steps: z.array(stepRecord), outputs: z.array(z.string()),
+  status: z.string(), fromStep: z.string().optional(), steps: z.array(stepRecord), outputs: z.array(z.string()), remote: z.string().optional(),
 }).passthrough()
 export type MediaPipelineRunRecord = z.infer<typeof runRecord>
 
@@ -58,7 +59,7 @@ export async function readMediaPipelineDetails(input: Record<string, unknown>, c
   const step = typeof input.step === 'string' ? input.step : document.steps[0]!.id
   if (!document.steps.some(row => row.id === step)) throw new Error(`Pipeline step ${step} does not exist.`)
   if (typeof input.resume === 'string') await readMediaPipelineRunRecord(input.resume, project)
-  return [mediaPipelineDetail(document.name, step), `Output: ${join(project, 'media')}`].join('\n')
+  return [mediaHostLocation(readMediaSettings()), mediaPipelineDetail(document.name, step), `Output: ${join(project, 'media')}`].filter(Boolean).join('\n')
 }
 
 export function mediaPipelineArguments(serverName: string, toolName: string, input: Record<string, unknown>, cwd: string): Record<string, unknown> {
