@@ -308,11 +308,11 @@ export function roughTokenCountEstimationForMessages(messages: readonly Message[
 
 export function estimateRequestTokens(body: unknown, model?: string): number {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return estimateContentTokens(body, model)
-  const request = body as { model?: unknown; messages?: unknown[]; input?: unknown; system?: unknown; tools?: unknown[] }
+  const request = body as { model?: unknown; messages?: unknown[]; input?: unknown; system?: unknown; instructions?: unknown; tools?: unknown[] }
   model ??= typeof request.model === 'string' ? request.model : undefined
   const rows = request.messages ?? request.input
   if (!Array.isArray(rows)) return estimateContentTokens(body, model)
-  let total = contentTokenWeight(request.system, model)
+  let total = contentTokenWeight(request.system, model) + contentTokenWeight(request.instructions, model)
   for (const row of rows) {
     total += row && typeof row === 'object' && 'type' in row && ['user', 'assistant', 'attachment', 'system'].includes(String(row.type))
       ? messageTokenWeight(row as Message, model)
