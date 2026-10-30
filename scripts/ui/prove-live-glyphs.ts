@@ -197,8 +197,8 @@ section('adoption + hygiene pins (source greps)')
   )
   const deck = readFileSync('src/components/DeckPane.tsx', 'utf8')
   check(
-    'DeckPane adopts WorkingGlyph + AttentionPulse',
-    deck.includes('WorkingGlyph') && deck.includes('AttentionPulse'),
+    'DeckPane renders WorkingGlyph; AttentionPulse rides the two Helm rails (its DeckPane row left with the two-seat surface)',
+    deck.includes('<WorkingGlyph') && rail.includes('<AttentionPulse') && readFileSync('src/components/HelmLanesRail.tsx', 'utf8').includes('<AttentionPulse'),
   )
   check('deck countdowns ride the same tick', deck.includes('useNowTick(30_000)'))
   const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
