@@ -102,8 +102,8 @@ process.on('SIGTERM', () => { server.close(); process.exit(0); });
 `
 }
 
-export function writeStandInEngine(runtime: string, options: { sizedImages?: boolean } = {}, platform: string = process.platform): string {
-  const source = standInEngineSource(options)
+export function writeStandInEngine(runtime: string, options: { sizedImages?: boolean; patch?: (source: string) => string } = {}, platform: string = process.platform): string {
+  const source = options.patch ? options.patch(standInEngineSource(options)) : standInEngineSource(options)
   if (platform !== 'win32') {
     const binary = join(runtime, 'sd-server')
     writeFileSync(binary, `#!/usr/bin/env node\n${source}`, { mode: 0o700 })
@@ -117,7 +117,7 @@ export function writeStandInEngine(runtime: string, options: { sizedImages?: boo
   return binary
 }
 
-export function installLiveFixture(options: { sizedImages?: boolean; platform?: string } = {}): void {
+export function installLiveFixture(options: { sizedImages?: boolean; platform?: string; patch?: (source: string) => string } = {}): void {
   installFixture()
   const setup = readFileSync(join(dirname(serverPath), 'setup.js'), 'utf8')
   cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })

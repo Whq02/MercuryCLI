@@ -34,9 +34,7 @@ function safetensors(tensors: Record<string, number[]>): Buffer {
 const inside = (x: number, y: number) => x >= 24 && x < 40 && y >= 24 && y < 40
 const client = new Client({ name: 'media-workflow-proof', version: '1.0.0' })
 try {
-  installLiveFixture()
-  const binary = join(root, 'runtime/sd-server')
-  writeFileSync(binary, readFileSync(binary, 'utf8').replace("['fixture-recipe', 'sd1-checkpoint'", "['qwen-image-21-turbo', 'fixture-recipe', 'sd1-checkpoint'"))
+  installLiveFixture({ patch: source => source.replace("['fixture-recipe', 'sd1-checkpoint'", "['qwen-image-21-turbo', 'fixture-recipe', 'sd1-checkpoint'") })
   const dir = join(proofHome, 'workflows')
   cpSync(new URL('./fixtures/workflows/', import.meta.url), dir, { recursive: true })
   writeFileSync(join(dir, 'style.safetensors'), safetensors({ 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_down.weight': [1, 768], 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_up.weight': [1, 1] }))

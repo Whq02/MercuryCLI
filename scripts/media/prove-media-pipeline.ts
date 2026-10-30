@@ -54,7 +54,7 @@ try {
   assert.deepEqual(JSON.parse((await mediaPipelineDiscoveryContent(server, 'pipeline_describe', {}, project))[0].text), { pipelines: paths })
   assert.deepEqual(await mediaPipelineDiscoveryContent(server, 'pipeline_describe', { pipeline: document }, project), [])
 
-  installLiveFixture()
+  installLiveFixture({ patch: source => source.replace(/const png = '[^']+';/, `const png = '${png().toString('base64')}';`) })
   const engine = arg('--engine')
   if (engine) cpSync(resolve(engine), dirname(serverPath), { recursive: true })
   const local = JSON.parse(readFileSync(join(root, 'catalog.json'), 'utf8'))
@@ -64,8 +64,6 @@ try {
   mkdirSync(join(root, 'models'), { recursive: true })
   writeFileSync(join(root, 'models/image.gguf'), Buffer.alloc(8))
   writeFileSync(join(root, 'config.json'), JSON.stringify({ imageModel: 'image-one', videoModel: 'video-one', outputs: join(proofHome, 'elsewhere') }))
-  const binary = join(root, 'runtime/sd-server')
-  writeFileSync(binary, readFileSync(binary, 'utf8').replace(/const png = '[^']+';/, `const png = '${png().toString('base64')}';`))
   process.chdir(project)
   Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
   const { setCwdState, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
