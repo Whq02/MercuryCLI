@@ -8,6 +8,10 @@ import { removeScratch } from '../lib/removeScratch.ts'
 const root = resolve(import.meta.dir, '../..')
 const suiteEnv = join(root, 'scripts/lib/suite-env.sh')
 const realPreload = join(root, 'scripts/lib/proofScratch.cjs')
+if (process.platform === 'win32') {
+  console.log('  · skipped on this platform: the suite environment under test is the POSIX runner\'s — bash at /usr/bin:/bin and #!/bin/sh stand-ins for uname and cygpath; its MINGW, MSYS and Cygwin conversions are proved by simulation on a POSIX host')
+  process.exit(0)
+}
 const world = mkdtempSync(join(tmpdir(), 'node-preload-path-'))
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
