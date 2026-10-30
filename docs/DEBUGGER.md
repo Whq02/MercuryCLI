@@ -54,6 +54,12 @@ each (command, transport, file types, launch defaults) via
 `MERCURY_DAP_ADAPTERS` or the `dap-adapters.json` file in the config home;
 that is also the road for a custom adapter installation.
 
+The python adapter runs on the Python runtime every release archive carries
+(`vendor/python`, CPython 3.14), so a machine needs no Python of its own to
+debug a script; the program under debug runs on the project's interpreter (the
+`MERCURY_PYTHON` pin, the active or project venv, a PATH `python3`) when that
+interpreter is 3.10 or newer, otherwise on the bundled one.
+
 Dart files use the Dart SDK's stdio adapter. A `flutter` dependency in the
 nearest `pubspec.yaml` selects Flutter's stdio adapter instead. Install the
 [Dart SDK](https://dart.dev/get-dart) or [Flutter SDK](https://docs.flutter.dev/install)
@@ -151,7 +157,7 @@ has not answered yet, and the next build reads the answer. The health check
 waits for the probes before it writes its row, so a boot never stalls on
 a spawn and the certificate never names a probe still in flight.
 `MERCURY_DAP_ADAPTERS`, `MERCURY_DAP_ADAPTERS_FILE`,
-`MERCURY_JS_DEBUG_DAP`, and `MERCURY_DEBUGPY_VENDOR_DIR` tune the adapter
-table and the vendored payload roots, all registered rows of the in-code
+`MERCURY_JS_DEBUG_DAP`, `MERCURY_DEBUGPY_VENDOR_DIR` and `MERCURY_PYTHON_VENDOR_DIR` tune the
+adapter table and the vendored payload roots, all registered rows of the in-code
 registry (`src/substrate/flagRegistry.ts`; rendered on demand to an
 untracked path).
