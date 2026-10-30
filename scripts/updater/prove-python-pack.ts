@@ -31,6 +31,7 @@ const { verifyPayloadDir } = await import('../../src/services/privateChannel/art
 const ROOT = join(import.meta.dir, '..', '..')
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n')
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
+const lockedForms = (bytes: Buffer): Buffer[] => [bytes, Buffer.from(bytes.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')]
 const BUN = process.execPath
 const IS_WIN = process.platform === 'win32'
 
@@ -75,7 +76,7 @@ section('§1 the lock — one python-build-standalone archive + sha256 per platf
   }
   check('the six digests are distinct', digests.size === PYTHON_PACK_PLATFORMS.length)
   const texts = Object.entries(lock.licenceTexts)
-  check('every licence text the lock lists is tracked under vendor/python-licences with its digest', texts.length >= 10 && texts.every(([name, digest]) => existsSync(join(ROOT, 'vendor', 'python-licences', name)) && sha256(readFileSync(join(ROOT, 'vendor', 'python-licences', name))) === digest))
+  check('every licence text the lock lists is tracked under vendor/python-licences with its digest', texts.length >= 10 && texts.every(([name, digest]) => existsSync(join(ROOT, 'vendor', 'python-licences', name)) && lockedForms(readFileSync(join(ROOT, 'vendor', 'python-licences', name))).some(form => sha256(form) === digest)))
   check('every licenses/ member of licenseFiles has a pinned text', lock.licenseFiles.filter(f => f !== 'LICENSE.txt').every(f => f.startsWith('licenses/') && lock.licenceTexts[f.slice('licenses/'.length)] !== undefined))
 }
 

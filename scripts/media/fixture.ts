@@ -108,8 +108,13 @@ const server = createServer(async (req, res) => {
 server.listen(Number(process.argv[process.argv.indexOf('--listen-port') + 1]), '127.0.0.1');
 process.on('SIGTERM', () => { server.close(); process.exit(0); });
 `, { mode: 0o700 })
+  let engine = binary
+  if (process.platform === 'win32') {
+    engine = `${binary}.cmd`
+    writeFileSync(engine, `@echo off\r\nnode "${binary}" %*\r\n`)
+  }
   const bundled = JSON.parse(readFileSync(join(dirname(serverPath), 'catalog.json'), 'utf8'))
-  writeFileSync(join(root, 'runtime.json'), JSON.stringify({ binary, tag: bundled.runtime.tag }))
+  writeFileSync(join(root, 'runtime.json'), JSON.stringify({ binary: engine, tag: bundled.runtime.tag }))
 }
 
 export async function stopFixtureEngine(): Promise<void> {
