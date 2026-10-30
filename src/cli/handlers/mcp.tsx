@@ -156,9 +156,9 @@ export async function mcpRemoveHandler(
     const local = getMcpConfigsByScope('local')
     const project = getMcpConfigsByScope('project')
     const user = getMcpConfigsByScope('user')
-    if (name in local.servers) holders.push('local')
-    if (name in project.servers) holders.push('project')
-    if (name in user.servers) holders.push('user')
+    if (Object.hasOwn(local.servers, name)) holders.push('local')
+    if (Object.hasOwn(project.servers, name)) holders.push('project')
+    if (Object.hasOwn(user.servers, name)) holders.push('user')
     if (holders.length === 0) {
       return cliError(`No MCP server named ${name} is configured`)
     }

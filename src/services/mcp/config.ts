@@ -413,7 +413,7 @@ export function mcpServersSkippedForApprovalLines(): Array<{ name: string; line:
   const { allowed } = filterMcpServersByPolicy(getProjectMcpConfigs().servers)
   const lines: Array<{ name: string; line: string }> = []
   for (const [name, config] of Object.entries(allowed)) {
-    if (name in local) continue
+    if (Object.hasOwn(local, name)) continue
     const line = mcpServerSkippedForApprovalLine(name, config)
     if (line !== null) lines.push({ name, line })
   }
@@ -669,7 +669,7 @@ export function dedupExtensionMcpServers(
     servers[name] = config
   }
   for (const [name, config] of Object.entries(heldAside)) {
-    if (!(name in servers)) servers[name] = config
+    if (!Object.hasOwn(servers, name)) servers[name] = config
   }
   return { servers, suppressed }
 }
@@ -818,14 +818,14 @@ export async function getAllMcpConfigs(): Promise<{
 
 export function getMcpConfigByName(name: string): ScopedMcpServerConfig | null {
   const enterprise = getEnterpriseMcpConfigs().servers
-  if (name in enterprise) return enterprise[name] ?? null
+  if (Object.hasOwn(enterprise, name)) return enterprise[name] ?? null
   if (isRestrictedToExtensionsOnly('mcp')) return null
   const local = getLocalMcpConfigs().servers
-  if (name in local) return local[name] ?? null
+  if (Object.hasOwn(local, name)) return local[name] ?? null
   const project = getProjectMcpConfigs().servers
-  if (name in project) return project[name] ?? null
+  if (Object.hasOwn(project, name)) return project[name] ?? null
   const user = getUserMcpConfigs().servers
-  if (name in user) return user[name] ?? null
+  if (Object.hasOwn(user, name)) return user[name] ?? null
   return null
 }
 
@@ -878,6 +878,9 @@ export async function addMcpConfig(
       `Invalid MCP server name "${name}": names may only contain letters, numbers, hyphens and underscores`,
     )
   }
+  if (name === '__proto__') {
+    throw new Error(`Invalid MCP server name "${name}": this name cannot be stored — choose another`)
+  }
 
   const mercury = await import('./mercuryServer.js')
   if (mercury.isMercuryServerEnabled() && mercury.isMercuryServer(name)) {
@@ -917,7 +920,7 @@ export async function addMcpConfig(
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const document = readProjectMcpDocument(mcpJsonPath)
-        if (name in document.mcpServers) {
+        if (Object.hasOwn(document.mcpServers, name)) {
           throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
         }
         await writeProjectMcpFile({ ...document, mcpServers: { ...document.mcpServers, [name]: stripScope(effective) } })
@@ -925,7 +928,7 @@ export async function addMcpConfig(
       return
     }
     case 'user': {
-      if (name in (getGlobalConfig().mcpServers ?? {})) {
+      if (Object.hasOwn(getGlobalConfig().mcpServers ?? {}, name)) {
         throw new Error(`MCP server "${name}" already exists in the user config`)
       }
       saveGlobalConfig(current => ({
@@ -935,7 +938,7 @@ export async function addMcpConfig(
       return
     }
     case 'local': {
-      if (name in (getCurrentProjectConfig().mcpServers ?? {})) {
+      if (Object.hasOwn(getCurrentProjectConfig().mcpServers ?? {}, name)) {
         throw new Error(`MCP server "${name}" already exists in the local config`)
       }
       saveCurrentProjectConfig(current => ({
@@ -963,7 +966,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const document = readProjectMcpDocument(mcpJsonPath)
-        if (!(name in document.mcpServers)) {
+        if (!Object.hasOwn(document.mcpServers, name)) {
           throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
         }
         const { [name]: _removed, ...rest } = document.mcpServers
@@ -973,7 +976,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
     }
     case 'user': {
       const servers = getGlobalConfig().mcpServers ?? {}
-      if (!(name in servers)) {
+      if (!Object.hasOwn(servers, name)) {
         throw new Error(`MCP server "${name}" is not user-scoped`)
       }
       saveGlobalConfig(current => {
@@ -984,7 +987,7 @@ export async function removeMcpConfig(name: string, scope: ConfigScope): Promise
     }
     case 'local': {
       const servers = getCurrentProjectConfig().mcpServers ?? {}
-      if (!(name in servers)) {
+      if (!Object.hasOwn(servers, name)) {
         throw new Error(`MCP server "${name}" is not in the project-local config`)
       }
       saveCurrentProjectConfig(current => {
