@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -9,8 +11,11 @@ import sharp from 'sharp'
 
 const exec = promisify(execFile)
 const root = resolve(import.meta.dir, '../..')
-const scratch = process.argv[2] && resolve(process.argv[2])
-assert(scratch && !scratch.startsWith(root), 'Pass an isolated absolute proof directory outside the repository')
+const automatic = process.argv[2] === undefined
+assert(automatic || isAbsolute(process.argv[2]!), 'Pass an isolated absolute proof directory outside the repository')
+const scratch = automatic ? await mkdtemp(join(tmpdir(), 'filmcraft-drive-')) : resolve(process.argv[2]!)
+assert(!scratch.startsWith(root), 'Pass an isolated absolute proof directory outside the repository')
+if (automatic) process.once('exit', () => rmSync(scratch, { recursive: true, force: true }))
 const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data')
 await mkdir(scratch, { recursive: true })
 await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })

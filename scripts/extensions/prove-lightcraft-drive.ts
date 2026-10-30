@@ -1,21 +1,37 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { createServer } from 'node:net'
-import { cp, mkdir, mkdtemp, writeFile, stat, access } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, rm, writeFile, stat, access } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join, resolve, isAbsolute, dirname } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import sharp from 'sharp'
 import { Client } from '@modelcontextprotocol/client'
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio'
 
 const repo = resolve(import.meta.dir, '../..')
 const args = process.argv.slice(2)
+if (args.length === 0) {
+  const scratch = await mkdtemp(join(tmpdir(), 'lightcraft-drive-'))
+  let code = 0
+  try {
+    for (const mode of ['--install', '--headless', '--gui', '--check']) {
+      console.log(`LightCraft drive: ${mode.slice(2)}`)
+      const result = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--root', scratch, mode], { stdio: 'inherit', windowsHide: true })
+      code = result.status ?? 1
+      if (code !== 0) break
+    }
+  } finally {
+    await rm(scratch, { recursive: true, force: true })
+  }
+  process.exit(code)
+}
 const rootArg = args[args.indexOf('--root') + 1]
 assert.ok(args.includes('--root') && rootArg && isAbsolute(rootArg), 'Choose --root as a new absolute scratch directory; never a photo library or account configuration.')
 const root = resolve(rootArg)
-assert.ok(![repo, dirname(repo), process.env.HOME, process.env.USERPROFILE].includes(root), 'Use an isolated scratch directory.')
+assert.ok(!root.startsWith(repo) && ![dirname(repo), process.env.HOME, process.env.USERPROFILE].includes(root), 'Use an isolated scratch directory.')
 const modes = ['--install', '--check', '--headless', '--gui'].filter(flag => args.includes(flag))
 assert.equal(modes.length, 1, 'Choose exactly one proof mode.')
 assert.ok(args.every((arg, i) => ['--root', ...modes].includes(arg) || args[i - 1] === '--root'), 'Unknown argument')

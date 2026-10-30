@@ -1,13 +1,25 @@
 import assert from 'node:assert/strict'
-import { cp, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { cp, mkdir, mkdtemp, readFile, rename, writeFile } from 'node:fs/promises'
+import { rmSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createServer } from 'node:net'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
 
-assert(process.argv.includes('--gui'), 'Pass --gui explicitly; this proof opens a FilmCraft window')
-const root = resolve(import.meta.dir, '../..'), scratch = resolve(process.argv[2] ?? '')
-assert(process.argv[2] && !scratch.startsWith(root), 'Pass the isolated directory used by prove-filmcraft.ts')
+const automatic = process.argv[2] === undefined
+assert(automatic || process.argv.includes('--gui'), 'Pass --gui explicitly; this proof opens a FilmCraft window')
+const root = resolve(import.meta.dir, '../..')
+assert(automatic || isAbsolute(process.argv[2]!), 'Pass the isolated directory used by prove-filmcraft-drive.ts')
+const scratch = automatic ? await mkdtemp(join(tmpdir(), 'filmcraft-gui-drive-')) : resolve(process.argv[2]!)
+assert(!scratch.startsWith(root), 'Pass the isolated directory used by prove-filmcraft-drive.ts')
+if (automatic) {
+  process.once('exit', () => rmSync(scratch, { recursive: true, force: true }))
+  console.log('Preparing the FilmCraft project before opening its proof window')
+  const prepared = spawnSync(process.execPath, [join(root, 'scripts/extensions/prove-filmcraft-drive.ts'), scratch], { stdio: 'inherit', windowsHide: true })
+  assert.equal(prepared.status, 0, 'FilmCraft project preparation failed')
+}
 const delivered = join(scratch, 'extension'), dataDir = join(scratch, 'data'), project = join(scratch, 'edited.fcproj')
 await readFile(project)
 await cp(join(root, 'src/extensions/bundled/filmcraft'), delivered, { recursive: true })

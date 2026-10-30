@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { createServer } from 'node:net'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { createInterface } from 'node:readline'
@@ -10,8 +11,14 @@ import sharp from 'sharp'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const option = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1] }
-const scratch = option('--scratch')
-assert(scratch && isAbsolute(scratch), 'Pass --scratch <isolated absolute proof folder>')
+const automatic = process.argv[2] === undefined
+const scratch = automatic ? mkdtempSync(join(tmpdir(), 'photocraft-drive-')) : option('--scratch')
+assert(scratch && isAbsolute(scratch) && !resolve(scratch).startsWith(root), 'Pass --scratch <isolated absolute proof folder outside the repository>')
+if (automatic) {
+  process.once('exit', () => rmSync(scratch, { recursive: true, force: true }))
+  process.argv.push('--install', '--headless', '--gui')
+  console.log('PhotoCraft drive: install, headless edits and a proof window')
+}
 assert(process.argv.some(v => ['--install', '--check', '--headless', '--gui'].includes(v)), 'Choose --install, --check, --headless or --gui')
 const dirs = { data: join(scratch, 'data'), home: join(scratch, 'home'), config: join(scratch, 'config'), tmp: join(scratch, 'tmp'), read: join(scratch, 'project'), output: join(scratch, 'outputs'), evidence: join(scratch, 'evidence') }
 for (const path of Object.values(dirs)) mkdirSync(path, { recursive: true, mode: 0o700 })
@@ -217,7 +224,7 @@ try {
       process.kill(guiPid, 0); passed('closing both MCP sessions leaves the GUI running'); success = true
     } finally {
       await mcp.close()
-      if (success && guiPid) {
+      if ((success || automatic) && guiPid) {
         const control = controlSession(endpoint)
         try { await control.request('auth', { token: readPrivateToken(tokenPath(dirs.data)) }); await control.request('app.quit') } finally { control.close() }
         const deadline = Date.now() + 10000
