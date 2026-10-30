@@ -602,12 +602,12 @@ export async function quiesceCleanupBeforeExit(
   }
 }
 
-type PressureObserved = { writableLength: number; write(...args: unknown[]): boolean; on(event: 'drain', listener: () => void): unknown }
-const stdoutPressure = new WeakMap<object, { pending: boolean }>()
+type PressureObserved = { writableLength: number; write(...args: unknown[]): boolean; on(event: 'drain' | 'error', listener: (...args: unknown[]) => void): unknown }
+const stdoutPressure = new WeakMap<object, { pending: boolean; readerGone: boolean }>()
 
 export function observeStdoutPressure(stdout: PressureObserved = process.stdout): void {
   if (stdoutPressure.has(stdout)) return
-  const pressure = { pending: false }
+  const pressure = { pending: false, readerGone: false }
   stdoutPressure.set(stdout, pressure)
   const write = stdout.write
   stdout.write = function (this: PressureObserved, ...args: unknown[]): boolean {
@@ -618,19 +618,23 @@ export function observeStdoutPressure(stdout: PressureObserved = process.stdout)
   stdout.on('drain', () => {
     pressure.pending = false
   })
+  stdout.on('error', error => {
+    if (isPeerGoneWriteError(error)) pressure.readerGone = true
+  })
 }
 
 export async function drainPipedStdoutForExit(
   stdout: { isTTY?: boolean; writableLength: number; destroyed?: boolean; writable?: boolean } = process.stdout,
 ): Promise<{ drained: boolean; remainingBytes: number }> {
   if (stdout.isTTY) return { drained: true, remainingBytes: 0 }
-  const readerAlive = (): boolean => stdout.destroyed !== true && stdout.writable !== false
+  const readerGone = (): boolean => stdoutPressure.get(stdout)?.readerGone === true
+  const readerAlive = (): boolean => !readerGone() && stdout.destroyed !== true && stdout.writable !== false
   const pressured = (): boolean => stdoutPressure.get(stdout)?.pending === true
   while ((stdout.writableLength > 0 || pressured()) && readerAlive()) {
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   const remainingBytes = stdout.writableLength
-  const drained = remainingBytes === 0 && !pressured()
+  const drained = remainingBytes === 0 && !pressured() && !readerGone()
   if (!drained) {
     logForDebugging(`stdout drain at exit: the reader's pipe is gone with ${remainingBytes > 0 ? `${remainingBytes} bytes` : 'bytes'} still queued`)
   }

@@ -47,6 +47,7 @@ writeFileSync(
     '}',
     "child.stdout.on('data', chunk => {",
     '  consume(chunk)',
+    "  if (mode === 'leave-at-once') { if (!stalled) { stalled = true; resumedAtMs = Date.now(); child.stdout.destroy() } return }",
     "  if (mode === 'slow') { child.stdout.pause(); setTimeout(() => child.stdout.resume(), 150); return }",
     "  if (!stalled && frames.some(f => f.type === 'tool_call' || f.type === 'wait')) {",
     '    stalled = true',
@@ -68,7 +69,7 @@ writeFileSync(
   ].join('\n') + '\n',
 )
 
-async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow'): Promise<Run> {
+async function runWithReader(mode: 'stall-then-read' | 'close' | 'slow' | 'leave-at-once'): Promise<Run> {
   const runHome = join(scratch, `home-${++homes}`)
   const cwd = join(runHome, 'work')
   const fixture = await startScriptedFixture((req: ScriptedRequest): WireBlock[] => {
@@ -141,6 +142,17 @@ tally.section('a reader that leaves for good: the run ends instead of waiting fo
   tally.check('stderr states the broken-stdout reason', run.stderr.includes("stdout closed before the run's output was delivered (broken pipe)"), run.stderr.slice(0, 200))
 }
 
+tally.section('a reader that leaves at the first bytes, nothing queued behind it: the run ends on its own, exit 1, instead of waiting forever on a pipe that errored')
+{
+  const run = await runWithReader('leave-at-once')
+  console.log(`  rows: ${kinds(run)}`)
+  console.log(`  bytes received ${run.bytes} · exit ${run.exit} (${run.signal ?? 'no signal'}) at ${seconds(run.exitedAtMs, run.t0)} · reader left at ${seconds(run.resumedAtMs, run.t0)}`)
+  tally.check('the process ended on its own (no kill needed)', run.exitedAtMs !== null && run.signal !== 'SIGKILL', `exit ${run.exit} signal ${run.signal}`)
+  tally.check('the process ended within a few seconds of the reader leaving', run.exitedAtMs !== null && run.exitedAtMs - run.resumedAtMs < vshotBudgetMs(10_000), `exit ${seconds(run.exitedAtMs, run.t0)} · left ${seconds(run.resumedAtMs, run.t0)}`)
+  tally.check('a dead reader ends loudly with exit 1', run.exit === 1, `exit ${run.exit}`)
+  tally.check('stderr states the broken-stdout reason', run.stderr.includes("stdout closed before the run's output was delivered (broken pipe)"), run.stderr.slice(0, 200))
+}
+
 tally.section('a file target is unchanged: every row through the step and the outcome lands on disk with exit 0')
 {
   const runHome = join(scratch, `home-${++homes}`)
@@ -184,6 +196,31 @@ tally.section('the seam: the exit drain waits while the reader is alive, the gua
   const goneResult = await drainPipedStdoutForExit(gone)
   tally.check('a reader whose pipe is gone ends the wait with the remainder counted', !goneResult.drained && goneResult.remainingBytes === 300)
   tally.check('a TTY never waits', (await drainPipedStdoutForExit({ isTTY: true, writableLength: 5, destroyed: false, writable: true })).drained)
+  const { observeStdoutPressure } = await import('../../src/utils/gracefulShutdown.ts')
+  const listeners: Record<string, Array<(...args: unknown[]) => void>> = {}
+  const errored = {
+    isTTY: false,
+    writableLength: 0,
+    destroyed: false,
+    writable: true,
+    write: (): boolean => false,
+    on(event: string, listener: (...args: unknown[]) => void): unknown {
+      ;(listeners[event] ??= []).push(listener)
+      return errored
+    },
+  }
+  observeStdoutPressure(errored)
+  errored.write()
+  let erroredSettled = false
+  const erroredWait = drainPipedStdoutForExit(errored).then(result => {
+    erroredSettled = true
+    return result
+  })
+  await sleep(300)
+  tally.check("a refused write with the counter at 0 is read as pressure: the wait holds while the stream says nothing (node's shape after a broken pipe: destroyed false, writable true, length 0)", !erroredSettled)
+  for (const listener of listeners.error ?? []) listener(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))
+  const erroredResult = await Promise.race([erroredWait, sleep(2_000).then(() => 'stuck' as const)])
+  tally.check("the stream's own error (EPIPE) ends the wait at once and the pipe counts as not drained — no clock involved", erroredResult !== 'stuck' && !erroredResult.drained, erroredResult === 'stuck' ? 'the drain never returned after the error' : JSON.stringify(erroredResult))
   const guard = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'wireStdoutGuard.ts'), 'utf8')
   tally.check('the guard hands the caller\'s callback to the real write of the last forwarded line', /realWrite\(`\$\{line\}\\n`, [a-zA-Z]+\)/.test(guard) || guard.includes('realWrite(`${line}\\n`, callback'))
   const shutdownSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'gracefulShutdown.ts'), 'utf8')
