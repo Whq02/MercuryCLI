@@ -428,7 +428,7 @@ if (pythonRuntime) {
   const extractedPython = join(smoke, 'mercury', ...pythonRuntime.path.split('/'), ...pythonRuntime.binary.split('/'))
   if (!existsSync(extractedPython)) fail(`smoke: the vendored python ${pythonRuntime.path}/${pythonRuntime.binary} is missing from the archive`)
   if (createHash('sha256').update(readFileSync(extractedPython)).digest('hex') !== pythonRuntime.binarySha256) fail('smoke: the extracted python interpreter does not match the manifest record')
-  const py = spawnSync(extractedPython, ['-c', 'import sys, ssl, sqlite3, ctypes; print("%d.%d.%d" % sys.version_info[:3])'], { encoding: 'utf8', env: { ...smokeEnv, PYTHONDONTWRITEBYTECODE: '1' }, timeout: 120_000 })
+  const py = spawnSync(extractedPython, ['-c', 'import sys, ssl, sqlite3, ctypes; print("%d.%d.%d" % sys.version_info[:3])'], { encoding: 'utf8', env: { ...smokeEnv, MERCURY_LOCAL_PROBE_TARGETS: smokeEnv.MERCURY_LOCAL_PROBE_TARGETS ?? 'none', PYTHONDONTWRITEBYTECODE: '1' }, timeout: 120_000 })
   if (py.status !== 0 || (py.stdout ?? '').trim() !== pythonRuntime.version) {
     fail(`smoke: the vendored python did not run from the archive (exit ${py.status}): ${(py.stderr ?? py.stdout ?? '').slice(0, 300)}`)
   }
