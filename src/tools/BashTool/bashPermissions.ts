@@ -250,8 +250,10 @@ function folderKey(path: string): string {
   return posix.length > 1 && posix.endsWith('/') ? posix.slice(0, -1) : posix
 }
 
+const CURRENT_FOLDER_RELATIVE = /^\.(?:[\\/]\.?)*[\\/]?$/
+
 export function isCurrentFolderSpelling(spelled: string, cwd: string): boolean {
-  return folderKey(spelled) === folderKey(cwd)
+  return folderKey(spelled) === folderKey(cwd) || CURRENT_FOLDER_RELATIVE.test(spelled)
 }
 
 function isCurrentDirectoryCommand(command: SimpleCommand, cwd: string): boolean {

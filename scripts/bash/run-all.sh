@@ -108,6 +108,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flagged-file-operands.ts" || { __r
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-followed-links-ask.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-followed-links-ask.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-recursive-read-deny.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-recursive-read-deny.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-deny-rule-spellings.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-deny-rule-spellings.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-cd-dot-is-current.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cd-dot-is-current.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-shell-result-redaction.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-shell-result-redaction.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-git-rules-in-git-context.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-git-rules-in-git-context.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-which-exit-one-is-a-result.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-which-exit-one-is-a-result.ts" "$__t" "$__rc"
