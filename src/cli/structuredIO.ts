@@ -2,7 +2,7 @@
 import { writeSync } from 'node:fs'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { createRowStamper, type RowDraft } from '../rows/project.js'
-import { InputRowSchema, type InputRow, type Row } from '../rows/vocabulary.js'
+import { InputRowSchema, type InputRow, type PromptRow, type Row } from '../rows/vocabulary.js'
 import { MAX_LINE_BYTES } from '../runner/wire/errors.js'
 import type { ParamsOf } from '../runner/wire/methods.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
@@ -36,8 +36,13 @@ export function isRowLine(line: OutboundLine): line is RowDraft {
   return !('method' in line)
 }
 
+function promptContentBlank(content: PromptRow['content']): boolean {
+  if (typeof content === 'string') return content.trim() === ''
+  return content.every(block => block.type === 'text' && block.text.trim() === '')
+}
+
 export function emptyInputRow(row: InputRow): string | null {
-  if (row.type === 'prompt' && (row.content === '' || (Array.isArray(row.content) && row.content.length === 0))) return 'a prompt row with no content'
+  if (row.type === 'prompt' && promptContentBlank(row.content)) return 'a prompt row with no content'
   if (row.type === 'shell' && row.command.trim() === '') return 'a shell row with no command'
   if (row.type === 'note' && (row.to === '' || row.content === '')) return 'a note row with no agent or no content'
   if (row.type === 'outside-report' && (!row.sender.trim() || /[\x00-\x1f\x7f]/.test(row.sender) || !row.content.trim())) return 'an outside report needs a sender and content'

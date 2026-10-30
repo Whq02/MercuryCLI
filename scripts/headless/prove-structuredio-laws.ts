@@ -148,6 +148,21 @@ section('S3 — an undeclared type, an empty prompt and an empty shell row are e
   h.end()
 }
 
+section('S3b — a prompt row whose content is only whitespace is empty too: refused before the provider sees a blank text block; a blank beside an image or real words passes')
+{
+  const h = makeHarness()
+  h.push({ type: 'prompt', content: '   ' })
+  h.push({ type: 'prompt', content: '\n\t \n' })
+  h.push({ type: 'prompt', content: [{ type: 'text', text: '   ' }] })
+  h.push({ type: 'prompt', content: [{ type: 'text', text: ' ' }, { type: 'text', text: '\n' }] })
+  h.push({ type: 'prompt', content: [{ type: 'text', text: ' ' }, { type: 'image', media_type: 'image/png', data: 'aGk=' }] })
+  h.push({ type: 'prompt', content: '  words with space around  ' })
+  await h.settle()
+  check('the four whitespace-only prompt rows are refused as rows with no content', h.refused.length === 4 && h.refused.every(line => line.includes('no content')), j(h.refused))
+  check('the image-bearing row and the worded row arrive', h.received.length === 2 && h.received.every(m => m.type === 'prompt'), j(h.received))
+  h.end()
+}
+
 section('S4 — a line longer than the reader\'s bound is refused and the reader resyncs at the next newline')
 {
   const { MAX_LINE_BYTES } = await import('../../src/runner/wire/errors.ts')
