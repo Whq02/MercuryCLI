@@ -96,6 +96,10 @@ export function executeOperatorMotion(
       }
     } else if (isInclusiveMotion(motion) && target.offset > cursor.offset) {
       end = cursor.measuredText.nextOffset(target.offset)
+    } else if (motion === 'w' || motion === 'W') {
+      const lastStart = resolveMotion(motion, cursor, count - 1).offset
+      const lineEnd = ctx.text.indexOf('\n', lastStart)
+      if (lineEnd > lastStart && end > lineEnd) end = lineEnd
     }
   }
 
