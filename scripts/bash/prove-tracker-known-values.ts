@@ -63,30 +63,30 @@ try {
   console.log('values the shell would supply at runtime still refuse, with the reason that names them')
   for (const [command, reason] of [
     ['echo $UNKNOWN_X', 'reference to variable $UNKNOWN_X whose value is not statically known'],
-    ['false || x=1 && echo $x', 'value of $x is not statically known'],
-    ['A=1 && B=2 || echo $B', 'value of $B is not statically known'],
-    ['x=1 && unset x; echo $x', 'value of $x is not statically known'],
-    ['for f in a b; do x=$f; done; echo $x', 'value of $x is not statically known'],
-    ['for f in $(ls); do echo $f; done', 'value of $f is not statically known'],
-    ['for i in $(seq 1 100); do echo $i; done', 'value of $i is not statically known'],
+    ['false || x=1 && echo $x', 'Bash needs approval for $x because its value is unknown. Use its literal path or value.'],
+    ['A=1 && B=2 || echo $B', 'Bash needs approval for $B because its value is unknown. Use its literal path or value.'],
+    ['x=1 && unset x; echo $x', 'Bash needs approval for $x because its value is unknown. Use its literal path or value.'],
+    ['for f in a b; do x=$f; done; echo $x', 'Bash needs approval for $x because its value is unknown. Use its literal path or value.'],
+    ['for f in $(ls); do echo $f; done', 'Bash needs approval for $f because its value is unknown. Use its literal path or value.'],
+    ['for i in $(seq 1 100); do echo $i; done', 'Bash needs approval for $i because its value is unknown. Use its literal path or value.'],
     ['for f in *.txt; do echo > "$f"; done', 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'],
     ['n=abc; for i in 1 2; do n=$((n+1)); done', 'arithmetic expression contains a non-literal term "n"'],
     ['ls $(cat names)', 'a command substitution supplies an argument at runtime; spell out its value or run the inner command separately, or approve'],
     ['for f in "a b"; do ls $f; done', 'value of $f would be word-split or glob-expanded into a different argv'],
-    ['for f in ~/x; do ls $f; done', 'value of $f is not statically known'],
+    ['for f in ~/x; do ls $f; done', 'Bash needs approval for $f because its value is unknown. Use its literal path or value.'],
     ['for PATH in /tmp; do ls; done', 'loop variable PATH changes shell lookup, path expansion or startup code; use a different variable, or approve'],
-    ['select m in a b; do echo $m; done', 'value of $m is not statically known'],
+    ['select m in a b; do echo $m; done', 'Bash needs approval for $m because its value is unknown. Use its literal path or value.'],
     ['echo ${x:-default}', 'the expansion "${x:-default}" supplies a value at runtime; spell out the value, or approve'],
     ['x=1; echo ${#x}', 'the expansion "${#x}" supplies a value at runtime; spell out the value, or approve'],
     ['x=1; echo ${x[0]}', 'the expansion "${x[0]}" supplies a value at runtime; spell out the value, or approve'],
-    ['b=1; for i in a b; do read $i; done; echo $b', 'value of $b is not statically known'],
-    ['b=1; for i in a b; do read $i; done; echo $a', 'value of $a is not statically known'],
+    ['b=1; for i in a b; do read $i; done; echo $b', 'Bash needs approval for $b because its value is unknown. Use its literal path or value.'],
+    ['b=1; for i in a b; do read $i; done; echo $a', 'Bash needs approval for $a because its value is unknown. Use its literal path or value.'],
   ] as const) {
     const got = await argvOf(command)
     check(`refused: ${command}`, got === `too-complex: ${reason}`, String(got).slice(0, 300))
   }
   const many = `for i in ${Array.from({ length: 65 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
-  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: value of $i is not statically known')
+  check('a literal list past the cap (64 items) is walked once with the variable unknown, as before', (await argvOf(many)) === 'too-complex: Bash needs approval for $i because its value is unknown. Use its literal path or value.')
   const sixtyFour = `for i in ${Array.from({ length: 64 }, (_, n) => n + 1).join(' ')}; do echo $i; done`
   const walked = await argvOf(sixtyFour)
   check('a literal list at the cap is walked item by item', Array.isArray(walked) && walked.length === 64 && same(walked[63], ['echo', '64']), String(walked).slice(0, 100))

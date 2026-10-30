@@ -59,7 +59,7 @@ console.log('\n3. a write names the file; a non-read-only form names the form an
   const guard = await refusal('cd .. && git log')
   check('cd .. && git log → the git guard sentence', guard === `mercury-scout is read-only: A cd combined with git is not auto-allowed. ${TAIL}`, JSON.stringify(guard))
   const loop = await refusal('for f in $(ls); do cat -A "$f"; done')
-  check('a loop with an unresolved file operand names its runtime value', loop === `mercury-scout is read-only: the command could not be verified as read-only — quoted argument consists entirely of runtime-determined content ${TAIL}`, JSON.stringify(loop))
+  check('a loop with an unresolved file operand names its runtime value', loop === `mercury-scout is read-only: the command could not be verified as read-only — Bash needs approval for this variable-only argument because its value is unknown. Use its literal path or value. ${TAIL}`, JSON.stringify(loop))
   const literalLoop = await refusal('for f in a b; do cat -A "$f"; done')
   check('a loop over a literal list resolves its operand and runs (the shell check carries a literal for list)', literalLoop === null, JSON.stringify(literalLoop))
   const exec = await refusal('find . -type f -exec ls -la {} \\;')

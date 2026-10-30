@@ -119,7 +119,7 @@ for (const command of ['local x=1', 'local -i n=1', 'readonly R=1', 'readonly x[
 for (const command of ['typeset -r x', 'declare -r x=1']) {
   pinWalk(command, refusal('declaration flag "-r" can change or prevent assignment; use a plain assignment, or approve', 'declaration_command'), null)
 }
-pinWalk('export FOO+=bar; echo "$FOO"', refusal('quoted argument consists entirely of runtime-determined content', 'string'), null)
+pinWalk('export FOO+=bar; echo "$FOO"', refusal('Bash needs approval for this variable-only argument because its value is unknown. Use its literal path or value.', 'string'), null)
 function globbed(argv: string[], text: string): unknown {
   return { argv, envVars: [], redirects: [], text, globOperand: true }
 }
