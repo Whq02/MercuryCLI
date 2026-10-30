@@ -48,6 +48,7 @@ import { isShuttingDown } from '../../utils/gracefulShutdown.js'
 import { getMCPUserAgent } from '../../utils/http.js'
 import { createImageMetadataText, type ImageDimensions, ImageResizeError, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
+import { formatFileSize } from '../../utils/format.js'
 import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { mcpContentNeedsTruncation, truncateMcpContent } from '../../utils/mcpValidation.js'
 import type { MCPToolResult } from '../../utils/mcpValidation.js'
@@ -204,6 +205,20 @@ export async function withMcpLaunchBudget(
 export const DEFAULT_MCP_CALL_IDLE_MINUTES = 10
 export function mcpCallIdleLimitMs(): number {
   return minutesKnobToMs(flagEnv('MERCURY_MCP_CALL_IDLE_MINUTES'), DEFAULT_MCP_CALL_IDLE_MINUTES)
+}
+
+export const DEFAULT_MCP_STDIO_MESSAGE_MB = 64
+export function mcpStdioMaxMessageBytes(): number {
+  const raw = flagEnv('MERCURY_MCP_STDIO_MESSAGE_MB')
+  const parsed = raw ? Number.parseFloat(raw) : Number.NaN
+  return Math.floor((Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MCP_STDIO_MESSAGE_MB) * 1024 * 1024)
+}
+
+const OVERSIZED_MESSAGE = /ReadBuffer exceeded maximum size of (\d+) bytes/
+const oversizedMessages = new WeakMap<Client, number>()
+
+export function mcpOversizedMessageWords(tool: string, serverName: string, limitBytes: number): string {
+  return `MCP tool "${tool}" on server "${serverName}": the server sent one message over ${formatFileSize(limitBytes)}, the stdio message limit, and the connection was dropped before this call's answer could be read; inspect the effect before retrying — MERCURY_MCP_STDIO_MESSAGE_MB raises the limit.`
 }
 
 type ProgressParams = { progressToken?: string | number; progress: number; total?: number; message?: string }
@@ -618,6 +633,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       args,
       env: { ...(scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
       stderr: 'pipe',
+      maxBufferSize: mcpStdioMaxMessageBytes(),
     })
   }
   const provider =
@@ -856,6 +872,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     const uptime = Date.now() - startedAt
     const message = error.message
     logMCPDebug(name, `transport ${type} error after ${uptime}ms: ${message}`)
+    const oversized = OVERSIZED_MESSAGE.exec(message)
+    if (oversized !== null) oversizedMessages.set(client, Number(oversized[1]))
     if (message.includes('ECONNRESET')) logMCPDebug(name, 'connection reset — the server crashed or restarted')
     else if (message.includes('ETIMEDOUT')) logMCPDebug(name, 'timeout — network or unresponsive server')
     else if (message.includes('ECONNREFUSED')) logMCPDebug(name, 'connection refused — the server is down')
@@ -1556,6 +1574,11 @@ async function callToolOnce(
     }
     if (isConnectionClosedError(err) || isStaleSocketFetchError(err)) {
       await clearServerCache(connected.name, connected.config)
+    }
+    const oversizedLimit = oversizedMessages.get(connected.client)
+    if (oversizedLimit !== undefined && isConnectionClosedError(err)) {
+      logMCPError(connected.name, `tool ${tool}: the server sent one message over ${oversizedLimit} bytes; the connection was dropped`)
+      throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(mcpOversizedMessageWords(tool, connected.name, oversizedLimit), 'MCP stdio message over the limit')
     }
     if (couldHaveExecuted && !(err instanceof ProtocolError)) {
       requestController.abort()
