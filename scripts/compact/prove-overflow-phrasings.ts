@@ -124,6 +124,19 @@ section('S2 the exclusions — allowances, output caps, the bare remedy clause, 
   }
   const sentence = viaCompat('openai', 400, { error: { message: "This model's maximum context length is 128000 tokens. However, your messages resulted in 135000 tokens. Please reduce the length of the messages.", code: 'context_length_exceeded' } })
   check('the remedy clause behind its own sentence keeps the numbers', sentence?.shape === 'context-length-exceeded' && sentence.actualTokens === 135_000 && sentence.limitTokens === 128_000, JSON.stringify(sentence))
+  const fieldFaults: Array<{ label: string; status: number; message: string }> = [
+    { label: 'a tool description over its character limit', status: 400, message: 'tools.3.description: content too long, maximum 1024 characters' },
+    { label: 'a metadata field over its character limit', status: 400, message: 'metadata.user_id: request too long: maximum 256 characters' },
+    { label: 'a document title over its character limit', status: 400, message: 'messages.2.content.0.document.title: message too long (max 500 chars)' },
+    { label: 'a tool input nested too deep', status: 400, message: 'invalid input: tool_use.input too long: maximum nesting depth' },
+    { label: 'too many images in one request', status: 422, message: 'prompt must not be empty; input exceeds the maximum allowed images (20)' },
+  ]
+  for (const row of fieldFaults) {
+    const sig = classifyOverflowFault({ family: 'unknown', status: row.status, message: row.message })
+    check(`${row.label} is a field fault, not a context overflow → null`, sig === null, JSON.stringify(sig))
+  }
+  const tokensToo = classifyOverflowFault({ family: 'unknown', status: 400, message: 'input is too long: 250000 tokens (1,000,000 characters) exceeds the 200000 maximum' })
+  check('the control: a sentence counting tokens stays an overflow even when it also counts characters', tokensToo?.shape === 'context-size', JSON.stringify(tokensToo))
 }
 
 section('S3 the bodiless 400 — the pure reading against a measure')

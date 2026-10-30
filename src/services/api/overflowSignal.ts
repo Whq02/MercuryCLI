@@ -116,6 +116,13 @@ const OVER_THE_MAXIMUM_TOKENS = /\b(?:exceeds?|over) the (?:maximum|max) (?:numb
 const TOO_MANY_INPUT_TOKENS = /\btoo many (?:input |prompt )tokens\b/i
 const PROMPT_TOO_LONG_CJK = /prompt\s*超长|(?:prompt|token|上下文|输入)[^。.]{0,20}(?:超长|过长)/i
 const BODY_TOO_LARGE = /request entity too large|payload too large|request body (?:is )?too large|body exceeds/i
+const COUNTS_TOKENS = /\btokens?\b/i
+const COUNTS_ANOTHER_UNIT = /\b(?:characters?|chars?|bytes?|images?|files?|attachments?|items?|elements?|nesting depth)\b/i
+const NAMES_A_FIELD = /\b[a-z_]+(?:\.[a-z_0-9]+)+\s*:/i
+
+function complainsAboutAField(message: string): boolean {
+  return !COUNTS_TOKENS.test(message) && (COUNTS_ANOTHER_UNIT.test(message) || NAMES_A_FIELD.test(message))
+}
 
 function matchFurtherOverflowSentence(message: string): ShapeMatch | null {
   const promptLimit = PROMPT_LENGTH_LIMIT.exec(message)
@@ -130,7 +137,8 @@ function matchFurtherOverflowSentence(message: string): ShapeMatch | null {
   const cannotExceed = TOKENS_CANNOT_EXCEED.exec(message)
   if (cannotExceed) return { shape: 'token-limit', limitTokens: num(cannotExceed[1]), actualTokens: num(cannotExceed[2]) }
   if (BODY_TOO_LARGE.test(message)) return { shape: 'request-too-large' }
-  if (INPUT_TOO_LONG.test(message) || INPUT_EXCEEDS_LIMIT.test(message) || OVER_THE_MAXIMUM_TOKENS.test(message)) return { shape: 'context-size' }
+  if ((INPUT_TOO_LONG.test(message) || INPUT_EXCEEDS_LIMIT.test(message)) && !complainsAboutAField(message)) return { shape: 'context-size' }
+  if (OVER_THE_MAXIMUM_TOKENS.test(message)) return { shape: 'context-size' }
   if (TOO_MANY_INPUT_TOKENS.test(message) || PROMPT_TOO_LONG_CJK.test(message)) return { shape: 'context-size' }
   return null
 }
