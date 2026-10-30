@@ -407,6 +407,8 @@ function sequenceItems(commands: readonly SimpleCommand[]): string[] | null {
   return items
 }
 
+const PIPELINE_STATUS_EXPANSION = /^\$\{(?:PIPESTATUS|pipestatus)\[[0-9]+\](?::-(?:\$\?|[A-Za-z0-9_-]+))?\}$/
+
 function plainExpansion(node: Node): boolean {
   return node.type === 'expansion' && node.children.length === 3 && node.children[0]!.type === '${' && node.children[1]!.type === 'variable_name' && node.children[2]!.type === '}'
 }
@@ -692,6 +694,11 @@ class Walk {
           break
         }
         case 'expansion':
+          if (PIPELINE_STATUS_EXPANSION.test(child.text)) {
+            value += UNKNOWN_VALUE
+            sawUnknown = true
+            break
+          }
           if (!plainExpansion(child)) refuseNode(child)
         case 'simple_expansion': {
           const resolved = reference(child, scope, true, operand)
