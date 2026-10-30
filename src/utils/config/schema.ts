@@ -22,7 +22,6 @@ export type PastedContent = {
 export type SerializedStructuredHistoryEntry = {
   display: string
   pastedContents?: Record<number, PastedContent>
-  pastedText?: string
 }
 
 export type HistoryEntry = {
@@ -246,7 +245,6 @@ type ModelChoices = {
   fileCheckpointingEnabled: boolean
   permissionExplainerEnabled?: boolean
   prStatusFooterEnabled?: boolean
-  lspRecommendationIgnoredCount?: number
   skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
   githubRepoPaths?: Record<string, string[]>
 }
@@ -255,7 +253,6 @@ type Hints = {
   hasUsedBackslashReturn?: boolean
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
-  hasUsedBackgroundTask?: boolean
   promptQueueUseCount: number
 }
 
@@ -268,17 +265,10 @@ type TerminalSetup = {
 
 type Voice = {
   voiceInputEnabled?: boolean
-  voiceNoticeSeenCount?: number
-  voiceLangHintShownCount?: number
-  voiceLangHintLastLanguage?: string
-  voiceFooterHintSeenCount?: number
 }
 
 type Bridge = {
-  remoteDialogSeen?: boolean
   remoteControlAtStartup?: boolean
-  bridgeOauthDeadExpiresAt?: number
-  bridgeOauthDeadFailCount?: number
 }
 
 export type GlobalConfig = BootRecord &
@@ -302,7 +292,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     showTurnDuration: true,
     hasSeenTasksHint: false,
     hasUsedStash: false,
-    hasUsedBackgroundTask: false,
     expandedView: 'none',
     customApiKeyResponses: { approved: [], rejected: [] },
     tipsHistory: {},
@@ -332,7 +321,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'showExpandedTasks',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
-  'lspRecommendationIgnoredCount',
   'copyOnSelect',
   'mouseCapture',
   'defaultCritter',
@@ -342,7 +330,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
-  'remoteDialogSeen',
   'agents',
 ] as const satisfies readonly (keyof GlobalConfig)[]
 
