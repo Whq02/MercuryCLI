@@ -97,7 +97,7 @@ function nullableString(value: unknown): string | null | undefined {
 function decodeBudget(value: unknown): OpenrouterBudget | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const row = value as Record<string, unknown>
-  if (!['workspace_default_member', 'workspace_default_key', 'member', 'api_key', 'workspace', 'key_limit'].includes(String(row.scope))) return undefined
+  if (typeof row.scope !== 'string' || !['workspace_default_member', 'workspace_default_key', 'member', 'api_key', 'workspace', 'key_limit'].includes(row.scope)) return undefined
   const limitUsd = num(row.limit_usd)
   const spendUsd = num(row.spend_usd)
   const remainingUsd = num(row.remaining_usd)

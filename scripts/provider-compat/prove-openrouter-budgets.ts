@@ -54,6 +54,8 @@ async function send() {
   return rows
 }
 try {
+  const malformed = await state.probeOpenrouterKey('fixture-key', { fetchImpl: (async () => Response.json({ data: { budgets: [{ ...member, scope: { toString: 1 } }], effective_budget: { ...member, remaining_usd: 'unknown' }, free_model_daily_requests: { used: 'unknown', limit: 50, remaining: 0 } } })) as typeof fetch })
+  check('malformed budget fields are omitted without coercion or guessed counters', malformed.state === 'accepted' ? [malformed.usage.budgets, malformed.usage.effectiveBudget, malformed.usage.freeModelDailyRequests] : malformed.state, [[], undefined, undefined])
   let read = await state.refreshOpenrouterKeyUsage({ force: true }) as any
   check('budget order and all fields retained', read?.budgets, [expectedMember, expectedWorkspace])
   check('effective budget is the provider choice, not smallest remaining', read?.effectiveBudget, expectedMember)
