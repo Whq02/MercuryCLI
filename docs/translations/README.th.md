@@ -100,7 +100,7 @@ archive ของรีลีสมาพร้อม Node 24 LTS ตัวเ�
 หากต้องการบิลด์จากซอร์ส คุณต้องมี:
 
 - **Node 24 LTS** ในช่วงที่รองรับ `>=24.20.0 <25` `.node-version` ปักหมุดแพตช์ที่ใช้สำหรับการบิลด์และรวมอยู่ใน archive ของรีลีส
-- **bun 1.3.x** สำหรับการบิลด์ ไม่ได้รวมมากับรีลีส
+- **bun 1.4.4** สำหรับการบิลด์ ไม่ได้รวมมากับรีลีส
 - **git** บน Windows ให้รัน PowerShell 7 ภายใน Windows Terminal หรือเทอร์มินัลของ VS Code ดู [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md)
 
 เวอร์ชัน Node ขั้นต่ำรวมการแก้ไขสำหรับ nodejs/node#56645 ต่ำกว่า 24.20.0 คำสั่ง headless `run` ที่เรียกใช้เครื่องมือจะถูกยกเลิกเมื่อออกจากโปรแกรมบน Windows
@@ -119,12 +119,12 @@ archive ของรีลีสรวม shell engine ที่เข้าก�
 
 ## การบิลด์จากซอร์ส
 
-Mercury บิลด์ด้วย bun และรันบน Node 24 LTS ติดตั้ง [ข้อกำหนดสำหรับการบิลด์จากซอร์ส](#ข้อกำหนดเบื้องต้น) รวมถึง bun 1.3.x:
+Mercury บิลด์ด้วย bun และรันบน Node 24 LTS ติดตั้ง [ข้อกำหนดสำหรับการบิลด์จากซอร์ส](#ข้อกำหนดเบื้องต้น) รวมถึง bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS และ Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows ใน PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS และ Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows ใน PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 จากนั้น ในโคลนของรีโพซิทอรีนี้:

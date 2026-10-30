@@ -100,7 +100,7 @@ npm 啟動器採用與安裝程式相同的發行版本目錄配置，並會將�
 從原始碼建置需要以下條件：
 
 - **Node 24 LTS**，支援範圍為 `>=24.20.0 <25`。`.node-version` 會固定建置時所用、並隨發行壓縮檔一併提供的修補版本。
-- **bun 1.3.x**，用於建置。發行版本不包含 bun。
+- **bun 1.4.4**，用於建置。發行版本不包含 bun。
 - **git**。在 Windows 上，請於 Windows Terminal 或 VS Code 終端機中執行 PowerShell 7。參見 [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md)。
 
 Node 的最低版本已包含 nodejs/node#56645 的修正。低於 24.20.0 時，在 Windows 上呼叫工具的無頭 `run` 指令會在結束時中止。
@@ -119,12 +119,12 @@ Node 的最低版本已包含 nodejs/node#56645 的修正。低於 24.20.0 時�
 
 ## 從原始碼建置
 
-Mercury 使用 bun 建置，並在 Node 24 LTS 上執行。請先安裝[原始碼建置所需的需求](#環境需求)，包括 bun 1.3.x：
+Mercury 使用 bun 建置，並在 Node 24 LTS 上執行。請先安裝[原始碼建置所需的需求](#環境需求)，包括 bun 1.4.4：
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS 與 Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows，在 PowerShell 7 中執行
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS 與 Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows，在 PowerShell 7 中執行
+bun --version                                      # 1.4.4
 ```
 
 接著，在本儲存庫的複本中執行：

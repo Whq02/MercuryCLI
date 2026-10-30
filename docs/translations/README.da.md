@@ -100,7 +100,7 @@ Releasearkiver indeholder Node 24 LTS. Launcheren, `mercury install` og `mercury
 Hvis du vil bygge fra kildekoden, skal du bruge:
 
 - **Node 24 LTS**, i det understøttede interval `>=24.20.0 <25`. `.node-version` fastlåser den patch-version, der bruges til builds og er med i releasearkiverne.
-- **bun 1.3.x** til buildet. Den medfølger ikke releases.
+- **bun 1.4.4** til buildet. Den medfølger ikke releases.
 - **git**. På Windows kører du PowerShell 7 i Windows Terminal eller i VS Code-terminalen. Se [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Node-minimumsversionen indeholder rettelsen for nodejs/node#56645. Under 24.20.0 afbrydes headless `run`-kommandoer, der kalder et værktøj, ved afslutning på Windows.
@@ -119,12 +119,12 @@ Et build fra kildekoden uden motorpakken eller Git for Windows starter stadig, m
 
 ## Build fra kildekoden
 
-Mercury bygges med bun og kører på Node 24 LTS. Installér [kravene til build fra kildekoden](#krav), inklusive bun 1.3.x:
+Mercury bygges med bun og kører på Node 24 LTS. Installér [kravene til build fra kildekoden](#krav), inklusive bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS og Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, i PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS og Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, i PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Kør derefter i en klon af dette repository:

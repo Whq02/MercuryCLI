@@ -100,7 +100,7 @@ Archiwa wydań zawierają Node 24 LTS. Launcher, `mercury install` i `mercury up
 Aby zbudować Mercury ze źródeł, potrzebujesz:
 
 - **Node 24 LTS** w obsługiwanym zakresie `>=24.20.0 <25`. Plik `.node-version` przypina wersję poprawkową używaną do budowania, która jest dołączana do archiwów wydań.
-- **bun 1.3.x** do budowania. Nie jest dołączany do wydań.
+- **bun 1.4.4** do budowania. Nie jest dołączany do wydań.
 - **git**. W Windows uruchom PowerShell 7 w Windows Terminal lub w terminalu VS Code. Zobacz [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Minimalna wersja Node zawiera poprawkę nodejs/node#56645. Poniżej 24.20.0 polecenia `run` bez interfejsu, które wywołują narzędzie, przerywają się przy wyjściu w Windows.
@@ -119,12 +119,12 @@ Budowanie ze źródeł bez pakietu silnika ani Git for Windows uruchamia się, a
 
 ## Budowanie ze źródeł
 
-Mercury buduje się przy użyciu bun i działa na Node 24 LTS. Zainstaluj [wymagania do budowania ze źródeł](#wymagania), w tym bun 1.3.x:
+Mercury buduje się przy użyciu bun i działa na Node 24 LTS. Zainstaluj [wymagania do budowania ze źródeł](#wymagania), w tym bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS i Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, w PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS i Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, w PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Następnie w klonie tego repozytorium:

@@ -100,7 +100,7 @@ mise use -g npm:mercury-tech-cli                   # mise, μέσω του πα�
 Για κατασκευή από τον πηγαίο κώδικα χρειάζεστε:
 
 - **Node 24 LTS**, στην υποστηριζόμενη περιοχή `>=24.20.0 <25`. Το `.node-version` καρφιτσώνει το patch που χρησιμοποιείται για τις κατασκευές και περιλαμβάνεται στα αρχεία έκδοσης.
-- **bun 1.3.x** για την κατασκευή. Δεν περιλαμβάνεται στις εκδόσεις.
+- **bun 1.4.4** για την κατασκευή. Δεν περιλαμβάνεται στις εκδόσεις.
 - **git**. Στα Windows, εκτελέστε το PowerShell 7 μέσα στο Windows Terminal ή στο τερματικό του VS Code. Δείτε το [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Το ελάχιστο όριο του Node περιλαμβάνει τη διόρθωση για το nodejs/node#56645. Κάτω από την 24.20.0, οι headless εντολές `run` που καλούν εργαλείο διακόπτονται κατά την έξοδο στα Windows.
@@ -119,12 +119,12 @@ mise use -g npm:mercury-tech-cli                   # mise, μέσω του πα�
 
 ## Κατασκευή από τον πηγαίο κώδικα
 
-Το Mercury κατασκευάζεται με bun και εκτελείται σε Node 24 LTS. Εγκαταστήστε [τις απαιτήσεις κατασκευής από τον πηγαίο κώδικα](#απαιτήσεις), συμπεριλαμβανομένου του bun 1.3.x:
+Το Mercury κατασκευάζεται με bun και εκτελείται σε Node 24 LTS. Εγκαταστήστε [τις απαιτήσεις κατασκευής από τον πηγαίο κώδικα](#απαιτήσεις), συμπεριλαμβανομένου του bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS και Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, στο PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS και Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, στο PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Έπειτα, σε ένα κλώνο αυτού του αποθετηρίου:

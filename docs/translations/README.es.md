@@ -100,7 +100,7 @@ Los archivos de versión incluyen Node 24 LTS. El lanzador, `mercury install` y 
 Para compilar desde el código fuente necesita:
 
 - **Node 24 LTS**, en el rango compatible `>=24.20.0 <25`. `.node-version` fija la revisión que se usa para las compilaciones y que se incluye en los archivos de versión.
-- **bun 1.3.x** para la compilación. No viene incluido en las versiones.
+- **bun 1.4.4** para la compilación. No viene incluido en las versiones.
 - **git**. En Windows, ejecute PowerShell 7 dentro de Windows Terminal o de la terminal de VS Code. Consulte [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 La versión mínima de Node incluye la corrección de nodejs/node#56645. Por debajo de 24.20.0, los comandos `run` headless que llaman a una herramienta se abortan al salir en Windows.
@@ -119,12 +119,12 @@ Una compilación desde el código fuente sin el paquete del motor ni Git para Wi
 
 ## Compilar desde el código fuente
 
-Mercury se compila con bun y se ejecuta en Node 24 LTS. Instale [los requisitos para compilar desde el código fuente](#requisitos), incluido bun 1.3.x:
+Mercury se compila con bun y se ejecuta en Node 24 LTS. Instale [los requisitos para compilar desde el código fuente](#requisitos), incluido bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS y Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, en PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS y Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, en PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Después, en un clon de este repositorio:

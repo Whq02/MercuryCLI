@@ -162,9 +162,9 @@ message anywhere is always this step's fix.
 
 ---
 
-## 4. Install bun 1.3
+## 4. Install bun 1.4.4
 
-bun is the build tool. Mercury needs the **1.3** series.
+bun is the build tool. Mercury builds with **1.4.4**.
 
 Check:
 
@@ -172,18 +172,13 @@ Check:
 bun --version
 ```
 
-Expect `1.3.<something>`. If bun is missing:
+Expect `1.4.4`. If bun is missing or prints a different version:
 
 ```powershell
-powershell -c "irm bun.sh/install.ps1 | iex"
+& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4
 ```
 
-Close the terminal, open a new one, run the check again. If the check prints
-a version that does not start with `1.3`:
-
-```powershell
-bun upgrade
-```
+Close the terminal, open a new one, run the check again.
 
 ---
 

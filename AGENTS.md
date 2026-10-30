@@ -10,7 +10,7 @@ and docs/README.md lists every page by task.
 A release install needs `git` only — the archive carries its own Node runtime.
 Building from source needs Node `>=24.20.0 <25` (`.node-version` pins the patch
 the archives vendor; below 24.20.0 a headless run that dispatched a tool aborts
-at exit on Windows), bun 1.3.x (the build runtime, never vendored), and `git`.
+at exit on Windows), bun 1.4.4 (the build runtime, never vendored), and `git`.
 On Windows, run PowerShell 7 inside Windows Terminal or the VS Code integrated terminal.
 
 ## Build and run

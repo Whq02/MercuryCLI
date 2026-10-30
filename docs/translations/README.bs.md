@@ -100,7 +100,7 @@ Arhive izdanja uključuju Node 24 LTS. Launcher, `mercury install` i `mercury up
 Za izgradnju iz izvornog koda potrebno je:
 
 - **Node 24 LTS**, u podržanom rasponu `>=24.20.0 <25`. `.node-version` fiksira zakrpu (patch) koja se koristi za izgradnju i uključena je u arhive izdanja.
-- **bun 1.3.x** za izgradnju. Nije uključen u izdanja.
+- **bun 1.4.4** za izgradnju. Nije uključen u izdanja.
 - **git**. Na Windows-u pokrenite PowerShell 7 unutar Windows Terminal-a ili terminala VS Code-a. Pogledajte [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Minimalna verzija Node-a uključuje ispravku za nodejs/node#56645. Ispod 24.20.0, `run` naredbe bez interfejsa koje pozivaju alat prekidaju se pri izlasku na Windows-u.
@@ -119,12 +119,12 @@ Izgradnja iz izvornog koda bez paketa engine-a ili Git for Windows-a i dalje se 
 
 ## Izgradnja iz izvornog koda
 
-Mercury se gradi pomoću bun-a i radi na Node-u 24 LTS. Instalirajte [zahtjeve za izgradnju iz izvornog koda](#zahtjevi), uključujući bun 1.3.x:
+Mercury se gradi pomoću bun-a i radi na Node-u 24 LTS. Instalirajte [zahtjeve za izgradnju iz izvornog koda](#zahtjevi), uključujući bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS i Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, u PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS i Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, u PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Zatim, u klonu ovog repozitorija:

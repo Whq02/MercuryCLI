@@ -20,7 +20,7 @@ let pinnedVersion = ''
   check('never on push or pull_request', !/^\s*(push|pull_request):/m.test(yml))
   check('runs on windows-latest under pwsh', yml.includes('runs-on: windows-latest') && yml.includes('shell: pwsh'))
   check('the pinned Node from .node-version', yml.includes('node-version-file: .node-version'))
-  check('bun 1.3.11 (the build runtime)', yml.includes('bun-version: 1.3.11'))
+  check('bun 1.4.4 (the build runtime)', yml.includes('bun-version: 1.4.4'))
   const version = /brush_version:[\s\S]*?default: '([^']+)'/.exec(yml)?.[1] ?? ''
   pinnedVersion = version
   check('the engine version is a pinned default', /^\d+\.\d+\.\d+$/.test(version), version)

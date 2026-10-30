@@ -100,7 +100,7 @@ Intel Mac-এর জন্য রিলিজ আর্কাইভ পাওয
 সোর্স থেকে বিল্ড করতে আপনার লাগবে:
 
 - **Node 24 LTS**, সমর্থিত পরিসর `>=24.20.0 <25`-এর মধ্যে। `.node-version` বিল্ডের জন্য ব্যবহৃত প্যাচ সংস্করণটি পিন করে, যেটি রিলিজ আর্কাইভেও অন্তর্ভুক্ত থাকে।
-- **bun 1.3.x**, বিল্ডের জন্য। এটি রিলিজের সঙ্গে আসে না।
+- **bun 1.4.4**, বিল্ডের জন্য। এটি রিলিজের সঙ্গে আসে না।
 - **git**। Windows-এ Windows Terminal বা VS Code টার্মিনালের ভেতরে PowerShell 7 চালান। দেখুন [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md)।
 
 Node-এর ন্যূনতম সংস্করণে nodejs/node#56645-এর ফিক্স অন্তর্ভুক্ত। 24.20.0-এর নিচে Windows-এ, কোনো টুল ডাকে এমন headless `run` কমান্ড প্রস্থান করার সময় বাতিল (abort) হয়ে যায়।
@@ -119,12 +119,12 @@ engine pack বা Git for Windows ছাড়া সোর্স বিল্�
 
 ## সোর্স থেকে বিল্ড
 
-Mercury bun দিয়ে বিল্ড হয় এবং Node 24 LTS-এ চলে। bun 1.3.x-সহ [সোর্স-বিল্ডের প্রয়োজনীয়তা](#প্রয়োজনীয়তা) ইনস্টল করুন:
+Mercury bun দিয়ে বিল্ড হয় এবং Node 24 LTS-এ চলে। bun 1.4.4-সহ [সোর্স-বিল্ডের প্রয়োজনীয়তা](#প্রয়োজনীয়তা) ইনস্টল করুন:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS ও Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, PowerShell 7-এ
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS ও Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, PowerShell 7-এ
+bun --version                                      # 1.4.4
 ```
 
 এরপর এই রিপোজিটরির একটি ক্লোনে:

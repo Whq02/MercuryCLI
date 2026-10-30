@@ -100,7 +100,7 @@ Release-Archive enthalten Node 24 LTS. Die Launcher, `mercury install` und `merc
 Um aus dem Quellcode zu bauen, benötigen Sie:
 
 - **Node 24 LTS**, im unterstützten Bereich `>=24.20.0 <25`. `.node-version` legt die für Builds verwendete und in Release-Archiven enthaltene Patch-Version fest.
-- **bun 1.3.x** für den Build. Bun wird nicht mit Releases mitgeliefert.
+- **bun 1.4.4** für den Build. Bun wird nicht mit Releases mitgeliefert.
 - **git**. Unter Windows führen Sie PowerShell 7 im Windows Terminal oder im Terminal von VS Code aus. Siehe [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Die Node-Mindestversion enthält die Korrektur für nodejs/node#56645. Unterhalb von 24.20.0 brechen headless `run`-Befehle, die ein Werkzeug aufrufen, beim Beenden unter Windows ab.
@@ -119,12 +119,12 @@ Ein Build aus dem Quellcode ohne das Engine-Paket oder Git für Windows startet 
 
 ## Aus dem Quellcode bauen
 
-Mercury wird mit bun gebaut und läuft auf Node 24 LTS. Installieren Sie [die Voraussetzungen für den Build aus dem Quellcode](#voraussetzungen), einschließlich bun 1.3.x:
+Mercury wird mit bun gebaut und läuft auf Node 24 LTS. Installieren Sie [die Voraussetzungen für den Build aus dem Quellcode](#voraussetzungen), einschließlich bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS und Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, in PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS und Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, in PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Danach in einem Klon dieses Repositorys:

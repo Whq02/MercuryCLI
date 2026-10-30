@@ -100,7 +100,7 @@ Intel Mac 向けのリリースアーカイブを利用できます。
 ソースからビルドするには、次が必要です：
 
 - **Node 24 LTS**（対応範囲は `>=24.20.0 <25`）。`.node-version` は、ビルドに使われ、リリースアーカイブにも含まれるパッチバージョンを固定します。
-- ビルド用の **bun 1.3.x**。リリースには同梱されていません。
+- ビルド用の **bun 1.4.4**。リリースには同梱されていません。
 - **git**。Windows では、Windows Terminal または VS Code のターミナル内で PowerShell 7 を実行してください。[docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md) を参照してください。
 
 Node の最小バージョンには、nodejs/node#56645 の修正が含まれています。24.20.0 より前では、ツールを呼び出すヘッドレスの `run` コマンドが Windows で終了時に中止されます。
@@ -119,12 +119,12 @@ macOS と Linux では、既定でシステムのシェルを使います。同�
 
 ## ソースからのビルド
 
-Mercury は bun でビルドし、Node 24 LTS 上で動作します。bun 1.3.x を含む、[ソースビルドの必要条件](#必要条件)をインストールしてください：
+Mercury は bun でビルドし、Node 24 LTS 上で動作します。bun 1.4.4 を含む、[ソースビルドの必要条件](#必要条件)をインストールしてください：
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS と Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows、PowerShell 7 で実行
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS と Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows、PowerShell 7 で実行
+bun --version                                      # 1.4.4
 ```
 
 続けて、このリポジトリのクローンで実行します：

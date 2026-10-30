@@ -100,7 +100,7 @@ Intel Mac용 릴리스 아카이브가 제공됩니다.
 소스에서 빌드하려면 다음이 필요합니다:
 
 - **Node 24 LTS**(지원 범위 `>=24.20.0 <25`). `.node-version`은 빌드에 사용되고 릴리스 아카이브에 포함되는 패치 버전을 고정합니다.
-- **bun 1.3.x**: 빌드용입니다. 릴리스에는 포함되지 않습니다.
+- **bun 1.4.4**: 빌드용입니다. 릴리스에는 포함되지 않습니다.
 - **git**. Windows에서는 Windows Terminal 또는 VS Code 터미널 안에서 PowerShell 7을 실행합니다. 자세한 내용은 [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md)를 참조합니다.
 
 Node 최소 버전에는 nodejs/node#56645 수정이 포함되어 있습니다. 24.20.0 미만에서는 도구를 호출하는 헤드리스 `run` 명령이 Windows에서 종료될 때 중단됩니다.
@@ -119,12 +119,12 @@ macOS와 Linux에서는 시스템 셸이 기본값입니다. 이 환경에서도
 
 ## 소스에서 빌드
 
-Mercury는 bun으로 빌드하며 Node 24 LTS에서 실행됩니다. bun 1.3.x를 포함한 [소스 빌드 요구 사항](#요구-사항)을 설치합니다:
+Mercury는 bun으로 빌드하며 Node 24 LTS에서 실행됩니다. bun 1.4.4를 포함한 [소스 빌드 요구 사항](#요구-사항)을 설치합니다:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS 및 Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, PowerShell 7에서 실행
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS 및 Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, PowerShell 7에서 실행
+bun --version                                      # 1.4.4
 ```
 
 그다음, 이 저장소를 클론한 디렉터리에서 다음을 실행합니다:

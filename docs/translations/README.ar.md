@@ -106,7 +106,7 @@ mise use -g npm:mercury-tech-cli                   # mise، عبر حزمة npm
 للبناء من المصدر، تحتاج إلى:
 
 - **Node 24 LTS**، ضمن النطاق المدعوم `>=24.20.0 <25`. يُثبِّت `.node-version` الإصدار الفرعي (patch) المستخدم للبناء والمُضمَّن في أرشيفات الإصدارات.
-- **bun 1.3.x** للبناء، وهو غير مرفق مع الإصدارات.
+- **bun 1.4.4** للبناء، وهو غير مرفق مع الإصدارات.
 - **git**. على Windows، شغّل PowerShell 7 داخل Windows Terminal أو طرفية VS Code. راجع [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 يتضمّن الحدّ الأدنى لـ Node الإصلاح الخاص بـ nodejs/node#56645. وفي الإصدارات الأدنى من 24.20.0، تُجهَض أوامر `run` بلا واجهة التي تستدعي أداة عند الخروج على Windows.
@@ -125,14 +125,14 @@ mise use -g npm:mercury-tech-cli                   # mise، عبر حزمة npm
 
 ## البناء من المصدر
 
-يُبنى Mercury باستخدام bun ويعمل على Node 24 LTS. ثبّت [متطلبات البناء من المصدر](#المتطلبات)، بما فيها bun 1.3.x:
+يُبنى Mercury باستخدام bun ويعمل على Node 24 LTS. ثبّت [متطلبات البناء من المصدر](#المتطلبات)، بما فيها bun 1.4.4:
 
 <div dir="ltr">
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS و Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows، في PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS و Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows، في PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 </div>

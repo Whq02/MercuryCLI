@@ -129,7 +129,7 @@ To build from source, you need:
 
 - **Node 24 LTS**, in the supported range `>=24.20.0 <25`. `.node-version`
   pins the patch used for builds and included in release archives.
-- **bun 1.3.x** for the build. It is not bundled with releases.
+- **bun 1.4.4** for the build. It is not bundled with releases.
 - **git**. On Windows, run PowerShell 7 inside Windows Terminal or the
   VS Code terminal. See
   [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md).
@@ -167,12 +167,12 @@ the Bash tool is unavailable. The PowerShell tool remains available, and the
 
 ## Build from source
 
-Mercury builds with bun and runs on Node 24 LTS. Install [the source-build requirements](#requirements), including bun 1.3.x:
+Mercury builds with bun and runs on Node 24 LTS. Install [the source-build requirements](#requirements), including bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS and Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, in PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS and Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, in PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Then, in a clone of this repository:

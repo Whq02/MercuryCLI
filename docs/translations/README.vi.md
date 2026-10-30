@@ -100,7 +100,7 @@ Các gói phát hành bao gồm Node 24 LTS. Trình khởi chạy, `mercury inst
 Để biên dịch từ mã nguồn, bạn cần:
 
 - **Node 24 LTS**, trong phạm vi được hỗ trợ `>=24.20.0 <25`. `.node-version` ghim phiên bản vá dùng khi biên dịch và có trong các gói phát hành.
-- **bun 1.3.x** để biên dịch. Bun không được đóng gói kèm bản phát hành.
+- **bun 1.4.4** để biên dịch. Bun không được đóng gói kèm bản phát hành.
 - **git**. Trên Windows, chạy PowerShell 7 trong Windows Terminal hoặc terminal của VS Code. Xem [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Mức Node tối thiểu đã bao gồm bản sửa nodejs/node#56645. Dưới 24.20.0, các lệnh `run` headless gọi một công cụ sẽ bị hủy khi thoát trên Windows.
@@ -119,12 +119,12 @@ Bản biên dịch từ mã nguồn không có gói engine hoặc Git for Window
 
 ## Biên dịch từ mã nguồn
 
-Mercury biên dịch bằng bun và chạy trên Node 24 LTS. Cài đặt [các yêu cầu biên dịch từ mã nguồn](#yêu-cầu), bao gồm bun 1.3.x:
+Mercury biên dịch bằng bun và chạy trên Node 24 LTS. Cài đặt [các yêu cầu biên dịch từ mã nguồn](#yêu-cầu), bao gồm bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS và Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, trong PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS và Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, trong PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Sau đó, trong một bản sao (clone) của kho này:

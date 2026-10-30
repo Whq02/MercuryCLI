@@ -50,7 +50,7 @@ A successful build writes, under `dist/`:
 
 | Truth | Value | Owner |
 |---|---|---|
-| Build runtime | Bun 1.3.x (the CI workflows pin the exact version) | `build.ts`; `.github/workflows/*.yml` |
+| Build runtime | Bun 1.4.4 (the CI workflows pin the exact version) | `build.ts`; `.github/workflows/*.yml` |
 | Shipped-bundle runtime | Node, supported range `>=24.20.0 <25` (the one qualified major; the 24.20.0 floor carries the fix for nodejs/node#56645; an open-ended "24 or newer" claim is banned) | `src/utils/runtime/nodePolicy.ts` is the single policy owner; `package.json` `engines.node` is its machine-readable projection, held equal mechanically |
 | Calibration runtime | the exact patch in `.node-version` (development and CI reproduction; may advance within the major independently) | `.node-version` |
 

@@ -100,7 +100,7 @@ npm 启动器使用与安装程序相同的版本目录结构，并把每次运�
 从源码构建需要以下条件：
 
 - **Node 24 LTS**，支持范围为 `>=24.20.0 <25`。`.node-version` 固定了用于构建、并随发布压缩包一同提供的补丁版本。
-- **bun 1.3.x**，用于构建。发布版本不包含 bun。
+- **bun 1.4.4**，用于构建。发布版本不包含 bun。
 - **git**。在 Windows 上，请在 Windows Terminal 或 VS Code 终端中运行 PowerShell 7。参见 [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md)。
 
 Node 的最低版本要求已包含 nodejs/node#56645 的修复。低于 24.20.0 时，在 Windows 上调用工具的无头 `run` 命令会在退出时中止。
@@ -119,12 +119,12 @@ Node 的最低版本要求已包含 nodejs/node#56645 的修复。低于 24.20.0
 
 ## 从源码构建
 
-Mercury 使用 bun 构建，并运行于 Node 24 LTS 之上。请先安装[源码构建所需的环境](#环境要求)，包括 bun 1.3.x：
+Mercury 使用 bun 构建，并运行于 Node 24 LTS 之上。请先安装[源码构建所需的环境](#环境要求)，包括 bun 1.4.4：
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS 和 Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows，在 PowerShell 7 中运行
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS 和 Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows，在 PowerShell 7 中运行
+bun --version                                      # 1.4.4
 ```
 
 然后，在本仓库的克隆副本中运行：

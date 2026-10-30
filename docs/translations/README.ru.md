@@ -100,7 +100,7 @@ npm-лаунчер использует ту же структуру релиз�
 Для сборки из исходного кода нужно:
 
 - **Node 24 LTS** в поддерживаемом диапазоне `>=24.20.0 <25`. `.node-version` фиксирует патч-версию, которая используется для сборок и входит в архивы релизов.
-- **bun 1.3.x** для сборки. В релизы он не входит.
+- **bun 1.4.4** для сборки. В релизы он не входит.
 - **git**. В Windows запускайте PowerShell 7 внутри Windows Terminal или терминала VS Code. См. [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Минимальная версия Node включает исправление nodejs/node#56645. Ниже 24.20.0 headless-команды `run`, которые вызывают инструмент, аварийно завершаются при выходе в Windows.
@@ -119,12 +119,12 @@ npm-лаунчер использует ту же структуру релиз�
 
 ## Сборка из исходного кода
 
-Mercury собирается с bun и работает на Node 24 LTS. Установите [требования к сборке из исходников](#требования), включая bun 1.3.x:
+Mercury собирается с bun и работает на Node 24 LTS. Установите [требования к сборке из исходников](#требования), включая bun 1.4.4:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS и Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, в PowerShell 7
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS и Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, в PowerShell 7
+bun --version                                      # 1.4.4
 ```
 
 Затем в клоне этого репозитория:

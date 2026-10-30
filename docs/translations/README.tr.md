@@ -100,7 +100,7 @@ Sürüm arşivleri Node 24 LTS içerir. Başlatıcı, `mercury install` ve `merc
 Kaynaktan derlemek için şunlara ihtiyacınız vardır:
 
 - **Node 24 LTS**, desteklenen `>=24.20.0 <25` aralığında. `.node-version` dosyası, derlemelerde kullanılan ve sürüm arşivlerine de dahil edilen yama sürümünü sabitler.
-- **bun 1.3.x**, derleme için. Sürümlerle birlikte paketlenmez.
+- **bun 1.4.4**, derleme için. Sürümlerle birlikte paketlenmez.
 - **git**. Windows'ta PowerShell 7'yi Windows Terminal veya VS Code terminali içinde çalıştırın. Bkz. [docs/INSTALL-WINDOWS-FROM-SOURCE.md](../INSTALL-WINDOWS-FROM-SOURCE.md).
 
 Node'un asgari sürümü nodejs/node#56645 düzeltmesini içerir. 24.20.0'ın altında, Windows'ta bir araç çağıran headless `run` komutları çıkış sırasında iptal edilir.
@@ -119,12 +119,12 @@ Motor paketi veya Git for Windows olmadan yapılan bir kaynak derlemesi yine de 
 
 ## Kaynaktan derleme
 
-Mercury, bun ile derlenir ve Node 24 LTS üzerinde çalışır. bun 1.3.x dahil [kaynaktan derleme gereksinimlerini](#gereksinimler) kurun:
+Mercury, bun ile derlenir ve Node 24 LTS üzerinde çalışır. bun 1.4.4 dahil [kaynaktan derleme gereksinimlerini](#gereksinimler) kurun:
 
 ```sh
-curl -fsSL https://bun.sh/install | bash           # macOS ve Linux
-powershell -c "irm bun.sh/install.ps1 | iex"       # Windows, PowerShell 7'de
-bun --version                                      # 1.3.x
+curl -fsSL https://bun.com/install | bash -s -- bun-v1.4.4           # macOS ve Linux
+powershell -c "& ([scriptblock]::Create((irm https://bun.com/install.ps1))) -Version 1.4.4"       # Windows, PowerShell 7'de
+bun --version                                      # 1.4.4
 ```
 
 Ardından bu deponun bir kopyasında:
