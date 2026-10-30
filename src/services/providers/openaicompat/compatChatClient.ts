@@ -224,15 +224,17 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
       if (resetAt !== undefined && resetAt > Date.now()) retryAfterMs = resetAt - Date.now()
     }
   }
+  const billing = status === 402 || [word, err?.type].some(value => typeof value === 'string' && /^(?:insufficient_quota|exceeded_current_quota_error|billing_hard_limit_reached|billing_error|payment_required|insufficient_(?:credits?|balance|funds))$/i.test(value))
+  if (billing) retryAfterMs = undefined
   const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited (provider asks for ${providerWaitWords(retryAfterMs)}): ${message}` : message
   return {
     kind: word !== undefined || vendor !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : vendor?.code ?? `http-${status}`,
     message: refusalWords,
-    ...(throttled ? { classification: 'rate_limit' as const } : {}),
+    ...(billing ? { classification: 'billing_error' as const } : throttled ? { classification: 'rate_limit' as const } : {}),
     ...(typeof err?.param === 'string' ? { parameter: err.param } : {}),
     ...(typeof err?.type === 'string' ? { errorType: err.type } : {}),
-    retryable: throttled || status === 429 || status === 408 || status >= 500 || vendor?.retryable === true,
+    retryable: !billing && (throttled || status === 429 || status === 408 || status >= 500 || vendor?.retryable === true),
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
   }
