@@ -615,47 +615,83 @@ function walkMatchingRules(
   behavior: 'allow' | 'deny' | 'ask',
   all: boolean,
 ): PermissionRule[] {
-  const found: PermissionRule[] = []
+  return ruleMatcherFor(context, toolType, behavior)?.(path, all) ?? []
+}
+
+const GLOB_SEGMENT = /[*?[\]{}]/
+
+function absoluteUnderRoot(root: string, literal: string): string {
+  const base = root.replace(/[\\/]+$/, '')
+  if (literal === '') return base === '' ? '/' : base
+  return `${base}${literal.startsWith('/') ? '' : '/'}${literal}`
+}
+
+function resolvedPatternForms(pattern: string, source: PermissionRule['source']): string[] {
+  const { root, relative } = rootForPattern(pattern, source)
+  if (root === null || root === undefined) return []
+  const wildcardAt = relative.search(GLOB_SEGMENT)
+  const cut = wildcardAt === -1 ? relative.length : Math.max(relative.lastIndexOf('/', wildcardAt), 0)
+  const literal = relative.slice(0, cut)
+  const rest = relative.slice(cut)
+  const absolute = absoluteUnderRoot(root, literal)
+  const typed = toPosixPath(absolute)
+  const forms: string[] = []
+  for (const form of getPathsForPermissionCheck(absolute)) {
+    const posix = toPosixPath(form)
+    if (posix === typed) continue
+    const derived = rest === '' || rest.startsWith('/') || posix.endsWith('/') ? `${posix}${rest}` : `${posix}/${rest}`
+    forms.push(derived.startsWith('/') ? `/${derived}` : derived)
+  }
+  return forms
+}
+
+function cwdForms(): string[] {
+  const cwd = getCwd()
+  return [...new Set(getPathsForPermissionCheck(cwd).map(form => toPosixPath(form)))]
+}
+
+export function ruleMatcherFor(
+  context: ToolPermissionContext,
+  toolType: 'edit' | 'read',
+  behavior: 'allow' | 'deny' | 'ask',
+): ((path: string, all?: boolean) => PermissionRule[]) | null {
   const toolNames = toolType === 'edit' ? fileEditRuleToolNames() : fileReadRuleToolNames()
   const rules = rulesForToolFamilyAndBehavior(context, toolNames, behavior)
-
-  const groups = new Map<string | null, Array<{ pattern: string; rule: PermissionRule }>>()
+  type Group = { matcher: ReturnType<typeof ignore>; entries: Array<{ matcher: ReturnType<typeof ignore>; rule: PermissionRule }> }
+  const groups = new Map<string | null, Group>()
   for (const [pattern, rule] of rules) {
-    const { root } = rootForPattern(pattern, rule.source)
-    if (root === undefined) continue
-    const list = groups.get(root) ?? []
-    list.push({ pattern, rule })
-    groups.set(root, list)
-  }
-
-  const expanded = expandPath(path)
-  const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
-
-  for (const [root, entries] of groups) {
-    const base = root === null ? getCwd() : root
-    const relative = relativePath(base, candidatePath === '' ? getCwd() : candidatePath)
-    if (relativePathEscapes(relative)) continue
-    if (relative === '') continue
-
-    const matcher = ignore()
-    for (const { pattern, rule } of entries) {
-      const { relative: rel } = rootForPattern(pattern, rule.source)
-      const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
-      matcher.add(stripped)
+    for (const form of [pattern, ...resolvedPatternForms(pattern, rule.source)]) {
+      const { root, relative } = rootForPattern(form, rule.source)
+      if (root === undefined) continue
+      const stripped = relative.endsWith('/**') ? relative.slice(0, -3) : relative
+      const group = groups.get(root) ?? { matcher: ignore(), entries: [] }
+      group.matcher.add(stripped)
+      group.entries.push({ matcher: ignore().add(stripped), rule })
+      groups.set(root, group)
     }
-    const result = matcher.test(relative)
-    if (result.ignored) {
-      for (const { pattern, rule } of entries) {
-        const { relative: rel } = rootForPattern(pattern, rule.source)
-        const stripped = rel.endsWith('/**') ? rel.slice(0, -3) : rel
-        if (ignore().add(stripped).test(relative).ignored) {
-          found.push(rule)
+  }
+  if (groups.size === 0) return null
+  return (path, all = false) => {
+    const found: PermissionRule[] = []
+    const seen = new Set<PermissionRule>()
+    const expanded = expandPath(path)
+    const candidatePath = getPlatform() === 'windows' && expanded.includes('\\') ? toPosixPath(expanded) : expanded
+    const target = candidatePath === '' ? getCwd() : candidatePath
+    for (const [root, group] of groups) {
+      for (const base of root === null ? cwdForms() : [root]) {
+        const relative = relativePath(base, target)
+        if (relative === '' || relativePathEscapes(relative)) continue
+        if (!group.matcher.test(relative).ignored) continue
+        for (const entry of group.entries) {
+          if (seen.has(entry.rule) || !entry.matcher.test(relative).ignored) continue
+          seen.add(entry.rule)
+          found.push(entry.rule)
           if (!all) return found
         }
       }
     }
+    return found
   }
-  return found
 }
 
 export function pathMatchesRulePattern(path: string, pattern: string, source: PermissionRule['source'] = 'session'): boolean {

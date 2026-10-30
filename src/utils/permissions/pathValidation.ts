@@ -107,8 +107,8 @@ function validateGlobPattern(
   const hasTraversal = cleanPath.includes('..')
   const target = hasTraversal ? cleanPath : getGlobBaseDirectory(cleanPath)
   const absolute = isAbsolute(target) ? target : resolvePath(cwd, target)
-  const { resolvedPath, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
-  const precomputed = isCanonical ? getResolvedWorkingDirPaths(resolvedPath) : undefined
+  const { resolvedPath, isSymlink, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
+  const precomputed = isCanonical ? getResolvedWorkingDirPaths(isSymlink ? absolute : resolvedPath) : undefined
   const result = isPathAllowed(resolvedPath, context, operationType, precomputed)
   return { ...result, resolvedPath }
 }
@@ -177,8 +177,8 @@ export function validatePath(
     }
   }
   const absolute = isAbsolute(cleaned) ? cleaned : resolvePath(cwd, cleaned)
-  const { resolvedPath, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
-  const precomputed = isCanonical ? getResolvedWorkingDirPaths(resolvedPath) : undefined
+  const { resolvedPath, isSymlink, isCanonical } = safeResolvePath(getFsImplementation(), absolute)
+  const precomputed = isCanonical ? getResolvedWorkingDirPaths(isSymlink ? absolute : resolvedPath) : undefined
   const result = isPathAllowed(resolvedPath, context, operationType, precomputed)
   return { ...result, resolvedPath }
 }
