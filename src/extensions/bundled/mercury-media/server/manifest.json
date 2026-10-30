@@ -1,19 +1,19 @@
 {
-  "version": "0.2.7",
+  "version": "0.2.8",
   "runtimeTag": "master-1015-e41fbcf",
   "files": {
     "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
     "NOTICE": "5ffd9faf11e3cca3c879a3121532d8f9a275541b33e97bd20e328130fa23a01f",
     "THIRD_PARTY_NOTICES": "4c73eb1804f3427ea087d2904161202881c26eb56c8f516acd9255c8fa93a8c4",
     "catalog.json": "2da18ed42316d8df910abe9fd82342635232eea7c2cf89703e19a7dbad89b6ef",
-    "config.js": "e5f4d64df2e30ab850447edaaf8c1a64289aa285e14ffa57aadb76ba1a3996f5",
-    "engine-host.js": "5733fb45551259c08bbfe279d1c2d695de2096af33e5c4a62a8d06ed0253d9f2",
+    "config.js": "e3233eee98d4d66954ef53e721f442bf6863fd02e6a5e5e5975541f932a60b2d",
+    "engine-host.js": "2eda423f8a70a944abb52a92b2b3e3dcd83fe5d5a0bdbc533f8cdf5da77dbb08",
     "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
     "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
-    "remote-client.js": "c9f2cca3737dfe1c5b9ff571ce787421fac8d28c533d162e4909af010f0b3986",
-    "remote-server.js": "592f34d392af8a14e66837c3d16d58a49b4b6b7af80e95cb2d0da37665ac5ce8",
-    "server.js": "803d91a9b00f2deb8c2bff4b1fab6a1611807c98cd4d992597425420718faa66",
-    "setup.js": "afc73012a5a072877a71d8b25e1d6a168e5e3bf5173431015fa6f4f0879eddf7",
+    "remote-client.js": "e08f68694f0d8a165213a2a7181edd4a83151474ac4f822c471b42060d025166",
+    "remote-server.js": "1dfbd57f636fa4b3932667771a0cd3889b331f7f257d66edfa05bc1059c970ad",
+    "server.js": "5e6a892ed8eca1deab6aa94b6242b310a0f1395ac2d2f6ab288783e0b599664b",
+    "setup.js": "609fba41d449f5348187143fc4f72ff4f3342144fca5a60a894b517c888a4b01",
     "workflow.js": "dd3cc6c2e93f5aa0647a6d894fa881c9d3da7750d5f515423efb882647207737"
   }
 }
