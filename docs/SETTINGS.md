@@ -125,7 +125,7 @@ is 1–32 lowercase letters, digits or hyphens; select a model as
 | `compatProvider.<name>.models` | Vendor model ids. Without a list, named endpoints read `/models` when catalogue traffic is on. |
 | `compatProvider.<name>.headers` | Extra request headers; credential and transport headers are reserved. |
 | `compatProvider.<name>.sessionAffinityHeader` | A header carrying the session id on model requests. |
-| `compatProvider.<name>.dialect` | `chat-completions` (default), `responses`, `ollama`, `lmstudio`, `vllm` or `llamacpp`; server dialects use their Chat Completions profiles. |
+| `compatProvider.<name>.dialect` | `chat-completions` (default), `responses`, `ollama`, `lmstudio`, `vllm`, `sglang` or `llamacpp`; server dialects use their Chat Completions profiles. |
 
 `/logins compat/<name>` stores a key for that endpoint alone.
 `MERCURY_COMPAT_<NAME>_API_KEY` takes precedence: uppercase the name and
@@ -196,7 +196,7 @@ where each rule came from.
 | `memory.directory` | A custom memory directory. Checked-in project settings cannot choose it. |
 | `memory.pinnedLimit` | The pinned shelf's text limit in characters, at least 1000; 8000 by default. Every pinned rule still loads above the limit. |
 | `memory.startLimit` | How much memory text rides at the start of a session (`# Memory at start`) beyond the pinned rules, in characters, at least 1000; 4000 by default (`/config` row **Memory at start, beyond the pins**). The pinned rules always ride whole and never count against it; the allowance takes the facts and earlier notes most relevant to the branch, the files touched lately and the last note. What is left out is a Recall away. |
-| `memory.embeddingModel` | Which embedding model memory ranks recall by meaning with (`/config` row **Memory recall ranking`), beside the word match: a model name this install carries (`bge-base-en-v1.5`, the shipped default), or the path of a `.gguf` file. A name or path that resolves nowhere leaves memory on `word match only`, and the front page says so. |
+| `memory.embeddingModel` | Which embedding model memory ranks recall by meaning with (`/config` row **Memory recall ranking**), beside the word match: a model name this install carries (`bge-base-en-v1.5`, the shipped default), or the path of a `.gguf` file. A name or path that resolves nowhere leaves memory on `word match only`, and the front page says so. |
 | `memory.journal` | The session journal, off by default: when `true`, at session end the model writes a brief entry (where the project is, the queued backlog, the constraints you set) into `<config home>/projects/<project>/journal/journal.md` in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury. |
 | `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its `# Lineage` entry page; off by default. What the model reads at entry travels to the engine's provider with the request ("never uploaded" means Mercury itself never pushes, syncs or shares the journal). |
 | `memory.tellEngineSwitch` | `true` tells the model when its model is switched: one line reaches it at the switch naming the new model, the time with its time zone, and instructing it to include the zone when repeating the time. Off by default: a switch is invisible to the model (the `/model` rows stay your record, and if you ask which model is running, the model reads the live session record at `mercury://seat`). |
