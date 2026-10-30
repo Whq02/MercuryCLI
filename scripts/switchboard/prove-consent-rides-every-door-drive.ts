@@ -297,7 +297,7 @@ for (const run of RUNS) {
     check(`${run.id} the press HOLDS on the runner — its own facts agree with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode}`)
     check(`${run.id} the consented birth lands on the WARM road (the pool's runner carries the consent — no claim refusal, no cold respawn)`, warmRoad, log.filter(l => /claim|retired/i.test(l)).join(' | ').slice(0, 300))
   } else {
-    check(`${run.id} without consent Sovereign NEVER appears (born or cycled)`, !stations.includes('sovereign'), stations.join(' → '))
+    check(`${run.id} without the flag the shift+tab cycle still OFFERS the Sovereign station (on every interactive carousel)`, stations.slice(1).includes('sovereign'), stations.slice(1).join(' → '))
     check(`${run.id} without consent the runner still agrees with the band`, trueMode === lastBand, `band=${lastBand} facts=${trueMode}`)
   }
   reapHome(home)
@@ -307,7 +307,7 @@ if (counts.r4 !== undefined) {
   for (const id of ['r1', 'r2', 'r3', 'r5']) {
     const c = counts[id]
     if (c === undefined) continue
-    check(`${id} station count = the control's + 1 (${c.distinct} vs ${counts.r4.distinct})`, c.distinct === counts.r4.distinct + 1)
+    check(`${id} station count = the control's (${c.distinct} vs ${counts.r4.distinct}) — the flag changes the birth posture, never the carousel`, c.distinct === counts.r4.distinct)
   }
 }
 console.log(`\n[SUMMARY] ${Object.entries(counts).map(([id, c]) => `${id}=${c.distinct}`).join(' · ')}`)
