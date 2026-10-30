@@ -141,6 +141,7 @@ const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.
 
 const FIRST_PARTY_GENERATION_RE = new RegExp(
   `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:[.-]\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?!\\d))`,
+  'i',
 )
 
 export const DECLARED_GENERATION_STEMS: ReadonlyMap<string, string> = new Map(

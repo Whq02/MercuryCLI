@@ -8,9 +8,9 @@ const model = await import('../../src/utils/model/model.ts')
 const cost = await import('../../src/utils/modelCost.ts')
 const { configureEffortParams } = await import('../../src/services/providers/anthropic/requestParams.ts')
 for (const [dotted, dashed] of [['claude-opus-4.8', 'claude-opus-4-8'], ['claude-sonnet-4.6', 'claude-sonnet-4-6'], ['claude-haiku-4.5', 'claude-haiku-4-5']]) {
-  for (const suffix of ['', '[1m]', '-20260101']) {
-    const a = dotted + suffix
-    const b = dashed + suffix
+  for (const suffix of ['', '[1m]', '-20260101']) for (const upper of [false, true]) {
+    const a = (upper ? dotted.toUpperCase() : dotted) + suffix
+    const b = (upper ? dashed.toUpperCase() : dashed) + suffix
     assert.equal(model.getCanonicalName(a), model.getCanonicalName(b), a)
     assert.equal(caps.getContextWindowForModel(a), caps.getContextWindowForModel(b), a)
     assert.deepEqual(caps.getModelMaxOutputTokens(a), caps.getModelMaxOutputTokens(b), a)
