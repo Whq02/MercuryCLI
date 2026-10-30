@@ -42,7 +42,8 @@ function all(node: Node, name: string): Node[] {
 const first = (node: Node, name: string) => all(node, name)[0]
 const text = (node: Node): string => node.children.map(c => typeof c === 'string' ? c : text(c)).join('')
 function runs(node: Node): string {
-  if (node.name === 't') return text(node)
+  if (node.name === 't' || node.name === 'delText') return text(node)
+  if (node.name === 'ins' || node.name === 'del') return `[${node.name === 'ins' ? 'inserted' : 'deleted'}: ${nodes(node).map(runs).join('')}]`
   if (node.name === 'tab') return '\t'
   if (node.name === 'br' || node.name === 'cr') return '\n'
   if (node.name === 'footnoteReference' || node.name === 'endnoteReference') return `[^${node.attrs.id}]`
@@ -64,8 +65,14 @@ export function officeWord(xml: string, styles = ''): string {
     const indent = list ? '  '.repeat(Math.min(8, Number(first(list, 'ilvl')?.attrs.val) || 0)) : ''
     return `${level ? '#'.repeat(level) + ' ' : list ? `${indent}- ` : ''}${runs(p).trim()}`
   }
+  function wordCell(node: Node): string {
+    const span = Number(first(node, 'gridSpan')?.attrs.val) || 1
+    const merge = first(node, 'vMerge')
+    const dimensions = [span > 1 ? `colspan ${span}` : '', merge ? (merge.attrs.val === 'restart' ? 'row merge start' : 'row merge continuation') : ''].filter(Boolean)
+    return `${cell(walk(node))}${dimensions.length ? ` [${dimensions.join('; ')}]` : ''}`
+  }
   function walk(node: Node): string {
-    if (node.name === 'tbl') return nodes(node).filter(n => n.name === 'tr').map(row => `| ${nodes(row).filter(n => n.name === 'tc').map(c => cell(walk(c))).join(' | ')} |`).join('\n')
+    if (node.name === 'tbl') return nodes(node).filter(n => n.name === 'tr').map(row => `| ${nodes(row).filter(n => n.name === 'tc').map(wordCell).join(' | ')} |`).join('\n')
     if (node.name === 'p') return paragraph(node)
     if (['footnote', 'endnote', 'comment'].includes(node.name)) {
       if (Number(node.attrs.id) < 0 || node.attrs.type === 'separator' || node.attrs.type === 'continuationSeparator') return ''
@@ -134,7 +141,8 @@ export function officeOdf(xml: string): string {
 }
 
 export function officeSpreadsheet(xml: string, shared: string[]): string {
-  return all(parse(xml), 'row').map(row => {
+  const root = parse(xml)
+  const rows = all(root, 'row').map(row => {
     const cells: string[] = []
     for (const c of nodes(row).filter(n => n.name === 'c')) {
       const reference = /^([A-Z]+)\d+$/.exec(c.attrs.r ?? '')?.[1]
@@ -148,6 +156,8 @@ export function officeSpreadsheet(xml: string, shared: string[]): string {
     }
     return cells.join('\t')
   }).join('\n')
+  const merges = all(root, 'mergeCell').map(node => node.attrs.ref).filter(Boolean)
+  return rows + (merges.length ? `\n[Merged cells: ${merges.join(', ')}]` : '')
 }
 
 export function officeRelationships(xml: string): Map<string, string> {

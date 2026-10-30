@@ -946,6 +946,10 @@ export function renderDocumentBytes(buf: Buffer, ext: string, filePath = `docume
       body = extractRtfText(buf.toString('latin1'), filePath)
       break
   }
+  if (['docx', 'xlsx', 'pptx'].includes(ext)) {
+    const images = readZipEntries(buf, filePath).filter(entry => !entry.isDirectory && /^(?:word|xl|ppt)\/media\//.test(entry.name) && /\.(?:png|jpe?g|gif|svg|webp|bmp|tiff?|emf|wmf)$/i.test(entry.name))
+    if (images.length) body += `\n\n${images.map(entry => `[Image: ${entry.name.replace(/[\r\n\t]/g, ' ')}]`).join('\n')}`
+  }
   return `(document: ${ext})\n${body}`.trimEnd()
 }
 

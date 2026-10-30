@@ -32,7 +32,7 @@ export async function extractDocumentText(path: string, signal?: AbortSignal): P
   if (info.size > 16 * 1024 * 1024) throw new Error(`${path}: document exceeds the 16 MiB container limit. Split the document and read one part at a time.`)
   const bytes = await readFile(path, { signal })
   const digest = createHash('sha256').update(bytes).update(ext).digest('hex')
-  const cached = join(getToolResultsDir(), `document-text-v3-${digest}.txt`)
+  const cached = join(getToolResultsDir(), `document-text-v4-${digest}.txt`)
   try { return await readFile(cached, 'utf8') } catch {}
   const text = renderDocumentBytes(bytes, ext, path)
   await ensureToolResultsDir()
