@@ -21,10 +21,10 @@ function clip(text: string): string {
   return `${cut.replace(/[\s,;:(]+$/, '')}…`
 }
 
-let pages: Readonly<Record<string, string>> | undefined
+const PAGES: Readonly<Record<string, string>> = Object.freeze(bundledDocPages())
 
 export function mercuryDocPages(): Readonly<Record<string, string>> {
-  return pages ??= Object.freeze(bundledDocPages())
+  return PAGES
 }
 
 function htmlHeadingTitle(lines: readonly string[], start: number): string {
