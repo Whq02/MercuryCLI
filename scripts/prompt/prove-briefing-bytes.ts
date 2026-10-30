@@ -6,8 +6,8 @@ import { captureBriefing, dist, reminderTextsOf, systemTextOf } from './_briefin
 const CEILINGS = {
   tools: 23_000,
   system: 8_600,
-  attachments: 6_350,
-  request: 38_500,
+  attachments: 6_250,
+  request: 38_400,
 } as const
 const ECONOMY_DEFERRED = ['Crewmate', 'Skill', 'Test', 'LspRead', 'AstSearch']
 const EAGER = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch']

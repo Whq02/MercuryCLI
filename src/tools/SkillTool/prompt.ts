@@ -27,9 +27,13 @@ function getCharBudget(contextWindowTokens?: number): number {
 
 type ListingCommand = Command & { whenToUse?: string; loadedFrom?: string }
 
+const SENTENCE_CLIP_FLOOR = 0.7
+
 function clipDescription(description: string, limit: number, width = false): string {
   if ((width ? stringWidth(description) : description.length) <= limit) return description
   const head = width ? truncateToWidth(description, limit).slice(0, -1) : description.slice(0, limit - 1)
+  const sentence = /^[\s\S]*[.!?](?=\s)/.exec(head)
+  if (sentence && sentence[0].length >= limit * SENTENCE_CLIP_FLOOR) return sentence[0]
   if (/\s/.test(description.charAt(head.length))) return `${head.trimEnd()}…`
   const boundary = /\s\S*$/.exec(head)
   return `${boundary && boundary.index > 0 ? head.slice(0, boundary.index).trimEnd() : head}…`
