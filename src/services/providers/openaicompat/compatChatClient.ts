@@ -616,6 +616,7 @@ export async function* streamCompatChat(
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
     let rawHead = ''
+    const bodyDecoder = new TextDecoder()
     let sawEvent = false
     let watchdog = local === undefined ? createStreamIdleWatchdog({ timeoutMs: idleMs, silentAfterHeadersMs: options.silentAfterHeadersMs ?? null }) : null
     idleWatchdog = watchdog
@@ -735,10 +736,11 @@ export async function* streamCompatChat(
         void reader.cancel().catch(() => {})
         return
       }
-      if (!chunk.done && !sawEvent && rawHead.length < 4096) rawHead += Buffer.from(chunk.value!).toString('utf8').slice(0, 4096 - rawHead.length)
+      if (!sawEvent) rawHead += bodyDecoder.decode(chunk.done ? undefined : chunk.value, { stream: !chunk.done })
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
       if (results.some(item => item.kind === 'event')) {
         sawEvent = true
+        rawHead = ''
       } else relay.noteChunk()
       let chunkNotedEvent = false
       let chunkHadEvent = false
@@ -827,17 +829,27 @@ export async function* streamCompatChat(
       if (chunk.done) break
     }
 
-    if (!finished && !sawEvent) {
+    if (!finished && !sawEvent && rawHead.trim() !== '') {
       let head: unknown
       try {
         head = JSON.parse(rawHead)
       } catch {
         head = undefined
       }
-      const envelope = vendorEnvelopeFault(head)
-      if (envelope !== undefined) {
-        finished = true
-        yield { type: 'stream-fault', fault: envelope }
+      const record = asRecord(head)
+      if (record?.error !== undefined || vendorEnvelopeFault(head) !== undefined) {
+        yield { type: 'stream-fault', fault: mapCompatHttpFailure(response.status, head, response.headers) }
+        return
+      }
+      if (Array.isArray(record?.choices)) {
+        for (const event of decodeChunk(head, toolAcc, activeSlotByRawIndex, response.headers)) {
+          if (event.type === 'finish' || event.type === 'stream-fault') finished = true
+          yield event
+        }
+        if (finished) return
+      } else if (!/^(?:data:|event:|:)/.test(rawHead.trimStart())) {
+        yield { type: 'stream-fault', fault: { kind: 'api-error', code: 'unexpected-response-body', message: `Expected an event stream or chat completion, received ${response.headers.get('content-type') ?? 'an unknown content type'}: ${rawHead.trim().slice(0, 240)}`, retryable: false } }
+        return
       }
     }
     if (options.requireDone && !sawDone) {
@@ -944,7 +956,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
   }
   const choices = Array.isArray(o?.choices) ? o!.choices : []
   const choice = asRecord(choices[0])
-  const delta = asRecord(choice?.delta)
+  const delta = asRecord(choice?.delta) ?? asRecord(choice?.message)
 
   const reasoning = delta?.reasoning_content
   const reasoningAlt = delta?.reasoning
