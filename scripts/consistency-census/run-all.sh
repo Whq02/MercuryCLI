@@ -9,7 +9,7 @@
 # gate-watch: src/components/mercury-ui/assets.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/constants/prompts.ts src/entrypoints/cli.tsx src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/ink/ink.tsx src/services/dap/dapClient.ts src/services/dap/debugpyResolver.ts
-# gate-watch: src/services/privateChannel/channelCore.ts src/services/workContexts/workContexts.ts
+# gate-watch: src/services/privateChannel/channelCore.ts
 # gate-watch: src/state/selectors.ts src/tools/AgentTool/AgentTool.tsx src/tools/AgentTool/runAgent.ts
 # gate-watch: src/tools/WorkflowTool/agentHooks.ts src/utils/* src/utils/cockpit/critterData.ts
 # gate-watch: src/utils/messages/systemMessages.ts src/utils/model/modelTransition.ts

@@ -155,11 +155,6 @@ const settle = (repo: string, lane: string, branch: string, head: string) =>
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
   const root = join(import.meta.dir, '../..')
-  const contexts = readFileSync(join(root, 'src/services/workContexts/workContexts.ts'), 'utf8')
-  check(
-    '§M operator work contexts keep the FULL -uall preview (operator-intentional law — never an agent removal policy)',
-    contexts.includes("'-uall'") && !contexts.includes('settleAgentWorktree'),
-  )
   const janitor = readFileSync(join(root, 'src/utils/worktree.ts'), 'utf8')
   check(
     '§M the janitor classifies via the same delta (the -uno split is gone)',

@@ -3,23 +3,6 @@ import { readFileSync } from 'node:fs'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const R = await import('../../src/services/workbench/returnState.ts')
-
-t.section('§1 — the seam')
-{
-  R._resetReturnStateForTesting()
-  t.check('empty at start', R.restoreReturnState('workbench') === null)
-  R.captureReturnState('workbench', { rowKey: 'at:thread:x', drafts: { dispatch: 'run it' }, atMs: 1 })
-  R.captureReturnState('workflows', { rowKey: 'wf_1', atMs: 2 })
-  const a = R.restoreReturnState('workbench')
-  const b = R.restoreReturnState('workbench')
-  t.check('restore is an idempotent read', a !== null && a === b && a!.rowKey === 'at:thread:x')
-  t.check('surfaces are independent', R.restoreReturnState('workflows')?.rowKey === 'wf_1')
-  R.clearReturnState('workbench')
-  t.check('clear consumes one surface only', R.restoreReturnState('workbench') === null && R.restoreReturnState('workflows') !== null)
-  R._resetReturnStateForTesting()
-}
-
 t.section('§2 — the surface retired (the prompts panel has no deep-links)')
 {
   const panel = readFileSync('src/components/prompts-panel/PromptsPanel.tsx', 'utf8')
@@ -29,7 +12,6 @@ t.section('§2 — the surface retired (the prompts panel has no deep-links)')
     .trim()
     .split('\n')
     .filter(Boolean)
-    .filter(f => f !== 'src/services/workbench/returnState.ts')
   t.check('no surface captures a return origin (the seam has no product consumer)', consumers.length === 0, consumers.join(', ') || 'none')
 }
 

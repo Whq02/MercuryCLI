@@ -169,16 +169,6 @@
       "reason": "The shipped verify-artifact entrypoint: packaged as its own standalone file by the release packager and executed offline by installers (`verify-artifact.mjs --deep`); reached from the packaged artifact, not the runtime graph."
     },
     {
-      "file": "src/services/workContexts/workContexts.ts",
-      "class": "superseded-unreachable",
-      "reason": "The work-context bind/park/cleanup owner behind the WORK/workbench board's LANES verbs, retired in place; the MERCURY_WORK_CONTEXTS_DIR registry row names it as consumer, so the flag is PARKED with it (the reachability manifest records the parking, not a severed flag). Kept for the retire-or-adopt decision on the retire-or-adopt line."
-    },
-    {
-      "file": "src/services/workbench/returnState.ts",
-      "class": "superseded-unreachable",
-      "reason": "The attach/detach return-state seam of the WORK/workbench board (deep-link out, carry the row back), retired in place: the prompts panel has no deep-links. Kept for the retire-or-adopt decision on the retire-or-adopt line; attention/prove-attach-return still locks the seam."
-    },
-    {
       "file": "src/substrate/durableOperationMatrix.ts",
       "class": "metadata-or-generated",
       "reason": "The durable-operation machine registry: consumed by scripts/reliability/gen-durable-matrix.ts + prove-durable-matrix.ts (and the fulcrum suite) to render the durable-operation matrix on demand. A generator-consumed metadata owner is correctly outside the runtime import graph."

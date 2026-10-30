@@ -35,7 +35,6 @@
     "src/services/run/runSidecar.ts",
     "src/services/samples/store.ts",
     "src/services/vulcan/addonInstaller.ts",
-    "src/services/workContexts/workContexts.ts",
     "src/substrate/fileStore.ts",
     "src/substrate/operationJournal.ts",
     "src/substrate/pidLock.ts",
