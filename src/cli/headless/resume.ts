@@ -25,7 +25,7 @@ import {
   restoreSessionMetadata,
 } from 'src/utils/sessionStorage.js'
 import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
-import { refusedOutcome } from './refusalEnvelope.js'
+import { formatPrintsOutcomeRow, refusedOutcome } from './refusalEnvelope.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
 import { recordContentReplacement, listProjectSessions, sessionIdOfListing } from '../../utils/sessionStorage.js'
@@ -38,7 +38,7 @@ export function emitLoadError(
   message: string,
   outputFormat: string | undefined,
 ): void {
-  if (outputFormat === 'rows') {
+  if (formatPrintsOutcomeRow(outputFormat)) {
     process.stdout.write(jsonStringify(refusedOutcome([message], 'load')) + '\n')
   } else {
     process.stderr.write(message + '\n')

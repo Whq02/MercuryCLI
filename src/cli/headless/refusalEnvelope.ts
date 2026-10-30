@@ -4,6 +4,10 @@ import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
 import { createRowStamper, outcomeRow } from '../../rows/project.js'
 import type { ErrorClass, OutcomeRow, OutcomeStatus } from '../../rows/vocabulary.js'
 
+export function formatPrintsOutcomeRow(format: string | undefined): boolean {
+  return format === 'rows' || format === 'json'
+}
+
 export function refusedOutcome(messages: string[], errorClass: ErrorClass = 'option', status: OutcomeStatus = 'refused'): OutcomeRow {
   const [message = 'The request was refused', ...detail] = messages
   return createRowStamper().stamp(

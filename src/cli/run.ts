@@ -48,7 +48,7 @@ import { declareLawfulPrefixChange, declareLawfulPrefixChangeForEveryOwner, requ
 import { watchLiveMcpConfig } from '../services/mcp/liveConfig.js'
 import { dynamicMcpConfigSnapshot, isStrictMcpConfigSeed } from '../services/mcp/dynamicMcpSeed.js'
 import { bootModelRefusalLine, resolveHeadlessModel } from './headless/model.js'
-import { refusedOutcome } from './headless/refusalEnvelope.js'
+import { formatPrintsOutcomeRow, refusedOutcome } from './headless/refusalEnvelope.js'
 import { createRosterTransitionMessage, createSeatReceiptMessage } from '../utils/messages/systemMessages.js'
 import { isToolResultMessage } from '../utils/messages/merge.js'
 import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
@@ -480,7 +480,7 @@ export async function runHeadless(
     } catch (error) {
       const message = errorMessage(error)
       if (options.door !== 'wire') {
-        if (options.outputFormat === 'rows') process.stdout.write(jsonStringify(refusedOutcome([message])) + '\n')
+        if (formatPrintsOutcomeRow(options.outputFormat)) process.stdout.write(jsonStringify(refusedOutcome([message])) + '\n')
         else process.stderr.write(`${message}\n`)
         gracefulShutdownSync(1)
         return

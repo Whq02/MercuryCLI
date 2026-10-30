@@ -121,7 +121,7 @@ import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import chalk from 'chalk'
-import { refusedOutcome } from './cli/headless/refusalEnvelope.js'
+import { formatPrintsOutcomeRow, refusedOutcome } from './cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -177,9 +177,9 @@ function exitWithVersionLine(): never {
   process.exit(0)
 }
 
-function wantsRowStream(): boolean {
+function wantsOutcomeEnvelope(): boolean {
   const args = inspectRunArgs(process.argv.slice(2))
-  return args.command === 'run' && args.format === 'rows'
+  return args.command === 'run' && formatPrintsOutcomeRow(args.format)
 }
 
 const USAGE_ERROR_CODES = new Set([
@@ -209,7 +209,7 @@ function exitForCommanderError(error: { code?: string; exitCode?: number; messag
 }
 
 function failCli(message: string, code: 1 | 2 = 2): never {
-  if (wantsRowStream()) {
+  if (wantsOutcomeEnvelope()) {
     try {
       const envelope = refusedOutcome([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
@@ -601,7 +601,7 @@ async function run(): Promise<void> {
 
   if (isRunArgv()) {
     profileCheckpoint('run_before_parse')
-    if (wantsRowStream()) {
+    if (wantsOutcomeEnvelope()) {
       program.exitOverride()
       runCommand.exitOverride()
       try {
@@ -618,7 +618,7 @@ async function run(): Promise<void> {
           exitForCommanderError(commanderError)
         }
         const { emitLoadError } = await import('./cli/headless/resume.js')
-        emitLoadError(String(commanderError.message ?? error), 'rows')
+        emitLoadError(String(commanderError.message ?? error), inspectRunArgs(process.argv.slice(2)).format)
         process.exit(
           commanderError.code !== undefined && USAGE_ERROR_CODES.has(commanderError.code)
             ? 2

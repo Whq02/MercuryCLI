@@ -38,7 +38,7 @@ async function main(): Promise<void> {
     } catch (error) {
       const message = `Project root: ${error instanceof Error ? error.message : String(error)}`
       console.error(message)
-      if (runArgs.command === 'run' && runArgs.format === 'rows') {
+      if (runArgs.command === 'run' && (runArgs.format === 'rows' || runArgs.format === 'json')) {
         const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
         writeSync(1, `${JSON.stringify(refusedOutcome([message], 'load'))}\n`)
       }
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
   {
     const { setupGracefulShutdown, setRunPreflightSignalWriter } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
-    if (runArgs.command === 'run' && runArgs.format === 'rows' && runArgs.input !== 'rows' && !runArgs.outputRequest) {
+    if (runArgs.command === 'run' && (runArgs.format === 'rows' || runArgs.format === 'json') && runArgs.input !== 'rows' && !runArgs.outputRequest) {
       const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
       setRunPreflightSignalWriter(code => {
         const signal = code === 130 ? 'SIGINT' : code === 129 ? 'SIGHUP' : 'SIGTERM'
@@ -251,7 +251,7 @@ main().catch(async (error: unknown) => {
   try {
     const { inspectRunArgs } = await import('../cli/runArgs.js')
     const run = inspectRunArgs(process.argv.slice(2))
-    if (run.command === 'run' && run.format === 'rows' && run.input !== 'rows' && !run.outputRequest) {
+    if (run.command === 'run' && (run.format === 'rows' || run.format === 'json') && run.input !== 'rows' && !run.outputRequest) {
       const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
       writeSync(1, `${JSON.stringify(refusedOutcome([error instanceof Error ? error.message : String(error)], 'internal', 'failed'))}\n`)
     }
