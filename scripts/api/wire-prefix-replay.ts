@@ -433,7 +433,7 @@ function sseResponseSummary(): { feed(chunk: string): void; summary(): CaptureRe
   }
 }
 
-export async function startTap(opts: { out: string; upstream: string; port?: number }): Promise<{ port: number; close(): void }> {
+async function startTap(opts: { out: string; upstream: string; port?: number }): Promise<{ port: number; close(): void }> {
   let seq = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []

@@ -9,7 +9,7 @@ export const TAIL_SENTINEL = 'FIXTURE-TAIL-⟦1K⟧'
 
 export const STREAM_FIN = '⟦CFIN⟧'
 
-export const CHAPTERS_DEFAULT = 53
+const CHAPTERS_DEFAULT = 53
 
 function lcg(seed: number): () => number {
   let s = seed >>> 0

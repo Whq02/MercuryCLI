@@ -77,7 +77,7 @@ export function teeBytes(bytes: Uint8Array): Uint8Array {
   return Buffer.concat(readTeeFrames(bytes).map(f => Buffer.from(f.data)))
 }
 
-export function readTeeAsAppleTerminal(bytes: Uint8Array): Uint8Array {
+function readTeeAsAppleTerminal(bytes: Uint8Array): Uint8Array {
   const parts: Buffer[] = []
   for (const frame of readTeeFrames(bytes)) {
     const read = Buffer.from(applyAppleTerminalReading(frame.data))

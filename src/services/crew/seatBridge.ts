@@ -30,7 +30,7 @@ export interface SeatHandshakeResult {
   raw?: unknown
 }
 
-export interface SeatDeliveryRequest {
+interface SeatDeliveryRequest {
   clientMessageId: string
   disposition: 'steer-current' | 'hold-next' | 'start-turn'
   instruction: string

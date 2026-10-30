@@ -1,5 +1,5 @@
 
-export const CAPABILITY_STATES = ['supported', 'unsupported', 'unknown'] as const
+const CAPABILITY_STATES = ['supported', 'unsupported', 'unknown'] as const
 export type CapabilityState = (typeof CAPABILITY_STATES)[number]
 
 export const CAPABILITY_KINDS = [
@@ -19,7 +19,7 @@ export const CAPABILITY_KINDS = [
 ] as const
 export type CapabilityKind = (typeof CAPABILITY_KINDS)[number]
 
-export interface CapabilityFact {
+interface CapabilityFact {
   kind: CapabilityKind
   state: CapabilityState
   source: string
@@ -101,7 +101,7 @@ export function capabilityStateOf(seatId: string, kind: CapabilityKind): Capabil
   return set.facts.get(kind)!
 }
 
-export type CapabilityAuthorization =
+type CapabilityAuthorization =
   | { ok: true; fact: CapabilityFact; revision: string }
   | { ok: false; reason: string; fact: CapabilityFact }
 

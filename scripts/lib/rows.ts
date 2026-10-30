@@ -60,7 +60,7 @@ const isTurnWaiting = (f: Frame | null | undefined): boolean => f?.type === 'tur
 export const isText = (f: Frame | null | undefined): boolean => f?.type === 'text'
 export const isToolCall = (f: Frame | null | undefined): boolean => f?.type === 'tool_call'
 export const isToolResult = (f: Frame | null | undefined): boolean => f?.type === 'tool_result'
-export const isStep = (f: Frame | null | undefined): boolean => f?.type === 'step'
+const isStep = (f: Frame | null | undefined): boolean => f?.type === 'step'
 export const isMainThread = (f: Frame | null | undefined): boolean => f !== null && f !== undefined && f.parent_call_id === undefined
 export const isCompleted = (f: Frame | null | undefined): boolean => isOutcome(f) && f?.status === 'completed'
 export const outcomeError = (f: Frame | null | undefined): string | undefined => (isOutcome(f) ? ((f?.error as { message?: string } | undefined)?.message ?? undefined) : undefined)
@@ -68,7 +68,7 @@ export const answerOf = (f: Frame | null | undefined): string => (isOutcome(f) &
 const textOf = (frames: readonly Frame[]): string => frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? '')).join('')
 
 export const outcomeCount = (stdout: string): number => frameLines(stdout).filter(isOutcome).length
-export const hasOutcome = (stdout: string): boolean => frameLines(stdout).some(isOutcome)
+const hasOutcome = (stdout: string): boolean => frameLines(stdout).some(isOutcome)
 const outcomeLines = (lines: readonly string[]): string[] => lines.filter(line => isOutcome(parseFrame(line)))
 export const lastOutcome = (frames: readonly Frame[]): Frame | undefined => frames.filter(isOutcome).at(-1)
 const completedAnswer = (stdout: string): string | undefined => {

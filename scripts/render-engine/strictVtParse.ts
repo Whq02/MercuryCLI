@@ -9,7 +9,7 @@ interface CaptureFrames {
   durationNs: bigint
 }
 
-export function readCapture(buf: Buffer): CaptureFrames {
+function readCapture(buf: Buffer): CaptureFrames {
   const chunks: Buffer[] = []
   let frames = 0
   let outFrames = 0

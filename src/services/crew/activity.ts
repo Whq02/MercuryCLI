@@ -16,9 +16,9 @@ export const ACTIVITY_CLASSES = [
   'handoff',
   'unknown',
 ] as const
-export type ActivityClass = (typeof ACTIVITY_CLASSES)[number]
+type ActivityClass = (typeof ACTIVITY_CLASSES)[number]
 
-export const ACTIVITY_PHASES = [
+const ACTIVITY_PHASES = [
   'queued',
   'running',
   'waiting',
@@ -26,7 +26,7 @@ export const ACTIVITY_PHASES = [
   'failed',
   'cancelled',
 ] as const
-export type ActivityPhase = (typeof ACTIVITY_PHASES)[number]
+type ActivityPhase = (typeof ACTIVITY_PHASES)[number]
 
 export interface AgentActivityV1 {
   activityId: string
@@ -113,7 +113,7 @@ export function classifyActivity(input: ActivityInput): AgentActivityV1 {
 }
 
 
-export interface ActivityFeedState {
+interface ActivityFeedState {
   rows: ReadonlyMap<string, AgentActivityV1>
   order: readonly string[]
 }
