@@ -3,7 +3,7 @@
 // gate-watch: src/main.tsx src/cli/** src/commands/** src/tools/** src/skills/bundled/** src/keybindings/**
 // gate-watch: src/utils/settings/** src/utils/hooks/contract.ts src/substrate/flagRegistry.ts src/components/ConsoleOAuthFlow.tsx
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix } from 'node:path'
 
@@ -15,7 +15,12 @@ const REV = revAt >= 0 ? argv[revAt + 1] ?? null : null
 const fileAt = argv.indexOf('--file')
 const ONLY_FILE = fileAt >= 0 ? argv[fileAt + 1] ?? null : null
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'docs-names-home-'))
+if (!existsSync(join(ROOT, 'dist', 'mercury.mjs'))) {
+  console.error('  [FAIL] dist/mercury.mjs missing — run bun run build.ts first')
+  process.exit(1)
+}
+const HOME = mkdtempSync(join(tmpdir(), 'docs-names-home-'))
+process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DESKTOP_DRIVER = 'none'
 delete process.env.MERCURY_HOME
@@ -597,6 +602,10 @@ async function buildVocab(): Promise<Vocab> {
   const rootHelp = parseHelp(await helpOf([]))
   const verbNames = rootHelp.cmds.map(c => (c.split(/\s+/)[0] ?? '').split('|')).filter(n => n[0] !== 'help')
   const rootVerbs = new Set([...verbNames.flat(), 'help'])
+  if (!rootVerbs.has('run') || !rootVerbs.has('health')) {
+    console.error('  [FAIL] the root help of dist/mercury.mjs lists no run or health verb — the command line could not be read')
+    process.exit(1)
+  }
   const verbFlags = new Map<string, Set<string>>()
   const verbSubs = new Map<string, Set<string>>()
   const flagsOfOpts = (opts: string[]): Set<string> => new Set(opts.flatMap(s => [...s.matchAll(/--[a-z0-9-]+/g)].map(m => m[0])))
@@ -899,6 +908,7 @@ const unique = hits.filter(h => {
 const verb = REPORT ? 'hit' : 'FAIL'
 for (const h of unique) console.error(`  [${verb}] ${h.file}:${h.line} ${h.kind} ${h.name} — ${h.detail}`)
 console.log(`docs-names: ${pages.length} pages scanned${REV !== null ? ` at ${REV.slice(0, 10)}` : ''}, ${unique.length} name(s) the code does not carry`)
+rmSync(HOME, { recursive: true, force: true })
 if (unique.length > 0 && !REPORT) {
   console.error('❌ docs-names: the docs state names the code does not have as stated')
   process.exit(1)
