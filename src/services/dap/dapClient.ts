@@ -11,7 +11,7 @@ import { createServer as createNetServer, connect as netConnect, type Socket } f
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { debugpyVendorRoot, pythonSpawnEnv } from './debugpyResolver.js'
+import { bundledPythonInterpreter, debugpyVendorRoot, pythonSpawnEnv } from './debugpyResolver.js'
 import { installedOptionalAdapter, optionalAdapterPlan } from './optionalAdapters.js'
 import * as path from 'node:path'
 import type { OwnerKey } from '../run/ownerKey.js'
@@ -204,6 +204,7 @@ function pythonAdapterSpec(): DapAdapterSpec {
     ? {
         command: python.command,
         args: python.args,
+        ...(python.debuggee !== python.command ? { launchDefaults: { python: [python.debuggee] } } : {}),
         installHint:
           python.provenance.adapterSource === 'bundled'
             ? `bundled debugpy ${python.provenance.debugpyVersion ?? ''} via ${python.provenance.interpreter ?? 'python3'}`.trim()
@@ -716,7 +717,7 @@ export function reachableDapAdapterKeys(): string[] {
       if (key === 'python') {
         if (
           debugpyVendorRoot() !== null &&
-          (findOnPathLocal('python3') !== undefined || findOnPathLocal('python') !== undefined)
+          (bundledPythonInterpreter() !== null || findOnPathLocal('python3') !== undefined || findOnPathLocal('python') !== undefined)
         ) {
           reachable.push(key)
         }

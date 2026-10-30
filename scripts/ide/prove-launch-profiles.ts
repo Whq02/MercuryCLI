@@ -4,10 +4,11 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { debugFixturePython } from '../lib/debugFixturePython.ts'
 import { resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const SYS_PY = '/usr/bin/python3'
+const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 const DIST_VENDOR = path.join(ROOT, 'dist', 'vendor', 'debugpy')
 
 let failures = 0

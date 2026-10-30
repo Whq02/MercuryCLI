@@ -3,11 +3,12 @@
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { debugFixturePython } from '../lib/debugFixturePython.ts'
 import * as path from 'node:path'
 import { resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const SYS_PY = '/usr/bin/python3'
+const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 const PYRIGHT_CACHE = path.join(ROOT, 'vendor', 'pyright', 'extracted')
 const DEBUGPY_DIST = path.join(ROOT, 'dist', 'vendor', 'debugpy')
 

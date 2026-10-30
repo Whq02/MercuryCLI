@@ -6,6 +6,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import envPaths from 'env-paths'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { pythonBinaryFor, pythonPackPlatform } from '../privateChannel/vendoredPython.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -25,6 +26,7 @@ export type PythonAdapterResolution =
       state: 'ok'
       command: string
       args: string[]
+      debuggee: string
       provenance: PythonDebuggerProvenance
     }
   | {
@@ -83,6 +85,15 @@ export function debugpyVendorRoot(): string | null {
   return existsSync(path.join(root, 'debugpy', 'adapter', '__main__.py')) ? root : null
 }
 
+export function bundledPythonInterpreter(): string | null {
+  const host = pythonPackPlatform(process.platform, process.arch)
+  if (host === null) return null
+  const override = flagEnv('MERCURY_PYTHON_VENDOR_DIR')
+  const root = override && override !== '' ? override : path.resolve(__dirname, 'vendor', 'python')
+  const binary = path.join(root, ...pythonBinaryFor(host).split('/'))
+  return existsSync(binary) ? binary : null
+}
+
 export function debugpyVendorDiagnosis(): {
   pin: string | null
   pinBroken: boolean
@@ -131,7 +142,7 @@ interface ProbeOutcome {
 function probeInterpreter(interpreter: string, vendorRoot: string | null): ProbeOutcome {
   const script =
     'import sys\n' +
-    'assert sys.version_info >= (3, 8), "python %d.%d < 3.8" % sys.version_info[:2]\n' +
+    'assert sys.version_info >= (3, 10), "python %d.%d < 3.10" % sys.version_info[:2]\n' +
     (vendorRoot ? `sys.path.insert(0, ${JSON.stringify(vendorRoot)})\n` : '') +
     'import debugpy\n' +
     'import debugpy._vendored.force_pydevd\n' +
@@ -166,20 +177,55 @@ export function _resetDebugpyResolverForTesting(): void {
   cache = null
 }
 
+function resolveDebuggee(candidates: string[], vendorRoot: string, bundled: string, exclusive: boolean): { interpreter: string } | { refused: true } {
+  for (const interpreter of candidates) {
+    if (probeInterpreter(interpreter, vendorRoot).ok) return { interpreter }
+  }
+  return exclusive ? { refused: true } : { interpreter: bundled }
+}
+
 export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterResolution {
   const vendorRoot = debugpyVendorRoot()
+  const bundled = vendorRoot ? bundledPythonInterpreter() : null
   const candidates =
     opts?.exclusive && opts.candidates?.[0]
       ? [opts.candidates[0]]
       : (opts?.candidates?.length ? opts.candidates : defaultInterpreterCandidates())
-  const key = `${opts?.exclusive ? 'x:' : ''}${candidates.join(',')}::${vendorRoot ?? 'no-vendor'}`
+  const key = `${opts?.exclusive ? 'x:' : ''}${candidates.join(',')}::${vendorRoot ?? 'no-vendor'}::${bundled ?? 'no-python'}`
   if (cache && cache.key === key && Date.now() - cache.at < CACHE_TTL_MS) return cache.result
 
   const bundleState: PythonDebuggerProvenance['bundleState'] = vendorRoot ? 'vendored' : 'absent'
   const failures: string[] = []
   let result: PythonAdapterResolution | null = null
 
+  if (vendorRoot && bundled) {
+    const probe = probeInterpreter(bundled, vendorRoot)
+    if (probe.ok) {
+      const debuggee = resolveDebuggee(candidates, vendorRoot, bundled, opts?.exclusive === true)
+      if (!('refused' in debuggee)) {
+        result = {
+          state: 'ok',
+          command: bundled,
+          args: [path.join(vendorRoot, 'debugpy', 'adapter')],
+          debuggee: debuggee.interpreter,
+          provenance: {
+            interpreter: bundled,
+            ...(probe.interpreterVersion ? { interpreterVersion: probe.interpreterVersion } : {}),
+            adapterSource: 'bundled',
+            debugpyVersion: vendoredVersion(vendorRoot) ?? probe.debugpyVersion ?? 'unknown',
+            adapterPath: vendorRoot,
+            bundleState,
+            lastProbe: probe.detail,
+          },
+        }
+      }
+    } else {
+      failures.push(probe.detail)
+    }
+  }
+
   for (const interpreter of candidates) {
+    if (result) break
     if (vendorRoot) {
       const probe = probeInterpreter(interpreter, vendorRoot)
       if (probe.ok) {
@@ -187,6 +233,7 @@ export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterR
           state: 'ok',
           command: interpreter,
           args: [path.join(vendorRoot, 'debugpy', 'adapter')],
+          debuggee: interpreter,
           provenance: {
             interpreter,
             ...(probe.interpreterVersion ? { interpreterVersion: probe.interpreterVersion } : {}),
@@ -207,6 +254,7 @@ export function resolvePythonDebugAdapter(opts?: ResolveOptions): PythonAdapterR
         state: 'ok',
         command: interpreter,
         args: ['-m', 'debugpy.adapter'],
+        debuggee: interpreter,
         provenance: {
           interpreter,
           ...(envProbe.interpreterVersion ? { interpreterVersion: envProbe.interpreterVersion } : {}),

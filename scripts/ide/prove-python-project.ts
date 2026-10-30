@@ -5,9 +5,10 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
+import { DEBUGPY_FLOOR, debugFixturePython, reachesDebugpyFloor } from '../lib/debugFixturePython.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
-const SYS_PY = '/usr/bin/python3'
+const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -46,9 +47,9 @@ function makeFakeVenv(dir: string): string {
   return py
 }
 
-if (!existsSync(SYS_PY)) {
-  console.log(`\n  [SKIP — LOUD] ${SYS_PY} is absent on this machine; the precedence fixtures need one known-good interpreter.`)
-  console.log('  (darwin always ships it via CommandLineTools; on other platforms adapt the fixture.)')
+if (!reachesDebugpyFloor(SYS_PY)) {
+  console.log(`\n  [SKIP — LOUD] no interpreter at or above debugpy's ${DEBUGPY_FLOOR} floor here (tried the built Python runtime pack, /usr/bin/python3 and a PATH python3); the precedence fixtures need one known-good interpreter.`)
+  console.log('  remedy: bun run scripts/vendor/fetch-python.ts && bun run build.ts')
   process.exit(0)
 }
 

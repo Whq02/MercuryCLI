@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { debugFixturePython } from '../lib/debugFixturePython.ts'
 import { pathToFileURL } from 'node:url'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -49,7 +50,7 @@ writeFileSync(join(P, '.vscode/launch.json'), JSON.stringify({ configurations: [
 ] }))
 writeFileSync(join(P, 'package.json'), JSON.stringify({ scripts: { test: 'node --test', build: 'node -e "process.exit(0)"' } }))
 writeFileSync(join(P, 'example.test.js'), 'const {test}=require("node:test"); test("works",async()=>{await new Promise(r=>setTimeout(r,2200)); console.log("runner evidence")});\n')
-process.env.MERCURY_PYTHON = '/usr/bin/python3'
+process.env.MERCURY_PYTHON = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 process.env.MERCURY_DEBUGPY_VENDOR_DIR = join(ROOT, 'dist/vendor/debugpy')
 process.chdir(P)
 const { enableConfigs } = await product('utils/config.ts')
