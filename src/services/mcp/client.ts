@@ -1339,6 +1339,30 @@ export async function processMCPResult(result: unknown, tool: string, name: stri
 
 type MCPToolCallResult = { content: MCPToolResult; _meta?: Record<string, unknown>; structuredContent?: unknown }
 
+const schemaAllowsNull = (property: unknown): boolean => {
+  if (property === null || typeof property !== 'object') return false
+  const p = property as { type?: unknown; anyOf?: unknown[]; oneOf?: unknown[]; nullable?: unknown; enum?: unknown[] }
+  if (p.nullable === true) return true
+  if (p.type === 'null' || (Array.isArray(p.type) && p.type.includes('null'))) return true
+  if (Array.isArray(p.enum) && p.enum.includes(null)) return true
+  return [...(p.anyOf ?? []), ...(p.oneOf ?? [])].some(schemaAllowsNull)
+}
+
+export function withoutNullOptionals(args: Record<string, unknown>, inputSchema: unknown): Record<string, unknown> {
+  const schema = (inputSchema ?? {}) as { properties?: Record<string, unknown>; required?: unknown }
+  const required = new Set(Array.isArray(schema.required) ? (schema.required as unknown[]).filter((k): k is string => typeof k === 'string') : [])
+  let changed = false
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(args)) {
+    if (value === null && !required.has(key) && !schemaAllowsNull(schema.properties?.[key])) {
+      changed = true
+      continue
+    }
+    out[key] = value
+  }
+  return changed ? out : args
+}
+
 async function callToolOnce(
   connected: ConnectedMCPServer,
   tool: string,
@@ -1391,7 +1415,7 @@ async function callToolOnce(
     const call = connected.client.callTool(
       {
         name: tool,
-        arguments: args,
+        arguments: withoutNullOptionals(args, toolDefinition?.inputSchema),
         ...(toolUseId ? { _meta: { [MCP_TOOL_USE_ID_META_KEY]: toolUseId, ...(progressToken ? { progressToken } : {}) } } : {}),
       },
       { signal: requestController.signal, timeout: timeoutMs, ...(toolDefinition ? { toolDefinition } : {}) },
