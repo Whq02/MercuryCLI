@@ -737,7 +737,7 @@ export async function performMCPOAuthFlow(
     if (onAbort && abortSignal) abortSignal.removeEventListener('abort', onAbort)
   }
 
-  const code = await new Promise<string>((resolve, reject) => {
+  const granted = await new Promise<{ code: string; iss?: string }>((resolve, reject) => {
     const settle = (fn: () => void): void => {
       if (settled) return
       settled = true
@@ -796,10 +796,11 @@ export async function performMCPOAuthFlow(
       }
       res.writeHead(200, { 'Content-Type': 'text/html' })
       res.end('<html><body><h1>Authentication successful</h1><p>You can close this window and return to Mercury.</p></body></html>')
+      const iss = url.searchParams.get('iss') ?? undefined
       settle(() => {
         cleanup()
         codeObtained = true
-        resolve(received)
+        resolve({ code: received, ...(iss === undefined ? {} : { iss }) })
       })
     })
     server.on('error', (err: NodeJS.ErrnoException) => {
@@ -850,10 +851,11 @@ export async function performMCPOAuthFlow(
         })
         return
       }
+      const iss = parsed.searchParams.get('iss') ?? undefined
       settle(() => {
         cleanup()
         codeObtained = true
-        resolve(received)
+        resolve({ code: received, ...(iss === undefined ? {} : { iss }) })
       })
     })
 
@@ -885,7 +887,8 @@ export async function performMCPOAuthFlow(
   try {
     const outcome = await sdkAuth(provider, {
       serverUrl,
-      authorizationCode: code,
+      authorizationCode: granted.code,
+      ...(granted.iss === undefined ? {} : { iss: granted.iss }),
       ...(stepUpScope ? { scope: stepUpScope } : {}),
       ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
       fetchFn: provider.fetchFn as never,

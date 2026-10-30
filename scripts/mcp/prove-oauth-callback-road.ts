@@ -34,9 +34,9 @@ const freePort = (): Promise<number> =>
   })
 
 type Seen = Record<string, string | null>
-type Mock = { base: string; seen: Seen; tokenMode: 'ok' | 'refuse'; issSupported: boolean; authorizationServer?: string; stop: () => void }
+type Mock = { base: string; seen: Seen; tokenMode: 'ok' | 'refuse'; tokenHits: number; issSupported: boolean; authorizationServer?: string; stop: () => void }
 function mockServer(name: string): Mock {
-  const mock = { seen: {} as Seen, tokenMode: 'ok' as 'ok' | 'refuse', issSupported: true, authorizationServer: undefined as string | undefined } as Mock
+  const mock = { seen: {} as Seen, tokenMode: 'ok' as 'ok' | 'refuse', tokenHits: 0, issSupported: true, authorizationServer: undefined as string | undefined } as Mock
   const server = Bun.serve({
     port: 0,
     hostname: '127.0.0.1',
@@ -65,6 +65,7 @@ function mockServer(name: string): Mock {
       }
       if (url.pathname === '/token') {
         await req.text()
+        mock.tokenHits++
         return mock.tokenMode === 'ok'
           ? Response.json({ access_token: 'AT', token_type: 'Bearer', expires_in: 3600, refresh_token: 'RT' })
           : Response.json({ error: 'invalid_grant', error_description: 'the code was not accepted' }, { status: 400 })
@@ -139,6 +140,32 @@ console.log('\n[1] configured headers ride on the authorization requests at the 
   check('…and never to the authorization server on another origin', Object.keys(authority.seen).length >= 2 && elsewhere.length === 0, JSON.stringify(authority.seen))
   resource.stop()
   authority.stop()
+}
+
+console.log('\n[2] the RFC 9207 iss parameter reaches the token exchange (https://www.rfc-editor.org/rfc/rfc9207.html#section-2.4)')
+{
+  const as = mockServer('iss')
+  const standard = await flow('iss standard', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    const page = await redirect(callback, { code: 'C3', state, iss: as.base })
+    return page.heading
+  })
+  check('a server that advertises iss support: the callback\'s iss is forwarded and the sign-in completes', standard.outcome === 'RESOLVED', standard.outcome)
+  const tokenHitsBefore = as.tokenHits
+  const wrong = await flow('iss wrong', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    await redirect(callback, { code: 'C4', state, iss: 'https://evil.example' })
+    return ''
+  })
+  check('a callback whose iss names another issuer is refused before the code is redeemed', wrong.outcome.startsWith('REJECTED') && /issuer/i.test(wrong.outcome) && wrong.outcome.includes('evil.example'), wrong.outcome)
+  check('…and the token endpoint was never asked', as.tokenHits === tokenHitsBefore, `${as.tokenHits - tokenHitsBefore} token request(s)`)
+  const pasted = await flow('iss pasted', as, async (authorize, callback, submitPasted) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    submitPasted?.(`${callback}?code=C5&state=${state}&iss=${encodeURIComponent(as.base)}`)
+    return 'pasted'
+  })
+  check('a pasted callback URL carries its iss the same way', pasted.outcome === 'RESOLVED', pasted.outcome)
+  as.stop()
 }
 
 clearTimeout(watchdog)
