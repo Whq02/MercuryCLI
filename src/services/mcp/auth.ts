@@ -28,6 +28,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { lock } from '../../utils/lockfile.js'
 import { clearKeychainCache, getSecureStorage } from '../../utils/secureStorage/index.js'
+import { getMcpServerHeaders } from './headersHelper.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
 
@@ -213,21 +214,46 @@ const authFetch: FetchLike = async (input, init) => {
   }
 }
 
+function originOf(url: string | undefined): string | null {
+  if (!url) return null
+  try {
+    return new URL(url).origin
+  } catch {
+    return null
+  }
+}
 
-async function fetchConfiguredMetadata(metadataUrl: string): Promise<AuthorizationServerMetadata> {
+export function authFetchFor(serverName: string, serverConfig: McpServerConfig): FetchLike {
+  const origin = originOf((serverConfig as RemoteServerConfig).url)
+  let configured: Promise<Record<string, string>> | undefined
+  return async (input, init) => {
+    const target = typeof input === 'string' ? input : input.toString()
+    if (origin === null || originOf(target) !== origin) return authFetch(target, init)
+    configured ??= getMcpServerHeaders(serverName, serverConfig).catch(err => {
+      logForDebugging(`mcp auth [${serverName}]: configured headers unavailable for the authorization requests: ${String(err)}`)
+      return {}
+    })
+    const headers = new Headers(init?.headers)
+    for (const [key, value] of Object.entries(await configured)) if (!headers.has(key)) headers.set(key, value)
+    return authFetch(target, { ...init, headers })
+  }
+}
+
+
+async function fetchConfiguredMetadata(metadataUrl: string, fetchFn: FetchLike): Promise<AuthorizationServerMetadata> {
   if (!metadataUrl.startsWith('https://')) {
     throw new Error(`authServerMetadataUrl must use https:// (got ${metadataUrl})`)
   }
-  const response = await authFetch(metadataUrl, { headers: { Accept: 'application/json' } })
+  const response = await fetchFn(metadataUrl, { headers: { Accept: 'application/json' } })
   if (!response.ok) throw new Error(`Failed to fetch OAuth metadata: HTTP ${response.status} from ${metadataUrl}`)
   return OAuthMetadataSchema.parse(await response.json()) as AuthorizationServerMetadata
 }
 
-async function discoverMetadata(serverUrl: string, config: RemoteServerConfig): Promise<AuthorizationServerMetadata | undefined> {
+async function discoverMetadata(serverUrl: string, config: RemoteServerConfig, fetchFn: FetchLike): Promise<AuthorizationServerMetadata | undefined> {
   const configured = config.oauth?.authServerMetadataUrl
-  if (configured) return fetchConfiguredMetadata(configured)
+  if (configured) return fetchConfiguredMetadata(configured, fetchFn)
   try {
-    const info = await discoverOAuthServerInfo(serverUrl, { fetchFn: authFetch as never })
+    const info = await discoverOAuthServerInfo(serverUrl, { fetchFn: fetchFn as never })
     if (info.authorizationServerMetadata) return info.authorizationServerMetadata
   } catch (err) {
     logForDebugging(`mcp auth: RFC 9728/8414 discovery failed for ${serverUrl}: ${String(err)}`)
@@ -235,7 +261,7 @@ async function discoverMetadata(serverUrl: string, config: RemoteServerConfig): 
   const url = new URL(serverUrl)
   if (url.pathname && url.pathname !== '/') {
     try {
-      return await discoverAuthorizationServerMetadata(serverUrl, { fetchFn: authFetch as never })
+      return await discoverAuthorizationServerMetadata(serverUrl, { fetchFn: fetchFn as never })
     } catch (err) {
       logForDebugging(`mcp auth: path-aware fallback discovery failed for ${serverUrl}: ${String(err)}`)
     }
@@ -264,6 +290,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
   private verifier: string | undefined
   private lastAuthorizationUrl: string | undefined
   private readonly redirectUri: string
+  readonly fetchFn: FetchLike
 
   constructor(
     private readonly serverName: string,
@@ -277,6 +304,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     this.serverKey = getServerKey(serverName, serverConfig)
     this.redirectUri = redirectUri ?? buildRedirectUri()
     this.stateValue = randomBytes(32).toString('base64url')
+    this.fetchFn = authFetchFor(serverName, serverConfig)
   }
 
   get redirectUrl(): string {
@@ -487,7 +515,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     const configured = this.config.oauth?.authServerMetadataUrl
     if (configured) {
       try {
-        const metadata = await fetchConfiguredMetadata(configured)
+        const metadata = await fetchConfiguredMetadata(configured, this.fetchFn)
         return { authorizationServerUrl: metadata.issuer, authorizationServerMetadata: metadata }
       } catch (err) {
         logForDebugging(`mcp auth [${this.serverName}]: configured metadata fetch failed: ${String(err)}`)
@@ -511,13 +539,13 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     const authServerUrl = entry?.discoveryState?.authorizationServerUrl
     if (authServerUrl) {
       try {
-        const rediscovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: authFetch as never })
+        const rediscovered = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: this.fetchFn as never })
         if (rediscovered) return rediscovered
       } catch (err) {
         logForDebugging(`mcp auth [${this.serverName}]: re-discovery from persisted URL failed: ${String(err)}`)
       }
     }
-    return discoverMetadata(this.serverUrl(), this.config)
+    return discoverMetadata(this.serverUrl(), this.config, this.fetchFn)
   }
 
   private async withRefreshLock<T>(work: () => Promise<T>): Promise<T> {
@@ -587,7 +615,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
             clientInformation,
             refreshToken: tokenToUse,
             resource: new URL(this.serverUrl()),
-            fetchFn: authFetch as never,
+            fetchFn: this.fetchFn as never,
           })
           if (!tokens) {
             emitRefreshEvent('no_tokens_returned')
@@ -685,7 +713,7 @@ export async function performMCPOAuthFlow(
 
   const provider = new MercuryMcpAuthProvider(serverName, serverConfig, redirectUri, true, onAuthorizationUrl, opts?.skipBrowserOpen)
   try {
-    const metadata = await discoverMetadata(serverUrl, config)
+    const metadata = await discoverMetadata(serverUrl, config, provider.fetchFn)
     provider.setMetadata(metadata)
   } catch (err) {
     logForDebugging(`mcp auth [${serverName}]: metadata discovery failed (continuing): ${String(err)}`)
@@ -835,7 +863,7 @@ export async function performMCPOAuthFlow(
           serverUrl,
           ...(stepUpScope ? { scope: stepUpScope } : {}),
           ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-          fetchFn: authFetch as never,
+          fetchFn: provider.fetchFn as never,
         })
         if (outcome !== 'REDIRECT') logForDebugging(`mcp auth [${serverName}]: unexpected pre-code auth outcome ${outcome}`)
       } catch (err) {
@@ -860,7 +888,7 @@ export async function performMCPOAuthFlow(
       authorizationCode: code,
       ...(stepUpScope ? { scope: stepUpScope } : {}),
       ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
-      fetchFn: authFetch as never,
+      fetchFn: provider.fetchFn as never,
     })
     if (outcome !== 'AUTHORIZED') throw new Error(`Unexpected OAuth outcome: ${outcome}`)
     const saved = readEntry(serverKey)
@@ -888,6 +916,7 @@ function isInvalidClient(err: unknown): boolean {
 
 
 async function revokeOne(
+  fetchFn: FetchLike,
   endpoint: string,
   token: string,
   hint: 'refresh_token' | 'access_token',
@@ -910,12 +939,12 @@ async function revokeOne(
   } else {
     logForDebugging('mcp auth: revoking without client authentication; the server may reject it')
   }
-  let response = await authFetch(endpoint, { method: 'POST', headers, body: body.toString() })
+  let response = await fetchFn(endpoint, { method: 'POST', headers, body: body.toString() })
   if (response.status === 401 && accessToken) {
     body.delete('client_id')
     body.delete('client_secret')
     delete headers.Authorization
-    response = await authFetch(endpoint, {
+    response = await fetchFn(endpoint, {
       method: 'POST',
       headers: { ...headers, Authorization: `Bearer ${accessToken}` },
       body: body.toString(),
@@ -931,10 +960,11 @@ export async function revokeServerTokens(
 ): Promise<void> {
   const serverKey = getServerKey(serverName, serverConfig)
   const entry = readEntry(serverKey)
+  const fetchFn = authFetchFor(serverName, serverConfig)
   if (entry && (entry.accessToken || entry.refreshToken)) {
     try {
       const authServerUrl = entry.discoveryState?.authorizationServerUrl ?? (serverConfig as RemoteServerConfig).url ?? ''
-      const metadata = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: authFetch as never }).catch(
+      const metadata = await discoverAuthorizationServerMetadata(authServerUrl, { fetchFn: fetchFn as never }).catch(
         () => undefined,
       )
       const record = metadata as Record<string, unknown> | undefined
@@ -951,12 +981,12 @@ export async function revokeServerTokens(
             ? 'client_secret_post'
             : 'client_secret_basic'
         if (entry.refreshToken) {
-          await revokeOne(endpoint, entry.refreshToken, 'refresh_token', method, entry.clientId, entry.clientSecret, entry.accessToken).catch(
+          await revokeOne(fetchFn, endpoint, entry.refreshToken, 'refresh_token', method, entry.clientId, entry.clientSecret, entry.accessToken).catch(
             err => logForDebugging(`mcp auth [${serverName}]: refresh-token revocation failed: ${String(err)}`),
           )
         }
         if (entry.accessToken) {
-          await revokeOne(endpoint, entry.accessToken, 'access_token', method, entry.clientId, entry.clientSecret, entry.accessToken).catch(
+          await revokeOne(fetchFn, endpoint, entry.accessToken, 'access_token', method, entry.clientId, entry.clientSecret, entry.accessToken).catch(
             err => logForDebugging(`mcp auth [${serverName}]: access-token revocation failed: ${String(err)}`),
           )
         }
