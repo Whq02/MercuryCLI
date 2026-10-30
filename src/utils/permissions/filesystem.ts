@@ -44,6 +44,7 @@ const DANGEROUS_FILES: string[] = [
 
 export const DANGEROUS_DIRECTORIES: string[] = [
   '.git',
+  '.husky',
   '.vscode',
   '.idea',
   '.mercury',
