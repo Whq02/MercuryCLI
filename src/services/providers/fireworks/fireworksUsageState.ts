@@ -12,7 +12,8 @@ export function fireworksRecordHeaders(headers: Headers, status: number | undefi
   const figures: UsageFigureView[] = []
   for (const [name, label] of [
     ['x-ratelimit-limit-tokens-prompt', 'Total prompt TPM limit'],
-    ['x-ratelimit-limit-tokens-cache-adjusted-prompt', 'Uncached prompt TPM limit'],
+    ['x-ratelimit-limit-tokens-uncached-prompt', 'Uncached prompt TPM limit'],
+    ['x-ratelimit-limit-tokens-cache-adjusted-prompt', 'Cache-adjusted prompt TPM limit'],
     ['x-ratelimit-limit-tokens-generated', 'Generated TPM limit'],
   ]) {
     const raw = headers.get(name!)
