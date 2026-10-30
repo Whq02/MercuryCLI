@@ -1,30 +1,21 @@
 import type { LocalCommandCall } from '../../types/command.js'
-import { localTranscriberRead } from '../../services/voice/transcribe.js'
+import { prepareLocalTranscriber } from '../../services/voice/transcribe.js'
 import { HOLD_WORDS, NO_REPEAT_WORDS, describeVoiceStatus, setVoiceInputEnabled, toggleVoiceCapture, voiceInputEnabled } from '../../services/voice/voiceSession.js'
-import { checkWhisperModel, downloadWhisperModel, mbWords, resolveWhisperModelPin, whisperModelsDir } from '../../services/voice/whisperModels.js'
+import { mbWords } from '../../services/voice/whisperModels.js'
 
 let setup: Promise<string> | null = null
 let setupGeneration = 0
 
 async function turnOn(generation: number): Promise<string> {
-  const local = localTranscriberRead()
-  if (local.state === 'absent' && local.reason !== 'model') return `/voice on: ${local.note}`
-  const pin = resolveWhisperModelPin()
-  if (pin.kind === 'broken') return `/voice on: ${pin.note}`
-  let downloaded = ''
-  if (pin.kind === 'catalogue') {
-    try {
-      const got = await downloadWhisperModel(pin.row, whisperModelsDir())
-      if (!got.reused) downloaded = `downloaded ${pin.row.file} (${mbWords(got.bytes)}, sha256 verified) — one-time speech model download\n`
-    } catch (error) {
-      return `/voice on: download failed — ${error instanceof Error ? error.message : String(error)}`
-    }
+  let prepared: Awaited<ReturnType<typeof prepareLocalTranscriber>>
+  try {
+    prepared = await prepareLocalTranscriber()
+  } catch (error) {
+    return `/voice on: ${error instanceof Error ? error.message : String(error)}`
   }
-  const model = checkWhisperModel(pin)
-  if (model.state !== 'present') return `/voice on: ${model.note}`
+  const got = prepared.downloaded
+  const downloaded = got ? `downloaded ${got.file} (${mbWords(got.bytes)}, sha256 verified) — one-time speech model download\n` : ''
   if (generation !== setupGeneration) return `${downloaded}voice input remains OFF — /voice off was requested during setup`
-  const ready = localTranscriberRead()
-  if (ready.state !== 'ok') return `/voice on: ${ready.note}`
   const already = voiceInputEnabled()
   setVoiceInputEnabled(true)
   return `${downloaded}${already ? 'voice input already on' : `voice input ON — ${HOLD_WORDS}; the words land in the composer. ${NO_REPEAT_WORDS}`}\n${describeVoiceStatus()}`

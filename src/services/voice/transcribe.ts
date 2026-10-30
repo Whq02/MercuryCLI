@@ -1,8 +1,9 @@
+import { statSync } from 'node:fs'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
 import { voiceCheckoutRoot } from './voicePack.js'
-import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon } from './whisperPack.js'
-import { checkWhisperModel, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
+import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon, type WhisperSegment } from './whisperPack.js'
+import { checkWhisperModel, downloadWhisperModel, resolveWhisperModelPin, whisperModelsDir, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
 
 export function localTranscribeDeadlineMs(audioMs: number): number {
   return 120_000 + Math.max(0, Math.round(audioMs))
@@ -67,9 +68,46 @@ export function resolveTranscriber(): TranscriberResolution {
   return pickTranscriber(localTranscriberRead())
 }
 
+type PreparedTranscriber = {
+  local: Extract<LocalTranscriberRead, { state: 'ok' }>
+  downloaded?: { file: string; bytes: number }
+}
+
+const preparations = new Map<string, Promise<PreparedTranscriber>>()
+
+export async function prepareLocalTranscriber(): Promise<PreparedTranscriber> {
+  const pin = resolveWhisperModelPin()
+  const key = JSON.stringify([pin, whisperModelsDir()])
+  const pending = preparations.get(key)
+  if (pending) return pending
+  const preparation = (async (): Promise<PreparedTranscriber> => {
+    const local = localTranscriberRead()
+    if (local.state === 'absent' && local.reason !== 'model') throw new Error(local.note)
+    if (pin.kind === 'broken') throw new Error(pin.note)
+    let downloaded: PreparedTranscriber['downloaded']
+    if (pin.kind === 'catalogue') {
+      try {
+        const got = await downloadWhisperModel(pin.row, whisperModelsDir())
+        if (!got.reused) downloaded = { file: pin.row.file, bytes: got.bytes }
+      } catch (error) {
+        throw new Error(`download failed — ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    const model = checkWhisperModel(pin)
+    if (model.state !== 'present') throw new Error(model.note)
+    const ready = localTranscriberRead()
+    if (ready.state !== 'ok') throw new Error(ready.note)
+    return { local: ready, ...(downloaded ? { downloaded } : {}) }
+  })()
+  preparations.set(key, preparation)
+  try { return await preparation } finally { preparations.delete(key) }
+}
+
 interface TranscribeOptions {
   choice: TranscriberChoice
   deadlineMs?: number
+  signal?: AbortSignal
+  useGpu?: boolean
 }
 
 interface Transcript {
@@ -78,6 +116,7 @@ interface Transcript {
   family: null
   model: string
   ms: number
+  segments?: WhisperSegment[]
 }
 
 export class TranscribeError extends Error {
@@ -97,11 +136,13 @@ export function localDecodesInFlight(): number {
   return decodesHeld
 }
 
-function modelHandle(addon: WhisperAddon, path: string): number {
-  const cached = loadedModels.get(path)
+function modelHandle(addon: WhisperAddon, path: string, useGpu = true): number {
+  const file = statSync(path)
+  const key = JSON.stringify([path, file.size, file.mtimeMs, file.ctimeMs, useGpu])
+  const cached = loadedModels.get(key)
   if (cached !== undefined) return cached
-  const handle = addon.loadModel(path)
-  loadedModels.set(path, handle)
+  const handle = addon.loadModel(path, useGpu)
+  loadedModels.set(key, handle)
   return handle
 }
 
@@ -124,6 +165,7 @@ export function warmLocalTranscriber(): void {
 }
 
 export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promise<Transcript> {
+  opts.signal?.throwIfAborted()
   const read = readWav(wav)
   if (!read.ok) throw new TranscribeError('local', `the take is not a PCM WAV: ${read.reason}`)
   if (!isVoiceWavShape(read.header)) {
@@ -135,7 +177,7 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
   if (model.state !== 'present') throw new TranscribeError('local', model.note)
   let handle: number
   try {
-    handle = modelHandle(load.addon, model.path)
+    handle = modelHandle(load.addon, model.path, opts.useGpu)
   } catch (error) {
     throw new TranscribeError('local', error instanceof Error ? error.message : String(error))
   }
@@ -148,20 +190,31 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
       : `the on-device transcriber did not answer within ${Math.round(deadlineMs / 1000)}s (${model.name})`)), deadlineMs)
     timer.unref?.()
   })
+  let abort: (() => void) | undefined
+  const cancelled = new Promise<never>((_, reject) => {
+    abort = () => reject(new TranscribeError('local', 'Transcription cancelled.'))
+    if (opts.signal?.aborted) abort()
+    else opts.signal?.addEventListener('abort', abort, { once: true })
+  })
   const pcm = Buffer.from(read.pcm)
   decodesHeld += 1
   const decode = decodeTail
-    .then(() => load.addon.transcribe(handle, pcm, { language: model.language === 'en' ? 'en' : 'auto' }))
+    .then(() => {
+      opts.signal?.throwIfAborted()
+      return load.addon.transcribe(handle, pcm, { language: model.language === 'en' ? 'en' : 'auto' })
+    })
     .finally(() => { decodesHeld -= 1 })
   decodeTail = decode.catch(() => {})
   try {
-    const answer = await Promise.race([decode, bound])
-    return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms }
+    const answer = await Promise.race([decode, bound, cancelled])
+    return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms,
+      ...(answer.timedSegments ? { segments: answer.timedSegments.map(segment => ({ ...segment, text: stripNonSpeechMarkers(segment.text) })) } : {}) }
   } catch (error) {
     if (error instanceof TranscribeError) throw error
     throw new TranscribeError('local', error instanceof Error ? error.message : String(error))
   } finally {
     if (timer !== null) clearTimeout(timer)
+    if (abort) opts.signal?.removeEventListener('abort', abort)
   }
 }
 

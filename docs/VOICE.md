@@ -50,6 +50,22 @@ multilingual `base-q5_1`. With a catalogue model selected, `/voice on` downloads
 that model if needed and names its size. The catalogue's sizes and digests are
 in `vendor/whisper-models.lock.json`.
 
+## Transcribing a file
+
+Ask Mercury to read a local audio or video file, for example “Transcribe
+this recording.wav”. Read returns the duration and Whisper model, then numbered
+segments with start times such as `[00:01:23] words`. Use `offset`, `limit` or
+`ranges` to read part of a long transcript. Transcripts are cached by file content
+and model alongside other extracted text; reading the same file again reuses them.
+
+Supported formats are WAV, MP3, M4A, AAC, FLAC, Ogg, Opus, WebM, MP4, MOV and MKV.
+A 16 kHz mono 16-bit PCM WAV needs no decoder; other files need `ffmpeg` on PATH
+(macOS: `brew install ffmpeg`; Debian/Ubuntu: `apt install ffmpeg`;
+Windows: `winget install ffmpeg`). Long recordings are transcribed in 30-second
+windows. Audio stays on-device. Read uses the same model as `/voice`; if it is
+not prepared, the first Read downloads it and names the download in the first
+line. Reading a file does not turn microphone dictation on.
+
 ## Microphone and privacy
 
 Capture uses Mercury's native voice driver when available, or an installed

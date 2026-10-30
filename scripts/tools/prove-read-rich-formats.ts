@@ -203,10 +203,15 @@ console.log('§3 Document lane (.docx, .xlsx, .pptx, .odt, .epub, .rtf)')
   }
 }
 
-console.log('§4 Genuine binary files (.exe, .dll, .class) still refuse at validateInput')
+console.log('§4 Genuine binary files still refuse after media detection')
 {
-  const exeRes = await runRead({ file_path: '/tmp/nonexistent-binary.exe' })
-  check('4a. .exe is still refused as binary', !exeRes.ok && exeRes.error.includes('cannot read binary files'), exeRes.ok ? exeRes.text : exeRes.error)
+  const binaryRoot = mkdtempSync(join(tmpdir(), 'read-binary-'))
+  try {
+    const executable = join(binaryRoot, 'binary.exe')
+    writeFileSync(executable, Buffer.from([0x4d, 0x5a, 0, 0]))
+    const exeRes = await runRead({ file_path: executable })
+    check('4a. .exe is still refused as binary', !exeRes.ok && exeRes.error.includes('cannot read binary files'), exeRes.ok ? exeRes.text : exeRes.error)
+  } finally { rmSync(binaryRoot, { recursive: true, force: true }) }
 }
 
 console.log('§5 Bounds before decoding (container ceiling, zip bomb header/inflate cap, selective docx extraction, streaming tgz)')

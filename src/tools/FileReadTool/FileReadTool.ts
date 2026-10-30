@@ -64,6 +64,7 @@ import { extractPDFPages, readPDF, removePDFPages } from '../../utils/pdf.js'
 import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
 import { recogniseImage, recognisePdfPage, renderOcr } from '../../utils/ocr.js'
 import { extractDocumentText } from '../../utils/documentText.js'
+import { extractMediaTranscript, mediaFileFormat } from '../../services/voice/fileTranscript.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
@@ -1728,7 +1729,7 @@ export const FileReadTool = buildTool({
       ? 'Directories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.'
       : 'Files only; use Bash to list directories.'
     return `Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.
-${images} PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table).
+${images} PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table). Local audio and video return timestamped transcripts through on-device Whisper; ffmpeg decodes formats other than 16 kHz mono PCM WAV.
 ${targets}
 outline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.`
   },
@@ -1806,21 +1807,6 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
     }
 
     if (windowsPathNeedsPermission(targetRawPath)) return { result: true as const }
-
-    const ext = extensionOf(targetRawPath)
-    if (
-      ext !== '' &&
-      (hasBinaryExtension(input.file_path) || hasBinaryExtension(targetRawPath)) &&
-      !isPDFExtension(ext) &&
-      !IMAGE_EXTENSIONS.has(ext) &&
-      !isRichFormatReadable(splitTarget.rawPath)
-    ) {
-      return {
-        result: false as const,
-        message: `This tool cannot read binary files, and .${ext} looks binary — reach for a tool built for that format instead.`,
-        errorCode: 4,
-      }
-    }
 
     if (isBlockingDevicePath(expanded)) {
       return {
@@ -1978,6 +1964,14 @@ outline returns declarations; line_anchors supplies edit addresses. Full usage n
     }
 
     const dispatch = async (resolvedPath: string): Promise<LaneResult> => {
+      const media = !ideReadTextAvailable() ? mediaFileFormat(resolvedPath) : null
+      if (media !== null) {
+        const text = await extractMediaTranscript(resolvedPath, media, context.abortController.signal)
+        return readRichFormatLane(resolvedPath, { kind: 'document', containerPath: resolvedPath, ext: media }, effectiveInput, Array.isArray(parsedRanges) ? parsedRanges : null, context, declaredLimits, ownRead, reserve, { text, ownBytes: false })
+      }
+      if (ext !== '' && hasBinaryExtension(effectiveRawPath) && !isPDFExtension(ext) && !IMAGE_EXTENSIONS.has(ext) && !isRichFormatReadable(splitTarget.rawPath)) {
+        throw new Error(`This tool cannot read binary files, and .${ext} looks binary — reach for a tool built for that format instead.`)
+      }
       if (ext === 'ipynb') return readNotebookLane(resolvedPath, resolvedPath, effectiveInput, context, declaredLimits, reserve)
       image = IMAGE_EXTENSIONS.has(ext) || (ext === '' && !ideReadTextAvailable() && hasImageSignature(resolvedPath))
       if (image) {

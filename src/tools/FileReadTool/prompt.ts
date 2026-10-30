@@ -43,6 +43,7 @@ Usage:
 - Individual lines are cut off past 2000 characters; use \`lossless: true\` with \`offset\` + \`limit\` or \`ranges\` to show them completely within the same total budget. A clipped line does not authorise replacing its unseen text.
 - Every returned line carries a prefix — ${lineFormat} — with numbering starting at 1
 ${imageLine}${pdfLines}
+- Local audio and video (wav, mp3, m4a, aac, flac, ogg, opus, webm, mp4, mov, mkv) return numbered, timestamped transcripts through on-device Whisper; offset, limit and ranges select transcript lines, and the first use prepares the speech model if needed.
 - Jupyter notebooks (.ipynb files) come back cell by cell with their outputs — code, text output, and visualizations together.
 - Archives (.zip, .tar, .tar.gz, .tgz; \`<archive>:<entry>\` reads one entry), SQLite databases (.sqlite, .sqlite3, .db; \`<db>:<table>\` reads one table), and documents (.docx, .xlsx, .pptx, .odt, .ods, .odp, .epub, .rtf) open as text; \`offset: -N\` reads the last N lines and \`ranges\` reads several line ranges in one call.
 ${directoryLines}${screenshotLine}

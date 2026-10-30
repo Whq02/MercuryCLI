@@ -331,11 +331,18 @@ interface WhisperTranscribeOptions {
   prompt?: string
 }
 
+export interface WhisperSegment {
+  text: string
+  startMs: number
+  endMs: number
+}
+
 interface WhisperTranscriptAnswer {
   text: string
   ms: number
   language: string
   segments: number
+  timedSegments?: WhisperSegment[]
 }
 
 export interface WhisperAddon {

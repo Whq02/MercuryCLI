@@ -166,11 +166,19 @@ pub struct TranscribeOptions {
 }
 
 #[napi(object)]
+pub struct TranscriptSegment {
+    pub text: String,
+    pub start_ms: f64,
+    pub end_ms: f64,
+}
+
+#[napi(object)]
 pub struct TranscriptAnswer {
     pub text: String,
     pub ms: u32,
     pub language: String,
     pub segments: u32,
+    pub timed_segments: Vec<TranscriptSegment>,
 }
 
 pub struct TranscribeTask {
@@ -217,6 +225,7 @@ impl Task for TranscribeTask {
         })?;
         let mut text = String::new();
         let mut segments = 0u32;
+        let mut timed_segments = Vec::new();
         for segment in state.as_iter() {
             let piece = segment.to_str_lossy().map_err(|error| {
                 Error::from_reason(format!(
@@ -225,6 +234,11 @@ impl Task for TranscribeTask {
             })?;
             text.push(' ');
             text.push_str(&piece);
+            timed_segments.push(TranscriptSegment {
+                text: tidy(&piece),
+                start_ms: segment.start_timestamp() as f64 * 10.0,
+                end_ms: segment.end_timestamp() as f64 * 10.0,
+            });
             segments += 1;
         }
         let language = whisper_rs::get_lang_str(state.full_lang_id_from_state())
@@ -236,6 +250,7 @@ impl Task for TranscribeTask {
             ms,
             language,
             segments,
+            timed_segments,
         })
     }
 

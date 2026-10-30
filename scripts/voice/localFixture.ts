@@ -16,7 +16,7 @@ module.exports = {
   transcribe: async (_handle, pcm) => {
     fs.appendFileSync(${JSON.stringify(ledger)}, 'decode ' + pcm.length + '\\n')
     await new Promise(done => setTimeout(done, ${delayMs}))
-    return { text: ${JSON.stringify(text)}, ms: ${delayMs}, language: 'en', segments: 1 }
+    return { text: ${JSON.stringify(text)}, ms: ${delayMs}, language: 'en', segments: 1, timedSegments: [{ text: ${JSON.stringify(text)}, startMs: 0, endMs: pcm.length / 32 }] }
   }
 }
 `
