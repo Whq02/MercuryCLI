@@ -362,6 +362,12 @@ export class Conversation {
     const scope: RowScope = { session_id: getSessionId(), turn: turnOrdinal }
     const scopeFor = (parentCallId: string | undefined): RowScope => (parentCallId === undefined ? scope : { ...scope, parent_call_id: parentCallId })
     const notices: Array<{ level: 'warning' | 'error'; text: string }> = []
+    const hookNoticeRows = (hookRow: HookAttachment): RowDraft[] => {
+      if (hookRow.outcome !== 'failed' && hookRow.outcome !== 'block' && hookRow.outcome !== 'stop' && hookRow.outcome !== 'notice') return []
+      const text = hookRow.outcome === 'failed' || hookRow.outcome === 'notice' ? hookRow.words : `hook ${hookRow.name} ${hookRow.outcome === 'block' ? 'blocked' : 'stopped'} ${hookRow.event}: ${hookRow.words}`
+      notices.push({ level: 'warning', text })
+      return [noticeRow(scope, 'warning', text, HOOK_NOTICE_CODES[hookRow.outcome])]
+    }
     const steps = new StepLedger(scope)
     const toolOutcomes = new Map<string, 'ok' | 'error' | 'aborted'>()
     const callScopes = new Map<string, RowScope>()
@@ -610,6 +616,11 @@ export class Conversation {
       canUseTool: wrappedCanUseTool,
     })
 
+    for (const message of inputResult.messages) {
+      if (!priorUuids.has(message.uuid) && message.type === 'attachment' && message.attachment.type === 'hook') {
+        yield* hookNoticeRows(message.attachment)
+      }
+    }
     this.mutableMessages.push(...inputResult.messages)
     let turnMessages: Message[] = [...this.mutableMessages]
     const seedMessages = new Set<Message>(turnMessages)
@@ -940,12 +951,7 @@ export class Conversation {
               void recordDelta()
             }
             if (attachmentType === 'hook') {
-              const hookRow = attachment as HookAttachment
-              if (hookRow.outcome === 'failed' || hookRow.outcome === 'block' || hookRow.outcome === 'stop' || hookRow.outcome === 'notice') {
-                const text = hookRow.outcome === 'failed' ? hookRow.words : hookRow.outcome === 'notice' ? hookRow.words : `hook ${hookRow.name} ${hookRow.outcome === 'block' ? 'blocked' : 'stopped'} ${hookRow.event}: ${hookRow.words}`
-                notices.push({ level: 'warning', text })
-                yield noticeRow(scope, 'warning', text, HOOK_NOTICE_CODES[hookRow.outcome])
-              }
+              yield* hookNoticeRows(attachment as HookAttachment)
             } else if (attachmentType === 'structured_output') {
               this.structuredOutput = (attachment as { data?: unknown }).data
             } else if (attachmentType === 'max_turns_reached') {
