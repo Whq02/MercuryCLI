@@ -296,8 +296,15 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   })
   check('P3 the mission ledger rides the work snapshot', await untilAsync(() => a.workRoster().mission.length === 1 && a.workRoster().mission[0]?.status === 'in_progress', 5_000))
 
+  const rosterEmpty = (): boolean => a.workRoster().rows.length === 0 && a.workRoster().mission.length === 0
+  let offRetired: () => void = () => {}
+  const retired = new Promise<void>(resolve => {
+    offRetired = a.subscribeWork(() => { if (rosterEmpty()) resolve() })
+  })
   proj.retireSeatProjections(SID_A)
-  check('P3 a retired facts file empties the roster', await untilAsync(() => a.workRoster().rows.length === 0 && a.workRoster().mission.length === 0, 6_000))
+  await retired
+  offRetired()
+  check('P3 a retired facts file empties the roster', rosterEmpty())
   offA()
   offComposed()
 
