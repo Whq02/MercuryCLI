@@ -392,6 +392,10 @@ export async function startMoonshotDeviceAuth(io?: MoonshotOauthIo): Promise<Moo
     const detail = typeof body.error === 'string' ? ` — ${body.error}` : ''
     throw new Error(`Kimi device authorization refused (HTTP ${status}${detail})`)
   }
+  for (const value of [verificationUri, body.verification_uri_complete]) {
+    if (value === undefined) continue
+    if (typeof value !== 'string' || !URL.canParse(value) || !/^https?:$/.test(new URL(value).protocol)) throw new Error('Kimi returned an invalid verification URL; retry from /logins moonshot.')
+  }
   const now = io?.now?.() ?? Date.now()
   const expiresIn = typeof body.expires_in === 'number' ? body.expires_in : 300
   return {

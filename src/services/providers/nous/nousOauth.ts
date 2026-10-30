@@ -238,6 +238,7 @@ export interface NousDeviceAuthStart {
 
 function verificationUrl(value: unknown, io?: NousOauthIo): string {
   if (typeof value !== 'string') throw new Error('the Portal returned no verification URL')
+  if (!URL.canParse(value)) throw new Error('the Portal returned an invalid verification URL')
   const url = new URL(value)
   const fixture = new URL(portalBase(io?.env))
   const trusted = (url.protocol === 'https:' && (url.hostname === 'nousresearch.com' || url.hostname.endsWith('.nousresearch.com'))) || (['127.0.0.1', 'localhost', '[::1]'].includes(fixture.hostname) && url.origin === fixture.origin)

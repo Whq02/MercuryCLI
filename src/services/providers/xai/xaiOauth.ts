@@ -99,6 +99,7 @@ export interface XaiDeviceAuthStart {
 }
 function verificationUrl(value: unknown, io?: XaiOauthIo): string {
   if (typeof value !== 'string') throw new Error('xAI returned no verification URL.')
+  if (!URL.canParse(value)) throw new Error('xAI returned an invalid verification URL; retry from /logins xai.')
   const url = new URL(value)
   const fixture = new URL(xaiAuthBase(io?.env))
   if (url.username || url.password || !((url.protocol === 'https:' && (url.hostname === 'x.ai' || url.hostname.endsWith('.x.ai'))) || (['127.0.0.1', 'localhost', '[::1]'].includes(fixture.hostname) && url.origin === fixture.origin))) throw new Error('xAI returned an untrusted verification URL.')
