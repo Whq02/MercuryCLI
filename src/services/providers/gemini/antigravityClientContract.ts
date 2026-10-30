@@ -17,7 +17,7 @@ export const ANTIGRAVITY_OAUTH_SCOPE = [
 ].join(' ')
 export const ANTIGRAVITY_CLIENT_CONTRACT_VERSION = '2.28.2'
 export const ANTIGRAVITY_CLIENT_CONTRACT_CHANGELIST = '963137146'
-export const ANTIGRAVITY_CLIENT_CONTRACT_AS_OF = '2026-10-29'
+export const ANTIGRAVITY_CLIENT_CONTRACT_AS_OF = '2026-10-30'
 export const ANTIGRAVITY_CLIENT_OS = 'darwin'
 export const ANTIGRAVITY_CLIENT_ARCH = 'arm64'
 export const ANTIGRAVITY_MANIFEST_DEFAULT_BASE = 'https://antigravity-hub-auto-updater-974169037036.us-central1.run.app'
