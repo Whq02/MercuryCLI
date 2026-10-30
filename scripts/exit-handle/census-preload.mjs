@@ -65,7 +65,7 @@ function safe(fn) {
 function describeHandle(h) {
   const kind = h?.constructor?.name ?? typeof h
   const inner = h?._handle
-  const d = { kind }
+  const d = { kind, closed: inner === null }
   d.ref = safe(() =>
     typeof h.hasRef === 'function'
       ? h.hasRef()

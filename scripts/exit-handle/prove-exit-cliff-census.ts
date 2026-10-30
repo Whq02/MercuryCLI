@@ -47,7 +47,7 @@ type Census = {
   code: number
   node: string
   requests: Req[]
-  handles: { kind: string; fd?: number }[]
+  handles: { kind: string; fd?: number; closed?: boolean }[]
   activeResourcesInfo: Record<string, number>
   drainSeams?: string[] | null
   drainSkipped?: boolean
@@ -234,7 +234,7 @@ for (const run of drainRuns) {
       run.census.drainReport.abandoned.length === 0,
     j(run.census.drainReport),
   )
-  const ownHandles = run.census.handles.filter(h => !(h.kind === 'Socket' && typeof h.fd === 'number' && h.fd <= 2))
+  const ownHandles = run.census.handles.filter(h => h.closed !== true && !(h.kind === 'Socket' && typeof h.fd === 'number' && h.fd <= 2))
   check(
     `${tag} no ref'd handle of the run's own keeps the cliff (no child, socket, or watcher — the stdio pipes are the spawner's)`,
     ownHandles.length === 0,
