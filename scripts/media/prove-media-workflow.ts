@@ -100,7 +100,7 @@ try {
   const result = JSON.parse(text(generated))
   assert.equal(result.status, 'completed')
   assert.deepEqual([result.width, result.height, result.seed, result.steps, result.cfg, result.strength, result.reference_image, result.control.kind, result.loras[0].weight, result.export], [64, 64, 7, 12, 5.5, 1, join(dir, 'wall.png'), 'depth', 0.6, exported])
-  assert.match(result.mask, /run\/workflow-masks\/[a-f0-9]{64}\.png$/)
+  assert.match(result.mask, /run[\\/]workflow-masks[\\/][a-f0-9]{64}\.png$/)
   assert.equal(result.workflow.format, 'api')
   assert.equal(result.workflow.mapping.find((entry: { node: string }) => entry.node === '14').note, 'the mask is the transparent area of wall.png, grown by 6 pixels')
   assert.ok((generated.content as Array<{ type: string }>).some(part => part.type === 'image'))

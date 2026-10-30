@@ -1,7 +1,7 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
 import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
@@ -161,12 +161,12 @@ try {
   assert.deepEqual(record.document, document)
   assert.equal(record.pipelineHash, valid.pipelineHash)
   assert.deepEqual(record.steps.map((row: { id: string }) => row.id), document.steps.map(row => row.id))
-  for (const path of result.outputs) { assert.ok(path.startsWith(join(project, 'media') + '/')); assert.ok(existsSync(path)) }
+  for (const path of result.outputs) { assert.ok(path.startsWith(join(project, 'media') + sep)); assert.ok(existsSync(path)) }
   assert.deepEqual(result.steps, record.steps)
   const allPaths = result.steps.flatMap((step: { files?: Array<{ path: string }> }) => (step.files ?? []).map(file => file.path))
   for (const step of record.steps) for (const file of step.files ?? []) {
     assert.ok(allPaths.includes(file.path), `Missing output ${file.path}`)
-    assert.ok(file.path.startsWith(join(project, 'media') + '/'))
+    assert.ok(file.path.startsWith(join(project, 'media') + sep))
     assert.ok(existsSync(file.path))
   }
   assert.equal(readFileSync(pipelinePath, 'utf8'), JSON.stringify(document))
