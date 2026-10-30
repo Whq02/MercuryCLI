@@ -405,6 +405,7 @@ Runtime-flaggene er definert i `src/substrate/flagRegistry.ts`, eksponeres som `
 
 | Kommando | Hva den gjør |
 | --- | --- |
+| `/imagesetup` | Sett opp lokale bilde- og videomodeller. |
 | `/llmhost` | Velg en modell å leie hos Runpod, Vast.ai eller Lambda, kjøre på din egen datamaskin eller koble til en eksisterende server. |
 | `/restart` | Flytt denne chatten til det installerte Mercury-bygget; kjørende overvåkinger og bakgrunns-shell-er stopper. |
 | `/mcp` | Undersøk servere, logg inn, bla gjennom verktøyene og parameterne til hver server, koble til på nytt, eller slå en server av eller på for denne chatten. |

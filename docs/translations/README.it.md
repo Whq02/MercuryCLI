@@ -405,6 +405,7 @@ I flag di runtime sono definiti in `src/substrate/flagRegistry.ts`, esposti come
 
 | Comando | Cosa fa |
 | --- | --- |
+| `/imagesetup` | Configura i modelli locali per immagini e video. |
 | `/llmhost` | Scegli un modello da noleggiare su Runpod, Vast.ai o Lambda, eseguilo sul tuo computer oppure collega un server esistente. |
 | `/restart` | Sposta questa chat sulla build di Mercury installata; i monitoraggi in esecuzione e le shell in background si fermano. |
 | `/mcp` | Ispeziona i server, accedi, sfoglia gli strumenti e i parametri di ciascun server, riconnetti oppure attiva o disattiva un server per questa chat. |

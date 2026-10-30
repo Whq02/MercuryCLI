@@ -405,6 +405,7 @@ Zastavice izvršavanja definisane su u `src/substrate/flagRegistry.ts`, izlažu 
 
 | Naredba | Šta radi |
 | --- | --- |
+| `/imagesetup` | Postavite lokalne modele za slike i video. |
 | `/llmhost` | Odaberite model za iznajmljivanje na Runpod-u, Vast.ai-ju ili Lambda-i, pokrenite ga na vašem računaru ili povežite postojeći server. |
 | `/restart` | Premješta ovaj razgovor na instaliranu verziju Mercury-ja; pokrenuti monitori i pozadinske ljuske se zaustavljaju. |
 | `/mcp` | Pregledajte servere, prijavite se, pregledajte alate i parametre svakog servera, ponovo se povežite ili uključite i isključite server za ovaj razgovor. |

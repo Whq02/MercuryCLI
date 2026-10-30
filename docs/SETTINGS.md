@@ -126,6 +126,7 @@ is 1–32 lowercase letters, digits or hyphens; select a model as
 | `compatProvider.<name>.headers` | Extra request headers; credential and transport headers are reserved. |
 | `compatProvider.<name>.sessionAffinityHeader` | A header carrying the session id on model requests. |
 | `compatProvider.<name>.dialect` | `chat-completions` (default), `responses`, `ollama`, `lmstudio`, `vllm`, `sglang` or `llamacpp`; server dialects use their Chat Completions profiles. |
+| `compatProvider.<name>.hostPodId` | Links the endpoint to its hosted machine. Written by `/llmhost`; users do not set it. |
 
 `/logins compat/<name>` stores a key for that endpoint alone.
 `MERCURY_COMPAT_<NAME>_API_KEY` takes precedence: uppercase the name and

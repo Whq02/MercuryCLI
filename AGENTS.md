@@ -24,7 +24,7 @@ node dist/mercury.mjs health --json
 ```
 
 `setup` fetches the vendored packs (pyright · debugpy · js-debug · grammars ·
-this machine's Node runtime · brush, the optional shell engine); with cargo it
+the platform's Node and Python runtimes · brush, the optional shell engine); with cargo it
 builds the voice capture addon, the desktop driver addon that computer use runs
 through and the local embedding addon (`native/embed`, with its 118 MB model), and
 with cmake beside cargo the on-device transcriber; the health check names a skipped pack.

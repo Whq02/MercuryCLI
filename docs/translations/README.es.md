@@ -405,6 +405,7 @@ Los indicadores de ejecución se definen en `src/substrate/flagRegistry.ts`, se 
 
 | Comando | Qué hace |
 | --- | --- |
+| `/imagesetup` | Configure modelos locales de imagen y vídeo. |
 | `/llmhost` | Elija un modelo para alquilar en Runpod, Vast.ai o Lambda, ejecutarlo en su propio equipo o conectar un servidor existente. |
 | `/restart` | Traslada este chat a la compilación de Mercury instalada; los monitores en ejecución y los shells en segundo plano se detienen. |
 | `/mcp` | Inspeccione los servidores, inicie sesión, explore las herramientas y los parámetros de cada servidor, reconecte o active y desactive un servidor para este chat. |

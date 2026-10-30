@@ -203,7 +203,7 @@ advertise it, or `MERCURY_TRUECOLOR=0` to force 256 colours.
 ### Optional components
 
 `setup` fetches the bundled capability packs: pyright, debugpy, js-debug,
-extra grammars, the platform's Node runtime, and brush. If a download fails,
+extra grammars, the platform's Node and Python runtimes, and brush. If a download fails,
 that pack is skipped and the build and affected tools report the missing
 component. Running `bun install` alone produces a build without those packs.
 

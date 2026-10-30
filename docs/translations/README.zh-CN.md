@@ -405,6 +405,7 @@ docker run --rm mercury --version
 
 | 命令 | 作用 |
 | --- | --- |
+| `/imagesetup` | 设置本地图像和视频模型。 |
 | `/llmhost` | 选择要在 Runpod、Vast.ai 或 Lambda 上租用的模型，在你自己的电脑上运行，或连接已有的服务器。 |
 | `/restart` | 将当前对话切换到已安装的 Mercury 版本；正在运行的监视任务（watch）和后台 shell 会停止。 |
 | `/mcp` | 查看服务器、登录、浏览每个服务器的工具与参数、重新连接，或为当前对话切换某个服务器的启用状态。 |

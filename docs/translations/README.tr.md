@@ -405,6 +405,7 @@ Kullanılabilir komutlar şunları içerir:
 
 | Komut | Ne yapar |
 | --- | --- |
+| `/imagesetup` | Yerel görüntü ve video modellerini yapılandırın. |
 | `/llmhost` | Runpod, Vast.ai veya Lambda üzerinde kiralamak için bir model seçin, kendi bilgisayarınızda çalıştırın ya da mevcut bir sunucuya bağlanın. |
 | `/restart` | Bu sohbeti kurulu Mercury sürümüne taşıyın; çalışan izleyiciler ve arka plan shell'leri durur. |
 | `/mcp` | Sunucuları inceleyin, oturum açın, her sunucunun araçlarını ve parametrelerini görüntüleyin, yeniden bağlanın veya bu sohbet için bir sunucuyu açıp kapatın. |
