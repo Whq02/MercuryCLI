@@ -8,8 +8,19 @@ const scratch = mkdtempSync(join(tmpdir(), 'prove-pricing-by-provider-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_HOME = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_MODEL
+delete process.env.DASHSCOPE_BASE_URL
+for (const key of ['MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL']) delete process.env[key]
+const ollamaModels = [{ name: 'llama3.1:8b' }, { name: 'cloud', remote_model: 'upstream', remote_host: 'https://ollama.com' }]
+const ollama = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(req: Request) {
+  const path = new URL(req.url).pathname
+  if (path === '/api/tags') return Response.json({ models: ollamaModels })
+  if (path === '/api/version') return Response.json({ version: 'fixture' })
+  if (path === '/api/ps') return Response.json({ models: ollamaModels.map(row => ({ name: row.name, context_length: 131072 })) })
+  if (path === '/api/show') return Response.json({ capabilities: ['completion', 'tools'] })
+  return new Response('not found', { status: 404 })
+} })
+process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=http://127.0.0.1:${ollama.port}`
 process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 
@@ -39,6 +50,9 @@ const { huggingfaceDisplayPin } = await import('../../src/services/providers/hug
 const orCatalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const tracker = await import('../../src/cost-tracker.ts')
+const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')
+const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
+await refreshLocalDiscovery({ force: true })
 
 type Usage = Parameters<typeof cost.calculateUSDCost>[1]
 const usage = (input: number, output: number, cacheRead = 0): Usage => ({
@@ -64,11 +78,17 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('GPT-5.5 is priced at $5/$30, not unpriced (developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25)', cost.resolveModelPricing('gpt-5.5').basis === 'recorded' && cost.resolveModelPricing('gpt-5.5').costs.inputTokens === 5 && cost.resolveModelPricing('gpt-5.5').costs.outputTokens === 30)
   const argon = geminiPricePin('gemini-4-argon')!
   check('Argon introductory $2/$10 becomes $4/$20 on December 1 (ai.google.dev pricing, read 2026-10-25)', geminiPriceTierFor(argon, undefined, '2026-11-30').costInPerMtok === 2 && geminiPriceTierFor(argon, undefined, '2026-12-01').costOutPerMtok === 20)
+  process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
   for (const [id, boundary, input, output] of [['qwen3.7-plus', 256_000, 1.2, 4.8], ['qwen3.7-flash', 32_000, 0.1, 0.4], ['qwen3.7-flash', 256_000, 0.2, 0.8], ['qwen3.6-flash', 256_000, 1, 4]] as const) {
     const below = cost.resolveModelPricing(id, { promptTokens: boundary })
     const above = cost.resolveModelPricing(id, { promptTokens: boundary + 1 })
-    check(`${id} crosses ${boundary} at $${input}/$${output} (alibabacloud.com model-pricing, read 2026-10-25)`, below.costs.inputTokens < above.costs.inputTokens && above.costs.inputTokens === input && above.costs.outputTokens === output)
+    check(`${id} bound to International (Singapore) crosses ${boundary} at $${input}/$${output}, basis recorded (alibabacloud.com model-pricing, read 2026-10-25)`, above.basis === 'recorded' && below.costs.inputTokens < above.costs.inputTokens && above.costs.inputTokens === input && above.costs.outputTokens === output, `${below.basis} ${below.costs.inputTokens} → ${above.basis} ${above.costs.inputTokens}/${above.costs.outputTokens}`)
   }
+  process.env.DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+  const beijing = cost.resolveModelPricing('qwen3.7-plus', { promptTokens: 256_001 })
+  check('the same model bound to China (Beijing) prices at that region\'s own rate ($0.826/$3.301 above 256k), never the international one', beijing.basis === 'recorded' && beijing.costs.inputTokens === 0.826 && beijing.costs.outputTokens === 3.301, JSON.stringify(beijing))
+  delete process.env.DASHSCOPE_BASE_URL
+  check('with no bound endpoint the Qwen bill is unknowable: unpriced, never a guessed region', cost.resolveModelPricing('qwen3.7-plus', { promptTokens: 256_001 }).basis === 'unpriced')
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
   check('openai: gpt-5.6-sol at its pin, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gpt.costInPerMtok && gptPricing.costs.outputTokens === gpt.costOutPerMtok)
@@ -147,9 +167,17 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('huggingface: an unpinned slug is unpriced', cost.resolveModelPricing('huggingface/nobody/nothing').basis === 'unpriced')
 
   flagReset()
+  check('local: the fixture server lists llama3.1:8b as a model on this machine', localRecordFor('local/llama3.1:8b')?.executionOrigin?.kind === 'local', JSON.stringify(localRecordFor('local/llama3.1:8b')))
   const local = cost.resolveModelPricing('local/llama3.1:8b')
   cost.getModelCosts('local/llama3.1:8b')
-  check('local: a recorded zero on every axis, no flag', local.basis === 'recorded' && zeroTier(local.costs) && state.hasUnknownModelCost() === false)
+  check('local: a discovered local model is a recorded zero on every axis, no flag', local.basis === 'recorded' && zeroTier(local.costs) && state.hasUnknownModelCost() === false)
+  flagReset()
+  const remote = cost.resolveModelPricing('local/cloud')
+  cost.getModelCosts('local/cloud')
+  check('local: a remote model served through the local server is unpriced under the flag (its bill is upstream\'s)', localRecordFor('local/cloud')?.executionOrigin?.kind === 'remote' && remote.basis === 'unpriced' && zeroTier(remote.costs) && state.hasUnknownModelCost() === true)
+  flagReset()
+  cost.getModelCosts('local/not-served')
+  check('local: an id no server listed is unpriced under the flag', cost.resolveModelPricing('local/not-served').basis === 'unpriced' && state.hasUnknownModelCost() === true)
 }
 
 section('§2 no owner prices another family\'s turn — unpriced is zero, never a tier')
@@ -290,5 +318,6 @@ section('§5 the shape')
   check('every price pin cites its page beside its date', (glm.match(/source: GLM_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(glm, 'GLM_PRICE_PINS')) && (gemini.match(/source: GEMINI_PRICING_PAGE/g) ?? []).length === datedRows(priceTable(gemini, 'GEMINI_PRICE_PINS')))
 }
 
+ollama.stop(true)
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-pricing-by-provider${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)
