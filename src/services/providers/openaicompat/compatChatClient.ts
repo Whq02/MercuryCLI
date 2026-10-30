@@ -104,6 +104,8 @@ export interface CompatUsage {
   inputTokens: number
   outputTokens: number
   cachedInputTokens?: number
+  cacheWriteInputTokens?: number
+  cacheWrite1hInputTokens?: number
   reasoningTokens?: number
   totalTokens?: number
   statedCostUSD?: number
@@ -786,7 +788,7 @@ export async function* streamCompatChat(
           continue
         }
         try { options.onResponseChunk?.(parsed) } catch {}
-        for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex)) {
+        for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex, response.headers)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             if (tokenWait) { tokenWait = false; publish(null) }
             chunkNotedEvent = true
@@ -887,7 +889,7 @@ const KNOWN_FINISH: readonly CompatFinishReason[] = [
   'network_error',
 ]
 
-export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage | undefined {
+export function decodeCompatUsage(usage: Record<string, unknown>, headers?: Headers): CompatUsage | undefined {
   const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined)
   const prompt = num(usage.prompt_tokens)
   const completion = num(usage.completion_tokens)
@@ -898,6 +900,9 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
     num(usage.prompt_cache_hit_tokens) ??
     num(usage.cached_tokens) ??
     num(details?.cached_tokens)
+  const written = num(details?.cache_write_tokens)
+  const oneHourHeader = headers?.get('msh-usage-cache-write-tokens-1h')
+  const oneHour = oneHourHeader != null && oneHourHeader.trim() !== '' ? Number(oneHourHeader) : undefined
   const reasoning = num(completionDetails?.reasoning_tokens)
   const ticks = num(usage.cost_in_usd_ticks)
   const statedCost = num(usage.cost_usd) ?? num(usage.cost) ?? (ticks !== undefined && Number.isFinite(ticks) && ticks >= 0 ? ticks / 1e10 : undefined)
@@ -905,13 +910,15 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
     inputTokens: prompt ?? 0,
     outputTokens: completion ?? 0,
     ...(cached !== undefined ? { cachedInputTokens: cached } : {}),
+    ...(written !== undefined ? { cacheWriteInputTokens: written } : {}),
+    ...(written !== undefined && oneHour !== undefined && Number.isFinite(oneHour) && oneHour >= 0 ? { cacheWrite1hInputTokens: oneHour } : {}),
     ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
     ...(num(usage.total_tokens) !== undefined ? { totalTokens: num(usage.total_tokens) } : {}),
     ...(statedCost !== undefined ? { statedCostUSD: statedCost } : {}),
   }
 }
 
-function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>): CompatStreamEvent[] {
+function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>, activeSlotByRawIndex: Map<number, number>, headers: Headers): CompatStreamEvent[] {
   const out: CompatStreamEvent[] = []
   const o = asRecord(parsed)
   const servedModel = typeof o?.model === 'string' ? o.model.trim() : ''
@@ -1003,7 +1010,7 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
 
   const usageRecord = asRecord(o?.usage)
   if (usageRecord) {
-    const usage = decodeCompatUsage(usageRecord)
+    const usage = decodeCompatUsage(usageRecord, headers)
     if (usage) out.push({ type: 'usage', usage })
   }
 

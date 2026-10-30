@@ -422,11 +422,15 @@ async function buildToolDeclarationRows(
 export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeof EMPTY_USAGE {
   const total = usage?.inputTokens ?? 0
   const cached = usage?.cachedInputTokens ?? 0
+  const written = usage?.cacheWriteInputTokens ?? 0
+  const oneHour = Math.min(usage?.cacheWrite1hInputTokens ?? 0, written)
   return {
     ...EMPTY_USAGE,
-    input_tokens: Math.max(0, total - cached),
+    input_tokens: Math.max(0, total - cached - written),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
+    cache_creation_input_tokens: written,
+    cache_creation: { ephemeral_5m_input_tokens: written - oneHour, ephemeral_1h_input_tokens: oneHour },
     output_tokens_details: usage?.reasoningTokens !== undefined
       ? { thinking_tokens: usage.reasoningTokens }
       : null,
