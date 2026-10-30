@@ -1,5 +1,5 @@
 import { Command as CommanderCommand, InvalidArgumentError, Option } from 'commander'
-import { writeSync } from 'node:fs'
+import { existsSync, writeSync } from 'node:fs'
 import {
   getIsInteractive,
   getSessionId,
@@ -1752,11 +1752,21 @@ function parseDynamicMcpConfigs(items: string[]): {
     if (!item) continue
     let inlineObject: unknown
     let isInline = false
+    let jsonFault = ''
     try {
       inlineObject = JSON.parse(item)
       isInline = true
-    } catch {
+    } catch (error) {
       isInline = false
+      jsonFault = error instanceof Error ? error.message : String(error)
+    }
+    if (!isInline && (item.startsWith('{') || item.startsWith('['))) {
+      errors.push(`--mcp ${item.length > 60 ? `${item.slice(0, 60)}…` : item}: not valid JSON — ${jsonFault}`)
+      continue
+    }
+    if (!isInline && !existsSync(item)) {
+      errors.push(`--mcp ${item}: no such file — pass the path of a JSON file with mcpServers, or the JSON itself`)
+      continue
     }
     const parsed = isInline
       ? parseMcpConfig({ configObject: inlineObject, expandVars: true, scope: 'dynamic' })
