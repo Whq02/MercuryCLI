@@ -332,7 +332,13 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   notifyCredentialsChanged(params: ParamsOf<'credentials/changed'> = {}) { this.notify('credentials/changed', params) }
   async claim(params: ParamsOf<'session/claim'>) {
     const receipt = await this.request('session/claim', params)
-    if (params.resume === true) await this.request('session/facts', {}, { deadlineMs: null })
+    if (params.resume === true) {
+      const facts = await this.request('session/facts', {}, { deadlineMs: null })
+      const bootRefusal = (facts as { bootRefusal?: unknown }).bootRefusal
+      if (typeof bootRefusal === 'string' && bootRefusal !== '') {
+        throw new MercuryRefusal({ type: 'outcome', status: 'refused', error: { class: 'load', message: bootRefusal } } as unknown as OutcomeRow, null)
+      }
+    }
     this.initialized.session_id = receipt.session_id
     return receipt
   }

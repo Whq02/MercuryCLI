@@ -45,6 +45,7 @@ export interface SessionFactsAnswerV1 {
   skills: SkillsRosterEntryV1[]
   mcp: McpRosterEntryV1[]
   permissionMode: PermissionMode
+  bootRefusal?: string
   effortSent?: string | null
   workspace: WorkspaceFactsV1
   queue: QueuedFactV1[]

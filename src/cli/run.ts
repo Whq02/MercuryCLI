@@ -470,6 +470,7 @@ export async function runHeadless(
   }
   let bootModel: string | undefined
   let bootModelRefusal: string | null = null
+  let bootRefusalFact: string | null = null
   if (options.userSpecifiedModel !== undefined) {
     try {
       bootModel = await resolveHeadlessModel(options.userSpecifiedModel)
@@ -731,6 +732,7 @@ export async function runHeadless(
         .catch((error: unknown) => logError(toError(error)))
     }
   }
+  if (bootModelRefusal !== null) bootRefusalFact = bootModelRefusal
   if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
 
   const hydrateResumedRun = async (): Promise<void> => {
@@ -2152,7 +2154,10 @@ export async function runHeadless(
             return liveMcp.refresh()
           }).catch(logError)
           awaitingSessionClaim = false
-          if (recordedModelRefusal !== null) await persistBootModelRefusal(recordedModelRefusal)
+          if (recordedModelRefusal !== null) {
+            bootRefusalFact = recordedModelRefusal
+            await persistBootModelRefusal(recordedModelRefusal)
+          }
           settleClearBirth()
           sessionFactsHoldSpent = false
           sessionFactsHold = null
@@ -2206,6 +2211,7 @@ export async function runHeadless(
           effective: activeModel ?? getEngineModel(),
           setting: getEngineModelOverride() ?? null,
         },
+        ...(bootRefusalFact !== null ? { bootRefusal: bootRefusalFact } : {}),
         usage: {
           totalCostUSD: getTotalCostUSD(),
           totalAPIDurationMs: getTotalAPIDuration(),

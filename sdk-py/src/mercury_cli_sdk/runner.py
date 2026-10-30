@@ -456,7 +456,11 @@ class MercurySession(TypedRequests):
         if restart_reason is not None: params['restart_reason'] = restart_reason
         if openai_catalogue is not None: params['openai_catalogue'] = openai_catalogue
         receipt = await self.request('session/claim', params)
-        if resume is True: await self.request('session/facts', timeout=None)
+        if resume is True:
+            facts = await self.request('session/facts', timeout=None)
+            boot_refusal = facts.get('bootRefusal') if isinstance(facts, Mapping) else None
+            if isinstance(boot_refusal, str) and boot_refusal != '':
+                raise MercuryRefusal({'type': 'outcome', 'status': 'refused', 'error': {'class': 'load', 'message': boot_refusal}})
         self.initialized['session_id'] = receipt['session_id']
         return receipt
 
