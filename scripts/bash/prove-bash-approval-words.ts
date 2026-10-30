@@ -94,7 +94,7 @@ console.log('\n5. the other one-part reasons')
 {
   const interpreter = await decide('python3 < b_big.py')
   check('python3 < b_big.py → the one-part sentence quoting the redirect as written', interpreter.decision.message === '`python3 < b_big.py` requires approval: `python3` is not a command Mercury can verify as read-only.', shown(interpreter))
-  const cwdPrefixed = await decide(`cd ${root} && npm test`, 'default')
+  const cwdPrefixed = await decide(`cd '${root}' && npm test`, 'default')
   check('a cd to the starting folder is not quoted; the part is', cwdPrefixed.decision.message === '`npm test` requires approval: `npm` is not a command Mercury can verify as read-only.', shown(cwdPrefixed))
   const long = await decide(`node -e "${'x'.repeat(130)}"`, 'default')
   check('a part longer than 120 characters is cut with an ellipsis', (long.decision.message ?? '').startsWith(`\`node -e "${'x'.repeat(111)}…\` requires approval: \`node\` is not a command Mercury can verify as read-only.`), shown(long))
