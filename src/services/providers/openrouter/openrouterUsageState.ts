@@ -10,6 +10,24 @@ import { wordsNameTheKey } from '../catalogueBody.js'
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
 
+export interface OpenrouterBudget {
+  scope: 'workspace_default_member' | 'workspace_default_key' | 'member' | 'api_key' | 'workspace' | 'key_limit'
+  guardrailId?: string | null
+  budgetId?: string | null
+  limitUsd: number
+  spendUsd: number
+  remainingUsd: number
+  resetInterval?: string | null
+  resetsAt?: string | null
+  includeByok?: boolean
+}
+
+export interface OpenrouterFreeRequests {
+  used: number
+  limit: number | null
+  remaining: number | null
+}
+
 export interface OpenrouterKeyUsage {
   label?: string
   usage?: number
@@ -18,7 +36,10 @@ export interface OpenrouterKeyUsage {
   usageMonthly?: number
   limit?: number | null
   limitRemaining?: number | null
-  limitReset?: string
+  limitReset?: string | null
+  budgets?: OpenrouterBudget[] | null
+  effectiveBudget?: OpenrouterBudget | null
+  freeModelDailyRequests?: OpenrouterFreeRequests | null
   isFreeTier?: boolean
   observedAtMs: number
 }
@@ -28,7 +49,7 @@ let lastError: string | undefined
 let lastErrorSource: OpenrouterKeySource | undefined
 let lastErrorStatus: number | undefined
 let lastAttemptAtMs = 0
-let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
+const inFlight = new Map<string, Promise<OpenrouterKeyUsage | null>>()
 let observedIdentity = 'none'
 
 const KEY_USAGE_TTL_MS = USAGE_POLL_TTL_MS
@@ -69,11 +90,44 @@ export function openrouterLowBalanceNote(usage: OpenrouterKeyUsage | null): stri
   return `remaining under the key cap is $${amount} — below Mercury’s $${OPENROUTER_LOW_BALANCE_FLOOR_USD} floor; check the key cap and credits at openrouter.ai/settings/credits`
 }
 
+function nullableString(value: unknown): string | null | undefined {
+  return value === null || typeof value === 'string' ? value : undefined
+}
+
+function decodeBudget(value: unknown): OpenrouterBudget | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const row = value as Record<string, unknown>
+  if (!['workspace_default_member', 'workspace_default_key', 'member', 'api_key', 'workspace', 'key_limit'].includes(String(row.scope))) return undefined
+  const limitUsd = num(row.limit_usd)
+  const spendUsd = num(row.spend_usd)
+  const remainingUsd = num(row.remaining_usd)
+  if (limitUsd === undefined || spendUsd === undefined || remainingUsd === undefined) return undefined
+  return {
+    scope: row.scope as OpenrouterBudget['scope'], limitUsd, spendUsd, remainingUsd,
+    ...(nullableString(row.guardrail_id) !== undefined ? { guardrailId: nullableString(row.guardrail_id)! } : {}),
+    ...(nullableString(row.budget_id) !== undefined ? { budgetId: nullableString(row.budget_id)! } : {}),
+    ...(nullableString(row.reset_interval) !== undefined ? { resetInterval: nullableString(row.reset_interval)! } : {}),
+    ...(nullableString(row.resets_at) !== undefined ? { resetsAt: nullableString(row.resets_at)! } : {}),
+    ...(typeof row.include_byok === 'boolean' ? { includeByok: row.include_byok } : {}),
+  }
+}
+
+function decodeFreeRequests(value: unknown): OpenrouterFreeRequests | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const row = value as Record<string, unknown>
+  const used = num(row.used)
+  const limit = row.limit === null ? null : num(row.limit)
+  const remaining = row.remaining === null ? null : num(row.remaining)
+  return used !== undefined && limit !== undefined && remaining !== undefined ? { used, limit, remaining } : undefined
+}
+
 function decodeKeyPayload(parsed: unknown, now: () => number): OpenrouterKeyUsage | undefined {
   if (typeof parsed !== 'object' || parsed === null) return undefined
   const data = (parsed as Record<string, unknown>).data
   if (typeof data !== 'object' || data === null) return undefined
   const d = data as Record<string, unknown>
+  const effectiveBudget = d.effective_budget === null ? null : decodeBudget(d.effective_budget)
+  const freeModelDailyRequests = d.free_model_daily_requests === null ? null : decodeFreeRequests(d.free_model_daily_requests)
   return {
     ...(typeof d.label === 'string' && d.label ? { label: d.label } : {}),
     ...(num(d.usage) !== undefined ? { usage: num(d.usage)! } : {}),
@@ -86,7 +140,10 @@ function decodeKeyPayload(parsed: unknown, now: () => number): OpenrouterKeyUsag
       : num(d.limit_remaining) !== undefined
         ? { limitRemaining: num(d.limit_remaining)! }
         : {}),
-    ...(typeof d.limit_reset === 'string' && d.limit_reset ? { limitReset: d.limit_reset } : {}),
+    ...(nullableString(d.limit_reset) !== undefined ? { limitReset: nullableString(d.limit_reset)! } : {}),
+    ...(Array.isArray(d.budgets) ? { budgets: d.budgets.map(decodeBudget).filter((budget): budget is OpenrouterBudget => budget !== undefined) } : d.budgets === null ? { budgets: null } : {}),
+    ...(effectiveBudget !== undefined ? { effectiveBudget } : {}),
+    ...(freeModelDailyRequests !== undefined ? { freeModelDailyRequests } : {}),
     ...(typeof d.is_free_tier === 'boolean' ? { isFreeTier: d.is_free_tier } : {}),
     observedAtMs: now(),
   }
@@ -167,9 +224,11 @@ export function refreshOpenrouterKeyUsage(opts?: {
   if (!opts?.force && lastAttemptAtMs !== 0 && now() - lastAttemptAtMs < window) {
     return Promise.resolve(observedKeyUsage)
   }
-  if (inFlight) return inFlight
+  const startIdentity = activeIdentity(env)
+  const running = inFlight.get(startIdentity)
+  if (running) return running
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
-  inFlight = (async (): Promise<OpenrouterKeyUsage | null> => {
+  const work = (async (): Promise<OpenrouterKeyUsage | null> => {
     let auth = resolveOpenrouterRequestAuth(env)
     let identity = auth ? requestIdentity(auth) : 'none'
     try {
@@ -229,10 +288,11 @@ export function refreshOpenrouterKeyUsage(opts?: {
       lastErrorStatus = undefined
       return observedKeyUsage
     } finally {
-      inFlight = null
+      inFlight.delete(startIdentity)
     }
   })()
-  return inFlight
+  inFlight.set(startIdentity, work)
+  return work
 }
 
 
@@ -287,7 +347,7 @@ export function __resetOpenrouterUsageStateForTest(): void {
   lastErrorSource = undefined
   lastErrorStatus = undefined
   lastAttemptAtMs = 0
-  inFlight = null
+  inFlight.clear()
   observedLimit = null
   observedIdentity = 'none'
 }

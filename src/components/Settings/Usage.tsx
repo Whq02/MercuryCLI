@@ -1421,8 +1421,12 @@ export function usageCompactLines(
       }
     }
     for (const line of windows) lines.push({ text: line, heading: false })
-    const credits = usageCreditsLine(usage.credits) ?? figuresLine(usage)
-    if (credits !== undefined) lines.push({ text: `  ${credits}`, heading: false })
+    if (section.id === 'openrouter' && usage.figures?.length) {
+      for (const figure of usage.figures) lines.push({ text: `  ${figure.value} ${figure.label}`, heading: false })
+    } else {
+      const credits = usageCreditsLine(usage.credits) ?? figuresLine(usage)
+      if (credits !== undefined) lines.push({ text: `  ${credits}`, heading: false })
+    }
     if ((section.id === 'openrouter' || section.id === 'gemini') && usage.readerNote !== undefined) {
       for (const note of usage.readerNote.split('; ')) lines.push({ text: `  ${note}`, heading: false })
     }

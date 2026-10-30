@@ -1524,6 +1524,11 @@ const COMPAT_USAGE_ABSENCE_NOTE =
 const API_KEY_USAGE_ABSENCE_NOTE =
   'no usage endpoint is read for an API key on this lane — the provider console is the view'
 
+function openrouterResetWords(interval: string | null | undefined, resetsAt?: string | null): string {
+  if (interval === null) return 'never resets'
+  return [interval, resetsAt ? `resets ${resetsAt}` : undefined].filter(Boolean).join(' · ')
+}
+
 function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] {
   if (!usage) return []
   const observedAtMs = usage.observedAtMs
@@ -1535,11 +1540,21 @@ function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] 
   if (usage.usageWeekly !== undefined) {
     figures.push({ key: 'credits-week', label: 'credits used this week', value: usage.usageWeekly.toFixed(2), ...stamp })
   }
+  const capReset = openrouterResetWords(usage.limitReset)
+  const capLabel = `key cap${capReset ? ` (${capReset})` : ''}`
   if (typeof usage.limitRemaining === 'number') {
-    figures.push({ key: 'cap-remaining', label: 'remaining under the key cap', value: usage.limitRemaining.toFixed(2), ...stamp })
+    figures.push({ key: 'cap-remaining', label: `remaining under the ${capLabel}`, value: usage.limitRemaining.toFixed(2), ...stamp })
   } else if (usage.limit === null) {
-    figures.push({ key: 'cap', label: 'key cap', value: 'uncapped', ...stamp })
+    figures.push({ key: 'cap', label: capLabel, value: 'uncapped', ...stamp })
   }
+  const budget = usage.effectiveBudget
+  if (budget) {
+    const scope = { workspace_default_member: 'workspace member', workspace_default_key: 'workspace key', member: 'member', api_key: 'API key', workspace: 'workspace', key_limit: 'key' }[budget.scope]
+    const reset = openrouterResetWords(budget.resetInterval, budget.resetsAt)
+    figures.push({ key: 'effective-budget', label: `enforced ${scope} budget${reset ? ` (${reset})` : ''}`, value: `$${budget.remainingUsd.toFixed(2)} of $${budget.limitUsd.toFixed(2)} remaining`, ...stamp })
+  }
+  const free = usage.freeModelDailyRequests
+  if (free) figures.push({ key: 'free-model-daily-requests', label: 'free-model requests (daily)', value: free.limit !== null && free.remaining !== null ? `${free.remaining} of ${free.limit} remaining` : `${free.used} used`, ...stamp })
   if (usage.isFreeTier === true) {
     figures.push({ key: 'tier', label: 'account', value: 'free tier', ...stamp })
   }
