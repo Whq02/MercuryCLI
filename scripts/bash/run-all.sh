@@ -128,6 +128,11 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-admission-review.ts" || { __
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-saved-rule-prefix.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-saved-rule-prefix.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tracker-known-values.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tracker-known-values.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-current-cd.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-current-cd.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-pipeline-status.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-pipeline-status.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-refusal-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-refusal-words.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-absolute-mkdir-cd.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-absolute-mkdir-cd.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-checked-groups.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-checked-groups.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
