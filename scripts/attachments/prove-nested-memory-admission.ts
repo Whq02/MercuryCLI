@@ -70,6 +70,21 @@ try {
   check('every admitted file lands as an attachment, whatever its load reason', admittedByReason.length === 3)
   const quiet = memoryFilesToAttachments([entry(join(project, 'd.md'))], context() as never)
   check('a plain nested guide lands too', quiet.length === 1)
+
+  const { getMaxMemoryCharacterCount } = await import(`${root}/src/services/instructions/engine.ts`)
+  const cap: number = getMaxMemoryCharacterCount()
+  const hugeGuide = join(project, 'sub', 'huge', 'MERCURY.md')
+  const line = `- a rule line ${'x'.repeat(60)}\n`
+  const huge = line.repeat(Math.ceil((cap * 3) / line.length))
+  const bounded = context()
+  const [clipped] = memoryFilesToAttachments([entry(hugeGuide, { content: huge })], bounded as never)
+  const shown: string = clipped?.content.content ?? ''
+  const keptPart = shown.slice(0, shown.lastIndexOf('\n[the rest of this file'))
+  check(`a folder guide over the instruction-file limit (${cap} characters) is attached clipped to the limit, not whole`, shown.length <= cap + 240 && shown.length < huge.length, `${shown.length} of ${huge.length}`)
+  check('the clip ends on a whole line and says how much was left out and where to read it', shown.includes(`[the rest of this file, ${huge.length - keptPart.length} characters`) && shown.includes(`read ${hugeGuide} for the rest]`) && keptPart.endsWith('\n'), shown.slice(-220))
+  check('the read cache keeps the whole file as a partial view, so an edit still asks for a read of the unseen part', bounded.readFileState.get(hugeGuide)?.content === huge && bounded.readFileState.get(hugeGuide)?.isPartialView === true)
+  const [small] = memoryFilesToAttachments([entry(join(project, 'sub', 'small', 'MERCURY.md'), { content: line.repeat(3) })], context() as never)
+  check('a guide under the limit is attached whole and untouched', small?.content.content === line.repeat(3))
 } finally {
   process.chdir(scratch)
   rmSync(scratch, { recursive: true, force: true })

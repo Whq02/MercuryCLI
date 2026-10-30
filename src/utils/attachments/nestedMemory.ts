@@ -3,7 +3,7 @@ import { getCwd } from 'src/utils/cwd.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
-import { getConditionalInstructionRulesForCwdLevelDirectory, getManagedAndUserConditionalInstructionRules, getInstructionFilesForNestedDirectory } from '../../services/instructions/engine.js'
+import { getConditionalInstructionRulesForCwdLevelDirectory, getManagedAndUserConditionalInstructionRules, getInstructionFilesForNestedDirectory, getMaxMemoryCharacterCount } from '../../services/instructions/engine.js'
 import type { FileState } from '../fileStateCache.js'
 import { logError } from '../log.js'
 import { pathInAllowedWorkingPath } from '../permissions/filesystem.js'
@@ -64,17 +64,27 @@ export function getDirectoriesToProcess(targetPath: string, originalCwd: string)
   }
 }
 
-function contextRecordOf(entry: InstructionSourceEntry): FileState {
+function contextRecordOf(entry: InstructionSourceEntry, clipped: boolean): FileState {
   const content = entry.contentDiffersFromDisk ? entry.rawContent ?? entry.content : entry.content
-  return { content, timestamp: Date.now(), offset: undefined, limit: undefined, isPartialView: entry.contentDiffersFromDisk }
+  return { content, timestamp: Date.now(), offset: undefined, limit: undefined, isPartialView: clipped || entry.contentDiffersFromDisk }
+}
+
+export function clipNestedGuide(entry: InstructionSourceEntry, cap: number): InstructionSourceEntry {
+  if (entry.content.length <= cap) return entry
+  const lastBreak = entry.content.lastIndexOf('\n', cap)
+  const kept = entry.content.slice(0, lastBreak > cap / 2 ? lastBreak + 1 : cap)
+  const rest = entry.content.length - kept.length
+  return { ...entry, content: `${kept}\n[the rest of this file, ${rest} characters, was not loaded: a folder guide is loaded up to ${cap} characters; read ${entry.path} for the rest]` }
 }
 
 export function memoryFilesToAttachments(memoryFiles: InstructionSourceEntry[], toolUseContext: ToolUseContext): Attachment[] {
   const { loadedNestedMemoryPaths: ledger, readFileState: cache } = toolUseContext
+  const cap = getMaxMemoryCharacterCount()
   return memoryFiles.flatMap(entry => {
     if (ledger?.has(entry.path) || cache.has(entry.path)) return []
     ledger?.add(entry.path)
-    cache.set(entry.path, contextRecordOf(entry))
-    return [{ type: 'nested_memory' as const, path: entry.path, content: entry, displayPath: relative(getCwd(), entry.path) }]
+    const shown = clipNestedGuide(entry, cap)
+    cache.set(entry.path, contextRecordOf(entry, shown !== entry))
+    return [{ type: 'nested_memory' as const, path: entry.path, content: shown, displayPath: relative(getCwd(), entry.path) }]
   })
 }
