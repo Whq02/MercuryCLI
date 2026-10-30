@@ -11,7 +11,7 @@ const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
 const DOCUMENT_EXTENSIONS = new Set(['docx', 'xlsx', 'pptx', 'odt', 'ods', 'odp', 'epub', 'rtf'])
 
-const RICH_CONTAINER_MAX_BYTES = 16 * 1024 * 1024
+export const RICH_CONTAINER_MAX_BYTES = 16 * 1024 * 1024
 export const RICH_ENTRY_MAX_BYTES = 4 * 1024 * 1024
 
 type RichFormatKind = 'archive' | 'sqlite' | 'document'
@@ -196,11 +196,14 @@ export function extractZipEntryBuffer(buf: Buffer, entry: ArchiveEntryMeta): Buf
         `Archive entry "${entry.name}" (${formatFileSize(raw.length)}) exceeds the maximum allowed entry size (${formatFileSize(RICH_ENTRY_MAX_BYTES)}).`,
       )
     }
+    if (raw.length !== entry.uncompressedSize) throw new Error(`Corrupt zip entry "${entry.name}": uncompressed size does not match.`)
     return raw
   }
   if (entry.method === 8) {
     try {
-      return inflateRawSync(raw, { maxOutputLength: RICH_ENTRY_MAX_BYTES })
+      const data = inflateRawSync(raw, { maxOutputLength: RICH_ENTRY_MAX_BYTES })
+      if (data.length !== entry.uncompressedSize) throw new Error(`Corrupt zip entry "${entry.name}": uncompressed size does not match.`)
+      return data
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (/maxOutputLength|Cannot create a Buffer larger than|output length/i.test(msg)) {
@@ -645,9 +648,13 @@ function readSelectedZipEntries(
   filter: (name: string) => boolean,
 ): Map<string, Buffer> {
   const map = new Map<string, Buffer>()
+  let total = 0
   for (const entry of readZipEntries(buf, filePath)) {
     if (entry.isDirectory || !filter(entry.name)) continue
-    map.set(entry.name, extractZipEntryBuffer(buf, entry))
+    const data = extractZipEntryBuffer(buf, entry)
+    total += data.length
+    if (total > RICH_CONTAINER_MAX_BYTES) throw new Error(`${filePath}: document contents exceed the 16 MiB extraction limit. Split the document and read one part at a time.`)
+    map.set(entry.name, data)
   }
   return map
 }
@@ -757,12 +764,16 @@ function extractEpubText(buf: Buffer, filePath: string): string {
   }
 
   const parts: string[] = []
+  let total = 0
   for (const docKey of orderedDocs.slice(0, 200)) {
     const raw = extractNamed(docKey)
     if (!raw) continue
+    total += raw.length
+    if (total > RICH_CONTAINER_MAX_BYTES) throw new Error(`${filePath}: EPUB contents exceed the 16 MiB extraction limit. Split the book and read one part at a time.`)
     const text = stripHtmlToText(raw.toString('utf8'))
     if (text) parts.push(text)
   }
+  if (orderedDocs.length > 200) parts.push(`[Showing 200 of ${orderedDocs.length} EPUB sections. Split the book to read the remaining sections.]`)
   return parts.join('\n\n')
 }
 

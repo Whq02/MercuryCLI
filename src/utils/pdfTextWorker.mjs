@@ -1,5 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 
 function pageLines(items) {
@@ -35,7 +36,8 @@ const encryptedMessage = 'The PDF is encrypted. Open it with its password in a P
 const diagnostics = []
 console.log = console.warn = (...args) => diagnostics.push(args.map(String).join(' '))
 try {
-  const { root, bytes } = workerData
+  const { root, inputPath } = workerData
+  const bytes = new Uint8Array(await readFile(inputPath))
   const api = await import(pathToFileURL(join(root, 'legacy/build/pdf.mjs')).href)
   api.GlobalWorkerOptions.workerSrc = pathToFileURL(join(root, 'legacy/build/pdf.worker.mjs')).href
   const task = api.getDocument({ data: bytes, verbosity: 1, stopAtErrors: true, isEvalSupported: false, useWorkerFetch: false, useSystemFonts: false, cMapUrl: `${root}/cmaps/`, cMapPacked: true, standardFontDataUrl: `${root}/standard_fonts/`, disableFontFace: true, isOffscreenCanvasSupported: false, isImageDecoderSupported: false })

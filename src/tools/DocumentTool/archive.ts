@@ -1,6 +1,7 @@
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom'
 import { posix } from 'node:path'
-import { unzipSync, strFromU8, strToU8, zipSync } from 'fflate'
+import { strFromU8, strToU8, zipSync } from 'fflate'
+import { readZipEntries, extractZipEntryBuffer, RICH_CONTAINER_MAX_BYTES } from '../FileReadTool/readRichFormats.js'
 
 export const WORD_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 export const DRAW_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main'
@@ -16,8 +17,17 @@ export function elements(node: Document | Element, namespace: string, name: stri
   return Array.from(node.getElementsByTagNameNS(namespace, name))
 }
 export function documentArchive(bytes: Uint8Array): Record<string, Uint8Array> {
-  const entries = unzipSync(bytes)
-  for (const name of Object.keys(entries)) if (name.startsWith('/') || name.split(/[\\/]/).includes('..')) throw new Error(`Invalid document archive entry: ${name}`)
+  if (bytes.byteLength > RICH_CONTAINER_MAX_BYTES) throw new Error('Document exceeds the 16 MiB container limit.')
+  const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const entries: Record<string, Uint8Array> = Object.create(null)
+  let total = 0
+  for (const entry of readZipEntries(buffer)) {
+    const name = entry.name
+    if (name.startsWith('/') || name.split(/[\\/]/).includes('..')) throw new Error(`Invalid document archive entry: ${name}`)
+    total += entry.uncompressedSize
+    if (total > RICH_CONTAINER_MAX_BYTES) throw new Error('Document contents exceed the 16 MiB extraction limit.')
+    entries[name] = extractZipEntryBuffer(buffer, entry)
+  }
   return entries
 }
 export function xmlPart(entries: Record<string, Uint8Array>, name: string): Document {

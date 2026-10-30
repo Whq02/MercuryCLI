@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
+import { PDF_MAX_EXTRACT_SIZE } from '../../constants/apiLimits.js'
 import { extname } from 'node:path'
-import { findEocdOffset, readZipEntries } from '../FileReadTool/readRichFormats.js'
+import { findEocdOffset, readZipEntries, extractZipEntryBuffer, RICH_CONTAINER_MAX_BYTES, RICH_ENTRY_MAX_BYTES } from '../FileReadTool/readRichFormats.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
@@ -95,10 +96,21 @@ export const DocumentTool = buildTool({
           if (result.behavior !== 'allow') throw new Error(result.message)
         }
         approved.add(file)
+        const max = extname(file).toLowerCase() === '.pdf' ? PDF_MAX_EXTRACT_SIZE : RICH_CONTAINER_MAX_BYTES
+        const info = statSync(file)
+        if (!info.isFile()) throw new Error(`${file}: not a regular file.`)
+        if (info.size > max) throw new Error(`${file}: exceeds the ${max / 1024 / 1024} MiB document limit. Split the document and read one part at a time.`)
         const bytes = readFileSync(file)
+        if (bytes.length > max) throw new Error(`${file}: exceeds the ${max / 1024 / 1024} MiB document limit.`)
         if (/^\.(?:docx|xlsx|pptx|odt|ods|odp|epub)$/i.test(extname(file))) {
           if (findEocdOffset(bytes) === -1) throw new Error(`${file}: truncated ZIP; central directory is missing.`)
-          readZipEntries(bytes, file)
+          let total = 0
+          for (const entry of readZipEntries(bytes, file)) {
+            total += entry.uncompressedSize
+            if (entry.uncompressedSize > RICH_ENTRY_MAX_BYTES) throw new Error(`${file}: archive entry ${entry.name} exceeds the 4 MiB entry limit.`)
+            if (total > RICH_CONTAINER_MAX_BYTES) throw new Error(`${file}: document contents exceed the 16 MiB extraction limit.`)
+            extractZipEntryBuffer(bytes, entry)
+          }
         }
         return bytes
       },
