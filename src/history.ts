@@ -59,7 +59,7 @@ function historyDisabled(): boolean {
 
 let pendingEntries: HistoryRecord[] = []
 let lastAppended: HistoryRecord | null = null
-const skipTimestamps = new Set<number>()
+const retractedRecords = new Set<string>()
 let cleanupRegistered = false
 let inFlightFlush: Promise<void> | null = null
 let retryFlushRunning = false
@@ -237,7 +237,11 @@ export function removeLastFromHistory(): void {
     pendingEntries.splice(at, 1)
     return
   }
-  skipTimestamps.add(target.timestamp)
+  retractedRecords.add(recordKey(target))
+}
+
+function recordKey(record: HistoryRecord): string {
+  return `${record.timestamp}\n${record.display}`
 }
 
 
@@ -252,7 +256,7 @@ function parseRecordLine(line: string): HistoryRecord | null {
 
 function isRetracted(record: HistoryRecord): boolean {
   return (
-    record.sessionId === getSessionId() && skipTimestamps.has(record.timestamp)
+    record.sessionId === getSessionId() && retractedRecords.has(recordKey(record))
   )
 }
 
