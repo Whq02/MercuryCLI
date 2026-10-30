@@ -219,16 +219,20 @@ export function executeToggleCase(count: number, ctx: OperatorContext): void {
   let pos = cursor.offset
   let toggled = ''
   let handled = 0
-  while (handled < count && pos < ctx.text.length) {
+  while (handled < count && pos < ctx.text.length && ctx.text[pos] !== '\n') {
     const next = cursor.measuredText.nextOffset(pos)
     const grapheme = ctx.text.slice(pos, next)
     toggled += grapheme === grapheme.toUpperCase() ? grapheme.toLowerCase() : grapheme.toUpperCase()
     pos = next
     handled++
   }
+  if (handled === 0) return
   const newText = ctx.text.slice(0, cursor.offset) + toggled + ctx.text.slice(pos)
   ctx.setText(newText)
-  ctx.setOffset(cursor.offset + toggled.length)
+  const lineStart = ctx.text.lastIndexOf('\n', cursor.offset - 1) + 1
+  const lineEnd = newText.indexOf('\n', lineStart)
+  const line = newText.slice(lineStart, lineEnd === -1 ? undefined : lineEnd)
+  ctx.setOffset(Math.min(cursor.offset + toggled.length, lineStart + lastGraphemeStart(line)))
   ctx.recordChange({ type: 'toggleCase', count })
 }
 
@@ -307,7 +311,7 @@ export function executeIndent(dir: '>' | '<', count: number, ctx: OperatorContex
   ctx.setText(lines.join('\n'))
   const current = lines[lineIdx]!
   const firstNonBlank = /\S/.exec(current)
-  ctx.setOffset(offsetOfLine(lines, lineIdx) + (firstNonBlank ? firstNonBlank.index : current.length))
+  ctx.setOffset(offsetOfLine(lines, lineIdx) + (firstNonBlank ? firstNonBlank.index : lastGraphemeStart(current)))
   ctx.recordChange({ type: 'indent', dir, count })
 }
 
