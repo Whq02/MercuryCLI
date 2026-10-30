@@ -1,4 +1,4 @@
-import { Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
+import { ProtocolError, ProtocolErrorCode, Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
 import { getEmptyToolPermissionContext, type ToolUseContext } from '../Tool.js'
 import review from '../commands/review.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
@@ -12,14 +12,15 @@ import { createFileStateCacheWithSizeLimit } from '../utils/fileStateCache.js'
 import { randomUUID } from 'node:crypto'
 import { zodToJsonSchema } from '../utils/zodToJsonSchema.js'
 import { createAssistantMessage } from '../utils/messages.js'
+import { repairToolInput } from '../services/providers/toolCallGate.js'
+import { formatZodValidationError } from '../utils/toolErrors.js'
 
-function describeToolError(error: unknown): string {
+export function describeToolError(error: unknown): string {
   if (error instanceof Error) {
-    const parts = [error.name, error.message, error.stack]
-      .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
-      .filter((part, index, all) => all.indexOf(part) === index)
-    const joined = parts.join('\n').trim()
-    return joined === '' ? 'Error' : joined
+    const message = error.message.trim()
+    const name = error.name.trim()
+    if (message === '') return name === '' ? 'Error' : name
+    return name === '' || name === 'Error' || message.startsWith(`${name}:`) ? message : `${name}: ${message}`
   }
   const text = String(error).trim()
   return text === '' ? 'Error' : text
@@ -86,7 +87,14 @@ export async function startMCPServer(
     const permissionContext = await buildServePermissionContext()
     const pool = getTools(permissionContext)
     const tool = pool.find(candidate => candidate.name === request.params.name && candidate.name !== COMPUTER_TOOL_NAME)
-    if (!tool) throw new Error(`Tool ${request.params.name} not found`)
+    if (!tool) throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Tool ${request.params.name} not found`)
+    const given = request.params.arguments
+    if (given !== undefined && (given === null || typeof given !== 'object' || Array.isArray(given))) {
+      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `Tool ${tool.name} takes an object of arguments`)
+    }
+    const parsed = tool.inputSchema.safeParse(repairToolInput(tool, (given ?? {}) as Record<string, unknown>))
+    if (!parsed.success) throw new ProtocolError(ProtocolErrorCode.InvalidParams, formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema))
+    const args = parsed.data as Record<string, unknown>
 
     const abortController = new AbortController()
     const toolUseContext = {
@@ -120,9 +128,8 @@ export async function startMCPServer(
       if (isToolKilled(tool)) {
         throw new Error(`CapabilityKilled: ${tool.name}`)
       }
-      const args = (request.params.arguments ?? {}) as Record<string, unknown>
       const validation = tool.validateInput
-        ? await tool.validateInput(args, toolUseContext)
+        ? await tool.validateInput(args as never, toolUseContext)
         : undefined
       if (validation && typeof validation === 'object' && validation.result === false) {
         throw new Error(
