@@ -31,6 +31,7 @@ import {
   type PayloadDescriptor,
 } from './channelCore.js'
 import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
+import { checkVendoredPython, payloadVendoredPython, readPythonRecord } from './vendoredPython.js'
 import { payloadDigestOf } from './payloadDigest.js'
 
 export interface LayoutRoots {
@@ -388,6 +389,11 @@ export function validatePayloadDir(dir: string): PayloadCheck {
     const carried = checkVendoredRuntime(dir, runtime)
     if (carried.state !== 'ok') return { state: 'invalid', note: `vendored runtime missing from the payload: ${carried.note}` }
   }
+  const python = readPythonRecord(manifest)
+  if (python?.vendored) {
+    const carried = checkVendoredPython(dir, python)
+    if (carried.state !== 'ok') return { state: 'invalid', note: `vendored python missing from the payload: ${carried.note}` }
+  }
   const posixLauncher = join(dir, 'mercury')
   const winLauncher = join(dir, 'mercury.cmd')
   const launcher = existsSync(posixLauncher) ? posixLauncher : existsSync(winLauncher) ? winLauncher : null
@@ -435,6 +441,8 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
       if (existsSync(join(staging, 'install.sh'))) chmodSync(join(staging, 'install.sh'), 0o755)
       const carried = payloadVendoredRuntime(staging)
       if (carried !== null) chmodSync(carried.binaryPath, 0o755)
+      const python = payloadVendoredPython(staging)
+      if (python !== null) chmodSync(python.binaryPath, 0o755)
     }
     if (existsSync(versionDir)) {
       displaced = join(roots.versionsDir, `.replaced-${version}-${process.pid}`)

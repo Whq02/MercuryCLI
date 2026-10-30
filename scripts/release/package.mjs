@@ -65,7 +65,13 @@ if (runtime) {
   const runtimeBinary = join(dist, ...runtime.path.split('/'), ...runtime.binary.split('/'))
   if (!existsSync(runtimeBinary)) fail(`dist manifest declares the vendored runtime at ${runtime.path}/${runtime.binary} but the file is missing — rebuild`)
 }
-ok(`packaging ${NAME} (rg: ${rgDirs.join(', ')}; runtime: ${runtime ? `node ${runtime.version} ${runtime.platform}` : 'NONE (degraded — the launchers fall back to MERCURY_NODE or a PATH node)'})`)
+const pythonRuntime = manifest.pythonRuntime && manifest.pythonRuntime.vendored === true ? manifest.pythonRuntime : null
+if (pythonRuntime) {
+  if (pythonRuntime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${pythonRuntime.platform} Python runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build for the target: bun run build.ts --target ${TARGET}`)
+  const pythonBinary = join(dist, ...pythonRuntime.path.split('/'), ...pythonRuntime.binary.split('/'))
+  if (!existsSync(pythonBinary)) fail(`dist manifest declares the vendored python at ${pythonRuntime.path}/${pythonRuntime.binary} but the file is missing — rebuild`)
+}
+ok(`packaging ${NAME} (rg: ${rgDirs.join(', ')}; runtime: ${runtime ? `node ${runtime.version} ${runtime.platform}` : 'NONE (degraded — the launchers fall back to MERCURY_NODE or a PATH node)'}; python: ${pythonRuntime ? `${pythonRuntime.version} ${pythonRuntime.platform}` : 'NONE (degraded — the Python debugger runs on a PATH python3)'})`)
 
 const LEDGER_FILE = 'scripts/gate/gate-ledger.jsonl'
 const verifyReceipts = {}
@@ -415,6 +421,19 @@ if (runtime && !(mf.runtime && mf.runtime.vendored === true && mf.runtime.versio
   fail('smoke: the shipped manifest does not carry the vendored runtime record the build wrote')
 }
 if (runtime) ok(`manifest names the vendored runtime (node ${mf.runtime.version} ${mf.runtime.platform})`)
+if (pythonRuntime) {
+  if (!(mf.pythonRuntime && mf.pythonRuntime.vendored === true && mf.pythonRuntime.version === pythonRuntime.version && mf.pythonRuntime.platform === pythonRuntime.platform && mf.pythonRuntime.binarySha256 === pythonRuntime.binarySha256)) {
+    fail('smoke: the shipped manifest does not carry the vendored python record the build wrote')
+  }
+  const extractedPython = join(smoke, 'mercury', ...pythonRuntime.path.split('/'), ...pythonRuntime.binary.split('/'))
+  if (!existsSync(extractedPython)) fail(`smoke: the vendored python ${pythonRuntime.path}/${pythonRuntime.binary} is missing from the archive`)
+  if (createHash('sha256').update(readFileSync(extractedPython)).digest('hex') !== pythonRuntime.binarySha256) fail('smoke: the extracted python interpreter does not match the manifest record')
+  const py = spawnSync(extractedPython, ['-c', 'import sys, ssl, sqlite3, ctypes; print("%d.%d.%d" % sys.version_info[:3])'], { encoding: 'utf8', env: { ...smokeEnv, PYTHONDONTWRITEBYTECODE: '1' }, timeout: 120_000 })
+  if (py.status !== 0 || (py.stdout ?? '').trim() !== pythonRuntime.version) {
+    fail(`smoke: the vendored python did not run from the archive (exit ${py.status}): ${(py.stderr ?? py.stdout ?? '').slice(0, 300)}`)
+  }
+  ok(`the vendored python runs from the archive (${(py.stdout ?? '').trim()} ${pythonRuntime.platform}, ssl · sqlite3 · ctypes importable)`)
+}
 
 {
   const verifierPath = join(smoke, 'mercury', 'verify-artifact.mjs')

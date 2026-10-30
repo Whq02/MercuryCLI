@@ -10,6 +10,7 @@ import {
 import type { InstallProvenanceKind } from './installProvenance.js'
 import { trustedSigningKeys, type TrustedSigningKey } from './signingTrust.js'
 import { checkVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
+import { checkVendoredPython, readPythonRecord } from './vendoredPython.js'
 
 type VerifyDepth = 'fast' | 'deep'
 
@@ -66,6 +67,14 @@ export function verifyPayloadDir(
       return { verdict: { state: 'tampered', note: carried.note }, depth, unevaluated, manifestVersion }
     }
     if (depth === 'fast') unevaluated.push('vendored runtime binary digest (deep verification evaluates it)')
+  }
+  const python = readPythonRecord(manifest)
+  if (python?.vendored) {
+    const carried = checkVendoredPython(dir, python, { digest: depth === 'deep' })
+    if (carried.state !== 'ok') {
+      return { verdict: { state: 'tampered', note: carried.note }, depth, unevaluated, manifestVersion }
+    }
+    if (depth === 'fast') unevaluated.push('vendored python interpreter digest (deep verification evaluates it)')
   }
 
   if (manifest.signing === undefined || manifest.signing === null) {

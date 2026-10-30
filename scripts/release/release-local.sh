@@ -222,7 +222,7 @@ rosetta_archive_step() {
 step install 0 bun install --frozen-lockfile
 HOST_PACK_FETCH=''
 [ "$CROSS" = 1 ] && HOST_PACK_FETCH="--platform $HOST_PACK"
-step fetch 0 sh -c 'bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts && bun run scripts/vendor/fetch-node.ts --platform "$1" $3 && bun run scripts/vendor/fetch-platform-packages.ts --target "$2"' fetch "$NODE_PACK" "$TARGET" "$HOST_PACK_FETCH"
+step fetch 0 sh -c 'bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts && bun run scripts/vendor/fetch-node.ts --platform "$1" $3 && bun run scripts/vendor/fetch-python.ts --platform "$1" && bun run scripts/vendor/fetch-platform-packages.ts --target "$2"' fetch "$NODE_PACK" "$TARGET" "$HOST_PACK_FETCH"
 step node-pin 0 node_pin
 [ "$CROSS" = 1 ] && step rosetta 0 rosetta_check
 step shell-engine 0 bun run scripts/vendor/fetch-brush.ts --platform "$NODE_PACK"

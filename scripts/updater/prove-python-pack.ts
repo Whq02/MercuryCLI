@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,11 +25,14 @@ const {
   pythonStdlibFor,
   readPythonRecord,
 } = await import('../../src/services/privateChannel/vendoredPython.js')
+const { validatePayloadDir } = await import('../../src/services/privateChannel/installLayout.js')
+const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
 
 const ROOT = join(import.meta.dir, '..', '..')
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
 const BUN = process.execPath
+const IS_WIN = process.platform === 'win32'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -207,6 +210,78 @@ section('§4 the build row — fixed path, staleness guard, manifest record, deg
     check("scratch manifest: degraded includes 'python-runtime'", m.degraded.includes('python-runtime'))
     check('scratch dist ships NO python pack', !existsSync(join(out, 'vendor', 'python')))
   }
+}
+
+section('§5 the install layout and the verifier — carried, declared-but-missing, older payloads')
+if (IS_WIN) {
+  console.log('  [SKIP] sh fixture interpreters — POSIX hosts only')
+} else {
+  const fixtureBinary = '#!/bin/sh\nprintf "fixture python\\n"\n'
+  const makePayload = (dir: string, version: string, mode: 'carried' | 'declared-but-missing' | 'none'): void => {
+    mkdirSync(join(dir, 'vendor', 'ripgrep', 'stub'), { recursive: true })
+    writeFileSync(join(dir, 'vendor', 'ripgrep', 'stub', 'rg'), 'stub\n')
+    writeFileSync(join(dir, 'mercury.mjs'), 'console.log("fixture")\n')
+    writeFileSync(join(dir, 'mercury'), '#!/bin/sh\nexec node "$(dirname "$0")/mercury.mjs" "$@"\n')
+    chmodSync(join(dir, 'mercury'), 0o755)
+    const manifest: Record<string, unknown> = { schema: 2, version, bundle: 'mercury.mjs' }
+    if (mode !== 'none') {
+      manifest.pythonRuntime = {
+        vendored: true,
+        path: 'vendor/python',
+        binary: 'bin/python3',
+        name: 'python',
+        version: '3.14.10',
+        release: '20261026',
+        platform: 'linux-x64',
+        license: 'Python-2.0',
+        archiveSha256: 'a'.repeat(64),
+        binarySha256: sha256(fixtureBinary),
+      }
+    }
+    if (mode === 'carried') {
+      mkdirSync(join(dir, 'vendor', 'python', 'bin'), { recursive: true })
+      writeFileSync(join(dir, 'vendor', 'python', 'bin', 'python3'), fixtureBinary)
+      chmodSync(join(dir, 'vendor', 'python', 'bin', 'python3'), 0o755)
+    }
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest) + '\n')
+  }
+  const carried = join(scratch, 'payload-carried')
+  makePayload(carried, '9.9.0', 'carried')
+  check('a payload that declares AND carries its python validates', validatePayloadDir(carried).state === 'ok')
+  const missing = join(scratch, 'payload-declared-missing')
+  makePayload(missing, '9.9.0', 'declared-but-missing')
+  const refused = validatePayloadDir(missing)
+  check('a payload that declares a python it does not carry is refused by name', refused.state === 'invalid' && refused.note.includes('vendored python missing') && refused.note.includes('vendor/python/bin/python3'), refused.state === 'invalid' ? refused.note : refused.state)
+  const older = join(scratch, 'payload-older')
+  makePayload(older, '9.9.0', 'none')
+  check('a payload without a python record still validates (an older release installs and rolls back)', validatePayloadDir(older).state === 'ok')
+  const fast = verifyPayloadDir(carried, { depth: 'fast' })
+  check('intact + unsigned at fast: unsigned, with the python digest named unevaluated', fast.verdict.state === 'unsigned' && fast.unevaluated.some(u => u.includes('vendored python')))
+  const deep = verifyPayloadDir(carried, { depth: 'deep' })
+  check('intact + unsigned at deep: unsigned, nothing left unevaluated', deep.verdict.state === 'unsigned' && deep.unevaluated.length === 0)
+  const corrupt = join(scratch, 'payload-corrupt')
+  makePayload(corrupt, '9.9.0', 'carried')
+  writeFileSync(join(corrupt, 'vendor', 'python', 'bin', 'python3'), fixtureBinary + '# a flipped byte\n')
+  const corruptDeep = verifyPayloadDir(corrupt, { depth: 'deep' })
+  check('an interpreter whose bytes drift from the record is TAMPERED at deep, naming the pack', corruptDeep.verdict.state === 'tampered' && corruptDeep.verdict.note.includes('vendor/python/bin/python3'))
+  check('the same drift passes fast (presence only)', verifyPayloadDir(corrupt, { depth: 'fast' }).verdict.state === 'unsigned')
+  const gone = verifyPayloadDir(missing, { depth: 'fast' })
+  check('a declared python that is absent is TAMPERED at fast (presence is bound at every depth)', gone.verdict.state === 'tampered' && gone.verdict.note.includes('absent'))
+}
+
+section('§6 the packager, the release road and the notices')
+{
+  const packager = read('scripts/release/package.mjs')
+  check('the packager refuses a dist whose python platform is not the target\'s', packager.includes('pythonRuntime.platform !== TARGET_NODE_PACK'))
+  check('the packager requires the declared interpreter on disk', packager.includes('declares the vendored python at'))
+  check('the smoke runs the extracted archive\'s own interpreter', packager.includes('the vendored python did not run from the archive'))
+  check('the smoke asserts the shipped manifest carries the python record', packager.includes('does not carry the vendored python record'))
+  check('the packager never publishes an archive degraded by the pack (python-runtime is not a publishable degradation)', !/PUBLISHABLE_DEGRADATIONS = new Set\(\[[^\]]*python-runtime/.test(packager))
+  const local = read('scripts/release/release-local.sh')
+  check('the local release road fetches the python pack for the target', local.includes('bun run scripts/vendor/fetch-python.ts --platform "$1"'))
+  const notices = read('THIRD_PARTY_NOTICES.md')
+  check('THIRD_PARTY_NOTICES names the Python runtime with its receipt', notices.includes('**Python runtime**') && notices.includes('vendor/python.lock.json'))
+  check('the notices generator reads the python lock', read('scripts/distribution/generate-third-party-notices.ts').includes("vendorLock('python.lock.json')"))
 }
 
 rmSync(scratch, { recursive: true, force: true })
