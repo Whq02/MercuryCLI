@@ -611,10 +611,12 @@ function runPathChecker(
       decisionReason: { type: 'other', reason: `${command} with flags requires manual approval` },
     }
   }
-  if (compoundCommandHasCd && operationType !== 'read') {
+  const absoluteMkdir = command === 'mkdir' && args.length === 2 && args[0] === '-p' &&
+    getPlatform() !== 'windows' && posixPath.isAbsolute(args[1]!)
+  if (compoundCommandHasCd && operationType !== 'read' && !absoluteMkdir) {
     return {
       behavior: 'ask',
-      message: 'A command that changes directory and also writes needs explicit approval, because the final working directory cannot be determined.',
+      message: 'Bash needs approval for a write combined with cd because relative paths can land in a different folder. Set cwd on a separate Bash call and use literal output paths.',
       decisionReason: { type: 'other', reason: 'A directory change combined with a write cannot be validated' },
     }
   }
