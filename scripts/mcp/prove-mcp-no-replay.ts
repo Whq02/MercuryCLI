@@ -14,10 +14,12 @@ if (typeof Bun !== 'undefined') {
   const output = join(scratch, 'proof.mjs')
   const built = await Bun.build({ entrypoints: [import.meta.path], target: 'node', outdir: scratch, naming: 'proof.mjs', external: ['sharp', 'jsonc-parser'] })
   if (!built.success) throw new Error(built.logs.join('\n'))
-  symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir')
-  const child = spawnSync('node', [output, scratch], { env: process.env, stdio: 'inherit' })
-  rmSync(scratch, { recursive: true, force: true })
-  process.exit(child.status ?? 1)
+  let status: number | null = 1
+  try {
+    symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), process.platform === 'win32' ? 'junction' : 'dir')
+    status = spawnSync('node', [output, scratch], { env: process.env, stdio: 'inherit' }).status
+  } finally { rmSync(scratch, { recursive: true, force: true }) }
+  process.exit(status ?? 1)
 }
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

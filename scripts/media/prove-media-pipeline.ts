@@ -33,7 +33,7 @@ try {
   writeFileSync(join(project, 'art', 'portrait.pipeline.json'), '{}')
   writeFileSync(join(project, 'node_modules', 'hidden.pipeline.json'), '{}')
   writeFileSync(join(project, 'other.json'), '{}')
-  symlinkSync(project, join(project, 'art', 'loop'), 'dir')
+  symlinkSync(project, join(project, 'art', 'loop'), process.platform === 'win32' ? 'junction' : 'dir')
   const paths = [join(project, 'art', 'portrait.pipeline.json'), join(project, 'landscape.pipeline.json')]
   assert.deepEqual(await discoverMediaPipelines(project), paths)
   const server = 'ext:mercury-media:engine'
