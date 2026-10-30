@@ -297,7 +297,7 @@ async function networkConfigAsync(command: string, cwd: string | undefined): Pro
   return networkArgsOf(ssh!, credentials!, askPass!)
 }
 
-function subcommandIndex(args: string[]): number {
+export function gitSubcommandIndex(args: string[]): number {
   let at = 0
   while (at < args.length) {
     const word = args[at]!
@@ -317,7 +317,7 @@ function subcommandIndex(args: string[]): number {
 type SpawnShape = { command: string; insertAt: number; diff: string[]; base: readonly string[] }
 
 function spawnShape(args: string[]): SpawnShape {
-  const at = subcommandIndex(args)
+  const at = gitSubcommandIndex(args)
   const command = args[at] ?? ''
   const stashShow = command === 'stash' && args[at + 1] === 'show'
   const patch = PATCH_COMMANDS.has(command) || stashShow

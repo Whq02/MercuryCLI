@@ -51,8 +51,9 @@ import { checkPathConstraints, checkShellCwd } from './pathValidation.js'
 import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { shellCredentialWritePath, shellMercurySecretPath, shellSelfProtectionReason } from '../../utils/permissions/shellProtectedPaths.js'
-import { gitArgs } from '../../utils/git/spawnArgs.js'
+import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
+import { posix as posixPath } from 'node:path'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix }
 
@@ -838,14 +839,16 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
     const node = stack.pop()!
     if (node.type === 'command' || node.type === 'declaration_command') {
       const candidates = [node.text]
+      if (/\\\r?\n/.test(node.text)) candidates.push(node.text.replace(/\\\r?\n/g, ''))
       const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(node.text, node)
       if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(simple => restrictedCommandCandidates(simple)))
       const name = node.children.find(child => child.type === 'command_name')
       if (name) {
         const named = pinnedCommandAnalysis.parseForSecurityFromAst(name.text, { ...node, children: [name] })
-        if (named.kind === 'simple' && named.commands[0]?.argv[0]) {
-          candidates.push(named.commands[0].argv[0] + node.text.slice(name.endIndex - node.startIndex))
-        }
+        const rest = node.text.slice(name.endIndex - node.startIndex)
+        if (named.kind === 'simple' && named.commands[0]?.argv[0]) candidates.push(named.commands[0].argv[0] + rest)
+        const decoded = name.children[0]?.type === 'ansi_c_string' ? decodeAnsiCString(name.text) : null
+        if (decoded !== null && decoded !== '') candidates.push(decoded + rest)
       }
       for (const candidate of candidates) {
         const deny = matchRules(candidate, context, 'deny', 'prefix', true)
@@ -857,8 +860,74 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
   return null
 }
 
+const PRIVILEGE_VALUE_LETTERS = 'ugCDhprtTURa'
+const PRIVILEGE_VALUE_LONGS = new Set(['--user', '--group', '--close-from', '--chdir', '--host', '--prompt', '--role', '--type', '--command-timeout', '--other-user', '--chroot'])
+
+function privilegeTarget(argv: string[]): string[] {
+  let i = 1
+  while (i < argv.length) {
+    const word = argv[i] as string
+    if (word === '--') {
+      i++
+      break
+    }
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)) {
+      i++
+      continue
+    }
+    if (!word.startsWith('-')) break
+    if (word.startsWith('--')) {
+      i += PRIVILEGE_VALUE_LONGS.has(word) ? 2 : 1
+      continue
+    }
+    const letters = word.slice(1)
+    const valueAt = [...letters].findIndex(letter => PRIVILEGE_VALUE_LETTERS.includes(letter))
+    i += valueAt !== -1 && valueAt === letters.length - 1 ? 2 : 1
+  }
+  return argv.slice(i)
+}
+
+function decodeAnsiCString(text: string): string | null {
+  const match = text.match(/^\$'([\s\S]*)'$/)
+  if (!match) return null
+  const body = match[1] as string
+  const simple: Record<string, string> = { a: '\x07', b: '\b', e: '\x1b', E: '\x1b', f: '\f', n: '\n', r: '\r', t: '\t', v: '\v', '\\': '\\', "'": "'", '"': '"', '?': '?' }
+  let out = ''
+  for (let i = 0; i < body.length; i++) {
+    const char = body[i] as string
+    if (char !== '\\') {
+      out += char
+      continue
+    }
+    const next = body[++i]
+    if (next === undefined) return null
+    if (next in simple) {
+      out += simple[next]
+      continue
+    }
+    const digits = next === 'x' ? body.slice(i + 1).match(/^[0-9A-Fa-f]{1,2}/) : next === 'u' ? body.slice(i + 1).match(/^[0-9A-Fa-f]{1,4}/) : next === 'U' ? body.slice(i + 1).match(/^[0-9A-Fa-f]{1,8}/) : null
+    if (digits) {
+      out += String.fromCodePoint(parseInt(digits[0], 16))
+      i += digits[0].length
+      continue
+    }
+    const octal = body.slice(i).match(/^[0-7]{1,3}/)
+    if (!octal) return null
+    out += String.fromCharCode(parseInt(octal[0], 8))
+    i += octal[0].length - 1
+  }
+  return out
+}
+
+function extractEvalScript(command: SimpleCommand): string | null {
+  if (command.argv[0] !== 'eval' || command.argv.length < 2 || command.globOperand) return null
+  return command.argv.slice(1).join(' ')
+}
+
 function wrappedCommand(argv: string[]): string[] | null {
   const [name] = argv
+  if (name === 'sudo' || name === 'doas') return privilegeTarget(argv)
+  if (name === 'busybox') return argv.slice(1)
   if (name === 'time' && argv[1]?.startsWith('-') && argv[1].slice(1) === 'p') return argv.slice(2)
   if (name === 'command' || name === 'builtin' || name === 'exec') {
     let i = 1
@@ -904,7 +973,7 @@ function wrappedCommand(argv: string[]): string[] | null {
 
 function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[] {
   const candidates = new Set([command.text.trim(), shellCommandText(command.argv)])
-  const script = depth < SHELL_C_MAX_DEPTH ? extractShellCScript(command) : null
+  const script = depth < SHELL_C_MAX_DEPTH ? extractShellCScript(command) ?? extractEvalScript(command) : null
   if (script !== null) {
     candidates.add(script)
     const inner = preparedSecurityParse(script)
@@ -915,20 +984,28 @@ function restrictedCommandCandidates(command: SimpleCommand, depth = 0): string[
     }
   }
   const pending = [command.argv]
+  const consider = (argv: string[]): void => {
+    const text = shellCommandText(argv)
+    if (argv.length === 0 || candidates.has(text)) return
+    candidates.add(text)
+    pending.push(argv)
+  }
   while (pending.length) {
     const argv = pending.pop()!
     const wrapped = wrappedCommand(argv)
-    if (wrapped?.length) {
-      candidates.add(shellCommandText(wrapped))
-      pending.push(wrapped)
+    if (wrapped?.length) consider(wrapped)
+    const [name] = argv
+    if (name !== undefined && name.includes('/') && !name.endsWith('/')) consider([posixPath.basename(name), ...argv.slice(1)])
+    if (name === 'git') {
+      const at = gitSubcommandIndex(argv.slice(1))
+      if (at > 0 && at < argv.length - 1) consider(['git', ...argv.slice(1 + at)])
     }
     if (argv[0] === 'find') {
       for (let i = 1; i < argv.length; i++) {
         if (!['-exec', '-execdir', '-ok', '-okdir'].includes(argv[i]!)) continue
         const start = ++i
         while (i < argv.length && argv[i] !== ';' && argv[i] !== '+') i++
-        const target = argv.slice(start, i)
-        if (target.length) { candidates.add(shellCommandText(target)); pending.push(target) }
+        consider(argv.slice(start, i))
       }
     }
   }
