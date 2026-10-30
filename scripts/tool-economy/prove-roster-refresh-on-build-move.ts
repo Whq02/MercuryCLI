@@ -43,6 +43,7 @@ type Message = import('../../src/types/message.ts').Message
 
 const tool = (name: string, over: Record<string, unknown> = {}): Tool => ({ name, searchHint: `${name.toLowerCase()} fixture`, description: async () => name, prompt: async () => name, inputSchema: { parse: (v: unknown) => v, safeParse: (v: unknown) => ({ success: true, data: v }) } as never, inputJSONSchema: { type: 'object', properties: { text: { type: 'string' } } }, call: async () => ({ data: null }), ...over } as unknown as Tool)
 const RETIRED = 'RetiredDispatch'
+const JOINER = 'Edit'
 const owner = String(processMainOwner())
 const first = createUserMessage({ content: 'the session that began on the earlier build' }) as unknown as Message
 const model = 'claude-opus-4-8'
@@ -75,11 +76,11 @@ try {
   {
     writeLedger('1.0.0-beta.33')
     const record = recordFromEarlierBuild([{ name: 'Bash', deferred: false, definition: definitionOf('Bash') }, { name: 'Read', deferred: false, definition: definitionOf('Read') }, { name: RETIRED, deferred: false, definition: retiredDefinition }, { name: 'Browser', deferred: true, definition: definitionOf('Browser') }])
-    const plan = await planAfterRestore(record, [tool('Bash'), tool('Read'), tool('Crewmate'), tool('Browser', { shouldDefer: true }), tool('WebFetch', { shouldDefer: true })])
+    const plan = await planAfterRestore(record, [tool('Bash'), tool('Read'), tool(JOINER), tool('Browser', { shouldDefer: true }), tool('WebFetch', { shouldDefer: true })])
     check('the roster opens with the recorded names in the recorded order', j(names(plan).slice(0, 4)) === j(['Bash', 'Read', RETIRED, 'Browser']), j(names(plan)))
     check('the retired bound tool rides as its recorded stub (its definition re-sends; a call refuses as an unknown tool)', names(plan).includes(RETIRED) && plan.restoredMissingTools.length === 0, j(plan.restoredMissingTools))
     check('a new deferrable tool joins at the END, deferred — an unreferenced deferred tool is outside the bound prefix', names(plan).at(-1) === 'WebFetch' && plan.deferredNames.has('WebFetch'), j(names(plan)))
-    check('a new tool the roster would list in full is held for the lawful boundary, never spliced into the bound prefix', !names(plan).includes('Crewmate') && economy.heldToolsAtLastPlan(owner, record).includes('Crewmate'), j(economy.heldToolsAtLastPlan(owner, record)))
+    check(`a new tool the roster would list in full (${JOINER}; Crewmate rides deferred on a hosted route since the briefing cut) is held for the lawful boundary, never spliced into the bound prefix`, !names(plan).includes(JOINER) && economy.heldToolsAtLastPlan(owner, record).includes(JOINER), j(economy.heldToolsAtLastPlan(owner, record)))
     const bash = await toolToAPISchema(plan.roster.find(t => t.name === 'Bash')!, { getToolPermissionContext: async () => getEmptyToolPermissionContext(), tools: plan.roster, agents: [], model, conversationKey: plan.conversationKey, bound: plan.isBound('Bash') })
     check('a bound tool goes out with its RECORDED definition even though this build renders it differently', j(bash) === definitionOf('Bash'), j(bash))
   }
@@ -87,14 +88,14 @@ try {
   {
     writeLedger('1.0.0-proof')
     const record = recordFromEarlierBuild([{ name: 'Bash', deferred: false, definition: definitionOf('Bash') }, { name: 'Read', deferred: false, definition: definitionOf('Read') }, { name: RETIRED, deferred: false, definition: retiredDefinition }])
-    const plan = await planAfterRestore(record, [tool('Bash'), tool('Read'), tool('Crewmate')])
-    check('the roster is the record: the retired name rides as its recorded stub and the joiner waits for the lawful boundary', names(plan).includes(RETIRED) && !names(plan).includes('Crewmate'), j(names(plan)))
+    const plan = await planAfterRestore(record, [tool('Bash'), tool('Read'), tool(JOINER)])
+    check('the roster is the record: the retired name rides as its recorded stub and the joiner waits for the lawful boundary', names(plan).includes(RETIRED) && !names(plan).includes(JOINER), j(names(plan)))
   }
   section('§3 a record with no ledger beside it whose bound tool has no saved definition: the roster cannot be replayed, so it is decided afresh and the loss is declared')
   {
     rmSync(prefixLedgerPath(), { force: true })
-    const plan = await planAfterRestore(recordFromEarlierBuild([{ name: 'Bash', deferred: false }, { name: RETIRED, deferred: false }]), [tool('Bash'), tool('Read'), tool('Crewmate')])
-    check('the live pool decides the roster and the missing tool is declared for the lawful-change receipt', names(plan).includes('Crewmate') && !names(plan).includes(RETIRED) && plan.restoredMissingTools.includes(RETIRED), j(plan))
+    const plan = await planAfterRestore(recordFromEarlierBuild([{ name: 'Bash', deferred: false }, { name: RETIRED, deferred: false }]), [tool('Bash'), tool('Read'), tool(JOINER)])
+    check('the live pool decides the roster and the missing tool is declared for the lawful-change receipt', names(plan).includes(JOINER) && !names(plan).includes(RETIRED) && plan.restoredMissingTools.includes(RETIRED), j(plan))
   }
   section('§4 a recorded deferred tool nobody referenced is outside the bound prefix: this build may drop it, rename it or change its input without moving the prefix')
   {
