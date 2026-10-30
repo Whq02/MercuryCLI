@@ -82,5 +82,29 @@ console.log('a server whose name carries a double underscore keeps its own bound
   check('sovereign asks nothing: a tool of server a__b under deny mcp__a__b is denied, not asked', (await decideIn('sovereign', ['mcp__a__b'], joined)) === 'deny')
 }
 
+console.log('a tool named like an object property is looked up without a throw')
+{
+  const { RULE_INHERITS } = await import('../../src/constants/tools.ts')
+  const { wholeToolDenyRulesCovering } = await import('../../src/utils/permissions/ruleReason.ts')
+  const words = ['toString', 'constructor', '__proto__', 'hasOwnProperty', 'valueOf']
+  check('the inherits table carries no object prototype', Object.getPrototypeOf(RULE_INHERITS) === null)
+  check('a prototype word reads as absent from the table', words.every(word => RULE_INHERITS[word] === undefined))
+  const context = { ...base, alwaysDenyRules: { cliArg: ['Bash'] }, alwaysAllowRules: { cliArg: ['Read'] }, alwaysAskRules: { cliArg: ['Edit'] } }
+  for (const word of words) {
+    const shapes: Tool[] = [{ name: word }, { name: `mcp__${word}__${word}`, mcpInfo: { serverName: word, toolName: word } }]
+    for (const shape of shapes) {
+      let outcome = 'no match'
+      try {
+        if (getDenyRuleForTool(context, shape as never) !== null || toolAlwaysAllowedRule(context, shape as never) !== null || getAskRuleForTool(context, shape as never) !== null) outcome = 'matched'
+        if (wholeToolDenyRulesCovering(context, shape).length > 0) outcome = 'matched'
+      } catch (error) {
+        outcome = `threw: ${(error as Error).message}`
+      }
+      check(`${shape.mcpInfo ? 'an MCP' : 'a bare'} tool named ${word} is looked up and matches no rule`, outcome === 'no match', outcome)
+    }
+  }
+  check('the inherited name still matches through the table', denied(['SendMessage'], { name: 'ResumeCrewmate' }) === 'SendMessage')
+}
+
 console.log(failures ? `FAIL whole-tool rule matching: ${failures} failures` : 'PASS whole-tool rule matching')
 process.exit(failures ? 1 : 0)

@@ -30,6 +30,8 @@ export const CREWMATE_BARRED_TOOLS: Readonly<Record<string, BarReason>> = {
 export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set(Object.keys(CREWMATE_BARRED_TOOLS))
 export const CUSTOM_AGENT_DISALLOWED_TOOLS: Set<string> = ALL_AGENT_DISALLOWED_TOOLS
 
-export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = {
-  [RESUME_AGENT_TOOL_NAME]: [SEND_MESSAGE_TOOL_NAME],
-}
+export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = Object.freeze(
+  Object.assign(Object.create(null) as Partial<Record<string, readonly string[]>>, {
+    [RESUME_AGENT_TOOL_NAME]: [SEND_MESSAGE_TOOL_NAME],
+  }),
+)
