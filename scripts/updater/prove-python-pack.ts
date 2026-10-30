@@ -195,7 +195,7 @@ section('§4 the build row — fixed path, staleness guard, manifest record, deg
     console.log('  [SKIP — LOUD] no dist/manifest.json; build first (the pooled gate prebuilds dist)')
     failures++
   }
-  const out = join(scratch, 'degraded-dist')
+  const out = mkdtempSync(join(scratch, 'degraded-dist-'))
   const r = spawnSync(BUN, ['run', join(ROOT, 'build.ts')], {
     encoding: 'utf8',
     timeout: 300_000,
