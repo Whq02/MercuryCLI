@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { CHECKSUM_MANIFEST_NAME, parsePrivateVersion, selectRelease, type ChannelRelease, type ReleaseSelection } from '../../src/services/privateChannel/channelCore.js'
+import { CHECKSUM_MANIFEST_NAME, parsePrivateVersion, projectReleases, selectRelease, type ChannelRelease, type ReleaseSelection } from '../../src/services/privateChannel/channelCore.js'
 
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
@@ -8,15 +8,17 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 }
 
 const rel = (tagName: string, flagged: boolean, over: Partial<ChannelRelease> = {}): ChannelRelease => ({
-  tagName,
-  isDraft: false,
-  isPrerelease: flagged,
-  assetNames: [
-    `mercury-${tagName}-linux-x64.tar.gz`,
-    `mercury-${tagName}-macos-arm64.tar.gz`,
-    `mercury-${tagName}-windows-x64.zip`,
-    CHECKSUM_MANIFEST_NAME,
-  ],
+  ...projectReleases([{
+    tag_name: tagName,
+    draft: false,
+    prerelease: flagged,
+    assets: [
+      `mercury-${tagName}-linux-x64.tar.gz`,
+      `mercury-${tagName}-macos-arm64.tar.gz`,
+      `mercury-${tagName}-windows-x64.zip`,
+      CHECKSUM_MANIFEST_NAME,
+    ].map(name => ({ name })),
+  }])![0]!,
   ...over,
 })
 const pick = (installed: string, releases: ChannelRelease[]): ReleaseSelection => selectRelease(releases, parsePrivateVersion(installed)!, 'linux', 'x64')

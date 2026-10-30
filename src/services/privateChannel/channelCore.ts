@@ -41,7 +41,6 @@ export function comparePrivateVersions(a: PrivateVersion, b: PrivateVersion): nu
 export interface ChannelRelease {
   tagName: string
   isDraft: boolean
-  isPrerelease: boolean
   assetNames: string[]
   assetUrls?: Record<string, string>
 }
@@ -49,7 +48,6 @@ export interface ChannelRelease {
 interface RawRelease {
   tag_name?: unknown
   draft?: unknown
-  prerelease?: unknown
   assets?: unknown
 }
 
@@ -68,7 +66,6 @@ export function projectReleases(raw: unknown): ChannelRelease[] | null {
     releases.push({
       tagName: typeof item.tag_name === 'string' ? item.tag_name : '',
       isDraft: item.draft === true,
-      isPrerelease: item.prerelease === true,
       assetNames,
       ...(Object.keys(assetUrls).length > 0 ? { assetUrls } : {}),
     })

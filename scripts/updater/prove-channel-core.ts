@@ -76,16 +76,18 @@ check('win32/arm64 → the Windows arm64 archive', assetNameFor('1.2.0-beta.1', 
 check('linux/riscv64 has no channel asset', assetNameFor('1.2.0-beta.1', 'linux', 'riscv64') === null)
 
 console.log('── §4 release selection ──')
-const rel = (tagName: string, over: Partial<ChannelRelease> = {}): ChannelRelease => ({
-  tagName,
-  isDraft: false,
-  isPrerelease: true,
-  assetNames: [
-    `mercury-${tagName}-linux-x64.tar.gz`,
-    `mercury-${tagName}-macos-arm64.tar.gz`,
-    `mercury-${tagName}-windows-x64.zip`,
-    CHECKSUM_MANIFEST_NAME,
-  ],
+const rel = (tagName: string, over: Partial<ChannelRelease> = {}, prerelease = true): ChannelRelease => ({
+  ...projectReleases([{
+    tag_name: tagName,
+    draft: false,
+    prerelease,
+    assets: [
+      `mercury-${tagName}-linux-x64.tar.gz`,
+      `mercury-${tagName}-macos-arm64.tar.gz`,
+      `mercury-${tagName}-windows-x64.zip`,
+      CHECKSUM_MANIFEST_NAME,
+    ].map(name => ({ name })),
+  }])![0]!,
   ...over,
 })
 const installed = v('1.1.0-beta.1')
@@ -103,7 +105,7 @@ check('no-releases when only foreign tags', selectRelease([rel('bench-corpus-v1'
 check('empty list is no-releases', selectRelease([], installed, 'linux', 'x64').state === 'no-releases')
 check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true }), rel('v1.1.0-beta.1')], installed, 'linux', 'x64').state === 'current')
 {
-  const s = selectRelease([rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
+  const s = selectRelease([rel('v1.2.0-beta.1', {}, false)], installed, 'linux', 'x64')
   check('a newer beta without the pre-release flag is selected all the same', s.state === 'update-available' && s.tag === 'v1.2.0-beta.1')
 }
 {
@@ -116,14 +118,14 @@ check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true 
 }
 check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1')], installed, 'linux', 'riscv64').state === 'unsupported-platform')
 {
-  const s = selectRelease([rel('v1.2.0-beta.2'), rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
+  const s = selectRelease([rel('v1.2.0-beta.2'), rel('v1.2.0-beta.1', {}, false)], installed, 'linux', 'x64')
   check('the newest wins whatever its older siblings are flagged', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
 }
 
 for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'], ['1.0.0', '1.0.1'], ['1.0.0', '1.1.0']] as const) {
-  for (const isPrerelease of [true, false]) {
-    const picked = selectRelease([rel(`v${to}`, { isPrerelease })], v(from), 'linux', 'x64')
-    check(`${from} updates to ${to} (${isPrerelease ? 'flagged pre-release' : 'not flagged'})`, picked.state === 'update-available' && picked.tag === `v${to}`, JSON.stringify(picked))
+  for (const flagged of [true, false]) {
+    const picked = selectRelease([rel(`v${to}`, {}, flagged)], v(from), 'linux', 'x64')
+    check(`${from} updates to ${to} (${flagged ? 'flagged pre-release' : 'not flagged'})`, picked.state === 'update-available' && picked.tag === `v${to}`, JSON.stringify(picked))
   }
 }
 for (const [from, to] of [['1.0.0', '1.0.1-rc.1'], ['1.0.0', '1.1.0-beta.1'], ['1.0.1', '1.0.2-rc.3']] as const) {
@@ -257,18 +259,18 @@ console.log('── §8 the release-record projection (one projector, both roads
   const projected = projectReleases(raw)!
   check('a release array projects one row per object record (null records dropped)', Array.isArray(projected) && projected.length === 3)
   const newest = projected[0]!
-  check('tag, draft and prerelease project by name', newest.tagName === 'v1.2.0-beta.2' && newest.isDraft === false && newest.isPrerelease === true)
+  check('tag and draft project by name', newest.tagName === 'v1.2.0-beta.2' && newest.isDraft === false)
   check('asset names project in order; nameless and non-object assets are dropped', JSON.stringify(newest.assetNames) === JSON.stringify(['mercury-v1.2.0-beta.2-linux-x64.tar.gz', CHECKSUM_MANIFEST_NAME]))
   check('every named asset keeps its own download URL', newest.assetUrls?.['mercury-v1.2.0-beta.2-linux-x64.tar.gz']?.endsWith('linux-x64.tar.gz') === true && newest.assetUrls?.[CHECKSUM_MANIFEST_NAME]?.endsWith('SHA256SUMS.txt') === true)
   const draft = projected[1]!
-  check('a record without prerelease projects false; a record without URLs carries no assetUrls', draft.isPrerelease === false && draft.isDraft === true && draft.assetUrls === undefined)
+  check('a draft without URLs carries no assetUrls', draft.isDraft === true && draft.assetUrls === undefined)
   const empty = projected[2]!
   check('a record without a tag or assets projects empty, never throws', empty.tagName === '' && empty.assetNames.length === 0)
   check('a non-array document is null (the transport names it)', projectReleases({ message: 'Not Found' }) === null && projectReleases('x') === null && projectReleases(undefined) === null)
   const installed = parsePrivateVersion('1.1.0-beta.1')!
   const picked = selectRelease(projected, installed, 'linux', 'x64')
   check('selection carries the picked asset\'s URL and the checksum manifest\'s URL', picked.state === 'update-available' && picked.assetUrl?.endsWith('linux-x64.tar.gz') === true && picked.checksumUrl?.endsWith('SHA256SUMS.txt') === true)
-  const noUrls = selectRelease([{ tagName: 'v1.2.0-beta.2', isDraft: false, isPrerelease: true, assetNames: ['mercury-v1.2.0-beta.2-linux-x64.tar.gz', CHECKSUM_MANIFEST_NAME] }], installed, 'linux', 'x64')
+  const noUrls = selectRelease([{ tagName: 'v1.2.0-beta.2', isDraft: false, assetNames: ['mercury-v1.2.0-beta.2-linux-x64.tar.gz', CHECKSUM_MANIFEST_NAME] }], installed, 'linux', 'x64')
   check('selection over a record without URLs says null, never a guessed URL', noUrls.state === 'update-available' && noUrls.assetUrl === null && noUrls.checksumUrl === null)
 }
 
