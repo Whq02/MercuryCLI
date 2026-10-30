@@ -377,6 +377,13 @@ section('§2 the win32 decision through the seam — the law of the empty value'
     check('userPathListsDir ignores empty entries and unknown %VARS%', !userPathListsDir(';%NOPE%\\x;', WIN_BIN, {}) && userPathListsDir(`x;${WIN_BIN}`, WIN_BIN, {}))
   }
   {
+    const quoted = `${STOCK};"${WIN_BIN}"`
+    const f = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: quoted, kind: 'ExpandString' } })
+    const out = ensureBinDirOnPath(winRoots, f.io)
+    check('f14: a value that lists the folder in quotes ⇒ present, no second copy written', out.state === 'present' && f.writes.length === 0)
+    check('f14: userPathListsDir reads quotes as spelling — plain, quoted, quoted with a trailing backslash, quoted %VAR%', userPathListsDir(`"${WIN_BIN}"`, WIN_BIN, {}) && userPathListsDir(`"${WIN_BIN}\\"`, WIN_BIN, {}) && userPathListsDir('"%LOCALAPPDATA%\\Mercury\\bin"', WIN_BIN, { LOCALAPPDATA: 'C:\\Users\\Sam\\AppData\\Local' }) && !userPathListsDir('"C:\\Other\\bin"', WIN_BIN, {}))
+  }
+  {
     const value = `${STOCK};${WIN_BIN};C:\\Tools;"${WIN_BIN}\\";%LOCALAPPDATA%\\Mercury\\bin`
     const f = fakeIo({ home: 'C:\\Users\\Sam', env: { LOCALAPPDATA: 'C:\\Users\\Sam\\AppData\\Local' }, userPath: { state: 'ok', value, kind: 'String' } })
     const out = removeBinDirFromPath(winRoots, f.io)

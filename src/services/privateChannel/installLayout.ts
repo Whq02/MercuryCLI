@@ -100,7 +100,7 @@ export function pathEntryEquals(entry: string, target: string, isWindows: boolea
     return out === '' ? s : out
   }
   const norm = (s: string): string => {
-    let v = strip(s.trim())
+    let v = strip((isWindows ? s.replace(/"/g, '') : s).trim())
     try {
       v = realpathSync.native(v)
     } catch {
