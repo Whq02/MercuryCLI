@@ -118,7 +118,8 @@ console.log('\n6. on Windows the starting folder is read in its three spellings:
   check('the MSYS spelling of the starting folder also reads a C:/ cd as the same folder', isCurrentFolderSpelling('C:/Users/Dev/proj', '/c/Users/Dev/proj') && isCurrentFolderSpelling('C:\\Users\\Dev\\proj', '/c/Users/Dev/proj'))
   check('a drive root: C:\\, C:/ and /c are one folder', isCurrentFolderSpelling('C:/', 'C:\\') && isCurrentFolderSpelling('/c', 'C:\\') && !isCurrentFolderSpelling('/c/x', 'C:\\'))
   platform = hostPlatform
-  check('on this platform the spelling is exact: the folder as written, with no trailing separator and no case folding', isCurrentFolderSpelling(root, root) && !isCurrentFolderSpelling(`${root}/`, root) && !isCurrentFolderSpelling(root.toUpperCase() === root ? root.toLowerCase() : root.toUpperCase(), root))
+  if (hostPlatform === 'win32') check('on this platform the folder is read in its Windows spellings: as written, with a trailing separator, never another folder', isCurrentFolderSpelling(root, root) && isCurrentFolderSpelling(`${root}\\`, root) && !isCurrentFolderSpelling(`${root}-other`, root))
+  else check('on this platform the spelling is exact: the folder as written, with no trailing separator and no case folding', isCurrentFolderSpelling(root, root) && !isCurrentFolderSpelling(`${root}/`, root) && !isCurrentFolderSpelling(root.toUpperCase() === root ? root.toLowerCase() : root.toUpperCase(), root))
 }
 
 process.chdir(previousCwd)
