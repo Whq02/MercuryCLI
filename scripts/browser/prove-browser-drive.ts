@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
 import { homedir, tmpdir } from 'node:os'
@@ -961,23 +961,18 @@ const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src', 
 const s = await ensureBrowserSession(processOwnerForLane(null))
 if ('state' in s) { console.log('DRILL-UNAVAILABLE: ' + s.note); process.exit(3) }
 console.log('DRILL-PID ' + s.browser.process()?.pid)
+process.exit(0)
 `,
   )
-  let out = ''
-  let rc = 0
-  try {
-    out = execFileSync(process.execPath, [child], {
-      encoding: 'utf8',
-      timeout: 60_000,
-      windowsHide: true,
-      env: { ...process.env, MERCURY_BROWSER: '1' },
-    })
-  } catch (err) {
-    rc = (err as { status?: number }).status ?? 1
-    out = String((err as { stdout?: string }).stdout ?? '')
-  }
+  const exited = spawnSync(process.execPath, [child], {
+    encoding: 'utf8',
+    timeout: 60_000,
+    windowsHide: true,
+    env: { ...process.env, MERCURY_BROWSER: '1' },
+  })
+  const out = exited.stdout ?? ''
   const pid = Number(/DRILL-PID (\d+)/.exec(out)?.[1])
-  check('the drill child opened a real session and exited normally', rc === 0 && Number.isFinite(pid), `rc=${rc} out=${out.trim()}`)
+  check('the drill child opened a real session and exited normally', exited.status === 0 && exited.signal === null && exited.error === undefined && Number.isFinite(pid), `rc=${exited.status} signal=${exited.signal} error=${exited.error?.message ?? 'none'} out=${out.trim()} stderr=${exited.stderr?.trim() ?? ''}`)
   const gone = await until('child gone after normal exit', () => {
     try {
       process.kill(pid, 0)
