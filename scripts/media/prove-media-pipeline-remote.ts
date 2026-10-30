@@ -150,6 +150,18 @@ try {
   const imported = (await call('pipeline_import_workflow', { workflow: 'workflow.json', destination: 'imported.pipeline.json' })).data
   assert.equal(imported.path, join(project, 'imported.pipeline.json'))
   assert.deepEqual(JSON.parse(readFileSync(imported.path, 'utf8')), imported.pipeline)
+  const importedInput = imported.pipeline.steps.find((row: any) => row.kind === 'generate').inputs
+  assert.deepEqual(importedInput, { ...exportable.steps[0]!.inputs, model: 'image-one', negative_prompt: '', steps: 9, sampler: 'euler_a', scheduler: 'normal' })
+  const native = calls()[0].body.sample_params
+  assert.deepEqual([native.guidance.txt_cfg, native.sample_method, native.scheduler], [7.5, 'euler_a', 'discrete'])
+  const post = { ...exportable, steps: [{ id: 'draw', kind: 'generate', inputs: { ...exportable.steps[0]!.inputs, cfg: 0, sampler: 'heun', scheduler: 'karras', steps: 3, count: 4, downsize: 2, sheet: { columns: 2 } } }] }
+  const postExport = (await call('pipeline_export_workflow', { pipeline: post, destination: 'post.json' })).data
+  const postRound = (await call('pipeline_import_workflow', { workflow: postExport.path })).data
+  assert.deepEqual(postRound.pipeline.steps.find((row: any) => row.kind === 'generate').inputs, { ...post.steps[0]!.inputs, model: 'image-one', negative_prompt: '' })
+  for (const settings of [{ palette: 4 }, { downsize: 3 }, { count: 3, sheet: { columns: 2 } }]) {
+    await assert.rejects(call('pipeline_export_workflow', { pipeline: { ...post, steps: [{ ...post.steps[0], inputs: { ...post.steps[0]!.inputs, ...settings } }] }, destination: 'post-refused.json' }), /render locally/)
+    assert.equal(existsSync(join(project, 'post-refused.json')), false)
+  }
   await assert.rejects(call('pipeline_export_workflow', { pipeline: exportable, destination: 'workflow.json' }), /exists/)
   await assert.rejects(call('pipeline_run', { pipeline: { version: 1, name: 'Bad', steps: [{ id: 'absent', kind: 'file', inputs: { path: 'absent.png' } }] } }), /absent/)
   assert.ok(!JSON.stringify(forwarded).includes(project), 'A later pipeline call forwarded local paths')

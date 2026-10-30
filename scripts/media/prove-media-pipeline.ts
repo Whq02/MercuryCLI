@@ -133,6 +133,16 @@ try {
   const exported = facts(await call('pipeline_export_workflow', { pipeline: 'imported.pipeline.json', destination: 'export.json' }))
   assert.equal(exported.path, join(project, 'export.json'))
   assert.ok(existsSync(exported.path))
+  const round = facts(await call('pipeline_import_workflow', { workflow: exported.path }))
+  assert.deepEqual(round.pipeline.steps.find((row: any) => row.kind === 'generate').inputs, imported.pipeline.steps.find((row: any) => row.kind === 'generate').inputs)
+  const post = { version: 1, name: 'Post', steps: [{ id: 'draw', kind: 'generate', inputs: { prompt: 'landscape', model: 'image-one', width: 64, height: 64, seed: 11, cfg: 4.5, sampler: 'heun', scheduler: 'karras', steps: 3, count: 4, downsize: 2, sheet: { columns: 2 } } }] }
+  const postExport = facts(await call('pipeline_export_workflow', { pipeline: post, destination: 'post.json' }))
+  const postRound = facts(await call('pipeline_import_workflow', { workflow: postExport.path }))
+  assert.deepEqual(postRound.pipeline.steps.find((row: any) => row.kind === 'generate').inputs, { ...post.steps[0]!.inputs, negative_prompt: '' })
+  for (const settings of [{ palette: 4 }, { downsize: 3 }, { count: 3, sheet: { columns: 2 } }]) {
+    await assert.rejects(call('pipeline_export_workflow', { pipeline: { ...post, steps: [{ ...post.steps[0], inputs: { ...post.steps[0]!.inputs, ...settings } }] }, destination: 'post-refused.json' }), /render locally/)
+    assert.equal(existsSync(join(project, 'post-refused.json')), false)
+  }
   await assert.rejects(call('pipeline_export_workflow', { pipeline: 'imported.pipeline.json', destination: 'export.json' }), /exists/)
   await assert.rejects(call('pipeline_export_workflow', { pipeline: 'landscape.pipeline.json', destination: 'refused.json' }), /small/)
   assert.equal(existsSync(join(root, 'engine-calls.jsonl')), false)

@@ -35,6 +35,8 @@ const inside = (x: number, y: number) => x >= 24 && x < 40 && y >= 24 && y < 40
 const client = new Client({ name: 'media-workflow-proof', version: '1.0.0' })
 try {
   installLiveFixture()
+  const binary = join(root, 'runtime/sd-server')
+  writeFileSync(binary, readFileSync(binary, 'utf8').replace("['fixture-recipe', 'sd1-checkpoint'", "['qwen-image-21-turbo', 'fixture-recipe', 'sd1-checkpoint'"))
   const dir = join(proofHome, 'workflows')
   cpSync(new URL('./fixtures/workflows/', import.meta.url), dir, { recursive: true })
   writeFileSync(join(dir, 'style.safetensors'), safetensors({ 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_down.weight': [1, 768], 'lora_unet_input_blocks_1_1_transformer_blocks_0_attn2_to_k.lora_up.weight': [1, 1] }))
@@ -54,6 +56,7 @@ try {
   const bundled = JSON.parse(readFileSync(join(dirname(serverPath), 'catalog.json'), 'utf8'))
   const upscalers = bundled.models.filter((row: { upscaler?: unknown }) => row.upscaler)
   for (const row of upscalers) local.files.push({ path: row.slots.upscale_model, bytes: 3, sha256: createHash('sha256').update('map').digest('hex') })
+  local.models.push({ ...local.models[0], id: 'turbo-fixture', recipe: 'qwen-image-21-turbo', cfg: 1, steps: 8, sigmas: bundled.models.find((row: { id: string }) => row.id === 'qwen-image-21-turbo').sigmas })
   writeFileSync(join(root, 'catalog.json'), JSON.stringify(local))
   mkdirSync(join(root, 'models/upscalers'), { recursive: true })
   writeFileSync(join(root, 'models/image.gguf'), Buffer.alloc(8))
@@ -116,6 +119,33 @@ try {
   const first = await generate({ workflow: join(dir, 'inpaint-api.json'), dry: true })
   assert.deepEqual(reimported.request, JSON.parse(text(first)).request)
   assert.deepEqual(Object.values(JSON.parse(readFileSync(exported, 'utf8'))).map((node: any) => node.class_type), ['CheckpointLoaderSimple', 'LoraLoader', 'CLIPTextEncode', 'CLIPTextEncode', 'LoadImage', 'VAEEncode', 'LoadImageMask', 'SetLatentNoiseMask', 'ControlNetLoader', 'LoadImage', 'ControlNetApplyAdvanced', 'KSampler', 'VAEDecode', 'SaveImage'])
+  const completePath = join(dir, 'complete.export.json')
+  const complete = JSON.parse(text(await generate({ workflow: join(dir, 'txt2img-ui.json'), width: 128, height: 64, count: 4, downsize: 2, sheet: { columns: 2 }, dry: true, export_workflow: completePath })))
+  const completeRound = await generate({ workflow: completePath, dry: true })
+  assert.equal(completeRound.isError ?? false, false, JSON.stringify(completeRound))
+  assert.deepEqual(JSON.parse(text(completeRound)).request, complete.request)
+  const completeNodes = Object.values(JSON.parse(readFileSync(completePath, 'utf8'))) as any[]
+  assert.deepEqual(completeNodes.find(node => node.class_type === 'ImageScale').inputs.upscale_method, 'nearest-exact')
+  assert.equal(completeNodes.filter(node => node.class_type === 'ImageFromBatch').length, 4)
+  for (const [index, settings] of [{}, { cfg: 0, sampler: 'heun', scheduler: 'karras' }, { model: 'turbo-fixture', scheduler: 'normal', steps: 3 }].entries()) {
+    const exportedPath = join(dir, `sampling-${index}.json`)
+    const generated = await generate({ model: 'image-one', prompt: 'landscape', width: 64, height: 64, seed: 31, export_workflow: exportedPath, ...settings })
+    assert.equal(generated.isError ?? false, false, JSON.stringify(generated))
+    const native = readFileSync(join(root, 'engine-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(row => row.route === 'img_gen').at(-1).body.sample_params
+    const round = await generate({ workflow: exportedPath, dry: true })
+    assert.equal(round.isError ?? false, false, JSON.stringify(round))
+    const request = JSON.parse(text(round)).request
+    assert.deepEqual([request.cfg, request.sampler, request.scheduler === 'normal' ? 'discrete' : request.scheduler, request.width, request.height, request.steps, request.seed], [native.guidance.txt_cfg, native.sample_method, native.scheduler, 64, 64, native.sample_steps, 31])
+    if (index === 0) assert.deepEqual([native.guidance.txt_cfg, native.sample_method, native.scheduler], [7.5, 'euler_a', 'discrete'])
+    if (index === 2) assert.deepEqual([native.guidance.txt_cfg, native.sample_method, native.scheduler, native.custom_sigmas], [1, 'euler', 'discrete', []])
+  }
+  for (const settings of [{ model: 'turbo-fixture' }, { palette: 4 }, { palette: 'colours.hex' }, { downsize: 3 }, { count: 3, sheet: { columns: 2 } }]) {
+    const destination = join(dir, 'refused.export.json')
+    const result = await generate({ model: 'image-one', prompt: 'landscape', width: 64, height: 64, seed: 31, dry: true, export_workflow: destination, ...settings })
+    assert.equal(result.isError, true)
+    assert.match(text(result), /render locally/)
+    assert.equal(existsSync(destination), false)
+  }
   assert.deepEqual(await client.listTools(), tools)
   console.log('media ComfyUI workflows: UI and API exports map onto one request; the card names the workflow, model, size, reference and prompt; refusals list every unsupported node; dry mode starts no engine; a real render carries the mask, LoRA, ControlNet and sampling through the bundled engine; the export imports back to the same request')
 } finally {
