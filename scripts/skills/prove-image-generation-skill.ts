@@ -21,6 +21,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_TMPDIR = join(scratch, 'tmp')
 process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_HOME
+delete process.env.MERCURY_CRITTER
 delete process.env.MERCURY_SESSION_KIT
 process.chdir(project)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -252,6 +253,9 @@ for (const [rel, text] of skillFiles) {
   const comfy = text.split('\n').filter(row => /comfy/i.test(row))
   check(`${rel}: ComfyUI appears only beside the workflow fields`, comfy.every(row => /`(?:workflow|export_workflow)`/.test(row)), comfy.join(' | '))
 }
+check('unused optionals are omitted, never null placeholders', body.includes('Omit unused optional fields entirely; never send `null`') && body.includes('omit `reference_image`, `strength` and `mask`'))
+check('state and catalogue reads precede choosing a model or size', body.includes('Before any render, call `media_status`') && body.includes('then `media_models`') && body.includes('Use these results before choosing a model or size'))
+check('invalid fields are corrected and the same tool retried, never silently replaced', body.includes('correct or omit it and call the same media tool again') && body.includes("getting the user's agreement") && body.includes('Do not retry a permission denial'))
 check('the words were read from the shipped files', skillFiles.length === references.length + 1 && skillFiles.length > 1)
 
 console.log("\nRouting evidence: the listing line, the description's clauses and the loaded body, read through the real loader. No model ran, so this shows eligibility, not the model's choice.")

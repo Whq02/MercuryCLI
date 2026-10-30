@@ -12,8 +12,8 @@ Reference paths below are relative to the base directory above. For setup, the m
 ## Before the first render
 
 1. **Load the tools.** The media tools (`media_status`, `media_models`, `image_generate`, `media_result`) are deferred: load them with ToolSearch, naming them as the deferred-tools list spells them. If no media tool exists, Local media is off or not connected; `/health` says which, and the user switches it on in `/config` or by finishing a model pull in `/imagesetup`.
-2. **Read the live schema.** Send only the fields the `image_generate` schema lists: it refuses unknown keys, and builds differ. Some builds add `sampler`, `scheduler`, `cfg`, `clip_skip`, `embeddings`, `upscale`, `upscaler`, `workflow`, `dry` or `export_workflow`; use one only when the schema lists it.
-3. **Read the state.** `media_status` and `media_models` show what is installed, the default slots and each row's licence, without loading weights. A missing runtime or model is pulled in `/imagesetup` after the user confirms its download card, so name the row and stop there.
+2. **Read the live schema.** Send only the fields you are using and that the `image_generate` schema lists. Omit unused optional fields entirely; never send `null` or an empty placeholder. For text-only generation, omit `reference_image`, `strength` and `mask`. Unknown keys are refused, and builds differ. Some builds add `sampler`, `scheduler`, `cfg`, `clip_skip`, `embeddings`, `upscale`, `upscaler`, `workflow`, `dry` or `export_workflow`; use one only when the schema lists it.
+3. **Read the state.** Before any render, call `media_status` for engine state and memory, then `media_models` for installed rows, default slots, sizes and licences. Neither loads weights. Use these results before choosing a model or size. A missing runtime or model is pulled in `/imagesetup` after the user confirms its download card, so name the row and stop there.
 4. **Choose the model.** Use the model the user names; otherwise omit `model` and the default slot applies. If another installed row suits the job better, say which and why and let the user decide; never switch silently. When the purpose is commercial or unknown and the row's licence restricts that use, say so.
 
 ## Make the image
@@ -26,6 +26,10 @@ Reference paths below are relative to the base directory above. For setup, the m
 10. **Iterate in small steps.** Fix `seed` and change one thing per render. `count` renders `seed`, `seed+1` and so on with identical inputs: variations to choose from, not animation frames. Reuse the seed the result reports.
 11. **Render, look, report.** `wait: true` holds the call until the image is ready; for a long render, submit without it and poll `media_result`, whose expired `timeout` does not cancel the job. Look at the returned preview before saying it worked, and report the saved path, model, seed and settings from the result, not from the request.
 12. **Enlarge with intent.** A model upscaler (`upscale`, where the schema lists it) reconstructs detail: suited to photos and illustrations, but on pixel art it softens edges and adds colours outside the palette. Enlarge pixel art by a whole-number nearest-neighbour scale instead. Without an upscaler field, say so rather than passing off a resize as one. `references/pixel-art.md` covers sprites, palettes and frames.
+
+## When a call is refused
+
+Read the named field and remedy. For an invalid or unused field, correct or omit it and call the same media tool again with the intended request. Do not retry a permission denial or a download needing approval. If generation still cannot run, say why and what the user can do next. Never replace the media engine with a script, drawing library or another generator without explaining the change and getting the user's agreement. A refused call has made no image; do not describe it as a render.
 
 A masked repaint of a saved image at a fixed seed:
 
