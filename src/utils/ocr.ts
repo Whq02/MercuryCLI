@@ -14,7 +14,7 @@ export function ocrInstallHint(platform: string = process.platform): string {
   if (platform === 'win32') return 'Add an OCR language in Settings › Time & language › Language & region, or run `Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0` as Administrator.'
   return 'Install Tesseract with your package manager (Debian/Ubuntu: `sudo apt-get install tesseract-ocr`) to read its text.'
 }
-export const OCR_UNAVAILABLE = ocrInstallHint()
+const OCR_UNAVAILABLE = ocrInstallHint()
 
 export async function resolveOcrEngine(options: { platform?: string; native?: () => NativeOcr | undefined; probe?: () => Promise<boolean>; listLanguages?: () => Promise<string[]> } = {}): Promise<OcrEngine> {
   const platform = options.platform ?? process.platform
