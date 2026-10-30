@@ -7,6 +7,7 @@ import { binaryName } from '../utils/config/derived.js'
 import { getProjectDir, getProjectsDir } from '../utils/sessionStorage/paths.js'
 import { buildSessionDeleteOffer, operatorPruneTranscripts } from '../utils/sessionStorage/transcriptPruneDoor.js'
 import { validateUuid } from '../utils/sessionStoragePortable.js'
+import { sliceHeadAtGrapheme } from '../utils/intl.js'
 
 export type SessionsCliIo = {
   out: (line: string) => void
@@ -126,7 +127,7 @@ export async function sessionsListCli(options: { all?: boolean; limit?: number }
   for (const log of logs) {
     const id = log.sessionId ?? (log.fullPath ?? '').split(/[\\/]/).pop()?.replace(/\.jsonl$/, '') ?? '?'
     const title = (log.customTitle ?? log.summary ?? log.firstPrompt ?? '').replace(/\s+/g, ' ').trim()
-    const words = title.length > 80 ? `${title.slice(0, 77)}…` : title
+    const words = title.length > 80 ? `${sliceHeadAtGrapheme(title, 77)}…` : title
     const place = options.all === true && log.projectPath ? ` · ${log.projectPath}` : ''
     io.out(`${id}  ${log.modified.toISOString()}  ${kib(log.fileSize ?? 0)}${live.has(id) ? '  live' : ''}  ${words}${place}`)
   }

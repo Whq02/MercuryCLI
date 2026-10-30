@@ -1,6 +1,7 @@
 import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { stripGroundNote, GROUND_NOTE_MARK } from '../../daemon/isolationNote.js'
+import { sliceHeadAtGrapheme } from '../intl.js'
 import {
   extractJsonStringField,
   extractLastJsonStringField,
@@ -50,7 +51,7 @@ function flatPrompt(text: string): string {
 }
 
 function clippedPrompt(flat: string): string {
-  return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
+  return flat.length > 200 ? sliceHeadAtGrapheme(flat, 200).trim() + '…' : flat
 }
 
 export function promptLabel(text: string): string {

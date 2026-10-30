@@ -6,6 +6,7 @@ import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from './envUtils.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { djb2Hash } from './hash.js'
+import { sliceHeadAtGrapheme } from './intl.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
 
 
@@ -176,7 +177,7 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
       if (bashInput) return `! ${bashInput[1] as string}`
       if (/^\s*<[a-z]/.test(text)) continue
       if (text.startsWith(INTERRUPT_MARKER)) continue
-      if (text.length > FIRST_PROMPT_MAX) return `${text.slice(0, FIRST_PROMPT_MAX).trim()}…`
+      if (text.length > FIRST_PROMPT_MAX) return `${sliceHeadAtGrapheme(text, FIRST_PROMPT_MAX).trim()}…`
       return text
     }
   }
