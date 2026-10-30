@@ -83,7 +83,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
       providerPolicy: openrouterProviderObject(getInitialSettings().routing?.openrouter),
     }),
-  extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
+  extraHeaders: () => ({ 'user-agent': getProductUserAgent(), 'HTTP-Referer': 'https://mercury-cli.ai', 'X-Title': 'Mercury CLI' }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages) ?? { events: streamCompatChat({ ...options, request: openrouterChatCache(options.request) }) },
   policyFaultNote: (fault, extra) =>
     fault.status === 503 && /no available (model )?provider/i.test(fault.message) && extra?.provider !== undefined

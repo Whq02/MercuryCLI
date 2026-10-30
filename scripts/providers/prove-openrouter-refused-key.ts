@@ -48,6 +48,7 @@ const KEY_PAYLOAD = { data: { label: 'fixture', usage: 1.5, limit: 20, limit_rem
 let keyStatus = 401
 let chatStatus = 401
 const hits: string[] = []
+const requestHeaders: Headers[] = []
 const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -59,7 +60,17 @@ const server = Bun.serve({
     if (request.method === 'GET' && path.endsWith('/key')) {
       return keyStatus === 200 ? Response.json(KEY_PAYLOAD) : Response.json({ error: { code: keyStatus, message: WIRE_MESSAGE } }, { status: keyStatus })
     }
+    if (request.method === 'POST' && path.endsWith('/responses')) {
+      requestHeaders.push(request.headers)
+      const events = [
+        { type: 'response.created', response: { id: 'response-proof', model: 'vendor/model' } },
+        { type: 'response.output_text.delta', delta: 'served' },
+        { type: 'response.completed', response: { usage: { input_tokens: 3, output_tokens: 1 } } },
+      ]
+      return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+    }
     if (request.method === 'POST' && path.endsWith('/chat/completions')) {
+      requestHeaders.push(request.headers)
       if (chatStatus !== 200) return Response.json({ error: { code: chatStatus, message: WIRE_MESSAGE } }, { status: chatStatus })
       const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
       const body =
@@ -223,6 +234,34 @@ try {
     const text = await turn()
     check('a served turn answers', text === 'served', text)
     check('the lane stays usable after the served turn', usability.resolveProviderUsability().openrouter.usable === true)
+  }
+
+  section('§4b app attribution on both OpenRouter transports, never on shared transport controls')
+  {
+    const attributed = (headers: Headers | undefined): boolean => headers?.get('HTTP-Referer') === 'https://mercury-cli.ai' && headers.get('X-Title') === 'Mercury CLI'
+    check('OpenRouter chat requests carry attribution through refused and served turns', requestHeaders.length > 1 && requestHeaders.every(attributed))
+    const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.js')
+    const { streamOpenrouterResponses } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.js')
+    const options = {
+      url: `${base}/chat/completions`,
+      apiKey: STORED_KEY,
+      request: { model: 'vendor/model', messages: [{ role: 'user' as const, content: 'hello' }] },
+      fetchImpl,
+    }
+    const transport = openrouterLaneProfile.streamTransport!({
+      ...options,
+      extraHeaders: openrouterLaneProfile.extraHeaders!(),
+      deferral: { form: 'openrouter-native', deferredNames: new Set<string>(), imagesSupported: false },
+    }, [user('hello')])!
+    const events = []
+    for await (const event of transport.events) events.push(event)
+    check('OpenRouter Responses carries attribution and finishes', attributed(requestHeaders.at(-1)) && events.some(event => event.type === 'finish'))
+    for await (const _ of streamCompatChat(options)) {}
+    check('shared chat adds no OpenRouter attribution', !requestHeaders.at(-1)!.has('HTTP-Referer') && !requestHeaders.at(-1)!.has('X-Title'))
+    for (const lane of ['xai', 'zen', 'openai-compat'] as const) {
+      for await (const _ of streamOpenrouterResponses(options, JSON.stringify({ model: 'vendor/model', stream: true, input: [] }), { model: 'vendor/model', items: [] }, lane)) {}
+      check(`${lane} Responses adds no OpenRouter attribution`, !requestHeaders.at(-1)!.has('HTTP-Referer') && !requestHeaders.at(-1)!.has('X-Title'))
+    }
   }
 
   section('§5 /logins proves a pasted key on GET /key (the models list answers every key): a refused key is refused with the words and never stored; an accepted key is stored and confirmed')
