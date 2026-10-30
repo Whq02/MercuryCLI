@@ -40,6 +40,7 @@ import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { sessionFilePath } from '../utils/sessionStorage/loading.js'
+import { claimSessionWriter } from '../utils/sessionStorage/sessionWriter.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
@@ -659,6 +660,14 @@ export async function runHeadless(
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  if (!awaitingSessionClaim && !isSessionPersistenceDisabled()) {
+    try { await claimSessionWriter(sessionFilePath(getSessionId() as UUID)) }
+    catch (error) {
+      emitLoadError(errorMessage(error), options.outputFormat)
+      gracefulShutdownSync(1)
+      return
+    }
+  }
   let mcpInitialized = !awaitingSessionClaim
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
   let claimSettling: Promise<void> | null = null
@@ -2092,6 +2101,10 @@ export async function runHeadless(
       if (params.resume === true && resumeFile === undefined && !existsSync(sessionFilePath(sid as UUID))) {
         if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
         throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
+      }
+      if (!isSessionPersistenceDisabled()) {
+        try { await claimSessionWriter(pinnedFile ?? sessionFilePath(sid as UUID)) }
+        catch (error) { throw refused(errorMessage(error), 'claim') }
       }
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
       const boundAt = Date.now()

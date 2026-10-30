@@ -28,7 +28,10 @@ import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
 import { refusedOutcome } from './refusalEnvelope.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
-import { recordContentReplacement } from '../../utils/sessionStorage.js'
+import { recordContentReplacement, listProjectSessions, sessionIdOfListing } from '../../utils/sessionStorage.js'
+import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
+import { claimSessionWriter } from '../../utils/sessionStorage/sessionWriter.js'
+import type { UUID } from 'node:crypto'
 
 export function emitLoadError(
   message: string,
@@ -111,16 +114,17 @@ export async function loadInitialMessages(
 
   if (options.continue) {
     try {
-      const result = await loadConversationForResume(
-        undefined ,
-        undefined ,
-      )
+      const latest = (await listProjectSessions())[0]
+      if (!latest) return refuse('No conversation found to continue')
+      const sessionId = sessionIdOfListing(latest)
+      const path = latest.fullPath ?? sessionFilePath(sessionId as UUID)
+      if (persistSession && !options.forkSession) await claimSessionWriter(path)
+      const result = await loadConversationForResume(String(sessionId), path)
       if (result && hasConversationTurn(result.messages)) return adopt(result, null)
       return refuse('No conversation found to continue')
     } catch (error) {
       logError(error)
-      gracefulShutdownSync(1)
-      return { messages: [] }
+      return refuse(error instanceof Error ? error.message : 'Failed to continue session')
     }
   }
 
@@ -139,13 +143,10 @@ export async function loadInitialMessages(
         homePin !== null && !parsedSessionId.jsonlFile
           ? join(homePin, `${parsedSessionId.sessionId}.jsonl`)
           : undefined
-      const result = await loadConversationForResume(
-        parsedSessionId.sessionId,
-        parsedSessionId.jsonlFile ||
-          (pinnedFile !== undefined && existsSync(pinnedFile)
-            ? pinnedFile
-            : undefined),
-      )
+      const sourceFile = parsedSessionId.jsonlFile || (pinnedFile !== undefined && existsSync(pinnedFile) ? pinnedFile : undefined)
+      const writerPath = sourceFile ?? sessionFilePath(parsedSessionId.sessionId as UUID)
+      if (persistSession && !options.forkSession && existsSync(writerPath)) await claimSessionWriter(writerPath)
+      const result = await loadConversationForResume(parsedSessionId.sessionId, sourceFile)
 
       if (!result || !hasConversationTurn(result.messages)) {
         return refuse(

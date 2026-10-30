@@ -454,6 +454,7 @@ export async function loadConversationForResume(
       const logs = await listProjectSessions()
       log = logs[0]
     } else if (sourceJsonlFile !== undefined) {
+      fullPath = sourceJsonlFile
       const walked = await walkTranscriptFile(sourceJsonlFile)
       messages = walked.messages
       sessionId = walked.sessionId as SessionId | undefined
