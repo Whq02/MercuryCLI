@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import envPaths from 'env-paths'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { pythonBinaryFor, pythonPackPlatform } from '../privateChannel/vendoredPython.js'
+import { lockPathParts } from '../privateChannel/vendoredRuntime.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -90,7 +91,7 @@ export function bundledPythonInterpreter(): string | null {
   if (host === null) return null
   const override = flagEnv('MERCURY_PYTHON_VENDOR_DIR')
   const root = override && override !== '' ? override : path.resolve(__dirname, 'vendor', 'python')
-  const binary = path.join(root, ...pythonBinaryFor(host).split('/'))
+  const binary = path.join(root, ...lockPathParts(pythonBinaryFor(host)))
   return existsSync(binary) ? binary : null
 }
 

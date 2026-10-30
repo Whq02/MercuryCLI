@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { lockPathParts, payloadBinaryPath } from './vendoredRuntime.js'
 
 export const PYTHON_PACK_PATH = 'vendor/python'
 
@@ -61,7 +62,7 @@ export function pythonPackSelectionFor(packPlatform: string, version: string): P
 const DROPPED_NAMES = [/^__pycache__$/, /^config-\d/, /^_tkinter\./, /^_test\w*\.(pyd|so)$/, /^_ctypes_test\.(pyd|so)$/, /^(tcl|tk)\d.*\.dll$/]
 
 export function pythonPackKeeps(selection: PythonPackSelection, rel: string): boolean {
-  const parts = rel.split('/')
+  const parts = lockPathParts(rel)
   if (parts.some(part => DROPPED_NAMES.some(rule => rule.test(part)))) return false
   return !selection.excluded.some(prefix => rel === prefix || rel.startsWith(`${prefix}/`))
 }
@@ -132,7 +133,7 @@ export function readPythonRecord(manifest: unknown): PythonRecord | null {
 }
 
 function vendoredPythonBinaryPath(payloadDir: string, record: VendoredPythonRecord): string {
-  return join(payloadDir, ...record.path.split('/'), ...record.binary.split('/'))
+  return payloadBinaryPath(payloadDir, record)
 }
 
 type PythonCheck =

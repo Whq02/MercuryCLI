@@ -87,8 +87,16 @@ export function readRuntimeRecord(manifest: unknown): RuntimeRecord | null {
   }
 }
 
+export function lockPathParts(lockPath: string): string[] {
+  return lockPath.split('/')
+}
+
+export function payloadBinaryPath(payloadDir: string, record: { path: string; binary: string }): string {
+  return join(payloadDir, ...lockPathParts(record.path), ...lockPathParts(record.binary))
+}
+
 export function vendoredRuntimeBinaryPath(payloadDir: string, record: VendoredRuntimeRecord): string {
-  return join(payloadDir, ...record.path.split('/'), ...record.binary.split('/'))
+  return payloadBinaryPath(payloadDir, record)
 }
 
 export type RuntimeCheck =
