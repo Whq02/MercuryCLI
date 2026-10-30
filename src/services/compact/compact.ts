@@ -28,6 +28,7 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
 import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
+import { boundHookContext } from '../../utils/hooks/contextBound.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { logError } from '../../utils/log.js'
@@ -410,12 +411,17 @@ export function annotateBoundaryWithWork(
   boundary.compactMetadata.work = foldedWorkOf(messages, kept, summaryUuid)
 }
 
+export function boundedHookInstructions(hookInstructions: string | undefined): string | undefined {
+  const words = hookInstructions?.trim() ?? ''
+  return words === '' ? undefined : boundHookContext(words, 'compaction-before-instructions').text
+}
+
 export function mergeHookInstructions(
   userInstructions?: string,
   hookInstructions?: string,
 ): string | undefined {
   const user = userInstructions?.trim() ?? ''
-  const hook = hookInstructions?.trim() ?? ''
+  const hook = boundedHookInstructions(hookInstructions) ?? ''
   if (user !== '' && hook !== '') return `${user}\n\n${hook}`
   if (user !== '') return user
   if (hook !== '') return hook
@@ -1389,7 +1395,7 @@ async function compactionAfterHooks(context: ToolUseContext, facts: { method: 's
     { scope: compactionHookScope(context), signal: context.abortController.signal, toolUseContext: context },
   )
   const rows: Message[] = hookRowsOfResult(result).map(row => createAttachmentMessage(row))
-  for (const words of result.answer.contexts) rows.push(createUserMessage({ content: words, isMeta: true }))
+  for (const words of result.answer.contexts) rows.push(createUserMessage({ content: boundHookContext(words, 'compaction-after-context').text, isMeta: true }))
   return rows
 }
 
@@ -2108,7 +2114,7 @@ export async function partialCompactConversation(
     const before = await compactionBeforeHooks(context, { trigger: 'manual', ...(userFeedback?.trim() ? { instructions: userFeedback.trim() } : {}), tokens: preCompactTokenCount })
     const beforeRows: Message[] = hookRowsOfResult(before).map(row => createAttachmentMessage(row))
     const feedbackText = userFeedback?.trim() ? `User context for the summary:\n${userFeedback.trim()}` : undefined
-    const hookText = before.answer.instructions?.trim() || undefined
+    const hookText = boundedHookInstructions(before.answer.instructions)
     const customInstructions =
       hookText !== undefined && feedbackText !== undefined
         ? `${hookText}\n\n${feedbackText}`
