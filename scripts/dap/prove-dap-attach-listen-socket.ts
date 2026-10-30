@@ -4,9 +4,11 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 process.env.NODE_ENV = 'test'
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'dap-listen-home-'))
+const home = mkdtempSync(path.join(tmpdir(), 'dap-listen-home-'))
+process.env.MERCURY_CONFIG_DIR = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -279,14 +281,22 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
       await removeDapSession(owner, 'live-2')
     }
     if (debuggee.exitCode === null) {
-      debuggee.kill('SIGKILL')
-      await new Promise<void>(done => debuggee!.once('exit', () => done()))
+      const { endProcessTree } = await import('../../src/utils/processGroup.ts')
+      const ended = new Promise<void>(done => debuggee!.once('exit', () => done()))
+      await endProcessTree(debuggee, 'SIGKILL')
+      await Promise.race([ended, new Promise<void>(done => setTimeout(done, 5_000))])
     }
     debuggee = null
   }
 }
 
-rmSync(scratch, { recursive: true, force: true })
+for (const folder of [scratch, home]) {
+  try {
+    removeScratch(folder)
+  } catch (error) {
+    console.log(`  [NOTE] ${folder} was not removed — ${(error as NodeJS.ErrnoException).code ?? String(error)}`)
+  }
+}
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-dap-attach-listen-socket: all green' : `prove-dap-attach-listen-socket: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
