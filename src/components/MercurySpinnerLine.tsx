@@ -1,5 +1,4 @@
-import * as React from 'react'
-import { Box, Text } from '../ink.js'
+import { Text } from '../ink.js'
 import { FAINT, TERRA } from './mercuryPalette.js'
 import { TEARDROP_ASTERISK } from '../constants/figures.js'
 

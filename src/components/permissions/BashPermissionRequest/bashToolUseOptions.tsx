@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { Text } from '../../../ink.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'

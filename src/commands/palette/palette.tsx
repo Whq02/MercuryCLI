@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { PaletteView } from '../../components/mercury-ui/PaletteView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

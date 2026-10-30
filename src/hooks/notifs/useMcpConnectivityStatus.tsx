@@ -1,5 +1,4 @@
 
-import * as React from 'react'
 import { useEffect } from 'react'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'

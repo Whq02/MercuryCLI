@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
-import { useAppState, useAppStateStore, useSetAppState } from '../../state/AppState.js'
+import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
@@ -143,7 +143,6 @@ function ModelSet({
   const pendingSwitch = useAppState(state => state.pendingModelSwitch)
   const turnRunning = useAppState(state => state.foregroundTurnActive)
   const setAppState = useSetAppState()
-  const store = useAppStateStore()
   const [held, setHeld] = useState<{ plan: TransitionPlan; refreshed: boolean } | null>(null)
   const ranRef = useRef(false)
 

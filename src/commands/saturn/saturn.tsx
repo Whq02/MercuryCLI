@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { BootSaturnScreen } from '../../components/BootSaturnScreen.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

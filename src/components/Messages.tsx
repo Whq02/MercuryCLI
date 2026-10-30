@@ -16,7 +16,6 @@ import type {
   Message as WireMessage,
   NormalizedMessage,
   RenderableMessage,
-  UserMessage,
 } from '../types/message.js'
 import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
@@ -52,7 +51,6 @@ import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
 import { hasRealConversation as computeHasRealConversation } from '../utils/cockpit/realConversation.js'
 import {
   renderableSearchText,
-  toolResultSearchText,
   toolInputFiles,
   EMPTY_FACETS,
 } from '../utils/transcriptSearch.js'
@@ -87,7 +85,6 @@ import type { MatchPosition } from '../ink/render-to-screen.js'
 type UnseenDivider = { firstUnseenUuid: string; count: number }
 import { findToolByName } from '../Tool.js'
 import {
-  allToolsResolved,
   hasContentAfterIndex,
   MessageRow,
 } from './MessageRow.js'

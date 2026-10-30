@@ -12,7 +12,6 @@ import {
   MAX_SANITIZED_LENGTH,
   readSessionLite,
   sanitizePath,
-  validateUuid,
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
 

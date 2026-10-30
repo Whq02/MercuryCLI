@@ -13,7 +13,6 @@ import {
   validateFlags,
   GIT_READ_ONLY_COMMANDS,
   DOCKER_READ_ONLY_COMMANDS,
-  type ExternalCommandConfig,
 } from '../../utils/shell/readOnlyCommandValidation.js'
 import { COMMON_PARAMETERS } from './commonParameters.js'
 import { getPlatform } from '../../utils/platform.js'

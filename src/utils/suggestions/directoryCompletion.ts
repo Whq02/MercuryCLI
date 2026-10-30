@@ -8,10 +8,6 @@ import { logForDebugging } from '../debug.js'
 import { expandPath } from '../path.js'
 
 
-type DirectoryEntry = {
-  name: string
-  path: string
-}
 
 type PathEntry = {
   name: string
@@ -40,7 +36,6 @@ const SCAN_CAP = 100
 const DEFAULT_MAX_RESULTS = 10
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-const directoryCache = new LRUCache<string, DirectoryEntry[]>({ max: 500, ttl: CACHE_TTL_MS })
 const pathCache = new LRUCache<string, PathEntry[]>({ max: 500, ttl: CACHE_TTL_MS })
 
 function parsePartialPath(partialPath: string, basePath?: string): { directory: string; prefix: string } {
@@ -57,23 +52,6 @@ function parsePartialPath(partialPath: string, basePath?: string): { directory: 
   return { directory: dirname(expanded), prefix }
 }
 
-async function scanDirectory(dirPath: string): Promise<DirectoryEntry[]> {
-  const cached = directoryCache.get(dirPath)
-  if (cached !== undefined) return cached
-  let entries: DirectoryEntry[] = []
-  try {
-    const listing = await readdir(dirPath, { withFileTypes: true })
-    entries = listing
-      .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
-      .slice(0, SCAN_CAP)
-      .map(entry => ({ name: entry.name, path: join(dirPath, entry.name) }))
-  } catch (error) {
-    logForDebugging(`directory scan failed for ${dirPath}: ${String(error)}`)
-    entries = []
-  }
-  directoryCache.set(dirPath, entries)
-  return entries
-}
 
 async function scanDirectoryForPaths(dirPath: string, includeHidden: boolean = false): Promise<PathEntry[]> {
   const cacheKey = `${dirPath}|${includeHidden ? 'hidden' : 'visible'}`
@@ -101,23 +79,6 @@ async function scanDirectoryForPaths(dirPath: string, includeHidden: boolean = f
   }
   pathCache.set(cacheKey, entries)
   return entries
-}
-
-export async function getDirectoryCompletions(
-  partialPath: string,
-  options?: CompletionOptions,
-): Promise<PathSuggestionItem[]> {
-  const { directory, prefix } = parsePartialPath(partialPath, options?.basePath)
-  const entries = await scanDirectory(directory)
-  const lowered = prefix.toLowerCase()
-  return entries
-    .filter(entry => entry.name.toLowerCase().startsWith(lowered))
-    .slice(0, options?.maxResults ?? DEFAULT_MAX_RESULTS)
-    .map(entry => ({
-      id: entry.path,
-      displayText: `${entry.name}/`,
-      description: 'directory',
-    }))
 }
 
 export async function getPathCompletions(

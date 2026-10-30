@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { exitChordNoticeText } from '../../PromptInput/ExitChordNotice.js'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import chalk from 'chalk'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'

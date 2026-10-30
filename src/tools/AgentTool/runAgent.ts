@@ -65,7 +65,7 @@ import {
   getSchemaBoundStructuredOutputTool,
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from '../WorkflowTool/structuredOutputTool.js'
-import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
+import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../../utils/deadline.js'
 import {
   honourRecoveryWait,
   makeRecoveryBudget,
@@ -91,7 +91,6 @@ import { readCatalogueIfPending } from '../../services/providers/catalogueOnDema
 import { delegationDispatchBlocker } from '../../services/providers/providerUsability.js'
 import { classifyModelRoute } from '../../services/providers/callModelRouter.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
-import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
@@ -104,7 +103,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
-import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
   isSourceAdminTrusted,

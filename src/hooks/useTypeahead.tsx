@@ -36,19 +36,16 @@ import {
   hasCommandArgs,
 } from '../utils/suggestions/commandSuggestions.js'
 import {
-  getDirectoryCompletions,
   getPathCompletions,
   isPathLikeToken,
 } from '../utils/suggestions/directoryCompletion.js'
 import { getShellHistoryCompletion } from '../utils/suggestions/shellHistoryCompletion.js'
 import {
-  findSlackChannelPositions,
   getSlackChannelSuggestions,
   hasSlackMcpServer,
 } from '../utils/suggestions/slackChannelSuggestions.js'
 import {
   findLongestCommonPrefix,
-  generateFileSuggestions,
   onIndexBuildComplete,
   startBackgroundCacheRefresh,
 } from '../hooks/fileSuggestions.js'

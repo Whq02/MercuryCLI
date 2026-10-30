@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 import { ConsoleOAuthFlow } from '../../components/ConsoleOAuthFlow.js'
 import { Crab, Wordmark } from '../../components/mercury-ui/assets.js'
 import { MercuryHealthCertificate } from '../../commands/health/HealthCertificate.js'

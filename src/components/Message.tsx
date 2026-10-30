@@ -1,6 +1,6 @@
 
 import React, { memo } from 'react'
-import { Box, Text } from '../ink.js'
+import { Box } from '../ink.js'
 import type { ToolResultBlockParam } from '../types/wire.js'
 import type {
   NormalizedMessage,

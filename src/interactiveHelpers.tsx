@@ -245,7 +245,6 @@ export async function showSetupScreens(
           footer="↑↓ move · ↵ select · esc exit"
         >
           <TrustDialog
-            commands={commands}
             onDone={() => {
               setPathTrusted(getCwd())
               done()

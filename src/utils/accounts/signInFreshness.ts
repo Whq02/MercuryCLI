@@ -16,9 +16,6 @@ type SignInFreshness = {
   probed: boolean
 }
 
-function expiredSignInFamilies(checks: readonly SignInFreshness[]): SignInFamily[] {
-  return checks.filter(check => check.state === 'expired').map(check => check.family)
-}
 
 export async function checkAnthropicSignInFresh(): Promise<SignInFreshness> {
   const family = 'anthropic' as const
@@ -74,6 +71,3 @@ export function signInsCheckedAtOpen(): Promise<SignInFreshness[]> {
   return bootCheck
 }
 
-function __resetSignInsCheckedAtOpenForTest(): void {
-  bootCheck = null
-}

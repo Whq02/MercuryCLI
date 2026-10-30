@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { AccountView } from '../../components/mercury-ui/parity/AccountView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

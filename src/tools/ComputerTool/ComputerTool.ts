@@ -81,7 +81,6 @@ import { regionRefusal, sameWindow, settledCapture, windowOnDisplay, targetMatch
 import { CAPTCHA_HANDOFF, namesCaptcha, treeNamesCaptcha } from './captcha.js'
 import { OPERATOR_TYPING_REFUSAL, operatorIsTyping, waitForOperatorPause } from './operatorPause.js'
 
-import * as screenTree from './screenMap.js'
 import { waitConditionPassed, waitConditionRefusal, waitConditionWords } from './waitCondition.js'
 
 export { COMPUTER_TOOL_NAME }

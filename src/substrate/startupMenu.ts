@@ -2,9 +2,8 @@
 import { getMercuryHome } from '../utils/envUtils.js'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { flagEnabled, flagEnv, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
+import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
 import { addBootNote } from './bootNotes.js'
 
 export interface MenuRow {

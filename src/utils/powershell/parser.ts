@@ -3,7 +3,6 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { memoizeWithLRU } from '../memoize.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
-import { getPlatform } from '../platform.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 
 

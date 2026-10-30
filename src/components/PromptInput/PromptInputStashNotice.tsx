@@ -1,5 +1,4 @@
 import figures from 'figures';
-import * as React from 'react';
 import { Box, Text } from 'src/ink.js';
 
 export function PromptInputStashNotice({ hasStash }: { hasStash: boolean }) {

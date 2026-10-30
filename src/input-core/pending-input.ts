@@ -1,6 +1,5 @@
 import type { PastedContent } from '../utils/config.js'
 import type {
-  EditablePromptInputMode,
   PromptInputMode,
 } from '../types/textInputTypes.js'
 import { getSessionId, onSessionSwitch, updateLastInteractionTime } from '../bootstrap/state.js'

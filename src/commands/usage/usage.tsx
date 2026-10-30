@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { nextSettingsOpen } from '../../components/Settings/Settings.js'
 import { Usage } from '../../components/Settings/Usage.js'
 import { usagePopupLine } from '../../components/Settings/usageLine.js'

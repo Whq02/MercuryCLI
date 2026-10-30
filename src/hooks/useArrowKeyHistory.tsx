@@ -1,5 +1,5 @@
 
-import React, { useCallback, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import { Text } from '../ink.js'
 import { getHistory } from '../history.js'
 import type { HistoryEntry, PastedContent } from '../utils/config.js'

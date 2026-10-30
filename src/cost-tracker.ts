@@ -26,7 +26,6 @@ import {
 import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstrap/state.js'
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
-import type { ProviderSessionSpend } from './services/providers/providerUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'

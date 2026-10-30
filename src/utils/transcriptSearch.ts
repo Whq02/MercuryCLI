@@ -1,4 +1,4 @@
-import type { RenderableMessage, Message } from '../types/message.js'
+import type { RenderableMessage } from '../types/message.js'
 import { isTurnCutText } from './messages.js'
 
 

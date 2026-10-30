@@ -110,7 +110,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const viewedCrewmate = useViewedCrewmate()
   const crewmateModel = useCrewmateModel(routeSurface ? null : viewedCrewmate)
   const modelName = crewmateModel === null ? sessionModelName : crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)
-  const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
   const helmActive = useContext(CockpitActiveContext) && !routeSurface

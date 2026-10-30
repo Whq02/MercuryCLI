@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { WorkflowsBoard } from '../../components/tasks/WorkflowsBoard.js'
 import { parseSpawnSwitchArg } from '../../services/switchboard/spawnSwitches.js'
 import { runSpawnSwitchCommand } from '../crewmates/spawnSwitch.js'

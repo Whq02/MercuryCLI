@@ -1,5 +1,5 @@
 
-import React, { useCallback, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
 import { Box, Text, useInput } from '../ink.js'
 import { Select } from './CustomSelect/index.js'

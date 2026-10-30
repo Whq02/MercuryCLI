@@ -4,7 +4,6 @@ import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/index.js'
 import { setClipboard } from '../ink/termio/osc.js'
-import { errorMessageWithCause } from '../utils/errors.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   beginOpenrouterConnect,

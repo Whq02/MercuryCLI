@@ -1,9 +1,7 @@
 import figures from 'figures'
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
+import { AMBER, FAINT, IVORY, TERRA } from './mercuryPalette.js'
 import { CRITTERS, useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
 const TM=[['main',IVORY],['atlas',TERRA],['beacon',AMBER],['cypher',CRITTERS.jellyfish!.accent]]
 export function MercuryCrewmateTree({sel=0}:{sel?:number}){

@@ -7,7 +7,6 @@ import { useTerminalSize } from './useTerminalSize.js'
 export const LAYOUT_BREAKPOINTS = {
   frameQuotaMin: 64,
   compactMax: 80,
-  behaviorChipsMin: 90,
   cockpitMin: HELM_HOME_MIN_COLS,
   deckTwoColMin: 110,
   fleetSideBySideMin: 118,
@@ -66,7 +65,6 @@ export interface LayoutTier {
   rows: number
   showFrameQuota: boolean
   numberOnlyGauges: boolean
-  showBehaviorChips: boolean
   show7dGauge: boolean
   branchMax: number
   deckTwoCol: boolean
@@ -80,7 +78,6 @@ export function useLayoutTier(): LayoutTier {
     rows,
     showFrameQuota: columns >= LAYOUT_BREAKPOINTS.frameQuotaMin,
     numberOnlyGauges: columns < LAYOUT_BREAKPOINTS.compactMax,
-    showBehaviorChips: columns >= LAYOUT_BREAKPOINTS.behaviorChipsMin,
     show7dGauge: columns >= LAYOUT_BREAKPOINTS.cockpitMin,
     branchMax:
       columns < LAYOUT_BREAKPOINTS.compactMax

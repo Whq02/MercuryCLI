@@ -175,7 +175,7 @@ export const NotebookEditTool = buildTool({
     )
   },
   async validateInput(input: Input, context: ToolUseContext): Promise<ValidationResult> {
-    const { notebook_path, cell_id, new_source, cell_type, edit_mode } = input
+    const { notebook_path, cell_id, cell_type, edit_mode } = input
     const pathRefusal = controlCharacterPathRefusal(notebook_path)
     if (pathRefusal !== null) return refuse(pathRefusal, 1)
     const resolvedPath = resolveNotebookPath(notebook_path)

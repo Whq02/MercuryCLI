@@ -226,7 +226,6 @@ function rewindReceiptLine(receipt: RewindReceiptV1): string {
   return `rewound: ${parts.join(' · ')}`;
 }
 const NO_CHAT_SETTLE_MS = 150;
-const PERSISTENT_NOTIFICATION_MS = 2_147_483_647;
 const MESSAGE_ACTION_UUID_PREFIX = 24;
 const EMPTY_CONFIRM_QUEUE: ToolUseConfirm[] = [];
 const NO_STREAMING_TOOL_USES: StreamingToolUse[] = [];
@@ -1350,7 +1349,6 @@ export function Chat({
   useKickOffCheckAndDisableSovereignIfNeeded();
   useExtensions({ enabled: true });
   useCostSummary(useFpsMetrics());
-  const localJsxDialogShowing = toolJSX?.isLocalJSXCommand === true;
 
   const refuseSessionRewrite = useCallback((what: string): void => {
     addNotification({

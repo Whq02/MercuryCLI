@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { ExtensionsBoard, type ExtensionsRoute } from '../../components/extensions/ExtensionsBoard.js'
 import { noteReloaded, reloadExtensions, setExtensionsPending } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, Text } from '../ink.js';
 import type { ExternalInstructionInclude } from '../services/instructions/engine.js';
 import { saveCurrentProjectConfig } from '../utils/config.js';

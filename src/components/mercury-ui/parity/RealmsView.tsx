@@ -20,7 +20,7 @@ import {
   StateBadge,
   WarningBanner,
 } from '../components.js'
-import { GLYPH, padTo, truncateToWidth, branchChip } from '../glyphs.js'
+import { padTo, truncateToWidth, branchChip } from '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { requestPromptPrefill } from '../../../utils/cockpit/helmFocus.js'
 import { useModalOrTerminalSize } from '../../../context/modalContext.js'

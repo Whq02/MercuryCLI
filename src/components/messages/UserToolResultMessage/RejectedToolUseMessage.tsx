@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Text } from '../../../ink.js';
 import { MessageResponse } from '../../MessageResponse.js';
 export function RejectedToolUseMessage() {

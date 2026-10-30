@@ -10,8 +10,6 @@ import { PAYWALL_MESSAGE } from './pageAccess.js'
 import { isPrivateReaderHost } from './privateHost.js'
 
 export const READER_KEYLESS_RPM = 20
-const READER_LIMIT_SOURCE = 'https://jina.ai/reader/'
-const READER_LIMIT_CHECKED = '2026-10-13'
 const pacing = new FetchPacing()
 
 export function fetchReaderEnabled(): boolean {

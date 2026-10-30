@@ -24,8 +24,3 @@ export type DeepImmutable<T> = T extends ImmutableLeaf
           : T
 
 
-export type Permutations<U, Rest = U> = [U] extends [never]
-  ? []
-  : Rest extends U
-    ? [Rest, ...Permutations<Exclude<U, Rest>>]
-    : never

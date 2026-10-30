@@ -1,8 +1,4 @@
 
-import {
-  isEnvDefinedFalsy,
-  isEnvTruthy,
-} from '../../utils/envUtils.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { CREWMATE_BARRED_TOOLS } from '../../constants/tools.js'
 import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'

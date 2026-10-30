@@ -17,7 +17,6 @@ import { TASK_GET_TOOL_NAME } from '../tools/TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../tools/TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../tools/TaskUpdateTool/constants.js'
 import type {
-  AttachmentMessage,
   CollapsedReadSearchGroup,
   CollapsibleMessage,
   GroupedToolUseMessage,

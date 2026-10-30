@@ -13,7 +13,6 @@ import { automationServerFactory } from '../services/mcp/automationServer.js'
 import { automationAccessSchema, clientReach, launchingSession } from '../services/mcp/automationAccess.js'
 import { AutomationGateway } from '../services/mcp/automationGateway.js'
 
-const MCP_SERVER_HELP = 'Serve Mercury tools over MCP (stdio or authenticated HTTP)'
 type McpServerOptions = Omit<AutomationOptions, 'mode'> & { transport?: 'stdio' | 'http'; bind?: string; port?: number; tokenFile?: string; origin?: string; client?: string; lead?: string; coordinator?: string; maxMode?: AutomationOptions['mode'] }
 
 async function startMcpServer(options: McpServerOptions): Promise<{ close: () => Promise<void>; url?: string }> {

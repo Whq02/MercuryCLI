@@ -5,7 +5,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { useAppState } from '../state/AppState.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
 
 type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }

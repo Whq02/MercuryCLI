@@ -24,7 +24,6 @@ import { useArrowKeyHistory } from '../../hooks/useArrowKeyHistory.js'
 import { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
-import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -187,7 +186,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     vimMode,
     setVimMode,
     showBashesDialog,
-    setShowBashesDialog,
     onExit,
     getToolUseContext,
     onSubmit,

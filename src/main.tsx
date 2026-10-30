@@ -1,6 +1,5 @@
 import { Command as CommanderCommand, InvalidArgumentError, Option } from 'commander'
 import { writeSync } from 'node:fs'
-import React from 'react'
 import {
   getIsInteractive,
   getSessionId,
@@ -13,7 +12,6 @@ import {
   setMainThreadAgentType,
   setQuestionPreviewFormat,
   setSessionPersistenceDisabled,
-  switchSession,
 } from './bootstrap/state.js'
 import { armBackgroundDiscovery, registerBackgroundNode } from './boot/launchGraph.js'
 import { getCommands, sessionSeatCommandTable } from './commands.js'
@@ -69,15 +67,15 @@ import {
   showSetupScreens,
 } from './interactiveHelpers.js'
 import { launchInvalidSettingsDialog, launchResumeChooser } from './dialogLaunchers.js'
-import { hasFirstPartyCredential, validateForceLoginOrg } from './utils/auth.js'
+import { validateForceLoginOrg } from './utils/auth.js'
 import { startBackgroundHousekeeping } from './utils/backgroundHousekeeping.js'
-import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup, getCurrentProjectConfig } from './utils/config.js'
+import { getGlobalConfig, saveGlobalConfigDeferred, flushDeferredGlobalConfigSaves, binaryName, getRemoteControlAtStartup } from './utils/config.js'
 import { registerSession, updateSessionName } from './utils/concurrentSessions.js'
 import { lastCrashReportPath } from './utils/crashReport.js'
 import { timeSpanMsOf } from './utils/deadline.js'
 import { logForDebugging } from './utils/debug.js'
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
-import { startCapturingEarlyInput, stopCapturingEarlyInput, consumeEarlyInput } from './utils/earlyInput.js'
+import { startCapturingEarlyInput, stopCapturingEarlyInput } from './utils/earlyInput.js'
 import { describeEffortEnvOverride, EFFORT_LEVELS, parseCliEffort, type EffortLevel } from './utils/effort.js'
 import { isBareMode, isEnvTruthy, ensurePrivateConfigHome } from './utils/envUtils.js'
 import { refreshExampleCommands } from './utils/exampleCommands.js'
@@ -86,8 +84,7 @@ import { runSessionStartHooks } from './utils/sessionStart.js'
 import type { HookResultMessage } from './types/message.js'
 import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
-import { getRecentActivity } from './utils/logoV2Utils.js'
-import { getDefaultEngineModelSetting, getEngineModel, getCanonicalName } from './utils/model/model.js'
+import { getDefaultEngineModelSetting, getEngineModel } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
   stripDangerousPermissionsForFlow,
@@ -100,15 +97,14 @@ import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { getSettingsWithErrors, getInitialSettings } from './utils/settings/settings.js'
 import { parseSettingSourcesFlag } from './utils/settings/constants.js'
-import { resetSettingsCache, setSessionSettingsCache } from './utils/settings/settingsCache.js'
+import { resetSettingsCache } from './utils/settings/settingsCache.js'
 import { setFlagSettingsInline, setFlagSettingsPath, setAllowedSettingSources, getSessionProjectDir } from './bootstrap/state.js'
 import { startMdmRawRead } from './utils/settings/mdm/rawRead.js'
 import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/secureStorage/keychainPrefetch.js'
-import { lastSession, sessionAtIndex, searchSessionsByCustomTitle, listSessions, sessionIdExists } from './utils/sessionStorage.js'
+import { lastSession, sessionAtIndex, searchSessionsByCustomTitle, sessionIdExists } from './utils/sessionStorage.js'
 import { sessionIdOfListing } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
 import { getTipToShowOnSpinner } from './services/tips/tipScheduler.js'
-import { getSlashCommandToolSkills } from './commands.js'
 import { countFilesRoundedRg } from './utils/ripgrep.js'
 import { checkHasTrustDialogAccepted } from './utils/config.js'
 import { registerCleanup } from './utils/cleanupRegistry.js'
@@ -124,7 +120,6 @@ import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
 import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
-import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusedOutcome } from './cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
@@ -1609,7 +1604,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     const { initBundledWorkflows } = await import('./tools/WorkflowTool/bundled/index.js')
     initBundledWorkflows()
   }
-  const { getProjectRoot, getOriginalCwd } = await import('./bootstrap/state.js')
+  const { getProjectRoot } = await import('./bootstrap/state.js')
   const cwd = process.cwd()
   if (!worktreeEnabled && !isNonInteractiveSession && checkHasTrustDialogAccepted()) {
     void getInstructionFiles().catch(() => {})
@@ -1906,9 +1901,6 @@ async function interactiveLaunch(args: {
         }
       : {}),
   }
-  const appStateStore = createStore<AppState>(initialState, ({ newState, oldState }) =>
-    onChangeAppState({ newState, oldState }),
-  )
 
   if (inputPrompt) {
     const { addToHistory } = await import('./history.js')

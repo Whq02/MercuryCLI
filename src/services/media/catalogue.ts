@@ -31,8 +31,6 @@ const CatalogueSchema = z.object({
 }).passthrough()
 export type MediaModel = z.infer<typeof ModelSchema>
 type MediaFile = z.infer<typeof FileSchema>
-type MediaRuntimeVariant = z.infer<typeof RuntimeVariantSchema>
-type MediaRuntimeTable = z.infer<typeof RuntimeTableSchema>
 export type MediaCatalogue = z.infer<typeof CatalogueSchema>
 
 export function modelFilePath(root: string, path: string): string {

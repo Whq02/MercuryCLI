@@ -607,7 +607,6 @@ export async function __dispatchLawsForProof(): Promise<{
   const { mkdtempSync, realpathSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const dir = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-dispatchprobe-')))
-  const { ensureAgentIdentity } = await import('./identity.js')
   const { attachExternalSeat, _resetSeatBridgeForTesting } = await import('./seatBridge.js')
   const { _resetCapabilitiesForTesting } = await import('./capabilities.js')
   _resetSeatBridgeForTesting()

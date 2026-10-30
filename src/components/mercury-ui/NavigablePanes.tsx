@@ -6,7 +6,6 @@ import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 import { innerWidth as innerPaneWidth, viewportRows } from './geometry.js'
-import { truncateToWidth } from './glyphs.js'
 import { EmptyState, ProductLockup } from './components.js'
 import { InteractiveRow } from './InteractiveRow.js'
 import { CursorCell } from './LiveGlyphs.js'

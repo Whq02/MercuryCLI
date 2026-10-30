@@ -9,10 +9,8 @@ import {
   open,
   readdir,
   readFile,
-  rename,
   rm,
   stat,
-  writeFile,
 } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'

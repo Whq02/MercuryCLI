@@ -132,7 +132,6 @@ export async function runHostJob(id: string, generation: string, options: { runn
       if (!recipe) throw new Error('The saved host recipe is unavailable.')
       if (!initial.bankFolder) throw new Error('The bank folder is not recorded; open /llmhost → Bank and try again.')
       const folder = initial.bankFolder
-      const path = bankModelPath(folder, recipe)
       if (verifying) {
         const receipt = await verifyBank(recipe, folder, signal, mark)
         mark('verified')

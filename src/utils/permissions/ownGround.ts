@@ -154,6 +154,3 @@ export function settleCreation(created: string | null): void {
   if (created !== null && existsSync(created)) recordCreatedPaths([created])
 }
 
-function _resetOwnGroundForTesting(): void {
-  ledgers.clear()
-}

@@ -3,12 +3,9 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
 import React from 'react';
 import { setSessionTrustAccepted } from '../../bootstrap/state.js';
-import type { Command } from '../../commands.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Text } from '../../ink.js';
 import { useKeybinding } from '../../keybindings/useKeybinding.js';
-import { getMcpConfigsByScope } from '../../services/mcp/config.js';
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js';
 import { checkHasTrustDialogAccepted, getProjectPathForConfig, saveCurrentProjectConfig } from '../../utils/config.js';
 import { getCwd } from '../../utils/cwd.js';
 import { getFsImplementation } from '../../utils/fsOperations.js';
@@ -17,31 +14,11 @@ import { normalizePathForConfigKey } from '../../utils/path.js';
 import { Select } from '../CustomSelect/index.js';
 import { PermissionDialog } from '../permissions/PermissionDialog.js';
 import { useFirstRunCardsCentred } from '../MercurySetupFrame.js';
-import { getApiKeyHelperSources, getMnemeDirectorySources, getBashPermissionSources, getDangerousEnvVarsSources, getHooksSources } from './utils.js';
 type Props = {
   onDone(): void;
-  commands?: Command[];
 };
-function toolAllowsBash(tool: string): boolean {
-  return tool === BASH_TOOL_NAME || tool.startsWith(BASH_TOOL_NAME + "(");
-}
 
-function isSkillOrExtensionCommandWithBash(command: Command): boolean {
-  return command.type === "prompt" && (command.loadedFrom === "skills" || command.loadedFrom === "extension") && (command.source === "projectSettings" || command.source === "localSettings" || command.source === "extension") && (command.allowedTools?.some(toolAllowsBash) ?? false);
-}
-
-export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
-  const { servers: projectServers } = getMcpConfigsByScope("project");
-  const hasMcpServers = Object.keys(projectServers).length > 0;
-  const hasHooks = getHooksSources().length > 0;
-  const bashSettingSources = getBashPermissionSources();
-  const hasApiKeyHelper = getApiKeyHelperSources().length > 0;
-  const hasDangerousEnvVars = getDangerousEnvVarsSources().length > 0;
-  const hasMnemeDirectory = getMnemeDirectorySources().length > 0;
-
-  const hasSkillsBash = commands?.some(isSkillOrExtensionCommandWithBash) ?? false;
-  const hasAnyBashExecution = bashSettingSources.length > 0 || hasSkillsBash;
-
+export function TrustDialog({ onDone }: Props): React.ReactNode {
   const { rows } = useTerminalSize();
   const boxTone = useFirstRunCardsCentred() ? 'cardBrown' : 'warning';
   const hasTrustDialogAccepted = checkHasTrustDialogAccepted();

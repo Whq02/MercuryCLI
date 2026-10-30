@@ -2,23 +2,14 @@
 import type { Message } from 'src/types/message.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import {
-  getEffectiveContextWindowSize,
-  isAutoCompactEnabled,
-} from '../../services/compact/autoCompact.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
-import { getContextWindowForModel } from '../context.js'
-import { getSdkBetas } from '../../bootstrap/state.js'
 import { isThinkingMessage } from '../messages.js'
 import {
   getTaskListId,
   isTaskToolsEnabled,
   listTasks,
 } from '../tasks.js'
-import {
-  tokenCountWithEstimation,
-} from '../tokens.js'
 import {
   CONTRACT_REMINDER_CONFIG,
   TASK_REMINDER_CONFIG,

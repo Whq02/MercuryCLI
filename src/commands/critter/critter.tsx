@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { CritterSelect } from '../../components/CritterSelect.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

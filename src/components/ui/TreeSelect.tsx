@@ -9,7 +9,7 @@ const EXPANDED_MARKER = `${GLYPH.chevronDown} `
 const COLLAPSED_MARKER = `${GLYPH.chevronRight} `
 const CHILD_MARKER = '  ▸ '
 
-export type TreeNode<T> = {
+type TreeNode<T> = {
   id: string
   value: T
   label: string

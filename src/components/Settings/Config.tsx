@@ -398,7 +398,7 @@ export function Config({
   const tokens = useMercuryTokens()
   const setAppState = useSetAppState()
   const appState = useAppState((s: AppState) => s)
-  const [themeName, setThemeSetting] = useTheme()
+  const [, setThemeSetting] = useTheme()
   const themeSetting = useThemeSetting()
   const pastOpenEvent = useOpenEventGate()
 

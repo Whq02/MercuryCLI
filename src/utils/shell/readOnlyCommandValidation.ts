@@ -19,7 +19,7 @@ type ReadOnlyRule = {
   readonly unlisted?: true
 }
 
-export type ExternalCommandConfig = {
+type ExternalCommandConfig = {
   safeFlags: Record<string, FlagValue>
   regex?: RegExp
   additionalCommandIsDangerousCallback?: (rawCommand: string, args: string[]) => boolean

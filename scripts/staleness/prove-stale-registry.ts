@@ -332,7 +332,6 @@ src/utils/shell/engineSession.ts :: snapshotPromise :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
 src/utils/shell/windowsShellRoad.ts :: locatedWindowsBash :: static-for-process
 src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
-src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
 src/utils/suggestions/slackChannelSuggestions.ts :: responseCache :: keyed-by-truth

@@ -5,7 +5,7 @@ import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } 
 import { desktopSnapshot, drivingFooter, subscribeDesktop } from '../../services/desktop/desktopSession.js'
 import { armDesktopClaimPoll, desktopClaimFileSnapshot, subscribeDesktopClaimFile } from '../../services/desktop/desktopClaim.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
+import { useAppState, type AppState } from '../../state/AppState.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
@@ -69,7 +69,6 @@ export function PromptInputFooterLeftSide({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
-  const setAppState = useSetAppState()
   const tasks = useAppState((state: AppState) => state.tasks)
   const footerSelection = useAppState((state: AppState) => state.footerSelection)
   const viewingAgentTaskId = useAppState(
@@ -91,7 +90,6 @@ export function PromptInputFooterLeftSide({
   const selection = useSelection()
   const cancelChord = useShortcutDisplay('chat:cancel', 'Chat', 'esc')
   const killChord = useShortcutDisplay('chat:killAgents', 'Chat', 'ctrl+x k')
-  const tasksChord = useShortcutDisplay('app:toggleTasks', 'Global', 'ctrl+t')
   const copyChord = useShortcutDisplay('selection:copy', 'Scroll', 'ctrl+shift+c')
   const paletteChord = useShortcutDisplay('app:commandPalette', 'Global', 'ctrl+k')
   const killConfirmShowing = useAppState(

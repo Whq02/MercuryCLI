@@ -110,8 +110,6 @@ export type PromptInputMode =
   | 'prompt'
   | 'task-notification'
 
-export type EditablePromptInputMode = Exclude<PromptInputMode, 'task-notification'>
-
 export type QueuePriority = 'now' | 'next' | 'later'
 
 type QueuePayload = {

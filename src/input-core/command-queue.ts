@@ -1,5 +1,3 @@
-import type { ContentBlockParam } from '../types/wire.js'
-import type { Permutations } from 'src/types/utils.js'
 import { getSessionId } from '../bootstrap/state.js'
 import type { AppState } from '../state/AppState.js'
 import type {
@@ -7,14 +5,10 @@ import type {
   QueueOperationMessage,
 } from '../types/messageQueueTypes.js'
 import type {
-  EditablePromptInputMode,
-  PromptInputMode,
   QueuedCommand,
   QueuePriority,
 } from '../types/textInputTypes.js'
-import { type PastedContent } from '../utils/config.js'
 import { extractTextContent } from '../utils/messages/text.js'
-import { objectGroupBy } from '../utils/objectGroupBy.js'
 import { recordQueueOperation } from '../utils/sessionStorage.js'
 import { createSignal } from '../utils/signal.js'
 import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } from '../services/notices/unreadLedger.js'

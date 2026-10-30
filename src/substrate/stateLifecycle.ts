@@ -1,6 +1,6 @@
 
 import { readdir, readFile, rm, rmdir, stat, unlink, writeFile } from 'fs/promises'
-import { dirname, join, resolve, sep } from 'path'
+import { join, resolve, sep } from 'path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'

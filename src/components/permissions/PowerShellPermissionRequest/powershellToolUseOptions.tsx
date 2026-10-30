@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { Text } from '../../../ink.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'

@@ -1,7 +1,5 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
-import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
+import { FAINT, IVORY, OASIS, SAND } from './mercuryPalette.js'
 
 export function MercuryTeleport({pct=60}:{pct?:number}){
   const f=Math.max(0,Math.min(14,Math.round(pct/100*14)))

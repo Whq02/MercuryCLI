@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, realpathSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 import { z } from 'zod/v4'

@@ -1,9 +1,7 @@
 import {
-  getInitialEngineModel,
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
 import { getInitialSettings } from '../settings/settings.js'
-import { logForDebugging } from '../debug.js'
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   CHOOSE_A_MODEL_ID,

@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { SamplesListView } from '../../components/samples/SamplesListView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

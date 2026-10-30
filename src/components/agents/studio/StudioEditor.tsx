@@ -31,7 +31,6 @@ import {
   effectiveStudioRuntime,
   FIELD_ROWS,
   fieldValueLabel,
-  type EditorView,
   type FieldId,
   type GuidedStep,
   type StudioDraftBase,

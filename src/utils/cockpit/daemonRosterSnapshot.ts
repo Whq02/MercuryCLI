@@ -3,29 +3,6 @@ import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
 
-export type RosterSnapshot = {
-  ok: boolean
-  entry: WireRosterEntry | null
-  reason: string
-}
-
-export async function daemonRosterSnapshot(short: string): Promise<RosterSnapshot> {
-  try {
-    const reply = await daemonControlRpc({ op: 'list' } as DaemonRequest)
-    if (!reply.ok) {
-      return { ok: false, entry: null, reason: reply.code }
-    }
-    if (reply.op !== 'list') {
-      return { ok: false, entry: null, reason: 'unexpected reply' }
-    }
-    const entry = reply.jobs.find(j => j.short === short) ?? null
-    return { ok: true, entry, reason: entry ? 'live' : 'not in roster' }
-  } catch (e) {
-    return { ok: false, entry: null, reason: String(e) }
-  }
-}
-
-
 type DaemonCrewLiveness = {
   engaged: boolean
   workersActive: boolean

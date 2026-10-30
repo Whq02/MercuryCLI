@@ -67,7 +67,7 @@ export type FieldId =
   | 'instructionProfile'
   | 'color'
 
-export type EditorView =
+type EditorView =
   | { kind: 'guided'; step: GuidedStep; history: GuidedStep[] }
   | { kind: 'advanced'; cursor: number; editing: FieldId | null }
   | { kind: 'raw' }

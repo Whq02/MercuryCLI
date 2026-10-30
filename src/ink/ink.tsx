@@ -96,7 +96,7 @@ import {
   wakeReenterAltBytes,
   resizeReassertBytes,
 } from './root/screen-session.js'
-import { cockpitEngine, mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
+import { mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { flushDoorSync, termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { RESIZE_SETTLE_MS } from './constants.js'
 import { runTeardownSuite, type TeardownHost } from './root/teardown.js'

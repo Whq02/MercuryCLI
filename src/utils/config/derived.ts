@@ -2,7 +2,7 @@ import { join } from 'path'
 import { getOriginalCwd, getSessionPermissionModeResolution } from '../../bootstrap/state.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import type { SessionPermissionModeResolution } from '../permissions/permissionSetup.js'
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getMercuryHome,
   isEnvDefinedFalsy,

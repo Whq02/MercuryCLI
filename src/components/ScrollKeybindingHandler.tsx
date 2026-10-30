@@ -7,7 +7,6 @@ import useInput from '../ink/hooks/use-input.js'
 import type { Key } from '../ink/events/input-event.js'
 import {
   useSelection,
-  type SelectionApi,
 } from '../ink/hooks/use-selection.js'
 import { useCopyOnSelect, useSelectionBgColor } from '../hooks/useCopyOnSelect.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'

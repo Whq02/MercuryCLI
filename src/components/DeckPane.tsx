@@ -10,21 +10,12 @@ import { Box, Text } from '../ink.js'
 
 import { useVitals } from '../state/vitalsBus.js'
 import { LAYOUT_BREAKPOINTS } from '../hooks/useLayoutTier.js'
-import { getGitState, type GitRepoState } from '../utils/git.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
-import { renderModelChip, renderModelName } from '../utils/model/model.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
 import type { MissionRowV1 } from '../services/engine-connector/types.js'
 import {
-  getDisplayedEffortLabel,
-  modelSupportsEffort,
-  type EffortValue,
-} from '../utils/effort.js'
-import {
   agentStateSnapshot,
   daemonSnapshot,
-  daemonRosterSnapshot,
-  type RosterSnapshot,
   getLiveContextUsage,
   getLiveContextUsageVersion,
   sessionTraceSnapshot,
@@ -43,7 +34,7 @@ import { TrimChip } from './mercury-ui/TrimChip.js'
 import { MiniCritter } from './mercury-ui/MiniCritter.js'
 import { Crab } from './mercury-ui/assets.js'
 import { ProgressBar, UsageMeter, useNowTick } from './mercury-ui/components.js'
-import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
+import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'

@@ -1,4 +1,3 @@
-import React from 'react';
 import { CommandPopupLease } from '../../components/CommandPopupSlot.js';
 import { claimCommandPopup } from '../../utils/cockpit/commandPopup.js';
 import { MercuryHealthCertificate, healthPopupShape } from './HealthCertificate.js';

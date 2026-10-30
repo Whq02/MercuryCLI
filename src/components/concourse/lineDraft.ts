@@ -151,7 +151,7 @@ export function caretVerticalOp(
   d: LineDraft,
 ): ((d: LineDraft) => LineDraft) | null {
   if (!key.upArrow && !key.downArrow) return null
-  const { lines, caretLine, caretCol } = draftLines(d)
+  const { lines, caretLine } = draftLines(d)
   if (lines.length <= 1) return null
   const target = key.upArrow ? caretLine - 1 : caretLine + 1
   if (target < 0 || target >= lines.length) return null

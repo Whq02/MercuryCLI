@@ -22,7 +22,7 @@ import { CATALOGUE_FILE, MANIFEST_FILE, PROJECT_EXTENSIONS_DIR } from './paths.j
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { installedOrEmpty, sourcesOrEmpty } from './records.js'
 import { findEntry, trustStateOf } from './roster.js'
-import { addSource, installedFromSource, listSources, refreshSource, removeSource, sourceState } from './sources.js'
+import { addSource, installedFromSource, listSources, refreshSource, removeSource } from './sources.js'
 import { formatBytes } from './tree.js'
 import type { RosterEntry } from './types.js'
 import { validatePath } from './validate.js'

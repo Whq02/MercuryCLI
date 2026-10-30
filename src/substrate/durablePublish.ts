@@ -5,7 +5,6 @@ import {
   fsyncSync,
   mkdirSync,
   openSync,
-  readdirSync,
   renameSync,
   statSync,
   unlinkSync,

@@ -6,7 +6,7 @@ import type {
   PermissionUpdate,
   PermissionUpdateDestination,
 } from '../../types/permissions.js'
-import { getSettingsForSource, updateSettingsForSource } from '../settings/settings.js'
+import { updateSettingsForSource } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'

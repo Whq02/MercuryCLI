@@ -1,7 +1,5 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
-import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
+import { AMBER, CRIMSON, IVORY, SAND, TEAL } from './mercuryPalette.js'
 
 export function MercuryApiKey({apiKey='sk-ant-…a1b2'}:{apiKey?:string}){return (
   <Box flexDirection="column" borderStyle="round" borderColor={AMBER} paddingX={1}>

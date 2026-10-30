@@ -1,4 +1,3 @@
-import React from 'react'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { z } from 'zod/v4'
 import { buildTool, type ToolUseContext } from '../../Tool.js'

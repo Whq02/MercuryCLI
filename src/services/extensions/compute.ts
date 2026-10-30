@@ -11,7 +11,6 @@ import { ensureHostKey, hostRunner } from '../host/ssh.js'
 import { vendorClient, vendorStorage, vendorKeyNotice } from '../host/vendors/client.js'
 import type { HostVendor } from '../host/vendors/vendor.js'
 import type { HostOffer, HostPod } from '../host/runpod.js'
-import type { HostRecipe } from '../host/recipes.js'
 
 const id = z.string().regex(/^[a-zA-Z0-9_-]+$/)
 const owner = z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/)

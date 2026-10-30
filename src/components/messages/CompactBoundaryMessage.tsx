@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Box, Text } from '../../ink.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
 import { overflowWhoClause } from '../../services/api/overflowSignal.js';

@@ -262,7 +262,6 @@ async function askQuota(
 }
 
 async function fetchZaiQuota(key: string, io?: ZaiUsageIo): Promise<ZaiQuotaProbe> {
-  const env = io?.env ?? process.env
   const identity = credentialFingerprint(key)
   if (stateIdentity !== identity) {
     observed = null

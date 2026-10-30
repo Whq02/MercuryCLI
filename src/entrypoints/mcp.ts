@@ -1,5 +1,5 @@
 import { Server, serveStdio, type Tool as McpTool } from '../services/mcp/sdk.js'
-import { getEmptyToolPermissionContext, type Tool, type ToolUseContext } from '../Tool.js'
+import { getEmptyToolPermissionContext, type ToolUseContext } from '../Tool.js'
 import review from '../commands/review.js'
 import { getDefaultAppState } from '../state/AppStateStore.js'
 import { getTools } from '../tools.js'

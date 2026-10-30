@@ -8,7 +8,6 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { basename } from 'path'
 import { Box, Text, useInput } from '../ink.js'
 import type { SessionListing } from '../types/logs.js'
 import { getLogDisplayTitle } from '../utils/log.js'
@@ -16,7 +15,7 @@ import { SearchBox } from './SearchBox.js'
 import { SessionPreview } from './SessionPreview.js'
 import { TagTabs } from './TagTabs.js'
 import TextInput from './TextInput.js'
-import { type TreeNode, TreeSelect } from './ui/TreeSelect.js'
+import { TreeSelect } from './ui/TreeSelect.js'
 import { Select } from './CustomSelect/index.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'

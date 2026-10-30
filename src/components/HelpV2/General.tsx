@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Box, Text } from '../../ink.js';
 import { useModalOrTerminalSize } from '../../context/modalContext.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';

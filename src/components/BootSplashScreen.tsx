@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { basename } from 'node:path';
 import figures from 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { Box } from '../ink.js';

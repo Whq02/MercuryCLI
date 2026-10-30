@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { PromptsPanel } from '../../components/prompts-panel/PromptsPanel.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

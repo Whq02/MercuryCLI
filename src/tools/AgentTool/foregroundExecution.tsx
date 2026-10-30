@@ -26,7 +26,6 @@ import {
   settleAgentForeground,
   takeSiblingEnd,
   unregisterAgentForeground,
-  updateAgentProgress,
   updateProgressFromMessage,
   usageWindowPauseOf,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
@@ -156,7 +155,6 @@ export async function runForegroundAgentExecution(
     name,
     modelNote,
     metadata,
-    startTime,
     syncAgentId,
     syncAgentContext,
     selectedAgent,

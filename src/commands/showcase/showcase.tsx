@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { MercuryShowcase } from '../../components/MercuryShowcase.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

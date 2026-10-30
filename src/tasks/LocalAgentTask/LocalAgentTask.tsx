@@ -857,7 +857,7 @@ function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
 }
 
 
-export function updateAgentProgress(
+function updateAgentProgress(
   taskId: string,
   progress: AgentProgress,
   setAppState: SetAppState,

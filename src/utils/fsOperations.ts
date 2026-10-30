@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 
 import { getErrnoCode } from './errors.js'
 import { slowLogging } from './slowOperations.js'

@@ -1,10 +1,8 @@
 import { homedir } from 'node:os'
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { getCwd } from '../utils/cwd.js'
 import { toTildePath } from '../utils/path.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
-import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
+import { AMBER, CRIMSON, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 
 function cwdLabel(): string {
   const cwd = getCwd()

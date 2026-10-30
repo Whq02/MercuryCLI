@@ -1,5 +1,5 @@
 
-import React, { memo, useContext } from 'react'
+import React, { memo } from 'react'
 import { Box } from '../ink.js'
 import type { Screen } from '../screens/Chat.js'
 import type {
@@ -36,7 +36,7 @@ function isMessageStreaming(
   return id !== undefined && id !== null && streamingToolUseIDs.has(id)
 }
 
-export function allToolsResolved(
+function allToolsResolved(
   msg: RenderableMessage,
   resolvedToolUseIDs: Set<string>,
 ): boolean {

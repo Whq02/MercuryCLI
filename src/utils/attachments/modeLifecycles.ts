@@ -4,10 +4,6 @@ import type { ToolUseContext } from '../../Tool.js'
 import { getApolloModeSections } from '../../prompt/apolloMode.js'
 import { describeModeRoad, lastModeTransitionFrom } from '../permissions/modeTransitions.js'
 import { permissionModeTitle } from '../permissions/PermissionMode.js'
-import {
-  getIsNonInteractiveSession,
-  getOriginalCwd,
-} from '../../bootstrap/state.js'
 import { getLocalISODate } from '../../constants/common.js'
 import { capsuleStateFor } from './capsuleState.js'
 import {

@@ -8,7 +8,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContex
 import { useModalOrTerminalSize } from '../../context/modalContext.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { ProductLockup, SectionHeader, StateBadge } from '../../components/mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { panelWidth, shedToFit } from '../../components/mercury-ui/geometry.js'

@@ -1,6 +1,5 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
+import { FAINT, IVORY, SAND, TERRA } from './mercuryPalette.js'
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
 export function MercuryOnboarding({step=1,total=4}:{step?:number;total?:number}){return (

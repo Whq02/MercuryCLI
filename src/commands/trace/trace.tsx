@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { TraceView } from '../../components/TraceView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

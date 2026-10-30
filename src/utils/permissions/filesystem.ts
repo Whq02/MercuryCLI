@@ -7,9 +7,7 @@ import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../fsOperations.js'
-import { logForDebugging } from '../debug.js'
 import {
-  containsPathTraversal,
   expandPath,
   getDirectoryForPath,
   sanitizePath,

@@ -14,7 +14,6 @@ import {
   registerRouteSurface,
   returnToConcourse,
   surfaceGeneration,
-  type SurfaceRoute,
 } from '../../context/surfaceRoute.js';
 import {
   buildConcourseSnapshot,

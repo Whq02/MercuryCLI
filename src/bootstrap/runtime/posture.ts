@@ -1,4 +1,3 @@
-import { resetSettingsCache } from 'src/utils/settings/settingsCache.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { SessionPermissionModeResolution } from '../../utils/permissions/permissionSetup.js'
 import type { SessionKind } from '../../utils/sessionKind.js'

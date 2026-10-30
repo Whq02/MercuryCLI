@@ -1,7 +1,5 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
-import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
+import { AMBER, CRIMSON, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 
 export function MercuryPermissionCard({tool='Bash',action='npm install',risk='medium'}:{tool?:string;action?:string;risk?:string}){
   const rc=risk==='high'?CRIMSON:risk==='low'?TEAL:AMBER

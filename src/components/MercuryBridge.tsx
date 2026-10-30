@@ -1,6 +1,5 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
-import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './mercuryPalette.js'
+import { FAINT, IVORY, SAND, TEAL, TERRA } from './mercuryPalette.js'
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
 export function MercuryBridge({device='MacBook Pro'}:{device?:string}){return (

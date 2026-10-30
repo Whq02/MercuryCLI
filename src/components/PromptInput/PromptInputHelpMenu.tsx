@@ -51,9 +51,6 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   const externalEditorShortcut = formatShortcut(
     useShortcutDisplay('chat:externalEditor', 'Chat', 'ctrl+g'),
   )
-  const terminalShortcut = formatShortcut(
-    useShortcutDisplay('app:toggleTerminal', 'Global', 'meta+j'),
-  )
   const imagePasteShortcut = formatShortcut(
     useShortcutDisplay('chat:imagePaste', 'Chat', 'ctrl+v'),
   )

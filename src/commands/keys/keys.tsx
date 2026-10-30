@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { MercuryInputAtlas } from '../../components/MercuryInputAtlas.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 

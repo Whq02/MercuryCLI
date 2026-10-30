@@ -1,5 +1,4 @@
 
-import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { providerLimitWarningFacts } from '../../services/providers/limitWarning.js'

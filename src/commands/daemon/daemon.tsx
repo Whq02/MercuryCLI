@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { DaemonView } from '../../components/mercury-ui/parity/DaemonView.js'
 import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'

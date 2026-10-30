@@ -1,6 +1,5 @@
 
 import { pathToFileURL } from 'node:url'
-import figures from 'figures'
 import React, { useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'

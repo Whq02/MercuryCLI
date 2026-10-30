@@ -1,7 +1,6 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { CRIMSON, FAINT, TERRA } from './mercuryPalette.js'
-import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
+import { branchChip } from './mercury-ui/glyphs.js'
 
 export function MercuryPromptFooter({mode='implement',branch='main',bypass=false}:{mode?:string;branch?:string;bypass?:boolean}){return (
   <Box>

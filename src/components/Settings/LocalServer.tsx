@@ -18,7 +18,6 @@ import {
   memoryFactsOf,
   nextOnLadder,
   readLocalServerSettings,
-  writeLocalServerSetting,
   type LocalServerKnobId,
   type LocalServerSettings,
 } from '../../services/localServer/localServerKnobs.js'

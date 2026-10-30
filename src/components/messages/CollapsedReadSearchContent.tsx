@@ -1,9 +1,8 @@
 
-import React, { useRef, useState } from 'react'
+import React, { useRef } from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import type {
   CollapsedReadSearchGroup,
-  ProgressMessage,
 } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeUserFacingName } from '../../Tool.js'
@@ -11,7 +10,6 @@ import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
 import type { MessageLookups } from '../../utils/messages/lookups.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { logError } from '../../utils/log.js'
-import { formatDuration } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { toTildePath } from '../../utils/path.js'
 import { useFluxMountMark } from '../../hooks/useFluxMountMark.js'

@@ -12,11 +12,9 @@ import { findGitRoot } from '../utils/git.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import {
   daemonSnapshot,
-  fleetGauge,
   gitSnapshot,
   substrateSnapshot,
   traceSnapshot,
-  type FleetData,
   type GitData,
   type Snapshot,
   type TraceData,
@@ -89,7 +87,6 @@ function MercuryHeroBody(): React.ReactNode {
 }
 
 export function MercuryBrandRow(): React.ReactNode {
-  const tok = useMercuryTokens()
   const { rows, columns } = useTerminalSize()
   const banner = wordmarkForm(columns, rows) === 'banner'
   return (
@@ -138,7 +135,6 @@ function MercuryHomeBody(): React.ReactNode {
   const memoryRow = useMemoryAtStartRow()
 
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
-  const [fleet, setFleet] = useState<Snapshot<{ data: FleetData }> | null>(null)
   const [trace, setTrace] = useState<Snapshot<{ data: TraceData }> | null>(null)
   const [projectScopeEmpty, setProjectScopeEmpty] = useState(false)
   const isProjectCwd = useMemo((): boolean => {
@@ -151,7 +147,6 @@ function MercuryHomeBody(): React.ReactNode {
   useEffect(() => {
     let alive = true
     gitSnapshot().then(s => alive && setGit(s))
-    fleetGauge().then(s => alive && setFleet(s))
     traceSnapshot().then(s => alive && setTrace(s))
     void import('../services/instructions/engine.js')
       .then(engine => engine.getInstructionFiles())

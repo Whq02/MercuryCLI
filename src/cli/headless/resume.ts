@@ -1,10 +1,8 @@
 
-import { type UUID } from 'crypto'
 import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import {
   isSessionPersistenceDisabled,
-  setEngineModelOverride,
   switchSession,
 } from 'src/bootstrap/state.js'
 import { armProvisionalSessionReconcile } from 'src/utils/provisionalSessionReconcile.js'
@@ -28,8 +26,6 @@ import {
 } from 'src/utils/sessionStorage.js'
 import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
 import { refusedOutcome } from './refusalEnvelope.js'
-import { errorMessage } from '../../utils/errors.js'
-import { isEnvTruthy } from '../../utils/envUtils.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
 import { recordContentReplacement } from '../../utils/sessionStorage.js'

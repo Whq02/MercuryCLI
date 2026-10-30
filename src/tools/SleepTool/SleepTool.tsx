@@ -1,6 +1,5 @@
 import { z } from 'zod/v4'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import * as React from 'react'
 import { Text } from '../../ink.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { isRunInputClosed } from '../../bootstrap/state.js'

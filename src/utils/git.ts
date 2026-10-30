@@ -22,7 +22,7 @@ import {
   type GitChangeSignal,
 } from './git/gitFilesystem.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { gitArgs, gitArgsAsync } from './git/spawnArgs.js'
+import { gitArgsAsync } from './git/spawnArgs.js'
 import { whichSync } from './which.js'
 
 

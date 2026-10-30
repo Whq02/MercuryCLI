@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, truncate } from 'node:fs/promises'
+import { mkdir, readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import { getSessionId } from '../bootstrap/state.js'

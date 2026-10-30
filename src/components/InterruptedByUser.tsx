@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Text } from '../ink.js';
 import { CRIMSON } from './mercuryPalette.js';
 import { GLYPH } from './mercury-ui/glyphs.js';

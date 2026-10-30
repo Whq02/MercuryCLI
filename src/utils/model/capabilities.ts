@@ -73,8 +73,7 @@ import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../serv
 import type { CallModelRoute } from '../../services/providers/idSpaces.js'
 import { openrouterListedModel } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { localRecordFor, localWireId } from '../../services/providers/local/localCatalogue.js'
-import { localModelRecord } from '../../services/providers/local/localDiscovery.js'
+import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 
 

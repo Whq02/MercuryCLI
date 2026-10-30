@@ -2,7 +2,7 @@
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import React from 'react';
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js';
-import { FAINT, TERRA } from '../../components/mercuryPalette.js';
+import { FAINT } from '../../components/mercuryPalette.js';
 import { WithCardTone } from '../../components/mercury-ui/toolCardGrammar.js';
 import { Box, Text } from '../../ink.js';
 import type { Input, Output } from './ServiceTool.js';

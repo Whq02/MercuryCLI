@@ -1,7 +1,6 @@
 import { crewAgentsOf, crewSettled, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import type { WorkRosterV1 } from '../services/engine-connector/types.js'
 import type { TaskState } from '../tasks/types.js'
-import { formatAgentId } from '../utils/agentId.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import type { AppState } from './AppStateStore.js'
 

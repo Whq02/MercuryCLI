@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { FAINT, SAND, TERRA } from './mercuryPalette.js'
 import { padTo } from './mercury-ui/glyphs.js'

@@ -2,7 +2,7 @@
 import { projectLocalPath } from '../../services/projectLocal/paths.js'
 import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { randomUUID } from 'node:crypto'
-import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'

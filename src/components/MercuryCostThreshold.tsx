@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { AMBER, CRIMSON, IVORY, SAND, TEAL } from './mercuryPalette.js'
 
