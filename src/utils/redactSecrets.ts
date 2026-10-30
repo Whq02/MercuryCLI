@@ -13,6 +13,17 @@ const PREFIXED_SECRET = /\b(?:ctx7sk-[A-Za-z0-9_-]{10,}|sk-ant-[A-Za-z0-9_-]{10,
 const PRIVATE_KEY_BLOCK = /-----BEGIN[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END[ A-Z0-9_-]*PRIVATE KEY(?: BLOCK)?-----|$)/gi
 const ENV_SECRET_NAME = /key|token|secret|password|passwd|credential/i
 const ENV_ASSIGNMENT = /^([ \t]*(?:export[ \t]+|declare[ \t]+-[A-Za-z-]+[ \t]+|setenv[ \t]+)?)([A-Za-z_][A-Za-z0-9_]*)=(.+)$/gm
+const URL_PASSWORD = /(:\/\/[^\s/?#@:]+:)[^\s/?#@]+(?=@)/g
+const COOKIE_HEADER = /(\b(?:set-)?cookie["']?[ \t]*[:=][ \t]*["']?)([^\r\n"']*)/gi
+
+export function isSecretEnvName(name: string): boolean {
+  return ENV_SECRET_NAME.test(name)
+}
+
+function redactCookie(value: string): string {
+  if (value === '') return value
+  return value.includes('=') ? value.replace(/=[^;\s]*/g, `=${SECRET_REDACTION}`) : SECRET_REDACTION
+}
 
 function stringsIn(value: unknown, all: boolean, into: Set<string>): void {
   if (typeof value === 'string') {
@@ -88,6 +99,8 @@ export function createSecretRedactor(knownSecrets: readonly string[] = []): (tex
       (_match, quote: string, prefix: string, value: string) => `${quote}${prefix}${redactAuthorization(value)}${quote}`)
     result = result.replace(/^([ \t]*(?:proxy-)?authorization[ \t]*:[ \t]*)([^\r\n]*)/gim,
       (_match, prefix: string, value: string) => prefix + redactAuthorization(value))
+    result = result.replace(URL_PASSWORD, `$1${SECRET_REDACTION}`)
+    result = result.replace(COOKIE_HEADER, (_match, prefix: string, value: string) => prefix + redactCookie(value))
     result = result.replace(/(\b(?:proxy-)?authorization\b["']?[ \t]*[:=][ \t]*)(?:"([^"\r\n]*)"|'([^'\r\n]*)'|((?:(?:Bearer|Basic|Digest)[ \t]+)?(?:\[redacted\]|[^\s"'&,;}\[\]<>`]+)))/gi,
       (_match, prefix: string, double: string | undefined, single: string | undefined, bare: string | undefined) => {
         const quote = double !== undefined ? '"' : single !== undefined ? "'" : ''

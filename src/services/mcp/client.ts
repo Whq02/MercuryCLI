@@ -53,6 +53,7 @@ import { mcpContentNeedsTruncation, truncateMcpContent } from '../../utils/mcpVa
 import type { MCPToolResult } from '../../utils/mcpValidation.js'
 import { getWebSocketTLSOptions } from '../../utils/mtls.js'
 import { getApiFetch, getProxyFetchOptions, getProxyUrl, getWebSocketProxyAgent, getWebSocketProxyUrl } from '../../utils/proxy.js'
+import { createSecretRedactor, isSecretEnvName } from '../../utils/redactSecrets.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -557,6 +558,15 @@ function isTerminalErrorMessage(message: string): boolean {
   return TERMINAL_ERROR_SUBSTRINGS.some(substring => message.includes(substring))
 }
 
+export function mcpServerStderrRedactor(config: ScopedMcpServerConfig): (text: string) => string {
+  const { headers, env } = config as { headers?: Record<string, unknown>; env?: Record<string, unknown> }
+  const known = [
+    ...Object.values(headers ?? {}),
+    ...Object.entries(env ?? {}).filter(([name]) => isSecretEnvName(name)).map(([, value]) => value),
+  ].filter((value): value is string => typeof value === 'string' && value.length >= 8)
+  return createSecretRedactor(known)
+}
+
 const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serverStats?: unknown): Promise<MCPServerConnection> => {
   void serverStats
   const refusal = mcpStdioCommandRefusal(name, serverRef)
@@ -578,6 +588,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let spawnRefused = false
   let stderrBuffer = ''
   let inProcess = false
+  const redactStderr = mcpServerStderrRedactor(serverRef)
   const buildStdioTransport = (): StdioClientTransport => {
     const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
     const prefix = flagEnv('MERCURY_SHELL_PREFIX')
@@ -738,7 +749,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       timedOut = true
       const transportLabel = inProcess ? 'in-process' : type
       const written = mcpConfigAsWritten(config)
-      const stderrFirstLine = stderrBuffer.trim().split('\n')[0]?.trim().slice(0, 200) ?? ''
+      const stderrFirstLine = redactStderr(stderrBuffer.trim().split('\n')[0]?.trim() ?? '').slice(0, 200)
       const spawnedTail =
         stdioTransport === null
           ? ''
@@ -785,7 +796,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
     if (type === 'stdio' || type === 'sse' || type === 'http') {
-      const stderrTail = Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ').slice(0, 300)
+      const stderrTail = redactStderr(Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ')).slice(0, 300)
       const written = mcpConfigAsWritten(config)
       throw new Error(
         describeMcpConnectFailure(err, {
