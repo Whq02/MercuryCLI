@@ -2,10 +2,6 @@ import { qwenPricingRegion } from './qwenAccounts.js'
 import { qwenDisplayPin, qwenPriceTierFor } from './qwenPins.js'
 import type { ResolvedModelPricing } from '../../../utils/modelCost.js'
 
-export const QWEN_REGIONAL_PRICES_OBSERVED_AT = '2026-10-29'
-export const QWEN_REGIONAL_PRICE_SOURCE = 'https://www.alibabacloud.com/help/en/model-studio/model-pricing'
-export const QWEN_REGIONAL_CACHE_SOURCE = 'https://www.alibabacloud.com/help/en/model-studio/context-cache'
-
 type Price = { costInPerMtok: number; costOutPerMtok: number; cachedInPerMtok?: number; cacheWritePerMtok?: number }
 type Tier = Price & { aboveInputTokens: number }
 
