@@ -319,6 +319,7 @@ export const setupGracefulShutdown = (): void => {
   }
 
   registerProcessOutputErrorHandlers()
+  observeStdoutPressure()
   if (process.stdin.isTTY && !isDaemonSubcommand()) {
     registerProcessInputErrorHandler(code => {
       markTerminalGone()
@@ -600,19 +601,39 @@ export async function quiesceCleanupBeforeExit(
   }
 }
 
+type PressureObserved = { writableLength: number; write(...args: unknown[]): boolean; on(event: 'drain', listener: () => void): unknown }
+const stdoutPressure = new WeakMap<object, { pending: boolean }>()
+
+export function observeStdoutPressure(stdout: PressureObserved = process.stdout): void {
+  if (stdoutPressure.has(stdout)) return
+  const pressure = { pending: false }
+  stdoutPressure.set(stdout, pressure)
+  const write = stdout.write
+  stdout.write = function (this: PressureObserved, ...args: unknown[]): boolean {
+    const accepted = write.apply(this, args)
+    if (!accepted && stdout.writableLength === 0) pressure.pending = true
+    return accepted
+  }
+  stdout.on('drain', () => {
+    pressure.pending = false
+  })
+}
+
 export async function drainPipedStdoutForExit(
   stdout: { isTTY?: boolean; writableLength: number; destroyed?: boolean; writable?: boolean } = process.stdout,
 ): Promise<{ drained: boolean; remainingBytes: number }> {
   if (stdout.isTTY) return { drained: true, remainingBytes: 0 }
   const readerAlive = (): boolean => stdout.destroyed !== true && stdout.writable !== false
-  while (stdout.writableLength > 0 && readerAlive()) {
+  const pressured = (): boolean => stdoutPressure.get(stdout)?.pending === true
+  while ((stdout.writableLength > 0 || pressured()) && readerAlive()) {
     await new Promise(resolve => setTimeout(resolve, 10))
   }
   const remainingBytes = stdout.writableLength
-  if (remainingBytes > 0) {
-    logForDebugging(`stdout drain at exit: the reader's pipe is gone with ${remainingBytes} bytes still queued`)
+  const drained = remainingBytes === 0 && !pressured()
+  if (!drained) {
+    logForDebugging(`stdout drain at exit: the reader's pipe is gone with ${remainingBytes > 0 ? `${remainingBytes} bytes` : 'bytes'} still queued`)
   }
-  return { drained: remainingBytes === 0, remainingBytes }
+  return { drained, remainingBytes }
 }
 
 export function gracefulShutdownSync(

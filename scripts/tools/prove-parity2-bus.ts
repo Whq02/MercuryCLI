@@ -89,6 +89,34 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const stuckResult = await stuckWait
   t('a consumer whose pipe is gone ends the wait with the remainder counted', !stuckResult.drained && stuckResult.remainingBytes === 777)
 
+  const { observeStdoutPressure } = await import('../../src/utils/gracefulShutdown.ts')
+  const blindStream = () => {
+    const drains: Array<() => void> = []
+    const stream = { isTTY: false, writableLength: 0, destroyed: false, writable: true, write: (_chunk: unknown) => false, on: (event: string, listener: () => void) => { if (event === 'drain') drains.push(listener) } }
+    return { stream, drain: () => drains.forEach(listener => listener()) }
+  }
+  const blind = blindStream()
+  observeStdoutPressure(blind.stream as never)
+  t('a refused write is observed through the stream itself (the counter can read 0 while the sink still holds the bytes: Bun on every platform)', blind.stream.write('frame') === false)
+  let blindSettled = false
+  const blindWait = drainPipedStdoutForExit(blind.stream).then(result => { blindSettled = true; return result })
+  await sleep(150)
+  t('POISON (the blind counter): a refused write holds the exit although writableLength reads 0', !blindSettled)
+  blind.drain()
+  t("the runtime's drain event ends the wait as drained", (await blindWait).drained)
+  const gone = blindStream()
+  observeStdoutPressure(gone.stream as never)
+  gone.stream.write('frame')
+  gone.stream.destroyed = true
+  t('a refused write whose reader is gone is a lost tail, not a drained exit', !(await drainPipedStdoutForExit(gone.stream)).drained)
+  t('observing the same stream twice wraps it once', (() => { const once = blindStream(); observeStdoutPressure(once.stream as never); const wrapped = once.stream.write; observeStdoutPressure(once.stream as never); return once.stream.write === wrapped })())
+  const counted = blindStream()
+  counted.stream.writableLength = 300
+  observeStdoutPressure(counted.stream as never)
+  counted.stream.write('frame')
+  counted.stream.writableLength = 0
+  t("a refused write whose counter was live is left to the counter (node's shape: a broken pipe empties the buffer and no drain event follows)", (await drainPipedStdoutForExit(counted.stream)).drained)
+
   const { quiesceCleanupBeforeExit, EXIT_QUIESCENCE_MS } = await import('../../src/utils/gracefulShutdown.ts')
   t('the quiescence grace is bounded and small (a wedged cleanup cannot hold the exit)', EXIT_QUIESCENCE_MS > 0 && EXIT_QUIESCENCE_MS <= 1_000)
   const settledStart = Date.now()
@@ -115,9 +143,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   writeFileSync(
     childScript,
     `
-const { gracefulShutdown } = await import(${JSON.stringify(join(process.cwd(), 'src/utils/gracefulShutdown.ts'))})
+const { gracefulShutdown, setupGracefulShutdown } = await import(${JSON.stringify(join(process.cwd(), 'src/utils/gracefulShutdown.ts'))})
+setupGracefulShutdown()
 const line = JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'x'.repeat(900) } } }) + '\\n'
-for (let i = 0; i < 4000; i++) process.stdout.write(line)
+let refused = 0
+for (let i = 0; i < 4000; i++) if (!process.stdout.write(line)) refused++
+process.stderr.write('writes the runtime refused to take at once: ' + refused + '\\n')
 process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', marker: 'END-OF-STREAM' }) + '\\n')
 await gracefulShutdown(0)
 `,
