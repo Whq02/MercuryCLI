@@ -145,6 +145,7 @@ suite_scratch_init() {
   fi
   export TMPDIR="$MERCURY_SUITE_TMPDIR"
   export MERCURY_TMPDIR="$MERCURY_SUITE_TMPDIR"
+  export BUN_RUNTIME_TRANSPILER_CACHE_PATH="${BUN_RUNTIME_TRANSPILER_CACHE_PATH:-$MERCURY_SUITE_TMPDIR/bun-transpiler-cache}"
   local preload="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/proofScratch.cjs" option
   option="$(suite_node_require_option "$preload")"
   case "${NODE_OPTIONS:-}" in

@@ -99,18 +99,18 @@ try {
   check('control — without the word the same bun redirects nothing and writes no entry (bunfig.toml is read from the cwd)', !bare.stdout.startsWith(runRoot + '/') && !existsSync(join(world, 'bare-ledger', `${bare.pid}.entry`)), `rc=${bare.status} ${bare.stdout} ${bare.stderr}`)
 
   console.log('── suite_scratch_init on a Windows bash exports the converted words')
-  const optionsAfterInit = (path: string): { node: string; bun: string } => {
+  const optionsAfterInit = (path: string): { node: string; bun: string; cache: string; root: string } => {
     const home = join(world, 'home')
     const temp = join(world, 'tmp')
     mkdirSync(home, { recursive: true })
     mkdirSync(temp, { recursive: true })
-    const run = spawnSync('bash', ['-c', '. "$1"; suite_scratch_init "$2" >/dev/null 2>&1; printf "%s\\n%s" "$NODE_OPTIONS" "$BUN_OPTIONS"', 'bash', suiteEnv, join(world, 'synth-run-all.sh')], {
+    const run = spawnSync('bash', ['-c', '. "$1"; suite_scratch_init "$2" >/dev/null 2>&1; printf "%s\\n%s\\n%s\\n%s" "$NODE_OPTIONS" "$BUN_OPTIONS" "$BUN_RUNTIME_TRANSPILER_CACHE_PATH" "$MERCURY_SUITE_TMPDIR"', 'bash', suiteEnv, join(world, 'synth-run-all.sh')], {
       encoding: 'utf8',
       env: { PATH: path, HOME: home, TMPDIR: temp, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none' },
     })
-    if (run.status !== 0) return { node: `rc=${run.status} ${run.stderr}`, bun: `rc=${run.status} ${run.stderr}` }
-    const [node = '', bun = ''] = run.stdout.split('\n')
-    return { node, bun }
+    if (run.status !== 0) return { node: `rc=${run.status} ${run.stderr}`, bun: `rc=${run.status} ${run.stderr}`, cache: '', root: '' }
+    const [node = '', bun = '', cache = '', root = ''] = run.stdout.split('\n')
+    return { node, bun, cache, root }
   }
   const windowsInit = optionsAfterInit(`${fakeBin}:${plainPath}`)
   check('under uname MINGW64_NT with cygpath on PATH, NODE_OPTIONS carries the preload as cygpath -m spells it', windowsInit.node === `--require="C:/msys64${realPreload}"`, windowsInit.node)
@@ -118,6 +118,7 @@ try {
   const hostInit = optionsAfterInit(plainPath)
   check('on this host the exported word is the POSIX path, unchanged', hostInit.node === `--require="${realPreload}"`, hostInit.node)
   check('…and BUN_OPTIONS carries the POSIX bun word', hostInit.bun === `"--preload=${realPreload}"`, hostInit.bun)
+  check("…and Bun's runtime transpiler cache is pinned under the run root (Bun 1.4 writes ~/.bun/install/cache/@t@/*.pile into HOME otherwise; the account-home law counts it)", hostInit.root !== '' && hostInit.cache === `${hostInit.root}/bun-transpiler-cache`, JSON.stringify({ cache: hostInit.cache, root: hostInit.root }))
 } finally {
   removeScratch(world)
 }
