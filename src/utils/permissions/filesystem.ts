@@ -138,6 +138,7 @@ export function pathInWorkingPath(path: string, workingPath: string): boolean {
 }
 
 let workingDirResolutionCache = new Map<string, string[]>()
+let workingDirResolutionSweep: ReturnType<typeof setTimeout> | null = null
 
 export function getResolvedWorkingDirPaths(path: string): string[] {
   const base = getCwd()
@@ -146,9 +147,15 @@ export function getResolvedWorkingDirPaths(path: string): string[] {
   if (cached) return cached
   const resolved = getPathsForPermissionCheck(path, base)
   workingDirResolutionCache.set(key, resolved)
+  if (workingDirResolutionSweep === null) {
+    workingDirResolutionSweep = setTimeout(getResolvedWorkingDirPaths.clearCache, 0)
+    workingDirResolutionSweep.unref?.()
+  }
   return resolved
 }
 getResolvedWorkingDirPaths.clearCache = (): void => {
+  if (workingDirResolutionSweep !== null) clearTimeout(workingDirResolutionSweep)
+  workingDirResolutionSweep = null
   workingDirResolutionCache = new Map()
 }
 
