@@ -1131,6 +1131,7 @@ export const fetchResourcesForClient = memoize(
       return (result.resources ?? []).map(resource => ({ ...resource, server: client.name })) as ServerResource[]
     } catch (err) {
       logMCPError(client.name, err)
+      fetchResourcesForClient.cache.delete(client.name)
       return []
     }
   },
@@ -1188,6 +1189,7 @@ export const fetchCommandsForClient = memoize(
       })
     } catch (err) {
       logMCPError(client.name, err)
+      fetchCommandsForClient.cache.delete(client.name)
       return []
     }
   },

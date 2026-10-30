@@ -21,6 +21,7 @@ if (process.env.MCP_FIXTURE_MODE_FILE) {
 }
 if (mode === 'crash-at-start') process.exit(1)
 let initialized = false
+const listCalls = {}
 
 const send = obj => process.stdout.write(JSON.stringify(obj) + '\n')
 const rl = createInterface({ input: process.stdin })
@@ -46,7 +47,7 @@ rl.on('line', line => {
       id: msg.id,
       result: {
         protocolVersion: msg.params?.protocolVersion ?? '2025-06-18',
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, ...(process.env.MCP_FIXTURE_FIRST_LIST_SILENT === '1' ? { resources: {}, prompts: {} } : {}) },
         serverInfo: { name: 'fixsrv', version: '1.0.0', ...(process.env.MCP_FIXTURE_TITLE ? { title: process.env.MCP_FIXTURE_TITLE } : {}) },
       },
     })
@@ -86,6 +87,18 @@ rl.on('line', line => {
   }
   if (msg.method === 'ping') {
     send({ jsonrpc: '2.0', id: msg.id, result: {} })
+    return
+  }
+  if (process.env.MCP_FIXTURE_FIRST_LIST_SILENT === '1' && (msg.method === 'prompts/list' || msg.method === 'resources/list')) {
+    listCalls[msg.method] = (listCalls[msg.method] ?? 0) + 1
+    if (listCalls[msg.method] === 1) return
+    send({
+      jsonrpc: '2.0',
+      id: msg.id,
+      result: msg.method === 'resources/list'
+        ? { resources: [{ uri: 'fixture://a.txt', name: 'a' }] }
+        : { prompts: [{ name: 'greet', description: 'says hello', arguments: [] }] },
+    })
     return
   }
   if (msg.method === 'prompts/list' || msg.method === 'resources/list' || msg.method === 'resources/templates/list') {
