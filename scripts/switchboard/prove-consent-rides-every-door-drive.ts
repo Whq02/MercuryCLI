@@ -52,8 +52,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
-  console.error(`prove-consent-rides-every-door-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
-  process.exit(1)
+  removeScratch(SCRATCH)
+  console.log(`prove-consent-rides-every-door-drive: SKIPPED — the drive needs the POSIX pty capture driver; this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
+  process.exit(0)
 }
 
 seedFirstRun(TEMPLATE, [WORK])
