@@ -75,7 +75,15 @@ function ensureHistoryFile(): void {
   closeSync(fd)
 }
 
-async function flushOnce(): Promise<void> {
+let flushChain: Promise<void> = Promise.resolve()
+
+function flushOnce(): Promise<void> {
+  const run = flushChain.then(flushPending, flushPending)
+  flushChain = run.catch(() => {})
+  return run
+}
+
+async function flushPending(): Promise<void> {
   if (pendingEntries.length === 0) return
   const snapshot = pendingEntries
   let release: (() => Promise<void>) | null = null
