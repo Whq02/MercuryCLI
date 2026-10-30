@@ -96,6 +96,13 @@ export function filterTrailingThinkingFromLastAssistant(messages: ConversationRo
 
 export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
   return reviseRows(messages, row => {
+    if (row.type === 'user') {
+      const before = row.message.content
+      if (typeof before === 'string') return before.length > 0 ? row : { ...row, message: { ...row.message, content: NO_CONTENT_MESSAGE } }
+      const after = before.filter(block => block.type !== 'text' || block.text.length > 0)
+      if (after.length === before.length && after.length > 0) return row
+      return { ...row, message: { ...row.message, content: after.length > 0 ? after : [{ type: 'text', text: NO_CONTENT_MESSAGE }] } }
+    }
     if (row.type !== 'assistant' || !Array.isArray(row.message.content) || row.message.content.length < 2) return row
     const before = row.message.content
     const after = before.filter(block => block.type !== 'text' || (typeof block.text === 'string' && block.text.trim() !== ''))
