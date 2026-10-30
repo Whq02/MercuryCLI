@@ -192,7 +192,7 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
   [command => ZSH_EQUALS_EXPANSION_RE.test(command), 'Contains word-initial = expansion, which zsh rewrites to a command path'],
   [
     command => command.includes('{') && BRACE_WITH_QUOTE_RE.test(maskQuotedBraces(command)),
-    'Contains brace expansion with embedded quotes, which can hide the expanded command',
+    'Bash needs approval for this brace form: it is not a simple command. Run the commands separately with literal arguments.',
   ],
 ]
 
@@ -254,7 +254,7 @@ function reference(node: Node, scope: Scope, insideString: boolean, operand?: Op
     if (!isKnown(tracked)) {
       if (node.type === 'expansion') refuseNode(node)
       if (insideString) return { value: tracked, unknown: true }
-      refuse(`value of $${name} is not statically known`, node.type)
+      refuse(`Bash needs approval for $${name} because its value is unknown. Use its literal path or value.`, node.type)
     }
     if (!insideString) {
       if (tracked === '') {
@@ -719,7 +719,7 @@ class Walk {
     }
 
     if (sawUnknown && !sawLiteral) {
-      refuse('quoted argument consists entirely of runtime-determined content', node.type)
+      refuse('Bash needs approval for this variable-only argument because its value is unknown. Use its literal path or value.', node.type)
     }
     if (!sawLiteral && !sawUnknown && node.text.length > 2) {
       refuse('whitespace-only quoted string cannot be analyzed faithfully', node.type)
@@ -1589,7 +1589,7 @@ const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
 function commandRefusal(command: SimpleCommand): string | null {
   const unknownArgument = command.argv.some((value, index) => !isKnown(value) && !(command.argv[0] === 'echo' && index > 0))
   if (unknownArgument || command.redirects.some(redirect => !isKnown(redirect.target))) {
-    return 'an argument or redirect contains runtime-determined content; spell out its value, or approve'
+    return 'Bash needs approval for this argument or redirect because its value is unknown. Use literal arguments and paths; set the working directory with cwd.'
   }
   const peeled = peelWrappers(command.argv)
   if (!Array.isArray(peeled)) return peeled.failReason
