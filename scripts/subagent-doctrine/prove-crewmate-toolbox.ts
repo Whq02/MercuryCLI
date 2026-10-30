@@ -160,6 +160,8 @@ section('§6 A DENY RULE ON A NEW TOOL inherits as it does for Bash')
 section('§7 THE DEFERRED ROSTER lists the new tools for a crewmate exactly as for the seat')
 {
   const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
+  const { ECONOMY_DEFERRED } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
   const { createUserMessage } = await import('../../src/utils/messages.ts')
   const context = getEmptyToolPermissionContext()
   const first = createUserMessage({ content: 'Reply with exactly: ok' })
@@ -173,12 +175,17 @@ section('§7 THE DEFERRED ROSTER lists the new tools for a crewmate exactly as f
   const crewDeferred = [...crew.deferredNames].sort()
   check('the crewmate\'s deferred names are the seat\'s minus the barred set', same(crewDeferred, seatDeferred), `seat: ${seatDeferred.join(',')} · crew: ${crewDeferred.join(',')}`)
   const crewRoster = names(crew.roster)
-  for (const name of ['Test', 'Debug', 'Git', 'Monitor', 'Checkpoint', 'Rewind', 'AstEdit', 'JevEval']) {
+  const economyForCrew = [...ECONOMY_DEFERRED].filter(n => !barred.has(n)).sort()
+  check('the economy-deferred tools a crewmate carries are AstSearch, LspRead, Skill and Test (Crewmate is barred), each deferred on a hosted route for the crewmate as for the seat', same(economyForCrew, ['AstSearch', 'LspRead', 'Skill', 'Test']) && economyForCrew.every(n => crewRoster.includes(n) && crew.deferredNames.has(n) && seat.deferredNames.has(n)), `economy: ${economyForCrew.join(',')} · crew deferred: ${crewDeferred.join(',')}`)
+  for (const name of ['Test', 'Debug', 'Git', 'Monitor', 'Checkpoint', 'Rewind', 'AstEdit', 'JevEval', 'AstSearch', 'LspRead', 'Skill']) {
     check(`${name} rides the crewmate's roster (deferred, loadable through ToolSearch)`, crewRoster.includes(name) && crew.deferredNames.has(name))
   }
-  for (const name of ['Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch']) {
+  for (const name of ['Eval', 'ChangeSet', 'ToolSearch']) {
     check(`${name} rides the crewmate's first request in full, as it rides the seat's`, crewRoster.includes(name) && !crew.deferredNames.has(name) && !seat.deferredNames.has(name))
   }
+  const asked = await ToolSearchTool.call({ query: 'select:AstSearch', max_results: 5 }, { messages: [first], options: { tools: crewPool, engineModel: 'claude-opus-5-5' }, getAppState: () => ({ toolPermissionContext: { ...context, mode: 'default' }, mcp: { clients: [] } }) } as never)
+  const handed = ToolSearchTool.mapToolResultToToolResultBlockParam(asked.data, 'crewmate-asks-for-astsearch')
+  check('a crewmate asking ToolSearch for AstSearch gets it: the match is AstSearch and the result hands its model the tool reference', asked.data.matches.includes('AstSearch') && asked.data.total_deferred_tools === crew.deferredNames.size && Array.isArray(handed.content) && (handed.content as Array<{ type: string; tool_name?: string }>).some(block => block.type === 'tool_reference' && block.tool_name === 'AstSearch'), JSON.stringify(asked.data))
 }
 
 section('§8 THE WORDS — the Crewmate tool and docs/CREW.md say what a crewmate carries and what dies with it')
