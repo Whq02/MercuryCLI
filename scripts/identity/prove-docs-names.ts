@@ -176,8 +176,12 @@ function docPaths(): string[] {
       .sort()
   }
   const out = ['README.md']
+  const tracked = new Set(git(['ls-files', '--', 'docs']).split('\n').filter(Boolean))
   const list = (dir: string, re: RegExp): void => {
-    for (const name of readdirSync(join(ROOT, dir)).sort()) if (re.test(name)) out.push(posix.join(dir, name))
+    for (const name of readdirSync(join(ROOT, dir)).sort()) {
+      const rel = posix.join(dir, name)
+      if (re.test(name) && (tracked.size === 0 || tracked.has(rel))) out.push(rel)
+    }
   }
   list('docs', /\.md$/)
   list('docs/templates', /\.md$/)
