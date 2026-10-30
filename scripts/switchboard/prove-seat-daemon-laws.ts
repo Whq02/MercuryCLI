@@ -45,7 +45,9 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm *)'] } }))
+const steerRelease = join(work, 'steer-release')
+writeFileSync(join(work, 'wait-for-steer.cjs'), "const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync('steer-release')) { clearInterval(timer); console.log('steer') } }, 20)\n")
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm *)'], allow: ['Bash(node wait-for-steer.cjs)'] } }))
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
@@ -54,7 +56,7 @@ const api = await startFixtureApi([
   { kind: 'paced', whenModel: 'opus', deltas: Array.from({ length: 40 }, (_, i) => `long-${String(i + 1).padStart(2, '0')} body. `), gapMs: 400, settleDelayMs: 1500 },
   { kind: 'text', whenModel: 'sonnet', text: 'sonnet-law body.' },
   { kind: 'paced', whenModel: 'sonnet', deltas: Array.from({ length: 12 }, (_, i) => `parked-${String(i + 1).padStart(2, '0')} body. `), gapMs: 400, settleDelayMs: 1000 },
-  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['steer-stage body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 6; echo steer', description: 'pause' } }] },
+  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['steer-stage body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'node wait-for-steer.cjs', description: 'pause' } }] },
   { kind: 'text', whenModel: 'opus', text: 'steer-done body.' },
   { kind: 'text', whenModel: 'opus', text: 'opus-again body.' },
   { kind: 'text', text: 'Spare.' },
@@ -217,6 +219,8 @@ try {
   const requestsBeforeSteer = api.messageRequests().length
   const steered = await connector.sendWords('steer these words in')
   check('D10 the busy session accepts the ↵ words (queued, not refused)', steered.state !== 'refused', JSON.stringify(steered))
+  check('D10 the steering words are in the product queue before the fixture tool returns', await untilAsync(() => logText().split('\n').some(line => line.includes('"metaKind":"queue-operation"') && line.includes('"operation":"enqueue"') && line.includes('"content":"steer these words in"')), 25_000))
+  writeFileSync(steerRelease, '')
   const foldRequest = (): unknown =>
     api.messageRequests().slice(requestsBeforeSteer).find(r => JSON.stringify(r.body ?? {}).includes('steer these words in'))?.body
   check(
