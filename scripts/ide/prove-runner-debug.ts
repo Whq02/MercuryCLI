@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
@@ -341,7 +341,11 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
   if (!cargoBin) {
     console.log('  [SKIP — LOUD] no cargo on PATH — the tool route above is the evidence; install the Rust toolchain (rustup) to run this leg')
   } else {
-    const root = scratch('cargo')
+    const parent = scratch('cargo')
+    const crate = path.join(realpathSync(parent), 'crate')
+    mkdirSync(crate)
+    const root = path.join(parent, 'linked-crate')
+    symlinkSync(crate, root, process.platform === 'win32' ? 'junction' : 'dir')
     mkdirSync(path.join(root, 'src'))
     writeFileSync(path.join(root, 'Cargo.toml'), '[package]\nname = "calc"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\n')
     writeFileSync(
@@ -377,7 +381,7 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
     } else {
       check('I1 the plan names the test binary cargo built under the scratch target dir', !('state' in plan) && plan.program.startsWith(path.join(root, 'target')) && existsSync(plan.program), JSON.stringify(plan))
       check('I2 args: --exact tests::is_two --nocapture --test-threads=1; cwd the crate root; the adapter is the resolved native one', !('state' in plan) && JSON.stringify(plan.args) === JSON.stringify(['--exact', 'tests::is_two', '--nocapture', '--test-threads=1']) && plan.cwd === root && plan.adapterKey === native, 'state' in plan ? plan.reason : JSON.stringify({ args: plan.args, adapter: plan.adapterKey }))
-      check('I3 the stop is the #[test] fn line (8) in src/lib.rs', !('state' in plan) && plan.stop?.file === path.join(root, 'src', 'lib.rs') && plan.stop.line === 8, 'state' in plan ? plan.reason : JSON.stringify(plan.stop))
+      check('I3 the stop uses the real source path through a linked crate, at the #[test] fn line (8)', !('state' in plan) && plan.stop?.file === realpathSync(path.join(root, 'src', 'lib.rs')) && plan.stop.line === 8, 'state' in plan ? plan.reason : JSON.stringify(plan.stop))
       if (!('state' in plan)) {
         const { spawnSync } = await import('node:child_process')
         const listed = spawnSync(plan.program, ['--list', '--format', 'terse'], { encoding: 'utf8' }).stdout
@@ -417,7 +421,7 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
     }
     if (savedTarget === undefined) delete process.env.CARGO_TARGET_DIR
     else process.env.CARGO_TARGET_DIR = savedTarget
-    rmSync(root, { recursive: true, force: true })
+    rmSync(parent, { recursive: true, force: true })
   }
 }
 

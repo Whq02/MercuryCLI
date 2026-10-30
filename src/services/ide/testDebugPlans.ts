@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import * as path from 'node:path'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -128,8 +128,8 @@ export async function buildCargoTestDebugPlan(nodeId: string, opts?: { from?: st
     }
   }
   const hits = locateRustTest(root, name)
-  const stop = hits[0] ?? null
-  const relative = (p: string): string => path.relative(root, p)
+  const stop = hits[0] ? { ...hits[0], file: realpathSync(hits[0].file) } : null
+  const relative = (p: string): string => path.relative(realpathSync(root), p)
   return {
     framework: 'cargo',
     adapterKey,
