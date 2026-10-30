@@ -725,16 +725,22 @@ export async function performMCPOAuthFlow(
   let timeout: NodeJS.Timeout | undefined
   let settled = false
   let onAbort: (() => void) | undefined
+  let showOutcome: ((outcome: { ok: true } | { ok: false; reason: string }) => void) | undefined
 
-  const cleanup = (): void => {
-    if (server) {
-      server.removeAllListeners()
-      server.on('error', () => {})
-      server.close()
-      server = undefined
-    }
+  const closeServer = (): void => {
+    if (!server) return
+    server.removeAllListeners()
+    server.on('error', () => {})
+    server.close()
+    server = undefined
+  }
+  const stopWaiting = (): void => {
     if (timeout) clearTimeout(timeout)
     if (onAbort && abortSignal) abortSignal.removeEventListener('abort', onAbort)
+  }
+  const cleanup = (): void => {
+    closeServer()
+    stopWaiting()
   }
 
   const granted = await new Promise<{ code: string; iss?: string }>((resolve, reject) => {
@@ -760,15 +766,28 @@ export async function performMCPOAuthFlow(
         res.end()
         return
       }
+      if (req.method !== 'GET') {
+        res.writeHead(204)
+        res.end()
+        return
+      }
       const error = url.searchParams.get('error')
+      const received = url.searchParams.get('code')
       const state = url.searchParams.get('state')
-      if (!error && state !== expectedState) {
+      if (error === null && received === null) {
+        res.writeHead(400)
+        res.end()
+        return
+      }
+      if (state !== expectedState) {
         res.writeHead(400, { 'Content-Type': 'text/html' })
         res.end('<html><body><h1>Sign-in state mismatch</h1><p>Close this window and retry from Mercury.</p></body></html>')
-        settle(() => {
-          cleanup()
-          reject(new Error('OAuth state mismatch (possible CSRF) — retry the sign-in'))
-        })
+        if (error === null) {
+          settle(() => {
+            cleanup()
+            reject(new Error('OAuth state mismatch (possible CSRF) — retry the sign-in'))
+          })
+        }
         return
       }
       if (error) {
@@ -788,18 +807,24 @@ export async function performMCPOAuthFlow(
         })
         return
       }
-      const received = url.searchParams.get('code')
-      if (!received) {
+      if (received === null || settled) {
         res.writeHead(400)
         res.end()
         return
       }
-      res.writeHead(200, { 'Content-Type': 'text/html' })
-      res.end('<html><body><h1>Authentication successful</h1><p>You can close this window and return to Mercury.</p></body></html>')
       const iss = url.searchParams.get('iss') ?? undefined
       settle(() => {
-        cleanup()
+        stopWaiting()
         codeObtained = true
+        showOutcome = outcome => {
+          res.writeHead(outcome.ok ? 200 : 400, { 'Content-Type': 'text/html' })
+          res.end(
+            outcome.ok
+              ? '<html><body><h1>Authentication successful</h1><p>You can close this window and return to Mercury.</p></body></html>'
+              : `<html><body><h1>Sign-in failed</h1><p>${escapeHtml(outcome.reason)}</p><p>Close this window and retry from Mercury.</p></body></html>`,
+          )
+          closeServer()
+        }
         resolve({ code: received, ...(iss === undefined ? {} : { iss }) })
       })
     })
@@ -899,6 +924,7 @@ export async function performMCPOAuthFlow(
       `mcp auth [${serverName}]: authorized (tokens ${saved?.accessToken ? `saved, length ${saved.accessToken.length}, expires ${new Date(saved.expiresAt).toISOString()}` : 'not saved'})`,
     )
     emitFlowEvent('success')
+    showOutcome?.({ ok: true })
   } catch (err) {
     const reason = classifyFlowFailure(err, true)
     emitFlowEvent(reason)
@@ -909,7 +935,10 @@ export async function performMCPOAuthFlow(
     if (isInvalidClient(err)) {
       provider.invalidateCredentials('client')
     }
+    showOutcome?.({ ok: false, reason: err instanceof Error ? err.message : String(err) })
     throw err
+  } finally {
+    closeServer()
   }
 }
 

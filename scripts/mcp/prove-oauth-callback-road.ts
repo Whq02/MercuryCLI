@@ -168,6 +168,61 @@ console.log('\n[2] the RFC 9207 iss parameter reaches the token exchange (https:
   as.stop()
 }
 
+console.log('\n[3] a request to the callback that carries no code and no error is answered and ignored; the sign-in stays alive')
+{
+  const as = mockServer('stray')
+  for (const [label, method] of [['OPTIONS', 'OPTIONS'], ['HEAD', 'HEAD'], ['GET', 'GET']] as const) {
+    const result = await flow(`stray ${label}`, as, async (authorize, callback) => {
+      const state = authorize.searchParams.get('state') ?? ''
+      const stray = await fetch(callback, { method }).then(r => r.status, () => 0)
+      const real = await redirect(callback, { code: 'C6', state, iss: as.base }).then(r => r.status, () => 0)
+      return `stray ${stray}, real ${real}`
+    })
+    check(`a stray ${label} /callback is answered without a body and the real redirect still completes the sign-in`, result.outcome === 'RESOLVED' && /stray (204|400), real 200/.test(result.note), `${result.outcome} | ${result.note}`)
+  }
+  const injected = await flow('stray error wrong state', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    const stray = await redirect(callback, { error: 'access_denied', state: 'not-ours' })
+    const real = await redirect(callback, { code: 'C7', state, iss: as.base })
+    return `stray ${stray.status} ${stray.heading}, real ${real.status}`
+  })
+  check('an error response whose state is not ours is answered 400 and does not end the sign-in', injected.outcome === 'RESOLVED' && injected.note.startsWith('stray 400'), `${injected.outcome} | ${injected.note}`)
+  const denied = await flow('error right state', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    const page = await redirect(callback, { error: 'access_denied', error_description: 'the user said no', state })
+    return page.heading
+  })
+  check('an error response with our state ends the sign-in with the error named', denied.outcome.includes('access_denied') && denied.outcome.includes('the user said no'), denied.outcome)
+  const csrf = await flow('code wrong state', as, async (authorize, callback) => {
+    const page = await redirect(callback, { code: 'C8', state: 'not-ours', iss: as.base })
+    return `${page.status} ${page.heading}`
+  })
+  check('a code with a state that is not ours is refused and the sign-in ends', csrf.outcome.includes('state mismatch') && csrf.note.startsWith('400'), `${csrf.outcome} | ${csrf.note}`)
+  as.stop()
+}
+
+console.log('\n[4] the browser page says what happened, after the token exchange')
+{
+  const as = mockServer('page')
+  as.tokenMode = 'refuse'
+  const refused = await flow('page refused', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    const page = await redirect(callback, { code: 'C9', state, iss: as.base })
+    return `${page.status} ${page.heading}`
+  })
+  check('a refused exchange rejects the sign-in with the server\'s words', refused.outcome.startsWith('REJECTED') && refused.outcome.includes('the code was not accepted'), refused.outcome)
+  check('…and the browser page says the sign-in failed, never successful', refused.note.startsWith('400 Sign-in failed'), refused.note)
+  as.tokenMode = 'ok'
+  const ok = await flow('page ok', as, async (authorize, callback) => {
+    const state = authorize.searchParams.get('state') ?? ''
+    const before = as.tokenHits
+    const page = await redirect(callback, { code: 'C10', state, iss: as.base })
+    return `${page.status} ${page.heading} after ${as.tokenHits - before} token request(s)`
+  })
+  check('a completed exchange shows the success page, and only once the token endpoint has answered', ok.outcome === 'RESOLVED' && ok.note === '200 Authentication successful after 1 token request(s)', `${ok.outcome} | ${ok.note}`)
+  as.stop()
+}
+
 clearTimeout(watchdog)
 console.log(failures === 0 ? '\nPASS prove-oauth-callback-road' : `\nFAIL prove-oauth-callback-road (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
