@@ -161,8 +161,13 @@ const d = await serve(0, (url, res) => {
     return res.end('payload-bytes')
   }
   if (url === '/attach.txt') {
-    res.writeHead(200, { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="notes.txt"' })
+    res.writeHead(200, { 'content-type': 'text/plain', 'content-length': '11', 'content-disposition': 'attachment; filename="notes.txt"' })
     return res.end('hello notes')
+  }
+  if (url === '/chunked.txt') {
+    res.writeHead(200, { 'content-type': 'text/plain', 'transfer-encoding': 'chunked', 'content-disposition': 'attachment; filename="streamed.txt"' })
+    res.flushHeaders()
+    return res.end('streamed notes')
   }
   if (url === '/slow.bin') {
     setTimeout(() => {
@@ -179,6 +184,7 @@ const d = await serve(0, (url, res) => {
     `<title>download-fixture</title><body><h1>Downloads</h1>
 <a id="dl" href="/dl.bin">Get data.bin (octet-stream)</a>
 <a id="att" href="/attach.txt">attachment header</a>
+<a id="chunked" href="/chunked.txt">attachment without a declared size</a>
 <a id="dla" href="/dl.bin" download="named.bin">download attribute</a>
 <a id="slow" href="/slow.bin">slow download</a>
 <a id="two" href="/two">an ordinary link</a>
@@ -214,6 +220,9 @@ const NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFe
   check('the console ring carries the refused download by name', /download: the page asked to download dl\.bin/.test(ring.result) && /denied: downloads are not followed here/.test(ring.result), ring.result.split('\n').slice(-6).join(' | '))
   const ordinary = await run({ op: 'click', selector: '#two' })
   check('an ordinary link click reports the navigation it caused, with no download note', ordinary.result.includes(`navigated to ${D}/two`) && !ordinary.result.includes('download'), ordinary.result)
+  await run({ op: 'open', url: `${D}/` })
+  const chunked = await run({ op: 'click', selector: '#chunked' })
+  check('an attachment with no declared size names the download without inventing bytes', chunked.result.includes('the link is a download') && chunked.result.includes('text/plain') && chunked.result.includes('saves as streamed.txt') && chunked.result.includes(NOT_FOLLOWED) && !/\b\d+ bytes\b/.test(chunked.result), chunked.result)
 }
 
 console.log('§6 a click that opens a tab or a dialog says so in its own result')
