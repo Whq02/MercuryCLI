@@ -14,6 +14,7 @@ import { pinCacheEdits } from '../../compact/microCompact.js'
 import { type NonNullableUsage } from '../../api/logging.js'
 import { assistantMessageToMessageParam, userMessageToMessageParam } from './messageParams.js'
 import { getCacheControl } from './requestParams.js'
+import { normalizeAnthropicToolIds } from './toolIds.js'
 
 export type CachedMCEditsBlock = { type: 'cache_edits'; edits: { type: 'delete'; cache_reference: string }[] }
 export type CachedMCPinnedEdits = { userMessageIndex: number; block: CachedMCEditsBlock }
@@ -106,7 +107,7 @@ export function addCacheBreakpoints(
     replayCacheEdits(rows, pinnedEdits ?? [], newCacheEdits)
     if (enablePromptCaching) stampCachedResults(rows)
   }
-  return rows
+  return normalizeAnthropicToolIds(rows)
 }
 
 const positive = (incoming: number | null | undefined, before: number): number => incoming != null && incoming > 0 ? incoming : before
