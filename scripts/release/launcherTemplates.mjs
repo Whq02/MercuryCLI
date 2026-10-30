@@ -202,7 +202,33 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
       export MERCURY_ALT_HELD
     fi
   else
-    printf '\\n  \\033[1;38;2;221;68;68m\\342\\234\\246 MERCURY\\033[0m \\033[38;2;140;133;118m\\302\\267 %s\\033[0m\\n\\n' "$PWD"
+    _mercury_banner_depth=1
+    if [ "\${FORCE_COLOR+x}" = x ]; then
+      case "$FORCE_COLOR" in
+        ''|1|true) _mercury_banner_depth=1 ;;
+        2|3) _mercury_banner_depth="$FORCE_COLOR" ;;
+        *) _mercury_banner_depth=0 ;;
+      esac
+    elif [ -n "\${NO_COLOR:-}" ]; then
+      _mercury_banner_depth=0
+    else
+      case "\${TERM:-}" in
+        ''|dumb) _mercury_banner_depth=0 ;;
+        linux) _mercury_banner_depth=1 ;;
+        *)
+          case "\${COLORTERM:-}:\${TERM_PROGRAM:-}:\${TERM:-}" in
+            truecolor:*|24bit:*|*:iTerm.app:*|*:WezTerm:*|*:vscode:*|*:ghostty:*|*:*:xterm-kitty|*:*:xterm-ghostty|*:*:wezterm) _mercury_banner_depth=3 ;;
+            *256color*) _mercury_banner_depth=2 ;;
+          esac ;;
+      esac
+    fi
+    case "$_mercury_banner_depth" in
+      3) _mercury_banner_red='\\033[1;38;2;221;68;68m'; _mercury_banner_muted='\\033[38;2;140;133;118m'; _mercury_banner_reset='\\033[0m' ;;
+      2) _mercury_banner_red='\\033[1;38;5;167m'; _mercury_banner_muted='\\033[38;5;245m'; _mercury_banner_reset='\\033[0m' ;;
+      1) _mercury_banner_red='\\033[1;31m'; _mercury_banner_muted='\\033[37m'; _mercury_banner_reset='\\033[0m' ;;
+      *) _mercury_banner_red=''; _mercury_banner_muted=''; _mercury_banner_reset='' ;;
+    esac
+    printf '\\n  %b\\342\\234\\246 MERCURY%b %b\\302\\267 %s%b\\n\\n' "$_mercury_banner_red" "$_mercury_banner_reset" "$_mercury_banner_muted" "$PWD" "$_mercury_banner_reset"
   fi
 fi
 # ONE PROCESS: exec replaces this shell with the runtime, so the pid a
