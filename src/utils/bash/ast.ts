@@ -196,10 +196,20 @@ const PRE_CHECKS: ReadonlyArray<readonly [(command: string) => boolean, string]>
   ],
 ]
 
-function preCheckReason(command: string): string | null {
+function preCheckReason(command: string, root: Node | typeof PARSE_ABORTED): string | null {
   const hidden = hiddenCommandCharacterReason(command, false)
   if (hidden !== null) return hidden
-  const outsideHeredocs = extractHeredocs(command, { quotedOnly: true }).processedCommand
+  const withoutGroupBraces = command.split('')
+  const visit = (node: Node): void => {
+    if (node.type === 'compound_statement') {
+      for (const child of node.children) {
+        if (child.type === '{' || child.type === '}') withoutGroupBraces[child.startIndex] = ' '
+      }
+    }
+    for (const child of node.children) visit(child)
+  }
+  if (root !== PARSE_ABORTED) visit(root)
+  const outsideHeredocs = extractHeredocs(withoutGroupBraces.join(''), { quotedOnly: true }).processedCommand
   for (const [trips, reason] of PRE_CHECKS) if (trips(outsideHeredocs)) return reason
   return null
 }
@@ -539,6 +549,9 @@ class Walk {
         return
       case 'subshell':
         this.subshell(node, scope)
+        return
+      case 'compound_statement':
+        this.statements(node.children.filter(child => child.type !== '{' && child.type !== '}'), scope)
         return
       case 'test_command':
         this.test(node, scope)
@@ -1203,7 +1216,7 @@ const ABORT_KIND = 'PARSE_ABORT'
 const ABORT_REASON = 'the shell parser did not finish reading this command; split it into simpler commands, or approve'
 
 function settle(command: string, root: Node | typeof PARSE_ABORTED): SimpleCommand[] {
-  const preCheck = preCheckReason(command)
+  const preCheck = preCheckReason(command, root)
   if (preCheck !== null) refuse(preCheck)
   if (command.trim() === '') return []
   if (root === PARSE_ABORTED) refuse(ABORT_REASON, ABORT_KIND)

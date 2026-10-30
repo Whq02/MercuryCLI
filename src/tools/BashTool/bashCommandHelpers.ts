@@ -5,6 +5,7 @@ import {
   ParsedCommand,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
+  preparedSecurityParse,
   type Node,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
@@ -56,7 +57,7 @@ export async function checkCommandOperatorPermissions<I extends { command: strin
   const analysis = parsed.getTreeSitterAnalysis()
   const unsafeCompound: CompoundReason | null = !analysis
     ? { kind: 'unparseable' }
-    : analysis.compoundStructure.hasCommandGroup
+    : analysis.compoundStructure.hasCommandGroup && preparedSecurityParse(input.command).kind !== 'simple'
       ? { kind: 'operator', operator: '{' }
       : null
   if (unsafeCompound !== null) {

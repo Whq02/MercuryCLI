@@ -12,7 +12,7 @@ const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPer
 const context = { ...getEmptyToolPermissionContext(), mode: 'flow' as const }
 let failures = 0
 const cases = [
-  ['for i in $(seq 1 50); do npm test --silent || { echo "run $i failed"; break; }; done', 'Bash needs approval for this brace form: it is not a simple command. Run the commands separately with literal arguments.'],
+  ['echo {a,"$(touch injected)"}', 'Bash needs approval for this brace form: it is not a simple command. Run the commands separately with literal arguments.'],
   ['node "$PWD"', 'Bash needs approval for this variable-only argument because its value is unknown. Use its literal path or value.'],
   ['node app.mjs "$PWD/.tmp-out"', 'Bash needs approval for this argument or redirect because its value is unknown. Use literal arguments and paths; set the working directory with cwd.'],
   ['if true; then B=app.mjs; fi; node $B', 'Bash needs approval for $B because its value is unknown. Use its literal path or value.'],
@@ -21,7 +21,7 @@ try {
   for (const [command, expected] of cases) {
     const result = await bashToolHasPermission({ command }, context)
     const ok = result.behavior === 'ask' && result.message === expected
-    console.log(`${ok ? 'PASS' : 'FAIL'} ${command}\n${result.message}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} ${command}\n${'message' in result ? result.message : ''}`)
     if (!ok) failures++
   }
 } finally {
