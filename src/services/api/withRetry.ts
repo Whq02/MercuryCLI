@@ -139,10 +139,10 @@ export function isRetryableError(error: unknown): boolean {
   }
   if (isRevokedTokenError(error)) return false
   if (providerWaitIsWindow(providerAskedWaitMs(error))) return false
-  if (errorMessage(error).includes(OVERLOADED_TYPE_MARKER)) return true
-  if (parseMaxTokensContextOverflowError(error) !== undefined) return true
   const shouldRetry = headerValue(errorHeaders(error), 'x-should-retry')
   if (shouldRetry === 'false') return false
+  if (errorMessage(error).includes(OVERLOADED_TYPE_MARKER)) return true
+  if (parseMaxTokensContextOverflowError(error) !== undefined) return true
   if (shouldRetry === 'true' && (!isClaudeAISubscriber() || isEnterpriseSubscriber())) return true
   if (isConnectionErrorLike(error)) return true
   if (transportCutOf(error) !== null) return true
