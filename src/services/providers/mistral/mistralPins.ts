@@ -35,7 +35,7 @@ const facts = {
 const plain = { reasoning: false, efforts: [] as readonly string[] }
 
 export const MISTRAL_DISPLAY_PINS: readonly MistralDisplayPin[] = [
-  { ...facts, id: 'mistral-large-4', aliases: ['mistral-large-4-0'], displayName: 'Mistral Large 4 (Le Chonk, preview)', contextWindow: 1_048_576,
+  { ...facts, id: 'mistral-large-4', aliases: ['mistral-large-4-0'], displayName: 'Mistral Large 4 (Le Chonk, preview)', contextWindow: 1_048_576, efforts: ['low', 'medium', 'high'],
     costInPerMtok: 1.36, cachedInPerMtok: 0.14, costOutPerMtok: 4.18 },
   { ...facts, id: 'mistral-medium-3-5', aliases: ['mistral-medium-latest', 'mistral-medium-3'], displayName: 'Mistral Medium 3.5',
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 1.5, cachedInPerMtok: 0.15, costOutPerMtok: 7.5 },

@@ -14,7 +14,7 @@ import { isMistralChatModelId } from './mistralPins.js'
 export function buildMistralExtras(args: LaneExtrasArgs, outputFormat?: CallModelParams['options']['outputFormat']): Record<string, unknown> {
   const facts = mistralModelFacts(args.wireModel)
   const effort = args.thinkingEnabled
-    ? args.effortValue !== undefined && facts.efforts.includes(args.effortValue) ? args.effortValue : 'high'
+    ? args.effortValue ?? 'high'
     : facts.efforts.includes('none') ? 'none' : facts.efforts[0]
   return {
     ...(outputFormat ? { response_format: { type: 'json_schema', json_schema: { name: 'response', schema: outputFormat.schema } } } : {}),
