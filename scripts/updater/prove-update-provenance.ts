@@ -289,6 +289,12 @@ if (IS_WIN) {
   check('(d) --json carries the shell\'s command beside the update record', r.code === 0 && record?.state === 'updated' && found?.state === 'other' && found?.resolved === foreignMercury, r.stdout.slice(0, 300))
 }
 
+{
+  const bundle = seedForUpdate()
+  const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf(binDir, otherBin)))
+  check('(e) the stable command absent before the update and another `mercury` later on PATH: after the update writes the stable command first, nothing is said about the `mercury` the shell runs (the lookup is fresh, never the cached hit from before the update)', r.code === 0 && pointer() === V_NEW && existsSync(shim) && !r.stdout.includes('your shell runs') && !r.stdout.includes('is on your PATH'), r.all.slice(0, 600))
+}
+
 section('§4 THE HEALTH — the provenance row names the updating tool; the command-on-path row says whether the shell runs the stable command')
 const healthRow = (bundle: string, id: string, environment: Record<string, string>): { status?: string; evidence?: string; fix?: string } | null => {
   const r = spawnSync('node', [bundle, 'health', '--only', id, '--json'], { encoding: 'utf8', timeout: 180_000, env: environment })

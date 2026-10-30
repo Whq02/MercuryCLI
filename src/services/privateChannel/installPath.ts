@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { whichSync } from '../../utils/which.js'
+import { whichSync, resolveExecutable } from '../../utils/which.js'
 import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
 
@@ -116,7 +116,7 @@ export type CommandOnPath =
   | { state: 'other'; resolved: string; npmWrapper: boolean }
   | { state: 'absent' }
 
-export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string) => string | null = whichSync): CommandOnPath {
+export function commandOnPath(roots: LayoutRoots, resolveCommand: (name: string) => string | null = resolveExecutable): CommandOnPath {
   const resolved = resolveCommand('mercury')
   if (resolved === null) return { state: 'absent' }
   const members = [roots.shimPath, ...(roots.shimSetPaths ?? [])]
