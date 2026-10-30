@@ -1,6 +1,7 @@
-import '../lib/hermetic.ts'
+import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.2' }
+process.env.MERCURY_CONFIG_DIR = proofHome
 const { startXaiDeviceAuth } = await import('../../src/services/providers/xai/xaiOauth.ts')
 const { startNousDeviceAuth } = await import('../../src/services/providers/nous/nousOauth.ts')
 const { startMoonshotDeviceAuth } = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
