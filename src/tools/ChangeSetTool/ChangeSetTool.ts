@@ -112,7 +112,7 @@ const baseShape = () => ({
             }),
           )
           .optional()
-          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); an edit member (op "edit", the default) carries hunks or edits, a move optionally, a delete neither'),
+          .describe('Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); a member carries hunks or edits, a move optionally, a delete neither'),
         edits: z
           .array(
             z.strictObject({
@@ -122,7 +122,7 @@ const baseShape = () => ({
             }),
           )
           .optional()
-          .describe('Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary), instead of hunks; each old_string must occur once unless replace_all'),
+          .describe('Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary) instead of hunks; each old_string occurs once unless replace_all'),
         op: z
           .enum(['edit', 'delete', 'move'])
           .optional()
@@ -1110,27 +1110,19 @@ export const ChangeSetTool = buildTool({
     return 'Prepare, review, and apply one anchored text change across several existing files'
   },
   async prompt() {
-    return `Use this over Edit when the same change spans several files: one coordinated review and apply.
-
-Atomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.
+    return `Use this over Edit when the same change spans several files: one call preflights every target before the first write, takes one operator decision for the whole set, applies, and refuses a drifted target; an interrupted apply is journaled and reconciled at the next boot.
 
 Operations:
-1. { op: "apply", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.
-2. { op: "preview", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.
-3. { op: "status", plan_id } — plan state + per-file freshness.
+1. { op: "apply", changes: [...] } — preflight every member, one aggregate decision, apply; for when you hold fresh Read anchors for every file.
+2. { op: "preview", changes: [...] } — build an immutable content-addressed plan (cs-…) and write nothing; then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.
+3. { op: "status", plan_id } — plan state and per-file freshness.
 4. { op: "discard", plan_id } — retire a prepared plan.
 
 Each changes[] member targets one existing text file with the Edit vocabulary:
   { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] or edits: [{ old_string, new_string, replace_all? }], op?: "edit" | "delete" | "move", new_path? }
-Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string occurring once unless replace_all, and must address disjoint text; a member carries hunks or edits, not both. op "delete" removes the file (neither); op "move" renames it to new_path, which must not exist, after any hunks or edits. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.
+Hunks are 1-based against the anchored snapshot and disjoint; "" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string once unless replace_all, on disjoint text; a member carries hunks or edits, not both. op "delete" removes the file (neither); op "move" renames it to new_path, which must not exist, after any hunks or edits. Read knowledge is keyed to content: a Read of the touched lines, a content-mode Grep that showed them, or expected_anchor from a full Read all count.
 
-The contract:
-· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;
-· a normal apply reaches the complete planned state, verified by reread;
-· a midway interruption is journaled and deterministically reconciled at the next boot;
-· if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.
-
-Already-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.
+Any preparation, validation, scope or drift failure writes nothing — never the valid subset of an invalid set. A normal apply reaches the complete planned state, verified by reread; when later bytes prevent safe reconciliation the unresolved paths are named, never reported as success. Already-satisfied members are omitted from writes and reported as noChangePaths; an all-satisfied set is one no-change result with zero writes; applying a committed plan replays its result without writing twice.
 
 Bounds (an exceeded bound names the limit and the smallest recovery): ${CHANGESET_BOUNDS.maxFiles} files/set · ${CHANGESET_BOUNDS.maxHunksPerFile} hunks/file · ${CHANGESET_BOUNDS.maxHunksTotal} hunks/set · 4MB staged content/set · ${CHANGESET_BOUNDS.planRing} retained plans · ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)}-minute plan lifetime.
 

@@ -4,10 +4,10 @@ import { answeredWith, frameLines, lastOutcome } from '../lib/rows.ts'
 import { captureBriefing, dist, reminderTextsOf, systemTextOf } from './_briefingCapture.ts'
 
 const CEILINGS = {
-  tools: 24_050,
+  tools: 23_000,
   system: 8_600,
   attachments: 6_350,
-  request: 39_550,
+  request: 38_500,
 } as const
 const ECONOMY_DEFERRED = ['Crewmate', 'Skill', 'Test', 'LspRead', 'AstSearch']
 const EAGER = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch']

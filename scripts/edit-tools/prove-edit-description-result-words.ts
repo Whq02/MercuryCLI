@@ -44,11 +44,11 @@ const withSteering = description + STEERING
 check('W2 the description with the LSP-and-Structure steering line is 1,971 bytes', Buffer.byteLength(withSteering) === 1971, `${Buffer.byteLength(withSteering)} bytes`)
 check('W2b the template alone is 1,801 bytes', Buffer.byteLength(description) === 1801, `${Buffer.byteLength(description)} bytes`)
 
-section('W3. the input schema is byte-identical to .28\'s stored copy')
+section('W3. the input schema is byte-identical to the stored copy (recorded after the 1.0.1 briefing cut)')
 const schema = JSON.stringify(zodToJsonSchema((FileEditTool as { inputSchema: never }).inputSchema))
 const stored = readFileSync(join(import.meta.dirname, 'fixtures', 'edit-input-schema-28.json'), 'utf8').replace(/\n$/, '')
 check('W3 the JSON Schema of inputSchema() equals fixtures/edit-input-schema-28.json byte for byte', schema === stored, `${schema.length} vs ${stored.length} bytes`)
-check('W3b it is 2,833 bytes, the study\'s measured figure', Buffer.byteLength(schema) === 2833, `${Buffer.byteLength(schema)} bytes`)
+check('W3b it is 2,595 bytes (2,833 in .28; the 1.0.1 briefing cut shortened the field prose, every field and bound kept)', Buffer.byteLength(schema) === 2595, `${Buffer.byteLength(schema)} bytes`)
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
 process.exit(failures === 0 ? 0 : 1)

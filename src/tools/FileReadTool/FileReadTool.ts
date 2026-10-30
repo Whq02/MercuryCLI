@@ -123,31 +123,31 @@ const stockFields = () => ({
   ocr: semanticBoolean(z.boolean().optional()).describe('For an image, return recognised text instead of the picture. Automatic on models without image input; scanned PDF pages use OCR when read as text.'),
   lossless: semanticBoolean(z.boolean().optional()).describe('With offset + limit or ranges, show complete text lines within the existing total output budget.'),
   offset: semanticNumber(z.number().int().optional()).describe(
-    'The line number reading starts from (a negative integer -N starts N lines from the end of the file); pass it only when the whole file is too large for a single read',
+    'The first line to read (a negative -N starts N lines from the end); only when the whole file is too large for one read',
   ),
   limit: semanticNumber(z.number().int().gt(0).optional()).describe(
-    'The maximum number of lines to return; pass it only when the whole file is too large for a single read.',
+    'The most lines to return; only when the whole file is too large for one read',
   ),
   ranges: z
     .array(z.string())
     .max(MAX_RANGES_PER_READ)
     .optional()
     .describe(
-      `Optional list of up to ${MAX_RANGES_PER_READ} 1-based line ranges to read in one call (e.g., ["1-20", "85-100", "-15"]), each keeping its continuation mark.`,
+      `Up to ${MAX_RANGES_PER_READ} 1-based line ranges read in one call (["1-20", "85-100", "-15"]), each keeping its continuation mark`,
     ),
   pages: z
     .string()
     .optional()
     .describe(
-      `Page range for PDF files (e.g., "2-6", "9", "12-24"). Only applicable to PDF files. Maximum ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`,
+      `PDF page range ("2-6", "9", "12-24"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per call`,
     ),
-  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale an image crop by this factor before reading it, for example 2. Requires crop; the existing image output budget still applies.'),
+  scale: semanticNumber(z.number().min(1).optional()).describe('Upscale the crop by this factor (for example 2) before reading; requires crop, within the same image output budget'),
   crop: z
     .array(semanticNumber(z.number().int().min(0)))
     .length(4)
     .optional()
     .describe(
-      'For an image: a box [x1, y1, x2, y2] in the original pixels, cut out before any downscale so small text stays crisp — zoom into a screenshot by re-reading it with a box; refused when it reaches outside the image or is inverted.',
+      'For an image: a box [x1, y1, x2, y2] in original pixels, cut before any downscale so small text stays crisp (zoom into a screenshot by re-reading it with a box); refused when it reaches outside the image or is inverted',
     ),
 })
 
@@ -155,10 +155,10 @@ const anchoredSchemaFactory = () =>
   z.strictObject({
     ...stockFields(),
     outline: semanticBoolean(z.boolean().optional()).describe(
-      'Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.',
+      'True returns a structural outline (signatures kept, function and method bodies elided, original line numbers kept) from the vendored tree-sitter grammar for the file type; off, the full window',
     ),
     line_anchors: semanticBoolean(z.boolean().optional()).describe(
-      'Set true to stamp each text line prefix with its content anchor ("N#hhhh") — the copyable address for anchor-qualified Edit hunks. Off, the output is the plain numbered form.',
+      'True stamps each text line prefix with its content anchor ("N#hhhh"), the copyable address for anchor-qualified Edit hunks; off, the plain numbered form',
     ),
   })
 

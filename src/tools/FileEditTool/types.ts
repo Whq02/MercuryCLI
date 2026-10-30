@@ -13,11 +13,11 @@ const NEW_STRING_DESCRIPTION =
   'The text to replace it with (must be different from old_string; required whenever old_string is sent — "" deletes the text)'
 const REPLACE_ALL_DESCRIPTION = 'Replace all occurences of old_string (default false)'
 const EXPECTED_ANCHOR_DESCRIPTION =
-  'The staleness anchor from your most recent Read of this file — carry the parenthesised "(anchor: …)" value across exactly'
+  'The staleness anchor from your most recent Read of this file: the parenthesised "(anchor: …)" value, carried across exactly'
 const APPEND_DESCRIPTION =
-  'Text to add at the end of the file, on its own line (the file is created when absent); no prior read needed. With `section`, the text lands at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.'
+  'Text added at the end of the file on its own line (the file is created when absent), no prior read needed; with `section`, at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.'
 const SECTION_DESCRIPTION =
-  'A Markdown heading line, exactly as it stands in the file ("## Checks"), naming the section to edit: the heading through the line before the next heading of the same or a higher level. With new_string the whole section (heading included) becomes new_string; with append the text is added inside the section. The heading must occur once. Mutually exclusive with old_string/hunks.'
+  'A Markdown heading line exactly as it stands in the file ("## Checks"), which must occur once, naming the section (the heading through the line before the next heading of the same or a higher level): with new_string the whole section, heading included, becomes new_string; with append the text is added inside it. Mutually exclusive with old_string/hunks.'
 
 const hunksDescription = (): string =>
   lineAnchorsEnabled()
@@ -26,7 +26,7 @@ const hunksDescription = (): string =>
 
 const hunkLinesDescription = (): string =>
   lineAnchorsEnabled()
-    ? 'A 1-based line number ("12"), inclusive range ("12-18"), or anchor-qualified spelling copied exactly from a line_anchors read ("12#ab3f", "12#ab3f-18#9c2e"). Anchor-qualified endpoints are verified against the current content: a drifted line refuses and the refusal answers the current anchors — re-aim from those, never retype content.'
+    ? 'A 1-based line number ("12"), inclusive range ("12-18"), or anchor-qualified spelling copied exactly from a line_anchors read ("12#ab3f", "12#ab3f-18#9c2e"); an anchored endpoint is checked against the current content, and a drifted line refuses with the current anchors — re-aim from those, never retype content.'
     : 'A 1-based line number ("12") or inclusive range ("12-18") of the anchored snapshot'
 
 const hunkEntrySchema = () =>
@@ -41,8 +41,9 @@ const hunkEntrySchema = () =>
       .describe('Insert relative to the single anchor line instead of replacing it'),
   })
 
+
 const EDIT_SHAPES_DESCRIPTION =
-  'One of four shapes: old_string + new_string (replace the text; both required together, replace_all rewrites every occurrence) · hunks (line-addressed hunks against the anchored snapshot) · append (text at the end of the file, or at the end of section) · section + new_string (replace the Markdown section named by section)'
+  'One of four shapes: old_string + new_string (both required together; replace_all rewrites every occurrence) · hunks · append · section + new_string'
 
 const widestSchemaFactory = () =>
   z
