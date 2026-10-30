@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const scratch = mkdtempSync(join(tmpdir(), 'mcp-no-replay-'))
+const scratch = typeof Bun !== 'undefined' ? mkdtempSync(join(tmpdir(), 'mcp-no-replay-')) : process.argv[2]!
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
@@ -15,7 +15,7 @@ if (typeof Bun !== 'undefined') {
   const built = await Bun.build({ entrypoints: [import.meta.path], target: 'node', outdir: scratch, naming: 'proof.mjs', external: ['sharp', 'jsonc-parser'] })
   if (!built.success) throw new Error(built.logs.join('\n'))
   symlinkSync(join(process.cwd(), 'node_modules'), join(scratch, 'node_modules'), 'dir')
-  const child = spawnSync('node', [output], { env: process.env, stdio: 'inherit' })
+  const child = spawnSync('node', [output, scratch], { env: process.env, stdio: 'inherit' })
   rmSync(scratch, { recursive: true, force: true })
   process.exit(child.status ?? 1)
 }
@@ -90,7 +90,6 @@ try {
 } finally {
   server.closeAllConnections()
   await new Promise<void>(resolve => server.close(() => resolve()))
-  rmSync(scratch, { recursive: true, force: true })
 }
 if (failures) console.log(JSON.stringify(invocations))
 process.exit(failures ? 1 : 0)
