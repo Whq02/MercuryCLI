@@ -5,7 +5,7 @@
 # gate-watch: src/tools.ts src/types/permissions.ts src/utils/permissions/permissionSetup.ts
 # gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts src/services/providers/local/localAccounts.ts scripts/headless/prove-git-readonly-settings.ts
 # gate-watch: src/utils/sdkEventQueue* src/utils/task/sdkAgentFrames* src/tools/AgentTool/foregroundExecution* src/tools/AgentTool/agentToolUtils* src/cost-tracker*
-# gate-watch: scripts/compact/overflowFixture.ts
+# gate-watch: scripts/compact/overflowFixture.ts scripts/hooks/lib/runDoor.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/headless/turnDriver.ts src/cli/headless/hostAskLiveness.ts src/cli/headless/runnerAsks.ts src/cli/headless/runnerMethods.ts
 # gate-watch: src/input-core/command-queue.ts src/services/api/withRetry.ts src/services/api/emptyUsage.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/launchReceipts.ts src/run-core/attachment-drain.ts
