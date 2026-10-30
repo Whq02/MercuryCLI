@@ -212,12 +212,13 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
   const throttled = isBedrockThrottle({ ...o, status, headers, message })
   const word = throttled ? 'ThrottlingException' : vendorErrorWord(err)
-  let retryAfterMs = compatRetryHeaderMs(headers)
+  let retryAfterMs = compatRetryHeaderMs(headers, false)
   if (status === 429 && retryAfterMs === undefined) {
     const details = Array.isArray(err?.details) ? err.details : []
     const retry = details.find(value => value && typeof value === 'object' && (value as Record<string, unknown>)['@type'] === 'type.googleapis.com/google.rpc.RetryInfo') as Record<string, unknown> | undefined
     const delay = typeof retry?.retryDelay === 'string' && /^\d+(?:\.\d+)?s$/.test(retry.retryDelay) ? Number.parseFloat(retry.retryDelay) : err?.resets_in_seconds ?? o?.resets_in_seconds
     if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) retryAfterMs = delay * 1000
+    retryAfterMs ??= compatRetryHeaderMs(headers)
   }
   const billing = status === 402 || [word, err?.type].some(value => typeof value === 'string' && /^(?:insufficient_quota|exceeded_current_quota_error|billing_hard_limit_reached|billing_error|payment_required|insufficient_(?:credits?|balance|funds))$/i.test(value))
   if (billing) retryAfterMs = undefined

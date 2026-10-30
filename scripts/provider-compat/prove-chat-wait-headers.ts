@@ -18,3 +18,5 @@ for (const headers of [{ 'retry-after-ms': '750' }, { 'x-ratelimit-reset-tokens'
   assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage))
 }
 console.log('P11 compat retries honor explicit waits before exhausted-window reset hints')
+assert.equal(mapCompatHttpFailure(500, {}, new Headers({ 'x-ratelimit-reset-requests': '1d' })).retryAfterMs, undefined)
+assert.equal(mapCompatHttpFailure(429, { error: { details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '1s' }] } }, new Headers({ 'x-ratelimit-reset-requests': '1d' })).retryAfterMs, 1000)

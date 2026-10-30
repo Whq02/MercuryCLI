@@ -68,11 +68,11 @@ export function rateLimitResetDelayMs(value: string | null | undefined, nowMs = 
   return Number.isFinite(ms) && ms > 0 ? ms : undefined
 }
 
-export function compatRetryHeaderMs(headers: { get(name: string): string | null } | undefined): number | undefined {
+export function compatRetryHeaderMs(headers: { get(name: string): string | null } | undefined, includeResets = true): number | undefined {
   const explicit = headers?.get('retry-after')
   if (retryAfterSaysNow(explicit)) return 0
   const wait = retryAfterHeaderMs(explicit) ?? positiveMilliseconds(headers?.get('retry-after-ms'))
-  if (wait !== undefined) return wait
+  if (wait !== undefined || !includeResets) return wait
   const resets = ['requests', 'tokens'].flatMap(bucket => {
     const remaining = headers?.get(`x-ratelimit-remaining-${bucket}`)
     if (remaining !== null && remaining !== undefined && remaining.trim() !== '' && Number(remaining) > 0) return []
