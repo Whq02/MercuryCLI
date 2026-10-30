@@ -123,6 +123,14 @@ const cli = async (args: string[], dir: string, extraEnv: Record<string, string 
   return new Promise(resolve => child.once('close', code => resolve({ code, text })))
 }
 const helpersLine = (text: string): string => text.split('\n').filter(l => /^\s+helpers:|^\s+pid \d+:/.test(l)).join(' | ')
+const settledStatus = async (dir: string, ready: (text: string) => boolean): Promise<{ code: number | null; text: string }> => {
+  let status = { code: null as number | null, text: '' }
+  await until(async () => {
+    status = await cli(['status'], dir)
+    return status.code === 0 && ready(status.text)
+  })
+  return status
+}
 const OLD_SHA = '5acf54bac'
 const OLD_RELEASE = '1.0.0-beta.26'
 const releaseDist = (): string | null => {
@@ -223,7 +231,7 @@ try {
     const after = node(door)
     check(`round ${round}: the superseded helper's own socket is the same node, a socket and not a link`, before !== null && after !== null && before.ino === after.ino && after.kind === 'socket', { before, after, dir: readdirSync(planeDir) })
     for (const h of hosted) check(`round ${round}: the chat ${h.chat.short} hosted by pid ${h.helper} still answers through the plane`, await answers(h.chat), { helper: h.helper, alive: isProcessAlive(h.helper) })
-    const status = await cli(['status'], xDir)
+    const status = await settledStatus(xDir, text => hosted.every(h => text.includes(`pid ${h.helper}: 1 live workers`)) && !text.includes('unknown'))
     check(`round ${round}: status counts every superseded helper with its one chat`, hosted.every(h => status.text.includes(`pid ${h.helper}: 1 live workers`)) && !status.text.includes('unknown'), helpersLine(status.text))
     plane = winner
   }
@@ -239,7 +247,7 @@ try {
     check('a superseded helper whose own socket vanished binds it again within the heal floor', back, readdirSync(planeDir))
     check('its chat answers through the plane again', await until(() => answers(hosted[hosted.length - 1]!.chat), 10_000))
     check('the plane link still names the newest helper', node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(plane)), readdirSync(planeDir))
-    const status = await cli(['status'], join(home, 'runtime/current'))
+    const status = await settledStatus(join(home, 'runtime/current'), text => text.includes(`pid ${superseded}: 1 live workers`) && !text.includes('unknown'))
     check('status counts the healed helper with its chat, nothing unknown', status.text.includes(`pid ${superseded}: 1 live workers`) && !status.text.includes('unknown'), helpersLine(status.text))
   }
 
@@ -320,7 +328,7 @@ try {
       note(`the ${OLD_RELEASE} helper left ${elapsed} ms after the handover; asked=${asked}; its last lines: ${(logs.get(old) ?? '').trim().split('\n').slice(-2).join(' | ')}`)
       check('the plane helper asks the idle older helper to leave through its own socket, and it leaves', asked && gone, { asked, gone })
       check("…well before the old release's own half-minute grace", gone && elapsed < 25_000, elapsed)
-      const status = await cli(['status'], gDir)
+      const status = await settledStatus(gDir, text => text.includes('1 running / 0 live workers'))
       check('status counts the plane helper alone', status.text.includes('1 running / 0 live workers'), helpersLine(status.text))
       check("the plane helper sweeps the departed helper's socket on its next beat", await until(() => !present(predecessorSockPath(old)), 12_000), readdirSync(planeDir))
       check('the plane link names the plane helper', node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(g)), readdirSync(planeDir))
