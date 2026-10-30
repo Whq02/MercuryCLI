@@ -24,7 +24,9 @@ check('NO_COLOR="0" (non-empty!) → honor (spec: ANY non-empty value)', shouldH
 check('NO_COLOR="" (empty) → do NOT honor', shouldHonorNoColor({ NO_COLOR: '' }) === false)
 check('unset → do NOT honor (normal colored path)', shouldHonorNoColor({}) === false)
 check('NO_COLOR=1 + FORCE_COLOR=1 → do NOT honor (FORCE_COLOR wins)', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: '1' }) === false)
-check('NO_COLOR=1 + FORCE_COLOR=0 → do NOT honor here (FORCE_COLOR=0 strips via chalk anyway)', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: '0' }) === false)
+check('NO_COLOR=1 + FORCE_COLOR=0 → honor; disabled force colour cannot turn colour on', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: '0' }) === true)
+check('NO_COLOR=1 + FORCE_COLOR=false → honor', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: 'false' }) === true)
+check('NO_COLOR=1 + FORCE_COLOR empty → force colour on', shouldHonorNoColor({ NO_COLOR: '1', FORCE_COLOR: '' }) === false)
 
 section('source wiring: chalk.level forced 0 + colorize() short-circuit + correct order')
 const src = readFileSync(join(root, 'src', 'ink', 'colorize.ts'), 'utf-8')

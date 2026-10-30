@@ -11,9 +11,9 @@ import { adoptGroundFamily, createSplashCore, emitCells, HEADSTD, WORD, MENU, MO
 
 const out = process.stdout
 
-const NOCOLOR =
-  !!(process.env.NO_COLOR && process.env.NO_COLOR.length > 0) &&
-  !(process.env.FORCE_COLOR && process.env.FORCE_COLOR.length > 0)
+const NOCOLOR = process.env.FORCE_COLOR === undefined
+  ? Boolean(process.env.NO_COLOR)
+  : !['', '1', '2', '3', 'true'].includes(process.env.FORCE_COLOR)
 const TRUECOLOR_FLAG = (process.env.MERCURY_TRUECOLOR || '').trim().toLowerCase()
 const TRUECOLOR =
   !NOCOLOR &&

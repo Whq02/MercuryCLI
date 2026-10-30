@@ -12,7 +12,7 @@ export function shouldHonorNoColor(
 ): boolean {
   const noColor = env.NO_COLOR
   const forceColor = env.FORCE_COLOR
-  return Boolean(noColor) && !forceColor
+  return Boolean(noColor) && (forceColor === undefined || !['', '1', '2', '3', 'true'].includes(forceColor))
 }
 
 export const MERCURY_HONORS_NO_COLOR = shouldHonorNoColor(process.env)
@@ -25,6 +25,7 @@ function honorNoColor(): boolean {
   return false
 }
 export const CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()
+if (process.env.FORCE_COLOR !== undefined && !['', '1', '2', '3', 'true'].includes(process.env.FORCE_COLOR)) chalk.level = 0
 
 export function truecolorFingerprint(
   env: Record<string, string | undefined> = process.env,
