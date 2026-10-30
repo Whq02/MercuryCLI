@@ -843,9 +843,16 @@
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
+      "file": "scripts/ide/prove-debugpy-journey.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const appleStub = process.platform === 'darwin' ? spawnSync('/usr/bin/python3', ['-c', 'import sys; print(sys.version_info >= (3, 10))'], { ",
+      "cls": "platform-owner",
+      "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
+    },
+    {
       "file": "scripts/ide/prove-fixture-python.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "excerpt": "const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
@@ -859,21 +866,21 @@
     {
       "file": "scripts/ide/prove-launch-env-tasks.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "excerpt": "const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
       "file": "scripts/ide/prove-launch-profiles.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "excerpt": "const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
       "file": "scripts/ide/prove-launch-routes.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "process.env.MERCURY_PYTHON = '/usr/bin/python3'",
+      "excerpt": "process.env.MERCURY_PYTHON = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
@@ -901,14 +908,14 @@
     {
       "file": "scripts/ide/prove-python-project.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "excerpt": "const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
       "file": "scripts/ide/prove-python-tests.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "excerpt": "const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'",
       "cls": "platform-owner",
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
@@ -1238,6 +1245,13 @@
       "file": "scripts/lib/captureDriver.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const python = pin !== '' ? pin : '/usr/bin/python3'",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/lib/debugFixturePython.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const candidates = process.platform === 'win32' ? [pack, onPath('python'), onPath('py')] : [pack, '/usr/bin/python3', onPath('python3')]",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
