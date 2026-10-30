@@ -2,8 +2,9 @@
 
 ## Plan the saved size
 
+- For a small sprite, start at the row's native render size and choose the saved size with `downsize`. Lowering `width` and `height` changes generation, not just the final pixel count; compare the result before keeping that change.
 - `downsize` samples one pixel per block without averaging, keeping the full render as <name>.source.png. A factor of 8 turns 1024×1024 into 128×128; 16 turns it into 64×64. Pick a factor that divides the render dimensions.
-- `palette` runs after downsize without dithering, preserving alpha. An integer keeps the most-used colours; a .gpl or .hex path maps pixels to the supplied palette. This is colour reduction, not automatic outline cleanup.
+- `palette` runs after downsize without dithering, preserving alpha. An integer keeps the most-used colours, not a representative spread: background shades can crowd out a small subject's colours and make it disappear. Inspect before adding colour reduction. If important colours are lost, omit it or use a .gpl/.hex palette containing the subject and background colours. This is colour reduction, not automatic outline cleanup.
 - Pixel Party XL supplies downsize 8 unless overridden; other rows have no such default. Its publisher asks for 8× nearest-neighbour reduction and says init images help. See sources P and E in `references/sources.md` (checked 2026-10-30).
 
 ## A character from a reference
@@ -12,7 +13,7 @@ Inspect the character and desired output size first. When the user chooses Pixel
 
 Tool: `image_generate`
 ```json
-{"model":"pixel-party-xl","prompt":"a knight in blue armour, full body, facing right, plain background","reference_image":"knight.png","seed":42,"palette":16}
+{"model":"pixel-party-xl","prompt":"a knight in blue armour, full body, facing right, plain background","reference_image":"knight.png","seed":42}
 ```
 
 ## Frames and exact editing
@@ -21,7 +22,7 @@ Tool: `image_generate`
 
 Tool: `image_generate`
 ```json
-{"prompt":"a small green slime monster, pixel-art sprite, plain background","count":4,"sheet":{"columns":2},"downsize":8,"palette":16}
+{"prompt":"a small green slime monster, pixel-art sprite, plain background","count":4,"sheet":{"columns":2},"downsize":8}
 ```
 
 For a walk cycle or four facings, keep the seed, reference and art direction; change the pose words. On SDXL, a matching installed pose ControlNet can guide each frame using a prepared pose map. Neither fixed seeds nor reference conditioning guarantee consistent frames; inspect silhouettes, features, scale and palette. A pipeline's sheet step can assemble outputs from several calls or files; its order sets the frame order.
