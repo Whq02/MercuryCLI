@@ -291,7 +291,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   check("the frame's quota chips are a shown meter (the on-show read), and no turn pokes the reader", frame.includes('useProviderUsageOnShow(!isCompact && tier.showFrameQuota)') && !frame.includes('pokeProviderUsage'))
   const boot = src('src/main.tsx')
   check('the interactive boot arms no usage clock, and nothing headless shows a meter', !boot.includes("'usage-poll'") && !boot.includes('armProviderUsagePoll') && !src('src/cli/run.ts').includes('watchProviderUsageWhileShown'))
-  check('the owner keeps no timer', !usageDoor.includes('setInterval'))
+  check('the owner keeps no timer', !/\bsetInterval\s*\(/.test(usageDoor))
   for (const surface of ['src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx', 'src/components/HelmLanesRail.tsx']) {
     check(`${surface} reads its meter on show through the one hook`, src(surface).includes('useProviderUsageOnShow('))
   }
