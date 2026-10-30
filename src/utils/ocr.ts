@@ -9,7 +9,12 @@ import { extractPDFPages, removePDFPages } from './pdf.js'
 type OcrResult = { ok: true; engine: string; languages: string[]; text: string } | { ok: false; message: string }
 type NativeOcr = { recognise: (bytes: Buffer, page?: number) => Promise<string>; languages: string[] }
 type OcrEngine = ({ kind: 'native'; name: string } & NativeOcr) | { kind: 'tesseract'; name: 'Tesseract'; languages: string[] } | { kind: 'unavailable'; message: string }
-export const OCR_UNAVAILABLE = 'OCR is unavailable. Install Tesseract (macOS: `brew install tesseract`; Debian/Ubuntu: `sudo apt-get install tesseract-ocr`), on Windows add an OCR language (Settings › Time & language › Language & region, or as Administrator `Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0`), or use a model with image input.'
+export function ocrInstallHint(platform: string = process.platform): string {
+  if (platform === 'darwin') return 'Install Tesseract with `brew install tesseract` to read its text.'
+  if (platform === 'win32') return 'Add an OCR language in Settings › Time & language › Language & region, or run `Add-WindowsCapability -Online -Name Language.OCR~~~en-US~0.0.1.0` as Administrator.'
+  return 'Install Tesseract with your package manager (Debian/Ubuntu: `sudo apt-get install tesseract-ocr`) to read its text.'
+}
+export const OCR_UNAVAILABLE = ocrInstallHint()
 
 export async function resolveOcrEngine(options: { platform?: string; native?: () => NativeOcr | undefined; probe?: () => Promise<boolean>; listLanguages?: () => Promise<string[]> } = {}): Promise<OcrEngine> {
   const platform = options.platform ?? process.platform
@@ -25,7 +30,7 @@ export async function resolveOcrEngine(options: { platform?: string; native?: ()
     if (native && native.languages.length) return { kind: 'native', name: platform === 'darwin' ? 'macOS Vision' : 'Windows OCR', ...native }
   }
   const available = options.probe ? await options.probe() : (await execFileNoThrow('tesseract', ['--version'], { timeout: 5000, useCwd: false })).code === 0
-  if (!available) return { kind: 'unavailable', message: OCR_UNAVAILABLE }
+  if (!available) return { kind: 'unavailable', message: ocrInstallHint(platform) }
   const languages: string[] = options.listLanguages ? await options.listLanguages() : []
   if (!options.listLanguages) {
     const listed = await execFileNoThrow('tesseract', ['--list-langs'], { timeout: 5000, useCwd: false })

@@ -792,7 +792,7 @@ async function readPdfLane(
       const ranges = input.ranges ? parseLineRangesList(input.ranges) : null
       return readRichFormatLane(resolvedPath, { kind: 'document', containerPath: resolvedPath, ext: 'pdf' }, input, Array.isArray(ranges) ? ranges : null, context, declared, ownRead, reserve, { text: renderPdfText({ ...document, pages: selected }), ownBytes: false })
     }
-    if (!caps.media.pdf && ocrFailure) throw new Error(ocrFailure)
+    if (!caps.media.pdf && ocrFailure) throw new Error(`${resolvedPath}: ${selected.some(page => page.hasImages) ? 'image-only PDF' : 'PDF has no text layer'}. ${ocrFailure}`)
   }
   if (pages !== undefined && caps.media.images) {
     const range = parsePDFPageRange(pages)

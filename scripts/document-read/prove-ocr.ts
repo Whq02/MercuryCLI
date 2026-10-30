@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = join(root, 'home')
 process.env.MERCURY_BARE = '1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DESKTOP_PACK_DIR = resolve(import.meta.dir, '../../vendor/desktop', `${process.platform}-${process.arch}`)
-const { resolveOcrEngine, OCR_UNAVAILABLE } = await import('../../src/utils/ocr.ts')
+const { resolveOcrEngine, ocrInstallHint } = await import('../../src/utils/ocr.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -18,7 +18,7 @@ const ctx = (model: string) => ({ options: { engineModel: model }, readFileState
 try {
   for (const platform of ['win32', 'linux', 'darwin']) {
     const absent = await resolveOcrEngine({ platform, native: () => undefined, probe: async () => false })
-    assert.deepEqual(absent, { kind: 'unavailable', message: OCR_UNAVAILABLE })
+    assert.deepEqual(absent, { kind: 'unavailable', message: ocrInstallHint(platform) })
     const tesseract = await resolveOcrEngine({ platform, native: () => undefined, probe: async () => true, listLanguages: async () => ['eng', 'ara'] })
     assert.equal(tesseract.name, 'Tesseract')
   }

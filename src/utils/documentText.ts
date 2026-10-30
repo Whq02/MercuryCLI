@@ -21,7 +21,7 @@ export async function extractDocumentText(path: string, signal?: AbortSignal): P
       for (const page of pages) {
         if (page.hasTextLayer) continue
         const ocr = await recognisePdfPage(path, bytes, page.pageNumber, signal)
-        if (!ocr.ok) throw new Error(ocr.message)
+        if (!ocr.ok) throw new Error(`${path}: page ${page.pageNumber} ${page.hasImages ? 'is image-only' : 'has no text layer'}. ${ocr.message}`)
         page.text = renderOcr(ocr)
       }
     }
