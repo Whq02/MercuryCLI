@@ -14,7 +14,7 @@ import { mediaRows, mediaRuntimeChoice, MediaSetupPaused, type MediaSnapshot, ty
 
 const REMOTE_DIR = '/workspace/mercury-media'
 const REMOTE_PORT = 30080
-export type MediaHostState = { id: string; name: string; token: string; url?: string; port: number }
+type MediaHostState = { id: string; name: string; token: string; url?: string; port: number }
 type RemoteSnapshot = { catalogue: unknown; config: MediaConfig; runtime: { installed: boolean; variant?: string }; files: { file: string; bytes: number; total: number; installed: boolean; checkpoint?: boolean }[]; totalMemoryBytes: number; usableMemoryBytes: number; freeBytes: number }
 export function mediaHostStatePath(id: string): string {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id)) throw new Error(LLM_HOST_WORDS.manage)
@@ -85,7 +85,7 @@ cd ${shQuote(REMOTE_DIR)}
     + 'node/bin/node --input-type=module -e ' + shQuote('import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; const dir=process.argv[1]; const m=JSON.parse(readFileSync(dir+"/manifest.json")); for(const [file,hash] of Object.entries(m.files)) { if(!/^[a-zA-Z0-9._-]+$/.test(file)||createHash("sha256").update(readFileSync(dir+"/"+file)).digest("hex")!==hash) throw Error("digest mismatch"); }') + ' ' + shQuote(bundle) + '\n'
     + 'if test -s server.pid && kill -0 "$(cat server.pid)" 2>/dev/null; then exit 0; fi\nprintf %s ' + shQuote(config) + ' > server.json\nprintf %s ' + shQuote(start) + ' > server.sh\nnohup setsid sh server.sh > server.log 2>&1 < /dev/null & echo $! > server.pid\n'
 }
-export async function installMediaHost(settings: MediaSettings, signal: AbortSignal, runner: HostRunner = hostRunner): Promise<MediaHostState> {
+async function installMediaHost(settings: MediaSettings, signal: AbortSignal, runner: HostRunner = hostRunner): Promise<MediaHostState> {
   const record = requireMediaHost(settings.host!)
   const dir = dirname(await mediaServerPath(settings))
   const manifest = readFileSync(join(dir, 'manifest.json'))

@@ -62,8 +62,8 @@ export async function mediaConfigModule(settings: MediaSettings = readMediaSetti
   return module
 }
 
-export type MediaWorkflowMapping = { node: string; type: string; fields?: Record<string, unknown>; note?: string }
-export type MediaWorkflowPlan = { format: 'ui' | 'api'; request: Record<string, unknown>; mapping: MediaWorkflowMapping[]; skipped: MediaWorkflowMapping[]; overrides: string[] }
+type MediaWorkflowMapping = { node: string; type: string; fields?: Record<string, unknown>; note?: string }
+type MediaWorkflowPlan = { format: 'ui' | 'api'; request: Record<string, unknown>; mapping: MediaWorkflowMapping[]; skipped: MediaWorkflowMapping[]; overrides: string[] }
 type MediaWorkflowModule = {
   parseWorkflow: (text: string) => unknown
   planWorkflow: (graph: unknown, catalogue: { models: unknown[]; files: unknown[] }, options: { dir: string; overrides?: Record<string, unknown>; registries?: { loras?: Record<string, unknown>; embeddings?: Record<string, unknown> } }) => MediaWorkflowPlan
