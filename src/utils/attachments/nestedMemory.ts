@@ -69,7 +69,7 @@ function contextRecordOf(entry: InstructionSourceEntry, clipped: boolean): FileS
   return { content, timestamp: Date.now(), offset: undefined, limit: undefined, isPartialView: clipped || entry.contentDiffersFromDisk }
 }
 
-export function clipNestedGuide(entry: InstructionSourceEntry, cap: number): InstructionSourceEntry {
+function clipNestedGuide(entry: InstructionSourceEntry, cap: number): InstructionSourceEntry {
   if (entry.content.length <= cap) return entry
   const lastBreak = entry.content.lastIndexOf('\n', cap)
   const kept = entry.content.slice(0, lastBreak > cap / 2 ? lastBreak + 1 : cap)
