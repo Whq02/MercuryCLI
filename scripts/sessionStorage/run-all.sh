@@ -62,5 +62,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drain-fault-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-snapshot-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-snapshot-honesty.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-flush-drain-ladder.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flush-drain-ladder.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-model-entry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-model-entry.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-user-resume.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-empty-user-resume.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-one-live-writer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-one-live-writer.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ SESSIONSTORAGE SUITE GREEN"; exit 0; else
   echo "❌ SESSIONSTORAGE SUITE RED"; exit 1; fi
