@@ -121,9 +121,13 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const w = await import('../../src/services/providers/local/localWindow.ts')
 
-await refreshLocalDiscovery({ force: true })
-const plain = localRecordFor(`local/${PLAIN}`)
-const qwen = localRecordFor(`local/${VLLM_MODEL}`)
+let plain: ReturnType<typeof localRecordFor>
+let qwen: ReturnType<typeof localRecordFor>
+do {
+  await refreshLocalDiscovery({ force: true })
+  plain = localRecordFor(`local/${PLAIN}`)
+  qwen = localRecordFor(`local/${VLLM_MODEL}`)
+} while (plain === undefined || qwen === undefined)
 check('the fixture is discovered: an Ollama model with a 40,960 trained window and a vLLM model', plain?.server === 'ollama' && plain.modelMaxContext === TRAINED_MAX && qwen?.server === 'vllm', JSON.stringify({ plain, qwen }))
 
 async function send(model: string, text: string, override?: number): Promise<{ capture: Capture | undefined; errors: string[] }> {
