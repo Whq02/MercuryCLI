@@ -7,8 +7,13 @@ const root = resolve(import.meta.dir, '../..')
 const goldenPath = join(import.meta.dir, 'fixtures/anthropic-sdk-road.json')
 type Request = { path: string; method: string; headers: Record<string, string>; raw: string; body: unknown }
 type Capture = { arm: string; requests: Request[]; outputs: unknown[]; errors: Record<string, unknown> }
+const SOCKET_CLOSED = 'The socket connection was closed unexpectedly'
 const runtimeNeutral = (errors: Record<string, unknown>): Record<string, unknown> =>
-  JSON.parse(JSON.stringify(errors).replaceAll('ECONNRESET: The socket connection was closed unexpectedly', 'The socket connection was closed unexpectedly')) as Record<string, unknown>
+  JSON.parse(
+    JSON.stringify(errors)
+      .replaceAll(`ECONNRESET: ${SOCKET_CLOSED}`, SOCKET_CLOSED)
+      .replaceAll(`"class":"TypeError","message":"${SOCKET_CLOSED}`, `"class":"Error","message":"${SOCKET_CLOSED}`),
+  ) as Record<string, unknown>
 const HEADER_ALLOW_LIST = {
   host: 'The loopback fixture binds a new ephemeral port on each run.',
   'x-stainless-arch': 'Removed vendor SDK telemetry; not a protocol or identity header.',
