@@ -140,7 +140,7 @@ const MIRROR_FAMILY_WORDS: Record<string, ModelFamily> = Object.fromEntries(
 const FIRST_PARTY_FAMILY_WORDS = [...Object.keys(FAMILY_GENERATIONS), ...Object.keys(MIRROR_FAMILY_WORDS)]
 
 const FIRST_PARTY_GENERATION_RE = new RegExp(
-  `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:-\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?!\\d))`,
+  `(?:^|[^a-z0-9])(?:claude-)?(${FIRST_PARTY_FAMILY_WORDS.join('|')})-(\\d{1,2}(?:[.-]\\d{1,2})*)(?=-\\d{8}(?!\\d)|$|[^\\d-]|-(?!\\d))`,
 )
 
 export const DECLARED_GENERATION_STEMS: ReadonlyMap<string, string> = new Map(
@@ -166,7 +166,7 @@ export function parseFirstPartyGeneration(id: string): FirstPartyGeneration | nu
   if (match === null) return null
   const word = match[1]!
   const family = (MIRROR_FAMILY_WORDS[word] ?? word) as ModelFamily
-  const generation = match[2]!
+  const generation = match[2]!.replaceAll('.', '-')
   return { family, generation, stem: `claude-${family}-${generation}` }
 }
 
@@ -179,5 +179,7 @@ export function familyHeadOf(id: string): ModelKey | null {
 
 export function familyDefaultsModel(id: string): string {
   const head = familyHeadOf(id)
-  return head === null ? id : ALL_MODEL_CONFIGS[head].firstParty
+  if (head !== null) return ALL_MODEL_CONFIGS[head].firstParty
+  if (id.includes('/')) return id
+  return id.replace(FIRST_PARTY_GENERATION_RE, match => match.replace(/(?<=\d)\.(?=\d)/g, '-'))
 }

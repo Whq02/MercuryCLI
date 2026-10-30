@@ -83,7 +83,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isMistralModelId(model)) return true
   if (isZenModelId(model)) return true
   if (isMinimaxModelId(model) || isTogetherModelId(model) || isCohereModelId(model) || isGroqModelId(model) || isMeliousModelId(model) || isCerebrasModelId(model) || isFireworksModelId(model) || isQwenModelId(model)) return true
-  const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
+  const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(familyDefaultsModel(model))
   if (!m) return true
   const family = m[1]!
   const major = parseInt(m[2]!, 10)
