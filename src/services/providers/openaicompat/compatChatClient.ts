@@ -8,7 +8,7 @@ import { SseDecoder } from '../sseDecoder.js'
 import { toolCallSlot, toolCallId, type ToolCallAccumulator } from '../chatToolCallSlots.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { providerWaitWords } from '../../api/recoveryBudget.js'
-import { retryAfterHeaderMs } from '../../api/retryAfter.js'
+import { compatRetryHeaderMs } from '../../api/retryAfter.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import {
   createStreamActivityRelay,
@@ -212,17 +212,12 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const message = String(err?.message ?? stringError ?? o?.message ?? vendor?.message ?? `HTTP ${status}`)
   const throttled = isBedrockThrottle({ ...o, status, headers, message })
   const word = throttled ? 'ThrottlingException' : vendorErrorWord(err)
-  let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+  let retryAfterMs = compatRetryHeaderMs(headers)
   if (status === 429 && retryAfterMs === undefined) {
     const details = Array.isArray(err?.details) ? err.details : []
     const retry = details.find(value => value && typeof value === 'object' && (value as Record<string, unknown>)['@type'] === 'type.googleapis.com/google.rpc.RetryInfo') as Record<string, unknown> | undefined
     const delay = typeof retry?.retryDelay === 'string' && /^\d+(?:\.\d+)?s$/.test(retry.retryDelay) ? Number.parseFloat(retry.retryDelay) : err?.resets_in_seconds ?? o?.resets_in_seconds
     if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) retryAfterMs = delay * 1000
-    if (retryAfterMs === undefined) {
-      const reset = Number(headers?.get('x-ratelimit-reset'))
-      const resetAt = reset > 1e12 ? reset : reset > 1e9 ? reset * 1000 : undefined
-      if (resetAt !== undefined && resetAt > Date.now()) retryAfterMs = resetAt - Date.now()
-    }
   }
   const billing = status === 402 || [word, err?.type].some(value => typeof value === 'string' && /^(?:insufficient_quota|exceeded_current_quota_error|billing_hard_limit_reached|billing_error|payment_required|insufficient_(?:credits?|balance|funds))$/i.test(value))
   if (billing) retryAfterMs = undefined

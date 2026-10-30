@@ -54,3 +54,30 @@ export function retryAfterSaysNow(header: string | null | undefined, nowMs: numb
   const at = Date.parse(text)
   return Number.isFinite(at) && at <= nowMs
 }
+export function rateLimitResetDelayMs(value: string | null | undefined, nowMs = Date.now()): number | undefined {
+  if (!value?.trim()) return undefined
+  const text = value.trim()
+  const numeric = Number(text)
+  if (Number.isFinite(numeric)) {
+    const ms = numeric > 1e12 ? numeric - nowMs : numeric > 1e9 ? numeric * 1000 - nowMs : numeric * 1000
+    return ms > 0 ? ms : undefined
+  }
+  if (!/^(?:\d+(?:\.\d+)?(?:ms|s|m|h|d))+$/.test(text)) return undefined
+  const units: Record<string, number> = { ms: 1, s: 1000, m: 60000, h: 3600000, d: 86400000 }
+  const ms = [...text.matchAll(/(\d+(?:\.\d+)?)(ms|s|m|h|d)/g)].reduce((sum, part) => sum + Number(part[1]) * units[part[2]!]!, 0)
+  return Number.isFinite(ms) && ms > 0 ? ms : undefined
+}
+
+export function compatRetryHeaderMs(headers: { get(name: string): string | null } | undefined): number | undefined {
+  const explicit = headers?.get('retry-after')
+  if (retryAfterSaysNow(explicit)) return 0
+  const wait = retryAfterHeaderMs(explicit) ?? positiveMilliseconds(headers?.get('retry-after-ms'))
+  if (wait !== undefined) return wait
+  const resets = ['requests', 'tokens'].flatMap(bucket => {
+    const remaining = headers?.get(`x-ratelimit-remaining-${bucket}`)
+    if (remaining !== null && remaining !== undefined && remaining.trim() !== '' && Number(remaining) > 0) return []
+    const delay = rateLimitResetDelayMs(headers?.get(`x-ratelimit-reset-${bucket}`))
+    return delay === undefined ? [] : [delay]
+  })
+  return resets.length > 0 ? Math.max(...resets) : rateLimitResetDelayMs(headers?.get('x-ratelimit-reset'))
+}
