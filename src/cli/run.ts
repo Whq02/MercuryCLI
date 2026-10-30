@@ -491,6 +491,16 @@ export async function runHeadless(
     }
   }
 
+  const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
+  let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  if (!awaitingSessionClaim && (!options.continue && !options.resume || options.forkSession) && !isSessionPersistenceDisabled()) {
+    try { await claimSessionWriter(sessionFilePath(getSessionId() as UUID)) }
+    catch (error) {
+      emitLoadError(errorMessage(error), options.outputFormat)
+      gracefulShutdownSync(1)
+      return
+    }
+  }
   const io = new StructuredIO(normalizeInputPrompt(inputPrompt), text => enqueueRow(noticeRow(liveScope(), 'error', text, INPUT_REFUSED_CODE)))
   const wire = options.door === 'wire'
   let capabilities: Capabilities = { ...DEFAULT_CAPABILITIES }
@@ -658,16 +668,6 @@ export async function runHeadless(
   turnsRun = priorTurnCount(messages)
   let contentReplacementState = reconstructContentReplacementState(messages, loaded.contentReplacements ?? [])
 
-  const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
-  let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
-  if (!awaitingSessionClaim && !isSessionPersistenceDisabled()) {
-    try { await claimSessionWriter(sessionFilePath(getSessionId() as UUID)) }
-    catch (error) {
-      emitLoadError(errorMessage(error), options.outputFormat)
-      gracefulShutdownSync(1)
-      return
-    }
-  }
   let mcpInitialized = !awaitingSessionClaim
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
   let claimSettling: Promise<void> | null = null
