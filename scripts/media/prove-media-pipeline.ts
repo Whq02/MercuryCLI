@@ -1,6 +1,6 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { cpSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
@@ -214,7 +214,16 @@ try {
   } finally { frame.unmount() }
   const missing = { version: 1, name: 'Missing', steps: [{ id: 'source', kind: 'file', inputs: { path: 'absent.png' } }] }
   await assert.rejects(call('pipeline_run', { pipeline: missing, wait: true }), /source/)
-  console.log('media pipeline: project discovery; all five tools through session permissions and MCP; dry and step refusals; ComfyUI import/export; async results, every output path and run records; partial rerun reuses the unchanged render')
+  const jobsDir = join(root, 'run', 'jobs')
+  chmodSync(jobsDir, 0o500)
+  const probe = join(jobsDir, 'probe')
+  const writable = (() => { try { writeFileSync(probe, ''); rmSync(probe); return true } catch { return false } })()
+  try {
+    if (!writable) await assert.rejects(call('pipeline_run', { pipeline: 'landscape.pipeline.json', wait: true }), /The job record could not be written: .*The run did not start\./)
+  } finally { chmodSync(jobsDir, 0o700) }
+  if (writable) console.log('the jobs folder stays writable for this user, so the first-record refusal is driven by the engine test alone')
+  assert.equal(facts(await call('pipeline_run', { pipeline: 'landscape.pipeline.json', wait: true })).status, 'completed')
+  console.log(`media pipeline: project discovery; all five tools through session permissions and MCP; dry and step refusals; ComfyUI import/export; async results, every output path and run records; partial rerun reuses the unchanged render${writable ? '' : '; a job record that cannot be written refuses the run by name'}`)
 } finally {
   await close()
   await stopFixtureEngine()
