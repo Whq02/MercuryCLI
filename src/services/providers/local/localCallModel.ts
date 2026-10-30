@@ -154,12 +154,19 @@ export function localPreComposeEstimate(params: LocalEstimateParams): number {
   return tokens + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
 }
 
+export function ollamaThinkingValue(record: LocalModelRecord, effortValue: string | undefined, thinkingEnabled: boolean): boolean | string | undefined {
+  const thinking = record.thinking
+  if (thinking === undefined) return record.thinkingDeclared === true ? !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) : undefined
+  if (!thinkingEnabled && thinking.values.includes(false)) return false
+  if (thinking.values.some(value => typeof value === 'string')) return effortValue ?? thinking.default
+  return thinking.values.includes(thinkingEnabled) ? thinkingEnabled : thinking.default
+}
+
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {
-  let thinkingEnabled = false
+  let think: boolean | string | undefined
   const ollamaEffortOnWire = (): EffortWireFact => {
-    if (record.thinkingDeclared !== true) return { kind: 'unsupported' }
-    const off = localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled })
-    return { kind: 'sent', parameter: 'think', value: !off, applied: off ? EFFORT_STAMP_THINKING_OFF : EFFORT_STAMP_THINKING_ON }
+    if (think === undefined) return { kind: 'unsupported' }
+    return { kind: 'sent', parameter: 'think', value: think, applied: typeof think === 'boolean' ? think ? EFFORT_STAMP_THINKING_ON : EFFORT_STAMP_THINKING_OFF : think }
   }
   return {
     lane: 'local',
@@ -179,7 +186,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
     requestUrl: () => `${record.baseUrl}/chat/completions`,
     wireModelId: () => record.id,
     buildExtras: args => {
-      thinkingEnabled = args.thinkingEnabled
+      think = ollamaThinkingValue(record, args.effortValue, args.thinkingEnabled)
       return buildLocalExtras({ ...args, server: record.server, acceptsEffort: localModelAcceptsEffort(record) })
     },
     omitsToolChoice: record.server === 'ollama',
@@ -193,7 +200,7 @@ export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile
               { ...options, url: ollamaChatUrl(record.baseUrl) },
               {
                 ...heldLocalKnobs(record),
-                ...(record.thinkingDeclared === true ? { think: !localThinkingOff({ server: record.server, acceptsEffort: localModelAcceptsEffort(record), thinkingEnabled }) } : {}),
+                ...(think !== undefined ? { think } : {}),
                 ...(fit !== undefined ? { fit } : {}),
               },
             )

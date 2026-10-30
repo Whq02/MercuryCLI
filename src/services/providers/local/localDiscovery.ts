@@ -32,6 +32,7 @@ export interface LocalModelRecord {
   modelMaxContext?: number
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
+  thinking?: { values: Array<boolean | string>; default: boolean | string }
   visionDeclared?: boolean
   loaded?: boolean
   family?: string
@@ -179,6 +180,12 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
       const details = rec(m.details)
       const show = rec(await probeJson(`${root}/api/show`, io, { method: 'POST', body: { model: id } }))
       const capabilities = strList(show?.capabilities) ?? strList(m.capabilities)
+      const thinkingBody = rec(show?.thinking)
+      const thinking = Array.isArray(thinkingBody?.values) && thinkingBody.values.length > 0
+        && thinkingBody.values.every(value => typeof value === 'boolean' || typeof value === 'string' && value.length > 0)
+        && (typeof thinkingBody.default === 'boolean' || typeof thinkingBody.default === 'string')
+        ? { values: [...thinkingBody.values] as Array<boolean | string>, default: thinkingBody.default }
+        : undefined
       const info = rec(show?.model_info)
       const arch = str(info?.['general.architecture'])
       const modelMax = arch ? num(info?.[`${arch}.context_length`]) : undefined
@@ -208,6 +215,7 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
               visionDeclared: capabilities.includes('vision'),
             }
           : {}),
+        ...(thinking !== undefined ? { thinking, thinkingDeclared: thinking.values.some(value => value !== false) } : {}),
         loaded: served.has(id),
         ...(str(details?.family) ? { family: str(details?.family)! } : {}),
         ...(str(details?.parameter_size) ? { parameterSize: str(details?.parameter_size)! } : {}),

@@ -459,6 +459,12 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
     const { LOCAL_SERVER_EFFORTS, LOCAL_SERVER_STATES_THINKING, localThinkingOffWireEffort } =
       require('../../services/providers/openaicompat/compatWire.js') as typeof import('../../services/providers/openaicompat/compatWire.js')
     const record = localRecordFor(model)
+    if (record?.thinking !== undefined) {
+      const vocabulary = record.thinking.values.filter((value): value is string => typeof value === 'string')
+      return vocabulary.length > 0
+        ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: false, ...(typeof record.thinking.default === 'string' ? { defaultEffort: record.thinking.default } : {}) }
+        : { kind: 'none', source: 'local' }
+    }
     const vocabulary = record && localModelAcceptsEffort(record) ? LOCAL_SERVER_EFFORTS[record.server] : []
     const thinkingOffWire = record ? localThinkingOffWireEffort(record.server) : undefined
     return record && vocabulary.length > 0
