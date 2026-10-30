@@ -456,6 +456,7 @@ class MercurySession(TypedRequests):
         if restart_reason is not None: params['restart_reason'] = restart_reason
         if openai_catalogue is not None: params['openai_catalogue'] = openai_catalogue
         receipt = await self.request('session/claim', params)
+        if resume is True: await self.request('session/facts', timeout=None)
         self.initialized['session_id'] = receipt['session_id']
         return receipt
 

@@ -332,6 +332,7 @@ export class MercurySession implements AsyncIterable<StreamRow> {
   notifyCredentialsChanged(params: ParamsOf<'credentials/changed'> = {}) { this.notify('credentials/changed', params) }
   async claim(params: ParamsOf<'session/claim'>) {
     const receipt = await this.request('session/claim', params)
+    if (params.resume === true) await this.request('session/facts', {}, { deadlineMs: null })
     this.initialized.session_id = receipt.session_id
     return receipt
   }
