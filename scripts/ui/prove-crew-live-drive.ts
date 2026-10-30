@@ -228,9 +228,17 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
       res.end(lane === 'responses' ? responsesAnswer(blocks, usage) : answer(model, blocks, usage))
     })
   })
-  await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(port, '127.0.0.1', () => {
+      server.off('error', reject)
+      resolve()
+    })
+  })
+  const address = server.address()
+  if (!address || typeof address === 'string') throw new Error('crew fixture has no bound port')
   return {
-    base: `http://127.0.0.1:${port}`,
+    base: `http://127.0.0.1:${address.port}`,
     hits,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
@@ -366,7 +374,7 @@ const runs = (dialect: Dialect, leg: 'land' | 'stop'): boolean => {
 }
 const argvFor = (dialect: Dialect): string[] => (dialect === 'openai' ? ['node', DIST, '--model', GPT_ID] : ['node', DIST])
 const portFor = (dialect: Dialect, leg: 'land' | 'stop'): number =>
-  Number(process.env[`CREW_PORT_${dialect.toUpperCase()}_${leg.toUpperCase()}`] ?? (dialect === 'anthropic' ? (leg === 'land' ? 25161 : 25162) : leg === 'land' ? 25163 : 25164))
+  Number(process.env[`CREW_PORT_${dialect.toUpperCase()}_${leg.toUpperCase()}`] ?? 0)
 
 async function landLeg(dialect: Dialect): Promise<void> {
   console.log(`\n— ${dialect} · land —`)
