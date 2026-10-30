@@ -623,17 +623,30 @@ function runPathChecker(
   const operands = PATH_EXTRACTORS[command](args)
   const flowRead = (context.mode === 'flow' || context.probedFrom === 'flow') && operationType === 'read' && command !== 'cd'
   const readsEnvContent = (operationType === 'read' && !ENV_METADATA_COMMANDS.has(command)) || command === 'cp' || command === 'mv'
+  const sources = command === 'cp' || command === 'mv' ? operands.slice(0, -1) : []
   const roots: string[] = []
+  let held: PermissionResult | null = null
   for (const operand of operands) {
+    if (sources.includes(operand)) {
+      const read = validatePath(operand, cwd, context, 'read')
+      if (!read.allowed && read.decisionReason?.type === 'rule') return operandRefusal(command, read, context, 'read')
+    }
     const check = validatePath(operand, cwd, context, operationType)
     if (!check.allowed) {
       if (flowRead && check.decisionReason === undefined) continue
-      return operandRefusal(command, check, context, operationType)
+      const refusal = operandRefusal(command, check, context, operationType)
+      if (refusal.behavior === 'deny') return refusal
+      held ??= refusal
+      continue
     }
     const envAsk = readsEnvContent ? envFileReadAsk(check.resolvedPath, context) : null
-    if (envAsk) return { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
+    if (envAsk) {
+      held ??= { behavior: 'ask', message: envAsk.message, decisionReason: envAsk.decisionReason }
+      continue
+    }
     roots.push(check.resolvedPath)
   }
+  if (held !== null) return held
   if (operationType === 'read' && !flowRead && FOLLOWS_LINKS[command]?.(args) === true) {
     const followed = followedLinksRefusal(command, roots, cwd, context, operationType)
     if (followed !== null) return followed
