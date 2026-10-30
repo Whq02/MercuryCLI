@@ -46,6 +46,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-docs-words.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tree-hygiene.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tree-hygiene.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-instruction-file-private.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-instruction-file-private.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-altitude.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-altitude.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-integrity.ts" --base 260725425c || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-integrity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-release-notes-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-release-notes-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-embed-pack-everywhere-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-embed-pack-everywhere-words.ts" "$__t" "$__rc"
