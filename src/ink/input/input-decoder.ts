@@ -48,13 +48,13 @@ export function burstCrIsLineBreak(
   return platform === 'win32' && !isModernWindowsTerminal(env, platform)
 }
 
-function splitControlRuns(value: string): string[] {
+function splitControlRuns(value: string, keepTabs = false): string[] {
   if (value.length < 2 || value.charCodeAt(0) === 0x1b) return [value]
   const out: string[] = []
   let run = ''
   for (const ch of value) {
     const c = ch.codePointAt(0)!
-    if ((c < 0x20 && c !== 0x0a) || c === 0x7f) {
+    if ((c < 0x20 && c !== 0x0a && !(keepTabs && c === 0x09)) || c === 0x7f) {
       if (run) {
         out.push(run)
         run = ''
@@ -114,7 +114,8 @@ export function parseMultipleKeypresses(
           value = value.slice(0, -1)
           heldCR = true
         }
-        for (const seg of splitControlRuns(value)) atoms.push(interpretKey(seg))
+        const multiline = value.length > 1 && value.includes('\n')
+        for (const seg of splitControlRuns(value, multiline)) atoms.push(interpretKey(seg))
       }
       continue
     }

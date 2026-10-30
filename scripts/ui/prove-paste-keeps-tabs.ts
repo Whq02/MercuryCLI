@@ -129,6 +129,21 @@ for (const [label, payload, composedForm] of [['a Latin letter and its combining
   resetOverlayStackForTests()
 }
 
+section('§4 unbracketed multiline input keeps tabs in the composer and paste store')
+for (const payload of ['first line\nsecond\tcol2\tcol3\nthird', 'first\n\tsecond\nthird\nlast']) {
+  initializeSurfaceRoute(ROOT_CHAT_ROUTE)
+  resetChromeModeLatchForTests()
+  pending.edit('')
+  pending.setMode('prompt')
+  const m = await mountOffscreen(wrap(h(Harness, { columns: 120 })), 120, 40)
+  await waitFor(() => m.screen().includes('transcript row'), 8000)
+  await settle(300)
+  m.push(payload)
+  check('an unbracketed paste expands tabs rather than dropping them and remains inline', await waitFor(() => pending.text() === payload.replaceAll('\t', '    '), 4000), JSON.stringify(pending.text()))
+  m.unmount()
+  resetOverlayStackForTests()
+}
+
 await releaseScratchHome(HOME)
 console.log(`\npaste keeps tabs: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)
