@@ -25,7 +25,8 @@ export function normalizeAnthropicToolIds(rows: MessageParam[]): MessageParam[] 
       const ref = block as typeof block & { cache_reference?: string }
       return { ...block, tool_use_id: replace(block.tool_use_id), ...(ref.cache_reference !== undefined ? { cache_reference: replace(ref.cache_reference) } : {}) }
     }
-    if (block.type === 'cache_edits') return { ...block, edits: block.edits.map(edit => ({ ...edit, cache_reference: replace(edit.cache_reference) })) }
+    const cached = block as unknown as { type: string; edits: { type: 'delete'; cache_reference: string }[] }
+    if (cached.type === 'cache_edits') return { ...cached, edits: cached.edits.map(edit => ({ ...edit, cache_reference: replace(edit.cache_reference) })) } as unknown as typeof block
     return block
   }) }))
 }
