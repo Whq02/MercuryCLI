@@ -31,7 +31,7 @@ export function pythonStdlibFor(packPlatform: string, version: string): string {
   return packPlatform.startsWith('win-') ? 'Lib' : `lib/python${pythonMinorOf(version)}`
 }
 
-export interface PythonPackSelection {
+interface PythonPackSelection {
   interpreter: string
   roots: string[]
   excluded: string[]
@@ -66,7 +66,7 @@ export function pythonPackKeeps(selection: PythonPackSelection, rel: string): bo
   return !selection.excluded.some(prefix => rel === prefix || rel.startsWith(`${prefix}/`))
 }
 
-export interface VendoredPythonRecord {
+interface VendoredPythonRecord {
   vendored: true
   path: string
   binary: string
@@ -79,13 +79,13 @@ export interface VendoredPythonRecord {
   binarySha256: string
 }
 
-export interface AbsentPythonRecord {
+interface AbsentPythonRecord {
   vendored: false
   path: string
   remedy: string
 }
 
-export type PythonRecord = VendoredPythonRecord | AbsentPythonRecord
+type PythonRecord = VendoredPythonRecord | AbsentPythonRecord
 
 const HEX64 = /^[0-9a-f]{64}$/
 
@@ -131,11 +131,11 @@ export function readPythonRecord(manifest: unknown): PythonRecord | null {
   }
 }
 
-export function vendoredPythonBinaryPath(payloadDir: string, record: VendoredPythonRecord): string {
+function vendoredPythonBinaryPath(payloadDir: string, record: VendoredPythonRecord): string {
   return join(payloadDir, ...record.path.split('/'), ...record.binary.split('/'))
 }
 
-export type PythonCheck =
+type PythonCheck =
   | { state: 'ok'; binaryPath: string }
   | { state: 'absent' | 'mismatch'; binaryPath: string; note: string }
 
