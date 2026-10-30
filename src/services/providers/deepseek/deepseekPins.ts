@@ -1,7 +1,8 @@
+import { isMistralModelId } from '../mistral/mistralPins.js'
 
 export function isDeepseekModelId(model: string): boolean {
   const m = model.trim().toLowerCase()
-  return m === 'deepseek' || m.startsWith('deepseek-')
+  return m === 'deepseek' || (m.startsWith('deepseek-') && !isMistralModelId(m))
 }
 
 export const DEEPSEEK_EFFORTS: ReadonlySet<string> = new Set(['low', 'high', 'max'])

@@ -1,14 +1,15 @@
 export const MISTRAL_OBSERVED_AT = '2026-10-09'
 export const MISTRAL_EFFORTS = ['none', 'high'] as const
+export const MISTRAL_HOSTED_DEEPSEEK_IDS: readonly string[] = ['deepseek-v4-1-flash-1017']
 
 export function isMistralModelId(model: string): boolean {
-  const id = model.trim().toLowerCase()
-  return id === 'mistral' || /^(?:mistral|ministral|codestral|zai-glm)-/.test(id)
+  const id = bareId(model)
+  return id === 'mistral' || MISTRAL_HOSTED_DEEPSEEK_IDS.includes(id) || /^(?:mistral|ministral|codestral|zai-glm)-/.test(id)
 }
 
 export function isMistralChatModelId(model: string): boolean {
-  const id = model.trim().toLowerCase()
-  return /^(?:mistral|ministral|codestral|zai-glm)-/.test(id) && !/(?:embed|ocr|moderation|saba|transcribe|tts)/.test(id)
+  const id = bareId(model)
+  return (MISTRAL_HOSTED_DEEPSEEK_IDS.includes(id) || /^(?:mistral|ministral|codestral|zai-glm)-/.test(id)) && !/(?:embed|ocr|moderation|saba|transcribe|tts)/.test(id)
 }
 
 export interface MistralDisplayPin {
@@ -53,6 +54,7 @@ export const MISTRAL_DISPLAY_PINS: readonly MistralDisplayPin[] = [
     observedAt: '2026-10-25', source: 'https://docs.mistral.ai/inference/pricing', costInPerMtok: 0.3, cachedInPerMtok: 0.03, costOutPerMtok: 0.9 },
   { ...facts, id: 'zai-glm-5-3', aliases: [], displayName: 'Z.ai GLM 5.3', observedAt: '2026-10-25', source: 'https://docs.mistral.ai/models/zai-glm-5-3', contextWindow: 1_000_000, images: false, efforts: ['low', 'high', 'max'], costInPerMtok: 1.4, cachedInPerMtok: 0.14, costOutPerMtok: 4.4 },
   { ...facts, id: 'zai-glm-5-3-flash', aliases: [], displayName: 'Z.ai GLM 5.3 Flash', observedAt: '2026-10-25', source: 'https://docs.mistral.ai/models/zai-glm-5-3-flash', contextWindow: 1_000_000, efforts: [], costInPerMtok: 0.15, cachedInPerMtok: 0.03, costOutPerMtok: 0.5 },
+  { ...facts, id: MISTRAL_HOSTED_DEEPSEEK_IDS[0]!, aliases: [], displayName: 'DeepSeek V4.1 Flash 1017', observedAt: '2026-10-30', source: 'https://docs.mistral.ai/models/deepseek-v4-flash-1017', contextWindow: 1_000_000, images: false, efforts: [], costInPerMtok: 0.3, cachedInPerMtok: 0.007, costOutPerMtok: 1.2 },
 ]
 
 function bareId(id: string): string {

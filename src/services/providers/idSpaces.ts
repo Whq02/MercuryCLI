@@ -1,4 +1,5 @@
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
+import { MISTRAL_HOSTED_DEEPSEEK_IDS } from './mistral/mistralPins.js'
 
 export type CallModelRoute =
   | 'anthropic'
@@ -31,6 +32,7 @@ export interface ProviderIdSpace {
   qualifiedPrefix?: string
   barePrefixes?: readonly string[]
   bareAliases?: readonly string[]
+  bareModelIds?: readonly string[]
   innerGrammar?: 'segments-2' | 'segments-1-or-2' | 'named'
 }
 
@@ -46,7 +48,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'xai', barePrefixes: ['grok-'], bareAliases: ['grok'] },
   { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
   { route: 'gemini', qualifiedPrefix: 'google/', innerGrammar: 'named', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
-  { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-', 'zai-glm-'], bareAliases: ['mistral'] },
+  { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-', 'zai-glm-'], bareAliases: ['mistral'], bareModelIds: MISTRAL_HOSTED_DEEPSEEK_IDS },
   { route: 'nous', qualifiedPrefix: 'nous/', innerGrammar: 'segments-2' },
   { route: 'together', qualifiedPrefix: 'together/', innerGrammar: 'segments-2' },
   { route: 'minimax', barePrefixes: ['minimax-'], bareAliases: ['minimax'] },
@@ -166,6 +168,8 @@ export function recognizeModelId(
   const lowered = bare.toLowerCase()
   const qualified = qualifiedIdSpaceOf(lowered)
   if (qualified !== undefined) return { kind: 'declared', route: qualified.route }
+  const exact = PROVIDER_ID_SPACES.find(space => space.bareModelIds?.includes(lowered))
+  if (exact !== undefined) return { kind: 'declared', route: exact.route }
   const listed = liveListedRouteOf(lowered, env)
   if (listed !== undefined) return { kind: 'declared', route: listed }
   for (const space of PROVIDER_ID_SPACES) {
