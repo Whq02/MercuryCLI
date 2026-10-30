@@ -41,7 +41,12 @@
         "info",
         "export",
         "create",
-        "run-script"
+        "run-script",
+        "draw",
+        "render",
+        "parts",
+        "describe",
+        "palette-check"
       ],
       "units": [
         "pixel-art"
@@ -65,7 +70,12 @@
           "info",
           "export",
           "create",
-          "run-script"
+          "run-script",
+          "draw",
+          "render",
+          "parts",
+          "describe",
+          "palette-check"
         ],
         "evidence": [
           "artifact"
@@ -705,6 +715,62 @@
           "a resolvable debug adapter for the language (debugpy · lldb-dap · gdb · godot)"
         ],
         "proof": "scripts/ide/prove-native-debug.ts"
+      }
+    },
+    {
+      "name": "Document",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "create",
+        "convert",
+        "merge",
+        "split",
+        "inspect",
+        "cite"
+      ],
+      "units": [
+        "text-mutation",
+        "source-reading"
+      ],
+      "proof": "scripts/document/prove-foundation.ts",
+      "declared": {
+        "intents": [
+          "create research documents",
+          "convert office files",
+          "assemble PDF pages",
+          "format bibliographies"
+        ],
+        "units": [
+          "text-mutation",
+          "source-reading"
+        ],
+        "class": "mutation",
+        "operations": [
+          "create",
+          "convert",
+          "merge",
+          "split",
+          "inspect",
+          "cite"
+        ],
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change",
+          "artifact"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "proof": "scripts/document/prove-foundation.ts"
       }
     },
     {

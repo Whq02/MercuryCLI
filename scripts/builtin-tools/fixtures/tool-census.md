@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 70 built-in production tools · 186 operations · 70 with a declared capability contract.
+Census version 1 — 71 built-in production tools · 197 operations · 71 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 40 available · 18 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 28 mutation · 10 execution · 10 coordination · 0 unclassified
-- integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 48 name a focused proof
+- support (at generation time): 41 available · 18 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 29 mutation · 10 execution · 10 coordination · 0 unclassified
+- integrations: 14 declare transactions · 12 declare executions · 33 declare mercury:// outputs · 49 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · video-generation · web-access
 - every tool is unit-classified
 
@@ -21,7 +21,7 @@ Census version 1 — 70 built-in production tools · 186 operations · 70 with a
 | Tool | class | units | ops | cancel | deferred | transactions | execution | resources | proof |
 |---|---|---|---|---|---|---|---|---|---|
 | ApolloReview | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
-| Aseprite | mutation | pixel-art | 5 | block | yes | — | — | — | scripts/aseprite/run-all.sh |
+| Aseprite | mutation | pixel-art | 10 | block | yes | — | — | — | scripts/aseprite/run-all.sh |
 | AskAdvisor | observation | resource-inspection | — | cancel | yes | — | — | — | scripts/advisor/run-all.sh |
 | AskUserQuestion | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | AstEdit | mutation | structural-mutation, text-mutation | — | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/ast-tools/run-all.sh |
@@ -38,6 +38,7 @@ Census version 1 — 70 built-in production tools · 186 operations · 70 with a
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | Debug | execution | debugging | 30 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
+| Document | mutation | text-mutation, source-reading | 6 | block | yes | file +receipts | — | mercury://file, mercury://receipt | scripts/document/prove-foundation.ts |
 | Edit | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
 | EnterWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
 | Eval | execution | persistent-evaluation | — | block | no | — | eval-kernel (child-execution) | — | scripts/eval/prove-kernel-persistence.ts |

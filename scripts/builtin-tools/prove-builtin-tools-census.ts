@@ -230,8 +230,8 @@ check(
   `offered: ${courierUnderSwitch.join(', ')}`,
 )
 check(
-  'the census counts 70 production tools, including the separate ResumeCrewmate verb, the seven language-service tools, the Journal verb and the Video tool',
-  census.summary.tools === 70,
+  'the census counts 71 production tools, including the separate ResumeCrewmate verb, the seven language-service tools, the Journal verb, the Video tool and the Document tool',
+  census.summary.tools === 71,
   `live census: ${census.summary.tools} tools`,
 )
 
