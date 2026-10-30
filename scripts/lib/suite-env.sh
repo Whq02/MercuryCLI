@@ -151,11 +151,16 @@ suite_scratch_init() {
     *"$option"*) ;;
     *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }$option" ;;
   esac
+  option="$(suite_bun_preload_option "$preload")"
+  case "${BUN_OPTIONS:-}" in
+    *"$option"*) ;;
+    *) export BUN_OPTIONS="${BUN_OPTIONS:+$BUN_OPTIONS }$option" ;;
+  esac
   export -f mktemp
 }
 
-suite_node_require_option() {
-  local file="$1" os="${2:-$(uname -s)}" native drive
+suite_preload_native_path() {
+  local file="$1" os="$2" native drive
   case "$os" in
     MINGW* | MSYS* | CYGWIN*)
       if native="$(cygpath -m "$file" 2>/dev/null)" && [ -n "$native" ]; then
@@ -168,9 +173,19 @@ suite_node_require_option() {
         file="${file//\\//}"
       fi ;;
   esac
+  printf '%s' "$file"
+}
+
+suite_node_require_option() {
+  local file
+  file="$(suite_preload_native_path "$1" "${2:-$(uname -s)}")"
   file="${file//\\/\\\\}"
   file="${file//\"/\\\"}"
   printf '%s' "--require=\"$file\""
+}
+
+suite_bun_preload_option() {
+  printf '"--preload=%s"' "$(suite_preload_native_path "$1" "${2:-$(uname -s)}")"
 }
 
 mktemp() {

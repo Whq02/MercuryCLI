@@ -704,6 +704,13 @@
     },
     {
       "file": "scripts/gate/prove-node-preload-path.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_bun_preload_option \"$2\" \"$3\"', 'bash', suiteEnv, file, os], { encoding: 'utf8', env: { .",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/gate/prove-node-preload-path.ts",
       "mechanism": "hardcoded-tmp",
       "excerpt": "const probe = \"const fs = require('node:fs'); const made = fs.mkdtempSync('/tmp/mw/probe-'); process.stdout.write(made); fs.rmdirSync(made)\"",
       "cls": "platform-owner",
@@ -712,7 +719,7 @@
     {
       "file": "scripts/gate/prove-node-preload-path.ts",
       "mechanism": "shell-dash-c",
-      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf %s \"$NODE_OPTIONS\"', 'bash', suiteEnv, join(wo",
+      "excerpt": "const run = spawnSync('bash', ['-c', '. \"$1\"; suite_scratch_init \"$2\" >/dev/null 2>&1; printf \"%s\\\\n%s\" \"$NODE_OPTIONS\" \"$BUN_OPTIONS\"', 'ba",
       "cls": "intentional-shell",
       "why": "script-land shell program — the shell is named explicitly at the call"
     },

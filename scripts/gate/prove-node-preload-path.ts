@@ -33,8 +33,13 @@ const requireOption = (file: string, os: string, path = plainPath): string => {
   const run = spawnSync('bash', ['-c', '. "$1"; suite_node_require_option "$2" "$3"', 'bash', suiteEnv, file, os], { encoding: 'utf8', env: { ...process.env, PATH: path } })
   return run.status === 0 ? run.stdout : `rc=${run.status} ${run.stderr}`
 }
+const bunPreloadOption = (file: string, os: string, path = plainPath): string => {
+  const run = spawnSync('bash', ['-c', '. "$1"; suite_bun_preload_option "$2" "$3"', 'bash', suiteEnv, file, os], { encoding: 'utf8', env: { ...process.env, PATH: path } })
+  return run.status === 0 ? run.stdout : `rc=${run.status} ${run.stderr}`
+}
 const msysPreload = '/c/src/m43-cand/scripts/lib/proofScratch.cjs'
 const mixedPreload = '--require="C:/src/m43-cand/scripts/lib/proofScratch.cjs"'
+const mixedBunPreload = '"--preload=C:/src/m43-cand/scripts/lib/proofScratch.cjs"'
 
 try {
   console.log('── the --require word for node, by host')
@@ -62,7 +67,7 @@ try {
   const runRoot = join(world, 'run-root')
   const ledger = join(world, 'ledger')
   mkdirSync(runRoot)
-  const { NODE_OPTIONS: _options, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
+  const { NODE_OPTIONS: _options, BUN_OPTIONS: _bunOptions, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
   const childEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: runRoot, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid) }
   const probe = "const fs = require('node:fs'); const made = fs.mkdtempSync('/tmp/mw/probe-'); process.stdout.write(made); fs.rmdirSync(made)"
   const loaded = spawnSync('node', ['-e', probe], { cwd: root, encoding: 'utf8', env: { ...childEnv, NODE_OPTIONS: option } })
@@ -73,22 +78,46 @@ try {
   const eaten = join(world, 'backslash q dir', 'proofScratch.cjs')
   check('control — the same path quoted without the escapes dies before the script runs, naming the module with its backslash eaten (the round-23 shape)', naive.status !== 0 && naive.stderr.includes(`Cannot find module '${eaten}'`), `rc=${naive.status} ${naive.stderr.split('\n').find(line => line.includes('Cannot find module')) ?? naive.stderr.slice(0, 200)}`)
 
-  console.log('── suite_scratch_init on a Windows bash exports the converted word')
-  const nodeOptionsAfterInit = (path: string): string => {
+  console.log('── the --preload word for bun, by host (BUN_OPTIONS reaches a bun whose cwd has no bunfig.toml, or no cwd at all)')
+  const bunPosix = bunPreloadOption(realPreload, 'Darwin')
+  check('a POSIX path rides as one double-quoted word (bun unquotes a whole word, never a quote after the =)', bunPosix === `"--preload=${realPreload}"`, bunPosix)
+  const bunViaCygpath = bunPreloadOption(msysPreload, 'MINGW64_NT-10.0-19045', `${fakeBin}:${plainPath}`)
+  check('an MSYS drive path under a Windows bash becomes the same C:/ spelling node gets', bunViaCygpath === mixedBunPreload, bunViaCygpath)
+  const bunViaRule = bunPreloadOption(msysPreload, 'MSYS_NT-10.0-19045')
+  check('without cygpath the drive-letter rule applies to the bun word too', bunViaRule === mixedBunPreload, bunViaRule)
+  const spaced = join(world, 'with space')
+  mkdirSync(spaced)
+  copyFileSync(realPreload, join(spaced, 'proofScratch.cjs'))
+  copyFileSync(join(root, 'scripts/lib/proofBrowser.cjs'), join(spaced, 'proofBrowser.cjs'))
+  const bunWord = bunPreloadOption(join(spaced, 'proofScratch.cjs'), 'Darwin')
+  const bunLedger = join(world, 'bun-ledger')
+  const foreign = spawnSync(process.execPath, ['-e', probe], { cwd: world, encoding: 'utf8', env: { ...childEnv, MERCURY_PROCESS_LEDGER_DIR: bunLedger, BUN_OPTIONS: bunWord } })
+  check('a bun whose cwd has no bunfig.toml starts under the word', foreign.status === 0, `rc=${foreign.status} ${foreign.stderr}`)
+  check('…and the preload (a space in its path) is live in it: a /tmp/mw allocation lands under the run root', foreign.stdout.startsWith(runRoot + '/'), foreign.stdout)
+  check('…and the bun child wrote its process-ledger entry', foreign.pid !== undefined && existsSync(join(bunLedger, `${foreign.pid}.entry`)), `pid=${foreign.pid}`)
+  const bare = spawnSync(process.execPath, ['-e', probe], { cwd: world, encoding: 'utf8', env: { ...childEnv, MERCURY_PROCESS_LEDGER_DIR: join(world, 'bare-ledger') } })
+  check('control — without the word the same bun redirects nothing and writes no entry (bunfig.toml is read from the cwd)', !bare.stdout.startsWith(runRoot + '/') && !existsSync(join(world, 'bare-ledger', `${bare.pid}.entry`)), `rc=${bare.status} ${bare.stdout} ${bare.stderr}`)
+
+  console.log('── suite_scratch_init on a Windows bash exports the converted words')
+  const optionsAfterInit = (path: string): { node: string; bun: string } => {
     const home = join(world, 'home')
     const temp = join(world, 'tmp')
     mkdirSync(home, { recursive: true })
     mkdirSync(temp, { recursive: true })
-    const run = spawnSync('bash', ['-c', '. "$1"; suite_scratch_init "$2" >/dev/null 2>&1; printf %s "$NODE_OPTIONS"', 'bash', suiteEnv, join(world, 'synth-run-all.sh')], {
+    const run = spawnSync('bash', ['-c', '. "$1"; suite_scratch_init "$2" >/dev/null 2>&1; printf "%s\\n%s" "$NODE_OPTIONS" "$BUN_OPTIONS"', 'bash', suiteEnv, join(world, 'synth-run-all.sh')], {
       encoding: 'utf8',
       env: { PATH: path, HOME: home, TMPDIR: temp, MERCURY_CONFIG_DIR: home, MERCURY_LOCAL_PROBE_TARGETS: 'none' },
     })
-    return run.status === 0 ? run.stdout : `rc=${run.status} ${run.stderr}`
+    if (run.status !== 0) return { node: `rc=${run.status} ${run.stderr}`, bun: `rc=${run.status} ${run.stderr}` }
+    const [node = '', bun = ''] = run.stdout.split('\n')
+    return { node, bun }
   }
-  const windowsInit = nodeOptionsAfterInit(`${fakeBin}:${plainPath}`)
-  check('under uname MINGW64_NT with cygpath on PATH, NODE_OPTIONS carries the preload as cygpath -m spells it', windowsInit === `--require="C:/msys64${realPreload}"`, windowsInit)
-  const hostInit = nodeOptionsAfterInit(plainPath)
-  check('on this host the exported word is the POSIX path, unchanged', hostInit === `--require="${realPreload}"`, hostInit)
+  const windowsInit = optionsAfterInit(`${fakeBin}:${plainPath}`)
+  check('under uname MINGW64_NT with cygpath on PATH, NODE_OPTIONS carries the preload as cygpath -m spells it', windowsInit.node === `--require="C:/msys64${realPreload}"`, windowsInit.node)
+  check('…and BUN_OPTIONS carries the same spelling as the bun word', windowsInit.bun === `"--preload=C:/msys64${realPreload}"`, windowsInit.bun)
+  const hostInit = optionsAfterInit(plainPath)
+  check('on this host the exported word is the POSIX path, unchanged', hostInit.node === `--require="${realPreload}"`, hostInit.node)
+  check('…and BUN_OPTIONS carries the POSIX bun word', hostInit.bun === `"--preload=${realPreload}"`, hostInit.bun)
 } finally {
   removeScratch(world)
 }
