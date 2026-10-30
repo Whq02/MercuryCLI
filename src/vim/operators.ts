@@ -84,6 +84,7 @@ export function executeOperatorMotion(
   } else {
     const target = resolveMotion(motion, cursor, count)
     if (target.equals(cursor)) return
+    if ((motion === 'gj' || motion === 'gk') && Math.abs(target.getPosition().line - cursor.getPosition().line) !== count) return
     start = Math.min(cursor.offset, target.offset)
     end = Math.max(cursor.offset, target.offset)
     if (isLinewiseMotion(motion)) {
