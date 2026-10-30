@@ -466,7 +466,7 @@ function checkDoc(file: string, text: string, v: Vocab): Hit[] {
       const m = u.text.trim().match(/^([A-Z][a-z]+(?:[A-Z][a-z]+)*)(?:\(.*\))?$/)
       if (m === null) continue
       const name = m[1] ?? ''
-      if (!toolNames.has(name) && ![['Docker', 'file'].join(''), 'Enter', 'Esc', 'PATH', 'Tune'].includes(name)) add(u.line, 'tool', name, 'not a tool of the roster')
+      if (!toolNames.has(name) && ![['Dock', 'erfile'].join(''), 'Enter', 'Esc', 'PATH', 'Tune'].includes(name)) add(u.line, 'tool', name, 'not a tool of the roster')
     }
   }
 
