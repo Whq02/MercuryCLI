@@ -11,7 +11,6 @@ import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
-import { isMissingCwd, MISSING_CWD_LINE } from './runtime/missingCwd.js'
 import { profileReport } from './startupProfiler.js'
 
 
@@ -148,6 +147,8 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     `failLoud(${origin}): ${err.name}: ${truncate(err.message, 2000)}\n${truncate(err.stack ?? '', 4000)}`,
   )
   logForDiagnosticsNoPII('error', 'boot_failed_loud', { origin, moduleFailure })
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { isMissingCwd, MISSING_CWD_LINE } = require('./runtime/nodePolicy.js') as typeof import('./runtime/nodePolicy.js')
   if (isMissingCwd(err)) {
     logForDiagnosticsNoPII('error', 'boot_cwd_missing', { origin })
     try {

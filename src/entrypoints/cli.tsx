@@ -1,8 +1,9 @@
 import {
+  cwdIsMissing,
   evaluateNodeRuntime,
+  MISSING_CWD_LINE,
   nodeRefusalMessage,
 } from '../utils/runtime/nodePolicy.js'
-import { cwdIsMissing, MISSING_CWD_LINE } from '../utils/runtime/missingCwd.js'
 
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
