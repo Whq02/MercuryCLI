@@ -1067,7 +1067,7 @@ export async function* runAgent(
     }
     await landAgentTranscriptRows(messages, agentId)
 
-    void writeAgentMetadata(agentId, {
+    await writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
       ...(worktreePath ? { worktreePath } : {}),
       ...(cwd ? { cwd } : {}),

@@ -255,7 +255,7 @@ export async function resumeAgentBackground(args: {
   })
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
-  void writeAgentMetadata(agentId as AgentId, {
+  await writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
     ...(worktreePath ? { worktreePath } : {}),
     ...(cwdPath ? { cwd: cwdPath } : {}),

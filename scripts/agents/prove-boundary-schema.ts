@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
@@ -87,7 +87,9 @@ if (childAt !== -1) {
   }
   try {
     const launched = await child('launch')
-    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec))
+    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata)
+    const root = join(fileURLToPath(import.meta.url), '..', '..', '..')
+    check('the launch and the resume publish the sidecar before their first request (awaited, never fire-and-forget: a loaded runner read it back missing and the resume rebuilt a permissive spec)', /\bawait writeAgentMetadata\(agentId, \{/.test(readFileSync(join(root, 'src/tools/AgentTool/runAgent.ts'), 'utf8')) && /\bawait writeAgentMetadata\(agentId as AgentId, \{/.test(readFileSync(join(root, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')))
     const resumed = await child('resume')
     check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed)
     check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec))
