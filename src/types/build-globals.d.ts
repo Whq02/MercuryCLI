@@ -1,4 +1,6 @@
 
+declare const MERCURY_DOC_PAGES_PACKED: string | undefined;
+
 declare const MACRO: {
   readonly VERSION: string;
   readonly PACKAGE_URL: string;

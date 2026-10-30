@@ -1,6 +1,6 @@
 import { registerBundledSkill } from '../bundledSkills.js'
 import { gunzipSync } from 'node:zlib'
-import { bundledDocPagesPacked } from './mercuryDocsPages.js' with { type: 'macro' }
+import { bundledDocPages } from './mercuryDocsPages.js'
 
 export const MERCURY_DOCS_SKILL_NAME = 'mercury-docs'
 export const MERCURY_DOCS_SITE = 'https://mercury-cli.ai/'
@@ -22,11 +22,15 @@ function clip(text: string): string {
   return `${cut.replace(/[\s,;:(]+$/, '')}…`
 }
 
-const PACKED_PAGES: string = bundledDocPagesPacked()
 let pages: Readonly<Record<string, string>> | undefined
 
+function loadDocPages(): Record<string, string> {
+  if (typeof MERCURY_DOC_PAGES_PACKED === 'string') return JSON.parse(gunzipSync(Buffer.from(MERCURY_DOC_PAGES_PACKED, 'base64')).toString('utf8')) as Record<string, string>
+  return bundledDocPages()
+}
+
 export function mercuryDocPages(): Readonly<Record<string, string>> {
-  return pages ??= Object.freeze(JSON.parse(gunzipSync(Buffer.from(PACKED_PAGES, 'base64')).toString('utf8')) as Record<string, string>)
+  return pages ??= Object.freeze(loadDocPages())
 }
 
 function htmlHeadingTitle(lines: readonly string[], start: number): string {

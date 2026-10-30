@@ -42,6 +42,9 @@ const NODE_SUPPORTED_RANGE = PKG_JSON.engines?.node;
 if (!NODE_SUPPORTED_RANGE) throw new Error('package.json engines.node missing — the manifest cannot record the supported Node range');
 const REPO_URL = (PKG_JSON.repository?.url ?? '').replace(/^git\+/, '').replace(/\.git$/, '');
 if (!REPO_URL.startsWith('https://github.com/')) throw new Error('package.json repository.url missing or unrecognized — MACRO.PACKAGE_URL cannot be derived');
+const { bundledDocPagesPacked } = await import('./src/skills/bundled/mercuryDocsPages.ts');
+const DOC_PAGES_PACKED = bundledDocPagesPacked();
+
 const MACRO = {
   VERSION: MACRO_VERSION,
   PACKAGE_URL: REPO_URL,
@@ -133,6 +136,7 @@ const result = await Bun.build({
   },
   define: {
     MACRO: JSON.stringify(MACRO),
+    MERCURY_DOC_PAGES_PACKED: JSON.stringify(DOC_PAGES_PACKED),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
 });
