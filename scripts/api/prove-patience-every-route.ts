@@ -77,12 +77,12 @@ try {
   setPatience({ streamIdleSeconds: 369 })
   check('a missing custom quiet number keeps its normal value', routes.filter(route => !fed.has(route)).every(route => idle.streamIdleTimeoutMsForRoute(route) === 900_000))
   setPatience('patient')
-  const now = Date.now
+  const now = performance.now
   const later = globalThis.setTimeout
   const clear = globalThis.clearTimeout
   let clock = 0
   let timer: { at: number; fn: () => void } | null = null
-  Date.now = () => clock
+  performance.now = () => clock
   globalThis.setTimeout = ((fn: () => void, ms: number) => {
     timer = { at: clock + ms, fn }
     return 1
@@ -112,7 +112,7 @@ try {
     check('one body byte disables the first-byte fence without shortening the idle budget', active.fired() === null)
     active.stop()
   } finally {
-    Date.now = now
+    performance.now = now
     globalThis.setTimeout = later
     globalThis.clearTimeout = clear
   }
