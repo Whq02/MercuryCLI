@@ -39,6 +39,7 @@ import { adoptResumedSessionFile, flushSessionStorage, getSessionMessages, peekP
 import { RunnerQuiescence } from '../daemon/runnerQuiescence.js'
 import { capabilityHoldWords, runnerCapabilityHolds } from '../daemon/runnerCapabilityCensus.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
+import { sessionFilePath } from '../utils/sessionStorage/loading.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
@@ -657,6 +658,7 @@ export async function runHeadless(
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
   let mcpInitialized = !awaitingSessionClaim
   const releaseQueueUntilClaimed: (() => void) | null = peer !== null && awaitingSessionClaim ? peer.holdScope('queue') : null
+  let claimSettling: Promise<void> | null = null
   let sessionFactsHoldSpent = false
   let sessionFactsHold: Promise<void> | null = null
   let runnerRestartReason: string | undefined = flagEnv('MERCURY_RUNNER_RESTART_REASON')
@@ -715,8 +717,8 @@ export async function runHeadless(
       }
     }
   }
-  if (bootModelRefusal !== null && !awaitingSessionClaim) {
-    const refusalRow = createSeatReceiptMessage(bootModelRefusal, 'warning')
+  const persistBootModelRefusal = async (refusal: string): Promise<void> => {
+    const refusalRow = createSeatReceiptMessage(refusal, 'warning')
     const persist = !isSessionPersistenceDisabled() && hasConversationTurn(messages)
     const onDisk = persist ? await getSessionMessages(getSessionId() as UUID) : null
     const leaf = onDisk === null ? undefined : messages.findLast(m => isChainParticipant(m) && onDisk.has(m.uuid as UUID))
@@ -728,6 +730,7 @@ export async function runHeadless(
         .catch((error: unknown) => logError(toError(error)))
     }
   }
+  if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)
 
   const hydrateResumedRun = async (): Promise<void> => {
     if (messages.length === 0) return
@@ -2042,7 +2045,7 @@ export async function runHeadless(
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     'session/claim': async params => {
-      if (!awaitingSessionClaim) throw refused('claim refused — this runner already carries a session identity', 'claim')
+      if (!awaitingSessionClaim || claimSettling !== null) throw refused('claim refused — this runner already carries a session identity', 'claim')
       const sid = String(params.session_id ?? '')
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sid)) {
         throw refused(`claim refused — session_id must be a UUID (got ${JSON.stringify(sid)})`, 'claim')
@@ -2072,72 +2075,100 @@ export async function runHeadless(
         catch (error) { throw refused(errorMessage(error), 'claim') }
       }
       const claimedHome = consumeSessionHomePin()
-      clearSystemPromptSections()
-      if (params.resume === true) {
-        const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
-        let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
+      const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
+      const resumeFile = pinnedFile !== undefined && existsSync(pinnedFile) ? pinnedFile : undefined
+      if (params.resume === true && resumeFile === undefined && !existsSync(sessionFilePath(sid as UUID))) {
+        if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
+        throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
+      }
+      if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
+      const boundAt = Date.now()
+      const releaseSessionVerbs = peer?.holdScope('session') ?? null
+      logForDebugging(`[session-runner] claim bound: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}${params.resume === true ? ' — loading the conversation' : ''}`)
+      const settling = (async (): Promise<void> => {
+        const endAsColdRunnerWould = (message: string): void => {
+          emitLoadError(message, wire ? 'text' : options.outputFormat)
+          gracefulShutdownSync(1)
+        }
+        let recordedModelRefusal: string | null = null
         try {
-          resumed = await loadConversationForResume(sid, pinnedFile !== undefined && existsSync(pinnedFile) ? pinnedFile : undefined)
+          clearSystemPromptSections()
+          if (params.resume === true) {
+            let resumed: Awaited<ReturnType<typeof loadConversationForResume>> = null
+            try {
+              resumed = await loadConversationForResume(sid, resumeFile)
+            } catch (error) {
+              logError(error)
+            }
+            if (!resumed || resumed.messages.length === 0) {
+              endAsColdRunnerWould(`No conversation found for session id ${sid}`)
+              return
+            }
+            if (claimedModel === undefined) {
+              const recorded = restoreConversationModel(resumed)
+              if (recorded) {
+                try { claimedModel = await resolveHeadlessModel(recorded) }
+                catch (error) {
+                  if (recorded.toLowerCase().startsWith('compat/')) {
+                    claimedModel = parseUserSpecifiedModel(recorded)
+                    recordedModelRefusal = bootModelRefusalLine(claimedModel, errorMessage(error))
+                  } else {
+                    enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
+                  }
+                }
+              }
+            }
+            switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
+            resumeOf = String(resumed.sessionId ?? sid)
+            if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
+            await restoreSessionStateFromLog(resumed, setAppState)
+            restoreSessionMetadata(resumed)
+            messages.splice(0, messages.length, ...resumed.messages)
+            turnsRun = priorTurnCount(messages)
+            contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
+          } else {
+            switchSession(sid as SessionId, claimedHome)
+          }
+          if (claimedModel !== undefined) {
+            activeModel = claimedModel
+            setEngineModelOverride(claimedModel)
+            saveSessionModel(activeModel)
+            setFlagEnv('MERCURY_MODEL', claimedModel)
+          }
+          if (claimedEffort !== undefined) {
+            setFlagEnv('MERCURY_EFFORT_LEVEL', claimedEffort)
+            setAppState(previous => ({ ...previous, effortValue: claimedEffort }))
+          }
+          if (claimedContext !== undefined) {
+            const nextContext = claimedContext
+            setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
+            markSessionPermissionModeAtClaim(nextContext.mode)
+          }
+          await armSessionRunnerWiring(sid)
+          if (params.resume === true) await hydrateResumedRun()
+          void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
+            mcpInitialized = true
+            return liveMcp.refresh()
+          }).catch(logError)
+          awaitingSessionClaim = false
+          if (recordedModelRefusal !== null) await persistBootModelRefusal(recordedModelRefusal)
+          settleClearBirth()
+          sessionFactsHoldSpent = false
+          sessionFactsHold = null
+          releaseQueueUntilClaimed?.()
+          logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''} — ready ${Date.now() - boundAt}ms after the claim`)
+          if (heldNoticeWaits()) driver.kick()
         } catch (error) {
           logError(error)
+          endAsColdRunnerWould(`Failed to resume session: ${errorMessage(error)}`)
+        } finally {
+          releaseSessionVerbs?.()
         }
-        if (!resumed || resumed.messages.length === 0) {
-          if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
-          throw refused(`claim refused — no conversation found for session ${sid}`, 'claim')
-        }
-        if (claimedModel === undefined) {
-          const recorded = restoreConversationModel(resumed)
-          if (recorded) {
-            try { claimedModel = await resolveHeadlessModel(recorded) }
-            catch (error) {
-              if (recorded.toLowerCase().startsWith('compat/')) {
-                if (claimedHome !== null) setFlagEnv('MERCURY_SESSION_HOME', claimedHome)
-                throw refused(`The resumed session's model '${recorded}' is not usable: ${errorMessage(error)}`, 'claim')
-              }
-              enqueueRow(noticeRow(liveScope(), 'warning', `The resumed session's model '${recorded}' is not usable (${errorMessage(error)}) — this run uses ${getEngineModel()} instead.`))
-            }
-          }
-        }
-        switchSession(sid as SessionId, resumed.fullPath ? dirname(resumed.fullPath) : claimedHome)
-        resumeOf = String(resumed.sessionId ?? sid)
-        if (!isSessionPersistenceDisabled()) await resetSessionFilePointer()
-        await restoreSessionStateFromLog(resumed, setAppState)
-        restoreSessionMetadata(resumed)
-        messages.splice(0, messages.length, ...resumed.messages)
-        turnsRun = priorTurnCount(messages)
-        contentReplacementState = reconstructContentReplacementState(messages, resumed.contentReplacements ?? [])
-      } else {
-        switchSession(sid as SessionId, claimedHome)
-      }
-      if (claimedModel !== undefined) {
-        activeModel = claimedModel
-        setEngineModelOverride(claimedModel)
-        saveSessionModel(activeModel)
-        setFlagEnv('MERCURY_MODEL', claimedModel)
-      }
-      if (claimedEffort !== undefined) {
-        setFlagEnv('MERCURY_EFFORT_LEVEL', claimedEffort)
-        setAppState(previous => ({ ...previous, effortValue: claimedEffort }))
-      }
-      if (claimedContext !== undefined) {
-        const nextContext = claimedContext
-        setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
-        markSessionPermissionModeAtClaim(nextContext.mode)
-      }
-      await armSessionRunnerWiring(sid)
-      if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason
-      if (params.resume === true) await hydrateResumedRun()
-      void (options.initializeMcp?.() ?? Promise.resolve()).then(() => {
-        mcpInitialized = true
-        return liveMcp.refresh()
-      }).catch(logError)
-      awaitingSessionClaim = false
-      settleClearBirth()
-      sessionFactsHoldSpent = false
-      sessionFactsHold = null
-      releaseQueueUntilClaimed?.()
-      logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
-      if (heldNoticeWaits()) driver.kick()
+      })()
+      claimSettling = settling
+      void settling.finally(() => {
+        if (claimSettling === settling) claimSettling = null
+      })
       return { session_id: sid }
     },
     'session/set_effort': (params, ref) => {
@@ -2152,6 +2183,7 @@ export async function runHeadless(
       return { effort: requestedEffort, at: SEAT_VERB_AT(false) }
     },
     'session/facts': async () => {
+      if (claimSettling !== null) await claimSettling
       void checkBuildBehind()
       if (!sessionFactsHoldSpent) {
         sessionFactsHoldSpent = true

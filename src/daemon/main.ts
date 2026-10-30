@@ -431,6 +431,7 @@ async function daemonRun(args: string[]): Promise<void> {
         onChildReady: short => {
           if (!short.startsWith('concourse-w') || roster === null) return
           publishSeatFacts(short, undefined, roster)
+          requestSessionFacts(short, roster, { immediate: true })
         },
         onChildCrashed: short => {
           if (!short.startsWith('concourse-w') || roster === null) return

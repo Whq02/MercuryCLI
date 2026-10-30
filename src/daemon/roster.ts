@@ -94,6 +94,7 @@ interface LongLivedSeat {
   running?: { model: string; effort: string }
   paused?: SeatPause
   ready?: boolean
+  claimedAt?: number
   crashedAt?: number
 }
 
@@ -197,7 +198,7 @@ export class TaskRoster {
         if (h.longLived.paused !== undefined && !h.entry.outcome) e.paused = { ...h.longLived.paused }
         e.maxRespawns = h.longLived.cfg.maxRespawns
         e.ready = h.longLived.ready === true
-        e.spawnedAt = h.longLived.lastSpawnAt
+        e.spawnedAt = h.longLived.claimedAt ?? h.longLived.lastSpawnAt
         if (h.longLived.crashedAt !== undefined) e.crashedAt = h.longLived.crashedAt
         const lastError = h.longLived.lastErrorText || lastStderrLine(h.longLived.stderrTail)
         if (lastError !== undefined && lastError !== '') e.lastError = lastError
@@ -506,15 +507,32 @@ export class TaskRoster {
   ): RunnerChildSpec | null {
     const h = this.handles.get(short)
     if (!h?.longLived) return null
-    h.longLived.spec = {
-      ...h.longLived.spec,
+    const ll = h.longLived
+    ll.spec = {
+      ...ll.spec,
       model: patch.model,
       effort: patch.effort,
       respawnExtraArgv: [...patch.respawnExtraArgv],
       permissionMode: patch.permissionMode,
     }
-    if (h.longLived.running) h.longLived.running = { model: patch.model, effort: patch.effort }
-    return h.longLived.spec
+    if (ll.running) ll.running = { model: patch.model, effort: patch.effort }
+    const connection = ll.connection
+    if (connection !== undefined && !connection.closed) {
+      ll.ready = false
+      ll.claimedAt = Date.now()
+      const generation = ll.spawnGeneration
+      void connection.sessionLoaded().then(loaded => {
+        if (!loaded || ll.connection !== connection || ll.spawnGeneration !== generation) return
+        ll.ready = true
+        logForDebugging(`[daemon] ${short}: the claimed session is loaded after ${Math.round(connection.loadMs / 1000)} s`)
+        try {
+          this.opts.onChildReady?.(short)
+        } catch (e) {
+          logForDebugging(`[daemon] onChildReady(${short}) hook threw (ignored): ${e}`)
+        }
+      })
+    }
+    return ll.spec
   }
 
   onDispatchTick(short: string, delivered: number): void {
@@ -596,6 +614,7 @@ export class TaskRoster {
     ll.clearInFlight = false
     ll.lastErrorText = undefined
     ll.ready = false
+    ll.claimedAt = undefined
     ll.crashedAt = undefined
 
     ll.connection?.close('the seat was relaunched')

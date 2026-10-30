@@ -12,8 +12,10 @@ export function slowBootMarkMs(marks: number): number {
   return SLOW_BOOT_FIRST_MARK_MS * 2 ** marks
 }
 
-function slowBootLine(elapsedMs: number): string {
-  return `the runner has not answered initialize after ${Math.round(elapsedMs / 1000)} s — waiting while it lives`
+type SlowMarkWait = 'answered initialize' | 'loaded its claimed session'
+
+function slowBootLine(elapsedMs: number, wait: SlowMarkWait = 'answered initialize'): string {
+  return `the runner has not ${wait} after ${Math.round(elapsedMs / 1000)} s — waiting while it lives`
 }
 
 export type Verb = Exclude<HostRequestName, 'initialize'>
@@ -45,6 +47,8 @@ export class RunnerConnection implements RunnerDoor {
   readonly startedAt: number
   private readonly hooks: RunnerConnectionHooks
   private bootMark: ReturnType<typeof setTimeout> | null = null
+  private loaded: Promise<boolean> = Promise.resolve(true)
+  private loadStartedAt: number | null = null
 
   constructor(ends: RunnerEnds, capabilities: Capabilities, hooks: RunnerConnectionHooks) {
     this.hooks = hooks
@@ -76,13 +80,13 @@ export class RunnerConnection implements RunnerDoor {
       .finally(() => this.clearBootMark())
   }
 
-  private armBootMark(marks: number): void {
-    const due = this.startedAt + slowBootMarkMs(marks) - Date.now()
+  private armBootMark(marks: number, since: number = this.startedAt, wait: SlowMarkWait = 'answered initialize'): void {
+    const due = since + slowBootMarkMs(marks) - Date.now()
     this.bootMark = setTimeout(() => {
       this.bootMark = null
       if (this.peer.closed) return
-      this.hooks.log(slowBootLine(Date.now() - this.startedAt))
-      this.armBootMark(marks + 1)
+      this.hooks.log(slowBootLine(Date.now() - since, wait))
+      this.armBootMark(marks + 1, since, wait)
     }, Math.max(0, due))
     this.bootMark.unref?.()
   }
@@ -94,6 +98,29 @@ export class RunnerConnection implements RunnerDoor {
 
   get bootMs(): number {
     return Date.now() - this.startedAt
+  }
+
+  get loadMs(): number {
+    return this.loadStartedAt === null ? 0 : Date.now() - this.loadStartedAt
+  }
+
+  sessionLoaded(): Promise<boolean> {
+    const since = Date.now()
+    this.loadStartedAt = since
+    this.clearBootMark()
+    this.armBootMark(0, since, 'loaded its claimed session')
+    const loaded = this.peer
+      .request('session/facts', {}, { deadlineMs: null })
+      .then(
+        () => true,
+        (error: unknown) => {
+          this.hooks.log(`the runner did not load its claimed session: ${error instanceof Error ? error.message : String(error)}`)
+          return false
+        },
+      )
+      .finally(() => this.clearBootMark())
+    this.loaded = loaded
+    return loaded
   }
 
   get closed(): boolean {
@@ -115,6 +142,7 @@ export class RunnerConnection implements RunnerDoor {
   async deliver(row: InputRow): Promise<boolean> {
     if (this.peer.closed) return false
     if ((await this.initialized) === null) return false
+    if (!(await this.loaded)) return false
     try {
       const answer = await this.peer.request('queue/add', row)
       if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
