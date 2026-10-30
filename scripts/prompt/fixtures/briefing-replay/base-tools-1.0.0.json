@@ -1,0 +1,775 @@
+[
+ {
+  "name": "Crewmate",
+  "description": "Launch a crewmate to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:\n\n- mercury-crew: Mercury's crew agent, the default for delegated work of every kind: open-ended research and keyword or file hunts, multi-step changes, running and checking commands, and carrying a brief — a design, a review, a verification — to its end with the session's full tool set. Hand it the objective, the context it arrives without, and whether it may write. (Tools: *)\n- mercury-scout: Fast read-only repository recon: locating files by pattern, searching code for keywords, and answering questions about how something works — with paths, line numbers, and excerpts as evidence. State a thoroughness level: \"quick\" for a first solid hit, \"medium\" for moderate exploration, \"very thorough\" for multiple locations and naming conventions. Examples: <example>Find every file that registers a flag → quick file location by pattern.</example> <example>Search for where retry backoff is computed → keyword search across code.</example> <example>How does session restore decide which transcript to load? → a how-it-works question answered from read evidence.</example> (Tools: read-only — Read, Glob, Grep, a read-only shell, and every other tool only in the form that reads)\n\nSpecify `crewmate_type` to select an agent; omitting it gives mercury-crew.\n\nLaunch: brief a new crewmate with the objective, evidence, boundaries, acceptance criteria and whether to implement or research. Use direct tools for known-file reads or small searches.\nBackground: run_in_background returns immediately; completion notifies you. Do not poll. Foreground waits for the report when your next step needs it. Launch independent crewmates together.\nIsolation: isolation=\"worktree\" needs a repository or configured hook. cwd must exist; starting outside this session's folder asks. Worktrees survive unlocked; nothing is discarded automatically.\nModel and effort: follow the operator's choice, never downgrade to obtain read-only scoping. The child receives its declared tools, not the parent conversation; session-owned processes end with it.\nResults: relay a concise summary; verify load-bearing prose claims. A valid structured output passed its schema; require evidence fields where needed, not redundant rereads.\nFull usage notes arrive when loaded or first used.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "description": {
+     "type": "string",
+     "description": "A short (3-5 word) summary of the task"
+    },
+    "prompt": {
+     "type": "string",
+     "description": "The task briefing handed to the crewmate"
+    },
+    "crewmate_type": {
+     "description": "Which crewmate type to run. Omitted ⇒ the mercury-crew crewmate.",
+     "type": "string"
+    },
+    "model": {
+     "description": "Model override: exact id or family word ([1m] selects the 1M variant; your own family keeps your exact model). Wins over the agent definition; omitted inherits yours. Read mercury://models for reachable ids, mercury://models/known if the signed-in provider's live list is unavailable. Family words use that family's current default; never switch providers without the operator's word. All engines keep this harness's tools. The full manual lists every alias and fallback.",
+     "type": "string"
+    },
+    "effort": {
+     "description": "Reasoning effort for this crewmate: low | medium | high | xhigh | max. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never your own level. A level the crewmate's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.",
+     "type": "string",
+     "enum": [
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+     ]
+    },
+    "run_in_background": {
+     "description": "Launch asynchronously: returns an acknowledgement now and a completion notification later.",
+     "type": "boolean"
+    },
+    "name": {
+     "description": "Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.",
+     "type": "string"
+    },
+    "isolation": {
+     "description": "Run the crewmate in a temporary git worktree.",
+     "type": "string",
+     "const": "worktree"
+    },
+    "worktree_at": {
+     "description": "With isolation 'worktree': pin the worktree to this commit, detached — the crewmate reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
+     "type": "string"
+    },
+    "cwd": {
+     "description": "The absolute directory the crewmate starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder.",
+     "type": "string"
+    },
+    "review_receipt": {
+     "description": "Launch a review of a committed change: with isolation 'worktree' and worktree_at naming the reviewed commit, the absolute path of an existing Markdown report outside that worktree whose \"## Review\" section is the crewmate's one permitted write. The crewmate reads the frozen commit, runs confined bun/bash verification under scripts (and bun run typecheck) with sources read-only, writes its findings into that section and ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>. Name the job and any rules document in the prompt.",
+     "type": "string"
+    },
+    "output_schema": {
+     "description": "JSON Schema for the final answer, submitted through a StructuredOutput tool that checks it. The result opens with <structured status=\"valid\"> and the checked JSON; \"missing\" or \"invalid\" means none passed.",
+     "type": "object",
+     "propertyNames": {
+      "type": "string"
+     },
+     "additionalProperties": {}
+    },
+    "schema_mode": {
+     "description": "With output_schema: 'strict' fails the call when none passed; 'permissive' (default) returns the prose under status \"missing\" or \"invalid\".",
+     "type": "string",
+     "enum": [
+      "permissive",
+      "strict"
+     ]
+    }
+   },
+   "required": [
+    "description",
+    "prompt"
+   ]
+  }
+ },
+ {
+  "name": "Bash",
+  "description": "Runs one shell command and returns its output: stdout and stderr merged, in the order written. It comes back to you; the operator does not reliably see it, so put what they need in your reply.\n\nWhen `timeout` passes, the result shows the command's output so far and a task id.\n\nOutput: up to 30000 characters come back whole. A longer output is saved to a file, and you get its size, its path and about 2000 characters from its start and end. A smaller `max_output_chars` narrows that inline budget. A non-zero exit comes back as an error ending `Exited with code N`, except exit 1 when the last command is grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`: that is a result with a label such as `no matches found (exit code 1)`.\n\nBackground: when a `run_in_background: true` command ends, a notice with its exit code reaches you after your next tool result, or in a new turn if the session outlives your turn. It is stopped when the run that started it ends: a crewmate's run when the crewmate finishes, and a `mercury run` given its prompt at launch when your turn ends (unless a crewmate is still running); then no notice comes. The start result says which applies and how to wait. Never poll with repeated calls.\n\nShell: the working directory persists between calls; variables, functions and options do not, and each call starts from your profile (bash or zsh). Prefer absolute paths or `cwd` to `cd`, and double-quote a path with spaces.\n\nPrefer the dedicated tools when they fit: Glob to find files, Grep to search contents, Read to read a file, Edit to change one, Write to create one. Chain dependent commands with `&&` (`;` only when an earlier failure does not matter); a bare newline does not separate commands.",
+  "parameters": {
+   "$schema": "https://json-schema.org/draft/2020-12/schema",
+   "type": "object",
+   "properties": {
+    "command": {
+     "type": "string",
+     "description": "The command to execute"
+    },
+    "cwd": {
+     "description": "Run in this directory: absolute, or relative to the starting folder; the session directory stays.",
+     "type": "string"
+    },
+    "timeout": {
+     "description": "Milliseconds the call waits (default 120000, max 600000). When it passes, the command moves to the background and keeps running; a `sleep`-first command, or any command under the shell engine, is killed instead.",
+     "type": "number"
+    },
+    "description": {
+     "description": "What the command does, in five to ten words of active voice, shown to the operator: for example \"List files in the current directory\". Do not use the words \"complex\" or \"risk\".",
+     "type": "string"
+    },
+    "run_in_background": {
+     "description": "Start the command and return at once with a task id and an output file; the tool description says when its end is reported and when it is stopped.",
+     "type": "boolean"
+    },
+    "inherit_session_env": {
+     "description": "Set to true to hand the command the session's own MERCURY_* stamps (the values Mercury wrote on this process); by default they are scrubbed, since a proof or a build must not see them.",
+     "type": "boolean"
+    },
+    "max_output_chars": {
+     "description": "Inline character budget: a longer output comes back as its head and tail around a notice of the cut. Default and cap 30000, floor 512 (a value outside is clamped, and the result says so). Ignored by run_in_background.",
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    }
+   },
+   "required": [
+    "command"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Glob",
+  "description": "- Find files by name pattern at any repo scale\n- Understands glob patterns (\"**/*.js\", \"src/**/*.ts\")\n- Answers with matching paths, newest modification first\n- Ignore files apply; the result ends with a count of the matches they hid — name an ignored folder as the path to search inside it",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "pattern": {
+     "type": "string",
+     "description": "The glob expression files must match"
+    },
+    "path": {
+     "description": "Directory the search runs in: a real directory path, or left out for the current working directory — never \"undefined\" or \"null\".",
+     "type": "string"
+    }
+   },
+   "required": [
+    "pattern"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Grep",
+  "description": "Content search across the tree, powered by ripgrep\n\nUsage:\n- Pattern dialect: ripgrep's, not grep's — literal braces need escaping (`interface\\{\\}` reaches `interface{}` in Go code); lookaround and backreferences fall back to PCRE2\n- `literal: true` matches the pattern as exact text (rg -F): `foo(bar[0])`, `$VAR` or `a.b` need no escaping\n- PDFs and office/EPUB/RTF documents are searched as extracted text under Read permissions, with page or section labels. A folder search extracts at most 20 documents and counts skipped files; narrow path or glob for the rest. Type and glob filters apply to documents too.\n  - Semantic shortcut: for a SYMBOL question (definition, references, callers, implementations) LspRead answers directly (goToDefinition · findReferences · incomingCalls) instead of text matching; for code by its shape, AstSearch matches the parse tree rather than the text.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "pattern": {
+     "type": "string",
+     "description": "The regex to hunt for inside file contents"
+    },
+    "path": {
+     "description": "Where to search — a file or directory (rg PATH); the current working directory when omitted.",
+     "type": "string"
+    },
+    "glob": {
+     "description": "Restrict the search to files matching this glob (rg --glob), e.g. \"*.js\" or \"*.{ts,tsx}\"",
+     "type": "string"
+    },
+    "output_mode": {
+     "description": "What comes back: \"files_with_matches\" (the default) lists hit paths, \"content\" prints the matching lines, \"count\" tallies matches.",
+     "type": "string",
+     "enum": [
+      "content",
+      "files_with_matches",
+      "count"
+     ]
+    },
+    "-B": {
+     "description": "Context lines printed before each hit (rg -B; \"content\" mode only).",
+     "type": "number"
+    },
+    "-A": {
+     "description": "Context lines printed after each hit (rg -A; \"content\" mode only).",
+     "type": "number"
+    },
+    "-C": {
+     "description": "Context lines printed both sides of each hit (rg -C; \"content\" mode only).",
+     "type": "number"
+    },
+    "context": {
+     "description": "Same as -C: surrounding context lines per hit (\"content\" mode only).",
+     "type": "number"
+    },
+    "-n": {
+     "description": "Prefix output with line numbers (rg -n; \"content\" mode only). On by default.",
+     "type": "boolean"
+    },
+    "-i": {
+     "description": "Match case-insensitively (rg -i)",
+     "type": "boolean"
+    },
+    "type": {
+     "description": "Search only one file type (rg --type) — js, py, rust, go, java and the like; cheaper than a glob for standard types.",
+     "type": "string"
+    },
+    "head_limit": {
+     "description": "Cap the output at the first N lines/entries (default 250); applies in every output mode; 0 lifts the cap.",
+     "type": "number"
+    },
+    "offset": {
+     "description": "Skip this many lines/entries before the head_limit window applies (paging). Default 0.",
+     "type": "number"
+    },
+    "multiline": {
+     "description": "Let patterns span line boundaries, with . matching newlines (rg -U --multiline-dotall). Off by default.",
+     "type": "boolean"
+    },
+    "literal": {
+     "description": "Match the pattern as exact text, not a regex (rg -F) — for code with regex characters such as foo(bar[0]), $VAR or a.b, nothing escaped. Off by default.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "pattern"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Read",
+  "description": "Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.\nImages return OCR text, or an installation remedy when no engine is available. PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table).\nDirectories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.\noutline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "file_path": {
+     "type": "string",
+     "description": "Absolute path of the file to open"
+    },
+    "ocr": {
+     "description": "For an image, return recognised text instead of the picture. Automatic on models without image input; scanned PDF pages use OCR when read as text.",
+     "type": "boolean"
+    },
+    "lossless": {
+     "description": "With offset + limit or ranges, show complete text lines within the existing total output budget.",
+     "type": "boolean"
+    },
+    "offset": {
+     "description": "The line number reading starts from (a negative integer -N starts N lines from the end of the file); pass it only when the whole file is too large for a single read",
+     "type": "integer",
+     "minimum": -9007199254740991,
+     "maximum": 9007199254740991
+    },
+    "limit": {
+     "description": "The maximum number of lines to return; pass it only when the whole file is too large for a single read.",
+     "type": "integer",
+     "exclusiveMinimum": 0,
+     "maximum": 9007199254740991
+    },
+    "ranges": {
+     "description": "Optional list of up to 32 1-based line ranges to read in one call (e.g., [\"1-20\", \"85-100\", \"-15\"]), each keeping its continuation mark.",
+     "maxItems": 32,
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "pages": {
+     "description": "Page range for PDF files (e.g., \"2-6\", \"9\", \"12-24\"). Only applicable to PDF files. Maximum 20 pages per request.",
+     "type": "string"
+    },
+    "scale": {
+     "description": "Upscale an image crop by this factor before reading it, for example 2. Requires crop; the existing image output budget still applies.",
+     "type": "number",
+     "minimum": 1
+    },
+    "crop": {
+     "description": "For an image: a box [x1, y1, x2, y2] in the original pixels, cut out before any downscale so small text stays crisp — zoom into a screenshot by re-reading it with a box; refused when it reaches outside the image or is inverted.",
+     "minItems": 4,
+     "maxItems": 4,
+     "type": "array",
+     "items": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "outline": {
+     "description": "Set true to return a structural outline (signatures kept, function and method bodies elided, original line numbers preserved) using the vendored tree-sitter grammar for the file type. Off, the output is the full window.",
+     "type": "boolean"
+    },
+    "line_anchors": {
+     "description": "Set true to stamp each text line prefix with its content anchor (\"N#hhhh\") — the copyable address for anchor-qualified Edit hunks. Off, the output is the plain numbered form.",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "file_path"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Edit",
+  "description": "Edit a previously read file. Supply old_string+new_string (unique exact match, or replace_all), anchored hunks, append, or section+new_string/append. Preserve indentation; never include Read's line-number prefix. Read coverage follows current content: stale or unread edits refuse without writing and name the recovery. expected_anchor is Read's bare fa:… or ra:… value. append needs no prior read; section names an exact unique Markdown heading.\nSuccess returns the changed lines with context; those count as read, so do not reread just to check the edit. New parse errors are reported. - Semantic shortcut: cross-file renames belong to LspRename (load it with ToolSearch).\nFull usage notes arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "file_path": {
+     "type": "string",
+     "description": "The absolute path to the file to modify"
+    },
+    "old_string": {
+     "description": "The text to replace (always sent together with new_string)",
+     "type": "string"
+    },
+    "new_string": {
+     "description": "The text to replace it with (must be different from old_string; required whenever old_string is sent — \"\" deletes the text)",
+     "type": "string"
+    },
+    "replace_all": {
+     "description": "Replace all occurences of old_string (default false)",
+     "default": false,
+     "type": "boolean"
+    },
+    "expected_anchor": {
+     "description": "The staleness anchor from your most recent Read of this file — carry the parenthesised \"(anchor: …)\" value across exactly",
+     "type": "string"
+    },
+    "hunks": {
+     "description": "Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless every hunk is anchor-qualified (\"12#ab3f\" from a line_anchors read — then the line anchors are the staleness contract).",
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "lines": {
+        "type": "string",
+        "description": "A 1-based line number (\"12\"), inclusive range (\"12-18\"), or anchor-qualified spelling copied exactly from a line_anchors read (\"12#ab3f\", \"12#ab3f-18#9c2e\"). Anchor-qualified endpoints are verified against the current content: a drifted line refuses and the refusal answers the current anchors — re-aim from those, never retype content."
+       },
+       "replace": {
+        "type": "string",
+        "description": "The replacement body (\"\" deletes the range; with insert, the inserted body)"
+       },
+       "insert": {
+        "description": "Insert relative to the single anchor line instead of replacing it",
+        "type": "string",
+        "enum": [
+         "before",
+         "after"
+        ]
+       }
+      },
+      "required": [
+       "lines",
+       "replace"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "append": {
+     "description": "Text to add at the end of the file, on its own line (the file is created when absent); no prior read needed. With `section`, the text lands at the end of that section instead. Mutually exclusive with old_string/new_string/hunks.",
+     "type": "string"
+    },
+    "section": {
+     "description": "A Markdown heading line, exactly as it stands in the file (\"## Checks\"), naming the section to edit: the heading through the line before the next heading of the same or a higher level. With new_string the whole section (heading included) becomes new_string; with append the text is added inside the section. The heading must occur once. Mutually exclusive with old_string/hunks.",
+     "type": "string"
+    }
+   },
+   "required": [
+    "file_path"
+   ],
+   "additionalProperties": false,
+   "description": "One of four shapes: old_string + new_string (replace the text; both required together, replace_all rewrites every occurrence) · hunks (line-addressed hunks against the anchored snapshot) · append (text at the end of the file, or at the end of section) · section + new_string (replace the Markdown section named by section)"
+  }
+ },
+ {
+  "name": "Write",
+  "description": "Puts the given content on disk at the path you name.\n\nUsage:\n- An existing file at the path is overwritten in place.\n- Overwriting? Read has to have read the file first — an unread overwrite fails.\n- Edit sends only the diff; this tool sends the entire file, so it is for new files and complete rewrites.\n- A newly introduced syntax error in a supported source file or JSON/YAML/TOML is reported after writing when no LSP covers it; an unavailable grammar never blocks the write.\n- Documentation files (*.md, READMEs) appear only on an explicit request — never proactively.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "file_path": {
+     "type": "string",
+     "description": "Absolute path of the file to write"
+    },
+    "content": {
+     "type": "string",
+     "description": "The content to write to the file"
+    }
+   },
+   "required": [
+    "file_path",
+    "content"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Skill",
+  "description": "Run a skill inline in this conversation.\n\nBefore acting on a request, sweep the available skills for one that covers it. When the user says \"slash command\" or types \"/something\", they mean a skill — invoke it with this tool.\n\nWith arguments: skill: \"review\", args: \"src/server.ts\"\n\nThe available skills ride in system-reminder messages in this conversation.\n\nRules:\n- A matching skill comes before anything else: invoke it ahead of any other response to the task.\n- Naming a skill means invoking it through this tool — never one without the other.\n- A skill already running is never re-invoked.\n- Built-in CLI commands are not skills and cannot be invoked here.\n- If a <command-name> tag appears in the current turn, that skill is already loaded: follow its instructions directly instead of calling Skill again.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "skill": {
+     "type": "string",
+     "description": "The skill name (e.g. \"commit\", \"review\", or an extension-namespaced \"<extension>:skill\")"
+    },
+    "args": {
+     "description": "Optional arguments passed to the skill",
+     "type": "string"
+    }
+   },
+   "required": [
+    "skill"
+   ]
+  }
+ },
+ {
+  "name": "LspRead",
+  "description": "Read-only language-server queries; prefer over text search for symbols. goToDefinition, findReferences, hover, goToImplementation, typeDefinition, incomingCalls, outgoingCalls use filePath+line+character (1-based). documentSymbol uses filePath; workspaceSymbol uses query+limit, with optional filePath selecting its server. diagnostics uses paths or filePath: check edited files. serverStatus reports server availability and failures, optionally by filePath. Other arguments are ignored.\nChanges use LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction, LspFormat or LspRequest. After three server failures, retry only when a named file changes, the server restarts or the reported time passes. Full usage notes arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "operation": {
+     "type": "string",
+     "enum": [
+      "goToDefinition",
+      "findReferences",
+      "hover",
+      "goToImplementation",
+      "typeDefinition",
+      "incomingCalls",
+      "outgoingCalls",
+      "documentSymbol",
+      "workspaceSymbol",
+      "diagnostics",
+      "serverStatus"
+     ],
+     "description": "The question; the description lists the arguments each operation reads"
+    },
+    "filePath": {
+     "type": "string",
+     "description": "Absolute path of the file"
+    },
+    "line": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Position operations: the symbol's 1-based line"
+    },
+    "character": {
+     "type": "integer",
+     "minimum": 1,
+     "description": "Position operations: the symbol's 1-based character on that line"
+    },
+    "query": {
+     "type": "string",
+     "description": "workspaceSymbol: a symbol name or part of one"
+    },
+    "limit": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 200,
+     "description": "workspaceSymbol: the most symbols to return (default 50)"
+    },
+    "paths": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 50,
+     "description": "diagnostics: files or directories, at most 50"
+    }
+   },
+   "required": [
+    "operation"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Test",
+  "description": "Prefer this to Bash for structured test results, exact failure reruns and durable records. discover lists test nodes or runner profiles; run selects the suite, path, node, changed files or an exact profile; rerunFailed repeats only recorded failures; debug requires node and optionally file+lines, leaving Debug session \"test\" open; report reads latest or runId. Python uses pytest/unittest; manifests select node-test/vitest/jest/cargo/go. Ambiguity and missing debuggers are reported, not guessed.\nExecution follows permissions and returns argv, counts, typed failures, diagnostics and mercury://test/run/<id>; /latest and /failures track the newest run. Read spilled output by its artifact. Trust structured records when verdictNote reports an exit-code disagreement. Zero matched tests is neither a pass nor a failure: choose a discover result. Prefer run, fix, rerunFailed. Full selection and debugger notes arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "op": {
+     "type": "string",
+     "enum": [
+      "discover",
+      "run",
+      "rerunFailed",
+      "debug",
+      "report"
+     ],
+     "description": "The test operation to perform"
+    },
+    "framework": {
+     "description": "Force a framework. Default: python (pytest when detected+importable, else unittest) in python projects; otherwise the single manifest-declared runner (package.json → node-test/vitest/jest · Cargo.toml → cargo · go.mod → go); an ambiguous project names its options instead of guessing",
+     "type": "string",
+     "enum": [
+      "pytest",
+      "unittest",
+      "node-test",
+      "vitest",
+      "jest",
+      "cargo",
+      "go"
+     ]
+    },
+    "path": {
+     "description": "run: limit to one test file/directory (a selection of one path). A file or folder outside the session project names another project: discover, run, rerunFailed, debug and report then read the project that path lies in (its nearest manifest or Python root) and say which they read",
+     "type": "string"
+    },
+    "node": {
+     "description": "run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required — the test to debug (node-test, vitest, jest: file::name, or a bare name the latest run's case rows place · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)",
+     "type": "string"
+    },
+    "changed": {
+     "description": "run: focus on the working tree's changed files via the runner's own related-test machinery (vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; cargo declines honestly)",
+     "type": "boolean"
+    },
+    "profile": {
+     "description": "run: an exact runner-profile id (rp-… from op:\"discover\") — the explicit runner/target override",
+     "type": "string"
+    },
+    "session": {
+     "description": "debug: the Debug-tool session name to create (default \"test\"; continue with the Debug tool)",
+     "type": "string"
+    },
+    "file": {
+     "description": "debug: source file for breakpoints",
+     "type": "string"
+    },
+    "lines": {
+     "description": "debug: breakpoint lines in file",
+     "type": "array",
+     "items": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991
+     }
+    },
+    "runId": {
+     "description": "report: a specific run id (default: the latest run)",
+     "type": "string"
+    }
+   },
+   "required": [
+    "op"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "Eval",
+  "description": "Run computation in a retained py or js runtime: data, numbers, plots or tool results that code must combine. Use Bash/Read/Edit directly for shell commands, builds, tests and ordinary file work. One call is one cell, ordered within a message; state is per agent/language/cwd, reaped after 15 minutes idle.\n- `py` — Python 3.15.0 (python3)\n- `js` — Node v24.21.0\nJS has top-level await; Python helpers are synchronous. Helpers: tool.Name (JS object, Python keywords), tool.attempt, agent, completion, parallel, pipeline, display/display_markdown/display_json/display_image, read_file/write_file, env. Tool calls keep all permissions; never retry a denial. Bash returns {code,stdout,stderr}, nonzero is a value; stdout is the full interleaved capture. JS read_file needs await.\nJS declarations/imports persist; module/exports/__dirname/__filename/import.meta are absent. An ordinary throw keeps prior bindings; cancellation keeps Python state but resets JS. timeoutSeconds excludes bridge/permission time; cut output names its full file. Full helper signatures and sample formats arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "language": {
+     "type": "string",
+     "enum": [
+      "py",
+      "js"
+     ],
+     "description": "The retained runtime this cell runs in."
+    },
+    "code": {
+     "type": "string",
+     "minLength": 1,
+     "description": "The cell source. State persists to your next cell in this language."
+    },
+    "title": {
+     "description": "Short human title for the cell card.",
+     "type": "string"
+    },
+    "timeoutSeconds": {
+     "description": "Runtime budget in seconds: default 30, at most 600 (a larger value runs at 600 and the result says so); 0 disables; bridge and permission time never counts.",
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 9007199254740991
+    },
+    "reset": {
+     "description": "Recreate this language's kernel first (the other language keeps its state).",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "language",
+    "code"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "AstSearch",
+  "description": "Use this over Grep to find code by syntax shape, not text; strings and comments do not match. pattern is a complete node, e.g. \"$FN($$$ARGS)\"; wrap fragments in their container and include declared return types. $NAME captures one node; $$$NAME captures siblings; $_ and $$$ do not capture. Names are uppercase letters/digits/underscore; repeated names require identical code. Whitespace is immaterial.\npath scopes a file/directory; glob is relative to it. lang selects the grammar, otherwise extensions decide. Ignored/build/dependency folders are skipped unless named in path; missing grammars and parse failures are reported. Results give file:line:col and captures; limit+offset page, mode:\"count\" counts.\nFull grammar and usage notes arrive on discovery or first use.",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "pattern": {
+     "type": "string",
+     "description": "The structural pattern: code in the target language with meta-variables — $NAME for one node, $$$NAME for a sequence, e.g. \"$FN($$$ARGS)\" or \"if ($COND) { $$$BODY }\""
+    },
+    "path": {
+     "description": "Where to search — a file or a directory; the current working directory when omitted.",
+     "type": "string"
+    },
+    "glob": {
+     "description": "Restrict the search to files matching this glob, relative to path, e.g. \"**/*.ts\" or \"src/**/*.py\"; {a,b} lists alternatives: \"**/*.{ts,tsx}\"",
+     "type": "string"
+    },
+    "lang": {
+     "description": "Force one language instead of detecting it per file from the extension (typescript, python, go, rust, …)",
+     "type": "string"
+    },
+    "mode": {
+     "description": "\"matches\" (the default) lists each match with its captures; \"count\" tallies matches per file",
+     "type": "string",
+     "enum": [
+      "matches",
+      "count"
+     ]
+    },
+    "limit": {
+     "description": "Matches to return (default 50, max 200); the rest is counted, never dropped silently.",
+     "type": "number"
+    },
+    "offset": {
+     "description": "Matches to skip before the window (paging). Default 0.",
+     "type": "number"
+    }
+   },
+   "required": [
+    "pattern"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "ChangeSet",
+  "description": "Use this over Edit when the same change spans several files: one coordinated review and apply.\n\nAtomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.\n\nOperations:\n1. { op: \"apply\", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.\n2. { op: \"preview\", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: \"apply\", plan_id: \"cs-…\" }. A drifted file refuses the whole apply and names the Read that refreshes its anchor.\n3. { op: \"status\", plan_id } — plan state + per-file freshness.\n4. { op: \"discard\", plan_id } — retire a prepared plan.\n\nEach changes[] member targets one existing text file with the Edit vocabulary:\n  { file_path, expected_anchor (required — the \"(anchor: …)\" value from your Read), hunks: [{ lines: \"N\" | \"N-M\", replace, insert?: \"before\"|\"after\" }] or edits: [{ old_string, new_string, replace_all? }], op?: \"edit\" | \"delete\" | \"move\", new_path? }\nHunks are 1-based against the anchored snapshot and must be disjoint; \"\" deletes the range; insert takes a single anchor line. Edits match the same snapshot, each old_string occurring once unless replace_all, and must address disjoint text; a member carries hunks or edits, not both. op \"delete\" removes the file (neither); op \"move\" renames it to new_path, which must not exist, after any hunks or edits. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or expected_anchor from a full Read all count.\n\nThe contract:\n· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;\n· a normal apply reaches the complete planned state, verified by reread;\n· a midway interruption is journaled and deterministically reconciled at the next boot;\n· if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.\n\nAlready-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.\n\nBounds (an exceeded bound names the limit and the smallest recovery): 16 files/set · 32 hunks/file · 128 hunks/set · 4MB staged content/set · 16 retained plans · 30-minute plan lifetime.\n\nNot this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash).",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "op": {
+     "type": "string",
+     "enum": [
+      "preview",
+      "apply",
+      "status",
+      "discard"
+     ],
+     "description": "The change-set operation"
+    },
+    "changes": {
+     "description": "preview / apply: the file members (one per existing text file)",
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "file_path": {
+        "type": "string",
+        "description": "Absolute path to an EXISTING text file"
+       },
+       "expected_anchor": {
+        "type": "string",
+        "description": "REQUIRED staleness anchor from a prior Read of this file (the \"(anchor: …)\" value)"
+       },
+       "hunks": {
+        "description": "Disjoint line-addressed hunks against the anchored snapshot (the Edit hunk vocabulary); an edit member (op \"edit\", the default) carries hunks or edits, a move optionally, a delete neither",
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "lines": {
+           "type": "string",
+           "description": "1-based original line (\"12\") or inclusive range (\"12-18\") of the anchored snapshot"
+          },
+          "replace": {
+           "type": "string",
+           "description": "Replacement body (\"\" deletes the range; with insert, the inserted body)"
+          },
+          "insert": {
+           "description": "Insert relative to the single anchor line instead of replacing it",
+           "type": "string",
+           "enum": [
+            "before",
+            "after"
+           ]
+          }
+         },
+         "required": [
+          "lines",
+          "replace"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "edits": {
+        "description": "Exact-string edits against the anchored snapshot (the Edit old_string/new_string vocabulary), instead of hunks; each old_string must occur once unless replace_all",
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "old_string": {
+           "type": "string",
+           "description": "The text to replace, as the file spells it"
+          },
+          "new_string": {
+           "type": "string",
+           "description": "The text to replace it with (\"\" deletes the text)"
+          },
+          "replace_all": {
+           "description": "Replace all occurrences of old_string (default false)",
+           "type": "boolean"
+          }
+         },
+         "required": [
+          "old_string",
+          "new_string"
+         ],
+         "additionalProperties": false
+        }
+       },
+       "op": {
+        "description": "\"edit\" (default) applies the hunks or edits; \"delete\" removes the file (neither); \"move\" renames it to new_path after any hunks or edits",
+        "type": "string",
+        "enum": [
+         "edit",
+         "delete",
+         "move"
+        ]
+       },
+       "new_path": {
+        "description": "move: the absolute destination path, which must not exist",
+        "type": "string"
+       }
+      },
+      "required": [
+       "file_path",
+       "expected_anchor"
+      ],
+      "additionalProperties": false
+     }
+    },
+    "plan_id": {
+     "description": "apply / status / discard: a plan id (cs-…) from a prior preview",
+     "type": "string"
+    }
+   },
+   "required": [
+    "op"
+   ],
+   "additionalProperties": false
+  }
+ },
+ {
+  "name": "ToolSearch",
+  "description": "Load the full schemas of deferred tools so they become callable.\n\nDeferred tools are listed in <system-reminder> messages that begin \"Deferred tools:\", one name per line, optionally followed by a hint. Keyword search matches names and descriptions even when only names are listed. Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and admits each match: the result names the admitted tools, and from that request on their complete definitions are in your tool list, no different from the tools the prompt opened with. A tool already in your tool list needs no fetch: call it directly. A select that names a tool this session does not have loads nothing; the result names the miss.\n\nQuery forms:\n- `select:WebFetch,Sleep` — names spelled as the list spells them\n- `notebook jupyter` — keyword search\n- `+slack send` — \"slack\" must appear in the name; remaining terms only rank",
+  "parameters": {
+   "type": "object",
+   "properties": {
+    "query": {
+     "type": "string",
+     "description": "What to load: exact names as \"select:<name>,<name>\", or keywords ranked against the deferred roster."
+    },
+    "max_results": {
+     "default": 5,
+     "description": "Maximum number of results to return (default: 5)",
+     "type": "number"
+    }
+   },
+   "required": [
+    "query"
+   ]
+  }
+ }
+]

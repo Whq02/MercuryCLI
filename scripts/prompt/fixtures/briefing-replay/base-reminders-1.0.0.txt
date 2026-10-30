@@ -1,0 +1,72 @@
+<system-reminder>
+Deferred tools: offered in this session, but their definitions are not loaded. To call one, first load it with ToolSearch — query "select:<name>", or "select:<name>,<name>" for several — then call it.
+ApolloReview
+AskUserQuestion
+AstEdit
+Browser
+Checkpoint
+Computer
+ContextLeft
+Correct
+Debug
+Document
+EnterWorktree
+ExitWorktree
+Git
+Inspect
+Journey
+Launch
+LspCodeAction
+LspFormat
+LspMoveFile
+LspMoveSymbol
+LspRename
+LspRequest
+Monitor
+NotebookEdit
+Recall
+RecordConvention
+Reflect
+ResumeCrewmate
+Retain
+Rewind
+SendMessage
+Service
+Sleep
+Structure
+TaskStop
+Transaction
+WebFetch
+WebSearch
+Workflow
+</system-reminder>
+=====
+<system-reminder>
+# Working set
+
+## Skills
+
+The skills this session offers, run by name through the Skill tool:
+
+- update-config: Use this skill for any change to Mercury settings files: permission rules ("allow X"), environment variables ("set X=Y"), MCP server enablement, extension settings, and every event-driven automation ("whenever X, do Y" — that is a hook, and only a…
+- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and…
+- mercury-docs: Use when the user asks how to use Mercury itself (commands, scheduling, providers, hosting, headless runs, voice, restart): answered from the documentation that ships with this install, never from memory, even when a skill that does the thing exists.
+- extension-maker: Use when building or repairing a Mercury extension or catalogue. Not for installing or approving one for the operator.
+- mcp-smithy: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.
+- provider-apis: Use when building or changing a Mercury model-provider road, or choosing its request shapes, streaming, tools, caching or usage reader. Not for account sign-in, choosing a model in the UI or unrelated SDKs.
+- skill-forge: Use when writing or fixing a Mercury SKILL.md and its discovery rules. Not for /skillify session capture or extension packaging.
+- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future…
+- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled…
+- research: Use when researching papers or a document corpus and producing a cited report with document deliverables. Not for a quick factual lookup or editing application code.
+- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40…
+
+capsule-digest:<digest>
+</system-reminder>
+=====
+<system-reminder>
+# environment
+Is a git repository: Yes
+
+# currentDate
+Today's date is 2026-10-29.
+</system-reminder>

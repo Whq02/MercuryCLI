@@ -1,0 +1,7311 @@
+{
+ "source": "the 1.0.0 benchmark (48 Mercury runs, Flow and Sovereign, 8 tasks x 3 passes), every tool call the model emitted",
+ "calls": [
+  {
+   "run": "t1-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t1-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "append",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "append",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "append",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t2-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Grep",
+   "keys": [
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Grep",
+   "keys": [
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r2",
+   "name": "Grep",
+   "keys": [
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "append",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t3-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Grep",
+   "keys": [
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Grep",
+   "keys": [
+    "output_mode",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Grep",
+   "keys": [
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t3-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Grep",
+   "keys": [
+    "-C",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Grep",
+   "keys": [
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "glob",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Glob",
+   "keys": [
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Glob",
+   "keys": [
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "expected_anchor",
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "expected_anchor",
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "expected_anchor",
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Glob",
+   "keys": [
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path",
+    "limit",
+    "line_anchors",
+    "offset"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Grep",
+   "keys": [
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Grep",
+   "keys": [
+    "-i",
+    "-n",
+    "output_mode",
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path",
+    "limit"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description",
+    "timeout"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t4-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Eval",
+   "keys": [
+    "code",
+    "language",
+    "title"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Glob",
+   "keys": [
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "expected_anchor",
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Glob",
+   "keys": [
+    "path",
+    "pattern"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "cwd",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t5-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t6-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "expected_anchor",
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t6-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Glob",
+   "keys": [
+    "pattern"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t7-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercury-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "ChangeSet",
+   "keys": [
+    "changes",
+    "op"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r1",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r2",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Read",
+   "keys": [
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Write",
+   "keys": [
+    "content",
+    "file_path"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Edit",
+   "keys": [
+    "file_path",
+    "new_string",
+    "old_string",
+    "replace_all"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  },
+  {
+   "run": "t8-mercurysov-r3",
+   "name": "Bash",
+   "keys": [
+    "command",
+    "description"
+   ]
+  }
+ ]
+}
