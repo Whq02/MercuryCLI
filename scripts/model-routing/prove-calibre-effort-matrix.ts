@@ -249,7 +249,7 @@ function clearEffortEnv(): void {
   for (const [file, needle] of [
     ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
     ['src/components/MercuryFrame.tsx', '<EffortChip model={model} />'],
-    ['src/components/DeckPane.tsx', 'getDisplayedEffortLabel'],
+    ['src/components/DeckPane.tsx', '<EffortChip model={rawModel} />'],
     ['src/components/EffortIndicator.ts', 'getDisplayedEffortLabel'],
   ] as const) {
     check(`${file.split('/').pop()} prints the label channel`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
