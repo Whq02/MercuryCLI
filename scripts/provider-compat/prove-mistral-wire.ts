@@ -65,7 +65,7 @@ const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispa
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
-function params(model = 'mistral', effortValue: string | undefined = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
+function params(model = 'mistral', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,
     options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => ({}), agents: [], hasAppendSystemPrompt: false, mcpTools: [], effortValue, maxOutputTokensOverride: 512 } as never }
 }
@@ -92,9 +92,9 @@ try {
   check('cached input tokens and completion tokens settle once from the final chunk', usage?.input_tokens === 28 && usage.cache_read_input_tokens === 4 && usage.output_tokens === 103)
   check('a settled turn alone advances the readiness receipt', resolvePrimaryAgentBackend('mistral')?.readiness().state === 'ready')
   const off = await run(params('mistral-large-4', 'max', false))
-  check('thinking off sends reasoning_effort none and the reply carries no thinking block', captures.at(-1)?.body.reasoning_effort === 'none' && thinkingOf(off) === '' && textOf(off) === 'FIXTURE-SETTLED')
+  check('Large 4 thinking off sends documented low, not the old none spelling', captures.at(-1)?.body.reasoning_effort === 'low' && thinkingOf(off) === '' && textOf(off) === 'FIXTURE-SETTLED')
   await run(params('mistral-medium-3-5', 'low', true))
-  check('every thinking-on effort rung is the same vendor word on a two-word dial — low is never turned into none', captures.at(-1)?.body.reasoning_effort === 'high')
+  check('unsupported explicit efforts reach the provider unchanged rather than being reinterpreted', captures.at(-1)?.body.reasoning_effort === 'low')
   await run(params('codestral-2508', 'max', true))
   check('a model the vendor lists without reasoning sends no reasoning_effort at all', !('reasoning_effort' in captures.at(-1)!.body) && captures.at(-1)?.body.model === 'codestral-2508')
   await run(params('mistral-large-latest'))

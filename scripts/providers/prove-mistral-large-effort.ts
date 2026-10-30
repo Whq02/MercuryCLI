@@ -9,7 +9,7 @@ import type { Tool } from '../../src/Tool.js'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_TOOL_DEFER = '0'
-delete process.env.MERCURY_EFFORT
+delete process.env.MERCURY_EFFORT_LEVEL
 const models = ['mistral-large-4', 'mistral-large-4-0']
 const captures: Array<{ body: Record<string, any>; authorization: string | null }> = []
 let retry = false
