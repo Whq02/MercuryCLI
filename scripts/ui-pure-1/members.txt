@@ -84,3 +84,8 @@ prove-powershell-single-quote-literals.ts
 prove-transport-retry-silent.ts
 prove-image-row-numbers.ts
 prove-notice-way-out.ts
+prove-force-color-off.ts
+prove-vim-display-count.ts
+prove-vim-empty-lines.ts
+prove-vim-normal-line-bounds.ts
+prove-vim-word-line-end.ts
