@@ -105,7 +105,8 @@ export const DocumentTool = buildTool({
     }
     const targets = captureDestinations(input)
     const product = await renderDocument(input, io).catch(error => {
-      const message = error instanceof Error ? error.message : 'Document could not be read.'
+      const raw = error instanceof Error ? error.message : 'Document could not be read.'
+      const message = raw.startsWith('Input document to `PDFDocument.load` is encrypted.') ? 'The PDF is encrypted. Open it with its password in a PDF reader and save an unencrypted copy.' : raw
       throw new Error(input.source && !message.includes(input.source) ? `${input.source}: ${message}` : message)
     })
     io.signal.throwIfAborted()

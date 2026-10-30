@@ -31,6 +31,7 @@ function pageLines(items) {
   }).join('\n')
 }
 
+const encryptedMessage = 'The PDF is encrypted. Open it with its password in a PDF reader and save an unencrypted copy.'
 const diagnostics = []
 console.log = console.warn = (...args) => diagnostics.push(args.map(String).join(' '))
 try {
@@ -43,6 +44,7 @@ try {
     if (diagnostics.some(line => /Indexing all PDF objects/.test(line))) throw new Error('The PDF cross-reference table is damaged.')
     const metadata = {}
     const meta = await doc.getMetadata()
+    if (meta.info?.EncryptFilterName) throw new Error(encryptedMessage)
     for (const [key, value] of Object.entries(meta.info ?? {})) if (typeof value === 'string') metadata[key] = value
     const pages = []
     const imageOps = new Set(Object.entries(api.OPS).filter(([key]) => /paint.*Image/.test(key)).map(([, value]) => value))
@@ -59,5 +61,5 @@ try {
     parentPort.postMessage({ result: { pageCount: doc.numPages, pages, metadata }, diagnostics })
   } finally { await task.destroy() }
 } catch (error) {
-  parentPort.postMessage({ error: error?.name === 'InvalidPDFException' ? 'Invalid or damaged PDF structure.' : error instanceof Error ? error.message : 'PDF text extraction failed.' })
+  parentPort.postMessage({ error: error?.name === 'PasswordException' ? encryptedMessage : error?.name === 'InvalidPDFException' ? 'Invalid or damaged PDF structure.' : error instanceof Error ? error.message : 'PDF text extraction failed.' })
 }

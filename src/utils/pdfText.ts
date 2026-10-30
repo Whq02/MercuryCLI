@@ -56,7 +56,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   if (info.size > max) throw new Error(`The PDF file exceeds the ${max}-byte limit for text extraction.`)
   const bytes = await readFile(filePath, { signal: options.signal })
   const digest = createHash('sha256').update(bytes).digest('hex')
-  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v3-${digest}.json`)
+  const path = join(getToolResultsDir(), `pdf-text-6.4.299-v4-${digest}.json`)
   try {
     const cached = JSON.parse(await readFile(path, 'utf8')) as PdfTextDocument
     if (cached.pages.length === cached.pageCount && cached.pages.every(p => typeof p.text === 'string' && typeof p.hasTextLayer === 'boolean')) return cached
