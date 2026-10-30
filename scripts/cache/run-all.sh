@@ -7,7 +7,7 @@
 # gate-watch: src/services/providers/gemini/geminiPins.ts
 # gate-watch: src/services/providers/huggingface/huggingfacePins.ts
 # gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
-# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
+# gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatChatClient.ts
 # gate-watch: src/services/providers/openrouter/openrouterCatalogue.ts src/services/providers/providerUsage.ts
 # gate-watch: src/services/providers/qwen/qwenAccounts.ts
 # gate-watch: src/services/providers/callModelRouter.ts src/services/providers/credentialEnvSpellings.ts
