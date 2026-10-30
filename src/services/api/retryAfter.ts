@@ -54,7 +54,7 @@ export function retryAfterSaysNow(header: string | null | undefined, nowMs: numb
   const at = Date.parse(text)
   return Number.isFinite(at) && at <= nowMs
 }
-export function rateLimitResetDelayMs(value: string | null | undefined, nowMs = Date.now()): number | undefined {
+function rateLimitResetDelayMs(value: string | null | undefined, nowMs = Date.now()): number | undefined {
   if (!value?.trim()) return undefined
   const text = value.trim()
   const numeric = Number(text)

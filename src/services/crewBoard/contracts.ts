@@ -1,9 +1,9 @@
 import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 
-export type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'message' | 'notice'
-export type BoardAuthor = { sessionId: string; agentId: string; executionId: string }
-export type BoardRef = { uri: string; digest: string }
+type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'message' | 'notice'
+type BoardAuthor = { sessionId: string; agentId: string; executionId: string }
+type BoardRef = { uri: string; digest: string }
 export type BoardPost = {
   clientOpId: string
   kind: BoardKind

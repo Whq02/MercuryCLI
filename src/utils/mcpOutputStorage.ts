@@ -71,7 +71,7 @@ function normalizeMime(mimeType: string | undefined): string {
   return (mimeType.split(';')[0] ?? '').trim().toLowerCase()
 }
 
-export function extensionForMimeType(mimeType: string | undefined): string {
+function extensionForMimeType(mimeType: string | undefined): string {
   const type = normalizeMime(mimeType)
   const listed = MIME_EXTENSIONS.get(type)
   if (listed !== undefined) return listed

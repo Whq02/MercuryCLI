@@ -55,7 +55,7 @@ console.log(JSON.stringify({ event: 'done' }));
 `)
 }
 
-export function standInEngineSource(options: { sizedImages?: boolean } = {}): string {
+function standInEngineSource(options: { sizedImages?: boolean } = {}): string {
   return `import { createServer } from 'node:http';
 import { readdir, appendFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -102,7 +102,7 @@ process.on('SIGTERM', () => { server.close(); process.exit(0); });
 `
 }
 
-export function writeStandInEngine(runtime: string, options: { sizedImages?: boolean; patch?: (source: string) => string } = {}, platform: string = process.platform): string {
+function writeStandInEngine(runtime: string, options: { sizedImages?: boolean; patch?: (source: string) => string } = {}, platform: string = process.platform): string {
   const source = options.patch ? options.patch(standInEngineSource(options)) : standInEngineSource(options)
   if (platform !== 'win32') {
     const binary = join(runtime, 'sd-server')

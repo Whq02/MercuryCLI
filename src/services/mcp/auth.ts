@@ -223,7 +223,7 @@ function originOf(url: string | undefined): string | null {
   }
 }
 
-export function authFetchFor(serverName: string, serverConfig: McpServerConfig): FetchLike {
+function authFetchFor(serverName: string, serverConfig: McpServerConfig): FetchLike {
   const origin = originOf((serverConfig as RemoteServerConfig).url)
   let configured: Promise<Record<string, string>> | undefined
   return async (input, init) => {

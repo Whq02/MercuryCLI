@@ -3,7 +3,7 @@ import { constants } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { endProcessTree, registerProcessTreeGuard, type ProcessTreeKillReceipt } from '../processGroup.js'
 
-export const SHELL_PARENT_GUARD = '--tool-shell-parent'
+const SHELL_PARENT_GUARD = '--tool-shell-parent'
 
 type ShellLaunch = { file: string; args: string[]; detached?: boolean; windowsVerbatimArguments?: boolean }
 type GuardMessage = { kind: 'spawned'; pid: number } | { kind: 'spawn-error'; message: string; code?: string } | { kind: 'ended'; receipt: ProcessTreeKillReceipt }

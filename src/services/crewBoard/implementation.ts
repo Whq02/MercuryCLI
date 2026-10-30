@@ -5,7 +5,7 @@ import { open } from './store.js'
 import { existsSync } from 'node:fs'
 export { open }
 
-export const page: BoardModule['page'] = (record, before, thread) => {
+const page: BoardModule['page'] = (record, before, thread) => {
   if (!existsSync(record.path)) throw new Error('The saved board is no longer available.')
   const board = open(record.path, record.sessionId)
   try { return board.view(before, thread) } finally { board.close() }
@@ -34,7 +34,7 @@ const inputSchema = z.object({
   watch: z.boolean().optional().describe('Remember this task/file selection for relevant result and blocker notifications; no turn is started'),
 }).strict()
 
-export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
+function tool(host: BoardHost, store: () => BoardStore | null): Tool {
   return host.buildTool({
     name: 'CrewBoard',
     searchHint: 'read selected crew posts or post a question, answer, blocker or result to this wave',
