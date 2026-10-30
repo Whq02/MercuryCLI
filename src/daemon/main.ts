@@ -365,6 +365,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
     const stamps = { selfBuildTree: bootBuildTree, successorOf, handoverFrom }
     const refuse = (why: string): void => {
+      process.exitCode = 1
       // eslint-disable-next-line no-console
       console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered · ${FREE_THE_PLANE_WORDS}`)
     }
