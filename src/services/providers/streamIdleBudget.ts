@@ -397,7 +397,8 @@ export function createStreamIdleWatchdog(opts: {
     typeof opts.silentAfterHeadersMs === 'number' && opts.silentAfterHeadersMs > 0 && opts.silentAfterHeadersMs < timeoutMs
       ? opts.silentAfterHeadersMs
       : null
-  const createdAtMs = Date.now()
+  const createdAtMs = performance.now()
+  let scheduledAtMs = createdAtMs
   let lastActivityAtMs = createdAtMs
   let activity = 0
   let warnedForMs = -1
@@ -414,7 +415,13 @@ export function createStreamIdleWatchdog(opts: {
   function onStreamIdleDeadline(): void {
     timer = null
     if (stopped || fire !== null) return
-    const silentMs = Date.now() - lastActivityAtMs
+    const now = performance.now()
+    if (now - scheduledAtMs > 100) {
+      scheduledAtMs = now
+      timer = setTimeout(onStreamIdleDeadline, 0)
+      return
+    }
+    const silentMs = now - lastActivityAtMs
     const noBytes = fenceMs !== null && activity === 0 && silentMs >= fenceMs
     if (silentMs >= (activity === 0 ? initialTimeoutMs : timeoutMs) || noBytes) {
       fire = { silentMs, activity, noBytes }
@@ -433,13 +440,14 @@ export function createStreamIdleWatchdog(opts: {
   function arm(): void {
     const idleDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? activity === 0 ? initialTimeoutMs : timeoutMs : warningMs)
     const nextDeadlineAt = fenceMs !== null && activity === 0 ? Math.min(idleDeadlineAt, createdAtMs + fenceMs) : idleDeadlineAt
-    timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - Date.now()))
+    scheduledAtMs = nextDeadlineAt
+    timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - performance.now()))
   }
   arm()
   return {
     noteActivity() {
       const rearm = activity === 0 && initialTimeoutMs > timeoutMs && !stopped && fire === null
-      lastActivityAtMs = Date.now()
+      lastActivityAtMs = performance.now()
       activity++
       if (rearm) { clear(); arm() }
     },
@@ -451,7 +459,7 @@ export function createStreamIdleWatchdog(opts: {
       return fire
     },
     silentMs() {
-      return Date.now() - lastActivityAtMs
+      return performance.now() - lastActivityAtMs
     },
     guard<T>(pending: Promise<T>): Promise<T> {
       if (fire !== null) return Promise.reject(new StreamIdleTimeoutError(fire.silentMs, fire.noBytes))
