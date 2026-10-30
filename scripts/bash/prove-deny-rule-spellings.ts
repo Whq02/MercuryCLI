@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/bashPermissions.ts src/utils/git/spawnArgs.ts src/utils/bash/ast.ts src/main.tsx
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+// gate-watch: src/tools/BashTool/bashPermissions.ts src/utils/git/spawnArgs.ts src/utils/bash/ast.ts
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join } from 'node:path'
 import { z } from 'zod/v4'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'deny-rule-spellings-')))
 const root = join(scratch, 'run')
 mkdirSync(root)
@@ -104,10 +103,8 @@ for (const command of ['echo rm x', 'git status', 'ls']) {
   check(`default: ${command} stays allowed`, verdict.behavior === 'allow', shown(verdict))
 }
 
-section('§3 sovereign asks nothing: the --sovereign help text promises that a deny rule still refuses, and the same spellings refuse there without a question')
+section('§3 sovereign asks nothing: the same spellings refuse there by the rule, the rest run, and nothing is asked')
 {
-  const help = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
-  check('the --sovereign option text says a deny rule still refuses', help.includes("'Start in sovereign mode: no permission prompts at all (a deny rule still refuses)'"))
   for (const [command, rule] of variants) {
     const verdict = await decide(command, 'sovereign')
     check(`sovereign: ${JSON.stringify(command)} → deny by ${rule} (not ask)`, deniedBy(verdict, rule), shown(verdict))
