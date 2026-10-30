@@ -251,7 +251,11 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   openrouter: model => openrouterCataloguePricing(model),
   huggingface: model => huggingfaceFloorPricing(model),
-  local: () => ({ costs: COST_LOCAL_SERVER, basis: 'recorded' }),
+  local: model => {
+    const { localRecordFor } = require('../services/providers/local/localCatalogue.js') as typeof import('../services/providers/local/localCatalogue.js')
+    const record = localRecordFor(model)
+    return record === undefined || record.executionOrigin?.kind === 'remote' ? undefined : { costs: COST_LOCAL_SERVER, basis: 'recorded' }
+  },
   'openai-compat': () => undefined,
   mistral: model => recorded(engineTier(mistralDisplayPin(model))),
   nous: model => nousCataloguePricing(model),
