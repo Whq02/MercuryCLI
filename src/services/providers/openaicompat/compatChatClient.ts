@@ -1010,6 +1010,8 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>,
     out.push({ type: 'reasoning-delta', text: reasoning })
   } else if (typeof reasoningAlt === 'string' && reasoningAlt !== '') {
     out.push({ type: 'reasoning-delta', text: reasoningAlt })
+  } else if (typeof delta?.reasoning_text === 'string' && delta.reasoning_text !== '') {
+    out.push({ type: 'reasoning-delta', text: delta.reasoning_text })
   } else {
     const details = Array.isArray(delta?.reasoning_details) ? delta.reasoning_details : []
     for (const item of details) {
