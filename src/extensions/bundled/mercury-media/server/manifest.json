@@ -1,5 +1,5 @@
 {
-  "version": "0.2.8",
+  "version": "0.2.9",
   "runtimeTag": "master-1015-e41fbcf",
   "files": {
     "LICENSE": "e511c52dc56c1ea2013110c04e725c5d77a7ad1889587042835e97ad0c9388f9",
@@ -10,7 +10,7 @@
     "engine-host.js": "2eda423f8a70a944abb52a92b2b3e3dcd83fe5d5a0bdbc533f8cdf5da77dbb08",
     "media-memory": "b382a806d8e523bde963309ec1132578c1d46faf56c507e6286c31206949ca1d",
     "package.json": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae",
-    "remote-client.js": "e08f68694f0d8a165213a2a7181edd4a83151474ac4f822c471b42060d025166",
+    "remote-client.js": "2b25f99ddc245b438a31635526578ccd946c7f91fd24be20100edca2ed0121e7",
     "remote-server.js": "85766de8aa16a4dea46f9cb512829826e3ea97d7d83eef64d9c71f6ab9bfc102",
     "server.js": "1d49a36de501199b221262f673f4b7d74bc3a7b1e653d094514ebdca6d4ae713",
     "setup.js": "609fba41d449f5348187143fc4f72ff4f3342144fca5a60a894b517c888a4b01",
