@@ -1,7 +1,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, utimesSync } from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import envPaths from 'env-paths'
@@ -39,6 +39,7 @@ export type PythonAdapterResolution =
 
 const PROBE_TIMEOUT_MS = 8_000
 const CACHE_TTL_MS = 30_000
+export const PYCACHE_KEYS_KEPT = 4
 
 const UNAVAILABLE_REMEDY =
   'rebuild the artifact with the pinned adapter (bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts), ' +
@@ -61,9 +62,21 @@ function pycachePrefix(): string | null {
     const root = path.join(parent, buildKey)
     mkdirSync(root, { recursive: true })
     try {
-      for (const entry of readdirSync(parent)) {
-        if (entry !== buildKey) rmSync(path.join(parent, entry), { recursive: true, force: true })
-      }
+      const now = new Date()
+      utimesSync(root, now, now)
+      const others = readdirSync(parent)
+        .filter(entry => entry !== buildKey)
+        .map(entry => {
+          const full = path.join(parent, entry)
+          let usedAt = 0
+          try {
+            usedAt = statSync(full).mtimeMs
+          } catch {
+          }
+          return { full, usedAt }
+        })
+        .sort((a, b) => b.usedAt - a.usedAt)
+      for (const stale of others.slice(PYCACHE_KEYS_KEPT - 1)) rmSync(stale.full, { recursive: true, force: true })
     } catch {
     }
     pycachePrefixMemo = root
