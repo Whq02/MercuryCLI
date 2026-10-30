@@ -136,7 +136,7 @@ function capture(tag: string, scratch: string, cwd: string, sends: Send[], total
   const rows = 40
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, readyText, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, progressBudgetTicks: total, readyText, cols, rows, out }))
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     MERCURY_CONFIG_DIR: scratch,

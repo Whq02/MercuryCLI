@@ -173,6 +173,7 @@ if _pure_fixed_window:
 if _scale != 1:
     total = max(1, _scaled(total))
 argv, sends, out = cfg["argv"], cfg.get("sends", []), cfg["out"]
+progress_budget = _scaled(int(cfg.get("progressBudgetTicks", 0)))
 import signal as _signal
 import subprocess as _subprocess
 _child = {"pid": None, "fd": None, "entry": None}
@@ -593,6 +594,8 @@ else:
                 if send_payload:
                     os.write(fd, send_payload.encode())
                 send_receipts.append({"atTick": tick, "ts": int(time.time() * 1000)})
+                if progress_budget > 0 and nxt.get("requireAwait"):
+                    total = max(total, tick + progress_budget)
                 prev_send_tick = tick
                 send_await_seen_tick = None
                 send_stable_run = 0

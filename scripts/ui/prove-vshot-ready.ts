@@ -244,6 +244,29 @@ console.log('════ vshot observed-ready laws ════')
   check('13. REFUSAL: a killed capture without stderr still names status, signal, timeout and ceiling', ['exit=null', 'SIGTERM', 'ETIMEDOUT', '1234ms'].every(word => timedOut.includes(word)), timedOut)
 }
 
+{
+  const progressChild = (finish: boolean): string[] => ['python3', '-u', '-c', [
+    'import time',
+    'print("FIRST-MARK", flush=True)',
+    'input()',
+    'time.sleep(2.5)',
+    'print("SECOND-MARK", flush=True)',
+    'input()',
+    ...(finish ? ['time.sleep(2.5)', 'print("FINAL-MARK", flush=True)', 'time.sleep(60)'] : ['while True: print("unrelated output", flush=True); time.sleep(0.05)']),
+  ].join('\n')]
+  const sends = [
+    { requireAwait: true, awaitText: 'FIRST-MARK', data: '\r' },
+    { requireAwait: true, awaitText: 'SECOND-MARK', data: '\r' },
+  ]
+  const fixed = capture({ total: 20, readyText: 'FINAL-MARK', sends, argv: progressChild(true) })
+  check('14. PROGRESS control: without an opt-in the original whole-capture ceiling still refuses', fixed.status !== 0 && fixed.payload.endReason === 'budget')
+  const progress = capture({ total: 20, progressBudgetTicks: 20, readyText: 'FINAL-MARK', sends, argv: progressChild(true) })
+  check('14. PROGRESS: each observed send gives the next product mark its own bounded wait', progress.status === 0 && progress.payload.endReason === 'ready' && progress.payload.sendReceipts?.length === 2 && (progress.payload.readyAt ?? 0) >= 20, JSON.stringify(progress.payload))
+  const stalled = capture({ total: 20, progressBudgetTicks: 20, readyText: 'FINAL-MARK', sends, argv: progressChild(false) })
+  const lastSend = stalled.payload.sendReceipts?.at(-1)?.atTick
+  check('14. PROGRESS: unrelated output cannot renew the wait or satisfy its missing mark', stalled.status !== 0 && stalled.payload.endReason === 'budget' && lastSend !== undefined && stalled.payload.refusals?.some(row => row.code === 'NEVER-READY' && row.ceilingTicks === lastSend + 20) === true, JSON.stringify(stalled.payload))
+}
+
 rmSync(work, { recursive: true, force: true })
 if (failures === 0) {
   console.log(' ✅ VSHOT OBSERVED-READY GREEN')
