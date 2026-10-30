@@ -1,3 +1,4 @@
+import { inflateSync } from 'node:zlib'
 import type { Message } from '../types/message.js'
 import type { TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -238,6 +239,58 @@ export async function countTokensViaHaikuFallback(
 
 const DEFAULT_BYTES_PER_TOKEN = 4
 const MEDIA_BLOCK_TOKENS = 2000
+const PDF_PAGE_TOKENS = 3_500
+const PDF_FALLBACK_BYTES_PER_PAGE = 150_000
+const PDF_FALLBACK_PAGE_CAP = 20
+const PDF_PAGE_COUNT_MEMO_LIMIT = 64
+const NON_ASCII_RE = /[^\x00-\x7f]/
+const NON_ASCII_ALL_RE = /[^\x00-\x7f]/g
+
+function textTokenWeight(text: string): number {
+  const base = text.length / DEFAULT_BYTES_PER_TOKEN
+  if (!NON_ASCII_RE.test(text)) return base
+  const wide = text.match(NON_ASCII_ALL_RE)?.length ?? 0
+  return base + wide * (1 - 1 / DEFAULT_BYTES_PER_TOKEN)
+}
+
+const pdfPageCountMemo = new Map<string, number>()
+
+function pdfPageObjects(text: string): number {
+  return text.match(/\/Type\s*\/Page\b/g)?.length ?? 0
+}
+
+function pdfPageCountOf(bytes: Buffer): number | null {
+  const text = bytes.toString('latin1')
+  const linearized = /\/Linearized\b[\s\S]{0,300}?\/N\s+(\d+)/.exec(text)
+  if (linearized !== null) return Number(linearized[1])
+  let pages = pdfPageObjects(text)
+  const objectStreams = /\/Type\s*\/ObjStm[\s\S]{0,400}?stream\r?\n/g
+  for (let match = objectStreams.exec(text); match !== null; match = objectStreams.exec(text)) {
+    const start = match.index + match[0].length
+    const end = text.indexOf('endstream', start)
+    if (end < 0) break
+    try {
+      pages += pdfPageObjects(inflateSync(bytes.subarray(start, end)).toString('latin1'))
+    } catch {
+    }
+  }
+  return pages > 0 ? pages : null
+}
+
+function pdfDocumentTokenWeight(source: unknown): number {
+  const record = source as { type?: unknown; data?: unknown } | null
+  if (record?.type !== 'base64' || typeof record.data !== 'string') return MEDIA_BLOCK_TOKENS
+  const data = record.data
+  const key = `${data.length}:${data.slice(0, 96)}:${data.slice(-96)}`
+  let pages = pdfPageCountMemo.get(key)
+  if (pages === undefined) {
+    const bytes = Buffer.from(data, 'base64')
+    pages = pdfPageCountOf(bytes) ?? Math.max(1, Math.min(PDF_FALLBACK_PAGE_CAP, Math.round(bytes.length / PDF_FALLBACK_BYTES_PER_PAGE)))
+    if (pdfPageCountMemo.size >= PDF_PAGE_COUNT_MEMO_LIMIT) pdfPageCountMemo.delete(pdfPageCountMemo.keys().next().value as string)
+    pdfPageCountMemo.set(key, pages)
+  }
+  return pages * PDF_PAGE_TOKENS
+}
 
 export function roughTokenCountEstimation(content: string, bytesPerToken?: number): number {
   return Math.round(content.length / (bytesPerToken ?? DEFAULT_BYTES_PER_TOKEN))
@@ -252,7 +305,7 @@ export function roughTokenCountEstimationForFileType(content: string, ext: strin
 }
 
 function contentTokenWeight(content: unknown, model?: string): number {
-  if (typeof content === 'string') return content.length / DEFAULT_BYTES_PER_TOKEN
+  if (typeof content === 'string') return textTokenWeight(content)
   if (Array.isArray(content)) return content.reduce((sum, part) => sum + contentTokenWeight(part, model), 0)
   if (typeof content !== 'object' || content === null) return 0
   const record = content as LooseBlock
@@ -265,8 +318,9 @@ function contentTokenWeight(content: unknown, model?: string): number {
       return modelReceivesImageBlocks(model ?? getEngineModel()) ? MEDIA_BLOCK_TOKENS : contentTokenWeight('[image]', model)
     case 'image_url':
     case 'input_image':
-    case 'document':
       return MEDIA_BLOCK_TOKENS
+    case 'document':
+      return pdfDocumentTokenWeight(record.source)
     case 'tool_result':
       return contentTokenWeight(record.content, model)
     case 'tool_use':
