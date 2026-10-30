@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -23,10 +23,18 @@ export interface PathEntryIo {
   home: string
   readFile(path: string): string | null
   appendFile(path: string, text: string): void
+  writeFile(path: string, text: string): void
+  removeFile(path: string): void
   resolveCommand(name: string): string | null
+  zshDotDir(): string | null
   readUserPath(): UserPathRead
   writeUserPath(expected: string, value: string, kind: UserPathKind): void
 }
+
+export type PathRemovalOutcome =
+  | { state: 'removed'; dir: string; targets: string[] }
+  | { state: 'absent'; dir: string }
+  | { state: 'refused'; dir: string; reason: string }
 
 export type PathEntryOutcome =
   | { state: 'on-path'; dir: string; line: string }
@@ -187,6 +195,19 @@ const refusal = (roots: LayoutRoots, io: Pick<PathEntryIo, 'env' | 'home'>, reas
   line: manualPathLine(roots, io),
 })
 
+export function zshStartupDir(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir'>): string {
+  const fromEnv = io.env.ZDOTDIR ?? ''
+  if (fromEnv.startsWith('/')) return fromEnv
+  let asked: string | null = null
+  try {
+    asked = io.zshDotDir()
+  } catch {
+  }
+  return asked !== null && asked.startsWith('/') ? asked : io.home
+}
+
+const BASH_LOGIN_FILES = ['.bash_profile', '.bash_login', '.profile']
+
 function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
   const dir = roots.binDir
   const line = manualPathLine(roots, io)
@@ -196,12 +217,12 @@ function decidePosix(roots: LayoutRoots, io: PathEntryIo): Decision {
   let text: string
   switch (shell) {
     case 'zsh':
-      targets = [join(io.home, '.zshrc')]
+      targets = [join(zshStartupDir(io), '.zshrc')]
       text = `${shGuardedLine(spelled)}\n`
       break
     case 'bash': {
       const login =
-        ['.bash_profile', '.bash_login', '.profile'].map(name => join(io.home, name)).find(candidate => io.readFile(candidate) !== null) ??
+        BASH_LOGIN_FILES.map(name => join(io.home, name)).find(candidate => io.readFile(candidate) !== null) ??
         join(io.home, '.profile')
       targets = [join(io.home, '.bashrc'), login]
       text = `${shGuardedLine(spelled)}\n`
@@ -296,6 +317,62 @@ export function ensureBinDirOnPath(roots: LayoutRoots, io: PathEntryIo): PathEnt
     return written
   } catch (e) {
     return refusal(roots, io, errorText(e))
+  }
+}
+
+function removePosixPathLines(roots: LayoutRoots, io: PathEntryIo): PathRemovalOutcome {
+  const dir = roots.binDir
+  const fishConf = join(io.home, '.config', 'fish', 'conf.d', 'mercury.fish')
+  const files = new Set<string>([join(io.home, '.zshrc'), join(zshStartupDir(io), '.zshrc'), join(io.home, '.bashrc'), ...BASH_LOGIN_FILES.map(name => join(io.home, name))])
+  const targets: string[] = []
+  const ownLine = (line: string): boolean => line.trimEnd().endsWith(`# ${PATH_SENTINEL}`)
+  for (const file of files) {
+    const content = io.readFile(file)
+    if (content === null || !content.includes(PATH_SENTINEL)) continue
+    const kept = content.split('\n').filter(line => !ownLine(line))
+    if (kept.length === content.split('\n').length) continue
+    try {
+      io.writeFile(file, kept.join('\n'))
+    } catch (e) {
+      return { state: 'refused', dir, reason: `could not write ${describePathTarget(file, io.home)}: ${errorText(e)}` }
+    }
+    targets.push(file)
+  }
+  const fish = io.readFile(fishConf)
+  if (fish !== null && fish.trim() === fishConfText(spellUnderHome(dir, io.home)).trim()) {
+    try {
+      io.removeFile(fishConf)
+    } catch (e) {
+      return { state: 'refused', dir, reason: `could not remove ${describePathTarget(fishConf, io.home)}: ${errorText(e)}` }
+    }
+    targets.push(fishConf)
+  }
+  return targets.length > 0 ? { state: 'removed', dir, targets } : { state: 'absent', dir }
+}
+
+function removeWin32PathEntry(roots: LayoutRoots, io: PathEntryIo): PathRemovalOutcome {
+  const dir = roots.binDir
+  const read = io.readUserPath()
+  if (read.state === 'failed') return { state: 'refused', dir, reason: `the user PATH could not be read (${read.note})` }
+  if (read.state === 'absent') return { state: 'absent', dir }
+  const entries = read.value.split(';')
+  const kept = entries.filter(entry => entry.trim() === '' || !(pathEntryEquals(entry, dir, true) || pathEntryEquals(expandWin32(entry, io.env), dir, true)))
+  if (kept.length === entries.length) return { state: 'absent', dir }
+  const value = kept.filter(entry => entry.trim() !== '').join(';')
+  if (value === '') return { state: 'refused', dir, reason: 'it is the only entry in your user PATH, and a PATH that would become empty is never written' }
+  try {
+    io.writeUserPath(read.value, value, read.kind)
+  } catch (e) {
+    return { state: 'refused', dir, reason: errorText(e) }
+  }
+  return { state: 'removed', dir, targets: [WIN32_USER_PATH_STORE] }
+}
+
+export function removeBinDirFromPath(roots: LayoutRoots, io: PathEntryIo): PathRemovalOutcome {
+  try {
+    return roots.isWindows ? removeWin32PathEntry(roots, io) : removePosixPathLines(roots, io)
+  } catch (e) {
+    return { state: 'refused', dir: roots.binDir, reason: `the PATH state could not be read (${errorText(e)})` }
   }
 }
 
@@ -434,7 +511,22 @@ export function realPathEntryIo(opts: { powershell?: () => string | null } = {})
       mkdirSync(dirname(path), { recursive: true })
       appendFileSync(path, text)
     },
+    writeFile(path, text) {
+      writeFileSync(path, text)
+    },
+    removeFile(path) {
+      rmSync(path, { force: true })
+    },
     resolveCommand: name => whichSync(name),
+    zshDotDir() {
+      const zsh = whichSync('zsh')
+      if (zsh === null) return null
+      try {
+        return execFileSync(zsh, ['-c', 'printf %s "${ZDOTDIR-}"'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5_000, env: subprocessEnv() }).trim() || null
+      } catch {
+        return null
+      }
+    },
     readUserPath: () => (storeFile ? readUserPathFile(storeFile) : readUserPathRegistry(opts.powershell)),
     writeUserPath: (expected, value, kind) =>
       storeFile ? writeUserPathFile(storeFile, expected, value, kind) : writeUserPathRegistry(opts.powershell, expected, value, kind),

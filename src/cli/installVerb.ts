@@ -1,7 +1,7 @@
 import { homedir } from 'node:os'
 import { formatUninstallReport, resolveLayoutRoots, uninstallLayout } from 'src/services/privateChannel/installLayout.js'
-import { describePathTarget, type PathEntryOutcome } from 'src/services/privateChannel/installPath.js'
-import { describeInstall, performInstall, type Progress } from 'src/services/privateChannel/updateService.js'
+import { describePathTarget, removeBinDirFromPath, type PathEntryOutcome, type PathRemovalOutcome } from 'src/services/privateChannel/installPath.js'
+import { describeInstall, pathEntryIo, performInstall, type Progress } from 'src/services/privateChannel/updateService.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
 
@@ -44,6 +44,17 @@ export function describePathOutcome(path: PathEntryOutcome, isWindows: boolean, 
   }
 }
 
+export function describePathRemoval(path: PathRemovalOutcome, isWindows: boolean, home: string = homedir()): string | null {
+  switch (path.state) {
+    case 'removed':
+      return isWindows ? `removed: ${path.dir} from your user PATH` : `removed: the PATH line in ${path.targets.map(t => describePathTarget(t, home)).join(' and ')}`
+    case 'absent':
+      return null
+    case 'refused':
+      return `note: ${path.dir} is still on your PATH — ${path.reason}`
+  }
+}
+
 export async function installVerb(options: InstallCliOptions = {}): Promise<never> {
   if (options.dryRun && options.uninstall) {
     console.error('mercury install: --dry-run and --uninstall are mutually exclusive')
@@ -53,8 +64,10 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
 
   if (options.uninstall) {
     const report = uninstallLayout(roots)
-    if (options.json) return emitJson({ mode: 'uninstall', ...report })
-    return cliOk(formatUninstallReport(roots, report))
+    const path: PathRemovalOutcome = report.preservedForeign.length > 0 ? { state: 'absent', dir: roots.binDir } : removeBinDirFromPath(roots, pathEntryIo())
+    if (options.json) return emitJson({ mode: 'uninstall', ...report, path })
+    const pathLine = describePathRemoval(path, roots.isWindows)
+    return cliOk(pathLine === null ? formatUninstallReport(roots, report) : `${formatUninstallReport(roots, report)}\n${pathLine}`)
   }
 
   if (options.dryRun) {

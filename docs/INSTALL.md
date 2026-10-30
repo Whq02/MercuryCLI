@@ -39,9 +39,9 @@ republished after a tag, so they can lag behind the newest release. Homebrew
 commands use the full tap name `Whq02/mercury/mercury` (bare `mercury` in
 `homebrew-core` is a different program). The npm package, `mercury-tech-cli`,
 is a launcher that downloads its pinned release; mise installs that same
-package. `mercury install --uninstall` removes the installed release and command
-shim while keeping your configuration and sessions (also run `npm uninstall -g
-mercury-tech-cli` if you installed the npm launcher).
+package. `mercury install --uninstall` removes the installed release, the command
+shim and the PATH entry it added, while keeping your configuration and sessions
+(also run `npm uninstall -g mercury-tech-cli` if you installed the npm launcher).
 
 Mercury's installation is user-local and does not require administrator
 access. You can safely rerun an installation command.

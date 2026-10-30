@@ -49,7 +49,7 @@ import {
   type ShimOutcome,
 } from './installLayout.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryOutcome } from './installPath.js'
+import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryIo, type PathEntryOutcome } from './installPath.js'
 import { foreignInstallerOf, resolveInstallProvenance } from './installProvenance.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 
@@ -561,7 +561,7 @@ type InstallVerbOutcome =
   | { state: 'refused'; stage?: UpdateStage; reason: string; remedy: string; signature?: SignatureVerdict['state']; unsignedOverride?: boolean; receiptPath?: string }
   | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string; path: PathEntryOutcome }
 
-const pathEntryIo = () => realPathEntryIo({ powershell: resolveWindowsShell })
+export const pathEntryIo = (): PathEntryIo => realPathEntryIo({ powershell: resolveWindowsShell })
 
 export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
   const payloadDir = runningPayloadDir()

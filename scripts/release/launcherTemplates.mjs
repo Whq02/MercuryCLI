@@ -710,7 +710,7 @@ Run \`mercury install\` from the extracted folder's own launcher (or
    arrives unchanged on standard input: \`mercury run - < prompt.txt\`;
 5. puts that directory on your PATH once, and names exactly what it wrote:
    on macOS/Linux one guarded line in your shell's startup file
-   (\`~/.zshrc\` for zsh; \`~/.bashrc\` plus the login profile for bash; a
+   (\`~/.zshrc\` for zsh, or \`$ZDOTDIR/.zshrc\` when ZDOTDIR is set; \`~/.bashrc\` plus the login profile for bash; a
    \`~/.config/fish/conf.d/mercury.fish\` file for fish), on Windows the
    user PATH in the registry (expandable entries kept, running programs
    told). A directory already on PATH, a startup file that already names
@@ -730,8 +730,8 @@ Properties you can rely on:
   sits at the stable command path, it is left alone and named — \`--force\`
   replaces it with a \`.bak\` kept beside it.
 - **Uninstall preserves your data.** \`mercury install --uninstall\` removes
-  \`versions/\` and the managed command only; configuration, sessions and
-  login stay.
+  \`versions/\`, the managed command and the PATH entry it wrote; configuration,
+  sessions and login stay.
 - **Dry run.** \`mercury install --dry-run\` prints what would change.
 
 ## Where things live

@@ -17,11 +17,13 @@ for (const k of ['MERCURY_HOME', 'MERCURY_VERSIONS_DIR', 'MERCURY_USER_PATH_FILE
 
 const {
   ensureBinDirOnPath,
+  fishConfText,
   manualPathLine,
   parseUserPathReadOutput,
   PATH_SENTINEL,
   planBinDirOnPath,
   realPathEntryIo,
+  removeBinDirFromPath,
   shGuardedLine,
   spellUnderHome,
   textNamesDir,
@@ -30,7 +32,7 @@ const {
   WIN32_USER_PATH_STORE,
   WIN32_WRITE_USER_PATH_PS1,
 } = await import('../../src/services/privateChannel/installPath.js')
-const { describePathOutcome } = await import('../../src/cli/installVerb.js')
+const { describePathOutcome, describePathRemoval } = await import('../../src/cli/installVerb.js')
 const { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher } = (await import('../release/launcherTemplates.mjs')) as {
   cmdLauncher: (p: unknown) => string
   parseEnginesNode: (range: string | undefined) => unknown
@@ -65,12 +67,17 @@ interface FakeOpts {
   failAppend?: string
   failRead?: boolean
   failWrite?: string
+  failFileWrite?: string
+  zdot?: string | null
 }
 function fakeIo(opts: FakeOpts) {
   const files = new Map(Object.entries(opts.files ?? {}))
   const appends: { path: string; text: string }[] = []
   const writes: { expected: string; value: string; kind: string }[] = []
+  const fileWrites: string[] = []
+  const removals: string[] = []
   let resolves = 0
+  let zdotAsks = 0
   const io: PathEntryIo = {
     env: { PATH: '/usr/bin:/bin', ...(opts.env ?? {}) },
     home: opts.home,
@@ -85,9 +92,24 @@ function fakeIo(opts: FakeOpts) {
       files.set(p, (files.get(p) ?? '') + t)
       appends.push({ path: p, text: t })
     },
+    writeFile: (p, t) => {
+      if (opts.failFileWrite !== undefined && p.endsWith(opts.failFileWrite)) {
+        throw Object.assign(new Error(`EACCES: permission denied, open '${p}'`), { code: 'EACCES' })
+      }
+      files.set(p, t)
+      fileWrites.push(p)
+    },
+    removeFile: p => {
+      files.delete(p)
+      removals.push(p)
+    },
     resolveCommand: () => {
       resolves++
       return opts.resolve ?? null
+    },
+    zshDotDir: () => {
+      zdotAsks++
+      return opts.zdot ?? null
     },
     readUserPath: () => opts.userPath ?? { state: 'failed', note: 'no store in this fixture' },
     writeUserPath: (expected, value, kind) => {
@@ -95,7 +117,7 @@ function fakeIo(opts: FakeOpts) {
       writes.push({ expected, value, kind })
     },
   }
-  return { io, files, appends, writes, resolves: () => resolves }
+  return { io, files, appends, writes, fileWrites, removals, resolves: () => resolves, zdotAsks: () => zdotAsks }
 }
 
 const HOME_P = '/home/sam'
@@ -236,6 +258,80 @@ section('§1 the POSIX decision through the seam')
   }
 }
 
+section('§1b f01: the zsh startup file lives under ZDOTDIR when the user set one')
+{
+  const roots = posixRoots(HOME_P)
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh', ZDOTDIR: `${HOME_P}/.config/zsh` } })
+    const out = ensureBinDirOnPath(roots, f.io)
+    check('an exported ZDOTDIR ⇒ the line goes to $ZDOTDIR/.zshrc, and zsh is not asked', out.state === 'written' && out.targets.join() === `${HOME_P}/.config/zsh/.zshrc` && f.files.get(`${HOME_P}/.config/zsh/.zshrc`) === P_GUARD && !f.files.has(`${HOME_P}/.zshrc`) && f.zdotAsks() === 0)
+    check('the written line names the real file', describePathOutcome(out, false, HOME_P) === `PATH: added ${HOME_P}/.local/bin in ~/.config/zsh/.zshrc — open a new terminal, or run: ${P_LINE}`)
+    f.io.env.PATH = '/usr/bin:/bin'
+    check('a second run reads the same file ⇒ present', ensureBinDirOnPath(roots, f.io).state === 'present')
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, zdot: `${HOME_P}/dotfiles/zsh` })
+    const out = ensureBinDirOnPath(roots, f.io)
+    check('ZDOTDIR set in ~/.zshenv without export ⇒ zsh is asked once and its answer is the startup folder', out.state === 'written' && out.targets.join() === `${HOME_P}/dotfiles/zsh/.zshrc` && f.zdotAsks() === 1 && !f.files.has(`${HOME_P}/.zshrc`))
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh', ZDOTDIR: 'zsh-config' }, zdot: 'nonsense output' })
+    const out = ensureBinDirOnPath(roots, f.io)
+    check('a ZDOTDIR that is not an absolute path (either source) is ignored ⇒ ~/.zshrc', out.state === 'written' && out.targets.join() === `${HOME_P}/.zshrc`)
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, zdot: null })
+    const out = ensureBinDirOnPath(roots, f.io)
+    check('no ZDOTDIR anywhere ⇒ ~/.zshrc as before', out.state === 'written' && out.targets.join() === `${HOME_P}/.zshrc`)
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, zdot: `${HOME_P}/dotfiles/zsh` })
+    ensureBinDirOnPath(roots, f.io)
+    check('bash never asks zsh', f.zdotAsks() === 0)
+  }
+}
+
+section('§1c f05: uninstall takes the PATH line back — only the line it wrote, in every file it could have written')
+{
+  const roots = posixRoots(HOME_P)
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, files: { [`${HOME_P}/.zshrc`]: `alias ll=ls\n${P_GUARD}export EDITOR=vi\n` } })
+    const out = removeBinDirFromPath(roots, f.io)
+    check('zsh: the sentinel line goes, the lines around it stay', out.state === 'removed' && out.targets.join() === `${HOME_P}/.zshrc` && f.files.get(`${HOME_P}/.zshrc`) === 'alias ll=ls\nexport EDITOR=vi\n')
+    check('the removal line names the file', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.zshrc')
+    check('a second removal finds nothing and says nothing', removeBinDirFromPath(roots, f.io).state === 'absent' && describePathRemoval({ state: 'absent', dir: roots.binDir }, false, HOME_P) === null)
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/bash' }, files: { [`${HOME_P}/.bashrc`]: P_GUARD, [`${HOME_P}/.profile`]: `# mine\n${P_GUARD}` } })
+    const out = removeBinDirFromPath(roots, f.io)
+    check('bash: both files lose the line', out.state === 'removed' && out.targets.join() === `${HOME_P}/.bashrc,${HOME_P}/.profile` && f.files.get(`${HOME_P}/.bashrc`) === '' && f.files.get(`${HOME_P}/.profile`) === '# mine\n')
+    check('the removal line names both files', describePathRemoval(out, false, HOME_P) === 'removed: the PATH line in ~/.bashrc and ~/.profile')
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, zdot: `${HOME_P}/dotfiles/zsh`, files: { [`${HOME_P}/dotfiles/zsh/.zshrc`]: P_GUARD } })
+    const out = removeBinDirFromPath(roots, f.io)
+    check('zsh under ZDOTDIR: the line is found where install wrote it', out.state === 'removed' && out.targets.join() === `${HOME_P}/dotfiles/zsh/.zshrc` && f.files.get(`${HOME_P}/dotfiles/zsh/.zshrc`) === '')
+  }
+  {
+    const conf = `${HOME_P}/.config/fish/conf.d/mercury.fish`
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/usr/bin/fish' }, files: { [conf]: fishConfText('$HOME/.local/bin') } })
+    const out = removeBinDirFromPath(roots, f.io)
+    check('fish: the conf.d file install wrote is removed whole', out.state === 'removed' && out.targets.join() === conf && f.removals.join() === conf && !f.files.has(conf))
+    const g = fakeIo({ home: HOME_P, env: { SHELL: '/usr/bin/fish' }, files: { [conf]: `${fishConfText('$HOME/.local/bin')}set -gx MINE 1\n` } })
+    check('a conf.d file the user added to is left alone', removeBinDirFromPath(roots, g.io).state === 'absent' && g.removals.length === 0)
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, files: { [`${HOME_P}/.zshrc`]: 'export PATH="$HOME/.local/bin:$PATH"\n' } })
+    check('a PATH line the user wrote (no sentinel) is never touched', removeBinDirFromPath(roots, f.io).state === 'absent' && f.fileWrites.length === 0)
+  }
+  {
+    const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, files: { [`${HOME_P}/.zshrc`]: P_GUARD }, failFileWrite: '.zshrc' })
+    const out = removeBinDirFromPath(roots, f.io)
+    check('a file that cannot be written ⇒ refused, the file and the error named', out.state === 'refused' && out.reason.includes('could not write ~/.zshrc') && out.reason.includes('EACCES'))
+    check('the refusal is a note that says the folder is still on PATH', describePathRemoval(out, false, HOME_P) === `note: ${HOME_P}/.local/bin is still on your PATH — ${out.reason}`)
+  }
+}
+
 section('§2 the win32 decision through the seam — the law of the empty value')
 {
   const STOCK = '%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps'
@@ -279,6 +375,20 @@ section('§2 the win32 decision through the seam — the law of the empty value'
     const g = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: `${STOCK};c:\\users\\sam\\appdata\\local\\mercury\\BIN\\`, kind: 'ExpandString' } })
     check('a value that lists it in another case with a trailing backslash ⇒ present', ensureBinDirOnPath(winRoots, g.io).state === 'present' && g.writes.length === 0)
     check('userPathListsDir ignores empty entries and unknown %VARS%', !userPathListsDir(';%NOPE%\\x;', WIN_BIN, {}) && userPathListsDir(`x;${WIN_BIN}`, WIN_BIN, {}))
+  }
+  {
+    const value = `${STOCK};${WIN_BIN};C:\\Tools;"${WIN_BIN}\\";%LOCALAPPDATA%\\Mercury\\bin`
+    const f = fakeIo({ home: 'C:\\Users\\Sam', env: { LOCALAPPDATA: 'C:\\Users\\Sam\\AppData\\Local' }, userPath: { state: 'ok', value, kind: 'String' } })
+    const out = removeBinDirFromPath(winRoots, f.io)
+    check('f05 win32: every spelling of the folder leaves the user PATH, the other entries and the kind stay, compare-and-swap on the read', out.state === 'removed' && out.targets.join() === WIN32_USER_PATH_STORE && f.writes.length === 1 && f.writes[0]!.expected === value && f.writes[0]!.value === `${STOCK};C:\\Tools` && f.writes[0]!.kind === 'String')
+    check('the removal line reads as one sentence', describePathRemoval(out, true) === `removed: ${WIN_BIN} from your user PATH`)
+    const g = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: STOCK, kind: 'ExpandString' } })
+    check('a user PATH without the folder ⇒ absent, no write', removeBinDirFromPath(winRoots, g.io).state === 'absent' && g.writes.length === 0)
+    const only = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: WIN_BIN, kind: 'ExpandString' } })
+    const refused = removeBinDirFromPath(winRoots, only.io)
+    check('the folder as the only entry ⇒ refused (a PATH that would become empty is never written)', refused.state === 'refused' && refused.reason.includes('never written') && only.writes.length === 0)
+    const failed = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'failed', note: 'boom' } })
+    check('a failed read ⇒ refused with the note', (() => { const r = removeBinDirFromPath(winRoots, failed.io); return r.state === 'refused' && r.reason.includes('boom') })())
   }
   {
     const f = fakeIo({ home: 'C:\\Users\\Sam', userPath: { state: 'ok', value: STOCK, kind: 'ExpandString' }, failWrite: 'the user PATH changed since it was read; nothing was written' })
@@ -367,14 +477,14 @@ if (IS_WIN) {
   if (!existsSync(join(DIST, 'mercury.mjs'))) {
     console.log('  [FAIL] dist/mercury.mjs absent — run bun run build.ts first')
     failures++
-  } else if (unsignedPayload) {
-    console.log(`  [SKIP] §3/§4 install-activation need a signed payload — this build has no manifest signing block (the hosted build is unsigned by design; the release job signs). The product unsigned-payload refusal stays the product's own contract and is unchanged.`)
   } else {
     const payload = join(scratch, 'payload', 'mercury')
     mkdirSync(payload, { recursive: true })
     for (const member of ['mercury.mjs', 'manifest.json', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs']) cpSync(join(DIST, member), join(payload, member))
     cpSync(join(DIST, 'vendor', 'ripgrep'), join(payload, 'vendor', 'ripgrep'), { recursive: true })
-    if (existsSync(join(DIST, 'vendor', 'node'))) symlinkSync(join(DIST, 'vendor', 'node'), join(payload, 'vendor', 'node'))
+    for (const pack of ['node', 'python']) {
+      if (existsSync(join(DIST, 'vendor', pack))) symlinkSync(join(DIST, 'vendor', pack), join(payload, 'vendor', pack))
+    }
     writeFileSync(join(payload, 'mercury'), posixLauncher(NODE_POLICY))
     writeFileSync(join(payload, 'install.sh'), '#!/bin/sh\n# fixture installer stub\n')
     for (const f of ['mercury', 'install.sh']) chmodSync(join(payload, f), 0o755)
@@ -417,6 +527,9 @@ if (IS_WIN) {
       return h
     }
 
+    if (unsignedPayload) {
+      console.log(`  [SKIP] §3/§4 install-activation need a signed payload — this build has no manifest signing block (the hosted build is unsigned by design; the release job signs). The product unsigned-payload refusal stays the product's own contract and is unchanged.`)
+    } else {
     {
       const h = home('zsh')
       const bin = join(h, '.local', 'bin')
@@ -570,6 +683,38 @@ if (IS_WIN) {
       check('PS1: the takeover verdict gates the verify', ps1.indexOf('$takeover = $true') >= 0 && ps1.indexOf('$takeover = $true') < ps1.indexOf("'verify-artifact.mjs') --launcher") && ps1.includes("if ($takeover -and $interactive -and (Test-Path (Join-Path $dir 'verify-artifact.mjs')))"))
       check('the boot line forwards the terminal untouched (no redirection on the runtime line)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"\n') && cmd.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*\r\n') && ps1.includes("& $nodeBin (Join-Path $dir 'mercury.mjs') @args\n"))
       check('POSIX execs the runtime (one process: a signal to the launcher pid reaches the run, ctrl+z hands the terminal back)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"\n') && !posix.includes('"$node_bin" "$dir/mercury.mjs" "$@"\nrt=$?'))
+    }
+    }
+
+    section('§3b f01 · f05: the zsh startup file under ZDOTDIR, and uninstall takes the PATH line back (the real bundle, --allow-unsigned)')
+    {
+      const h = home('zdot')
+      const bin = join(h, '.local', 'bin')
+      const zdot = join(h, '.config', 'zsh')
+      mkdirSync(zdot, { recursive: true })
+      writeFileSync(join(h, '.zshenv'), `ZDOTDIR=${JSON.stringify(zdot)}\n`)
+      const r = run(['install', '--allow-unsigned'], h, '/bin/zsh')
+      check('f01: with ZDOTDIR set in ~/.zshenv (not exported), install writes $ZDOTDIR/.zshrc and names it', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.config/zsh/.zshrc`) && existsSync(join(zdot, '.zshrc')) && !existsSync(join(h, '.zshrc')), r.stdout.slice(0, 600))
+      check('f01: $ZDOTDIR/.zshrc holds exactly the one guarded line', readFileSync(join(zdot, '.zshrc'), 'utf8') === P_GUARD)
+      if (has('zsh')) check('f01: a NEW interactive login zsh (reading ~/.zshenv) finds mercury', newShell('zsh', '-il', h) === join(bin, 'mercury'), newShell('zsh', '-il', h))
+      const exported = home('zdot-exported')
+      const exportedDot = join(exported, 'dotfiles', 'zsh')
+      const e = run(['install', '--allow-unsigned'], exported, '/bin/zsh', { ZDOTDIR: exportedDot })
+      check('f01: an exported ZDOTDIR is the startup folder, created when absent', e.code === 0 && e.stdout.includes(`PATH: added ${join(exported, '.local', 'bin')} in ~/dotfiles/zsh/.zshrc`) && readFileSync(join(exportedDot, '.zshrc'), 'utf8') === P_GUARD, e.stdout.slice(0, 600))
+      const un = run(['install', '--uninstall'], h, '/bin/zsh', {}, join(bin, 'mercury'))
+      check('f05: uninstall removes the PATH line it wrote and says so', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.config/zsh/.zshrc') && readFileSync(join(zdot, '.zshrc'), 'utf8') === '', un.stdout)
+      check('f05: the stable command and the versions are gone with it', !existsSync(join(bin, 'mercury')) && !existsSync(join(h, '.mercury', 'versions')))
+      const again = run(['install', '--uninstall'], h, '/bin/zsh')
+      check('f05: a second uninstall has no PATH line to remove and says nothing about PATH', again.code === 0 && !again.stdout.includes('PATH'), again.stdout)
+    }
+    {
+      const h = home('bash-uninstall')
+      const bin = join(h, '.local', 'bin')
+      writeFileSync(join(h, '.profile'), '# mine\nexport EDITOR=vi\n')
+      const r = run(['install', '--allow-unsigned'], h, '/bin/bash')
+      check('bash: install writes ~/.bashrc and the existing ~/.profile', r.code === 0 && r.stdout.includes(`PATH: added ${bin} in ~/.bashrc and ~/.profile`), r.stdout.slice(0, 400))
+      const un = run(['install', '--uninstall'], h, '/bin/bash', {}, join(bin, 'mercury'))
+      check('f05: uninstall takes the line out of both files and keeps the user\'s own lines', un.code === 0 && un.stdout.includes('removed: the PATH line in ~/.bashrc and ~/.profile') && readFileSync(join(h, '.profile'), 'utf8') === '# mine\nexport EDITOR=vi\n' && readFileSync(join(h, '.bashrc'), 'utf8') === '', un.stdout)
     }
   }
 }
