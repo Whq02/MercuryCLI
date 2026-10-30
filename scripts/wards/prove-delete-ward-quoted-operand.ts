@@ -5,7 +5,11 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'delete-ward-quoted-home-'))
+const scratch = mkdtempSync(join(tmpdir(), 'delete-ward-quoted-home-'))
+process.env.HOME = join(scratch, 'home')
+process.env.USERPROFILE = process.env.HOME
+mkdirSync(process.env.HOME, { recursive: true })
+process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_SPAWNED_BY = 'proof:delete-ward-quoted#1'
@@ -97,7 +101,7 @@ check('rm -rf ~ is stopped', stopped(verdictOf('rm -rf ~', plainProject)))
 check('an rm without a recursive flag is not the ward\'s business', verdictOf(`rm "${home}/Documents/one.txt"`, plainProject) === 'allowed')
 check('a quoted home path in an echo is not a delete', verdictOf(`echo "${home}/Documents" && ls -R "${home}"`, plainProject) === 'allowed')
 
-for (const root of [project, plainProject]) rmSync(root, { recursive: true, force: true })
+for (const root of [scratch, plainProject]) rmSync(root, { recursive: true, force: true })
 
 console.log(`\n${checks - failures}/${checks} checks passed`)
 console.log(failures === 0 ? 'delete-ward-quoted-operand: ALL LAWS HOLD' : `delete-ward-quoted-operand: ${failures} FAIL`)
