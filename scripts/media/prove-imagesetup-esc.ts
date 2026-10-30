@@ -4,7 +4,9 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
+try {
 delete process.env.TYPESAFE_API_KEY
 delete process.env.MERCURY_SEATS
 delete process.env.MERCURY_CRITTER
@@ -224,4 +226,8 @@ try {
   m.unmount()
 }
 console.log(`imagesetup esc: ${failures} failures`)
-process.exit(failures === 0 ? 0 : 1)
+process.exitCode = failures === 0 ? 0 : 1
+} finally {
+  removeScratch(proofHome)
+}
+process.exit(process.exitCode ?? 0)

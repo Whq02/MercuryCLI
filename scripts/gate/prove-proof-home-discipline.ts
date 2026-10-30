@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import ts from 'typescript'
-import { visit } from './sourceCensus.ts'
+import { calleeName, declarationOf, importOf, isFunctionNode, unwrapAwait, visit } from './sourceCensus.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const SELF = 'scripts/gate/prove-proof-home-discipline.ts'
@@ -28,6 +28,44 @@ function assignsHome(node: ts.Node): boolean {
   let found = false
   visit(node, m => { if (ts.isBinaryExpression(m) && m.operatorToken.kind === ts.SyntaxKind.EqualsToken && isHomeEnv(m.left)) found = true })
   return found
+}
+
+function bareScratchRemovals(text: string, name = 'proof.ts'): number[] {
+  const sf = ts.createSourceFile(name, text, ts.ScriptTarget.Latest, true, name.endsWith('.mjs') ? ts.ScriptKind.JS : ts.ScriptKind.TS)
+  const scratch = (expression: ts.Expression, seen = new Set<ts.Node>()): boolean => {
+    const node = unwrapAwait(expression)
+    if (seen.has(node)) return false
+    seen.add(node)
+    if (ts.isIdentifier(node)) {
+      const declaration = declarationOf(node)
+      if (!declaration) return false
+      const imported = importOf(declaration)
+      if (imported?.name === 'proofHome') return true
+      return ts.isVariableDeclaration(declaration) && !!declaration.initializer && scratch(declaration.initializer, seen)
+    }
+    if (ts.isCallExpression(node)) {
+      if (/^mkdtemp(?:Sync)?$/.test(calleeName(node) ?? '')) return true
+      if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'normalize') return scratch(node.expression.expression, seen)
+    }
+    return false
+  }
+  const hits: number[] = []
+  visit(sf, node => {
+    if (!ts.isCallExpression(node) || !node.arguments[0]) return
+    let name = calleeName(node)
+    if (ts.isIdentifier(node.expression)) {
+      const declaration = declarationOf(node.expression)
+      const imported = declaration && importOf(declaration)
+      if (imported) name = /^(?:node:)?fs$/.test(imported.module) ? imported.name : undefined
+    }
+    if (name !== 'rmSync' || !scratch(node.arguments[0])) return
+    for (let parent: ts.Node | undefined = node.parent; parent; parent = parent.parent) {
+      if (isFunctionNode(parent)) break
+      if (ts.isBlock(parent) && ts.isTryStatement(parent.parent) && parent.parent.finallyBlock === parent) return
+    }
+    hits.push(sf.getLineAndCharacterOfPosition(node.getStart()).line + 1)
+  })
+  return hits
 }
 
 function homeFacts(text: string, name = 'proof.ts'): Facts {
@@ -99,7 +137,14 @@ function pythonKeeps(text: string): number[] {
   assert.equal(top.importBeforePin, 1); assert.ok(top.pinNamesAccountHome)
   assert.equal(homeFacts("process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'p-'))\n").pinNamesAccountHome, false)
   assert.deepEqual(pythonKeeps("os.environ.setdefault('MERCURY_CONFIG_DIR', home)\nhome = os.environ.get('MERCURY_CONFIG_DIR') or tmp\nprint('MERCURY_CONFIG_DIR')\n"), [1, 2])
-  console.log('PASS the detectors read a kept inherited home, an own pin and the first product import; a spelling inside a string is not an assignment')
+  const cleanup = "import { rmSync as remove } from 'node:fs'\nconst scratch = mkdtempSync('x-')\nremove(scratch, { recursive: true })\n"
+  assert.deepEqual(bareScratchRemovals(cleanup), [3])
+  assert.deepEqual(bareScratchRemovals("const home = mkdtempSync('x-').normalize('NFC'); try { run() } finally { rmSync(home) }"), [])
+  assert.deepEqual(bareScratchRemovals("import { proofHome as home } from '../lib/hermetic.ts'; try { rmSync(home) } catch {}"), [1])
+  assert.deepEqual(bareScratchRemovals("const home = mkdtempSync('x-'); try { run() } finally { removeScratch(home) }"), [])
+  assert.deepEqual(bareScratchRemovals("const home = mkdtempSync('x-'); rmSync(join(home, 'fixture.json')); console.log('rmSync(home)')"), [])
+  assert.deepEqual(bareScratchRemovals("const home = mkdtempSync('x-'); try {} finally { setTimeout(() => rmSync(home)) }"), [1])
+  console.log('PASS the detectors read a kept inherited home, an own pin, the first product import and an unguarded scratch teardown; strings are not code')
 }
 
 const KEPT_HOME_WITHOUT_CREDENTIALS = new Set<string>()
@@ -160,6 +205,7 @@ const SUITE_HOMED_WRITERS = new Set<string>([
 
 const proofs = tracked.filter(path => /\/prove-[^/]+\.(?:ts|tsx|mjs|py)$/.test(path) && path !== SELF)
 const failures: string[] = []
+const bareTeardowns: string[] = []
 const found = { keptWithoutCredentials: new Set<string>(), staticBeforePin: new Set<string>(), suiteHomed: new Set<string>() }
 let credentialProofs = 0
 for (const path of proofs) {
@@ -168,6 +214,8 @@ for (const path of proofs) {
     for (const line of pythonKeeps(text)) failures.push(`${path}:${line}: a proof never keeps an inherited MERCURY_CONFIG_DIR; assign a scratch home of its own`)
     continue
   }
+  const bare = bareScratchRemovals(text, path)
+  if (bare.length > 0) bareTeardowns.push(`${path}:${bare.join(',')}`)
   const f = homeFacts(text, path)
   if (f.pinNamesAccountHome && !(path in ACCOUNT_HOME_ON_PURPOSE)) failures.push(`${path}:${f.pin}: the pin names the account's own home; a proof pins a scratch home of its own (a proof that reads the account home on purpose is listed in ACCOUNT_HOME_ON_PURPOSE with its reason)`)
   if (!f.credentials) {
@@ -189,6 +237,8 @@ ratchet('STATIC_IMPORT_BEFORE_PIN', STATIC_IMPORT_BEFORE_PIN, found.staticBefore
 ratchet('SUITE_HOMED_WRITERS', SUITE_HOMED_WRITERS, found.suiteHomed, 'a credential-writing proof pins a scratch home of its own before importing the product, or calls the login-driver guard first')
 for (const path of Object.keys(ACCOUNT_HOME_ON_PURPOSE)) if (!proofs.includes(path) || !homeFacts(read(path), path).pinNamesAccountHome) failures.push(`${path}: listed in ACCOUNT_HOME_ON_PURPOSE but no longer pins the account home; remove it from the list`)
 
+console.log(`ADVISORY ${bareTeardowns.length} proofs remove their scratch with rmSync outside finally; use removeScratch in finally`)
+for (const path of process.argv.includes('--list') ? bareTeardowns : bareTeardowns.slice(0, 20)) console.log(`  ${path}`)
 if (process.argv.includes('--list')) {
   for (const [name, set] of Object.entries(found)) console.log(`${name}:\n${[...set].sort().map(p => `  '${p}',`).join('\n')}`)
   process.exit(0)

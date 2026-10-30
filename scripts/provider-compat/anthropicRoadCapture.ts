@@ -1,10 +1,12 @@
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { Message, AssistantMessage } from '../../src/types/message.ts'
 
+try {
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const arm = process.argv.at(-1)!
 for (const name of Object.keys(process.env)) {
@@ -122,5 +124,8 @@ try {
   console.log('CAPTURE ' + JSON.stringify({ arm, requests, outputs, errors }))
 } finally {
   await fixture.close()
+}
+} finally {
+  removeScratch(proofHome)
 }
 process.exit(0)

@@ -1,9 +1,11 @@
-import '../lib/hermetic.ts'
+import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as hs from '../../src/daemon/handshake.js'
 import { MERCURY_DAEMON_PROTO } from '../../src/daemon/protocol.js'
 
+try {
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail}`}`)
@@ -49,4 +51,8 @@ check('matching builds owe no mismatch clause', statusWords?.(matched) === '' &&
 const row = readFileSync(join(import.meta.dir, '../../src/components/SwitchboardTagBar.tsx'), 'utf8')
 check('the real status row subscribes to the handshake and keeps the mismatch beside the model, after it', row.includes('useSyncExternalStore(subscribeDaemonHandshake, focusedDaemonBuildWords, focusedDaemonBuildWords)') && row.includes('[modelStatusWords(shownModel, shownEffort), daemonBuild]') && row.includes("daemonBuild === '' && held === null && line === 'ready'"))
 console.log(`prove-build-order-visible: ${failed ? `${failed} RED` : 'GREEN'}`)
-process.exit(failed ? 1 : 0)
+process.exitCode = failed ? 1 : 0
+} finally {
+  removeScratch(proofHome)
+}
+process.exit(process.exitCode ?? 0)

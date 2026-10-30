@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
+import { removeScratch } from './removeScratch.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { seedFirstRun } from './firstRunSeed.ts'
@@ -24,7 +25,7 @@ export function resolveProofHome(trustedCwds: readonly string[], options: ProofH
   if (!options.keep) {
     process.on('exit', () => {
       try {
-        rmSync(home, { recursive: true, force: true })
+        removeScratch(home)
       } catch {
       }
     })
