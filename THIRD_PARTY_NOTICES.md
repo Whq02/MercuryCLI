@@ -11,6 +11,9 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 ### Apache-2.0
 
 - **@agentclientprotocol/sdk** 1.4.0 — https://github.com/agentclientprotocol/typescript-sdk#readme
+- **@modelcontextprotocol/client** 2.4.0 — https://modelcontextprotocol.io
+- **@modelcontextprotocol/core** 2.4.0 — https://modelcontextprotocol.io
+- **@modelcontextprotocol/server** 2.4.0 — https://modelcontextprotocol.io
 - **@puppeteer/browsers** 3.2.1 — https://github.com/puppeteer/puppeteer/tree/main/packages/browsers
 - **fuse.js** 7.5.0 — http://fusejs.io
 - **puppeteer-core** 25.9.0 — https://github.com/puppeteer/puppeteer/tree/main/packages/puppeteer-core
@@ -39,9 +42,6 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 
 - **@alcalzone/ansi-tokenize** 0.3.1 — https://github.com/AlCalzone/ansi-tokenize
 - **@commander-js/extra-typings** 15.0.0 — https://github.com/commander-js/extra-typings#readme
-- **@modelcontextprotocol/client** 2.0.0 — https://modelcontextprotocol.io
-- **@modelcontextprotocol/core** 2.0.0 — https://modelcontextprotocol.io
-- **@modelcontextprotocol/server** 2.0.0 — https://modelcontextprotocol.io
 - **@xmldom/xmldom** 0.8.15 — https://github.com/xmldom/xmldom
 - **acorn** 8.19.0 — https://github.com/acornjs/acorn
 - **acorn-walk** 8.3.5 — https://github.com/acornjs/acorn
@@ -74,11 +74,11 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **proper-lockfile** 4.1.2 — https://github.com/moxystudio/node-proper-lockfile
 - **react** 19.2.8 — https://react.dev/
 - **react-reconciler** 0.33.0 — https://react.dev/
-- **shell-quote** 1.10.0 — https://github.com/ljharb/shell-quote
+- **shell-quote** 1.12.0 — https://github.com/ljharb/shell-quote
 - **strip-ansi** 7.2.0 — chalk/strip-ansi
 - **supports-hyperlinks** 4.5.0 — chalk/supports-hyperlinks
 - **turndown** 7.2.4 — https://github.com/mixmark-io/turndown.git
-- **undici** 8.10.0 — https://undici.nodejs.org
+- **undici** 8.12.3 — https://undici.nodejs.org
 - **usehooks-ts** 3.1.1 — https://usehooks-ts.com
 - **vscode-css-languageservice** 6.3.10 — https://github.com/Microsoft/vscode-css-languageservice
 - **vscode-html-languageservice** 5.6.2 — https://github.com/Microsoft/vscode-html-languageservice
@@ -89,14 +89,14 @@ The built artifact (`dist/mercury.mjs`) is a self-contained bundle that inlines 
 - **wrap-ansi** 10.0.1 — chalk/wrap-ansi
 - **ws** 8.21.3 — https://github.com/websockets/ws
 - **yaml-language-server** 1.24.0 — git+https://github.com/redhat-developer/yaml-language-server.git
-- **zod** 4.5.4 — https://zod.dev
+- **zod** 4.6.7 — https://zod.dev
 
 ## Vendored tool payloads (`dist/vendor/`)
 
 - **pdfjs** 6.4.299 — Mozilla PDF.js, Apache-2.0. Receipt: vendor/pdfjs.lock.json; licence text ships at dist/vendor/pdfjs/LICENSE.
 - **document-libs** — @xmldom/xmldom 0.8.15 (MIT); docx 9.15.0 (MIT); pdf-lib 1.17.1 (MIT); exceljs 4.4.0 (MIT); pptxgenjs 4.0.1 (MIT); mammoth 1.13.0 (BSD-2-Clause); marked 18.0.11 (MIT). Receipt: vendor/document-libs.lock.json; the package and transitive licence texts ship under dist/vendor/document-libs/, with their hashes in licences.json.
 - **ripgrep** (via @vscode/ripgrep 1.18.0, MIT) — the platform search binary, © the ripgrep contributors, dual-licensed MIT / UNLICENSE (https://github.com/BurntSushi/ripgrep). Redistributed unmodified; the wrapper package's licence text lives at node_modules/@vscode/ripgrep/LICENSE.
-- **debugpy** 1.8.21 — Microsoft, MIT (https://files.pythonhosted.org/packages/95/51/67e7cf11a53e40694f720457d5b3a1cdaaa3d5a9a633e482f225456b93ff/debugpy-1.8.21-py2.py3-none-any.whl). Receipt: vendor/debugpy.lock.json; licence text ships at dist/vendor/debugpy/…/licenses/LICENSE + ThirdPartyNotices.txt.
+- **debugpy** 1.8.22 — Microsoft, MIT (https://files.pythonhosted.org/packages/56/3d/c7dc9f35bc9e22cdb53679f844bee40fd5cff871862f60595869a433400d/debugpy-1.8.22-py2.py3-none-any.whl). Receipt: vendor/debugpy.lock.json; licence text ships at dist/vendor/debugpy/…/licenses/LICENSE + ThirdPartyNotices.txt.
 - **pyright** 1.1.414 — Microsoft, MIT (https://registry.npmjs.org/pyright/-/pyright-1.1.414.tgz). Receipt: vendor/pyright.lock.json; licence text ships at dist/vendor/pyright/LICENSE.txt (+ typeshed LICENSE).
 - **js-debug** 1.140.0 — Microsoft, MIT (https://github.com/microsoft/vscode-js-debug/releases/download/v1.140.0/js-debug-dap-v1.140.0.tar.gz). Receipt: vendor/js-debug.lock.json; licence text ships at dist/vendor/js-debug/LICENSE.
 - **TypeScript compiler** 6.0.3 — Microsoft, Apache-2.0 (https://github.com/microsoft/TypeScript). Vendored from the repo devDependency; licence text ships at dist/vendor/typescript/LICENSE.txt.
