@@ -718,9 +718,10 @@ A crewmate keeps the same kind of record on its own transcript: one resumed
 after its run ended (via `ResumeCrewmate` or the Crew view) sends
 the tool list it first sent, regardless of later changes to the parent session's tools.
 
-On a hosted model, a conversation starts with `Bash`, `Glob`, `Grep`, `Read`,
-`Edit`, `Write`, `Eval`, `ScheduleWakeup` and `ToolSearch` loaded with their full
-descriptions when their settings and dependencies admit them, alongside `ChangeSet`.
+On a hosted model, a conversation starts with the file tools (`Read`, `Edit`,
+`Write`, `Glob`, `Grep` and `ChangeSet`), the shell and code tools (`Bash` and
+`Eval`), `ScheduleWakeup` and `ToolSearch` loaded with their full descriptions
+when their settings and dependencies admit them.
 Routes that support deferral announce the remaining tools (among them `Crewmate`,
 `Skill`, `Test`, `LspRead`, `AstSearch`, `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
 `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`, `LspRequest`, `Monitor`,

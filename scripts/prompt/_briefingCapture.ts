@@ -4,12 +4,12 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
-export const root = resolve(import.meta.dir, '..', '..')
+const root = resolve(import.meta.dir, '..', '..')
 export const dist = join(root, 'dist', 'mercury.mjs')
 const vendoredNode = join(root, 'dist', 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
-export const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
+const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 
-export type ScriptedReply =
+type ScriptedReply =
   | { kind: 'text'; text: string }
   | { kind: 'tool_calls'; calls: Array<{ name: string; args: Record<string, unknown> }> }
 
@@ -19,13 +19,13 @@ export interface ChatFunction {
   parameters: Record<string, unknown>
 }
 
-export interface ChatRequest {
+interface ChatRequest {
   model: string
   messages: Array<{ role: string; content: unknown; tool_calls?: unknown[]; tool_call_id?: string }>
   tools: Array<{ type: string; function: ChatFunction }>
 }
 
-export interface BriefingCapture {
+interface BriefingCapture {
   requests: ChatRequest[]
   code: number | null
   stdout: string
