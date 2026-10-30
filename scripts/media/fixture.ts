@@ -1,5 +1,6 @@
 import { proofHome } from '../lib/hermetic.ts'
-import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { MediaCatalogue } from '../../src/services/media/catalogue.js'
 
@@ -53,20 +54,10 @@ console.log(JSON.stringify({ event: 'done' }));
 `)
 }
 
-export function installLiveFixture(options: { sizedImages?: boolean } = {}): void {
-  installFixture()
-  const setup = readFileSync(join(dirname(serverPath), 'setup.js'), 'utf8')
-  cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })
-  writeFileSync(join(dirname(serverPath), 'setup.js'), setup)
-  writeFileSync(join(root, 'catalog.json'), JSON.stringify({ files: catalogue.files, models: catalogue.models.map(model => ({ ...model, recipe: 'fixture-recipe', residentBytes: 1, peakBytes: 1 })) }))
-  const runtime = join(root, 'runtime')
-  mkdirSync(runtime, { recursive: true })
-  const binary = join(runtime, 'sd-server')
-  writeFileSync(binary, `#!/usr/bin/env node
-import { createServer } from 'node:http';
+export function standInEngineSource(options: { sizedImages?: boolean } = {}): string {
+  return `import { createServer } from 'node:http';
 import { readdir, appendFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { crc32, deflateSync } from 'node:zlib';
 function sizedPng(width, height) {
   const raw = Buffer.alloc((width * 3 + 1) * height);
@@ -75,7 +66,7 @@ function sizedPng(width, height) {
   const header = Buffer.alloc(13); header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 2;
   return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]).toString('base64');
 }
-const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const root = dirname(process.argv[process.argv.indexOf('--model-dir') + 1]);
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a5r8AAAAASUVORK5CYII=';
 let recipe = null;
 let image = png;
@@ -107,12 +98,33 @@ const server = createServer(async (req, res) => {
 });
 server.listen(Number(process.argv[process.argv.indexOf('--listen-port') + 1]), '127.0.0.1');
 process.on('SIGTERM', () => { server.close(); process.exit(0); });
-`, { mode: 0o700 })
-  let engine = binary
-  if (process.platform === 'win32') {
-    engine = `${binary}.cmd`
-    writeFileSync(engine, `@echo off\r\nnode "${binary}" %*\r\n`)
+`
+}
+
+export function writeStandInEngine(runtime: string, options: { sizedImages?: boolean } = {}, platform: string = process.platform): string {
+  const source = standInEngineSource(options)
+  if (platform !== 'win32') {
+    const binary = join(runtime, 'sd-server')
+    writeFileSync(binary, `#!/usr/bin/env node\n${source}`, { mode: 0o700 })
+    return binary
   }
+  const script = join(runtime, 'sd-server.mjs')
+  const binary = join(runtime, 'sd-server.exe')
+  writeFileSync(script, source)
+  const built = spawnSync(process.execPath, ['build', '--compile', script, '--outfile', binary], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  if (built.status !== 0 || !existsSync(binary)) throw new Error(`The stand-in engine did not compile to ${binary}: ${(built.stderr || built.stdout || String(built.error ?? '')).trim()}`)
+  return binary
+}
+
+export function installLiveFixture(options: { sizedImages?: boolean; platform?: string } = {}): void {
+  installFixture()
+  const setup = readFileSync(join(dirname(serverPath), 'setup.js'), 'utf8')
+  cpSync(new URL('../../src/extensions/bundled/mercury-media/server/', import.meta.url), dirname(serverPath), { recursive: true })
+  writeFileSync(join(dirname(serverPath), 'setup.js'), setup)
+  writeFileSync(join(root, 'catalog.json'), JSON.stringify({ files: catalogue.files, models: catalogue.models.map(model => ({ ...model, recipe: 'fixture-recipe', residentBytes: 1, peakBytes: 1 })) }))
+  const runtime = join(root, 'runtime')
+  mkdirSync(runtime, { recursive: true })
+  const engine = writeStandInEngine(runtime, options, options.platform)
   const bundled = JSON.parse(readFileSync(join(dirname(serverPath), 'catalog.json'), 'utf8'))
   writeFileSync(join(root, 'runtime.json'), JSON.stringify({ binary: engine, tag: bundled.runtime.tag }))
 }
@@ -122,10 +134,15 @@ export async function stopFixtureEngine(): Promise<void> {
   let record: { ownerPid: number; pid: number }
   try { record = JSON.parse(readFileSync(file, 'utf8')).image; if (!record) return } catch { return }
   const alive = (pid: number): boolean => { try { process.kill(pid, 0); return true } catch { return false } }
-  if (alive(record.ownerPid)) process.kill(record.ownerPid, 'SIGTERM')
+  const end = (pid: number): void => { try { process.kill(pid, 'SIGTERM') } catch {} }
+  if (process.platform === 'win32') end(record.pid)
+  else if (alive(record.ownerPid)) process.kill(record.ownerPid, 'SIGTERM')
   const deadline = Date.now() + 10000
   while (alive(record.ownerPid) || alive(record.pid)) {
-    if (Date.now() > deadline) throw new Error('Fixture engine did not stop')
+    if (Date.now() > deadline) {
+      if (process.platform === 'win32' && !alive(record.pid)) end(record.ownerPid)
+      throw new Error('Fixture engine did not stop')
+    }
     await new Promise(resolve => setTimeout(resolve, 20))
   }
 }

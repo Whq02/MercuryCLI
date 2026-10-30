@@ -1,7 +1,8 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
 import { mediaGenerationDetails } from '../../src/services/media/generation.js'
 import { catalogue, installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
@@ -53,5 +54,5 @@ try {
 } finally {
   await client.close()
   await stopFixtureEngine()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeScratch(proofHome)
 }

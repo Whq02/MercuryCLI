@@ -1,11 +1,12 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer, request as httpRequest, type IncomingMessage, type Server } from 'node:http'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { pipeline } from 'node:stream/promises'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 const arg = (name: string): string | undefined => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1] }
@@ -196,5 +197,5 @@ try {
   await stopFixtureEngine()
   delete process.env.MEDIA_ROOT
   process.chdir(originalCwd)
-  rmSync(proofHome, { recursive: true, force: true })
+  removeScratch(proofHome)
 }
