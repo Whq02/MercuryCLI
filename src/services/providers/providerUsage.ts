@@ -99,7 +99,7 @@ import {
   type HuggingfaceLimitWindow,
 } from './huggingface/huggingfaceUsageState.js'
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
-import { refreshLocalDiscovery } from './local/localDiscovery.js'
+import { cachedLocalModels, refreshLocalDiscovery } from './local/localDiscovery.js'
 import { resolveXaiManagementApiKey } from './xai/xaiAccounts.js'
 import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT, type XaiSubscriptionCredits } from './xai/xaiUsageState.js'
 
@@ -1803,8 +1803,8 @@ function deriveUsageForProvider(
       windows: [],
       pools: [],
       spend,
-      absence: 'local · no metering',
-      tier: 'local · no metering',
+      absence: cachedLocalModels().some(model => model.executionOrigin?.kind === 'remote') ? 'local inference $0 · remote pricing unknown' : 'local · no metering',
+      tier: cachedLocalModels().some(model => model.executionOrigin?.kind === 'remote') ? 'remote pricing unknown' : 'local · no metering',
     }
   }
 

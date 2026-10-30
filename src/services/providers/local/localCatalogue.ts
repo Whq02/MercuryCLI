@@ -96,11 +96,11 @@ export function localFitRefusalFacts(text: string): LocalFitRefusalFacts | null 
   return { estTokens: Number(m[1]) * 1000, toolCount: Number(m[2]), id: m[3]!, window: Number(m[4]), sourceWords: m[5]! }
 }
 
-export function getLocalModelOptions(): ModelOption[] {
+export function getLocalModelOptions(): Array<ModelOption & { executionOrigin?: LocalModelRecord['executionOrigin'] }> {
   void refreshLocalDiscovery().catch(() => {})
   const snapshot = getCachedLocalDiscovery()
   if (!snapshot) return []
-  const rows: ModelOption[] = []
+  const rows: Array<ModelOption & { executionOrigin?: LocalModelRecord['executionOrigin'] }> = []
   const all = cachedLocalModels()
   const idCounts = new Map<string, number>()
   for (const record of all) {
@@ -116,7 +116,10 @@ export function getLocalModelOptions(): ModelOption[] {
       value: persisted,
       label: record.displayName ?? record.id,
       description: '',
-      descriptionForModel: `${record.id} — served locally by ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — its tools ride in the prompt.' : ''}`,
+      descriptionForModel: record.executionOrigin?.kind === 'remote'
+        ? `${record.id} — ${record.executionOrigin.remoteModel ?? record.id} runs on ${record.executionOrigin.remoteHost ?? 'an upstream host'} through ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl}; pricing unknown; persisted as ${persisted}.`
+        : `${record.id} — served locally by ${LOCAL_SERVER_NAMES[record.server]} at ${record.baseUrl} (keyless, no metering); persisted as ${persisted}.${record.toolsDeclared === false ? ' The server declares no tool support — its tools ride in the prompt.' : ''}`,
+      ...(record.executionOrigin !== undefined ? { executionOrigin: record.executionOrigin } : {}),
       group: LOCAL_MODEL_GROUP,
       ...(record.contextWindow !== undefined ? { statedContextWindow: record.contextWindow.tokens } : {}),
     })

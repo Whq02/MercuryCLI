@@ -21,7 +21,8 @@ export function localLiveCatalogue(): ProviderCatalogueEntry[] {
     displayLabel: record.displayName ?? record.id,
     modelClass: 'local' as const,
     ...(record.contextWindow ? { contextWindow: record.contextWindow.tokens } : {}),
-    efforts: [],
+    efforts: record.thinking?.values.filter((value): value is string => typeof value === 'string') ?? [],
+    ...(record.executionOrigin !== undefined ? { executionOrigin: record.executionOrigin } : {}),
     roles: ALL_ROLES,
   }))
 }

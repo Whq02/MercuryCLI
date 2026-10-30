@@ -33,6 +33,7 @@ export interface LocalModelRecord {
   toolsDeclared?: boolean
   thinkingDeclared?: boolean
   thinking?: { values: Array<boolean | string>; default: boolean | string }
+  executionOrigin?: { kind: 'local' } | { kind: 'remote'; remoteModel?: string; remoteHost?: string }
   visionDeclared?: boolean
   loaded?: boolean
   family?: string
@@ -203,6 +204,9 @@ export async function probeOllama(root: string, io: LocalDiscoveryIo): Promise<L
         id,
         server: 'ollama',
         baseUrl,
+        executionOrigin: str(m.remote_model) || str(m.remote_host)
+          ? { kind: 'remote', ...(str(m.remote_model) ? { remoteModel: str(m.remote_model)! } : {}), ...(str(m.remote_host) ? { remoteHost: str(m.remote_host)! } : {}) }
+          : { kind: 'local' },
         ...(contextWindow !== undefined ? { contextWindow } : {}),
         ...(servedCtx?.bytes !== undefined ? { servedBytes: servedCtx.bytes } : {}),
         ...(modelMax !== undefined ? { modelMaxContext: modelMax } : {}),
