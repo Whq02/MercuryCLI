@@ -18,7 +18,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../utils/permissions/pathValidation.js'
-import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { allWorkingDirectories, envFileReadAsk, envFileTargetsInGlob, isProjectEnvFileName, matchingRulesForInput, pathInAllowedWorkingPath, ruleMatcherFor } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getShellCwd, resolveShellCwd } from '../../utils/Shell.js'
@@ -647,16 +647,21 @@ function runPathChecker(
     roots.push(check.resolvedPath)
   }
   if (held !== null) return held
-  if (operationType === 'read' && !flowRead && FOLLOWS_LINKS[command]?.(args) === true) {
-    const followed = followedLinksRefusal(command, roots, cwd, context, operationType)
-    if (followed !== null) return followed
+  if (operationType === 'read') {
+    const follows = !flowRead && FOLLOWS_LINKS[command]?.(args) === true
+    const denied = ruleMatcherFor(context, 'read', 'deny')
+    const recursive = RECURSIVE_READERS[command]?.(args) === true && denied !== null
+    if (follows || recursive) {
+      const refusal = treeRefusal(command, roots, cwd, context, operationType, follows, denied)
+      if (refusal !== null) return refusal
+    }
   }
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
 }
 
-function operandRefusal(command: PathCommand, check: ReturnType<typeof validatePath>, context: ToolPermissionContext, operationType: FileOperationType): PermissionResult {
+function operandRefusal(command: PathCommand, check: ReturnType<typeof validatePath>, context: ToolPermissionContext, operationType: FileOperationType, spelled = check.resolvedPath): PermissionResult {
   if (check.decisionReason?.type === 'rule') {
-    return ruleDeny(denySubject(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
+    return ruleDeny(denySubject(command, spelled), spelled, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
   }
   return {
     behavior: 'ask',
@@ -707,6 +712,18 @@ const FOLLOWS_LINKS: Partial<Record<PathCommand, (args: string[]) => boolean>> =
   },
 }
 
+const RECURSIVE_READERS: Partial<Record<PathCommand, (args: string[]) => boolean>> = {
+  grep: args => {
+    const flags = flagNames(args, GREP_GRAMMAR)
+    return ['-r', '-R', '--recursive', '--dereference-recursive'].some(flag => flags.has(flag))
+  },
+  rg: () => true,
+  diff: args => {
+    const flags = flagNames(args, DIFF_GRAMMAR)
+    return flags.has('-r') || flags.has('--recursive')
+  },
+}
+
 function isDirectory(path: string): boolean {
   try {
     return statSync(path).isDirectory()
@@ -715,7 +732,15 @@ function isDirectory(path: string): boolean {
   }
 }
 
-function followedLinksRefusal(command: PathCommand, roots: string[], cwd: string, context: ToolPermissionContext, operationType: FileOperationType): PermissionResult | null {
+function treeRefusal(
+  command: PathCommand,
+  roots: string[],
+  cwd: string,
+  context: ToolPermissionContext,
+  operationType: FileOperationType,
+  follows: boolean,
+  denied: ((path: string) => PermissionRule[]) | null,
+): PermissionResult | null {
   const budget = scanCeiling()
   const seen = new Set<string>()
   const queue = roots.filter(isDirectory).map(root => ({ dir: root, root }))
@@ -738,17 +763,20 @@ function followedLinksRefusal(command: PathCommand, roots: string[], cwd: string
     }
     for (const entry of entries) {
       if (++visited > budget) {
-        const message = `${command} follows links under ${root}, a tree of more than ${budget.toLocaleString('en-US')} entries; narrow the search, or approve`
+        const message = `${command} ${follows ? 'follows links' : 'reads'} under ${root}, a tree of more than ${budget.toLocaleString('en-US')} entries; narrow the search, or approve`
         return { behavior: 'ask', message, decisionReason: { type: 'other', reason: message } }
       }
       const full = join(real, entry.name)
       if (entry.isSymbolicLink()) {
+        if (!follows) continue
         const check = validatePath(full, cwd, context, operationType)
-        if (!check.allowed) return operandRefusal(command, check, context, operationType)
+        if (!check.allowed) return operandRefusal(command, check, context, operationType, full)
         if (isDirectory(check.resolvedPath)) queue.push({ dir: check.resolvedPath, root })
-      } else if (entry.isDirectory()) {
-        queue.push({ dir: full, root })
+        continue
       }
+      const rule = denied?.(full)[0]
+      if (rule !== undefined) return ruleDeny(denySubject(command, full), full, 'read', context, rule)
+      if (entry.isDirectory()) queue.push({ dir: full, root })
     }
   }
   return null
