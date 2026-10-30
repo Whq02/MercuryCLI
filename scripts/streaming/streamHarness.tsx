@@ -9,7 +9,6 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
   const { enableConfigs } = await import('../../src/utils/config.js')
   const { handleMessageFromStream } = await import('../../src/utils/messages/streaming.js')
   type StreamingToolUse = import('../../src/utils/messages/streaming.js').StreamingToolUse
-  const { StreamBatcher } = await import('../../src/utils/messages/streamBatcher.js')
   const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.js')
   const { LiveStreamingTail } = await import('../../src/components/LiveStreamingTail.js')
   const { Markdown, StreamingMarkdown } = await import('../../src/components/Markdown.js')
@@ -90,13 +89,7 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
       },
       { isActive: typing },
     )
-    const batcher = useRef<InstanceType<typeof StreamBatcher<StreamingToolUse[]>> | null>(null)
-    if (batcher.current === null) {
-      batcher.current = new StreamBatcher<StreamingToolUse[]>([], {
-        sink: value => setToolUses(prev => (prev === value ? prev : value)),
-        flushNow: (prev, next) => prev.length !== next.length,
-      })
-    }
+    const toolUsesRef = useRef<StreamingToolUse[]>([])
     const onStreamingText = useCallback((f: (cur: string | null) => string | null) => {
       if (legacy) {
         const next = f(legacyTextRef.current)
@@ -117,10 +110,8 @@ export async function runStreamScene(sceneName: string, outPath: string): Promis
         f: (cur: StreamingToolUse[]) => StreamingToolUse[],
         opts?: { silent?: boolean; flushSilent?: boolean },
       ) => {
-        const b = batcher.current!
-        if (opts?.silent) b.updateSilent(f)
-        else b.update(f)
-        if (opts?.flushSilent) b.flushSilent()
+        toolUsesRef.current = f(toolUsesRef.current)
+        if (!opts?.silent || opts?.flushSilent) setToolUses(toolUsesRef.current)
       },
       [],
     )

@@ -6,7 +6,7 @@ import {
   type StreamingToolUse,
   type StreamingToolUseUpdateOpts,
 } from '../../src/utils/messages/streaming.js'
-import { StreamBatcher } from '../../src/utils/messages/streamBatcher.js'
+import { createStreamingTailStore } from '../../src/utils/messages/streamingTailStore.js'
 
 let failures = 0
 function check(name: string, ok: boolean, detail?: string): void {
@@ -43,26 +43,14 @@ function drive(frames: never[]) {
   const textCommits: (string | null)[] = []
   const modes: string[] = []
   const appended: unknown[] = []
-  const toolUses = new StreamBatcher<StreamingToolUse[]>([], {
-    sink: v => toolCommits.push(v),
-    flushNow: (prev, next) => prev.length !== next.length,
-    setTimer: fn => {
-      pending.push(fn)
-      return pending.length
-    },
-    clearTimer: h => {
-      pending[(h as number) - 1] = null as never
-    },
-  })
-  const pending: (() => void)[] = []
+  const toolUses = { current: [] as StreamingToolUse[] }
   const toolCommits: StreamingToolUse[][] = []
   const onStreamingToolUses = (
     f: (cur: StreamingToolUse[]) => StreamingToolUse[],
     opts?: StreamingToolUseUpdateOpts,
   ) => {
-    if (opts?.silent) toolUses.updateSilent(f)
-    else toolUses.update(f)
-    if (opts?.flushSilent) toolUses.flushSilent()
+    toolUses.current = f(toolUses.current)
+    if (!opts?.silent || opts?.flushSilent) toolCommits.push(toolUses.current)
   }
   for (const frame of frames) {
     handleMessageFromStream(
@@ -80,9 +68,6 @@ function drive(frames: never[]) {
       },
     )
   }
-  const pump = () => {
-    for (const fn of pending.splice(0)) fn?.()
-  }
   return {
     get streamingText() {
       return streamingText
@@ -92,7 +77,6 @@ function drive(frames: never[]) {
     appended,
     toolUses,
     toolCommits,
-    pump,
   }
 }
 
@@ -160,19 +144,17 @@ console.log('── FLUX S0 stream-contract characterization ──')
 }
 
 {
-  const commits: number[] = []
-  const b = new StreamBatcher<string>('', {
-    sink: () => commits.push(1),
-    setTimer: () => 1,
-    clearTimer: () => {},
-  })
-  for (let i = 0; i < 100; i++) b.updateSilent(cur => cur + 'x')
-  check('100 silent deltas schedule zero commits', commits.length === 0)
-  check('silent value stays ref-fresh', b.current.length === 100)
-  b.flushSilent()
-  check('boundary commits exactly once', commits.length === 1)
-  b.flushSilent()
-  check('clean boundary is a no-op (no double commit)', commits.length === 1)
+  let pending: (() => void) | null = null
+  let commits = 0
+  const tail = createStreamingTailStore({ now: () => 0, setTimer: fn => { pending = fn; return 1 }, clearTimer: () => { pending = null } })
+  tail.subscribe(() => commits++)
+  tail.update(() => '')
+  for (let i = 0; i < 100; i++) tail.update(cur => (cur ?? '') + 'x')
+  check('100 deltas coalesce behind the opening publish', commits === 1 && pending !== null)
+  check('the live value stays ref-fresh', tail.read() === 'x'.repeat(100))
+  ;(pending as (() => void) | null)?.()
+  check('the trailing publish carries all bytes once', commits === 2 && tail.getSnapshot() === tail.read())
+  tail.dispose()
 }
 
 {
@@ -188,26 +170,20 @@ console.log('── FLUX S0 stream-contract characterization ──')
 }
 
 {
-  const sunk: string[] = []
   let trailing: (() => void) | null = null
-  const b = new StreamBatcher<string>('', {
-    sink: v => sunk.push(v),
-    setTimer: fn => {
-      trailing = fn
-      return 1
-    },
-    clearTimer: () => {
-      trailing = null
-    },
-  })
-  b.update(() => 'partial fin')
-  check('esc-interrupt read sees the un-flushed tail', b.current === 'partial fin')
-  b.flush()
-  b.dispose()
-  check('flush-before-dispose commits the final value', sunk[sunk.length - 1] === 'partial fin')
+  const tail = createStreamingTailStore({ now: () => 0, setTimer: fn => { trailing = fn; return 1 }, clearTimer: () => { trailing = null } })
+  let commits = 0
+  tail.subscribe(() => commits++)
+  tail.update(() => 'partial')
+  tail.update(cur => cur + ' fin')
+  check('esc-interrupt reads the un-published live tail', tail.read() === 'partial fin' && tail.getSnapshot() === 'partial')
+  tail.reset(null)
+  check('settlement carries the complete final value', tail.readSettled() === 'partial fin' && tail.getSnapshot() === null)
+  tail.dispose()
   check('no trailing timer survives dispose', trailing === null)
-  b.update(cur => cur + ' late')
-  check('post-dispose update never resurrects the sink', sunk.length === 1 && b.current === 'partial fin late')
+  const before = commits
+  tail.update(() => 'late')
+  check('post-dispose update never resurrects the sink', commits === before)
 }
 
 {
