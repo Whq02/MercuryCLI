@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { gitArgs } from '../../utils/git/spawnArgs.js'
 
 function trackedDocs(root: string): Set<string> | undefined {
@@ -25,4 +26,8 @@ export function bundledDocPages(): Record<string, string> {
     pages[`docs/${name}`] = readFileSync(join(docs, name), 'utf8')
   }
   return pages
+}
+
+export function bundledDocPagesPacked(): string {
+  return gzipSync(Buffer.from(JSON.stringify(bundledDocPages()), 'utf8')).toString('base64')
 }
