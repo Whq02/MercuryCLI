@@ -16,7 +16,9 @@ default → implement → apollo → flow → sovereign → default
 
 Each step falls through when its mode is unavailable: from apollo the carousel
 lands on flow when the live flow gate allows it, else on sovereign when bypass is
-available on the context, else on default.
+available on the context, else on default. Sovereign is available in every
+interactive session unless settings or policy disable it; `mercury run` reaches
+it only with `--sovereign` or `--allow-sovereign`.
 
 Presentation: title "Apollo Mode", seal `◇`, its own tint. Apollo is never a
 bypass posture: the interview's spec files are its only writes; every other

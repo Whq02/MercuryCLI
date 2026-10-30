@@ -1332,6 +1332,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isRunArgv()
   const dangerouslySkipPermissions = Boolean(opts.sovereign) || opts.mode === 'sovereign' || bypassFromRegistry
   const allowDangerousSkip = Boolean(opts.allowSovereign)
+  const sovereignAvailable = allowDangerousSkip || !isRunArgv()
   const { initialPermissionModeFromCLI, isSovereignDisabled } = await import('./utils/permissions/permissionSetup.js')
   const explicitMode = typedString(opts.mode) as PermissionMode | undefined
   if (opts.sovereign && explicitMode && !modeBypassesPermissions(explicitMode)) {
@@ -1354,7 +1355,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     disallowedToolsCli: (opts.blockTools as string[] | undefined) ?? [],
     baseToolsCli: opts.toolset as string[] | undefined,
     permissionMode,
-    allowDangerouslySkipPermissions: allowDangerousSkip,
+    allowDangerouslySkipPermissions: sovereignAvailable,
   })
   let toolPermissionContext = permissionInit.toolPermissionContext
   for (const warning of permissionInit.warnings) console.error(warning)
@@ -2218,7 +2219,7 @@ async function runLaunch(args: {
     onChangeAppState({ newState, oldState }),
   )
 
-  if (modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip) {
+  if (modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip || store.getState().toolPermissionContext.isBypassPermissionsModeAvailable === true) {
     void import('./utils/permissions/bypassPermissionsKillswitch.js')
       .then(m =>
         m.checkAndDisableSovereignIfNeeded(
