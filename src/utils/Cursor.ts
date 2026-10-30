@@ -537,6 +537,10 @@ export class Cursor {
     return 'punct'
   }
 
+  private isEmptyLine(offset: number): boolean {
+    return this.text[offset] === '\n' && (offset === 0 || this.text[offset - 1] === '\n')
+  }
+
   nextVimWord(): Cursor {
     const doc = this.measuredText
     let pos = this.offset
@@ -547,6 +551,7 @@ export class Cursor {
       }
     }
     while (pos < this.text.length && this.classOf(this.charAt(pos)) === 'space') {
+      if (pos > this.offset && this.isEmptyLine(pos)) break
       pos = doc.nextOffset(pos)
     }
     return new Cursor(doc, pos)
@@ -573,6 +578,7 @@ export class Cursor {
     if (this.offset === 0) return this.atSelf()
     let pos = doc.prevOffset(this.offset)
     while (pos > 0 && this.classOf(this.charAt(pos)) === 'space') {
+      if (this.isEmptyLine(pos)) return new Cursor(doc, pos)
       pos = doc.prevOffset(pos)
     }
     if (pos === 0 && this.classOf(this.charAt(pos)) === 'space') {
@@ -601,6 +607,7 @@ export class Cursor {
       c = n
     }
     while (!c.isAtEnd() && this.wsAt(c)) {
+      if (c.offset > this.offset && this.isEmptyLine(c.offset)) break
       const n = c.right()
       if (n.offset === c.offset) break
       c = n
@@ -641,6 +648,7 @@ export class Cursor {
       c = c.left()
     }
     while (c.offset > 0 && this.wsAt(c)) {
+      if (this.isEmptyLine(c.offset)) return c
       const l = c.left()
       if (l.offset === c.offset) break
       c = l
