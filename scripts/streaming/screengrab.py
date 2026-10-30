@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(preflight.stdout[len(prefix):].strip()))
 import pyte
 
 drive, cols, rows = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
-stops = sorted(int(x) for x in sys.argv[4:])
+stops = sorted(float(x) for x in sys.argv[4:])
 
 screen = pyte.Screen(cols, rows)
 stream = pyte.ByteStream(screen)
