@@ -27,7 +27,7 @@ export function wrapAnsi(
   columns: number,
   options?: WrapAnsiOptions,
 ): string {
-  const wrapped = nativeWrapAnsi && !VARIATION_SELECTOR_RE.test(input)
+  const wrapped = nativeWrapAnsi && !VARIATION_SELECTOR_RE.test(input) && !/[\u1160-\u11FF]/.test(input)
     ? nativeWrapAnsi(input, columns, options)
     : bundledWrapAnsi(input, columns, options)
   if (

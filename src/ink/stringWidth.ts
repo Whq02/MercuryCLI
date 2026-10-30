@@ -35,11 +35,13 @@ const HEBREW_ARABIC_MARK_RE =
 
 const DIRECTIONAL_FORMAT_RE = /[\u061C\u180E\u200C-\u200F\u202A-\u202E\u2066-\u2069]/
 
+const HANGUL_CONJOINING_RE = /[\u1160-\u11FF]/
 function isZeroWidthCodePoint(codePoint: number): boolean {
   if (codePoint >= 0x20 && codePoint <= 0x7e) return false
   if (codePoint <= 0x1f) return true
   if (codePoint >= 0x7f && codePoint <= 0x9f) return true
   if (codePoint >= 0xa0 && codePoint <= 0x2ff) return codePoint === 0xad
+  if (codePoint >= 0x1160 && codePoint <= 0x11ff) return true
   if (codePoint === 0x200c || codePoint === 0x200d) return terminalTextCells().joinerCells === 0
   if (codePoint >= 0x200b && codePoint <= 0x200f) return true
   if (codePoint === 0xfeff) return true
@@ -166,7 +168,7 @@ export function stringWidth(input: string): number {
     if (text.length === 0) return 0
   }
 
-  if (nativeStringWidth && !HEBREW_ARABIC_MARK_RE.test(text) && !DIRECTIONAL_FORMAT_RE.test(text)) {
+  if (nativeStringWidth && !HEBREW_ARABIC_MARK_RE.test(text) && !DIRECTIONAL_FORMAT_RE.test(text) && !HANGUL_CONJOINING_RE.test(text)) {
     return nativeStringWidth(text, {
       countAnsiEscapeCodes: false,
       ambiguousIsNarrow: true,
