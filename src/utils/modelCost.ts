@@ -261,7 +261,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   },
   minimax: (model, promptTokens) => {
     const pin = minimaxDisplayPin(model)
-    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
+    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens > (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
   },
   together: model => recorded(engineTier(togetherDisplayPin(model))),
   cohere: model => recorded(engineTier(cohereDisplayPin(model))),
