@@ -17,6 +17,7 @@ const MODULES_ALLOWED = [
   'src/services/privateChannel/provenanceNotice.ts',
   'src/services/privateChannel/releaseTarget.ts',
   'src/services/privateChannel/signingTrust.ts',
+  'src/services/privateChannel/vendoredPython.ts',
   'src/services/privateChannel/vendoredRuntime.ts',
   'src/services/privateChannel/verifyArtifactStandalone.ts',
 ]
