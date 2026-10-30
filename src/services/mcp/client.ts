@@ -46,7 +46,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isAbortError, TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../utils/errors.js'
 import { isShuttingDown } from '../../utils/gracefulShutdown.js'
 import { getMCPUserAgent } from '../../utils/http.js'
-import { createImageMetadataText, type ImageDimensions, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
+import { createImageMetadataText, type ImageDimensions, ImageResizeError, maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { logError, logMCPDebug, logMCPError } from '../../utils/log.js'
 import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstructions, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { mcpContentNeedsTruncation, truncateMcpContent } from '../../utils/mcpValidation.js'
@@ -1234,23 +1234,32 @@ function isImageResource(resource: MCPResource): boolean {
   return resource?.text === undefined && resource?.blob !== undefined && resource.mimeType !== undefined && IMAGE_MIME_TYPES.has(resource.mimeType)
 }
 
-function isImageContent(block: unknown): boolean {
-  if (typeof block !== 'object' || block === null) return false
-  const record = block as Record<string, unknown>
-  return record.type === 'image' || (record.type === 'resource' && isImageResource(record.resource as MCPResource))
+async function forwardableImage(base64: string, mimeType: string | undefined): Promise<{ block: ContentBlockParam; dimensions: ImageDimensions } | null> {
+  let image: { block: ContentBlockParam; dimensions?: ImageDimensions }
+  try {
+    image = await resizedImageBlock(base64, mimeType)
+  } catch (error) {
+    if (error instanceof ImageResizeError) return null
+    throw error
+  }
+  const mediaType = (image.block as { source?: { media_type?: string } }).source?.media_type
+  if (image.dimensions === undefined || mediaType === undefined || !IMAGE_MIME_TYPES.has(mediaType)) return null
+  return { block: image.block, dimensions: image.dimensions }
 }
 
 export async function transformResultContent(content: unknown[], serverName: string): Promise<ContentBlockParam[]> {
   const out: ContentBlockParam[] = []
-  const count = content.filter(isImageContent).length
-  const notes: string[] = []
-  let ordinal = 0
+  const shown: Array<{ ordinal: number; dimensions: ImageDimensions }> = []
+  let images = 0
   const pushImage = async (base64: string, mimeType: string | undefined): Promise<void> => {
-    ordinal++
-    const image = await resizedImageBlock(base64, mimeType)
+    const image = await forwardableImage(base64, mimeType)
+    if (image === null) {
+      out.push(await persistBlob(Buffer.from(base64, 'base64'), mimeType, serverName, `Image from ${serverName}`))
+      return
+    }
+    images++
     out.push(image.block)
-    const note = image.dimensions === undefined ? null : createImageMetadataText(image.dimensions, undefined, { index: ordinal, count })
-    if (note !== null) notes.push(note)
+    shown.push({ ordinal: images, dimensions: image.dimensions })
   }
   for (const block of content) {
     const record = block as Record<string, unknown>
@@ -1291,7 +1300,10 @@ export async function transformResultContent(content: unknown[], serverName: str
         break
     }
   }
-  for (const text of notes) out.push({ type: 'text', text } as ContentBlockParam)
+  for (const { ordinal, dimensions } of shown) {
+    const note = createImageMetadataText(dimensions, undefined, { index: ordinal, count: images })
+    if (note !== null) out.push({ type: 'text', text: note } as ContentBlockParam)
+  }
   return out
 }
 

@@ -60,6 +60,8 @@ const MIME_EXTENSIONS: ReadonlyMap<string, string> = new Map(
       ['mp3', 'audio/mpeg'], ['wav', 'audio/wav'], ['ogg', 'audio/ogg'],
       ['mp4', 'video/mp4'], ['webm', 'video/webm'],
       ['png', 'image/png'], ['jpg', 'image/jpeg'], ['gif', 'image/gif'], ['webp', 'image/webp'], ['svg', 'image/svg+xml'],
+      ['bmp', 'image/bmp', 'image/x-ms-bmp'], ['tiff', 'image/tiff'], ['heic', 'image/heic'], ['heif', 'image/heif'], ['avif', 'image/avif'],
+      ['ico', 'image/x-icon', 'image/vnd.microsoft.icon'],
     ] as const
   ).flatMap(([extension, ...mimes]) => mimes.map(mime => [mime, extension] as const)),
 )
