@@ -26,6 +26,7 @@ import {
 import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './bootstrap/state.js'
 import { getWorkload } from './utils/workloadContext.js'
 import type { NonNullableUsage } from './services/api/logging.js'
+import { usageCount } from './services/api/emptyUsage.js'
 import { formatCost, formatSessionCost, formatLaneSpend } from './utils/spendSpelling.js'
 export { formatCost, formatSessionCost, formatLaneSpend }
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
@@ -67,6 +68,9 @@ export function addToTotalSessionCost(
   model: string,
   pricing?: LedgerCostBasis,
 ): number {
+  const invalidCost = !Number.isFinite(cost) || cost < 0 || !Number.isFinite(getTotalCostUSD() + cost)
+  if (invalidCost) cost = 0
+  usage = { ...usage, input_tokens: usageCount(usage.input_tokens), output_tokens: usageCount(usage.output_tokens), cache_read_input_tokens: usageCount(usage.cache_read_input_tokens), cache_creation_input_tokens: usageCount(usage.cache_creation_input_tokens), server_tool_use: { web_search_requests: usageCount(usage.server_tool_use?.web_search_requests), web_fetch_requests: usageCount(usage.server_tool_use?.web_fetch_requests) } }
   const record: ModelUsage = getUsageForModel(model) ?? {
     inputTokens: 0,
     outputTokens: 0,
@@ -88,7 +92,7 @@ export function addToTotalSessionCost(
   record.lastUsedAtMs = Date.now()
   addToTotalCostState(cost, record, model)
   const workload = getWorkload()
-  if (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced') {
+  if (invalidCost || (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced')) {
     recordUnpricedTurn(model)
     if (workload !== undefined) recordWorkloadUnpricedTurn(workload, model)
   }

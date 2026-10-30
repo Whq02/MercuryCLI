@@ -38,3 +38,6 @@ export const EMPTY_USAGE: Readonly<NonNullableUsage> = Object.freeze({
   speed: 'standard',
   output_tokens_details: null,
 })
+export function usageCount(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0
+}

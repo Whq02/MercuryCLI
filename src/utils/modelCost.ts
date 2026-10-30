@@ -1,4 +1,5 @@
 import { setHasUnknownModelCost } from '../bootstrap/state.js'
+import { usageCount } from '../services/api/emptyUsage.js'
 import { operatorModelFacts } from './model/modelOverrides.js'
 import { deepseekDisplayPin, deepseekRatePeriod } from '../services/providers/deepseek/deepseekPins.js'
 import { xaiModelFacts } from '../services/providers/xai/xaiCatalogue.js'
@@ -314,6 +315,7 @@ export function getModelCosts(model: string, opts?: { promptTokens?: number; sta
 }
 
 export function calculateUSDCost(resolvedModel: string, usage: UsageLike): number {
+  usage = { ...usage, input_tokens: usageCount(usage.input_tokens), output_tokens: usageCount(usage.output_tokens), cache_read_input_tokens: usageCount(usage.cache_read_input_tokens), cache_creation_input_tokens: usageCount(usage.cache_creation_input_tokens), cache_creation: { ephemeral_1h_input_tokens: usageCount(usage.cache_creation?.ephemeral_1h_input_tokens) }, server_tool_use: { web_search_requests: usageCount(usage.server_tool_use?.web_search_requests) } }
   const cacheCreation = usage.cache_creation_input_tokens ?? 0
   const promptTokens = usage.input_tokens + (usage.cache_read_input_tokens ?? 0) + cacheCreation
   const modelCosts = getModelCosts(resolvedModel, { promptTokens, startedAtMs: usage.request_started_at_ms })

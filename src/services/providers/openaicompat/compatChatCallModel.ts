@@ -33,7 +33,7 @@ import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { fitOutputTokensForRequest, outputFitWords } from '../../api/outputFit.js'
-import { EMPTY_USAGE } from '../../api/emptyUsage.js'
+import { EMPTY_USAGE, usageCount } from '../../api/emptyUsage.js'
 import {
   checkResponseForCacheBreak,
   recordPromptState,
@@ -420,19 +420,19 @@ async function buildToolDeclarationRows(
 }
 
 export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeof EMPTY_USAGE {
-  const total = usage?.inputTokens ?? 0
-  const cached = usage?.cachedInputTokens ?? 0
-  const written = usage?.cacheWriteInputTokens ?? 0
-  const oneHour = Math.min(usage?.cacheWrite1hInputTokens ?? 0, written)
+  const total = usageCount(usage?.inputTokens)
+  const cached = Math.min(usageCount(usage?.cachedInputTokens), total)
+  const written = Math.min(usageCount(usage?.cacheWriteInputTokens), total - cached)
+  const oneHour = Math.min(usageCount(usage?.cacheWrite1hInputTokens), written)
   return {
     ...EMPTY_USAGE,
     input_tokens: Math.max(0, total - cached - written),
-    output_tokens: usage?.outputTokens ?? 0,
+    output_tokens: usageCount(usage?.outputTokens),
     cache_read_input_tokens: cached,
     cache_creation_input_tokens: written,
     cache_creation: { ephemeral_5m_input_tokens: written - oneHour, ephemeral_1h_input_tokens: oneHour },
     output_tokens_details: usage?.reasoningTokens !== undefined
-      ? { thinking_tokens: usage.reasoningTokens }
+      ? { thinking_tokens: usageCount(usage.reasoningTokens) }
       : null,
   }
 }

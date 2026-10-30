@@ -945,7 +945,7 @@ const KNOWN_FINISH: readonly CompatFinishReason[] = [
 ]
 
 export function decodeCompatUsage(usage: Record<string, unknown>, headers?: Headers): CompatUsage | undefined {
-  const num = (v: unknown): number | undefined => (typeof v === 'number' ? v : undefined)
+  const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
   const prompt = num(usage.prompt_tokens)
   const completion = num(usage.completion_tokens)
   if (prompt === undefined && completion === undefined) return undefined
