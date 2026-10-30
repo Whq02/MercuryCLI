@@ -10,8 +10,6 @@ const SOURCE = join(ROOT, 'mercury-skills', NAME)
 const MEDIA_SERVER = join(ROOT, 'src', 'extensions', 'bundled', 'mercury-media', 'server', 'server.js')
 const POSITIVE = 'Use Mercury image generation to make a pixel-art character from this reference.'
 const NEGATIVE = 'How do I install Mercury or sign in?'
-const BUILD_FIELDS = ['sampler', 'scheduler', 'cfg', 'clip_skip', 'embeddings', 'upscale', 'upscaler', 'workflow', 'dry', 'export_workflow']
-const BUILD_FIELDS_HEADING = '## Fields some builds add'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'image-generation-skill-')))
 const project = join(scratch, 'project')
@@ -199,50 +197,117 @@ const builtinNames = new Set(builtinCommands().flatMap(item => [item.name, ...(i
 const commandsNamed = backticked(skillFiles, /`\/([a-z][a-z-]*)[^`]*`/g)
 check('every slash command the skill names is a Mercury command', commandsNamed.length > 0 && commandsNamed.every(name => builtinNames.has(name)), commandsNamed.filter(name => !builtinNames.has(name)).join(' ') || commandsNamed.join(' '))
 
-section('§6 EXAMPLES AGAINST THE LIVE SCHEMA: every JSON example validates against the image_generate schema the vendored media server lists')
+section('§6 CONTRACT: shipped MCP schemas, every documented input and enum, and typed examples; no diffusion runtime starts')
+type Schema = { properties?: Record<string, Schema>; items?: Schema; anyOf?: Schema[]; oneOf?: Schema[]; allOf?: Schema[]; enum?: unknown[]; const?: unknown; additionalProperties?: unknown }
+const pathsOf = (schema: Schema, prefix = ''): string[] => [
+  ...Object.entries(schema.properties ?? {}).flatMap(([key, child]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+    return [path, ...pathsOf(child, path)]
+  }),
+  ...(schema.items ? pathsOf(schema.items, `${prefix}[]`) : []),
+  ...[...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])].flatMap(branch => pathsOf(branch, prefix)),
+]
+const enumsOf = (schema: Schema): string[] => [
+  ...(schema.enum ?? []).filter((value): value is string => typeof value === 'string'),
+  ...(typeof schema.const === 'string' ? [schema.const] : []),
+  ...Object.values(schema.properties ?? {}).flatMap(enumsOf),
+  ...(schema.items ? enumsOf(schema.items) : []),
+  ...[...(schema.anyOf ?? []), ...(schema.oneOf ?? []), ...(schema.allOf ?? [])].flatMap(enumsOf),
+]
+const sorted = (values: Iterable<string>): string => [...new Set(values)].sort().join(' ')
+const inventoryText = skillFiles.find(([rel]) => rel === 'references/tools.md')?.[1] ?? ''
+const inventory = new Map([...inventoryText.matchAll(/^\| `([a-z_]+)` \| ([^\n]+) \|$/gm)].map(match => [match[1]!, [...match[2]!.matchAll(/`([^`]+)`/g)].map(field => field[1]!)]))
+const noNull = (value: unknown): boolean => value !== null && (Array.isArray(value) ? value.every(noNull) : typeof value !== 'object' || Object.values(value).every(noNull))
 const client = new Client({ name: 'image-generation-skill-proof', version: '1' })
 try {
-  await client.connect(new StdioClientTransport({ command: 'node', args: [MEDIA_SERVER], cwd: scratch, env: { PATH: process.env.PATH ?? '', MEDIA_ROOT: join(scratch, 'media') }, stderr: 'pipe' }))
+  await client.connect(new StdioClientTransport({ command: 'node', args: [MEDIA_SERVER], cwd: scratch, env: { PATH: process.env.PATH ?? '', MEDIA_ROOT: join(scratch, 'media'), HOME: join(scratch, 'home'), TMPDIR: join(scratch, 'tmp') }, stderr: 'pipe' }))
   const tools = (await client.listTools()).tools
-  const toolNames = new Set(tools.map(tool => tool.name))
-  const schema = tools.find(tool => tool.name === 'image_generate')?.inputSchema as { properties?: Record<string, unknown>; additionalProperties?: unknown } | undefined
-  check('the vendored server lists image_generate with a closed schema', schema !== undefined && schema.additionalProperties === false)
-  const toolsNamed = backticked(skillFiles, /`((?:media_[a-z_]+|image_generate|video_generate))`/g)
-  check('every media tool the skill names is listed by the server and tabled in the media guide', toolsNamed.length >= 4 && toolsNamed.every(name => toolNames.has(name) && mediaGuide.includes(`| \`${name}\` |`)), toolsNamed.join(' '))
-  const compiled = compileJsonSchema(schema ?? {})
-  check("the schema compiles in Mercury's JSON schema engine", compiled.ok, compiled.ok ? '' : compiled.error)
-  const examples = skillFiles.flatMap(([rel, text]) => [...text.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => ({ rel, text: match[1]! })))
-  check('the skill carries worked examples', examples.length >= 3, String(examples.length))
+  const schemas = new Map(tools.map(tool => [tool.name, tool.inputSchema as Schema]))
+  const toolNames = new Set(schemas.keys())
+  check('the inventory teaches every shipped media tool, without aliases or invented tools', sorted(inventory.keys()) === sorted(toolNames), `${sorted(inventory.keys())} vs ${sorted(toolNames)}`)
+  for (const [name, schema] of schemas) {
+    check(`${name}: closed input schema`, schema.additionalProperties === false)
+    check(`${name}: documented fields equal the shipped fields, including nested objects and arrays`, sorted(inventory.get(name) ?? []) === sorted(pathsOf(schema)), `documented ${sorted(inventory.get(name) ?? [])}; shipped ${sorted(pathsOf(schema))}`)
+  }
+  const described = await client.callTool({ name: 'pipeline_describe', arguments: {} })
+  const pipelineSchema = (described.structuredContent as { schema?: Schema } | undefined)?.schema
+  check('pipeline_describe returns the actual step document schema without running a step', pipelineSchema !== undefined && described.isError !== true)
+  schemas.set('pipeline', pipelineSchema ?? {})
+  const imageSchema = schemas.get('image_generate') ?? {}
+  const image = compileJsonSchema(imageSchema)
+  check('image schema compiles in Mercury', image.ok, image.ok ? '' : image.error)
+  const catalogue = JSON.parse(readFileSync(join(ROOT, 'src', 'extensions', 'bundled', 'mercury-media', 'server', 'catalog.json'), 'utf8')) as { models: Array<{ id: string; control?: { kind: string } }> }
+  const vocabulary = new Set([...toolNames, ...[...schemas.values()].flatMap(schema => pathsOf(schema)), ...[...schemas.values()].flatMap(enumsOf), ...catalogue.models.flatMap(row => [row.id, ...(row.control ? [row.control.kind] : [])])])
+  for (const path of [...vocabulary]) for (const part of path.replaceAll('[]', '').split('.')) vocabulary.add(part)
+  check('media.host is a product setting, not a media tool argument', mediaGuide.includes('`media.host`') && !pathsOf(imageSchema).includes('media.host'))
+  vocabulary.add('media.host'); vocabulary.add('null')
+  const unknownNames = (text: string): string[] => [...text.replace(/```[\s\S]*?```/g, '').matchAll(/`([^`\n]+)`/g)]
+    .map(match => match[1]!).filter(token => /^[A-Za-z][A-Za-z0-9_.+\-[\]]*$/.test(token) && !vocabulary.has(token))
+  for (const [rel, text] of skillFiles) check(`${rel}: every inline tool, field and enum name exists in the shipped schemas`, unknownNames(text).length === 0, unknownNames(text).join(', '))
+  check('poison controls: an invented tool, field and nested field fail the vocabulary check', unknownNames('`pipeline_imagine` `reference_image_typo` `control.missing`').length === 3)
+  const renamed = structuredClone(imageSchema)
+  if (renamed.properties) { renamed.properties.reference_image_renamed = renamed.properties.reference_image!; delete renamed.properties.reference_image }
+  check('poison control: a future engine field rename makes the inventory fail', sorted(inventory.get('image_generate') ?? []) !== sorted(pathsOf(renamed)))
+  for (const [field, label] of [['sampler', 'Sampler'], ['scheduler', 'Scheduler']] as const) {
+    const row = inventoryText.split('\n').find(line => line.startsWith(`${label} enum:`)) ?? ''
+    const names = [...row.matchAll(/`([^`]+)`/g)].map(match => match[1]!)
+    check(`${field}: documented enum exactly matches the shipped enum`, sorted(names) === sorted(enumsOf(imageSchema.properties?.[field] ?? {})), sorted(names))
+  }
+  check('default-slot kinds are image and video', sorted(enumsOf(schemas.get('media_set_default')?.properties?.kind ?? {})) === 'image video' && inventoryText.includes('`kind` (image or video)'))
+  check('video VAE devices are metal and cpu', sorted(enumsOf(schemas.get('video_generate')?.properties?.vae_backend ?? {})) === 'cpu metal' && inventoryText.includes('`vae_backend` accepts `metal` or `cpu`'))
+  const pipelineText = skillFiles.find(([rel]) => rel === 'references/pipelines.md')?.[1] ?? ''
+  const documentedKinds = [...pipelineText.matchAll(/^\| `([a-z-]+)` \|/gm)].map(match => match[1]!)
+  const stepSchema = pipelineSchema?.properties?.steps?.items
+  const stepBranches = [...(stepSchema?.anyOf ?? []), ...(stepSchema?.oneOf ?? [])]
+  check('the step table teaches every schema kind, without invented kinds', sorted(documentedKinds) === sorted(stepBranches.flatMap(branch => enumsOf(branch.properties?.kind ?? {}))), sorted(documentedKinds))
+  const generationFields = Object.keys(imageSchema.properties ?? {}).filter(field => !['cwd', 'wait', 'dry', 'export_workflow'].includes(field))
+  for (const branch of stepBranches.filter(branch => ['generate', 'edit', 'control'].includes(String(branch.properties?.kind?.const)))) {
+    check(`${branch.properties?.kind?.const}: generation-step fields exclude job controls`, sorted(Object.keys(branch.properties?.inputs?.properties ?? {})) === sorted(generationFields))
+  }
+  const examples = skillFiles.flatMap(([rel, text]) => [...text.matchAll(/(?:Tool|Document): `([^`]+)`\n```json\n([\s\S]*?)\n```/g)].map(match => ({ rel, name: match[1]!, text: match[2]! })))
+  const fencedCount = skillFiles.reduce((n, [, text]) => n + [...text.matchAll(/```json\n/g)].length, 0)
+  check('every JSON example names its actual tool or the pipeline document schema', examples.length >= 10 && examples.length === fencedCount, `${examples.length}/${fencedCount}`)
+  const { Ajv2020 } = await import('ajv/dist/2020.js')
+  const pipelineValidator = new Ajv2020({ allErrors: true, logger: false }).compile(pipelineSchema ?? false)
+  const compiledPipeline = { ok: true as const, check: (value: unknown) => pipelineValidator(value) ? [] : (pipelineValidator.errors ?? []).map(error => ({ path: error.instancePath || 'root', message: error.message ?? 'failed validation', keyword: error.keyword })) }
   for (const example of examples) {
-    let value: Record<string, unknown> | null = null
-    try {
-      value = JSON.parse(example.text) as Record<string, unknown>
-    } catch {
-      value = null
-    }
-    const issues = value !== null && compiled.ok ? compiled.check(value) : [{ path: 'root', message: 'not valid JSON', keyword: 'parse' }]
-    const crossField =
-      value !== null &&
-      (value.reference_image !== undefined || (value.strength === undefined && value.mask === undefined)) &&
-      (value.sheet === undefined || (value.sheet as { columns: number }).columns <= Number(value.count ?? 1))
-    check(`${example.rel}: ${example.text.slice(0, 64)}... validates, and keeps the server's cross-field rules`, issues.length === 0 && crossField, formatSchemaIssues(issues))
-  }
-  const first = examples[0] === undefined ? null : (JSON.parse(examples[0].text) as Record<string, unknown>)
-  check('poison control: an example with a field the schema does not list is refused, as the skill says', compiled.ok && first !== null && compiled.check({ ...first, not_a_field: 1 }).length > 0)
-  const listed = new Set(Object.keys(schema?.properties ?? {}))
-  const unlisted = BUILD_FIELDS.filter(field => !listed.has(field))
-  console.log(`  this build's image_generate lists ${listed.size} fields; of the fields some builds add, it lists: ${BUILD_FIELDS.filter(field => listed.has(field)).join(', ') || 'none'}`)
-  const ungated: string[] = []
-  for (const [rel, text] of skillFiles) {
-    let heading = ''
-    for (const row of text.split('\n')) {
-      if (row.startsWith('#')) heading = row.trim()
-      for (const field of unlisted) if (row.includes(`\`${field}\``) && heading !== BUILD_FIELDS_HEADING && !row.includes('schema lists')) ungated.push(`${rel}: ${field}`)
+    const compiled = example.name === 'pipeline' ? compiledPipeline : compileJsonSchema(schemas.get(example.name) ?? false)
+    const value = JSON.parse(example.text) as Record<string, unknown>
+    const issues = compiled.ok ? compiled.check(value) : [{ path: 'root', message: compiled.error, keyword: 'compile' }]
+    const crossField = example.name === 'image_generate'
+      ? (value.prompt !== undefined || value.workflow !== undefined) && (value.reference_image !== undefined || (value.strength === undefined && value.mask === undefined)) && (value.sheet === undefined || (value.sheet as { columns: number }).columns <= Number(value.count ?? 1)) && (value.upscaler === undefined || Number(value.upscale) > 1)
+      : example.name === 'video_generate' ? value.frames === undefined || value.seconds === undefined
+      : example.name === 'pipeline_run' ? value.resume === undefined || value.step !== undefined : true
+    check(`${example.rel}: ${example.name} example validates with no null placeholders`, schemas.has(example.name) && issues.length === 0 && noNull(value) && crossField, formatSchemaIssues(issues))
+    if (compiled.ok) check(`${example.name}: an extra field in this example is refused`, compiled.check({ ...value, not_a_field: 1 }).length > 0)
+    if (example.name === 'pipeline') {
+      const validation = await client.callTool({ name: 'pipeline_validate', arguments: { pipeline: value, cwd: project } })
+      check('the worked pipeline also satisfies the engine reference/order rules without rendering', (validation.structuredContent as { valid?: boolean } | undefined)?.valid === true, JSON.stringify(validation.structuredContent))
     }
   }
-  check('a field this build does not list is named only beside the rule that the live schema must list it', skillFiles.length > 0 && ungated.length === 0, ungated.join(' | '))
+  check('poison control: a nested null placeholder fails the skill example policy even when a tool accepts null', !noNull({ loras: [{ path: 'style.safetensors', weight: null }] }))
+  const bounds: Array<[string, string, number, number, boolean]> = [
+    ['image_generate', 'width', 64, 4096, true], ['image_generate', 'height', 64, 4096, true], ['image_generate', 'steps', 1, 1000, true],
+    ['image_generate', 'seed', -1, Number.MAX_SAFE_INTEGER, true], ['image_generate', 'strength', 0, 1, false], ['image_generate', 'cfg', 0, 100, false],
+    ['image_generate', 'clip_skip', 1, 12, true], ['image_generate', 'downsize', 1, 64, true], ['image_generate', 'count', 1, 16, true],
+    ['media_result', 'timeout', 0, 86400, false], ['video_generate', 'frames', 1, 4096, true], ['video_generate', 'fps', 1, 240, true],
+    ['video_generate', 'timeout_seconds', 1, 86400, true], ['video_generate', 'vae_tile_size', 128, 4096, true], ['video_generate', 'temporal_decode_frames', 1, 16, true],
+  ]
+  for (const [name, field, min, max, integer] of bounds) {
+    const compiled = compileJsonSchema(schemas.get(name)?.properties?.[field] ?? false)
+    const accepts = (value: number) => compiled.ok && compiled.check(value).length === 0
+    check(`${name}.${field}: documented bounds and numeric unit type`, accepts(min) && accepts(max) && !accepts(min - 1) && !accepts(max + 1) && (integer ? !accepts(min + 0.5) : accepts(min + 0.5)))
+  }
+  for (const [name, schema] of tools.map(tool => [tool.name, tool.inputSchema] as const)) {
+    const marker = `server.registerTool("${name}"`
+    const bundled = readFileSync(MEDIA_SERVER, 'utf8')
+    const offset = bundled.indexOf(marker)
+    check(`${name}: schema came from a registered vendored tool`, offset >= 0 && schema !== undefined)
+    if (offset >= 0) console.log(`  schema source: server.js:${bundled.slice(0, offset).split('\n').length} ${name}`)
+  }
+  check('schema-only calls left no weights or diffusion runtime in the scratch media root', !existsSync(join(scratch, 'media', 'models')) && !existsSync(join(scratch, 'media', 'runtime')))
 } catch (error) {
-  check('the vendored media server answers tools/list', false, error instanceof Error ? error.message : String(error))
+  check('the vendored media server answers schema-only requests', false, error instanceof Error ? error.message : String(error))
 } finally {
   await client.close().catch(() => {})
 }
@@ -250,8 +315,7 @@ try {
 section('§7 THE WORDS: no em or en dash, and ComfyUI only as the format of a workflow file')
 for (const [rel, text] of skillFiles) {
   check(`${rel}: no em or en dash`, !/[\u2013\u2014]/.test(text))
-  const comfy = text.split('\n').filter(row => /comfy/i.test(row))
-  check(`${rel}: ComfyUI appears only beside the workflow fields`, comfy.every(row => /`(?:workflow|export_workflow)`/.test(row)), comfy.join(' | '))
+  check(`${rel}: the skill does not prescribe installing a separate workflow engine`, !/install (?:a |the )?ComfyUI/i.test(text))
 }
 check('unused optionals are omitted, never null placeholders', body.includes('Omit unused optional fields entirely; never send `null`') && body.includes('omit `reference_image`, `strength` and `mask`'))
 check('state and catalogue reads precede choosing a model or size', body.includes('Before any render, call `media_status`') && body.includes('then `media_models`') && body.includes('Use these results before choosing a model or size'))

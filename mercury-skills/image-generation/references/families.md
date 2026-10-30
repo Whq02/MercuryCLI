@@ -1,54 +1,39 @@
 # Model families
 
-Starting points drawn from each model's card and the engine's recipes, not guarantees: look at every result and change one thing at a time. Advice marked unverified is reasoned from the engine's code and has not been checked with a render.
+Checked 2026-10-30 against the publisher cards and media 0.2.6 code listed in `references/sources.md`. These are starting settings, not visual guarantees. No cross-family strength recipe or extra-step quality claim is assumed.
 
-## Strength and steps
+## Guidance, strength and brackets
 
-With `reference_image` and a `strength` below 1, the engine runs `floor(steps × strength) + 1` steps from part-way down the schedule. On the four-step Klein row, strength therefore moves in quarters: 0.3 and 0.45 both run two steps. Rows that accept other `steps` values can be given more for finer control; whether extra steps lower quality on the distilled rows is unverified.
+- **CFG:** the runtime's ordinary classifier-free guidance at `cfg` 1 reduces to the positive prediction, so `negative_prompt` does not guide the bundled CFG-1 rows. SDXL and Pixel Party default to 5; Qwen base to 6. Negative prompts can affect those. A publisher's Diffusers guidance argument is not automatically the same as Mercury's CFG field. [R1, R2, E]
+- **Strength:** with a reference and `strength` below 1, the pinned runtime uses floor(steps × strength) + 1 denoising steps; at 1 it keeps the full schedule. Four-step Klein is coarse: 0.3 and 0.45 both leave two steps. This is a schedule fact, not a tested identity-preservation recipe. Lower strength keeps more of the source; inside a mask it still controls how much can change. [R2, E]
+- **Brackets:** the runtime attention parser multiplies `(word)` by 1.1, `(word:1.3)` by the stated weight and `[word]` by 1/1.1. The CLIP and LLM conditioning paths use this parser on prompt text; the publisher cards do not establish that weighting improves every family. Prefer plain descriptions. Literal-bracket rendering and escaping have not been visually checked here; inspect requested lettering rather than promising exact typography. [R3]
 
-## Prompt weights
+## Image rows
 
-In every family, `(word)` raises a word's weight by 1.1, `(word:1.3)` sets it and `[word]` lowers it by 1.1. Escape literal brackets as `\(`, `\)`, `\[` and `\]`. Whether weights help the rows with a language-model text encoder (Z-Image, Klein and Qwen) is untested; plain description is the style their guides document.
+| Row | Mercury defaults and how to use them | Sources |
+| --- | --- | --- |
+| `z-image-turbo` | 9 steps, runtime CFG 1, dimension multiple 16. The publisher's 9-step example means 8 model forwards and uses Diffusers guidance 0; keep Mercury's runtime recipe, not that API number. Its example uses descriptive prose and bilingual text. A reference is denoised, not added as reference conditioning. Omit negative prompts at the default CFG. | Z, R1, E |
+| `flux2-klein-4b` | 4 steps, CFG 1, multiple 16. The card's example uses 4 and 1 too. Text-to-image and reference editing share the model. Mercury accepts one reference, not the card's multi-reference interface. State the edit in words; the engine also uses the image for reference conditioning. No numeric strength recipe for identity or a masked fix is established here. | K, R1, E |
+| `qwen-image-21-turbo` | 8 steps, CFG 1, multiple 32. Keep the saved schedule by omitting `steps` and `scheduler`; a different step count is refused while that schedule applies. The card demonstrates detailed prompts, editing and CFG 1. Mercury supports one reference and prompt-directed RGBA. Omit negative prompts at the default CFG. | QT, E |
+| `qwen-image-21` | 40 steps, catalogue CFG 6, multiple 32. The current card demonstrates 40 steps without specifying CFG; it does not establish a better CFG for this runtime. Keep the catalogue value unless deliberately testing a change. Negative prompts apply at 6. The card's transparency form is “This is an RGBA image with transparency. <description>. The image has alpha channel and the background is transparent.” | Q, E |
+| `sdxl-base-1.0` | 20 steps, CFG 5, 1024×1024, multiple 64. The card supports using the base alone; Mercury's row has no refiner. Use positive and negative prompts, denoising references and compatible SDXL extras. These step/CFG values are Mercury's recipe, not a claim that the card prescribes them. | S, E |
+| `pixel-party-xl` | 25 steps, CFG 5, 1024×1024, multiple 64. The card asks for “. in pixel art style”, 8× nearest-neighbour reduction, no refiner and says init images help. Mercury appends that suffix and downsizes to 128×128, keeping the full render. Its card demonstrates the negative prompt “mixels. amateur. multiple”. | P, E |
 
-## z-image-turbo (Z-Image Turbo)
-
-The initial default. Guidance-distilled, so it runs at CFG 1 and `negative_prompt` has no effect. Keep its 9 steps (8 model passes, per its card). Write detailed natural prose and quote text to be drawn: its card highlights bilingual text rendering. A reference acts through `strength` alone, with no reference conditioning. Its card rates the variety between seeds as low, so neighbouring seeds look alike; vary the wording instead. Sizes are multiples of 16.
-
-## flux2-klein-4b (FLUX.2 Klein 4B)
-
-Distilled to 4 steps at CFG 1, so `negative_prompt` has no effect. Black Forest Labs' prompting guide asks for prose rather than keyword lists, with the lighting described; the model gets exactly what you write, with no rewriting. It uses the reference for conditioning as well as through `strength`, so an edit can be an instruction such as "make the jacket red" with the image as `reference_image`. For the same character in a new pose or style, try `strength` 0.75 to 1 and let the reference hold identity; for a small fix, about 0.3 to 0.5 with a mask (both unverified). LoRAs must be FLUX.2 family; one made for a larger FLUX.2 model passes the family check but may not load on the 4B (unverified). A pixel-art LoRA author reports that the distilled model degrades their LoRA and recommends the Klein base model, which Mercury's catalogue does not include; that is one community report. Sizes are multiples of 16.
-
-## qwen-image-21-turbo (Qwen-Image 2.1 Turbo)
-
-A fixed eight-step schedule at CFG 1: omit `steps` (another value is refused) and leave `negative_prompt` empty. Its guidance favours long, detailed prompts. It uses the reference for conditioning, and its card says edits keep the identity of people and products. For a transparent background, its card's prompt form is: "This is an RGBA image with transparency. <description>. The image has alpha channel and the background is transparent." Sizes are multiples of 32. It is trained for larger images than Mercury's 1024 default; larger sizes are accepted, but their time and memory are unmeasured.
-
-## qwen-image-21 (Qwen-Image 2.1)
-
-40 steps by default. Mercury's catalogue runs it at CFG 6, so `negative_prompt` applies here. Upstream examples disagree (some run it at CFG 1), and which suits it better is unsettled. Prompts, reference conditioning, transparency and sizes are as for the Turbo row.
-
-## sdxl-base-1.0 and checkpoints added with `/imagesetup add`
-
-These run above CFG 1 by default (SDXL at 5, SD 1.x and 2.x at 7.5, SD 3 at 7), so `negative_prompt` works; a one-step sdxs checkpoint runs at CFG 1. Native sizes are 1024×1024 for SDXL and 512×512 for SD 1.x and 2.x, in multiples of 64 (8 for SD 3). A reference acts through `strength`; only the 8-channel image-editing variants add reference conditioning. ControlNet, LoRAs and embeddings come from this ecosystem.
-
-## pixel-party-xl (Pixel Party XL)
-
-An SDXL fine-tune at CFG 5 and 25 steps, so `negative_prompt` works; its card's example is `mixels. amateur. multiple`. Mercury appends ". in pixel art style" and saves a 128×128 PNG from the 1024×1024 render (`downsize` 8), keeping the full render as `<name>.source.png`. Its card says init images help, so a reference suits it. SDXL LoRAs and the SDXL ControlNet rows apply.
+Qwen's cards demonstrate larger dimensions than Mercury's default 1024. Larger sizes cost more memory and time; read the row and current memory before changing size. The cards' hardware timings are not Mercury completion estimates. Registered SD checkpoints use the detected family's recipe: read that checkpoint's card rather than inheriting a different row's settings. [Q, QT, E]
 
 ## ControlNet
 
-`control` works with an SD 1.5 or SDXL checkpoint only, Pixel Party XL included; pull the matching `controlnet-sd1-*` or `controlnet-sdxl-*` row first. `canny` computes edges from a PNG and keeps outlines or line art. `depth` keeps layout and volume, and `pose` keeps a figure's pose; both need a prepared map, because Mercury has no detector. The default strength is 0.9. The Diffusers SDXL canny and depth cards use 0.5 for better generalisation, so if a result looks traced, try 0.5 to 0.7; the Xinsir SDXL pose card uses 1.0 and warns that thin pose lines can be unstable. Make the control image the render size; behaviour at other sizes is unchecked.
+`control` is for SD 1.5 or SDXL only, including Pixel Party. Choose the matching installed `controlnet-sd1-*` or `controlnet-sdxl-*` row. Canny computes edges from a PNG; depth and pose need prepared maps, not an ordinary photo for an absent detector. Use a map at the intended render size. Mercury defaults `control.strength` to 0.9; Diffusers' SDXL canny/depth cards recommend 0.5 for generalisation, and Xinsir's pose example uses 1.0. Those are starting points for those weights, not defaults to impose on every ControlNet. [C, E]
 
-## LoRAs
+## LoRAs and embeddings
 
-Each entry in `loras` must match the row's family, such as an SDXL LoRA on an SDXL row. Start at the weight the LoRA's card gives and include its trigger words; without a card value, 0.7 to 1 is a common community range, not a rule. The result names each file and weight applied.
+- `loras` entries have `path` and `weight`. Read the LoRA publisher's base model, trigger words and weight before applying it. Local files and supported Hugging Face/Civitai download links are accepted; a family mismatch is refused. No universal 0.7-to-1 recipe is retained. [E]
+- Engine family matches are SD 1.x to SD 1.x, SD 2.x to SD 2.x, SDXL/Pixel Party to SDXL, SD 3 to SD 3, Z-Image to Z-Image, Klein to FLUX.2, and Qwen 2.1 to Qwen 2.1. A family match alone does not establish tensor-size or distilled/base compatibility. In particular, do not promise that a larger FLUX.2 LoRA loads on Klein 4B. Prefer an adapter whose publisher names the exact base. [E]
+- `embeddings` are textual inversions for SD 1.x, SD 2.x and SDXL only, checked by tensor width. Each has `path` and optional `token`; without a token the filename stem is used. Put the token in `prompt` or `negative_prompt`. If absent from both it is appended to the positive prompt. A negative embedding needs effective negative guidance. Each request selects its set; omit the field to remove it on the next call. A changed set reloads the engine and costs time. [E]
+- `clip_skip` is for SD 1.x and SDXL; use the checkpoint card's value, not an SDXL setting on a language-model encoder. [E]
 
-## Fields some builds add
+## Sampling and enlargement
 
-Use these only when the live `image_generate` schema lists them.
+Leave `sampler` and `scheduler` omitted unless the selected model's card or the user's experiment calls for them. The accepted enum names and the effect of replacing Qwen's schedule are in `references/tools.md`. A popular pairing from another UI is not a per-family recommendation. [E, R1]
 
-- `sampler` and `scheduler`: the engine's recipes keep Euler for the distilled rows. On SD and SDXL rows, `dpm++2m` with `karras` at 20 to 30 steps is a popular community pairing. Ancestral samplers such as `euler_a` and `dpm++2s_a` add noise at every step, so the image keeps changing as the step count changes; tune a fixed seed with a non-ancestral one.
-- `cfg`: defaults to the row's catalogue value. At 1, `negative_prompt` has no effect; the distilled rows are made to run at 1.
-- `clip_skip`: SD 1.x and SDXL only; set it when a checkpoint's card asks for it.
-- `embeddings`: textual inversions for SD 1.x, 2.x and SDXL. A negative embedding's token goes in `negative_prompt`, which needs CFG above 1.
-- `upscale` and `upscaler`: a RealESRGAN row from `media_models` enlarges the saved image, `realesrgan-x4plus` for general images and `realesrgan-x4plus-anime-6b` for anime and illustration. It reconstructs detail, softens hard pixel edges and can add colours outside a palette.
-- `workflow`, `dry` and `export_workflow`: `workflow` fills the request from a ComfyUI workflow JSON, with fields you give taking precedence, and the result lists which node became which field; `dry` returns that mapping without rendering, so check it first; `export_workflow` writes the request as a ComfyUI API workflow.
+For photos and illustrations, `upscale` selects a whole-number enlargement and optional `upscaler` names the row. `realesrgan-x4plus` is the publisher's general-image model; `realesrgan-x4plus-anime-6b` is for anime/illustration, both native 4×. Mercury runs this after palette mapping and can bilinearly resize RGB for non-native factors. Therefore the final image is not constrained to the earlier palette or pixel grid. A particular edge-softening result still needs inspection; it is not a measured outcome of this pass. Use nearest-neighbour enlargement for crisp pixel art. [U, E]
