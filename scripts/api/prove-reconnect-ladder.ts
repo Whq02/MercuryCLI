@@ -78,6 +78,8 @@ async function refusedByLoopback(): Promise<Error> {
 }
 
 const pause = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+const closeWithin = (server: { close: (cb: () => void) => unknown }, ms = 5_000): Promise<boolean> =>
+  Promise.race([new Promise<boolean>(r => server.close(() => r(true))), pause(ms).then(() => false)])
 
 async function drive(script: Array<() => unknown>, options: { maxRetries?: number; reconnect?: boolean } = {}): Promise<Drive> {
   const seat = budget.makeRecoveryBudget()
@@ -315,7 +317,7 @@ const [repo, mode, clientPath] = process.argv.slice(2)
 const { AnthropicClient: Anthropic } = await import(pathToFileURL(clientPath).href)
 const undici = await import(pathToFileURL(repo + '/node_modules/undici/index.js').href)
 const held = []
-const server = net.createServer(c => { c.on('error', () => {}); held.push(c) })
+const server = net.createServer(c => { c.resume(); c.on('error', () => {}); held.push(c) })
 await new Promise(r => server.listen(0, '127.0.0.1', r))
 const port = server.address().port
 const ring = []
@@ -386,7 +388,7 @@ section('S6 — connect timeouts: the SDK drops their cause on the production ru
   check('the notice carries the transport code for the row\'s suffix', d.notices[0]?.errorDetail?.code === 'UND_ERR_CONNECT_TIMEOUT' && d.notices[0]?.errorDetail?.name === 'NetworkOutageError', JSON.stringify(d.notices[0]?.errorDetail))
   check('the API budget is untouched', d.charged.spentMs === 0 && d.charged.waits === 0, JSON.stringify(d.charged))
   const sockets = new Set<Socket>()
-  const silent = createServer(s => { sockets.add(s); s.on('error', () => {}); s.on('close', () => sockets.delete(s)) })
+  const silent = createServer(s => { sockets.add(s); s.resume(); s.on('error', () => {}); s.on('close', () => sockets.delete(s)) })
   await new Promise<void>(r => silent.listen(0, '127.0.0.1', r))
   const silentPort = (silent.address() as { port: number }).port
   const savedBase = process.env.ANTHROPIC_BASE_URL
@@ -397,8 +399,9 @@ section('S6 — connect timeouts: the SDK drops their cause on the production ru
   const a = await drive([realAccepted, realAccepted], { maxRetries: 2 })
   check('a real loopback listener that accepts and never answers, under a 300 ms SDK deadline, stays on the API ladder as a charged fault (the accepted connection is the provider\'s stall)', a.result === 'answer' && a.notices.length === 2 && a.notices.every(n => budget.recoveryNoticeFacts(n)?.kind === 'fault') && a.charged.faults === 2 && a.charged.spentMs >= 1_500, `${a.words.join(' | ')} ${String(a.error)} charged=${JSON.stringify(a.charged)}`)
   check('the ring\'s newest entry for that stall is the deadline\'s abort, never a connect-timeout code', transport.recentTransportFailure() !== undefined && !['UND_ERR_CONNECT_TIMEOUT', 'ETIMEDOUT'].includes(transport.recentTransportFailure()?.code ?? ''), JSON.stringify(transport.recentTransportFailure()))
+  const leftOpen = sockets.size
   for (const s of sockets) s.destroy()
-  await new Promise<void>(r => silent.close(() => r()))
+  check('the silent listener closes once its accepted sockets are destroyed (the close returns)', await closeWithin(silent), `${leftOpen} accepted socket(s) were still open before the close`)
   for (const w of [...d.words, ...a.words]) console.log(`    row: ${w}`)
 }
 
@@ -511,7 +514,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
       { candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 5 } },
     ])
   }
-  type Listener = { hits: string[]; close: () => Promise<void> }
+  type Listener = { hits: string[]; close: () => Promise<boolean> }
   async function openListener(mode: 'answer' | 'stall', faultsFirst = 0): Promise<Listener> {
     const hits: string[] = []
     const sockets = new Set<Socket>()
@@ -523,7 +526,10 @@ section('S8 — the four provider roads through their real client wrappers: a re
         res.end(JSON.stringify({ data: [{ id: 'gpt-5.6-sol', supported_reasoning_levels: ['low', 'medium', 'high'], visibility: 'list', supported_in_api: true }] }))
         return
       }
-      if (mode === 'stall') return
+      if (mode === 'stall') {
+        req.resume()
+        return
+      }
       hits.push(url)
       if (faulted < faultsFirst) {
         faulted++
@@ -544,7 +550,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
       hits,
       close: async () => {
         for (const s of sockets) s.destroy()
-        await new Promise<void>(r => server.close(() => r()))
+        return closeWithin(server)
       },
     }
   }
@@ -644,7 +650,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
       },
     })
     const hits = listener === null ? [] : (listener as Listener).hits
-    if (listener !== null) await (listener as Listener).close()
+    if (listener !== null) check(`${door.name}: the fixture listener closes once its sockets are destroyed (the close returns)`, await (listener as Listener).close())
     check(`${door.name}: the network came back after two reconnects, the provider answered a 500 and the road's OWN single retry still served it: outage, outage, fault, then the answer`, recovered.kinds.join(',') === 'outage,outage,fault' && recovered.answered && recovered.red.length === 0 && hits.length === 2 && hits.every(h => door.path.test(h)), `kinds=${recovered.kinds.join(',')} answered=${recovered.answered} hits=${JSON.stringify(hits)} red=${recovered.red[0] ?? ''}`)
     check(`${door.name}: the seat charged exactly the one 500 wait (a fault of 400 ms) and nothing for the outage`, recovered.seat.waits === 1 && recovered.seat.faults === 1 && recovered.seat.spentMs === 400 && recovered.seat.outage === undefined, `waits=${recovered.seat.waits} faults=${recovered.seat.faults} spentMs=${recovered.seat.spentMs}`)
     check(`${door.name}: the reconnect rows then the fault row keep their own grammars`, NETWORK_ROW.test(recovered.words[0] ?? '') && NETWORK_ROW.test(recovered.words[1] ?? '') && /^provider error \(HTTP 500\) — waiting 0 s before retry 1 of 1; /.test(recovered.words[2] ?? ''), recovered.words.join(' | '))
@@ -652,7 +658,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
 
     const stall = await openListener('stall')
     const stalled = await driveRoad(door, { warm: true })
-    await stall.close()
+    check(`${door.name}: the stalling listener closes once its sockets are destroyed (the close returns)`, await stall.close())
     check(`${door.name}: a loopback listener that accepts and never answers is NOT an outage — the first-byte budget fires, the road's own retry runs once as a charged fault, and the turn ends on the road's own line`, stalled.kinds.join(',') === 'fault' && stalled.seat.faults === 1 && budget.recoveryNoticeFacts(stalled.notices[0])?.cause === 'no first byte' && stalled.red.length === 1 && /first-byte-timeout/.test(stalled.red[0] ?? '') && stall.hits.length === 0, `kinds=${stalled.kinds.join(',')} faults=${stalled.seat.faults} red=${stalled.red[0] ?? ''} ms=${stalled.ms}`)
     console.log(`    stall: ${stalled.words[0] ?? ''}`)
   }

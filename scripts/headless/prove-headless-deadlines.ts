@@ -191,6 +191,7 @@ section('§2 — black-holed socket: the belt ends the run typed (real dist)')
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
     sockets.add(socket)
+    socket.resume()
     socket.on('error', () => {})
     socket.on('close', () => sockets.delete(socket))
   })
@@ -222,6 +223,7 @@ section('§3 — black-holed socket, belt disabled: transport budgets alone end 
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
     sockets.add(socket)
+    socket.resume()
     socket.on('error', () => {})
     socket.on('close', () => sockets.delete(socket))
   })

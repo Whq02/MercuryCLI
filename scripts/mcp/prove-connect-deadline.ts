@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
-import { createServer, type Server } from 'node:net'
+import { createServer, type Server, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -43,16 +43,24 @@ const alive = (pid: number): boolean => {
   }
 }
 
-async function listenFrozen(): Promise<{ server: Server; port: number }> {
+async function listenFrozen(): Promise<{ server: Server; port: number; close: () => Promise<boolean> }> {
+  const sockets = new Set<Socket>()
   const server = createServer(socket => {
+    sockets.add(socket)
+    socket.resume()
     socket.on('error', () => {})
+    socket.on('close', () => sockets.delete(socket))
   })
+  const close = (): Promise<boolean> => {
+    for (const socket of sockets) socket.destroy()
+    return Promise.race([new Promise<boolean>(resolve => server.close(() => resolve(true))), new Promise<boolean>(resolve => setTimeout(() => resolve(false), 5_000).unref())])
+  }
   for (let port = 37040; port < 37100; port++) {
     const landed = await new Promise<boolean>(resolve => {
       server.once('error', () => resolve(false))
       server.listen(port, '127.0.0.1', () => resolve(true))
     })
-    if (landed) return { server, port }
+    if (landed) return { server, port, close }
   }
   throw new Error('no free fixture port in 37000–37099')
 }
@@ -143,9 +151,9 @@ section('§1b the never-connected tree has ONE kill owner (w4-f05-02, source pin
 
 section('§2 sse — frozen loopback settles failed with the honest reason')
 {
-  const { server, port } = await listenFrozen()
+  const { port, close } = await listenFrozen()
   const { outcome, wallMs } = await connectOnce('frozen-sse', { type: 'sse', url: `http://127.0.0.1:${port}/sse` })
-  server.close()
+  t('§2 the frozen listener closes once its accepted sockets are destroyed (the close returns)', await close())
   t('§2 settles failed (never hangs)', outcome.type === 'failed', `type=${String(outcome.type)}`)
   t('§2 within the deadline + slack', wallMs < SETTLE_BUDGET_MS, `${wallMs}ms`)
   const error = String(outcome.error ?? '')
@@ -154,9 +162,9 @@ section('§2 sse — frozen loopback settles failed with the honest reason')
 
 section('§3 http — frozen loopback settles failed with the honest reason')
 {
-  const { server, port } = await listenFrozen()
+  const { port, close } = await listenFrozen()
   const { outcome, wallMs } = await connectOnce('frozen-http', { type: 'http', url: `http://127.0.0.1:${port}/mcp` })
-  server.close()
+  t('§3 the frozen listener closes once its accepted sockets are destroyed (the close returns)', await close())
   t('§3 settles failed (never hangs)', outcome.type === 'failed', `type=${String(outcome.type)}`)
   t('§3 within the deadline + slack', wallMs < SETTLE_BUDGET_MS, `${wallMs}ms`)
   const error = String(outcome.error ?? '')
