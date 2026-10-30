@@ -10,10 +10,10 @@ you confirm the price.
 In `/model`, a `Run a model` entry tagged `run it → /llmhost` opens the same
 screen. A fitting Mac also shows `run it on this Mac →`.
 
-Alongside the models, **Which model?** includes **Machines I'm paying for**, **My
+Alongside the models, **Which model?** includes **Machines I’m paying for**, **My
 computers**, `Bank · your weights`, **Refresh stock and prices**, and the
 `More options →` menu (`Rent a GPU (Runpod, Vast.ai, Lambda, Hugging Face, Hyperstack, Verda, DigitalOcean)`, `A box I can reach by SSH`,
-`A server that's already running`, `One of my computers`,
+`A server that’s already running`, `One of my computers`,
 `Bank · your weights`, and `Private recipes · none · choose a file →`). Each connection path reads the server's model list and context
 windows, runs a reply check, and registers the provider in `/model` and
 `/logins`.
@@ -153,7 +153,7 @@ provider's volume.
 
 Local banking (`b`) and verification (`v`) run on your computer at `$0.00`.
 Runpod fast-load volumes (`m`) bill monthly whether or not a pod is running
-until you delete them with `d` or under **Machines I'm paying for**.
+until you delete them with `d` or under **Machines I’m paying for**.
 
 ### Keep the weights on a Vast.ai machine (`Vast.ai volume`)
 
@@ -202,7 +202,7 @@ cache, FlashInfer, Torch inductor, Triton, CUDA and vLLM). Later boots on that
 machine can reuse those compiled kernels; the first boot fills the caches.
 CUDA-graph capture still runs on each boot.
 
-A kept Vast.ai volume appears under **Machines I'm paying for** as
+A kept Vast.ai volume appears under **Machines I’m paying for** as
 `Vast.ai volume <id> · Vast.ai machine <id> · <hosting tag> · <billing> · weights`
 with the current stock on that machine (`4× B200 in stock on that machine at $…/hr`
 or `no stock on that machine right now · w watch it`, where `w` arms a stock
@@ -279,7 +279,7 @@ Vast.ai, Lambda, Hugging Face, Hyperstack, Verda and DigitalOcean) once every 5 
 for up to 12 hours. As soon as a fitting shape appears at or below your
 ceiling, the first provider with stock rents it (or the cheapest shape when
 several providers answer in the same round) and starts setup. Active watches
-are listed under **Machines I'm paying for** with `$0.00 billed while watching` and
+are listed under **Machines I’m paying for** with `$0.00 billed while watching` and
 a **Cancel** action.
 
 ### Vendor hiccups and setup pauses
@@ -294,7 +294,7 @@ on a confirmed fault, Mercury pauses the setup, leaves the machine running,
 closes its tunnel, and posts one notice naming the cause, the machine, the
 hourly rate it still bills, and the two choices:
 `setup paused · <cause> · <Vendor> pod <id> · $<rate>/hr still billing · Resume or Terminate in /llmhost`.
-**Resume setup** under **Machines I'm paying for** starts the setup again on
+**Resume setup** under **Machines I’m paying for** starts the setup again on
 the same machine (a download continues from what already arrived; a running
 engine is reused); **Terminate** deletes it. The row shows `paused`; open it
 for the cause and recovery actions. The causes:
@@ -311,7 +311,7 @@ for the cause and recovery actions. The causes:
   `the engine set aside <N> tensors it does not use (e.g. blk.45.nextn.eh_proj.weight)`;
   when the engine's own line says the architecture is unknown or unsupported,
   it adds
-  `the engine does not know this file's layout; it needs a newer llama.cpp than the engine image carries`
+  `the engine does not know this file’s layout; it needs a newer llama.cpp than the engine image carries`
   (and on an `OOM`, adds
   `the shape was too small for this quality; choose a larger GPU shape`).
 - **Engine silence:** if the engine is still not answering `/health` after the
@@ -335,14 +335,14 @@ for the cause and recovery actions. The causes:
   key or the setup deadline passes. A fresh container may answer before the
   vendor installs the account key.
   If the deadline passes first, setup pauses with
-  `the machine never accepted Mercury's SSH key before the setup deadline · <vendor key notice>`.
+  `the machine never accepted Mercury’s SSH key before the setup deadline · <vendor key notice>`.
   For a running Vast.ai instance, Mercury first attaches the same SSH key to
   that instance and retries for up to four more minutes. If the key is still
   refused, the pause says `Mercury attached the SSH key to this instance and retried`.
 - **Pod missing from the vendor:** if the vendor returns `HTTP 404` during
   setup there is nothing to pause; Mercury checks the vendor's instance list
   without sending a terminate call and reports
-  `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Machines I'm paying for shows it`.
+  `the vendor no longer lists pod <id> · nothing to terminate · if it still bills, Machines I’m paying for shows it`.
 - **Engine death after setup:** the keep-alive loop reads the engine's own log
   before it reconnects a dropped tunnel. An engine that exited after it was
 ready pauses the record with the machine up and its weights on disk:
@@ -351,12 +351,12 @@ ready pauses the record with the machine up and its weights on disk:
   When the engine ran out of GPU memory, the notice says what happened in the
   engine's terms, without judging the shape (the shape held the weights; the
   conversation outgrew the budget):
-  `the engine ran out of GPU memory at <N>k tokens of context · the recipe's budget was <M> · Resume restarts it; a shorter conversation or the Tune screen's smaller context fits`
+  `the engine ran out of GPU memory at <N>k tokens of context · the recipe’s budget was <M> · Resume restarts it; a shorter conversation or the Tune screen’s smaller context fits`
   (the tokens held and the budget are read from the engine's own startup plan
   and last batch line when it printed them). A request sent to that rental from
   the chat is answered at once with one line instead of a network-outage
   reconnect countdown, because the engine is down while the network is fine:
-  `<Vendor> pod <id> · the engine ran out of GPU memory at <N>k tokens of context (the recipe's budget was <M>): <engine line> · the machine stays up and bills $<rate>/hr · Resume in /llmhost restarts the engine; a shorter conversation or the Tune screen's smaller context fits`.
+  `<Vendor> pod <id> · the engine ran out of GPU memory at <N>k tokens of context (the recipe’s budget was <M>): <engine line> · the machine stays up and bills $<rate>/hr · Resume in /llmhost restarts the engine; a shorter conversation or the Tune screen’s smaller context fits`.
   **Resume setup** starts the engine from the folder it loaded its weights
   from (checked on the machine first); nothing is uploaded or downloaded again.
   The two-hour rule covers this pause like any other.
@@ -385,11 +385,11 @@ cause: `the engine died and the pause went unanswered for 2 hours` or
 
 If the vendor's instance list cannot be read to confirm deletion, Mercury never
 claims the pod is gone; it posts
-`termination sent; <Vendor> did not confirm (<reason>) — check Machines I'm paying for`.
+`termination sent; <Vendor> did not confirm (<reason>) — check Machines I’m paying for`.
 
 ### Manage or stop paying for a rental
 
-Reopen `/llmhost` and select **Machines I'm paying for** to check live rentals,
+Reopen `/llmhost` and select **Machines I’m paying for** to check live rentals,
 clusters, Runpod and Vast.ai volumes, and active stock watches. The model menu
 counts only live machines returned by the vendors; failed local records,
 volumes and watches are left out of that count. Each vendor says how many machines it returned, `none`,
@@ -493,9 +493,9 @@ for all shards and any required `mmproj` vision projector) or download weights
 from Hugging Face into `/workspace`. The engine binds to remote loopback and
 Mercury opens a local SSH tunnel.
 
-## A server that's already running
+## A server that’s already running
 
-In `/llmhost` → `More options →` → **A server that's already running**, connect
+In `/llmhost` → `More options →` → **A server that’s already running**, connect
 a local server, a direct HTTPS URL, or the local port of an SSH tunnel you
 already opened.
 
@@ -567,7 +567,7 @@ reported by the server.
   (`tools: false` in `SGLang` `/model_info`, `llama.cpp`
   `chat_template_caps` or `Ollama` `/api/show`), Mercury stops before sending
   the request and reports
-  `<Engine> reports no tool-call support for '<model>' — select a tool-capable model or enable the model's tool parser on this server, then retry`.
+  `<Engine> reports no tool-call support for '<model>' — select a tool-capable model or enable the model’s tool parser on this server, then retry`.
   When `llama.cpp`, `vLLM`, `SGLang`, `Ollama` or `LM Studio` returns an HTTP
   4xx/5xx refusal, Mercury names the cause and remedy, such as starting `vLLM`
   with `--enable-auto-tool-choice` and the model's `--tool-call-parser`,
@@ -591,14 +591,14 @@ ssh -N -o ExitOnForwardFailure=yes -L 127.0.0.1:30000:127.0.0.1:30000 user@pod.e
 ```
 
 Leave that connection running, open `/llmhost` → `More options →` → **A server
-that's already running**, and enter `http://127.0.0.1:30000/v1`.
+that’s already running**, and enter `http://127.0.0.1:30000/v1`.
 
 ## Check, change or remove a server
 
 In `/model`, an unreachable keyless endpoint shows `Retry this server →`, and
 an unreachable custom endpoint shows `Retry this server →` and
 `Remove this endpoint →`. You can also open `/llmhost` → `More options →` →
-**A server that's already running** and pick a registered server to:
+**A server that’s already running** and pick a registered server to:
 
 - **Check a reply again:** refresh its model list and run a reply check with
   the saved address and key.
