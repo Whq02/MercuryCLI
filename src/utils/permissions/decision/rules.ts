@@ -1,4 +1,5 @@
 import {
+  getMcpPrefix,
   getToolNameForPermissionCheck,
   mcpInfoFromString,
 } from '../../../services/mcp/mcpStringUtils.js'
@@ -124,11 +125,19 @@ export function namesWholeServerOf(ruleToolName: string, toolName: string): bool
   return serverWide && ruleTarget.serverName === toolTarget.serverName
 }
 
+export function namesWholeServerOfTool(
+  ruleToolName: string,
+  tool: Pick<Tool, 'name' | 'mcpInfo'>,
+): boolean {
+  if (tool.mcpInfo === undefined) return namesWholeServerOf(ruleToolName, getToolNameForPermissionCheck(tool))
+  const prefix = getMcpPrefix(tool.mcpInfo.serverName)
+  return ruleToolName === prefix.slice(0, -2) || ruleToolName === `${prefix}*`
+}
+
 const WHOLE_TOOL_MATCHERS: ReadonlyArray<(ruleToolName: string, toolName: string) => boolean> = [
   (ruleToolName, toolName) => ruleToolName === toolName,
   (ruleToolName, toolName) => RULE_INHERITS[toolName]?.includes(ruleToolName) === true,
   lspFamilyMatches,
-  namesWholeServerOf,
 ]
 
 function toolMatchesRule(
@@ -137,7 +146,7 @@ function toolMatchesRule(
 ): boolean {
   if (rule.ruleValue.ruleContent !== undefined) return false
   const toolName = getToolNameForPermissionCheck(tool)
-  return WHOLE_TOOL_MATCHERS.some(matches => matches(rule.ruleValue.toolName, toolName))
+  return WHOLE_TOOL_MATCHERS.some(matches => matches(rule.ruleValue.toolName, toolName)) || namesWholeServerOfTool(rule.ruleValue.toolName, tool)
 }
 
 export function toolAlwaysAllowedRule(

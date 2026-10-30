@@ -48,5 +48,39 @@ check('a qualified name without mcpInfo is matched by its spelling alone', allow
 check('the qualified name is built from mcpInfo, not the bare name', allowed(['mcp__srv'], { name: 'read', mcpInfo: { serverName: 'srv', toolName: 'read' } }) === 'mcp__srv')
 check('a server-wide rule does not match a builtin tool', allowed(['mcp__srv'], { name: 'Read' }) === null)
 
+console.log('a server whose name carries a double underscore keeps its own boundary')
+{
+  const { filterToolsByDenyRules } = await import('../../src/tools.ts')
+  const { wholeToolDenyRulesCovering } = await import('../../src/utils/permissions/ruleReason.ts')
+  const { decideToolPermission } = await import('../../src/utils/permissions/decision/engine.ts')
+  const { z } = await import('zod/v4')
+  const joined = { name: 'mcp__a__b__c', mcpInfo: { serverName: 'a__b', toolName: 'c' } }
+  const sibling = { name: 'mcp__a__b__zzz', mcpInfo: { serverName: 'a__b', toolName: 'zzz' } }
+  const plain = { name: 'mcp__a__x', mcpInfo: { serverName: 'a', toolName: 'x' } }
+  const plainB = { name: 'mcp__a__b', mcpInfo: { serverName: 'a', toolName: 'b' } }
+  check('a rule for server a does not allow a tool of server a__b', allowed(['mcp__a'], joined) === null)
+  check('a rule for server a does not deny a tool of server a__b', denied(['mcp__a'], joined) === null)
+  check('a rule for server a still covers its own tools', allowed(['mcp__a'], plain) === 'mcp__a' && denied(['mcp__a'], plainB) === 'mcp__a')
+  check('mcp__a__b names server a__b whole: every tool of it is covered', denied(['mcp__a__b'], joined) === 'mcp__a__b' && denied(['mcp__a__b'], sibling) === 'mcp__a__b')
+  check('mcp__a__b__* names server a__b whole too', asked(['mcp__a__b__*'], joined) === 'mcp__a__b__*' && asked(['mcp__a__b__*'], sibling) === 'mcp__a__b__*')
+  check('mcp__a__b still names tool b of server a', denied(['mcp__a__b'], plainB) === 'mcp__a__b' && denied(['mcp__a__b'], plain) === null)
+  check('mcp__a__b__c names tool c of server a__b and nothing else', denied(['mcp__a__b__c'], joined) === 'mcp__a__b__c' && denied(['mcp__a__b__c'], sibling) === null)
+  check('a rule for server a__ (a trailing separator) covers nothing of a__b', denied(['mcp__a__'], joined) === null)
+  const withheld = filterToolsByDenyRules([plain, joined] as never, { ...base, alwaysDenyRules: { cliArg: ['mcp__a'] } } as never).map((tool: { name: string }) => tool.name)
+  check('the tool pool withholds the tools of server a and keeps those of a__b', JSON.stringify(withheld) === JSON.stringify(['mcp__a__b__c']), JSON.stringify(withheld))
+  const covering = wholeToolDenyRulesCovering({ ...base, alwaysDenyRules: { cliArg: ['mcp__a', 'mcp__a__b', 'mcp__a__b__*', 'mcp__other'] } } as never, joined).map(rule => rule.ruleValue.toolName)
+  check('the covering set names only the rules that reach server a__b', JSON.stringify(covering) === JSON.stringify(['mcp__a__b', 'mcp__a__b__*']), JSON.stringify(covering))
+  const tool = (shape: typeof joined) => ({ ...shape, inputSchema: z.object({}), checkPermissions: async () => ({ behavior: 'passthrough', message: 'no verdict' }) }) as never
+  const decideIn = async (mode: string, deny: string[], shape: typeof joined) => {
+    const state = { toolPermissionContext: { ...base, mode, isBypassPermissionsModeAvailable: mode === 'sovereign', alwaysDenyRules: { cliArg: deny } } }
+    const context = { abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], options: {} } as never
+    return (await decideToolPermission(tool(shape), {}, context)).decision.behavior
+  }
+  check('default: a tool of server a__b under deny mcp__a asks (no rule reaches it)', (await decideIn('default', ['mcp__a'], joined)) === 'ask')
+  check('default: a tool of server a__b under deny mcp__a__b is denied', (await decideIn('default', ['mcp__a__b'], joined)) === 'deny')
+  check('sovereign asks nothing: a tool of server a__b under deny mcp__a is allowed', (await decideIn('sovereign', ['mcp__a'], joined)) === 'allow')
+  check('sovereign asks nothing: a tool of server a__b under deny mcp__a__b is denied, not asked', (await decideIn('sovereign', ['mcp__a__b'], joined)) === 'deny')
+}
+
 console.log(failures ? `FAIL whole-tool rule matching: ${failures} failures` : 'PASS whole-tool rule matching')
 process.exit(failures ? 1 : 0)

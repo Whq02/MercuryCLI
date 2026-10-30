@@ -1,7 +1,7 @@
-import { getToolNameForPermissionCheck, mcpInfoFromString } from '../../services/mcp/mcpStringUtils.js'
+import { getToolNameForPermissionCheck } from '../../services/mcp/mcpStringUtils.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
-import { getDenyRules } from './decision/rules.js'
+import { getDenyRules, namesWholeServerOfTool } from './decision/rules.js'
 import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 
@@ -109,16 +109,9 @@ export function wholeToolDenyRulesCovering(
   tool: { name: string; mcpInfo?: { serverName: string; toolName: string } },
 ): PermissionRule[] {
   const name = getToolNameForPermissionCheck(tool)
-  const toolInfo = mcpInfoFromString(name)
   return getDenyRules(context).filter(rule => {
     if (rule.ruleValue.ruleContent !== undefined) return false
     if (rule.ruleValue.toolName === name || RULE_INHERITS[name]?.includes(rule.ruleValue.toolName)) return true
-    const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
-    return (
-      ruleInfo !== null &&
-      toolInfo !== null &&
-      (ruleInfo.toolName === undefined || ruleInfo.toolName === '*') &&
-      ruleInfo.serverName === toolInfo.serverName
-    )
+    return namesWholeServerOfTool(rule.ruleValue.toolName, tool)
   })
 }
