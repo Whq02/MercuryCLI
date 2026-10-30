@@ -1,6 +1,6 @@
 import { closeSync, openSync, statSync } from 'node:fs'
 import { isAbsolute, resolve as resolvePath } from 'node:path'
-import { spawn } from 'node:child_process'
+import { spawnOwnedShell } from './parentGuard.js'
 import { parseForSecurity } from '../bash/ast.js'
 import { resolveExecutable, type LookupWorld } from '../which.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -111,7 +111,7 @@ export async function runWindowsBatchCommand(
 
   let shellCommand: ShellCommand
   try {
-    const child = spawn(invocation.comSpec, ['/d', '/s', '/v:off', '/c', invocation.commandLine], {
+    const child = await spawnOwnedShell(invocation.comSpec, ['/d', '/s', '/v:off', '/c', invocation.commandLine], {
       cwd: options.cwd,
       env: childEnv,
       stdio,

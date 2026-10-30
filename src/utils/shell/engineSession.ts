@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { spawnOwnedShell } from './parentGuard.js'
 import { randomBytes } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -296,7 +297,7 @@ async function spawnSession(binaryPath: string): Promise<LiveSession> {
 
   const base = scrubSessionEnvStamps(subprocessEnv())
   const live: LiveSession = {
-    child: spawn(binaryPath, [...ENGINE_FLAGS, '-c', script], {
+    child: await spawnOwnedShell(binaryPath, [...ENGINE_FLAGS, '-c', script], {
       cwd: cwdThatResolves(),
       env: toolShellEnv(base.env, { SHELL: binaryPath, ...envOverrides() }),
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -656,15 +657,15 @@ async function ensureSession(owned: OwnerSession, binaryPath: string): Promise<L
 async function killSession(live: LiveSession): Promise<void> {
   live.reader = null
   live.onExit = null
-  try {
-    live.child.stdin?.end()
-  } catch {
-  }
   if (live.child.pid) {
     try {
       await endProcessTree(live.child, 'SIGKILL')
     } catch {
     }
+  }
+  try {
+    live.child.stdin?.end()
+  } catch {
   }
 }
 

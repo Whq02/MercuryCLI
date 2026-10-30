@@ -1,4 +1,5 @@
-import { execFile, spawn } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { spawnOwnedShell } from './shell/parentGuard.js'
 import { closeSync, constants as fsConstants, openSync, readFileSync } from 'node:fs'
 import { access } from 'node:fs/promises'
 import { isAbsolute, join, resolve as resolvePath } from 'node:path'
@@ -322,7 +323,7 @@ export async function exec(
       stdio = ['pipe', outputFd, outputFd]
     }
 
-    const child = spawn(spawnFile, spawnArgs, {
+    const child = await spawnOwnedShell(spawnFile, spawnArgs, {
       cwd,
       env: childEnv,
       stdio,

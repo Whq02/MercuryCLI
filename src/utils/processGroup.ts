@@ -9,6 +9,12 @@ export type ProcessTreeKillReceipt = {
   survivors: number[]
 }
 
+const guardedTrees = new WeakMap<object, (signal: NodeJS.Signals) => Promise<ProcessTreeKillReceipt | null>>()
+
+export function registerProcessTreeGuard(child: ChildProcess, end: (signal: NodeJS.Signals) => Promise<ProcessTreeKillReceipt | null>): void {
+  guardedTrees.set(child, end)
+}
+
 const REAP_BOUND_MS = 800
 const REAP_POLL_MS = 40
 const MSYS_TABLE_BOUND_MS = 800
@@ -321,6 +327,13 @@ export async function endProcessTree(
   const pid = typeof target === 'number' ? target : target.pid
   if (!pid || !Number.isInteger(pid) || pid <= 1 || pid === process.pid) return { ended: 0, survivors: [] }
   const spawnfile = typeof target === 'number' ? undefined : target.spawnfile
+  if (typeof target !== 'number') {
+    const end = guardedTrees.get(target)
+    if (end !== undefined) {
+      const receipt = await end(signal)
+      if (receipt !== null) return receipt
+    }
+  }
   try {
     return process.platform === 'win32' ? await endWin32Tree(pid, spawnfile) : await endPosixTree(pid, signal)
   } catch {
