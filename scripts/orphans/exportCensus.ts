@@ -33,7 +33,7 @@ export type ExportClass =
   | 'candidate'
 
 export const KEPT_CLASSES: Record<Exclude<ExportClass, 'read' | 'candidate'>, string> = {
-  entrypoint: 'the bundle roots (src/entrypoints/*, src/main.tsx): a spawned or exposed surface, never an orphan',
+  entrypoint: 'the bundle roots (src/entrypoints/*, src/main.tsx, the crew board module build.ts bundles on its own as crew-board.mjs): a spawned or exposed surface, never an orphan',
   'rows-surface': 'src/rows/*: the row vocabulary the SDK generator reads and the sdk package re-publishes',
   'declaration-file': 'a .d.ts: its export keywords decide module-versus-global scope, never a surface to trim',
   generated: 'a generated file: it moves only through its generator',
@@ -1202,7 +1202,7 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   const outside = (f: string): boolean => f.startsWith('node_modules/') || f.startsWith('dist/') || f.startsWith('vendor/') || f.startsWith('bench/')
   const readers = code.filter(f => !outside(f))
   const subjects = tracked.filter(f => (f.startsWith('src/') || f.startsWith('scripts/')) && CODE_FILE.test(f))
-  const entrypoints = tracked.filter(f => f.startsWith('src/entrypoints/') || f === 'src/main.tsx' || f === 'build.ts')
+  const entrypoints = tracked.filter(f => f.startsWith('src/entrypoints/') || f === 'src/main.tsx' || f === 'build.ts' || f === 'src/services/crewBoard/implementation.ts')
   const rowsSurface = tracked.filter(f => f.startsWith('src/rows/'))
   const generated: string[] = []
   const generators = new Set<string>()
