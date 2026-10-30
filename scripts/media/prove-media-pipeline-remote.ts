@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createServer, request as httpRequest, type IncomingMessage, type Server } from 'node:http'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { pipeline } from 'node:stream/promises'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -134,7 +134,7 @@ try {
   assert.equal(run.pipeline.path, path)
   assert.equal(run.pipelineHash, valid.pipelineHash)
   for (const row of run.steps) for (const file of row.files ?? []) {
-    assert.ok(file.path.startsWith(join(project, 'media') + '/'))
+    assert.ok(file.path.startsWith(join(project, 'media') + sep))
     assert.equal(createHash('sha256').update(readFileSync(file.path)).digest('hex'), file.sha256)
   }
   assert.equal(readFileSync(result.path).readUInt32BE(16), 32)
