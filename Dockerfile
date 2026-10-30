@@ -8,12 +8,14 @@ COPY package.json bun.lock bunfig.toml ./
 RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 COPY . .
 RUN --mount=type=cache,target=/srv/mercury-source/vendor/node \
+    --mount=type=cache,target=/srv/mercury-source/vendor/python \
     --mount=type=cache,target=/srv/mercury-source/vendor/brush \
     --mount=type=cache,target=/srv/mercury-source/vendor/pyright \
     --mount=type=cache,target=/srv/mercury-source/vendor/debugpy \
     --mount=type=cache,target=/srv/mercury-source/vendor/js-debug \
     --mount=type=cache,target=/srv/mercury-source/vendor/grammars \
     bun run scripts/vendor/fetch-node.ts --platform linux-x64 \
+ && bun run scripts/vendor/fetch-python.ts --platform linux-x64 \
  && bun run scripts/vendor/fetch-brush.ts --platform linux-x64 \
  && bun run scripts/vendor/fetch-pyright.ts \
  && bun run scripts/vendor/fetch-debugpy.ts \

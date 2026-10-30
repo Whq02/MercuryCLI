@@ -98,7 +98,7 @@ const builderRuns = builder.instructions.filter(i => i.verb === 'RUN').map(i => 
 const buildRun = builderRuns.find(r => r.includes('bun run build.ts --target linux-x64'))
 check('the builder stage builds the linux-x64 release target (bun run build.ts --target linux-x64)', buildRun !== undefined)
 check('the builder stage installs the lockfile held (bun install --frozen-lockfile)', builderRuns.some(r => r.includes('bun install --frozen-lockfile')))
-for (const fetcher of ['fetch-node.ts --platform linux-x64', 'fetch-brush.ts --platform linux-x64', 'fetch-pyright.ts', 'fetch-debugpy.ts', 'fetch-js-debug.ts', 'fetch-grammars.ts']) {
+for (const fetcher of ['fetch-node.ts --platform linux-x64', 'fetch-python.ts --platform linux-x64', 'fetch-brush.ts --platform linux-x64', 'fetch-pyright.ts', 'fetch-debugpy.ts', 'fetch-js-debug.ts', 'fetch-grammars.ts']) {
   check(`the builder stage prepares the vendor pack: scripts/vendor/${fetcher}`, builderRuns.some(r => r.includes(`bun run scripts/vendor/${fetcher}`)))
 }
 check('the splash pair is removed from dist before the runtime stage copies it', buildRun !== undefined && splashPair.length === 2 && splashPair.every(name => buildRun.includes(`dist/${name}`)) && /\brm\b/.test(buildRun ?? ''), buildRun ?? '')

@@ -59,7 +59,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json', 'scripts/vendor/fetch-python.ts', 'vendor/python.lock.json') }}
       - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
         run: |
           ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
@@ -67,6 +67,7 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-brush.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-python.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-pdfjs.ts
       - name: Build dist (Phase 0 — once for every shard)
         run: ~/.bun/bin/bun run build.ts
@@ -182,7 +183,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'scripts/vendor/fetch-brush.ts', 'vendor/brush.lock.json', 'scripts/vendor/fetch-python.ts', 'vendor/python.lock.json') }}
       - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
         run: |
           ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
@@ -190,6 +191,7 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-brush.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-python.ts
           ~/.bun/bin/bun run scripts/vendor/fetch-pdfjs.ts
       - name: Build dist (platform-correct vendoring)
         run: ~/.bun/bin/bun run build.ts

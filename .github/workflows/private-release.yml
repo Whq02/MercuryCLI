@@ -68,6 +68,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Fetch the pinned PDF reader pack (hash-verified; the build refuses without it)
         run: bun run scripts/vendor/fetch-pdfjs.ts
+      - name: Fetch the pinned Python runtime pack (hash-verified)
+        run: bun run scripts/vendor/fetch-python.ts
       - name: typecheck ratchet
         run: bun run typecheck
       - name: build
@@ -131,7 +133,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'scripts/vendor/fetch-brush.ts', 'scripts/vendor/build-brush.ts', 'scripts/vendor/fetch-embed-models.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/brush.lock.json', 'vendor/embed-models.lock.json', 'bun.lock') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-python.ts', 'scripts/vendor/fetch-platform-packages.ts', 'scripts/vendor/fetch-brush.ts', 'scripts/vendor/build-brush.ts', 'scripts/vendor/fetch-embed-models.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/python.lock.json', 'vendor/brush.lock.json', 'vendor/embed-models.lock.json', 'bun.lock') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
@@ -139,6 +141,7 @@ jobs:
           bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
           bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
+          bun run scripts/vendor/fetch-python.ts --platform ${{ matrix.node_pack }}
           bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}
       - name: Rosetta 2 for the cross-packaged archive
         if: matrix.cross

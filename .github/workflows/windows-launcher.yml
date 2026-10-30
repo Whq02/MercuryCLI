@@ -53,7 +53,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-pdfjs.ts', 'vendor/pdfjs.lock.json', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-python.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/python.lock.json') }}
 
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
@@ -62,6 +62,7 @@ jobs:
           bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
           bun run scripts/vendor/fetch-node.ts --platform win-x64
+          bun run scripts/vendor/fetch-python.ts --platform win-x64
           bun run scripts/vendor/fetch-pdfjs.ts
 
       - name: Build dist
