@@ -486,12 +486,6 @@ earlier steps. A run writes its images and a record under the project's
 `media/`, even when another output folder is configured. It leaves the
 pipeline file unchanged.
 
-Pipelines run wherever `media.host` points. On a rented GPU, local inputs
-are transferred to the selected machine, and every output image and run
-record returns to the local project's `media/` folder. The record names the
-machine in `remote` and contains the restored local paths. Dry runs transfer
-only the document; workflow exports are written locally.
-
 ```json
 {
   "version": 1,

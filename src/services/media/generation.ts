@@ -6,7 +6,6 @@ import type { Tool } from '../../Tool.js'
 import { createAssistantMessage } from '../../utils/messages/factories.js'
 import { getCwd } from '../../utils/cwd.js'
 import { readMediaCatalogue, type MediaCatalogue } from './catalogue.js'
-import { mediaHostLocation, readMediaHostSnapshot } from './host.js'
 import { mediaConfigModule, mediaRoot, mediaWorkflowModule, readMediaSettings, MEDIA_SERVER_NAME, type MediaConfig, type MediaKind, type MediaSettings } from './settings.js'
 
 export function mediaGenerationKind(tool: Pick<Tool, 'mcpInfo'>): MediaKind | undefined {
@@ -54,11 +53,9 @@ export async function readMediaWorkflowRequest(input: Record<string, unknown>, c
 
 export async function readMediaGenerationDetails(kind: MediaKind, input: Record<string, unknown>, cwd: string): Promise<string> {
   const settings = readMediaSettings()
-  const [catalogue, config] = settings.host
-    ? await readMediaHostSnapshot(settings).then(snapshot => [snapshot.catalogue, snapshot.config] as const)
-    : await Promise.all([readMediaCatalogue(settings), mediaConfigModule(settings).then(module => module.readMediaConfig(mediaRoot(settings)))])
+  const [catalogue, config] = await Promise.all([readMediaCatalogue(settings), mediaConfigModule(settings).then(module => module.readMediaConfig(mediaRoot(settings)))])
   const request = kind === 'image' ? await readMediaWorkflowRequest(input, catalogue, typeof input.cwd === 'string' ? input.cwd : cwd, settings) : input
-  return [mediaHostLocation(settings), mediaGenerationDetails(kind, request, catalogue, config, cwd)].filter(Boolean).join('\n')
+  return mediaGenerationDetails(kind, request, catalogue, config, cwd)
 }
 
 export type MediaTestImage = { path: string; png: Buffer }

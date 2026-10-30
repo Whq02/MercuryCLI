@@ -30,11 +30,6 @@ export function requireMediaHost(id: string): HostRecord & { target: NonNullable
   if (!record.target || record.cluster || record.status !== 'RUNNING' || record.jobState !== 'ready') throw new Error(LLM_HOST_WORDS.manage)
   return record as HostRecord & { target: NonNullable<HostRecord['target']> }
 }
-export function mediaHostLocation(settings: MediaSettings): string | undefined {
-  if (!settings.host) return undefined
-  const record = requireMediaHost(settings.host)
-  return hostMachineName(record.vendor ?? 'runpod', record.id)
-}
 function readState(id: string): MediaHostState | undefined {
   const path = mediaHostStatePath(id)
   if (!existsSync(path)) return undefined
