@@ -92,7 +92,46 @@ end_suite_tree() {
   process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
   suite_home_cleanup
 }
-( n=0; while [ "$n" -lt "$secs" ]; do sleep 1; n=$((n + 1)); kill -0 "$pid" 2>/dev/null || exit 0; kill -0 "$runner" 2>/dev/null || { printf '\n__SUITE_RUNNER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; }; done; kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; end_suite_tree; } ) 2>/dev/null &
+suite_tree_cpu() {
+  local p=$1 c value children
+  value=$(ps -o cputime= -p "$p" 2>/dev/null) || return 1
+  [ -n "$value" ] || return 1
+  printf '%s\n' "$value"
+  children=$(pgrep -P "$p" 2>/dev/null)
+  for c in $children; do suite_tree_cpu "$c" || return 1; done
+}
+(
+  n=0; quiet_since=0; last_size=''; last_cpu=''
+  while [ "$n" -lt "$secs" ]; do
+    sleep 1; n=$((n + 1))
+    kill -0 "$pid" 2>/dev/null || exit 0
+    kill -0 "$runner" 2>/dev/null || { printf '\n__SUITE_RUNNER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; }
+    if [ "$((n % 10))" -eq 0 ]; then
+      size=$(wc -c <"$out")
+      if cpu_times=$(suite_tree_cpu "$pid"); then
+        cpu=$(printf '%s\n' "$cpu_times" | awk '{
+          days = 0; value = $1
+          if (index(value, "-")) { split(value, d, "-"); days = d[1]; value = d[2] }
+          count = split(value, t, ":"); seconds = 0
+          for (i = 1; i <= count; i++) seconds = seconds * 60 + t[i]
+          total += days * 86400 + seconds
+        } END { printf "%.3f", total }')
+        if [ "$size" != "$last_size" ] || [ "$cpu" != "$last_cpu" ]; then quiet_since=$n; fi
+        last_size=$size; last_cpu=$cpu
+        if [ "$((n - quiet_since))" -ge 300 ]; then
+          last_line=$(tail -n 1 "$out")
+          printf '\n__SUITE_STALLED after %ss silent (%s) (tree-killed)__\n' "$((n - quiet_since))" "$last_line" >>"$out"
+          echo "$n" >"$outdir/$dom.hang"
+          end_suite_tree
+          exit 0
+        fi
+      else
+        quiet_since=$n; last_size=''; last_cpu=''
+      fi
+    fi
+  done
+  kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; end_suite_tree; }
+) 2>/dev/null &
 watcher=$!
 on_runner_signal() {
   printf '\n__SUITE_RUNNER_SIGNALLED %s (tree-killed)__\n' "$1" >>"$out"
