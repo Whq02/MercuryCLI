@@ -4,6 +4,7 @@ import { getLspServerManager } from '../../services/lsp/manager.js'
 import type { TSNode } from '../../services/structure/grammarFacility.js'
 
 import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
+import { parseYaml } from '../../utils/yaml.js'
 import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
 type ParseFormat = 'JSON' | 'YAML'
 
@@ -24,8 +25,7 @@ function parseOnce(format: ParseFormat, text: string): string | undefined {
     if (format === 'JSON') {
       JSON.parse(body)
     } else {
-      const yaml = (Bun as unknown as { YAML?: { parse: (input: string) => unknown } }).YAML
-      yaml?.parse(body)
+      parseYaml(body)
     }
     return undefined
   } catch (err) {
@@ -35,10 +35,14 @@ function parseOnce(format: ParseFormat, text: string): string | undefined {
         : typeof (err as { message?: unknown } | null)?.message === 'string'
           ? (err as { message: string }).message
           : String(err)
-    const cleaned = raw
+    const cleaned = (raw.split('\n')[0] ?? raw)
       .replace(/^(?:(?:JSON|YAML)\s+Parse error|BuildMessage):\s*/i, '')
+      .replace(/\s+at line \d+, column \d+:?$/i, '')
       .trim()
-    const pos = (err as { position?: { line?: number; column?: number } } | null)?.position
+    const linePos = (err as { linePos?: Array<{ line?: number; col?: number }> } | null)?.linePos?.[0]
+    const pos =
+      (err as { position?: { line?: number; column?: number } } | null)?.position ??
+      (typeof linePos?.line === 'number' ? { line: linePos.line, column: linePos.col } : undefined)
     if (typeof pos?.line === 'number') {
       const col = typeof pos.column === 'number' ? `, column ${pos.column}` : ''
       return `${format} parse error (line ${pos.line}${col}): ${cleaned}`
