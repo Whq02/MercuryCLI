@@ -46,6 +46,8 @@ const { geminiPricePin, geminiPriceTierFor } = await import('../../src/services/
 const { gptDisplayPin } = await import('../../src/services/providers/openai/gptPins.ts')
 const { deepseekDisplayPin } = await import('../../src/services/providers/deepseek/deepseekPins.ts')
 const { kimiDisplayPin } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { QWEN_SHARED_ENDPOINTS, qwenEndpointBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
+const qwenBoundBaseFor = (id: string): string => qwenEndpointBase(QWEN_SHARED_ENDPOINTS.find(endpoint => endpoint.id === id)!)
 const { huggingfaceDisplayPin } = await import('../../src/services/providers/huggingface/huggingfacePins.ts')
 const orCatalogue = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
@@ -78,13 +80,13 @@ section('§1 one owner per route — each family prices at its own recorded rate
   check('GPT-5.5 is priced at $5/$30, not unpriced (developers.openai.com/api/docs/models/gpt-5.5.md, read 2026-10-25)', cost.resolveModelPricing('gpt-5.5').basis === 'recorded' && cost.resolveModelPricing('gpt-5.5').costs.inputTokens === 5 && cost.resolveModelPricing('gpt-5.5').costs.outputTokens === 30)
   const argon = geminiPricePin('gemini-4-argon')!
   check('Argon introductory $2/$10 becomes $4/$20 on December 1 (ai.google.dev pricing, read 2026-10-25)', geminiPriceTierFor(argon, undefined, '2026-11-30').costInPerMtok === 2 && geminiPriceTierFor(argon, undefined, '2026-12-01').costOutPerMtok === 20)
-  process.env.DASHSCOPE_BASE_URL = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+  process.env.DASHSCOPE_BASE_URL = qwenBoundBaseFor('singapore')
   for (const [id, boundary, input, output] of [['qwen3.7-plus', 256_000, 1.2, 4.8], ['qwen3.7-flash', 32_000, 0.1, 0.4], ['qwen3.7-flash', 256_000, 0.2, 0.8], ['qwen3.6-flash', 256_000, 1, 4]] as const) {
     const below = cost.resolveModelPricing(id, { promptTokens: boundary })
     const above = cost.resolveModelPricing(id, { promptTokens: boundary + 1 })
     check(`${id} bound to International (Singapore) crosses ${boundary} at $${input}/$${output}, basis recorded (alibabacloud.com model-pricing, read 2026-10-25)`, above.basis === 'recorded' && below.costs.inputTokens < above.costs.inputTokens && above.costs.inputTokens === input && above.costs.outputTokens === output, `${below.basis} ${below.costs.inputTokens} → ${above.basis} ${above.costs.inputTokens}/${above.costs.outputTokens}`)
   }
-  process.env.DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+  process.env.DASHSCOPE_BASE_URL = qwenBoundBaseFor('beijing')
   const beijing = cost.resolveModelPricing('qwen3.7-plus', { promptTokens: 256_001 })
   check('the same model bound to China (Beijing) prices at that region\'s own rate ($0.826/$3.301 above 256k), never the international one', beijing.basis === 'recorded' && beijing.costs.inputTokens === 0.826 && beijing.costs.outputTokens === 3.301, JSON.stringify(beijing))
   delete process.env.DASHSCOPE_BASE_URL
