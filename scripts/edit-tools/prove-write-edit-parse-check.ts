@@ -129,8 +129,8 @@ section('P1. JSON/YAML/TOML writes and edits surface introduced parse errors whe
     'tu_etoml',
   )
   check(
-    'P1e editing a valid TOML file into invalid syntax surfaces a TOML parse error with line/column in the Edit result',
-    eTomlBad.ok && /TOML parse error \(line \d+, column \d+\):/i.test(eTomlBad.text),
+    'P1e editing a valid TOML file into invalid syntax surfaces a TOML parse error with its line in the Edit result (the shipped TOML grammar, not a Bun global)',
+    eTomlBad.ok && /TOML parse error at line 1: ERROR \(the edit introduced it\)/.test(eTomlBad.text),
     eTomlBad.ok ? eTomlBad.text : eTomlBad.message,
   )
 }

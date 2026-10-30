@@ -5,13 +5,12 @@ import type { TSNode } from '../../services/structure/grammarFacility.js'
 
 import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
-type ParseFormat = 'JSON' | 'YAML' | 'TOML'
+type ParseFormat = 'JSON' | 'YAML'
 
 function formatForPath(filePath: string): ParseFormat | undefined {
   const ext = extname(filePath).toLowerCase()
   if (ext === '.json') return 'JSON'
   if (ext === '.yaml' || ext === '.yml') return 'YAML'
-  if (ext === '.toml') return 'TOML'
   return undefined
 }
 
@@ -24,11 +23,9 @@ function parseOnce(format: ParseFormat, text: string): string | undefined {
   try {
     if (format === 'JSON') {
       JSON.parse(body)
-    } else if (format === 'YAML') {
+    } else {
       const yaml = (Bun as unknown as { YAML?: { parse: (input: string) => unknown } }).YAML
       yaml?.parse(body)
-    } else {
-      Bun.TOML.parse(body)
     }
     return undefined
   } catch (err) {
@@ -39,7 +36,7 @@ function parseOnce(format: ParseFormat, text: string): string | undefined {
           ? (err as { message: string }).message
           : String(err)
     const cleaned = raw
-      .replace(/^(?:(?:JSON|YAML|TOML)\s+Parse error|BuildMessage):\s*/i, '')
+      .replace(/^(?:(?:JSON|YAML)\s+Parse error|BuildMessage):\s*/i, '')
       .trim()
     const pos = (err as { position?: { line?: number; column?: number } } | null)?.position
     if (typeof pos?.line === 'number') {
@@ -110,7 +107,7 @@ async function checkSourceParseError(filePath: string, before: string | null, af
     if (!introduced) return undefined
     const names: Record<string, string> = {
       typescript: 'TypeScript', javascript: 'JavaScript', tsx: 'TSX', 'c-sharp': 'C#', cpp: 'C++',
-      css: 'CSS', php: 'PHP', powershell: 'PowerShell', ini: 'INI', html: 'HTML',
+      css: 'CSS', php: 'PHP', powershell: 'PowerShell', ini: 'INI', html: 'HTML', toml: 'TOML',
     }
     const name = names[language.name] ?? language.name.charAt(0).toUpperCase() + language.name.slice(1)
     return `${name} parse error at line ${introduced.line}: ${introduced.node} (the edit introduced it)`
