@@ -258,10 +258,10 @@ export function classifyAtomicWriteFailure(
   return 'direct-write'
 }
 
-function guardedDirectWriteSync(target: string, content: string, encoding: BufferEncoding, oldBytes: Buffer): void {
+function guardedDirectWriteSync(target: string, content: string | Buffer, encoding: BufferEncoding, oldBytes: Buffer): void {
   const fd = openSync(target, 'r+')
   try {
-    const bytes = Buffer.from(content, encoding)
+    const bytes = typeof content === 'string' ? Buffer.from(content, encoding) : content
     let offset = 0
     while (offset < bytes.length) offset += writeSync(fd, bytes, offset, bytes.length - offset, offset)
     faultPoint('direct-write', target)
@@ -284,7 +284,7 @@ function guardedDirectWriteSync(target: string, content: string, encoding: Buffe
 
 export function writeFileAndFlushAtomically(
   filePath: string,
-  content: string,
+  content: string | Buffer,
   options: { encoding?: BufferEncoding; mode?: number } = { encoding: 'utf-8' as BufferEncoding },
 ): void {
   const encoding = options.encoding ?? ('utf-8' as BufferEncoding)

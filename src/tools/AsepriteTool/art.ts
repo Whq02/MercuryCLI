@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node
 import * as path from 'node:path'
 import { z } from 'zod/v4'
 import { runAseprite } from '../../services/aseprite/asepriteApp.js'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
+import { writeFileAndFlushAtomically } from '../../utils/file.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { SPRITE_ART_LUA } from './artLuaScripts.js'
 
@@ -113,7 +113,7 @@ export async function runArt(input: unknown, bin: string, fence: (label: string,
       const bytes = readFileSync(save)
       if (!bytes.length) throw new Error('Aseprite saved an empty sprite; original unchanged')
       if (fence(`${p.op}: file`, p.file).resolved !== file.resolved || !readFileSync(file.resolved!).equals(before)) throw new Error('sprite changed during the batch; original not overwritten')
-      durableAtomicPublishSync(file.resolved!, bytes, { mode })
+      writeFileAndFlushAtomically(file.resolved!, bytes, { mode })
     }
     return { result: `${p.file}\n${JSON.stringify(value)}${preview ? `\n${preview.path}` : ''}`, ...(preview ? { preview } : {}) }
   } catch (error) {

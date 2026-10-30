@@ -311,6 +311,18 @@
           "type": "string",
           "minLength": 1
         },
+        "host": {
+          "anyOf": [
+            {
+              "type": "string",
+              "const": ""
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]*$"
+            }
+          ]
+        },
         "imageModel": {
           "description": "Default image model catalogue id",
           "type": "string",
