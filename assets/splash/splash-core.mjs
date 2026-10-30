@@ -150,6 +150,7 @@ const MODEL_NAMES = {
   "codestral-latest": "Codestral",
   "zai-glm-5-3": "Z.ai GLM 5.3",
   "zai-glm-5-3-flash": "Z.ai GLM 5.3 Flash",
+  "deepseek-v4-1-flash-1017": "DeepSeek V4.1 Flash 1017",
   "mistral": "Mistral",
   "minimax-m3": "MiniMax M3",
   "minimax-m3.1-flash": "MiniMax M3.1 Flash",
