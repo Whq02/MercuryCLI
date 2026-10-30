@@ -15,6 +15,7 @@ export async function spawnOwnedShell(file: string, args: string[], options: Spa
   const stdio = Array.isArray(options.stdio) ? options.stdio : ['pipe', 'pipe', 'pipe'] as const
   const guard = spawn(process.execPath, [entry, SHELL_PARENT_GUARD], {
     ...options,
+    windowsHide: true,
     windowsVerbatimArguments: false,
     stdio: [...stdio, 'ipc'],
   })
