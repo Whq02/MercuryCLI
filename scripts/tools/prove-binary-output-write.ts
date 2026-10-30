@@ -18,6 +18,10 @@ try {
     ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
     ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'pptx'],
     ['image/svg+xml', 'svg'], ['audio/ogg', 'ogg'], ['unlisted/type', 'bin'],
+    ['text/css', 'css'], ['application/javascript', 'js'], ['text/javascript', 'js'],
+    ['application/xml', 'xml'], ['text/xml', 'xml'], ['application/yaml', 'yaml'], ['text/x-yaml', 'yaml'],
+    ['text/x-python', 'py'], ['application/typescript', 'ts'], ['application/sql', 'sql'], ['text/x-shellscript', 'sh'],
+    ['application/ld+json; charset=utf-8', 'json'], ['application/atom+xml', 'xml'], ['text/x-rust', 'txt'], ['application/octet-stream', 'bin'],
   ]
   for (const [mime, ext] of cases) {
     const result = await persistBinaryContent(bytes, mime, `sample-${ext}`)

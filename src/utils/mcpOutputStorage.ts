@@ -42,25 +42,41 @@ export function getLargeOutputInstructions(
   )
 }
 
-const MIME_EXTENSIONS: Record<string, string> = Object.fromEntries(Object.entries({
-  pdf: 'application/pdf', json: 'application/json', zip: 'application/zip',
-  csv: 'text/csv', txt: 'text/plain', html: 'text/html', md: 'text/markdown',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  doc: 'application/msword', xls: 'application/vnd.ms-excel',
-  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
-  mp4: 'video/mp4', webm: 'video/webm',
-  png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
-}).map(([extension, mime]) => [mime, extension]))
+const MIME_EXTENSIONS: ReadonlyMap<string, string> = new Map(
+  (
+    [
+      ['pdf', 'application/pdf'], ['json', 'application/json'], ['zip', 'application/zip'],
+      ['csv', 'text/csv'], ['txt', 'text/plain'], ['html', 'text/html'], ['md', 'text/markdown'],
+      ['css', 'text/css'], ['js', 'application/javascript', 'text/javascript', 'application/x-javascript'],
+      ['ts', 'application/typescript', 'text/typescript', 'text/x-typescript'],
+      ['xml', 'application/xml', 'text/xml'], ['yaml', 'application/yaml', 'application/x-yaml', 'text/yaml', 'text/x-yaml'],
+      ['toml', 'application/toml', 'text/x-toml'], ['py', 'text/x-python', 'application/x-python', 'text/x-script.python'],
+      ['sh', 'text/x-shellscript', 'application/x-sh', 'application/x-shellscript'], ['sql', 'application/sql', 'text/x-sql'],
+      ['jsonl', 'application/jsonl', 'application/x-ndjson'], ['rtf', 'application/rtf', 'text/rtf'],
+      ['docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      ['xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+      ['pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+      ['doc', 'application/msword'], ['xls', 'application/vnd.ms-excel'],
+      ['mp3', 'audio/mpeg'], ['wav', 'audio/wav'], ['ogg', 'audio/ogg'],
+      ['mp4', 'video/mp4'], ['webm', 'video/webm'],
+      ['png', 'image/png'], ['jpg', 'image/jpeg'], ['gif', 'image/gif'], ['webp', 'image/webp'], ['svg', 'image/svg+xml'],
+    ] as const
+  ).flatMap(([extension, ...mimes]) => mimes.map(mime => [mime, extension] as const)),
+)
 
 function normalizeMime(mimeType: string | undefined): string {
   if (!mimeType) return ''
   return (mimeType.split(';')[0] ?? '').trim().toLowerCase()
 }
 
-function extensionForMimeType(mimeType: string | undefined): string {
-  return MIME_EXTENSIONS[normalizeMime(mimeType)] ?? 'bin'
+export function extensionForMimeType(mimeType: string | undefined): string {
+  const type = normalizeMime(mimeType)
+  const listed = MIME_EXTENSIONS.get(type)
+  if (listed !== undefined) return listed
+  if (type.endsWith('+json')) return 'json'
+  if (type.endsWith('+xml')) return 'xml'
+  if (type.startsWith('text/')) return 'txt'
+  return 'bin'
 }
 
 export function isBinaryContentType(contentType: string): boolean {
