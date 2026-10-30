@@ -260,9 +260,6 @@ export async function main(): Promise<void> {
     process.stderr.write('\x1b[?25h')
     process.stderr.write('\x1b]111\x07')
   })
-  if (!isRunArgv()) {
-    process.on('SIGINT', () => process.exit(130))
-  }
   profileCheckpoint('main_warning_handler_initialized')
 
   const runFlag = isRunArgv()
