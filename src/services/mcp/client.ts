@@ -421,6 +421,23 @@ function listChangedHandlers(lookup: () => Client | undefined): {
   }
 }
 
+const TOOL_REQUIRED_FIELDS = new Set(['name', 'inputSchema'])
+
+function withoutNullKeys(value: unknown): unknown {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([, inner]) => inner !== null))
+}
+
+export function withoutNullToolMetadata(tool: unknown): unknown {
+  if (tool === null || typeof tool !== 'object' || Array.isArray(tool)) return tool
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(tool as Record<string, unknown>)) {
+    if (value === null && !TOOL_REQUIRED_FIELDS.has(key)) continue
+    out[key] = key === 'inputSchema' || key === 'annotations' ? withoutNullKeys(value) : value
+  }
+  return out
+}
+
 class ToolListClient extends Client {
   override async connect(...args: Parameters<Client['connect']>): Promise<void> {
     const [transport] = args
@@ -435,7 +452,7 @@ class ToolListClient extends Client {
       if ('id' in message && message.id !== undefined && requests.delete(message.id) && 'result' in message) {
         const result = message.result
         if (Array.isArray(result.tools) && this._wireCodec().validateResult('tools/list', { ...result, tools: [] }).ok) {
-          result.tools = result.tools.filter((tool: unknown) => {
+          result.tools = result.tools.map(withoutNullToolMetadata).filter((tool: unknown) => {
             const checked = this._wireCodec().validateResult('tools/list', { ...result, tools: [tool] })
             if (checked.ok) return true
             logMCPDebug(this.getServerVersion()?.name ?? 'MCP', `skipping malformed tool: ${checked.reason === 'invalid' ? checked.message : checked.reason}`)

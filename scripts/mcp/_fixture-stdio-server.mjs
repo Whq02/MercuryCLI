@@ -60,6 +60,17 @@ rl.on('line', line => {
       result: {
         tools: [
           ...(process.env.MCP_FIXTURE_MALFORMED_TOOLS ? [{ name: 'bad_schema', inputSchema: { type: 'array' } }, { name: 42, inputSchema: { type: 'object' } }] : []),
+          ...(process.env.MCP_FIXTURE_NULL_METADATA_TOOLS
+            ? [
+                { name: 'null_description', description: null, inputSchema: { type: 'object', properties: {} } },
+                { name: 'null_annotations', description: 'd', annotations: null, inputSchema: { type: 'object', properties: {} } },
+                { name: 'null_annotation_title', description: 'd', annotations: { title: null, readOnlyHint: true }, inputSchema: { type: 'object', properties: {} } },
+                { name: 'null_title_meta_icons', title: null, _meta: null, icons: null, outputSchema: null, inputSchema: { type: 'object', properties: {} } },
+                { name: 'null_properties', description: 'd', inputSchema: { type: 'object', properties: null, required: null } },
+                { name: null, description: 'a null name is malformed, not metadata', inputSchema: { type: 'object' } },
+                { name: 'null_input_schema', inputSchema: null },
+              ]
+            : []),
           {
             name: 'fix_ping',
             description: 'Fixture ping tool (live-connect proof).',
