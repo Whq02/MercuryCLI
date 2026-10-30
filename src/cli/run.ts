@@ -321,6 +321,7 @@ type HeadlessOptions = {
   workload?: string
   advise?: boolean
   bootSessionIdPinned?: boolean
+  title?: string
   initializeMcp?: () => Promise<void>
   door?: 'rows' | 'wire'
   subscribeAppState?: (listener: () => void) => () => void
@@ -731,6 +732,10 @@ export async function runHeadless(
         .then(() => peekProject()?.flush())
         .catch((error: unknown) => logError(toError(error)))
     }
+  }
+  if (options.title && !awaitingSessionClaim && !isSessionPersistenceDisabled()) {
+    const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
+    await saveCustomTitle(getSessionId() as UUID, options.title)
   }
   if (bootModelRefusal !== null) bootRefusalFact = bootModelRefusal
   if (bootModelRefusal !== null && !awaitingSessionClaim) await persistBootModelRefusal(bootModelRefusal)

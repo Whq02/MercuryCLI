@@ -2314,6 +2314,7 @@ async function runLaunch(args: {
         workload: typedString(opts.meterTag),
         advise: opts.advise === true,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
+        title: typedString(opts.title)?.trim() || undefined,
         initializeMcp,
         door: args.door,
         subscribeAppState: store.subscribe,
