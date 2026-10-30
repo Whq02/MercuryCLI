@@ -34,7 +34,8 @@ for (const seat of seats) {
     answered = typeof result.session_id === 'string'
     detail = `initialize answered after ${Date.now() - started} ms`
   } catch (error) {
-    detail = `${error instanceof Error ? error.message : String(error)} (the seat forensics are printed above by the launcher)`
+    const stderr = host.stderr().trim()
+    detail = `${error instanceof Error ? error.message : String(error)} — seat exit ${host.child.exitCode ?? 'pending'}${host.child.signalCode ? `, signal ${host.child.signalCode}` : ''}; its stderr (${stderr.length} bytes, the last 1500): ${JSON.stringify(stderr.slice(-1500))} (a seat still alive has its forensics printed above by the launcher)`
   }
   tally.check(`the seat answers initialize within ${DEADLINE_MS / 1000} s: the settings watcher never opens the pipe`, answered, detail)
   host.end()
