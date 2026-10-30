@@ -1,12 +1,12 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
 import { mediaAddPlan, mediaAddSource, mediaRows, pullMedia, runMediaSetup, type MediaProgress } from '../../src/services/media/setup.js'
 import { readMediaCatalogue } from '../../src/services/media/catalogue.js'
-import { installFixture, proofHome, root, serverPath } from './fixture.ts'
+import { installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
 
 const client = new Client({ name: 'media-user-models-proof', version: '1' })
 try {
@@ -82,5 +82,5 @@ try {
   console.log('media own files: add arguments, persistent row, unchanged row words, live SDK discovery/default, download consent, hash refusal')
 } finally {
   await client.close()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

@@ -1,11 +1,11 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { SettingsSchema } from '../../src/utils/settings/types.js'
 import { updateSettingsForSource } from '../../src/utils/settings/settings.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, readMediaSettings, saveMediaSettings } from '../../src/services/media/settings.js'
-import { proofHome, root, serverPath, installFixture } from './fixture.ts'
+import { installFixture, removeProofHome, root, serverPath } from './fixture.ts'
 
 try {
   installFixture()
@@ -37,4 +37,4 @@ try {
   assert.equal(readMediaSettings().imageModel, undefined)
   assert.equal(readMediaSettings().videoModel, undefined)
   console.log('media settings: typed keys; shared config reader; preserved engine keys; kind validation; health remedies')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

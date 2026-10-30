@@ -1,10 +1,10 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mediaRows, mediaPullPlan, mediaRuntimeChoice, pullMedia, runMediaSetup, MediaSetupPaused, mediaSizeWords, type MediaProgress, type MediaSnapshot } from '../../src/services/media/setup.js'
 import { modelFilePath, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
-import { catalogue, installFixture, proofHome, root, serverPath } from './fixture.ts'
+import { catalogue, installFixture, removeProofHome, root, serverPath } from './fixture.ts'
 
 try {
   installFixture()
@@ -53,4 +53,4 @@ try {
   assert.throws(() => modelFilePath(root, '../escape'), /models folder/)
   assert.throws(() => parseMediaCatalogue(catalogue, { models: [{ ...catalogue.models[0], id: 'bad', license: '' }] }))
   console.log('imagesetup: fit and shared sizes; consent; JSON progress; install reread; digest failure; cancellation; path validation')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

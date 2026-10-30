@@ -1,11 +1,11 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
 import { mediaCheckpointFile, mediaModelJoined, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { mediaPullPlan, mediaRows, type MediaSnapshot } from '../../src/services/media/setup.js'
-import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)
 Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
@@ -82,5 +82,5 @@ try {
 } finally {
   await client.close()
   await stopFixtureEngine()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

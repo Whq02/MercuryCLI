@@ -1,10 +1,10 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
-import { catalogue, installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { catalogue, installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 import { mediaHostStatePath, connectMediaHost } from '../../src/services/media/host.js'
 import { writeHostRecord } from '../../src/services/host/store.js'
 import { mediaConfigModule, mediaRoot } from '../../src/services/media/settings.js'
@@ -65,5 +65,5 @@ try {
   await gateway?.close()
   await stopFixtureEngine()
   delete process.env.MEDIA_ROOT
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

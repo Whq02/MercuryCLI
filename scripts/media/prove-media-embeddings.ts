@@ -1,9 +1,9 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
-import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 function embedding(width: number): Buffer {
   const text = Buffer.from(JSON.stringify({ emb_params: { dtype: 'F16', shape: [1, width], data_offsets: [0, width * 2] } }))
@@ -51,5 +51,5 @@ try {
 } finally {
   await client.close()
   await stopFixtureEngine()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

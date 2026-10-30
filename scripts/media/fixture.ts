@@ -1,4 +1,5 @@
 import { proofHome } from '../lib/hermetic.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -144,5 +145,13 @@ export async function stopFixtureEngine(): Promise<void> {
       throw new Error('Fixture engine did not stop')
     }
     await new Promise(resolve => setTimeout(resolve, 20))
+  }
+}
+
+export function removeProofHome(): void {
+  try {
+    removeScratch(proofHome)
+  } catch (error) {
+    console.log(`proof home kept: ${proofHome} (${(error as NodeJS.ErrnoException).code ?? String(error)})`)
   }
 }

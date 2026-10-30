@@ -1,12 +1,11 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { rmSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.ts'
 import { mediaGenerationDetails, mediaGenerationKind } from '../../src/services/media/generation.js'
 import { MEDIA_SERVER_NAME } from '../../src/services/media/settings.js'
-import { catalogue, proofHome } from './fixture.ts'
+import { catalogue, proofHome, removeProofHome } from './fixture.ts'
 
 const root = join(proofHome, 'storage')
 const bundled = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server')
@@ -68,4 +67,4 @@ try {
     } finally { await connection.client.close() }
   }
   console.log('media slots: omitted uses slot; named overrides; descriptions; shared defaults; both generators ask through normal MCP permissions')
-} finally { await client.close(); rmSync(proofHome, { recursive: true, force: true }) }
+} finally { await client.close(); removeProofHome() }

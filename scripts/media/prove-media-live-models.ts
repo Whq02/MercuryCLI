@@ -1,9 +1,9 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
-import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 import type { LocalJSXCommandContext } from '../../src/types/command.js'
 
 process.chdir(proofHome)
@@ -67,5 +67,5 @@ try {
 } finally {
   await client.close()
   await stopFixtureEngine()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

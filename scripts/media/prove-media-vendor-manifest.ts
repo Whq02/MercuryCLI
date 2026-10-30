@@ -1,11 +1,11 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { cpSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { cpSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { bundledRoster } from '../../src/extensions/bundled/index.js'
-import { proofHome } from './fixture.ts'
+import { proofHome, removeProofHome } from './fixture.ts'
 
 try {
   const source = resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server')
@@ -50,4 +50,4 @@ try {
     assert.ok(line.includes(`${((row.model.peakBytes ?? row.fit.residentBytes) / 1024 ** 3).toFixed(2)} GiB`), row.model.id)
   }
   console.log('media vendor manifest: exact inventory and digests; binary bytes and mode; shared config writer/reader; documented model sizes')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

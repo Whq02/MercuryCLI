@@ -1,8 +1,8 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, rmSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { proofHome } from './fixture.ts'
+import { removeProofHome } from './fixture.ts'
 import ts from 'typescript'
 
 const repo = resolve(import.meta.dir, '../..')
@@ -41,4 +41,4 @@ try {
     count++
   }
   console.log(`media privacy: ${count} files; library identifiers confined to bundled modules; setup URL properties excluded without excluding string content`)
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

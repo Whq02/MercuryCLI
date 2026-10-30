@@ -1,10 +1,10 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { crc32, deflateSync } from 'node:zlib'
-import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 const source = fileURLToPath(new URL('../../src/services/media/pipeline.ts', import.meta.url))
 const arg = (name: string): string | undefined => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1] }
@@ -219,5 +219,5 @@ try {
   await close()
   await stopFixtureEngine()
   process.chdir(originalCwd)
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

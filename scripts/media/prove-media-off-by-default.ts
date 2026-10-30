@@ -1,7 +1,6 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { rmSync } from 'node:fs'
-import { proofHome, installFixture, root, serverPath } from './fixture.ts'
+import { installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
 import { computeActiveSet, publishActiveSet } from '../../src/extensions/active.js'
 import { clearExtensionMcpServerCache, getExtensionMcpServers } from '../../src/extensions/load/servers.js'
 import { noteWords } from '../../src/components/extensions/rowWords.js'
@@ -34,4 +33,4 @@ try {
   read()
   assert.equal(getExtensionMcpServers()[MEDIA_SERVER_NAME], undefined)
   console.log('media off-by-default: one off row; no server; enabled and disabled through the shared setting')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

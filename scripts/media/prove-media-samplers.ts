@@ -1,9 +1,9 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Client, StdioClientTransport } from '../../src/services/mcp/sdk.js'
-import { installLiveFixture, proofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
+import { installLiveFixture, proofHome, removeProofHome, root, serverPath, stopFixtureEngine } from './fixture.ts'
 
 process.chdir(proofHome)
 const client = new Client({ name: 'media-sampling-proof', version: '1.0.0' })
@@ -40,5 +40,5 @@ try {
 } finally {
   await client.close()
   await stopFixtureEngine()
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

@@ -1,10 +1,10 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
-import { catalogue, installFixture, proofHome, root, serverPath } from './fixture.ts'
+import { catalogue, installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
 
 process.env.MERCURY_FULLSCREEN = '1'
 process.env.MERCURY_HELM_HOME = '1'
@@ -104,5 +104,5 @@ try {
   await saveMediaSettings({ host: record.id })
   assert.equal(readMediaSettings().host, record.id)
   console.log('media host picker: existing host rows, persisted choice, CUDA runtime location, machine pull destination, cancel without setup and return to local')
-} finally { popup.closeSettingsPopup(); mounted.unmount(); process.chdir(proofHome); rmSync(proofHome, { recursive: true, force: true }) }
+} finally { popup.closeSettingsPopup(); mounted.unmount(); process.chdir(proofHome); removeProofHome() }
 process.exit(0)

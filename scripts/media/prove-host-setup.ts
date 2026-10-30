@@ -2,9 +2,9 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { createServer, type Server } from 'node:http'
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { catalogue, installFixture, proofHome, root, serverPath } from './fixture.ts'
+import { catalogue, installFixture, removeProofHome, root, serverPath } from './fixture.ts'
 import { writeHostRecord } from '../../src/services/host/store.js'
 import { closeHostTunnel, type HostRunner } from '../../src/services/host/ssh.js'
 import { mediaHostInstallScript, readMediaHostSnapshot, runMediaHostSetup, mediaHostStatePath } from '../../src/services/media/host.js'
@@ -69,5 +69,5 @@ try {
 } finally {
   closeHostTunnel('media-fixture-rental')
   for (const server of servers) { server.closeAllConnections(); await new Promise<void>(done => server.close(() => done())) }
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

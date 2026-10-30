@@ -1,9 +1,9 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { installFixture, proofHome, root, serverPath } from './fixture.ts'
+import { installFixture, proofHome, removeProofHome, root, serverPath } from './fixture.ts'
 import { runMediaSetup } from '../../src/services/media/setup.js'
 import { readMediaSettings } from '../../src/services/media/settings.js'
 import { updateSettingsForSource } from '../../src/utils/settings/settings.js'
@@ -54,5 +54,5 @@ try {
 } finally {
   server.closeAllConnections()
   await new Promise<void>(done => server.close(() => done()))
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

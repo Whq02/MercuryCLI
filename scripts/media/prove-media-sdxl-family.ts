@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path'
 import { mediaCheckpointFile, mediaCheckpointInstalled, mediaModelJoined, mediaModelSupported, parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { mediaGenerationDetails } from '../../src/services/media/generation.js'
 import { mediaPullPlan, mediaRows, mediaRuntimeChoice, type MediaSnapshot } from '../../src/services/media/setup.js'
-import { proofHome, root } from './fixture.ts'
+import { removeProofHome, root } from './fixture.ts'
 
 try {
   const bundled = JSON.parse(readFileSync(resolve(import.meta.dir, '../../src/extensions/bundled/mercury-media/server/catalog.json'), 'utf8')) as { runtime: { tag: string; families: string[]; componentFamilies: string[] }; recipes: Array<{ id: string; slots: Array<{ id: string; required: boolean }>; checkpoint?: { recipe: string; layout: string } }>; models: Array<{ id: string; recipe?: string; checkpoint?: { bytes: number } }> }
@@ -72,4 +72,4 @@ try {
   assert.throws(() => mediaGenerationDetails('image', { model: 'pixel-party-xl', prompt: 'cute dragon' }, unlisted, { imageModel: 'z-image-turbo' }, root), /Choose the image model in \/imagesetup/)
   assert.throws(() => parseMediaCatalogue(bundled, { runtime: { families: ['bad id!'] } }))
   console.log('media sdxl family: the vendored engine carries the family, its checkpoint recipe and both rows; with the shipped runtime both rows are listed in the existing row shape, the disk check counts the download and the join, a joined checkpoint of the pinned size makes the row installed with no component left, a component-loading runtime pulls without a join, and the pull card carries the licences and the card sentence')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }

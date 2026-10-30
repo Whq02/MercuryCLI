@@ -2,12 +2,12 @@ import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { zipSync } from 'fflate'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { basename, delimiter, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseMediaCatalogue } from '../../src/services/media/catalogue.js'
 import { mediaPullPlan, mediaRuntimeChoice, mediaRuntimeInstalled, mediaRuntimeRowWords, mediaSizeWords, type MediaSnapshot } from '../../src/services/media/setup.js'
-import { catalogue as fixtureCatalogue, proofHome, root } from './fixture.ts'
+import { catalogue as fixtureCatalogue, proofHome, removeProofHome, root } from './fixture.ts'
 
 const MAC = { asset: 'sd-master-e41fbcf-bin-Darwin-macOS-26.6.2-arm64.zip', bytes: 37584335, sha256: '933fb5b622b578df7a0d22c41f39bc83791d40b876648a084fe1c4cbff2ef36c' }
 const savedPath = process.env.PATH
@@ -177,5 +177,5 @@ try {
   process.env.PATH = savedPath
   if (savedModulePath === undefined) delete process.env.PSModulePath
   else process.env.PSModulePath = savedModulePath
-  rmSync(proofHome, { recursive: true, force: true })
+  removeProofHome()
 }

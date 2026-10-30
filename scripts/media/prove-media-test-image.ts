@@ -1,10 +1,9 @@
 import '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
-import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { generateMediaTestImage } from '../../src/services/media/generation.js'
 import { MEDIA_SERVER_NAME } from '../../src/services/media/settings.js'
-import { proofHome } from './fixture.ts'
+import { proofHome, removeProofHome } from './fixture.ts'
 
 try {
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jH3kAAAAASUVORK5CYII=', 'base64')
@@ -35,4 +34,4 @@ try {
   await assert.rejects(generateMediaTestImage('image-one', context, controller))
   assert.equal(calls, 1)
   console.log('media test image: permission denial prevents generation; allowed call returns inline PNG and path; cancellation prevents a call')
-} finally { rmSync(proofHome, { recursive: true, force: true }) }
+} finally { removeProofHome() }
