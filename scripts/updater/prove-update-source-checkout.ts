@@ -38,7 +38,7 @@ const fixturesRoot = join(scratch, 'fixtures')
 const serverLog = join(scratch, 'channel-requests.log')
 for (const p of [home, configHome, versionsDir, fixturesRoot]) mkdirSync(p, { recursive: true })
 
-const V_NEW = '9.9.0-beta.2'
+const V_NEW = '9.9.0'
 const newer = makeFixtures(fixturesRoot, 'newer', [{ version: V_NEW }])
 const current = makeFixtures(fixturesRoot, 'current', [{ version: RUNNING }])
 

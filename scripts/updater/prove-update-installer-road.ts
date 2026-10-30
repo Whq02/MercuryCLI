@@ -70,7 +70,7 @@ stub(stubs, 'mercury', 'echo "Mercury $(cat "$STUB_STATE")"\n')
 stub(stubsNoBrew, 'mercury', 'echo "Mercury $(cat "$STUB_STATE")"\n')
 
 const V_OLD = '9.9.0-beta.1'
-const V_NEW = '9.9.0-beta.2'
+const V_NEW = '9.9.0'
 const fixtures = makeFixtures(fixturesRoot, 'releases', [{ version: V_OLD }, { version: V_NEW }])
 const server = await spawnFixtureReleaseServer({ fixtures, log: serverLog })
 

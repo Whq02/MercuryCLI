@@ -46,7 +46,7 @@ const pathOf = (...front: string[]): string => [...front, tools, ...systemDirs].
 
 const FAKE_GH = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')
 const V_OLD = '9.9.0-beta.1'
-const V_NEW = '9.9.0-beta.2'
+const V_NEW = '9.9.0'
 const fixtures = mintFixtures(fixturesRoot, 'releases', [{ version: V_OLD }, { version: V_NEW }])
 const server = await spawnFixtureReleaseServer({ fixtures, log: serverLog })
 
