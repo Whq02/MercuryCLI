@@ -113,6 +113,16 @@ try {
 } catch {
 }
 
+const boardResult = await Bun.build({
+  entrypoints: [resolve(SRC, 'services/crewBoard/implementation.ts')],
+  outdir: OUT,
+  naming: 'crew-board.mjs',
+  target: 'node',
+  format: 'esm',
+  minify: process.env.MERCURY_BUILD_MINIFY === 'oracle' ? { whitespace: true, syntax: true, identifiers: false } : true,
+});
+if (!boardResult.success) throw new Error(`Crew board build failed: ${boardResult.logs.join('\n')}`);
+
 const result = await Bun.build({
   entrypoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
   outdir: OUT,

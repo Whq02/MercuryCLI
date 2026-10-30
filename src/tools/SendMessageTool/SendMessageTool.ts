@@ -1,4 +1,5 @@
 import { z } from 'zod/v4'
+import { swarmPeerMessage } from '../../services/crewBoard/seam.js'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { enqueueMessageToMainAgent, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -36,6 +37,8 @@ export const SendMessageTool = buildTool({
     if (address.kind === 'main') {
       const sender = senderAgentTask(context)
       if (sender === undefined) return { data: { success: false, message: `Cannot deliver to "${to}": that address names this session's own main agent, and only a background crewmate reaches its main agent there. Address a crewmate by the id its launch receipt names or by its name.` } }
+      const board = swarmPeerMessage(context, 'main', input.message)
+      if (board.handled) return { data: board.result! }
       enqueueMessageToMainAgent({ fromTaskId: sender.id, description: sender.description, text: input.message })
       return { data: { success: true, message: 'Delivered to the main agent; it reads it at its next tool boundary, or between turns starts a turn for it.' } }
     }
@@ -43,6 +46,8 @@ export const SendMessageTool = buildTool({
     const resolvedSelf = selfAddressRefusalText(to, context, 'deliver to', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
     if (address.task?.status === 'running') {
+      const board = swarmPeerMessage(context, address.agentId, input.message)
+      if (board.handled) return { data: board.result! }
       queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
       return { data: { success: true, message: `Delivered to ${address.who}; it reads it at its next tool boundary.` } }
     }

@@ -84,6 +84,7 @@ export function getWorkflowTranscriptDir(runId: string): string {
 
 export type AgentMetadata = {
   agentType: string
+  swarm?: boolean
   model?: string
   effortOverride?: string
   thinkingConfig?: import('../thinking.js').ThinkingConfig

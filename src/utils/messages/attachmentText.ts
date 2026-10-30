@@ -78,7 +78,7 @@ function queuedRows(queued: Of<'queued_command'>): UserMessage[] {
   const prompt = queued.prompt
   const blocks = Array.isArray(prompt) ? prompt : undefined
   const raw = blocks ? blocks.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n') : String(prompt)
-  const wrapped = wrapCommandText(raw, origin)
+  const wrapped = queued.boardEventIds === undefined ? wrapCommandText(raw, origin) : protectReminder(raw)
   const content: Body = blocks ? [text(wrapped), ...blocks.filter(block => block.type === 'image')] : wrapped
   const hide = (origin !== undefined && !isAdvisorOrigin(origin)) || queued.isMeta
   return wrapMessagesInSystemReminder([createUserMessage({ content, origin, uuid: queued.source_uuid, queued: true, ...(hide ? { isMeta: true } : {}) })])

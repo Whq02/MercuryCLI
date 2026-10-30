@@ -1,9 +1,11 @@
 import { z } from 'zod/v4'
+import { mirrorSwarmResume, swarmPeerMessage, swarmRoad } from '../../services/crewBoard/seam.js'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask, queuePendingMessage, speakAgentMessageFrame } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { errorMessage } from '../../utils/errors.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { liveAgentOwner } from '../AgentTool/resumeAgent.js'
 import { endedWords, mapMessageResult, messageNoticeFor, messageWorkflowWorker, resolveCrewAddress, selfAddressRefusalText, senderAgentTask, unknownAgentRefusal, validateCrewMessage, type CrewMessageInput, type MessageOutput } from '../SendMessageTool/crewAddress.js'
@@ -47,6 +49,7 @@ export const ResumeAgentTool = buildTool({
     if (address.kind === 'unknown') return { data: { success: false, message: await unknownAgentRefusal(to, context, 'resume') } }
     const resolvedSelf = selfAddressRefusalText(to, context, 'resume', address.agentId)
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
+    if (context.agentId !== undefined && (swarmRoad(context.agentId) || swarmRoad(address.agentId)) && (input.interrupt || address.task?.status !== 'running' || input.model !== undefined || input.effort !== undefined)) return { data: { success: false, message: 'A board peer cannot resume, interrupt or change another seat. Ask the lead on its next active turn.' } }
     const overrides = [input.model !== undefined ? `model ${input.model}` : null, input.effort !== undefined ? `effort ${input.effort}` : null].filter((word): word is string => word !== null)
     if (overrides.length > 0 && address.task?.status !== 'running') {
       const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
@@ -54,6 +57,8 @@ export const ResumeAgentTool = buildTool({
     }
     if (address.task?.status === 'running') {
       if (!input.interrupt) {
+        const board = swarmPeerMessage(context, address.agentId, input.message, true)
+        if (board.handled) return { data: board.result! }
         const ahead = address.task.pendingMessages?.length ?? 0
         queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
         const queue = ahead === 0 ? 'it reads it at its next tool boundary, or as its next turn when the current one ends' : `${ahead} earlier ${ahead === 1 ? 'message is' : 'messages are'} queued ahead of it; it reads them in order at its next tool boundary, or as its next turn when the current one ends`
@@ -81,6 +86,8 @@ export const ResumeAgentTool = buildTool({
         agentId: address.agentId, prompt: notice, toolUseContext: context, canUseTool, invokingRequestId: parentAssistantMessage.requestId,
         model: input.model, effort: input.effort,
       })
+      const mirrored = mirrorSwarmResume(context, address.agentId, input.message)
+      if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
       speakAgentMessageFrame(address.agentId, notice)
       const completion = senderAgentTask(context) === undefined
         ? ', and its completion notice will come to you.'

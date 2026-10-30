@@ -5,6 +5,7 @@ import { getCommandName } from './types/command.js'
 import { isCommandEnabled } from './commands/enablement.js'
 import verify from './commands/verify.js'
 import advise from './commands/advise/index.js'
+import swarm from './commands/swarm/index.js'
 import agents from './commands/agents/index.js'
 import clear from './commands/clear/index.js'
 import caching from './commands/caching/index.js'
@@ -134,6 +135,7 @@ const clearSkillIndexCache: (() => void) | null = (() => {
 const COMMANDS = memoize((): Command[] => [
   verify,
   advise,
+  swarm,
   agents,
   clear,
   compact,

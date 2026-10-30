@@ -28,6 +28,7 @@ export type TranscriptFoldState = {
   prRepositories: Map<UUID, string>
   modes: Map<UUID, string>
   advisorSwitches: Map<UUID, boolean>
+  swarmSwitches: Map<UUID, boolean>
   sessionModels: Map<UUID, string>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotEntry>
@@ -53,6 +54,7 @@ export function emptyFoldState(): TranscriptFoldState {
     prRepositories: new Map(),
     modes: new Map(),
     advisorSwitches: new Map(),
+    swarmSwitches: new Map(),
     sessionModels: new Map(),
     worktreeStates: new Map(),
     fileHistorySnapshots: new Map(),
@@ -97,6 +99,7 @@ const foldRows = {
   'agent-setting': (state, row) => { if (row.sessionId) state.agentSettings.set(row.sessionId, row.agentSetting) },
   mode: (state, row) => { if (row.sessionId) state.modes.set(row.sessionId, row.mode) },
   'advisor-switch': (state, row) => { if (row.sessionId) state.advisorSwitches.set(row.sessionId, row.on === true) },
+  'swarm-switch': (state, row) => { if (row.sessionId) state.swarmSwitches.set(row.sessionId, row.on === true) },
   model: (state, row) => { if (row.sessionId && typeof row.model === 'string' && row.model !== '') state.sessionModels.set(row.sessionId, row.model) },
   'worktree-state': (state, row) => { if (row.sessionId) state.worktreeStates.set(row.sessionId, row.worktreeSession) },
   'pr-link': (state, row) => {

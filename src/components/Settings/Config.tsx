@@ -110,6 +110,7 @@ import { localRecordFor } from '../../services/providers/local/localCatalogue.js
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
+import { swarmMasterEnabled } from '../../services/crewBoard/seam.js'
 import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
@@ -1190,6 +1191,24 @@ export function Config({
       },
     }),
   )
+  {
+    const enabled = swarmMasterEnabled()
+    items.push({
+      id: 'swarm',
+      label: 'Swarm',
+      searchText: 'swarm live crew board',
+      kind: 'boolean',
+      value: <Text color={enabled ? tokens.success : tokens.textSecondary}>{enabled ? 'on · /swarm on enables a session' : 'off'}</Text>,
+      warning: 'Live crew posts for new crewmates after /swarm on; 6,000 board tokens per agent, 40,000 per wave; no extra turns. Existing crewmates keep their messages unchanged.',
+      setByYou: enabled,
+      change: () => {
+        if (writeSource('userSettings', { swarm: { enabled: !enabled } })) {
+          recordToggle('swarm', `Swarm ${enabled ? 'off' : 'on'}`)
+          bump()
+        }
+      },
+    })
+  }
   items.push(
     ...advisorConfigItems({
       tokens,

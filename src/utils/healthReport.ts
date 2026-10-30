@@ -2234,6 +2234,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'swarm',
+          label: 'Swarm',
+          run: async () => {
+            const { swarmMasterEnabled, swarmSessionEnabled } = await import('../services/crewBoard/seam.js')
+            const master = swarmMasterEnabled()
+            return {
+              status: master ? 'ok' : 'off',
+              evidence: master ? `Swarm ${swarmSessionEnabled() ? 'on' : 'off'} for new crewmates` : 'Swarm off',
+              detail: 'swarm.enabled in user settings.json is the master switch; /swarm on enables this session for subsequently launched crewmates. Board context: 6,000 tokens per agent, 40,000 per wave, charged conservatively in UTF-8 bytes; no peer-started turns. Existing crewmates keep their messages unchanged.',
+              link: '/config',
+            }
+          },
+        },
+        {
           id: 'spawn-switches',
           label: 'Crewmates & workflows',
           run: async () => {

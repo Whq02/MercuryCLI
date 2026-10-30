@@ -465,6 +465,7 @@ export interface EngineConnectorV1 {
   subscribeWork(listener: () => void): () => void
 
   advisorFacts(): AdvisorFactsV1 | null
+  swarmBoard?(): import('../crewBoard/contracts.js').BoardViewSnapshot | null
 
   permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void

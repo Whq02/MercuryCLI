@@ -61,6 +61,7 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
     prRepositories: new Map(fold.prRepositories),
     modes: new Map(fold.modes),
     advisorSwitches: new Map(fold.advisorSwitches),
+    swarmSwitches: new Map(fold.swarmSwitches),
     sessionModels: new Map(fold.sessionModels),
     worktreeStates: new Map(fold.worktreeStates),
     fileHistorySnapshots: new Map(fold.fileHistorySnapshots),

@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { loadSwarm } from '../../../services/crewBoard/seam.js'
+import type { BoardViewSnapshot } from '../../../services/crewBoard/contracts.js'
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Box, Text, useInput, wrapText } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
@@ -98,6 +100,9 @@ export function CrewView({
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
   const [mode, setMode] = useState<Mode>(() => ({ view: 'list' }))
+  const [boardTab, setBoardTab] = useState(false)
+  const board = getFocusedSessionConnector().swarmBoard?.() ?? null
+  const showingBoard = boardTab && board?.on === true
   const pastMount = useOpenEventGate()
   const listMode = mode.view === 'list' || (mode.view === 'card' && !workById.has(mode.id))
   const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
@@ -117,8 +122,10 @@ export function CrewView({
     onClose()
   }
 
-  usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode)
+  usePopupListPaging(sel, rows.length, () => win.end - win.start, cursor.select, listMode && !showingBoard)
   useInput((input, key) => {
+    if (board?.on && key.tab) { setBoardTab(value => !value); return }
+    if (showingBoard) return
     const selected = rows[sel]
     const target: CrewAgentFacts | null =
       mode.view === 'card' && !listMode
@@ -206,6 +213,13 @@ export function CrewView({
   const doorKeys = (target: CrewAgentFacts | null): string[] =>
     armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
+  if (showingBoard && board !== null) {
+    return <CommandCenter elevated view="crew" onClose={onClose} captureInput={false}>
+      <Text><Text dimColor>Crew</Text>{' · '}<Text bold>Board</Text></Text>
+      <SwarmPanel snapshot={board} onBack={onClose} width={Math.max(1, columns - 6)} height={Math.max(1, termRows - 8)} />
+    </CommandCenter>
+  }
+
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
     const facts = agents.find(a => a.id === mode.id)
@@ -228,6 +242,7 @@ export function CrewView({
     : [
         '↑↓ move',
         'pgup/pgdn page',
+        board?.on ? 'tab Board' : undefined,
         rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
         selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
         ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
@@ -353,3 +368,8 @@ function AgentRow({
   )
 }
 
+
+function SwarmPanel(props: { snapshot: BoardViewSnapshot; onBack: () => void; width: number; height: number }): React.ReactNode {
+  const View = loadSwarm().view
+  return <View {...props} React={React} Text={Text} Box={Box} useInput={useInput} />
+}

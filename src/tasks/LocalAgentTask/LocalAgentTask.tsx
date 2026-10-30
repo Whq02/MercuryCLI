@@ -50,6 +50,7 @@ import { CREW_INTERRUPTED_BY_OPERATOR_WORDS } from '../../services/engine-connec
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { getSessionId } from '../../bootstrap/state.js'
+import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
 import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
 
@@ -1124,6 +1125,8 @@ export function enqueueAgentNotification(args: {
   const message = `${prefix}${resultSection}${usageSection}${worktreeSection}${lastCallsSection}${envelopeSection}
 </${TASK_NOTIFICATION_TAG}>`
 
+  const mirrored = mirrorSwarmNotice(args.taskId, message, summary)
+  if (mirrored && !mirrored.ok) logForDebugging(`crew board: ${mirrored.reason}`)
   enqueuePendingNotification({
     value: message,
     mode: 'task-notification',

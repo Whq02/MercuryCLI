@@ -1582,7 +1582,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const mission = this.facts?.mission ?? []
     const samples = this.facts?.samples ?? []
     const pauseGate = this.facts?.pauseGate
-    const stamp = JSON.stringify([reported, gone, rows, mission, samples, pauseGate])
+    const stamp = JSON.stringify([reported, gone, rows, mission, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
     this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }
@@ -2402,6 +2402,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   advisorFacts(): AdvisorFactsV1 | null {
     return this.facts?.advisor ?? null
+  }
+
+  swarmBoard(): import('../crewBoard/contracts.js').BoardViewSnapshot | null {
+    return this.facts?.swarm ?? null
   }
 
   subscribeWork(listener: () => void): () => void {

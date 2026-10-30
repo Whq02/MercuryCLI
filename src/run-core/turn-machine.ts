@@ -16,6 +16,7 @@ import { estimateContextTokens, projectTimeBasedMicrocompact } from '../services
 import { fireHooks } from '../utils/hooks/fire.js'
 import { hookRowsOfResult } from '../utils/hooks/rows.js'
 import { getSessionId } from '../bootstrap/state.js'
+import { swarmPresented, swarmRoad } from '../services/crewBoard/seam.js'
 import {
   classifyThinkingDrops,
   createDeadThinkingAttachment,
@@ -668,6 +669,7 @@ async function* streamModel(
       let chantWatch = new StreamChantWatch()
       try {
         let streamingFallbackOccured = false
+        let boardPresented = false
         const requestMessages =
           latestUserContextBody(iter.messagesForQuery) === null
             ? prependUserContext(iter.messagesForQuery, run.userContext)
@@ -721,7 +723,13 @@ async function* streamModel(
               streamingFallbackOccured = true
             },
             onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
-            onStreamActivity: atMs => toolUseContext.setSDKStatus?.({ streamActivity: atMs }),
+            onStreamActivity: atMs => {
+              toolUseContext.setSDKStatus?.({ streamActivity: atMs })
+              if (!boardPresented && swarmRoad(toolUseContext.agentId)) {
+                boardPresented = true
+                try { swarmPresented(toolUseContext.agentId, requestMessages, callId) } catch (error) { logForDebugging(`crew board accounting: ${String(error)}`) }
+              }
+            },
             querySource: run.querySource,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
             allowedAgentTypes:

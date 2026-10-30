@@ -24,6 +24,7 @@ import {
 } from './mentionResolvers.js'
 import {
   getAdvisorNoteAttachments,
+  getSwarmAttachments,
   getAgentPendingMessageAttachments,
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
@@ -193,6 +194,7 @@ export async function getAttachments(
       async () => getAgentPendingMessageAttachments(toolUseContext),
       { priority: true },
     ),
+    maybe('crew_board', async () => options?.localSubmission ? [] : getSwarmAttachments(toolUseContext, messages), { priority: true }),
     maybe(
       'advisor_notes',
       async () =>

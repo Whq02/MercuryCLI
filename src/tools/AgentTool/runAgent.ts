@@ -103,6 +103,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
+import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -164,6 +165,7 @@ export type RunAgentParams = {
   toolUseContext: ToolUseContext
   canUseTool: CanUseToolFn
   isAsync: boolean
+  resumed?: boolean
   agentKind?: 'crewmate' | 'workflow'
   seat?: MercuryAgentSeat
   canShowPermissionPrompts?: boolean
@@ -731,6 +733,7 @@ export async function* runAgent(
   noteAgentEffortWord(agentId, resolvedEffort)
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
+  let swarm = false
 
   const filteredContext = forkContextMessages
     ? filterIncompleteToolCalls(forkContextMessages)
@@ -792,6 +795,7 @@ export async function* runAgent(
   const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
 
   try {
+    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true)
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 
@@ -927,7 +931,7 @@ export async function* runAgent(
     mcp.tools = agentMcp.tools
     mcp.cleanup = agentMcp.cleanup
 
-    let tools: Tools = availableTools.filter(tool => tool.name !== COMPUTER_TOOL_NAME)
+    let tools: Tools = availableTools.filter(tool => tool.name !== COMPUTER_TOOL_NAME && (swarm || tool.name !== 'CrewBoard'))
     if (mcp.tools.length > 0) {
       const merged = [...tools]
       for (const mcpTool of mcp.tools) {
@@ -1069,6 +1073,7 @@ export async function* runAgent(
 
     await writeAgentMetadata(agentId, {
       agentType: agentDefinition.agentType,
+      swarm,
       ...(worktreePath ? { worktreePath } : {}),
       ...(cwd ? { cwd } : {}),
       ...(description ? { description } : {}),
@@ -1318,6 +1323,7 @@ export async function* runAgent(
 
     if (executorClaims.get(agentId) === claim) {
       executorClaims.delete(agentId)
+      settleSwarmAgent(agentId)
       forgetAgentEffortWord(agentId)
       if (agentDefinition.hooks) {
         removeSessionHooks(rootSetAppState, hookScope)

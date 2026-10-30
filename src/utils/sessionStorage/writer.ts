@@ -305,6 +305,10 @@ export function advisorSwitchOfSession(): boolean {
   return getProject().currentSessionAdvisor === true
 }
 
+export function swarmSwitchOfSession(): boolean {
+  return getProject().currentSessionSwarm === true
+}
+
 export function adoptResumedSessionFile(): void {
   const project = getProject()
   project.sessionFile = getTranscriptPath()
@@ -358,6 +362,7 @@ class Project {
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
   currentSessionAdvisor: boolean | undefined
+  currentSessionSwarm: boolean | undefined
   currentSessionModel: string | undefined
   currentSessionWorktree: PersistedWorktreeSession | null | undefined
   currentSessionPrNumber: number | undefined

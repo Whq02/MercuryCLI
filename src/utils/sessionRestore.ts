@@ -27,6 +27,7 @@ export type ResumedConversationLog = {
   tag?: string
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
+  swarm?: boolean
   model?: string
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number

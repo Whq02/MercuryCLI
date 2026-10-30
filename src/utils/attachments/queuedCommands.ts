@@ -12,6 +12,7 @@ import { extractTextContent } from '../messages.js'
 import type { Attachment } from './types.js'
 import { fitCompletionCommands } from '../../services/agentResults/summaryRoom.js'
 import type { Message } from '../../types/message.js'
+import { swarmBoundary, swarmEventIds, swarmRoad } from '../../services/crewBoard/seam.js'
 
 const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
   pasted ? Object.values(pasted).filter(isValidImagePaste) : []
@@ -70,4 +71,9 @@ export function getAdvisorNoteAttachments(toolUseContext: Pick<ToolUseContext, '
   const notes = takeAdvisorNotes(String(getSessionId()))
   if (notes.length === 0) return []
   return notes.map(note => ({ type: 'queued_command' as const, prompt: note.text, origin: note.origin }))
+}
+
+export function getSwarmAttachments(toolUseContext: ToolUseContext, messages: readonly Message[]): Attachment[] {
+  if (toolUseContext.agentKind === 'workflow' || !swarmRoad(toolUseContext.agentId)) return []
+  return swarmBoundary(toolUseContext.agentId, swarmEventIds(messages)).map(packet => ({ type: 'queued_command', prompt: packet.text, boardEventIds: packet.eventIds, origin: { kind: 'coordinator' }, isMeta: true }))
 }

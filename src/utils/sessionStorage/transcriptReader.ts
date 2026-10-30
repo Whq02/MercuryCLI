@@ -1129,6 +1129,7 @@ const METADATA_TYPE_MARKERS = [
   '"metaKind":"agent-setting"',
   '"metaKind":"mode"',
   '"metaKind":"advisor-switch"',
+  '"metaKind":"swarm-switch"',
   '"metaKind":"model"',
   '"metaKind":"worktree-state"',
   '"metaKind":"pr-link"',

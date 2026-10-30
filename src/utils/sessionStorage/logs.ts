@@ -263,6 +263,10 @@ export function saveAdvisorSwitch(on: boolean): void {
   getProject().metadata.saveCached('advisor-switch', on)
 }
 
+export function saveSwarmSwitch(on: boolean): void {
+  getProject().metadata.saveCached('swarm-switch', on)
+}
+
 export function saveSessionModel(model: string): void {
   getProject().metadata.saveCached('model', model)
 }
@@ -385,6 +389,7 @@ export type ResumeFacts = Pick<
   | 'tag'
   | 'mode'
   | 'advisor'
+  | 'swarm'
   | 'model'
   | 'worktreeSession'
   | 'prNumber'
@@ -411,6 +416,7 @@ export function resumeFactsOf(
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as SessionListing['mode'],
     advisor: fold.advisorSwitches.get(sessionId),
+    swarm: fold.swarmSwitches.get(sessionId),
     model: fold.sessionModels.get(sessionId),
     worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
     prNumber: fold.prNumbers.get(sessionId),

@@ -62,6 +62,7 @@ export interface SessionFactsAnswerV1 {
   openaiCatalogue?: OpenaiCatalogueFactV1
   pauseGate?: PauseGateFactsV1
   advisor?: AdvisorFactsV1
+  swarm?: import('../crewBoard/contracts.js').BoardViewSnapshot
   editOutcomes?: EditOutcomeRowV1[]
   buildTree?: string | null
 }

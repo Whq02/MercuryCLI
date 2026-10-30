@@ -185,6 +185,10 @@ resume text stays separate from tool results. A crewmate launched with an output
 schema keeps its StructuredOutput tool on the resumed turn. A name two
 launches carried reaches the newest.
 
+## Live crew board
+
+`swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, off by default; with it off, `/swarm on` changes nothing and names that setting. With it on, `/swarm on` starts this session's Board tab in the Crew view: only crewmates launched afterwards join it, and earlier crewmates keep their ordinary messages; `/swarm` shows the state and `/swarm off` returns future launches to ordinary messages while existing board crewmates keep their board. CrewBoard reads and posts questions, answers, blockers and results, with 6,000 board-context tokens per agent and 40,000 per wave, charged conservatively in UTF-8 bytes; updates wait for an active turn's safe boundary, never start a turn, and grant no task ownership or takeover.
+
 ## File leases
 
 The in-process `mercury` MCP server every session carries holds exact

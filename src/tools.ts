@@ -1,4 +1,5 @@
 import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
+import { swarmTools } from './services/crewBoard/seam.js'
 import { withBundledAppInstallConsent } from './extensions/installConsent.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
@@ -145,7 +146,7 @@ const SLEEP_TOOL = cycleTolerant(() => SleepTool)
 const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
 
-export function getAllBaseTools(): Tools {
+export function getAllBaseTools(agentId?: string): Tools {
   const search = searchToolsAvailability()
   const includeSearchTools = search.available && search.mode !== 'embedded'
 
@@ -193,6 +194,7 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
+    ...swarmTools(agentId),
     cycleTolerant(() => ResumeAgentTool),
     WORKFLOW_TOOL,
     SLEEP_TOOL,
@@ -246,12 +248,12 @@ const SPECIAL_TOOL_NAMES = new Set([
   SyntheticOutputTool.name,
 ])
 
-export function getTools(permissionContext: ToolPermissionContext): Tools {
+export function getTools(permissionContext: ToolPermissionContext, agentId?: string): Tools {
   const selected = permissionContext.baseTools
   if (selected === undefined && isEnvTruthy(process.env.MERCURY_BARE)) {
     return filterToolsByDenyRules([BashTool, FileReadTool, FileEditTool, FileWriteTool] as Tool[], permissionContext)
   }
-  const base = getAllBaseTools().filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name) && (selected === undefined || selected.includes(tool.name)))
+  const base = getAllBaseTools(agentId).filter(tool => !SPECIAL_TOOL_NAMES.has(tool.name) && (selected === undefined || selected.includes(tool.name)))
   const filtered = filterToolsByDenyRules(base, permissionContext)
   const enabled = filtered.map(tool => {
     try {
@@ -266,8 +268,9 @@ export function getTools(permissionContext: ToolPermissionContext): Tools {
 export function assembleToolPool(
   permissionContext: ToolPermissionContext,
   mcpTools: Tools,
+  agentId?: string,
 ): Tools {
-  const builtins = [...getTools(permissionContext)]
+  const builtins = [...getTools(permissionContext, agentId)]
   builtins.sort((a, b) => a.name.localeCompare(b.name))
   const sortedMcp = mcpToolPartition(mcpTools, permissionContext)
   const seen = new Set<string>()

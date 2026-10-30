@@ -8,6 +8,7 @@ import type { Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
+import { latchSwarmAgent } from '../../services/crewBoard/seam.js'
 import {
   isLocalAgentTask,
   registerAsyncAgent,
@@ -228,6 +229,7 @@ export async function resumeAgentBackground(args: {
 
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
 
+  await latchSwarmAgent(agentId, meta?.name ?? description, false, true)
   const instructionProfileOverride = meta?.instructionProfile
 
   const workerPermissionMode = (definition.permissionMode ?? 'implement') as NonNullable<AgentDefinition['permissionMode']>
@@ -240,6 +242,7 @@ export async function resumeAgentBackground(args: {
             mode: workerPermissionMode as never,
           },
           toolUseContext.getAppState().mcp?.tools ?? [],
+          agentId,
         ),
       )
 
@@ -273,6 +276,7 @@ export async function resumeAgentBackground(args: {
   })
   await writeAgentMetadata(agentId as AgentId, {
     agentType: definition.agentType,
+    swarm: meta?.swarm === true,
     ...(worktreePath ? { worktreePath } : {}),
     ...(cwdPath ? { cwd: cwdPath } : {}),
     description,
@@ -305,6 +309,7 @@ export async function resumeAgentBackground(args: {
           toolUseContext,
           canUseTool: canUseTool ?? ((async () => ({ behavior: 'allow', updatedInput: {} })) as never),
           isAsync: true,
+          resumed: true,
           querySource,
           override: {
             agentId,

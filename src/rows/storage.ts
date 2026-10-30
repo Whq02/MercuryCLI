@@ -43,6 +43,7 @@ type StoragePayloads = {
   }
   mode: SessionField<'mode', 'coordinator' | 'normal'>
   'advisor-switch': SessionField<'on', boolean>
+  'swarm-switch': SessionField<'on', boolean>
   model: SessionField<'model', string>
   'worktree-state': SessionField<'worktreeSession', WorktreeBinding | null>
   'content-replacement': { sessionId: UUID; agentId?: AgentId; replacements: ContentReplacementRecord[] }
@@ -108,6 +109,7 @@ export const STORAGE_ROWS = {
   'pr-link': { write: 'append', fold: 'metadata' },
   mode: { write: 'append', fold: 'metadata' },
   'advisor-switch': { write: 'append', fold: 'metadata' },
+  'swarm-switch': { write: 'append', fold: 'metadata' },
   model: { write: 'append', fold: 'metadata' },
   'worktree-state': { write: 'append', fold: 'metadata' },
   'content-replacement': { write: 'scoped', fold: 'replacement' },

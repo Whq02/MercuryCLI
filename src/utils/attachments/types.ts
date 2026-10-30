@@ -88,6 +88,7 @@ type TurnBodies = {
   queued_command: {
     prompt: string | ContentBlockParam[]; source_uuid?: UUID; imagePasteIds?: number[]
     commandMode?: string; origin?: MessageOrigin; isMeta?: boolean; sentAt?: string; deliveredAt?: string
+    boardEventIds?: string[]
   }
   compact_operator_messages: { messages: Array<{ ordinal: number; text: string; truncated?: boolean }>; omitted: number }
   task_reminder: { content: Task[]; itemCount: number }

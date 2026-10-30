@@ -134,6 +134,7 @@ import {
 import { registerIdeToolDoor } from '../services/acp/ideToolBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
 import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
+import { swarmSessionEnabled, swarmView } from '../services/crewBoard/seam.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import {
@@ -2276,6 +2277,7 @@ export async function runHeadless(
         work: projectWorkRoster(state.tasks),
         pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
         advisor: advisorFacts(),
+        ...(swarmSessionEnabled() ? { swarm: swarmView() } : {}),
         editOutcomes: editOutcomeRows(processMainOwner()),
         notices: noticeRows(),
         mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({

@@ -10,6 +10,7 @@ export type SessionMetaFields = {
   lastPrompt?: string
   mode?: 'coordinator' | 'normal'
   advisor?: boolean
+  swarm?: boolean
   model?: string
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
@@ -26,6 +27,7 @@ const scalarFields = [
   ['agent-setting', 'agentSetting', 'agentSetting'],
   ['mode', 'mode', 'mode'],
   ['advisor-switch', 'on', 'advisor'],
+  ['swarm-switch', 'on', 'swarm'],
   ['model', 'model', 'model'],
   ['worktree-state', 'worktreeSession', 'worktreeSession'],
 ] as const
@@ -60,7 +62,7 @@ export class SessionMeta {
     for (const key of ['agentName', 'agentColor', 'agentSetting', 'mode', 'model', 'prUrl', 'prRepository'] as const) {
       if (meta[key]) (current as Record<string, unknown>)[key] = meta[key]
     }
-    for (const key of ['advisor', 'worktreeSession', 'prNumber'] as const) {
+    for (const key of ['advisor', 'swarm', 'worktreeSession', 'prNumber'] as const) {
       if (meta[key] !== undefined) (current as Record<string, unknown>)[key] = meta[key]
     }
   }
@@ -73,7 +75,7 @@ export class SessionMeta {
     this.fields[key] = value
   }
 
-  saveCached(kind: 'advisor-switch' | 'model' | 'worktree-state', value: unknown): void {
+  saveCached(kind: 'advisor-switch' | 'swarm-switch' | 'model' | 'worktree-state', value: unknown): void {
     const field = scalarFields.find(([type]) => type === kind)!
     if (kind === 'model' && (!value || this.fields.model === value)) return
     ;(this.fields as Record<string, unknown>)[field[2]] = value
@@ -99,7 +101,7 @@ export class SessionMeta {
     if (fresh.has('tag')) this.fields.tag = fresh.get('tag') || undefined
     for (const [type, key, field] of scalarFields) {
       const value = this.fields[field]
-      const present = field === 'advisor' || field === 'worktreeSession' ? value !== undefined : Boolean(value)
+      const present = field === 'advisor' || field === 'swarm' || field === 'worktreeSession' ? value !== undefined : Boolean(value)
       if (present) this.io.append(path, { type, [key]: value, sessionId })
     }
     const { prNumber, prUrl, prRepository } = this.fields
@@ -118,6 +120,7 @@ export const SESSION_META_COMPAT_FIELDS = {
   currentSessionAgentSetting: 'agentSetting',
   currentSessionMode: 'mode',
   currentSessionAdvisor: 'advisor',
+  currentSessionSwarm: 'swarm',
   currentSessionModel: 'model',
   currentSessionWorktree: 'worktreeSession',
   currentSessionPrNumber: 'prNumber',

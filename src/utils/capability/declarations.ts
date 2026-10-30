@@ -313,6 +313,14 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'not-applicable',
     latency: 'fast',
   },
+  CrewBoard: {
+    intents: ['read selected posts from this wave', 'post a question, answer, blocker or result'],
+    units: ['task-coordination'],
+    class: 'coordination',
+    cancellation: 'not-applicable',
+    latency: 'fast',
+    proof: 'scripts/crew/prove-swarm-board.ts',
+  },
   SendMessage: {
     intents: ['message a crewmate of this session by its id or name', 'reach the main agent from a background crewmate'],
     units: ['task-coordination'],
