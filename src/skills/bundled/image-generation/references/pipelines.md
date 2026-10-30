@@ -63,9 +63,11 @@ Every completed step produces a single-image output and an image-list output; th
 
 - **One render request:** call `image_generate` with `workflow` and `dry: true` first. It reads ComfyUI UI or API JSON, returns the node-to-field mapping, skipped nodes and overrides. Explicit fields in the call override the file, so omit `model` unless deliberately replacing its selection. Paths in the workflow resolve beside it; checkpoints must match a catalogue row or registered file. Inspect the mapping, then omit dry to render.
 - **Editable document:** call `pipeline_import_workflow` with `workflow`; optional `name` labels it and `destination` saves a new .pipeline.json. Read the returned steps, validate and run as above. Omit destination to inspect without saving a pipeline file.
-- **One request out:** `image_generate` with `export_workflow` writes ComfyUI API JSON; adding `dry: true` exports without rendering. Effective defaults and the chosen seed are written into it. The path must not exist.
+- **One request out:** `image_generate` with `export_workflow` writes ComfyUI API JSON; adding `dry: true` exports without rendering. The path must not exist. This exporter does not encode downsize, palette or sheet processing; use pipeline export when you need unmappable steps named rather than omitted.
 - **Pipeline out:** `pipeline_export_workflow` needs `pipeline` and a new `destination`. It exports only what the mapper can represent: one render with supported inputs and optional upscale/output steps. Multiple renders, downsize, palette or sheet processing cannot be exported; an effective Pixel Party downsize also prevents export. Read the named step failures and explain the unsupported part. Never delete steps or change the user's intended image merely to obtain an export. The small-landscape example above is deliberately not exportable because it downsizes.
 - Unsupported workflow nodes, incompatible branches, unrepresentable samplers or schedulers, and differing model/CLIP LoRA strengths are refused by name. Mercury does not run arbitrary workflow custom nodes. Both export tools refuse existing destinations instead of overwriting.
+
+For either exporter, read the saved settings: in 0.2.6, omitted CFG and sampler can fall back differently from the runtime recipe. When matching an existing render, supply its effective `cfg`, `sampler`, `scheduler` and `seed` explicitly, and retain the pipeline if its schedule cannot be represented.
 
 Tool: `image_generate`
 ```json
@@ -86,7 +88,7 @@ Tool: `pipeline_export_workflow`
 
 Tool: `image_generate`
 ```json
-{"prompt":"a cottage beside a river","seed":42,"dry":true,"export_workflow":"cottage-api.json"}
+{"workflow":"portrait.json","seed":42,"dry":true,"export_workflow":"portrait-copy-api.json"}
 ```
 
 Import/export may read image dependencies and create mask files. On a rented host they can transfer referenced inputs even without rendering; a pipeline dry run sends only the document. Do not describe export as a render or as a no-file operation. Sources and engine revision: `references/sources.md`.
