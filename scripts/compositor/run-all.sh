@@ -11,7 +11,7 @@
 # gate-watch: src/screens/ResumeConversation.tsx src/ink/termio/notifyPing.ts src/hooks/useTurnEndPing.ts
 # gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWire.ts
 # gate-watch: src/skills/bundled/keybindings.ts src/utils/bash/ShellSnapshot.ts src/utils/cockpit/*
-# gate-watch: src/utils/config/schema.ts src/utils/mercuryTokens.ts src/utils/messages/streaming.ts
+# gate-watch: src/utils/config/schema.ts src/utils/mercuryTokens.ts src/utils/messages/streaming.ts src/utils/truncate.ts
 # gate-watch: src/utils/sessionStoragePortable.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
