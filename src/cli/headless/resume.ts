@@ -31,6 +31,7 @@ import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
 import { recordContentReplacement, listProjectSessions, sessionIdOfListing } from '../../utils/sessionStorage.js'
 import { sessionFilePath } from '../../utils/sessionStorage/loading.js'
 import { claimSessionWriter } from '../../utils/sessionStorage/sessionWriter.js'
+import { resumeMissMessage } from '../../utils/sessionStorage/resumeMiss.js'
 import type { UUID } from 'node:crypto'
 
 export function emitLoadError(
@@ -152,7 +153,7 @@ export async function loadInitialMessages(
         return refuse(
           parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
-            : `No conversation found for session id ${parsedSessionId.sessionId}`,
+            : await resumeMissMessage(parsedSessionId.sessionId),
         )
       }
 

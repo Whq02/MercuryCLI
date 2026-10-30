@@ -1995,7 +1995,8 @@ async function interactiveLaunch(args: {
       } else if (typeof resumeValue === 'string') {
         const log = await lastSession(resumeValue as UUID).catch(() => null)
         if (!log) {
-          await exitWithError(root, `No conversation found for session id ${resumeValue}`)
+          const { resumeMissMessage } = await import('./utils/sessionStorage/resumeMiss.js')
+          await exitWithError(root, await resumeMissMessage(resumeValue))
           return
         }
         resumeLog = log as ResumeLog
