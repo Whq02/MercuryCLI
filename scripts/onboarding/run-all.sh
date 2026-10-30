@@ -13,6 +13,7 @@ echo "# Fast onboarding"
 echo "############################################################"
 __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-first-run-stations.tsx" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-run-stations.tsx" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run "$here/prove-sign-in-wall-local-road.tsx" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sign-in-wall-local-road.tsx" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run "$here/prove-provider-skip-key.tsx" || { __rc=$?; fail=1; }; prover_mark "$here/prove-provider-skip-key.tsx" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ONBOARDING PASS"; else echo "# ❌ ONBOARDING FAILED"; fi
 echo "############################################################"
