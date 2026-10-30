@@ -379,7 +379,53 @@ function finalizeToolCalls(acc: Map<number, ToolCallAccumulator>): CompatComplet
   return out
 }
 
-export async function* streamCompatChat(
+export async function* streamCompatChat(options: CompatStreamOptions): AsyncGenerator<CompatStreamEvent> {
+  let mode: 'prefix' | 'thinking' | 'answer' = 'prefix'
+  let pending = ''
+  function* split(text: string, final = false): Generator<CompatStreamEvent> {
+    pending += text
+    if (mode === 'prefix') {
+      const start = pending.trimStart()
+      if (start.startsWith('<think>')) {
+        pending = start.slice('<think>'.length)
+        mode = 'thinking'
+      } else if (!final && '<think>'.startsWith(start)) {
+        return
+      } else {
+        mode = 'answer'
+      }
+    }
+    if (mode === 'thinking') {
+      const end = pending.indexOf('</think>')
+      if (end >= 0) {
+        if (end > 0) yield { type: 'reasoning-delta', text: pending.slice(0, end) }
+        pending = pending.slice(end + '</think>'.length)
+        mode = 'answer'
+      } else {
+        let held = 0
+        if (!final) for (let n = 1; n < '</think>'.length && n <= pending.length; n++) {
+          if ('</think>'.startsWith(pending.slice(-n))) held = n
+        }
+        const ready = pending.slice(0, pending.length - held)
+        pending = held > 0 ? pending.slice(-held) : ''
+        if (ready !== '') yield { type: 'reasoning-delta', text: ready }
+        return
+      }
+    }
+    if (pending !== '') yield { type: 'text-delta', text: pending }
+    pending = ''
+  }
+  for await (const event of streamCompatChatRaw(options)) {
+    if (event.type === 'text-delta') yield* split(event.text)
+    else {
+      if (event.type === 'finish' || event.type === 'stream-fault' || event.type === 'tool-call-fragment') yield* split('', true)
+      yield event
+    }
+  }
+  yield* split('', true)
+}
+
+async function* streamCompatChatRaw(
   options: CompatStreamOptions,
 ): AsyncGenerator<CompatStreamEvent> {
   const { request } = options
