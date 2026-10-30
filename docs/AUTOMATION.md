@@ -156,8 +156,9 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 A run under `--max-time` (seconds, or `10m`, `1h`) ends `time_limit` when the
 time is up: a reply still streaming or a tool still running is cut at the
 deadline, and the outcome names the limit. A completed run (`status: "completed"`) exits `0`, other outcomes exit `1`,
-and a command-line usage error exits `2`. SIGINT and SIGTERM exit 130 and 143
-after the interrupted turn's outcome is flushed. A one-shot run has no host to
+and a command-line usage error exits `2`. SIGINT, SIGTERM and SIGHUP exit 130,
+143 and 129 after the interrupted turn's outcome is flushed, and a shell tool
+still running ends with the run. A one-shot run has no host to
 answer interactive permission asks: a refused tool call is listed in `denials`,
 and when the refusal was an ask nobody could answer (a run with no host in a
 mode that asks, `--mode dontAsk`, or a host's ask that expired) and no later

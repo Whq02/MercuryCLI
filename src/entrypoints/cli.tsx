@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     if (runArgs.command === 'run' && runArgs.format === 'rows' && runArgs.input !== 'rows' && !runArgs.outputRequest) {
       const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
       setRunPreflightSignalWriter(code => {
-        const signal = code === 130 ? 'SIGINT' : 'SIGTERM'
+        const signal = code === 130 ? 'SIGINT' : code === 129 ? 'SIGHUP' : 'SIGTERM'
         writeSync(1, `${JSON.stringify(refusedOutcome([`mercury run stopped before the turn (${signal})`], 'interrupt', 'interrupted'))}\n`)
       })
     }

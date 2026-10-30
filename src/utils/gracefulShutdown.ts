@@ -293,8 +293,10 @@ export const setupGracefulShutdown = (): void => {
     })
     process.on('SIGHUP', () => {
       markTerminalGone()
+      if (runModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGHUP' })
-      gracefulShutdownSync(129)
+      writePreflightSignal(TERMINAL_GONE_EXIT_CODE)
+      gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
     })
     process.on('SIGBREAK', () => {
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGBREAK' })

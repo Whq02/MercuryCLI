@@ -167,7 +167,7 @@ import {
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
-import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
+import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned, TERMINAL_GONE_EXIT_CODE } from '../utils/gracefulShutdown.js'
 import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
 import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
@@ -1713,6 +1713,10 @@ export async function runHeadless(
   process.on('SIGTERM', () => {
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
     void settleOnSignal(143)
+  })
+  process.on('SIGHUP', () => {
+    logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGHUP' })
+    void settleOnSignal(TERMINAL_GONE_EXIT_CODE)
   })
   markRunModeSignalsOwned()
   process.on('exit', () => saveCurrentSessionCosts())
