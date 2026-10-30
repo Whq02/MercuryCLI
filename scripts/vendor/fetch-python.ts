@@ -212,9 +212,10 @@ function installSelected(lock: Lock, platform: PythonPackPlatform, archivePath: 
   for (const [name, digest] of Object.entries(lock.licenceTexts)) {
     const tracked = join(LICENCE_DIR, name)
     if (!existsSync(tracked)) abandon(`tracked licence text missing: vendor/python-licences/${name}`)
-    const bytes = readFileSync(tracked)
-    if (sha256(bytes) !== digest) abandon(`tracked licence text vendor/python-licences/${name} does not match the lock's digest`)
-    writeFileSync(join(tmp, 'licenses', name), bytes)
+    const read = readFileSync(tracked)
+    const bytes = [read, Buffer.from(read.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].find(form => sha256(form) === digest)
+    if (bytes === undefined) abandon(`tracked licence text vendor/python-licences/${name} does not match the lock's digest`)
+    writeFileSync(join(tmp, 'licenses', name), bytes!)
   }
   for (const lf of lock.licenseFiles) {
     if (!existsSync(join(tmp, ...lf.split('/')))) abandon(`installed tree is missing the licence file ${lf} — refusing to install`)

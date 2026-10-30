@@ -31,3 +31,4 @@ scripts/vendor/patches/*.patch text eol=lf
 # `text eol=lf`, which would still rewrite a CRLF upstream licence at commit
 # time and change the bytes the lock names).
 vendor/document-licences/** -text
+vendor/python-licences/** -text

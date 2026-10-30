@@ -29,7 +29,7 @@ const { validatePayloadDir } = await import('../../src/services/privateChannel/i
 const { verifyPayloadDir } = await import('../../src/services/privateChannel/artifactVerify.js')
 
 const ROOT = join(import.meta.dir, '..', '..')
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
+const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replaceAll('\r\n', '\n')
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
 const BUN = process.execPath
 const IS_WIN = process.platform === 'win32'
@@ -148,6 +148,7 @@ section('§3 the fetch — the owner imported, one tar invocation, --check, the 
   check('the cache layout: archive/ + extracted/<platform>/ + the vendor manifest', fetcher.includes("join(CACHE_DIR, 'archive')") && fetcher.includes("join(CACHE_DIR, 'extracted')") && fetcher.includes('.vendor-manifest.json'))
   check('the fetch is chained into `bun run setup` beside the node fetch', (JSON.parse(read('package.json')) as { scripts: Record<string, string> }).scripts.setup.includes('bun run scripts/vendor/fetch-node.ts && bun run scripts/vendor/fetch-python.ts'))
   check('the vendor cache is ignored like the other packs', read('.gitignore').split('\n').includes('vendor/python/'))
+  check('the licence texts are excluded from line-end conversion like the document licences (a CRLF checkout keeps the bytes the lock names)', read('.gitattributes').split('\n').includes('vendor/python-licences/** -text'))
   const host = pythonPackPlatform(process.platform, process.arch)
   const extracted = host ? join(ROOT, 'vendor', 'python', 'extracted', host) : null
   const r = spawnSync(BUN, ['run', join(ROOT, 'scripts', 'vendor', 'fetch-python.ts'), '--check'], { encoding: 'utf8', timeout: 120_000, env: { ...process.env } })
