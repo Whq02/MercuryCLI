@@ -1272,12 +1272,26 @@ export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWi
   ]
 }
 
+function openrouterBudgetLabel(scope: NonNullable<OpenrouterKeyUsage['effectiveBudget']>['scope']): string {
+  return { workspace_default_member: 'workspace member', workspace_default_key: 'workspace key', member: 'member', api_key: 'API key', workspace: 'workspace', key_limit: 'key' }[scope]
+}
+
 function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastError?: string }): UsageCreditsView {
   const usage = observed.usage
   if (usage === null) {
     return observed.lastError !== undefined
       ? { state: 'unreported', reason: 'not read — see the failed key slot', compact: 'not read' }
       : { state: 'unreported', reason: 'not read yet — /usage samples the key endpoint', compact: 'not read yet' }
+  }
+  const budget = usage.effectiveBudget
+  if (budget) {
+    const cap = typeof usage.limitRemaining === 'number' ? `$${usage.limitRemaining.toFixed(2)} key cap ${usage.limitReset ?? (usage.limitReset === null ? 'never' : '')}` : usage.limit === null ? 'key cap uncapped' : 'key cap unstated'
+    return {
+      state: 'reported',
+      display: `${cap.trim()} · $${budget.remainingUsd.toFixed(2)} ${openrouterBudgetLabel(budget.scope)} budget ${budget.resetInterval ?? (budget.resetInterval === null ? 'never' : '')}`.trim(),
+      compact: typeof usage.limitRemaining === 'number' ? `cap ${usage.limitRemaining.toFixed(2)}` : 'not stated',
+      source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs(),
+    }
   }
   if (typeof usage.limitRemaining === 'number') {
     return {
@@ -1549,7 +1563,7 @@ function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] 
   }
   const budget = usage.effectiveBudget
   if (budget) {
-    const scope = { workspace_default_member: 'workspace member', workspace_default_key: 'workspace key', member: 'member', api_key: 'API key', workspace: 'workspace', key_limit: 'key' }[budget.scope]
+    const scope = openrouterBudgetLabel(budget.scope)
     const reset = openrouterResetWords(budget.resetInterval, budget.resetsAt)
     figures.push({ key: 'effective-budget', label: `enforced ${scope} budget${reset ? ` (${reset})` : ''}`, value: `$${budget.remainingUsd.toFixed(2)} of $${budget.limitUsd.toFixed(2)} remaining`, ...stamp })
   }

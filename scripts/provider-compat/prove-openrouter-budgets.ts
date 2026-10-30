@@ -113,6 +113,7 @@ try {
     await waitFor(() => mounted.screen().includes('OpenRouter usage'), 5000)
     const screen = mounted.screen()
     check(`${cols}x${rows} usage renders both reset intervals and enforced budget`, screen.includes('member budget') && screen.includes('weekly') && screen.includes('monthly') && screen.includes('80.00') ? true : screen, true)
+    if (cols === 80) check('compact usage keeps its existing three rows', screen.split('\n').filter(line => line.trim()).length, 3)
     mounted.unmount()
   }
 } finally {
