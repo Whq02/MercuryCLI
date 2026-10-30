@@ -736,14 +736,18 @@ async function decideBashPermission(
     if (signal.aborted) throwAbort()
   }
 
-  if (subcommands.length === 1) {
+  const substantiveIndices = subcommands.flatMap((_, index) =>
+    decisions[index]!.behavior === 'allow' && isCurrentDirectoryCommand(parsedSubcommands[index]!, cwd) ? [] : [index])
+  if (substantiveIndices.length === 1) {
+    const index = substantiveIndices[0]!
+    const subcommand = subcommands[index] as string
     const single = await checkCommandAndSuggestRules(
-      { ...input, command: subcommands[0] as string },
+      { ...input, command: subcommand },
       context,
       prefixHint,
       compoundHasCd,
-      asWrittenSingle(command, subcommands[0] as string, cwd),
-      parsedSubcommands[0],
+      asWrittenSingle(command, subcommand, cwd),
+      parsedSubcommands[index],
     )
     return single
   }
