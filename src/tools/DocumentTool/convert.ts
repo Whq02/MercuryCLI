@@ -85,7 +85,7 @@ async function sourceBlocks(source: string, bytes: Buffer, io: DocumentIO): Prom
     const document = await parsePdfText(bytes)
     if (document.pages.some(p => p.hasTextLayer && !p.text.trim())) throw new Error('PDF text uses unsupported fonts; the PDF text reader is required for this conversion')
     if (document.pages.some(p => !p.hasTextLayer && p.hasImages)) throw new Error('PDF contains image-only pages; read those pages with OCR before converting their text')
-    return { road: pdfTextRoad, blocks: document.pages.flatMap((p, i) => [...(i ? [{ kind: 'pageBreak' as const }] : []), { kind: 'paragraph' as const, text: p.text }]) }
+    return { road: pdfTextRoad, warnings: ['PDF page layout, fonts and images are not preserved in text conversion.'], blocks: document.pages.flatMap((p, i) => [...(i ? [{ kind: 'pageBreak' as const }] : []), { kind: 'paragraph' as const, text: p.text }]) }
   }
   if (ext === '.pptx') {
     const entries = documentArchive(bytes)
@@ -95,7 +95,7 @@ async function sourceBlocks(source: string, bytes: Buffer, io: DocumentIO): Prom
   let markdown: string, road: string, warnings: string[] | undefined
   if (ext === '.docx') {
     const converted = await mammoth.convertToHtml({ buffer: bytes }, { externalFileAccess: false })
-    markdown = htmlMarkdown(converted.value); road = 'mammoth'; warnings = converted.messages.map(m => m.message)
+    markdown = htmlMarkdown(converted.value); road = 'mammoth'; warnings = ['DOCX page layout and document styles are not preserved.', ...converted.messages.map(m => m.message)]
   } else if (ext === '.html' || ext === '.htm') { markdown = htmlMarkdown(bytes.toString('utf8')); road = 'turndown' }
   else if (ext === '.md' || ext === '.markdown') { markdown = bytes.toString('utf8'); road = 'marked' }
   else throw new Error(`Unsupported source format: ${ext}`)
