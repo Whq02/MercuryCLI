@@ -396,6 +396,7 @@
     "type:McpPrefixCollision",
     "type:TransformedMCPResult",
     "withMcpLaunchBudget",
+    "withoutNullOptionals",
     "wrapFetchWithTimeout"
    ],
    "src/services/mcp/types.ts": [
