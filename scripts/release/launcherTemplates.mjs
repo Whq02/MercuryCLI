@@ -757,7 +757,9 @@ this archive into that layout. Inside a Homebrew install it asks once and runs
 then reads the installed version back; \`--check\` and \`--status\` answer there
 too and end with the road that applies.
 
-A normal update: discovers the newest convention-valid prerelease,
+A normal update: finds the newest release for your install (a full release
+moves to the next full release; a beta or release candidate moves to the
+newest release, full or pre-release),
 downloads YOUR platform's archive plus SHA256SUMS.txt from that SAME release,
 verifies the SHA-256 locally, extracts and checks the embedded version,
 smoke-tests the staged copy, switches the current pointer atomically, keeps
