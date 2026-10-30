@@ -305,6 +305,40 @@ console.log('── §7 uninstall preserves the config home ──')
   check('foreign shim survives uninstall', !second.removedShim && existsSync(roots.shimPath))
 }
 
+console.log('── §7c f04: uninstall removes only what the layout wrote (a versions override at a user folder is left as found) ──')
+{
+  const userDir = join(scratch, 'f04-user-folder')
+  mkdirSync(join(userDir, 'project'), { recursive: true })
+  writeFileSync(join(userDir, 'notes.txt'), 'precious\n')
+  writeFileSync(join(userDir, 'project', 'a.txt'), 'x\n')
+  mkdirSync(join(userDir, '2.0.0'), { recursive: true })
+  writeFileSync(join(userDir, '2.0.0', 'photo.txt'), 'mine\n')
+  const userRoots: LayoutRoots = { versionsDir: userDir, binDir: join(scratch, 'f04-bin'), shimPath: join(scratch, 'f04-bin', 'mercury'), isWindows: false }
+  const left = uninstallLayout(userRoots)
+  check('f04: a folder without the layout\'s markers is not removed, and nothing inside it is', !left.removedVersionsDir && left.preservedVersionsDir && left.removedVersionMembers.length === 0 && existsSync(join(userDir, 'notes.txt')) && existsSync(join(userDir, 'project', 'a.txt')) && existsSync(join(userDir, '2.0.0', 'photo.txt')))
+  check('f04: the report says the folder was left as found', formatUninstallReport(userRoots, left).split('\n')[0] === `preserved (not a Mercury versions folder — left as found): ${userDir}`)
+  const mixedDir = join(scratch, 'f04-mixed-folder')
+  makePayload(join(mixedDir, '9.9.0-beta.1'), '9.9.0-beta.1')
+  writeFileSync(join(mixedDir, 'current.txt'), '9.9.0-beta.1\n')
+  writeFileSync(join(mixedDir, 'previous.txt'), '9.8.0-beta.1\n')
+  writeFileSync(join(mixedDir, 'last-install.json'), '{}\n')
+  mkdirSync(join(mixedDir, '.update.lock'), { recursive: true })
+  mkdirSync(join(mixedDir, '.download-999999999'), { recursive: true })
+  writeFileSync(join(mixedDir, 'notes.txt'), 'precious\n')
+  const mixedRoots: LayoutRoots = { ...userRoots, versionsDir: mixedDir }
+  const mixed = uninstallLayout(mixedRoots)
+  check('f04: a marked folder with other files loses the versions, pointers, receipt, lock and residue and keeps the rest', !mixed.removedVersionsDir && mixed.preservedVersionsDir && [...mixed.removedVersionMembers].sort().join() === '.download-999999999,.update.lock,9.9.0-beta.1,current.txt,last-install.json,previous.txt' && existsSync(join(mixedDir, 'notes.txt')) && !existsSync(join(mixedDir, '9.9.0-beta.1')) && !existsSync(join(mixedDir, 'current.txt')), mixed.removedVersionMembers.join())
+  check('f04: the report names what was removed and that the other files stayed', formatUninstallReport(mixedRoots, mixed).split('\n')[0] === `removed: the Mercury versions and pointer files in ${mixedDir} (its other files were left as found)`)
+  const emptyDir = join(scratch, 'f04-empty-folder')
+  mkdirSync(emptyDir, { recursive: true })
+  const empty = uninstallLayout({ ...userRoots, versionsDir: emptyDir })
+  check('f04: an empty folder is removed (nothing inside it to keep)', empty.removedVersionsDir && !existsSync(emptyDir))
+  const payloadOnly = join(scratch, 'f04-payload-only')
+  makePayload(join(payloadOnly, '9.9.0-beta.2'), '9.9.0-beta.2')
+  const payload = uninstallLayout({ ...userRoots, versionsDir: payloadOnly })
+  check('f04: a payload directory is a marker on its own (a layout whose pointer was deleted by hand still uninstalls)', payload.removedVersionsDir && !existsSync(payloadOnly))
+}
+
 console.log('── §7a uninstall removals route the win32 transient-lock law ──')
 {
   const mkLayout = (name: string, isWindows: boolean): LayoutRoots => {
@@ -361,6 +395,8 @@ console.log('── §7b the uninstall report names every launcher-set member �
   }
   const mixed = formatUninstallReport(winRoots, {
     removedVersionsDir: true,
+    removedVersionMembers: ['current.txt'],
+    preservedVersionsDir: false,
     removedShim: true,
     removedSetMembers: [join(winBin, 'mercury.cmd')],
     preservedForeign: [join(winBin, 'mercury')],
@@ -370,10 +406,10 @@ console.log('── §7b the uninstall report names every launcher-set member �
   check('report: the removed cmd member is named', mixed[1] === `removed: ${join(winBin, 'mercury.cmd')}`)
   check('report: the preserved foreign façade is named as preserved, never as removed', mixed[2] === `preserved (not a Mercury-managed command — left as found): ${join(winBin, 'mercury')}`)
   check('report: the config home line states the preserve law', mixed[3].startsWith(`preserved: ${join(scratch, 'report-home')} (configuration, sessions, extensions`))
-  const nothing = formatUninstallReport(winRoots, { removedVersionsDir: false, removedShim: false, removedSetMembers: [], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
+  const nothing = formatUninstallReport(winRoots, { removedVersionsDir: false, removedVersionMembers: [], preservedVersionsDir: false, removedShim: false, removedSetMembers: [], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
   check('report: an empty layout says "nothing to remove" for the dir and each absent member', nothing[0].startsWith('nothing to remove at ') && nothing[1].endsWith('mercury.cmd (absent)') && nothing[2].endsWith('mercury (absent)'))
   const posixRoots: LayoutRoots = { versionsDir: join(scratch, 'rp-versions'), binDir: join(scratch, 'rp-bin'), shimPath: join(scratch, 'rp-bin', 'mercury'), isWindows: false }
-  const posix = formatUninstallReport(posixRoots, { removedVersionsDir: true, removedShim: true, removedSetMembers: [posixRoots.shimPath], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
+  const posix = formatUninstallReport(posixRoots, { removedVersionsDir: true, removedVersionMembers: ['current.txt'], preservedVersionsDir: false, removedShim: true, removedSetMembers: [posixRoots.shimPath], preservedForeign: [], preservedConfigHome: '/h' }).split('\n')
   check('report: the POSIX set is the single sh member (3 lines)', posix.length === 3 && posix[1] === `removed: ${posixRoots.shimPath}`)
 }
 

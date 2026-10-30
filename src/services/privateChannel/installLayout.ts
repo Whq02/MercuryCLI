@@ -872,15 +872,60 @@ export function smokeVersion(dir: string, expectedVersion: string, primaryBundle
 
 export interface UninstallReport {
   removedVersionsDir: boolean
+  removedVersionMembers: string[]
+  preservedVersionsDir: boolean
   removedShim: boolean
   removedSetMembers: string[]
   preservedForeign: string[]
   preservedConfigHome: string
 }
 
+const LAYOUT_FILES = new Set(['current.txt', 'previous.txt', 'last-install.json', 'last-update.json'])
+const LAYOUT_RESIDUE = /^(?:\.update\.lock|\.download-\d+|\.staging-.+-\d+|\.replaced-.+-\d+|(?:current|previous)\.txt\.tmp\.\d+)$/
+
+function layoutMembers(versionsDir: string): { members: string[]; marked: boolean } {
+  const members: string[] = []
+  let marked = false
+  for (const entry of dirMembers(versionsDir)) {
+    if (LAYOUT_FILES.has(entry)) {
+      marked = true
+      members.push(entry)
+    } else if (LAYOUT_RESIDUE.test(entry)) {
+      members.push(entry)
+    } else if (parsePrivateVersion(entry) !== null) {
+      const dir = join(versionsDir, entry)
+      let isDir = false
+      try {
+        isDir = statSync(dir).isDirectory()
+      } catch {
+      }
+      if (!isDir) continue
+      if (existsSync(join(dir, 'manifest.json'))) marked = true
+      members.push(entry)
+    }
+  }
+  return { members, marked }
+}
+
 export function uninstallLayout(roots: LayoutRoots): UninstallReport {
-  const hadVersions = existsSync(roots.versionsDir)
-  if (hadVersions) removeWithRetry(roots.versionsDir, 'uninstall-rm', roots.isWindows)
+  const removedVersionMembers: string[] = []
+  let removedVersionsDir = false
+  let preservedVersionsDir = false
+  if (existsSync(roots.versionsDir)) {
+    const { members, marked } = layoutMembers(roots.versionsDir)
+    if (marked) {
+      for (const member of members) {
+        removeWithRetry(join(roots.versionsDir, member), 'uninstall-rm', roots.isWindows)
+        removedVersionMembers.push(member)
+      }
+    }
+    if (dirMembers(roots.versionsDir).length === 0) {
+      removeWithRetry(roots.versionsDir, 'uninstall-rm', roots.isWindows)
+      removedVersionsDir = true
+    } else {
+      preservedVersionsDir = true
+    }
+  }
   const removedSetMembers: string[] = []
   const preservedForeign: string[] = []
   for (const path of shimSetPathsOf(roots)) {
@@ -896,11 +941,18 @@ export function uninstallLayout(roots: LayoutRoots): UninstallReport {
     }
   }
   const removedShim = removedSetMembers.includes(roots.shimPath)
-  return { removedVersionsDir: hadVersions, removedShim, removedSetMembers, preservedForeign, preservedConfigHome: getMercuryHome() }
+  return { removedVersionsDir, removedVersionMembers, preservedVersionsDir, removedShim, removedSetMembers, preservedForeign, preservedConfigHome: getMercuryHome() }
+}
+
+function versionsDirLine(roots: LayoutRoots, report: UninstallReport): string {
+  if (report.removedVersionsDir) return `removed: ${roots.versionsDir}`
+  if (!report.preservedVersionsDir) return `nothing to remove at ${roots.versionsDir}`
+  if (report.removedVersionMembers.length > 0) return `removed: the Mercury versions and pointer files in ${roots.versionsDir} (its other files were left as found)`
+  return `preserved (not a Mercury versions folder — left as found): ${roots.versionsDir}`
 }
 
 export function formatUninstallReport(roots: LayoutRoots, report: UninstallReport): string {
-  const lines = [report.removedVersionsDir ? `removed: ${roots.versionsDir}` : `nothing to remove at ${roots.versionsDir}`]
+  const lines = [versionsDirLine(roots, report)]
   for (const path of shimSetPathsOf(roots)) {
     if (report.removedSetMembers.includes(path)) lines.push(`removed: ${path}`)
     else if (report.preservedForeign.includes(path)) lines.push(`preserved (not a Mercury-managed command — left as found): ${path}`)
