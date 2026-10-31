@@ -3,6 +3,7 @@ import { mkdirSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { DEFAULT_BOARD_LIMITS, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 
 type Database = {
   exec(sql: string): unknown
@@ -396,7 +397,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         let feed = feeds.get(feedKey)
         if (!feed) { feed = new Set(); feeds.set(feedKey, feed) }
         feed.add(emit)
-        watcher = watch(dirname(path), { persistent: false }, (_event, file) => {
+        watcher = watch(resolveWatchRoot(dirname(path)), { persistent: false }, (_event, file) => {
           if (file === null || [basename(path), `${basename(path)}-wal`].includes(String(file))) emit()
         })
       }
