@@ -18,5 +18,6 @@ prove-local-command-stays-home-drive.ts
 prove-manager-self-managed-drive.ts
 prove-park-refusal-look.ts
 prove-reap-focus-drive.ts
+prove-reply-paints-whole.ts
 prove-seat-needs-you.ts
 prove-surface-truth-drive.ts
