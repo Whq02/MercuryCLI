@@ -460,7 +460,7 @@ class MercurySession(TypedRequests):
             facts = await self.request('session/facts', timeout=None)
             boot_refusal = facts.get('bootRefusal') if isinstance(facts, Mapping) else None
             if isinstance(boot_refusal, str) and boot_refusal != '':
-                raise MercuryRefusal({'type': 'outcome', 'status': 'refused', 'error': {'class': 'load', 'message': boot_refusal}})
+                raise MercuryRefusal(cast(OutcomeRow, {'type': 'outcome', 'status': 'refused', 'error': {'class': 'load', 'message': boot_refusal}}))
         self.initialized['session_id'] = receipt['session_id']
         return receipt
 
