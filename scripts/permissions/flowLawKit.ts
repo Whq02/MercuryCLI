@@ -4,13 +4,13 @@ import { join } from 'node:path'
 import { z } from 'zod/v4'
 import type { FlowAsk } from '../../src/utils/permissions/flowLaw.ts'
 
-export type Road = 'cockpit' | 'hosted' | 'hostless' | 'prompt-less'
+type Road = 'cockpit' | 'hosted' | 'hostless' | 'prompt-less'
 export const ROADS: readonly Road[] = ['cockpit', 'hosted', 'hostless', 'prompt-less']
 
-export type Decision = { behavior: string; message?: string; decisionReason?: { type?: string; reason?: string; mode?: string }; suggestions?: unknown[] }
-export type Outcome = { decision: Decision; wrapper: { decidedBy: string; stages: Array<{ stage: string; outcome: string; note?: string }> } }
+type Decision = { behavior: string; message?: string; decisionReason?: { type?: string; reason?: string; mode?: string }; suggestions?: unknown[] }
+type Outcome = { decision: Decision; wrapper: { decidedBy: string; stages: Array<{ stage: string; outcome: string; note?: string }> } }
 
-export type Kit = {
+type Kit = {
   world: string
   project: string
   bashTool: unknown
@@ -24,7 +24,7 @@ export type Kit = {
   close: () => void
 }
 
-export type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
+type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
 
 let failures = 0
 export function check(label: string, ok: boolean, detail = ''): void {

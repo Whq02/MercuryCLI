@@ -74,6 +74,7 @@ const EXTERNAL_FLAGS = new Map<string, string>([
   ['--id', 'winget'],
   ['--frozen-lockfile', 'bun install'],
   ['--cached', 'git rm'],
+  ['--hard', 'git reset'],
   ['--get', 'git config'],
   ['--exact', 'cargo test'],
   ['--python-expr', 'the Blender command line'],

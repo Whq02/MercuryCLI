@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+// gate-watch: scripts/bash/parser-corpus-parity.json
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { check, finish, j, openKit, section } from './flowLawKit.ts'

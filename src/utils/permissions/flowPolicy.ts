@@ -2,9 +2,9 @@ import type { Tool, ToolPermissionContext } from '../../Tool.js'
 import { flowAskFor, flowAskSentence, type FlowAsk } from './flowLaw.js'
 import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason } from './PermissionResult.js'
 
-export type FlowFloor = 'ask-rule' | 'safety' | 'interaction' | 'ask-ceiling' | 'hook'
+type FlowFloor = 'ask-rule' | 'safety' | 'interaction' | 'ask-ceiling' | 'hook'
 
-export type FlowVerdict =
+type FlowVerdict =
   | { stage: 'flowFloors'; floor: FlowFloor; decision: PermissionAskDecision }
   | { stage: 'flowLaw'; ask: FlowAsk; decision: PermissionAskDecision }
   | { stage: 'flowAllow'; decision: PermissionDecision }
@@ -19,7 +19,7 @@ function reasonCarriesAskRule(reason: PermissionDecisionReason | undefined): boo
   return false
 }
 
-export function flowFloorOf(tool: Pick<Tool, 'requiresUserInteraction' | 'mcpInfo'>, engineDecision: PermissionAskDecision): FlowFloor | null {
+function flowFloorOf(tool: Pick<Tool, 'requiresUserInteraction' | 'mcpInfo'>, engineDecision: PermissionAskDecision): FlowFloor | null {
   const reason = engineDecision.decisionReason
   if (reasonCarriesAskRule(reason)) return 'ask-rule'
   if (reason?.type === 'safetyCheck' && reason.operatorOnly) return 'safety'

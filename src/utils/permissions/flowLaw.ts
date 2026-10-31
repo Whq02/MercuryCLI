@@ -13,7 +13,7 @@ import { PARSE_ABORTED, pinnedCommandAnalysis, preparedCommandRoot, type Node } 
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
 import { ownGroundCategory } from './ownGround.js'
 
-export type FlowItem = 1 | 2 | 3 | 4
+type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
 
 type PublishEntry = { commands: readonly string[]; forms: readonly string[]; why: string; when?: (args: readonly string[]) => boolean }
@@ -685,7 +685,7 @@ export async function flowShellAsk(command: string, cwd: string, shell: 'bash' |
   return scan.asks[0] ?? null
 }
 
-export function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writing'): FlowAsk | null {
+function flowPathAsk(path: string, rules?: ToolPermissionContext, verb = 'writing'): FlowAsk | null {
   if (isOwnGround(path) || grantedByRule(path, rules)) return null
   return { item: 4, subject: `${verb} ${tildePath(path)}`, why: 'it is outside the project' }
 }
