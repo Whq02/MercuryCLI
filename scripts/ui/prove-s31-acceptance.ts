@@ -451,7 +451,7 @@ check(
   )
   check(
     '24b. a dialog typed while one runs queues behind it — the composer taken once, never a session send',
-    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName });') && !dialogQueue.includes('.sendWords('),
+    dialogMountAt !== -1 && dialogQueue.includes('takeComposer()') && dialogQueue.includes('queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt });') && !dialogQueue.includes('.sendWords('),
   )
 
   check(
