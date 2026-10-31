@@ -248,7 +248,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const composerTop = text.findIndex(l => l.startsWith('╭'))
       check(`${tag}: the chip line keeps its place directly above the composer while streaming`, chipAt >= 0 && composerTop === chipAt + 1, `chip=${chipAt} composer=${composerTop}`)
       const activity = text[chipAt - 1] ?? ''
-      check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && activity.includes('tokens') && /thinking|writing|working|waiting/.test(activity), JSON.stringify(activity))
+      check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && /^✶ \S.*… · \d+s · ↓ ~?\d+/.test(activity), JSON.stringify(activity))
       check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')))
       check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), JSON.stringify(text[23] ?? ''))
       check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1)

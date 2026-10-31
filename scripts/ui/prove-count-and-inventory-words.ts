@@ -38,7 +38,7 @@ for (const [cols, rows] of geometries) {
     const config = join(home, 'config')
     mkdirSync(cwd)
     seedFirstRun(config, [cwd])
-    writeFileSync(join(config, 'settings.json'), '{}\n')
+    writeFileSync(join(config, 'settings.json'), JSON.stringify({ extensions: { enabled: { 'filmcraft@mercury': false, 'lightcraft@mercury': false, 'photocraft@mercury': false } } }) + '\n')
     if (scene === 'kit-refused') {
       const skill = join(cwd, '.mercury/skills/broken')
       mkdirSync(skill, { recursive: true })
