@@ -1,7 +1,7 @@
 import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 
-type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'message' | 'notice'
+type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'message' | 'notice'
 type BoardAuthor = { sessionId: string; agentId: string; executionId: string }
 type BoardRef = { uri: string; digest: string }
 export type BoardPost = {
@@ -10,13 +10,16 @@ export type BoardPost = {
   text: string
   threadId?: string
   replyTo?: string
+  corrects?: string
   taskId?: string
+  about?: string
   mentions?: string[]
+  to?: string[]
   relatedTasks?: string[]
   files?: string[]
   refs?: BoardRef[]
 }
-export type BoardEvent = Required<Omit<BoardPost, 'threadId' | 'replyTo' | 'taskId'>> & {
+export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'files' | 'refs'> & {
   schema: 1
   boardId: string
   waveId: string
@@ -24,18 +27,22 @@ export type BoardEvent = Required<Omit<BoardPost, 'threadId' | 'replyTo' | 'task
   eventId: string
   author: BoardAuthor
   authorName?: string
+  team?: string
+  mentions: string[]
+  unknownMentions?: string[]
+  relatedTasks: string[]
+  files: string[]
+  refs: BoardRef[]
   createdAt: string
   payloadDigest: string
   threadId: string
-  replyTo?: string
-  taskId?: string
   policyRevision: 1
 }
-export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
-export type BoardPacket = { events: BoardEvent[]; snapshot: number; cursor: number; omitted: number; tokens: number; packetId?: string; reason?: string }
-export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean } | { ok: false; reason: string; retryAfter?: number }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
-export type BoardPrincipal = { author: BoardAuthor; name: string }
+export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
+export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; packetId?: string; reason?: string }
+export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
   principal(context: ToolUseContext): BoardPrincipal | null
@@ -45,17 +52,19 @@ export type BoardHost = {
 export interface BoardStore {
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
+  assignTeam(principal: BoardPrincipal, seat: string, team: string): { ok: boolean; reason?: string; name?: string; team?: string }
   post(principal: BoardPrincipal, post: BoardPost, delivery?: 'index' | 'body' | 'mirror'): BoardReceipt
   read(principal: BoardPrincipal, input: BoardRead): BoardPacket
   boundary(principal: BoardPrincipal, seen: ReadonlySet<string>): { text: string; eventIds: string[] } | null
   presented(principal: BoardPrincipal, eventIds: string[], requestId: string, readPackets?: string[]): void
-  view(before?: number, thread?: string): BoardViewSnapshot
+  view(before?: number, thread?: string, team?: string): BoardViewSnapshot
   subscribe(listener: () => void): () => void
   close(): void
 }
 export type BoardModule = {
   open(path: string, sessionId: string): BoardStore
   tool(host: BoardHost, store: () => BoardStore | null): Tool
-  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; onBack: () => void; width: number; height: number }): React.ReactNode
-  page(record: { path: string; sessionId: string }, before?: number, thread?: string): BoardViewSnapshot
+  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; wrapText?: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
+  page(record: { path: string; sessionId: string }, before?: number, thread?: string, team?: string): BoardViewSnapshot
+  tail(record: { path: string; sessionId: string }): Pick<BoardStore, 'view' | 'subscribe' | 'close'>
 }

@@ -187,7 +187,17 @@ launches carried reaches the newest.
 
 ## Live crew board
 
-`swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, off by default; with it off, `/swarm on` changes nothing and names that setting. With it on, `/swarm on` starts this session's Board tab in the Crew view: only crewmates launched afterwards join it, and earlier crewmates keep their ordinary messages; `/swarm` shows the state and `/swarm off` returns future launches to ordinary messages while existing board crewmates keep their board. CrewBoard reads and posts questions, answers, blockers and results, with 6,000 board-context tokens per agent and 40,000 per wave, charged conservatively in UTF-8 bytes; updates wait for an active turn's safe boundary, never start a turn, and grant no task ownership or takeover.
+`swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, off by default. `/swarm on` enrolls crewmates launched afterwards; earlier crewmates keep their ordinary messages. `/swarm off` stops enrollment for future launches while existing board crewmates keep their board.
+
+With the board on, the Board tab in the Crew view shows the common posts. `/swarm` shows the state. The view is read-only and is absent when the board is off.
+
+CrewBoard posts questions, answers, blockers and results. A result or blocker may include `about` with a description, path or URL; it needs neither a task id nor an evidence reference. `@seat`, `@team` and `@all` in the text or the optional `to` list address enrolled members. Unknown mentions are returned in the receipt without refusing the post. Mentions take priority at the recipient's next active boundary; they never start a turn.
+
+The lead can give a Crewmate launch a `team` label or assign one later with CrewBoard's `swarm_team` operation (`seat` and `team`). Posts reach their author's team by default. A seat may subscribe to another team with a CrewBoard read using `team` and `watch: true`; task and file relevance also select delivery. Teams are labels for delivery and channels. There are no private messages: everyone can read every post. A read without a team selects the general timeline.
+
+Reads pack oldest-first into the remaining allowance unless `limitTokens` requests less. An oversized first post returns truncated text and its id. Even a budget smaller than the id returns that envelope, charged at its actual size. The allowance is 6,000 board-context tokens per seat and 40,000 per wave, charged conservatively in UTF-8 bytes. Updates wait for an active turn's safe boundary and grant no task ownership or takeover.
+
+A `correction` names an earlier event id in `corrects` and appends the replacement words in the same thread. The earlier post stays readable. Corrections and answers to your own posts do not consume the two question-and-answer rounds allowed per thread.
 
 ## File leases
 

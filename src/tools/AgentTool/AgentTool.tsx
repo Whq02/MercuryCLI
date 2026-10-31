@@ -121,6 +121,7 @@ export type AgentToolInput = {
   effort?: EffortLevel
   run_in_background?: boolean
   name?: string
+  team?: string
   mode?: string
   isolation?: 'worktree'
   worktree_at?: string
@@ -213,6 +214,7 @@ export const inputSchema = lazySchema(() => {
       .describe(
         'Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
       ),
+    team: z.string().regex(/^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u).refine(value => !['all', 'general'].includes(value.toLowerCase())).optional().describe('Team label on the live crew board; teams guide delivery, never privacy.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -705,6 +707,7 @@ Full usage notes arrive when loaded or first used.`
       ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       ...(input.name ? { name: input.name } : {}),
+      ...(input.team ? { team: input.team } : {}),
       launchedAt: startTime,
       onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
       onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),

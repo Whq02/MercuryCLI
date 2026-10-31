@@ -4,11 +4,11 @@ import { join } from 'node:path'
 import { bootLead, closeWorld, LEAD_MODEL, makeWorld, toolResultOf } from './crew-world.ts'
 
 const world = await makeWorld('swarm-wave', [
-  { kind: 'tool_use', name: 'Crewmate', id: 'launch-alpha', input: { name: 'alpha', description: 'Check parser fields', prompt: 'Post a parser question on the board, read the thread, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
+  { kind: 'tool_use', name: 'Crewmate', id: 'launch-alpha', input: { name: 'alpha', team: 'parser', description: 'Check parser fields', prompt: 'Post a parser question on the board, read the thread, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-post', input: { op: 'post', clientOpId: 'alpha-question', kind: 'ask', threadId: 'parser', taskId: 'parser', text: 'Which fields identify the resumed run?' } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
   { kind: 'text', text: 'Alpha posted and read the parser thread.' },
-  { kind: 'tool_use', name: 'Crewmate', id: 'launch-beta', input: { name: 'beta', description: 'Check transport fields', prompt: 'Read the parser thread, post a transport question to it, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
+  { kind: 'tool_use', name: 'Crewmate', id: 'launch-beta', input: { name: 'beta', team: 'transport', description: 'Check transport fields', prompt: 'Read the parser thread, post a transport question to it, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'beta-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'beta-post', input: { op: 'post', clientOpId: 'beta-question', kind: 'ask', threadId: 'parser', taskId: 'transport', text: 'Does the next packet preserve both fields?' } },
   { kind: 'text', text: 'Beta read and posted to the parser thread.' },
@@ -39,6 +39,7 @@ try {
   const beta = posted('beta-post')
   assert(alpha.seq < beta.seq)
   assert(toolResultOf(world, 'beta-read')!.text.includes(alpha.eventId))
+  assert(toolResultOf(world, 'beta-read')!.text.includes('"team":"parser"'), 'launch team reaches the enrollment and another team can read it')
   const metadata: any[] = []
   function walk(dir: string): void { for (const entry of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) walk(path); else if (entry.name.endsWith('.meta.json')) metadata.push(JSON.parse(readFileSync(path, 'utf8'))) } }
   walk(join(world.config, 'projects'))

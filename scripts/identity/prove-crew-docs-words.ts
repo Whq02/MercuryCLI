@@ -26,6 +26,8 @@ const ALLOW: Row[] = [
   ].map(fragment => ({ path: 'docs/ENGINES.md', fragment, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'docs/releases/', fragment: null, why: 'past release pages stay as published' },
   { path: 'docs/SESSIONS.md', fragment: 'the way a team commits', why: "the people's team committing its config, not the crew" },
+  { path: 'docs/CREW.md', fragment: "with each author's name, time, team and kind", why: 'The board row carries a team label, not a renamed crewmate.' },
+  { path: 'docs/CREW.md', fragment: 'Teams are labels for delivery and channels.', why: 'Board teams select delivery and channels; they do not rename the crew.' },
 ]
 
 function pages(): string[] {

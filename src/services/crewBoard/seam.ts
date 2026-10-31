@@ -54,7 +54,7 @@ export function swarmRoad(agentId = 'main'): boolean {
   return agentId === 'main' ? swarmSwitchOfSession() : roads.get(key(agentId))?.on === true
 }
 
-export async function latchSwarmAgent(agentId: string, name: string, workflow = false, resumed = false): Promise<boolean> {
+export async function latchSwarmAgent(agentId: string, name: string, workflow = false, resumed = false, team?: string): Promise<boolean> {
   if (!roads.has(key(agentId))) {
     const saved = await readAgentMetadata(agentId as AgentId)
     const on = !workflow && (saved === null ? !resumed && swarmSessionEnabled() : saved.swarm === true)
@@ -63,7 +63,7 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   const road = roads.get(key(agentId))!
   if (!road.active) road.execution = randomUUID()
   road.active = true
-  if (road.on && swarmMasterEnabled()) swarmStore()?.enroll({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name })
+  if (road.on && swarmMasterEnabled()) swarmStore()?.enroll({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team })
   return road.on
 }
 

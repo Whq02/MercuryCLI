@@ -55,7 +55,9 @@ const XAI_BILLING_SURFACES = new Set([
   'src/substrate/flagRegistry.ts',
 ])
 const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
+const boardLabelSurface = (rel: string): boolean => rel.startsWith('src/services/crewBoard/') || /^scripts\/crew\/prove-swarm-/.test(rel) || ['docs/CREW.md', 'src/tools/AgentTool/AgentTool.tsx', 'src/tools/AgentTool/runAgent.ts'].includes(rel)
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
+  [/\b(?:teams?|assignTeam|setTeam|teamOf|validTeam|teamAssigned|peerTeam|swarm_team)\b/gi, 'Board delivery labels and their fields; the retired teammate and ownership-system spellings remain forbidden.', boardLabelSurface],
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
   [new RegExp(J('rot', 'eamento'), 'i'), 'Portuguese for routing, in the Brazilian Portuguese README', rel => rel === 'docs/translations/README.pt-BR.md'],
@@ -91,6 +93,10 @@ console.log('============================================================')
 console.log(' no old spelling remains: every tracked file says crew, except the alias tables and the excluded areas')
 console.log('============================================================')
 
+check('board delivery labels are scoped and do not excuse retired identities or ownership tools',
+  !OLD.test(crewRemainder('src/services/crewBoard/store.ts', 'team teams assignTeam swarm_team')) &&
+    OLD.test(crewRemainder('src/services/crewBoard/store.ts', 'team teammate TeamCreate')) &&
+    OLD.test(crewRemainder('docs/README.md', 'team')))
 check('the xAI billing vocabulary is excused only on its named surfaces',
   !OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team_id teamId /teams/ team usage')) &&
     OLD.test(crewRemainder('src/utils/crew/agentLaunchPlan.ts', 'team usage')))

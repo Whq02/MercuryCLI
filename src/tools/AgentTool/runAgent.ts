@@ -185,6 +185,7 @@ export type RunAgentParams = {
   reviewReceipt?: string
   description?: string
   name?: string
+  team?: string
   launchedAt?: number
   seatHolder?: string
   transcriptSubdir?: string
@@ -806,7 +807,7 @@ export async function* runAgent(
       runDeadlineTimer = setTimeout(cut, deadline.at - Date.now())
       runDeadlineTimer.unref?.()
     }
-    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true)
+    swarm = await latchSwarmAgent(agentId, name ?? description ?? agentId, agentKind === 'workflow', params.resumed === true, params.team)
     let userContext = override?.userContext ?? (await getUserContext())
     const systemContext = { ...(override?.systemContext ?? (await getSystemContext())) }
 

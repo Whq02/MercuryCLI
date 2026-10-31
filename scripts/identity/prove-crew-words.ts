@@ -44,6 +44,8 @@ const ALLOW: Row[] = [
   { path: 'src/tools/', fragment: null, why: "a tool's prompt.ts is its instructions to the model, not a screen" },
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
   { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Crewmate tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
+  ...['Subscribe to this team', 'CrewBoard reads and posts', 'swarm_team needs seat and team.'].map(fragment => ({ path: 'src/services/crewBoard/implementation.ts', fragment, why: 'Board team labels address delivery and channels, not a renamed crew.' })),
+  ...["SELECT DISTINCT json_extract(record, '$.team') AS team", 'Use a team label', 'Only the lead assigns teams.'].map(fragment => ({ path: 'src/services/crewBoard/store.ts', fragment, why: 'The board stores and validates its delivery label, not a crew identity.' })),
   { path: 'src/tools/AgentTool/agentMemory.ts', fragment: null, why: "the memory file's own header speaks of the people's team, not the crew" },
   { path: 'src/tools/InspectTool/InspectTool.ts', fragment: null, why: 'the ref kinds it lists (mercury://team/…) are the wire' },
   { path: 'src/tools/TeamCreateTool/', fragment: null, why: 'the create step leaves with the team system' },
