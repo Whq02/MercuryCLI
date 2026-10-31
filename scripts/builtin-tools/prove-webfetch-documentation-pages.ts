@@ -58,7 +58,7 @@ try {
   const datetime = await fetched('/3/library/datetime.html')
   check('the datetime page comes through from its heading', datetime.text.includes('Basic date and time types') && datetime.text.includes('module supplies classes for manipulating dates and times.'), datetime.text.slice(0, 300))
   check('the sections before the format-code table are in the page', datetime.text.includes('Aware and Naive Objects') && datetime.text.includes('object represents a duration, the difference between two'))
-  check('the %U row is one line with its four cells', rowWith(datetime.lines, '%U', 'Week number of the year (Sunday as the first day of the week)', '00, 01, …, 53', '(7), (9)') !== undefined, datetime.lines.filter(line => line.includes('%U')).join('\n'))
+  check('the %U row is one line with its four cells', rowWith(datetime.lines, '%U', 'Week number of the year (Sunday as the first day of the week)', '00, 01, ..., 53', '(7), (9)') !== undefined, datetime.lines.filter(line => line.includes('%U')).join('\n'))
   check('the format-code table keeps every directive row', ['%a', '%Y', '%z', '%%'].every(directive => rowWith(datetime.lines, directive) !== undefined))
   check('the notes after the table are in the page', datetime.text.includes('Because the format depends on the current locale'))
   check('the datetime character window names the text returned', datetime.window === datetime.text.length && datetime.total === datetime.text.length && datetime.ended)
