@@ -26,6 +26,7 @@ type Timer = { id: number; at: number; fn: () => void; unref(): void; ref(): voi
 const realSetTimeout = globalThis.setTimeout
 const realClearTimeout = globalThis.clearTimeout
 const realDateNow = Date.now
+const realPerformanceNow = performance.now
 const clock = { now: 0 }
 let nextId = 1
 const queue = new Map<number, Timer>()
@@ -51,6 +52,7 @@ const fakeClearTimeout = ((handle: unknown) => {
 globalThis.setTimeout = fakeSetTimeout
 globalThis.clearTimeout = fakeClearTimeout
 Date.now = () => clock.now
+performance.now = () => clock.now
 
 const settle = (): Promise<void> => new Promise(resolve => realSetTimeout(resolve, 4))
 async function advance(ms: number): Promise<void> {
@@ -372,6 +374,7 @@ section('N6 · the undici dispatcher the native road hands its fetch: headers/bo
 globalThis.setTimeout = realSetTimeout
 globalThis.clearTimeout = realClearTimeout
 Date.now = realDateNow
+performance.now = realPerformanceNow
 
 section('N7 · the product\'s runtime (node + the bundled undici): the API dispatcher at 1/600 scale cuts the headers wait; the native road lands the reply')
 {
