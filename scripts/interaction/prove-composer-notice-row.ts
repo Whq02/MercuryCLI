@@ -39,12 +39,14 @@ section('§1 source — the notice leaves the column for the hint row')
     !column.includes('{footerNoticeLine(current.text)}') && !column.includes("'jsx' in current ? ("),
   )
   check(
-    'the hint row reads the current notice and hands it the whole row: the hint set steps aside while a notice stands and never shares its text node',
+    'the hint row yields a persistent notice to active hints, otherwise hands the notice the row and paints its way out',
     footer.includes('const currentNotice = useAppState((state: AppState) => state.notifications.current)') &&
-      footer.includes('const noticeStands = noticeText !== null || noticeBlock !== null') &&
+      footer.includes('const noticeYields = currentNotice !== null && standsUntilRemoved(currentNotice) && parts.length > 0') &&
+      footer.includes('const noticeStands = !noticeYields && (noticeText !== null || noticeBlock !== null)') &&
       footer.includes('const hintsShow = !vimInsert && !noticeStands && parts.length > 0') &&
       !footer.includes('parts.push(noticeText)') &&
-      /\{noticeText !== null \? \(\s*\n\s*<Box flexShrink=\{1\} minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden">/.test(footer),
+      /\{noticeStands && noticeText !== null \? \(\s*\n\s*<Box flexShrink=\{1\} minWidth=\{0\} flexWrap="wrap" height=\{1\} overflow="hidden">/.test(footer) &&
+      footer.includes('<NoticeWords seam={rowHasContent} words={noticeText} wayOut={noticeWayOut} muted={tokens.textMuted} />'),
   )
   check(
     "the hint row's notice box wraps with one row of height, so a notice's detail is its own text node that rides after the words only where the row has room for it whole, and steps aside whole where it does not",
@@ -64,7 +66,8 @@ section('§1 source — the notice leaves the column for the hint row')
       summary.includes("const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })") &&
       summary.includes("const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null") &&
       summary.includes('marginLeft={wayBackStays ? 2 : 1}') &&
-      summary.includes('{noticeText !== null ? noticeText : compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}') &&
+      summary.includes('<NoticeWords seam={false} words={noticeText} wayOut={noticeRowWayOut(currentNotice)} muted={tokens.textMuted} />') &&
+      summary.includes('{compactWorkSummaryText(counts, Math.max(0, columns - hintWidth))}') &&
       !summary.includes('noticeWidth'),
   )
   check(
