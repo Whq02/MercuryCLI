@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { bootLead, closeWorld, DIST, makeWorld } from './crew-world.ts'
 
 const bundle = readFileSync(DIST, 'utf8')
@@ -19,7 +20,7 @@ for (const mode of modes) {
   const loads = join(world.dir, 'loads.txt')
   const hook = join(world.dir, 'loads.mjs')
   writeFileSync(hook, `import { registerHooks } from 'node:module'; import { appendFileSync } from 'node:fs'; registerHooks({ load(url, context, next) { if (url.includes('crew-board.mjs')) appendFileSync(${JSON.stringify(loads)}, url + '\\n'); return next(url, context); } });`)
-  world.env.NODE_OPTIONS = `--import ${hook}`
+  world.env.NODE_OPTIONS = `--import ${pathToFileURL(hook).href}`
   const session = bootLead(world, [], [mode === 'on' ? 'CrewBoard' : 'Read'])
   try {
     if (mode === 'refused' || mode === 'on') {
