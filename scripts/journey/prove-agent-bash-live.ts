@@ -38,7 +38,7 @@ const GPT_MODEL = 'gpt-5.6-sol'
 const FIXTURE_API_KEY = 'fixture-key-000'
 
 type Dialect = 'anthropic' | 'openai'
-type Route = 'classifier' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-2' | 'seat-done' | 'side'
+type Route = 'classifier' | 'parent-search' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-2' | 'seat-done' | 'side'
 interface Hit {
   n: number
   route: Route
@@ -112,9 +112,14 @@ function resultTextsOf(body: unknown, dialect: Dialect): string[] {
     }
     return out
   }
-  for (const item of (body as { input?: unknown[] })?.input ?? []) {
-    const row = item as { type?: string; output?: unknown }
-    if (row.type !== 'function_call_output') continue
+  const input = (body as { input?: unknown[] })?.input ?? []
+  const searches = new Set(input.flatMap(item => {
+    const row = item as { type?: string; name?: string; call_id?: string }
+    return row.type === 'function_call' && row.name === 'ToolSearch' && row.call_id ? [row.call_id] : []
+  }))
+  for (const item of input) {
+    const row = item as { type?: string; call_id?: string; output?: unknown }
+    if (row.type !== 'function_call_output' || searches.has(row.call_id ?? '')) continue
     out.push(typeof row.output === 'string' ? row.output : textOf(row.output, 'input_text'))
   }
   return out
@@ -125,10 +130,12 @@ function routeOf(body: unknown, dialect: Dialect): { route: Route; tools: string
   const results = resultTextsOf(body, dialect)
   if (tools.includes('classify_result')) return { route: 'classifier', tools, results }
   if (tools.includes('Crewmate')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
-  if (userTextsOf(body, dialect).some(text => text.includes('agent-bash-seat:'))) {
+  const texts = userTextsOf(body, dialect)
+  if (texts.some(text => text.includes('agent-bash-seat:'))) {
     const route: Route = results.length === 0 ? 'seat-1' : results.length === 1 ? 'seat-2' : 'seat-done'
     return { route, tools, results }
   }
+  if (texts.some(text => text.includes(ASK)) && tools.includes('ToolSearch')) return { route: 'parent-search', tools, results }
   return { route: 'side', tools, results }
 }
 
@@ -288,6 +295,10 @@ async function startFixture(port: number, opts: { background: boolean; classifie
             },
           ]
           break
+        case 'parent-search':
+          blocks = [{ type: 'tool_use', name: 'ToolSearch', input: { query: 'select:Crewmate' } }]
+          usage = { input: 1100, output: 40 }
+          break
         case 'parent':
           blocks = [
             { type: 'text', text: 'agent-bash: launching the shell probe' },
@@ -351,8 +362,6 @@ function seedWorld(settings: Record<string, unknown>): World {
     return r.stdout.trim()
   }
   git(['init', '-q'])
-  git(['config', 'user.name', 'probe'])
-  git(['config', 'user.email', 'probe@example.invalid'])
   writeFileSync(join(cwd, 'README.md'), 'the shell probe repository\n')
   git(['add', 'README.md'])
   git(['commit', '-q', '-m', 'the probe commit'])
@@ -370,6 +379,10 @@ function driveEnv(home: string, fixtureBase: string, openai = false): Record<str
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
+    GIT_AUTHOR_NAME: 'probe',
+    GIT_AUTHOR_EMAIL: 'probe@example.invalid',
+    GIT_COMMITTER_NAME: 'probe',
+    GIT_COMMITTER_EMAIL: 'probe@example.invalid',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     ...(openai ? { OPENAI_API_KEY: 'fixture-openai-key', MERCURY_OPENAI_API_BASE: `${fixtureBase}/openai/v1` } : { OPENAI_API_KEY: '' }),
@@ -613,6 +626,8 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
     check(`${leg.name}: the Crew view read the background agent landed`, landed.includes('crew · 0 running') && landed.includes('Crewmates (1)'))
   }
   if (leg.name === 'openai-fg') {
+    const search = fixture.hits.find(h => h.route === 'parent-search')
+    check('openai-fg: the parent searches for deferred Crewmate before launching', search !== undefined && search.tools.includes('ToolSearch') && !search.tools.includes('Crewmate'), search?.tools.join(',') ?? 'no search request')
     const seat = fixture.hits.find(h => h.route === 'seat-1')
     check('openai-fg: the seat rode the Responses dialect on the session model', seat?.dialect === 'openai' && seat.model === GPT_MODEL, seat ? `${seat.dialect}/${seat.model}` : 'no seat')
     const parent = fixture.hits.find(h => h.route === 'parent')
