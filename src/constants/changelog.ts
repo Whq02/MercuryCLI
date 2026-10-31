@@ -1,6 +1,38 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.2
+- Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle; results paint without waking it. Nothing is capped unless you set a cap in /config, and /swarm uncap, cap and status manage a live wave.
+- Added Crew chat in the Workbench: /swarm opens a read-only timeline of board posts and crew messages, grouped by thread and team, with each author's name and time.
+- Added transcripts from local audio and video files through Read, with numbered, timestamped segments decoded on-device. The speech model downloads on first use; most formats need ffmpeg.
+- Added mercury acp --login for editor sign-in: open Mercury's sign-in screen in a terminal, choose a provider and return to the editor when sign-in finishes.
+- Added mercury.exe: a native Windows launcher in the release archive, so an extracted archive runs from PowerShell or Command Prompt without installing. mercury.cmd and mercury.ps1 stay beside it.
+- Added /resume, /models and /advisor as aliases for the sessions screen, model picker and advisor switch.
+- Added Anthropic prompt-cache diagnostics to the debug log, naming changes between requests.
+- Changed Flow to ask before five things and run everything else: sudo and any other privilege escalation; git that publishes or rewrites history; publishing and deploying; deleting or overwriting a path outside the project, its worktrees, this run's scratch and the temp folders; and your own ask rules. Deny rules still refuse; reads are free everywhere.
+- Changed Craft bridges to start on first use and reuse the connection. FilmCraft, PhotoCraft and LightCraft stay available without idle bridge processes at session start.
+- Changed Anthropic's one-hour prompt-cache tier to survive a relaunch of the same session while the paid hour and matching prefix remain, reducing cache writes during long sessions.
+- Changed Anthropic requests to send thinking blocks the API drops back unchanged, keeping the cached conversation intact and lowering long-session cost.
+- Changed housekeeping to prune compile caches for retired Node versions and stale bundled-extension folders, and rotate the Bash audit log while keeping the newest rotated files.
+- Changed cost estimates to use refreshed provider prices, including Kimi's input, output and cached-input rates and Hugging Face's provider prices.
+- Fixed eight permission faults: deny rules cover every shell operand, path aliases, symlink swaps and recursive reads; MCP server rules stay separate, and Implement mode asks before writing .husky hooks.
+- Fixed sixteen MCP faults: credentials are scrubbed from connection errors, OAuth callbacks and custom headers work, nested optional nulls are handled, and lost connections end the waiting call without replay.
+- Fixed thirteen provider faults: dotted model ids keep their limits, reasoning text is retained, retries follow provider wait instructions, and usage estimates keep replies with missing counts from appearing free.
+- Fixed seven installation and update faults: custom zsh startup folders receive the PATH entry, uninstall leaves unrelated folders alone and removes its PATH edits, and updates prune versions past the rollback copy.
+- Fixed nine session and crew faults: one process writes a session at a time, --max-time also ends crewmate work, launch hooks run and saved titles apply. A slow resume keeps its warm runner and waits for loading.
+- Fixed fourteen unattended-run and context faults: broken output pipes end the run, invalid --schema and --mcp values refuse before work starts, and large PDFs, nested guides and hook output fit their context budgets.
+- Fixed eleven terminal-input faults: Vim word edits preserve line breaks, multiline paste keeps tabs, Hangul width is counted correctly and colour settings and terminal restoration are respected.
+- Fixed Windows shell commands surviving a killed session, and launchers disagreeing on a version pointer with a byte-order mark or blank first line. Windows PATH entries in quotes are recognised as the same folder.
+- Fixed /health repeatedly rebuilding Python's bytecode cache when different Mercury builds are installed; recently used build caches stay available for later checks.
+- Fixed prompt-cache rewrites during screenshot-heavy work by retiring older screenshots together when the cache is cold or the image ceiling is reached. Context refreshes after compaction keep later requests stable.
+- Fixed media workflow exports to keep sampling and post-processing settings, and completed renders waiting on a job-record write that failed while another process was reading it.
+- Fixed the Workbench's mouse wheel: a burst no longer jumps into the next panel and repaints, rows at the bottom of a long list stay painted, and a flick scrolls at most a page.
+- Fixed two Windows asks: a quoted Windows drive path no longer raises the network-share question (which could leave a streamed run waiting), and a copy to a drive path outside the project asks in Flow like any other outside write.
+- Fixed titles of runs that start on a warm runner: the saved title now reaches the session's transcript as it does for a cold start.
+- Fixed transcript search to read every tool's own result text; Document results are searchable by file path and detail.
+- Fixed the /context chart not appearing when the count finished after the session's warm start.
+- Fixed the Python SDK's type check and the Read sniff that mistook a UTF-16 text file for audio; a bare MP3 or AAC stream without an extension still reads as audio.
+
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
 - Added editable image pipelines: save named steps in a project file, run from a chosen step and reuse earlier outputs whose inputs and saved files still match, locally or on a rented GPU.
