@@ -115,6 +115,13 @@
       "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
     },
     {
+      "file": "src/utils/permissions/flowLaw.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "for (const temp of [getMercuryTempDir(), tmpdir(), process.env.TMPDIR, process.env.MERCURY_TMPDIR, process.env.TEMP, process.env.TMP, '/tmp'",
+      "cls": "platform-owner",
+      "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
+    },
+    {
       "file": "scripts/accounts/prove-account-slots.ts",
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
@@ -468,6 +475,13 @@
       "file": "scripts/crew/render-crew-board.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/crew/render-swarm-board.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const capture = spawnSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
@@ -1095,13 +1109,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/journey/prove-agent-bash-live.ts",
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
-    },
-    {
       "file": "scripts/journey/prove-apollo-consent-journey.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
@@ -1382,6 +1389,20 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/node-runtime/prove-static-banner-colour.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const shellRoot = spawnSync('bash', ['-c', 'printf %s \"$PWD\"'], { cwd: root, encoding: 'utf8' }).stdout",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/node-runtime/prove-static-banner-colour.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "const run = spawnSync('bash', ['-c', body], { cwd: root, env, encoding: 'utf8' })",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/notifications/baseline-capture.ts",
       "mechanism": "execSync-string",
       "excerpt": "const SRC_TREE = execSync('git rev-parse HEAD:src', { encoding: 'utf8' }).trim()",
@@ -1415,6 +1436,13 @@
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/permissions/prove-flow-law-outside.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "`rm -rf ${process.env.TMPDIR ?? '/tmp'}/x`, `rm -rf ${scratch}/anything`, `echo x > ${scratch}/note.txt`,",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
       "file": "scripts/permissions/prove-shell-cwd.ts",
@@ -1546,13 +1574,6 @@
       "file": "scripts/release/package.mjs",
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/release/package.mjs",
-      "mechanism": "execSync-string",
-      "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
