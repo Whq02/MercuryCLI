@@ -462,7 +462,7 @@ export function describeThinkingDrops(
 }
 
 
-export function markOfDrop(
+function markOfDrop(
   entry: InputTransformation,
   wireMessageIds: readonly (string | null)[],
   stripped: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
