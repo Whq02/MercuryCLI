@@ -446,7 +446,7 @@ t.section('§3 — THE HUGGING FACE DRIVER (A2: the RFC 8628 machine out of the 
   t.check('D1 walked starting → waiting beats (fault NOTED, never settled) → finishing', events.join(' ') === 'starting waiting:0 waiting:1 waiting:2 waiting:3:note finishing', events.join(' '))
   t.check('D1 honored the RFC slow-down (+5s on the later sleeps)', JSON.stringify(slept) === JSON.stringify([1000, 1000, 6000, 6000]), JSON.stringify(slept))
   t.check('D1 stored the tokens (the scratch auth store holds them)', huggingfaceStoredTokens()?.accessToken === 'hf-at-1')
-  t.check("D1's receipt: connected-as · refresh stored · live catalogue · the unverified-dispatch honesty", d1.receipt.includes('connected as op-hf') && d1.receipt.includes('refresh token stored') && d1.receipt.includes('live catalogue: 2 model(s)') && d1.receipt.includes('until the first live turn settles'))
+  t.check("D1's receipt: connected-as · refresh stored · live catalogue · model and account paths", d1.receipt === 'Hugging Face connected as op-hf (OAuth device flow, refresh token stored) · live catalogue: 2 model(s). The rows join /model; /accounts manages the sign-in.')
 
   let cancelFlag = false
   const d2 = await runHuggingfaceDeviceLogin({
