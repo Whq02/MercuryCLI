@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { cleanupScenario, scenario } from './renderScenarios.ts'
 import { runJobControlHost } from './jobcontrolHost.ts'
 import { enterEditorBytes, rawModeDisarmBytes } from '../../src/ink/root/screen-session.ts'
@@ -19,6 +21,11 @@ try {
       assert.equal(bytes.includes('\x1b[>4m'), safe, `modifyOtherKeys reset at ${version}`)
       assert.equal(bytes.includes('\x1b[<u'), safe, `kitty reset at ${version}`)
     }
+  }
+  const driver = resolveCaptureDriver()
+  if (driver.kind !== 'posix-pty') {
+    console.log(`prove-old-vte-sequences: the byte checks hold; the terminal drive is SKIPPED — it needs the POSIX pty job-control host; this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
+    process.exit(0)
   }
   for (const version of ['5002', '5300']) {
     const cfg = join(home, version)
@@ -39,5 +46,5 @@ try {
   console.log('PASS tui-08 VTE below 0.53 receives no unsafe identity query or extended keyboard reset')
 } finally {
   cleanupScenario('boot-face')
-  rmSync(home, { recursive: true, force: true })
+  removeScratch(home)
 }

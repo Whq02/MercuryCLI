@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
-import { rmSync } from 'node:fs'
 import { dist, runDoor, sceneRoot } from '../hooks/lib/runDoor.ts'
 import { connect } from '../../sdk/src/index.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const paths = sceneRoot('one-session-writer-')
 try {
@@ -37,12 +37,12 @@ try {
   } finally {
     await warm.close()
   }
-  const killed = await runDoor(paths, { hooks: {}, args: ['--resume', id], signalAfterMs: { ms: 1800, signal: 'SIGKILL' }, turns: [{ kind: 'paced', deltas: ['partial ', 'later'], gapMs: 3000 }] })
-  assert.equal(killed.code, null)
+  const killed = await runDoor(paths, { hooks: {}, args: ['--resume', id], signalAfterRequest: { request: 1, delayMs: 500, signal: 'SIGKILL' }, turns: [{ kind: 'paced', deltas: ['partial ', 'later'], gapMs: 3000 }] })
+  assert.ok(killed.code === null || (process.platform === 'win32' && killed.code === 1), `a killed run exits by the signal (exit ${killed.code})`)
   assert.equal(killed.requests, 1)
   const recovered = await runDoor(paths, { hooks: {}, args: ['--resume', id], turns: [{ kind: 'text', text: 'recovered' }] })
   assert.equal(recovered.code, 0, recovered.stderr)
   console.log('PASS one live writer across run and warm claim, fork remains independent, dead writer reclaimed')
 } finally {
-  rmSync(paths.root, { recursive: true, force: true })
+  removeScratch(paths.root)
 }

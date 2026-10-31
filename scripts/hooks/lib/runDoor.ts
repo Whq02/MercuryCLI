@@ -26,6 +26,7 @@ type RunDoorScene = {
   timeoutMs?: number
   signalAfterMs?: { ms: number; signal: NodeJS.Signals }
   signalWhen?: { ready: () => boolean; signal: NodeJS.Signals; pollMs?: number }
+  signalAfterRequest?: { request: number; delayMs?: number; signal: NodeJS.Signals }
   beforeRun?: (paths: { home: string; cwd: string }) => void
 }
 
@@ -101,10 +102,20 @@ export async function runDoor(paths: { home: string; cwd: string }, scene: RunDo
     clearInterval(watch)
     child.kill(scene.signalWhen!.signal)
   }, scene.signalWhen.pollMs ?? 50) : undefined
+  let afterRequest: ReturnType<typeof setTimeout> | undefined
+  let closed = false
+  if (scene.signalAfterRequest) {
+    const { request, delayMs, signal } = scene.signalAfterRequest
+    void fixture.messageRequestStarted(request).then(() => {
+      if (!closed) afterRequest = setTimeout(() => { child.kill(signal) }, delayMs ?? 0)
+    })
+  }
   const code = await new Promise<number | null>(resolve => child.once('close', resolve))
+  closed = true
   clearTimeout(guard)
   if (poke) clearTimeout(poke)
   if (watch) clearInterval(watch)
+  if (afterRequest) clearTimeout(afterRequest)
   const tookMs = Date.now() - started
   const requests = fixture.messageRequests().length
   await fixture.close()

@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 import { cleanupScenario, scenario } from './renderScenarios.ts'
 import { runJobControlHost, mark } from './jobcontrolHost.ts'
 
+const driver = resolveCaptureDriver()
+if (driver.kind !== 'posix-pty') {
+  console.log(`prove-sigint-terminal-restore: SKIPPED — the drive needs the POSIX pty job-control host; this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
+  process.exit(0)
+}
 const home = mkdtempSync(join(tmpdir(), 'sigint-restore-'))
 process.env.MERCURY_CONFIG_DIR = home
 const base = scenario('boot-face', 120, 40) as { argv: string[]; cwd: string }
@@ -32,5 +39,5 @@ try {
   console.log('PASS tui-12 SIGINT exits 130 after restoring title, background and alternate screen')
 } finally {
   cleanupScenario('boot-face')
-  rmSync(home, { recursive: true, force: true })
+  removeScratch(home)
 }
