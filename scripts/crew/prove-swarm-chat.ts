@@ -65,7 +65,7 @@ saved.close()
 console.log(`PASS chat projection: ${corpus.events.length} corpus posts, public team filters and a single merged timeline`)
 const settings = join(CONFIG_HOME, 'settings.json')
 writeFileSync(settings, JSON.stringify({ swarm: { enabled: true } }))
-const then = (awaitText: string, data: string) => ({ atTick: 999, awaitText, minTick: 5, awaitSettleTicks: 2, data })
+const then = (awaitText: string, data: string) => ({ atTick: 999, awaitText, requireAwait: true, minTick: 5, awaitSettleTicks: 2, data })
 const frames: [number, number, string][] = [[120, 44, 'timeline'], [80, 24, 'timeline'], ...(!fixture ? [[120, 44, 'team'], [80, 24, 'thread'], [120, 44, 'tail'], ...(arg('--leg') === 'history' ? [[120, 44, 'history']] : [])] as [number, number, string][] : [])]
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') console.log(`SKIP the picture frames: they need the POSIX pty capture driver (scripts/ui/vshot.py); this host has ${driver.kind === 'unavailable' ? `none (${driver.reason}; ${driver.remedy})` : driver.kind}`)
@@ -77,7 +77,7 @@ try {
     const gridPath = join(captures, `${tag}.grid.json`)
     const sends = [then('Type a prompt', '/swarm on'), then('/swarm on', '\r'), then('Swarm on for new crewmates', '/swarm'), then('/swarm', '\r')]
     if (leg === 'team') sends.push(then('open thread', '\u001b[C'))
-    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', minTick: 5, awaitSettleTicks: 2, data: '\r' })
+    if (leg === 'thread') sends.push(then('open thread', '\u001b[A'), { atTick: 999, awaitText: 'correction', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' })
     if (leg === 'history') sends.push(then('open thread', '\r'), then('Count revision 1.', '\u001b[A'))
     const arrival = 'Arrived while Crew chat stayed open.'
     const readyText = leg === 'tail' ? ['Crew chat', arrival] : leg === 'history' ? ['Crew chat', 'Four rows.'] : ['Crew chat', 'General', 'open thread']

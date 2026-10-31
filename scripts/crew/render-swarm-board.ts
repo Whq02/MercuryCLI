@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
@@ -47,12 +47,12 @@ for (const [cols, rows] of [[120, 44], [80, 24]]) {
     argv: [join(root, 'dist/vendor/node/bin/node'), join(root, 'dist/mercury.mjs'), '--resume', sid, '--model', 'claude-fable-5-1'],
     sends: [
       { data: '/crewmates', atTick: 999, awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
-      { data: '\r', afterPrevTicks: 4 },
+      { data: '\r', atTick: 999, awaitText: '/crewmates', requireAwait: true, minTick: 5, awaitSettleTicks: 2 },
       { data: '\t', atTick: 999, awaitText: 'tab Board', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
     ],
     readyText: ['Which fields identify'], stableTicks: 5, total: 220, cols, rows, out: grid,
   }))
-  const capture = spawnSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {
+  const capture = spawnCaptureSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {
     cwd: project, encoding: 'utf8', timeout: vshotBudgetMs(90000),
     env: { ...process.env, HOME: home, USER: 'operator', LOGNAME: 'operator', MERCURY_OPERATOR: 'operator', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, `daemon-${tag}`), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LAUNCH_RIPPLE: '0', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' },
   })
