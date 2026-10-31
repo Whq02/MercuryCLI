@@ -6,6 +6,8 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { RUNNER_PROTOCOL } from '../../src/runner/wire/methods.ts'
+import { createPeer } from '../../src/runner/wire/peer.ts'
 import { findOnPath } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -57,7 +59,7 @@ const lastUserText = (body: Body): string => {
 }
 const toolNamesOf = (body: Body): string[] => ((body.tools as Array<{ name?: string }> | undefined) ?? []).map(t => t.name ?? '')
 
-async function run(label: string, settings: Record<string, unknown>, turns: ScriptedTurn[]): Promise<Run> {
+async function run(label: string, settings: Record<string, unknown>, turns: ScriptedTurn[], hosted = true): Promise<Run> {
   const home = realpathSync(mkdtempSync(join(scratchRoot, `journal-road-${label}-home-`)))
   const cwd = realpathSync(mkdtempSync(join(scratchRoot, `journal-road-${label}-proj-`)))
   writeFileSync(join(cwd, 'README.md'), '# Lantern\nA throwaway project for the journal proof.\n')
@@ -80,6 +82,39 @@ async function run(label: string, settings: Record<string, unknown>, turns: Scri
     TMPDIR: scratchRoot,
   }
   try {
+    if (hosted) {
+      const child = spawn(nodeBin!, [DIST, 'runner', '--mode', 'sovereign', '--model', 'claude-opus-5'], { cwd, env })
+      const frames: Frame[] = []
+      let stderr = ''
+      child.stderr.on('data', d => (stderr += String(d)))
+      const killer = setTimeout(() => child.kill('SIGKILL'), 180_000)
+      const exited = new Promise<number | null>(resolve => child.on('close', resolve))
+      const peer = createPeer({ input: child.stdout, output: child.stdin, side: 'host' })
+      let settleOutcome: () => void = () => {}
+      const outcome = new Promise<void>(resolve => { settleOutcome = resolve })
+      peer.onNotification('row', row => {
+        const frame = row as Frame
+        frames.push(frame)
+        if (isOutcome(frame)) settleOutcome()
+      })
+      peer.onRequest('permission/request', () => ({ outcome: 'deny', message: 'the proof answers no asks' }))
+      try {
+        await peer.request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'prove-journal-road', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }, { deadlineMs: 60_000 })
+        await peer.request('queue/add', { type: 'prompt', content: 'Read README.md and state its first heading.' }, { deadlineMs: 60_000 })
+        await Promise.race([outcome, exited.then(() => { throw new Error('runner exited before the outcome') })])
+        await peer.request('session/leave', {}, { deadlineMs: 120_000 })
+        child.stdin.end()
+        const exit = await exited
+        return { frames, stderr, exit, bodies: fixture.messageRequests().map(r => r.body as Body), home, cwd }
+      } finally {
+        peer.close('the proof ended')
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL')
+          await exited
+        }
+        clearTimeout(killer)
+      }
+    }
     return await new Promise<Run>(resolve => {
       const child = spawn(nodeBin!, [DIST, 'run', 'Read README.md and state its first heading.', '--format', 'rows', '--mode', 'sovereign', '--model', 'claude-opus-5', '--max-turns', '2'], { cwd, env })
       const frames: Frame[] = []
@@ -107,7 +142,7 @@ async function run(label: string, settings: Record<string, unknown>, turns: Scri
   }
 }
 
-section('§1 the whole road with memory.journal on: a headless run answers, is asked at its end, writes its entry with Journal, and the entry is in the home when the session is gone')
+section('§1 the hosted road with memory.journal on: the session answers, leaves its Journal entry, and closes')
 {
   const on = await run('on', { memory: { journal: true } }, [
     { kind: 'text', text: 'The first heading is Lantern.' },
@@ -151,6 +186,18 @@ section('§2 nothing set (memory.journal is off by default): no journal line in 
   check('no journal file anywhere in the home', !walk(off.home).some(p => p.endsWith('journal.md')))
   rmSync(off.home, { recursive: true, force: true })
   rmSync(off.cwd, { recursive: true, force: true })
+}
+
+section('§3 an unattended run makes no closing call, even with memory.journal on')
+{
+  const unattended = await run('unattended', { memory: { journal: true } }, [
+    { kind: 'text', text: 'The first heading is Lantern.' },
+  ], false)
+  check('the unattended run completes with its answer', unattended.exit === 0 && unattended.frames.some(f => isOutcome(f)))
+  check('the answer is the only model request', unattended.bodies.length === 1, String(unattended.bodies.length))
+  check('no journal file is written without a closing call', !walk(unattended.home).some(p => p.endsWith('journal.md')))
+  rmSync(unattended.home, { recursive: true, force: true })
+  rmSync(unattended.cwd, { recursive: true, force: true })
 }
 
 console.log(`\nprove-journal-road: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
