@@ -44,7 +44,7 @@ try {
   const document = await call('/pdf')
   const path = /saved to (.+?\.pdf)/.exec(document)?.[1]
   if (path) files.add(path)
-  check('a PDF is named with its saved size, never decoded as page text', document.includes('PDF') && document.includes('text was not extracted') && document.includes(`${pdf.length} bytes`) && !document.includes('encoded stream bytes'), document)
+  check('a malformed PDF is saved with its size and extraction failure, never returned as raw bytes', document.includes('PDF') && document.endsWith(`PDF text extraction failed: ${path}: Invalid or damaged PDF structure.`) && document.includes(`${pdf.length} bytes`) && !document.includes('encoded stream bytes'), document)
   check('the PDF bytes are persisted unchanged', !!path && (await readFile(path)).equals(pdf))
   const before = seen.length
   const denied = await call('/private/article')
