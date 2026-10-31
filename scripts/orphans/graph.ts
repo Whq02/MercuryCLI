@@ -126,6 +126,10 @@ function graphEntries(): string[] {
       .filter(f => f.endsWith('.ts') || f.endsWith('.tsx'))
       .map(f => `src/entrypoints/${f}`),
   ]
+  const build = readFileSync(join(GRAPH_ROOT, 'build.ts'), 'utf8')
+  if (build.includes("entrypoints: [resolve(SRC, 'services/crewBoard/implementation.ts')]")) {
+    entries.push('src/services/crewBoard/implementation.ts')
+  }
   return [...new Set(entries)].map(e => join(GRAPH_ROOT, e)).filter(p => existsSync(p))
 }
 
