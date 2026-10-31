@@ -1607,7 +1607,7 @@ async function callToolOnce(
       logMCPError(connected.name, `tool ${tool}: the server sent one message over ${oversizedLimit} bytes; the connection was dropped`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(mcpOversizedMessageWords(tool, connected.name, oversizedLimit), 'MCP stdio message over the limit')
     }
-    if (isResponseStreamEndedError(err)) {
+    if (isResponseStreamEndedError(err) || (couldHaveExecuted && isStaleSocketFetchError(err))) {
       logMCPError(connected.name, `tool ${tool}: the server closed the response stream before answering`)
       throw new McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
         `MCP tool "${tool}" on server "${connected.name}": the server closed the response stream before answering — unknown outcome; inspect the effect before retrying.`,
