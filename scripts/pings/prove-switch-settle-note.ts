@@ -269,8 +269,9 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
       (composerSrc.match(/\$\{doorCross\}\$\{doorLossNote\}/g) ?? []).length === 2,
   )
   check(
-    "the picker wrapper's daemon branch previews loss against its before-the-door fact too",
-    wrapperSrc.includes('previewForSelection(messages, factsBefore.effective, value)') &&
+    "the picker wrapper's daemon branch previews loss against its before-the-door model and history",
+    /const factsBefore = focused\.modelFacts\(\)[\s\S]{0,100}?const messagesBefore = \[\.\.\.focused\.records\(\)\][\s\S]{0,160}?void focused\.setModel\(value\)/.test(wrapperSrc) &&
+      wrapperSrc.includes('previewForSelection(messagesBefore, factsBefore.effective, value)') &&
       !wrapperSrc.includes('previewForSelection(messages, focused.modelFacts().effective, value)'),
   )
 }
