@@ -115,6 +115,50 @@ try {
   }
   const fromTampered = await vendored(tampered, join(proofHome, 'out-tampered'))
   check('a changed licence byte is refused with the lock\'s message', fromTampered.error !== null && /Document licence differs from its lock/.test(fromTampered.error), fromTampered.error ?? 'resolved')
+
+  section('§4 the bundled media payload: every text file its manifest hashes, and the shared .mts the craft payloads hash, check out as their committed bytes under core.autocrlf=true')
+  const mediaServer = 'src/extensions/bundled/mercury-media/server'
+  const mediaManifest = JSON.parse(readFileSync(join(ROOT, mediaServer, 'manifest.json'), 'utf8')) as { files: Record<string, string> }
+  const sharedTyping = 'src/extensions/bundled/shared/install.d.mts'
+  const committedBytes = (rel: string, want?: string): Buffer => {
+    const checkout = readFileSync(join(ROOT, rel))
+    if (want === undefined) return Buffer.from(checkout.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')
+    const locked = [checkout, Buffer.from(checkout.toString('latin1').replaceAll('\r\n', '\n'), 'latin1')].find(bytes => sha256(bytes) === want)
+    if (!locked) throw new Error(`Fixture payload file differs from the media manifest: ${rel}`)
+    return locked
+  }
+  const payloadOrigin = (name: string, gitattributes: string): string => {
+    const dir = join(proofHome, name)
+    mkdirSync(dir, { recursive: true })
+    git(dir, '-c', 'init.defaultBranch=main', 'init', '-q')
+    const put = (rel: string, bytes: Buffer | string): void => {
+      mkdirSync(dirname(join(dir, rel)), { recursive: true })
+      writeFileSync(join(dir, rel), bytes)
+    }
+    put('.gitattributes', gitattributes)
+    put(`${mediaServer}/manifest.json`, readFileSync(join(ROOT, mediaServer, 'manifest.json')))
+    for (const [file, want] of Object.entries(mediaManifest.files)) put(`${mediaServer}/${file}`, committedBytes(`${mediaServer}/${file}`, want))
+    put(sharedTyping, committedBytes(sharedTyping))
+    git(dir, '-c', 'core.autocrlf=false', 'add', '--', '.')
+    git(dir, '-c', 'core.autocrlf=false', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'payload fixture')
+    return dir
+  }
+  const payloadRuled = crlfClone(payloadOrigin('payload-ruled', attributes), 'payload-clone-ruled')
+  const textFiles = Object.entries(mediaManifest.files).filter(([file]) => !committedBytes(`${mediaServer}/${file}`, mediaManifest.files[file]).includes(0))
+  check('the media manifest names text files beside the binary', textFiles.length >= 3 && textFiles.some(([file]) => file === 'LICENSE'), textFiles.map(([file]) => file).join(','))
+  for (const [file, want] of textFiles) {
+    const rel = `${mediaServer}/${file}`
+    const attr = git(payloadRuled, 'check-attr', 'eol', '--', rel)
+    check(`${file}: .gitattributes pins the payload file to LF`, attr.endsWith(': eol: lf'), attr)
+    const delivered = readFileSync(join(payloadRuled, rel))
+    check(`${file}: the autocrlf=true checkout delivers the bytes the media manifest hashes`, sha256(delivered) === want && !delivered.includes('\r\n'), `sha256 ${sha256(delivered)} want ${want}`)
+  }
+  const typingDelivered = readFileSync(join(payloadRuled, sharedTyping))
+  check('shared/install.d.mts (hashed into the craft payloads) checks out as its committed LF bytes', sha256(typingDelivered) === sha256(committedBytes(sharedTyping)) && !typingDelivered.includes('\r\n'), git(payloadRuled, 'check-attr', 'eol', '--', sharedTyping))
+  const payloadStripped = attributes.split('\n').filter(line => !line.includes('mercury-media/server/') && !line.startsWith('*.mts')).join('\n')
+  const payloadUnruled = crlfClone(payloadOrigin('payload-unruled', payloadStripped), 'payload-clone-unruled')
+  const unruledLicence = readFileSync(join(payloadUnruled, mediaServer, 'LICENSE'))
+  check('without the rule the same checkout rewrites LICENSE to CRLF and its digest misses the manifest (the exposure the rule closes)', unruledLicence.includes('\r\n') && sha256(unruledLicence) !== mediaManifest.files.LICENSE, sha256(unruledLicence))
 } finally {
   process.chdir(launchCwd)
   for (const link of junctions) (process.platform === 'win32' ? rmdirSync : unlinkSync)(link)

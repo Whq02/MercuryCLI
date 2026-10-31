@@ -13,6 +13,9 @@
 *.md   text eol=lf
 NOTICE text eol=lf
 integrations/vscode/LICENSE.txt text eol=lf
+src/extensions/bundled/mercury-media/server/LICENSE text eol=lf
+src/extensions/bundled/mercury-media/server/THIRD_PARTY_NOTICES text eol=lf
+*.mts  text eol=lf
 # The Godot addon under assets/vulcan/addon/ is embedded byte-for-byte into a
 # generated module, and the vulcan suite's first step compares the checked-out
 # bytes with the committed module: a CRLF checkout turned every .gd and .cfg
