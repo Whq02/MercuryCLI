@@ -21,6 +21,7 @@
 # gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
 # gate-watch: scripts/lib/processGroup.ts
 # gate-watch: scripts/lib/toolShellTree.ts
+# gate-watch: scripts/lib/ptyRecorder.ts src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/ink.ts src/ink/instances.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

@@ -2,6 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -19,6 +20,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const { default: stripAnsi } = await import('strip-ansi')
+const bare = (text: string): string => stripAnsi(text.replace(/\x1b\[[0-9;?<>=]*[A-Za-z]/g, '').replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, ''))
 const until = async (cond: () => boolean, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -241,6 +245,112 @@ section('§8 the built product: the registry handshake, mercury acp --login with
   check('dist: mercury acp --help names --login beside the server sentence', help.status === 0 && help.stdout.includes('--login') && help.stdout.includes('Serve an editor over the Agent Client Protocol on stdio.'), help.stdout)
   const stray = spawnSync(node, [DIST, 'acp', ACP_LOGIN_FLAG, 'extra'], { cwd: projDir, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: configHome } })
   check('dist: a stray argument beside --login is the unknown option named', stray.status === 2 && stray.stderr.startsWith("error: unknown option 'extra'"), j({ status: stray.status, err: stray.stderr.slice(0, 120) }))
+}
+
+section('§9 the sign-in screen fits the window: the method list and its pointer are in view at 120×30 and 80×24, the card enters the alternate screen before it paints, and Esc leaves the main screen as it was')
+{
+  const ENTER_ALT = '\x1b[?1049h'
+  const EXIT_ALT = '\x1b[?1049l'
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const { createRoot } = await import('../../src/ink.ts')
+  const { default: instances } = await import('../../src/ink/instances.ts')
+  const { acpLoginElement, ACP_LOGIN_FOOTER, ACP_LOGIN_INTRO } = await import('../../src/services/acp/acpLoginScreen.tsx')
+  const { MORE_BELOW_ROW } = await import('../../src/components/ConsoleOAuthFlow.tsx')
+  const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
+  const rosterRows = loginFamilyRows({ engineLegs: true }).length
+  class Output extends EventEmitter {
+    isTTY = true
+    bytes: string[] = []
+    constructor(public columns: number, public rows: number) {
+      super()
+    }
+    write(chunk: string | Uint8Array): boolean {
+      this.bytes.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'))
+      return true
+    }
+  }
+  class Input extends EventEmitter {
+    isTTY = true
+    isRaw = false
+    private queue: string[] = []
+    press(keys: string): void {
+      this.queue.push(keys)
+      this.emit('readable')
+    }
+    read(): string | null {
+      return this.queue.shift() ?? null
+    }
+    setEncoding(): this { return this }
+    setRawMode(value: boolean): this { this.isRaw = value; return this }
+    ref(): this { return this }
+    unref(): this { return this }
+    resume(): this { return this }
+    pause(): this { return this }
+    get readableLength(): number { return 0 }
+  }
+  for (const [columns, rows] of [[120, 30], [80, 24]] as const) {
+    const stdout = new Output(columns, rows)
+    const stdin = new Input()
+    const root = await createRoot({ stdout: stdout as never, stdin: stdin as never, stderr: new Output(columns, rows) as never, exitOnCtrlC: false, patchConsole: false })
+    const engine = instances.get(stdout as never)!
+    const settledOutcomes: Array<{ ok: boolean }> = []
+    root.render(acpLoginElement(settled => { settledOutcomes.push(settled) }))
+    const frameText = (): string => bare(engine.lastFrameText()).replace(/\n$/, '')
+    const painted = await until(() => frameText().includes('❯'), 30_000)
+    await sleep(250)
+    const lines = frameText().split('\n')
+    const written = stdout.bytes.join('')
+    const label = `${columns}×${rows}`
+    check(`${label}: the card paints with the method list`, painted, lines.slice(0, 6).join(' | '))
+    check(`${label}: the whole card fits the window (${lines.length} lines of ${rows} rows)`, lines.length <= rows, String(lines.length))
+    check(`${label}: the intro is in view`, lines.some(line => line.includes(ACP_LOGIN_INTRO.slice(0, 40))), lines.join('\n'))
+    check(`${label}: the pointer sits on a method row`, lines.some(line => /❯ \S.* — /.test(line)), lines.filter(line => line.includes('❯')).join(' | '))
+    const shown = lines.filter(line => /^[│ ]+[❯ ] \S.* — /.test(line) && !line.includes('Mercury —')).length
+    const moreBelow = lines.map(line => /…and (\d+) more below/.exec(line)?.[1]).find(hidden => hidden !== undefined)
+    check(`${label}: the list scrolls inside the card — ${shown} methods shown, the rest counted in the “more below” row`, moreBelow !== undefined && shown + Number(moreBelow) === rosterRows && lines.some(line => line.includes(MORE_BELOW_ROW(Number(moreBelow)))), `shown=${shown} hidden=${moreBelow ?? 'none'} roster=${rosterRows}`)
+    check(`${label}: the footer says what to do next`, lines.some(line => line.includes(ACP_LOGIN_FOOTER)), lines.at(-2) ?? '')
+    check(`${label}: the alternate screen is entered before the first paint`, written.includes(ENTER_ALT) && written.indexOf(ENTER_ALT) < written.indexOf('❯'), j({ enterAt: written.indexOf(ENTER_ALT), pointerAt: written.indexOf('❯') }))
+    stdout.bytes.length = 0
+    stdin.press('\x1b')
+    const settled = await until(() => settledOutcomes.length > 0, 5_000)
+    check(`${label}: Esc closes the screen without a credential change`, settled && settledOutcomes.length === 1 && settledOutcomes[0]?.ok === false, j(settledOutcomes))
+    root.unmount()
+    await sleep(100)
+    const after = stdout.bytes.join('')
+    const exitAt = after.lastIndexOf(EXIT_ALT)
+    check(`${label}: on close the alternate screen is left and nothing is painted after it (the receipt line lands alone on the main screen)`, exitAt >= 0 && bare(after.slice(exitAt + EXIT_ALT.length)).trim() === '', j(after.slice(Math.max(0, exitAt - 40))))
+  }
+}
+
+section('§10 the built product in a 120×30 pty: the method list is in view, Esc exits 1, and after the alternate screen closes the terminal holds the one receipt line')
+if (process.platform === 'win32') {
+  console.log('  (skip) a POSIX pty is needed for this leg; on Windows the ConPTY look is driven by hand: PowerShell 7 at 120×30, `mercury acp --login`, then Esc')
+} else {
+  const { recordPty } = await import('../lib/ptyRecorder.ts')
+  const { ACP_LOGIN_CLOSED_RECEIPT, ACP_LOGIN_INTRO } = await import('../../src/services/acp/acpLoginScreen.tsx')
+  const EXIT_ALT = '\x1b[?1049l'
+  const recording = recordPty({
+    argv: [node, DIST, 'acp', ACP_LOGIN_FLAG],
+    cwd: projDir,
+    env: { ...process.env, MERCURY_CONFIG_DIR: configHome, BROWSER: '/usr/bin/true', TERM: 'xterm-256color' },
+    cols: 120,
+    rows: 30,
+    path: join(projDir, 'acp-login.pty'),
+  })
+  const output = (): string => Buffer.concat(recording.records.filter(record => record.direction === 'output').map(record => record.bytes)).toString('utf8')
+  const painted = await until(() => output().includes('❯') && output().includes(ACP_LOGIN_INTRO.slice(0, 40)), 90_000)
+  check('pty: the card paints with its intro and the method pointer', painted, bare(output()).slice(-600))
+  check('pty: the alternate screen was entered before the card painted', output().indexOf('\x1b[?1049h') >= 0 && output().indexOf('\x1b[?1049h') < output().indexOf('❯'))
+  recording.send('\x1b')
+  const exit = await Promise.race([recording.exited, new Promise<number | null>(resolve => setTimeout(() => resolve(null), 20_000))])
+  check('pty: Esc ends the process with exit 1', exit === 1, `exit=${exit}`)
+  await sleep(200)
+  const all = output()
+  const exitAt = all.lastIndexOf(EXIT_ALT)
+  const afterExit = exitAt >= 0 ? bare(all.slice(exitAt + EXIT_ALT.length)).replace(/\r/g, '').trim() : null
+  check('pty: after the alternate screen closes the terminal holds the receipt line alone', afterExit === ACP_LOGIN_CLOSED_RECEIPT, j({ exitAt, afterExit }))
+  await recording.close()
 }
 
 console.log(`\nACP sign-in: ${failures} failure(s)`)
