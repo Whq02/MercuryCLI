@@ -45,6 +45,7 @@ check('the tool prompt names the configured limits and read cursor', prompt.incl
 check('schema and result handling impose no stale numeric ceiling', tool.inputSchema.safeParse({ op: 'read', limitTokens: 10000000 }).success && tool.inputSchema.safeParse({ op: 'post', text: 'x'.repeat(50000) }).success && tool.maxResultSizeChars === Infinity)
 set({ seatAllowance: 5000000, waveAllowance: 20000000 })
 check('a running wave follows a settings change: /swarm and /config name the same numbers', seam.swarmStore()!.limits.seatAllowance === 5000000 && runSwarmCommand('on').includes('5,000,000 per agent, 20,000,000 per wave'))
+check('an already-created tool prompt follows the settings change too', (await tool.prompt({} as never)).includes('5,000,000') && (await tool.prompt({} as never)).includes('20,000,000'))
 check('uncap acts immediately and status names it', runSwarmCommand('uncap').includes('/swarm uncap is on') && runSwarmCommand('status').includes('no limit per agent, no limit per wave'))
 check('an already-created tool prompt follows uncap', (await tool.prompt({} as never)).includes('no limit per seat'))
 check('cap restores the configured values', runSwarmCommand('cap').includes('5,000,000 per agent, 20,000,000 per wave') && !board.uncapped)
