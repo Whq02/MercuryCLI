@@ -38,7 +38,7 @@ type Cell = { c?: string }
 type Frame = { label?: string; atMs?: number; cols: number; rows: number; grid: Cell[][] }
 const textOf = (frame: Frame): string => frame.grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const tokensOf = (text: string): number | null => {
-  const count = /↓\s*~?([\d,.]+)(k?)\s+tokens/.exec(text)
+  const count = /↓\s*~?([\d,.]+)(k?)(?=\s*(?:[·)]|\n|$))/.exec(text)
   return count ? Number(count[1]!.replaceAll(',', '')) * (count[2] === 'k' ? 1000 : 1) : null
 }
 
