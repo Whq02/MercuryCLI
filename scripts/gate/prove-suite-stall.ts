@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync, existsSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
@@ -53,7 +53,7 @@ try {
     if (!live) {
       const scripts = join(work, 'scripts')
       mkdirSync(join(scripts, 'gate'), { recursive: true })
-      symlinkSync(join(root, 'scripts/lib'), join(scripts, 'lib'), process.platform === 'win32' ? 'junction' : 'dir')
+      cpSync(join(root, 'scripts/lib'), join(scripts, 'lib'), { recursive: true })
       const source = readFileSync(helper, 'utf8')
       assert.equal(source.split('sleep 1; n=$((n + 1))').length, 2)
       helper = join(scripts, 'gate/run-suite.sh')

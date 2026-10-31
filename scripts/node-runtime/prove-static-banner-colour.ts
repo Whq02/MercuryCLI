@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { parseEnginesNode, posixLauncher } from '../release/launcherTemplates.mjs'
 
 const root = resolve(import.meta.dir, '../..')
+const shellRoot = spawnSync('bash', ['-c', 'printf %s "$PWD"'], { cwd: root, encoding: 'utf8' }).stdout
 const policy = parseEnginesNode(JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')).engines.node)
 const ops = readFileSync(resolve(root, 'scripts/ops/launcher-mercury.sh'), 'utf8')
 const release = posixLauncher(policy)
@@ -30,7 +31,7 @@ for (const [index, body] of bodies.entries()) {
     assert.equal(run.status, 0, run.stderr)
     const actual = /\x1b\[[\d;]*38;2;/.test(run.stdout) ? 3 : /\x1b\[[\d;]*38;5;/.test(run.stdout) ? 2 : /\x1b\[[\d;]*3[0-7]m/.test(run.stdout) ? 1 : 0
     assert.equal(actual, level, `launcher ${index} ${JSON.stringify(extra)}`)
-    assert.equal(run.stdout.replace(/\x1b\[[\d;]*m/g, ''), `\n  ✦ MERCURY · ${root}\n\n`, 'banner wording and spacing are unchanged')
+    assert.equal(run.stdout.replace(/\x1b\[[\d;]*m/g, ''), `\n  ✦ MERCURY · ${shellRoot}\n\n`, 'banner wording and spacing are unchanged (the folder as the shell spells it)')
   }
 }
 console.log('PASS tui-07 both static launch banners honour no-colour and terminal depth without changing text')

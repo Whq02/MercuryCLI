@@ -6,6 +6,8 @@ import { join } from 'node:path'
 import * as layout from '../../src/services/privateChannel/installLayout.js'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
 import { TEARDOWN_SUITE } from '../../src/ink/root/teardown.ts'
+import { slashed } from '../lib/platformPath.ts'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const { reconcileManagedShims, resolveLayoutRoots, SHIM_MARKER_FAMILY, shimContent, uninstallLayout, writeShimSet } = layout
 const optional = layout as unknown as { powershellEntryContent?: () => string; WIN32_POWERSHELL_ENTRY?: string }
@@ -20,7 +22,7 @@ const check = (name: string, cond: boolean, detail = ''): void => {
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 
 const scratch = mkdtempSync(join(tmpdir(), 'win-entries-'))
-process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
+process.on('exit', () => { try { removeScratch(scratch) } catch {} })
 
 section('(1) the managed set on win32 lets PowerShell resolve mercury through its own entry')
 const roots = resolveLayoutRoots('win32')
@@ -120,9 +122,9 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
   check('a verb other than run, stdin not a TTY: the Node road', r4.stdout.startsWith('NODE-ROAD ["health"]'), r4.stdout.slice(0, 80))
   const r4u = run(['update'])
   check('update, stdin not a TTY: the Node road with the verb intact (the field box ran mercury update from Git Bash with a piped stdin: 13I-05)', r4u.stdout.startsWith('NODE-ROAD ["update"]'), r4u.stdout.slice(0, 80))
-  const asTheHarnessRan = spawnSync('sh', ['-lc', facadePath, 'update'], { encoding: 'utf8', env, input: '', timeout: 30_000 })
+  const asTheHarnessRan = spawnSync('sh', ['-lc', JSON.stringify(slashed(facadePath)), 'update'], { encoding: 'utf8', env, input: '', timeout: 30_000 })
   check('the receipts\' shape — bash -lc "<command>" update — puts the verb in $0, so the facade boots with NO arguments and the product reaches its run door (13i-update-gb2.err: "No prompt reached run"); the fixture bundle shows the empty argv the box\'s product saw', asTheHarnessRan.stdout.startsWith('NODE-ROAD []'), `status=${asTheHarnessRan.status} out=${asTheHarnessRan.stdout.slice(0, 80)} err=${asTheHarnessRan.stderr.slice(0, 120)}`)
-  const asTheVerbRides = spawnSync('sh', ['-lc', `${JSON.stringify(facadePath)} update`], { encoding: 'utf8', env, input: '', timeout: 30_000 })
+  const asTheVerbRides = spawnSync('sh', ['-lc', `${JSON.stringify(slashed(facadePath))} update`], { encoding: 'utf8', env, input: '', timeout: 30_000 })
   check('the verb inside the -c string — bash -lc "mercury update" — reaches the product (round 14 re-runs this spelling)', asTheVerbRides.stdout.startsWith('NODE-ROAD ["update"]'), `status=${asTheVerbRides.status} out=${asTheVerbRides.stdout.slice(0, 80)} err=${asTheVerbRides.stderr.slice(0, 120)}`)
   const r5 = run(['run', 'x'], { FX_EXIT: '3' })
   check('the Node road propagates the runtime\'s exit code', r5.status === 3, `status=${r5.status}`)
