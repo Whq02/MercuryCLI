@@ -157,6 +157,31 @@ for (const [from, to] of [['1.0.0-rc.1', '1.0.0-rc.2'], ['1.0.0-rc.2', '1.0.0'],
   check(`${from} is not offered after ${to}`, decideFaceNotice(cached(from, to), to) === null)
 }
 
+section('§5 the two switches: MERCURY_UPDATE_NOTICE=0 and MERCURY_DISABLE_NONESSENTIAL_TRAFFIC each keep the daily check dark')
+{
+  const { quietUpdateCheckArmed, scheduleQuietUpdateNotice } = await import('../../src/services/privateChannel/quietUpdateNotice.ts')
+  const saved = { notice: process.env.MERCURY_UPDATE_NOTICE, traffic: process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC }
+  delete process.env.MERCURY_UPDATE_NOTICE
+  delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  check('with neither switch set the check is armed', quietUpdateCheckArmed() === true)
+  process.env.MERCURY_UPDATE_NOTICE = '0'
+  check('MERCURY_UPDATE_NOTICE=0 disarms it', quietUpdateCheckArmed() === false)
+  delete process.env.MERCURY_UPDATE_NOTICE
+  process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+  check('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC disarms it, as its text says', quietUpdateCheckArmed() === false)
+  check('the predicate reads the environment it is handed', quietUpdateCheckArmed({}) === true && quietUpdateCheckArmed({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: 'yes' }) === false)
+  const notices: string[] = []
+  const before = JSON.stringify(readUpdateNoticeCache(updateNoticeCachePath(home)))
+  const disarm = scheduleQuietUpdateNotice(text => notices.push(text), { delayMs: 0 })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  check('under the traffic switch nothing is scheduled: no notice, the cache untouched', notices.length === 0 && JSON.stringify(readUpdateNoticeCache(updateNoticeCachePath(home))) === before, JSON.stringify(notices))
+  disarm()
+  if (saved.notice === undefined) delete process.env.MERCURY_UPDATE_NOTICE
+  else process.env.MERCURY_UPDATE_NOTICE = saved.notice
+  if (saved.traffic === undefined) delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+  else process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = saved.traffic
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

@@ -5,6 +5,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
 import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
@@ -169,8 +170,12 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
   return 'failed'
 }
 
+export function quietUpdateCheckArmed(env: NodeJS.ProcessEnv = process.env): boolean {
+  return flagEnabled('MERCURY_UPDATE_NOTICE') && getEssentialTrafficOnlyReason(env) === null
+}
+
 export function scheduleQuietUpdateNotice(notify: (text: string) => void, opts: { delayMs?: number } = {}): () => void {
-  if (!flagEnabled('MERCURY_UPDATE_NOTICE')) return () => {}
+  if (!quietUpdateCheckArmed()) return () => {}
   const timer = setTimeout(() => {
     reconcileManagedShims(resolveLayoutRoots())
     void runQuietUpdateCheck({
