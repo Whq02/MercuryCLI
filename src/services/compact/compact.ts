@@ -81,6 +81,7 @@ import { operatorTextOf, selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
 import { renderFoldMemory, retireFoldToMemory } from './foldRetirement.js'
 import { carryFoldPrefix } from './cacheEpoch.js'
+import { defersUnderLaw } from '../providers/toolEconomy.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
 import { fitToolResultImages } from '../../utils/messages/imageRequestFit.js'
@@ -366,6 +367,14 @@ export type RecompactionInfo = {
   querySource?: string
 }
 
+
+function foldDefersNow(context: ToolUseContext): (name: string) => boolean {
+  const model = context.options.engineModel
+  return name => {
+    const tool = context.options.tools.find(candidate => candidate.name === name)
+    return tool !== undefined && defersUnderLaw(tool, model)
+  }
+}
 
 export function buildPostCompactMessages(result: CompactionResult): Message[] {
   const { boundaryMarker, operatorMessages, summaryMessages, messagesToKeep, attachments, hookResults } = result
@@ -1961,7 +1970,7 @@ export async function compactConversation(
       compactionUsage: usage,
       ...(proseSkippedReceipt !== undefined ? { notes: [proseSkippedReceipt] } : {}),
     }
-    const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered)
+    const cacheEpoch = carryFoldPrefix(messages, buildPostCompactMessages(partial), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered, foldDefersNow(context))
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partial.attachments.push(cacheEpoch.attachment)
     let truePostCompactTokenCount = landingCount(buildPostCompactMessages(partial))
@@ -2186,7 +2195,7 @@ export async function partialCompactConversation(
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
-    const cacheEpoch = carryFoldPrefix(allMessages, buildPostCompactMessages(partialResult), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered)
+    const cacheEpoch = carryFoldPrefix(allMessages, buildPostCompactMessages(partialResult), String(rosterOwnerFromToolUseContext(context)), context.options.engineModel, usage, discovered, foldDefersNow(context))
     boundary.compactMetadata.cacheEpoch = cacheEpoch.receipt
     if (cacheEpoch.attachment) partialResult.attachments.push(cacheEpoch.attachment)
     const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))

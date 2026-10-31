@@ -17,6 +17,7 @@ export type FoldCacheEpoch = {
   messagePrefixPreserved: false
   summary: FoldCacheUsage | null
   loadedInFull?: string[]
+  deferredNow?: string[]
 }
 
 type BoundRecord = Extract<Attachment, { type: 'bound_prefix' }>
@@ -48,7 +49,18 @@ function loadedInFull(definition: string | undefined): string | undefined {
   }
 }
 
-export function carryFoldPrefix(source: readonly Message[], landing: readonly Message[], owner: string, model: string, usage?: ApiUsage, admitted: ReadonlySet<string> = new Set()): { attachment?: AttachmentMessage; receipt: FoldCacheEpoch } {
+function deferredDefinition(definition: string | undefined): string | undefined {
+  if (definition === undefined) return undefined
+  try {
+    const parsed = JSON.parse(definition) as Record<string, unknown>
+    if (parsed === null || typeof parsed !== 'object' || parsed.defer_loading === true) return definition
+    return JSON.stringify({ ...parsed, defer_loading: true })
+  } catch {
+    return definition
+  }
+}
+
+export function carryFoldPrefix(source: readonly Message[], landing: readonly Message[], owner: string, model: string, usage?: ApiUsage, admitted: ReadonlySet<string> = new Set(), defersNow?: (name: string) => boolean): { attachment?: AttachmentMessage; receipt: FoldCacheEpoch } {
   const beforeKey = conversationRosterKey(owner, source, model)
   const afterKey = conversationRosterKey(owner, landing, model)
   const previous = [...source].reverse().find(row => row.type === 'attachment' && row.attachment.type === 'bound_prefix' && row.attachment.boundKey === beforeKey)
@@ -57,21 +69,30 @@ export function carryFoldPrefix(source: readonly Message[], landing: readonly Me
   }
   const before = previous.attachment
   const flipped: string[] = []
+  const deferredNow: string[] = []
   const roster = before.roster.map(mark => {
-    if (!mark.deferred || !admitted.has(mark.name)) return mark
-    flipped.push(mark.name)
-    const definition = loadedInFull(mark.definition)
-    return { ...mark, deferred: false, ...(definition !== undefined ? { definition } : {}) }
+    if (mark.deferred && admitted.has(mark.name)) {
+      flipped.push(mark.name)
+      const definition = loadedInFull(mark.definition)
+      return { ...mark, deferred: false, ...(definition !== undefined ? { definition } : {}) }
+    }
+    if (!mark.deferred && before.rosterEnabled && !admitted.has(mark.name) && defersNow?.(mark.name) === true) {
+      deferredNow.push(mark.name)
+      const definition = deferredDefinition(mark.definition)
+      return { ...mark, deferred: true, ...(definition !== undefined ? { definition } : {}) }
+    }
+    return mark
   })
   const after: BoundRecord = { ...before, boundKey: afterKey, roster }
   const beforeHash = stableFoldPrefixHash(before)
   const afterHash = stableFoldPrefixHash(after)
-  if (flipped.length === 0 && beforeHash !== afterHash) throw new Error('The stable fold prefix changed; the original context is kept.')
+  const moved = flipped.length > 0 || deferredNow.length > 0
+  if (!moved && beforeHash !== afterHash) throw new Error('The stable fold prefix changed; the original context is kept.')
   return {
     attachment: createAttachmentMessage(after),
     receipt: {
       version: 1,
-      state: flipped.length === 0 ? 'preserved' : 'moved',
+      state: moved ? 'moved' : 'preserved',
       beforeKey,
       afterKey,
       beforeHash,
@@ -79,6 +100,7 @@ export function carryFoldPrefix(source: readonly Message[], landing: readonly Me
       messagePrefixPreserved: false,
       summary: foldCacheUsage(usage),
       ...(flipped.length > 0 ? { loadedInFull: flipped } : {}),
+      ...(deferredNow.length > 0 ? { deferredNow } : {}),
     },
   }
 }

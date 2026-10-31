@@ -186,6 +186,10 @@ interface AdmissionDeclaration {
   tools: Tools
 }
 
+export function defersUnderLaw(tool: Tool, model: string): boolean {
+  return (isDeferredTool(tool) && !loadsInFullFor(tool, model)) || defersOnCloudFor(tool, model)
+}
+
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
@@ -220,7 +224,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     if (enabled && !supportsToolDeferral(model, wire.form)) enabled = false
   }
 
-  const defers = (t: Tool): boolean => (isDeferredTool(t) && !loadsInFullFor(t, model)) || defersOnCloudFor(t, model) || input.alsoDefer?.(t) === true
+  const defers = (t: Tool): boolean => defersUnderLaw(t, model) || input.alsoDefer?.(t) === true
 
   const deferredNames = new Set<string>()
   if (latched !== undefined) {
