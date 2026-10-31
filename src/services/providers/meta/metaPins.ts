@@ -1,4 +1,5 @@
-export const META_OBSERVED_AT = '2026-09-30'
+export const META_OBSERVED_AT = '2026-10-31'
+export const META_PRICING_PAGE = 'https://dev.meta.ai/docs/pricing-rate-limits'
 export const META_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
 
 export function isMetaModelId(model: string): boolean {
@@ -17,6 +18,7 @@ export interface MetaDisplayPin {
   id: string
   displayName: string
   observedAt: string
+  source?: string
   contextWindow: number
   outputMax?: number
   costInPerMtok: number
@@ -29,7 +31,7 @@ export interface MetaDisplayPin {
 }
 
 const facts = {
-  observedAt: META_OBSERVED_AT, contextWindow: 1_048_576,
+  observedAt: META_OBSERVED_AT, source: META_PRICING_PAGE, contextWindow: 1_048_576,
   tools: true, structuredOutputs: true, images: true,
   costInPerMtok: 1.25, cachedInPerMtok: 0.15, costOutPerMtok: 4.25, efforts: META_EFFORTS,
 } as const
@@ -37,7 +39,7 @@ const contributor = { costInPerMtok: 0.10, cachedInPerMtok: 0.002, costOutPerMto
 
 export const META_DISPLAY_PINS: readonly MetaDisplayPin[] = [
   { ...facts, id: 'muse-spark-1.3', displayName: 'Muse Spark 1.3', outputMax: 131_072, efforts: [...META_EFFORTS, 'max'] },
-  { ...facts, id: 'muse-wonder-1.0', displayName: 'Muse Wonder 1.0', observedAt: '2026-10-25', costInPerMtok: 4, cachedInPerMtok: 0.2, costOutPerMtok: 20, efforts: [...META_EFFORTS, 'max'] },
+  { ...facts, id: 'muse-wonder-1.0', displayName: 'Muse Wonder 1.0', costInPerMtok: 4, cachedInPerMtok: 0.2, costOutPerMtok: 20, efforts: [...META_EFFORTS, 'max'] },
   { ...facts, id: 'muse-spark-1.2', displayName: 'Muse Spark 1.2' },
   { ...facts, id: 'muse-spark-1.1', displayName: 'Muse Spark 1.1' },
   { ...facts, ...contributor, id: 'muse-spark-1.3-contributor', displayName: 'Muse Spark 1.3 Contributor (training permitted)' },

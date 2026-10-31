@@ -150,12 +150,12 @@ section('§1 the K3.1 ids resolve from the dated pins: window, ceiling, dial, de
 {
   for (const id of API_IDS) {
     const pin = pins.kimiDisplayPin(id)
-    check(`${id} is pinned with today's date and its source page`, pin !== undefined && pin.observedAt === '2026-10-25' && typeof pin.source === 'string' && pin.source.startsWith('https://platform.kimi.ai/'), JSON.stringify(pin))
+    check(`${id} is pinned with the date it was read and the Moonshot pricing page, carrying the page's prices`, pin !== undefined && pin.observedAt === '2026-10-31' && pin.source === 'https://platform.moonshot.ai/docs/pricing/chat' && pin.costInPerMtok === (id === 'kimi-k3.1-pro' ? 2 : 4) && pin.costOutPerMtok === (id === 'kimi-k3.1-pro' ? 10 : 20) && pin.cachedInPerMtok === 0.2, JSON.stringify(pin))
     check(`${id}: 1,048,576-token window, output ceiling 1,048,576, dial low·high·max, default max, thinking always on`, pin?.contextWindow === 1_048_576 && pin?.outputMax === 1_048_576 && (pin?.efforts ?? []).join(',') === DIAL && pin?.defaultEffort === 'max' && pin?.thinking === 'always-on', JSON.stringify(pin))
   }
   for (const id of PLAN_IDS) {
     const pin = pins.kimiPlanPin(id)
-    check(`${id} is a plan pin with today's date, the Kimi Code page, the 1,048,576 window, the dial and default high`, pin !== undefined && pin.observedAt === '2026-10-25' && pin.source?.startsWith('https://www.kimi.com/code/') === true && pin.contextWindow === 1_048_576 && (pin.efforts ?? []).join(',') === DIAL && pin.defaultEffort === 'high' && pin.thinking === 'always-on', JSON.stringify(pin))
+    check(`${id} is a plan pin with today's date, the Kimi Code page, the 1,048,576 window, the dial and default high`, pin !== undefined && pin.observedAt === '2026-10-31' && pin.source?.startsWith('https://www.kimi.com/code/') === true && pin.contextWindow === 1_048_576 && (pin.efforts ?? []).join(',') === DIAL && pin.defaultEffort === 'high' && pin.thinking === 'always-on', JSON.stringify(pin))
   }
   check('the display names are the pins\', not mechanical titles', pins.kimiDisplayName('kimi-k3.1-pro') === 'Kimi K3.1 Pro' && pins.kimiDisplayName('kimi-k3.1-pro-highspeed') === 'Kimi K3.1 Pro Highspeed' && pins.kimiDisplayName('k3.1-pro') === 'K3.1 Pro' && pins.kimiShortName('kimi-k3.1-pro-highspeed') === 'K3.1 Pro Highspeed')
   check('the K3 series set carries every K3.1 spelling beside the K3 ones', K3_SERIES.every(id => pins.KIMI_K3_MODELS.has(id)), [...pins.KIMI_K3_MODELS].join(','))

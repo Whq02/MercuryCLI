@@ -19,6 +19,7 @@ export interface XaiDisplayPin {
   id: string
   displayName: string
   observedAt: string
+  source?: string
   contextWindow?: number
   outputMax?: number
   costInPerMtok?: number
@@ -35,39 +36,41 @@ export interface XaiDisplayPin {
   defaultEffort?: string
 }
 
+const XAI_MODELS_PAGE = 'https://docs.x.ai/docs/models'
 const facts = {
-  observedAt: '2026-09-30', tools: true, structuredOutputs: true,
+  tools: true, structuredOutputs: true,
   temperature: true, images: true, longContextThreshold: 200_000,
 } as const
+const read = { observedAt: '2026-10-31', source: XAI_MODELS_PAGE } as const
 
 export const XAI_DISPLAY_PINS: readonly XaiDisplayPin[] = [
-  { ...facts, id: 'grok-4.7', displayName: 'Grok 4.7', contextWindow: 500_000,
+  { ...facts, ...read, id: 'grok-4.7', displayName: 'Grok 4.7', contextWindow: 500_000,
     reasoning: true, efforts: ['low', 'medium', 'high', 'xhigh'], defaultEffort: 'high',
     costInPerMtok: 2, cachedInPerMtok: 0.5, costOutPerMtok: 6,
     longContext: { costInPerMtok: 4, cachedInPerMtok: 1, costOutPerMtok: 12 } },
-  { ...facts, id: 'grok-4.7-build-fast', displayName: 'Grok 4.7 Fast', contextWindow: 500_000,
+  { ...facts, observedAt: '2026-09-30', id: 'grok-4.7-build-fast', displayName: 'Grok 4.7 Fast', contextWindow: 500_000,
     reasoning: true, efforts: ['low', 'medium', 'high', 'xhigh'], defaultEffort: 'high',
     costInPerMtok: 4, cachedInPerMtok: 1, costOutPerMtok: 12,
     longContext: { costInPerMtok: 8, cachedInPerMtok: 2, costOutPerMtok: 24 } },
-  { ...facts, id: 'grok-4.6', displayName: 'Grok 4.6', contextWindow: 500_000,
+  { ...facts, ...read, id: 'grok-4.6', displayName: 'Grok 4.6', contextWindow: 500_000,
     reasoning: true, efforts: ['low', 'medium', 'high', 'xhigh'], defaultEffort: 'high',
     costInPerMtok: 2, cachedInPerMtok: 0.5, costOutPerMtok: 6,
     longContext: { costInPerMtok: 4, cachedInPerMtok: 1, costOutPerMtok: 12 } },
-  { ...facts, id: 'grok-4.5', displayName: 'Grok 4.5', contextWindow: 500_000,
+  { ...facts, ...read, id: 'grok-4.5', displayName: 'Grok 4.5', contextWindow: 500_000,
     reasoning: true, efforts: ['low', 'medium', 'high'], defaultEffort: 'high',
     costInPerMtok: 2, cachedInPerMtok: 0.3, costOutPerMtok: 6,
     longContext: { costInPerMtok: 4, cachedInPerMtok: 0.6, costOutPerMtok: 12 } },
-  { ...facts, id: 'grok-4.3', displayName: 'Grok 4.3', contextWindow: 1_000_000,
+  { ...facts, ...read, id: 'grok-4.3', displayName: 'Grok 4.3', contextWindow: 1_000_000,
     reasoning: true, efforts: ['none', 'low', 'medium', 'high', 'xhigh'], defaultEffort: 'low',
     costInPerMtok: 1.25, cachedInPerMtok: 0.2, costOutPerMtok: 2.5,
     longContext: { costInPerMtok: 2.5, cachedInPerMtok: 0.4, costOutPerMtok: 5 } },
-  { ...facts, id: 'grok-4.20-0309-reasoning', displayName: 'Grok 4.20', contextWindow: 1_000_000,
+  { ...facts, ...read, id: 'grok-4.20-0309-reasoning', displayName: 'Grok 4.20', contextWindow: 1_000_000,
     reasoning: true, costInPerMtok: 1.25, cachedInPerMtok: 0.2, costOutPerMtok: 2.5,
     longContext: { costInPerMtok: 2.5, cachedInPerMtok: 0.4, costOutPerMtok: 5 } },
-  { ...facts, id: 'grok-4.20-0309-non-reasoning', displayName: 'Grok 4.20 (Non-Reasoning)', contextWindow: 1_000_000,
+  { ...facts, ...read, id: 'grok-4.20-0309-non-reasoning', displayName: 'Grok 4.20 (Non-Reasoning)', contextWindow: 1_000_000,
     reasoning: false, efforts: [], costInPerMtok: 1.25, cachedInPerMtok: 0.2, costOutPerMtok: 2.5,
     longContext: { costInPerMtok: 2.5, cachedInPerMtok: 0.4, costOutPerMtok: 5 } },
-  { ...facts, id: 'grok-build-0.1', displayName: 'Grok Build 0.1', contextWindow: 256_000,
+  { ...facts, ...read, id: 'grok-build-0.1', displayName: 'Grok Build 0.1', contextWindow: 256_000,
     reasoning: true, costInPerMtok: 1, cachedInPerMtok: 0.2, costOutPerMtok: 2,
     longContext: { costInPerMtok: 2, cachedInPerMtok: 0.4, costOutPerMtok: 4 } },
 ]

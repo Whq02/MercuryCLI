@@ -64,11 +64,9 @@ export const COST_OPUS_5_5: ModelCosts = {
   ...tierFromInputOutput(4, 20),
   promptCacheReadTokens: 0.2,
 }
-const COST_SONNET_5_5 = {
+const COST_SONNET_5_5: ModelCosts = {
   ...COST_TIER_2_10,
   promptCacheReadTokens: 0.1,
-  observedAt: '2026-10-25',
-  source: 'https://platform.claude.com/docs/en/about-claude/pricing',
 }
 const COST_HAIKU_35: ModelCosts = {
   inputTokens: 0.8,
@@ -110,6 +108,27 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-opus-5-5': COST_OPUS_5_5,
   'claude-fable-5': COST_TIER_10_50,
   'claude-fable-5-1': COST_FABLE_5_1,
+}
+
+export const ANTHROPIC_PRICING_PAGE = 'https://platform.claude.com/docs/en/about-claude/pricing'
+
+export const ANTHROPIC_PRICE_OBSERVED_AT: Readonly<Partial<Record<ModelShortName, { observedAt: string; source: string }>>> = {
+  'claude-3-5-haiku': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-haiku-4-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-haiku-5-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-sonnet-4': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-sonnet-4-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-sonnet-4-6': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-sonnet-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-sonnet-5-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-4': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-4-1': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-4-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-4-6': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-opus-5-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-fable-5': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
+  'claude-fable-5-1': { observedAt: '2026-10-31', source: ANTHROPIC_PRICING_PAGE },
 }
 
 type UsageLike = {

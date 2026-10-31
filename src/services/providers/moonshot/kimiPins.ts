@@ -45,14 +45,14 @@ export interface KimiDisplayPin {
 }
 
 const K3_SERIES_EFFORTS: readonly string[] = ['low', 'high', 'max']
-const KIMI_K3_1_PRO_QUICKSTART = 'https://platform.kimi.ai/docs/guide/kimi-k3-1-pro-quickstart'
 const KIMI_CODE_MODELS_PAGE = 'https://www.kimi.com/code/docs/en/kimi-code/models.html'
+const KIMI_PRICING_PAGE = 'https://platform.moonshot.ai/docs/pricing/chat'
 
 export const KIMI_PLAN_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'k3.1-pro',
     displayName: 'K3.1 Pro',
-    observedAt: '2026-10-25',
+    observedAt: '2026-10-31',
     source: KIMI_CODE_MODELS_PAGE,
     contextWindow: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
@@ -62,7 +62,7 @@ export const KIMI_PLAN_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'k3.1-pro-highspeed',
     displayName: 'K3.1 Pro Highspeed',
-    observedAt: '2026-10-25',
+    observedAt: '2026-10-31',
     source: KIMI_CODE_MODELS_PAGE,
     contextWindow: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
@@ -72,7 +72,8 @@ export const KIMI_PLAN_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'k3',
     displayName: 'K3',
-    observedAt: '2026-09-25',
+    observedAt: '2026-10-31',
+    source: KIMI_CODE_MODELS_PAGE,
     contextWindow: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
     defaultEffort: 'high',
@@ -81,7 +82,8 @@ export const KIMI_PLAN_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'k3-256k',
     displayName: 'K3 256K',
-    observedAt: '2026-09-25',
+    observedAt: '2026-10-31',
+    source: KIMI_CODE_MODELS_PAGE,
     contextWindow: 262_144,
     efforts: K3_SERIES_EFFORTS,
     defaultEffort: 'high',
@@ -93,7 +95,8 @@ export const KIMI_DISPLAY_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'kimi-k3',
     displayName: 'Kimi K3',
-    observedAt: '2026-08-21',
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
     contextWindow: 1_048_576,
     outputMax: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
@@ -106,42 +109,63 @@ export const KIMI_DISPLAY_PINS: readonly KimiDisplayPin[] = [
   {
     id: 'kimi-k3.1-pro',
     displayName: 'Kimi K3.1 Pro',
-    observedAt: '2026-10-25',
-    source: KIMI_K3_1_PRO_QUICKSTART,
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
     contextWindow: 1_048_576,
     outputMax: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
     defaultEffort: 'max',
     thinking: 'always-on',
+    costInPerMtok: 2,
+    costOutPerMtok: 10,
+    cachedInPerMtok: 0.2,
   },
   {
     id: 'kimi-k3.1-pro-highspeed',
     displayName: 'Kimi K3.1 Pro Highspeed',
-    observedAt: '2026-10-25',
-    source: KIMI_K3_1_PRO_QUICKSTART,
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
     contextWindow: 1_048_576,
     outputMax: 1_048_576,
     efforts: K3_SERIES_EFFORTS,
     defaultEffort: 'max',
     thinking: 'always-on',
+    costInPerMtok: 4,
+    costOutPerMtok: 20,
+    cachedInPerMtok: 0.2,
   },
   {
     id: 'kimi-k2.7-code',
     displayName: 'Kimi K2.7 Code',
-    observedAt: '2026-08-21',
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
+    contextWindow: 262_144,
     thinking: 'always-on',
+    costInPerMtok: 0.95,
+    costOutPerMtok: 4,
+    cachedInPerMtok: 0.19,
   },
   {
     id: 'kimi-k2.7-code-highspeed',
     displayName: 'Kimi K2.7 Code Highspeed',
-    observedAt: '2026-08-21',
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
+    contextWindow: 262_144,
     thinking: 'always-on',
+    costInPerMtok: 1.9,
+    costOutPerMtok: 8,
+    cachedInPerMtok: 0.38,
   },
   {
     id: 'kimi-k2.6',
     displayName: 'Kimi K2.6',
-    observedAt: '2026-08-21',
+    observedAt: '2026-10-31',
+    source: KIMI_PRICING_PAGE,
+    contextWindow: 262_144,
     thinking: 'opt-in',
+    costInPerMtok: 0.95,
+    costOutPerMtok: 4,
+    cachedInPerMtok: 0.16,
   },
 ]
 

@@ -127,7 +127,7 @@ section('3 · the capability edge')
   delete process.env.MERCURY_DISABLE_1M_CONTEXT
   __resetHuggingfaceCatalogueForTest()
   const pinned = resolveContextWindow('huggingface/zai-org/GLM-5.2')
-  check('with no catalogue the dated pin stands in (static-pin)', pinned.effectiveWindow === 1_048_576 && pinned.source === 'static-pin' && huggingfaceDisplayPin('zai-org/GLM-5.2')?.observedAt === '2026-08-22')
+  check('with no catalogue the dated pin stands in (static-pin)', pinned.effectiveWindow === 1_048_576 && pinned.source === 'static-pin' && huggingfaceDisplayPin('zai-org/GLM-5.2')?.observedAt === '2026-10-31')
   const unknown = resolveContextWindow('huggingface/nobody/unpinned-model')
   check('an unlisted, unpinned slug falls to the conservative default, labelled', unknown.effectiveWindow === 200_000 && unknown.source === 'fallback')
   check('no effort dial is offered (display equals dispatch)', modelSupportsEffort('huggingface/openai/gpt-oss-120b') === false && modelSupportsMaxEffort('huggingface/openai/gpt-oss-120b') === false)

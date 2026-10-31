@@ -37,7 +37,7 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
   {
     id: 'deepseek-v4-pro',
     displayName: 'DeepSeek V4 Pro',
-    observedAt: '2026-09-17',
+    observedAt: '2026-10-31',
     contextWindow: 1_048_576,
     outputMax: 393_216,
     images: false,
@@ -48,7 +48,7 @@ export const DEEPSEEK_DISPLAY_PINS: readonly DeepseekDisplayPin[] = [
   {
     id: 'deepseek-flash',
     displayName: 'DeepSeek V4.1 Flash',
-    observedAt: '2026-09-17',
+    observedAt: '2026-10-31',
     contextWindow: 1_048_576,
     outputMax: 393_216,
     images: true,
@@ -75,7 +75,7 @@ export function deepseekDisplayName(id: string): string {
 }
 
 export const DEEPSEEK_PRICING_SOURCE = 'https://api-docs.deepseek.com/quick_start/pricing/'
-export const DEEPSEEK_PRICING_OBSERVED_AT = '2026-10-23'
+export const DEEPSEEK_PRICING_OBSERVED_AT = '2026-10-31'
 
 const HOLIDAYS_2026: readonly [string, string][] = [
   ['01-01', '01-03'], ['02-15', '02-23'], ['04-04', '04-06'],

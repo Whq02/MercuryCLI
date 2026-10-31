@@ -130,7 +130,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
   {
     id: 'gpt-6-astra',
     displayName: 'GPT-6 Astra',
-    observedAt: '2026-09-04',
+    observedAt: '2026-10-31',
+    source: 'https://developers.openai.com/api/docs/pricing',
     contextWindow: 1_050_000,
     outputMax: 128_000,
     costInPerMtok: 10,
@@ -147,7 +148,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
   {
     id: 'gpt-5.6-sol',
     displayName: 'GPT-5.6 Sol',
-    observedAt: '2026-09-05',
+    observedAt: '2026-10-31',
+    source: 'https://developers.openai.com/api/docs/pricing',
     contextWindow: 1_050_000,
     outputMax: 128_000,
     costInPerMtok: 4,
@@ -160,7 +162,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
   {
     id: 'gpt-5.6-terra',
     displayName: 'GPT-5.6 Terra',
-    observedAt: '2026-09-05',
+    observedAt: '2026-10-31',
+    source: 'https://developers.openai.com/api/docs/pricing',
     contextWindow: 1_050_000,
     outputMax: 128_000,
     costInPerMtok: 2,
@@ -172,7 +175,8 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
   {
     id: 'gpt-5.6-luna',
     displayName: 'GPT-5.6 Luna',
-    observedAt: '2026-09-05',
+    observedAt: '2026-10-31',
+    source: 'https://developers.openai.com/api/docs/pricing',
     contextWindow: 1_050_000,
     outputMax: 128_000,
     costInPerMtok: 0.2,

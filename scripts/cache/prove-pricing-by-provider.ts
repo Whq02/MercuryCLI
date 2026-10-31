@@ -94,6 +94,15 @@ section('§1 one owner per route — each family prices at its own recorded rate
   const gpt = gptDisplayPin('gpt-5.6-sol')!
   const gptPricing = cost.resolveModelPricing('gpt-5.6-sol')
   check('openai: gpt-5.6-sol at its pin, basis recorded', gptPricing.basis === 'recorded' && gptPricing.costs.inputTokens === gpt.costInPerMtok && gptPricing.costs.outputTokens === gpt.costOutPerMtok)
+  check('openai: the four rows read on the pricing page 2026-10-31 carry that date and the page (gpt-6-astra $10/$50/$1 cached/$12.50 write)', ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'].every(id => gptDisplayPin(id)?.observedAt === '2026-10-31' && gptDisplayPin(id)?.source === 'https://developers.openai.com/api/docs/pricing') && gptDisplayPin('gpt-6-astra')?.costInPerMtok === 10 && gptDisplayPin('gpt-6-astra')?.costOutPerMtok === 50 && gptDisplayPin('gpt-6-astra')?.cachedInPerMtok === 1 && gptDisplayPin('gpt-6-astra')?.cacheWritePerMtok === 12.5)
+
+  const anthropicDated = Object.entries(cost.ANTHROPIC_PRICE_OBSERVED_AT)
+  check('anthropic: every row on platform.claude.com pricing carries its date and the page; the two retired Sonnets the page no longer lists carry none', anthropicDated.length === 16 && anthropicDated.every(([, row]) => row?.observedAt === '2026-10-31' && row?.source === cost.ANTHROPIC_PRICING_PAGE) && cost.ANTHROPIC_PRICE_OBSERVED_AT['claude-3-5-sonnet'] === undefined && cost.ANTHROPIC_PRICE_OBSERVED_AT['claude-3-7-sonnet'] === undefined && anthropicDated.every(([name]) => name in cost.MODEL_COSTS), JSON.stringify(anthropicDated.map(([name]) => name)))
+  const fable = cost.MODEL_COSTS['claude-fable-5-1']
+  const opus55 = cost.MODEL_COSTS['claude-opus-5-5']
+  const sonnet55 = cost.MODEL_COSTS['claude-sonnet-5-5']
+  const haiku55 = cost.MODEL_COSTS['claude-haiku-5-5']
+  check('anthropic: the dated rows carry the page\'s prices (Fable 5.1 $10/$50, 5m write $12.50, hit $0.25; Opus 5.5 $4/$20/$0.20; Sonnet 5.5 $2/$10/$0.10; Haiku 5.5 $0.10/$0.50/$0.01)', fable.inputTokens === 10 && fable.outputTokens === 50 && fable.promptCacheWriteTokens === 12.5 && fable.promptCacheReadTokens === 0.25 && opus55.inputTokens === 4 && opus55.outputTokens === 20 && opus55.promptCacheReadTokens === 0.2 && sonnet55.inputTokens === 2 && sonnet55.outputTokens === 10 && sonnet55.promptCacheReadTokens === 0.1 && haiku55.inputTokens === 0.1 && haiku55.outputTokens === 0.5 && near(haiku55.promptCacheReadTokens, 0.01))
 
   const glm = glmPricePin('glm-5.3')!
   const glmPricing = cost.resolveModelPricing('glm-5.3')
@@ -109,7 +118,7 @@ section('§1 one owner per route — each family prices at its own recorded rate
   const kimi = kimiDisplayPin('kimi-k3')!
   const kimiPricing = cost.resolveModelPricing('kimi-k3')
   check('moonshot: kimi-k3 at its pin, basis recorded', kimiPricing.basis === 'recorded' && kimiPricing.costs.inputTokens === kimi.costInPerMtok && kimiPricing.costs.promptCacheReadTokens === kimi.cachedInPerMtok)
-  check('moonshot: an unpriced pin row (kimi-k2.6 states no price) is unpriced, never a tier', cost.resolveModelPricing('kimi-k2.6').basis === 'unpriced')
+  check('moonshot: every pin row carries the pricing page\'s figures (kimi-k2.6 $0.95/$4/$0.16, read 2026-10-31); an id the table does not state is unpriced, never a tier', kimiDisplayPin('kimi-k2.6')?.costInPerMtok === 0.95 && kimiDisplayPin('kimi-k2.6')?.costOutPerMtok === 4 && kimiDisplayPin('kimi-k2.6')?.cachedInPerMtok === 0.16 && cost.resolveModelPricing('kimi-k2.6').basis === 'recorded' && cost.resolveModelPricing('kimi-k1.5-nonesuch').basis === 'unpriced')
 
   const flash = deepseekDisplayPin('deepseek-flash')!
   const dsPricing = cost.resolveModelPricing('deepseek-flash')
@@ -262,7 +271,7 @@ section('§4 the display string follows the same owner')
 {
   check('glm-5.3 displays its recorded rate', cost.getModelPricingString('glm-5.3') === '$1.40/$4.40 per Mtok', String(cost.getModelPricingString('glm-5.3')))
   check('gemini-2.5-flash displays its recorded rate', cost.getModelPricingString('gemini-2.5-flash') === '$0.30/$2.50 per Mtok', String(cost.getModelPricingString('gemini-2.5-flash')))
-  check('a Hugging Face floor displays (it is a published figure)', cost.getModelPricingString('huggingface/deepseek-ai/DeepSeek-V4-Pro-0813') === '$1.32/$3.96 per Mtok')
+  check('a Hugging Face floor displays (it is a published figure: the cheapest live provider on the router, read 2026-10-31)', cost.getModelPricingString('huggingface/deepseek-ai/DeepSeek-V4-Pro-0813') === '$1.30/$2.60 per Mtok', String(cost.getModelPricingString('huggingface/deepseek-ai/DeepSeek-V4-Pro-0813')))
   check('an unpriced id displays nothing', cost.getModelPricingString('compat/fixture-model') === undefined)
   check('a same-family estimate displays nothing (the display never shows a guessed figure)', cost.getModelPricingString('claude-nonesuch-9') === undefined)
   check('the first-party rows still display', cost.getModelPricingString('claude-sonnet-5') === '$2/$10 per Mtok')
@@ -301,7 +310,7 @@ section('§5 the shape')
   const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('the Usage tab spells its spend line through the one law (formatLaneSpend)', tab.includes('formatLaneSpend(spend)') && !tab.includes('spendPricingNote'))
   const tracker = readFileSync(join(ROOT, 'src/cost-tracker.ts'), 'utf8')
-  check('the ledger counts an unpriced turn at the one settlement door, and a wire-stated cost is exempt', tracker.includes("if (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced') {") && tracker.includes('recordUnpricedTurn(model)'))
+  check('the ledger counts an unpriced turn at the one settlement door, and a wire-stated cost is exempt', tracker.includes("if (invalidCost || (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced')) {") && tracker.includes('recordUnpricedTurn(model)'))
   check('the ledger persists and restores the count with the cost row', tracker.includes('lastUnpricedTurns: { ...getUnpricedTurns() }') && tracker.includes('unpricedTurns: config.lastUnpricedTurns'))
   check('the compat lane names its wire-stated cost as a price', (compat.includes("usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined") || compat.includes("usageSeen?.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined")))
   const facts = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')

@@ -20,7 +20,7 @@ const LONG_PROMPT_THRESHOLD = 200_000
 export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
   {
     id: 'gemini-4-argon',
-    observedAt: '2026-10-25',
+    observedAt: '2026-10-31',
     source: GEMINI_PRICING_PAGE,
     costInPerMtok: 2,
     costOutPerMtok: 10,
@@ -29,7 +29,7 @@ export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
   },
   {
     id: 'gemini-3.8-flash',
-    observedAt: '2026-10-11',
+    observedAt: '2026-10-31',
     source: GEMINI_PRICING_PAGE,
     costInPerMtok: 0.75,
     costOutPerMtok: 3.75,
@@ -47,7 +47,7 @@ export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
   },
   {
     id: 'gemini-3.6-flash',
-    observedAt: '2026-09-01',
+    observedAt: '2026-10-31',
     source: GEMINI_PRICING_PAGE,
     costInPerMtok: 0.75,
     costOutPerMtok: 3.75,
@@ -55,29 +55,29 @@ export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
     announced: { effectiveOn: '2027-01-01', costInPerMtok: 1.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.15 },
   },
   { id: 'gemini-3.5-flash', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 1.5, costOutPerMtok: 9, cachedInPerMtok: 0.15 },
-  { id: 'gemini-3.5-flash-lite', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.3, costOutPerMtok: 2.5, cachedInPerMtok: 0.03 },
-  { id: 'gemini-3.1-flash-lite', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025 },
+  { id: 'gemini-3.5-flash-lite', observedAt: '2026-10-31', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.3, costOutPerMtok: 2.5, cachedInPerMtok: 0.03 },
+  { id: 'gemini-3.1-flash-lite', observedAt: '2026-10-31', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.25, costOutPerMtok: 1.5, cachedInPerMtok: 0.025 },
   {
     id: 'gemini-3.1-pro-preview',
-    observedAt: '2026-09-01',
+    observedAt: '2026-10-31',
     source: GEMINI_PRICING_PAGE,
     costInPerMtok: 2,
     costOutPerMtok: 12,
     cachedInPerMtok: 0.2,
     longPrompt: { promptTokensAbove: LONG_PROMPT_THRESHOLD, costInPerMtok: 4, costOutPerMtok: 18, cachedInPerMtok: 0.4 },
   },
-  { id: 'gemini-3-flash-preview', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.5, costOutPerMtok: 3, cachedInPerMtok: 0.05 },
+  { id: 'gemini-3-flash-preview', observedAt: '2026-10-31', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.5, costOutPerMtok: 3, cachedInPerMtok: 0.05 },
   {
     id: 'gemini-2.5-pro',
-    observedAt: '2026-09-01',
+    observedAt: '2026-10-31',
     source: GEMINI_PRICING_PAGE,
     costInPerMtok: 1.25,
     costOutPerMtok: 10,
     cachedInPerMtok: 0.125,
     longPrompt: { promptTokensAbove: LONG_PROMPT_THRESHOLD, costInPerMtok: 2.5, costOutPerMtok: 15, cachedInPerMtok: 0.25 },
   },
-  { id: 'gemini-2.5-flash', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.3, costOutPerMtok: 2.5, cachedInPerMtok: 0.03 },
-  { id: 'gemini-2.5-flash-lite', observedAt: '2026-09-01', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.1, costOutPerMtok: 0.4, cachedInPerMtok: 0.01 },
+  { id: 'gemini-2.5-flash', observedAt: '2026-10-31', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.3, costOutPerMtok: 2.5, cachedInPerMtok: 0.03 },
+  { id: 'gemini-2.5-flash-lite', observedAt: '2026-10-31', source: GEMINI_PRICING_PAGE, costInPerMtok: 0.1, costOutPerMtok: 0.4, cachedInPerMtok: 0.01 },
 ]
 
 export function geminiPricePin(model: string): GeminiPricePin | undefined {
