@@ -64,6 +64,8 @@ export interface BoardStore {
   read(principal: BoardPrincipal, input: BoardRead): BoardPacket
   leadMention(): BoardEvent | null
   leadPosts(since: number): BoardEvent[]
+  leadPainted(): number
+  markLeadPainted(seq: number): void
   boundary(principal: BoardPrincipal, seen: ReadonlySet<string>): { text: string; eventIds: string[] } | null
   presented(principal: BoardPrincipal, eventIds: string[], requestId: string, readPackets?: string[]): void
   view(before?: number, thread?: string, team?: string): BoardViewSnapshot

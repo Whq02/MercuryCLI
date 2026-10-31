@@ -93,8 +93,9 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
     const session = String(getSessionId())
     const store = sessions.get(session)?.store
     if (!store) return
-    for (const event of store.leadPosts(painted.get(session) ?? 0)) {
+    for (const event of store.leadPosts(painted.get(session) ?? store.leadPainted())) {
       painted.set(session, event.seq)
+      store.markLeadPainted(event.seq)
       paint(event)
     }
     if (operatorPauseGate.holds('main') || !idle()) return

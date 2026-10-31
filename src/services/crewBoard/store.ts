@@ -50,6 +50,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     CREATE TABLE IF NOT EXISTS read_events (packet TEXT NOT NULL, recipient TEXT NOT NULL, event TEXT NOT NULL, PRIMARY KEY(packet, event));
     CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
     CREATE TABLE IF NOT EXISTS interests (agent TEXT NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(agent, kind, value));
+    CREATE TABLE IF NOT EXISTS lead_paint (recipient TEXT PRIMARY KEY, seq INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, author TEXT NOT NULL, op TEXT NOT NULL, digest TEXT NOT NULL, thread TEXT NOT NULL, record TEXT NOT NULL, UNIQUE(author, op));
     CREATE TABLE IF NOT EXISTS deliveries (recipient TEXT NOT NULL, event TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', packet TEXT, request TEXT, charge INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(recipient, event));`)
   const prior = db.prepare('SELECT session, wave FROM identity').get()
@@ -342,6 +343,14 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     },
     leadPosts(since) {
       return events(db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = 'main' AND d.mode LIKE 'mention-%' AND e.seq > ? ORDER BY e.seq").all(since))
+    },
+    leadPainted() {
+      const row = db.prepare("SELECT seq FROM lead_paint WHERE recipient = 'main'").get() as { seq?: number } | null
+      return Number(row?.seq ?? 0)
+    },
+    markLeadPainted(seq) {
+      if (readOnly) return
+      db.prepare("INSERT INTO lead_paint (recipient, seq) VALUES ('main', ?) ON CONFLICT(recipient) DO UPDATE SET seq = MAX(seq, excluded.seq)").run(seq)
     },
     leadMention() {
       const row = db.prepare("SELECT e.record FROM deliveries d JOIN events e ON e.id = d.event WHERE d.recipient = 'main' AND d.mode = 'mention-wake-body' AND d.state = 'pending' AND NOT EXISTS (SELECT 1 FROM seen_events WHERE agent = d.recipient AND event = d.event) ORDER BY e.seq LIMIT 1").get()
