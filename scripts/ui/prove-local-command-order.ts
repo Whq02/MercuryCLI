@@ -82,6 +82,17 @@ guts.rawRecords = [before, prompt]
 connector.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata('order-fixture', 'on') }), timestamp: echo.timestamp })
 connector.addDisplayRow(createCommandInputMessage('<local-command-stdout>COMMAND_ANSWER</local-command-stdout>'))
 await assertFrame('screen command receipt after the prompt lands')
+const overlapping = new DaemonSessionConnector({ sessionId: randomUUID(), runnerId: 'fixture', title: 'fixture', projectLabel: 'fixture', workspaceId: 'fixture', home })
+const overlapGuts = overlapping as unknown as Guts
+const stamp = (second: number): string => new Date(Date.UTC(2026, 0, 1, 10, 0, second)).toISOString()
+const firstEcho = { ...createUserMessage({ content: formatCommandLoadingMetadata('first', '') }), timestamp: stamp(1) }
+const firstAnswer = { ...createCommandInputMessage('<local-command-stdout>FIRST_ANSWER</local-command-stdout>'), timestamp: stamp(4) }
+const secondEcho = { ...createUserMessage({ content: formatCommandLoadingMetadata('second', '') }), timestamp: stamp(2) }
+const secondAnswer = { ...createCommandInputMessage('<local-command-stdout>SECOND_ANSWER</local-command-stdout>'), timestamp: stamp(5) }
+const laterPrompt = { ...prompt, timestamp: stamp(3) }
+overlapGuts.rawRecords = [laterPrompt, firstEcho, firstAnswer, secondEcho, secondAnswer]
+overlapGuts.paint()
+check('overlapping commands move as whole groups, never splitting an earlier echo from its answer', overlapping.records().map(row => row.uuid).join() === [firstEcho, firstAnswer, secondEcho, secondAnswer, laterPrompt].map(row => row.uuid).join())
 mounted?.unmount()
 await releaseScratchHome(home)
 console.log(`local-command-order: ${failures} failed`)
