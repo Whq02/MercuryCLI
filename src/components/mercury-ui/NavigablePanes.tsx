@@ -90,6 +90,7 @@ const DETAIL_WIDTH_MID = 34
 const VIEWPORT_RESERVE = 11
 const COMPOSER_SLOT_RESERVE = 2
 const ROW_OVERSCAN = 12
+const SELECTED_ROW_OFFSET = -2
 
 type Layout = 'wide' | 'mid' | 'fold' | 'inline'
 function pickLayout(cols: number): Layout {
@@ -432,9 +433,18 @@ export function NavigablePanes<Row>({
   const scrollRef = useRef<ScrollBoxHandle>(null)
   useLayoutEffect(() => {
     if (nav.rowRef.current && scrollRef.current) {
-      scrollRef.current.scrollToElement(nav.rowRef.current, -2)
+      scrollRef.current.scrollToElement(nav.rowRef.current, SELECTED_ROW_OFFSET)
     }
   }, [sel, nav.section, nav.rowRef])
+  const [, followScroll] = React.useReducer((n: number) => n + 1, 0)
+  const listMounted = !loading && !emptyState && sectionRows.length > 0
+  useEffect(() => {
+    const handle = scrollRef.current
+    if (!listMounted || !handle) return
+    return handle.subscribe(() => {
+      if (handle.getPendingDelta() !== 0) followScroll()
+    })
+  }, [listMounted])
 
   const detailVisible = nav.drilled && !!selectedRow
   const regionInner = Math.max(0, cols - 4)
@@ -479,11 +489,15 @@ export function NavigablePanes<Row>({
 
   const N = sectionRows.length
   const winSpan = listHeight + 2 * ROW_OVERSCAN
+  const maxTop = Math.max(0, N - listHeight)
+  const anchoredTop = Math.min(Math.max(0, sel + SELECTED_ROW_OFFSET), maxTop)
+  const restingTop = Math.min(Math.max(0, scrollRef.current?.getScrollTop() ?? anchoredTop), maxTop)
+  const settlingTop = Math.min(Math.max(0, restingTop + (scrollRef.current?.getPendingDelta() ?? 0)), maxTop)
   const winStart =
     N <= winSpan
       ? 0
-      : Math.min(Math.max(0, sel - (listHeight >> 1) - ROW_OVERSCAN), N - winSpan)
-  const winEnd = Math.min(N, winStart + winSpan)
+      : Math.min(Math.max(0, Math.min(anchoredTop, restingTop, settlingTop) - ROW_OVERSCAN), N - winSpan)
+  const winEnd = Math.min(N, Math.max(winStart + winSpan, Math.max(anchoredTop, restingTop, settlingTop) + listHeight + ROW_OVERSCAN))
 
   const resizeActive =
     expandable && (layout === 'fold' || layout === 'inline') && slackRows === 0

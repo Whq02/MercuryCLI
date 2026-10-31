@@ -71,7 +71,7 @@ export interface BoardStore {
 export type BoardModule = {
   open(path: string, sessionId: string, limits?: BoardLimits): BoardStore
   tool(host: BoardHost, store: () => BoardStore | null): Tool
-  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; tokens: import('../../utils/mercuryTokens.js').MercuryThemeTokens; wrapText: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
+  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; tokens: import('../../utils/mercuryTokens.js').MercuryThemeTokens; wrapText: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any, event: { stopImmediatePropagation(): void }) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
   page(record: { path: string; sessionId: string }, before?: number, thread?: string, team?: string): BoardViewSnapshot
   tail(record: { path: string; sessionId: string }): Pick<BoardStore, 'view' | 'subscribe' | 'close'>
 }

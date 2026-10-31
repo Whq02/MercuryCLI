@@ -219,7 +219,7 @@ export function useNavigablePanes({
       if (action === 'movePrevious' || action === 'moveNext') {
         const dir = action === 'movePrevious' ? -1 : 1
         const keys = keysRef.current
-        const cross = keys
+        const cross = keys && !key.wheelUp && !key.wheelDown
           ? crossSectionAtEdge(keys.map(k => k.length), clampedSection, clampedSel, dir)
           : null
         if (cross) {

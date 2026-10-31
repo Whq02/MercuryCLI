@@ -1545,7 +1545,7 @@ export function ConcourseScreen({
       const dir = key.wheelDown ? 1 : -1
       setBoardScroll(v => {
         const base = v ?? Math.max(0, sessionRows.findIndex(r => r.sessionId === boardSelRef.current) - 1)
-        return Math.max(0, Math.min(Math.max(0, sessionRows.length - 1), base + dir * 3))
+        return Math.max(0, Math.min(Math.max(0, sessionRows.length - 1), base + dir * (event.wheelStep ? 1 : 3)))
       })
       return
     }

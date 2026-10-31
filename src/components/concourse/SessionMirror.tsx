@@ -209,7 +209,7 @@ export function SessionMirror({
         event.stopImmediatePropagation()
         wheelAccel.current ??= initWheelAccel(isXtermJs(), readScrollSpeedBase())
         const dir = key.wheelDown ? 1 : -1
-        const step = computeWheelStep(wheelAccel.current, dir, performance.now())
+        const step = event.wheelStep ? 1 : computeWheelStep(wheelAccel.current, dir, performance.now())
         if (step > 0) scrollRows(dir * step)
         return
       }

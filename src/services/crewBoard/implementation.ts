@@ -107,7 +107,8 @@ export const view: BoardModule['view'] = host => {
   const entries = chatRows(snapshot, host.traffic, thread ? undefined : team, thread)
   const index = selected === undefined ? entries.length - 1 : Math.max(0, entries.findIndex(row => row.id === selected))
   const channels = [undefined, ...(live.teams ?? [])]
-  host.useInput((_input, key) => {
+  host.useInput((_input, key, event) => {
+    if (key.wheelUp || key.wheelDown) event.stopImmediatePropagation()
     if (key.escape) { if (thread !== undefined) { setThread(undefined); setEarlier([]); setScroll(0) } else host.onBack(); return }
     if (key.leftArrow || key.rightArrow) {
       const next = (channels.indexOf(team) + (key.leftArrow ? -1 : 1) + channels.length) % channels.length

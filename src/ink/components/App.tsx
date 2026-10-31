@@ -126,8 +126,32 @@ const noopCursorDeclaration: CursorDeclarationSetter = () => {}
 
 const SUPPORTS_SUSPEND = process.platform !== 'win32'
 
-function isReportedWheel(atom: ParsedInput): boolean {
+const WHEEL_ROWS_PER_NOTCH = 3
+
+function isReportedWheel(atom: ParsedInput): atom is ParsedKey {
   return atom.kind === 'key' && (atom.name === 'wheelup' || atom.name === 'wheeldown') && atom.x !== undefined && atom.y !== undefined
+}
+
+export function coalesceWheelRun(atoms: readonly ParsedInput[], start: number, pageRows: number): { end: number; atom: ParsedKey | null; steps: number } {
+  let end = start
+  let net = 0
+  let up: ParsedKey | null = null
+  let down: ParsedKey | null = null
+  while (end < atoms.length) {
+    const atom = atoms[end]!
+    if (!isReportedWheel(atom)) break
+    if (atom.name === 'wheeldown') {
+      net++
+      down = atom
+    } else {
+      net--
+      up = atom
+    }
+    end++
+  }
+  const atom = net > 0 ? down : net < 0 ? up : null
+  const steps = atom === null ? 0 : Math.min(WHEEL_ROWS_PER_NOTCH * Math.abs(net), Math.max(WHEEL_ROWS_PER_NOTCH, pageRows))
+  return { end, atom, steps }
 }
 
 function isMouseClass(atom: ParsedInput): boolean {
@@ -447,10 +471,18 @@ export default class App extends PureComponent<Props, State> {
         this.dispatchDiscrete(run)
         reconciler.flushSyncWork()
       }
-      for (let step = 0; step < (wheel ? 3 : 1); step++) {
-        this.dispatchDiscrete([atoms[i]!])
-        reconciler.flushSyncWork()
+      if (wheel) {
+        const gesture = coalesceWheelRun(atoms, i, this.props.rows - 1)
+        for (let step = 0; step < gesture.steps; step++) {
+          this.dispatchDiscrete([gesture.atom!])
+          reconciler.flushSyncWork()
+        }
+        start = gesture.end
+        i = gesture.end - 1
+        continue
       }
+      this.dispatchDiscrete([atoms[i]!])
+      reconciler.flushSyncWork()
       start = i + 1
     }
     if (start < atoms.length) {
