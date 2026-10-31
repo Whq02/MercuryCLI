@@ -1,5 +1,5 @@
 {
-  "base": "7fa81ccd49188c9450cf5eb247303d8d24b87d64",
+  "base": "94931c6f51621f930b2351b9d153fa56c9836d33",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -42,6 +42,11 @@
           "name": {
             "description": "Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.",
             "type": "string"
+          },
+          "team": {
+            "description": "Team label on the live crew board; teams guide delivery, never privacy.",
+            "type": "string",
+            "pattern": "^[\\p{L}\\p{N}_][\\p{L}\\p{N}_.-]{0,79}$"
           },
           "isolation": {
             "description": "Run the crewmate in a temporary git worktree.",
@@ -232,7 +237,7 @@
     },
     {
       "name": "Read",
-      "description": "Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.\nImages are shown; ocr returns recognised text. Read user-supplied screenshots here. PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table).\nDirectories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.\noutline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.",
+      "description": "Read local files. Text is numbered from 1 (line number + tab, not part of the content); default 2000 lines. A continuation marker names the unread range. Use offset+limit, negative offset for a tail, or ranges; lossless requires a window and no outline. Never edit unseen clipped text.\nImages are shown; ocr returns recognised text. Read user-supplied screenshots here. PDFs return numbered text; pages selects pictures on image-capable models, text otherwise, with OCR for scans. Notebooks include cells and outputs; office documents, archives and SQLite open as text (archive:entry, database:table). Local audio and video return timestamped transcripts through on-device Whisper; ffmpeg decodes formats other than 16 kHz mono PCM WAV.\nDirectories list entries; mercury:// reads records (ask which model: read mercury://seat); URLs delegate to WebFetch, never fetch here.\noutline returns declarations; line_anchors supplies edit addresses. Full usage notes arrive on discovery or first use.",
       "input_schema": {
         "type": "object",
         "properties": {
