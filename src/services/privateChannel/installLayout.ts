@@ -601,8 +601,9 @@ export function shimContent(isWindows: boolean): string {
       'rem any malformed pointer into a concise refusal instead of a batch',
       'rem parse abort. Blank leading lines are skipped by for /f — recovery-',
       'rem friendly. A pointer that names no installed version fails plainly.',
+      'set "MBOM=\uFEFF"',
       'set "MVER="',
-      'for /f "usebackq delims=" %%v in ("%MROOT%\\current.txt") do if not defined MVER set "MVER=%%v"',
+      'for /f "usebackq delims=" %%v in ("%MROOT%\\current.txt") do if not defined MVER (set "MLINE=%%v" & call :pick)',
       'if not defined MVER (',
       '  echo mercury: %MROOT%\\current.txt is empty — run `mercury update`, or set it to an installed version directory name 1>&2',
       '  exit /b 1',
@@ -638,6 +639,16 @@ export function shimContent(isWindows: boolean): string {
       ')',
       'call "%MROOT%\\%MVER%\\mercury.cmd" %*',
       'exit /b %ERRORLEVEL%',
+      ':pick',
+      'set "MLINE=%MLINE:"=%"',
+      'if defined MLINE if "%MLINE:~0,3%"=="%MBOM%" set "MLINE=%MLINE:~3%"',
+      'if defined MLINE if "%MLINE:~0,2%"=="%MBOM%" set "MLINE=%MLINE:~2%"',
+      'if defined MLINE if "%MLINE:~0,1%"=="%MBOM%" set "MLINE=%MLINE:~1%"',
+      ':pickblank',
+      'if defined MLINE if "%MLINE:~0,1%"==" " set "MLINE=%MLINE:~1%" & goto pickblank',
+      'if defined MLINE if "%MLINE:~0,1%"=="\t" set "MLINE=%MLINE:~1%" & goto pickblank',
+      'if defined MLINE set "MVER=%MLINE%"',
+      'exit /b 0',
     ].join('\r\n') + '\r\n'
   }
   return `#!/bin/sh

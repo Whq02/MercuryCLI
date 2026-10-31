@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { PathEntryIo, PathEntryOutcome, UserPathRead } from '../../src/services/privateChannel/installPath.js'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -140,7 +141,8 @@ const P_LINE = 'export PATH="$HOME/.local/bin:$PATH"'
 const P_GUARD = `${shGuardedLine('$HOME/.local/bin')}\n`
 
 section('§1 the POSIX decision through the seam')
-{
+if (IS_WIN) console.log('  [SKIP] §1, §1b and §1c drive the POSIX decision with POSIX paths — on a Windows host the win32 decision (§2) is the law')
+else {
   const roots = posixRoots(HOME_P)
   {
     const f = fakeIo({ home: HOME_P, env: { PATH: `/usr/bin:${HOME_P}/.local/bin/:/bin`, SHELL: '/bin/zsh' } })
@@ -259,7 +261,7 @@ section('§1 the POSIX decision through the seam')
 }
 
 section('§1b f01: the zsh startup file lives under ZDOTDIR when the user set one')
-{
+if (!IS_WIN) {
   const roots = posixRoots(HOME_P)
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh', ZDOTDIR: `${HOME_P}/.config/zsh` } })
@@ -292,7 +294,7 @@ section('§1b f01: the zsh startup file lives under ZDOTDIR when the user set on
 }
 
 section('§1c f05: uninstall takes the PATH line back — only the line it wrote, in every file it could have written')
-{
+if (!IS_WIN) {
   const roots = posixRoots(HOME_P)
   {
     const f = fakeIo({ home: HOME_P, env: { SHELL: '/bin/zsh' }, files: { [`${HOME_P}/.zshrc`]: `alias ll=ls\n${P_GUARD}export EDITOR=vi\n` } })
@@ -728,6 +730,6 @@ if (IS_WIN) {
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-install-path: ${failures === 0 ? 'all checks passed' : `${failures} check(s) FAILED`}`)
 if (statSync(scratch).isDirectory() && failures === 0) {
-  spawnSync('rm', ['-rf', scratch])
+  removeScratch(scratch)
 }
 process.exit(failures === 0 ? 0 : 1)
