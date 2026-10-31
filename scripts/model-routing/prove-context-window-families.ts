@@ -76,7 +76,7 @@ console.log('============================================================')
 
 section('W1 · unfetched: pins ride, everything else is the LABELLED conservative default (Moonshot: https://platform.kimi.ai/docs/models.md, 2026-10-25)')
 {
-  const fallbackIds = ['openrouter/stealth/ox-alpha', 'gemini-fixture-pro', 'huggingface/qwen/unpinned-model', 'local/llama3.1', 'compat/my-model', 'kimi-k2.6', 'glm-5-turbo', 'deepseek-v4-flash-vision-exp', 'gpt-5.4-fixture-unpinned']
+  const fallbackIds = ['openrouter/stealth/ox-alpha', 'gemini-fixture-pro', 'huggingface/qwen/unpinned-model', 'local/llama3.1', 'compat/my-model', 'glm-5-turbo', 'deepseek-v4-flash-vision-exp', 'gpt-5.4-fixture-unpinned']
   {
     const pinned = resolveContextWindow('gpt-5.4')
     check('gpt-5.4 unfetched: 1,050,000 from its dated pin (developers.openai.com/api/docs/models/gpt-5.4.md, 2026-10-25) · source static-pin', pinned.effectiveWindow === 1_050_000 && pinned.source === 'static-pin', JSON.stringify({ w: pinned.effectiveWindow, s: pinned.source }))
@@ -87,7 +87,7 @@ section('W1 · unfetched: pins ride, everything else is the LABELLED conservativ
   }
   check('the OpenRouter fallback names the unfetched catalogue', /OpenRouter catalogue states no context length/.test(resolveContextWindow('openrouter/stealth/ox-alpha').fallbackReason ?? ''))
   check('the Gemini fallback names the unfetched catalogue', /Gemini catalogue states no context length/.test(resolveContextWindow('gemini-fixture-pro').fallbackReason ?? ''))
-  const pins: Array<[string, number]> = [['kimi-k3', 1_048_576], ['deepseek-v4-pro', 1_048_576], ['glm-5.3', 1_000_000], ['claude-opus-5', 1_000_000], ['huggingface/deepseek-ai/DeepSeek-V4-Pro-0813', 1_048_576]]
+  const pins: Array<[string, number]> = [['kimi-k3', 1_048_576], ['kimi-k2.6', 262_144], ['deepseek-v4-pro', 1_048_576], ['glm-5.3', 1_000_000], ['claude-opus-5', 1_000_000], ['huggingface/deepseek-ai/DeepSeek-V4-Pro-0813', 1_048_576]]
   for (const [id, window] of pins) {
     const r = resolveContextWindow(id)
     check(`${id}: dated pin ${window.toLocaleString()} · source static-pin`, r.effectiveWindow === window && r.source === 'static-pin', JSON.stringify({ w: r.effectiveWindow, s: r.source }))
