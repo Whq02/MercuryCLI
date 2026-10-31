@@ -94,6 +94,7 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: 'GPT-5.6 Terra', minTick: 1, awaitSettleTicks: 1, data: '\x1b[A', mark: 'cached' },
       { afterPrevTicks: 60, awaitText: 'GPT — the live list changed', awaitSettleTicks: 2, data: '\x1b[A', mark: 'refreshed' },
       { requireAwait: true, awaitText: 'gpt-6-astra', awaitSettleTicks: 3, data: '\x1b[B\x1b[B', mark: 'new-row' },
+      { requireAwait: true, awaitText: 'gpt-6.1-sol', awaitSettleTicks: 2, data: '\x1b[B'.repeat(4) },
       { requireAwait: true, awaitText: 'gpt-5.6-terra', awaitSettleTicks: 3, data: '\x1b', mark: 'retired-row' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST, '--model', 'gpt-5.6-sol'], cwd, cols, rows, total: 450, stableTicks: 4, sends, out }))
