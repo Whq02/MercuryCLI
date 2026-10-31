@@ -32,8 +32,8 @@ console.log('§2 the guard hands it the path')
 {
   const src = readFileSync(join(ROOT, 'src', 'tools', 'FileReadTool', 'FileReadTool.ts'), 'utf8')
   check(
-    'the binary-extension arm tests input.file_path (never the dotless ext)',
-    src.includes('hasBinaryExtension(input.file_path)') && !src.includes('hasBinaryExtension(ext)'),
+    'the binary-extension arm tests effectiveRawPath, the path being read (never the dotless ext)',
+    src.includes('hasBinaryExtension(effectiveRawPath)') && !src.includes('hasBinaryExtension(ext)'),
   )
 }
 
