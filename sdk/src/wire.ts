@@ -164,6 +164,7 @@ export type SessionFactsResult = {
     error?: string
   }>
   permission_mode: 'default' | 'dontAsk' | 'implement' | 'sovereign' | 'flow' | 'bubble' | 'apollo'
+  bootRefusal?: string
   effort_sent?: null | string
   workspace: {
     cwd: string
@@ -403,6 +404,54 @@ export type SessionFactsResult = {
     settings: boolean
     minutes: number
     model: null | string
+  }
+  swarm?: {
+    on: boolean
+    events: Array<{
+      clientOpId: string
+      kind: 'message' | 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'notice'
+      text: string
+      threadId: string
+      replyTo?: string
+      corrects?: string
+      taskId?: string
+      about?: string
+      schema: 1
+      boardId: string
+      waveId: string
+      seq: number
+      eventId: string
+      author: {
+        sessionId: string
+        agentId: string
+        executionId: string
+      }
+      authorName?: string
+      team?: string
+      mentions: string[]
+      unknownMentions?: string[]
+      relatedTasks: string[]
+      files: string[]
+      refs: Array<{
+        uri: string
+        digest: string
+      }>
+      createdAt: string
+      payloadDigest: string
+      policyRevision: 1
+    }>
+    teams?: string[]
+    snapshot: number
+    omitted: number
+    later?: number
+    admitted: number
+    appearances?: number
+    peerTurns: 0
+    record?: {
+      path: string
+      sessionId: string
+    }
+    error?: string
   }
   edit_outcomes?: Array<{
     model: string

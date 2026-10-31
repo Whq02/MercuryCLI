@@ -26,7 +26,7 @@ export async function resultSchemas(root: string): Promise<Record<string, Schema
     if (seen.has(type)) throw new Error(`recursive SDK result type: ${checker.typeToString(type)}`)
     const next = new Set(seen).add(type)
     if (checker.isArrayType(type)) return { type: 'array', items: shape(checker.getTypeArguments(type as ts.TypeReference)[0]!, next) }
-    if (!(type.flags & ts.TypeFlags.Object)) throw new Error(`unsupported SDK result type: ${checker.typeToString(type)}`)
+    if (!(type.flags & ts.TypeFlags.Object) && !type.isIntersection()) throw new Error(`unsupported SDK result type: ${checker.typeToString(type)}`)
     const properties: Record<string, Schema> = {}
     const required: string[] = []
     for (const prop of type.getProperties()) {

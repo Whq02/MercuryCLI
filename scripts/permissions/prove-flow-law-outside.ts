@@ -72,7 +72,7 @@ try {
   ]) {
     for (const road of ROADS) {
       const outcome = await kit.decide(command, { road })
-      check(`${road}: ${command.replace(/\n/g, '⏎')} runs`, allowedByFlow(outcome), j(outcome.decision))
+      check(`${road}: ${command.replace(/\n/g, '\\n')} runs`, allowedByFlow(outcome), j(outcome.decision))
     }
   }
 
