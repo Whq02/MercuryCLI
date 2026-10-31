@@ -28,6 +28,7 @@ const ALLOW: Row[] = [
   { path: 'docs/SESSIONS.md', fragment: 'the way a team commits', why: "the people's team committing its config, not the crew" },
   { path: 'docs/CREW.md', fragment: "with each author's name, time, team and kind", why: 'The board row carries a team label, not a renamed crewmate.' },
   { path: 'docs/CREW.md', fragment: 'Teams are labels for delivery and channels.', why: 'Board teams select delivery and channels; they do not rename the crew.' },
+  { path: 'docs/CREW.md', fragment: 'its name, its team, the seats already on the board', why: 'The enrolment brief names the board team label, not a renamed crewmate.' },
 ]
 
 function pages(): string[] {

@@ -191,7 +191,7 @@ launches carried reaches the newest.
 
 Swarm is a high-cost option by choice: turning it on means choosing to pay for sharing. The context allowances and the post length have no cap unless you set one in `/config`; two loop guards stay on (four posts a minute, 120 posts per agent in a wave); a cap guards against a fault, and the lead can lift it with `/swarm uncap`.
 
-SendMessage and ResumeCrewmate from the lead, and SendMessage back to `main`, stay direct, whole and uncharged whether swarm is on or off. The board keeps only the first 400 characters plus `… (sent directly)` for the timeline. That mirror is not delivered to the model or charged by a board read.
+A crewmate launched or resumed with swarm on is told, in its system prompt, its name, its team, the seats already on the board, and when to post and read; the lead's brief adds the task's own habits. SendMessage and ResumeCrewmate from the lead, and SendMessage back to `main`, stay direct, whole and uncharged whether swarm is on or off. The board keeps only the first 400 characters plus `… (sent directly)` for the timeline. That mirror is not delivered to the model or charged by a board read.
 
 With the board on, `/swarm` opens **Crew chat** in the Workbench. It combines board posts and crew traffic in one live timeline, with each author's name, time, team and kind. Mirrored messages carry a `traffic` tag. Replies sit under their ask. `↑↓` moves, `↵` opens a thread, `←→` selects General or a team, and `esc` closes. The view is read-only, with no composer, and is absent when the board is off.
 

@@ -84,6 +84,7 @@ ${typeSelection}`
     "Treat the crewmate's prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status=\"valid\" payload passed your schema: use it without re-reading what the crewmate read, and require evidence as a field when a value needs it.",
     "State explicitly whether the crewmate should write code or only research — it cannot see the user's intent.",
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
+    'With swarm on (`/swarm on`), a crewmate launched afterwards is enrolled on the live crew board and told its name, its `team` and the seats already there, with when to post and read; put the task\'s own board habits in the brief when they differ (what to post, whom to @mention), and expect its asks and blockers as `[name] [team] [kind]:` rows between turns.',
     "Passing `isolation: \"worktree\"` hands the crewmate a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. Nothing is removed automatically: the worktree survives the crewmate's end unlocked, its path and branch riding back in the result with what it holds, and the seven-day janitor removes only a clean one whose commits are reachable.",
   ]
   sections.push(`## Usage notes

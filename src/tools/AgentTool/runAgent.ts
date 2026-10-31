@@ -103,7 +103,7 @@ import {
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
 import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
-import { latchSwarmAgent, settleSwarmAgent } from '../../services/crewBoard/seam.js'
+import { latchSwarmAgent, settleSwarmAgent, swarmBrief } from '../../services/crewBoard/seam.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -995,6 +995,8 @@ export async function* runAgent(
         }. Prose before the call is welcome; the structured payload is the contract.`,
       )
     }
+    const swarmWords = swarm ? swarmBrief(agentId) : null
+    if (swarmWords !== null) systemPrompt.push(swarmWords)
 
     const parentOptions = toolUseContext.options
     const isNonInteractiveSession = posture.isNonInteractiveSession

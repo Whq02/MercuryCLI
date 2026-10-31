@@ -10,7 +10,7 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { DEFAULT_BOARD_LIMITS, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { DEFAULT_BOARD_LIMITS, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardSeat, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -128,6 +128,25 @@ export async function latchSwarmAgent(agentId: string, name: string, workflow = 
   road.active = true
   if (road.on && swarmMasterEnabled()) swarmStore()?.enroll({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name, team })
   return road.on
+}
+
+function swarmBriefWords(name: string, team: string | undefined, peers: readonly BoardSeat[]): string {
+  const others = peers.map(peer => (peer.team ? `${peer.name} (${peer.team})` : peer.name))
+  return [
+    `You are ${name}${team ? `, team ${team},` : ''} on this session's live crew board, with the lead (main)${others.length ? ` and ${others.join(', ')}` : ''}; a seat that joins later appears in a board read.`,
+    "CrewBoard is how the crew works as one: post a blocker when you are stuck and an ask when another seat's answer or work would move yours; answer an ask you can settle; post a result with its path when a piece lands; read the board at a boundary when another seat's work touches yours, and before you take a file another seat may hold.",
+    '@name reaches a seat, @team a team, @main the lead; what you post is read by the whole crew. The board never replaces your final report to the lead.',
+  ].join(' ')
+}
+
+export function swarmBrief(agentId: string): string | null {
+  const road = roads.get(key(agentId))
+  if (!road?.on || !swarmMasterEnabled()) return null
+  const store = swarmStore()
+  if (!store) return null
+  const seats = store.seats()
+  const own = seats.find(seat => seat.agent === agentId)
+  return swarmBriefWords(own?.name ?? road.name, own?.team, seats.filter(seat => seat.agent !== agentId && seat.agent !== 'main'))
 }
 
 export function swarmPrincipal(agentId = 'main'): BoardPrincipal | null {

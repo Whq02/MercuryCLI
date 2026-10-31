@@ -193,6 +193,10 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       publish()
     },
     member,
+    seats() {
+      if (closed) return []
+      return roster().map(row => { const agent = String(row.agent); const team = teamOf(agent); return { agent, name: String(row.name), ...(team !== undefined ? { team } : {}) } })
+    },
     assignTeam(p, seat, team) {
       const result = transaction(() => {
         checkPrincipal(p)

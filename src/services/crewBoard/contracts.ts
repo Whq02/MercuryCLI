@@ -52,6 +52,7 @@ export type BoardHost = {
   paused(agentId: string): boolean
   sessionOn(): boolean
 }
+export type BoardSeat = { agent: string; name: string; team?: string }
 export interface BoardStore {
   readonly limits: BoardLimits
   setLimits(next: BoardLimits): void
@@ -60,6 +61,7 @@ export interface BoardStore {
   settle(principal: BoardPrincipal): void
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
+  seats(): BoardSeat[]
   assignTeam(principal: BoardPrincipal, seat: string, team: string): { ok: boolean; reason?: string; name?: string; team?: string }
   post(principal: BoardPrincipal, post: BoardPost, delivery?: 'index' | 'body' | 'mirror'): BoardReceipt
   read(principal: BoardPrincipal, input: BoardRead): BoardPacket
