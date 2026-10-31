@@ -90,8 +90,8 @@ n="$(printf '%s' "$live" | grep -c 'welcome\.py' || true)"
 [ "$n" -eq 0 ]; check "no live welcome.py reference in the launcher (got $n)" $?
 n="$(printf '%s' "$live" | grep -c 'patches\.' || true)"
 [ "$n" -eq 0 ]; check "no live byte-patcher reference in the launcher (got $n)" $?
-grep -q '221;68;68m✦ MERCURY' "$here/launcher-mercury.sh"
-check 'static fallback is the Mercury wordmark in the brand accent (#DD4444)' $?
+grep -q "_mercury_banner_red='\\\\033\[1;38;2;221;68;68m'" "$here/launcher-mercury.sh" && grep -q '%b✦ MERCURY%b' "$here/launcher-mercury.sh" && grep -q '"$_mercury_banner_red" "$_mercury_banner_reset"' "$here/launcher-mercury.sh"
+check 'static fallback is the Mercury wordmark in the brand accent (#DD4444 at truecolor; the depth ladder of 9a8e147c1b picks 256-colour, 16-colour or none below it)' $?
 n="$(printf '%s' "$live" | grep -c 'python' || true)"
 [ "$n" -eq 0 ]; check "launcher has zero live python dependency (got $n)" $?
 
