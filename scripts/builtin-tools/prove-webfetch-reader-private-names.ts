@@ -5,6 +5,8 @@ import axios from 'axios'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { readHostedPage } = await import('../../src/tools/WebFetchTool/reader.js')
 const { FetchPacing } = await import('../../src/tools/WebFetchTool/fetchPacing.js')
+const { liveSearchClock } = await import('../../src/services/search/searchPacing.js')
+const priorClock = { ...liveSearchClock }
 const seen: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   const url = request.headers.get('x-fixture-url')!
@@ -34,16 +36,18 @@ try {
   check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined)
 
   const { fetchPage } = await import('../../src/tools/WebFetchTool/fetchTransport.js')
+  Object.assign(liveSearchClock, { now: () => 0, random: () => 0.5, sleep: async () => {} })
   axios.get = (async (url: string) => { throw new axios.AxiosError(`getaddrinfo ENOTFOUND ${new URL(url).hostname}`, 'ENOTFOUND') }) as typeof axios.get
   const refusal = async (url: string): Promise<string> => {
     try { await fetchPage(url, new AbortController().signal) } catch (error) { return error instanceof Error ? error.message : String(error) }
     return 'fetched'
   }
   const lan = await refusal('http://wiki.lan/page')
-  check('a private address that cannot be reached names the private-host rule first, the robots line second (RED on the base: the robots line alone)', lan === 'A private address is never sent to the hosted reader; the robots rules could not be fetched. Search for another source.' && seen.length === before + 1, lan)
+  check('a private DNS failure names its cause, hosted-reader boundary, backoff and robots refusal', lan === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: a private address is never sent to the hosted reader. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, lan)
   const pub = await refusal('https://news.example.org/story?id=2')
-  check('a public address that cannot be reached keeps the robots line and the no-bypass promise', pub === 'The robots rules could not be fetched; no hosted-reader bypass was attempted. Search for another source.' && seen.length === before + 1, pub)
+  check('a public DNS failure names its cause, hosted-reader decision, backoff and robots refusal', pub === 'The robots rules could not be fetched: DNS failure (ENOTFOUND). Hosted reader not attempted: it renders sparse successful HTML, not network failures or site refusals. Backed off this host for 30s across agents in this session; do not retry before the wait ends. Mercury cannot verify robots.txt, so the page was not fetched.' && seen.length === before + 1, pub)
 } finally {
+  Object.assign(liveSearchClock, priorClock)
   axios.get = get
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER
   else process.env.MERCURY_FETCH_READER = priorFlag
