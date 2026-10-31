@@ -293,6 +293,7 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
 
 const records = new Map<string, PrefixRecord>()
 const verdicts = new Map<string, PrefixVerdict>()
+const sideVerdicts = new Map<string, PrefixVerdict>()
 
 export { PREFIX_LEDGER_FILE, prefixLedgerPath }
 
@@ -490,6 +491,7 @@ export function resetPrefixLedger(): void {
   persistedBuild = undefined
   records.clear()
   verdicts.clear()
+  sideVerdicts.clear()
   consultedOwners.clear()
   persistedDrops = null
   pendingWrite = null
@@ -543,7 +545,16 @@ export function judgeAndRecordPrefix(
     records.set(owner, current)
     verdicts.set(owner, verdict)
     markRecordDirty(owner, { holdForWire: true })
+  } else {
+    sideVerdicts.set(owner, verdict)
   }
+  return verdict
+}
+
+export function takeSidePrefixVerdict(owner: string): PrefixVerdict | null {
+  const verdict = sideVerdicts.get(owner)
+  if (verdict === undefined) return null
+  sideVerdicts.delete(owner)
   return verdict
 }
 

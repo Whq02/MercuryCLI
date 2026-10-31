@@ -180,6 +180,7 @@ export function isTranscribable(m: Message): boolean {
     case 'bypassed_ask':
     case 'bound_prefix':
     case 'dead_thinking':
+    case 'dropped_thinking':
     case 'images_left_out':
       return true
     default:

@@ -63,6 +63,7 @@ type ContextBodies = {
     userContext?: Record<string, string>
   }
   dead_thinking: { dead: DeadThinkingMark[] }
+  dropped_thinking: { dropped: DeadThinkingMark[] }
 }
 
 type CapabilityBodies = {

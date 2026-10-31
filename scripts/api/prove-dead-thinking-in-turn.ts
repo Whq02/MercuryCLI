@@ -235,7 +235,7 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
 
-    section('§3 the wire — one prefix move, then a three-round tool loop in ONE turn: the dropped block stays dead from the next round on')
+    section('§3 the wire — one prefix move, then a three-round tool loop in ONE turn: the dropped block stays on the wire as returned, the API drops it again unbilled, the record stays quiet')
     {
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S3-TURN-1-DONE', thinking: 'first turn thinking, bound to the unedited prefix', model: MODEL },
@@ -266,18 +266,19 @@ if (!existsSync(DIST)) {
       console.log(`    drops per request: ${j(drops)}`)
       console.log(`    live thinking per request: ${j(reqs.map(liveThinking))}`)
       check("§3 request 2 (the first request after the edit) drops exactly the first turn's block", j(drops[1]) === j(['messages.1.content.0']), j(drops[1]))
-      check("§3 the loop's later rounds (requests 3, 4, 5) drop NOTHING — the dead block left the wire from the next round on", drops.slice(2, 5).every(d => d.length === 0), j(drops.slice(2, 5)))
-      check('§3 request 3 no longer carries the dropped block (messages[1] sends no thinking)', !liveThinking(reqs[2]!).includes('1.0'), j(liveThinking(reqs[2]!)))
-      check('§3 the next turn (request 6) drops nothing', drops[5]?.length === 0, j(drops[5]))
+      check("§3 the loop's later rounds (requests 3, 4, 5) and the next turn (request 6) drop exactly that block again and nothing minted since: the entry the API wrote is read back whole", drops.slice(2, 6).every(d => j(d) === j(['messages.1.content.0'])), j(drops.slice(2, 6)))
+      check('§3 every later request still carries the dropped block where it was (messages[1] sends its thinking): the history is never edited after a drop', reqs.slice(2).every(q => liveThinking(q).includes('1.0')), j(reqs.slice(2).map(liveThinking)))
+      check('§3 the first reply rides every later request byte for byte', reqs.slice(2).every(q => j(withoutCacheControl((q.body as Body).messages?.[1])) === j(withoutCacheControl((reqs[1]!.body as Body).messages?.[1]))))
       check('§3 the fixture refused nothing', fixture.refusals.length === 0, j(fixture.refusals))
-      const deadRows = transcriptLines(arena, SID, '"dead_thinking"')
-      check('§3 exactly one dead-block record was written (the one drop)', deadRows.length === 1, String(deadRows.length))
+      const droppedRows = transcriptLines(arena, SID, '"dropped_thinking"')
+      check('§3 exactly one dropped-block record was written (the one drop), and no dead-block record', droppedRows.length === 1 && transcriptLines(arena, SID, '"dead_thinking"').length === 0, String(droppedRows.length))
       const notices = transcriptLines(arena, SID, 'Preserved thinking')
       check("§3 the one receipt names the edit and the ledger's part (the first drop's warning-level receipt, written once, never painted)", notices.length === 1 && notices[0]!.includes("turn 0's user row"), `${notices.length} ${(notices[0] ?? '').slice(0, 200)}`)
       const ledger = readLedger(arena)
-      check('§3 the health records ONE first drop (consecutive 1), never a run of consecutive rewrites', ledger?.last?.kind === 'first' && ledger.last.consecutive === 1 && ledger.longestRun === 1 && ledger.last.count === 1, j(ledger))
+      check('§3 the health records ONE first drop (consecutive 1), never a run of consecutive rewrites: the re-drops of a recorded block are not defects', ledger?.last?.kind === 'first' && ledger.last.consecutive === 1 && ledger.longestRun === 1 && ledger.last.count === 1, j(ledger))
       const named = debugLines(debugFile, 'the prefix ledger names a rewrite of sent history')
       check('§3 the ledger named the moved part once, on the request the edit first rode', named.length === 1, String(named.length))
+      check('§3 the debug log names the quiet re-drops, five of them (three rounds, the next turn, the closing ask), and reports the drop once', debugLines(debugFile, 'already-dropped block(s) again').length === 5 && debugLines(debugFile, 'preserved thinking: [{"type":"thinking_dropped"').length === 1, j({ quiet: debugLines(debugFile, 'already-dropped block(s) again').length, reports: debugLines(debugFile, 'preserved thinking: [{"type":"thinking_dropped"').length }))
       await fixture.close()
     }
   }

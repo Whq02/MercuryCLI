@@ -168,13 +168,16 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   check('a first request (no assistant row yet) ⇒ no induced edit', !inducedEditApplies([{ type: 'attachment' }, { type: 'user' }]))
   check('a history with an assistant row ⇒ the edit rides (the second request, and a resume)', inducedEditApplies([{ type: 'user' }, { type: 'assistant' }, { type: 'user' }]))
 
-  const { deadMarksFromDrops, deadThinkingMarks, stripDeadThinking } = binding
+  const { marksFromDrops, deadThinkingMarks, stripDeadThinking } = binding
   const ids = [null, 'msg_1', null, 'msg_2', null]
-  const marks1 = deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }, { type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }, { type: 'other', path: 'messages.3.content.1', reason: 'x' }], ids)
-  check('deadMarksFromDrops names each dropped block by its response id and block index (a user turn or an unknown path yields nothing)', j(marks1) === j([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }]) && deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.0.content.0', reason: 'prefix_binding_mismatch' }], ids).length === 0, j(marks1))
+  const marks1 = marksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }, { type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }, { type: 'other', path: 'messages.3.content.1', reason: 'x' }], ids)
+  check('marksFromDrops names each dropped block by its response id and block index (a user turn or an unknown path yields nothing)', j(marks1) === j([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }]) && marksFromDrops([{ type: 'thinking_dropped', path: 'messages.0.content.0', reason: 'prefix_binding_mismatch' }], ids).length === 0, j(marks1))
   const existing = new Map([['msg_1', new Set([0])]])
-  const later = deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.1', reason: 'prefix_binding_mismatch' }], ids, existing)
-  check('a later report indexes the content AS SENT: with block 0 already dead, sent index 1 is original index 2', j(later) === j([{ messageId: 'msg_1', blockIndex: 2 }]), j(later))
+  const later = marksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.1', reason: 'prefix_binding_mismatch' }], ids, existing)
+  check('a later report indexes the content AS SENT: with block 0 stripped by an older build, sent index 1 is original index 2', j(later) === j([{ messageId: 'msg_1', blockIndex: 2 }]), j(later))
+  const known = binding.droppedThinkingMarks([binding.createDroppedThinkingAttachment([{ messageId: 'msg_1', blockIndex: 0 }])] as never)
+  const again = [{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }, { type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }]
+  check('freshDrops keeps a drop the record has not seen and lets a recorded re-drop pass quietly; an unmappable path stays fresh', j(binding.freshDrops(again as never, ids, new Map(), known).map(d => d.path)) === j(['messages.3.content.0']) && binding.freshDrops([{ type: 'thinking_dropped', path: 'messages.9.content.0', reason: 'prefix_binding_mismatch' }] as never, ids, new Map(), known).length === 1)
   const deadRow = { type: 'system', subtype: 'thinking_dead', dead: [{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }], content: '', level: 'info', uuid: 'dead-1', timestamp: 't' }
   const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
@@ -372,7 +375,7 @@ section('§1c the observer sees final transport overlays')
   }
 }
 
-section('§1d a block the API dropped is off the chain — the dead strip on the next request is no rewrite')
+section('§1d a block the API dropped stays on the wire as returned — the API drops it again unbilled, the record stays quiet and the ledger names no rewrite')
 {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
@@ -421,13 +424,16 @@ section('§1d a block the API dropped is off the chain — the dead strip on the
     check('the edited row unbinds exactly the later block (reasoning one survives)', drops3.length === 1 && drops3[0]!.path === 'messages.3.content.0', j(drops3))
     check('the ledger names the edited user row (a true rewrite)', verdicts[2]?.mismatch?.path.startsWith('messages[2]') === true, j(verdicts[2]?.mismatch))
     check('the report marks the dropped block on the record, as the turn machine does', recordDroppedThinking(owner, drops3) === 1)
-    const dead = binding.deadMarksFromDrops(drops3 as never, verdicts[2]?.wireMessageIds ?? [], new Map())
-    history.push(...third, binding.createDeadThinkingAttachment(dead), createUserMessage({ content: 'Question four.' }))
+    const dropped = binding.marksFromDrops(drops3 as never, verdicts[2]?.wireMessageIds ?? [], new Map())
+    check('the dropped block is named by its response id and block index (the second reply, the one minted before the edit)', j(dropped) === j([{ messageId: history.find(m => m.type === 'assistant' && j(m.message.content).includes('reasoning two'))?.message.id, blockIndex: 0 }]), j(dropped))
+    history.push(...third, binding.createDroppedThinkingAttachment(dropped), createUserMessage({ content: 'Question four.' }))
     const fourth = await ask()
     const req4 = fixture.messageRequests()[3]!.body as { messages?: Array<{ content?: unknown }> }
     const thinkingSent = (req4.messages ?? []).flatMap(m => Array.isArray(m.content) ? (m.content as Block[]) : []).filter(b => b.type === 'thinking').map(b => b.thinking)
-    check('the next request carries the surviving and the new reasoning, never the dead block', j(thinkingSent) === j(['reasoning one', 'reasoning three']), j(thinkingSent))
-    check('the API stand-in drops nothing from it', bindingDropsFor(req4).length === 0 && fourth.length > 0)
+    check('the next request carries every reasoning block as the API returned it, the dropped one included (the history is never edited after a drop)', j(thinkingSent) === j(['reasoning one', 'reasoning two', 'reasoning three']), j(thinkingSent))
+    const drops4 = bindingDropsFor(req4) as Array<{ path?: string }>
+    check('the API stand-in drops the same block again and nothing else: the new reasoning stays valid', drops4.length === 1 && drops4[0]!.path === 'messages.3.content.0' && fourth.length > 0, j(drops4))
+    check('the fresh-drop filter is quiet on the re-drop: the recorded block is known, so no notice, no ledger row, no defect', binding.freshDrops(drops4 as never, verdicts[3]?.wireMessageIds ?? [], new Map(), binding.droppedThinkingMarks(history as never)).length === 0)
     check('the ledger names no rewrite: nothing the API holds was rewritten', verdicts[3]?.mismatch === null, j(verdicts[3]?.mismatch))
   } finally {
     await fixture.close()
@@ -675,22 +681,27 @@ if (!existsSync(DIST)) {
       const dropLines = debugText(debugFile).split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
       check('[killer] exactly ONE drop report reached the product (request 2, the rewrite) — not one per turn', reqs.length === 5 && dropLines.length === 1, `${reqs.length} requests, ${dropLines.length} drop report(s)`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ role?: string; content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
-      check('[killer] the dead block is off the wire from request 3 on: requests 3, 4, 5 replay only the blocks minted after the rewrite (1, 2, 3 blocks)', j(thinkingPer) === j([0, 1, 1, 2, 3]), j(thinkingPer))
-      const placeholder = j(reqs[2]?.messages?.[1]).includes('reasoning the API dropped') || j(reqs[2]?.messages?.[1]).includes('"type":"text"')
-      check('[killer] the emptied first reply keeps a legal text block where the dead thinking sat', placeholder, j(reqs[2]?.messages?.[1]).slice(0, 200))
+      check('[killer] every request carries every block the API returned, the dropped first one included (0, 1, 2, 3, 4 blocks): the history is never edited after a drop', j(thinkingPer) === j([0, 1, 2, 3, 4]), j(thinkingPer))
+      const dropsPer = reqs.map(q => (bindingDropsFor(q) as Array<{ path: string }>).map(d => d.path))
+      check('[killer] the API stand-in drops exactly the first block on every later request and nothing minted after the edit: the entry it wrote is read back whole', j(dropsPer) === j([[], ['messages.1.content.0'], ['messages.1.content.0'], ['messages.1.content.0'], ['messages.1.content.0']]), j(dropsPer))
+      check('[killer] the first reply rides every later request byte for byte, its thinking block where it was', reqs.slice(2).every(q => j(q.messages?.[1]) === j(reqs[1]!.messages?.[1])), j(reqs[2]?.messages?.[1]).slice(0, 200))
       const notices = transcriptNotices(arena, SID)
       check('[killer] exactly one notice, naming the part — it never repeats', notices.length === 1 && notices[0]!.includes("Mercury's prefix ledger names the part that moved: the system prompt's"), j(notices))
-      const dead = debugText(debugFile).split('\n').filter(l => l.includes('marked dead on the record'))
-      check('[killer] the record carries the dead mark once (one row, one block)', dead.length === 1 && dead[0]!.includes('1 dropped block(s)'), j(dead))
+      const dropped = debugText(debugFile).split('\n').filter(l => l.includes('recorded as dropped'))
+      const quiet = debugText(debugFile).split('\n').filter(l => l.includes('already-dropped block(s) again'))
+      check('[killer] the record carries the dropped mark once (one row, one block) and the re-drops on the three later turns and the closing ask pass quietly', dropped.length === 1 && dropped[0]!.includes('1 dropped block(s)') && quiet.length === 4, j({ dropped, quiet: quiet.length }))
       const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
-      check('[killer] the dead marks persist in the transcript as a dead_thinking attachment (an info notice was lost before disk)', rowsText.includes('"attachmentType":"dead_thinking"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 300))
-      const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
-      const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
-      check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
-      const resumed = turnRequests(fixture, 5).map(q => q.body as Body)
-      const resumedThinking = ((resumed[5]?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
-      check('[killer] the resumed request replays the four live blocks and never the dead one; the fixture dropped nothing', resumed.length === 6 && resumedThinking === 4 && !j(resumed[5]!.messages).includes('kill thinking 1') && !r2.stdout.includes('"type":"thinking_dropped"'), `${resumed.length} requests, ${resumedThinking} blocks`)
-      check('[killer] no new notice after the resume', transcriptNotices(arena, SID).length === 1, j(transcriptNotices(arena, SID)))
+      check('[killer] the dropped marks persist in the transcript as a dropped_thinking attachment, never a dead_thinking one', rowsText.includes('"attachmentType":"dropped_thinking"') && rowsText.includes('"blockIndex":0') && !rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('_thinking"')).join(' | ').slice(0, 300))
+      const strictArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
+      const strict = await runStreaming(strictArena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-strict.debug.log')], [{ prompt: 'kill turn 6 under error' }])
+      check("[killer] a resume under `error` is refused by the API stand-in for the block it keeps dropping (the operator's strict mode fails an edited history, as the docs say); the process ends", strict.exit !== null && strict.exit !== 0 && fixture.refusals.length === 1 && fixture.refusals[0]!.message.startsWith('messages.1.content.0:'), `exit=${strict.exit} refusals=${j(fixture.refusals)}`)
+      const r2 = await runStreaming(arena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
+      check('[killer] the resumed turn under drop_block exits 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 200)}`)
+      const resumed = fixture.messageRequests().filter(q => !isHandoffRequest(q)).map(q => q.body as Body)
+      const last = resumed[resumed.length - 1]
+      const resumedThinking = ((last?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
+      check('[killer] the resumed request replays all five blocks, the dropped one among them; the fixture drops exactly that one again', resumedThinking === 5 && j(last?.messages).includes('kill thinking 1') && j((bindingDropsFor(last) as Array<{ path: string }>).map(d => d.path)) === j(['messages.1.content.0']), `${resumed.length} requests, ${resumedThinking} blocks`)
+      check('[killer] no new notice after the resume: the record read from the transcript knows the block', transcriptNotices(arena, SID).length === 1, j(transcriptNotices(arena, SID)))
       await fixture.close()
     }
 
@@ -718,11 +729,11 @@ if (!existsSync(DIST)) {
       const reqs = turnRequests(fixture, 1).map(q => q.body as Body)
       const dropsOf = (b: Body): number => (bindingDropsFor(b) as unknown[]).length
       const dropSeq = reqs.map(dropsOf)
-      check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
+      check('[switch] the switch-back request drops the two early Fable blocks; every later request drops the same two again and nothing minted since (no growing run)', reqs.length === 6 && j(dropSeq) === j([0, 0, 0, 2, 2, 2]), `drops per request: ${j(dropSeq)}`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
-      check('[switch] the request after the switch-back carries strictly fewer thinking blocks (the dead ones stripped, the record on disk before the process ended)', thinkingPer[4]! < thinkingPer[3]! && !j(reqs[4]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
+      check('[switch] the requests after the switch-back carry every Fable block as returned, the dropped two included (2, 3, 4 blocks); only the other model\'s block stays off its wire', j(thinkingPer) === j([0, 1, 0, 2, 3, 4]) && j(reqs[4]!.messages).includes('fable one') && j(reqs[5]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('opus one'), `thinking per request: ${j(thinkingPer)}`)
       const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
-      check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
+      check('[switch] the dropped marks persist as a dropped_thinking attachment across the resumes, so the re-drops stay quiet in every later process', rowsText.includes('"attachmentType":"dropped_thinking"') && !rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('_thinking"')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)
       check('[switch] exactly one drop receipt is written — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))
       await fixture.close()
@@ -746,7 +757,7 @@ if (!existsSync(DIST)) {
       const rowThree = reqs[2]?.messages?.[3] as { role?: string; content?: Block[] } | undefined
       check("[after drop] the reported path names real reasoning on the third request (the second reply's block)", reqs.length === 4 && rowThree?.role === 'assistant' && rowThree.content?.[0]?.type === 'thinking' && rowThree.content[0].thinking === 'ad two', j(rowThree).slice(0, 200))
       const thinkingOf = (b: Body | undefined): unknown[] => ((b?.messages ?? []) as Array<{ content?: unknown }>).flatMap(m => Array.isArray(m.content) ? (m.content as Block[]).filter(x => x.type === 'thinking').map(x => x.thinking) : [])
-      check('[after drop] the fourth request carries the surviving and the new reasoning, never the dead block', j(thinkingOf(reqs[3])) === j(['ad one', 'ad three']), j(thinkingOf(reqs[3])))
+      check('[after drop] the fourth request carries every reasoning block as returned, the reported one included: a drop report never edits the history', j(thinkingOf(reqs[3])) === j(['ad one', 'ad two', 'ad three']), j(thinkingOf(reqs[3])))
       check('[after drop] the fixture drops nothing from the fourth request (the chain it holds is intact)', reqs.length === 4 && (bindingDropsFor(reqs[3]!) as unknown[]).length === 0)
       const notices = transcriptNotices(arena, SID)
       check('[after drop] one drop receipt is written for the report, and no "Mercury rewrote already-sent history" row follows it', notices.length === 1 && notices[0]!.includes('the API dropped') && !notices.some(n => n.includes('rewrote already-sent history')), j(notices))

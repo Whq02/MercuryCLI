@@ -446,7 +446,7 @@ if (!existsSync(DIST)) {
     })()
     const receiptRows = sessionRows.filter(line => line.includes('Preserved thinking')).map(line => { try { return JSON.parse(line) as { payload?: { kind?: string; noticeKind?: string; level?: string; content?: string } } } catch { return null } }).filter((row): row is { payload: { kind?: string; noticeKind?: string; level?: string; content?: string } } => row !== null && row.payload !== undefined)
     check('the receipt persists in the session file as ONE warning-level thinking_note notice row (kept, never painted)', receiptRows.length === 1 && receiptRows[0]!.payload.kind === 'notice' && receiptRows[0]!.payload.noticeKind === 'thinking_note' && receiptRows[0]!.payload.level === 'warning' && (receiptRows[0]!.payload.content ?? '').startsWith(noticeText), j(receiptRows.map(r => r.payload)).slice(0, 400))
-    check('the dead-block record persists beside it (the next request reads it to keep the block off the wire)', sessionRows.some(line => line.includes('"attachmentType":"dead_thinking"') && line.includes('"blockIndex":0')), String(sessionRows.filter(l => l.includes('dead_thinking')).length))
+    check('the dropped-block record persists beside it (the next request reads it to stay quiet when the API drops the block again; the block itself stays on the wire)', sessionRows.some(line => line.includes('"attachmentType":"dropped_thinking"') && line.includes('"blockIndex":0')) && !sessionRows.some(line => line.includes('"attachmentType":"dead_thinking"')), String(sessionRows.filter(l => l.includes('_thinking"')).length))
 
     await fixture.close()
   }

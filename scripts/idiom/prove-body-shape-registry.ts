@@ -172,6 +172,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
     ],
   },
   dead_thinking: { good: { dead: [{ messageId: 'm', blockIndex: 0 }] }, bad: [{ label: 'dead is text', field: 'dead', fields: { dead: 'm' } }] },
+  dropped_thinking: { good: { dropped: [{ messageId: 'm', blockIndex: 0 }] }, bad: [{ label: 'dropped is text', field: 'dropped', fields: { dropped: 'm' } }] },
   images_left_out: { good: { count: 1, images: 21, sidePx: 1568 }, bad: [{ label: 'count is text', field: 'count', fields: { count: 'one', images: 21, sidePx: 1568 } }] },
   bagel_console: { good: { errorCount: 1, warningCount: 0, sample: 's' }, bad: [{ label: 'errorCount is text', field: 'errorCount', fields: { errorCount: 'one', warningCount: 0, sample: 's' } }] },
   user_context: { good: { body: 'b' }, bad: [{ label: 'body is a list', field: 'body', fields: { body: ['b'] } }] },

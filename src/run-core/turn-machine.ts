@@ -20,19 +20,22 @@ import { swarmPresented, swarmRoad } from '../services/crewBoard/seam.js'
 import {
   classifyThinkingDrops,
   createDeadThinkingAttachment,
-  deadMarksFromDrops,
+  createDroppedThinkingAttachment,
   deadThinkingMarks,
   describePrefixRewrite,
   describeThinkingDrops,
+  droppedThinkingMarks,
+  freshDrops,
   turnOrdinalOfWirePath,
   inputTransformationsOf,
+  marksFromDrops,
   modelSwitchReceipt,
   prefixMarkOf,
   recordPrefixRewriteLedger,
   recordThinkingDropLedger,
   takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
-import { recordDroppedThinking, takePrefixVerdict, pendingPrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { recordDroppedThinking, takePrefixVerdict, takeSidePrefixVerdict, pendingPrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
 import { foldCacheUsage } from '../services/compact/cacheEpoch.js'
 import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -310,7 +313,7 @@ type IterationState = {
   maxOutputTokensOverride: number | undefined
   assistantMessages: AssistantMessage[]
   toolResults: (UserMessage | AttachmentMessage)[]
-  deadThinkingRecords: AttachmentMessage[]
+  thinkingRecords: AttachmentMessage[]
   toolUseBlocks: ToolUseBlock[]
   needsFollowUp: boolean
   closingTurn: boolean
@@ -802,10 +805,15 @@ async function* streamModel(
             iter.assistantMessages.push(message)
             if (!responsesClassified.has(message.message.id)) {
               rememberClassifiedResponse(message.message.id)
-              const drops = inputTransformationsOf(message.message)
-              const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              const allDrops = inputTransformationsOf(message.message)
+              const prefixVerdict = isTurnOwningQuerySource(run.querySource)
+                ? takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+                : takeSidePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
               fixedPrefix = prefixVerdict?.fixedPrefix
-              if (drops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), drops)
+              if (allDrops.length > 0) recordDroppedThinking(String(rosterOwnerFromToolUseContext(toolUseContext)), allDrops)
+              const strippedMarks = deadThinkingMarks(iter.messagesForQuery)
+              const drops = freshDrops(allDrops, prefixVerdict?.wireMessageIds ?? [], strippedMarks, droppedThinkingMarks(iter.messagesForQuery))
+              if (drops.length < allDrops.length) logForDebugging(`preserved thinking: the API dropped ${allDrops.length - drops.length} already-dropped block(s) again; they stay on the wire unbilled and the cached prefix stands`)
               const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
@@ -837,12 +845,12 @@ async function* streamModel(
                   yield emit({ kind: 'notice', message: createThinkingNoteMessage(rewriteNotice, 'warning') })
                 }
               }
-              const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
-              if (dead.length > 0) {
-                logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
-                const record = createDeadThinkingAttachment(dead)
+              const dropped = marksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], strippedMarks)
+              if (dropped.length > 0) {
+                logForDebugging(`preserved thinking: ${dropped.length} dropped block(s) recorded as dropped; they stay on the wire as the API returned them (${dropped.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
+                const record = createDroppedThinkingAttachment(dropped)
                 yield emit({ kind: 'attachment', message: record })
-                iter.deadThinkingRecords.push(record)
+                iter.thinkingRecords.push(record)
               }
             }
             if (toolUseContext.rosterOwner === undefined) {
@@ -1151,14 +1159,14 @@ async function* runEventMachine(
         messagesForQuery = [...messagesForQuery, ...digested.answer.contexts.map(words => createUserMessage({ content: words, isMeta: true }))]
       }
     }
-    const deadThinkingRecords: AttachmentMessage[] = []
+    const thinkingRecords: AttachmentMessage[] = []
     {
       const known = deadThinkingMarks(messages)
       const fresh = (requestPlan.reductions.deadThinkingMarks ?? []).filter(mark => !known.get(mark.messageId)?.has(mark.blockIndex))
       if (fresh.length > 0) {
         const record = createDeadThinkingAttachment(fresh)
         yield emit({ kind: 'attachment', message: record })
-        deadThinkingRecords.push(record)
+        thinkingRecords.push(record)
       }
     }
     if (pendingOverflow?.rung === 'prune') {
@@ -1444,7 +1452,7 @@ async function* runEventMachine(
       maxOutputTokensOverride,
       assistantMessages: [],
       toolResults: [],
-      deadThinkingRecords,
+      thinkingRecords,
       toolUseBlocks: [],
       needsFollowUp: false,
       closingTurn,
@@ -1458,7 +1466,7 @@ async function* runEventMachine(
       yield emit({ kind: 'run_terminal', terminal: streamOutcome.terminal })
       return streamOutcome.terminal
     }
-    if (deadThinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...deadThinkingRecords]
+    if (thinkingRecords.length > 0) messagesForQuery = [...messagesForQuery, ...thinkingRecords]
     if (iter.streamChant !== undefined && !toolUseContext.abortController.signal.aborted) yield* trimChantedIteration(iter, iter.streamChant, emit)
     const { assistantMessages, toolResults, toolUseBlocks } = iter
     const allRefusedToolCalls = collectRefusedToolCalls(assistantMessages)

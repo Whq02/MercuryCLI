@@ -462,50 +462,60 @@ export function describeThinkingDrops(
 }
 
 
-export function deadMarksFromDrops(
+export function markOfDrop(
+  entry: InputTransformation,
+  wireMessageIds: readonly (string | null)[],
+  stripped: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+): DeadThinkingMark | null {
+  if (entry.type !== 'thinking_dropped') return null
+  const match = /^messages\.(\d+)\.content\.(\d+)$/.exec(entry.path ?? '')
+  if (match === null) return null
+  const messageId = wireMessageIds[Number(match[1])]
+  if (typeof messageId !== 'string' || messageId.length === 0) return null
+  const sentIndex = Number(match[2])
+  const gone = stripped.get(messageId)
+  if (gone === undefined || gone.size === 0) return { messageId, blockIndex: sentIndex }
+  let seen = -1
+  for (let index = 0; index < sentIndex + gone.size + 1; index++) {
+    if (gone.has(index)) continue
+    seen++
+    if (seen === sentIndex) return { messageId, blockIndex: index }
+  }
+  return null
+}
+
+export function marksFromDrops(
   list: readonly InputTransformation[],
   wireMessageIds: readonly (string | null)[],
-  existing: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+  stripped: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
 ): DeadThinkingMark[] {
   const out: DeadThinkingMark[] = []
   for (const entry of list) {
-    if (entry.type !== 'thinking_dropped') continue
-    const match = /^messages\.(\d+)\.content\.(\d+)$/.exec(entry.path ?? '')
-    if (match === null) continue
-    const messageId = wireMessageIds[Number(match[1])]
-    if (typeof messageId !== 'string' || messageId.length === 0) continue
-    const sentIndex = Number(match[2])
-    const dead = existing.get(messageId)
-    let original = sentIndex
-    if (dead !== undefined && dead.size > 0) {
-      let seen = -1
-      original = -1
-      for (let index = 0; index < sentIndex + dead.size + 1; index++) {
-        if (dead.has(index)) continue
-        seen++
-        if (seen === sentIndex) {
-          original = index
-          break
-        }
-      }
-      if (original < 0) continue
-    }
-    if (!out.some(mark => mark.messageId === messageId && mark.blockIndex === original)) out.push({ messageId, blockIndex: original })
+    const mark = markOfDrop(entry, wireMessageIds, stripped)
+    if (mark !== null && !out.some(held => held.messageId === mark.messageId && held.blockIndex === mark.blockIndex)) out.push(mark)
   }
   return out
 }
 
-export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
+export function freshDrops(
+  list: readonly InputTransformation[],
+  wireMessageIds: readonly (string | null)[],
+  stripped: ReadonlyMap<string, ReadonlySet<number>>,
+  known: ReadonlyMap<string, ReadonlySet<number>>,
+): InputTransformation[] {
+  return list.filter(entry => {
+    if (entry.type !== 'thinking_dropped') return true
+    const mark = markOfDrop(entry, wireMessageIds, stripped)
+    return mark === null || known.get(mark.messageId)?.has(mark.blockIndex) !== true
+  })
+}
+
+function collectMarks(messages: readonly Message[], read: (message: Message) => unknown): Map<string, Set<number>> {
   const marks = new Map<string, Set<number>>()
   for (const message of messages) {
-    const dead =
-      message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dead_thinking'
-        ? (message.attachment as { dead?: unknown }).dead
-        : message.type === 'system' && (message as { subtype?: string }).subtype === 'thinking_dead'
-          ? (message as { dead?: unknown }).dead
-          : undefined
-    if (!Array.isArray(dead)) continue
-    for (const mark of dead) {
+    const list = read(message)
+    if (!Array.isArray(list)) continue
+    for (const mark of list) {
       const m = mark as { messageId?: unknown; blockIndex?: unknown }
       if (typeof m.messageId !== 'string' || typeof m.blockIndex !== 'number') continue
       let set = marks.get(m.messageId)
@@ -519,8 +529,28 @@ export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set
   return marks
 }
 
+export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
+  return collectMarks(messages, message =>
+    message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dead_thinking'
+      ? (message.attachment as { dead?: unknown }).dead
+      : message.type === 'system' && (message as { subtype?: string }).subtype === 'thinking_dead'
+        ? (message as { dead?: unknown }).dead
+        : undefined)
+}
+
+export function droppedThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
+  return collectMarks(messages, message =>
+    message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dropped_thinking'
+      ? (message.attachment as { dropped?: unknown }).dropped
+      : undefined)
+}
+
 export function createDeadThinkingAttachment(dead: DeadThinkingMark[]): AttachmentMessage {
   return createAttachmentMessage({ type: 'dead_thinking', dead })
+}
+
+export function createDroppedThinkingAttachment(dropped: DeadThinkingMark[]): AttachmentMessage {
+  return createAttachmentMessage({ type: 'dropped_thinking', dropped })
 }
 
 const isThinkingContent = (block: unknown): boolean => {

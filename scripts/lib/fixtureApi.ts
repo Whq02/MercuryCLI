@@ -333,8 +333,29 @@ export function bindingRefusalOf(body: unknown, drops: unknown[]): string | null
   return `${first.path ?? 'messages'}: the thinking block's ${first.reason === 'model_binding_mismatch' ? 'model' : 'prefix'} binding does not match this request (${first.reason ?? 'binding_mismatch'}); set thinking.block_binding.prefix_mismatch_behavior to "drop_block" to drop it instead`
 }
 
-export function boundSignature(body: { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }): string {
-  return `${BOUND_SIGNATURE_PREFIX}${prefixHashOf(body, Array.isArray(body.messages) ? body.messages : [])}:${String(body.model ?? '')}`
+function chainHashOf(seen: readonly string[]): string {
+  return createHash('sha256').update(seen.join('\u001e')).digest('hex').slice(0, 16)
+}
+
+function readThinkingBlocks(messages: readonly unknown[]): Array<{ path: string; signature: string | null }> {
+  const out: Array<{ path: string; signature: string | null }> = []
+  messages.forEach((message, i) => {
+    const row = message as { role?: string; content?: unknown }
+    if (row.role !== 'assistant' || !Array.isArray(row.content)) return
+    row.content.forEach((block, j) => {
+      const b = block as { type?: string; signature?: unknown }
+      if (b.type !== 'thinking' && b.type !== 'redacted_thinking') return
+      out.push({ path: `messages.${i}.content.${j}`, signature: typeof b.signature === 'string' && b.signature.startsWith(BOUND_SIGNATURE_PREFIX) ? b.signature : null })
+    })
+  })
+  return out
+}
+
+export function boundSignature(body: { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }, dropped: readonly unknown[] = []): string {
+  const messages = Array.isArray(body.messages) ? body.messages : []
+  const droppedPaths = new Set(dropped.map(d => String((d as { path?: unknown }).path ?? '')))
+  const seen = readThinkingBlocks(messages).filter(block => block.signature !== null && !droppedPaths.has(block.path)).map(block => block.signature!)
+  return `${BOUND_SIGNATURE_PREFIX}${prefixHashOf(body, messages)}:${String(body.model ?? '')}:${chainHashOf(seen)}`
 }
 
 export function countTokensFixtureFigure(raw: string): number {
@@ -345,7 +366,7 @@ export function bindingDropsFor(current: unknown): unknown[] {
   const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
   if (!cur || !Array.isArray(cur.messages)) return []
   const dropped: unknown[] = []
-  let broken = false
+  const seen: string[] = []
   cur.messages.forEach((message, i) => {
     const row = message as { role?: string; content?: unknown }
     if (row.role !== 'assistant' || !Array.isArray(row.content)) return
@@ -353,20 +374,16 @@ export function bindingDropsFor(current: unknown): unknown[] {
       const b = block as { type?: string; signature?: unknown }
       if (b.type !== 'thinking' && b.type !== 'redacted_thinking') return
       if (typeof b.signature !== 'string' || !b.signature.startsWith(BOUND_SIGNATURE_PREFIX)) return
-      if (broken) {
-        dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
-        return
-      }
-      const [, mintedHash, mintedModel] = b.signature.split(':')
+      const [, mintedHash, mintedModel, mintedChain] = b.signature.split(':')
       if (mintedModel !== String(cur.model ?? '')) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'model_binding_mismatch' })
-        broken = true
         return
       }
-      if (mintedHash !== prefixHashOf(cur, cur.messages!.slice(0, i))) {
+      if (mintedHash !== prefixHashOf(cur, cur.messages!.slice(0, i)) || (mintedChain !== undefined && mintedChain !== chainHashOf(seen))) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
-        broken = true
+        return
       }
+      seen.push(b.signature)
     })
   })
   return dropped
@@ -577,7 +594,8 @@ export async function startFixtureApi(
         }
       }
       if (opts?.bindingCheck && turn !== undefined && (turn.kind === 'text' || turn.kind === 'tool_use')) {
-        const judged = turn.inputTransformations === undefined ? bindingDropsFor(body) : turn.inputTransformations
+        const held = bindingDropsFor(body)
+        const judged = turn.inputTransformations === undefined ? held : turn.inputTransformations
         const refusal = bindingRefusalOf(body, judged)
         if (refusal !== null) {
           queue.unshift(turn)
@@ -588,7 +606,7 @@ export async function startFixtureApi(
         }
         turn = {
           ...turn,
-          signature: boundSignature(body as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }),
+          signature: boundSignature(body as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }, held),
           ...(turn.inputTransformations === undefined ? { inputTransformations: judged } : {}),
         }
       }

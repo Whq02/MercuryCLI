@@ -945,7 +945,7 @@ export class Conversation {
             turnMessages.push(message)
             const attachment = (projected as { attachment?: { type?: string } }).attachment
             const attachmentType = attachment?.type
-            if (attachmentType === 'dead_thinking' || attachmentType === 'bound_prefix' || attachmentType === 'images_left_out') {
+            if (attachmentType === 'dead_thinking' || attachmentType === 'dropped_thinking' || attachmentType === 'bound_prefix' || attachmentType === 'images_left_out') {
               await recordDelta()
               if (!persistenceDisabled) await flushSessionStorage()
             } else {
