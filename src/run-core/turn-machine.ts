@@ -681,6 +681,11 @@ async function* streamModel(
           latestUserContextBody(iter.messagesForQuery) === null
             ? prependUserContext(iter.messagesForQuery, run.userContext)
             : iter.messagesForQuery
+        const presentBoard = (): void => {
+          if (boardPresented || !swarmRoad(toolUseContext.agentId)) return
+          boardPresented = true
+          try { swarmPresented(toolUseContext.agentId, requestMessages, callId) } catch (error) { logForDebugging(`crew board accounting: ${String(error)}`) }
+        }
         if (isTurnOwningQuerySource(run.querySource)) {
           recordSentRequest(String(rosterOwnerFromToolUseContext(toolUseContext)), requestMessages)
         }
@@ -732,10 +737,7 @@ async function* streamModel(
             onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
             onStreamActivity: atMs => {
               toolUseContext.setSDKStatus?.({ streamActivity: atMs })
-              if (!boardPresented && swarmRoad(toolUseContext.agentId)) {
-                boardPresented = true
-                try { swarmPresented(toolUseContext.agentId, requestMessages, callId) } catch (error) { logForDebugging(`crew board accounting: ${String(error)}`) }
-              }
+              presentBoard()
             },
             querySource: run.querySource,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
@@ -756,6 +758,7 @@ async function* streamModel(
             addNotification: toolUseContext.addNotification,
           },
         })) {
+          if (message.type === 'stream_event' || (message.type === 'assistant' && !message.isApiErrorMessage)) presentBoard()
           if (streamingFallbackOccured) {
             streamingFallbackOccured = false
             for (const msg of iter.assistantMessages) {

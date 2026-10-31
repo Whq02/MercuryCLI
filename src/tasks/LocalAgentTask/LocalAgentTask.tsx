@@ -951,6 +951,7 @@ export function queuePendingMessage(
   taskId: string,
   message: string,
   setAppState: SetAppState,
+  options: { preservePause?: boolean } = {},
 ): void {
   let queued = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
@@ -959,7 +960,7 @@ export function queuePendingMessage(
     return { ...task, pendingMessages: [...(task.pendingMessages ?? []), message] }
   })
   if (queued) recordAgentMessage(taskId, message)
-  if (queued) operatorPauseGate.lift(taskId)
+  if (queued && !options.preservePause) operatorPauseGate.lift(taskId)
 }
 
 export function queueOperatorMessage(

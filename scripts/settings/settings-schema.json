@@ -13,16 +13,46 @@
           "type": "boolean"
         },
         "seatAllowance": {
-          "description": "Board-context tokens per seat, default 6000",
+          "description": "Requested board-context tokens per seat, default 200000; 1000–5000000, or 0 for no cap",
           "type": "integer",
-          "minimum": 1000,
-          "maximum": 60000
+          "minimum": 0,
+          "maximum": 5000000,
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "minimum": 1000
+            }
+          ]
         },
         "waveAllowance": {
-          "description": "Board-context tokens per wave, at least seatAllowance, default 40000",
+          "description": "Live-wave board context before unsolicited delivery degrades, default 500000; at least seatAllowance up to 20000000, or 0 for no cap",
           "type": "integer",
-          "minimum": 1000,
-          "maximum": 400000
+          "minimum": 0,
+          "maximum": 20000000,
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "minimum": 1000
+            }
+          ]
+        },
+        "postChars": {
+          "description": "Characters per post, default 4000; 400–20000, or 0 for no cap",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20000,
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "minimum": 400
+            }
+          ]
         },
         "postsPerMinute": {
           "description": "Posts per minute per seat, with a burst of twice this rate, default 4",

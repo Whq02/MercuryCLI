@@ -60,7 +60,7 @@ export const ResumeAgentTool = buildTool({
         const board = swarmPeerMessage(context, address.agentId, input.message, true)
         if (board.handled) return { data: board.result! }
         const ahead = address.task.pendingMessages?.length ?? 0
-        queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
+        queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState, { preservePause: swarmRoad(address.agentId) || swarmRoad(context.agentId) })
         const queue = ahead === 0 ? 'it reads it at its next tool boundary, or as its next turn when the current one ends' : `${ahead} earlier ${ahead === 1 ? 'message is' : 'messages are'} queued ahead of it; it reads them in order at its next tool boundary, or as its next turn when the current one ends`
         const kept = overrides.length === 0 ? '' : ` Its ${overrides.join(' and ')} ${overrides.length === 1 ? 'was' : 'were'} not applied: a running crewmate keeps its model and effort; name them again on ResumeCrewmate once it has finished.`
         return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was queued and ${queue}.${kept}` } }

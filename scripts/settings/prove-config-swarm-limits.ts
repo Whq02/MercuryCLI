@@ -22,6 +22,7 @@ const { configPopupRequest } = await import('../../src/commands/config/config.ts
 const { CONFIG_POPUP_HINT } = await import('../../src/components/Settings/Config.tsx')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+const focused = await import('../../src/services/engine-connector/focusedConnector.ts')
 enableConfigs()
 const cols = 120, rows = 44
 let checks = 0
@@ -56,13 +57,15 @@ async function capture(name: string): Promise<void> {
 }
 try {
   await open()
-  check('the filtered popup shows the summary with exact default words', mounted.screen().includes('Swarm limits') && mounted.screen().includes('6,000 per agent · 40,000 per wave · 4 posts/min'))
-  for (const label of ['Tokens per agent', 'Tokens per wave', 'Posts per minute', 'Posts per agent per wave']) check(`the group contains ${label}`, mounted.screen().includes(label))
+  check('the filtered popup shows the summary with exact default words', mounted.screen().includes('Swarm limits') && mounted.screen().includes('200,000 per agent · 500,000 per wave · 4 posts/min'))
+  for (const label of ['Tokens per agent', 'Tokens per wave', 'Posts per minute', 'Posts per agent per wave', 'Characters per post']) check(`the group contains ${label}`, mounted.screen().includes(label))
   await capture('swarm-default-120x44')
   await key(KEY.down)
   await key(KEY.down)
   await key(KEY.right)
-  check('the agent row edits user settings only', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 7000 && getSettingsForSource('localSettings')?.swarm === undefined)
+  check('the agent row edits user settings only', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 201000 && getSettingsForSource('localSettings')?.swarm === undefined)
+  await key(KEY.down)
+  await key(KEY.right)
   await key(KEY.down)
   await key(KEY.right)
   await key(KEY.down)
@@ -70,7 +73,7 @@ try {
   await key(KEY.down)
   await key(KEY.right)
   const changed = getSettingsForSource('userSettings')?.swarm
-  check('all four numeric controls write their step', changed?.seatAllowance === 7000 && changed.waveAllowance === 41000 && changed.postsPerMinute === 5 && changed.postsPerSeat === 130)
+  check('all five numeric controls write their step', changed?.seatAllowance === 201000 && changed.waveAllowance === 501000 && changed.postsPerMinute === 5 && changed.postsPerSeat === 130 && changed.postChars === 4400)
   await key(KEY.enter)
   check('enter saves and closes', !popup.isSettingsPopupOpen() && getSettingsForSource('userSettings')?.swarm?.postsPerSeat === 130)
   updateSettingsForSource('userSettings', { swarm: { seatAllowance: 12000, waveAllowance: 50000, postsPerMinute: 10, postsPerSeat: 120 } })
@@ -88,17 +91,46 @@ try {
   await key(KEY.down)
   await key(KEY.down)
   await key(KEY.left)
-  check('the seat control stops at its floor', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 1000)
+  check('below the seat floor selects no limit', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 0 && mounted.screen().includes('no limit per agent'))
+  await key(KEY.right)
   await key(KEY.right)
   check('raising the seat also raises a smaller wave allowance', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 2000 && getSettingsForSource('userSettings')?.swarm?.waveAllowance === 2000)
   await key(KEY.down)
   await key(KEY.left)
-  check('the wave control cannot go below the seat', getSettingsForSource('userSettings')?.swarm?.waveAllowance === 2000)
+  check('below the wave floor selects no limit', getSettingsForSource('userSettings')?.swarm?.waveAllowance === 0 && mounted.screen().includes('no limit per wave'))
   await key(KEY.esc)
   check('escape restores both coupled fields', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 1000 && getSettingsForSource('userSettings')?.swarm?.waveAllowance === 1000)
+  await key(KEY.esc)
+  updateSettingsForSource('userSettings', { swarm: { seatAllowance: 0, waveAllowance: 0, postChars: 0 } })
+  await open()
+  check('the zero summary and post length show no limit', mounted.screen().includes('no limit per agent · no limit per wave') && mounted.lines().some(line => line.includes('Characters per post') && line.includes('no limit')))
+  await capture('swarm-uncapped-120x44')
+  await key(KEY.esc)
+  updateSettingsForSource('userSettings', { swarm: { enabled: true, seatAllowance: 200000, waveAllowance: 500000, postChars: 4000, postsPerMinute: 4, postsPerSeat: 120 } })
+  let liveUncap = false
+  const listeners = new Set<() => void>()
+  focused.setFocusedSessionConnector(new Proxy(focused.getFocusedSessionConnector(), {
+    get(target, key) {
+      if (key === 'swarmBoard') return () => ({ on: true, events: [], snapshot: 0, omitted: 0, admitted: 0, peerTurns: 0, uncapped: liveUncap })
+      if (key === 'subscribeWork') return (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener) } }
+      const value = Reflect.get(target, key)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  }))
+  await open()
+  liveUncap = true
+  for (const listener of listeners) listener()
+  await settle(150)
+  check('an open filtered popup follows the focused worker’s uncap override', mounted.screen().includes('no limit per agent · no limit per wave · 4 posts/min') && getSettingsForSource('userSettings')?.swarm?.seatAllowance === 200000)
+  await capture('swarm-live-uncap-120x44')
+  liveUncap = false
+  for (const listener of listeners) listener()
+  await settle(150)
+  check('restoring caps refreshes the same popup', mounted.screen().includes('200,000 per agent · 500,000 per wave · 4 posts/min'))
   console.log(`${checks} swarm config checks passed`)
 } finally {
   mounted.unmount()
+  focused.releaseFocusedSessionConnector()
   popup.closeSettingsPopup()
   await releaseScratchHome(home)
 }

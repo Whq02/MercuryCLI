@@ -27,10 +27,22 @@ export function swarmLimits(): BoardLimits {
   const seatAllowance = settings?.seatAllowance ?? DEFAULT_BOARD_LIMITS.seatAllowance
   return {
     seatAllowance,
-    waveAllowance: Math.max(seatAllowance, settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance),
+    waveAllowance: settings?.waveAllowance === 0 ? 0 : Math.max(seatAllowance, settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance),
     postsPerMinute: settings?.postsPerMinute ?? DEFAULT_BOARD_LIMITS.postsPerMinute,
     postsPerSeat: settings?.postsPerSeat ?? DEFAULT_BOARD_LIMITS.postsPerSeat,
+    postChars: settings?.postChars ?? DEFAULT_BOARD_LIMITS.postChars,
   }
+}
+
+export function swarmUncapped(): boolean {
+  return sessions.get(String(getSessionId()))?.store.uncapped === true
+}
+
+export function setSwarmUncapped(value: boolean): void {
+  const store = swarmStore()
+  const state = sessions.get(String(getSessionId()))
+  if (!store || !state) throw new Error('No live wave; /swarm on opens it.')
+  store.setUncapped({ author: { sessionId: String(getSessionId()), agentId: 'main', executionId: state.execution }, name: 'main' }, value)
 }
 
 export function swarmSessionEnabled(): boolean {
@@ -100,8 +112,18 @@ export function swarmView(): BoardViewSnapshot {
   try { return swarmStore()?.view() ?? EMPTY } catch (error) { return { ...EMPTY, on: true, error: error instanceof Error ? error.message : String(error) } }
 }
 
+const directWords = (text: string): string => `${Array.from(text).slice(0, 400).join('')}… (sent directly)`
+
 export function swarmPeerMessage(context: ToolUseContext, recipient: string, text: string, resume = false, interrupt = false): { handled: boolean; result?: { success: boolean; message: string } } {
   const sender = context.agentId ?? 'main'
+  if (sender === 'main' || recipient === 'main') {
+    try {
+      const board = swarmStore()
+      const principal = swarmPrincipal(sender) ?? { author: { sessionId: String(getSessionId()), agentId: sender, executionId: context.toolUseId ?? sender }, name: sender }
+      board?.post(principal, { clientOpId: `${resume ? 'resume' : 'message'}:${context.toolUseId ?? randomUUID()}`, kind: 'message', text: directWords(text), taskId: recipient, refs: [{ uri: `mercury://agent/${recipient}`, digest: createHash('sha256').update(text).digest('hex') }] }, 'mirror')
+    } catch {}
+    return { handled: false }
+  }
   if (!swarmRoad(sender) && !swarmRoad(recipient)) return { handled: false }
   if (interrupt && sender !== 'main') return { handled: true, result: { success: false, message: 'Only the lead can interrupt a crewmate.' } }
   if (interrupt) return { handled: false }
@@ -134,7 +156,7 @@ function readPackets(messages: readonly Message[]): { packetId: string; eventIds
       try {
         const text = typeof block.content === 'string' ? block.content : (block.content ?? []).flatMap(part => part.type === 'text' ? [part.text] : []).join('')
         const data: unknown = JSON.parse(text)
-        if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' ? [event.eventId] : []) })
+        if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' && event.truncated !== true ? [event.eventId] : []) })
       } catch {}
     }
   }
@@ -177,7 +199,11 @@ export function closeIdleSwarm(): void {
 
 export function settleSwarmAgent(agentId: string): void {
   const road = roads.get(key(agentId))
-  if (road) road.active = false
+  if (road) {
+    const state = sessions.get(String(getSessionId()))
+    if (road.on && state) state.store.settle({ author: { sessionId: String(getSessionId()), agentId, executionId: road.execution }, name: road.name })
+    road.active = false
+  }
   closeIdleSwarm()
 }
 
@@ -189,6 +215,6 @@ export function mirrorSwarmResume(context: ToolUseContext, recipient: string, te
     const sender = context.agentId ?? 'main'
     const principal = swarmPrincipal(sender) ?? { author: { sessionId: String(getSessionId()), agentId: sender, executionId: context.toolUseId ?? sender }, name: sender }
     const hash = createHash('sha256').update(text).digest('hex')
-    return store.post(principal, { clientOpId: `resume:${context.toolUseId ?? hash}`, kind: 'notice', text: Array.from(text).length <= 1200 ? text : 'More work', taskId: recipient, refs: [{ uri: `mercury://agent/${recipient}`, digest: hash }] }, 'mirror')
+    return store.post(principal, { clientOpId: `resume:${context.toolUseId ?? hash}`, kind: 'notice', text: directWords(text), taskId: recipient, refs: [{ uri: `mercury://agent/${recipient}`, digest: hash }] }, 'mirror')
   } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : String(error) } }
 }

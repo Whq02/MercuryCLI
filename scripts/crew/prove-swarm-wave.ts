@@ -9,7 +9,7 @@ const world = await makeWorld('swarm-wave', [
   { kind: 'tool_use', name: 'CrewBoard', id: 'alpha-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
   { kind: 'text', text: 'Alpha posted and read the parser thread.' },
   { kind: 'tool_use', name: 'Crewmate', id: 'launch-beta', input: { name: 'beta', team: 'transport', description: 'Check transport fields', prompt: 'Read the parser thread, post a transport question to it, then finish.', crewmate_type: 'mercury-crew', model: LEAD_MODEL, run_in_background: false } },
-  { kind: 'tool_use', name: 'CrewBoard', id: 'beta-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },
+  { kind: 'tool_use', name: 'CrewBoard', id: 'beta-read', input: { op: 'read', thread: 'parser', since: 0, limitTokens: 1500 } },
   { kind: 'tool_use', name: 'CrewBoard', id: 'beta-post', input: { op: 'post', clientOpId: 'beta-question', kind: 'ask', threadId: 'parser', taskId: 'transport', text: 'Does the next packet preserve both fields?' } },
   { kind: 'text', text: 'Beta read and posted to the parser thread.' },
   { kind: 'tool_use', name: 'CrewBoard', id: 'lead-read', input: { op: 'read', thread: 'parser', limitTokens: 1500 } },

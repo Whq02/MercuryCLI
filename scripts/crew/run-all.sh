@@ -16,7 +16,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/captureDriver.ts src/Task.ts src/bootstrap/state.ts src/cli/run.ts
 # gate-watch: src/commands/exit/exit.tsx src/components/MercuryExitConfirm.tsx
 # gate-watch: src/components/PromptInput/Notifications.tsx src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts
+# gate-watch: src/components/mercury-ui/screens/crewPauseDoor.ts src/run-core/pauseGate.ts src/run-core/turn-machine.ts
 # gate-watch: src/state/crewLedger.ts
 # gate-watch: src/query.ts src/rows/turn.ts src/cli/headless/turnDriver.ts
 # gate-watch: src/screens/Chat.tsx src/components/messages/TranscriptNameplate.tsx src/utils/staticRender.tsx

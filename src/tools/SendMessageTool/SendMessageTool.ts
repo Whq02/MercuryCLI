@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { swarmPeerMessage } from '../../services/crewBoard/seam.js'
+import { swarmPeerMessage, swarmRoad } from '../../services/crewBoard/seam.js'
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { enqueueMessageToMainAgent, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -48,7 +48,7 @@ export const SendMessageTool = buildTool({
     if (address.task?.status === 'running') {
       const board = swarmPeerMessage(context, address.agentId, input.message)
       if (board.handled) return { data: board.result! }
-      queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
+      queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState, { preservePause: swarmRoad(address.agentId) || swarmRoad(context.agentId) })
       return { data: { success: true, message: `Delivered to ${address.who}; it reads it at its next tool boundary.` } }
     }
     const workflow = await messageWorkflowWorker(address, input.message)

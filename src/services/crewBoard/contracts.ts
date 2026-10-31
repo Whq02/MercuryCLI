@@ -1,8 +1,8 @@
 import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 
-export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number }>
-export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 6000, waveAllowance: 40000, postsPerMinute: 4, postsPerSeat: 120 })
+export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number; postChars: number }>
+export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 200000, waveAllowance: 500000, postsPerMinute: 4, postsPerSeat: 120, postChars: 4000 })
 
 type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'message' | 'notice'
 type BoardAuthor = { sessionId: string; agentId: string; executionId: string }
@@ -42,9 +42,9 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
   policyRevision: 1
 }
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
-export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; packetId?: string; reason?: string }
+export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; skippedSeen: number; reread: string; packetId?: string; reason?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; uncapped?: boolean; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
@@ -54,6 +54,9 @@ export type BoardHost = {
 }
 export interface BoardStore {
   readonly limits: BoardLimits
+  readonly uncapped: boolean
+  setUncapped(principal: BoardPrincipal, value: boolean): void
+  settle(principal: BoardPrincipal): void
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
   assignTeam(principal: BoardPrincipal, seat: string, team: string): { ok: boolean; reason?: string; name?: string; team?: string }

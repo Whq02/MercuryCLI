@@ -1583,7 +1583,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const mission = this.facts?.mission ?? []
     const samples = this.facts?.samples ?? []
     const pauseGate = this.facts?.pauseGate
-    const stamp = JSON.stringify([reported, gone, rows, mission, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on])
+    const stamp = JSON.stringify([reported, gone, rows, mission, samples, pauseGate, this.facts?.swarm?.snapshot, this.facts?.swarm?.on, this.facts?.swarm?.uncapped])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
     this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }

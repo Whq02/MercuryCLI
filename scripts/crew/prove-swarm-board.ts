@@ -105,7 +105,7 @@ check('a peer note cannot lift an owner pause', paused.data.success && operatorP
 const interrupted = await ResumeAgentTool.call({ to: 'beta', message: 'Interrupt', interrupt: true }, context('alpha'), (() => {}) as never, {} as never)
 check('peer interrupt is refused without reopening pause', !interrupted.data.success && operatorPauseGate.holds('beta'))
 operatorPauseGate.resume()
-check('pause keeps the unread post for the next active boundary', JSON.stringify(getSwarmAttachments(context('beta'), [])).includes('Wait until resumed.'))
+check('pause keeps the direct note queued until resumed', JSON.stringify(drainPendingMessages('beta', () => state, set)).includes('Wait until resumed.'))
 runSwarmCommand('off')
 check('off hides the lead board and stops lead delivery', !getAllBaseTools().some(t => t.name === 'CrewBoard') && !seam.swarmView().on && seam.swarmBoundary(undefined, new Set()).length === 0)
 check('off preserves earlier board seats', seam.swarmRoad('alpha') && seam.swarmRoad('beta'))
@@ -141,7 +141,7 @@ check('dispatched reads acknowledge their events and count replay', !JSON.string
 const resumeContext = { ...context(), toolUseId: 'resume-proof' }
 const mirroredResume = seam.mirrorSwarmResume(resumeContext, 'alpha', 'Continue the parser work.')
 seam.mirrorSwarmResume(resumeContext, 'alpha', 'Continue the parser work.')
-check('lead continuation mirrors once without another inbox delivery', mirroredResume?.ok && board.view().events.filter(event => event.text === 'Continue the parser work.').length === 1 && drainPendingMessages('alpha', () => state, set).length === 0)
+check('lead continuation mirrors once without another inbox delivery', mirroredResume?.ok && board.view().events.filter(event => event.text === 'Continue the parser work.… (sent directly)').length === 1 && drainPendingMessages('alpha', () => state, set).length === 0)
 updateSettingsForSource('userSettings', { swarm: { enabled: false } })
 const masterHeld = seam.swarmPeerMessage(context('alpha'), 'beta', 'Held by the master switch.')
 check('master off refuses rather than migrating a board member to the old inbox', masterHeld.handled && !masterHeld.result?.success && seam.swarmTools('beta').length === 0 && drainPendingMessages('beta', () => state, set).length === 0)
@@ -150,7 +150,8 @@ unsubscribe()
 const { open } = await import('../../src/services/crewBoard/store.ts')
 let now = 0
 const budgetFile = join(work, 'budget.sqlite')
-const budget = open(budgetFile, 'budget-session', undefined, () => now)
+const smallLimits = { seatAllowance: 6000, waveAllowance: 40000, postsPerMinute: 4, postsPerSeat: 120, postChars: 4000 }
+const budget = open(budgetFile, 'budget-session', smallLimits, () => now)
 const a = { author: { sessionId: 'budget-session', agentId: 'one', executionId: 'execution' }, name: 'one' }
 const b = { author: { sessionId: 'budget-session', agentId: 'two', executionId: 'execution' }, name: 'two' }
 budget.enroll(a); budget.enroll(b)
@@ -171,8 +172,9 @@ recovered.presented(b, initial.eventIds, 'sent')
 recovered.presented(b, initial.eventIds, 'sent')
 check('replayed acknowledgment does not replay the event', !recovered.boundary(b, new Set())?.eventIds.some(id => initial.eventIds.includes(id)))
 let capped = false
-for (let i = 0; i < 20; i++) { const page = recovered.read(b, { limitTokens: 1500 }); if (page.reason?.includes('allowance')) { capped = true; break } }
-check('the per-member fresh-context allowance refuses further bodies', capped && recovered.view().admitted <= 6000)
+const beforeReads = recovered.view().admitted
+for (let i = 0; i < 20; i++) { const page = recovered.read(b, { since: 0, limitTokens: 1500 }); if (page.reason?.includes('allowance')) { capped = true; break } }
+check('the per-member requested-context allowance refuses further bodies', capped && recovered.view().admitted - beforeReads <= 6000)
 check('every view and read batch stays bounded', recovered.view().events.length <= 32 && recovered.view().omitted === 88)
 check('the board has no peer-started turns', recovered.view().peerTurns === 0)
 const older = recovered.view(89)
@@ -181,17 +183,17 @@ const receipts = recovered.view().admitted
 for (let i = 0; i < 8; i++) {
   const reader = { author: { sessionId: 'budget-session', agentId: `reader-${i}`, executionId: 'execution' }, name: `reader-${i}` }
   recovered.enroll(reader)
-  for (let j = 0; j < 20; j++) { const read = recovered.read(reader, { limitTokens: 1500 }); assert(read.tokens <= 1500); if (read.reason?.includes('allowance')) break }
+  for (let j = 0; j < 20; j++) { const read = recovered.read(reader, { since: 0, limitTokens: 1500 }); assert(read.tokens <= 1500); if (read.reason?.includes('allowance')) break }
 }
-check('the wave-wide allowance refuses N+1 across members', recovered.view().admitted <= 40000 && recovered.view().admitted > 38500 && recovered.view().admitted > receipts)
+check('the wave-wide guard does not refuse a seat’s requested read', recovered.view().admitted > 40000 && recovered.view().admitted > receipts)
 const member = { ...b, author: { ...b.author, executionId: 'new-execution' } }
 recovered.enroll(member)
 check('an earlier execution cannot post after same-seat continuation', !recovered.post(b, { clientOpId: 'stale', kind: 'ask', text: 'Stale execution.' }).ok)
 const costFile = join(work, 'cost.sqlite')
-const cost = open(costFile, 'cost-session')
+const cost = open(costFile, 'cost-session', smallLimits)
 const peers = Array.from({ length: 8 }, (_, i) => ({ author: { sessionId: 'cost-session', agentId: `peer-${i}`, executionId: 'run' }, name: `peer-${i}` }))
 for (const peer of peers) cost.enroll(peer)
-for (let i = 0; i < 8; i++) assert(cost.post(peers[0]!, { clientOpId: `topic-${i}`, kind: 'ask', taskId: `task-${i}`, text: 'A measured finding from the same recorded schedule.', mentions: ['peer-1', 'peer-2'] }).ok)
+for (let i = 0; i < 8; i++) assert(cost.post(peers[0]!, { clientOpId: `topic-${i}`, kind: 'ask', taskId: `task-${i}`, text: 'A measured finding from the same recorded schedule.', mentions: ['peer-1', 'peer-2', 'peer-3'] }).ok)
 const full = cost.view().events
 const push = full.reduce((n, event) => n + Buffer.byteLength(JSON.stringify(event)), 0) * 7
 let selective = 0
@@ -206,7 +208,7 @@ const repeatedCost = readPackets.reduce((sum, packet) => sum + packet.tokens, 0)
 assert(repeatedCost > 0)
 for (let i = 0; i <= Math.ceil(4000000 / repeatedCost); i++) cost.presented(peers[0]!, [], `continued-task-${i}`, packetIds)
 const forecastHeld = cost.read(peers[3]!, { limitTokens: 1500 })
-check('observed request replay stops new admissions at the forecast alarm without stopping task turns', (cost.view().appearances ?? 0) >= 4000000 && forecastHeld.events.length === 0 && forecastHeld.reason?.includes('allowance'))
+check('observed replay holds unsolicited delivery, not a requested read', (cost.view().appearances ?? 0) >= 4000000 && forecastHeld.events.length > 0 && !forecastHeld.reason && cost.boundary(peers[3]!, new Set()) === null)
 cost.close()
 recovered.close()
 console.log(`${checks} board checks passed`)

@@ -111,7 +111,7 @@ import { localRecordFor } from '../../services/providers/local/localCatalogue.js
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
-import { swarmLimits, swarmMasterEnabled } from '../../services/crewBoard/seam.js'
+import { swarmLimits, swarmMasterEnabled, swarmUncapped } from '../../services/crewBoard/seam.js'
 import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
@@ -567,6 +567,9 @@ export function Config({
   })
   const [seatFacts, setSeatFacts] = useState<SeatCeilingFacts | null>(null)
   const configStamp = useSyncExternalStore(subscribeGlobalConfigCache, getGlobalConfigCacheStamp, getGlobalConfigCacheStamp)
+  const boardConnector = getFocusedSessionConnector()
+  const capSnapshot = () => boardConnector.swarmBoard?.()?.uncapped ?? swarmUncapped()
+  const swarmCapOverride = useSyncExternalStore(listener => boardConnector.subscribeWork(listener), capSnapshot, capSnapshot)
   useEffect(() => {
     let active = true
     void seatCeilingFactsAsync().then(facts => { if (active) setSeatFacts(facts) })
@@ -1196,14 +1199,15 @@ export function Config({
     const enabled = swarmMasterEnabled()
     const limits = swarmLimits()
     const saved = getSettingsForSource('userSettings')?.swarm
-    const number = (value: number): string => value.toLocaleString('en-US')
+    const number = (value: number): string => value === 0 ? 'no limit' : value.toLocaleString('en-US')
+    const uncapped = swarmCapOverride
     items.push({
       id: 'swarm',
       label: 'Swarm',
       searchText: 'swarm live crew board',
       kind: 'boolean',
       value: <Text color={enabled ? tokens.success : tokens.textSecondary}>{enabled ? 'on · /swarm on enables a session' : 'off'}</Text>,
-      warning: `Live crew posts for new crewmates after /swarm on; ${number(limits.seatAllowance)} board tokens per agent, ${number(limits.waveAllowance)} per wave; no extra turns. Existing crewmates keep their messages unchanged.`,
+      warning: `Live crew posts for new crewmates after /swarm on; ${number(uncapped ? 0 : limits.seatAllowance)} board tokens per agent, ${number(uncapped ? 0 : limits.waveAllowance)} per wave; no extra turns. Existing crewmates keep their messages unchanged.`,
       setByYou: enabled,
       change: () => {
         if (writeSource('userSettings', { swarm: { enabled: !enabled } })) {
@@ -1217,25 +1221,27 @@ export function Config({
       label: 'Swarm limits',
       searchText: 'swarm limits allowance tokens posts',
       kind: 'info',
-      value: <Text>{`${number(limits.seatAllowance)} per agent · ${number(limits.waveAllowance)} per wave · ${limits.postsPerMinute} posts/min`}</Text>,
+      value: <Text>{`${number(uncapped ? 0 : limits.seatAllowance)} per agent · ${number(uncapped ? 0 : limits.waveAllowance)} per wave · ${limits.postsPerMinute} posts/min`}</Text>,
     })
     const fields = [
-      { key: 'seatAllowance', id: 'swarm-seat-allowance', label: 'Tokens per agent', min: 1000, max: 60000, step: 1000, unit: 'tokens' },
-      { key: 'waveAllowance', id: 'swarm-wave-allowance', label: 'Tokens per wave', min: limits.seatAllowance, max: 400000, step: 1000, unit: 'tokens' },
-      { key: 'postsPerMinute', id: 'swarm-posts-per-minute', label: 'Posts per minute', min: 1, max: 30, step: 1, unit: 'posts/min' },
-      { key: 'postsPerSeat', id: 'swarm-posts-per-seat', label: 'Posts per agent per wave', min: 10, max: 1000, step: 10, unit: 'posts' },
+      { key: 'seatAllowance', id: 'swarm-seat-allowance', label: 'Tokens per agent', min: 1000, max: 5000000, step: 1000, unit: 'tokens', zero: true },
+      { key: 'waveAllowance', id: 'swarm-wave-allowance', label: 'Tokens per wave', min: Math.max(1000, limits.seatAllowance), max: 20000000, step: 1000, unit: 'tokens', zero: true },
+      { key: 'postsPerMinute', id: 'swarm-posts-per-minute', label: 'Posts per minute', min: 1, max: 30, step: 1, unit: 'posts/min', zero: false },
+      { key: 'postsPerSeat', id: 'swarm-posts-per-seat', label: 'Posts per agent per wave', min: 10, max: 1000, step: 10, unit: 'posts', zero: false },
+      { key: 'postChars', id: 'swarm-post-chars', label: 'Characters per post', min: 400, max: 20000, step: 400, unit: 'characters', zero: true },
     ] as const
     for (const field of fields) items.push({
       id: field.id,
       label: `  ${field.label}`,
       searchText: 'swarm limits allowance tokens posts',
       kind: 'enum',
-      value: <Text>{`${number(limits[field.key])} ${field.unit}`}</Text>,
+      value: <Text>{limits[field.key] === 0 ? 'no limit' : `${number(limits[field.key])} ${field.unit}`}</Text>,
       setByYou: saved?.[field.key] !== undefined,
-      warning: `${number(field.min)}–${number(field.max)} · ←/→ ${number(field.step)}`,
+      warning: `${number(field.min)}–${number(field.max)}${field.zero ? ' · 0 = no limit' : ''} · ←/→ ${number(field.step)}`,
       change: direction => {
-        const next = Math.max(field.min, Math.min(field.max, limits[field.key] + direction * field.step))
-        const swarm = { [field.key]: next, ...(field.key === 'seatAllowance' && next > limits.waveAllowance ? { waveAllowance: next } : {}) }
+        const candidate = limits[field.key] + direction * field.step
+        const next = field.zero && direction < 0 && candidate < field.min ? 0 : Math.max(field.min, Math.min(field.max, candidate))
+        const swarm = { [field.key]: next, ...(field.key === 'seatAllowance' && limits.waveAllowance !== 0 && next > limits.waveAllowance ? { waveAllowance: next } : {}) }
         if (writeSource('userSettings', { swarm })) {
           recordSet(field.id, `set swarm ${field.label.toLowerCase()} to ${number(next)}`)
           bump()
@@ -1452,7 +1458,7 @@ export function Config({
         (item.searchText ?? '').toLowerCase().includes(needle),
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps -- items rebuilt every render; the query is the real input
-  }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp, media.settings, media.catalogue, media.config, media.error])
+  }, [query, version, appState, themeSetting, seatFacts, configStamp, servedModel, jevStamp, localServer.stamp, media.settings, media.catalogue, media.config, media.error, swarmCapOverride])
 
   const line = configPopupLine(configPopupFolder(), items.length, items.filter(item => item.setByYou === true).length)
   useLayoutEffect(() => {

@@ -165,13 +165,14 @@ edit `imageModel` and `videoModel` in `<media.root>/config.json`, never in
 
 ## Swarm
 
-The live [crew board](CREW.md#live-crew-board) reads these keys from user settings only. The **Swarm limits** group in `/config` edits the four numbers. Out-of-range values are clamped and named in settings validation. A wave keeps its opening limits, including after reopening; changes apply to new waves.
+The live [crew board](CREW.md#live-crew-board) reads these keys from user settings only. The **Swarm limits** group in `/config` edits these numbers. Out-of-range values are clamped and named in settings validation. A wave keeps its opening limits, including after reopening; changes apply to new waves. Swarm is off by default and is a high-cost option by choice: turning it on means choosing to pay for sharing. The allowances guard against faults. `/swarm uncap` lifts context and post-length allowances for a live wave; `/swarm cap` restores them and `/swarm status` shows the override. Post-rate and post-count guards stay on.
 
 | Key | What it sets |
 | --- | --- |
 | `swarm.enabled` | Master switch for the live crew board; `false` by default. `/swarm on` enables enrollment in a session. |
-| `swarm.seatAllowance` | Board-context tokens per seat and the maximum read size: 6,000 by default; 1,000–60,000. |
-| `swarm.waveAllowance` | Board-context tokens per wave: 40,000 by default; from `swarm.seatAllowance` to 400,000. |
+| `swarm.seatAllowance` | Requested board-context tokens per seat: 200,000 by default; 1,000–5,000,000, or 0 for no cap. |
+| `swarm.waveAllowance` | Live-wave board context before unsolicited delivery degrades: 500,000 by default; from `swarm.seatAllowance` to 20,000,000, or 0 for no cap. Completed seats no longer count. |
+| `swarm.postChars` | Characters per post: 4,000 by default; 400–20,000, or 0 for no cap. Direct messages to and from the lead are exempt. |
 | `swarm.postsPerMinute` | Posts per minute per seat: 4 by default; 1–30, with a burst of twice this rate. |
 | `swarm.postsPerSeat` | Posts per seat per wave: 120 by default; 10–1,000. |
 

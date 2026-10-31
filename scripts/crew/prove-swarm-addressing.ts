@@ -6,7 +6,7 @@ import { open } from '../../src/services/crewBoard/store.ts'
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 let now = 0
-const board = open(join(home, 'addressing.sqlite'), 'addressing', undefined, () => now)
+const board = open(join(home, 'addressing.sqlite'), 'addressing', { seatAllowance: 6000, waveAllowance: 40000, postsPerMinute: 4, postsPerSeat: 120, postChars: 4000 }, () => now)
 const principal = (id: string, name = id, team?: string) => ({ author: { sessionId: 'addressing', agentId: id, executionId: 'run' }, name, team })
 const lead = principal('main')
 const alpha = principal('a', 'Alpha', 'engine')
@@ -61,7 +61,7 @@ const allowance = 6000
 let expected = 0
 let used = 0
 for (const cost of costs) { if (used + cost > allowance) break; expected++; used += cost }
-const packed = board.read(reader, {})
+const packed = board.read(reader, { since: 0 })
 assert(expected > 1)
 assert.equal(packed.events.length, expected)
 assert.equal(packed.tokens, used)
@@ -69,16 +69,17 @@ assert.equal(packed.omitted, full.length - expected)
 assert.deepEqual(packed.events.map(event => event.seq), full.slice(0, expected).map(event => event.seq))
 const tinyReader = principal('tiny')
 board.enroll(tinyReader)
-const tiny = board.read(tinyReader, { limitTokens: 1 })
+const tiny = board.read(tinyReader, { since: 0, limitTokens: 1 })
 assert.equal(tiny.events.length, 1)
 assert.equal(tiny.events[0]!.eventId, unknown.eventId)
 assert.equal('truncated' in tiny.events[0]!, true)
 assert.equal(tiny.tokens, Buffer.byteLength(JSON.stringify(tiny.events[0])))
-assert.equal(tiny.omitted, full.length - 1)
-const narrow = board.read(tinyReader, { since: tiny.cursor, limitTokens: costs[1]! + costs[2]! })
+assert.equal(tiny.omitted, full.length)
+const narrow = board.read(tinyReader, { since: tiny.cursor, limitTokens: costs[0]! + costs[1]! })
 assert.equal(narrow.events.length, 2)
-assert.equal(narrow.omitted, full.length - 3)
-console.log('PASS 3 default reads fill the remaining allowance oldest first; tiny budgets return a charged identity envelope')
+assert.equal(narrow.omitted, full.length - 2)
+assert.equal(narrow.events[0]?.eventId, unknown.eventId)
+console.log('PASS 3 explicit history reads fill the remaining allowance oldest first; tiny budgets return a charged envelope and preserve the unread event')
 const readOnly = open(join(home, 'addressing.sqlite'), 'addressing', undefined, Date.now, true)
 let changes = 0
 const stop = readOnly.subscribe(() => changes++)

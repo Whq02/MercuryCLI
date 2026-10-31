@@ -3,21 +3,25 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 import { PromptsPanel } from '../../components/prompts-panel/PromptsPanel.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { saveSwarmSwitch } from '../../utils/sessionStorage/logs.js'
-import { closeIdleSwarm, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
+import { closeIdleSwarm, setSwarmUncapped, swarmMasterEnabled, swarmSessionEnabled, swarmStore } from '../../services/crewBoard/seam.js'
 
 export function runSwarmCommand(raw: string): string {
   const op = raw.trim().toLowerCase()
-  if (op !== '' && op !== 'on' && op !== 'off') return 'usage: /swarm on|off — /swarm opens Crew chat'
+  if (!['', 'on', 'off', 'uncap', 'cap', 'status'].includes(op)) return 'usage: /swarm on|off|uncap|cap|status — /swarm opens Crew chat'
   if (!swarmMasterEnabled()) {
     if (op === 'off') saveSwarmSwitch(false)
     return 'Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).'
   }
-  if (op !== '') saveSwarmSwitch(op === 'on')
+  if (op === 'on' || op === 'off') saveSwarmSwitch(op === 'on')
   if (op === 'off') closeIdleSwarm()
-  if (!swarmSessionEnabled()) return 'Swarm off for new crewmates — existing board crewmates keep their board; /swarm on enables it.'
+  const off = 'Swarm off for new crewmates — existing board crewmates keep their board; /swarm on enables it.'
+  if (!swarmSessionEnabled() && !['uncap', 'cap', 'status'].includes(op)) return off
   try {
-    const limits = swarmStore()!.limits
-    return `Swarm on for new crewmates — board context ${limits.seatAllowance.toLocaleString('en-US')} tokens per agent, ${limits.waveAllowance.toLocaleString('en-US')} per wave; no extra turns.`
+    const board = swarmStore()
+    if (!board) return off
+    if (op === 'uncap' || op === 'cap') setSwarmUncapped(op === 'uncap')
+    const words = (value: number): string => board.uncapped || value === 0 ? 'no limit' : value.toLocaleString('en-US')
+    return `Swarm ${swarmSessionEnabled() ? 'on' : 'off'} for new crewmates — board context ${words(board.limits.seatAllowance)} per agent, ${words(board.limits.waveAllowance)} per wave; ${words(board.limits.postChars)} characters per post${board.uncapped ? '; /swarm uncap is on' : ''}; ${board.limits.postsPerMinute} posts/min, ${board.limits.postsPerSeat} posts per seat; no extra turns.`
   } catch (error) {
     saveSwarmSwitch(false)
     return `Swarm could not open: ${error instanceof Error ? error.message : String(error)}`
@@ -28,7 +32,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, raw) => {
   if (!context.options.isNonInteractiveSession && hasFocusedSession()) {
     const connector = getFocusedSessionConnector()
     if (!raw.trim() && connector.swarmBoard?.()?.on) return React.createElement(PromptsPanel, { initialSection: 'crew', onClose: () => onDone(undefined, { display: 'skip' }) })
-    if (['on', 'off'].includes(raw.trim().toLowerCase())) {
+    if (['on', 'off', 'uncap', 'cap', 'status'].includes(raw.trim().toLowerCase())) {
       const receipt = await connector.sendWords(`/swarm ${raw.trim().toLowerCase()}`)
       onDone(receipt.state === 'refused' ? receipt.detail : undefined, { display: receipt.state === 'refused' ? 'system' : 'skip' })
       return null
