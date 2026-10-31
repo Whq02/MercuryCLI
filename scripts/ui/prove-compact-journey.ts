@@ -108,7 +108,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     if (!full) {
       for (const label of ['streaming', 'queued', ...(variant === 'resize' ? ['streaming-small'] : [])]) {
         const stream = rowsAt(label)
-        const activity = stream.findIndex(row => row.includes('writing') && row.includes('tokens'))
+        const activity = stream.findIndex(row => /^✶ \S.*… · \d+s · ↓ ~\d+/.test(row))
         const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
         const composerTop = stream.findIndex(row => /^╭/.test(row) || /^❯( |$)/.test(row))
         const chipAt = composerTop > 0 && /Opus 5|sovereign|need you|permissions unreported/.test(stream[composerTop - 1]!) ? composerTop - 1 : -1
