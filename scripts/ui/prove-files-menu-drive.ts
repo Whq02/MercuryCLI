@@ -213,7 +213,7 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
 
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
 const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
-const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, 'or click · brow', { awaitSettleTicks: 2, targetText: 'or click · brow', targetDx: 2 }), after(CLICK, 4, { targetText: 'or click · brow', targetDx: 2 })]
+const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, 'or click', { awaitSettleTicks: 2, targetText: 'or click', targetDx: 2 }), after(CLICK, 4, { targetText: 'or click', targetDx: 2 })]
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
@@ -410,7 +410,7 @@ if (worlds.has('small')) {
     const m = cap.marks
     tally.section(`plain · ${label} · the box and the menu fit`)
     tally.check(`${label} S1 every send became due`, cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
-    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('FILES · fixture-cwd') && /↵ or click · brow(se|…)/.test(m.land ?? ''), rowWith(m.land, 'or click') ?? '(no row)')
+    tally.check(`${label} S2 the rail carries the FILES section and its row`, (m.land ?? '').includes('FILES · fixture-cwd') && /↵ or click(?: · browse|…)/.test(m.land ?? ''), rowWith(m.land, 'or click') ?? '(no row)')
     const menu = menuRegion(m.menu)
     const composerAt = rowIndexWith(m.menu, 'Type a prompt')
     tally.check(`${label} S3 the menu fits inside the chat pane with its hint row and bottom border`, menu !== null && menu.rows[menu.rows.length - 1]?.startsWith('╰') === true && menu.rows.some(r => r.includes(HINT.slice(0, 20))) && menu.top + menu.rows.length < composerAt - 1, menu === null ? 'no menu' : `top ${menu.top} rows ${menu.rows.length} composer at ${composerAt}`)
