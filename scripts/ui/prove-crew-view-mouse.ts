@@ -291,7 +291,7 @@ const click = (scene: Scene, at: { x: number; y: number }): void => scene.push(p
 for (const [cols, rows] of SIZES) {
   const tag = `${cols}x${rows}`
   const scene = await openScene(cols, rows)
-  section(`§1 ${tag}: the wheel over the list moves the selection the way the arrow keys do, and the transcript behind the popup stays where it was`)
+  section(`§1 ${tag}: the wheel over the list moves the selection three rows a notch, the way three arrow presses do, and the transcript behind the popup stays where it was`)
   check(`${tag}: /crewmates lists the ${SEATS} crewmates`, await openList(scene), scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ').slice(0, 300))
   save(`crew-mouse-${tag}-rest`, scene.lines())
   const transcriptTop = scene.scrollTop()
@@ -299,14 +299,14 @@ for (const [cols, rows] of SIZES) {
   check(`${tag}: the cursor rests on the first row`, cursorName(scene.lines()) === seatName(1), describe(scene))
   const first = cellAt(scene.lines(), seatName(1))!
   scene.push(wheel('down', first.x, first.y))
-  check(`${tag}: one wheel notch down moves the cursor to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), describe(scene))
+  check(`${tag}: one wheel notch down moves the cursor three rows, to the fourth row`, await settle(scene, () => cursorName(scene.lines()) === seatName(4)), describe(scene))
   check(`${tag}: the transcript did not scroll under the popup`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop}`)
   scene.push(wheel('down', first.x, first.y))
-  check(`${tag}: a second notch moves it to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: a second notch moves it three more, to the seventh row`, await settle(scene, () => cursorName(scene.lines()) === seatName(7)), describe(scene))
   scene.push(wheel('up', first.x, first.y))
-  check(`${tag}: a notch up moves it back to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), describe(scene))
+  check(`${tag}: a notch up moves it back three rows, to the fourth row`, await settle(scene, () => cursorName(scene.lines()) === seatName(4)), describe(scene))
   scene.push(DOWN)
-  check(`${tag}: ↓ still moves the cursor (the third row)`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: ↓ still moves the cursor one row (the fifth row)`, await settle(scene, () => cursorName(scene.lines()) === seatName(5)), describe(scene))
   save(`crew-mouse-${tag}-wheel`, scene.lines())
 
   section(`§2 ${tag}: pgdn/pgup page the list, and the window follows the selection; the transcript stays`)
@@ -315,7 +315,7 @@ for (const [cols, rows] of SIZES) {
   check(`${tag}: pgdn moves the cursor a page down and the window scrolls to it`, await settle(scene, () => seatIndex(cursorName(scene.lines())) > pageFrom + 1 && earlierMarker(scene.lines())), describe(scene))
   check(`${tag}: the transcript still did not scroll`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop}`)
   scene.push(PGUP)
-  check(`${tag}: pgup brings the cursor back to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: pgup brings the cursor back to the fifth row`, await settle(scene, () => cursorName(scene.lines()) === seatName(5)), describe(scene))
   const firstShown = visibleSeats(scene.lines())[0]!
   let notches = 0
   while (notches < SEATS && !earlierMarker(scene.lines())) {
