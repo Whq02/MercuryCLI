@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns } from '../lib/rows.ts'
@@ -321,6 +321,84 @@ if (!existsSync(DIST)) {
         check('§4 its first request starts cold by the rule: the 5m tier (the hour is spent; a fresh 1h write would buy nothing)', coldRequest !== undefined && j(ttlsOf(coldRequest)) === j(['{"type":"ephemeral"}']), j(coldRequest === undefined ? null : markers(coldRequest)))
       }
       await fixture.close()
+    }
+
+    section('§5 the system block is frozen for the session: a compaction mid-turn in a repository whose status moved re-composes it once, on the request that re-writes the context anyway; every later request (the rest of the turn, the next turn) sends the same bytes')
+    {
+      const SID = 'c0ffee00-0000-4000-8000-00000000f01d'
+      const summary: ScriptedTurn = { kind: 'text', text: 'Summary: the operator asked for the note to be read and the repository to be touched; the read is done.', whenBody: 'Produce the summary now.', model: MODEL }
+      const turns: ScriptedTurn[] = [
+        U('Bash', { command: 'touch changed.txt' }),
+        { ...U('Read', { file_path: 'big.txt' }), usage: { input_tokens: 150_000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } } as ScriptedTurn,
+        summary,
+        U('Bash', { command: 'echo after-the-fold' }),
+        T('S5-T1'),
+        T('S5-T2'),
+      ]
+      const fixture = await startFixtureApi([...turns, ...Array.from({ length: 4 }, () => handoffTurn())], { bindingCheck: true })
+      const arena = makeArena(fixture.url, nodeBin, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '7', MERCURY_COMPACT_KEEP_TAIL: '0' })
+      arenas.push(arena)
+      writeFileSync(join(arena.home, '.mercury', 'settings.json'), j({ guardrails: { allow: ['Bash(echo *)', 'Bash(touch *)', 'Read'] } }))
+      writeFileSync(join(arena.cwd, 'big.txt'), 'the note the model reads before the fold\n')
+      const git = (...args: string[]): void => {
+        const run = Bun.spawnSync(['git', ...args], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' } })
+        if (run.exitCode !== 0) throw new Error(`git ${args.join(' ')} failed: ${run.stderr.toString()}`)
+      }
+      git('init', '-q', '-b', 'main')
+      git('add', 'note.txt', 'big.txt')
+      git('commit', '-q', '-m', 'the first commit')
+      const debugFile = join(arena.home, 'fold.debug.log')
+      const failuresBefore = failures
+      const r = await runTurns({ node: nodeBin, dist: DIST, args: ['--model', MODEL, '--allowed-tools', 'Bash,Read', '--session-id', SID, '--log-file', debugFile], cwd: arena.cwd, env: arena.env, timeoutMs: 150_000, turns: ['touch the repository, then read the big note', 'and now?'] })
+      check('§5 the two turns answer and exit 0', r.exit === 0 && r.stdout.includes('S5-T1') && r.stdout.includes('S5-T2'), `exit=${r.exit} ${r.stderr.slice(-400)}`)
+      await fixture.close()
+      const all = fixture.messageRequests()
+      for (const [i, q] of all.entries()) {
+        const body = q.body as Body
+        const lastRow = body.messages?.[body.messages.length - 1]
+        const lastText = typeof lastRow?.content === 'string' ? lastRow.content : Array.isArray(lastRow?.content) ? (lastRow!.content as Array<{ type?: string; text?: string }>).map(b => b.type === 'text' ? String(b.text ?? '') : `[${b.type}]`).join(' ') : ''
+        console.log(`    request ${i + 1}: ${isHandoffRequest(q) ? 'closing ask' : q.raw.includes('Produce the summary now.') ? 'summariser' : 'main'} · ${body.messages?.length ?? 0} messages · system ${(body.system ?? []).map(b => String(b.text ?? '')).join('\n').includes('changed.txt') ? 'names changed.txt' : 'as at boot'} · last: ${j(lastText).slice(0, 90)}`)
+      }
+      const summariser = all.findIndex(q => q.raw.includes('Produce the summary now.'))
+      check('§5 the fold happened inside the first turn: the summariser request came after the big read (whose response declared 150k tokens of context) and before the turn\'s next round', summariser === 2, `summariser at ${summariser}; ${all.length} requests`)
+      const requests = all.filter(q => !isHandoffRequest(q) && !q.raw.includes('Produce the summary now.'))
+      const bodies = requests.map(q => q.body as Body)
+      check('§5 five main requests: two rounds before the fold, the round that carried the summary, the round after it, the next turn', bodies.length === 5, String(bodies.length))
+      const systemText = (body: Body | undefined): string => (body?.system ?? []).map(block => String(block.text ?? '')).join('\n')
+      const gitLine = (body: Body | undefined): string => systemText(body).split('\n').find(line => line.startsWith('gitStatus:')) ?? ''
+      check('§5 the system block carries the repository status (the git status line is in it)', gitLine(bodies[0]) !== '' && systemText(bodies[0]).includes('Current branch: main'), gitLine(bodies[0]).slice(0, 160))
+      check('§5 before the fold the system block does not move: the touch changed the repository, the block kept the status as first sent', j(withoutCacheControl(bodies[0]?.system)) === j(withoutCacheControl(bodies[1]?.system)))
+      const foldSystem = systemText(bodies[2])
+      check('§5 the request that lands the fold carries the re-composed block: the repository status moved with the touch and the block says so there, where the context is re-written anyway', foldSystem !== systemText(bodies[1]) && /changed\.txt/.test(foldSystem), systemText(bodies[2]).split('\n').filter(line => line.includes('changed.txt')).join(' | ').slice(0, 200))
+      for (let i = 3; i < bodies.length; i++) {
+        const verdict = prefixHeld(bodies[i - 1]!, bodies[i]!)
+        check(`§5 #${i}→#${i + 1}: request ${i + 1} starts with the whole serialized prefix of request ${i} (the system block byte-identical, the history appended)`, verdict.held, `${verdict.where}\n      before: ${verdict.before}\n      after:  ${verdict.after}`)
+      }
+      check('§5 the next turn sends the system block of the fold request byte for byte (the status is not computed again)', j(withoutCacheControl(bodies[4]?.system)) === j(withoutCacheControl(bodies[2]?.system)))
+      const debug = existsSync(debugFile) ? readFileSync(debugFile, 'utf8') : ''
+      check('§5 the debug log names the re-composition once, at the fold', debug.split('\n').filter(line => line.includes('composed again after the fold')).length === 1)
+      check('§5 the product\'s ledger saw no rewrite of sent history in the turn after the fold', !debug.includes('names a rewrite of sent history'), debug.split('\n').filter(l => l.includes('rewrite of sent history')).slice(0, 2).join(' | '))
+      const transcript = findFile(arena.home, p => p.endsWith(`${SID}.jsonl`) && p.includes('projects'))
+      const rows = transcript === null ? [] : readFileSync(transcript, 'utf8').split('\n')
+      const records = rows.filter(line => line.includes('"attachmentType":"bound_prefix"')).map(line => { try { return (JSON.parse(line) as { payload?: { fields?: { systemContext?: Record<string, string> } } }).payload?.fields?.systemContext } catch { return undefined } })
+      check('§5 the bound-prefix record written after the fold carries the status the fold request sent, so a later resume replays the same bytes', records.length >= 2 && /changed\.txt/.test(records[records.length - 1]?.gitStatus ?? ''), j(records.map(r => (r?.gitStatus ?? '').slice(0, 80))))
+      if (failures !== failuresBefore && existsSync(debugFile)) {
+        const kept = join(tmpdir(), 'cache-prefix-stable-fold.debug.log')
+        copyFileSync(debugFile, kept)
+        console.log(`  (the fold debug log is kept at ${kept})`)
+      }
+    }
+
+    section('§6 a posture change rides the message stream, never the system block')
+    {
+      const posture = await import('../../src/utils/cockpit/runtimePosture.ts')
+      posture.resetRuntimePostureForTest()
+      posture.markSessionNonInteractive('default')
+      const atBoot = posture.getRuntimePostureSection()
+      const reminder = posture.markSessionPermissionMode('flow')
+      check('§6 the posture section is a boot-time value: an operator mode change after boot leaves it byte-identical', posture.getRuntimePostureSection() === atBoot && atBoot !== null && atBoot.includes('Permission mode for this run: default'))
+      check('§6 the change travels as a reminder for the next prompt (the notice road), naming the mode at boot and the new one', reminder !== null && reminder.includes('flow') && reminder.includes('from default') && reminder.includes('the Runtime posture section states the mode at boot'), reminder ?? 'null')
+      posture.resetRuntimePostureForTest()
     }
 
     for (const arena of arenas) {

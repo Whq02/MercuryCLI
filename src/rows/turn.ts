@@ -70,7 +70,7 @@ import { setCwd } from '../utils/Shell.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
-import { asSystemPrompt } from '../utils/systemPromptType.js'
+import { asSystemPrompt, type SystemPrompt } from '../utils/systemPromptType.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { hasMnemeHomeOverride } from '../mneme/paths.js'
 import { getCwd } from '../utils/cwd.js'
@@ -394,24 +394,26 @@ export class Conversation {
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
+    const compose = async (): Promise<{ systemPrompt: SystemPrompt; userContext: Record<string, string>; systemContext: Record<string, string> }> => {
+      const parts = await fetchSystemPromptParts({
+        tools: config.tools,
+        engineModel: resolvedModel,
+        mcpClients: config.mcpClients,
+        customSystemPrompt: config.customSystemPrompt,
+        permissionMode: appStateSnapshot.toolPermissionContext.mode,
+        memoryTask: { prompt: typeof prompt === 'string' ? prompt : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n') },
+      })
+      let memoryMechanicsPrompt: string | null = null
+      if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
+      const sections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_CONSTITUTION, config.customSystemPrompt] : [...parts.defaultSystemPrompt]
+      if (memoryMechanicsPrompt) sections.push(memoryMechanicsPrompt)
+      if (config.appendSystemPrompt) sections.push(config.appendSystemPrompt)
+      return { systemPrompt: asSystemPrompt(sections), userContext: parts.userContext, systemContext: parts.systemContext }
+    }
     headlessProfilerCheckpoint('before_getSystemPrompt')
-    const promptParts = await fetchSystemPromptParts({
-      tools: config.tools,
-      engineModel: resolvedModel,
-      mcpClients: config.mcpClients,
-      customSystemPrompt: config.customSystemPrompt,
-      permissionMode: appStateSnapshot.toolPermissionContext.mode,
-      memoryTask: { prompt: typeof prompt === 'string' ? prompt : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n') },
-    })
+    const promptParts = await compose()
     headlessProfilerCheckpoint('after_getSystemPrompt')
-
-    let memoryMechanicsPrompt: string | null = null
-    if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
-
-    const systemPromptSections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_CONSTITUTION, config.customSystemPrompt] : [...promptParts.defaultSystemPrompt]
-    if (memoryMechanicsPrompt) systemPromptSections.push(memoryMechanicsPrompt)
-    if (config.appendSystemPrompt) systemPromptSections.push(config.appendSystemPrompt)
-    const systemPrompt = asSystemPrompt(systemPromptSections)
+    const systemPrompt = promptParts.systemPrompt
 
     const sessionId = getSessionId()
     const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
@@ -857,6 +859,7 @@ export class Conversation {
       systemPrompt,
       userContext: promptParts.userContext,
       systemContext: promptParts.systemContext,
+      recompose: compose,
       canUseTool: wrappedCanUseTool,
       toolUseContext,
       fallbackModel: config.fallbackModel,

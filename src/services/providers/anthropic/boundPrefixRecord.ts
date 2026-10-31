@@ -99,15 +99,17 @@ export async function boundPrefixRecordToEmit(
   emittedKeys.set(data.boundKey, signature)
   const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey) ?? null
   const compatible = recorded !== null && Array.isArray(recorded.sections) && !staticCompositionChanged(recorded.sections)
-  if (compatible && rosterSignatureOf(recorded) === signature) return null
   const recordedContexts = compatible && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
+  const sentContext = opts?.rosterOnly !== true && Object.keys(data.systemContext).length > 0 ? data.systemContext : null
+  const contextStands = sentContext === null || !recordedContexts || JSON.stringify(recorded.systemContext) === JSON.stringify(sentContext)
+  if (compatible && rosterSignatureOf(recorded) === signature && contextStands) return null
   return createAttachmentMessage({
     type: 'bound_prefix',
     boundKey: data.boundKey,
     rosterEnabled: data.rosterEnabled,
     roster: data.roster,
     sections: compatible ? recorded.sections : data.sections,
-    systemContext: recordedContexts ? recorded.systemContext : data.systemContext,
+    systemContext: sentContext ?? (recordedContexts ? recorded.systemContext : data.systemContext),
     ...(recordedContexts && isContextRecord(recorded.userContext)
       ? { userContext: recorded.userContext }
       : data.userContext !== undefined

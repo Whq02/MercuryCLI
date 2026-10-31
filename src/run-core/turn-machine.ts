@@ -247,11 +247,14 @@ type EventMint = ReturnType<typeof createEventMint>
 
 type ContextFacts = Record<string, string>
 
+export type ComposedPrompt = { systemPrompt: SystemPrompt; userContext: ContextFacts; systemContext: ContextFacts }
+
 export type QueryParams = {
   messages: Message[]
   systemPrompt: SystemPrompt
   userContext: ContextFacts
   systemContext: ContextFacts
+  recompose?: () => Promise<ComposedPrompt>
   canUseTool: CanUseToolFn
   toolUseContext: ToolUseContext
   fallbackModel?: string
@@ -289,6 +292,7 @@ type TurnState = {
 type RunCtx = {
   params: QueryParams
   userContext: { [k: string]: string }
+  systemContext: { [k: string]: string }
   fallbackModel: string | undefined
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
@@ -859,7 +863,7 @@ async function* streamModel(
                 iter.messagesForQuery,
                 iter.currentModel,
                 toolUseContext.agentId != null
-                  ? { rosterOnly: true, context: { userContext: run.userContext, systemContext: run.params.systemContext } }
+                  ? { rosterOnly: true, context: { userContext: run.userContext, systemContext: run.systemContext } }
                   : { rosterOnly: false },
               )
               if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
@@ -984,10 +988,8 @@ async function* runEventMachine(
   consumedCommandUuids: string[],
 ): AsyncGenerator<RunEvent, Terminal> {
   const emit = createEventMint()
+  let { systemPrompt, userContext, systemContext } = params
   const {
-    systemPrompt,
-    userContext,
-    systemContext,
     canUseTool,
     fallbackModel,
     querySource,
@@ -1019,6 +1021,7 @@ async function* runEventMachine(
   const run: RunCtx = {
     params,
     userContext,
+    systemContext,
     fallbackModel,
     querySource,
     skipCacheWrite,
@@ -1187,7 +1190,7 @@ async function* runEventMachine(
       })
     }
 
-    const fullSystemPrompt = asSystemPrompt(
+    let fullSystemPrompt = asSystemPrompt(
       appendSystemContext(systemPrompt, systemContext),
     )
 
@@ -1304,6 +1307,17 @@ async function* runEventMachine(
 
       messagesForQuery = [...postCompactMessages, ...carried]
       overflowEpisode = { pruned: overflowEpisode.pruned, folded: true }
+      if (params.recompose !== undefined) {
+        const composed = await params.recompose()
+        systemPrompt = composed.systemPrompt
+        userContext = composed.userContext
+        systemContext = composed.systemContext
+        run.userContext = userContext
+        run.systemContext = systemContext
+        const recomposed = asSystemPrompt(appendSystemContext(systemPrompt, systemContext))
+        if (recomposed.join('\u001e') !== fullSystemPrompt.join('\u001e')) logForDebugging('compaction: the system prompt was composed again after the fold, so the request that re-writes the context carries the new composition and the next turn reads it back')
+        fullSystemPrompt = recomposed
+      }
     } else if (consecutiveFailures !== undefined || rapidRefillPaused) {
       tracking = {
         ...(tracking ?? { compacted: false, turnId: '', turnCounter: 0 }),
