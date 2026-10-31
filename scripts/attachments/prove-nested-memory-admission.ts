@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const sourceArg = process.argv.indexOf('--source-root')
 const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[sourceArg + 1]!)
@@ -15,8 +16,8 @@ delete process.env.CI
 delete process.env.MERCURY_BARE
 process.chdir(project)
 let failures = 0
-const check = (name: string, ok: boolean) => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
+const check = (name: string, ok: boolean, detail = '') => {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 type Record_ = { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean }
@@ -39,7 +40,7 @@ try {
   const before = Date.now()
   const admitted = memoryFilesToAttachments([entry(guide), entry(guide), entry(rule)], first as never)
   check('a path repeated in one list is admitted once, in list order', admitted.map((a: { path: string }) => a.path).join(' ') === `${guide} ${rule}`)
-  check('an admitted entry is a nested_memory attachment carrying the entry itself and a cwd-relative display path', admitted[0]?.type === 'nested_memory' && admitted[0]?.content.path === guide && admitted[0]?.displayPath === 'sub/MERCURY.md')
+  check('an admitted entry is a nested_memory attachment carrying the entry itself and a cwd-relative display path', admitted[0]?.type === 'nested_memory' && admitted[0]?.content.path === guide && admitted[0]?.displayPath === join('sub', 'MERCURY.md'), `type ${admitted[0]?.type} path ${admitted[0]?.content?.path} display ${admitted[0]?.displayPath}`)
   check('an admitted path enters the loaded-paths ledger', first.loadedNestedMemoryPaths.has(guide) && first.loadedNestedMemoryPaths.has(rule))
   const record = first.readFileState.get(guide)
   check('an admitted entry gets a full-read cache record of its own content', record?.content === `guide at ${guide}` && record.offset === undefined && record.limit === undefined && !record.isPartialView && record.timestamp >= before)
@@ -86,8 +87,7 @@ try {
   const [small] = memoryFilesToAttachments([entry(join(project, 'sub', 'small', 'MERCURY.md'), { content: line.repeat(3) })], context() as never)
   check('a guide under the limit is attached whole and untouched', small?.content.content === line.repeat(3))
 } finally {
-  process.chdir(scratch)
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }
 console.log(`${failures ? 'FAIL' : 'PASS'} nested memory admission: ${failures} failures`)
 process.exit(failures ? 1 : 0)

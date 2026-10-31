@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'title-cut-home-')))
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'title-cut-proj-')))
@@ -64,8 +65,8 @@ try {
     check('the title is cut with the ellipsis', row.includes('…'), row.slice(-60))
   }
 } finally {
-  rmSync(HOME, { recursive: true, force: true })
-  rmSync(PROJ, { recursive: true, force: true })
+  removeScratch(PROJ)
+  removeScratch(HOME)
 }
 console.log(failures === 0 ? '\nprove-title-cut-keeps-graphemes: all green' : `\nprove-title-cut-keeps-graphemes: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

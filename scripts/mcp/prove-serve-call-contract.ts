@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'serve-contract-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -37,6 +38,7 @@ if (!existsSync(DIST)) {
   writeFileSync(join(projDir, 'inside.txt'), 'INSIDE-SENTINEL-TEXT\n')
   writeFileSync(join(outsideDir, 'outside.txt'), 'OUTSIDE-TEXT\n')
   const child = spawn('node', [DIST, 'mcp', 'serve'], { cwd: projDir, env: { ...process.env, MERCURY_CONFIG_DIR: HOME }, stdio: ['pipe', 'pipe', 'pipe'] })
+  const closed = new Promise<void>(resolve => child.once('close', () => resolve()))
   const lines: string[] = []
   let buffer = ''
   child.stdout.on('data', d => {
@@ -100,9 +102,11 @@ if (!existsSync(DIST)) {
   check('a valid call (a null optional included) still answers', inside?.result !== undefined && inside.result.isError !== true && textOf(inside).includes('INSIDE-SENTINEL-TEXT'), JSON.stringify(inside)?.slice(0, 200))
 
   child.kill()
-  rmSync(projDir, { recursive: true, force: true })
-  rmSync(outsideDir, { recursive: true, force: true })
+  await Promise.race([closed, new Promise<void>(resolve => setTimeout(resolve, 5_000))])
+  removeScratch(projDir)
+  removeScratch(outsideDir)
 }
+removeScratch(HOME)
 
 console.log(failures === 0 ? '\nPASS prove-serve-call-contract' : `\nFAIL prove-serve-call-contract (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

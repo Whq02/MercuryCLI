@@ -93,14 +93,34 @@ function installProofScratch() {
   process.on('exit', () => {
     if (runRoot) return
     for (const folder of [...folders].reverse()) {
-      try { fs.rmSync(folder, { recursive: true, force: true, maxRetries: 3 }) } catch (error) {
+      try { removeScratchFolder(folder) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)
         process.exitCode = process.exitCode || 1
       }
     }
   })
 }
-module.exports = { installProofScratch, registerProofScratch, keepProofScratch }
+const RETRY_CODES = new Set(['EBUSY', 'EPERM', 'ENOTEMPTY', 'EMFILE', 'ENFILE'])
+function removeScratchFolder(folder, maxRetries = 10, retryDelayMs = 100) {
+  let cwd = ''
+  try { cwd = process.cwd() } catch {}
+  const inside = cwd === '' ? '..' : path.relative(path.resolve(folder), cwd)
+  if (inside === '' || (!inside.startsWith('..') && !path.isAbsolute(inside))) {
+    try { process.chdir(require('node:os').tmpdir()) } catch {}
+  }
+  for (let attempt = 0; ; attempt++) {
+    try {
+      fs.rmSync(folder, { recursive: true, force: true })
+      return
+    } catch (error) {
+      const code = error && error.code ? error.code : ''
+      if (code === 'ENOENT' && !fs.existsSync(folder)) return
+      if (attempt >= maxRetries || !RETRY_CODES.has(code)) throw error
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, retryDelayMs * (attempt + 1))
+    }
+  }
+}
+module.exports = { installProofScratch, registerProofScratch, keepProofScratch, removeScratchFolder }
 if (process.env.MERCURY_SUITE_TMPDIR) {
   try {
     installProofScratch()

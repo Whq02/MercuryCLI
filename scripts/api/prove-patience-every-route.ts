@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.js'
-import { readFileSync, rmSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(proofHome)
@@ -125,7 +126,7 @@ try {
   check('the flag registry no longer promises a fixed budget on other providers', idleWords.includes('every provider') && !idleWords.includes('every other road'))
   check('the flag registry names normal and patient first-body-byte budgets', fenceWords.includes('normal is 30 s') && fenceWords.includes('patient is 60 s'))
 } finally {
-  rmSync(proofHome, { recursive: true, force: true })
+  removeScratch(proofHome)
 }
 console.log(`prove-patience-every-route: ${routes.length} declared routes, ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
