@@ -31,8 +31,8 @@ try {
     const gridPath = join(captures, `crewboard-${cols}.grid.json`)
     const configPath = join(captures, `crewboard-${cols}.json`)
     writeFileSync(configPath, JSON.stringify({ ...config, total: 170, out: gridPath, readyText: ['[Crewboard] Poster', '@main Please'], readySettleTicks: 3, sends: [
-      { atTick: 999, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/swarm on' },
-      { atTick: 999, awaitText: '/swarm on', minTick: 5, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 999, awaitText: 'Type a prompt', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '/swarm on' },
+      { atTick: 999, awaitText: '/swarm on', requireAwait: true, minTick: 5, awaitSettleTicks: 2, data: '\r' },
     ] }))
     const tee = join(captures, `crewboard-${cols}.tee.bin`)
     writeFileSync(tee, '')

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/attachments/toolManuals.ts src/utils/attachments/orchestrator.ts src/utils/api.ts scripts/api/prove-quiet-wire.ts
+# gate-watch: src/utils/cockpit/runtimePosture.ts
 # gate-watch: src/components/App.tsx src/components/Spinner.tsx src/components/Spinner/liveCounterWords.ts
 # gate-watch: src/ink/ink.tsx src/ink/instances.ts
 # gate-watch: src/services/providers/openaicompat/compatPrefill.ts src/services/providers/openaicompat/compatResponsesTransport.ts

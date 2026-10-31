@@ -74,9 +74,11 @@ echo "############################################################"
 echo "# Crewmates — proof harness"
 echo "############################################################"
 shopt -s nullglob
+claimed=$(cat scripts/crew-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 globs=("$here"/prove-*.ts)
 [ "${UI_RENDER:-0}" = "1" ] && globs+=("$here"/render-*.ts)
 for proof in "${globs[@]}"; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   echo
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; __rc=0; "$bun" run "$proof" || { __rc=$?; fail=1; }; prover_mark "$proof" "$__t" "$__rc"

@@ -1,0 +1,8 @@
+# scripts/crew-drives/members.txt — the crew suite's real-terminal drives, one
+# basename per line (the files live in scripts/crew/). Each member boots
+# the built bundle in a pseudo-terminal; the parent suite runs every prover
+# NOT named by a sibling list, so a new prover lands there and moves here
+# only by editing this list. A name listed here but missing on disk is a
+# red, never a silent skip.
+prove-swarm-chat.ts
+prove-swarm-mention-row.ts
