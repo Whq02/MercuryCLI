@@ -139,7 +139,7 @@ section('5 · the shape: the picker guard reads the routing law; nothing on the 
   check('the catalogue exports the seam\'s read by its exact name and shape', source.includes('export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string>'))
   check('the live ids are the generateContent rows of the active source', /cachedLiveIds[\s\S]*?geminiGenerateModels\(snapshot\)\.map\(m => m\.id\.toLowerCase\(\)\)/.test(source))
   const picker = source.slice(source.indexOf('export function getGeminiModelOptions'), source.indexOf('export function __resetGeminiCatalogueForTest'))
-  check("the picker's one guard is the routing law's own verdict", picker.includes("const routed = declaredRouteOf(model.id) === 'gemini'") && picker.includes('geminiGenerateModels(snapshot).map('))
+  check("the picker's one guard is the routing law's own verdict", picker.includes("const routed = declaredRouteOf(model.id) === 'gemini'") && picker.includes('const generateModels = geminiGenerateModels(snapshot)') && picker.includes('...generateModels.map('))
   check('the listed-row reader is guarded by the same law', source.includes("if (declaredRouteOf(model) !== 'gemini') return undefined"))
   const prefix = /startsWith\('gemini|\/\^gemini-[^\n]*\.test\(|isGeminiModelId/
   for (const file of [
