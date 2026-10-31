@@ -213,7 +213,7 @@ try {
   check('the row paints "moved to the background as task … — see /runs" under the output, never an exit code it does not have', exitWordsOf(null, null, taskId) === `moved to the background as task ${taskId} — see /runs` && !(outputRow() ?? '').includes('<bash-exit-code>'))
   check('the chat\'s echo row retired against the runner\'s own `!` row (one row, not two)', await untilAsync(() => connector.records().filter(r => textOf(r as never).includes(`<${BASH_INPUT_TAG}>${COMMAND}</${BASH_INPUT_TAG}>`)).length === 1, 10_000), String(connector.records().filter(r => textOf(r as never).includes(COMMAND)).length))
 
-  section('§3 /restart names the shell as the chat\'s background work, and a runner that dies leaves it to be ended on the resume')
+  section('§3 /restart names the shell as the chat\'s background work, and a runner that dies takes the shell with it: the resume tells the chat the process ended with the session')
   const words = endingWorkWords(facts(sid)?.work ?? [])
   check('the words /restart says before the stop name the background shell with its id and command', words.includes(`background shell «${taskId}»`) && words.includes('sleep 400') && !words.includes('no watches or background shells'), words)
   const ledgerPath = join(paths.getProjectDir(work), `${sid}.task-launches.json`)
@@ -221,21 +221,21 @@ try {
   const sleepBefore = sleepPids()
   slot.releaseFocusedSessionConnector()
   process.kill(runnerPid, 'SIGKILL')
-  check('the runner is cut (the orphaning road: a SIGKILLed runner leaves its shell behind)', await untilAsync(() => !isAlive(runnerPid), 10_000))
+  check('the runner is cut (the hard kill: the shell\'s parent guard ends the shell\'s tree with it)', await untilAsync(() => !isAlive(runnerPid), 10_000))
   const respawned = await untilAsync(() => {
     const now = recOf(sid)
     return now !== undefined && now.pid !== undefined && now.pid !== runnerPid && isAlive(now.pid)
   }, 30_000)
   check('the daemon brings the session back on a fresh runner (the crash respawn)', respawned, JSON.stringify(recOf(sid)))
-  check('the resumed runner ends the orphaned shell: the sleep is gone', await untilAsync(() => sleepBefore.every(pid => !isAlive(pid)), 30_000), JSON.stringify(sleepBefore.map(pid => [pid, isAlive(pid)])))
-  check('the ledger is drained once the orphan is ended (nothing left to end on the next resume)', await untilAsync(() => existsSync(ledgerPath) && !readFileSync(ledgerPath, 'utf8').includes(taskId), 15_000), existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8').slice(0, 300) : 'no ledger')
+  check('the sleep is gone: the parent guard ended the shell\'s tree when the runner was cut', await untilAsync(() => sleepBefore.every(pid => !isAlive(pid)), 30_000), JSON.stringify(sleepBefore.map(pid => [pid, isAlive(pid)])))
+  check('the ledger is drained once the resume has seen the shell gone (nothing left to look for on the next resume)', await untilAsync(() => existsSync(ledgerPath) && !readFileSync(ledgerPath, 'utf8').includes(taskId), 15_000), existsSync(ledgerPath) ? readFileSync(ledgerPath, 'utf8').slice(0, 300) : 'no ledger')
   const queuedLine = (): string => JSON.stringify((facts(sid) as { queue?: Array<{ value?: string }> } | undefined)?.queue ?? [])
   check(
-    'the resumed runner queues the dead-shell line for its next words: the shell is named with its command, its process "had outlived the session and was ended just now", and its kept output file',
-    await untilAsync(() => queuedLine().includes(`[Background shell ${taskId} `) && queuedLine().includes('did not survive the session\'s restart after a crash') && queuedLine().includes('its process had outlived the session and was ended just now') && queuedLine().includes(`${taskId}.output`), 20_000),
+    'the resumed runner queues the dead-shell line for its next words: the shell is named with its command, its process "ended with the session", and its kept output file',
+    await untilAsync(() => queuedLine().includes(`[Background shell ${taskId} `) && queuedLine().includes('did not survive the session\'s restart after a crash') && queuedLine().includes('its process ended with the session') && queuedLine().includes(`${taskId}.output`), 20_000),
     queuedLine().slice(0, 700),
   )
-  check('the words are truthful about the fate: never "ended with the session" for a process that outlived it', !queuedLine().includes('its process ended with the session'), queuedLine().slice(0, 400))
+  check('the words are truthful about the fate: never "had outlived the session" for a process the guard ended with the runner', !queuedLine().includes('had outlived the session'), queuedLine().slice(0, 400))
   const resumedPid = recOf(sid)?.pid ?? 0
   const connectorAgain = await seat.focusDaemonSession({ sessionId: sid, runnerId: recOf(sid)?.runnerId ?? 'concourse-w1', title: 'bang', projectLabel: basename(work), workspaceId: work, home: paths.getProjectDir(work), modelKey: 'claude-sonnet-5' })
   check('the chat re-attached to the resumed runner reads idle with no shell: the key is down', await untilAsync(() => !connectorAgain.turnActive() && !shell.focusedShellRunning() && resumedPid !== 0, 10_000))
