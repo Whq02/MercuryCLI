@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import type { BoardLimits, BoardPost, BoardPrincipal } from '../../src/services/crewBoard/contracts.ts'
 
-const home = process.env.MERCURY_CONFIG_DIR
-assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
+const suiteHome = process.env.MERCURY_CONFIG_DIR
+assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
+const home = mkdtempSync(join(suiteHome, 'mentions-home-'))
+process.env.MERCURY_CONFIG_DIR = home
 const { open } = await import('../../src/services/crewBoard/store.ts')
 const { DEFAULT_BOARD_LIMITS } = await import('../../src/services/crewBoard/contracts.ts')
 let checks = 0

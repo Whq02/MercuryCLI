@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod/v4'
 
-const home = process.env.MERCURY_CONFIG_DIR
-assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
+const suiteHome = process.env.MERCURY_CONFIG_DIR
+assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
+const home = mkdtempSync(join(suiteHome, 'boundaries-home-'))
+process.env.MERCURY_CONFIG_DIR = home
 const work = join(home, 'boundary-proof')
 mkdirSync(work, { recursive: true })
 process.chdir(work)

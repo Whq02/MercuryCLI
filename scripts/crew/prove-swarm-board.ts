@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 
-const home = process.env.MERCURY_CONFIG_DIR
-assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
+const suiteHome = process.env.MERCURY_CONFIG_DIR
+assert(suiteHome, 'run with a scratch MERCURY_CONFIG_DIR')
+const home = mkdtempSync(join(suiteHome, 'board-home-'))
+process.env.MERCURY_CONFIG_DIR = home
 const work = join(home, 'board-proof')
 mkdirSync(work, { recursive: true })
 process.chdir(work)
