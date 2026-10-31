@@ -9,6 +9,7 @@ import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launche
 import { bundledVendorPacks, checkBundledVendorPacks, readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
+import { preparedWindowsLauncher } from './windowsLauncher.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const argTarget = process.argv.indexOf('--target')
@@ -19,6 +20,10 @@ if (!TARGET || !KNOWN.includes(TARGET)) {
   process.exit(2)
 }
 const IS_WIN = TARGET.startsWith('windows-')
+const ASSEMBLE_ONLY = process.argv.includes('--assemble-only')
+if (ASSEMBLE_ONLY && (!IS_WIN || process.platform === 'win32')) {
+  throw new Error('--assemble-only is for cross-packaging Windows archives; native packaging always runs the friend-path smoke')
+}
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
 const VERSION = PKG.version
 const NODE_POLICY = parseEnginesNode(PKG.engines?.node)
@@ -160,6 +165,7 @@ if (!existsSync(noticesSrc)) fail('THIRD_PARTY_NOTICES.md missing — run bun ru
 const NOTICES = readFileSync(noticesSrc, 'utf8')
 
 if (IS_WIN) {
+  cpSync(preparedWindowsLauncher(ROOT, TARGET), join(pkgDir, 'mercury.exe'))
   writeFileSync(join(pkgDir, 'mercury.cmd'), CMD_LAUNCHER)
   writeFileSync(join(pkgDir, 'mercury.ps1'), PS1_LAUNCHER)
   writeFileSync(join(pkgDir, 'install.ps1'), INSTALL_PS1)
@@ -325,12 +331,20 @@ const runPwsh = (command, envPaths) =>
     stdio: 'inherit',
     env: { ...process.env, ...envPaths },
   })
-if (IS_WIN) {
+if (IS_WIN && process.platform !== 'win32') {
+  execFileSync('zip', ['-qr', archive, 'mercury'], { cwd: stage, stdio: 'inherit' })
+} else if (IS_WIN) {
   runPwsh('Compress-Archive -LiteralPath $env:MPKG_SRC -DestinationPath $env:MPKG_DEST -Force', { MPKG_SRC: pkgDir, MPKG_DEST: archive })
 } else {
   execFileSync('tar', ['-czf', archive, '-C', stage, 'mercury'], { stdio: 'inherit' })
 }
 ok(`archive: ${archive}`)
+if (ASSEMBLE_ONLY) {
+  console.log(`${NAME} assembled; Windows execution was not tested on this host`)
+  if (process.argv.includes('--keep-stage')) console.log(`stage: ${pkgDir}`)
+  else rmSync(stage, { recursive: true, force: true })
+  process.exit(0)
+}
 
 const smoke = mkdtempSync(join(tmpdir(), 'mercury smoke '))
 if (IS_WIN) {
@@ -338,7 +352,7 @@ if (IS_WIN) {
 } else {
   execFileSync('tar', ['-xzf', archive, '-C', smoke], { stdio: 'inherit' })
 }
-const launched = IS_WIN ? join(smoke, 'mercury', 'mercury.cmd') : join(smoke, 'mercury', 'mercury')
+const launched = join(smoke, 'mercury', IS_WIN ? 'mercury.exe' : 'mercury')
 if (existsSync(join(smoke, 'mercury', 'node_modules'))) fail('smoke: node_modules leaked into the archive')
 if (!existsSync(join(smoke, 'mercury', 'splash.mjs'))) fail('smoke: splash.mjs (the enter screen) missing from the archive')
 if (!existsSync(join(smoke, 'mercury', 'splash-core.mjs'))) fail('smoke: splash-core.mjs (the enter-screen compose core) missing from the archive')
@@ -357,18 +371,7 @@ const smokeEnv = {
   CI: '1',
   ...(IS_WIN ? {} : { SHELL: '/bin/bash' }),
 }
-const run = (args) =>
-  IS_WIN
-    ? execSync(['"' + launched + '"', ...args].join(' '), {
-        encoding: 'utf8',
-        env: smokeEnv,
-        timeout: 120_000,
-      })
-    : execFileSync(launched, args, {
-        encoding: 'utf8',
-        env: smokeEnv,
-        timeout: 120_000,
-      })
+const run = args => execFileSync(launched, args, { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })
 
 const versionOut = run(['--version']).trim()
 if (!versionOut.includes(VERSION)) fail(`smoke: --version printed "${versionOut}" (expected to include ${VERSION})`)
@@ -380,10 +383,7 @@ const withPath = (env, value) => {
   out[IS_WIN ? 'Path' : 'PATH'] = value
   return out
 }
-const runLauncher = (args, env) =>
-  IS_WIN
-    ? spawnSync(['"' + launched + '"', ...args].join(' '), { shell: true, encoding: 'utf8', env, timeout: 120_000 })
-    : spawnSync(launched, args, { encoding: 'utf8', env, timeout: 120_000 })
+const runLauncher = (args, env) => spawnSync(launched, args, { encoding: 'utf8', env, timeout: 120_000 })
 if (runtime) {
   const extractedBinary = join(smoke, 'mercury', ...runtime.path.split('/'), ...runtime.binary.split('/'))
   if (!existsSync(extractedBinary)) fail(`smoke: the vendored runtime ${runtime.path}/${runtime.binary} is missing from the archive`)

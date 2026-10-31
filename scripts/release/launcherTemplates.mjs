@@ -562,7 +562,7 @@ export function readmeFirst(p, version) {
 2. **Extract this archive anywhere** (a path with spaces is fine).
 3. **Run it:**
    - macOS / Linux: \`./mercury/mercury\`
-   - Windows: \`mercury\\mercury.cmd\` (or \`mercury.ps1\` from PowerShell)
+   - Windows: \`mercury\\mercury.exe\` (also \`mercury.cmd\` or \`mercury.ps1\`)
 
 First run walks you through theme + login with your own Anthropic account and
 model choice. \`./mercury/mercury --help\` works without an account, and
@@ -573,7 +573,7 @@ for a machine-readable certificate).
 
 \`\`\`
 ./mercury/mercury install        # macOS / Linux
-mercury\\mercury.cmd install     # Windows
+mercury\\mercury.exe install     # Windows
 \`\`\`
 
 This copies the extracted payload into a per-version directory under your
@@ -682,8 +682,8 @@ ${p.range} may stand in for it.
 ## Portable (zero install)
 
 Extract the archive anywhere — including paths with spaces — and run the
-launcher in place (\`./mercury/mercury\`, or \`mercury\\mercury.cmd\` /
-\`mercury.ps1\` on Windows). Everything the runtime needs sits beside
+launcher in place (\`./mercury/mercury\`, or \`mercury\\mercury.exe\`,
+\`mercury.cmd\` or \`mercury.ps1\` on Windows). Everything the runtime needs sits beside
 \`mercury.mjs\`; nothing is written outside your Mercury home
 (\`~/.mercury\`). This path never requires the installer.
 

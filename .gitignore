@@ -68,3 +68,4 @@ scripts/render-continuity/receipts/.last/
 # The capability graduation matrix is a local working document, never tracked;
 # the checks that read it say SKIPPED where it is absent.
 docs/CAPABILITY-GRADUATION-MATRIX.md
+native/windows-launcher/target/

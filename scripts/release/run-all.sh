@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/release/** .github/workflows/private-release.yml
+# gate-watch: scripts/release/** .github/workflows/private-release.yml native/windows-launcher/** src/main.tsx src/entrypoints/cli.tsx
 # gate-watch: src/services/privateChannel/artifactSigning.ts src/services/privateChannel/releaseTarget.ts vendor/*.lock.json
 # gate-watch: vendor/document-licences/** vendor/python-licences/**
 set -u

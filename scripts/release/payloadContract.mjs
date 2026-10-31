@@ -29,7 +29,7 @@ export function topAllowlist(target, floor) {
     'verify-artifact.mjs',
     'mercury-vscode.vsix',
     ...DOC_SET,
-    ...(isWin ? ['mercury.cmd', 'mercury.ps1', 'install.ps1'] : ['mercury', 'install.sh']),
+    ...(isWin ? ['mercury.exe', 'mercury.cmd', 'mercury.ps1', 'install.ps1'] : ['mercury', 'install.sh']),
   ]
   return members.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 }
@@ -37,7 +37,7 @@ export function topAllowlist(target, floor) {
 export function memberRole(name) {
   if (name === 'mercury.mjs') return 'primary'
   if (name === 'manifest.json') return 'manifest'
-  if (name === 'mercury' || name === 'mercury.cmd') return 'launcher'
+  if (name === 'mercury' || name === 'mercury.cmd' || name === 'mercury.exe') return 'launcher'
   if (name === 'mercury.ps1') return 'launcher-ps'
   if (name === 'install.sh' || name === 'install.ps1') return 'installer'
   if (name === 'splash.mjs') return 'splash'

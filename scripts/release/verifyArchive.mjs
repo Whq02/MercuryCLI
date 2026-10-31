@@ -6,6 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { checkBundledVendorPacks, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments } from './releaseDocuments.mjs'
+import { checkWindowsLauncher } from './windowsLauncher.mjs'
 
 const args = process.argv.slice(2)
 const opt = name => {
@@ -46,7 +47,9 @@ if (!existsSync(archive)) fail(`no archive at ${archive} — package first (node
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-verify-archive-'))
 try {
-  if (archive.endsWith('.zip')) {
+  if (archive.endsWith('.zip') && process.platform !== 'win32') {
+    execFileSync('unzip', ['-q', archive, '-d', scratch], { stdio: 'pipe' })
+  } else if (archive.endsWith('.zip')) {
     const pwsh = ['pwsh', 'powershell'].find(exe => spawnSync(exe, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { stdio: 'pipe', timeout: 30_000 }).status === 0)
     if (!pwsh) fail('no PowerShell available (pwsh or powershell) — required to extract a zip archive')
     execFileSync(pwsh, ['-NoProfile', '-NonInteractive', '-Command', 'Expand-Archive -LiteralPath $env:MVER_SRC -DestinationPath $env:MVER_DEST -Force'], {
@@ -80,6 +83,12 @@ try {
 
   const shipped = JSON.parse(readFileSync(join(payload, 'manifest.json'), 'utf8'))
   const shippedTarget = shipped.target && typeof shipped.target === 'object' && typeof shipped.target.release === 'string' ? shipped.target.release : target
+  if (shippedTarget?.startsWith('windows-')) {
+    const exe = checkWindowsLauncher(join(payload, 'mercury.exe'), shippedTarget)
+    const member = shipped.releaseLayout?.members?.find(m => m.path === 'mercury.exe')
+    if (!member || member.role !== 'launcher' || member.bytes !== exe.bytes || member.sha256 !== exe.sha256) fail('mercury.exe does not match its releaseLayout member')
+    console.log(`${basename(archive)}: mercury.exe is a ${shippedTarget} console PE image (${exe.bytes} bytes)`)
+  }
   const bundled = checkBundledVendorPacks(payload, shippedTarget)
   if (!bundled.ok) fail(`the archive's bundled packs: ${bundled.findings.join('; ')}`)
   for (const pack of bundled.packs) console.log(`${basename(archive)}: bundled ${pack.name} ${pack.version} rides at ${pack.dir} — ${pack.binary}, its record and its licence files, the binary's digest matching the record`)

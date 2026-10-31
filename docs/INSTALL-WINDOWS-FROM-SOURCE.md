@@ -1,7 +1,9 @@
 # Mercury on Windows: install from source
 
 The release route on Windows is one line in PowerShell 7 (`irm … | iex` in the
-README's Install section) and needs Git and nothing else.
+README's Install section) and needs Git and nothing else. To run an extracted
+release archive without installing it, use `mercury\mercury.exe` in PowerShell
+or Command Prompt; `mercury.cmd` and `mercury.ps1` are beside it.
 
 This page is the other route: building Mercury from source on
 a Windows machine, for an agent (or a person) with a terminal and no release

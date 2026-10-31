@@ -62,6 +62,8 @@ npm install -g mercury-tech-cli                    # npm; `bun install -g mercur
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package
 ```
 
+To run a Windows archive without installing it, extract it and run `mercury\mercury.exe` from PowerShell or Command Prompt. `mercury.cmd` and `mercury.ps1` are also in that folder.
+
 The install addresses keep approximate script-request counts by source and UTC day (completed installs are not counted); the counter stores no IP address, user-agent string or cookie. Open a new terminal (or run the `export PATH=…` line the shell installer prints), check `mercury --version`, and run `mercury` inside a repository. See [docs/INSTALL.md](docs/INSTALL.md), [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md) and [AGENTS.md](AGENTS.md) for `mercury update`, release verification, requirements and building from source.
 
 ## What is inside
