@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { mock } from 'bun:test'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const sourceArg = process.argv.indexOf('--source-root')
 const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[sourceArg + 1]!)
@@ -20,8 +21,9 @@ const { HOOK_CONTEXT_CAP_CHARS } = await import(`${root}/src/utils/hooks/context
 const cap: number = HOOK_CONTEXT_CAP_CHARS
 const big = 'a'.repeat(9 * 1024 * 1024)
 const fired: string[] = []
-const hooks = await import(`${root}/src/utils/hooks/fire.js`)
-mock.module(`${root}/src/utils/hooks/fire.js`, () => ({
+const fireModule = sourceArg < 0 ? '../../src/utils/hooks/fire.ts' : join(root, 'src', 'utils', 'hooks', 'fire.ts')
+const hooks = await import(fireModule)
+mock.module(fireModule, () => ({
   ...hooks,
   fireHooks: async (event: string) => {
     fired.push(event)
@@ -46,7 +48,7 @@ try {
   check('short hook instructions merge whole', compact.mergeHookInstructions('keep the names', 'and the dates') === 'keep the names\n\nand the dates' && compact.mergeHookInstructions(undefined, 'only hook') === 'only hook' && compact.mergeHookInstructions('only user', undefined) === 'only user')
   check('the manual /compact road reads the before answer through the same bound', typeof compact.boundedHookInstructions === 'function' && (compact.boundedHookInstructions(big) ?? '').length < cap + 400 && compact.boundedHookInstructions('   ') === undefined)
 } finally {
-  rmSync(home, { recursive: true, force: true })
+  removeScratch(home)
 }
 console.log(failures === 0 ? '\nprove-compaction-hook-output-bound: all green' : `\nprove-compaction-hook-output-bound: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
