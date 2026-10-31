@@ -225,7 +225,9 @@ try {
   )
   const tag1 = tagLine(r1)
   check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
-  check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(r1, otherTitle) && !has(r1, firstTitle), r1.filter(l => l.includes('probe')).join(' | '))
+  const rail1 = r1.map(line => line.includes('│') ? line.slice(0, line.indexOf('│')) : '')
+  const chat1 = r1.map(line => line.includes('│') ? line.slice(line.indexOf('│') + 1) : line)
+  check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(chat1, otherTitle) && !has(chat1, firstTitle) && (!has(rail1, firstTitle) || has(rail1, 'RECENT')), r1.filter(l => l.includes('probe')).join(' | '))
   check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','))
   const survivorId = liveIds()[0] ?? ''
   check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA))
