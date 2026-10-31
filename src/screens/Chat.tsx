@@ -1082,17 +1082,16 @@ export function Chat({
     return focusedConnector.subscribeLive(paintLostLine);
   }, [focusedConnector, addNotification]);
 
-  const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string): void => {
-    const focused = getFocusedSessionConnector() as PaintsRows;
+  const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString(), focused = getFocusedSessionConnector() as PaintsRows): void => {
     if (typeof focused.addDisplayRow === 'function') {
-      focused.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata(commandName, args) }));
+      focused.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata(commandName, args) }), timestamp });
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${text}</${LOCAL_COMMAND_STDOUT_TAG}>`));
       return;
     }
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
   const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
-  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string }>>([]);
+  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string; submittedAt: string }>>([]);
   const dialogSlotRef = useRef<DOMElement | null>(null);
   const [dialogPaints, setDialogPaints] = useState(false);
   useEffect(() => {
@@ -1109,9 +1108,10 @@ export function Chat({
   const drainQueuedDialogCommand = useCallback((): void => {
     const next = queuedDialogCommandsRef.current.shift();
     if (next === undefined) return;
-    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true });
+    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true, submittedAt: next.submittedAt });
   }, []);
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean }): Promise<void> => {
+  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string }): Promise<void> => {
+    const submittedAt = options?.submittedAt ?? new Date().toISOString();
     const text = input.trim();
     if (text === '') return;
     submitTrace('repl-onSubmit', input, { fromKeybinding: options?.fromKeybinding === true, speculation: false, guardActive: isLoadingRef.current });
@@ -1215,7 +1215,7 @@ export function Chat({
           const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
           const module = await seatCommand.load();
           const result = await module.call(args, context);
-          if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value);
+          if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt, focusedNow as PaintsRows);
         } catch (error) {
           logForDebugging(`screen command /${seatCommand.name} failed: ${String(error)}`);
           addNotification({ key: `command-${seatCommand.name}`, text: `/${getCommandName(seatCommand)} failed — ${error instanceof Error ? error.message : String(error)}`, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS });
@@ -1237,7 +1237,7 @@ export function Chat({
       const inFlight = dialogInFlightRef.current;
       if (inFlight !== null) {
         takeComposer();
-        queuedDialogCommandsRef.current.push({ input, name: dialogName });
+        queuedDialogCommandsRef.current.push({ input, name: dialogName, submittedAt });
         submitTrace('repl-dialog-queued', input, { name: dialogName, behind: inFlight.name });
         addNotification({
           key: 'dialog-command-queued',
@@ -1271,7 +1271,7 @@ export function Chat({
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
           const resultLines = result.split(/\r?\n/).filter(line => line.trim() !== '').length;
-          if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result);
+          if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result, submittedAt, focusedNow as PaintsRows);
           else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
         }
         if (doneOptions?.nextInput) {

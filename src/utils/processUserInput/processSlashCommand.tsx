@@ -507,7 +507,7 @@ export async function processSlashCommand(
     let result: ProcessUserInputBaseResult
     switch (command.type) {
       case 'local-jsx':
-        result = await runLocalJsxCommand(command, commandName, args, context, setToolJSX)
+        result = await runLocalJsxCommand(command, commandName, args, context, setToolJSX, uuid)
         break
       case 'local':
         result = await runLocalCommand(command, commandName, args, context, uuid)
@@ -580,7 +580,12 @@ async function runLocalJsxCommand(
   args: string,
   context: ProcessUserInputContext,
   setToolJSX: SetToolJSXFn,
+  uuid?: UUID,
 ): Promise<ProcessUserInputBaseResult> {
+  const echoed = createUserMessage({
+    content: formatCommandLoadingMetadata(getCommandName(command), args),
+    ...(uuid ? { uuid } : {}),
+  })
   return new Promise(resolve => {
     let settled = false
     const finish = (result: ProcessUserInputBaseResult): void => {
@@ -605,9 +610,6 @@ async function runLocalJsxCommand(
         finish({ messages: [], ...forwarded })
         return
       }
-      const echoed = createCommandInputMessage(
-        formatCommandLoadingMetadata(getCommandName(command), args),
-      )
       if (display === 'system') {
         const isDismissal =
           typeof resultText === 'string' && /closed|dismissed|cancelled/i.test(resultText)
@@ -617,7 +619,7 @@ async function runLocalJsxCommand(
         }
         finish({
           messages: [
-            echoed,
+            { ...createCommandInputMessage(echoed.message.content as string), uuid: echoed.uuid, timestamp: echoed.timestamp },
             createCommandInputMessage(stdoutWrapped(resultText ?? NO_CONTENT_MESSAGE)),
             ...metaMessages,
           ],
@@ -628,9 +630,7 @@ async function runLocalJsxCommand(
       }
       finish({
         messages: [
-          createUserMessage({
-            content: formatCommandLoadingMetadata(getCommandName(command), args),
-          }),
+          echoed,
           createUserMessage({
             content: stdoutWrapped(resultText ?? NO_CONTENT_MESSAGE),
           }),

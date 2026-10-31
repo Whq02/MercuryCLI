@@ -36,6 +36,7 @@ import { adoptOpenaiObservedUsage, adoptOpenaiWindowFact } from '../providers/op
 import { adoptOpenaiCatalogueFact } from '../providers/openai/openaiCatalogue.js'
 import { adoptAnthropicObservedUsage, adoptAnthropicWindowFact } from '../anthropicLimits.js'
 import { mergeRecordsContentKeyed } from './recordIdentity.js'
+import { placeLocalCommandRows } from './localCommandRows.js'
 import {
   readSessionAsks,
   readSessionFacts,
@@ -1442,7 +1443,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.clearModelReceipt != null && !this.rawRecords.some(row => row.uuid === this.clearModelReceipt!.uuid)) {
       this.painted = [this.clearModelReceipt, ...this.painted]
     }
-    this.painted = placeDeliveredNotices(this.painted, this.deliveredNotices)
+    this.painted = placeLocalCommandRows(placeDeliveredNotices(this.painted, this.deliveredNotices))
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
   }
