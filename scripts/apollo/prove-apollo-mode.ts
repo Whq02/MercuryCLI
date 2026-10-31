@@ -261,7 +261,7 @@ try {
       !/context\.mode === 'default' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
-  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
+  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(tool\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
