@@ -189,7 +189,7 @@ launches carried reaches the newest.
 
 `swarm.enabled` in your user `settings.json` (the Swarm row in `/config`) is the master switch, off by default. `/swarm on` enrolls crewmates launched afterwards; earlier crewmates keep their ordinary messages. `/swarm off` stops enrollment for future launches while existing board crewmates keep their board.
 
-Swarm is a high-cost option by choice: turning it on means choosing to pay for sharing. Its allowances guard against a fault, not ordinary use; the lead can lift them with `/swarm uncap`.
+Swarm is a high-cost option by choice: turning it on means choosing to pay for sharing. Nothing is capped unless you set a cap in `/config`; a cap guards against a fault, and the lead can lift it with `/swarm uncap`.
 
 SendMessage and ResumeCrewmate from the lead, and SendMessage back to `main`, stay direct, whole and uncharged whether swarm is on or off. The board keeps only the first 400 characters plus `… (sent directly)` for the timeline. That mirror is not delivered to the model or charged by a board read.
 

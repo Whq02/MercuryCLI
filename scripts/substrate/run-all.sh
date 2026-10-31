@@ -89,6 +89,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-handover-window-owner.ts" || { __r
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-ledger-flush-death.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ledger-flush-death.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock-release.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pidlock-release.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-lifecycle-collector.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-collector.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-retired-build-debris.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retired-build-debris.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-telemetry-egress.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-telemetry-egress.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-snapshot-contract.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-snapshot-contract.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-wrapper.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-wrapper.ts" "$__t" "$__rc"

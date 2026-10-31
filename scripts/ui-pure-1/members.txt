@@ -89,3 +89,5 @@ prove-vim-display-count.ts
 prove-vim-empty-lines.ts
 prove-vim-normal-line-bounds.ts
 prove-vim-word-line-end.ts
+prove-local-command-order.ts
+prove-wheel-surfaces.ts

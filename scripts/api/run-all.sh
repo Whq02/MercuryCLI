@@ -78,6 +78,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-b
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-instructions-heading.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-instructions-heading.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-credential-refusal-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-credential-refusal-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-cache-prefix-stable.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-cache-prefix-stable.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-switch-row-says-default.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-switch-row-says-default.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-memory-save-keeps-prefix.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-memory-save-keeps-prefix.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dead-thinking-in-turn.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-dead-thinking-in-turn.ts" "$__t" "$__rc"
