@@ -2,6 +2,7 @@
 # live command registry — do not hand-edit; regenerate after CLI changes
 # (the prove-completions-current.ts gate enforces this).
 complete -c mercury -n "not __fish_seen_subcommand_from acp auth bridge daemon extension-api extensions godot health help host image install lsp mcp mcp-server models roster run runner sessions tune update upgrade usage version" -a "acp"
+complete -c mercury -n "__fish_seen_subcommand_from acp" -l "login"
 complete -c mercury -n "not __fish_seen_subcommand_from acp auth bridge daemon extension-api extensions godot health help host image install lsp mcp mcp-server models roster run runner sessions tune update upgrade usage version" -a "auth"
 complete -c mercury -n "__fish_seen_subcommand_from auth" -l "help"
 complete -c mercury -n "not __fish_seen_subcommand_from acp auth bridge daemon extension-api extensions godot health help host image install lsp mcp mcp-server models roster run runner sessions tune update upgrade usage version" -a "bridge"

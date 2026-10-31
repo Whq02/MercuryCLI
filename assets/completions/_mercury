@@ -13,7 +13,7 @@ _mercury() {
   fi
   case "${words[2]}" in
     acp)
-      compadd --
+      compadd -- '--login'
       ;;
     auth)
       compadd -- '--help'

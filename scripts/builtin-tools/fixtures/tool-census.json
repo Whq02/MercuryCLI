@@ -549,6 +549,35 @@
       }
     },
     {
+      "name": "CrewBoard",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "read",
+        "post",
+        "swarm_team"
+      ],
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/crew/prove-swarm-board.ts",
+      "declared": {
+        "intents": [
+          "read selected posts from this wave",
+          "post a question, answer, blocker or result"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/crew/prove-swarm-board.ts"
+      }
+    },
+    {
       "name": "Crewmate",
       "category": "coord",
       "risk": "low",
