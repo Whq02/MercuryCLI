@@ -4,7 +4,7 @@ import { isChainParticipant, isEphemeralToolProgress, isTranscriptMessage } from
 import { applyTranscriptEntry, emptyFoldState } from '../../src/utils/sessionStorage/fold.js'
 
 const messages = ['user', 'assistant', 'system', 'attachment']
-const metadata = ['summary', 'custom-title', 'ai-title', 'last-prompt', 'task-summary', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'pr-link', 'mode', 'advisor-switch', 'model', 'worktree-state', 'file-history-snapshot', 'attribution-snapshot', 'speculation-accept', 'context-collapse-commit', 'context-collapse-snapshot', 'queue-operation']
+const metadata = ['summary', 'custom-title', 'ai-title', 'last-prompt', 'task-summary', 'tag', 'agent-name', 'agent-color', 'agent-setting', 'pr-link', 'mode', 'advisor-switch', 'swarm-switch', 'model', 'worktree-state', 'file-history-snapshot', 'attribution-snapshot', 'speculation-accept', 'context-collapse-commit', 'context-collapse-snapshot', 'queue-operation']
 assert.deepEqual(Object.keys(STORAGE_ROWS).sort(), [...messages, ...metadata, 'progress', 'content-replacement'].sort())
 for (const type of messages) {
   assert.equal(storageRowPolicy(type)?.write, 'message')
@@ -30,6 +30,7 @@ const rows = [
   { type: 'custom-title', sessionId, customTitle: '' },
   { type: 'tag', sessionId, tag: '' },
   { type: 'advisor-switch', sessionId, on: false },
+  { type: 'swarm-switch', sessionId, on: true },
   { type: 'worktree-state', sessionId, worktreeSession: { originalCwd: '/proof', worktreePath: '/proof/worktree', worktreeName: 'proof', sessionId } },
   { type: 'pr-link', sessionId, prNumber: 17, prUrl: 'https://example.invalid/pull/17', prRepository: 'proof/project', timestamp: '2026-01-01T00:00:00.000Z' },
 ]
@@ -37,6 +38,9 @@ for (const row of rows) applyTranscriptEntry(fold, row as never)
 assert.equal(fold.customTitles.get(sessionId), '')
 assert.equal(fold.tags.get(sessionId), '')
 assert.equal(fold.advisorSwitches.get(sessionId), false)
+assert.equal(fold.swarmSwitches.get(sessionId), true)
+applyTranscriptEntry(fold, { type: 'swarm-switch', sessionId, on: false })
+assert.equal(fold.swarmSwitches.get(sessionId), false)
 assert.equal(fold.worktreeStates.get(sessionId)?.worktreeName, 'proof')
 assert.equal(fold.prNumbers.get(sessionId), 17)
 assert.equal(fold.prUrls.get(sessionId), 'https://example.invalid/pull/17')
