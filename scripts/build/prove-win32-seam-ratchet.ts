@@ -12,6 +12,7 @@ const TELLS: Array<[string, RegExp]> = [
 ]
 
 const SEAM_PINS: Array<{ file: string; carries: string; never: RegExp; law: string }> = [
+  { file: 'src/utils/permissions/flowLaw.ts', carries: "const tail = spec.startsWith('@') ? spec.split('/').pop() ?? spec : spec", never: /spec\.split\(['"]\\\\['"]\)/, law: '502383f69c: a scoped registry package uses its slash grammar on every host, not a filesystem separator' },
   { file: 'src/services/structure/query.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the Structure files filter compares POSIX-relative paths (F37W-7B-25: a win32 walk handed src\\util.ts to a src/util.ts glob and parsed 0 files)' },
   { file: 'src/services/structure/polyglotQuery.ts', carries: 'posixRelative(root, full)', never: /path\.relative\(/, law: 'the polyglot walk (Structure patterns, AstSearch globs, .gitignore anchors) compares POSIX-relative paths' },
   { file: 'src/services/structure/scanPaths.ts', carries: "platform === 'win32' ? rel.split('\\\\').join('/') : rel", never: /path\.sep/, law: 'the seam flips separators by the platform it is told, never by the host\'s path.sep, so a proof shapes win32 paths on any host' },
