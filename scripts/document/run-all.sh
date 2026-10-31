@@ -8,6 +8,7 @@
 # gate-watch: src/services/changeTransaction/receipts.ts src/tools/ToolSearchTool/prompt.ts
 # gate-watch: src/services/browser/browserSession.ts src/services/run/ownerKey.ts
 # gate-watch: src/skills/bundled/research/** src/skills/bundledSkills.ts src/utils/execFileNoThrow.ts src/utils/which.ts
+# gate-watch: src/extensions/bundled/mercury-media/server/manifest.json src/extensions/bundled/shared/install.d.mts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 trap suite_home_cleanup EXIT
