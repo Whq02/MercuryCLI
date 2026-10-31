@@ -30,11 +30,12 @@ export function mediaFileFormat(path: string): string | null {
     }
     if (length >= 4 && header.readUInt32BE(0) === 0x1a45dfa3) return header.subarray(0, length).includes(Buffer.from('webm')) ? 'webm' : 'mkv'
     if (length >= 10 && ascii(0, 3) === 'ID3' && header[3]! >= 2 && header[3]! <= 4 && header.subarray(6, 10).every(byte => byte < 128)) return 'mp3'
-    if (length >= 4 && header[0] === 0xff && (header[1]! & 0xe0) === 0xe0) {
+    const ext = extname(path).slice(1).toLowerCase()
+    if (length >= 2 && ((header[0] === 0xff && header[1] === 0xfe) || (header[0] === 0xfe && header[1] === 0xff))) return null
+    if (length >= 4 && header[0] === 0xff && (header[1]! & 0xe0) === 0xe0 && MEDIA_EXTENSIONS.has(ext)) {
       if ((header[1]! & 0xf6) === 0xf0) return 'aac'
       if ((header[1]! & 6) !== 0 && (header[2]! & 0xf0) !== 0xf0 && (header[2]! & 0x0c) !== 0x0c) return 'mp3'
     }
-    const ext = extname(path).slice(1).toLowerCase()
     return MEDIA_EXTENSIONS.has(ext) ? ext : null
   } finally { closeSync(fd) }
 }
