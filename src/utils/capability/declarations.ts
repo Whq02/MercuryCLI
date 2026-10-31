@@ -319,6 +319,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'coordination',
     cancellation: 'not-applicable',
     latency: 'fast',
+    conditions: ['Swarm on in /config (swarm.enabled) and /swarm on for the session'],
     proof: 'scripts/crew/prove-swarm-board.ts',
   },
   SendMessage: {
