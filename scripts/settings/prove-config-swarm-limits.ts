@@ -63,7 +63,7 @@ try {
   await key(KEY.down)
   await key(KEY.down)
   await key(KEY.right)
-  check('the agent row edits user settings only', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 201000 && getSettingsForSource('localSettings')?.swarm === undefined)
+  check('the agent row edits user settings only (one step up from no limit lands on the 1,000 floor)', getSettingsForSource('userSettings')?.swarm?.seatAllowance === 1000 && getSettingsForSource('localSettings')?.swarm === undefined)
   await key(KEY.down)
   await key(KEY.right)
   await key(KEY.down)
@@ -73,7 +73,7 @@ try {
   await key(KEY.down)
   await key(KEY.right)
   const changed = getSettingsForSource('userSettings')?.swarm
-  check('all five numeric controls write their step', changed?.seatAllowance === 201000 && changed.waveAllowance === 501000 && changed.postsPerMinute === 5 && changed.postsPerSeat === 130 && changed.postChars === 4400)
+  check('all five numeric controls write their step (the uncapped ones land on their floors)', changed?.seatAllowance === 1000 && changed.waveAllowance === 1000 && changed.postsPerMinute === 5 && changed.postsPerSeat === 130 && changed.postChars === 400)
   await key(KEY.enter)
   check('enter saves and closes', !popup.isSettingsPopupOpen() && getSettingsForSource('userSettings')?.swarm?.postsPerSeat === 130)
   updateSettingsForSource('userSettings', { swarm: { seatAllowance: 12000, waveAllowance: 50000, postsPerMinute: 10, postsPerSeat: 120 } })

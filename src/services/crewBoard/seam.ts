@@ -27,9 +27,10 @@ export function swarmMasterEnabled(): boolean {
 export function swarmLimits(): BoardLimits {
   const settings = getSettingsForSource('userSettings')?.swarm
   const seatAllowance = settings?.seatAllowance ?? DEFAULT_BOARD_LIMITS.seatAllowance
+  const waveAllowance = settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance
   return {
     seatAllowance,
-    waveAllowance: settings?.waveAllowance === 0 ? 0 : Math.max(seatAllowance, settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance),
+    waveAllowance: waveAllowance === 0 ? 0 : Math.max(seatAllowance, waveAllowance),
     postsPerMinute: settings?.postsPerMinute ?? DEFAULT_BOARD_LIMITS.postsPerMinute,
     postsPerSeat: settings?.postsPerSeat ?? DEFAULT_BOARD_LIMITS.postsPerSeat,
     postChars: settings?.postChars ?? DEFAULT_BOARD_LIMITS.postChars,
