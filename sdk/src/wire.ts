@@ -520,6 +520,7 @@ export interface MethodParams {
   effort?: string
   resume?: boolean
   restart_reason?: string
+  title?: string
   openai_catalogue?: unknown
 }
   "project/query": {
@@ -1087,6 +1088,9 @@ export const METHODS: Record<MethodName, MethodSchema> = {
           "type": "boolean"
         },
         "restart_reason": {
+          "type": "string"
+        },
+        "title": {
           "type": "string"
         },
         "openai_catalogue": {}

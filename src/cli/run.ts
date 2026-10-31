@@ -2088,6 +2088,7 @@ export async function runHeadless(
       }
       const claimedMode = typeof params.mode === 'string' && params.mode !== '' ? params.mode : undefined
       const claimedEffort = typeof params.effort === 'string' && params.effort !== '' ? params.effort : undefined
+      const claimedTitle = typeof params.title === 'string' && params.title.trim() !== '' ? params.title.trim() : undefined
       let claimedContext: AppState['toolPermissionContext'] | undefined
       if (claimedMode !== undefined) {
         const transition = resolvePermissionModeTransition(
@@ -2191,6 +2192,10 @@ export async function runHeadless(
             return liveMcp.refresh()
           }).catch(logError)
           awaitingSessionClaim = false
+          if (claimedTitle !== undefined && !isSessionPersistenceDisabled()) {
+            const { saveCustomTitle } = await import('../utils/sessionStorage/logs.js')
+            await saveCustomTitle(sid as UUID, claimedTitle)
+          }
           if (recordedModelRefusal !== null) {
             bootRefusalFact = recordedModelRefusal
             await persistBootModelRefusal(recordedModelRefusal)

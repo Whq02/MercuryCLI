@@ -819,6 +819,7 @@ export interface ConcourseAdmitDeps {
     kit: SessionKitV1
     resume?: true
     restartReason?: string
+    title?: string
   }) => Promise<
     { claimed: true; short: string; pid?: number; spec: RunnerChildSpec } | { claimed: false; reason: string }
   >
@@ -1161,6 +1162,7 @@ export function makeConcourseAdmitHandler(
         permissionMode: claimPosture,
         bypassConsent: req.bypassConsent === true,
         kit,
+        ...(req.title !== undefined && req.title.length > 0 ? { title: partiallySanitizeUnicode(req.title).slice(0, 120) } : {}),
       })
       if (claimed.claimed) {
         // eslint-disable-next-line no-console

@@ -170,6 +170,7 @@ export const METHODS = {
         effort: z.string().optional(),
         resume: z.boolean().optional(),
         restart_reason: z.string().optional(),
+        title: z.string().optional(),
         openai_catalogue: z.unknown().optional(),
       }),
     ),

@@ -337,6 +337,7 @@ export async function claimWarmRunner(
     kit: SessionKitV1
     resume?: true
     restartReason?: string
+    title?: string
     answerDeadlineMs?: number
   },
   deps: WarmRunnerDeps,
@@ -396,6 +397,7 @@ export async function claimWarmRunner(
         effort: args.effort,
         ...(args.resume === true ? { resume: true } : {}),
         ...(args.restartReason !== undefined ? { restart_reason: args.restartReason } : {}),
+        ...(args.title !== undefined ? { title: args.title } : {}),
         ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogueToWire(openaiCatalogue) } : {}),
       },
       { deadlineMs, signal: pulse.signal },
