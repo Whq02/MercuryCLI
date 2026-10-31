@@ -108,7 +108,9 @@ starting folder.
   `wrangler deploy`, `terraform apply`, `kubectl apply` and the rest of that
   table); deleting or overwriting a path outside the project, its worktrees,
   this run's scratch and the temp folders (reads are free everywhere); and
-  your own ask rules. Your deny rules refuse, as in Default. Each ask is one
+  your own ask rules. On Windows, Flow also asks before a path on another
+  machine (`\\server\share`), because the request can send your Windows
+  sign-in to that server. Your deny rules refuse, as in Default. Each ask is one
   sentence naming which of the five it is ("Flow asks before git push: it
   publishes history."); a yes answers that call, and the card's
   don't-ask-again row saves a rule. A card unanswered for ten minutes is

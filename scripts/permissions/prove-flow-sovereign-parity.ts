@@ -11,7 +11,10 @@ const commands = [...new Set(corpus.entries.map(entry => entry.command))]
 type Row = { command: string; sovereign: string; flow: string; message: string; item: number | null }
 const rows: Row[] = []
 const exceptions: Row[] = []
+const otherMachine: Row[] = []
 const breaks: Row[] = []
+const WIN = process.platform === 'win32'
+const OTHER_MACHINE_ASK = /a UNC path can leak this machine's login/
 
 try {
   section(`§1 every command Sovereign runs, Flow runs — except the ones the five name (${commands.length} corpus commands)`)
@@ -27,17 +30,23 @@ try {
       exceptions.push(row)
       continue
     }
+    if (WIN && sovereign.behavior === 'allow' && flow.behavior === 'ask' && OTHER_MACHINE_ASK.test(row.message)) {
+      otherMachine.push(row)
+      continue
+    }
     breaks.push(row)
   }
   const allowedByBoth = rows.filter(row => row.sovereign === 'allow' && row.flow === 'allow').length
   const deniedByBoth = rows.filter(row => row.sovereign === 'deny' && row.flow === 'deny').length
-  console.log(`  ${allowedByBoth} run in both · ${deniedByBoth} refused in both · ${exceptions.length} Flow asks · ${breaks.length} disagreements`)
+  console.log(`  ${allowedByBoth} run in both · ${deniedByBoth} refused in both · ${exceptions.length} Flow asks · ${otherMachine.length} Windows asks before a path on another machine · ${breaks.length} disagreements`)
   for (const row of exceptions) console.log(`  item ${row.item} · ${j(row.command).slice(0, 90)} → ${row.message}`)
+  for (const row of otherMachine) console.log(`  another machine · ${j(row.command).slice(0, 90)} → ${row.message.slice(0, 120)}`)
   for (const row of breaks) console.log(`  BREAK · sovereign ${row.sovereign} · flow ${row.flow} · ${j(row.command).slice(0, 90)} → ${row.message}`)
   check('no command Sovereign runs is refused or left unexplained by Flow', breaks.length === 0, j(breaks.slice(0, 5)))
   check('every Flow ask is one of the five and says so in its first words', exceptions.every(row => row.item !== null && [1, 2, 3, 4].includes(row.item) && /^Flow asks before .+: .+\.$/.test(row.message)), j(exceptions.filter(row => row.item === null).slice(0, 5)))
   check('the exceptions are a short list, not the corpus (under 5 in 100)', exceptions.length * 20 < commands.length, `${exceptions.length} of ${commands.length}`)
   check('Flow runs more than 95 in 100 of what Sovereign runs', allowedByBoth * 100 >= 95 * rows.filter(row => row.sovereign === 'allow').length, `${allowedByBoth} of ${rows.filter(row => row.sovereign === 'allow').length}`)
+  check(WIN ? 'on Windows, Flow also asks before a path on another machine (the sixth item, Windows only), in the one sentence that names the sign-in it could send' : 'off Windows there is no sixth item: a path on another machine runs as Sovereign runs it', WIN ? otherMachine.length >= 1 && otherMachine.every(row => OTHER_MACHINE_ASK.test(row.message)) : otherMachine.length === 0 && !rows.some(row => OTHER_MACHINE_ASK.test(row.message)), j(otherMachine.slice(0, 3)))
   const byItem = exceptions.reduce<Record<string, number>>((acc, row) => ({ ...acc, [String(row.item)]: (acc[String(row.item)] ?? 0) + 1 }), {})
   console.log(`  exceptions by item: ${j(byItem)}`)
 
