@@ -43,6 +43,11 @@ const script = (req: ScriptedRequest): WireBlock[] => {
   if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `printf ${PROBE}` } }]
   return [{ type: 'text', text: 'the probe ran' }]
 }
+const flowScript = (req: ScriptedRequest): WireBlock[] => {
+  if (!req.toolNames.includes('Bash')) return [{ type: 'text', text: 'side call answered' }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Bash', input: { command: `git push origin ${PROBE}` } }]
+  return [{ type: 'text', text: 'the probe ran' }]
+}
 
 type World = { home: string; cwd: string }
 function seedWorld(): World {
@@ -136,7 +141,7 @@ section("§1 a cockpit's Sovereign birth claims a warm seat: the seat holds Sove
 
 section("§2 the carousel before the first turn: a seat claimed in Default and switched to Flow by session/set_mode says Flow")
 {
-  const fixture = await startScriptedFixture(script)
+  const fixture = await startScriptedFixture(flowScript)
   const seat = await bootSeat(fixture.base)
   const claimed = await claim(seat, 'default')
   check('the claim with the Default posture lands', typeof claimed === 'object' && claimed !== null && (claimed as { session_id?: unknown }).session_id === seat.sessionId, j(claimed))
@@ -144,7 +149,7 @@ section("§2 the carousel before the first turn: a seat claimed in Default and s
   check('the mode door applies Flow', typeof switched === 'object' && switched !== null && (switched as { mode?: unknown }).mode === 'flow', j(switched))
   const { outcome, toolResult } = await turn(seat)
   check('the turn settles', outcome.status === 'completed', j({ status: outcome.status, stderr: seat.host.stderr().slice(-300) }))
-  check('the seat IS in Flow: the shell probe asked the host, and the ask carried mode flow on the wire', seat.host.asks.length === 1 && seat.host.asks[0]!.params.kind === 'tool' && (seat.host.asks[0]!.params as { mode?: unknown }).mode === 'flow' && toolResult.includes(PROBE), `asks=${j(seat.host.asks.map(a => a.params))} tool_result=${toolResult.slice(0, 300)}`)
+  check('the seat IS in Flow: the probe is git push (one of the five Flow asks before), so it asked the host, and the ask carried mode flow on the wire', seat.host.asks.length === 1 && seat.host.asks[0]!.params.kind === 'tool' && (seat.host.asks[0]!.params as { mode?: unknown }).mode === 'flow', `asks=${j(seat.host.asks.map(a => a.params))} tool_result=${toolResult.slice(0, 300)}`)
   const postures = fixture.requests.filter(req => req.toolNames.includes('Bash')).map(req => postureOf(req.system))
   check('the posture line names the mode the seat holds — flow, the carousel\'s word, never the warm boot\'s default', postures.length > 0 && postures.every(p => p === 'flow'), `postures=${j(postures)}`)
   await settle(seat)

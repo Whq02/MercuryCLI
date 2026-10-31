@@ -22,7 +22,6 @@ const chain: Array<[string, string]> = [
   ['B5a Windows PATH-hijack guard', "NoDefaultCurrentDirectoryInExePath = '1'"],
   ['B5b warning handler', 'initializeWarningHandler()'],
   ['B5c exit handler returns the terminal ground', "process.on('exit'"],
-  ['B5d SIGINT handler installed', "process.on('SIGINT'"],
 ]
 let prev = -1
 let prevName = '(start)'
@@ -34,13 +33,13 @@ for (const [name, needle] of chain) {
   prevName = name
 }
 
-const sigintIdx = mainBody.indexOf("process.on('SIGINT'")
-const sigintBand = mainBody.slice(Math.max(0, sigintIdx - 240), sigintIdx)
-check(
-  'the SIGINT handler carves out run (run.ts owns SIGINT there)',
-  sigintBand.includes('if (!isRunArgv()) {'),
-  sigintBand.slice(-160),
-)
+const shutdown = readFileSync(join(ROOT, 'src', 'utils', 'gracefulShutdown.ts'), 'utf-8')
+const entry = readFileSync(join(ROOT, 'src', 'entrypoints', 'cli.tsx'), 'utf-8')
+check('B5d main() installs no SIGINT handler of its own: the graceful shutdown owns the signal so the terminal title and ground are restored', !mainBody.includes("process.on('SIGINT'"))
+check('B5d the entrypoint installs the graceful shutdown before it hands over to main.tsx', entry.indexOf('setupGracefulShutdown()') !== -1 && entry.indexOf('setupGracefulShutdown()') < entry.indexOf('cliMainModule.main()'), `${entry.indexOf('setupGracefulShutdown()')} vs ${entry.indexOf('cliMainModule.main()')}`)
+const sigintIdx = shutdown.indexOf("process.on('SIGINT'")
+const sigintBody = shutdown.slice(sigintIdx, sigintIdx + 240)
+check('the SIGINT handler carves out run (run.ts owns SIGINT there)', sigintIdx !== -1 && sigintBody.includes('runModeOwnsSignals()'), sigintBody.slice(0, 160))
 
 const runIdx = mainBody.indexOf('run(')
 check('B6 the opening band precedes the commander run()/parse', runIdx > prev, `run@${runIdx} vs last landmark@${prev}`)

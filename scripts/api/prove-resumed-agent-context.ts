@@ -108,7 +108,7 @@ section('§4 the resume and the launch wire the record end to end')
   check('the run takes the override before composing live', run.includes('override?.userContext ?? (await getUserContext())') && run.includes('override?.systemContext ?? (await getSystemContext())'))
   check('an instruction-profile slice never reshapes a recorded user context', run.includes("if (override?.userContext === undefined) {\n            userContext = { ...userContext }"))
   const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the turn machine hands a crewmate\'s own request contexts to its record', machine.includes('{ rosterOnly: true, context: { userContext: run.userContext, systemContext: run.params.systemContext } }'))
+  check('the turn machine hands a crewmate\'s own request contexts to its record', machine.includes('{ rosterOnly: true, context: { userContext: run.userContext, systemContext: run.systemContext } }'))
 }
 
 freshProcess()

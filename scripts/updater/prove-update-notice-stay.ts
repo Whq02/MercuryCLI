@@ -17,7 +17,8 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_GH_CMD = JSON.stringify(['/usr/bin/false'])
 process.env.MERCURY_FULLSCREEN = '1'
 process.env.MERCURY_HELM_HOME = '1'
-process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+process.env.MERCURY_UPDATE_API_BASE_URL = 'http://127.0.0.1:9/'
 process.env.MERCURY_REDUCED_MOTION = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BOOT_PREFLIGHT = '0'
