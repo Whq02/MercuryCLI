@@ -74,7 +74,7 @@ function ruleWordsOf(verdict: PermissionResult): string {
 function modeRoad(mode: string): string {
   switch (mode) {
     case 'flow':
-      return 'and under flow any call no allow rule covers and no shortcut settles (the read-only lane, the read-only tools and workspace file edits aside) — anything visible outside this machine (`git push` among them), anything destructive or outside the workspace, a new install'
+      return 'and under flow only the five: sudo or any other privilege escalation; git that publishes or rewrites history (`git push` in any form, `reset --hard`, `clean -f`, `branch -D`, `filter-branch`, `gh pr merge`, `gh release create`); publishing or deploying (`npm publish`, `docker push`, `wrangler deploy`, `terraform apply`, `kubectl apply` and their family); deleting or overwriting a path outside the project, its worktrees, this run\'s scratch and the temp folders; the operator\'s own ask rules — everything else runs without a question, so run it'
     case 'default':
       return 'and under default any call no allow rule covers (the read-only lane aside)'
     case 'implement':

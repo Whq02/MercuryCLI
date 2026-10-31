@@ -1,32 +1,8 @@
-import { APIUserAbortError } from '../../../services/api/sdkErrors.js'
 import type { Tool, ToolUseContext } from '../../../Tool.js'
-import { AGENT_TOOL_NAME } from '../../../tools/AgentTool/constants.js'
-import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../debug.js'
-import { AbortError, toError } from '../../errors.js'
+import { toError } from '../../errors.js'
 import { logError } from '../../log.js'
-
-const readOnlyAllowlistModule =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  (require('../readOnlyAllowlist.js') as typeof import('../readOnlyAllowlist.js'))
-const workflowModule = {
-  WORKFLOW_TOOL_NAME: (
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../../../tools/WorkflowTool/constants.js') as typeof import('../../../tools/WorkflowTool/constants.js')
-  ).WORKFLOW_TOOL_NAME,
-  dynamicWorkflowsEnabled: (
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../../../tools/WorkflowTool/workflowEnablement.js') as typeof import('../../../tools/WorkflowTool/workflowEnablement.js')
-  ).dynamicWorkflowsEnabled,
-}
-const permissionSetupModule =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  (require('../permissionSetup.js') as typeof import('../permissionSetup.js'))
-const permissionRuleParserModule =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  (require('../permissionRuleParser.js') as typeof import('../permissionRuleParser.js'))
-
 import { fireHooks } from '../../hooks/fire.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages.js'
@@ -43,8 +19,7 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
-import { flowPushOrInstall, flowRequiresFreshApproval } from '../flowPolicy.js'
-import { createPermissionRequestMessage } from './requestMessage.js'
+import { decideUnderFlow } from '../flowPolicy.js'
 import type {
   DecisionTrace,
   WrapperStageId,
@@ -52,28 +27,6 @@ import type {
   WrapperTrace,
 } from './trace.js'
 
-
-function reasonCarriesAskRule(
-  reason: PermissionDecisionReason | undefined,
-): boolean {
-  if (reason === undefined) return false
-  if (reason.type === 'rule') return reason.rule.ruleBehavior === 'ask'
-  if (reason.type !== 'subcommandResults') return false
-  for (const sub of reason.reasons.values()) {
-    if (sub.behavior === 'ask' && reasonCarriesAskRule(sub.decisionReason)) {
-      return true
-    }
-  }
-  return false
-}
-
-function workflowRequiresConsent(toolName: string): boolean {
-  return (
-    workflowModule != null &&
-    toolName === workflowModule.WORKFLOW_TOOL_NAME &&
-    workflowModule.dynamicWorkflowsEnabled()
-  )
-}
 
 
 export function guardHookUpdatedInput(
@@ -151,66 +104,8 @@ async function consultHeadlessPermissionHooks(
 }
 
 
-function hideDangerousAllowsFromView(context: ToolUseContext): {
-  viewContext: ToolUseContext
-  hiddenCount: number
-} {
-  const allowLayers = context.getAppState().toolPermissionContext.alwaysAllowRules
-  if (!allowLayers) return { viewContext: context, hiddenCount: 0 }
-
-  const isDangerousEntry = (entry: string): boolean => {
-    const { toolName, ruleContent } =
-      permissionRuleParserModule.permissionRuleValueFromString(entry)
-    return (
-      permissionSetupModule.isDangerousBashPermission(toolName, ruleContent) ||
-      permissionSetupModule.isDangerousPowerShellPermission(toolName, ruleContent) ||
-      permissionSetupModule.isDangerousTaskPermission(toolName, ruleContent)
-    )
-  }
-
-  let hiddenCount = 0
-  const trimmedLayers: {
-    -readonly [K in keyof typeof allowLayers]?: (typeof allowLayers)[K]
-  } = {}
-  for (const source of Object.keys(allowLayers) as Array<keyof typeof allowLayers>) {
-    const entries = allowLayers[source]
-    if (!entries) continue
-    const kept = entries.filter(entry => {
-      if (!isDangerousEntry(entry)) return true
-      hiddenCount++
-      return false
-    })
-    if (kept.length !== entries.length) trimmedLayers[source] = kept
-  }
-  if (hiddenCount === 0) return { viewContext: context, hiddenCount: 0 }
-
-  const viewContext: ToolUseContext = {
-    ...context,
-    getAppState: () => {
-      const live = context.getAppState()
-      return {
-        ...live,
-        toolPermissionContext: {
-          ...live.toolPermissionContext,
-          alwaysAllowRules: { ...allowLayers, ...trimmedLayers },
-        },
-      }
-    },
-  }
-  return { viewContext, hiddenCount }
-}
-
 
 interface WrapperPorts {
-  isAllowlistedTool(
-    toolName: string,
-    input: { action?: unknown; actions?: unknown } | null,
-  ): boolean
-  resolveAcceptEditsVerdict(
-    tool: Tool,
-    input: Record<string, unknown>,
-    context: ToolUseContext,
-  ): Promise<PermissionResult>
   runHeadlessHooks(
     tool: Tool,
     input: { [key: string]: unknown },
@@ -222,26 +117,6 @@ interface WrapperPorts {
 }
 
 export const defaultWrapperPorts: WrapperPorts = {
-  isAllowlistedTool: (toolName, input) =>
-    readOnlyAllowlistModule!.isReadOnlyAllowlistedTool(toolName, input),
-  resolveAcceptEditsVerdict: async (tool, input, context) => {
-    const parsedInput = tool.inputSchema.parse(input)
-    const probeContext: ToolUseContext = {
-      ...context,
-      getAppState: () => {
-        const live = context.getAppState()
-        return {
-          ...live,
-          toolPermissionContext: {
-            ...live.toolPermissionContext,
-            mode: 'implement' as const,
-            probedFrom: live.toolPermissionContext.mode,
-          },
-        }
-      },
-    }
-    return tool.checkPermissions(parsedInput, probeContext)
-  },
   runHeadlessHooks: consultHeadlessPermissionHooks,
 }
 
@@ -287,17 +162,6 @@ export async function decideToolPermissionWithModes(
     wrapper: { stages: stageLog, decidedBy: 'engine' },
   })
 
-  if (
-    engineDecision.behavior !== 'deny' &&
-    context.getAppState().toolPermissionContext.mode === 'flow' &&
-    flowRequiresFreshApproval(tool, input)
-  ) {
-    return decide('autoSafetyImmunity', engineDecision.behavior === 'ask' ? engineDecision : {
-      behavior: 'ask',
-      message: createPermissionRequestMessage(tool.name),
-    })
-  }
-
   if (engineDecision.behavior === 'allow') {
     return passThrough(engineDecision)
   }
@@ -316,183 +180,20 @@ export async function decideToolPermissionWithModes(
       })
     }
 
+    let pending: PermissionAskDecision = engineDecision
     if (appState.toolPermissionContext.mode === 'flow') {
-      const headless =
-        appState.toolPermissionContext.shouldAvoidPermissionPrompts
-
-      if (
-        engineDecision.decisionReason?.type === 'safetyCheck' &&
-        engineDecision.decisionReason.operatorOnly
-      ) {
-        if (headless) {
-          return decide(
-            'autoSafetyImmunity',
-            {
-              behavior: 'deny',
-              message: engineDecision.message,
-              decisionReason: {
-                type: 'asyncAgent',
-                reason:
-                  'This safety check needs interactive approval, and this session cannot present a prompt',
-              },
-            },
-            'headless — structured deny',
-          )
-        }
-        return decide('autoSafetyImmunity', engineDecision, 'human ask stands')
+      const verdict = await decideUnderFlow(tool, input, engineDecision, appState.toolPermissionContext)
+      if (verdict.stage === 'flowAllow') {
+        recordPass('flowFloors')
+        recordPass('flowLaw')
+        logForDebugging(`Flow allows ${tool.name}: none of the five`)
+        return decide('flowAllow', verdict.decision)
       }
-      recordPass('autoSafetyImmunity')
-
-      if (tool.requiresUserInteraction?.()) {
-        return decide('autoUserInteraction', engineDecision)
-      }
-      recordPass('autoUserInteraction')
-
-      const floorTags: string[] = []
-      if (reasonCarriesAskRule(engineDecision.decisionReason)) {
-        floorTags.push('ask-rule')
-      }
-      if (tool.mcpInfo?.effectiveMaxPermission === 'ask') {
-        floorTags.push('org-ceiling')
-      }
-      if (workflowRequiresConsent(tool.name)) {
-        floorTags.push('workflow-consent')
-      }
-      if (floorTags.length > 0) {
-        if (headless) {
-          return decide(
-            'autoFloors',
-            {
-              behavior: 'deny',
-              message: engineDecision.message,
-              decisionReason: {
-                type: 'asyncAgent',
-                reason:
-                  'This action needs interactive approval, and this session cannot present a prompt',
-              },
-            },
-            'headless — structured deny',
-          )
-        }
-        return decide('autoFloors', engineDecision, floorTags.join('+'))
-      }
-      let pushOrInstall = true
-      try {
-        pushOrInstall = flowPushOrInstall(tool, input)
-      } catch {}
-      if (pushOrInstall) return decide('autoFloors', engineDecision)
-      recordPass('autoFloors')
-
-      if (tool.name === POWERSHELL_TOOL_NAME) {
-        if (headless) {
-          return decide(
-            'powershellGuard',
-            {
-              behavior: 'deny',
-              message: 'PowerShell runs only with interactive approval',
-              decisionReason: {
-                type: 'asyncAgent',
-                reason:
-                  'PowerShell runs only with interactive approval, and this session cannot present a prompt',
-              },
-            },
-            'headless — structured deny',
-          )
-        }
-        logForDebugging(
-          `Flow keeps the ask for ${tool.name}: its asks are reserved for the operator`,
-        )
-        return decide('powershellGuard', engineDecision, 'human ask stands')
-      }
-      recordPass('powershellGuard')
-
-      let residualInput: Record<string, unknown> | undefined
-
-      if (tool.name !== AGENT_TOOL_NAME) {
-        let probeContext: ToolUseContext | null = context
-        try {
-          const view = hideDangerousAllowsFromView(context)
-          probeContext = view.viewContext
-          recordPass(
-            'fastPathDangerFilter',
-            view.hiddenCount > 0
-              ? `${view.hiddenCount} dangerous prefix-allow rule(s) hidden from fast-path view`
-              : undefined,
-          )
-        } catch {
-          recordPass(
-            'fastPathDangerFilter',
-            'danger filter outage — fail closed; fast-path skipped',
-          )
-          probeContext = null
-        }
-
-        if (probeContext !== null) {
-          try {
-            const acceptEditsVerdict = await ports.resolveAcceptEditsVerdict(
-              tool,
-              input,
-              probeContext,
-            )
-            if (acceptEditsVerdict.behavior === 'passthrough') {
-              residualInput = input
-            }
-            if (acceptEditsVerdict.behavior === 'allow') {
-              logForDebugging(
-                `Flow allows ${tool.name}: implement mode would allow this outright`,
-              )
-              return decide('implementFastPath', {
-                behavior: 'allow',
-                updatedInput: acceptEditsVerdict.updatedInput ?? input,
-                decisionReason: {
-                  type: 'mode',
-                  mode: 'flow',
-                },
-              })
-            }
-          } catch (e) {
-            if (e instanceof AbortError || e instanceof APIUserAbortError) {
-              throw e
-            }
-          }
-          recordPass('implementFastPath')
-        } else {
-          recordPass('implementFastPath', 'skipped — danger filter outage')
-        }
-      } else {
-        recordPass('implementFastPath')
-      }
-
-      if (
-        ports.isAllowlistedTool(
-          tool.name,
-          input as { action?: unknown; actions?: unknown } | null,
-        )
-      ) {
-        logForDebugging(
-          `Flow allows ${tool.name}: the read-only tool set`,
-        )
-        return decide('allowlistFastPath', {
-          behavior: 'allow',
-          updatedInput: input,
-          decisionReason: {
-            type: 'mode',
-            mode: 'flow',
-          },
-        })
-      }
-      recordPass('allowlistFastPath')
-      if (
-        residualInput !== undefined &&
-        context.options.isNonInteractiveSession === true &&
-        context.options.hostHoldsAsks !== true
-      ) {
-        return decide('flowHeadless', {
-          behavior: 'allow',
-          updatedInput: residualInput,
-          decisionReason: { type: 'mode', mode: 'flow' },
-        })
-      }
+      const note = verdict.stage === 'flowFloors' ? verdict.floor : `item ${verdict.ask.item}`
+      if (verdict.stage === 'flowLaw') recordPass('flowFloors')
+      if (!appState.toolPermissionContext.shouldAvoidPermissionPrompts) return decide(verdict.stage, verdict.decision, note)
+      recordPass(verdict.stage, note)
+      pending = verdict.decision
     }
 
     if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
@@ -502,7 +203,7 @@ export async function decideToolPermissionWithModes(
         toolUseID,
         context,
         appState.toolPermissionContext.mode,
-        engineDecision.suggestions,
+        pending.suggestions,
       )
       if (hookDecision) {
         return decide('headlessHooks', hookDecision)
@@ -514,7 +215,7 @@ export async function decideToolPermissionWithModes(
           type: 'asyncAgent',
           reason: 'This session cannot present a permission prompt',
         },
-        message: AUTO_REJECT_MESSAGE(tool.name),
+        message: pending === engineDecision ? AUTO_REJECT_MESSAGE(tool.name) : `${pending.message} ${AUTO_REJECT_MESSAGE(tool.name)}`,
       })
     }
   }

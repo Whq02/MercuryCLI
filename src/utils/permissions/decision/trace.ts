@@ -63,27 +63,17 @@ export interface DecisionTrace {
 
 export type WrapperStageId =
   | 'dontAskConversion'
-  | 'autoSafetyImmunity'
-  | 'autoUserInteraction'
-  | 'autoFloors'
-  | 'powershellGuard'
-  | 'fastPathDangerFilter'
-  | 'implementFastPath'
-  | 'allowlistFastPath'
-  | 'flowHeadless'
+  | 'flowFloors'
+  | 'flowLaw'
+  | 'flowAllow'
   | 'headlessHooks'
   | 'headlessAutoDeny'
 
 export const WRAPPER_STAGE_ORDER: readonly WrapperStageId[] = [
   'dontAskConversion',
-  'autoSafetyImmunity',
-  'autoUserInteraction',
-  'autoFloors',
-  'powershellGuard',
-  'fastPathDangerFilter',
-  'implementFastPath',
-  'allowlistFastPath',
-  'flowHeadless',
+  'flowFloors',
+  'flowLaw',
+  'flowAllow',
   'headlessHooks',
   'headlessAutoDeny',
 ] as const

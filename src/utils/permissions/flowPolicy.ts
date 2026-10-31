@@ -1,111 +1,59 @@
-import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { PermissionUpdate } from '../../types/permissions.js'
-import { getDestructiveCommandWarning } from '../../tools/BashTool/destructiveCommandWarning.js'
-import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
-import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { basename, resolve } from 'node:path'
-import { preparedSecurityParse, peelWrappers } from './decision/commandAnalysis.js'
-import { getCwd } from '../cwd.js'
-import { resolveShellCwd } from '../Shell.js'
-import { ownGroundCommand } from './ownGround.js'
-import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
+import type { Tool, ToolPermissionContext } from '../../Tool.js'
+import { flowAskFor, flowAskSentence, type FlowAsk } from './flowLaw.js'
+import type { PermissionAskDecision, PermissionDecision, PermissionDecisionReason } from './PermissionResult.js'
 
-function flowShellCommands(command: string): Array<{ text: string; words: string[]; opaque: boolean }> {
-  const result: Array<{ text: string; words: string[]; opaque: boolean }> = []
-  const pending = [command]
-  while (pending.length > 0) {
-    const text = pending.pop()!
-    const parsed = preparedSecurityParse(text)
-    if (parsed.kind !== 'simple') { result.push({ text, words: [], opaque: true }); continue }
-    for (const simple of parsed.commands) {
-      const peeled = peelWrappers(simple.argv)
-      if (!Array.isArray(peeled)) { result.push({ text: simple.text, words: [], opaque: true }); continue }
-      const words = [...peeled]
-      const name = basename(words[0] ?? '').replace(/\.exe$/i, '')
-      const opaque = words.length === 0 ||
-        ['sudo', 'doas', 'env', 'nice', 'timeout', 'time', 'stdbuf', 'nohup', 'command', 'xargs', 'exec', 'eval'].includes(name) || name.startsWith('-') || /[$`]/.test(name)
-      const warningWords = [...words]
-      warningWords[0] = name
-      if (name === 'git') {
-        while (warningWords[1]?.startsWith('-')) {
-          const option = warningWords.splice(1, 1)[0]!
-          if (/^(?:-C|-c|--git-dir|--work-tree|--namespace|--config-env)$/.test(option)) warningWords.splice(1, 1)
-        }
-      }
-      result.push({ text: warningWords.join(' '), words, opaque })
-      if (/^(?:ba|z|da|k|fi)?sh$/.test(name)) {
-        const inline = words.findIndex((word, index) => index > 0 && /^-[^-]*c/.test(word))
-        if (inline >= 0 && words[inline + 1] !== undefined) pending.push(words[inline + 1]!)
-      }
-    }
-  }
-  return result
-}
+export type FlowFloor = 'ask-rule' | 'safety' | 'interaction' | 'ask-ceiling' | 'hook'
 
-export function flowRequiresFreshApproval(tool: Tool, input: Record<string, unknown>): boolean {
-  try {
-    if (tool.isDestructive?.(input) === true) return true
-    if (tool.name !== BASH_TOOL_NAME || typeof input.command !== 'string') return false
-    const cwd = resolveShellCwd(typeof input.cwd === 'string' ? input.cwd : undefined)
-    const changesDirectory = flowShellCommands(input.command).some(command => ['cd', 'pushd', 'popd'].includes(command.words[0] ?? ''))
-    return flowShellCommands(input.command).some(command => {
-      if (getDestructiveCommandWarning(command.text) === null) return false
-      if (command.opaque || changesDirectory || !['rm', 'rmdir'].includes(command.words[0] ?? '')) return true
-      return !ownGroundCommand({ argv: command.words, envVars: [], redirects: [], text: command.text }, cwd)
-    })
-  } catch {
-    return true
-  }
-}
+export type FlowVerdict =
+  | { stage: 'flowFloors'; floor: FlowFloor; decision: PermissionAskDecision }
+  | { stage: 'flowLaw'; ask: FlowAsk; decision: PermissionAskDecision }
+  | { stage: 'flowAllow'; decision: PermissionDecision }
 
-export function flowPushOrInstall(tool: Tool, input: Record<string, unknown>): boolean {
-  if (tool.name !== BASH_TOOL_NAME || typeof input.command !== 'string') return false
-  for (const part of flowShellCommands(input.command)) {
-    if (part.opaque) return true
-    const words = part.words.slice(1)
-    let command = basename(part.words[0] ?? '').replace(/\.exe$/i, '')
-    if (command === 'git' && words.includes('push')) return true
-    if (/^python[\d.]*$/.test(command) && words[0] === '-m' && /^pip[\d.]*$/.test(words[1] ?? '')) {
-      command = 'pip'
-      words.splice(0, 2)
-    }
-    if (/^(?:npm|pnpm|yarn|bun|pip[\d.]*|pipx|uv|brew|apt(?:-get)?|cargo|gem|conda|mamba|poetry|pdm|composer|dnf|yum|apk|pacman|zypper)$/.test(command)) {
-      if (command === 'yarn' && words.length === 0) return true
-      if (words.some(word => /^(?:install|add|i|ci|sync|update|upgrade|reinstall|--sync|-S\w*)$/.test(word))) return true
-    }
+function reasonCarriesAskRule(reason: PermissionDecisionReason | undefined): boolean {
+  if (reason === undefined) return false
+  if (reason.type === 'rule') return reason.rule.ruleBehavior === 'ask'
+  if (reason.type !== 'subcommandResults') return false
+  for (const sub of reason.reasons.values()) {
+    if (sub.behavior === 'ask' && reasonCarriesAskRule(sub.decisionReason)) return true
   }
   return false
 }
 
-export function flowUserAllowUpdates(
-  tool: Tool,
-  input: Record<string, unknown>,
-  context: Partial<Pick<ToolUseContext, 'getAppState'>>,
-  updates: PermissionUpdate[],
-  suggestions: PermissionUpdate[] = [],
-): PermissionUpdate[] {
-  if (context.getAppState?.().toolPermissionContext.mode !== 'flow') return updates
-  if (flowRequiresFreshApproval(tool, input)) return updates.filter(update => update.type === 'removeRules')
-  if (updates.length > 0) return updates
-  if (tool.name === BASH_TOOL_NAME && typeof input.command === 'string' && flowShellCommands(input.command).some(command => command.opaque)) return []
-  if (tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME) {
-    const command = input.command
-    if (typeof command !== 'string' || command.trim() === '' || hasWildcards(command)) return []
-    return suggestionForExactCommand(tool.name, command)
+export function flowFloorOf(tool: Pick<Tool, 'requiresUserInteraction' | 'mcpInfo'>, engineDecision: PermissionAskDecision): FlowFloor | null {
+  const reason = engineDecision.decisionReason
+  if (reasonCarriesAskRule(reason)) return 'ask-rule'
+  if (reason?.type === 'safetyCheck' && reason.operatorOnly) return 'safety'
+  if (reason?.type === 'hook') return 'hook'
+  if (tool.requiresUserInteraction?.()) return 'interaction'
+  if (tool.mcpInfo?.effectiveMaxPermission === 'ask') return 'ask-ceiling'
+  return null
+}
+
+export async function decideUnderFlow(tool: Tool, input: Record<string, unknown>, engineDecision: PermissionAskDecision, rules: ToolPermissionContext): Promise<FlowVerdict> {
+  const floor = flowFloorOf(tool, engineDecision)
+  if (floor !== null) return { stage: 'flowFloors', floor, decision: engineDecision }
+  let ask: FlowAsk | null = null
+  try {
+    ask = await flowAskFor(tool, input, rules)
+  } catch {
+    ask = null
   }
-  if (['Read', 'Edit', 'Write', 'NotebookEdit'].includes(tool.name)) {
-    const path = tool.getPath?.(input)
-    if (!path || /[!*?\[\]{}\n\r]/.test(path)) return []
-    const absolute = resolve(getCwd(), path).replace(/\\/g, '/')
-    const drive = /^([A-Za-z]):\/(.*)$/.exec(absolute)
-    const content = drive ? `//${drive[1]!.toUpperCase()}/${drive[2]}` : `/${absolute}`
-    return [{ type: 'addRules', behavior: 'allow', destination: 'localSettings', rules: [{ toolName: tool.name === 'Read' ? 'Read' : 'Edit', ruleContent: content }] }]
+  if (ask !== null) {
+    const message = flowAskSentence(ask)
+    return {
+      stage: 'flowLaw',
+      ask,
+      decision: {
+        behavior: 'ask',
+        message,
+        decisionReason: { type: 'other', reason: message },
+        ...(engineDecision.suggestions !== undefined ? { suggestions: engineDecision.suggestions } : {}),
+        ...(engineDecision.updatedInput !== undefined ? { updatedInput: engineDecision.updatedInput } : {}),
+      },
+    }
   }
-  return suggestions.flatMap(update => {
-    if (update.type !== 'addRules' || update.behavior !== 'allow') return []
-    const rules = update.rules.filter(rule => rule.ruleContent !== undefined && rule.ruleContent.trim() !== '' && !hasWildcards(rule.ruleContent))
-    return rules.length === update.rules.length && rules.length > 0
-      ? [{ ...update, destination: 'localSettings' as const }]
-      : []
-  })
+  return {
+    stage: 'flowAllow',
+    decision: { behavior: 'allow', updatedInput: engineDecision.updatedInput ?? input, decisionReason: { type: 'mode', mode: 'flow' } },
+  }
 }

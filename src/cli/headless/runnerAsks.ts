@@ -14,7 +14,6 @@ import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../../utils/messages/r
 import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionReasonWire.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
-import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
@@ -90,12 +89,11 @@ export function decisionOfAnswer(
   answer: AskAnswer,
   tool: Tool,
   originalInput: Record<string, unknown>,
-  toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'> & Partial<Pick<ToolUseContext, 'getAppState'>>,
-  suggestions: PermissionUpdate[] = [],
+  toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'>,
 ): PermissionDecision {
   if (answer.outcome === 'allow') {
     const updatedInput = answer.input !== undefined ? answer.input : originalInput
-    const updates = flowUserAllowUpdates(tool, updatedInput, toolUseContext, (answer.rules ?? []) as PermissionUpdate[], answer.input === undefined ? suggestions : [])
+    const updates = (answer.rules ?? []) as PermissionUpdate[]
     if (updates.length > 0) {
       persistPermissionUpdates(updates)
       toolUseContext.setAppState(previous => {
@@ -214,7 +212,7 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
       }
 
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
-      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
+      return answer.rechecked ?? decisionOfAnswer(answer, tool as Tool, input, toolUseContext)
     } catch (error) {
       if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
