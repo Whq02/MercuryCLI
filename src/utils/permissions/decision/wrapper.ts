@@ -9,9 +9,7 @@ import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages.js'
 import type {
   PermissionAskDecision,
   PermissionDecision,
-  PermissionDecisionReason,
   PermissionDenyDecision,
-  PermissionResult,
 } from '../PermissionResult.js'
 import {
   applyPermissionUpdates,
