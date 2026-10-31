@@ -15,18 +15,18 @@ import { runOrcarouterDeviceLogin } from '../providers/orcarouter/orcarouterLogi
 import { runXaiDeviceLogin } from '../providers/xai/xaiLogin.js'
 
 export const ACP_LOGIN_FLAG = '--login'
-export const ACP_TERMINAL_METHOD_ID = 'terminal'
-export const ACP_CLAUDE_METHOD_ID = 'claude'
+const ACP_TERMINAL_METHOD_ID = 'terminal'
+const ACP_CLAUDE_METHOD_ID = 'claude'
 
 export const ACP_DEVICE_FAMILIES = ['moonshot', 'huggingface', 'xai', 'meta', 'nous', 'orcarouter'] as const
-export type AcpDeviceFamily = (typeof ACP_DEVICE_FAMILIES)[number]
+type AcpDeviceFamily = (typeof ACP_DEVICE_FAMILIES)[number]
 
 export interface AcpClientAuthFacts {
   terminalAuth: boolean
   urlElicitation: boolean
 }
 
-export interface DeviceCodeStart {
+interface DeviceCodeStart {
   verificationUri: string
   userCode: string
   verificationUriComplete?: string
@@ -68,7 +68,7 @@ export function acpAuthMethods(facts: AcpClientAuthFacts): AuthMethod[] {
   return out
 }
 
-export function acpAuthMethodIds(facts: AcpClientAuthFacts): string[] {
+function acpAuthMethodIds(facts: AcpClientAuthFacts): string[] {
   return acpAuthMethods(facts).map(method => method.id)
 }
 
@@ -143,7 +143,7 @@ function deviceRoad(family: AcpDeviceFamily, io: { onCode: (start: DeviceCodeSta
   })
 }
 
-export const ACP_SIGN_IN_ROADS: AcpSignInRoads = { claude: claudeRoad, device: deviceRoad }
+const ACP_SIGN_IN_ROADS: AcpSignInRoads = { claude: claudeRoad, device: deviceRoad }
 
 function isDeviceFamily(id: string): id is AcpDeviceFamily {
   return (ACP_DEVICE_FAMILIES as readonly string[]).includes(id)
