@@ -40,6 +40,7 @@ type IssueLike = {
   values?: unknown[]
   keys?: string[]
   minimum?: number | bigint
+  maximum?: number | bigint
   received?: unknown
   errors?: IssueLike[][]
 }
@@ -121,6 +122,11 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
       case 'too_small': {
         message = `Value must be at least ${issue.minimum ?? 0}`
         expected = String(issue.minimum ?? 0)
+        break
+      }
+      case 'too_big': {
+        message = path.startsWith('swarm.') ? `Value must be at most ${issue.maximum ?? 0}` : issue.message
+        if (path.startsWith('swarm.')) expected = String(issue.maximum ?? 0)
         break
       }
       case 'custom': {

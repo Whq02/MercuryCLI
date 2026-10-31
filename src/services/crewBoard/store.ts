@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { createRequire } from 'node:module'
-import type { BoardEvent, BoardPacket, BoardPost, BoardPrincipal, BoardRead, BoardReceipt, BoardStore, BoardViewSnapshot } from './contracts.js'
+import { DEFAULT_BOARD_LIMITS, type BoardLimits, type BoardEvent, type BoardPacket, type BoardPost, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 
 type Database = {
   exec(sql: string): unknown
@@ -26,7 +26,7 @@ const normalize = (input: BoardPost) => ({
 const feeds = new Map<string, Set<() => void>>()
 const validTeam = (team: string): boolean => /^[\p{L}\p{N}_][\p{L}\p{N}_.-]{0,79}$/u.test(team) && !['all', 'general'].includes(team.toLowerCase())
 
-export function open(path: string, sessionId: string, now: () => number = Date.now, readOnly = false): BoardStore {
+export function open(path: string, sessionId: string, requestedLimits: BoardLimits = DEFAULT_BOARD_LIMITS, now: () => number = Date.now, readOnly = false): BoardStore {
   if (!readOnly) mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
   const sqlite = requireRuntime(process.versions.bun ? 'bun:sqlite' : 'node:sqlite')
   const db: Database = process.versions.bun
@@ -37,6 +37,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = FULL;
     CREATE TABLE IF NOT EXISTS identity (session TEXT PRIMARY KEY, wave TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS board_limits (id INTEGER PRIMARY KEY CHECK (id = 1), value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS members (agent TEXT PRIMARY KEY, name TEXT NOT NULL, execution TEXT NOT NULL, enrolled INTEGER NOT NULL DEFAULT 1, credits REAL NOT NULL DEFAULT 8, refilled REAL NOT NULL, posts INTEGER NOT NULL DEFAULT 0, admitted INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE IF NOT EXISTS reads (id TEXT PRIMARY KEY, recipient TEXT NOT NULL, cost INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS requests (id TEXT NOT NULL, recipient TEXT NOT NULL, cost INTEGER NOT NULL, PRIMARY KEY(recipient, id));
@@ -49,6 +50,12 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     if (readOnly) { db.close(); throw new Error('This board has no session.') }
     db.prepare('INSERT INTO identity VALUES (?, ?)').run(sessionId, randomUUID())
   }
+  if (!readOnly) db.prepare('INSERT OR IGNORE INTO board_limits VALUES (1, ?)').run(JSON.stringify(prior == null ? requestedLimits : DEFAULT_BOARD_LIMITS))
+  const savedLimits = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'board_limits'").get() ? db.prepare('SELECT value FROM board_limits WHERE id = 1').get() : null
+  const limits: BoardLimits = Object.freeze(savedLimits ? JSON.parse(String(savedLimits.value)) : { ...DEFAULT_BOARD_LIMITS })
+  const burst = limits.postsPerMinute * 2
+  const refillMs = 60000 / limits.postsPerMinute
+  const appearancesCeiling = limits.waveAllowance * 100
   const waveId = String(db.prepare('SELECT wave FROM identity').get()!.wave)
   const boardId = `board-${waveId}`
   const listeners = new Set<() => void>()
@@ -78,10 +85,10 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   }
   const admitted = (): number => Number(db.prepare('SELECT COALESCE(SUM(admitted), 0) AS total FROM members').get()!.total)
   const appearances = (): number => Number(db.prepare('SELECT COALESCE(SUM(cost), 0) AS total FROM requests').get()!.total)
-  const remaining = (agent: string): number => Math.max(0, Math.min(6000 - Number(db.prepare('SELECT admitted FROM members WHERE agent = ?').get(agent)!.admitted), 40000 - admitted(), Math.floor((4000000 - appearances()) / 60)))
+  const remaining = (agent: string): number => Math.max(0, Math.min(limits.seatAllowance - Number(db.prepare('SELECT admitted FROM members WHERE agent = ?').get(agent)!.admitted), limits.waveAllowance - admitted(), Math.floor((appearancesCeiling - appearances()) / 60)))
   const reserve = (agent: string, cost: number): boolean => {
     const own = Number(db.prepare('SELECT admitted FROM members WHERE agent = ?').get(agent)!.admitted)
-    if (own + cost > 6000 || admitted() + cost > 40000 || appearances() + cost * 60 > 4000000) return false
+    if (own + cost > limits.seatAllowance || admitted() + cost > limits.waveAllowance || appearances() + cost * 60 > appearancesCeiling) return false
     db.prepare('UPDATE members SET admitted = admitted + ? WHERE agent = ?').run(cost, agent)
     return true
   }
@@ -115,11 +122,12 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - before + 1), admitted: admitted(), appearances: appearances(), peerTurns: 0, record: { path, sessionId } }
   }
   const store: BoardStore = {
+    limits,
     enroll(p) {
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.team !== undefined && !validTeam(p.team)) throw new Error('Use a team label of letters, numbers, dots, dashes or underscores; all and general are reserved.')
       transaction(() => {
-        db.prepare('INSERT INTO members (agent, name, execution, refilled) VALUES (?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, now())
+        db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst, now())
         if (p.team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, p.team)
       })
       publish()
@@ -146,7 +154,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         result = transaction(() => {
           if (input.kind === 'message' || input.kind === 'notice') {
             if (p.author.sessionId !== sessionId) throw new Error('This message belongs to another session.')
-            db.prepare('INSERT INTO members (agent, name, execution, enrolled, refilled) VALUES (?, ?, ?, 0, ?) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId, now())
+            db.prepare('INSERT INTO members (agent, name, execution, enrolled, credits, refilled) VALUES (?, ?, ?, 0, ?, ?) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId, burst, now())
           } else checkPrincipal(p)
           const post = normalize(input)
           if (!['ask', 'answer', 'blocker', 'result', 'correction', 'message', 'notice'].includes(post.kind)) return { ok: false, reason: 'The board accepts questions, answers, blockers, results and corrections, not ownership or control commands.' }
@@ -173,9 +181,9 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
           }
           const author = db.prepare('SELECT credits, refilled, posts FROM members WHERE agent = ?').get(p.author.agentId)!
           const time = now()
-          const credits = Math.min(8, Number(author.credits) + Math.max(0, time - Number(author.refilled)) / 15000)
-          if (post.kind !== 'notice' && Number(author.posts) >= 120) return { ok: false, reason: 'This seat has used its 120 posts for this wave.' }
-          if (post.kind !== 'notice' && credits < 1) return { ok: false, reason: 'Board posts allow four a minute, with a burst of eight. Continue the task before posting again.', retryAfter: Math.ceil((1 - credits) * 15000) }
+          const credits = Math.min(burst, Number(author.credits) + Math.max(0, time - Number(author.refilled)) / refillMs)
+          if (post.kind !== 'notice' && Number(author.posts) >= limits.postsPerSeat) return { ok: false, reason: `This seat has used its ${limits.postsPerSeat.toLocaleString('en-US')} posts for this wave.` }
+          if (post.kind !== 'notice' && credits < 1) return { ok: false, reason: `Board posts allow ${limits.postsPerMinute === 4 ? 'four' : limits.postsPerMinute} a minute, with a burst of ${burst === 8 ? 'eight' : burst}. Continue the task before posting again.`, retryAfter: Math.ceil((1 - credits) * refillMs) }
           const eventId = randomUUID()
           const addressing = resolveMentions(post.mentions)
           const team = teamOf(p.author.agentId)
@@ -207,7 +215,7 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
         let cursor = input.since ?? 0
         let tokens = 0
         const chosen: BoardPacket['events'] = []
-        if (input.limitTokens !== undefined && (!Number.isInteger(input.limitTokens) || input.limitTokens < 1 || input.limitTokens > 6000)) throw new Error('Board reads allow 1 to 6,000 tokens.')
+        if (input.limitTokens !== undefined && (!Number.isInteger(input.limitTokens) || input.limitTokens < 1 || input.limitTokens > limits.seatAllowance)) throw new Error(`Board reads allow 1 to ${limits.seatAllowance.toLocaleString('en-US')} tokens.`)
         const allowance = remaining(p.author.agentId)
         const limit = Math.min(input.limitTokens ?? allowance, allowance)
         for (const id of input.acknowledge ?? []) db.prepare("UPDATE deliveries SET state = 'acknowledged' WHERE recipient = ? AND event = ? AND state = 'presented'").run(p.author.agentId, id)

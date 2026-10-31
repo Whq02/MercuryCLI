@@ -204,6 +204,15 @@ function salvageValidSettings(parsed: unknown, error: z.ZodError): SalvageOutcom
     let prunedAny = false
     for (const issue of issues) {
       if (issue.path.length === 0) return voided
+      if (issue.path.length === 2 && issue.path[0] === 'swarm' && ['seatAllowance', 'waveAllowance', 'postsPerMinute', 'postsPerSeat'].includes(String(issue.path[1])) && (issue.code === 'too_small' || issue.code === 'too_big')) {
+        const swarm = working.swarm as Record<string, unknown>
+        const value = swarm[String(issue.path[1])]
+        if (typeof value === 'number' && Number.isInteger(value)) {
+          swarm[String(issue.path[1])] = Number(issue.code === 'too_small' ? issue.minimum : issue.maximum)
+          prunedAny = true
+          continue
+        }
+      }
       const pruned = pruneDeepestAlongPath(working, issue.path as ReadonlyArray<PropertyKey>)
       if (pruned === null) continue
       prunedAny = true

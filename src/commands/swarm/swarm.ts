@@ -15,11 +15,13 @@ export function runSwarmCommand(raw: string): string {
   if (op !== '') saveSwarmSwitch(op === 'on')
   if (op === 'off') closeIdleSwarm()
   if (!swarmSessionEnabled()) return 'Swarm off for new crewmates — existing board crewmates keep their board; /swarm on enables it.'
-  try { swarmStore() } catch (error) {
+  try {
+    const limits = swarmStore()!.limits
+    return `Swarm on for new crewmates — board context ${limits.seatAllowance.toLocaleString('en-US')} tokens per agent, ${limits.waveAllowance.toLocaleString('en-US')} per wave; no extra turns.`
+  } catch (error) {
     saveSwarmSwitch(false)
     return `Swarm could not open: ${error instanceof Error ? error.message : String(error)}`
   }
-  return 'Swarm on for new crewmates — board context 6,000 tokens per agent, 40,000 per wave; no extra turns.'
 }
 
 export const call: LocalJSXCommandCall = async (onDone, context, raw) => {

@@ -20,7 +20,7 @@
 # gate-watch: src/components/HelmVitalsRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts src/services/oauth/**
 # gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
 # gate-watch: src/cli/run.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseWorkers.ts src/services/engine-connector/** src/screens/Chat.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
+# gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts scripts/ui/gridToPng.ts
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/catalogueOnDemand.ts src/hooks/useCatalogueEpoch.ts src/services/providers/moonshot/moonshotAccounts.ts src/services/providers/huggingface/huggingfaceAccounts.ts src/services/providers/huggingface/huggingfaceCatalogue.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localAccounts.ts src/components/ConfigurableShortcutHint.tsx src/components/HelmLanesRail.tsx
 # gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx
 # gate-watch: src/components/InvalidConfigDialog.tsx src/components/InvalidSettingsDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts

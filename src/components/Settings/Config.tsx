@@ -32,6 +32,7 @@ import {
 import {
   updateSettingsForSource,
   getInitialSettings,
+  getSettingsForSource,
 } from '../../utils/settings/settings.js'
 import type { SettingsJson } from '../../utils/settings/types.js'
 import { DUCKDUCKGO_SETTING_KEY, DUCKDUCKGO_SETTING_LABEL, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled, duckduckgoScrapingPinned } from '../../services/search/searchSetting.js'
@@ -110,7 +111,7 @@ import { localRecordFor } from '../../services/providers/local/localCatalogue.js
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
-import { swarmMasterEnabled } from '../../services/crewBoard/seam.js'
+import { swarmLimits, swarmMasterEnabled } from '../../services/crewBoard/seam.js'
 import { MediaConfigPicker, useMediaConfig, type MediaMenu } from './Media.js'
 import { reloadExtensions, noteReloaded } from '../../extensions/boot.js'
 import { extensionsStateFrom } from '../../hooks/useExtensions.js'
@@ -1193,17 +1194,50 @@ export function Config({
   )
   {
     const enabled = swarmMasterEnabled()
+    const limits = swarmLimits()
+    const saved = getSettingsForSource('userSettings')?.swarm
+    const number = (value: number): string => value.toLocaleString('en-US')
     items.push({
       id: 'swarm',
       label: 'Swarm',
       searchText: 'swarm live crew board',
       kind: 'boolean',
       value: <Text color={enabled ? tokens.success : tokens.textSecondary}>{enabled ? 'on · /swarm on enables a session' : 'off'}</Text>,
-      warning: 'Live crew posts for new crewmates after /swarm on; 6,000 board tokens per agent, 40,000 per wave; no extra turns. Existing crewmates keep their messages unchanged.',
+      warning: `Live crew posts for new crewmates after /swarm on; ${number(limits.seatAllowance)} board tokens per agent, ${number(limits.waveAllowance)} per wave; no extra turns. Existing crewmates keep their messages unchanged.`,
       setByYou: enabled,
       change: () => {
         if (writeSource('userSettings', { swarm: { enabled: !enabled } })) {
           recordToggle('swarm', `Swarm ${enabled ? 'off' : 'on'}`)
+          bump()
+        }
+      },
+    })
+    items.push({
+      id: 'swarm-limits',
+      label: 'Swarm limits',
+      searchText: 'swarm limits allowance tokens posts',
+      kind: 'info',
+      value: <Text>{`${number(limits.seatAllowance)} per agent · ${number(limits.waveAllowance)} per wave · ${limits.postsPerMinute} posts/min`}</Text>,
+    })
+    const fields = [
+      { key: 'seatAllowance', id: 'swarm-seat-allowance', label: 'Tokens per agent', min: 1000, max: 60000, step: 1000, unit: 'tokens' },
+      { key: 'waveAllowance', id: 'swarm-wave-allowance', label: 'Tokens per wave', min: limits.seatAllowance, max: 400000, step: 1000, unit: 'tokens' },
+      { key: 'postsPerMinute', id: 'swarm-posts-per-minute', label: 'Posts per minute', min: 1, max: 30, step: 1, unit: 'posts/min' },
+      { key: 'postsPerSeat', id: 'swarm-posts-per-seat', label: 'Posts per agent per wave', min: 10, max: 1000, step: 10, unit: 'posts' },
+    ] as const
+    for (const field of fields) items.push({
+      id: field.id,
+      label: `  ${field.label}`,
+      searchText: 'swarm limits allowance tokens posts',
+      kind: 'enum',
+      value: <Text>{`${number(limits[field.key])} ${field.unit}`}</Text>,
+      setByYou: saved?.[field.key] !== undefined,
+      warning: `${number(field.min)}–${number(field.max)} · ←/→ ${number(field.step)}`,
+      change: direction => {
+        const next = Math.max(field.min, Math.min(field.max, limits[field.key] + direction * field.step))
+        const swarm = { [field.key]: next, ...(field.key === 'seatAllowance' && next > limits.waveAllowance ? { waveAllowance: next } : {}) }
+        if (writeSource('userSettings', { swarm })) {
+          recordSet(field.id, `set swarm ${field.label.toLowerCase()} to ${number(next)}`)
           bump()
         }
       },

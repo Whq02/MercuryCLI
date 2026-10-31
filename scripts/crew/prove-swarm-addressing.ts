@@ -6,7 +6,7 @@ import { open } from '../../src/services/crewBoard/store.ts'
 const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 let now = 0
-const board = open(join(home, 'addressing.sqlite'), 'addressing', () => now)
+const board = open(join(home, 'addressing.sqlite'), 'addressing', undefined, () => now)
 const principal = (id: string, name = id, team?: string) => ({ author: { sessionId: 'addressing', agentId: id, executionId: 'run' }, name, team })
 const lead = principal('main')
 const alpha = principal('a', 'Alpha', 'engine')
@@ -79,7 +79,7 @@ const narrow = board.read(tinyReader, { since: tiny.cursor, limitTokens: costs[1
 assert.equal(narrow.events.length, 2)
 assert.equal(narrow.omitted, full.length - 3)
 console.log('PASS 3 default reads fill the remaining allowance oldest first; tiny budgets return a charged identity envelope')
-const readOnly = open(join(home, 'addressing.sqlite'), 'addressing', Date.now, true)
+const readOnly = open(join(home, 'addressing.sqlite'), 'addressing', undefined, Date.now, true)
 let changes = 0
 const stop = readOnly.subscribe(() => changes++)
 post('The store append reaches its read-only tail.')

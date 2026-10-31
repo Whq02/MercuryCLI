@@ -1,6 +1,9 @@
 import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 
+export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number }>
+export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 6000, waveAllowance: 40000, postsPerMinute: 4, postsPerSeat: 120 })
+
 type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'message' | 'notice'
 type BoardAuthor = { sessionId: string; agentId: string; executionId: string }
 type BoardRef = { uri: string; digest: string }
@@ -50,6 +53,7 @@ export type BoardHost = {
   sessionOn(): boolean
 }
 export interface BoardStore {
+  readonly limits: BoardLimits
   enroll(principal: BoardPrincipal): void
   member(agentId: string): boolean
   assignTeam(principal: BoardPrincipal, seat: string, team: string): { ok: boolean; reason?: string; name?: string; team?: string }
@@ -62,7 +66,7 @@ export interface BoardStore {
   close(): void
 }
 export type BoardModule = {
-  open(path: string, sessionId: string): BoardStore
+  open(path: string, sessionId: string, limits?: BoardLimits): BoardStore
   tool(host: BoardHost, store: () => BoardStore | null): Tool
   view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; tokens: import('../../utils/mercuryTokens.js').MercuryThemeTokens; wrapText: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
   page(record: { path: string; sessionId: string }, before?: number, thread?: string, team?: string): BoardViewSnapshot

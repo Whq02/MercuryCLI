@@ -135,8 +135,8 @@ function scanSource(rel: string, source: string): Array<{ line: number; text: st
   const visit = (node: ts.Node): void => {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       if (!isModulePath(node)) note(node, node.text)
-    } else if (ts.isTemplateHead(node) || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) {
-      note(node, node.text)
+    } else if (ts.isTemplateExpression(node)) {
+      note(node, [node.head.text, ...node.templateSpans.map(span => span.literal.text)].join(' '))
     } else if (ts.isJsxText(node)) {
       note(node, node.text)
     }
@@ -183,6 +183,10 @@ console.log('— §0 the scanner bites (poison control) —')
   const caught = [1, 2, 3, 4, 5, 6, 14, 16, 17, 19]
   check(`the sentences are caught (${caught.join(',')})`, caught.every(l => lines.includes(l)), lines.join(','))
   check('a kind token, a flag, a ref, a log line, the plan name, the verb, a module path and a hyphenated name never count', lines.every(l => caught.includes(l)), lines.filter(l => !caught.includes(l)).join(','))
+  const board = scanSource('board.ts', 'const prompt = `CrewBoard reads and posts; up to ${limit}; a team label selects delivery.`')
+  check('a dynamic prompt retains its whole literal text for the named allowance', board.length === 1 && board[0]!.text.includes('CrewBoard reads and posts') && board[0]!.text.includes('a team label'))
+  const nested = scanSource('nested.ts', 'const prompt = `value ${flag ? "a teammate waits" : "a crewmate works"}`')
+  check('copy inside an interpolation is still scanned', nested.some(hit => hit.text.includes('a teammate waits')))
 }
 
 console.log('— §1 the census —')

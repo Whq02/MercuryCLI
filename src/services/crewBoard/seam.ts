@@ -9,7 +9,7 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import type { BoardModule, BoardPrincipal, BoardReceipt, BoardStore, BoardViewSnapshot } from './contracts.js'
+import { DEFAULT_BOARD_LIMITS, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -20,6 +20,17 @@ const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 
 
 export function swarmMasterEnabled(): boolean {
   return getSettingsForSource('userSettings')?.swarm?.enabled === true
+}
+
+export function swarmLimits(): BoardLimits {
+  const settings = getSettingsForSource('userSettings')?.swarm
+  const seatAllowance = settings?.seatAllowance ?? DEFAULT_BOARD_LIMITS.seatAllowance
+  return {
+    seatAllowance,
+    waveAllowance: Math.max(seatAllowance, settings?.waveAllowance ?? DEFAULT_BOARD_LIMITS.waveAllowance),
+    postsPerMinute: settings?.postsPerMinute ?? DEFAULT_BOARD_LIMITS.postsPerMinute,
+    postsPerSeat: settings?.postsPerSeat ?? DEFAULT_BOARD_LIMITS.postsPerSeat,
+  }
 }
 
 export function swarmSessionEnabled(): boolean {
@@ -43,7 +54,7 @@ export function swarmStore(): BoardStore | null {
   if (existing) return existing.store
   if (!swarmSessionEnabled() && ![...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on)) return null
   const module = loadSwarm()
-  const store = module.open(join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite'), sessionId)
+  const store = module.open(join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite'), sessionId, swarmLimits())
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
   store.enroll({ author: { sessionId, agentId: 'main', executionId: execution }, name: 'main' })

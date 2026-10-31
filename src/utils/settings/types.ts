@@ -91,7 +91,16 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({
     $schema: z.string().optional(),
-    swarm: z.object({ enabled: z.boolean().optional() }).strict().optional().describe('Live crew board master switch; user settings only, off by default; /swarm on enables a session'),
+    swarm: z.object({
+      enabled: z.boolean().optional(),
+      seatAllowance: z.number().int().min(1000).max(60000).optional().describe('Board-context tokens per seat, default 6000'),
+      waveAllowance: z.number().int().min(1000).max(400000).optional().describe('Board-context tokens per wave, at least seatAllowance, default 40000'),
+      postsPerMinute: z.number().int().min(1).max(30).optional().describe('Posts per minute per seat, with a burst of twice this rate, default 4'),
+      postsPerSeat: z.number().int().min(10).max(1000).optional().describe('Posts per seat per wave, default 120'),
+    }).strict().superRefine((swarm, ctx) => {
+      const minimum = Math.max(1000, Math.min(60000, swarm.seatAllowance ?? 6000))
+      if (swarm.waveAllowance !== undefined && swarm.waveAllowance < minimum) ctx.addIssue({ code: 'too_small', origin: 'number', minimum, inclusive: true, path: ['waveAllowance'] })
+    }).optional().describe('Live crew board switch and limits; user settings only, off by default; limits are held for each wave'),
     models: ModelFactsSchema().optional().describe('Model facts keyed by the full id: contextWindow, maxOutputTokens, prices, efforts, images, reasoning and thinkingBudget (the thinking-token cap a wire that documents one takes); _default maps provider families to facts for unknown ids; recorded capabilities are never reduced'),
     compatProvider: CompatProviderSchema().optional().describe('Custom endpoints keyed by name, or one endpoint named default: baseUrl, label, models, headers, sessionAffinityHeader and dialect; keys are kept by /logins, not in settings'),
     videoProvider: VideoProviderSettingsSchema.optional().describe('Named video generators: kind (minimax), optional baseUrl and model; billable calls use the existing /logins minimax key, never a key in settings'),

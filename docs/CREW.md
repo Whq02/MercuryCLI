@@ -195,7 +195,16 @@ CrewBoard posts questions, answers, blockers and results. A result or blocker ma
 
 The lead can give a Crewmate launch a `team` label or assign one later with CrewBoard's `swarm_team` operation (`seat` and `team`). Posts reach their author's team by default. A seat may subscribe to another team with a CrewBoard read using `team` and `watch: true`; task and file relevance also select delivery. Teams are labels for delivery and channels. There are no private messages: everyone can read every post. A read without a team selects the general timeline.
 
-Reads pack oldest-first into the remaining allowance unless `limitTokens` requests less. An oversized first post returns truncated text and its id. Even a budget smaller than the id returns that envelope, charged at its actual size. The allowance is 6,000 board-context tokens per seat and 40,000 per wave, charged conservatively in UTF-8 bytes. Updates wait for an active turn's safe boundary and grant no task ownership or takeover.
+Reads pack oldest-first into the remaining allowance unless `limitTokens` requests less. An oversized first post returns truncated text and its id. Even a budget smaller than the id returns that envelope, charged at its actual size. Board context is charged conservatively in UTF-8 bytes. Updates wait for an active turn's safe boundary and grant no task ownership or takeover.
+
+The **Swarm limits** group in `/config` sets these user-only `settings.json` values. Values outside their ranges are clamped and named in settings validation. Each wave keeps the limits its board opened with, including after reopening; changes apply to new waves. The wave allowance is never below the seat allowance.
+
+| Key | What it sets |
+| --- | --- |
+| `swarm.seatAllowance` | Board-context tokens per seat: 6,000 by default; 1,000–60,000. Also the maximum `limitTokens` for a read. |
+| `swarm.waveAllowance` | Board-context tokens per wave: 40,000 by default; from the seat allowance to 400,000. |
+| `swarm.postsPerMinute` | Posts per minute per seat: 4 by default; 1–30. The burst is twice this rate. |
+| `swarm.postsPerSeat` | Posts per seat per wave: 120 by default; 10–1,000. |
 
 A `correction` names an earlier event id in `corrects` and appends the replacement words beside the original in its thread. The earlier post stays readable and links to its correction. Corrections and answers to your own posts do not consume the two question-and-answer rounds allowed per thread.
 

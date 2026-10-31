@@ -8,7 +8,7 @@ const home = process.env.MERCURY_CONFIG_DIR
 assert(home, 'run with a scratch MERCURY_CONFIG_DIR')
 let now = 0
 const path = join(home, 'corrections.sqlite')
-const board = open(path, 'corrections', () => now)
+const board = open(path, 'corrections', undefined, () => now)
 const a = { author: { sessionId: 'corrections', agentId: 'alpha', executionId: 'run' }, name: 'Alpha' }
 const b = { author: { sessionId: 'corrections', agentId: 'beta', executionId: 'run' }, name: 'Beta' }
 board.enroll(a); board.enroll(b)
@@ -40,7 +40,7 @@ assert(rows.find(row => row.id === wrong.eventId)!.kind.includes('→ correction
 assert(rows.find(row => row.id === correction.eventId)!.reply)
 assert.equal(rows.find(row => row.id === correction.eventId)!.thread, rows.find(row => row.id === wrong.eventId)!.thread)
 board.close()
-const reopened = open(path, 'corrections', Date.now, true)
+const reopened = open(path, 'corrections', undefined, Date.now, true)
 assert.deepEqual(reopened.view().events.find(event => event.eventId === wrong.eventId), original)
 assert.equal(reopened.view().events.find(event => event.eventId === correction.eventId)!.corrects, original.eventId)
 reopened.close()

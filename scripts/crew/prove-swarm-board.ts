@@ -150,7 +150,7 @@ unsubscribe()
 const { open } = await import('../../src/services/crewBoard/store.ts')
 let now = 0
 const budgetFile = join(work, 'budget.sqlite')
-const budget = open(budgetFile, 'budget-session', () => now)
+const budget = open(budgetFile, 'budget-session', undefined, () => now)
 const a = { author: { sessionId: 'budget-session', agentId: 'one', executionId: 'execution' }, name: 'one' }
 const b = { author: { sessionId: 'budget-session', agentId: 'two', executionId: 'execution' }, name: 'two' }
 budget.enroll(a); budget.enroll(b)
@@ -165,7 +165,7 @@ check('the 121st post exceeds the wave allowance', !budget.post(a, { clientOpId:
 const initial = budget.boundary(b, new Set())
 assert(initial)
 budget.close()
-const recovered = open(budgetFile, 'budget-session', () => now)
+const recovered = open(budgetFile, 'budget-session', undefined, () => now)
 check('append-before-notify and prepare-before-dispatch survive reopening', recovered.view().snapshot === 120 && JSON.stringify(recovered.boundary(b, new Set())) === JSON.stringify(initial))
 recovered.presented(b, initial.eventIds, 'sent')
 recovered.presented(b, initial.eventIds, 'sent')

@@ -36,7 +36,7 @@ if (fixture) {
   copy.close()
 } else {
   let now = Date.parse('2026-10-01T10:00:00Z')
-  const board = open(path, SID, () => now += 15000)
+  const board = open(path, SID, undefined, () => now += 15000)
   const a = { author: { sessionId: SID, agentId: 'alpha', executionId: 'run' }, name: 'Alpha', team: 'engine' }
   const b = { author: { sessionId: SID, agentId: 'beta', executionId: 'run' }, name: 'Beta', team: 'view' }
   board.enroll(a); board.enroll(b)
@@ -58,7 +58,7 @@ if (fixture) {
   if (arg('--leg') === 'history') for (let i = 0; i < 33; i++) assert(board.post(b, { clientOpId: `history-${i}`, kind: 'correction', corrects: wrong.eventId, text: `Count revision ${i}.` }).ok)
   board.close()
 }
-const saved = open(path, SID, Date.now, true)
+const saved = open(path, SID, undefined, Date.now, true)
 const corpus = saved.view()
 assert(corpus.events.length > 0)
 saved.close()
