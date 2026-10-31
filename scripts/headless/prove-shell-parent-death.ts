@@ -12,6 +12,31 @@ const REAP_BUDGET_MS = process.platform === 'win32' ? 12_000 : 4000
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const pidWritten = (file: string): boolean => existsSync(file) && /^\d+\s*$/.test(readFileSync(file, 'utf8'))
 let failures = 0
+{
+  const { mkdtempSync, writeFileSync, statSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { shellParentGuardEntry } = await import('../../src/utils/shell/parentGuard.ts')
+  const built = join(import.meta.dir, '../../dist')
+  const stage = mkdtempSync(join(tmpdir(), 'shell-parent-guard-entry-'))
+  try {
+    writeFileSync(join(stage, 'mercury.mjs'), '')
+    assert.equal(shellParentGuardEntry(join(stage, 'mercury.mjs')), join(stage, 'mercury.mjs'), 'a bundle without the guard bundle beside it boots the guard from itself')
+    writeFileSync(join(stage, 'shell-parent-guard.mjs'), '')
+    assert.equal(shellParentGuardEntry(join(stage, 'mercury.mjs')), join(stage, 'shell-parent-guard.mjs'), 'the guard boots from the small bundle beside the product bundle when it is there')
+    assert.ok(shellParentGuardEntry(join(stage, 'parentGuard.ts')).endsWith(join('entrypoints', 'cli.tsx')), 'a source run boots the guard through the cli entrypoint')
+    if (existsSync(join(built, 'shell-parent-guard.mjs'))) {
+      const guardBytes = statSync(join(built, 'shell-parent-guard.mjs')).size
+      assert.ok(guardBytes > 0 && guardBytes < 64 * 1024, `the built guard bundle is small (${guardBytes} bytes): a tool shell's start must not pay the product bundle's boot`)
+      assert.equal(shellParentGuardEntry(join(built, 'mercury.mjs')), join(built, 'shell-parent-guard.mjs'))
+    }
+    console.log('PASS the shell parent guard boots from its own small bundle beside the product bundle, from the product bundle when that is all there is, and from the cli entrypoint in a source run')
+  } catch (error) {
+    failures++
+    console.error(String(error))
+  } finally {
+    removeScratch(stage)
+  }
+}
 for (const mode of ['plain', 'foreground', 'background'] as const) {
   for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
     const paths = sceneRoot('shell-parent-death-')

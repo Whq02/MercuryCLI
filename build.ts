@@ -123,6 +123,16 @@ const boardResult = await Bun.build({
 });
 if (!boardResult.success) throw new Error(`Crew board build failed: ${boardResult.logs.join('\n')}`);
 
+const guardResult = await Bun.build({
+  entrypoints: [resolve(SRC, 'entrypoints/shellParentGuard.ts')],
+  outdir: OUT,
+  naming: 'shell-parent-guard.mjs',
+  target: 'node',
+  format: 'esm',
+  minify: process.env.MERCURY_BUILD_MINIFY === 'oracle' ? { whitespace: true, syntax: true, identifiers: false } : true,
+});
+if (!guardResult.success) throw new Error(`Shell parent guard build failed: ${guardResult.logs.join('\n')}`);
+
 const result = await Bun.build({
   entrypoints: [resolve(ROOT, 'src/entrypoints/cli.tsx')],
   outdir: OUT,

@@ -36,6 +36,12 @@ A successful build writes, under `dist/`:
   the bundle, the packaged launchers run it on interactive boots (warn-only),
   `scripts/release/package.mjs` imports the staged copy as its signing
   library, and `/health` runs the same source in-bundle.
+- `shell-parent-guard.mjs` — the tool-shell parent guard, a small bundle
+  from `src/entrypoints/shellParentGuard.ts`. Every tool shell is spawned
+  through a guard process that reaps the shell's tree when the product dies;
+  the product boots the guard from this bundle when it sits beside
+  `mercury.mjs`, and from `mercury.mjs` itself otherwise (the same code, a
+  far slower start: the whole product bundle loads for each shell).
 - `manifest.json` — the artifact manifest (below). Written only when the
   whole build succeeds; a stale manifest and a stale `verify-artifact.mjs`
   are removed at build start, so absence always means "do not ship".

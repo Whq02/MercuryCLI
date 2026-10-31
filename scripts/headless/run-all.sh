@@ -16,7 +16,7 @@
 # gate-watch: src/utils/config/globalConfig.ts
 # gate-watch: src/utils/permissions/filesystem.ts src/utils/permissions/ruleReason.ts src/rows/vocabulary.ts src/rows/project.ts scripts/mcp/_fixture-stdio-server.mjs
 # gate-watch: src/utils/messages/rejectionText.ts src/utils/processUserInput/processUserInput.ts
-# gate-watch: src/utils/task/framework.ts
+# gate-watch: src/utils/task/framework.ts src/utils/shell/parentGuard.ts src/entrypoints/shellParentGuard.ts
 # gate-watch: src/entrypoints/cli.tsx src/main.tsx src/setup.ts src/cli/runArgs.ts src/cli/sessionArgs.ts src/state/onChangeAppState.ts src/utils/permissions/rootNotice.ts
 # gate-watch: src/services/instructions/** src/utils/processUserInput/** src/utils/config/trust.ts
 # gate-watch: src/tools/BashTool/pathValidation.ts src/utils/permissions/shellProtectedPaths.ts

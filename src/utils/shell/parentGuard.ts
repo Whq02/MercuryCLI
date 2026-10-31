@@ -1,16 +1,27 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { constants } from 'node:os'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { endProcessTree, registerProcessTreeGuard, type ProcessTreeKillReceipt } from '../processGroup.js'
 
 const SHELL_PARENT_GUARD = '--tool-shell-parent'
+const SHELL_PARENT_GUARD_BUNDLE = 'shell-parent-guard.mjs'
 
 type ShellLaunch = { file: string; args: string[]; detached?: boolean; windowsVerbatimArguments?: boolean }
 type GuardMessage = { kind: 'spawned'; pid: number } | { kind: 'spawn-error'; message: string; code?: string } | { kind: 'ended'; receipt: ProcessTreeKillReceipt }
 
+export function shellParentGuardEntry(self: string): string {
+  if (!self.endsWith('.mjs')) return fileURLToPath(new URL('../../entrypoints/cli.tsx', import.meta.url))
+  const beside = join(dirname(self), SHELL_PARENT_GUARD_BUNDLE)
+  return existsSync(beside) ? beside : self
+}
+
+let guardEntry: string | undefined
+
 export async function spawnOwnedShell(file: string, args: string[], options: SpawnOptions): Promise<ChildProcess> {
-  const self = fileURLToPath(import.meta.url)
-  const entry = self.endsWith('.mjs') ? self : fileURLToPath(new URL('../../entrypoints/cli.tsx', import.meta.url))
+  guardEntry ??= shellParentGuardEntry(fileURLToPath(import.meta.url))
+  const entry = guardEntry
   const launch: ShellLaunch = { file, args, detached: options.detached, windowsVerbatimArguments: options.windowsVerbatimArguments }
   const stdio = Array.isArray(options.stdio) ? options.stdio : ['pipe', 'pipe', 'pipe'] as const
   const guard = spawn(process.execPath, [entry, SHELL_PARENT_GUARD], {
