@@ -39,7 +39,7 @@
   " │   ❯ Opus 5.5         claude-opus-5-5     current      1M ctx               │",
   " │     Opus 5           claude-opus-5                    1M ctx               │",
   " │     Opus 4.8         claude-opus-4-8                  1M ctx               │",
-  " │   ↓ 58 more                                                                │",
+  " │   ↓ 59 more                                                                │",
   " │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                 │",
   " │ context —                                                                  │",
   " │ effort  [high] ctrl+e changes it                                           │",
