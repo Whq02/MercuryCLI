@@ -22,6 +22,8 @@ export function topAllowlist(target, floor) {
   const isWin = target.startsWith('windows-')
   const members = [
     'mercury.mjs',
+    'crew-board.mjs',
+    'shell-parent-guard.mjs',
     'manifest.json',
     'vendor',
     'splash.mjs',
@@ -36,6 +38,8 @@ export function topAllowlist(target, floor) {
 
 export function memberRole(name) {
   if (name === 'mercury.mjs') return 'primary'
+  if (name === 'crew-board.mjs') return 'board'
+  if (name === 'shell-parent-guard.mjs') return 'shell-guard'
   if (name === 'manifest.json') return 'manifest'
   if (name === 'mercury' || name === 'mercury.cmd' || name === 'mercury.exe') return 'launcher'
   if (name === 'mercury.ps1') return 'launcher-ps'

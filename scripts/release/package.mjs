@@ -101,6 +101,10 @@ const stage = mkdtempSync(join(tmpdir(), 'mercury-pkg-'))
 const pkgDir = join(stage, 'mercury')
 mkdirSync(pkgDir, { recursive: true })
 cpSync(join(dist, 'mercury.mjs'), join(pkgDir, 'mercury.mjs'))
+for (const sibling of ['crew-board.mjs', 'shell-parent-guard.mjs']) {
+  if (!existsSync(join(dist, sibling))) fail(`dist/${sibling} missing — run bun run build.ts first`)
+  cpSync(join(dist, sibling), join(pkgDir, sibling))
+}
 cpSync(join(dist, 'manifest.json'), join(pkgDir, 'manifest.json'))
 cpSync(join(dist, 'vendor'), join(pkgDir, 'vendor'), { recursive: true })
 if (!ALLOW_DEGRADED) {
