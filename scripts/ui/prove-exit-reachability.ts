@@ -271,6 +271,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/SurfaceExitChord.tsx': 'a chord handler — renders nothing',
     'src/components/concourse/CoordinatorPane.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
+    'src/components/prompts-panel/CrewChatPanel.tsx': 'the Workbench crew-chat section — its own keys switch sections; the board view it hosts decodes esc and hands it to the panel (onBack closes the panel)',
     'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
     'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
     'src/components/ExitHandoff.tsx': 'the exit handoff notice — the session is already leaving; its one key, ctrl-c, skips the wait for the note; there is no surface to exit',
