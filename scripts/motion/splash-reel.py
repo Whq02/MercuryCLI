@@ -40,7 +40,7 @@ def cmd_capture(a):
         for spelling in ('MERCURY_HOME', 'MERCURY_CONFIG_DIR'):
             os.environ[spelling] = home
         os.environ['TERM'] = 'xterm-256color'
-        for k in ('TERM_PROGRAM', 'MERCURY_FULLSCREEN', 'NO_COLOR',
+        for k in ('TERM_PROGRAM', 'MERCURY_FULLSCREEN', 'NO_COLOR', 'FORCE_COLOR',
                   'MERCURY_SPLASH_ONESHOT', 'MERCURY_SPLASH_VIEW'):
             os.environ.pop(k, None)
         for kv in a.env or []:
