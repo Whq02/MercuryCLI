@@ -619,7 +619,7 @@ console.log('── §14b f06/f07: one pointer law — the runtime reader and th
       chmodSync(join(root, '1.0.1', 'mercury'), 0o755)
       writeFileSync(join(root, 'current.txt'), body)
       const reader = readCurrentVersionState({ versionsDir: root, binDir: live, shimPath: shim, isWindows: false })
-      const r = spawnSync('/bin/sh', [shim], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', MERCURY_VERSIONS_DIR: root, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, encoding: 'utf8' })
+      const r = spawnSync('/bin/sh', [shim], { env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: live, MERCURY_VERSIONS_DIR: root, MERCURY_LOCAL_PROBE_TARGETS: 'none' }, encoding: 'utf8' })
       const ran = r.status === 0 && r.stdout.trim() === 'RAN'
       const agree = value === '' ? reader.state === 'empty' && !ran && r.stderr.includes('is empty') : reader.state === 'ok' && reader.value === value && ran
       check(`reader and stable command agree: ${label}`, agree, `reader=${JSON.stringify(reader)} shim=exit ${r.status} ${JSON.stringify((r.stdout + r.stderr).trim().slice(0, 80))}`)
