@@ -66,13 +66,13 @@ const VARIANTS: Array<[platform: string, runtime: 'bun' | 'node', version: strin
   ['win32', 'node', '24.2.0-pre', 'winLegacy'],
 ]
 const SUMS: Record<Form, string> = {
-  mac: 'da29d29d096aca7ebcb9f2263bfb0d23624eb415a2a8f495c817f854406e1759',
-  posix: 'd18c936de40fed61c677d60f4bd512357dda13b1b49cf54ccf27bd241df14e03',
-  winVt: 'ccf7a3bb1c34b71a7fa069d43c35a66aea73abbd2dd40627e9cf02046f760f4e',
-  winLegacy: 'f8d09fd2ee0f933ebb18707c01fd2b0dbd8209ba5713f6db8df491b85172889f',
+  mac: '063298f23760cbd7dda65ef274e15ebcce7c59e3c53272c752f15aa3209d8cbb',
+  posix: '42f72e6979c10e1c1cf4add839fa0c17c3911cc502f4273eee76d5c72a13e3f9',
+  winVt: '2a8d71de32fc906ee24320e6ed9be43770fcd00844b4de578122a1f4eca8830b',
+  winLegacy: '4ed7aea9fb284991ef20e580f5e625c165ec5814d0e8af9c301c0d5fcfe4c121',
 }
 const CONTEXTS = ['Global', 'Chat', 'Autocomplete', 'Settings', 'Confirmation', 'Tabs', 'Transcript', 'HistorySearch', 'Task', 'ThemePicker', 'Scroll', 'Help', 'Attachments', 'Footer', 'MessageSelector', 'MessageActions', 'DiffDialog', 'Select', 'Extensions', 'Atlas']
-const ROWS = [17, 13, 4, 13, 12, 4, 4, 5, 1, 1, 8, 1, 6, 8, 16, 15, 17, 12, 11, 2]
+const ROWS = [18, 13, 4, 13, 12, 4, 4, 5, 1, 1, 8, 1, 6, 8, 16, 16, 17, 12, 11, 2]
 const CHORDS: Record<Form, { modeCycle: string; imagePaste: string; macCopy: boolean }> = {
   mac: { modeCycle: 'shift+tab', imagePaste: 'ctrl+v', macCopy: true },
   posix: { modeCycle: 'shift+tab', imagePaste: 'ctrl+v', macCopy: false },
@@ -102,6 +102,7 @@ const SHOWN = [
   'MessageActions messageActions:next j',
   'MessageActions messageActions:top super+up',
   'MessageActions messageActions:bottom super+down',
+  'MessageActions messageActions:c ctrl+x y',
   'Select select:previous ctrl+p',
   'Select select:next ctrl+n',
 ]
@@ -184,7 +185,7 @@ section('§2 one form per platform class: variants of the same class are byte-eq
   check('the four classes are four different tables', new Set([...byForm.values()].map(set => [...set][0])).size === 4)
 }
 
-section(`§3 the differential: the table at ${BASE.slice(0, 10)} and this tree's table read the same on every variant`)
+section(`§3 the differential: the ${BASE.slice(0, 10)} table plus a402fc1d3c's two copy chords matches every variant`)
 {
   const present = spawnSync('git', ['-C', ROOT, 'cat-file', '-e', `${BASE}:src/keybindings/defaultBindings.ts`]).status === 0
   if (!present) {
@@ -201,12 +202,22 @@ section(`§3 the differential: the table at ${BASE.slice(0, 10)} and this tree's
         const tag = `${platform} ${runtime} ${version}`
         const base = read(platform, runtime, version, baseTable).reading
         const now = readings.get(tag)
-        if (!base || !now || JSON.stringify(base.table) !== JSON.stringify(now.table)) {
-          const at = base && now ? base.table.findIndex((block, i) => JSON.stringify(block) !== JSON.stringify(now.table[i])) : -1
-          drift.push(`${tag}${at >= 0 ? ` first differs at ${base?.table[at]?.context}` : ''}`)
+        const expected = base?.table.map(block => {
+          const after = block.context === 'Global' ? 'ctrl+x s' : block.context === 'MessageActions' ? 'c' : null
+          const action = block.context === 'Global' ? 'command:copy' : 'messageActions:c'
+          return {
+            ...block,
+            bindings: Object.fromEntries(Object.entries(block.bindings).flatMap(([chord, bound]) =>
+              chord === after ? [[chord, bound], ['ctrl+x y', action]] : [[chord, bound]],
+            )),
+          }
+        })
+        if (!expected || !now || JSON.stringify(expected) !== JSON.stringify(now.table)) {
+          const at = expected && now ? expected.findIndex((block, i) => JSON.stringify(block) !== JSON.stringify(now.table[i])) : -1
+          drift.push(`${tag}${at >= 0 ? ` first differs at ${expected?.[at]?.context}` : ''}`)
         }
       }
-      check(`every variant reads byte-equal to the ${BASE.slice(0, 10)} table`, drift.length === 0, drift.join(' · '))
+      check(`every variant reads byte-equal to ${BASE.slice(0, 10)} plus the two copy chords`, drift.length === 0, drift.join(' · '))
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
