@@ -74,6 +74,7 @@ import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
 import { conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
+import { cacheDiagnosticsParam, noteCacheDiagnostics } from './cacheDiagnostics.js'
 import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
   ConnectorTextBlock,
@@ -739,6 +740,7 @@ async function* queryModel(
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
     const wireMessages = wireParts.messages
     const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    const diagnostics = cacheDiagnosticsParam(wireMessageIds, options.querySource)
 
     const params = fitWireImages({
       model: normalizeModelStringForAPI(options.model),
@@ -751,6 +753,7 @@ async function* queryModel(
       max_tokens: maxOutputTokens,
       thinking,
       ...(temperature !== undefined && { temperature }),
+      ...(diagnostics !== null && { diagnostics }),
       ...extraBodyParams,
       ...(Object.keys(outputConfig).length > 0 && {
         output_config: outputConfig,
@@ -1134,6 +1137,7 @@ async function* queryModel(
             ttftMs = Date.now() - start
             usage = updateUsage(usage, part.message?.usage)
             noteServedModel(part.message?.model)
+            noteCacheDiagnostics(part.message, part.message?.usage)
             break
           }
           case 'content_block_start':
