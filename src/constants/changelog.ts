@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.2
-- Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle; results paint without waking it. Nothing is capped unless you set a cap in /config, and /swarm uncap, cap and status manage a live wave.
+- Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle; results paint without waking it. The context allowances and the post length have no cap unless you set one in /config; two loop guards stay on (4 posts a minute, 120 posts per agent in a wave), and /swarm uncap, cap and status manage a live wave.
 - Added Crew chat in the Workbench: /swarm opens a read-only timeline of board posts and crew messages, grouped by thread and team, with each author's name and time.
 - Added transcripts from local audio and video files through Read, with numbered, timestamped segments decoded on-device. The speech model downloads on first use; most formats need ffmpeg.
 - Added mercury acp --login for editor sign-in: open Mercury's sign-in screen in a terminal, choose a provider and return to the editor when sign-in finishes.
@@ -15,6 +15,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed Anthropic requests to send thinking blocks the API drops back unchanged, keeping the cached conversation intact and lowering long-session cost.
 - Changed housekeeping to prune compile caches for retired Node versions and stale bundled-extension folders, and rotate the Bash audit log while keeping the newest rotated files.
 - Changed cost estimates to use refreshed provider prices, including Kimi's input, output and cached-input rates and Hugging Face's provider prices.
+- Changed OpenRouter requests to carry Mercury CLI's app attribution, so usage made through Mercury appears under its name on OpenRouter.
+- Changed the MCP server Mercury offers to editors and clients to announce itself as Mercury CLI with its version and website.
+- Changed the quiet update check to stay off when MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set, with the other non-essential traffic.
+- Changed the model picker to label Gemini rows that share a display name by their ids, and to list each Qwen model once.
 - Fixed eight permission faults: deny rules cover every shell operand, path aliases, symlink swaps and recursive reads; MCP server rules stay separate, and Implement mode asks before writing .husky hooks.
 - Fixed sixteen MCP faults: credentials are scrubbed from connection errors, OAuth callbacks and custom headers work, nested optional nulls are handled, and lost connections end the waiting call without replay.
 - Fixed thirteen provider faults: dotted model ids keep their limits, reasoning text is retained, retries follow provider wait instructions, and usage estimates keep replies with missing counts from appearing free.
@@ -34,6 +38,10 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the Python SDK's type check and the Read sniff that mistook a UTF-16 text file for audio; a bare MP3 or AAC stream without an extension still reads as audio.
 - Fixed a session going quiet on screen after a resume: a crew board mention recorded before the first turn started a second thread in the transcript, and later replies and typed lines painted as a fragment or not at all. Rows now chain onto the conversation, an already-split session paints again, and a resumed runner no longer re-paints mentions it recorded before.
 - Fixed the mouse wheel in lists: a notch moves the highlight one row, as one arrow does; the transcript and other scrolling panes keep three rows a notch.
+- Fixed the computer driver refusing every click on a page that carries a reCAPTCHA attribution badge; the handoff now waits for a real challenge.
+- Fixed context budgets for the Kimi K2.6 and K2.7 models, which read a 200,000-token fallback; they are pinned at 262,144.
+- Fixed a tool definition the conversation never used being resent whole after a compaction; it is deferred like the rest.
+- Fixed Bash in the default mode asking about a cwd spelled as the current folder in another way; such a spelling is read as the current folder.
 
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
