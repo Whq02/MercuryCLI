@@ -107,12 +107,7 @@ const sends: string[] = [
   `${t0 + 60}:${sgr(LEFT | MOTION, focus1.col, focus1.row)}`,
   `${t0 + 120}:${sgr(LEFT, focus1.col, focus1.row, true)}`,
   `${t0 + 700}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
-  `${t0 + 760}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
-  `${t0 + 820}:${sgr(WHEEL_UP, anchor.col, anchor.row)}`,
   `${t0 + 1500}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
-  `${t0 + 1560}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
-  `${t0 + 1620}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
-  `${t0 + 1680}:${sgr(WHEEL_DOWN, anchor.col, anchor.row)}`,
   `${t0 + 2400}:${sgr(LEFT, anchor.col, span.top)}`,
   `${t0 + 2460}:${sgr(LEFT | MOTION, anchor.col + 28, span.bottom)}`,
   `${t0 + 2520}:${sgr(LEFT, anchor.col + 28, span.bottom, true)}`,
@@ -143,13 +138,13 @@ try {
   const stops = {
     pre: at(0, -5),
     sel: at(2, 280),
-    wheelUp: at(5, 320),
-    wheelDown: at(9, 320),
-    span: at(12, 280),
-    pgUp: at(13, 320),
-    pgDn: at(14, 320),
-    preDrag: at(15, -5),
-    drag: at(17, 150),
+    wheelUp: at(3, 320),
+    wheelDown: at(4, 320),
+    span: at(7, 280),
+    pgUp: at(8, 320),
+    pgDn: at(9, 320),
+    preDrag: at(10, -5),
+    drag: at(12, 150),
   }
   const order = Object.keys(stops) as (keyof typeof stops)[]
   const sortedStops = order.map(k => stops[k]).sort((a, b) => a - b)
@@ -259,10 +254,10 @@ if (failures > 0) {
     }
     const windows: [string, number, number][] = [
       ['first selection', run.sends[0]!.sent - 20, run.sends[2]!.sent + 600],
-      ['wheel', run.sends[3]!.sent - 20, run.sends[9]!.sent + 600],
-      ['pane-spanning selection', run.sends[10]!.sent - 20, run.sends[12]!.sent + 600],
-      ['page keys', run.sends[13]!.sent - 20, run.sends[14]!.sent + 600],
-      ['drag', run.sends[15]!.sent - 20, run.sends[17]!.sent + 300],
+      ['wheel', run.sends[3]!.sent - 20, run.sends[4]!.sent + 600],
+      ['pane-spanning selection', run.sends[5]!.sent - 20, run.sends[7]!.sent + 600],
+      ['page keys', run.sends[8]!.sent - 20, run.sends[9]!.sent + 600],
+      ['drag', run.sends[10]!.sent - 20, run.sends[12]!.sent + 300],
     ]
     for (const [name, from, to] of windows) {
       const ms = dump.allMarks.filter(m => (m.k === 'scroll:xlate' || m.k === 'selection:xlate' || m.k === 'paint:entry') && m.t + dump.epochMinusPerfNow >= from && m.t + dump.epochMinusPerfNow <= to)
