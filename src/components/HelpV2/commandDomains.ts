@@ -16,7 +16,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'crew & delegation',
     names: [
       'workflows', 'agents',
-      'crewmates', 'crew',
+      'crewmates', 'crew', 'swarm',
       'daemon', 'saturn', 'seats', 'kill', 'unkill',
     ],
   },
@@ -69,7 +69,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'config',
     label: 'config & setup',
     names: [
-      'config', 'jev', 'localsetup', 'llmhost', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
+      'config', 'jev', 'localsetup', 'llmhost', 'imagesetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
       'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
       'orient',
