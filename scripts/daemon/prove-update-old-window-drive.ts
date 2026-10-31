@@ -117,7 +117,7 @@ async function startFixture(opts: { hold: Set<number> }): Promise<Fixture> {
     const messages = ((body as { messages?: Array<{ role?: string; content?: unknown }> })?.messages ?? []).filter(m => m.role === 'user')
     const last = messages[messages.length - 1]?.content
     if (typeof last === 'string') return last
-    if (Array.isArray(last)) return last.map(b => ((b as { type?: string; text?: string }).type === 'text' ? ((b as { text?: string }).text ?? '') : '')).join('')
+    if (Array.isArray(last)) return last.map(b => { const text = (b as { type?: string }).type === 'text' ? ((b as { text?: string }).text ?? '') : ''; return text.trimStart().startsWith('<system-reminder>') ? '' : text }).join('')
     return ''
   }
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
