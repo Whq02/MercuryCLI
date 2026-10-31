@@ -69,6 +69,7 @@ try {
     'chmod +x scripts/run.sh', 'chmod 600 ~/.ssh/config', 'chown -R me:staff /usr/local/lib/x',
     'mkdir -p ~/Developer/new-project', 'touch /etc/nothing', 'mkdir -p /opt/tools',
     'echo "rm -rf ~/other" >> README.md', 'grep -rn "rm -rf /" docs/', 'rm -rf "$DIR"', 'rm -rf $OUT/x', 'rm -rf $(mktemp -d)', 'for f in sites/*.md; do rm -rf "$f"; done',
+    'scp src/x.ts host.invalid:/tmp/x', 'cp src/x.ts user@host.invalid:/tmp/x', 'rsync -a dist/ host.invalid:/srv/site/',
     'cat < /etc/hosts', 'python3 -c "print(open(\'/etc/hosts\').read())"', 'node -e "require(\'fs\').readFileSync(\'/etc/hosts\')"', '2>/dev/null ls', 'ls 2>&1 | tee /dev/stderr',
   ]) {
     for (const road of ROADS) {

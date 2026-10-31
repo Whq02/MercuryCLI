@@ -412,7 +412,7 @@ function writeTargetsAsk(name: string, args: readonly string[], scan: Scan, show
     const explicit = targetFlag >= 0 ? args[targetFlag + 1] : args.find(arg => arg.startsWith('--target-directory='))?.slice('--target-directory='.length)
     const operands = operandsOf(args, new Set(['-t', '--target-directory', '-S', '--suffix', '-e', '--rsh', '-i', '-P', '-o', '-F', '-J', '-l', '-S']))
     const destination = explicit ?? (operands.length > 1 ? operands[operands.length - 1] : undefined)
-    if (destination === undefined || /^[^/\\]*@?[^/\\:]+:/.test(destination)) return null
+    if (destination === undefined || (/^[^/\\]*@?[^/\\:]+:/.test(destination) && !/^[A-Za-z]:[\\/]/.test(destination))) return null
     return outsideAsk('it overwrites', [destination], scan, shown)
   }
   if (INPLACE_EDITORS.has(name)) {
