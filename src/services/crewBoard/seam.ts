@@ -53,10 +53,17 @@ export function swarmModuleLoaded(): boolean {
   return implementation !== undefined
 }
 
+const IMPLEMENTATION_SPECIFIER = import.meta.url.endsWith('.ts') ? './implementation.ts' : './crew-board.mjs'
+
 export function loadSwarm(): BoardModule {
   if (!swarmMasterEnabled()) throw new Error('Swarm is off — enable swarm.enabled in your user settings.json (/config → Swarm).')
-  implementation ??= requireOptional(import.meta.url.endsWith('.ts') ? './implementation.ts' : './crew-board.mjs') as BoardModule
+  implementation ??= requireOptional(IMPLEMENTATION_SPECIFIER) as BoardModule
   return implementation
+}
+
+export function swarmCensusTool(): Tool {
+  const module = requireOptional(IMPLEMENTATION_SPECIFIER) as BoardModule
+  return module.tool({ buildTool, principal: () => null, paused: () => false, sessionOn: () => false }, () => null)
 }
 
 export function swarmStore(): BoardStore | null {

@@ -199,6 +199,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool,
     () => require('../../tools/JevEvalTool/JevEvalTool.js').JevEvalTool,
     () => require('../../tools/AskAdvisorTool/AskAdvisorTool.js').AskAdvisorTool,
+    () => require('../../services/crewBoard/seam.js').swarmCensusTool(),
     /* eslint-enable @typescript-eslint/no-require-imports */
   ]
   const out: Tool[] = []
