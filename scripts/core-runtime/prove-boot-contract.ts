@@ -150,10 +150,15 @@ function staticImports(src: string): {
   check('entry: cli.tsx has ZERO bare side-effect imports', cli.bare.length === 0)
   const dynCount = (cliSrc.match(/await import\(/g) ?? []).length
   check('entry: cli.tsx routes every path via dynamic import (≥15 sites)', dynCount >= 15, String(dynCount))
+  const shellGuard = "if (args[0] === '--tool-shell-parent') {\n    const { runShellParentGuard } = await import('../utils/shell/parentGuard.js')\n    return runShellParentGuard()\n  }"
+  const versionBranch = "if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V' || args[0] === 'version')) {\n    console.log(`Mercury ${MACRO.VERSION}`)\n    return\n  }"
+  const shellGuardAt = cliSrc.indexOf(shellGuard)
+  const versionAt = cliSrc.indexOf(versionBranch)
   check(
-    'entry: --version fast-path answers before the first dynamic import',
-    cliSrc.indexOf('MACRO.VERSION') > 0 &&
-      cliSrc.indexOf('MACRO.VERSION') < cliSrc.indexOf('await import('),
+    'entry: the shell-parent-only import returns before the import-free version fast path',
+    shellGuardAt > 0 && versionAt > shellGuardAt &&
+      cliSrc.indexOf('await import(') === cliSrc.indexOf('await import(', shellGuardAt) &&
+      versionAt < cliSrc.indexOf('await import(', shellGuardAt + shellGuard.length),
   )
 
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
