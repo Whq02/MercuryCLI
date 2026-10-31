@@ -92,7 +92,7 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
   const projDir = join(home, 'projects', basename(getProjectDir(cwd)))
   mkdirSync(projDir, { recursive: true })
-  for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 3, 900))
+  for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 30, 900))
   writeFileSync(join(projDir, `${SID.auto}.jsonl`), seedRows(SID.auto, cwd, 60, 6, 16_000))
   return { home, cwd }
 }
@@ -310,8 +310,9 @@ function foldRowOf(frame: string | undefined): string | null {
 function rowFacts(row: string): { stage: string | null; filled: number; tokens: number | null; seconds: number | null; head: string } {
   const bar = /([█◐░]+)/.exec(row)
   const filled = bar ? (bar[1]!.match(/█/g) ?? []).length : 0
-  const stage = /· (micro-compaction|summarising|restoring|session memory|compacted|cancelled|failed)/.exec(row)?.[1] ?? null
-  const tokens = /↓ ([\d.]+)(k?) tokens/.exec(row)
+  const exit = /· (compacted|cancelled|failed)/.exec(row)?.[1]
+  const stage = exit ?? (bar ? (/[█◐]/.test(bar[1]!.slice(FOLD_BAR_CELLS_PER_STAGE)) ? 'restoring' : 'summarising') : null)
+  const tokens = /↓ ~([\d.]+)(k?)(?:\s|·)/.exec(row)
   const tok = tokens ? Number(tokens[1]) * (tokens[2] === 'k' ? 1000 : 1) : null
   const seconds = /· (\d+)s\b/.exec(row)
   const head = row.includes(`${ROW_HEAD} (auto)`) ? `${ROW_HEAD} (auto)` : ROW_HEAD
@@ -480,8 +481,8 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const stages = live.map(l => l.facts.stage).filter((s): s is string => s !== null)
     const order = ['micro-compaction', 'summarising', 'restoring', 'compacted']
     const seen = [...new Set(stages)]
-    check('F2 [fold] the stage words advance in the fold\'s order', seen.length >= 2 && seen.every(s => order.includes(s)) && nonDecreasing(seen.map(s => order.indexOf(s))), seen.join(' → '))
-    check('F2 [fold] summarising and restoring were both photographed', seen.includes('summarising') && seen.includes('restoring'), seen.join(' → '))
+    check('F2 [fold] the bar advances in the fold\'s order without phase words', seen.length >= 2 && seen.every(s => order.includes(s)) && nonDecreasing(seen.map(s => order.indexOf(s))) && live.every(l => !/micro-compaction|summarising|restoring|session memory/.test(l.row)), seen.join(' → '))
+    check('F2 [fold] the bar shows summarising and restoring', seen.includes('summarising') && seen.includes('restoring'), seen.join(' → '))
     check('F2 [fold] the filled cells never decrease', nonDecreasing(live.map(l => l.facts.filled)), live.map(l => l.facts.filled).join(','))
     const tokens = live.filter(l => l.facts.stage === 'summarising').map(l => l.facts.tokens ?? 0)
     check('F2 [fold] the streamed tokens grow while summarising', tokens.length >= 2 && nonDecreasing(tokens) && tokens[tokens.length - 1]! > tokens[0]!, tokens.join(','))
@@ -587,7 +588,7 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     if (live.length > 0) dump(`auto · ${live[Math.min(live.length - 1, 3)]!.key}`, m[live[Math.min(live.length - 1, 3)]!.key])
     dump('auto · the reply', m['reply'])
     check('F5 [auto] the fold ran before the turn\'s request (summary call first, then the reply)', routes.indexOf('fold') !== -1 && routes.indexOf('chat') > routes.indexOf('fold'), routes.join(' → '))
-    check('F5 [auto] the automatic fold paints the row with the word auto', live.length > 0 && live.every(l => l.facts.head === `${ROW_HEAD} (auto)`), live.map(l => l.row).slice(0, 2).join(' | '))
+    check('F5 [auto] the automatic fold paints the quiet row without an auto or phase label', live.length > 0 && live.every(l => l.facts.head === ROW_HEAD && !/\(auto\)|micro-compaction|summarising|restoring|session memory/.test(l.row)), live.map(l => l.row).slice(0, 2).join(' | '))
     check('F5 [auto] the row leaves with the fold and the reply lands', rowsWith(m['reply'], AUTO_REPLY).length > 0 && foldRowOf(m['reply']) === null, rowsWith(m['reply'], /compacting|surveyed/).map(flat).join(' | ').slice(0, 200))
     check('F5 [auto] the stages walked: summarising, then restoring', live.some(l => l.facts.stage === 'summarising') && live.some(l => l.facts.stage === 'restoring'), [...new Set(live.map(l => l.facts.stage))].join(' → '))
   }
