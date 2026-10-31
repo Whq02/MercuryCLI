@@ -32,7 +32,7 @@ const CLAUDE_SEAT_ALIAS = 'opus'
 const CLAUDE_SEAT_PREFIX = 'claude-opus'
 
 type Dialect = 'anthropic' | 'openai'
-type Route = 'parent' | 'parent-ack' | 'seat' | 'side'
+type Route = 'parent' | 'parent-search' | 'parent-ack' | 'seat' | 'side'
 interface Hit {
   route: Route
   model: string
@@ -74,15 +74,23 @@ function lastUserText(body: unknown): string {
   return last
 }
 
-function carriesToolResult(body: unknown): boolean {
+function answeredTools(body: unknown): string[] {
+  const named = new Map<string, string>()
+  const answered: string[] = []
   for (const m of itemsOf(body)) {
-    const item = m as { type?: string; role?: string; content?: unknown }
-    if (item.type === 'function_call_output') return true
-    if (item.role !== 'user' || !Array.isArray(item.content)) continue
-    if ((item.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')) return true
+    const item = m as { type?: string; call_id?: string; name?: string; content?: unknown }
+    if (item.type === 'function_call' && item.call_id !== undefined && item.name !== undefined) named.set(item.call_id, item.name)
+    if (item.type === 'function_call_output') answered.push(named.get(item.call_id ?? '') ?? '')
+    if (!Array.isArray(item.content)) continue
+    for (const b of item.content as Array<{ type?: string; id?: string; name?: string; tool_use_id?: string }>) {
+      if (b.type === 'tool_use' && b.id !== undefined && b.name !== undefined) named.set(b.id, b.name)
+      if (b.type === 'tool_result') answered.push(named.get(b.tool_use_id ?? '') ?? '')
+    }
   }
-  return false
+  return answered
 }
+
+const carriesToolResult = (body: unknown): boolean => answeredTools(body).some(name => name !== 'ToolSearch')
 
 function offersTool(body: unknown, name: string): boolean {
   const tools = (body as { tools?: unknown[] })?.tools
@@ -96,6 +104,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null } {
     return { route: 'seat', seat }
   }
   if (text.includes('crew-seats:') && offersTool(body, 'Crewmate')) return { route: carriesToolResult(body) ? 'parent-ack' : 'parent', seat: null }
+  if (text.includes('crew-seats:') && offersTool(body, 'ToolSearch')) return { route: 'parent-search', seat: null }
   return { route: 'side', seat: null }
 }
 
@@ -215,6 +224,10 @@ async function startSeatsFixture(port: number, mainDialect: Dialect): Promise<Fi
             ...SEATS.map(name => ({ type: 'tool_use' as const, name: 'Crewmate', input: { description: name, prompt: `crew-seat: survey the ${name}`, crewmate_type: 'mercury-crew', model: seatModel } })),
           ]
           usage = { input: 1200, output: 120 }
+          break
+        case 'parent-search':
+          blocks = [{ type: 'tool_use', name: 'ToolSearch', input: { query: 'select:Crewmate' } }]
+          usage = { input: 1100, output: 40 }
           break
         case 'parent-ack':
           blocks = [{ type: 'text', text: 'crew-seats: all four landed.' }]
@@ -429,7 +442,7 @@ async function leg(mainDialect: Dialect): Promise<void> {
 
   check(`${tag}: S3 every seat rode the seats' wire on ${seatModel}`, seatHits.every(h => h.lane === seatLane && seatIs(h.model)), seatHits.map(h => `${h.lane}:${h.model}`).join(','))
   if (seatModel === GPT_ID) check(`${tag}: S3 every GPT seat's request carries a reasoning effort`, seatHits.every(h => h.effort !== null), seatHits.map(h => String(h.effort)).join(','))
-  const parentHits = fixture.hits.filter(h => h.route === 'parent' || h.route === 'parent-ack')
+  const parentHits = fixture.hits.filter(h => h.route === 'parent' || h.route === 'parent-search' || h.route === 'parent-ack')
   check(`${tag}: S3 the main rode its own wire with ${mainModel}`, parentHits.length >= 2 && parentHits.every(h => h.model === mainModel), parentHits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
   check(`${tag}: S3 the Crew view rows name the seats' model`, SEATS.every(s => (rowOf(mid, s) ?? '').includes(seatModel)), flat(mid).slice(0, 400))
 
