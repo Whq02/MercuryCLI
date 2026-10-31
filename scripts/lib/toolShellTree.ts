@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
 export const SHELL_PID_COMMAND = process.platform === 'win32'
-  ? "cat /proc/$$/winpid 2>/dev/null || ps -p $$ | awk 'NR == 2 { print $4 }'"
+  ? "{ cat /proc/$$/winpid 2>/dev/null || ps -p $$ | awk 'NR == 2 { print $4 }'; }"
   : 'echo $$'
 
 type ShellTreeRow = { pid: number; ppid: number; name: string }
