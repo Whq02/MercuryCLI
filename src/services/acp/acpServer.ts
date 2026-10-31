@@ -54,6 +54,7 @@ import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from '../../utils/settings/validationTips.js'
 import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer } from '../../runner/wire/methods.js'
 import { questionFormOf } from './questionForm.js'
+import { acpAuthMethods, acpAuthRequiredError, acpAuthenticate, acpClientAuthFacts, acpSignInRequired, type AcpClientAuthFacts, type AcpSignInRoads } from './acpSignIn.js'
 
 function refuse(sentence: string): never {
   throw new RequestError(-32602, sentence)
@@ -712,6 +713,7 @@ interface AcpServerOptions {
   entry?: { node: string; script: string }
   input?: NodeJS.ReadableStream
   output?: NodeJS.WritableStream
+  signIn?: AcpSignInRoads
 }
 
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
@@ -723,7 +725,11 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   let clientFsReadTextFile = false
   let clientFsWriteTextFile = false
   let clientTerminal = false
+  let authFacts: AcpClientAuthFacts = { terminalAuth: false, urlElicitation: false }
   const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }
+  const requireSignIn = async (): Promise<void> => {
+    if (await acpSignInRequired()) throw acpAuthRequiredError(authFacts)
+  }
 
   const attachSession = (
     ctx: AgentContext,
@@ -1092,6 +1098,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       clientFsReadTextFile = ctx.params.clientCapabilities?.fs?.readTextFile === true
       clientFsWriteTextFile = ctx.params.clientCapabilities?.fs?.writeTextFile === true
       clientTerminal = ctx.params.clientCapabilities?.terminal === true
+      authFacts = acpClientAuthFacts(ctx.params.clientCapabilities)
       return {
         protocolVersion: PROTOCOL_VERSION,
         agentCapabilities: {
@@ -1100,11 +1107,16 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           mcpCapabilities: { http: true, sse: true },
           sessionCapabilities: { list: {} },
         },
-        authMethods: [],
+        authMethods: acpAuthMethods(authFacts),
         agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
       }
     })
-    .onRequest('session/new', ctx => {
+    .onRequest('authenticate', async ctx => {
+      await acpAuthenticate(ctx, authFacts, opts.signIn)
+      return {}
+    })
+    .onRequest('session/new', async ctx => {
+      await requireSignIn()
       const sessionId = randomUUID()
       attachSession(ctx.client, {
         cwd: ctx.params.cwd,
@@ -1118,6 +1130,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       }
     })
     .onRequest('session/load', async ctx => {
+      await requireSignIn()
       const requested = ctx.params.sessionId
       const pending = pendingLoads.get(requested)
       if (pending) return pending

@@ -215,7 +215,11 @@ const init = await h1.agentCtx.request('initialize', {
 })
 check('protocol v1 negotiated', init.protocolVersion === acp.PROTOCOL_VERSION, String(init.protocolVersion))
 check('loadSession capability advertised', init.agentCapabilities?.loadSession === true)
-check('no auth methods demanded', (init.authMethods ?? []).length === 0)
+check(
+  'authMethods carry the Claude agent method and no terminal method (the client did not advertise auth.terminal)',
+  (init.authMethods ?? []).some(m => m.id === 'claude' && !('type' in m)) && !(init.authMethods ?? []).some(m => 'type' in m && m.type === 'terminal'),
+  JSON.stringify(init.authMethods ?? null),
+)
 check(
   'agentInfo names mercury with a version',
   init.agentInfo?.name === 'mercury' && typeof init.agentInfo?.version === 'string' && init.agentInfo.version !== '',

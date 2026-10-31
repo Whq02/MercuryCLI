@@ -519,7 +519,13 @@ Available commands include:
   never installs a language server on its own; opening a file only starts a
   server that is already installed.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
-  runner child for each session. `mercury bridge install` installs the
+  runner child for each session. Signing in from the editor: with nothing
+  signed in, the editor lists *Sign in from a terminal* (Mercury's sign-in
+  screen opens in a terminal; pick a provider and finish there) and *Claude
+  subscription* (the sign-in page opens in your browser); editors that show
+  links also list the device-code sign-ins (Kimi, Hugging Face, xAI, Meta,
+  Nous Portal, OrcaRouter) with the code to enter. `mercury acp --login` is
+  that terminal screen on its own. `mercury bridge install` installs the
   VS Code extension; `mercury bridge status` checks it;
   `mercury bridge uninstall` removes it.
 - **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:

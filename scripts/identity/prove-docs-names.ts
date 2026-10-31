@@ -640,7 +640,7 @@ async function buildVocab(): Promise<Vocab> {
 
   const readText = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
   const flagsIn = (files: string[]): Set<string> => new Set(files.flatMap(f => longFlagsOf(readText(f))))
-  const fastFlags = flagsIn(['src/commands/host/index.ts', 'src/cli/godotEngineCli.ts', 'src/commands/feedback/feedback.tsx'])
+  const fastFlags = flagsIn(['src/commands/host/index.ts', 'src/cli/godotEngineCli.ts', 'src/commands/feedback/feedback.tsx', 'src/services/acp/acpSignIn.ts'])
   const toolingFiles = walkFiles(join(ROOT, 'scripts'), p => {
     const rel = p.slice(ROOT.length + 1)
     return /^scripts\/(vendor|ops|build|release|updater|distribution)\//.test(rel) && !/prove-|\/fixtures\/|\.test\./.test(rel) && /\.(ts|sh|mjs|ps1)$/.test(rel)

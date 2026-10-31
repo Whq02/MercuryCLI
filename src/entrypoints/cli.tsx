@@ -191,11 +191,18 @@ async function main(): Promise<void> {
   if (args[0] === 'acp') {
     profileCheckpoint('route_acp')
     const extra = args.slice(1)
+    const stray = extra.filter(option => option !== '--login')
+    if (extra.length === 1 && stray.length === 0) {
+      const { enableConfigs } = await import('../utils/config.js')
+      enableConfigs()
+      const { runAcpLoginScreen } = await import('../services/acp/acpLoginScreen.js')
+      return runAcpLoginScreen()
+    }
     if (extra.length > 0) {
       const { writeSync } = await import('node:fs')
-      const help = extra[0] === '-h' || extra[0] === '--help'
+      const help = stray[0] === '-h' || stray[0] === '--help'
       try {
-        writeSync(help ? 1 : 2, help ? 'Usage: mercury acp\n\nServe an editor over the Agent Client Protocol on stdio.\n' : `error: unknown option '${extra[0]}'\n`)
+        writeSync(help ? 1 : 2, help ? 'Usage: mercury acp [--login]\n\nServe an editor over the Agent Client Protocol on stdio.\n  --login   Sign in from this terminal, then exit.\n' : `error: unknown option '${stray[0] ?? extra[0]}'\n`)
       } catch {
       }
       process.exit(help ? 0 : 2)

@@ -8,9 +8,14 @@ surface only. The exact supported profile is the capability matrix below.
 
 ```
 mercury acp
+mercury acp --login
 ```
 
 stdout carries JSON-RPC 2.0, one message per line; diagnostics ride stderr.
+`mercury acp --login` is the terminal sign-in: Mercury's sign-in screen
+opens in the terminal, you pick a provider and finish there, and the
+process exits 0 once a credential is stored (1 when the screen closes
+without one, 2 without a terminal).
 The server starts one `mercury runner` child per ACP session, from its own
 build. It sends prompts through `queue/add`, reads `row` notifications and
 puts the runner's permission asks to the editor. Each child is a real
@@ -42,6 +47,9 @@ such client.
 | Surface | Status |
 |---|---|
 | initialize (v1 negotiation; `agentInfo` name + version; `mcpCapabilities` http + sse; `sessionCapabilities.list`) | yes |
+| initialize `authMethods` | `terminal` (`args: ["--login"]`) when the client advertises `clientCapabilities.auth.terminal`; the Claude subscription sign-in as an `agent` method always; the device-code sign-ins (moonshot · huggingface · xai · meta · nous · orcarouter) as `agent` methods when the client advertises url elicitation |
+| authenticate | the Claude method opens the browser and listens for the callback (the link also rides a request-scoped url elicitation when the client renders one); a device-code method sends the link and the code as a url elicitation and polls until the token lands or the editor declines; the terminal method is refused (the client runs the agent with `--login` instead) |
+| session/new · session/load before any sign-in | `auth_required` (-32000) naming the method ids when no provider is signed in and no local model answers |
 | session/new · session/list · session/load (resume with replay) · session/close | yes |
 | session/new · session/load `mcpServers` (stdio · http · sse) | yes — carried into the session as its own MCP config; an unsupported shape is named on stderr |
 | session/prompt (text · resource_link · embedded resource · image) | yes (content lands in the composer document — the one input vocabulary) |
