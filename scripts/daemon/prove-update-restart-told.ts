@@ -830,7 +830,7 @@ try {
   const pidOnC = recOf(sid)?.pid ?? 0
   check('the session now runs build Z under daemon C and the old daemon B leaves once it is empty', pidOnC !== 0 && ps(pidOnC).ppid === Cpid && bundleOf(ps(pidOnC).command) === join(Z, 'mercury.mjs') && (await untilAsync(() => daemonGone(Bpid), 30_000)) && daemonPids().length === 1, JSON.stringify({ pidOnC, ps: ps(pidOnC), daemons: daemonPids() }))
 
-  section('§4 crash stays crash; a daemon that dies mid-hand-over leaves an honest refusal and a resumable session; a Monitor that outlived its runner is ended when the session resumes')
+  section('§4 crash stays crash; a daemon that dies mid-hand-over leaves an honest refusal and a resumable session; a Monitor\'s process ends with its runner and the resume says so')
   check(
     'a runner killed by a signal while the pointer moved keeps its crash reason',
     sup.runnerRestartReasonOf({ crash: { at: Date.now(), reason: 'crashed mid-run (exit none · signal SIGKILL)', respawning: false }, buildTree: SHORT_X } as never) === 'crash',
@@ -869,7 +869,7 @@ try {
     !midHandover.ok && midHandover.reason.includes('the session was not stopped, so it stays as it is'),
     JSON.stringify(midHandover),
   )
-  check('the orphaned watch process outlived its runner (the gap the resume closes)', watch3Pids.every(pid => isProcessAlive(pid)), JSON.stringify(watch3Pids))
+  check('the watch process ended with its runner: the shell\'s parent guard reaped its tree', await untilAsync(() => watch3Pids.every(pid => !isProcessAlive(pid)), 15_000), JSON.stringify(watch3Pids))
   const logD = join(SCRATCH, 'daemon-D.log')
   const D = spawnDaemon(logD)
   const Dpid = D.pid ?? 0
@@ -900,11 +900,11 @@ try {
     !endedContext.includes('after a crash') && !endedContext.includes(`Mercury updated to ${SHORT_W}`),
     endedContext.slice(-600),
   )
-  check('the watch process that outlived the runner was ended when the session resumed — nothing of the dead session keeps running', watch3Pids.every(pid => !isProcessAlive(pid)) && watchPids('watch-three').length === 0, JSON.stringify({ watch3Pids, now: watchPids('watch-three') }))
+  check('the watch process is gone when the session resumes — nothing of the dead session keeps running', watch3Pids.every(pid => !isProcessAlive(pid)) && watchPids('watch-three').length === 0, JSON.stringify({ watch3Pids, now: watchPids('watch-three') }))
   const watch3LineAt = endedContext.indexOf(`[Monitor \\"${WATCH3_NAME}\\"`)
   check(
-    'the dead-watch line tells the truth about the process: it had outlived the session and was ended just now',
-    watch3LineAt !== -1 && endedContext.slice(watch3LineAt, watch3LineAt + 500).includes('its process had outlived the session and was ended just now'),
+    'the dead-watch line tells the truth about the process: it ended with the session, never that it had outlived it',
+    watch3LineAt !== -1 && endedContext.slice(watch3LineAt, watch3LineAt + 500).includes('its process ended with the session') && !endedContext.slice(watch3LineAt, watch3LineAt + 500).includes('had outlived the session'),
     endedContext.slice(watch3LineAt, watch3LineAt + 400),
   )
 
