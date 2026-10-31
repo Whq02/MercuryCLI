@@ -66,7 +66,8 @@ async def main():
         except MercurySchemaError as error: locally(error)
         else: raise AssertionError('a malformed boot schema was accepted')
         try: await connect(mercury=mercury, cwd=cwd, schema=cli_refused)
-        except MercurySchemaError as error: assert error.code == -32602 and error.issues[0].path == 'schema', error
+        except sdk.MercuryUsageError as error:
+            assert error.exit is not None and error.exit.code == 2 and error.door == 'runner' and str(error) == '--schema is not a JSON schema — data/pattern must be string — the schema itself was refused by the validation engine; correct the schema and retry', error
         else: raise AssertionError('a boot schema the CLI refuses was accepted')
         door = await sdk.run('the run door turn', mercury=mercury, cwd=cwd, ephemeral=True, schema=structured_schema(count, lambda value: value['count'] * 10))
         assert '--schema' in sdk.argv_of(sdk.RunOptions(mercury=mercury, cwd=cwd, schema=count)), 'the run door carries --schema'

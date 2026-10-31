@@ -100,7 +100,7 @@ for (const language of ['ts', 'py']) {
         const boot = await connect({ mercury, cwd: c.cwd, env: c.env, schema: structuredSchema(count, value => (value as { count: number }).count * 2) })
         try { assert(boot.child.spawnargs.includes('--schema'), 'the boot schema travels on initialize and as --schema, the road every Mercury version honours'); assert.equal((await boot.prompt('the boot schema turn')).structured, 18) } finally { await boot.close() }
         await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: malformed }), locally)
-        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: cliRefused }), (e: unknown) => e instanceof MercurySchemaError && e.code === -32602 && e.issues[0]?.path === 'schema')
+        await assert.rejects(connect({ mercury, cwd: c.cwd, env: c.env, schema: cliRefused }), (e: unknown) => e instanceof sdk.MercuryUsageError && e.exit?.code === 2 && e.door === 'runner' && e.message === '--schema is not a JSON schema — data/pattern must be string — the schema itself was refused by the validation engine; correct the schema and retry')
         const door = sdk.run({ mercury, cwd: c.cwd, env: c.env, ephemeral: true, prompt: 'the run door turn', schema: structuredSchema(count, value => (value as { count: number }).count * 10) })
         assert(door.args.includes('--schema'), 'the run door carries --schema')
         assert.equal((await door.outcome).structured, 40, 'the run door settles structured on the built dist and the descriptor decodes it')
