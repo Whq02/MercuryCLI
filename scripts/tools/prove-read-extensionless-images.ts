@@ -7,6 +7,7 @@ import sharp from 'sharp'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_BARE = '1'
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+const { mediaDecoderMissing, mediaFileFormat } = await import('../../src/services/voice/fileTranscript.ts')
 const { createImageMetadataText } = await import('../../src/utils/imageResizer.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -35,13 +36,19 @@ try {
       assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'))
     })
   }
-  for (const text of ['ordinary text', 'GIF is not an image', 'RIFFxxxxWAVE', '']) {
+  for (const text of ['ordinary text', 'GIF is not an image', '']) {
     await check(`extensionless non-image stays text: ${JSON.stringify(text)}`, async () => {
       const path = join(dir, 'text')
       writeFileSync(path, text)
       assert.equal((await FileReadTool.call({ file_path: path }, context() as never)).data.type, 'text')
     })
   }
+  await check('extensionless RIFF/WAVE is WAV audio, not an image: it reads through the audio lane', async () => {
+    const path = join(dir, 'text')
+    writeFileSync(path, 'RIFFxxxxWAVE')
+    assert.equal(mediaFileFormat(path), 'wav')
+    await assert.rejects(FileReadTool.call({ file_path: path }, context() as never), (error: unknown) => error instanceof Error && ['Cannot decode the audio in this WAV file with ffmpeg; check that it contains a playable audio track.', mediaDecoderMissing('wav')].includes(error.message))
+  })
   await check('rounded axes have separate coordinate multipliers', () => {
     const note = createImageMetadataText({ originalWidth: 1000, originalHeight: 17, displayWidth: 333, displayHeight: 6 })!
     assert.match(note, /x coordinates.*3\.00.*y coordinates.*2\.83/)
