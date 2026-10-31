@@ -45,6 +45,7 @@ type Reply =
   | { kind: 'tool_use'; name: string; input: Record<string, unknown>; thinking: string }
 
 const sha256 = (text: string): string => createHash('sha256').update(text).digest('hex')
+const FOLD_PADDING = Array.from({ length: 250 }, (_, n) => `Record ${n}: ${sha256(`wire-prefix-record-${n}`)}.`).join('\n')
 const sse = (event: string, data: unknown): string => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 
 function canonicalPrefix(body: WireBody, upToMessage?: number): string {
@@ -132,9 +133,11 @@ function route(body: WireBody): Reply {
   const results = Array.isArray(last?.content) ? (last!.content as Block[]).filter(b => b.type === 'tool_result') : []
   if (results.length > 0) {
     const name = toolUseName(messages, String(results[0]!.tool_use_id ?? ''))
-    return { kind: 'text', text: `${tag}TURN-${turn}-DONE after ${name}`, thinking: `the ${name} round of turn ${turn} is in` }
+    return { kind: 'text', text: `${turn === 1 ? `${FOLD_PADDING}\n` : ''}${tag}TURN-${turn}-DONE after ${name}`, thinking: `the ${name} round of turn ${turn} is in` }
   }
   const lastText = promptText(last).trim()
+  const warmup = /^wire-prefix warm-up (\d+)/.exec(lastText)
+  if (warmup) return { kind: 'text', text: `WARMUP-${warmup[1]}-DONE`, thinking: `warm-up ${warmup[1]}` }
   if (/^continue\b/i.test(lastText)) return { kind: 'text', text: `${tag}CONTINUED`, thinking: 'carrying on' }
   const deferred = announcedDeferredNames(messages)
   switch (turn) {
@@ -432,7 +435,7 @@ if (process.argv[2] === '--serve') {
 }
 
 
-type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
+type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; requireAwait?: boolean; awaitSettleTicks?: number; data: string; mark?: string }
 type Grid = Array<Array<{ c: string }>>
 type Payload = { grid: Grid; sendReceipts?: Array<{ atTick?: number }>; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
 type Leg = {
@@ -638,10 +641,11 @@ async function drive(): Promise<void> {
     { atTick: 700, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 2: run the echo\r', mark: 't1' },
     { atTick: 820, minTick: 10, awaitText: 'TURN-2-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 3: find another deferred tool\r', mark: 't2' },
     { atTick: 940, minTick: 10, awaitText: 'TURN-3-DONE', awaitSettleTicks: 4, data: '/crewmates off\r', mark: 't3' },
-    { atTick: 1000, minTick: 5, awaitText: 'sub-agents off', awaitSettleTicks: 3, data: '\x1b[Z', mark: 'toggle' },
+    { atTick: 1000, minTick: 5, awaitText: 'crewmates off for this session', requireAwait: true, awaitSettleTicks: 3, data: '\x1b[Z', mark: 'toggle' },
     { atTick: 1060, minTick: 5, awaitText: 'flow on', awaitSettleTicks: 3, data: 'wire-prefix turn 4: plain\r', mark: 'flow' },
-    { atTick: 1180, minTick: 10, awaitText: 'TURN-4-DONE', awaitSettleTicks: 4, data: '/compact\r', mark: 't4' },
-    { atTick: 1320, minTick: 10, awaitText: 'Compacted', awaitSettleTicks: 4, data: 'wire-prefix turn 5: after the fold\r', mark: 'compact' },
+    ...Array.from({ length: 10 }, (_, n): Send => ({ atTick: 1180 + n * 10, minTick: 1, awaitText: n === 0 ? 'TURN-4-DONE' : `WARMUP-${n}-DONE`, requireAwait: true, awaitSettleTicks: 2, data: `wire-prefix warm-up ${n + 1}\r` })),
+    { atTick: 1300, minTick: 1, awaitText: 'WARMUP-10-DONE', requireAwait: true, awaitSettleTicks: 2, data: '/compact\r', mark: 't4' },
+    { atTick: 1320, minTick: 10, awaitText: 'Compacted', requireAwait: true, awaitSettleTicks: 4, data: 'wire-prefix turn 5: after the fold\r', mark: 'compact' },
   ]
   section('1D — leg 1 (the operator\'s actions): the drive completed')
   const leg1 = await runLeg('actions', 'apollo', sends1, 1440, 'TURN-5-DONE')
