@@ -148,6 +148,18 @@ const ENV_LESS_SPAWNS: readonly RegisteredRawEnvSite[] = [
     witness: 'env: { ...subprocessEnv() }',
     why: 'the scrubbed env rides inside the options chcpSpawnShape builds',
   },
+  {
+    file: 'src/utils/shell/parentGuard.ts',
+    code: 'const guard = spawn(process.execPath, [entry, SHELL_PARENT_GUARD], {',
+    witness: '...options,',
+    why: "the caller's options ride in whole: the tool shell's scrubbed env is the one Shell.ts hands spawnOwnedShell",
+  },
+  {
+    file: 'src/utils/shell/parentGuard.ts',
+    code: 'child = spawn(launch.file, launch.args, {',
+    witness: '...options,',
+    why: 'the guard starts on the scrubbed env its parent gave it, and the shell it launches inherits that env unchanged',
+  },
 ]
 const relPath = (file: string): string => relative(ROOT, file).split(sep).join('/')
 const siteKey = (file: string, code: string): string => `${file}\n${code}`
