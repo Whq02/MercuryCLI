@@ -18,7 +18,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('the merged command roster: one door per function, the absorbed names gone')
+console.log('the merged command roster: one door per function, aliases resolve to their owners')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
@@ -28,7 +28,9 @@ const byName = (name: string): Record<string, unknown> | undefined =>
   commands.findCommand(name, roster) as Record<string, unknown> | undefined
 
 check('/sessions is the one session door', byName('sessions') !== undefined)
-check('/resume is gone (a name Mercury does not know)', commands.findCommand('resume', roster) === undefined)
+for (const [alias, canonical] of [['resume', 'sessions'], ['models', 'model'], ['advisor', 'advise']] as const) {
+  check(`/${alias} aliases /${canonical} without a separate row`, byName(canonical) !== undefined && byName(alias) === byName(canonical) && roster.every(command => command.name !== alias))
+}
 check('/sessiontab is gone (the chord lives in the key handler)', commands.findCommand('sessiontab', roster) === undefined)
 check('/daemon carries the halt verb headless', Array.isArray(byName('daemon')?.headlessVerbs) && (byName('daemon')?.headlessVerbs as readonly string[]).includes('halt'))
 check('/halt is gone', commands.findCommand('halt', roster) === undefined)
