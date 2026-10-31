@@ -341,7 +341,7 @@ class TranscriptRows {
         if (known !== undefined) { verdict = known; break }
         visited.add(cursor.uuid)
         walked.push(cursor)
-        if (!cursor.parentUuid) break
+        if (!cursor.parentUuid) { verdict = 'stranded'; break }
         const parent = this.get(cursor.parentUuid)
         if (parent === undefined) { verdict = 'stranded'; break }
         cursor = parent
