@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -42,11 +42,13 @@ export function buildRefDist(root: string, ref: string, opts: { log?: (line: str
   linkCaches(root, tree)
   opts.log?.(`building ${sha.slice(0, 12)} with bun run build.ts`)
   const bun = process.env.BUN ?? process.execPath
-  const env = { ...process.env }
-  delete env.MERCURY_BUILD_OUTDIR
-  const r = spawnSync(bun, ['run', 'build.ts'], { cwd: tree, encoding: 'utf8', env, maxBuffer: 64 * 1024 * 1024 })
+  const scratch = mkdtempSync(join(home, 'build-'))
+  const r = spawnSync(bun, ['run', 'build.ts'], { cwd: tree, encoding: 'utf8', env: { ...process.env, MERCURY_BUILD_OUTDIR: scratch }, maxBuffer: 64 * 1024 * 1024 })
   writeFileSync(log, `${r.stdout ?? ''}\n${r.stderr ?? ''}`)
-  if (r.status !== 0 || !existsSync(dist)) throw new Error(`the build of ${ref} (${sha.slice(0, 12)}) failed (exit ${r.status}); its log is at ${log}`)
+  if (r.status !== 0 || !existsSync(join(scratch, 'mercury.mjs')) || !existsSync(join(scratch, 'manifest.json'))) throw new Error(`the build of ${ref} (${sha.slice(0, 12)}) failed (exit ${r.status}); its log is at ${log}`)
+  const distDir = join(tree, 'dist')
+  if (existsSync(distDir)) renameSync(distDir, join(home, `dist-stale-${Date.now()}`))
+  renameSync(scratch, distDir)
   return { ref, sha, tree, dist, built: true, log }
 }
 
