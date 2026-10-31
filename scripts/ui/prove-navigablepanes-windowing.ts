@@ -22,8 +22,8 @@ console.log('============================================================')
 section('source: the window is computed + the ScrollBox renders a slice + spacers')
 check('ROW_OVERSCAN = 12 const exists', /const ROW_OVERSCAN = 12/.test(src))
 check('winSpan = listHeight + 2*ROW_OVERSCAN', /const winSpan = listHeight \+ 2 \* ROW_OVERSCAN/.test(src))
-check('winStart centers sel with overscan, clamped to [0, N-winSpan] (sel always in-window)', /Math\.min\(Math\.max\(0, sel - \(listHeight >> 1\) - ROW_OVERSCAN\), N - winSpan\)/.test(src))
-check('winEnd = min(N, winStart + winSpan)', /const winEnd = Math\.min\(N, winStart \+ winSpan\)/.test(src))
+check('winStart follows the viewport: the lowest of the anchored, resting and settling tops minus the overscan, clamped to [0, N-winSpan] (sel always in-window)', /Math\.min\(Math\.max\(0, Math\.min\(anchoredTop, restingTop, settlingTop\) - ROW_OVERSCAN\), N - winSpan\)/.test(src) && /const anchoredTop = Math\.min\(Math\.max\(0, sel \+ SELECTED_ROW_OFFSET\), maxTop\)/.test(src))
+check('winEnd = min(N, max(winStart + winSpan, the highest top + listHeight + overscan)) — the rows under a viewport that moved past the selection stay painted', /const winEnd = Math\.min\(N, Math\.max\(winStart \+ winSpan, Math\.max\(anchoredTop, restingTop, settlingTop\) \+ listHeight \+ ROW_OVERSCAN\)\)/.test(src))
 check('the ScrollBox renders sectionRows.slice(winStart, winEnd) (not the full map)', /sectionRows\.slice\(winStart, winEnd\)\.map/.test(src) && !/\{sectionRows\.map\(\(r, i\) => \(/.test(src))
 check('a leading spacer Box carries winStart rows', /winStart > 0 \? <Box height=\{winStart\} flexShrink=\{0\} \/> : null/.test(src))
 check('a trailing spacer Box carries N - winEnd rows', /winEnd < N \? <Box height=\{N - winEnd\} flexShrink=\{0\} \/> : null/.test(src))
@@ -35,11 +35,13 @@ for (const [name, board] of boards) check(`${name} does NOT .slice its section r
 
 section('behaviour: verbatim window math — sel always in-window, byte-identical small, last row reachable')
 const ROW_OVERSCAN = 12
+const SELECTED_ROW_OFFSET = -2
 function win(N: number, listHeight: number, sel: number): { s: number; e: number } {
   const winSpan = listHeight + 2 * ROW_OVERSCAN
-  const winStart =
-    N <= winSpan ? 0 : Math.min(Math.max(0, sel - (listHeight >> 1) - ROW_OVERSCAN), N - winSpan)
-  const winEnd = Math.min(N, winStart + winSpan)
+  const maxTop = Math.max(0, N - listHeight)
+  const top = Math.min(Math.max(0, sel + SELECTED_ROW_OFFSET), maxTop)
+  const winStart = N <= winSpan ? 0 : Math.min(Math.max(0, top - ROW_OVERSCAN), N - winSpan)
+  const winEnd = Math.min(N, Math.max(winStart + winSpan, top + listHeight + ROW_OVERSCAN))
   return { s: winStart, e: winEnd }
 }
 {

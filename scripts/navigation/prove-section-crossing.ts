@@ -50,7 +50,7 @@ check('single-section board decodes null both ways', eq(crossSectionAtEdge([4], 
 
 console.log('\n== source pins: the hook consumes the brain, unkillably ==')
 const panes = readFileSync(join(root, 'src/components/mercury-ui/useNavigablePanes.ts'), 'utf8')
-check('LIST branch routes ↑↓ through crossSectionAtEdge', /const cross = keys\s*\n?\s*\? crossSectionAtEdge\(/.test(panes))
+check('LIST branch routes ↑↓ through crossSectionAtEdge; a reported mouse wheel never crosses a section (f0007c3462), while an arrow the alternate-scroll policy re-read as a wheel still does', /const reportedWheel = \(key\.wheelUp \|\| key\.wheelDown\) && event\.keypress\.x !== undefined && event\.keypress\.y !== undefined\s*\n\s*const cross = keys && !reportedWheel\s*\n?\s*\? crossSectionAtEdge\(/.test(panes))
 check(
   'crossing stores the departed remembered row (Tab-axis parity)',
   (panes.match(/rememberedSel\.current\.set\(sectionMemoKey\(clampedSection/g) ?? []).length >= 2,
