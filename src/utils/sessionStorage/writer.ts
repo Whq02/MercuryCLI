@@ -203,6 +203,21 @@ function partitionUnwritten(
   return { unwritten, parent }
 }
 
+function recordedLeafBefore(
+  allMessages: readonly Message[] | undefined,
+  unwritten: Transcript,
+  onDisk: ReadonlySet<UUID>,
+): UUID | undefined {
+  if (allMessages === undefined || unwritten.length === 0) return undefined
+  const pending = new Set(unwritten.map(m => m.uuid))
+  let leaf: UUID | undefined
+  for (const m of allMessages) {
+    if (pending.has(m.uuid)) break
+    if (isChainParticipant(m) && onDisk.has(m.uuid as UUID)) leaf = m.uuid as UUID
+  }
+  return leaf
+}
+
 export async function recordTranscript(
   messages: Message[],
   startingParentUuidHint?: UUID,
@@ -211,7 +226,9 @@ export async function recordTranscript(
   transcriptMessagesVisited += messages.length
   const cleanedMessages = cleanForTranscript(messages, allMessages)
   const messageSet = await getSessionMessages(getSessionId() as UUID)
-  const { unwritten: newMessages, parent: startingParentUuid } = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
+  const partition = partitionUnwritten(cleanedMessages, messageSet, startingParentUuidHint)
+  const newMessages = partition.unwritten
+  const startingParentUuid = partition.parent ?? recordedLeafBefore(allMessages, newMessages, messageSet)
   const preferLiveLeaf = messageSet.size > 0
   if (newMessages.length > 0) {
     await getProject().insertMessageChain(
