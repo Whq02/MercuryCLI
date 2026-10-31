@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns } from '../lib/rows.ts'
@@ -148,12 +148,16 @@ function census(label: string, requests: CapturedRequest[], all: CapturedRequest
   }
 }
 
-function makeArena(fixtureUrl: string, nodeBin: string, extraEnv: Record<string, string> = {}): { home: string; cwd: string; env: Record<string, string> } {
+function makeArena(fixtureUrl: string, nodeBin: string, extraEnv: Record<string, string> = {}, seat: 'key' | 'claude.ai' = 'key'): { home: string; cwd: string; env: Record<string, string> } {
   const home = mkdtempSync(join(tmpdir(), 'cache-prefix-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'cache-prefix-cwd-'))
   mkdirSync(join(home, '.mercury'), { recursive: true })
   writeFileSync(join(cwd, 'note.txt'), 'line one\nline two\nline three\n')
   writeFileSync(join(home, '.mercury', 'settings.json'), j({ guardrails: { allow: ['Bash(echo *)', 'Read', 'Edit', 'Write', 'ToolSearch', 'Retain'] } }))
+  if (seat === 'claude.ai') {
+    writeFileSync(join(home, '.mercury', '.mercury.json'), j({ hasCompletedOnboarding: true, lastOnboardingVersion: '99.0.0', numStartups: 10, theme: 'dark', oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
+    writeFileSync(join(home, '.mercury', '.credentials.json'), j({ claudeAiOauth: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:profile', 'user:inference', 'user:sessions:claude_code', 'user:mcp_servers', 'user:file_upload'], subscriptionType: 'max', rateLimitTier: 'default_claude_max_5x' } }))
+  }
   return {
     home,
     cwd,
@@ -165,7 +169,7 @@ function makeArena(fixtureUrl: string, nodeBin: string, extraEnv: Record<string,
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixtureUrl,
-      ANTHROPIC_API_KEY: 'fixture-key-000',
+      ...(seat === 'key' ? { ANTHROPIC_API_KEY: 'fixture-key-000' } : {}),
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_THINKING_BINDING: 'drop_block',
       MERCURY_TOOL_SEARCH: 'tst',
@@ -173,6 +177,22 @@ function makeArena(fixtureUrl: string, nodeBin: string, extraEnv: Record<string,
       ...extraEnv,
     },
   }
+}
+
+function findFile(root: string, match: (path: string) => boolean): string | null {
+  if (!existsSync(root)) return null
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const full = join(root, entry.name)
+    if (entry.isDirectory()) {
+      const found = findFile(full, match)
+      if (found !== null) return found
+    } else if (match(full)) return full
+  }
+  return null
+}
+
+function ttlsOf(body: Body): string[] {
+  return [...new Set(markers(body).map(m => m.ttl))]
 }
 
 const T = (text: string): ScriptedTurn => ({ kind: 'text', text, thinking: `think ${text}`, model: MODEL })
@@ -259,6 +279,48 @@ if (!existsSync(DIST)) {
       const requests = fixture.messageRequests().filter(q => !isHandoffRequest(q))
       check('four main requests', requests.length === 4, String(requests.length))
       census('§3', requests, fixture.messageRequests())
+    }
+
+    section('§4 the 1h tier survives a relaunch: a claude.ai seat that held 1h twenty minutes ago resumes on 1h and reads the same prefix; one that held it seventy minutes ago starts cold')
+    {
+      const SID = 'c0ffee00-0000-4000-8000-00000000c1ea'
+      const cached = (turn: ScriptedTurn): ScriptedTurn => ({ ...turn, usage: { input_tokens: 40, cache_read_input_tokens: 4_000, cache_creation_input_tokens: 600 } } as ScriptedTurn)
+      const scripted = (): ScriptedTurn[] => [U('Bash', { command: 'echo lease' }), T('S4-T1'), T('S4-T2'), T('S4-T3'), T('S4-T4'), T('S4-T5')].map(cached)
+      const fixture = await startFixtureApi([...scripted(), ...Array.from({ length: 6 }, () => handoffTurn())], { bindingCheck: true })
+      const arena = makeArena(fixture.url, nodeBin, {}, 'claude.ai')
+      arenas.push(arena)
+      const args = ['--model', MODEL, '--allowed-tools', 'Bash']
+      const first = await runTurns({ node: nodeBin, dist: DIST, args: [...args, '--session-id', SID], cwd: arena.cwd, env: arena.env, timeoutMs: 150_000, turns: ['drive turn 1', 'drive turn 2', 'drive turn 3'] })
+      check('§4 the first process answers three turns on the claude.ai seat and exits 0', first.exit === 0 && ['S4-T1', 'S4-T2', 'S4-T3'].every(t => first.stdout.includes(t)), `exit=${first.exit} ${first.stderr.slice(-400)}`)
+      const beforeRelaunch = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+      check('§4 four main requests, every breakpoint on the 5m tier (the clock starts a headless process on 5m)', beforeRelaunch.length === 4 && beforeRelaunch.every(q => j(ttlsOf(q.body as Body)) === j(['{"type":"ephemeral"}'])), j(beforeRelaunch.map(q => ttlsOf(q.body as Body))))
+      const rollupPath = findFile(arena.home, p => p.endsWith(`${SID}.json`) && p.includes('cache-clock'))
+      const ledgerPath = findFile(arena.home, p => p.endsWith('prefix-ledger.json') && p.includes(SID))
+      check('§4 the first process left its cache-clock rollup and its prefix ledger beside the session', rollupPath !== null && ledgerPath !== null, `rollup=${rollupPath} ledger=${ledgerPath}`)
+      if (rollupPath !== null && ledgerPath !== null) {
+        const rollup = JSON.parse(readFileSync(rollupPath, 'utf8')) as Record<string, unknown>
+        const prefixKey = (JSON.parse(readFileSync(ledgerPath, 'utf8')) as { record: { key: string } }).record.key
+        check('§4 the 5m process holds no tier lease', rollup.tier === undefined, j(rollup.tier))
+        const lease = (minutesAgo: number): Record<string, unknown> => ({ ...rollup, decidedTtl: '5m', escalatedAtIso: new Date(Date.now() - (minutesAgo + 5) * 60_000).toISOString(), tier: { ttl: '1h', heldAtIso: new Date(Date.now() - minutesAgo * 60_000).toISOString(), sinceIso: new Date(Date.now() - (minutesAgo + 5) * 60_000).toISOString(), prefixKey } })
+        const warmLease = lease(20)
+        writeFileSync(rollupPath, j(warmLease))
+        const warm = await runTurns({ node: nodeBin, dist: DIST, args: [...args, '--resume', SID], cwd: arena.cwd, env: arena.env, timeoutMs: 150_000, turns: ['drive turn 4'] })
+        check('§4 the process relaunched twenty minutes into the hour answers and exits 0', warm.exit === 0 && warm.stdout.includes('S4-T4'), `exit=${warm.exit} ${warm.stderr.slice(-400)}`)
+        const afterWarm = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+        const warmRequest = afterWarm[4]?.body as Body | undefined
+        check('§4 its first request sends the 1h tier on both breakpoints: the hour the previous process bought is kept, not re-decided', warmRequest !== undefined && j(ttlsOf(warmRequest)) === j(['{"type":"ephemeral","ttl":"1h"}']), j(warmRequest === undefined ? null : markers(warmRequest)))
+        const last = beforeRelaunch[3]!.body as Body
+        const verdict = warmRequest === undefined ? null : prefixHeld({ ...last, system: withoutCacheControl(last.system) as Body['system'] }, { ...warmRequest, system: withoutCacheControl(warmRequest.system) as Body['system'] })
+        check('§4 it reads the previous process\'s prefix back: system, tools and every shared message byte-identical (the TTL marker aside)', verdict?.held === true, verdict === null ? 'no request' : `${verdict.where}\n      before: ${verdict.before}\n      after:  ${verdict.after}`)
+        const refreshed = JSON.parse(readFileSync(rollupPath, 'utf8')) as { tier?: { heldAtIso?: string; prefixKey?: string; sinceIso?: string } }
+        check('§4 the relaunched process refreshed the lease with its own request, same prefix, same escalation time', typeof refreshed.tier?.heldAtIso === 'string' && Date.now() - Date.parse(refreshed.tier.heldAtIso) < 10 * 60_000 && refreshed.tier.prefixKey === prefixKey && refreshed.tier.sinceIso === (warmLease.tier as { sinceIso: string }).sinceIso, j(refreshed.tier))
+        writeFileSync(rollupPath, j(lease(70)))
+        const cold = await runTurns({ node: nodeBin, dist: DIST, args: [...args, '--resume', SID], cwd: arena.cwd, env: arena.env, timeoutMs: 150_000, turns: ['drive turn 5'] })
+        check('§4 the process relaunched seventy minutes after the last 1h request answers and exits 0', cold.exit === 0 && cold.stdout.includes('S4-T5'), `exit=${cold.exit} ${cold.stderr.slice(-400)}`)
+        const coldRequest = (fixture.messageRequests().filter(q => !isHandoffRequest(q))[5])?.body as Body | undefined
+        check('§4 its first request starts cold by the rule: the 5m tier (the hour is spent; a fresh 1h write would buy nothing)', coldRequest !== undefined && j(ttlsOf(coldRequest)) === j(['{"type":"ephemeral"}']), j(coldRequest === undefined ? null : markers(coldRequest)))
+      }
+      await fixture.close()
     }
 
     for (const arena of arenas) {

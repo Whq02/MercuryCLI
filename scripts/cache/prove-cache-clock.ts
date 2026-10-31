@@ -355,6 +355,87 @@ section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24
   )
 }
 
+section('§5 RELAUNCH — the 1h tier a process bought survives a restart of the same session while the hour lasts')
+{
+  const { noteCacheClockPrefix } = shell
+  const { tierLeaseOf, tierLeaseWarm } = core
+  const portable = await import('../../src/utils/sessionStoragePortable.ts')
+  const { getSessionId } = await import('../../src/bootstrap/state.ts')
+  const dir = join(portable.getProjectDir(process.cwd()), 'cache-clock', 'sessions')
+  const own = join(dir, `${String(getSessionId())}.json`)
+  const PREFIX = 'owner|first-row|claude-fable-5-1'
+  const T0 = NOW + 24 * 60 * 60_000
+  const touch = (at: number, prefixKey: string | null = PREFIX): void =>
+    cacheClockObserve({ cacheReadTokens: 400_000, cacheCreationTotal: 2_000, cacheCreation5m: null, cacheCreation1h: null, uncachedInputTokens: 50, now: at + 4_000, prefixKey, startedAt: at })
+
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  check('process 1 starts on the 5m tier (thin prior, headless proof run)', cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: T0 }) === '5m')
+  touch(T0)
+  const escalatedAt = T0 + 12 * 60_000
+  check('process 1 escalates to 1h after a 12-minute gap', cacheClockTtlDecision({ eligible: true, lastCompletionAt: T0 + 4_000, now: escalatedAt }) === '1h')
+  touch(escalatedAt)
+  const lastHeld = escalatedAt + 3 * 60_000
+  cacheClockTtlDecision({ eligible: true, lastCompletionAt: escalatedAt + 4_000, now: lastHeld })
+  touch(lastHeld)
+  const rollup1 = JSON.parse(readFileSync(own, 'utf8')) as { tier?: unknown; decidedTtl?: string; escalatedAtIso?: string }
+  const lease1 = tierLeaseOf(rollup1)
+  check('the rollup beside the session records the tier lease: 1h, held at the start of the last 1h request, for this prefix, since the escalation', lease1 !== null && lease1.heldAtIso === new Date(lastHeld).toISOString() && lease1.prefixKey === PREFIX && lease1.sinceIso === new Date(escalatedAt).toISOString() && rollup1.decidedTtl === '5m', JSON.stringify(rollup1.tier))
+  check('a touch within the minute does not rewrite the file; the file still names the earlier hold', (() => {
+    cacheClockTtlDecision({ eligible: true, lastCompletionAt: lastHeld + 4_000, now: lastHeld + 20_000 })
+    touch(lastHeld + 20_000)
+    const again = tierLeaseOf(JSON.parse(readFileSync(own, 'utf8')) as unknown)
+    return again?.heldAtIso === new Date(lastHeld).toISOString()
+  })())
+  check('the pure warmth rule: warm up to the hour, cold past it, cold for another prefix', tierLeaseWarm(lease1, PREFIX, lastHeld + TTL_MS['1h']) && !tierLeaseWarm(lease1, PREFIX, lastHeld + TTL_MS['1h'] + 1) && !tierLeaseWarm(lease1, 'owner|first-row|claude-opus-5-5', lastHeld + 60_000) && !tierLeaseWarm(null, PREFIX, lastHeld))
+
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  const relaunch20 = lastHeld + 20 * 60_000
+  check("process 2, relaunched 20 minutes after the last 1h request on the same prefix, sends '1h' from its first request (no fresh 5m decision, no new escalation wait)", cacheClockTtlDecision({ eligible: true, lastCompletionAt: lastHeld + 4_000, now: relaunch20 }) === '1h')
+  check('the snapshot shows the carried tier as an escalation already in force', cacheClockSnapshot().ttl === '1h' && cacheClockSnapshot().escalated)
+  touch(relaunch20)
+  const lease2 = tierLeaseOf(JSON.parse(readFileSync(own, 'utf8')) as unknown)
+  check('process 2 refreshes the lease: held at its own request, since the original escalation', lease2?.heldAtIso === new Date(relaunch20).toISOString() && lease2.sinceIso === new Date(escalatedAt).toISOString(), JSON.stringify(lease2))
+
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  const relaunch70 = relaunch20 + 70 * 60_000
+  check("process 3, relaunched 70 minutes after the last 1h request, starts cold by the rule ('5m' with escalation)", cacheClockTtlDecision({ eligible: true, lastCompletionAt: relaunch20 + 4_000, now: relaunch70 }) === '5m' && !cacheClockSnapshot().escalated)
+  touch(relaunch70)
+  touch(relaunch70 + 10_000)
+  touch(relaunch70 + 20_000)
+  check('a 5m process holds no tier lease: its third observation flushes the rollup and the stale 1h lease leaves it', tierLeaseOf(JSON.parse(readFileSync(own, 'utf8')) as unknown) === null)
+
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: relaunch70 + 60_000 })
+  cacheClockTtlDecision({ eligible: true, lastCompletionAt: relaunch70 + 60_000, now: relaunch70 + 10 * 60_000 })
+  touch(relaunch70 + 10 * 60_000)
+  resetCacheClockForTesting()
+  noteCacheClockPrefix('owner|first-row|claude-opus-5-5')
+  check('a relaunch on another model (another prefix key) within the hour starts cold by the rule: the lease names the prefix it was bought for', cacheClockTtlDecision({ eligible: true, lastCompletionAt: relaunch70 + 10 * 60_000, now: relaunch70 + 15 * 60_000 }) === '5m')
+
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  check('a warm lease never overrides an ineligible seat (no claude.ai sign-in, no pin)', cacheClockTtlDecision({ eligible: false, ineligible: 'console key', lastCompletionAt: relaunch70 + 10 * 60_000, now: relaunch70 + 15 * 60_000 }) === null)
+
+  process.env.MERCURY_CACHE_TTL = '5m'
+  resetCacheClockForTesting()
+  noteCacheClockPrefix(PREFIX)
+  check("an operator pin '5m' wins over a warm lease", cacheClockTtlDecision({ eligible: true, lastCompletionAt: relaunch70 + 10 * 60_000, now: relaunch70 + 15 * 60_000 }) === '5m')
+  delete process.env.MERCURY_CACHE_TTL
+
+  resetCacheClockForTesting()
+  check('a side query that decides before the main prefix is known does not spend the lease: the first main-prefix request still consults it', (() => {
+    const side = cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: relaunch70 + 16 * 60_000 })
+    noteCacheClockPrefix(PREFIX)
+    const main = cacheClockTtlDecision({ eligible: true, lastCompletionAt: relaunch70 + 10 * 60_000, now: relaunch70 + 16 * 60_000 })
+    return side === '5m' && main === '1h'
+  })())
+  check('junk in the tier field is read as no lease', tierLeaseOf({ tier: { ttl: '5m', heldAtIso: 'x', prefixKey: 'p' } }) === null && tierLeaseOf({ tier: 'nope' }) === null && tierLeaseOf(null) === null && tierLeaseOf({ tier: { ttl: '1h', heldAtIso: 'not-a-date', prefixKey: 'p' } }) === null)
+}
+
 section('§4 SEAMS — structural wiring')
 {
 const anthropicRuntime = readFileSync(join(repoRoot, 'src/services/providers/anthropic/index.ts'), 'utf8') + readdirSync(join(repoRoot, 'src/services/providers/anthropic')).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(repoRoot, 'src/services/providers/anthropic', f), 'utf8')).join('\n')

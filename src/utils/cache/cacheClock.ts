@@ -15,6 +15,7 @@ import {
   type Decision,
   type SessionRollup,
   type SimCacheState,
+  type TierLease,
   type TtlChoice,
   CACHE_COST,
   TTL_MS,
@@ -24,11 +25,14 @@ import {
   priorFromRollups,
   shouldEscalate,
   stepCache,
+  tierLeaseOf,
+  tierLeaseWarm,
 } from './cacheClockCore.js'
 
 const ROLLUP_FLUSH_EVERY = 8
 const ROLLUP_KEEP_FILES = 200
 const PRIOR_SCAN_LIMIT = 100
+const LEASE_FLUSH_MS = 60_000
 
 interface ClockState {
   initialized: boolean
@@ -39,6 +43,10 @@ interface ClockState {
   startedIso: string
   escalatedAtIso: string | null
   lastGapBasis: number | null
+  prefixKey: string | null
+  leaseConsulted: boolean
+  lease: TierLease | null
+  leaseFlushedAt: number | null
   requests: number
   gapsOver5m: number
   gapsOver1h: number
@@ -61,6 +69,10 @@ function freshState(): ClockState {
     startedIso: new Date().toISOString(),
     escalatedAtIso: null,
     lastGapBasis: null,
+    prefixKey: null,
+    leaseConsulted: false,
+    lease: null,
+    leaseFlushedAt: null,
     requests: 0,
     gapsOver5m: 0,
     gapsOver1h: 0,
@@ -119,6 +131,14 @@ function readPrior(dir: string): CadencePrior {
     return priorFromRollups(rollups)
   } catch {
     return { sessions: 0, gapSessions: 0 }
+  }
+}
+
+function readOwnLease(dir: string): TierLease | null {
+  try {
+    return tierLeaseOf(JSON.parse(readFileSync(join(dir, `${getSessionId()}.json`), 'utf8')) as unknown)
+  } catch {
+    return null
   }
 }
 
@@ -183,6 +203,7 @@ function flushRollup(state: ClockState): void {
       ...(state.escalatedAtIso !== null && {
         escalatedAtIso: state.escalatedAtIso,
       }),
+      ...(state.lease !== null && { tier: state.lease }),
       requests: state.requests,
       gapsOver5m: state.gapsOver5m,
       gapsOver1h: state.gapsOver1h,
@@ -267,9 +288,28 @@ function accountGap(
   if (kind === 'over1h') state.gapsOver1h++
   if (state.decision !== null && shouldEscalate(state.decision, gapMs)) {
     state.decision = { ttl: '1h', escalation: false }
-    state.escalatedAtIso = new Date().toISOString()
+    state.escalatedAtIso = new Date(now).toISOString()
     flushRollup(state)
   }
+}
+
+function consultLease(state: ClockState, eligible: boolean, now: number): void {
+  if (state.leaseConsulted || state.prefixKey === null) return
+  state.leaseConsulted = true
+  if (!eligible || resolvePin() !== null || state.decision === null || !state.decision.escalation) return
+  const lease = readOwnLease(state.sessionsDir)
+  if (!tierLeaseWarm(lease, state.prefixKey, now)) return
+  state.decision = { ttl: '1h', escalation: false }
+  state.escalatedAtIso = lease!.sinceIso
+  state.lease = lease
+  logForDebugging(`[cache-clock] the 1h tier carries over the relaunch: the previous process last held it at ${lease!.heldAtIso} for this prefix, so this one keeps sending 1h until that hour is spent`)
+}
+
+export function noteCacheClockPrefix(prefixKey: string): void {
+  if (clock === null) clock = freshState()
+  if (clock.prefixKey === prefixKey) return
+  clock.prefixKey = prefixKey
+  clock.leaseConsulted = false
 }
 
 export function cacheClockTtlDecision(args: {
@@ -287,11 +327,28 @@ export function cacheClockTtlDecision(args: {
         if (engaged !== null) logForDebugging(`[cache-clock] engaged at a cold boundary: the session became eligible for the 1h tier (ttl ${engaged.ttl}, ${state.cls})`)
       } else if (!args.eligible && args.ineligible !== undefined) state.ineligible = args.ineligible
     }
+    consultLease(state, args.eligible, args.now)
     accountGap(state, args.lastCompletionAt, args.now)
     return state.decision === null ? null : state.decision.ttl
   } catch (e: unknown) {
     logError(e)
     return null
+  }
+}
+
+function holdLease(state: ClockState, args: { prefixKey?: string | null; startedAt?: number; now: number; touched: boolean }): void {
+  if (state.decision?.ttl !== '1h' || !args.touched) return
+  if (typeof args.prefixKey !== 'string' || args.prefixKey !== state.prefixKey) return
+  state.lease = {
+    ttl: '1h',
+    heldAtIso: new Date(args.startedAt ?? args.now).toISOString(),
+    sinceIso: state.lease?.sinceIso ?? state.escalatedAtIso ?? state.startedIso,
+    prefixKey: args.prefixKey,
+  }
+  if (state.leaseFlushedAt === null || args.now - state.leaseFlushedAt >= LEASE_FLUSH_MS) {
+    state.leaseFlushedAt = args.now
+    state.observesSinceFlush = 0
+    flushRollup(state)
   }
 }
 
@@ -302,6 +359,8 @@ export function cacheClockObserve(args: {
   cacheCreation1h: number | null
   uncachedInputTokens: number
   now: number
+  prefixKey?: string | null
+  startedAt?: number
 }): void {
   try {
     if (!clockEnabled()) return
@@ -309,6 +368,7 @@ export function cacheClockObserve(args: {
     const state = clock
     const decidedTtl = clock.decision.ttl
     state.requests++
+    holdLease(state, { ...args, touched: args.cacheReadTokens > 0 || args.cacheCreationTotal > 0 })
 
     const w1h =
       args.cacheCreation1h ?? (decidedTtl === '1h' ? args.cacheCreationTotal : 0)

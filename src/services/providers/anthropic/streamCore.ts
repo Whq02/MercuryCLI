@@ -40,6 +40,7 @@ import {
 } from 'src/utils/betas.js'
 import {
   cacheClockObserve,
+  noteCacheClockPrefix,
 } from 'src/utils/cache/cacheClock.js'
 import { getMaxThinkingTokensForModel } from 'src/utils/context.js'
 import { logForDebugging } from 'src/utils/debug.js'
@@ -570,6 +571,9 @@ async function* queryModel(
   if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
 
   const fingerprint = computeFingerprintFromMessages(messages)
+  const prefixKey = conversationRosterKey(rosterOwnerKey, messages, options.model)
+  const turnOwning = isTurnOwningQuerySource(options.querySource)
+  if (turnOwning) noteCacheClockPrefix(prefixKey)
 
   const sessionSystemPrompt = systemPrompt
   const assembleSystemPrompt = (attribution: string): SystemPrompt =>
@@ -723,7 +727,6 @@ async function* queryModel(
       )
     }
 
-    const prefixKey = conversationRosterKey(rosterOwnerKey, messages, options.model)
     let wireParts: WirePrefixParts = {
       system,
       tools: allTools,
@@ -1384,6 +1387,8 @@ async function* queryModel(
         cacheCreation1h: usage.cache_creation?.ephemeral_1h_input_tokens ?? null,
         uncachedInputTokens: usage.input_tokens,
         now: Date.now(),
+        prefixKey: turnOwning ? prefixKey : null,
+        startedAt: start,
       })
 
       // eslint-disable-next-line eslint-plugin-n/no-unsupported-features/node-builtins

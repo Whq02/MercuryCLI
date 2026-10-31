@@ -115,6 +115,13 @@ export function stepCache(
 }
 
 
+export interface TierLease {
+  ttl: '1h'
+  heldAtIso: string
+  sinceIso: string
+  prefixKey: string
+}
+
 export interface SessionRollup {
   v: 1
   sessionId: string
@@ -122,12 +129,27 @@ export interface SessionRollup {
   startedIso: string
   decidedTtl: TtlChoice
   escalatedAtIso?: string
+  tier?: TierLease
   requests: number
   gapsOver5m: number
   gapsOver1h: number
   tokens: { read: number; w5m: number; w1h: number; uncached: number }
   costUnits: { actual: number; baseline5m: number }
   updatedIso: string
+}
+
+export function tierLeaseOf(rollup: unknown): TierLease | null {
+  const tier = (rollup as { tier?: unknown } | null)?.tier as Partial<TierLease> | null | undefined
+  if (tier === null || tier === undefined || typeof tier !== 'object') return null
+  if (tier.ttl !== '1h' || typeof tier.heldAtIso !== 'string' || typeof tier.prefixKey !== 'string') return null
+  if (!Number.isFinite(Date.parse(tier.heldAtIso))) return null
+  return { ttl: '1h', heldAtIso: tier.heldAtIso, sinceIso: typeof tier.sinceIso === 'string' ? tier.sinceIso : tier.heldAtIso, prefixKey: tier.prefixKey }
+}
+
+export function tierLeaseWarm(lease: TierLease | null, prefixKey: string, nowMs: number): boolean {
+  if (lease === null || lease.prefixKey !== prefixKey) return false
+  const held = Date.parse(lease.heldAtIso)
+  return Number.isFinite(held) && nowMs >= held && nowMs - held <= TTL_MS['1h']
 }
 
 export function priorFromRollups(rollups: unknown[]): CadencePrior {
