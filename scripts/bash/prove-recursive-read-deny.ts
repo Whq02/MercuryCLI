@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 // gate-watch: src/tools/BashTool/bashPermissions.ts src/tools/BashTool/pathValidation.ts src/Tool.ts
 // gate-watch: src/utils/permissions/filesystem.ts src/utils/verification/scanCeiling.ts
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'recursive-read-deny-')))
 const root = join(scratch, 'run')
@@ -19,7 +20,13 @@ writeFileSync(join(root, 'sub', 'hidden.key'), 'K\n')
 writeFileSync(join(root, 'sub', 'notes.txt'), 'K\n')
 writeFileSync(join(root, 'plain', 'notes.txt'), 'K\n')
 writeFileSync(join(root, 'secrets', 'k.txt'), 'K\n')
-symlinkSync(join(root, 'README'), join(root, 'linked', 'hidden.key'))
+let linked = true
+try {
+  symlinkSync(join(root, 'README'), join(root, 'linked', 'hidden.key'))
+} catch (error) {
+  if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EPERM') throw error
+  linked = false
+}
 const previousCwd = process.cwd()
 process.chdir(root)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
@@ -101,7 +108,8 @@ for (const [command, rules, label] of [
 }
 
 section('§4 links: a link named like the rule is refused when the command follows links')
-{
+if (!linked) console.log('  (skip) this account may not create a file symlink (EPERM on win32); the link rows are not run')
+else {
   const followed = await decide('grep -R K linked', 'default', keyRule)
   check('grep -R over a link named hidden.key → deny by the rule', deniedBy(followed, 'Read(**/hidden.key)', join(root, 'linked', 'hidden.key')), shown(followed))
 }
@@ -124,14 +132,14 @@ section('§5 the walk is bounded by the tree-fingerprint ceiling; past it defaul
 
 section('§6 sovereign asks nothing: each command is a deny by the rule or an allow')
 for (const [command, rules] of [
-  ['grep -r K .', keyRule], ['rg K', keyRule], ['grep -r K plain', keyRule], ['grep -r K .', dirRule], ['grep -r K sub', dirRule], ['rg K README', keyRule], ['grep -r K .', {}], ['grep -R K linked', keyRule],
+  ['grep -r K .', keyRule], ['rg K', keyRule], ['grep -r K plain', keyRule], ['grep -r K .', dirRule], ['grep -r K sub', dirRule], ['rg K README', keyRule], ['grep -r K .', {}], ...(linked ? [['grep -R K linked', keyRule]] : []),
 ] as Array<[string, Rules]>) {
   const verdict = await decide(command, 'sovereign', rules)
   check(`sovereign: ${command} → ${verdict.behavior} (not ask)`, verdict.behavior !== 'ask', shown(verdict))
 }
 
 process.chdir(previousCwd)
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log(`\n${checks - failures}/${checks} checks passed`)
 if (failures > 0) {
   console.log(`${failures} check(s) failed`)

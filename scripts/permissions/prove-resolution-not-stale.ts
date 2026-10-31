@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'resolution-not-stale-')))
 const run = join(scratch, 'run')
@@ -54,6 +55,8 @@ const decide = async (command: string, mode = 'default'): Promise<Decision> => {
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`
 const laterCall = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 const file = join(run, 'dir', 'secret.txt')
+const linkOut = (): void => symlinkSync(outside, join(run, 'dir'), process.platform === 'win32' ? 'junction' : 'dir')
+const unlinkDir = (): void => { if (process.platform === 'win32') rmdirSync(join(run, 'dir')); else unlinkSync(join(run, 'dir')) }
 
 console.log('prove-resolution-not-stale — a path judged inside the starting folder is judged again once the folder becomes a link out of it')
 
@@ -63,7 +66,7 @@ check('Read tool through the decision chain: dir/secret.txt → allow', (await r
 check('Bash: cat dir/secret.txt → allow', (await decide('cat dir/secret.txt')).behavior === 'allow')
 
 rmSync(join(run, 'dir'), { recursive: true })
-symlinkSync(outside, join(run, 'dir'), process.platform === 'win32' ? 'junction' : 'dir')
+linkOut()
 check('the folder is now a link to the outside folder and the same path reads the outside file', readFileSync(file, 'utf8') === 'outside\n')
 await laterCall()
 
@@ -94,14 +97,14 @@ section('§3 the cache still serves one burst of checks and clearCache() still e
 
 section('§4 sovereign asks nothing: the same reads before and after the swap are allowed, never a question')
 {
-  rmSync(join(run, 'dir'))
+  unlinkDir()
   mkdirSync(join(run, 'dir'))
   writeFileSync(file, 'inside\n')
   await laterCall()
   check('sovereign: Read tool dir/secret.txt (real folder) → allow', read(file, 'sovereign').behavior === 'allow')
   check('sovereign: Bash cat dir/secret.txt (real folder) → allow', (await decide('cat dir/secret.txt', 'sovereign')).behavior === 'allow')
   rmSync(join(run, 'dir'), { recursive: true })
-  symlinkSync(outside, join(run, 'dir'), process.platform === 'win32' ? 'junction' : 'dir')
+  linkOut()
   await laterCall()
   const later = await readThroughTool(file, 'sovereign')
   check('sovereign: Read tool dir/secret.txt (linked out) → allow, not ask', later.behavior === 'allow', shown(later))
@@ -110,7 +113,8 @@ section('§4 sovereign asks nothing: the same reads before and after the swap ar
 }
 
 process.chdir(previousCwd)
-rmSync(scratch, { recursive: true, force: true })
+unlinkDir()
+removeScratch(scratch)
 console.log(`\n${checks - failures}/${checks} checks passed`)
 if (failures > 0) {
   console.log(`${failures} check(s) failed`)

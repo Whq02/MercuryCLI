@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, sy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'updater-layout-'))
 process.env.HOME = join(scratch, 'home')
@@ -686,7 +687,7 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   const real = join(scratch, 'path-target')
   mkdirSync(real, { recursive: true })
   const alias = join(scratch, 'path-alias')
-  symlinkSync(real, alias)
+  symlinkSync(real, alias, process.platform === 'win32' ? 'junction' : 'dir')
   check('PATH identity: exact match', pathEntryEquals(real, real, false))
   check('PATH identity: trailing slash is spelling, not identity', pathEntryEquals(`${real}/`, real, false))
   check('PATH identity: a verified symlink alias equates (realpath-verified)', pathEntryEquals(alias, real, false))
@@ -806,7 +807,7 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   rmSync(bmScratch, { recursive: true, force: true })
 }
 
-rmSync(scratch, { recursive: true, force: true })
+removeScratch(scratch)
 console.log('')
 if (failures === 0) {
   console.log('PASS prove-install-layout')
