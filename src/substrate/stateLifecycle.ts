@@ -1,6 +1,7 @@
 
-import { readdir, readFile, rm, rmdir, stat, unlink, writeFile } from 'fs/promises'
+import { readdir, readFile, rename, rm, rmdir, stat, unlink, writeFile } from 'fs/promises'
 import { join, resolve, sep } from 'path'
+import { MERCURY_VERSION } from '../constants/product.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'
@@ -257,6 +258,182 @@ async function collectShellSnapshots(budget: LifecycleBudget): Promise<Lifecycle
   return receipt
 }
 
+export interface InstalledBuildFacts {
+  versions: Set<string>
+  nodeVersions: Set<string>
+}
+
+async function readBuildManifest(dir: string, facts: InstalledBuildFacts): Promise<void> {
+  let raw: string
+  try {
+    raw = await readFile(join(dir, 'manifest.json'), 'utf8')
+  } catch {
+    return
+  }
+  const manifest = safeParseJSON(raw, false) as { version?: unknown; runtime?: { version?: unknown } | null } | null
+  if (!manifest || typeof manifest !== 'object') return
+  if (typeof manifest.version === 'string') facts.versions.add(manifest.version)
+  const node = manifest.runtime?.version
+  if (typeof node === 'string') facts.nodeVersions.add(node.startsWith('v') ? node : `v${node}`)
+}
+
+export async function installedBuildFacts(home: string = getMercuryHome()): Promise<InstalledBuildFacts> {
+  const facts: InstalledBuildFacts = { versions: new Set([MERCURY_VERSION]), nodeVersions: new Set([process.version]) }
+  let versionsDir = join(home, 'versions')
+  try {
+    const { resolveLayoutRoots } = await import('../services/privateChannel/installLayout.js')
+    versionsDir = resolveLayoutRoots().versionsDir
+  } catch {
+  }
+  for (const root of [versionsDir, join(home, 'runtime', 'builds')]) {
+    for (const entry of await listDir(root)) {
+      if (!entry.isDir || entry.name.startsWith('.')) continue
+      await readBuildManifest(join(root, entry.name), facts)
+    }
+  }
+  return facts
+}
+
+const COMPILE_CACHE_FOLDER = /^(v\d+\.\d+\.\d+)-[A-Za-z0-9_]+-[0-9a-f]{8}-\d+$/
+
+async function collectRetiredCompileCaches(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
+  const receipt = emptyReceipt('compile-cache-retired-nodes')
+  const root = join(getMercuryHome(), 'compile-cache')
+  const entries = await listDir(root)
+  if (entries.length === 0) {
+    receipt.done = true
+    return receipt
+  }
+  const { nodeVersions } = await installedBuildFacts()
+  for (const entry of entries) {
+    if (overBudget(budget)) return receipt
+    if (!entry.isDir) continue
+    const match = COMPILE_CACHE_FOLDER.exec(entry.name)
+    if (!match) continue
+    receipt.visited++
+    if (nodeVersions.has(match[1]!)) {
+      receipt.retained++
+      continue
+    }
+    await removePath(root, join(root, entry.name), 'dir', receipt, budget)
+  }
+  receipt.done = true
+  return receipt
+}
+
+const BUNDLED_EXTENSION_FOLDER = /^(.+)-[0-9a-f]{16}$/
+const BUNDLED_STAGE_FOLDER = /\.stage-[0-9a-f-]{36}$/
+
+async function collectBundledExtensionFolders(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
+  const receipt = emptyReceipt('bundled-extension-folders')
+  let root: string
+  try {
+    const { getBundledDir } = await import('../extensions/paths.js')
+    root = getBundledDir()
+  } catch {
+    receipt.done = true
+    return receipt
+  }
+  const names = (await listDir(root)).filter(entry => entry.isDir)
+  if (names.length === 0) {
+    receipt.done = true
+    return receipt
+  }
+  const { versions } = await installedBuildFacts()
+  for (const name of names) {
+    const dir = join(root, name.name)
+    for (const entry of await listDir(dir)) {
+      if (overBudget(budget)) return receipt
+      if (!entry.isDir) continue
+      const p = join(dir, entry.name)
+      if (BUNDLED_STAGE_FOLDER.test(entry.name)) {
+        receipt.visited++
+        let mtime = Number.MAX_SAFE_INTEGER
+        try {
+          mtime = (await stat(p)).mtimeMs
+        } catch {
+          continue
+        }
+        if (budget.now() - mtime <= DAY_MS) {
+          receipt.retained++
+          continue
+        }
+        await removePath(root, p, 'dir', receipt, budget)
+        continue
+      }
+      const match = BUNDLED_EXTENSION_FOLDER.exec(entry.name)
+      if (!match) continue
+      receipt.visited++
+      if (versions.has(match[1]!)) {
+        receipt.retained++
+        continue
+      }
+      await removePath(root, p, 'dir', receipt, budget)
+    }
+  }
+  receipt.done = true
+  return receipt
+}
+
+export const BASH_AUDIT_ROTATE_BYTES = 16 * 1024 * 1024
+export const BASH_AUDIT_KEEP_ROTATED = 4
+export const BASH_AUDIT_ROTATED_BYTES = 256 * 1024 * 1024
+const BASH_AUDIT_ROTATED = /^bash-audit\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.jsonl$/
+
+export function bashAuditRotatedName(atMs: number): string {
+  return `bash-audit.${new Date(atMs).toISOString().replace(/\.\d{3}Z$/, 'Z').replace(/:/g, '-')}.jsonl`
+}
+
+async function collectBashAuditLedger(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
+  const receipt = emptyReceipt('bash-audit-ledger')
+  let live: string
+  try {
+    const { bashAuditPath } = await import('../utils/spawnLedger.js')
+    live = bashAuditPath()
+  } catch {
+    receipt.done = true
+    return receipt
+  }
+  const dir = resolve(live, '..')
+  try {
+    const size = (await stat(live)).size
+    receipt.visited++
+    if (size >= BASH_AUDIT_ROTATE_BYTES) {
+      await rename(live, join(dir, bashAuditRotatedName(budget.now())))
+    } else {
+      receipt.retained++
+    }
+  } catch (e) {
+    const code = getErrnoCode(e)
+    if (code !== 'ENOENT') receipt.failures.push({ path: live, ...(code ? { code } : {}) })
+  }
+  const rotated: Array<{ path: string; size: number }> = []
+  for (const entry of await listDir(dir)) {
+    if (entry.isDir || !BASH_AUDIT_ROTATED.test(entry.name)) continue
+    const p = join(dir, entry.name)
+    try {
+      rotated.push({ path: p, size: (await stat(p)).size })
+    } catch {
+    }
+  }
+  rotated.sort((a, b) => (a.path < b.path ? 1 : a.path > b.path ? -1 : 0))
+  let kept = 0
+  let bytes = 0
+  for (const file of rotated) {
+    if (overBudget(budget)) return receipt
+    receipt.visited++
+    bytes += file.size
+    if (kept < BASH_AUDIT_KEEP_ROTATED && bytes <= BASH_AUDIT_ROTATED_BYTES) {
+      kept++
+      receipt.retained++
+      continue
+    }
+    await removePath(dir, file.path, 'file', receipt, budget)
+  }
+  receipt.done = true
+  return receipt
+}
+
 
 export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
@@ -407,6 +584,45 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     action: 'remove',
     prover: 'scripts/substrate/prove-lifecycle-collector.ts',
     collect: collectShellSnapshots,
+  },
+  {
+    id: 'compile-cache-retired-nodes',
+    lane: 'mechanical-debris',
+    owner: 'src/entrypoints/cli.tsx (NODE_COMPILE_CACHE) · src/substrate/stateLifecycle.ts',
+    root: '<config>/compile-cache/v<node>-<arch>-<hash>-<uid>/',
+    kind: 'cache',
+    liveReference: 'the Node version running this process, or one an installed build carries (versions/*/manifest.json and runtime/builds/*/manifest.json, runtime.version)',
+    terminal: 'a Node version no installed build carries',
+    retention: 'removed whole once no installed build carries the version; folders that do not spell a Node version are left alone',
+    action: 'remove',
+    prover: 'scripts/substrate/prove-retired-build-debris.ts',
+    collect: collectRetiredCompileCaches,
+  },
+  {
+    id: 'bundled-extension-folders',
+    lane: 'mechanical-debris',
+    owner: 'src/extensions/bundled/index.ts (materialise) · src/substrate/stateLifecycle.ts',
+    root: '<config>/extensions/bundled/<name>/<version>-<digest>/',
+    kind: 'cache',
+    liveReference: 'the version is this build or one an installed build carries (versions/* and runtime/builds/* manifests); a .stage-<uuid> folder younger than a day',
+    terminal: 'a version no installed build carries; a stage folder a day old',
+    retention: 'removed whole; the current build re-materialises its own folder on demand',
+    action: 'remove',
+    prover: 'scripts/substrate/prove-retired-build-debris.ts',
+    collect: collectBundledExtensionFolders,
+  },
+  {
+    id: 'bash-audit-ledger',
+    lane: 'mechanical-debris',
+    owner: 'src/utils/spawnLedger.ts',
+    root: '<daemon dir>/bash-audit.jsonl · bash-audit.<stamp>.jsonl',
+    kind: 'log',
+    liveReference: 'the live file under 16 MB; the newest four rotated files within 256 MB together',
+    terminal: 'the live file at 16 MB is renamed whole to its stamped sibling; rotated files past the four or the 256 MB',
+    retention: 'size-rotated, same JSONL rows; the live file is never truncated',
+    action: 'rotate',
+    prover: 'scripts/substrate/prove-retired-build-debris.ts',
+    collect: collectBashAuditLedger,
   },
   {
     id: 'task-lists',
