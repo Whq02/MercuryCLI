@@ -481,7 +481,7 @@
     {
       "file": "scripts/crew/render-swarm-board.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const capture = spawnSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {",
+      "excerpt": "const capture = spawnCaptureSync('/usr/bin/python3', [join(root, 'scripts/ui/vshot.py'), config], {",
       "cls": "platform-owner",
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
