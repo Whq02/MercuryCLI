@@ -27,7 +27,7 @@ const ASK = 'crew-drive: launch two'
 const FIXTURE_API_KEY = 'fixture-key-000'
 
 type Dialect = 'anthropic' | 'openai'
-type Route = 'parent' | 'parent-ack' | 'seat' | 'seat-ack' | 'side'
+type Route = 'parent' | 'parent-search' | 'parent-ack' | 'seat' | 'seat-ack' | 'side'
 interface Hit {
   route: Route
   model: string
@@ -68,15 +68,23 @@ function lastUserText(body: unknown): string {
   return last
 }
 
-function carriesToolResult(body: unknown): boolean {
+function answeredTools(body: unknown): string[] {
+  const named = new Map<string, string>()
+  const answered: string[] = []
   for (const m of itemsOf(body)) {
-    const item = m as { type?: string; role?: string; content?: unknown }
-    if (item.type === 'function_call_output') return true
-    if (item.role !== 'user' || !Array.isArray(item.content)) continue
-    if ((item.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')) return true
+    const item = m as { type?: string; call_id?: string; name?: string; content?: unknown }
+    if (item.type === 'function_call' && item.call_id !== undefined && item.name !== undefined) named.set(item.call_id, item.name)
+    if (item.type === 'function_call_output') answered.push(named.get(item.call_id ?? '') ?? '')
+    if (!Array.isArray(item.content)) continue
+    for (const b of item.content as Array<{ type?: string; id?: string; name?: string; tool_use_id?: string }>) {
+      if (b.type === 'tool_use' && b.id !== undefined && b.name !== undefined) named.set(b.id, b.name)
+      if (b.type === 'tool_result') answered.push(named.get(b.tool_use_id ?? '') ?? '')
+    }
   }
-  return false
+  return answered
 }
+
+const carriesToolResult = (body: unknown): boolean => answeredTools(body).some(name => name !== 'ToolSearch')
 
 function offersTool(body: unknown, name: string): boolean {
   const tools = (body as { tools?: unknown[] })?.tools
@@ -91,6 +99,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null } {
     return { route: ack ? 'seat-ack' : 'seat', seat }
   }
   if (text.includes('crew-drive:') && offersTool(body, 'Crewmate')) return { route: ack ? 'parent-ack' : 'parent', seat: null }
+  if (text.includes('crew-drive:') && offersTool(body, 'ToolSearch')) return { route: 'parent-search', seat: null }
   return { route: 'side', seat: null }
 }
 
@@ -207,6 +216,10 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
             { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_TWO, prompt: `crew-seat: map the ${SEAT_TWO}`, crewmate_type: 'mercury-crew' } },
           ]
           usage = { input: 1200, output: 80 }
+          break
+        case 'parent-search':
+          blocks = [{ type: 'tool_use', name: 'ToolSearch', input: { query: 'select:Crewmate' } }]
+          usage = { input: 1100, output: 40 }
           break
         case 'parent-ack':
           blocks = [{ type: 'text', text: 'crew-drive: both landed.' }]
