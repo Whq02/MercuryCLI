@@ -99,9 +99,9 @@ try {
       } else {
         const text = replay.join('\n')
         check('the missing-record leg sends the constitution whole with one identity and no old floor', text.includes(MERCURY_CONSTITUTION) && !text.includes(oldWords) && (text.match(/You are/g) ?? []).length === 1)
-        check('the missing-record leg drops old thinking once, never on the next request', drops[0] === 1 && drops.slice(1).every(count => count === 0), JSON.stringify(drops))
+        check('the missing-record leg sends the old thinking on every request and the API drops it each time — the same count, so the cached prefix the first drop wrote is read back whole (42a98c1692)', drops[0] === 1 && drops.every(count => count === drops[0]), JSON.stringify(drops))
         const oldThinking = JSON.stringify((requests[2]?.body as { messages?: unknown })?.messages ?? null)
-        check('the dead reasoning is absent from the next request', !oldThinking.includes('Recorded thinking.'))
+        check('the dead reasoning stays on the wire unchanged in the next request (the API drops it; the bytes before it stay cached)', oldThinking.includes('Recorded thinking.'))
       }
       const transcriptFiles: string[] = []
       const walk = (dir: string) => { for (const file of readdirSync(dir, { withFileTypes: true })) { const path = join(dir, file.name); if (file.isDirectory()) walk(path); else if (file.name === `${sid}.jsonl`) transcriptFiles.push(path) } }
@@ -113,7 +113,7 @@ try {
       const forked = await run(home, cwd, fixture.url, dist, ['fork this work', '--resume', sid, '--fork'])
       const forkRequest = fixture.messageRequests()[forkAt]!
       check('a subsequent fork without a sidecar keeps the newly recorded whole', forked.code === 0 && forked.stdout.includes('FORK-ANSWER') && JSON.stringify(systemTexts(forkRequest.body)) === JSON.stringify(replay), forked.stderr.slice(-300))
-      check('the fork drops no preserved reasoning', bindingDropsFor(forkRequest.body).length === 0)
+      check(sidecar ? 'the fork drops no preserved reasoning' : 'the fork keeps sending the dead reasoning the API drops (the same count as every request before it)', bindingDropsFor(forkRequest.body).length === (sidecar ? 0 : 1))
       const compactAt = fixture.messageRequests().length
       const compacted = await runTurns({ node, dist, cwd, env: environment(home, fixture.url), args: ['--resume', sid, '--model', 'claude-opus-4-8'], turns: ['/compact', 'work after compact'], timeoutMs: 120000 })
       const after = fixture.messageRequests().slice(compactAt).find(request => JSON.stringify(request.body).includes('work after compact'))
