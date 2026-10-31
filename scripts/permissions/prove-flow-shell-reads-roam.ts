@@ -2,16 +2,18 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { ruleRoot, slashed } from '../lib/platformPath.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const original = process.cwd()
 const world = realpathSync(mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'flow-shell-reads-')))
 const project = join(world, 'project')
-const outside = join(world, 'outside')
+const outsideDir = join(world, 'outside')
+const outside = slashed(outsideDir)
 mkdirSync(project)
-mkdirSync(join(outside, 'pkg'), { recursive: true })
-writeFileSync(join(outside, 'pkg', 'package.json'), '{}\n')
-writeFileSync(join(outside, 'notes.txt'), 'hello\n')
+mkdirSync(join(outsideDir, 'pkg'), { recursive: true })
+writeFileSync(join(outsideDir, 'pkg', 'package.json'), '{}\n')
+writeFileSync(join(outsideDir, 'notes.txt'), 'hello\n')
 process.env.MERCURY_CONFIG_DIR = join(world, 'home')
 process.chdir(project)
 const { getPlatform } = await import('../../src/utils/platform.ts')
@@ -42,12 +44,12 @@ const reads = [
   `stat ${outside}/notes.txt`,
   `cat ${outside}/notes.txt | head -n 1`,
 ]
-const home = homedir()
+const home = slashed(homedir())
 const changes = [
   `rm ${home}/notes.txt`,
   `mv ${home}/notes.txt ${home}/moved.txt`,
   `echo hi > ${home}/notes.txt`,
-  `cp ${join(project, 'x')} ${home}/Documents/x`,
+  `cp ${slashed(join(project, 'x'))} ${home}/Documents/x`,
   `cat ${outside}/notes.txt | tee ${home}/copy.txt`,
   'sed -i "s/a/b/" /etc/hosts',
 ]
@@ -94,7 +96,7 @@ try {
     }
   }
   console.log('§4 a deny rule and the remote-host floor still outrank the Flow read')
-  const denied = await decide(reads[0]!, 'flow', true, false, { deny: [`Read(/${outside}/**)`] })
+  const denied = await decide(reads[0]!, 'flow', true, false, { deny: [`Read(${ruleRoot(outsideDir)}/**)`] })
   check('Flow: a deny rule on the outside folder refuses the read', denied.behavior === 'deny', JSON.stringify(denied))
   getPlatform.cache.set(undefined, 'windows')
   const remote = await decide(String.raw`type \\server.invalid\share\x.txt`, 'flow', false)

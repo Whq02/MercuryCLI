@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { findOnPath, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { findOnPath, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { inputLine, parseFrame, promptRow } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
@@ -16,6 +16,7 @@ if (!existsSync(DIST)) {
   console.log('  [SKIP] dist/mercury.mjs absent — build first (the gate prebuilds)')
   process.exit(0)
 }
+const DRIVER = resolveCaptureDriver()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -443,7 +444,7 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
   const stderr: string[] = []
   await new Promise<void>((resolve, reject) => {
-    const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {
+    const child = spawn(DRIVER.kind === 'posix-pty' ? DRIVER.python : 'python3', [VSHOT, cfgPath], {
       env: { ...process.env, ...env },
       stdio: ['ignore', 'ignore', 'pipe'],
     })
@@ -769,6 +770,7 @@ const wanted = LEG === 'all' ? ORDER : LEG.split(',').map(s => s.trim())
 for (const name of wanted) {
   if (name === 'headless-stdio') await runHeadlessStdio()
   else if (name === 'headless-plain') await runHeadlessPlain()
+  else if (PTY_LEGS[name] && DRIVER.kind !== 'posix-pty') console.log(`  [SKIP] ${name}: the terminal legs need the POSIX pty capture driver (scripts/ui/vshot.py); this host has ${DRIVER.kind === 'unavailable' ? `none (${DRIVER.reason}; ${DRIVER.remedy})` : DRIVER.kind}`)
   else if (PTY_LEGS[name]) await runPtyLeg(PTY_LEGS[name]!)
   else {
     console.log(`  [FAIL] unknown leg ${name} (legs: ${ORDER.join(', ')})`)

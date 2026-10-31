@@ -6,6 +6,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, posix } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const argv = process.argv.slice(2)
@@ -642,9 +643,9 @@ async function buildVocab(): Promise<Vocab> {
   const flagsIn = (files: string[]): Set<string> => new Set(files.flatMap(f => longFlagsOf(readText(f))))
   const fastFlags = flagsIn(['src/commands/host/index.ts', 'src/cli/godotEngineCli.ts', 'src/commands/feedback/feedback.tsx', 'src/services/acp/acpSignIn.ts'])
   const toolingFiles = walkFiles(join(ROOT, 'scripts'), p => {
-    const rel = p.slice(ROOT.length + 1)
+    const rel = slashed(p.slice(ROOT.length + 1))
     return /^scripts\/(vendor|ops|build|release|updater|distribution)\//.test(rel) && !/prove-|\/fixtures\/|\.test\./.test(rel) && /\.(ts|sh|mjs|ps1)$/.test(rel)
-  }).map(p => p.slice(ROOT.length + 1))
+  }).map(p => slashed(p.slice(ROOT.length + 1)))
   const toolingFlags = flagsIn(toolingFiles)
 
   const { builtinCommands } = await import('../../src/commands.ts')
@@ -731,7 +732,7 @@ async function buildVocab(): Promise<Vocab> {
   const chords: string[] = []
   for (const block of DEFAULT_BINDINGS as ReadonlyArray<{ bindings: Record<string, string> }>) for (const k of Object.keys(block.bindings)) chords.push(k.toLowerCase())
 
-  const srcFiles = walkFiles(join(ROOT, 'src'), p => /\.(ts|tsx|js|mjs)$/.test(p) && !/\.test\.|\.generated\.|constants\/changelog\.ts$|\/skills\/bundled\//.test(p))
+  const srcFiles = walkFiles(join(ROOT, 'src'), p => /\.(ts|tsx|js|mjs)$/.test(p) && !/\.test\.|\.generated\.|constants\/changelog\.ts$|\/skills\/bundled\//.test(slashed(p)))
   const extraFiles = [...toolingFiles, 'build.ts', 'assets/splash/splash-core.mjs', 'assets/splash/mercury-splash.mjs', 'assets/splash/launcher-action-block.sh'].filter(f => existsSync(join(ROOT, f)))
   const envCorpus = new Set<string>()
   const productParts: string[] = []

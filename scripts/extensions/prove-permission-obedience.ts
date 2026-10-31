@@ -2,6 +2,7 @@
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { slashed } from '../lib/platformPath.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-ext-perm-'))
@@ -138,7 +139,7 @@ const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'k
   const outDir = join(scratch, 'hook-out')
   mkdirSync(outDir, { recursive: true })
   const marker = join(outDir, 'ran.txt')
-  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ name: 'ran mark', run: `sh -c 'echo ran >> ${marker}'` }], ...ext }] } as never)
+  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ name: 'ran mark', run: `sh -c 'echo ran >> "${slashed(marker)}"'` }], ...ext }] } as never)
   const drain = async (mode: string): Promise<string[]> => {
     const result = await fireHooks('tool.after', { tool: 'Write', input: {}, output: {}, call_id: 'toolu_hooks', ok: true, cut: false }, { scope: { sessionId: 'obedience' }, permissionMode: mode })
     return result.outcomes.map(outcome => outcome.state.kind)

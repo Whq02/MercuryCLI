@@ -5,8 +5,9 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import ts from 'typescript'
+import { relativeSlashed } from '../lib/platformPath.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-command-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -46,7 +47,7 @@ const productFiles = (dir: string): string[] => readdirSync(dir).flatMap(entry =
 })
 const roads = new Map<string, string[]>()
 for (const path of productFiles(join(REPO, 'src'))) {
-  const rel = relative(REPO, path)
+  const rel = relativeSlashed(REPO, path)
   if (NOT_A_COMMAND[rel] !== undefined) continue
   const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const visit = (node: ts.Node): void => {

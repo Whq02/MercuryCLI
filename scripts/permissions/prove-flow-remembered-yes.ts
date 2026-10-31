@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'nod
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { ruleRoot } from '../lib/platformPath.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const original = process.cwd()
@@ -88,7 +89,7 @@ try {
     if (road === 'host') decisionOfAnswer({ outcome: 'allow' }, fileTool, input, h.context)
     else await createPermissionContext(fileTool, input, h.context, assistant, 'path', h.set).handleUserAllow(input, [])
     check(`${road}: a plain yes on the file saves nothing`, before === JSON.stringify(diskRules()) && h.rules().length === 0)
-    const grant = [{ type: 'addRules', destination: 'localSettings', behavior: 'allow', rules: [{ toolName: 'Edit', ruleContent: `//${input.file_path.replace(/^\//, '')}` }] }]
+    const grant = [{ type: 'addRules', destination: 'localSettings', behavior: 'allow', rules: [{ toolName: 'Edit', ruleContent: ruleRoot(input.file_path) }] }]
     if (road === 'host') decisionOfAnswer({ outcome: 'allow', rules: grant } as never, fileTool, input, h.context)
     else await createPermissionContext(fileTool, input, h.context, assistant, 'path', h.set).handleUserAllow(input, grant as never)
     const fresh = harness('flow', diskRules())

@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
+import { removeScratch } from '../lib/removeScratch.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -109,5 +110,5 @@ export async function openToolDoor(root: string, name = 'LspRead') {
 }
 
 export function cleanup(scratch: string): void {
-  rmSync(scratch, { recursive: true, force: true })
+  removeScratch(scratch)
 }

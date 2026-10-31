@@ -1,12 +1,15 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { execFileSync, type ChildProcess } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { type ChildProcess } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { endProcessGroup, spawnInOwnGroup } from '../lib/processGroup.ts'
+import { shellTreeRows } from '../lib/toolShellTree.ts'
+
+const WIN = process.platform === 'win32'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -194,15 +197,13 @@ async function untilTrue(cond: () => boolean, ms: number): Promise<boolean> {
 }
 
 function childPids(serverPid: number): number[] {
-  try {
-    return execFileSync('pgrep', ['-P', String(serverPid)], { encoding: 'utf8' })
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map(Number)
-  } catch {
-    return []
-  }
+  return shellTreeRows(serverPid).filter(row => row.ppid === serverPid).map(row => row.pid)
+}
+
+async function endServer(server: ChildProcess): Promise<void> {
+  if (!WIN) server.kill('SIGTERM')
+  const exited = await untilTrue(() => server.exitCode !== null || server.signalCode !== null, 10_000)
+  if (!exited) server.kill()
 }
 
 const server1 = spawnServer()
@@ -553,9 +554,15 @@ section('(5f) source-state honesty crosses ACP: ready ≠ unavailable ≠ empty 
     JSON.stringify(ready.source ?? null),
   )
 
-  chmodSync(reviewDir, 0o000)
+  if (WIN) {
+    renameSync(reviewDir, `${reviewDir}.held`)
+    writeFileSync(reviewDir, '')
+  } else chmodSync(reviewDir, 0o000)
   const dark = (await h1.agentCtx.request('_mercury/artifacts', {})) as ArtifactsRes
-  chmodSync(reviewDir, 0o755)
+  if (WIN) {
+    unlinkSync(reviewDir)
+    renameSync(`${reviewDir}.held`, reviewDir)
+  } else chmodSync(reviewDir, 0o755)
   check(
     'an UNREADABLE store crosses as UNAVAILABLE with a reason — never as empty',
     dark.source?.state === 'unavailable' && typeof dark.source?.reason === 'string',
@@ -708,8 +715,7 @@ section('(8) reconnect — session/load replays the transcript, never the model'
 {
   const requestsAtShutdown = api.messageRequests().length
   h1.close()
-  server1.kill('SIGTERM')
-  await untilTrue(() => server1.exitCode !== null || server1.signalCode !== null, 10_000)
+  await endServer(server1)
   await untilTrue(() => api.messageRequests().slice(requestsAtShutdown).some(isHandoffRequest), 10_000)
 
   const shutdownRequests = api.messageRequests().slice(requestsAtShutdown)
@@ -757,7 +763,7 @@ section('(8) reconnect — session/load replays the transcript, never the model'
   section('(9) no orphans after the server exits')
   const server2Pid = server2.pid!
   h2.close()
-  server2.kill('SIGTERM')
+  await endServer(server2)
   await untilTrue(() => childPids(server2Pid).length === 0 && (server2.exitCode !== null || server2.signalCode !== null), 10_000)
   check('no children survive the server', childPids(server2Pid).length === 0)
   check('the server process itself exited', (() => {

@@ -93,7 +93,7 @@ await new Promise<void>((resolve, reject) => {
     if (readOnly.view().events.at(-1)?.text !== 'A different process appended this.') return
     clearTimeout(deadline); unsubscribe(); resolve()
   })
-  const child = spawn(process.execPath, ['-e', `import { open } from ${JSON.stringify(new URL('../../src/services/crewBoard/store.ts', import.meta.url).pathname)}; const b = open(${JSON.stringify(join(home, 'addressing.sqlite'))}, 'addressing'); const r = b.post(${JSON.stringify(alpha)}, { clientOpId: 'cross-process', kind: 'result', text: 'A different process appended this.' }); b.close(); if (!r.ok) process.exit(1);`], { stdio: 'ignore', env: process.env })
+  const child = spawn(process.execPath, ['-e', `import { open } from ${JSON.stringify(new URL('../../src/services/crewBoard/store.ts', import.meta.url).href)}; const b = open(${JSON.stringify(join(home, 'addressing.sqlite'))}, 'addressing'); const r = b.post(${JSON.stringify(alpha)}, { clientOpId: 'cross-process', kind: 'result', text: 'A different process appended this.' }); b.close(); if (!r.ok) process.exit(1);`], { stdio: 'ignore', env: process.env })
   child.on('error', reject)
   child.on('exit', code => { if (code !== 0) { clearTimeout(deadline); unsubscribe(); reject(new Error(`writer exited ${code}`)) } })
 })

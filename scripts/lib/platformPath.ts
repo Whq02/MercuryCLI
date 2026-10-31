@@ -15,6 +15,13 @@ export function relativeSlashed(root: string, file: string, platform: string = p
   return path.relative(root, file).split(path.sep).join('/')
 }
 
+export function ruleRoot(absolute: string): string {
+  const forward = absolute.replaceAll('\\', '/')
+  const drive = /^([A-Za-z]):\/(.*)$/.exec(forward)
+  if (drive) return `//${drive[1]!.toUpperCase()}/${drive[2]!.replace(/\/+$/, '')}`
+  return forward.startsWith('/') ? `/${forward}` : forward
+}
+
 export function isInside(child: string, parent: string, platform: string = process.platform): boolean {
   const path = pathModuleFor(platform)
   const rel = path.relative(parent, child)

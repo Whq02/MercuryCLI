@@ -20,6 +20,7 @@
 # gate-watch: src/rows/* src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs src/tools/AskUserQuestionTool/** src/tools/BashTool/prompt.ts
 # gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
 # gate-watch: scripts/lib/processGroup.ts
+# gate-watch: scripts/lib/toolShellTree.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

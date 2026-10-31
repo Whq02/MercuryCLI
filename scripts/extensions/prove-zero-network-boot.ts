@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -31,6 +31,13 @@ mkdirSync(home, { recursive: true })
 mkdirSync(cwd, { recursive: true })
 mkdirSync(shimDir, { recursive: true })
 for (const exe of ['git', 'ssh']) {
+  if (process.platform === 'win32') {
+    const script = join(scratch, `${exe}-shim.mjs`)
+    writeFileSync(script, `import { appendFileSync } from 'node:fs'\nappendFileSync(process.env.SHIM_LOG, '${exe} ' + process.argv.slice(2).join(' ') + '\\n')\nprocess.exit(128)\n`)
+    const built = spawnSync(process.execPath, ['build', '--compile', script, '--outfile', join(shimDir, `${exe}.exe`)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    if (built.status !== 0) throw new Error(`the ${exe} shim did not compile: ${(built.stderr || built.stdout).trim()}`)
+    continue
+  }
   const path = join(shimDir, exe)
   writeFileSync(path, `#!/bin/sh\necho "${exe} $*" >> "$SHIM_LOG"\nexit 128\n`)
   chmodSync(path, 0o755)
@@ -42,7 +49,7 @@ delete process.env.CI
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.SHIM_LOG = shimLog
-process.env.PATH = `${shimDir}:${process.env.PATH ?? ''}`
+process.env.PATH = `${shimDir}${delimiter}${process.env.PATH ?? ''}`
 process.chdir(cwd)
 
 const netHits: string[] = []
@@ -119,8 +126,8 @@ globalThis.fetch = (input) => { const t = typeof input === 'string' ? input : St
 `,
   )
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    PATH: `${shimDir}:${process.env.PATH ?? ''}`,
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')),
+    PATH: process.env.PATH ?? '',
     SHIM_LOG: shimLog,
     PROOF_NETLOG: netlog,
     NODE_OPTIONS: `--require ${preload}`,

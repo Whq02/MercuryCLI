@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { appendFileSync, mkdirSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { homedir, tmpdir } from 'node:os'
+import { join, normalize, resolve } from 'node:path'
 import { ROADS, allowedByFlow, asksWith, check, finish, j, openKit, refusedWith, section, sentence } from './flowLawKit.ts'
 
 const kit = await openKit('flow-law-outside')
@@ -15,9 +15,10 @@ const HOME = homedir()
 const ledger = join(getProjectTempDir(), String(getSessionId()), 'created-paths.txt')
 mkdirSync(join(getProjectTempDir(), String(getSessionId())), { recursive: true })
 appendFileSync(ledger, '/usr/local/lib/mercury-made-this-run\n')
-const OUTSIDE_FILE = `Flow asks before writing ~/.zshrc: it is outside the project.`
-const tilde = (path: string): string => (path.startsWith(`${HOME}/`) ? `~${path.slice(HOME.length)}` : path)
+const tilde = (path: string): string => (path.startsWith(`${HOME}/`) || path.startsWith(`${HOME}\\`) ? `~${path.slice(HOME.length)}` : path)
+const OUTSIDE_FILE = `Flow asks before writing ${tilde(normalize(`${HOME}/.zshrc`))}: it is outside the project.`
 const outside = (shown: string, verb: string, path: string): string => `Flow asks before ${shown}: ${verb} ${tilde(path)}, outside the project.`
+const tempRoot = process.platform === 'win32' ? tmpdir() : '/tmp'
 
 try {
   section('§1 item 4 asks: a delete or an overwrite outside the project and this run\'s scratch, on every road')
@@ -37,10 +38,10 @@ try {
     ['find ~/Library/Caches -name "*.tmp" -delete', outside('find ~/Library/Caches -name *.tmp -delete', 'it deletes under', `${HOME}/Library/Caches`)],
     ['curl -o /usr/local/bin/tool https://example.invalid/tool', outside('curl -o /usr/local/bin/tool https://example.invalid/tool', 'it writes', '/usr/local/bin/tool')],
     ['dd if=/dev/zero of=/dev/disk2 bs=1m', outside('dd if=/dev/zero of=/dev/disk2 bs=1m', 'it overwrites', '/dev/disk2')],
-    ['cd /usr/local/lib && rm -rf node_modules', outside('rm -rf node_modules', 'it deletes', '/usr/local/lib/node_modules')],
-    ['cd ~ && echo x > notes.txt', outside('echo x > notes.txt', 'it writes', `${HOME}/notes.txt`)],
-    ['rm -rf ../sibling', outside('rm -rf ../sibling', 'it deletes', '/usr/local/sibling'), '/usr/local/lib'],
-    ['rm -rf dist', outside('rm -rf dist', 'it deletes', '/usr/local/lib/dist'), '/usr/local/lib'],
+    ['cd /usr/local/lib && rm -rf node_modules', outside('rm -rf node_modules', 'it deletes', resolve('/usr/local/lib', 'node_modules'))],
+    ['cd ~ && echo x > notes.txt', outside('echo x > notes.txt', 'it writes', resolve(HOME, 'notes.txt'))],
+    ['rm -rf ../sibling', outside('rm -rf ../sibling', 'it deletes', resolve('/usr/local/lib', '../sibling')), '/usr/local/lib'],
+    ['rm -rf dist', outside('rm -rf dist', 'it deletes', resolve('/usr/local/lib', 'dist')), '/usr/local/lib'],
     ['rm -rf /etc/$name', outside('rm -rf /etc/$name', 'it deletes', '/etc/')],
     ['bash -c "rm -rf ~/other"', outside('rm -rf ~/other', 'it deletes', `${HOME}/other`)],
     ['ls && { rm -rf ~/other; }', outside('rm -rf ~/other', 'it deletes', `${HOME}/other`)],
@@ -81,9 +82,9 @@ try {
     const zshrc = await kit.decideTool(FileWriteTool, { file_path: `${HOME}/.zshrc`, content: 'export X=1\n' }, { road })
     check(`${road}: Write ~/.zshrc → ${road === 'prompt-less' ? 'refused with' : 'asks'} "${OUTSIDE_FILE}"`, road === 'prompt-less' ? refusedWith(zshrc, OUTSIDE_FILE) : asksWith(zshrc, OUTSIDE_FILE) && zshrc.wrapper.decidedBy === 'flowLaw', j(zshrc.decision))
     const other = await kit.decideTool(FileEditTool, { file_path: `${HOME}/Developer/other-project/src/index.ts`, old_string: 'a', new_string: 'b' }, { road })
-    check(`${road}: Edit in another project asks as item 4`, road === 'prompt-less' ? other.decision.behavior === 'deny' : asksWith(other, `Flow asks before writing ~/Developer/other-project/src/index.ts: it is outside the project.`), j(other.decision))
+    check(`${road}: Edit in another project asks as item 4`, road === 'prompt-less' ? other.decision.behavior === 'deny' : asksWith(other, `Flow asks before writing ${tilde(normalize(`${HOME}/Developer/other-project/src/index.ts`))}: it is outside the project.`), j(other.decision))
     const etc = await kit.decideTool(FileWriteTool, { file_path: '/etc/hosts', content: '' }, { road })
-    check(`${road}: Write /etc/hosts asks as item 4`, road === 'prompt-less' ? etc.decision.behavior === 'deny' : asksWith(etc, 'Flow asks before writing /etc/hosts: it is outside the project.'), j(etc.decision))
+    check(`${road}: Write /etc/hosts asks as item 4`, road === 'prompt-less' ? etc.decision.behavior === 'deny' : asksWith(etc, `Flow asks before writing ${normalize('/etc/hosts')}: it is outside the project.`), j(etc.decision))
     for (const [tool, input, label] of [
       [FileWriteTool, { file_path: join(kit.project, 'src', 'new.ts'), content: 'export {}\n' }, 'Write inside the project'],
       [FileEditTool, { file_path: join(kit.project, 'src', 'x.ts'), old_string: 'a', new_string: 'b' }, 'Edit inside the project'],
@@ -116,7 +117,7 @@ try {
   check('sovereign runs the outside delete', sovereign.decision.behavior === 'allow', j(sovereign.decision))
   const byDefault = await kit.decide('rm -rf ~/other', { mode: 'default' })
   check('default asks in its own words', byDefault.decision.behavior === 'ask' && !sentence(byDefault).startsWith('Flow asks'), j(byDefault.decision))
-  check('own ground: the project, a temp child, the scratchpad and a ledger path are free; the temp root itself, home and a dotfile are not', kit.isOwnGround(kit.project) && kit.isOwnGround('/tmp/x') && kit.isOwnGround(scratch) && kit.isOwnGround('/usr/local/lib/mercury-made-this-run/x') && !kit.isOwnGround('/tmp') && !kit.isOwnGround(HOME) && !kit.isOwnGround(`${HOME}/.zshrc`) && !kit.isOwnGround('/usr/local/lib/other'))
+  check('own ground: the project, a temp child, the scratchpad and a ledger path are free; the temp root itself, home and a dotfile are not', kit.isOwnGround(kit.project) && kit.isOwnGround(join(tempRoot, 'x')) && kit.isOwnGround(scratch) && kit.isOwnGround('/usr/local/lib/mercury-made-this-run/x') && !kit.isOwnGround(tempRoot) && !kit.isOwnGround(HOME) && !kit.isOwnGround(`${HOME}/.zshrc`) && !kit.isOwnGround('/usr/local/lib/other'), [kit.isOwnGround(kit.project), kit.isOwnGround(join(tempRoot, 'x')), kit.isOwnGround(scratch), kit.isOwnGround('/usr/local/lib/mercury-made-this-run/x'), !kit.isOwnGround(tempRoot), !kit.isOwnGround(HOME), !kit.isOwnGround(`${HOME}/.zshrc`), !kit.isOwnGround('/usr/local/lib/other')].join(','))
 } finally {
   kit.close()
 }
