@@ -99,7 +99,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('flow seat, no push rule: the posture carries a line naming the calls that need a present operator', bareLine !== '', `posture:\n${bare}`)
   check('…the line names the channel (the call travels it and waits for the answer)', /channel/.test(bareLine), bareLine)
   check('…the line names a question to the operator and a review approval as calls that always travel', /question to the operator/.test(bareLine) && /review approval/.test(bareLine), bareLine)
-  check('…the line names the flow road: the calls no rule covers and no shortcut settles, anything visible outside this machine', /flow/.test(bareLine) && /no shortcut settles/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
+  check('…the line names the flow road: only the five, and everything else runs', /under flow only the five/.test(bareLine) && /everything else runs without a question/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)
   check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push \*\)/.test(bareLine) && /guardrails\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
@@ -201,12 +201,12 @@ const travels = (c: Cell): boolean => c.behavior === 'ask'
 const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wrapper === 'engine'
 {
   const unruled = await decide(contextOf('flow'), PUSH)
-  check('no rule: the Flow push floor keeps the operator ask; no model is asked; the call TRAVELS the channel', travels(unruled) && unruled.wrapper === 'autoFloors' && unruled.engine === 'resolution', j(unruled))
+  check('no rule: a push is item 2 of the five; no model is asked; the call TRAVELS the channel in the five\'s words', travels(unruled) && unruled.wrapper === 'flowLaw' && unruled.engine === 'resolution' && /Flow asks before git push: it publishes history\./.test(unruled.reason), j(unruled))
   check('…and is never auto-allowed by default', unruled.behavior !== 'allow', j(unruled))
   const tailed = await decide(contextOf('flow'), PUSH_TAILED)
-  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.wrapper === 'autoFloors', j(tailed))
+  check('no rule, the session\'s own shape (`git push -q 2>&1 | tail -1; git status -sb | head -1`): the same road, the channel', travels(tailed) && tailed.wrapper === 'flowLaw', j(tailed))
   const chained = await decide(contextOf('flow'), PROTOCOL_CHAIN)
-  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.wrapper === 'autoFloors', j(chained))
+  check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel, for the push alone', travels(chained) && chained.wrapper === 'flowLaw', j(chained))
 
   const ruled = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH)
   check('`Bash(git push *)` in the user settings: the push is allowed in the ENGINE by that rule — nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push \*\)/.test(ruled.reason), j(ruled))
@@ -217,19 +217,19 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   const ruledTailed = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH_TAILED)
   check('the rule covers the session\'s own shape (the redirect is stripped for the prefix match; tail, head and git status ride the read-only lane)', runsWithoutChannel(ruledTailed), j(ruledTailed))
   const chainOnePush = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PROTOCOL_CHAIN)
-  check('the push rule alone does not carry the protocol chain: the unruled commit and pull are still the operator\'s', travels(chainOnePush) && chainOnePush.wrapper === 'autoFloors', j(chainOnePush))
+  check('the push rule carries the protocol chain under Flow: the commit and pull are none of the five, the push is pre-authorised', chainOnePush.behavior === 'allow', j(chainOnePush))
   const chainRuled = await decide(contextOf('flow', { allow: CHAIN_RULES }), PROTOCOL_CHAIN)
   check('with commit, pull and push each pre-authorised the whole chain runs without the channel', runsWithoutChannel(chainRuled), j(chainRuled))
 
   const denied = await decide(contextOf('flow', { deny: [PUSH_RULE] }), PUSH)
   check('a deny rule refuses the push in the engine — never the channel', denied.behavior === 'deny' && denied.wrapper === 'engine', j(denied))
   const asked = await decide(contextOf('flow', { ask: [PUSH_RULE] }), PUSH)
-  check('an ask rule pins the push to the operator (the ask-rule floor) — the channel', travels(asked) && asked.wrapper === 'autoFloors', j(asked))
+  check('an ask rule pins the push to the operator (a kept floor) — the channel, in the rule\'s words', travels(asked) && asked.wrapper === 'flowFloors' && /rule:Bash\(git push \*\)/.test(asked.reason), j(asked))
 
   const plainDefault = await decide(contextOf('default'), PUSH, 'default')
   check('a default-mode seat, no rule: the engine\'s own ask travels the channel', travels(plainDefault) && plainDefault.wrapper === 'engine', j(plainDefault))
   const flowLeftover = await decide(contextOf('flow'), PUSH)
-  check('a flow seat keeps the same unruled push ask as default, with its static floor named in the trace', flowLeftover.behavior === plainDefault.behavior && flowLeftover.wrapper === 'autoFloors' && plainDefault.wrapper === 'engine' && flowLeftover.engine === plainDefault.engine && flowLeftover.reason === plainDefault.reason, j({ flow: flowLeftover, byDefault: plainDefault }))
+  check('a flow seat asks for the same unruled push as default, by item 2 of the five rather than the engine\'s words', flowLeftover.behavior === plainDefault.behavior && flowLeftover.wrapper === 'flowLaw' && plainDefault.wrapper === 'engine' && flowLeftover.engine === plainDefault.engine && flowLeftover.reason !== plainDefault.reason && flowLeftover.note === 'item 2', j({ flow: flowLeftover, byDefault: plainDefault }))
   const ruledDefault = await decide(contextOf('default', { allow: [PUSH_RULE] }), PUSH, 'default')
   check('a default-mode seat with the rule: allowed in the engine', runsWithoutChannel(ruledDefault), j(ruledDefault))
 
@@ -263,7 +263,7 @@ section('§4 the words on disk — the docs say how an operator pre-authorises a
   const sectionText = nonInteractive.slice(0, nonInteractive.indexOf('\n## ', 1) > 0 ? nonInteractive.indexOf('\n## ', 1) : undefined)
   check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
   check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
-  check('…says no push is ever allowed by default', /no push is ever allowed by default/i.test(sectionText), sectionText.slice(0, 400))
+  check('…says a push is one of the five Flow asks about and names the sentence it travels with', /one of the five Flow asks about/.test(sectionText) && /it publishes history\./.test(sectionText), sectionText.slice(0, 400))
   const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'run.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')
 }

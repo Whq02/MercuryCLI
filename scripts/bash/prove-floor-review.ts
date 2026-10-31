@@ -149,7 +149,6 @@ if (!group || group === 'declarations') {
 if (!group || group === 'words-and-modes') {
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
   const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
-  const { flowPushOrInstall, flowUserAllowUpdates } = await import('../../src/utils/permissions/flowPolicy.js')
   for (const command of ['$(cat f)', 'echo $(cat f)', 'cat <(cat f)']) {
     const result = await decide(command)
     const words = await scoutRefusal(BashTool as never, { command })
@@ -167,11 +166,8 @@ if (!group || group === 'words-and-modes') {
   check('sovereign answers an ordinary safety ask', sovereign.behavior === 'allow', sovereign)
   const flow = await decide('cat f', { mode: 'flow' })
   check('Flow keeps ordinary reads autonomous', flow.behavior === 'allow', flow)
-  await BashTool.prepare?.({ command: 'cat f' } as never)
-  check('Flow sees the prepared read as neither push nor install', !flowPushOrInstall(BashTool as never, { command: 'cat f' }))
-  await BashTool.prepare?.({ command: 'exec cat f' } as never)
-  const flowContext = { getAppState: () => ({ toolPermissionContext: { mode: 'flow' } }) }
-  check('Flow never persists an opaque shell command as an exact allow', flowUserAllowUpdates(BashTool as never, { command: 'exec cat f' }, flowContext as never, []).length === 0)
+  const opaque = await decide('exec cat f', { mode: 'flow' })
+  check('Flow runs the opaque wrapper too: none of the five name it', opaque.behavior === 'allow', opaque)
 }
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })

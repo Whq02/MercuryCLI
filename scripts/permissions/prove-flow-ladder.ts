@@ -18,36 +18,20 @@ console.log('============================================================')
 console.log(' Permission ladder / flow — surface proof')
 console.log('============================================================')
 
-section('the THREE flow safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
+section('the Flow band (decision/wrapper.ts → flowPolicy.ts): the floors it keeps, the five, then allow')
 {
-  const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
-  const has = (needle: string) => perms.includes(needle)
-  check('floor: ask-rule reason → reasonCarriesAskRule', has('function reasonCarriesAskRule') && has('reasonCarriesAskRule(engineDecision.decisionReason)'))
-  check("floor: org/MCP ask-ceiling (effectiveMaxPermission === 'ask')", has("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
-  check('floor: Workflow usage-consent → workflowRequiresConsent', has('function workflowRequiresConsent') && has('workflowRequiresConsent(tool.name)'))
-  check(
-    'the three floors converge on ONE guard before the shortcuts',
-    has("floorTags.push('ask-rule')") &&
-      has("floorTags.push('org-ceiling')") &&
-      has("floorTags.push('workflow-consent')") &&
-      has('if (floorTags.length > 0)'),
-  )
+  const wrapper = src('utils', 'permissions', 'decision', 'wrapper.ts')
+  const policy = src('utils', 'permissions', 'flowPolicy.ts')
+  const law = src('utils', 'permissions', 'flowLaw.ts')
+  check('the wrapper hands every Flow ask to decideUnderFlow and settles it in one of three stages', wrapper.includes('decideUnderFlow(tool, input, engineDecision, appState.toolPermissionContext)') && wrapper.includes("decide('flowAllow', verdict.decision)") && wrapper.includes("verdict.stage === 'flowLaw'") && wrapper.includes("verdict.stage === 'flowFloors'"))
+  check('the kept floors: an ask rule, an operator-only safety check, a hook, a tool that asks the human, the MCP ask ceiling', policy.includes("return 'ask-rule'") && policy.includes("reason?.type === 'safetyCheck' && reason.operatorOnly") && policy.includes("reason?.type === 'hook'") && policy.includes('tool.requiresUserInteraction?.()') && policy.includes("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
+  check('the five are read from one table (FLOW_LAW) and the ask sentence has one shape', law.includes('export const FLOW_LAW = {') && law.includes('return `Flow asks before ${ask.subject}: ${ask.why}.`'))
+  check('nothing else asks: the shortcuts, the PowerShell guard, the install floor and the read-only tool set are gone from the wrapper', !wrapper.includes('implementFastPath') && !wrapper.includes('allowlistFastPath') && !wrapper.includes('powershellGuard') && !wrapper.includes('flowPushOrInstall') && !wrapper.includes('readOnlyAllowlist') && !wrapper.includes('flowRequiresFreshApproval'))
+  check('a plain yes in Flow saves nothing on its own (the auto-remembered rule is gone)', !policy.includes('flowUserAllowUpdates') && !src('hooks', 'toolPermission', 'PermissionContext.ts').includes('flowUserAllowUpdates') && !src('cli', 'headless', 'runnerAsks.ts').includes('flowUserAllowUpdates'))
   const engine = src('utils', 'permissions', 'decision', 'engine.ts')
-  check(
-    'kill-switch is step 0 of the ladder (per-call agentType)',
-    engine.includes('ports.isToolKilled(tool, context.agentType)'),
-  )
-}
-
-section('isReadOnlyAllowlistedTool name gating (readOnlyAllowlist.ts)')
-{
-  const cd = src('utils', 'permissions', 'readOnlyAllowlist.ts')
-  const has = (needle: string) => cd.includes(needle)
-  check('exists + gates read-only tool names on the allowlist SET', has('export function isReadOnlyAllowlistedTool') && has('READ_ONLY_ALLOWLISTED_TOOLS.has(toolName)'))
-  const safeSetStart = cd.indexOf('const READ_ONLY_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([')
-  const safeSet = safeSetStart === -1 ? '' : cd.slice(safeSetStart, cd.indexOf('])', safeSetStart))
-  check('the safe set carries the read-only tools (positive control)', safeSet.includes('FILE_READ_TOOL_NAME,') && safeSet.includes('GREP_TOOL_NAME,') && safeSet.includes('GLOB_TOOL_NAME,'))
-  check('write/edit tools are NOT on the safe set (absence, file-wide)', safeSet.length > 0 && !has('FILE_WRITE_TOOL_NAME,') && !has('FILE_EDIT_TOOL_NAME,'))
+  check('kill-switch is step 0 of the ladder (per-call agentType)', engine.includes('ports.isToolKilled(tool, context.agentType)'))
+  const trace = src('utils', 'permissions', 'decision', 'trace.ts')
+  check('the trace names the three Flow stages in order, between the dontAsk conversion and the headless band', /'dontAskConversion',\n  'flowFloors',\n  'flowLaw',\n  'flowAllow',\n  'headlessHooks',\n  'headlessAutoDeny',/.test(trace))
 }
 
 section('Flow availability is the settings lock alone')
@@ -82,7 +66,15 @@ section('a session that BOOTS into flow sets its dangerous allow rules aside, as
   check('no in-process flow state is armed anywhere (the mode on the context is the whole state)', !ps.includes('setAutoModeActive') && !mn.includes('setAutoModeActive'))
 }
 
-section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
+section('the words the model is briefed with name the five')
+{
+  const posture = src('utils', 'cockpit', 'runtimePosture.ts')
+  check('the posture line under flow names the five and tells the model everything else runs', posture.includes('and under flow only the five:') && posture.includes('everything else runs without a question, so run it'))
+  const gloss = src('utils', 'settings', 'validationTips.ts')
+  check('the mode gloss says what asks and that everything else runs', /flow: 'everything runs except sudo, git push and history rewrites, publishing and deploying, and writes outside the project, which ask'/.test(gloss))
+}
+
+section('dist ships the flow decision branches (the five, the floors, kill deny)')
 {
   const dist = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
@@ -90,13 +82,12 @@ section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
   } else {
     const present = (needle: string): boolean =>
       execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
-    check('safety-floor headless-deny message ships', present('This action needs interactive approval, and this session cannot present a prompt'))
-    check('org/MCP ask-ceiling reason ships', present('Your organization requires approval for this tool'))
-    check('implement fast-path log ships', present('implement mode would allow this outright'))
-    check('read-only set fast-path log ships', present('the read-only tool set'))
+    check('the ask sentence shape ships', present('Flow asks before '))
+    check('the five\'s reasons ship', present('it runs with elevated rights') && present('it publishes history') && present('it publishes a package') && present(', outside the project'))
+    check('the Flow allow log ships', present('none of the five'))
     check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
     check('capability kill-switch deny message ships', present('capability switched off by operator'))
-    check('PowerShell flow interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
+    check('the old shortcuts do not ship', !present('implement mode would allow this outright') && !present('PowerShell runs only with interactive approval'))
   }
 }
 

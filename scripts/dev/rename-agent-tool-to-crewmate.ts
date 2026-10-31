@@ -87,7 +87,6 @@ const COMMENT_SKIP_RE = /(?<![\w$.\-/])Agent(?:\s+tool|-tool| call| launch| laun
 const GENERATORS: Generator[] = [
   { command: ['scripts/builtin-tools/census-gen.ts'], touches: ['scripts/builtin-tools/fixtures/tool-census.json', 'scripts/builtin-tools/fixtures/tool-census.md'], why: 'the tool census lists every tool by name' },
   { command: ['scripts/project-services/inventory.ts'], touches: ['scripts/project-services/fixtures/inventory.json'], why: 'the inventory lists the tool names sorted' },
-  { command: ['scripts/permissions/prove-flow-shortcuts-unchanged.ts', '--record'], touches: ['scripts/permissions/fixtures/flow-shortcuts.json'], why: 'the flow-shortcut record is keyed by tool name' },
   { command: ['scripts/splash/bake-menu.mjs'], touches: ['assets/splash/splash-core.mjs'], why: "the splash bakes the boot menu's summaries, which name the tool" },
 ]
 

@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
 
@@ -42,16 +42,25 @@ const reads = [
   `stat ${outside}/notes.txt`,
   `cat ${outside}/notes.txt | head -n 1`,
 ]
+const home = homedir()
 const changes = [
+  `rm ${home}/notes.txt`,
+  `mv ${home}/notes.txt ${home}/moved.txt`,
+  `echo hi > ${home}/notes.txt`,
+  `cp ${join(project, 'x')} ${home}/Documents/x`,
+  `cat ${outside}/notes.txt | tee ${home}/copy.txt`,
+  'sed -i "s/a/b/" /etc/hosts',
+]
+const free = [
   `rm ${outside}/notes.txt`,
-  `mv ${outside}/notes.txt ${outside}/moved.txt`,
   `echo hi > ${outside}/notes.txt`,
-  `cp ${join(project, 'x')} ${outside}/x`,
-  `cat ${outside}/notes.txt | tee ${outside}/copy.txt`,
-  `touch ${outside}/new.txt`,
+  `touch ${home}/new.txt`,
+  `mkdir -p ${home}/new-folder`,
   `cat < $(echo ${outside}/notes.txt)`,
   `cd ${outside} && ls`,
+  `cd ${home} && ls`,
   `cat < ${outside}/notes.txt`,
+  `cat < ${home}/.zshrc`,
 ]
 try {
   console.log('§1 Flow: a read-only shell command reading outside the project goes ahead, hostless headless, hosted and in the cockpit')
@@ -61,11 +70,20 @@ try {
       check(`Flow ${road} runs: ${command}`, decision.behavior === 'allow', JSON.stringify(decision))
     }
   }
-  console.log('§2 Flow: a command that changes anything outside the project still asks')
+  console.log('§2 Flow: a delete or an overwrite outside the project and the temp roots asks, in one sentence naming the path')
   for (const command of changes) {
     for (const [road, headless, host] of [['hostless headless', true, false], ['hosted', true, true], ['cockpit', false, false]] as const) {
       const decision = await decide(command, 'flow', headless, host)
-      check(`Flow ${road} does not run on its own: ${command}`, decision.behavior !== 'allow', JSON.stringify(decision))
+      const words = 'message' in decision ? decision.message : ''
+      const named = /^Flow asks before .*, outside the project\./.test(words)
+      check(`Flow ${road} ${headless ? 'refuses with the sentence (no prompt here)' : 'asks'} before: ${command}`, named && decision.behavior === (headless ? 'deny' : 'ask'), JSON.stringify(decision))
+    }
+  }
+  console.log('§2b Flow: a write under the temp roots, a creation anywhere, a read anywhere and a cd anywhere run')
+  for (const command of free) {
+    for (const [road, headless, host] of [['hostless headless', true, false], ['hosted', true, true], ['cockpit', false, false]] as const) {
+      const decision = await decide(command, 'flow', headless, host)
+      check(`Flow ${road} runs: ${command}`, decision.behavior === 'allow', JSON.stringify(decision))
     }
   }
   console.log('§3 Default and Implement keep asking for both, as today')

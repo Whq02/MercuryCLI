@@ -250,10 +250,10 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
   check('sovereign × requiresUserInteraction → ask, unchanged (a question is the tool\'s purpose)', r.behavior === 'ask', j(r))
 }
 
-section('flow — pre-classifier floors and fast paths')
+section('flow — the kept floors stand; everything else runs')
 {
   let r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'flow' }))
-  check('flow: content ask-rule floors to a human ask', r.behavior === 'ask', j(r))
+  check('flow: a content ask-rule is a kept floor (the operator\'s own word)', r.behavior === 'ask' && r.decisionReason?.type === 'rule', j(r))
 
   r = await decide(
     makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }),
@@ -262,20 +262,25 @@ section('flow — pre-classifier floors and fast paths')
   check('flow+headless: the floor becomes a structured deny (asyncAgent)', r.behavior === 'deny' && r.decisionReason?.type === 'asyncAgent', j(r))
 
   r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'flow' }))
-  check('flow: non-approvable safetyCheck stays a human ask', r.behavior === 'ask', j(r))
+  check('flow: an operator-only safety check stays a human ask', r.behavior === 'ask' && r.decisionReason?.type === 'safetyCheck', j(r))
 
   r = await decide(makeTool({ name: 'PowerShell', verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({ mode: 'flow' }))
-  check('flow: PowerShell asks the human (never the classifier)', r.behavior === 'ask', j(r))
+  check('flow: PowerShell runs like every other tool when none of the five name it', r.behavior === 'allow' && r.decisionReason?.type === 'mode' && (r.decisionReason as { mode?: string }).mode === 'flow', j(r))
 
   r = await decide(makeTool({ verdict: { behavior: 'allow-under-acceptEdits' } }), makeContext({ mode: 'flow' }))
-  check(
-    'flow: implement fast-path allows without a classifier (mode flow reason)',
-    r.behavior === 'allow' && r.decisionReason?.type === 'mode' && (r.decisionReason as { mode?: string }).mode === 'flow',
-    j(r),
-  )
+  check('flow: a call implement would have allowed runs too (mode flow reason)', r.behavior === 'allow' && r.decisionReason?.type === 'mode' && (r.decisionReason as { mode?: string }).mode === 'flow', j(r))
+
+  r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({ mode: 'flow' }))
+  check('flow: a plain ask runs', r.behavior === 'allow' && r.decisionReason?.type === 'mode', j(r))
 
   r = await decide(makeTool(), makeContext({ mode: 'flow', ask: ['FakeTool'] }))
-  check('flow: tool-level ask rule floors to a human ask', r.behavior === 'ask', j(r))
+  check('flow: a tool-level ask rule is a kept floor', r.behavior === 'ask', j(r))
+
+  r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'plain' }, requiresUserInteraction: true }), makeContext({ mode: 'flow' }))
+  check('flow: a tool that asks the human keeps its ask', r.behavior === 'ask', j(r))
+
+  r = await decide(makeTool({ orgAskCeiling: true }), makeContext({ mode: 'flow' }))
+  check('flow: the MCP ask ceiling is a kept floor', r.behavior === 'ask', j(r))
 }
 
 section('checkRuleBasedPermissions — the hook-allow guard path')

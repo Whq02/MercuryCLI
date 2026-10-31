@@ -213,14 +213,24 @@ const ROWS: Row[] = [
     seat: { behavior: 'ask', wrapper: 'engine' },
   },
   {
-    label: 'flow · no rule · writing command → a hosted call asks; a hostless run allows the safe residual',
+    label: 'flow · no rule · writing command → none of the five name it, so every subject runs it (flowAllow)',
     mode: 'flow',
     rules: 'none',
     command: WRITING,
-    main: { behavior: 'ask', wrapper: 'engine', engine: 'resolution' },
+    main: { behavior: 'allow', wrapper: 'flowAllow', engine: 'resolution' },
+    headless: { behavior: 'allow', wrapper: 'flowAllow' },
+    print: { behavior: 'allow', wrapper: 'flowAllow' },
+    seat: { behavior: 'allow', wrapper: 'flowAllow' },
+  },
+  {
+    label: 'flow · no rule · a push → item 2 asks the operator; a prompt-less parent refuses with the sentence; a run hands the ask on',
+    mode: 'flow',
+    rules: 'none',
+    command: 'git push origin topic',
+    main: { behavior: 'ask', wrapper: 'flowLaw', engine: 'resolution' },
     headless: { behavior: 'deny', wrapper: 'headlessAutoDeny' },
-    print: { behavior: 'allow', wrapper: 'flowHeadless' },
-    seat: { behavior: 'ask', wrapper: 'engine' },
+    print: { behavior: 'ask', wrapper: 'flowLaw' },
+    seat: { behavior: 'ask', wrapper: 'flowLaw' },
   },
   { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture' } },
   { label: 'dontAsk · no rule · writing command → the ask converts to a deny', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion' } },
@@ -236,7 +246,7 @@ const ROWS: Row[] = [
   { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule' } },
   { label: 'default · whole-tool ask rule → asks after the tool verdict, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRuleCarried' } },
   { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried' } },
-  { label: 'flow · ask rule · simple command → the floor keeps the human ask', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule' } },
+  { label: 'flow · ask rule · simple command → the kept floor keeps the human ask (flowFloors)', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', wrapper: 'flowFloors', engine: 'contentAskRule' } },
 ]
 
 const matches = (cell: Cell, want: Partial<Cell>): boolean =>

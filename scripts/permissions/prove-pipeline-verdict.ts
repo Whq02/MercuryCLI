@@ -54,13 +54,13 @@ try {
     const result = await decide(command)
     check(`a redirection or tee inside the project keeps the command's own verdict: ${command}`, result.behavior === 'allow', JSON.stringify(result))
   }
-  for (const command of ['npm test > /tmp/out.log', 'npm test | tee /tmp/out.log', 'npm test 2>&1 | tee ../outside.log']) {
+  for (const command of ['npm test > /tmp/out.log', 'npm test | tee /tmp/out.log', 'npm test 2>&1 | tee ../outside.log', 'rm -rf src | tail -1', 'git status && rm -rf generated | cat']) {
     const result = await decide(command)
-    check(`a written path outside the project keeps its own ask: ${command}`, result.behavior === 'ask', JSON.stringify(result))
+    check(`Flow: a write under the temp roots or inside the project runs beside the pipeline: ${command}`, result.behavior === 'allow', JSON.stringify(result))
   }
-  for (const command of ['rm -rf src | tail -1', 'git status && rm -rf generated | cat']) {
+  for (const command of ['npm test > ~/out.log', 'npm test | tee /etc/out.log', 'ls | xargs sudo rm', 'npm test && git push']) {
     const result = await decide(command)
-    check(`a destructive segment keeps the floor through a pipe: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
+    check(`Flow: one of the five keeps its ask through a pipe, in the five's words: ${command}`, result.behavior === 'ask' && (result.message ?? '').startsWith('Flow asks before '), JSON.stringify(result))
   }
   const denied = await decide('npm test 2>&1 | tail -60', 'flow', { deny: ['Bash(npm test *)'] })
   check('a deny rule on a segment denies the pipeline', denied.behavior === 'deny', JSON.stringify(denied))
@@ -87,7 +87,11 @@ try {
   check('implement mode allows a line-printing sed outright, as default and flow do', printing.behavior === 'allow', JSON.stringify(printing))
   for (const command of [`cp ${slashed(join(world, 'elsewhere', 'notes.txt'))} here.txt; npm test`, `printf x > ${slashed(join(world, 'elsewhere', 'notes.txt'))}; npm test`]) {
     const result = await decide(command)
-    check(`a write outside the project still asks beside it: ${command.slice(0, 60)}`, result.behavior === 'ask', JSON.stringify(result))
+    check(`a copy into the project or a write under the temp roots runs beside it: ${command.slice(0, 60)}`, result.behavior === 'allow', JSON.stringify(result))
+  }
+  for (const command of ['cp here.txt ~/Documents/notes.txt; npm test', 'printf x > /etc/notes.txt; npm test']) {
+    const result = await decide(command)
+    check(`a write outside the project still asks beside it, in the five's words: ${command.slice(0, 60)}`, result.behavior === 'ask' && (result.message ?? '').startsWith('Flow asks before '), JSON.stringify(result))
   }
 } finally {
   process.chdir(original)

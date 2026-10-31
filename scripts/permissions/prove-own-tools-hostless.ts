@@ -47,7 +47,7 @@ try {
     const hostless = await decide(call, 'flow', false)
     check(`hostless Flow runs ${call.name} ${JSON.stringify(call.input.op ?? call.input.language)} as it runs Bash's residual`, hostless.behavior === 'allow', JSON.stringify(hostless))
     const hosted = await decide(call, 'flow', true)
-    check(`hosted Flow still puts ${call.name} to the host, in the tool's own words`, hosted.behavior === 'ask' && (hosted.message ?? '').includes(call.words), JSON.stringify(hosted))
+    check(`hosted Flow runs ${call.name} too: none of the five name it`, hosted.behavior === 'allow', JSON.stringify(hosted))
     const plain = await decide(call, 'default', false)
     check(`default mode still asks for ${call.name}, in the tool's own words`, plain.behavior === 'ask' && (plain.message ?? '').includes(call.words), JSON.stringify(plain))
     const denied = await decide(call, 'flow', false, { deny: [call.name] })

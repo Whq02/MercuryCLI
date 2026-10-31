@@ -57,21 +57,31 @@ try {
     const inner = await decide(bare, 'default')
     check(`default mode gives the construct the command's own verdict (${inner.behavior}): ${command.slice(0, 60)}`, whole.behavior === inner.behavior, JSON.stringify({ whole, inner }))
   }
-  const strict: string[] = [
-    'for f in sites/blog/content/*.md; do rm -rf "$f"; done',
-    'for i in $(seq 1 3); do rm -rf ../$i; done',
+  const five: string[] = [
     'for i in $(seq 1 3); do git push origin topic; done',
     'for f in sub/*.log; do sudo rm -rf /; done',
+    'for f in sub/*.log; do cp "$f" ~/Documents/; done',
+    'while read -r line; do echo "$line" >> ~/.zshrc; done < sub/lines.txt',
+    'if [ -d dist ]; then npm publish; fi',
+  ]
+  for (const command of five) {
+    const result = await decide(command)
+    check(`a construct over one of the five still asks, in the five's words: ${command.slice(0, 70)}`, result.behavior === 'ask' && (result.message ?? '').startsWith('Flow asks before '), JSON.stringify(result))
+  }
+  const free: string[] = [
+    'for f in sites/blog/content/*.md; do rm -rf "$f"; done',
     `fails=0; for i in $(seq 1 30); do node --test 'tests/*.test.ts' > /tmp/run_$i.log 2>&1 || fails=$((fails+1)); done`,
     heredoc('/tmp/nav-edge.test.mjs'),
     'for i in $(seq 1 100); do echo $i > sub/$i.log; done',
     'n=abc; for i in 1 2; do n=$((n+1)); done',
     'echo $((HOME+1))',
     'cat > sub/x.sh <<EOF\n$(rm -rf sub)\nEOF',
+    'f() { npm test; }; f && echo done',
+    '( cd sub && npm test ) | tail -5',
   ]
-  for (const command of strict) {
+  for (const command of free) {
     const result = await decide(command)
-    check(`a construct over a command that asks still asks: ${command.slice(0, 70)}`, result.behavior !== 'allow', JSON.stringify(result))
+    check(`a construct over commands none of the five name runs without a question: ${command.slice(0, 70)}`, result.behavior === 'allow', JSON.stringify(result))
   }
 } finally {
   process.chdir(original)

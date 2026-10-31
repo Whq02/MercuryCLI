@@ -86,9 +86,17 @@ try {
   const edit = await decide(FileEditTool, { file_path: join(scratch, 'run30.sh'), old_string: 'a', new_string: 'b' }, 'default')
   check('default: an Edit of a scratchpad file never asks', edit.behavior === 'allow', JSON.stringify(edit))
 
-  for (const command of ['rm -rf /', 'rm -rf ~', 'rm -rf /Users', `rm -rf ${slashed(join(world, 'outside'))}`, 'rm -rf /tmp/handbook-out /tmp/blog-out', 'rm -rf generated', 'rm -r scratch-blog-check', 'rm -rf e2e']) {
+  for (const command of ['rm -rf /', 'rm -rf ~', 'rm -rf /Users', 'rm -rf ~/Developer/other', 'rm -rf /usr/local/lib/node_modules']) {
     const result = await bash(command)
-    check(`hostless Flow still refuses an rm of ground the run did not create: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
+    check(`hostless Flow does not run an rm outside the project and its scratch on its own: ${command}`, result.behavior !== 'allow', JSON.stringify(result))
+  }
+  for (const command of [`rm -rf ${slashed(join(world, 'outside'))}`, 'rm -rf /tmp/handbook-out /tmp/blog-out', 'rm -rf generated', 'rm -r scratch-blog-check', 'rm -rf e2e']) {
+    const result = await bash(command)
+    check(`hostless Flow runs an rm under the project or the temp roots without a question: ${command}`, result.behavior === 'allow', JSON.stringify(result))
+  }
+  for (const mode of ['default', 'implement'] as const) {
+    const result = await bash('rm -rf generated', mode)
+    check(`${mode}: rm -rf of a pre-existing project folder ${mode === 'implement' ? 'is implement\'s own allowance' : 'still asks'}`, mode === 'implement' ? result.behavior === 'allow' : result.behavior !== 'allow', JSON.stringify(result))
   }
   for (const target of [join(project, '.mercury', 'settings.json'), join(project, '.mercury', 'hooks', 'x.sh'), join(project, '.mercury', 'skills', 's', 'SKILL.md'), join(project, '.mercury', 'wards.json')]) {
     const result = await decide(FileWriteTool, { file_path: target, content: '{}\n' }, 'default')
@@ -106,8 +114,8 @@ try {
   }
   const inside = await bash(`rm ${slashed(join(project, 'e2e', 'todo.json'))} && rmdir generated/sub`)
   check('rm of a file inside the created folder and rmdir of the created sub-folder are allowed hostless', inside.behavior === 'allow', JSON.stringify(inside))
-  const kept = await bash('rm -rf generated')
-  check('rm -rf of the pre-existing folder still keeps its ask', kept.behavior !== 'allow', JSON.stringify(kept))
+  const kept = await bash('rm -rf generated', 'default')
+  check('default: rm -rf of the pre-existing folder still keeps its ask', kept.behavior !== 'allow', JSON.stringify(kept))
   const parent = { uuid: '00000000-0000-4000-8000-000000000001' }
   await (FileWriteTool as unknown as Caller).call({ file_path: join(project, 'scratch-blog-check', 'index.html'), content: '<p>x</p>\n' } as never, toolContext, undefined as never, parent as never)
   check('the Write tool created the folder', existsSync(join(project, 'scratch-blog-check', 'index.html')), '')

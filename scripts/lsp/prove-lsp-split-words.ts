@@ -14,7 +14,6 @@ process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture', FAKE_S
 const door = await openToolDoor(project)
 try {
   const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
-  const { isReadOnlyAllowlistedTool } = await import('../../src/utils/permissions/readOnlyAllowlist.ts')
   const { evaluateWards, BUILTIN_WARDS } = await import('../../src/utils/wards/wards.ts')
   const { remedyForLanguageServer } = await import('../../src/services/lsp/failureWords.ts')
   const readTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRead')
@@ -26,7 +25,6 @@ try {
   const map = computeHarnessMapLines().join('\n')
   check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
   for (const tool of available.LSP_TOOLS) {
-    check(`${tool.name}: only the read tool belongs to the flow read-only allowlist`, isReadOnlyAllowlistedTool(tool.name) === (tool.name === 'LspRead'))
     const generated = '/work/project/scripts/builtin-tools/fixtures/tool-census.json'
     const writeTool = !['LspRead', 'LspRequest'].includes(tool.name)
     const input = { filePath: generated, targetPath: generated, newPath: generated, apply: true }

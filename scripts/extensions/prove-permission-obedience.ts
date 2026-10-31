@@ -111,10 +111,8 @@ if (readTool && writeTool && config) {
   check('sovereign: allowed by mode', r.behavior === 'allow' && r.decisionReason?.type === 'mode', JSON.stringify(r))
   r = await decide(writeTool, 'dontAsk')
   check('dontAsk: the ask converts to a deny', r.behavior === 'deny', JSON.stringify(r))
-  process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
   r = (await hasPermissionsToUseTool(writeTool as never, { value: 'wipe the fixture' }, makeContext('flow', [writeTool]).context as never, ASSISTANT, 'toolu_flow')) as never
-  check('flow with the classifier unreachable: a block becomes an ASK (fail-closed, never silent)', r.behavior === 'ask', JSON.stringify(r))
-  delete process.env.ANTHROPIC_BASE_URL
+  check('flow: the mutating MCP tool runs by mode — none of the five name an MCP call, as under sovereign', r.behavior === 'allow' && r.decisionReason?.type === 'mode', JSON.stringify(r))
   if (twin.type === 'connected') await (twin as unknown as { cleanup?: () => Promise<void> }).cleanup?.()
 }
 

@@ -541,7 +541,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     background: false,
     settings: {},
     argv: ['--mode', 'flow'],
-    sends: [cardSend('card')],
+    sends: [],
     total: 450,
   },
   'flow-bg': {
@@ -551,8 +551,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     settings: {},
     argv: ['--mode', 'flow'],
     sends: [
-      cardSend('card'),
-      { data: '/crewmates', afterPrevTicks: 6 },
+      { data: '/crewmates', atTick: 999, awaitText: 'agent-bash: launched', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'launched' },
       { data: '\r', afterPrevTicks: 4 },
       { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Crewmates \\(1\\)', mark: 'crew-landed' },
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
@@ -601,9 +600,8 @@ async function runPtyLeg(leg: PtyLeg): Promise<void> {
   const classifierHits = fixture.hits.filter(h => h.route === 'classifier')
   if (leg.name === 'flow-fg' || leg.name === 'flow-bg') {
     check(`${leg.name}: no request left the session for the decision (every hit is a streaming turn of the session or its seat)`, classifierHits.length === 0 && fixture.hits.every(h => h.streaming), `${classifierHits.length} verdict call(s)`)
-    const card = cap.marks['card'] ?? ''
-    check(`${leg.name}: the leftover is the operator's — the consent card painted in the focused chat for the agent's writing command`, card.includes(CARD_WORDS) && card.includes('git commit --allow-empty'))
-    check(`${leg.name}: the card is the plain ask's — no verdict line, none of a verdict's words`, !card.includes(CARD_BLOCK_WORDS) && !card.includes(BLOCK_REASON))
+    check(`${leg.name}: no consent card painted — a commit is none of the five, so Flow ran it`, !cap.text.includes(CARD_WORDS) && !Object.values(cap.marks).some(frame => frame.includes(CARD_WORDS)), Object.keys(cap.marks).join(','))
+    check(`${leg.name}: none of a verdict's words painted`, !cap.text.includes(CARD_BLOCK_WORDS) && !cap.text.includes(BLOCK_REASON))
   } else {
     check(`${leg.name}: the classifier was never called (not a flow session)`, classifierHits.length === 0, `${classifierHits.length} classifier call(s)`)
     const card = cap.marks['card'] ?? ''

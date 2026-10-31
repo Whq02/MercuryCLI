@@ -36,14 +36,17 @@ const guard = setTimeout(() => {
 }, 60_000)
 guard.unref?.()
 
-function makeTool(over: { name?: string; behavior?: 'passthrough' | 'ask' | 'allow' } = {}): unknown {
+function makeTool(over: { name?: string; behavior?: 'passthrough' | 'ask' | 'allow'; askRule?: boolean; path?: string } = {}): unknown {
   const name = over.name ?? 'FakeTool'
+  const reason = over.askRule ? { decisionReason: { type: 'rule', rule: { source: 'userSettings', ruleBehavior: 'ask', ruleValue: { toolName: name } } } } : {}
   return {
     name,
     inputSchema: z.object({}).passthrough(),
+    isReadOnly: () => false,
+    ...(over.path === undefined ? {} : { getPath: () => over.path }),
     checkPermissions: async (input: unknown) =>
       over.behavior === 'ask'
-        ? { behavior: 'ask', message: 'plain ask' }
+        ? { behavior: 'ask', message: 'plain ask', ...reason }
         : over.behavior === 'allow'
           ? { behavior: 'allow', updatedInput: input }
           : { behavior: 'passthrough', message: 'no opinion' },
@@ -80,8 +83,6 @@ type Ports = typeof defaultWrapperPorts
 function makePorts(over: Partial<Ports>): Ports {
   return {
     ...defaultWrapperPorts,
-    isAllowlistedTool: () => false,
-    resolveAcceptEditsVerdict: async () => ({ behavior: 'ask', message: 'still ask' }),
     runHeadlessHooks: async () => null,
     ...over,
   }
@@ -117,55 +118,45 @@ console.log('============================================================')
 console.log(' Mode-wrapper band — ports, the leftover, trace')
 console.log('============================================================')
 
-section('the leftover — an ask no floor and no shortcut settles is the operator\'s')
+section('the Flow band — the kept floors, the five, then allow')
 {
-  const FLOW_WALK = ['autoSafetyImmunity', 'autoUserInteraction', 'autoFloors', 'powershellGuard', 'fastPathDangerFilter', 'implementFastPath', 'allowlistFastPath']
-  check('no port asks a model for the decision', !('classify' in defaultWrapperPorts) && Object.keys(defaultWrapperPorts).sort().join(',') === 'isAllowlistedTool,resolveAcceptEditsVerdict,runHeadlessHooks', Object.keys(defaultWrapperPorts).join(','))
-  check('the stage order carries no verdict stage and no denial ledger stage', !(WRAPPER_STAGE_ORDER as readonly string[]).some(s => /classif|denial/i.test(s)), j(WRAPPER_STAGE_ORDER))
+  const FLOW_WALK = ['flowFloors', 'flowLaw', 'flowAllow']
+  check('no port asks a model for the decision; the only port left is the headless hook band', !('classify' in defaultWrapperPorts) && Object.keys(defaultWrapperPorts).sort().join(',') === 'runHeadlessHooks', Object.keys(defaultWrapperPorts).join(','))
+  check('the stage order carries no verdict stage, no denial ledger stage and no shortcut stage', !(WRAPPER_STAGE_ORDER as readonly string[]).some(s => /classif|denial|FastPath|Guard|Immunity/i.test(s)), j(WRAPPER_STAGE_ORDER))
 
   let r = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'flow' }), makePorts({}))
-  check("flow leftover → the engine's ask passes through (decidedBy 'engine')", r.decision.behavior === 'ask' && r.wrapper.decidedBy === 'engine' && r.decision.message === 'plain ask' && r.decision.decisionReason === undefined, j(r))
-  check('flow leftover → every floor and both shortcuts were consulted and passed', r.wrapper.stages.map(s => s.stage).join(',') === FLOW_WALK.join(',') && r.wrapper.stages.every(s => s.outcome === 'pass'), j(r.wrapper))
-  checkSubsequenceLaw('flow leftover', r.wrapper)
+  check("flow: a plain ask none of the five name → allow, decided by flowAllow with the mode as its reason", r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'flowAllow' && r.decision.decisionReason?.type === 'mode', j(r))
+  check('flow: the two floors were consulted and passed before the allow', r.wrapper.stages.map(s => s.stage).join(',') === FLOW_WALK.join(',') && r.wrapper.stages.slice(0, 2).every(s => s.outcome === 'pass'), j(r.wrapper))
+  checkSubsequenceLaw('flow allow', r.wrapper)
+
+  r = await run(makeTool({ behavior: 'ask', askRule: true }), makeContext({ mode: 'flow' }), makePorts({}))
+  check("flow: the operator's ask rule is a kept floor → the engine's ask stands, decided by flowFloors", r.decision.behavior === 'ask' && r.wrapper.decidedBy === 'flowFloors' && r.decision.decisionReason?.type === 'rule', j(r))
+  checkSubsequenceLaw('flow floor', r.wrapper)
+
+  r = await run(makeTool({ behavior: 'ask', path: '/etc/hosts' }), makeContext({ mode: 'flow' }), makePorts({}))
+  check('flow: a write outside the project is item 4 → ask in one sentence, decided by flowLaw', r.decision.behavior === 'ask' && r.wrapper.decidedBy === 'flowLaw' && r.decision.message === 'Flow asks before writing /etc/hosts: it is outside the project.' && r.decision.decisionReason?.type === 'other', j(r))
+  check('flow: the floors passed before the law decided', r.wrapper.stages.map(s => `${s.stage}:${s.outcome}`).join(',') === 'flowFloors:pass,flowLaw:decided', j(r.wrapper))
+  checkSubsequenceLaw('flow law', r.wrapper)
+
+  r = await run(makeTool({ behavior: 'ask', path: '/etc/hosts' }), makeContext({ mode: 'flow', avoidPrompts: true }), makePorts({}))
+  check('flow + prompt-less: the five\'s ask becomes the headless auto-deny, the sentence first, after a silent hook band', r.decision.behavior === 'deny' && r.decision.decisionReason?.type === 'asyncAgent' && r.wrapper.decidedBy === 'headlessAutoDeny' && (r.decision.message ?? '').startsWith('Flow asks before writing /etc/hosts: it is outside the project.') && r.wrapper.stages.some(s => s.stage === 'headlessHooks' && s.outcome === 'pass'), j(r))
+  checkSubsequenceLaw('flow law headless', r.wrapper)
 
   r = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'flow', avoidPrompts: true }), makePorts({}))
-  check('flow leftover + prompt-less → the headless auto-deny (asyncAgent) after a silent hook band', r.decision.behavior === 'deny' && r.decision.decisionReason?.type === 'asyncAgent' && r.wrapper.decidedBy === 'headlessAutoDeny' && r.wrapper.stages.some(s => s.stage === 'headlessHooks' && s.outcome === 'pass'), j(r))
-  checkSubsequenceLaw('flow leftover headless', r.wrapper)
-  const asDefault = await run(makeTool({ behavior: 'ask' }), makeContext({ mode: 'default', avoidPrompts: true }), makePorts({}))
-  check('…the same decision default mode gives a prompt-less ask', j(r.decision) === j(asDefault.decision), j({ flow: r.decision, byDefault: asDefault.decision }))
+  check('flow + prompt-less: a plain ask still runs (none of the five)', r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'flowAllow', j(r))
 
   r = await run(
-    makeTool({ behavior: 'ask' }),
+    makeTool({ behavior: 'ask', path: '/etc/hosts' }),
     makeContext({ mode: 'flow', avoidPrompts: true }),
     makePorts({ runHeadlessHooks: async () => ({ behavior: 'allow', updatedInput: {}, decisionReason: { type: 'hook', hookName: 'PermissionRequest' } }) as never }),
   )
-  check('flow leftover + prompt-less + hook allow → decidedBy headlessHooks', r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'headlessHooks', j(r.wrapper))
+  check('flow + prompt-less + hook allow on one of the five → decidedBy headlessHooks', r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'headlessHooks', j(r.wrapper))
 
   r = await run(makeTool({ behavior: 'allow' }), makeContext({ mode: 'flow' }), makePorts({}))
   check("flow engine allow → decidedBy 'engine', no wrapper stage consulted", r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'engine' && r.wrapper.stages.length === 0, j(r.wrapper))
-}
 
-section('fast-path ports')
-{
-  let r = await run(
-    makeTool(),
-    makeContext({ mode: 'flow' }),
-    makePorts({ resolveAcceptEditsVerdict: async () => ({ behavior: 'allow', updatedInput: { via: 'port' } }) }),
-  )
-  check(
-    'implement port allow → mode-flow allow',
-    r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'implementFastPath',
-    j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
-  )
-  checkSubsequenceLaw('implement fast-path', r.wrapper)
-
-  r = await run(makeTool(), makeContext({ mode: 'flow' }), makePorts({ isAllowlistedTool: () => true }))
-  check(
-    'allowlist port → mode-flow allow',
-    r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'allowlistFastPath',
-    j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
-  )
-
+  r = await run(makeTool({ behavior: 'passthrough' }), makeContext({ mode: 'flow' }), makePorts({}))
+  check('flow: a tool with no opinion runs (the engine\'s ask is none of the five)', r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'flowAllow', j(r))
 }
 
 section('the headless hook band')

@@ -29,8 +29,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
-const flowStage = (WRAPPER_STAGE_ORDER as readonly string[]).indexOf('flowHeadless')
-check('the headless residual has its own stage after the shortcuts and before hooks', flowStage > 0 && WRAPPER_STAGE_ORDER[flowStage - 1] === 'allowlistFastPath' && WRAPPER_STAGE_ORDER[flowStage + 1] === 'headlessHooks')
+const flowStages = ['flowFloors', 'flowLaw', 'flowAllow'].map(stage => (WRAPPER_STAGE_ORDER as readonly string[]).indexOf(stage))
+check('the Flow band has its three stages in order, after the dontAsk conversion and before the hook band', flowStages[0] === 1 && flowStages[1] === 2 && flowStages[2] === 3 && WRAPPER_STAGE_ORDER[4] === 'headlessHooks')
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — trace proof exceeded 60s')
