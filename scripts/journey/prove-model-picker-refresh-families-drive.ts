@@ -168,12 +168,14 @@ for (const legName of LEGS) {
       const tight = !leg.dark && cols < 100 && rows >= 20
       const noticeWords = family ? `${family.word} — the live list changed; rows updated` : ''
       const cachedWitness = !family ? '' : tight ? currentRow(family.keepName) : walk ? liveRow(family.oldName) : onScreenTogether(liveRow(family.oldName), currentRow(family.keepName))
-      const DOWN = '\x1b[B'
       const sends = leg.dark
         ? [
             { requireAwait: true, awaitText: 'New Session', minTick: 3, awaitSettleTicks: 2, data: '\r' },
             { requireAwait: true, awaitText: readyLanded, minTick: 15, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
             { requireAwait: true, awaitText: 'catalogue off', minTick: 1, awaitSettleTicks: 2, data: '', mark: 'cached' },
+            { requireAwait: true, awaitText: 'HUGGING FACE', targetText: 'HUGGING FACE', data: '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m' },
+            { requireAwait: true, awaitText: '❯ HUGGING FACE', awaitSettleTicks: 2, data: '\r' },
+            { requireAwait: true, awaitText: 'Hugging Face — catalogue off', awaitSettleTicks: 2, data: '', mark: 'hf-off' },
             { afterPrevTicks: 30, data: '', mark: 'refreshed' },
           ]
         : [
@@ -184,7 +186,7 @@ for (const legName of LEGS) {
             { requireAwait: true, awaitText: readyLanded, minTick: 2, awaitSettleTicks: 3, data: 'hello\r' },
             { requireAwait: true, awaitText: 'alpha answers from the fixture', minTick: 4, awaitSettleTicks: 3, data: '', mark: 'turn' },
             { requireAwait: true, awaitText: ready, minTick: 3, awaitSettleTicks: 3, data: '/model\r', mark: 'open' },
-            ...(walk ? [{ requireAwait: true, awaitText: 'Mercury · model', minTick: 1, awaitSettleTicks: 2, data: DOWN.repeat(60) }] : []),
+            ...(walk ? [{ requireAwait: true, awaitText: 'Mercury · model', minTick: 1, awaitSettleTicks: 2, data: 'refresh' }] : []),
             { requireAwait: true, awaitText: tight ? family!.keepName : family!.oldName, awaitPattern: cachedWitness, minTick: 1, data: '', mark: 'cached' },
             leg.changed
               ? { afterPrevTicks: 60, awaitText: tight ? noticeWords : family!.newName, awaitSettleTicks: 2, data: '', mark: 'refreshed' }
@@ -218,7 +220,8 @@ for (const legName of LEGS) {
       if (leg.dark) {
         for (const name of ['openrouter', 'gemini', 'huggingface'] as const) {
           check(`${tag}: ${FAMILIES[name].word} sends nothing with catalogue traffic switched off`, requestsOf(name).length === 0, `models requests ${requestsOf(name).length}`)
-          check(`${tag}: the ${FAMILIES[name].word} rows read catalogue off`, cached.includes(`${FAMILIES[name].word} — catalogue off`) || !full)
+          const frame = name === 'huggingface' ? markOf('hf-off') : cached
+          check(`${tag}: the ${FAMILIES[name].word} rows read catalogue off`, frame.includes(`${FAMILIES[name].word} — catalogue off`) || !full)
         }
         check(`${tag}: the local probe stays exempt from the switch (the gate's own law)`, requestsOf('local').length >= 1, `tags requests ${requestsOf('local').length}`)
         check(`${tag}: no notice line paints`, !refreshed.includes('the live list changed'))
