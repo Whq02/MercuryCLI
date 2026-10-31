@@ -32,6 +32,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed transcript search to read every tool's own result text; Document results are searchable by file path and detail.
 - Fixed the /context chart not appearing when the count finished after the session's warm start.
 - Fixed the Python SDK's type check and the Read sniff that mistook a UTF-16 text file for audio; a bare MP3 or AAC stream without an extension still reads as audio.
+- Fixed a session going quiet on screen after a resume: a crew board mention recorded before the first turn started a second thread in the transcript, and later replies and typed lines painted as a fragment or not at all. Rows now chain onto the conversation, an already-split session paints again, and a resumed runner no longer re-paints mentions it recorded before.
+- Fixed the mouse wheel in lists: a notch moves the highlight one row, as one arrow does; the transcript and other scrolling panes keep three rows a notch.
 
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
