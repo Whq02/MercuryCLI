@@ -258,7 +258,7 @@ async function collectShellSnapshots(budget: LifecycleBudget): Promise<Lifecycle
   return receipt
 }
 
-export interface InstalledBuildFacts {
+interface InstalledBuildFacts {
   versions: Set<string>
   nodeVersions: Set<string>
 }
@@ -376,8 +376,8 @@ async function collectBundledExtensionFolders(budget: LifecycleBudget): Promise<
 }
 
 export const BASH_AUDIT_ROTATE_BYTES = 16 * 1024 * 1024
-export const BASH_AUDIT_KEEP_ROTATED = 4
-export const BASH_AUDIT_ROTATED_BYTES = 256 * 1024 * 1024
+const BASH_AUDIT_KEEP_ROTATED = 4
+const BASH_AUDIT_ROTATED_BYTES = 256 * 1024 * 1024
 const BASH_AUDIT_ROTATED = /^bash-audit\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z\.jsonl$/
 
 export function bashAuditRotatedName(atMs: number): string {
