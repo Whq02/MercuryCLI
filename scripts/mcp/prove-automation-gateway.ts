@@ -104,7 +104,16 @@ async function start(lead: string, origin?: string) {
     child.once('exit', code => { clearTimeout(timer); reject(new Error(`HTTP boot exited ${code}: ${errors}`)) })
     child.stderr!.on('data', () => { const match = /http:\/\/127\.0\.0\.1:\d+\/mcp/.exec(errors); if (match) { clearTimeout(timer); resolve(match[0]) } })
   })
-  const approval = (name: string): string => { const codes = [...errors.matchAll(new RegExp(`Approve ${name} with code (\\d{6}) within 10 minutes`, 'g'))]; assert.ok(codes.length > 0, errors); return codes[codes.length - 1]![1]! }
+  const approval = async (name: string): Promise<string> => {
+    const pattern = new RegExp(`Approve ${name} with code (\\d{6}) within 10 minutes`, 'g')
+    const deadline = Date.now() + 15_000
+    for (;;) {
+      const codes = [...errors.matchAll(pattern)]
+      if (codes.length > 0) return codes[codes.length - 1]![1]!
+      assert.ok(Date.now() < deadline, `the approval code for ${name} never reached stderr: ${errors}`)
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+  }
   return { url, origin: new URL(url).origin, errors: () => errors, approval, close: () => stop(child) }
 }
 type Host = Awaited<ReturnType<typeof start>>
@@ -116,7 +125,7 @@ async function approve(host: Host, name: string, authorizationUrl: URL): Promise
   assert.ok(body.includes('Enter the approval code shown by <code>mercury mcp-server</code>.'))
   assert.ok(!body.includes(secret) && !body.includes(staticToken))
   const requestId = /name="request" value="([^"]+)"/.exec(body)![1]!
-  const code = host.approval(name)
+  const code = await host.approval(name)
   const wrong = await fetch(`${host.origin}/oauth/authorize`, form({ request: requestId, code: code === '000000' ? '000001' : '000000', decision: 'approve' }, { origin: host.origin }))
   assert.equal(wrong.status, 200)
   assert.ok((await wrong.text()).includes('That code was not accepted. 2 tries left.'))

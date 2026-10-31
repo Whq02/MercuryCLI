@@ -124,7 +124,7 @@ workbench-board	1
 tools	166
 agents	80
 structure-tools	32
-health	515
+health	900
 helm-console	3
 model-transition	35
 lsp	75
@@ -137,6 +137,7 @@ bash	350
 identity	134
 workflows	143
 crew	142
+crew-drives	120
 formal-models	6
 model-routing	27
 permissions	210

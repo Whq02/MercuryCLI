@@ -92,3 +92,4 @@ transcript-rows-drives	3000
 api-drives	1500
 switchboard-drives	3300
 ui-drives	11700
+health	1500

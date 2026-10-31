@@ -343,7 +343,7 @@ if (!existsSync(DIST)) {
       writeFileSync(join(arena.home, '.mercury', 'settings.json'), j({ guardrails: { allow: ['Bash(echo *)', 'Bash(touch *)', 'Read'] } }))
       writeFileSync(join(arena.cwd, 'big.txt'), 'the note the model reads before the fold\n')
       const git = (...args: string[]): void => {
-        const run = Bun.spawnSync(['git', ...args], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' } })
+        const run = Bun.spawnSync(['git', ...args], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home, MERCURY_LOCAL_PROBE_TARGETS: 'none', GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' } })
         if (run.exitCode !== 0) throw new Error(`git ${args.join(' ')} failed: ${run.stderr.toString()}`)
       }
       git('init', '-q', '-b', 'main')
@@ -370,7 +370,7 @@ if (!existsSync(DIST)) {
       const gitLine = (body: Body | undefined): string => systemText(body).split('\n').find(line => line.startsWith('gitStatus:')) ?? ''
       check('§5 the system block carries the repository status (the git status line is in it)', gitLine(bodies[0]) !== '' && systemText(bodies[0]).includes('Current branch: main'), gitLine(bodies[0]).slice(0, 160))
       check('§5 the boot block carries a status git itself read: (clean) before the touch, with the first commit under it', systemText(bodies[0]).includes('Status:\n(clean)') && /Recent commits:\n[0-9a-f]{7,} the first commit/.test(systemText(bodies[0])), systemText(bodies[0]).split('\n').filter(line => /^(Status:|\(|Recent commits:)/.test(line)).join(' | ').slice(0, 200))
-      const arenaStatus = Bun.spawnSync(['git', 'status', '--short', '--', '.'], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home } }).stdout.toString()
+      const arenaStatus = Bun.spawnSync(['git', 'status', '--short', '--', '.'], { cwd: arena.cwd, env: { PATH: process.env.PATH ?? '/usr/bin:/bin', HOME: arena.home, MERCURY_LOCAL_PROBE_TARGETS: 'none' } }).stdout.toString()
       check('§5 the touch changed the repository: git status in the arena names changed.txt as untracked', /^\?\? changed\.txt$/m.test(arenaStatus), j(arenaStatus))
       check('§5 before the fold the system block does not move: the touch changed the repository, the block kept the status as first sent', j(withoutCacheControl(bodies[0]?.system)) === j(withoutCacheControl(bodies[1]?.system)))
       const foldSystem = systemText(bodies[2])
