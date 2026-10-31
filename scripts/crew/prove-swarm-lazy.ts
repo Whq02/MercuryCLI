@@ -27,9 +27,9 @@ for (const mode of modes) {
       session.submit('/swarm on')
       await session.waitFor('swarm command answered', () => session.stdout().includes(mode === 'on' ? 'Swarm on for new crewmates' : 'enable swarm.enabled'))
     }
-    const beforeStatus = (session.stdout().match(/"type":"command_output"/g) ?? []).length
+    const beforeStatus = session.stdout().length
     session.submit('/swarm')
-    await session.waitFor('headless swarm still answers its state', () => (session.stdout().match(/"type":"command_output"/g) ?? []).length > beforeStatus)
+    await session.waitFor('headless swarm still answers its state', () => /Swarm (on|off) for new crewmates|Swarm is off — enable swarm\.enabled/.test(session.stdout().slice(beforeStatus)))
     assert(!session.stdout().includes('interactive in this form'), session.stdout())
     session.submit('Check the wave.')
     await session.waitFor('the built session answered', () => session.stdout().includes(mode === 'on' ? 'Board request finished.' : 'Plain request finished.'))
