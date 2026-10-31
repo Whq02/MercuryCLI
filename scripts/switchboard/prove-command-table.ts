@@ -171,7 +171,7 @@ function receiptOf(batch: string[]): string {
   const main = read('src/main.tsx')
   check("C5 the session runner's table is sessionSeatCommandTable (MERCURY_CONCOURSE_WORKER decides)", main.includes("flagEnv('MERCURY_CONCOURSE_WORKER') === '1'") && main.includes('sessionSeatCommandTable(args.commands)'))
   const repl = read('src/screens/Chat.tsx')
-  check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value)'))
+  check('C5 the screen dispatches on commandSeat and runs screen-seat locals against the focused connector', repl.includes("const seat = seatCommand === undefined ? 'session' : commandSeat(seatCommand)") && repl.includes('paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt, focusedNow as PaintsRows)'))
   const clear = read('src/commands/clear/clear.ts')
   check('C5 /clear acts on the screen: the old session released, a fresh session born (the one-door law)', clear.includes('clearFocusedSession()'))
   for (const name of ['bootmenu', 'clear', 'keybindings', 'mouse', 'rewind', 'vim']) {
