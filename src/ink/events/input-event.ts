@@ -143,10 +143,14 @@ export class InputEvent extends Event {
   readonly input: string
   readonly seq: number
 
-  constructor(keypress: ParsedKey) {
+  constructor(keypress: ParsedKey, readonly wheelStep = false) {
     super()
     this.keypress = keypress
     const projectedKey = projectKey(keypress)
+    if (wheelStep) {
+      projectedKey.upArrow = projectedKey.wheelUp
+      projectedKey.downArrow = projectedKey.wheelDown
+    }
     const { text, key } = projectText(keypress, projectedKey)
     this.key = key
     this.input = text

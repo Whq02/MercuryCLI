@@ -88,6 +88,20 @@ export function hasElevatedSurface(): boolean {
   return registrants.size > 0
 }
 
+export function elevatedSurfaceOwnsNode(node: DOMElement): boolean {
+  const within = (child: DOMElement, parent: DOMElement): boolean => {
+    let current: DOMElement | undefined = child
+    while (current) {
+      if (current === parent) return true
+      current = current.parentNode ?? undefined
+    }
+    return false
+  }
+  const surfaces = [...registrants]
+  const top = surfaces.filter(el => !surfaces.some(other => other !== el && within(other, el))).at(-1)
+  return top === undefined || within(node, top)
+}
+
 export function applyRecessPass(screen: Screen, stylePool: StylePool): number {
   if (target === null || registrants.size === 0) {
     stylePool.setRecessTransform(null)

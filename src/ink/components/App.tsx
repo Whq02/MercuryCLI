@@ -126,6 +126,10 @@ const noopCursorDeclaration: CursorDeclarationSetter = () => {}
 
 const SUPPORTS_SUSPEND = process.platform !== 'win32'
 
+function isReportedWheel(atom: ParsedInput): boolean {
+  return atom.kind === 'key' && (atom.name === 'wheelup' || atom.name === 'wheeldown') && atom.x !== undefined && atom.y !== undefined
+}
+
 function isMouseClass(atom: ParsedInput): boolean {
   if (atom.kind === 'mouse') return true
   if (atom.kind !== 'key') return false
@@ -436,14 +440,17 @@ export default class App extends PureComponent<Props, State> {
 
     let start = 0
     for (let i = 0; i < atoms.length; i++) {
-      if (!isActingNamedKey(atoms[i]!)) continue
+      const wheel = isReportedWheel(atoms[i]!)
+      if (!wheel && !isActingNamedKey(atoms[i]!)) continue
       if (i > start) {
         const run = atoms.slice(start, i)
         this.dispatchDiscrete(run)
         reconciler.flushSyncWork()
       }
-      this.dispatchDiscrete([atoms[i]!])
-      reconciler.flushSyncWork()
+      for (let step = 0; step < (wheel ? 3 : 1); step++) {
+        this.dispatchDiscrete([atoms[i]!])
+        reconciler.flushSyncWork()
+      }
       start = i + 1
     }
     if (start < atoms.length) {
@@ -572,8 +579,9 @@ export default class App extends PureComponent<Props, State> {
       if (chunkConsumed) continue
 
       this.handleRawInput(atom)
-      const event = new InputEvent(atom)
+      const event = new InputEvent(atom, isReportedWheel(atom))
       this.internal_eventEmitter.emit('input', event)
+      if (event.wheelStep && !event.didStopImmediatePropagation()) this.internal_eventEmitter.emit('wheel', event)
       if (event.seq <= inputConsumedThroughSeq()) {
         chunkConsumed = true
         continue

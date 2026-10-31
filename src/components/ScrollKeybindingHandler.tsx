@@ -11,6 +11,7 @@ import {
 import { useCopyOnSelect, useSelectionBgColor } from '../hooks/useCopyOnSelect.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { topOverlay, topOverlayOwnsPageKeys } from '../context/overlayStack.js'
+import { hasElevatedSurface } from '../ink/recessLayer.js'
 import { useNotifications } from '../context/notifications.js'
 import { copyReceipt, getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -435,6 +436,7 @@ export function ScrollKeybindingHandler({
       const wheelUp = (key as { wheelUp?: boolean }).wheelUp === true
       const wheelDown = (key as { wheelDown?: boolean }).wheelDown === true
       if (!wheelUp && !wheelDown) return
+      if (event.wheelStep && (topOverlay() !== null || hasElevatedSurface())) return
       if (settingsPopupRequest()?.scrollRef) event.stopImmediatePropagation()
       if (wheelYieldsToTopOverlay()) return
       const handle = activeHandle()
@@ -455,7 +457,8 @@ export function ScrollKeybindingHandler({
         }
       }
       const dir: 1 | -1 = wheelDown ? 1 : -1
-      const rows = computeWheelStep(wheelState.current, dir, Date.now())
+      const rows = event.wheelStep ? 1 : computeWheelStep(wheelState.current, dir, Date.now())
+      if (event.wheelStep) event.stopImmediatePropagation()
       if (rows === 0) return
       const effective = handle.getScrollTop() + handle.getPendingDelta()
       if (dir === -1) {

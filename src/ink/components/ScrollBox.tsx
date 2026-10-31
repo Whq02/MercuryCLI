@@ -4,6 +4,8 @@ import React, {
   type PropsWithChildren,
   useCallback,
   useImperativeHandle,
+  useEffect,
+  useMemo,
   useReducer,
   useRef,
 } from 'react'
@@ -12,6 +14,9 @@ import { markCommitStart } from '../reconciler.js'
 import type { Styles } from '../styles.js'
 import { markScrollActivity } from '../../bootstrap/state.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
+import useStdin from '../hooks/use-stdin.js'
+import type { InputEvent } from '../events/input-event.js'
+import { elevatedSurfaceOwnsNode } from '../recessLayer.js'
 
 function markUnstick(scroll: { stickyScroll?: boolean }): void {
   if (scroll.stickyScroll !== false) fluxMark('scroll:unstick')
@@ -73,8 +78,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
 
   const [, forceRender] = useReducer((n: number) => n + 1, 0)
 
-  useImperativeHandle(
-    ref,
+  const handle = useMemo(
     (): ScrollBoxHandle => ({
       scrollTo(y) {
         const node = nodeRef.current
@@ -168,6 +172,20 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
     }),
     [],
   )
+
+  useImperativeHandle(ref, () => handle, [handle])
+  const { internal_eventEmitter } = useStdin()
+  useEffect(() => {
+    const wheel = (event: InputEvent): void => {
+      const node = nodeRef.current
+      if (!node || !elevatedSurfaceOwnsNode(node)) return
+      if (handle.getViewportHeight() <= 0 || handle.getScrollHeight() <= handle.getViewportHeight()) return
+      event.stopImmediatePropagation()
+      handle.scrollBy(event.key.wheelUp ? -1 : 1)
+    }
+    internal_eventEmitter.on('wheel', wheel)
+    return () => { internal_eventEmitter.removeListener('wheel', wheel) }
+  }, [handle, internal_eventEmitter])
 
   const attachNode = useCallback((node: DOMElement | null) => {
     nodeRef.current = node
