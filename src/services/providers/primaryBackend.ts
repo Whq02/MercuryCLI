@@ -48,7 +48,6 @@ import { resolveQwenCredentialSnapshot } from './qwen/qwenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { configuredCompatEndpoints } from './openaicompat/compatAccounts.js'
 import {
-  HUGGINGFACE_UNVERIFIED_NOTE,
   huggingfaceCallModel,
   huggingfaceLiveProofState,
 } from './huggingface/huggingfaceCallModel.js'
@@ -412,7 +411,7 @@ const huggingfaceBackend: PrimaryAgentBackend = {
       ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${key.source}` }
       : {
           state: 'configured',
-          detail: `credential present (${key.source}) · shared compat runtime · ${HUGGINGFACE_UNVERIFIED_NOTE} · no live turn proven this session`,
+          detail: `credential present (${key.source}) · shared compat runtime landed · no live turn proven this session`,
         }
   },
 }

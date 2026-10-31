@@ -79,7 +79,6 @@ import {
   type HuggingfaceCatalogueSnapshot,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { resolveHuggingfaceApiKey } from '../../services/providers/huggingface/huggingfaceAccounts.js'
-import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
 import {
   getCachedMoonshotCatalogue,
   refreshMoonshotCatalogue,
@@ -781,8 +780,8 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
         : { name: nameOf('gemini'), doors: [], reason: geminiAvailability.reason },
     [HUGGINGFACE_MODEL_GROUP]:
       huggingfaceAvailability.state === 'ready'
-        ? { name: nameOf('huggingface'), doors: doorsOf('huggingface'), note: HUGGINGFACE_UNVERIFIED_NOTE }
-        : { name: nameOf('huggingface'), doors: [], reason: huggingfaceAvailability.reason, note: HUGGINGFACE_UNVERIFIED_NOTE },
+        ? { name: nameOf('huggingface'), doors: doorsOf('huggingface') }
+        : { name: nameOf('huggingface'), doors: [], reason: huggingfaceAvailability.reason },
     [COMPAT_MODEL_GROUP]: { name: nameOf('openai-compat'), doors: compatDoors },
     [LOCAL_MODEL_GROUP]:
       local.servers > 0

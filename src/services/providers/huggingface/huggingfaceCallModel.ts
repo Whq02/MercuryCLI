@@ -19,7 +19,6 @@ import { clearHuggingfaceUsageLimit, huggingfaceLimitWindow, recordHuggingfaceBi
 import { refreshProviderUsage } from '../providerUsage.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
 
-export const HUGGINGFACE_UNVERIFIED_NOTE = 'unverified against a live endpoint'
 
 export const huggingfaceLaneProfile: CompatLaneProfile = {
   lane: 'huggingface',

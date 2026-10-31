@@ -62,7 +62,6 @@ import {
 import { resolveXaiAccount, resolveXaiApiKey } from '../../services/providers/xai/xaiAccounts.js'
 import { resolveHuggingfaceAccount } from '../../services/providers/huggingface/huggingfaceAccounts.js'
 import { getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
 import { getCachedLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
@@ -757,8 +756,8 @@ function HuggingfaceUsageSection(): React.ReactNode {
       </Text>
       <Text dimColor>
         {availability.state === 'ready'
-          ? `Models: ${availability.modelCount > 0 ? `${availability.modelCount} live via the router catalogue` : (availability.catalogueNote ?? 'catalogue pending')} · ${HUGGINGFACE_UNVERIFIED_NOTE}.`
-          : `Models: ${availability.liveIds.length > 0 ? `${availability.liveIds.length} live-listed (sign in to select)` : availability.reason} · ${HUGGINGFACE_UNVERIFIED_NOTE}.`}
+          ? `Models: ${availability.modelCount > 0 ? `${availability.modelCount} live via the router catalogue` : (availability.catalogueNote ?? 'catalogue pending')}`
+          : `Models: ${availability.liveIds.length > 0 ? `${availability.liveIds.length} live-listed (sign in to select)` : availability.reason}`}
       </Text>
     </Box>
   )

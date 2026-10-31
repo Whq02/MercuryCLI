@@ -803,8 +803,7 @@ with the loaded instance's window, a streamed reply with its reasoning block,
 a direct tool loop, a crewmate and a workflow crewmate), where the product
 reloads the instance at its chosen window on the first send (the documented
 load road) unless the window setting is `server default`. vLLM has not been
-checked against a live server yet. The Hugging Face lane carries an explicit deferred-live caveat
-in its readiness detail until verified against a live endpoint.
+checked against a live server yet.
 
 On the local lane no watchdog cuts a request while the server answers. The
 first-byte budget there is an estimate the status row shows:

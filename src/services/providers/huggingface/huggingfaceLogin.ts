@@ -12,7 +12,6 @@ import {
   type HuggingfaceOauthIo,
 } from './huggingfaceAccounts.js'
 import { refreshHuggingfaceCatalogue } from './huggingfaceCatalogue.js'
-import { HUGGINGFACE_UNVERIFIED_NOTE } from './huggingfaceCallModel.js'
 
 export type HuggingfaceDeviceLoginEvent =
   | { phase: 'starting' }
@@ -177,7 +176,7 @@ export async function runHuggingfaceDeviceLogin(
     return {
       ok: true,
       username: identity?.username ?? null,
-      receipt: `Hugging Face connected${identity ? ` as ${identity.username}` : ''} (OAuth device flow${result.tokens.refreshToken ? ', refresh token stored' : ''})${catalogueNoteOf(snapshot)}. The rows join /model; /accounts manages the sign-in. Dispatch is ${HUGGINGFACE_UNVERIFIED_NOTE} until the first live turn settles.`,
+      receipt: `Hugging Face connected${identity ? ` as ${identity.username}` : ''} (OAuth device flow${result.tokens.refreshToken ? ', refresh token stored' : ''})${catalogueNoteOf(snapshot)}. The rows join /model; /accounts manages the sign-in.`,
     }
   }
 }
@@ -223,7 +222,7 @@ export async function storeHuggingfaceTokenLogin(
     ok: true,
     stored: true,
     receipt: identity
-      ? `Hugging Face token stored for ${identity.username} (auth-scoped, mode 600). Requests bill your Hugging Face credits, then pay-as-you-go.${catalogueNote} Dispatch is ${HUGGINGFACE_UNVERIFIED_NOTE} until the first live turn settles.`
+      ? `Hugging Face token stored for ${identity.username} (auth-scoped, mode 600). Requests bill your Hugging Face credits, then pay-as-you-go.${catalogueNote}`
       : `Hugging Face token stored UNVERIFIED (auth-scoped, mode 600) — the Hub could not be reached to confirm it${probe.state === 'unreachable' ? ` (${probe.message})` : ''}; the first turn refuses if the token is wrong.${catalogueNote}`,
   }
 }
