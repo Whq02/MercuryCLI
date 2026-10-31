@@ -5,7 +5,7 @@ export const SHELL_PID_COMMAND = process.platform === 'win32'
   ? "cat /proc/$$/winpid 2>/dev/null || ps -p $$ | awk 'NR == 2 { print $4 }'"
   : 'echo $$'
 
-export type ShellTreeRow = { pid: number; ppid: number; name: string }
+type ShellTreeRow = { pid: number; ppid: number; name: string }
 
 function parseRows(text: string): ShellTreeRow[] {
   const rows: ShellTreeRow[] = []

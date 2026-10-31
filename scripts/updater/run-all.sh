@@ -16,6 +16,7 @@
 # gate-watch: docs/INSTALL.md docs/TRUST.md docs/translations/* CONTRIBUTING.md src/components/BootLoginsScreen.tsx src/services/providers/gemini/geminiAccounts.ts
 # gate-watch: src/main.tsx scripts/lib/captureDriver.ts
 # gate-watch: build.ts scripts/vendor/fetch-python.ts vendor/python.lock.json
+# gate-watch: scripts/lib/removeScratch.ts scripts/lib/platformPath.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

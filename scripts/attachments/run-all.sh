@@ -14,6 +14,7 @@
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/utils/attachments.ts
 # gate-watch: src/utils/messages/apiView.ts src/utils/attachments/orchestrator.ts src/context.ts src/utils/cockpit/runtimePosture.ts src/run-core/attachment-drain.ts src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WebFetchTool/WebFetchTool.ts
 # gate-watch: src/utils/messages.ts src/utils/messages/attachmentText.ts src/utils/config/globalConfig.ts src/utils/model/model.ts src/tools/SkillTool/constants.ts src/state/AppStateStore.ts src/utils/file.ts src/utils/fileStateCache.ts
+# gate-watch: scripts/lib/removeScratch.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
