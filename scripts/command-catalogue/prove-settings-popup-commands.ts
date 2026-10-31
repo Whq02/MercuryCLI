@@ -57,7 +57,7 @@ const request = store.settingsPopupRequest()
   await module.call('', { messages: [], options: {} })
   const opened = store.settingsPopupRequest()
   check('/config asks for 110 columns and 44 rows', opened?.width === 110 && opened?.rows === 44, JSON.stringify({ width: opened?.width, rows: opened?.rows }))
-  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint)
+  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint)
   store.closeSettingsPopup()
 }
 void request
