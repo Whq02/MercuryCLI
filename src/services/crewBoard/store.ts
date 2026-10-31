@@ -61,15 +61,15 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
   }
   if (!readOnly) db.prepare('INSERT OR IGNORE INTO board_limits VALUES (1, ?)').run(JSON.stringify(prior == null ? requestedLimits : DEFAULT_BOARD_LIMITS))
   const savedLimits = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'board_limits'").get() ? db.prepare('SELECT value FROM board_limits WHERE id = 1').get() : null
-  const limits: BoardLimits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...(savedLimits ? JSON.parse(String(savedLimits.value)) : requestedLimits) })
+  let limits: BoardLimits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...(savedLimits ? JSON.parse(String(savedLimits.value)) : requestedLimits) })
   if (!readOnly) {
     db.exec('INSERT OR IGNORE INTO wave_controls VALUES (1, 0); INSERT OR IGNORE INTO seat_state (agent, joined, cursor) SELECT agent, 0, 0 FROM members WHERE enrolled = 1;')
   }
   const hasState = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'seat_state'").get() != null
   const hasControls = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'wave_controls'").get() != null
   const uncapped = (): boolean => hasControls && db.prepare('SELECT uncapped FROM wave_controls WHERE id = 1').get()?.uncapped === 1
-  const burst = limits.postsPerMinute * 2
-  const refillMs = 60000 / limits.postsPerMinute
+  const burst = (): number => limits.postsPerMinute * 2
+  const refillMs = (): number => 60000 / limits.postsPerMinute
   const waveId = String(db.prepare('SELECT wave FROM identity').get()!.wave)
   const boardId = `board-${waveId}`
   const listeners = new Set<() => void>()
@@ -164,7 +164,13 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
     return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - end + 1), admitted: admitted(), appearances: appearances(), uncapped: head.uncapped === 1, peerTurns: 0, record: { path, sessionId } }
   }
   const store: BoardStore = {
-    limits,
+    get limits() { return limits },
+    setLimits(next) {
+      if (readOnly || JSON.stringify(next) === JSON.stringify(limits)) return
+      limits = Object.freeze({ ...DEFAULT_BOARD_LIMITS, ...next })
+      db.prepare('INSERT INTO board_limits VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET value = excluded.value').run(JSON.stringify(limits))
+      for (const listener of listeners) listener()
+    },
     get uncapped() { return uncapped() },
     setUncapped(p, value) {
       transaction(() => {
@@ -180,7 +186,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
       if (p.author.sessionId !== sessionId) throw new Error('A board cannot enroll another session.')
       if (p.team !== undefined && !validTeam(p.team)) throw new Error('Use a team label of letters, numbers, dots, dashes or underscores; all and general are reserved.')
       transaction(() => {
-        db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst, now())
+        db.prepare('INSERT INTO members (agent, name, execution, credits, refilled) VALUES (?, ?, ?, ?, ?) ON CONFLICT(agent) DO UPDATE SET name = excluded.name, execution = excluded.execution').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
         db.prepare('INSERT INTO seat_state (agent, joined, cursor) VALUES (?, ?, ?) ON CONFLICT(agent) DO UPDATE SET active = 1').run(p.author.agentId, latest(), latest())
         if (p.team !== undefined && teamOf(p.author.agentId) === undefined) db.prepare("INSERT INTO interests VALUES (?, 'membership', ?)").run(p.author.agentId, p.team)
       })
@@ -208,7 +214,7 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
         result = transaction(() => {
           if (input.kind === 'message' || input.kind === 'notice') {
             if (p.author.sessionId !== sessionId) throw new Error('This message belongs to another session.')
-            db.prepare('INSERT INTO members (agent, name, execution, enrolled, credits, refilled) VALUES (?, ?, ?, 0, ?, ?) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId, burst, now())
+            db.prepare('INSERT INTO members (agent, name, execution, enrolled, credits, refilled) VALUES (?, ?, ?, 0, ?, ?) ON CONFLICT(agent) DO NOTHING').run(p.author.agentId, p.name, p.author.executionId, burst(), now())
           } else checkPrincipal(p)
           const post = normalize(input)
           const mirrored = delivery === 'mirror' && (post.kind === 'message' || post.kind === 'notice')
@@ -237,9 +243,9 @@ export function open(path: string, sessionId: string, requestedLimits: BoardLimi
           }
           const author = db.prepare('SELECT credits, refilled, posts FROM members WHERE agent = ?').get(p.author.agentId)!
           const time = now()
-          const credits = Math.min(burst, Number(author.credits) + Math.max(0, time - Number(author.refilled)) / refillMs)
+          const credits = Math.min(burst(), Number(author.credits) + Math.max(0, time - Number(author.refilled)) / refillMs())
           if (post.kind !== 'notice' && !mirrored && Number(author.posts) >= limits.postsPerSeat) return { ok: false, reason: notice(p.author.agentId, 'postsPerSeat', `This seat has used its ${limits.postsPerSeat.toLocaleString('en-US')} posts for this wave (swarm.postsPerSeat). This loop guard stays on under /swarm uncap.`) }
-          if (post.kind !== 'notice' && !mirrored && credits < 1) return { ok: false, reason: notice(p.author.agentId, 'postsPerMinute', `Board posts allow ${limits.postsPerMinute === 4 ? 'four' : limits.postsPerMinute} a minute, with a burst of ${burst === 8 ? 'eight' : burst} (swarm.postsPerMinute). This loop guard stays on under /swarm uncap.`), retryAfter: Math.ceil((1 - credits) * refillMs) }
+          if (post.kind !== 'notice' && !mirrored && credits < 1) return { ok: false, reason: notice(p.author.agentId, 'postsPerMinute', `Board posts allow ${limits.postsPerMinute === 4 ? 'four' : limits.postsPerMinute} a minute, with a burst of ${burst() === 8 ? 'eight' : burst()} (swarm.postsPerMinute). This loop guard stays on under /swarm uncap.`), retryAfter: Math.ceil((1 - credits) * refillMs()) }
           const eventId = randomUUID()
           const addressing = resolveMentions(post.mentions)
           const team = teamOf(p.author.agentId)

@@ -54,6 +54,7 @@ export type BoardHost = {
 }
 export interface BoardStore {
   readonly limits: BoardLimits
+  setLimits(next: BoardLimits): void
   readonly uncapped: boolean
   setUncapped(principal: BoardPrincipal, value: boolean): void
   settle(principal: BoardPrincipal): void

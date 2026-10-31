@@ -73,7 +73,10 @@ export function swarmStore(): BoardStore | null {
   if (!swarmMasterEnabled()) return null
   const sessionId = String(getSessionId())
   const existing = sessions.get(sessionId)
-  if (existing) return existing.store
+  if (existing) {
+    existing.store.setLimits(swarmLimits())
+    return existing.store
+  }
   if (!swarmSessionEnabled() && ![...roads].some(([id, road]) => id.startsWith(`${sessionId}:`) && road.on)) return null
   const module = loadSwarm()
   const store = module.open(join(dirname(getTranscriptPath()), sessionId, 'boards', 'wave', 'board.sqlite'), sessionId, swarmLimits())
