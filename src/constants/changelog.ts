@@ -2,10 +2,11 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.2
-- Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections, without starting extra turns.
+- Added an opt-in crew board: turn on Swarm in /config, then use /swarm on for new crewmates. Share questions, answers and results with @mentions, team channels and corrections. A question or blocker addressed to the lead arrives as one grey [Crewboard] row and wakes it when idle; results paint without waking it. Nothing is capped unless you set a cap in /config, and /swarm uncap, cap and status manage a live wave.
 - Added Crew chat in the Workbench: /swarm opens a read-only timeline of board posts and crew messages, grouped by thread and team, with each author's name and time.
 - Added transcripts from local audio and video files through Read, with numbered, timestamped segments decoded on-device. The speech model downloads on first use; most formats need ffmpeg.
 - Added mercury acp --login for editor sign-in: open Mercury's sign-in screen in a terminal, choose a provider and return to the editor when sign-in finishes.
+- Added mercury.exe: a native Windows launcher in the release archive, so an extracted archive runs from PowerShell or Command Prompt without installing. mercury.cmd and mercury.ps1 stay beside it.
 - Added /resume, /models and /advisor as aliases for the sessions screen, model picker and advisor switch.
 - Added Anthropic prompt-cache diagnostics to the debug log, naming changes between requests.
 - Changed Flow to ask before five things and run everything else: sudo and any other privilege escalation; git that publishes or rewrites history; publishing and deploying; deleting or overwriting a path outside the project, its worktrees, this run's scratch and the temp folders; and your own ask rules. Deny rules still refuse; reads are free everywhere.
@@ -25,6 +26,12 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed /health repeatedly rebuilding Python's bytecode cache when different Mercury builds are installed; recently used build caches stay available for later checks.
 - Fixed prompt-cache rewrites during screenshot-heavy work by retiring older screenshots together when the cache is cold or the image ceiling is reached. Context refreshes after compaction keep later requests stable.
 - Fixed media workflow exports to keep sampling and post-processing settings, and completed renders waiting on a job-record write that failed while another process was reading it.
+- Fixed the Workbench's mouse wheel: a burst no longer jumps into the next panel and repaints, rows at the bottom of a long list stay painted, and a flick scrolls at most a page.
+- Fixed two Windows asks: a quoted drive path such as "C:\\Users\\…" no longer raises the network-share question (which could leave a streamed run waiting), and a copy to a drive path outside the project asks in Flow like any other outside write.
+- Fixed titles of runs that start on a warm runner: the saved title now reaches the session's transcript as it does for a cold start.
+- Fixed transcript search to read every tool's own result text; Document results are searchable by file path and detail.
+- Fixed the /context chart not appearing when the count finished after the session's warm start.
+- Fixed the Python SDK's type check and the Read sniff that mistook a UTF-16 text file for audio; a bare MP3 or AAC stream without an extension still reads as audio.
 
 ## 1.0.1
 - Added images and video on a rented GPU: choose an existing SSH rental in /imagesetup, send reference files over its tunnel and save the results to your project; setup and generation use the rental's hourly rate.
