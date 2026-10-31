@@ -82,8 +82,8 @@ section('§1 the layout words: human dates, the overview cells, the lineage rows
   const page = layout.pageLines('# Lineage\nSession 3 of this work.\n\n- a long item that wraps past the width of the page because it keeps going and going\n## The last note\nword '.repeat(1) + 'word '.repeat(30).trim(), 40)
   check('a page renders headings, paragraphs and items wrapped to the width, blank lines collapsed', page[0]!.kind === 'heading' && page[0]!.text === 'Lineage' && page[1]!.kind === 'text' && page.some(l => l.kind === 'item' && l.text.startsWith('• ')) && page.every(l => l.text.length <= 40) && !page.some((l, i) => l.kind === 'blank' && page[i + 1]?.kind === 'blank'), JSON.stringify(page))
   check('a wrapped item hangs its continuation under the first word', page.filter(l => l.kind === 'item').slice(1).every(l => l.text.startsWith('  ')), JSON.stringify(page.filter(l => l.kind === 'item')))
-  check('the footer names the selected row\'s action once and the close hint', layout.memoryFooter({ kind: 'overview', action: 'run now' }) === '↑↓ move · ↵ run now · esc or click outside closes' && layout.memoryFooter({ kind: 'overview', action: null }) === '↑↓ move · esc or click outside closes')
-  check('the sub-view footers back out with esc; the page footer scrolls only when the page overflows', layout.memoryFooter({ kind: 'list', open: 'open', empty: false }).endsWith('esc back') && layout.memoryFooter({ kind: 'page', scrolls: false, editable: false }) === 'esc back' && layout.memoryFooter({ kind: 'page', scrolls: true, editable: false }) === '↑↓ scroll · esc back')
+  check('the footer names paging, the selected row\'s action once and the close hint', layout.memoryFooter({ kind: 'overview', action: 'run now' }) === '↑↓ move · pgup/pgdn page · ↵ run now · esc or click outside closes' && layout.memoryFooter({ kind: 'overview', action: null }) === '↑↓ move · pgup/pgdn page · esc or click outside closes')
+  check('the sub-view footers back out with esc; the page footer scrolls only when the page overflows', layout.memoryFooter({ kind: 'list', open: 'open', empty: false }) === '↑↓ move · pgup/pgdn page · ↵ open · esc back' && layout.memoryFooter({ kind: 'page', scrolls: false, editable: false }) === 'esc back' && layout.memoryFooter({ kind: 'page', scrolls: true, editable: false }) === '↑↓ scroll · pgup/pgdn page · esc back')
   check('the context line is the project name and the memory folder', layout.memoryPopupLine('/Users/someone/code/app/', '~/.mercury/projects/-Users-someone-code-app/memory/') === 'app · ~/.mercury/projects/-Users-someone-code-app/memory')
 }
 
@@ -282,7 +282,9 @@ section('§3 the lineage as a table and a session\'s note as a page (120x40, the
 for (const [columns, rows] of [[120, 40], [100, 30], [80, 24]] as const) {
   const scene = await openMemory(columns, rows)
   await moveTo(scene.m, 'lineage')
-  check(`${columns}x${rows}: the lineage row's footer offers the sessions`, rowOf(scene.m, layout.MEMORY_CLOSE_HINT).includes('↵ open the sessions'))
+  const lineageFooter = rowOf(scene.m, '↵ open the sessions')
+  const lineageHint = columns === 120 ? 'esc or click outside closes' : 'esc closes'
+  check(`${columns}x${rows}: the lineage row's footer offers the sessions`, lineageFooter.includes(`↑↓ move · pgup/pgdn page · ↵ open the sessions · ${lineageHint}`), lineageFooter)
   scene.m.push(KEY.enter)
   const table = await waitFor(() => scene.m.screen().includes('memory › lineage') && /session\s+engine\s+started\s+ended\s+note/.test(scene.m.screen()), 6000)
   check(`${columns}x${rows}: ↵ opens the lineage table with its five columns`, table, scene.m.lines().filter(l => l.includes('│ │') || l.includes('session')).slice(0, 6).join(' | '))
