@@ -25,6 +25,7 @@ import type { ThinkingConfig } from '../../utils/thinking.js'
 import { isMockRateLimitError } from '../rateLimitMocking.js'
 import { heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, type BusyRetryLadder, type HeldBusyRetryWait } from '../providers/busyRetry.js'
 import { isClientContractRefusalError } from './clientContractGate.js'
+import { cacheDiagnosticsRefusal, isCacheDiagnosticsRefusal, refuseCacheDiagnostics } from '../providers/anthropic/cacheDiagnostics.js'
 import { healClientContractRefusal, noteClientContractHeal, type ClientContractHeal } from './clientContractLearned.js'
 import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
 import { isSdkConnectionError as isConnectionErrorLike, NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
@@ -313,6 +314,12 @@ export async function* withRetry<T>(
         if (countingEnabled) consecutive529Errors++
       } else {
         consecutive529Errors = 0
+      }
+
+      if (cacheDiagnosticsRefusal() === null && isCacheDiagnosticsRefusal(error)) {
+        refuseCacheDiagnostics(errorMessage(error))
+        logForDebugging(`cache diagnostics: the provider refused the diagnostics field (${errorMessage(error)}); this process sends it no more and the request goes out again without it`, { level: 'warn' })
+        continue
       }
 
       if (options.healClientContract === true && isClientContractRefusalError(error)) {

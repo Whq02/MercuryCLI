@@ -193,6 +193,13 @@ section('§1 the pure law: the diagnostics field, the previous id and the cold-p
   check('MERCURY_CACHE_DIAGNOSTICS=0 turns the field off', cacheDiagnosticsParam(['msg_01A'], 'main_thread', () => true) === null)
   if (saved === undefined) delete process.env.MERCURY_CACHE_DIAGNOSTICS
   else process.env.MERCURY_CACHE_DIAGNOSTICS = saved
+  const { isCacheDiagnosticsRefusal, refuseCacheDiagnostics, cacheDiagnosticsRefusal } = await import('../../src/services/providers/anthropic/cacheDiagnostics.ts')
+  const refused = Object.assign(new Error('diagnostics: Extra inputs are not permitted'), { status: 400 })
+  check('a 400 that names the diagnostics field is the refusal the retry ladder heals; a 400 about anything else is not; a 500 naming it is not', isCacheDiagnosticsRefusal(refused) && !isCacheDiagnosticsRefusal(Object.assign(new Error('max_tokens too large'), { status: 400 })) && !isCacheDiagnosticsRefusal(Object.assign(new Error('diagnostics'), { status: 500 })))
+  refuseCacheDiagnostics('refused in the proof')
+  check('after a refusal the process sends the field no more', cacheDiagnosticsRefusal() === 'refused in the proof' && cacheDiagnosticsParam(['msg_01A'], 'main_thread', () => true) === null)
+  refuseCacheDiagnostics(null)
+  check('the refusal cleared, the field rides again', j(cacheDiagnosticsParam(['msg_01A'], 'main_thread', () => true)) === j({ previous_message_id: 'msg_01A' }))
   const changed = { diagnostics: { cache_miss_reason: { type: 'messages_changed', cache_missed_input_tokens: 41850 } } }
   check('a *_changed reason is read with its token estimate', cacheMissReasonOf(changed)?.type === 'messages_changed' && describeCacheDiagnostics(changed, { cache_read_input_tokens: 27000, cache_creation_input_tokens: 41850 }) === 'cache diagnostics: messages_changed, ~41850 tokens after the divergence (cache read 27000 · written 41850)')
   check('a null diagnostics field is "no divergence"; an absent field says nothing; a pending comparison is named', describeCacheDiagnostics({ diagnostics: null }, undefined) === 'cache diagnostics: no divergence from the previous request (cache read 0 · written 0)' && describeCacheDiagnostics({}, undefined) === null && describeCacheDiagnostics({ diagnostics: { cache_miss_reason: null } }, undefined) === 'cache diagnostics: comparison pending (cache read 0 · written 0)')

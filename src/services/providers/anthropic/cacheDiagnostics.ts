@@ -3,20 +3,37 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { isTurnOwningQuerySource } from '../../../utils/effort.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 
-export interface CacheDiagnosticsParam {
+interface CacheDiagnosticsParam {
   previous_message_id: string | null
 }
 
-export interface CacheMissReason {
+interface CacheMissReason {
   type: string
   cache_missed_input_tokens?: number
 }
 
 const PROVIDER_MESSAGE_ID = /^msg_[A-Za-z0-9_]+$/
 
-export function cacheDiagnosticsEnabled(querySource: string | undefined, firstParty: () => boolean = isFirstPartyAnthropicBaseUrl): boolean {
+let refusal: string | null = null
+
+export function cacheDiagnosticsRefusal(): string | null {
+  return refusal
+}
+
+export function refuseCacheDiagnostics(reason: string | null): void {
+  refusal = reason
+}
+
+export function isCacheDiagnosticsRefusal(error: unknown): boolean {
+  const status = (error as { status?: unknown } | null)?.status
+  if (status !== 400) return false
+  const message = error instanceof Error ? error.message : String(error)
+  return /diagnostics/i.test(message)
+}
+
+function cacheDiagnosticsEnabled(querySource: string | undefined, firstParty: () => boolean = isFirstPartyAnthropicBaseUrl): boolean {
   const setting = (flagEnv('MERCURY_CACHE_DIAGNOSTICS') ?? '').trim()
-  if (setting === '0') return false
+  if (setting === '0' || refusal !== null) return false
   if (!isTurnOwningQuerySource(querySource)) return false
   return setting === '1' || firstParty()
 }
