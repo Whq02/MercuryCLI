@@ -40,6 +40,7 @@
     "isBrokenPipeError",
     "isRowLine",
     "promptSchemaRefusal",
+    "schemaFlagRefusal",
     "type:OutboundLine",
     "type:OutboundNotification"
    ]
@@ -361,6 +362,7 @@
    ],
    "src/services/mcp/client.ts": [
     "DEFAULT_MCP_CALL_IDLE_MINUTES",
+    "DEFAULT_MCP_STDIO_MESSAGE_MB",
     "MCP_LAUNCH_SPAWN_GRACE_MS",
     "MCP_TOOL_USE_ID_META_KEY",
     "McpAuthError",
@@ -382,10 +384,14 @@
     "getToolDiscoveryFailure",
     "inferCompactSchema",
     "isMcpSessionExpiredError",
+    "isResponseStreamEndedError",
     "loggedHeadersOf",
     "mcpCallIdleLimitMs",
     "mcpLaunchBudgetMs",
+    "mcpOversizedMessageWords",
     "mcpRequestBudgetMs",
+    "mcpServerStderrRedactor",
+    "mcpStdioMaxMessageBytes",
     "onMcpListChanged",
     "prefetchAllMcpResources",
     "processMCPResult",
@@ -397,6 +403,7 @@
     "type:TransformedMCPResult",
     "withMcpLaunchBudget",
     "withoutNullOptionals",
+    "withoutNullToolMetadata",
     "wrapFetchWithTimeout"
    ],
    "src/services/mcp/types.ts": [
@@ -473,6 +480,7 @@
     "PROSE_SKIPPED_KEY",
     "annotateBoundaryWithPreservedSegment",
     "annotateBoundaryWithWork",
+    "boundedHookInstructions",
     "buildPostCompactMessages",
     "collectPreservedReadPaths",
     "compactConversation",
@@ -484,6 +492,7 @@
     "createPostCompactFileAttachments",
     "createSkillAttachmentIfNeeded",
     "estimateFixedRequestTokens",
+    "fitFileAttachmentToTokenCeiling",
     "fitPostCompactUnderThreshold",
     "foldFamilyOf",
     "foldFirstByteAllowanceMs",
@@ -494,6 +503,7 @@
     "isCompactCapsuleMessage",
     "isPartSummaryMessage",
     "isRefold",
+    "linesWithinTokenCeiling",
     "malformedHistoryRefusalOf",
     "manualFoldHasNothingToFold",
     "mergeHookInstructions",
@@ -620,6 +630,7 @@
     "decideStreamFaultRecovery",
     "decideToolCallRefusalRecovery",
     "runEventCore",
+    "type:ComposedPrompt",
     "type:CutToolCallDecision",
     "type:QueryParams"
    ],
@@ -699,6 +710,7 @@
   "records",
   "routing",
   "shell",
+  "swarm",
   "turns",
   "videoProvider",
   "view",
