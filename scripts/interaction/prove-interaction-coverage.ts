@@ -93,6 +93,7 @@ reg(
     'src/components/extensions/SourceView.tsx',
     'src/components/tasks/WorkflowsBoard.tsx',
  'src/components/prompts-panel/PromptsPanel.tsx',
+ 'src/components/prompts-panel/CrewChatPanel.tsx',
   ],
   'board',
 )
