@@ -1082,7 +1082,8 @@ export function Chat({
     return focusedConnector.subscribeLive(paintLostLine);
   }, [focusedConnector, addNotification]);
 
-  const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString(), focused = getFocusedSessionConnector() as PaintsRows): void => {
+  const paintScreenCommandReceipt = useCallback((commandName: string, args: string, text: string, timestamp = new Date().toISOString()): void => {
+    const focused = getFocusedSessionConnector() as PaintsRows;
     if (typeof focused.addDisplayRow === 'function') {
       focused.addDisplayRow({ ...createUserMessage({ content: formatCommandLoadingMetadata(commandName, args) }), timestamp });
       focused.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${text}</${LOCAL_COMMAND_STDOUT_TAG}>`));
@@ -1215,7 +1216,7 @@ export function Chat({
           const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
           const module = await seatCommand.load();
           const result = await module.call(args, context);
-          if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt, focusedNow as PaintsRows);
+          if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt);
         } catch (error) {
           logForDebugging(`screen command /${seatCommand.name} failed: ${String(error)}`);
           addNotification({ key: `command-${seatCommand.name}`, text: `/${getCommandName(seatCommand)} failed — ${error instanceof Error ? error.message : String(error)}`, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS });
@@ -1271,7 +1272,7 @@ export function Chat({
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
           const resultLines = result.split(/\r?\n/).filter(line => line.trim() !== '').length;
-          if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result, submittedAt, focusedNow as PaintsRows);
+          if (resultLines > 1) paintScreenCommandReceipt(dialogName, args, result, submittedAt);
           else addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
         }
         if (doneOptions?.nextInput) {
