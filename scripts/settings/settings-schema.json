@@ -13,7 +13,7 @@
           "type": "boolean"
         },
         "seatAllowance": {
-          "description": "Requested board-context tokens per seat, default 200000; 1000–5000000, or 0 for no cap",
+          "description": "Requested board-context tokens per seat: 0 (no cap) by default; 1000–5000000 caps it",
           "type": "integer",
           "minimum": 0,
           "maximum": 5000000,
@@ -27,7 +27,7 @@
           ]
         },
         "waveAllowance": {
-          "description": "Live-wave board context before unsolicited delivery degrades, default 500000; at least seatAllowance up to 20000000, or 0 for no cap",
+          "description": "Live-wave board context before unsolicited delivery degrades: 0 (no cap) by default; from seatAllowance up to 20000000 caps it",
           "type": "integer",
           "minimum": 0,
           "maximum": 20000000,
@@ -41,7 +41,7 @@
           ]
         },
         "postChars": {
-          "description": "Characters per post, default 4000; 400–20000, or 0 for no cap",
+          "description": "Characters per post: 0 (no cap) by default; 400–20000 caps it",
           "type": "integer",
           "minimum": 0,
           "maximum": 20000,
