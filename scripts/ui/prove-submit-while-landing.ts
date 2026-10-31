@@ -36,7 +36,7 @@ console.log('§2 the landing: the armed effect submits the line with its mode an
   check('the bash mode is carried into the submit', effect.includes("if (armedMessage.bashMode) pendingInput.setMode('bash');"))
   check('the submit rides the rearmed word', effect.includes("await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);"))
   check('the rearmed word writes no second history entry', onSubmit.includes("if (!options?.fromKeybinding && !options?.rearmed) addToHistory("))
-  check('onSubmit declares the rearmed option', repl.includes("options?: { fromKeybinding?: boolean; rearmed?: boolean }"))
+  check('onSubmit declares the rearmed option', repl.includes("options?: { fromKeybinding?: boolean; rearmed?: boolean; submittedAt?: string }"))
 }
 
 console.log('§3 the store declares the two carried fields')
