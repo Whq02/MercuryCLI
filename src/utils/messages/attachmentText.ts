@@ -3,7 +3,7 @@ import type { AnyObject, Tool } from '../../Tool.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { BashTool } from '../../tools/BashTool/BashTool.js'
 import { FileReadTool, type Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
-import { FILE_READ_TOOL_NAME, MAX_LINES_TO_READ } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
 import { RESUME_AGENT_TOOL_NAME } from '../../tools/ResumeAgentTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
@@ -52,7 +52,7 @@ function fileRows(file: Of<'file'>): UserMessage[] {
   if (!['text', 'image', 'notebook', 'pdf'].includes(payload.type)) return []
   const rows = toolRead(FileReadTool, { file_path: file.filename }, payload)
   if (payload.type === 'text' && file.truncated) {
-    rows.push(meta(`${file.filename} was too large — only its first ${MAX_LINES_TO_READ} lines are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
+    rows.push(meta(`${file.filename} was too large — only its first ${payload.file.numLines} lines are shown above. Read further with ${FileReadTool.name} when you need more; do not mention the truncation to the user.`))
   }
   return wrapMessagesInSystemReminder(rows)
 }

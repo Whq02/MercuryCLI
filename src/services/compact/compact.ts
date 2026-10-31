@@ -16,6 +16,7 @@ import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attac
 import { getDeferredToolsDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
+import type { Attachment } from '../../utils/attachments/types.js'
 import { getUserContextAttachment } from '../../utils/attachments/userContext.js'
 import { getMemoryPath } from '../../utils/config/derived.js'
 import { foldedTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
@@ -70,7 +71,7 @@ import { getBlockingLimit, getEffectiveContextWindowSize, resolveAutoCompactWind
 import { PERSISTED_OUTPUT_TAG, TOOL_RESULT_CLEARED_MESSAGE } from '../../utils/toolResultStorage.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
 import { REPEATED_RESULT_TAG } from '../../constants/toolLimits.js'
-import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB } from '../../tools/FileReadTool/prompt.js'
+import { FILE_READ_TOOL_NAME, FILE_UNCHANGED_STUB, MAX_LINES_TO_READ } from '../../tools/FileReadTool/prompt.js'
 import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
@@ -583,6 +584,24 @@ export function collectPreservedReadPaths(preserved: Message[], resultIds?: Read
   return paths
 }
 
+export function linesWithinTokenCeiling(lines: readonly string[], maxTokens: number): number {
+  let shown = ''
+  for (let count = 0; count < lines.length; count++) {
+    shown += `${lines[count]!}\n`
+    if (roughTokenCountEstimation(shown) > maxTokens) return Math.max(1, count)
+  }
+  return lines.length
+}
+
+export function fitFileAttachmentToTokenCeiling<T extends Attachment>(row: T, maxTokens: number): T {
+  if (row.type !== 'file' || row.content.type !== 'text') return row
+  const lines = row.content.file.content.split('\n')
+  const count = linesWithinTokenCeiling(lines, maxTokens)
+  if (count >= lines.length) return row
+  const shown = lines.slice(0, count)
+  return { ...row, truncated: true, content: { ...row.content, file: { ...row.content.file, content: shown.join('\n'), numLines: shown.length } } }
+}
+
 export async function createPostCompactFileAttachments(
   readFileState: Record<string, { content: string; timestamp: number }>,
   toolUseContext: ToolUseContext,
@@ -600,16 +619,15 @@ export async function createPostCompactFileAttachments(
   const generated = project
     ? candidates.map(([path, state]) => {
       const lines = state.content.split('\n')
-      const shown = lines.slice(0, POST_COMPACT_MAX_TOKENS_PER_FILE)
       return {
         type: 'file' as const, filename: path, displayPath: path,
-        content: { type: 'text' as const, file: { filePath: path, content: shown.join('\n'), numLines: shown.length, startLine: 1, totalLines: lines.length } },
+        content: { type: 'text' as const, file: { filePath: path, content: state.content, numLines: lines.length, startLine: 1, totalLines: lines.length } },
       }
     })
     : await Promise.all(
       candidates.map(([path]) =>
         generateFileAttachment(path, toolUseContext, 'compact', {
-          limit: POST_COMPACT_MAX_TOKENS_PER_FILE,
+          limit: MAX_LINES_TO_READ,
         }).catch(() => null),
       ),
     )
@@ -618,7 +636,7 @@ export async function createPostCompactFileAttachments(
   let total = 0
   for (const attachment of generated) {
     if (attachment === null) continue
-    const message = createAttachmentMessage(attachment)
+    const message = createAttachmentMessage(fitFileAttachmentToTokenCeiling(attachment, POST_COMPACT_MAX_TOKENS_PER_FILE))
     const estimate = roughTokenCountEstimation(JSON.stringify(message))
     if (total + estimate > POST_COMPACT_TOKEN_BUDGET) continue
     total += estimate
