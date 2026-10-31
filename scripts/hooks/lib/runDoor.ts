@@ -25,6 +25,7 @@ type RunDoorScene = {
   env?: Record<string, string>
   timeoutMs?: number
   signalAfterMs?: { ms: number; signal: NodeJS.Signals }
+  signalWhen?: { ready: () => boolean; signal: NodeJS.Signals; pollMs?: number }
   beforeRun?: (paths: { home: string; cwd: string }) => void
 }
 
@@ -95,9 +96,15 @@ export async function runDoor(paths: { home: string; cwd: string }, scene: RunDo
   child.stderr.on('data', bytes => { stderr += String(bytes) })
   const guard = setTimeout(() => { child.kill('SIGKILL') }, scene.timeoutMs ?? 90_000)
   const poke = scene.signalAfterMs ? setTimeout(() => { child.kill(scene.signalAfterMs!.signal) }, scene.signalAfterMs.ms) : undefined
+  const watch = scene.signalWhen ? setInterval(() => {
+    if (!scene.signalWhen!.ready()) return
+    clearInterval(watch)
+    child.kill(scene.signalWhen!.signal)
+  }, scene.signalWhen.pollMs ?? 50) : undefined
   const code = await new Promise<number | null>(resolve => child.once('close', resolve))
   clearTimeout(guard)
   if (poke) clearTimeout(poke)
+  if (watch) clearInterval(watch)
   const tookMs = Date.now() - started
   const requests = fixture.messageRequests().length
   await fixture.close()
