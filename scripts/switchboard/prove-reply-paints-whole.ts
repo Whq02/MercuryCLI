@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
+import { untilAsync } from '../lib/untilAsync.ts'
 import { randomUUID } from 'node:crypto'
 import { Database } from 'bun:sqlite'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -67,7 +68,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const words = (text: string): string[] => text.split(' ').map((w, i, all) => (i < all.length - 1 ? `${w} ` : w))
 const longReply = (noun: string, mark: string, end: string, count: number): string => Array.from({ length: count }, (_, i) => `${noun} ${i + 1} (${mark}${i + 1}) of the ${noun === 'Sentence' ? 'long' : 'resumed'} reply carries its own distinct words so a cut would show.`).join(' ') + ` ${end}`
@@ -225,14 +225,14 @@ function judgeReply(label: string, frame: string[] | undefined, text: string, st
   check(`${label}: the screen paints the reply whole (${collapse(text).length} chars)`, whole, `painted ${painted} of ${collapse(text).length} chars: ${JSON.stringify(collapse(text).slice(0, Math.min(painted, 60)))}${painted < collapse(text).length ? '…' : ''}`)
   if (recorded !== undefined) {
     const ids = paintedRecordIds()
-    check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}, not a streaming echo left standing`, ids.has(recorded.recordId.slice(0, 8)), `the REPL's painted list named ${ids.size} rows and never this record`)
+    check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}, not a streaming echo left standing`, ids.has(recorded.recordId.slice(0, 8)), `the screen's painted list named ${ids.size} rows and never this record`)
   }
 }
 function judgeUserRow(label: string, frame: string[] | undefined, text: string, store: StoreRow[]): void {
   const recorded = store.find(r => r.kind === 'input' && r.text === collapse(text))
   check(`${label}: the store holds the operator's row`, recorded !== undefined, store.filter(r => r.kind === 'input').map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}`).join(' | '))
   check(`${label}: the screen paints the operator's row`, frame !== undefined && paneText(frame).includes(collapse(text)), frame === undefined ? 'no frame' : paneText(frame).slice(-300))
-  if (recorded !== undefined) check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}`, paintedRecordIds().has(recorded.recordId.slice(0, 8)), 'the REPL\'s painted list never named this record')
+  if (recorded !== undefined) check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}`, paintedRecordIds().has(recorded.recordId.slice(0, 8)), 'the screen\'s painted list never named this record')
 }
 function judgeChain(label: string, transcript: string | null): void {
   if (transcript === null) return
@@ -265,12 +265,7 @@ const leadExecution = (): string | null => {
 }
 async function postWhenTheLeadIsBack(executionBefore: string | null, clientOpId: string, text: string): Promise<string> {
   if (boardPath === null || sessionId === null || !existsSync(boardPath)) return 'no board'
-  const deadline = Date.now() + vshotBudgetMs(90_000)
-  while (Date.now() < deadline) {
-    const execution = leadExecution()
-    if (execution !== null && execution !== executionBefore) break
-    await sleep(200)
-  }
+  await untilAsync(() => { const execution = leadExecution(); return execution !== null && execution !== executionBefore }, vshotBudgetMs(90_000), 200)
   const board = await import('../../src/services/crewBoard/store.ts')
   const store = board.open(boardPath, sessionId)
   try {
@@ -284,12 +279,8 @@ async function postWhenTheLeadIsBack(executionBefore: string | null, clientOpId:
 }
 async function dispatchWhenRecorded(needle: string, promptText: string): Promise<string> {
   if (transcript === null || sessionId === null) return 'no session'
-  const deadline = Date.now() + vshotBudgetMs(120_000)
-  while (Date.now() < deadline) {
-    if (replies(storeRows(transcript)).some(r => r.text.includes(needle))) break
-    await sleep(250)
-  }
-  await sleep(1500)
+  await untilAsync(() => replies(storeRows(transcript)).some(r => r.text.includes(needle)), vshotBudgetMs(120_000))
+  await untilAsync(() => readFileSync(transcript, 'utf8').split('\n').some(line => line.includes(needle) && line.includes('"outcome"')), vshotBudgetMs(30_000))
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const reply = (await daemonControlRpc({ op: 'sessionDispatch', clientMessageId: randomUUID(), prompt: promptText, workspaceDir: '', targetSessionId: sessionId, by: 'operator' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }
   return reply.ok === true ? 'the daemon took the line' : `refused: ${reply.error ?? JSON.stringify(reply)}`
@@ -326,7 +317,7 @@ async function resumedJourney(tag: string, dist: string, keptTail: string, post:
   judgeChain(tag, transcript)
 }
 
-console.log('every assistant reply paints whole on the REPL — streamed and final, in a fresh and a resumed session, with a tool turn and a compaction before the resume, a board post on the way back and a line sent through the daemon')
+console.log('every assistant reply paints whole on the screen — streamed and final, in a fresh and a resumed session, with a tool turn and a compaction before the resume, a board post on the way back and a line sent through the daemon')
 console.log(`  bundle ${DIST} (build tree ${distBuildTree(DIST)?.slice(0, 12) ?? 'unknown'}${BOARD_IN_BUILD ? (BOARD_ROWS_IN_BUILD ? ', with the crew board and its rows' : ', with the crew board') : ', before the crew board'})${SOURCE_REF !== undefined ? ` from --source-ref ${SOURCE_REF}` : ''}${CLIENT_DIST !== undefined ? `\n  older window ${CLIENT_DIST} (build tree ${distBuildTree(CLIENT_DIST)?.slice(0, 12) ?? 'unknown'})` : ''}\n  fixture ${api.url}\n  scratch ${SCRATCH}\n  frames ${FRAMES}`)
 
 let daemon: ChildProcess | null = null
@@ -411,27 +402,18 @@ try {
   boardPath = transcript === null || sessionId === null ? null : join(dirname(transcript), sessionId, 'boards', 'wave', 'board.sqlite')
   log(`board ${boardPath !== null && existsSync(boardPath) ? 'opened by the session' : BOARD_IN_BUILD ? 'absent after /swarm on' : 'not in this build (no crew board, no post)'}${boardPath === null ? '' : ` at ${boardPath}`}`)
   if (BOARD_IN_BUILD) check('the session opened its crew board on /swarm on', boardPath !== null && existsSync(boardPath), boardPath ?? 'no transcript')
-  await sleep(2500)
+  await untilAsync(() => transcript === null || !existsSync(`${transcript}.writer.lock`), vshotBudgetMs(30_000))
 
   section('§2 the same session resumed: a lane posts to the lead the moment the board is open again, a long streamed reply, a line sent through the daemon and its reply')
   await resumedJourney('resumed', DIST, SHORT, { clientOpId: 'paint-board-post-1', text: BOARD_POST, mark: 'PAINT-BOARD-POST' }, { tag: 'paint-long-2', text: AGAIN, firstMark: 'AGAIN-L3', end: 'THE-AGAIN-END' }, { tag: 'paint-short-2', text: SHORT_AGAIN, end: 'THE-SHORT-AGAIN-END' })
 
   if (CLIENT_DIST !== undefined) {
-    section('§3 the older window: a REPL from the previous build keeps painting whole against a daemon on this build')
-    await sleep(2500)
+    section('§3 the older window: a window from the previous build keeps painting whole against a daemon on this build')
+    await untilAsync(() => transcript === null || !existsSync(`${transcript}.writer.lock`), vshotBudgetMs(30_000))
     const logFd = openSync(join(SCRATCH, 'older-window-daemon.log'), 'a')
     daemon = spawn(NODE, [DIST, 'daemon', 'run', work], { cwd: work, env: childEnv, stdio: ['ignore', logFd, logFd] })
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-    const deadline = Date.now() + vshotBudgetMs(60_000)
-    let serving = false
-    while (Date.now() < deadline && !serving) {
-      try {
-        serving = ((await daemonControlRpc({ op: 'ping' } as never, { timeoutMs: 1000 })) as { ok?: boolean }).ok === true
-      } catch {
-        serving = false
-      }
-      if (!serving) await sleep(250)
-    }
+    const serving = await untilAsync(async () => ((await daemonControlRpc({ op: 'ping' } as never, { timeoutMs: 1000 })) as { ok?: boolean }).ok === true, vshotBudgetMs(60_000))
     check('a daemon on this build serves the older window', serving)
     await resumedJourney('older-window', CLIENT_DIST, SHORT_AGAIN, { clientOpId: 'paint-board-post-2', text: BOARD_POST_OLDER, mark: 'PAINT-BOARD-POST-TWO' }, { tag: 'paint-long-3', text: OLDER, firstMark: 'OLDER-R3', end: 'THE-OLDER-END' }, { tag: 'paint-short-3', text: SHORT_OLDER, end: 'THE-SHORT-OLDER-END' })
   }

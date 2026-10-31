@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const NATIVE_PACKS = new Set(['whisper', 'voice'])
 
-export type RefDist = { ref: string; sha: string; tree: string; dist: string; built: boolean; log: string }
+type RefDist = { ref: string; sha: string; tree: string; dist: string; built: boolean; log: string }
 
 function git(root: string, args: string[]): string {
   const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' })
@@ -13,7 +13,7 @@ function git(root: string, args: string[]): string {
   return r.stdout.trim()
 }
 
-export function refDistRoot(): string {
+function refDistRoot(): string {
   return join(tmpdir(), 'mercury-ref-dist')
 }
 
@@ -57,10 +57,4 @@ export function distBuildTree(dist: string): string | null {
   } catch {
     return null
   }
-}
-
-export function knownRefDists(): string[] {
-  const root = refDistRoot()
-  if (!existsSync(root)) return []
-  return readdirSync(root).filter(name => existsSync(join(root, name, 'tree', 'dist', 'mercury.mjs')))
 }
