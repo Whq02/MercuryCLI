@@ -83,7 +83,8 @@ process.env.ANTHROPIC_API_KEY = KEY
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const ROOT = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'lsd-')))
 const NARROW = 100
-const STRIP_ROW = /(?:· |● )(?:local\/)?qwen3\.5:9b · (?:effort )?(?:low|medium|high|max|xhigh)\b/
+const WIDE_STRIP_ROW = /^ ready · local\/qwen3\.5:9b {2,}/
+const NARROW_STRIP_ROW = /✶ Mercury · ● ready · local\/qwen3\.5:9b · ctx —(?:\s|$)/
 
 interface Step {
   mark: string
@@ -464,7 +465,8 @@ async function drive(size: string): Promise<void> {
   const pull = log.find(r => r.method === 'POST' && r.path === '/api/pull')
   check(`${world.tag}: the product started the fixture server itself (its pidfile under the scratch state named a live process until the drive stopped it, and the server left on the stop signal, its pidfile gone) and every request came from the product`, serverPid > 0 && serverAlive && left && log.length > 0, `pid ${serverPid} alive ${serverAlive} left ${left} · ${log.length} requests`)
   const afterEsc = c.marks.get('after-esc') ?? []
-  check(`${world.tag} after-esc: the dialog is gone and the session strip names qwen3.5:9b as the live model (the pick applied, not queued)`, afterEsc.length > 0 && !afterEsc.some(l => l.includes(KEYS)) && afterEsc.some(l => STRIP_ROW.test(l)), afterEsc.filter(l => /ready ·|● ready|effort/.test(l)).map(l => l.trim().slice(0, 120)).join(' | '))
+  const stripRow = world.cols < NARROW ? NARROW_STRIP_ROW : WIDE_STRIP_ROW
+  check(`${world.tag} after-esc: the dialog is gone and the session strip names qwen3.5:9b without named effort (the boolean-only model is live, not queued)`, afterEsc.length > 0 && !afterEsc.some(l => l.includes(KEYS)) && afterEsc.some(l => stripRow.test(l)), afterEsc.filter(l => /ready ·|● ready|effort/.test(l)).map(l => l.trim().slice(0, 120)).join(' | '))
   const serveLog = join(world.home, 'local-setup', 'ollama-serve.log')
   check(`${world.tag}: the detached \`ollama serve\` logs under the config home (local-setup/ollama-serve.log) and the log names the fixture port`, existsSync(serveLog) && readFileSync(serveLog, 'utf8').includes(`PORT ${world.port}`), existsSync(serveLog) ? readFileSync(serveLog, 'utf8').slice(0, 200) : 'absent')
   check(`${world.tag}: the pull went through the API as POST /api/pull {"model":"qwen3.5:9b","stream":true} — the row the cursor picked, and only after the choice read /api/tags`, pull !== undefined && rec(pull.body).model === FAKE_OLLAMA_MODEL && rec(pull.body).stream === true && log.some(r => r.method === 'GET' && r.path === '/api/tags' && r.at <= pull.at) && log.filter(r => r.path === '/api/pull').length === 1, JSON.stringify(pull?.body))
