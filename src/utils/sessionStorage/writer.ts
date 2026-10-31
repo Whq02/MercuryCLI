@@ -1006,7 +1006,7 @@ export function appendEntryToFile(
   }
 }
 
-function describeTranscriptStoreFailure(filePath: string, error: unknown): Error {
+export function describeTranscriptStoreFailure(filePath: string, error: unknown): Error {
   const raw = error instanceof Error ? error.message : String(error)
   return new Error(
     `the session transcript store is unwritable (${dirname(filePath)}): ${raw}. ` +
