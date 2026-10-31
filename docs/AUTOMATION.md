@@ -167,7 +167,11 @@ tool call in the turn succeeds, the turn ends `blocked` with its `answer` kept,
 or a host that answers asks), and the run exits `1`. Pass `--mode` (`sovereign`,
 `flow`, `implement` or `dontAsk`) or `--allowed-tools` to grant what the run
 needs up front, and read `error.message` beside `answer` on an outcome that is
-not `completed`. If a later tool call in the same turn succeeds, the turn
+not `completed`. Under `--mode flow` everything runs except five things, which
+a hostless run refuses in one sentence naming the item (`sudo`, a `git push` or
+history rewrite, a publish or deploy, a delete or overwrite outside the project
+and the temp folders, your own ask rules); a run with a host puts those five to
+the host and runs the rest. If a later tool call in the same turn succeeds, the turn
 recovers and finishes `completed` (exit 0) with a warning `notice` (`"<Tool> was
 not approved; the run continued with other tools."`). A refusal you did answer
 (through a deny rule, a hook, or a host that said no) leaves a completed turn

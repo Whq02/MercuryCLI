@@ -100,15 +100,23 @@ starting folder.
   apply, and a refusal is not a card. The model's own questions to you
   (AskUserQuestion, the Apollo review) are not permission cards and still
   appear.
-- **Flow mode** allows what Implement mode allows and the read-only
-  tools without asking. A yes on a permission card is remembered as a saved
-  rule for the project where a rule can name the call; destructive calls
-  always ask. A card unanswered for ten minutes is withdrawn and the call is
-  refused with a denial the model reads (nobody answered within the limit;
-  work that does not depend on the action continues). With no host, calls
-  that pass Flow's floors and safety checks run without a card; unapproved
-  pushes, installs and destructive calls do not. Broad dangerous allow rules
-  are set aside while Flow is on.
+- **Flow mode** runs everything Sovereign runs except five things, which
+  ask: `sudo` and any other privilege escalation; git that publishes or
+  rewrites history (`git push` in any form, `reset --hard`, `clean -f`,
+  `branch -D`, `filter-branch`, and `gh pr merge`, `gh release create` and
+  their kin); publishing and deploying (`npm publish`, `docker push`,
+  `wrangler deploy`, `terraform apply`, `kubectl apply` and the rest of that
+  table); deleting or overwriting a path outside the project, its worktrees,
+  this run's scratch and the temp folders (reads are free everywhere); and
+  your own ask rules. Your deny rules refuse, as in Default. Each ask is one
+  sentence naming which of the five it is ("Flow asks before git push: it
+  publishes history."); a yes answers that call, and the card's
+  don't-ask-again row saves a rule. A card unanswered for ten minutes is
+  withdrawn and the call is refused with a denial the model reads (nobody
+  answered within the limit; work that does not depend on the action
+  continues). With no host, a call one of the five names is refused with the
+  same sentence; everything else runs. Broad dangerous allow rules are set
+  aside while Flow is on.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
@@ -243,14 +251,15 @@ in any mode and wait until you answer or end the session.
 The daemon declines an ask when no user is connected; the absence of a user
 never grants permission.
 
-No push is ever allowed by default under flow. A call Flow's rules leave
-over goes to that host, `git push` among them. It needs a present user unless a permission rule
-pre-authorises it: `Bash(git push *)` in `guardrails.allow`, or
-`--allowed-tools "Bash(git push *)"` on a run, decides the push before any
-ask. A deny rule refuses it outright; an ask rule requires approval under
-that posture. A hostless `mercury run` has no one to answer, so an
-unapproved ask is denied. The session's boot posture tells the model which
-calls need a user and whether its rules pre-authorise a push.
+A push is one of the five Flow asks about: it goes to the host as "Flow
+asks before git push: it publishes history." and needs a present user unless
+a permission rule pre-authorises it: `Bash(git push *)` in
+`guardrails.allow`, or `--allowed-tools "Bash(git push *)"` on a run,
+decides the push before any ask. A deny rule refuses it outright; an ask rule
+requires approval under that posture. A hostless `mercury run` has no one to
+answer, so the push is refused with the same sentence. The session's boot
+posture tells the model which calls need a user and whether its rules
+pre-authorise a push.
 
 ## What managed policy changes
 
