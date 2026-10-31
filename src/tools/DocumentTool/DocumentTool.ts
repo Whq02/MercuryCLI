@@ -127,5 +127,9 @@ export const DocumentTool = buildTool({
     const data = { op: input.op, road: product.road, files, detail: product.detail }
     return { data, effect: { outcome: 'succeeded' as const, operation: `document.${input.op}`, changedPaths, evidence: JSON.stringify(files), startedAt, completedAt: Date.now() } }
   },
+  extractSearchText(data: unknown) {
+    const out = data as { op?: unknown; road?: unknown; detail?: unknown; files?: Array<{ path?: unknown }> } | null
+    return [out?.op, out?.road, out?.detail, ...(out?.files ?? []).map(file => file?.path)].filter((part): part is string => typeof part === 'string' && part !== '').join(' ')
+  },
   mapToolResultToToolResultBlockParam(data: unknown, toolUseId: string) { return { type: 'tool_result' as const, tool_use_id: toolUseId, content: JSON.stringify(data, null, 2) } },
 })
