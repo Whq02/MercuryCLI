@@ -294,7 +294,7 @@ export async function installedBuildFacts(home: string = getMercuryHome()): Prom
   return facts
 }
 
-const COMPILE_CACHE_FOLDER = /^(v\d+\.\d+\.\d+)-[A-Za-z0-9_]+-[0-9a-f]{8}-\d+$/
+const COMPILE_CACHE_FOLDER = /^(v\d+\.\d+\.\d+)-[A-Za-z0-9_]+-[0-9a-f]{8}(?:-\d+)?$/
 
 async function collectRetiredCompileCaches(budget: LifecycleBudget): Promise<LifecycleClassReceipt> {
   const receipt = emptyReceipt('compile-cache-retired-nodes')
@@ -589,7 +589,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
     id: 'compile-cache-retired-nodes',
     lane: 'mechanical-debris',
     owner: 'src/entrypoints/cli.tsx (NODE_COMPILE_CACHE) · src/substrate/stateLifecycle.ts',
-    root: '<config>/compile-cache/v<node>-<arch>-<hash>-<uid>/',
+    root: '<config>/compile-cache/v<node>-<arch>-<hash>-<uid>/ (no -<uid> on Windows)',
     kind: 'cache',
     liveReference: 'the Node version running this process, or one an installed build carries (versions/*/manifest.json and runtime/builds/*/manifest.json, runtime.version)',
     terminal: 'a Node version no installed build carries',

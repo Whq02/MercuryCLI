@@ -9,7 +9,7 @@ import {
   utimesSync,
   writeFileSync,
 } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -139,17 +139,44 @@ section('§3 THE SENTINEL LAW (G07)')
   backdate(jailed, 45 * DAY)
   let outcome = 'continue'
   let guard = 0
+  const holdOpenOnWindows = async (): Promise<{ held: boolean; detail: string; release: () => Promise<void> }> => {
+    const powershell = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+    const script = `$f = [System.IO.File]::Open('${jailed.replaceAll("'", "''")}', 'Open', 'Read', 'None'); [Console]::Out.WriteLine('held'); [Console]::Out.Flush(); Start-Sleep -Seconds 120`
+    const holder: ChildProcess = spawn(powershell, ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    let out = ''
+    holder.stdout?.on('data', chunk => { out += String(chunk) })
+    holder.stderr?.on('data', chunk => { out += String(chunk) })
+    const exited = new Promise<void>(resolve => holder.once('exit', () => resolve()))
+    const deadline = Date.now() + 20_000
+    while (!out.includes('held') && holder.exitCode === null && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
+    const release = async (): Promise<void> => {
+      if (holder.exitCode === null) holder.kill()
+      await exited
+    }
+    return { held: out.includes('held'), detail: out.trim().slice(0, 200), release }
+  }
   if (typeof process.getuid === 'function' && process.getuid() === 0) {
     console.log('  [SKIP] running as root, which removes a file from a read-only directory; the failing-removal law is read under a user')
   } else {
-    chmodSync(jailDir, 0o555)
-    outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
-    while (outcome === 'continue' && guard++ < 10) {
-      outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+    let release = async (): Promise<void> => { chmodSync(jailDir, 0o755) }
+    let armed = true
+    if (process.platform === 'win32') {
+      const hold = await holdOpenOnWindows()
+      release = hold.release
+      armed = hold.held
+      if (!armed) console.log(`  [SKIP] no process could hold the snapshot open (${hold.detail || 'powershell wrote nothing'}); the failing-removal law is read with the file held by another process on Windows`)
+    } else {
+      chmodSync(jailDir, 0o555)
     }
-    check('a failing removal settles the cycle FAILED (sentinel withheld)', outcome === 'cycle-failed', `outcome=${outcome}`)
-    check('the sentinel was NOT stamped', !existsSync(join(HOME, '.last-cleanup')))
-    chmodSync(jailDir, 0o755)
+    if (armed) {
+      outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+      while (outcome === 'continue' && guard++ < 10) {
+        outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
+      }
+      check('a failing removal settles the cycle FAILED (sentinel withheld)', outcome === 'cycle-failed', `outcome=${outcome}`)
+      check('the sentinel was NOT stamped', !existsSync(join(HOME, '.last-cleanup')))
+    }
+    await release()
     housekeeping._resetHousekeepingCycleForTesting()
   }
   outcome = await housekeeping.runCleanupCycleStep({ budgetMs: 60_000, now: fakeNow })
