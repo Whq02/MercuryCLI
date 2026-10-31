@@ -126,13 +126,14 @@ try {
     if (effectIndex <= index) continue
     const between = statements.slice(index + 1, effectIndex).map(node => node.getText(source)).join('\n')
     const effect = statements[effectIndex]!.getText(source)
-    const body = ts.transpileModule(`${statement.getText(source)}\n${between}\n${effect}\nreturn seatFacts`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
+    const body = ts.transpileModule(`${statement.getText(source)}\n${between}\n${effect}\nreturn { seatFacts, swarmCapOverride: ${name === 'Config' ? 'swarmCapOverride' : 'undefined'} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
     const effects: Array<() => (() => void)> = []
     let reads = 0
     let asyncReads = 0
+    let swarmReads = 0
     let updates = 0
     let finish: ((facts: unknown) => void) | undefined
-    const render = new Function('useState', 'useMemo', 'useEffect', 'useSyncExternalStore', 'subscribeGlobalConfigCache', 'getGlobalConfigCacheStamp', 'seatCeilingFacts', 'seatCeilingFactsAsync', 'version', 'seatsTick', 'saveTick', body)
+    const render = new Function('useState', 'useMemo', 'useEffect', 'useSyncExternalStore', 'subscribeGlobalConfigCache', 'getGlobalConfigCacheStamp', 'getFocusedSessionConnector', 'swarmUncapped', 'seatCeilingFacts', 'seatCeilingFactsAsync', 'version', 'seatsTick', 'saveTick', body)
     const value = render(
       (initial: unknown) => [typeof initial === 'function' ? initial() : initial, () => { updates++ }],
       (callback: () => unknown) => callback(),
@@ -140,11 +141,14 @@ try {
       (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
       () => () => {},
       () => 0,
+      () => ({ swarmBoard: () => { swarmReads++; return { uncapped: true } }, subscribeWork: () => () => {} }),
+      () => false,
       () => { reads++; return a },
       () => { asyncReads++; return new Promise(resolve => { finish = resolve }) },
       0, 0, 0,
     )
-    check(`${name}: render performs no capacity operation and keeps an honest pending value`, reads === 0 && asyncReads === 0 && value === null)
+    if (name === 'Config') check('Config: render reads the focused board live uncap snapshot', swarmReads === 1 && value.swarmCapOverride === true)
+    check(`${name}: render performs no capacity operation and keeps an honest pending value`, reads === 0 && asyncReads === 0 && value.seatFacts === null)
     check(`${name}: refresh is registered as an effect`, effects.length === 1)
     if (effects.length !== 1) continue
     const dispose = effects[0]!()
