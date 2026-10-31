@@ -2,7 +2,7 @@ import type * as React from 'react'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 
 export type BoardLimits = Readonly<{ seatAllowance: number; waveAllowance: number; postsPerMinute: number; postsPerSeat: number; postChars: number }>
-export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 200000, waveAllowance: 500000, postsPerMinute: 4, postsPerSeat: 120, postChars: 4000 })
+export const DEFAULT_BOARD_LIMITS: BoardLimits = Object.freeze({ seatAllowance: 0, waveAllowance: 0, postsPerMinute: 4, postsPerSeat: 120, postChars: 0 })
 
 type BoardKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction' | 'message' | 'notice'
 type BoardAuthor = { sessionId: string; agentId: string; executionId: string }

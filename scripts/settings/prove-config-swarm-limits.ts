@@ -57,7 +57,7 @@ async function capture(name: string): Promise<void> {
 }
 try {
   await open()
-  check('the filtered popup shows the summary with exact default words', mounted.screen().includes('Swarm limits') && mounted.screen().includes('200,000 per agent · 500,000 per wave · 4 posts/min'))
+  check('the filtered popup shows the summary with exact default words', mounted.screen().includes('Swarm limits') && mounted.screen().includes('no limit per agent · no limit per wave · 4 posts/min'))
   for (const label of ['Tokens per agent', 'Tokens per wave', 'Posts per minute', 'Posts per agent per wave', 'Characters per post']) check(`the group contains ${label}`, mounted.screen().includes(label))
   await capture('swarm-default-120x44')
   await key(KEY.down)

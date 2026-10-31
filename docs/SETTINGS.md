@@ -170,9 +170,9 @@ The live [crew board](CREW.md#live-crew-board) reads these keys from user settin
 | Key | What it sets |
 | --- | --- |
 | `swarm.enabled` | Master switch for the live crew board; `false` by default. `/swarm on` enables enrollment in a session. |
-| `swarm.seatAllowance` | Requested board-context tokens per seat: 200,000 by default; 1,000–5,000,000, or 0 for no cap. |
-| `swarm.waveAllowance` | Live-wave board context before unsolicited delivery degrades: 500,000 by default; from `swarm.seatAllowance` to 20,000,000, or 0 for no cap. Completed seats no longer count. |
-| `swarm.postChars` | Characters per post: 4,000 by default; 400–20,000, or 0 for no cap. Direct messages to and from the lead are exempt. |
+| `swarm.seatAllowance` | Requested board-context tokens per seat: no cap by default (0); 1,000–5,000,000 caps it. |
+| `swarm.waveAllowance` | Live-wave board context before unsolicited delivery degrades: no cap by default (0); from `swarm.seatAllowance` to 20,000,000 caps it. Completed seats no longer count. |
+| `swarm.postChars` | Characters per post: no cap by default (0); 400–20,000 caps it. Direct messages to and from the lead are exempt. |
 | `swarm.postsPerMinute` | Posts per minute per seat: 4 by default; 1–30, with a burst of twice this rate. |
 | `swarm.postsPerSeat` | Posts per seat per wave: 120 by default; 10–1,000. |
 

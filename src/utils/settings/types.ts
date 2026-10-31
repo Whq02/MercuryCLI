@@ -97,9 +97,9 @@ export const SettingsSchema = lazySchema(() => {
     $schema: z.string().optional(),
     swarm: z.object({
       enabled: z.boolean().optional(),
-      seatAllowance: swarmAllowance(1000, 5000000).optional().describe('Requested board-context tokens per seat, default 200000; 1000–5000000, or 0 for no cap'),
-      waveAllowance: swarmAllowance(1000, 20000000).optional().describe('Live-wave board context before unsolicited delivery degrades, default 500000; at least seatAllowance up to 20000000, or 0 for no cap'),
-      postChars: swarmAllowance(400, 20000).optional().describe('Characters per post, default 4000; 400–20000, or 0 for no cap'),
+      seatAllowance: swarmAllowance(1000, 5000000).optional().describe('Requested board-context tokens per seat: 0 (no cap) by default; 1000–5000000 caps it'),
+      waveAllowance: swarmAllowance(1000, 20000000).optional().describe('Live-wave board context before unsolicited delivery degrades: 0 (no cap) by default; from seatAllowance up to 20000000 caps it'),
+      postChars: swarmAllowance(400, 20000).optional().describe('Characters per post: 0 (no cap) by default; 400–20000 caps it'),
       postsPerMinute: z.number().int().min(1).max(30).optional().describe('Posts per minute per seat, with a burst of twice this rate, default 4'),
       postsPerSeat: z.number().int().min(10).max(1000).optional().describe('Posts per seat per wave, default 120'),
     }).strict().superRefine((swarm, ctx) => {

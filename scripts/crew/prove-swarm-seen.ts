@@ -36,7 +36,7 @@ function world(id: string, patch: Partial<BoardLimits> = {}) {
   return { board, main, author, seat, post, path, advance: () => { time += 15000 } }
 }
 try {
-  check('the new defaults are 200k, 500k and 4000 characters', DEFAULT_BOARD_LIMITS.seatAllowance === 200000 && DEFAULT_BOARD_LIMITS.waveAllowance === 500000 && DEFAULT_BOARD_LIMITS.postChars === 4000)
+  check('the defaults are no cap: seat, wave and post length at 0; the loop guards at 4 a minute and 120 a seat', DEFAULT_BOARD_LIMITS.seatAllowance === 0 && DEFAULT_BOARD_LIMITS.waveAllowance === 0 && DEFAULT_BOARD_LIMITS.postChars === 0 && DEFAULT_BOARD_LIMITS.postsPerMinute === 4 && DEFAULT_BOARD_LIMITS.postsPerSeat === 120)
   const history = world('history')
   const early = history.seat('early')
   for (let i = 0; i < 60; i++) history.post(`Finding ${i}`)
@@ -154,8 +154,8 @@ try {
   shared.setUncapped(active.main, false)
   check('cap restores the original spent seat limit', !active.board.uncapped && handed(active.board, a, { since: 0 }).events.length === 0)
 
-  const lengths = world('lengths')
-  check('3000 characters lands at the default', lengths.board.post(lengths.author, { clientOpId: '3000', kind: 'result', text: 'x'.repeat(3000) }).ok)
+  const lengths = world('lengths', { postChars: 4000 })
+  check('3000 characters lands under a 4,000 cap', lengths.board.post(lengths.author, { clientOpId: '3000', kind: 'result', text: 'x'.repeat(3000) }).ok)
   const tooLong = lengths.board.post(lengths.author, { clientOpId: '4001', kind: 'result', text: 'x'.repeat(4001) })
   check('4001 refuses with the setting, limit and uncap road', !tooLong.ok && tooLong.reason.includes('4,000') && tooLong.reason.includes('swarm.postChars') && tooLong.reason.includes('/swarm uncap'))
   lengths.board.setUncapped(lengths.main, true)
