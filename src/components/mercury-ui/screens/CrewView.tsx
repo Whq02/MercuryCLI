@@ -371,5 +371,6 @@ function AgentRow({
 
 function SwarmPanel(props: { snapshot: BoardViewSnapshot; onBack: () => void; width: number; height: number }): React.ReactNode {
   const View = loadSwarm().view
-  return <View {...props} React={React} Text={Text} Box={Box} useInput={useInput} wrapText={wrapText} />
+  const tokens = useMercuryTokens()
+  return <View {...props} React={React} Text={Text} Box={Box} tokens={tokens} useInput={useInput} wrapText={wrapText} />
 }

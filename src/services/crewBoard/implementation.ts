@@ -3,7 +3,8 @@ import type { Tool, ToolDef } from '../../Tool.js'
 import type { BoardHost, BoardModule, BoardPost, BoardRead, BoardStore } from './contracts.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
-import { chatRows } from './chat.js'
+import { chatKindColor, chatNameColor, chatRows } from './chat.js'
+import { displayWidth, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 export { open }
 
 export const tail: BoardModule['tail'] = record => {
@@ -82,7 +83,7 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
 }
 
 export const view: BoardModule['view'] = host => {
-  const { React, Text, Box, width, height } = host
+  const { React, Text, Box, width, height, tokens } = host
   const [live, setLive] = React.useState(host.snapshot)
   const [selected, setSelected] = React.useState<string | undefined>()
   const [earlier, setEarlier] = React.useState<number[]>([])
@@ -126,20 +127,45 @@ export const view: BoardModule['view'] = host => {
     if (key.downArrow) setSelected(index + 1 >= entries.length - 1 ? undefined : entries[index + 1]?.id)
   })
   const clean = (text: string): string => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ')
-  const highlight = (text: string) => clean(text).split(/(@[\p{L}\p{N}_][\p{L}\p{N}_.-]*)/u).map((part, i) => React.createElement(Text, { key: i, ...(part.startsWith('@') ? { color: 'cyan', bold: true } : {}) }, part))
-  const line = (text: string, key: string) => React.createElement(Text, { key, wrap: 'truncate-end' }, text)
-  const row = (entry: typeof entries[number], on: boolean) => React.createElement(Text, { key: entry.id, wrap: 'truncate-end' }, `${on ? '›' : ' '} ${entry.reply ? '  ' : ''}${entry.at.slice(11, 19)} · `, React.createElement(Text, { bold: true, color: 'cyan' }, clean(entry.name)), entry.team ? ` · [${clean(entry.team)}]` : '', entry.traffic ? ' · [traffic]' : '', ` · ${entry.kind} · `, ...highlight(entry.text))
+  const allRows = chatRows(live, host.traffic)
+  const names = [...(live.names ?? []), ...allRows.map(entry => entry.name)]
+  const nameWidth = Math.max(2, ...names.map(name => displayWidth(`[${clean(name)}]`)))
+  const minutes = new Map<string, number>()
+  for (const entry of allRows) minutes.set(entry.at.slice(0, 16), (minutes.get(entry.at.slice(0, 16)) ?? 0) + 1)
+  const duplicateMinutes = new Set([...(live.duplicateMinutes ?? []), ...[...minutes].filter(([, count]) => count > 1).map(([minute]) => minute)])
+  const timeWidth = duplicateMinutes.size ? 8 : 5
+  const highlight = (text: string) => clean(text).split(/(@[\p{L}\p{N}_][\p{L}\p{N}_.-]*)/u).map((part, i) => React.createElement(Text, { key: i, bold: part.startsWith('@'), color: tokens.textPrimary }, part))
+  const line = (text: string, key: string) => React.createElement(Text, { key, color: tokens.textPrimary, wrap: 'truncate-end' }, text)
+  const row = (entry: typeof entries[number], on: boolean, body = true) => {
+    const marker = on ? '› ' : '  '
+    const gutter = entry.reply ? '  └ ' : ''
+    const time = padTo(entry.at.slice(11, duplicateMinutes.has(entry.at.slice(0, 16)) ? 19 : 16), timeWidth)
+    const name = padTo(`[${clean(entry.name)}]`, nameWidth)
+    const traffic = entry.traffic ? '[traffic] ' : ' '.repeat(10)
+    const label = `[${entry.kind}]`
+    const channel = !body && entry.team ? `[${clean(entry.team)}] ` : ''
+    const prefix = `${marker}${gutter}${time}  ${name} ${traffic}${channel}${label}: `
+    return React.createElement(Text, { key: entry.id, color: tokens.textPrimary, wrap: 'truncate-end' },
+      React.createElement(Text, { color: on ? tokens.focus : tokens.textMuted }, marker),
+      React.createElement(Text, { color: tokens.textMuted }, `${gutter}${time}  `),
+      React.createElement(Text, { color: chatNameColor(entry.name, tokens), bold: true }, name), ' ',
+      React.createElement(Text, { color: tokens.textMuted }, traffic + channel),
+      React.createElement(Text, { color: chatKindColor(entry.kind, tokens) }, label), ': ',
+      ...(body ? highlight(truncateToWidth(clean(entry.text), Math.max(1, width - displayWidth(prefix)))) : []))
+  }
   const room = Math.max(1, height - 2)
-  const start = Math.max(0, index - room + 1)
+  const timeline = entries.flatMap((entry, i) => [...(i && entries[i - 1]!.thread !== entry.thread ? [React.createElement(Box, { key: `gap-${entry.id}`, height: 1, flexShrink: 0 })] : []), row(entry, i === index)])
+  const selectedLine = timeline.findIndex(node => node.key === entries[index]?.id)
+  const start = Math.max(0, selectedLine - room + 1)
   const detailLines = entries.flatMap(entry => {
-    const heading = `${entry.reply ? '  ' : ''}${entry.at.slice(11, 19)} · ${clean(entry.name)}${entry.team ? ` · [${clean(entry.team)}]` : ''}${entry.traffic ? ' · [traffic]' : ''} · ${entry.kind}`
-    const indent = entry.reply ? '    ' : '  '
+    const indent = entry.reply ? '      ' : '  '
     const event = snapshot.events.find(event => event.eventId === entry.id)
     const detail = [entry.text, ...(event?.about ? [event.about] : []), ...(event?.refs.map(ref => `${ref.uri} · ${ref.digest}`) ?? [])]
-    return [heading, ...detail.flatMap(text => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map(line => indent + line))]
+    return [row(entry, false, false), ...detail.flatMap((text, block) => host.wrapText(clean(text), Math.max(1, width - indent.length), 'wrap').split('\n').map((text, i) => React.createElement(Text, { key: `${entry.id}-${block}-${i}`, color: tokens.textPrimary, wrap: 'truncate-end' }, indent, ...highlight(text))))]
   })
+  const detailStart = Math.min(scroll, Math.max(0, detailLines.length - room))
   return React.createElement(Box, { flexDirection: 'column', width, height },
-    React.createElement(Text, { wrap: 'truncate-end' }, ...channels.flatMap((channel, i) => [i ? ' · ' : '', React.createElement(Text, { key: channel ?? 'general', bold: channel === team, color: channel === team ? 'cyan' : undefined }, channel ?? 'General')])),
-    React.createElement(Box, { flexDirection: 'column', height: room, overflow: 'hidden' }, ...(thread === undefined ? entries.slice(start, start + room).map((entry, i) => row(entry, start + i === index)) : detailLines.slice(Math.min(scroll, Math.max(0, detailLines.length - room)), Math.min(scroll, Math.max(0, detailLines.length - room)) + room).map((text, i) => React.createElement(Text, { key: i, wrap: 'truncate-end' }, ...highlight(text)))), ...(entries.length === 0 ? [line('No posts yet', 'empty')] : [])),
-    line('↑↓ move · ↵ open thread · ←→ channel · esc close', 'keys'))
+    React.createElement(Text, { color: tokens.textMuted, wrap: 'truncate-end' }, ...channels.flatMap((channel, i) => [i ? ' · ' : '', React.createElement(Text, { key: channel ?? 'general', bold: channel === team, color: channel === team ? tokens.accent : tokens.textMuted }, channel ?? 'General')])),
+    React.createElement(Box, { flexDirection: 'column', height: room, overflow: 'hidden' }, ...(thread === undefined ? timeline.slice(start, start + room) : detailLines.slice(detailStart, detailStart + room)), ...(entries.length === 0 ? [line('No posts yet', 'empty')] : [])),
+    React.createElement(Text, { color: tokens.textMuted, wrap: 'truncate-end' }, '↑↓ move · ↵ open thread · ←→ channel · esc close'))
 }

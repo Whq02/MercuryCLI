@@ -110,7 +110,9 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
     const filter = filters.join(' AND ')
     const count = Number(db.prepare(`SELECT COUNT(*) AS n FROM events WHERE ${filter}`).get(...values)!.n)
     const teams = [...new Set([...db.prepare("SELECT DISTINCT value FROM interests WHERE kind = 'membership'").all().map(row => String(row.value)), ...db.prepare("SELECT DISTINCT json_extract(record, '$.team') AS team FROM events WHERE json_extract(record, '$.team') IS NOT NULL").all().map(row => String(row.team))])].sort()
-    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), teams, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - before + 1), admitted: admitted(), appearances: appearances(), peerTurns: 0, record: { path, sessionId } }
+    const names = db.prepare("SELECT name FROM members UNION SELECT COALESCE(json_extract(record, '$.authorName'), json_extract(record, '$.author.agentId')) AS name FROM events").all().map(row => String(row.name))
+    const duplicateMinutes = db.prepare("SELECT substr(json_extract(record, '$.createdAt'), 1, 16) AS minute FROM events GROUP BY minute HAVING COUNT(*) > 1").all().map(row => String(row.minute))
+    return { on: true, events: events(db.prepare(`SELECT record FROM events WHERE ${filter} ORDER BY seq DESC LIMIT 32`).all(...values)).reverse(), teams, names, duplicateMinutes, snapshot: top, omitted: Math.max(0, count - 32), later: Math.max(0, top - before + 1), admitted: admitted(), appearances: appearances(), peerTurns: 0, record: { path, sessionId } }
   }
   const store: BoardStore = {
     enroll(p) {

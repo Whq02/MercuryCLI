@@ -1,4 +1,5 @@
 import type { BoardModule, BoardViewSnapshot } from './contracts.js'
+import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 type Traffic = NonNullable<Parameters<BoardModule['view']>[0]['traffic']>
 type ChatRow = { id: string; at: string; name: string; team?: string; kind: string; text: string; thread: string; parent?: string; reply: boolean; traffic: boolean }
@@ -28,4 +29,17 @@ export function chatRows(snapshot: BoardViewSnapshot, traffic: Traffic = [], tea
     }
     return [...group.filter(row => !group.some(parent => parent.id === row.parent)).flatMap(visit), ...group.flatMap(visit)]
   })
+}
+
+export function chatNameColor(name: string, tokens: MercuryThemeTokens): string {
+  if (name === 'main') return tokens.agentAccents[0]?.color ?? tokens.accent
+  const accents = tokens.agentAccents.slice(1)
+  let hash = 2166136261
+  for (const char of name) hash = Math.imul(hash ^ char.codePointAt(0)!, 16777619) >>> 0
+  return accents[hash % accents.length]?.color ?? tokens.accentSoft
+}
+
+export function chatKindColor(kind: string, tokens: MercuryThemeTokens): string {
+  const colors: Record<string, string> = { ask: tokens.infoText, answer: tokens.success, result: tokens.accentSoft, blocker: tokens.failureText, correction: tokens.warning, notice: tokens.textSecondary }
+  return colors[kind.split(' ')[0]!] ?? tokens.textSecondary
 }

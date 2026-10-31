@@ -4,12 +4,22 @@ import { spawn } from 'node:child_process'
 import { join } from 'node:path'
 import { Database } from 'bun:sqlite'
 import { open } from '../../src/services/crewBoard/store.ts'
-import { chatRows } from '../../src/services/crewBoard/chat.ts'
+import { chatKindColor, chatNameColor, chatRows } from '../../src/services/crewBoard/chat.ts'
+import { resolveMercuryTokens } from '../../src/utils/mercuryTokens.ts'
+import { TERRA } from '../../src/components/mercuryPalette.ts'
 import { gridToPng } from '../ui/gridToPng.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { readSessionWorkers } from '../../src/daemon/concourseWorkers.ts'
 
 assert(process.env.MERCURY_CONFIG_DIR, 'run with a scratch MERCURY_CONFIG_DIR')
+const palette = resolveMercuryTokens('dark', TERRA)
+assert.equal(chatNameColor('main', palette), palette.agentAccents[0]!.color)
+for (const name of ['Alpha', 'Beta', 'swarm-parser']) {
+  assert.equal(chatNameColor(name, palette), chatNameColor(name, palette))
+  assert(palette.agentAccents.some(accent => accent.color === chatNameColor(name, palette)))
+  assert.notEqual(chatNameColor(name, palette), chatNameColor('main', palette))
+}
+assert.equal(new Set(['ask', 'answer', 'result', 'blocker', 'correction', 'notice'].map(kind => chatKindColor(kind, palette))).size, 6)
 const arg = (name: string) => { const index = process.argv.indexOf(name); return index < 0 ? undefined : process.argv[index + 1] }
 const fixture = arg('--fixture')
 const captures = arg('--captures') ?? join(process.env.MERCURY_CONFIG_DIR, 'captures')
@@ -37,6 +47,9 @@ if (fixture) {
   assert(board.post(b, { clientOpId: 'c', kind: 'correction', corrects: wrong.eventId, text: '@Alpha five rows including the footer.' }).ok)
   assert(board.post(a, { clientOpId: 'message:mirror', kind: 'message', text: 'The shared message.', to: ['Beta'] }, 'body').ok)
   const view = board.view()
+  assert.deepEqual(board.view(undefined, undefined, 'view').names, view.names, 'name column uses the whole wave in every channel')
+  assert.deepEqual(board.view(3).names, view.names, 'name column uses the whole wave on earlier pages')
+  assert(view.duplicateMinutes?.includes('2026-10-01T10:01'))
   const traffic = [{ key: 'crew:mirror', at: new Date(now).toISOString(), agent: 'Beta', dir: 'to' as const, via: 'message' as const, text: 'The shared message.' }]
   assert.equal(chatRows(view, traffic).filter(row => row.text === 'The shared message.').length, 1)
   assert(chatRows(view, [], 'view').every(row => row.team === 'view'))
@@ -97,11 +110,41 @@ try {
     assert(text.includes('Crew chat') && text.includes('General') && text.includes('open thread'), text)
     assert(corpus.events.some(event => text.includes(event.authorName ?? event.author.agentId)), text)
     assert(!text.includes('CREW TRAFFIC'), 'swarm has one timeline rather than a second traffic roll')
+    if (leg === 'timeline' || leg === 'team') {
+      const rendered = grid.grid.map((cells: { c: string; fg: string; bold: boolean }[], y: number) => {
+        const words = cells.map(cell => cell.c || ' ').join('')
+        const match = words.match(/(\d{2}:\d{2}(?::\d{2})?)\s+\[([^\]]+)\]\s+(?:\[traffic\]\s+)?\[([^\]]+)\]:/)
+        return match ? { cells, y, words, at: match[1]!, name: match[2]!, kind: match[3]!, timeColumn: match.index!, kindColumn: words.indexOf(`[${match[3]}]`, match.index! + match[1]!.length) } : null
+      }).filter(Boolean)
+      assert(rendered.length > 0, text)
+      assert.equal(new Set(rendered.map((row: any) => row.kindColumn - row.timeColumn)).size, 1, 'padded name and traffic columns align the kind tags')
+      for (const row of rendered) {
+        const event = corpus.events.find(event => (event.authorName ?? event.author.agentId) === row.name && event.createdAt.slice(11, 16) === row.at.slice(0, 5))
+        if (event) assert.equal(row.at.length, corpus.duplicateMinutes?.includes(event.createdAt.slice(0, 16)) ? 8 : 5, 'seconds appear only when posts share a minute')
+        const nameCell = row.cells[row.words.indexOf(`[${row.name}]`) + 1]
+        assert(nameCell.fg !== 'default' && nameCell.bold, 'agent tags use the theme palette')
+        assert(row.cells[row.kindColumn + 1].fg !== 'default', 'kind tags use the theme palette')
+        const trafficColumn = row.words.indexOf('[traffic]')
+        if (trafficColumn >= 0) assert.equal(row.cells[trafficColumn + 1].fg, row.cells[row.timeColumn].fg, 'time and traffic share the muted theme ink')
+      }
+      const nameColors = new Map<string, string>()
+      for (const row of rendered) {
+        const color = row.cells[row.words.indexOf(`[${row.name}]`) + 1].fg
+        if (nameColors.has(row.name)) assert.equal(color, nameColors.get(row.name), 'an agent keeps its tag colour across posts')
+        nameColors.set(row.name, color)
+      }
+      if (nameColors.has('main')) for (const [name, color] of nameColors) if (name !== 'main') assert.notEqual(color, nameColors.get('main'), 'the lead keeps its own colour')
+      if (!fixture && leg === 'timeline') {
+        assert(text.includes('└') && text.includes('[traffic]') && text.includes('[ask]:'), text)
+        assert(rendered.some((row: any, i: number) => i > 0 && row.y - rendered[i - 1].y > 1), 'threads have a blank separator')
+      }
+    }
     if (!fixture && leg === 'timeline') assert(grid.grid.flat().some((cell: { c: string; bold: boolean }) => cell.c === '@' && cell.bold), 'mentions are highlighted in the rendered cells')
-    if (leg === 'team') assert(text.includes('[engine]') && !text.includes('[view]') && !text.includes('Four rows.'), text)
+    if (leg === 'team') assert(text.includes('[Alpha]') && !text.includes('[Beta]') && !text.includes('Four rows.'), text)
     if (leg === 'thread') assert(text.includes('Four rows.') && text.includes('five rows including the footer.'), text)
     if (leg === 'tail') assert(appended && text.includes(arrival), text)
     if (leg === 'history') assert(text.includes('Four rows.') && text.includes('does the parser include the footer?'), text)
+    if (leg === 'timeline' && cols === 80) assert(text.includes('…'), 'long messages end in an ellipsis')
     console.log(`PASS Workbench ${leg} frame ${cols}×${rows}: ${join(captures, `${tag}.png`)}`)
   }
 } finally {

@@ -9,7 +9,7 @@
 # gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts
 # gate-watch: scripts/lib/platformPath.ts scripts/hooks/lib/runDoor.ts sdk/src/index.ts
-# gate-watch: src/utils/conversationRecovery.ts src/cli/headless/resume.ts
+# gate-watch: src/utils/conversationRecovery.ts src/cli/headless/resume.ts src/cli/sessionsVerb.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/components/mercury-ui/toolGlyphs.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/envUtils.ts src/utils/zodToJsonSchema.ts
 # gate-watch: src/utils/hooks/hooksConfigSnapshot.ts src/utils/hooks/sessionHooks.ts
@@ -65,5 +65,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-flush-drain-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-model-entry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-model-entry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-user-resume.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-empty-user-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-one-live-writer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-one-live-writer.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-overlapping-flushes-write-once.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-history-overlapping-flushes-write-once.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-title-cut-keeps-graphemes.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-title-cut-keeps-graphemes.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-retraction-keys-the-record.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-history-retraction-keys-the-record.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ SESSIONSTORAGE SUITE GREEN"; exit 0; else
   echo "❌ SESSIONSTORAGE SUITE RED"; exit 1; fi

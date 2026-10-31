@@ -41,7 +41,7 @@ export type BoardEvent = Omit<BoardPost, 'mentions' | 'to' | 'relatedTasks' | 'f
 export type BoardRead = { since?: number; snapshot?: number; thread?: string; task?: string; mentions?: string; team?: string; files?: string[]; limitTokens?: number; acknowledge?: string[]; watch?: boolean }
 export type BoardPacket = { events: (BoardEvent | { eventId: string; seq: number; text: string; truncated: true })[]; snapshot: number; cursor: number; omitted: number; tokens: number; packetId?: string; reason?: string }
 export type BoardReceipt = { ok: true; eventId: string; seq: number; replay: boolean; unknownMentions?: string[] } | { ok: false; reason: string; retryAfter?: number; cap?: 'thread-rounds' }
-export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
+export type BoardViewSnapshot = { on: boolean; events: BoardEvent[]; teams?: string[]; names?: string[]; duplicateMinutes?: string[]; snapshot: number; omitted: number; later?: number; admitted: number; appearances?: number; peerTurns: 0; record?: { path: string; sessionId: string }; error?: string }
 export type BoardPrincipal = { author: BoardAuthor; name: string; team?: string }
 export type BoardHost = {
   buildTool: typeof import('../../Tool.js').buildTool
@@ -64,7 +64,7 @@ export interface BoardStore {
 export type BoardModule = {
   open(path: string, sessionId: string): BoardStore
   tool(host: BoardHost, store: () => BoardStore | null): Tool
-  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; wrapText: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
+  view(host: { React: typeof React; Text: React.ComponentType<any>; Box: React.ComponentType<any>; tokens: import('../../utils/mercuryTokens.js').MercuryThemeTokens; wrapText: typeof import('../../ink.js').wrapText; useInput: (handler: (input: string, key: any) => void) => void; snapshot: BoardViewSnapshot; traffic?: { key: string; at: string; agent: string; dir: 'to' | 'from'; via: 'launch' | 'message' | 'reply'; text: string }[]; onBack: () => void; width: number; height: number }): React.ReactNode
   page(record: { path: string; sessionId: string }, before?: number, thread?: string, team?: string): BoardViewSnapshot
   tail(record: { path: string; sessionId: string }): Pick<BoardStore, 'view' | 'subscribe' | 'close'>
 }
