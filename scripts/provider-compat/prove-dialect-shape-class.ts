@@ -62,7 +62,7 @@ section('§1 · usage: the inclusive wire total becomes the disjoint canonical e
   const zaiUsage = mapZaiUsageToAnthropic({ inputTokens: 120, outputTokens: 30, cachedInputTokens: 50 })
   check('zai: the same law', zaiUsage.input_tokens === 70 && zaiUsage.cache_read_input_tokens === 50, JSON.stringify(zaiUsage))
   const anomaly = mapCompatUsageToAnthropic({ inputTokens: 10, outputTokens: 1, cachedInputTokens: 25 })
-  check('cached > total clamps uncached to zero, never negative', anomaly.input_tokens === 0 && anomaly.cache_read_input_tokens === 25)
+  check('cached > total clamps the cache read to the total and uncached to zero, never negative', anomaly.input_tokens === 0 && anomaly.cache_read_input_tokens === 10)
   const plain = mapCompatUsageToAnthropic({ inputTokens: 9, outputTokens: 2 })
   check('no cached field ⇒ the total is the uncached count, cache_read 0', plain.input_tokens === 9 && plain.cache_read_input_tokens === 0)
   check('absent usage ⇒ the zero envelope', mapCompatUsageToAnthropic(undefined).input_tokens === 0)
