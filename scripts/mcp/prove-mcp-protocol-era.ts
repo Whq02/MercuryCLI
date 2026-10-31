@@ -236,9 +236,9 @@ section("(7) production's client shape, structurally")
   const client = SRC('src/services/mcp/client.ts')
   check('both elicitation modes are declared on the wire', client.includes('elicitation: { form: {}, url: {} }'))
   check(
-    'every server negotiates on the one connection; only the older-server respawn keeps the handshake alone',
+    'external servers negotiate on one connection; shipped bootstrap manifests and older-server respawns keep the handshake alone',
     client.includes("versionNegotiation: negotiate ? externalVersionNegotiation(transportKind) : { mode: 'legacy' }") &&
-      client.includes("buildClient(true, stdioTransport !== null ? 'stdio' : 'remote')") &&
+      client.includes("buildClient(!serverRef.bundledBootstrap, stdioTransport !== null ? 'stdio' : 'remote')") &&
       client.includes('client = buildClient(false)'),
   )
   check(
@@ -251,7 +251,7 @@ section("(7) production's client shape, structurally")
   )
   check(
     "the stdio transport is a subclass of the SDK's, so the probe runs in place on the one process Mercury owns — never on a disposable sibling spawn outside the kill owner",
-    client.includes('class OwnedStdioClientTransport extends StdioClientTransport {}') && client.includes('return new OwnedStdioClientTransport({') && !client.includes('new StdioClientTransport('),
+    client.includes('class OwnedStdioClientTransport extends StdioClientTransport {}') && client.includes('new OwnedStdioClientTransport(parameters)') && !client.includes('new StdioClientTransport('),
   )
   check(
     'a stdio server that exits on the probe is remembered as an older server and connected once more with the handshake alone, on a fresh spawn under the same kill owner, inside the one deadline',

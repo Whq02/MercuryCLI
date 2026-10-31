@@ -64,6 +64,7 @@ import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { mcpStdioCommandRefusal } from './stdioCommandSafety.js'
+import { LazyStdioClientTransport } from './lazyStdio.js'
 import { isMcpCatalogueMember } from './membership.js'
 import { elicitationPausedClock } from './elicitationHandler.js'
 import { getMcpServerHeaders } from './headersHelper.js'
@@ -651,13 +652,16 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     const args = prefix ? [[stdioConfig.command, ...(stdioConfig.args ?? [])].join(' ')] : (stdioConfig.args ?? [])
     const refusal = mcpStdioCommandRefusal(name, { command, args })
     if (refusal !== null) throw new Error(refusal)
-    return new OwnedStdioClientTransport({
+    const parameters = {
       command,
       args,
       env: { ...(scrubSessionEnvStamps(subprocessEnv({ stripProviderCredentials: true })).env as Record<string, string>), ...(stdioConfig.env ?? {}) },
-      stderr: 'pipe',
+      stderr: 'pipe' as const,
       maxBufferSize: mcpStdioMaxMessageBytes(),
-    })
+    }
+    return serverRef.bundledBootstrap
+      ? new LazyStdioClientTransport(parameters, serverRef.bundledBootstrap, connectTimeoutMs())
+      : new OwnedStdioClientTransport(parameters)
   }
   const provider =
     type === 'sse' || type === 'http' ? new MercuryMcpAuthProvider(name, serverRef, undefined, false) : null
@@ -773,7 +777,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
   }
 
-  let client = buildClient(true, stdioTransport !== null ? 'stdio' : 'remote')
+  let client = buildClient(!serverRef.bundledBootstrap, stdioTransport !== null ? 'stdio' : 'remote')
   installRootsHandler(client)
   const eraKey = getServerCacheKey(name, serverRef)
   const prior = await readEraVerdict(eraKey)

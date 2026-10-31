@@ -1,23 +1,24 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getBundledDir } from '../paths.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
-import { bundledPayloads } from './content.generated.js'
+import { bundledMetadata, bundledPayloads } from './content.generated.js'
 
 type BundledExtensionDefinition = {
   name: string
   root: string
   defaultOn: boolean
   isAvailable?: () => boolean
+  metadata?: (typeof bundledMetadata)[string]
+  materialize?: () => string
 }
 
 type BundledPayload = string | { base64: string; executable: boolean }
 const payloadBytes = (value: BundledPayload): Buffer => typeof value === 'string' ? Buffer.from(value) : Buffer.from(value.base64, 'base64')
 
 function materialize(name: string, files: Record<string, BundledPayload>): string {
-  const digest = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 16)
-  const root = join(getBundledDir(), name, `${MERCURY_VERSION}-${digest}`)
+  const root = payloadRoot(name)
   const verify = (): void => {
     for (const [path, value] of Object.entries(files)) if (!readFileSync(join(root, path)).equals(payloadBytes(value))) throw new Error(`Bundled extension file changed: ${name}/${path}`)
   }
@@ -35,8 +36,12 @@ function materialize(name: string, files: Record<string, BundledPayload>): strin
   } finally { rmSync(stage, { recursive: true, force: true }) }
 }
 
+function payloadRoot(name: string): string {
+  return join(getBundledDir(), name, `${MERCURY_VERSION}-${bundledMetadata[name]!.digest}`)
+}
+
 function shipped(): BundledExtensionDefinition[] {
-  return Object.entries(bundledPayloads).map(([name, files]) => ({ name, root: materialize(name, files), defaultOn: name !== 'mercury-media' }))
+  return Object.entries(bundledPayloads).map(([name, files]) => ({ name, root: payloadRoot(name), defaultOn: name !== 'mercury-media', metadata: bundledMetadata[name], materialize: () => materialize(name, files) }))
 }
 
 function craftPlatform(): string {

@@ -7,6 +7,7 @@ import { getExtensionDataDir } from '../paths.js'
 import { mediaEnvironment, readMediaSettings, MEDIA_EXTENSION_ID } from '../../services/media/settings.js'
 
 import { registerBundledAppInstall, clearBundledAppInstalls } from '../installConsent.js'
+import { bundledMetadata } from '../bundled/content.generated.js'
 let memo: Record<string, ScopedMcpServerConfig> | null = null
 
 export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> {
@@ -50,7 +51,8 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
           config = { ...config, ...(server ? { args: [media.host ? join(dirname(server), 'remote-client.js') : server] } : {}), env: { ...config.env, ...mediaEnvironment(media) } }
         } catch { continue }
       }
-      out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id }
+      const bootstrap = ext.entry.home === 'bundled' ? bundledMetadata[ext.manifest.name]?.bootstrap : undefined
+      out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id, ...(bootstrap ? { bundledBootstrap: bootstrap } : {}) }
     }
   }
   memo = out

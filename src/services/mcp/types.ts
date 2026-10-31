@@ -1,4 +1,5 @@
 import type { Client, Implementation, Resource, ServerCapabilities } from './sdk.js'
+import type { McpBootstrapManifest } from './lazyStdio.js'
 import { z } from 'zod'
 
 function once<T>(build: () => T): () => T {
@@ -61,7 +62,7 @@ export type McpHTTPServerConfig = z.infer<ReturnType<typeof McpHTTPServerConfigS
 export type McpAnthropicProxyServerConfig = z.infer<ReturnType<typeof McpAnthropicProxyServerConfigSchema>>
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
 export type McpUnexpandedStrings = { command?: string; args?: string[]; url?: string }
-export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings }
+export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string; unexpanded?: McpUnexpandedStrings; bundledBootstrap?: McpBootstrapManifest }
 
 type ServerIdentity = { name: string; config: ScopedMcpServerConfig }
 type ConnectionFacts = {

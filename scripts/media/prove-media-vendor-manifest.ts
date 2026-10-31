@@ -5,6 +5,7 @@ import { cpSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { bundledRoster } from '../../src/extensions/bundled/index.js'
+import { setSwitch } from '../../src/extensions/install.js'
 import { proofHome, removeProofHome } from './fixture.ts'
 
 try {
@@ -16,6 +17,7 @@ try {
   assert.equal(manifest.runtimeTag, JSON.parse(readFileSync(join(root, 'catalog.json'), 'utf8')).runtime.tag)
   for (const name of ['server.js', 'setup.js', 'config.js', 'catalog.json', 'LICENSE', 'NOTICE']) assert.ok(manifest.files[name], name)
   assert.deepEqual(readdirSync(root).sort(), [...Object.keys(manifest.files), 'manifest.json'].sort())
+  assert.equal(setSwitch('mercury-media@mercury', true).ok, true)
   const delivered = bundledRoster().find(row => row.name === 'mercury-media')!
   assert.ok(delivered)
   for (const [file, sha256] of Object.entries(manifest.files)) {

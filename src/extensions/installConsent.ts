@@ -6,11 +6,14 @@ import type { PermissionResult } from '../types/permissions.js'
 
 type InstallTarget = { root: string; dataDir: string; key: string }
 const installs = new Map<string, InstallTarget>()
+const installKeys = new Map<string, string>()
 let wrapped = new WeakMap<Tool, Tool>()
 export function registerBundledAppInstall(server: string, root: string, dataDir: string): string {
   const current = installs.get(server)
   if (current?.root === root && current.dataDir === dataDir) return current.key
-  const key = randomBytes(32).toString('hex')
+  const identity = JSON.stringify([server, root, dataDir])
+  const key = installKeys.get(identity) ?? randomBytes(32).toString('hex')
+  installKeys.set(identity, key)
   installs.set(server, { root, dataDir, key })
   return key
 }

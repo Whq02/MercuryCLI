@@ -5,6 +5,7 @@ import { getGlobalConfig } from '../utils/config/globalConfig.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { getSettingsForSource, removeSettingsFileIfEmpty, updateSettingsForSource } from '../utils/settings/settings.js'
 import { blockReason, matchBlock, type BlockSurface } from './blocklist.js'
+import { bundledRoster } from './bundled/index.js'
 import { entryDirectory } from './catalogue.js'
 import { contributionsHash, extensionId, parseExtensionId, readManifest, type ExtensionManifest, type SwitchKind } from './manifest.js'
 import { deleteOptionValues } from './options.js'
@@ -226,6 +227,7 @@ export function setSwitch(id: string, on: boolean, scope: SwitchScope = 'everywh
   const source = scope === 'project' ? 'localSettings' : 'userSettings'
   const { error } = updateSettingsForSource(source, id === 'mercury-media@mercury' ? { media: { enabled: on } } : { extensions: { enabled: { [id]: on } } })
   if (error) return { ok: false, reason: `settings write failed: ${error.message}` }
+  if (on && parsed.label === 'mercury') bundledRoster().find(def => def.name === parsed.name)?.materialize?.()
   logAct(`switch: ${id} ${on ? 'on' : 'off'} (${scope})`)
   return { ok: true }
 }
@@ -519,11 +521,11 @@ export function settleFirstLoad(id: string, broken: boolean): void {
   logAct(`first clean load: ${id} ${record.version}${record.previous ? ` (previous ${record.previous.version} removed)` : ''}`)
 }
 
-export function recordBundledApproval(name: string, root: string, mercuryVersion: string): InstalledRecord | null {
+export function recordBundledApproval(name: string, root: string, mercuryVersion: string, bundled?: { manifest: ExtensionManifest; contributionsHash: string; contentHash: string }): InstalledRecord | null {
   const id = extensionId(name, 'mercury')
-  const manifest = readManifest(root)
+  const manifest = bundled ? { status: 'ok' as const, manifest: bundled.manifest } : readManifest(root)
   if (manifest.status !== 'ok') return null
-  const hash = contributionsHash(manifest.manifest, root)
+  const hash = bundled?.contributionsHash ?? contributionsHash(manifest.manifest, root)
   const existing = installedOrEmpty()[id]
   if (existing && existing.contributionsHash === hash && existing.approval?.contributionsHash === hash && resolve(existing.path) === resolve(root)) return existing
   const record: InstalledRecord = {
@@ -531,7 +533,7 @@ export function recordBundledApproval(name: string, root: string, mercuryVersion
     label: 'mercury',
     version: manifest.manifest.version,
     commit: null,
-    contentHash: hashTree(root),
+    contentHash: bundled?.contentHash ?? hashTree(root),
     contributionsHash: hash,
     installedAt: existing?.installedAt ?? nowIso(),
     updatedAt: nowIso(),

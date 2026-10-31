@@ -1230,7 +1230,10 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   const bundledPath = join(root, 'src/extensions/bundled/content.generated.ts')
   if (existsSync(bundledPath)) {
     const text = readFileSync(bundledPath, 'utf8')
-    const payloads = JSON.parse(text.slice(text.indexOf('=') + 1)) as Record<string, Record<string, string>>
+    const source = parseFile(bundledPath, text)
+    const declaration = source.statements.flatMap(statement => ts.isVariableStatement(statement) ? [...statement.declarationList.declarations] : []).find(declaration => ts.isIdentifier(declaration.name) && declaration.name.text === 'bundledPayloads')
+    if (!declaration?.initializer) throw new Error('Bundled extension payload declaration missing')
+    const payloads = JSON.parse(declaration.initializer.getText(source)) as Record<string, Record<string, string>>
     for (const manifest of tracked.filter(f => /^src\/extensions\/bundled\/[^/]+\/mercury-extension\.json$/.test(f))) {
       const name = manifest.split('/')[3]!
       for (const source of tracked.filter(f => f.startsWith('src/extensions/bundled/shared/') && CODE_FILE.test(f))) {

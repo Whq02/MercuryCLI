@@ -36,7 +36,7 @@ export async function mediaBundleRoot(): Promise<string> {
   const { bundledRoster } = await import('../../extensions/bundled/index.js')
   const entry = bundledRoster().find(item => item.name === MEDIA_EXTENSION_NAME)
   if (!entry) throw new Error('Media extension is missing. Reinstall Mercury.')
-  return entry.root
+  return entry.materialize?.() ?? entry.root
 }
 
 export async function mediaServerPath(settings: MediaSettings = readMediaSettings()): Promise<string> {

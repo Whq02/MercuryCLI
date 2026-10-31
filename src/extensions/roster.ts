@@ -261,11 +261,18 @@ export function computeRoster(input: RosterInput = {}): RosterResult {
   for (const def of bundledRoster()) {
     const id = extensionId(def.name, 'mercury')
     const entry = blank({ id, name: def.name, label: 'mercury', home: 'bundled' })
-    readFolder(entry, def.root)
-    const record = recordBundledApproval(def.name, def.root, MERCURY_VERSION)
+    if (def.metadata) {
+      entry.root = def.root
+      entry.manifest = def.metadata.manifest
+      entry.version = entry.manifest.version
+      entry.description = entry.manifest.description
+      entry.contributionsHash = def.metadata.contributionsHash
+    } else readFolder(entry, def.root)
+    const record = recordBundledApproval(def.name, def.root, MERCURY_VERSION, def.metadata)
     applyApproval(entry, record)
     applySwitch(entry, def.defaultOn)
     applyBlock(entry, null)
+    if (entry.switchedOn && entry.blockedBy === null) def.materialize?.()
     entry.bundledUpdatedWith = record?.bundledNote ?? null
     entries.push(entry)
   }

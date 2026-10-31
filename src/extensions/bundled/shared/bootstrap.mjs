@@ -32,6 +32,15 @@ export function bootstrapTools(adapter, plan) {
   ]
 }
 
+export function bootstrapManifest(adapter) {
+  return {
+    serverInfo: { name: `${adapter.id}-bootstrap`, version: adapter.version },
+    capabilities: { tools: { listChanged: true }, resources: { subscribe: true, listChanged: true }, prompts: { listChanged: true }, logging: {} },
+    instructions: `Use craft_status, then request craft_install if needed. Attach to the user's window with craft_connect. Never silently choose headless.`,
+    tools: bootstrapTools(adapter),
+  }
+}
+
 export async function runCraftBridge(adapter, options = {}) {
   const dataDir = options.dataDir ?? process.env.MERCURY_EXTENSION_DATA
   if (!dataDir) throw new Error('MERCURY_EXTENSION_DATA is required')
@@ -129,7 +138,8 @@ export async function runCraftBridge(adapter, options = {}) {
     if (method === 'initialize') {
       if (initialize) { error(id, 'Already initialized', -32600); return }
       initialize = params
-      result(id, { protocolVersion: params.protocolVersion, serverInfo: { name: `${adapter.id}-bootstrap`, version: adapter.version }, capabilities: { tools: { listChanged: true }, resources: { subscribe: true, listChanged: true }, prompts: { listChanged: true }, logging: {} }, instructions: `Use craft_status, then request craft_install if needed. Attach to the user's window with craft_connect. Never silently choose headless.` })
+      const { tools: _tools, ...manifest } = bootstrapManifest(adapter)
+      result(id, { protocolVersion: params.protocolVersion, ...manifest })
       return
     }
     if (!initialize) { error(id, 'Initialize first', -32000); return }
