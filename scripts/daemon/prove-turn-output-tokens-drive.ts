@@ -24,7 +24,7 @@ const secondLeg = 'Second leg done.'
 const thought = 'weighing the ask.. '
 const firstThinkDeltas = 15
 const firstThinkCeiling = 80
-const estimateNeedle = ' tokens · '
+const estimateNeedle = '↓ ~'
 const estimateHoldMs = vshotBudgetMs(1_500)
 const secondThinkDeltas = 60
 const firstWireTokens = 777
@@ -62,9 +62,7 @@ const teeText = (tee: string): string => {
 }
 const figureNumber = (digits: string, kilo: string | undefined): number => Number(digits.replaceAll(',', '')) * (kilo === 'k' ? 1000 : 1)
 const figureOf = (text: string): { count: number; estimate: boolean } | null => {
-  const split = /↓\s*~([\d,.]+)(k?)\s+thinking\s+·\s+([\d,.]+)(k?)\s+tokens?/.exec(text)
-  if (split) return { count: figureNumber(split[1]!, split[2]) + figureNumber(split[3]!, split[4]), estimate: true }
-  const found = /↓\s*(~?)([\d,.]+)(k?)\s+(?:thinking\s+)?tokens?/.exec(text)
+  const found = /↓\s*(~?)([\d,.]+)(k?)(?=\s*(?:[·)]|\n|$))/.exec(text)
   if (!found) return null
   return { count: figureNumber(found[2]!, found[3]), estimate: found[1] === '~' }
 }
@@ -255,7 +253,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
     const sends = [
       { requireAwait: true, awaitText: 'choose', awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: 'count the wire\r' },
-      { requireAwait: true, awaitText: ' tokens · ', awaitSettleTicks: 3, data: '', mark: 'estimate' },
+      { requireAwait: true, awaitText: '↓ ~', awaitSettleTicks: 3, data: '', mark: 'estimate' },
       { requireAwait: true, awaitText: firstLeg, awaitSettleTicks: 12, data: '', mark: 'fact' },
       { requireAwait: true, awaitText: secondLeg, awaitSettleTicks: 5, data: '', mark: 'complete' },
     ]
