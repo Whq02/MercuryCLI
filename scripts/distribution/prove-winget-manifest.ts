@@ -45,11 +45,15 @@ section('§1 the manifests a release yields: three files in the winget-pkgs layo
     check(`${name} exists under manifests/m/MercuryCLI/MercuryCLI/${VERSION}`, existsSync(join(folder, name)))
   }
   const installer = read('MercuryCLI.MercuryCLI.installer.yaml')
-  check('the installer manifest names the package, the version, the zip with its nested portable launcher and the command alias', installer.includes('PackageIdentifier: MercuryCLI.MercuryCLI') && installer.includes(`PackageVersion: ${VERSION}`) && installer.includes('InstallerType: zip') && installer.includes('NestedInstallerType: portable') && installer.includes('RelativeFilePath: mercury\\mercury.cmd') && installer.includes('PortableCommandAlias: mercury'), installer)
+  check('the installer manifest names the package, the version, the zip with its nested portable executable, the command alias and the PATH road', installer.includes('PackageIdentifier: MercuryCLI.MercuryCLI') && installer.includes(`PackageVersion: ${VERSION}`) && installer.includes('InstallerType: zip') && installer.includes('NestedInstallerType: portable') && installer.includes('RelativeFilePath: mercury\\mercury.exe') && installer.includes('PortableCommandAlias: mercury') && installer.includes('ArchiveBinariesDependOnPath: true'), installer)
+  for (const [name, type] of [['MercuryCLI.MercuryCLI.yaml', 'version'], ['MercuryCLI.MercuryCLI.installer.yaml', 'installer'], ['MercuryCLI.MercuryCLI.locale.en-US.yaml', 'defaultLocale']] as const) {
+    const lines = read(name).split('\n')
+    check(`${name} opens with the generated-by line and the ${type} schema header (the winget-pkgs first-contribution rule)`, lines[0]!.startsWith('# Mercury CLI ') && lines[1] === `# yaml-language-server: $schema=https://aka.ms/winget-manifest.${type}.1.12.0.schema.json` && lines[2] === '', lines.slice(0, 3).join(' | '))
+  }
   check('one installer per Windows architecture, each with the release asset url and the hash in upper-case hex', installer.includes('- Architecture: x64') && installer.includes(`InstallerUrl: https://github.com/Whq02/MercuryCLI/releases/download/v${VERSION}/mercury-v${VERSION}-windows-x64.zip`) && installer.includes(`InstallerSha256: ${X64.toUpperCase()}`) && installer.includes('- Architecture: arm64') && installer.includes(`InstallerSha256: ${ARM.toUpperCase()}`), installer)
   check('no switches: a zip of a portable needs none, and none are written', !/InstallerSwitches/.test(installer))
   const version = read('MercuryCLI.MercuryCLI.yaml')
-  check('the version manifest names the default locale and its type', version.includes('DefaultLocale: en-US') && version.includes('ManifestType: version') && version.includes('ManifestVersion: 1.9.0'))
+  check('the version manifest names the default locale and its type at the schema version the winget-pkgs PR template asks for', version.includes('DefaultLocale: en-US') && version.includes('ManifestType: version') && version.includes('ManifestVersion: 1.12.0'))
   const locale = read('MercuryCLI.MercuryCLI.locale.en-US.yaml')
   check('the locale manifest carries the identity the owner set for every public page: publisher and name "Mercury CLI", the site, the licence, the moniker', locale.includes('Publisher: Mercury CLI') && locale.includes('PackageName: Mercury CLI') && locale.includes('PublisherUrl: https://mercury-cli.ai') && locale.includes('License: Apache-2.0') && locale.includes(`LicenseUrl: https://raw.githubusercontent.com/Whq02/MercuryCLI/v${VERSION}/LICENSE.md`) && locale.includes('Moniker: mercurycli') && locale.includes('- mercury-cli') && locale.includes(`ReleaseNotesUrl: https://github.com/Whq02/MercuryCLI/releases/tag/v${VERSION}`), locale)
   check('a description with a colon is quoted (valid YAML)', /ShortDescription: "Mercury CLI: /.test(locale), locale)
@@ -96,6 +100,50 @@ section('§3 refusals: no Windows archive in the checksum file, a version or id 
   check('a hash that is not 64 hex characters is no hash: the line is ignored and the file is refused for the archive it fails to name', malformed.rc === 2 && malformed.out.includes('lists no Windows archive'), malformed.out)
   const help = run('--help')
   check('--help prints the usage and exits 0', help.rc === 0 && help.out.includes('--check'))
+}
+
+section('§4 the three files parse as YAML and conform to the 1.12.0 JSON schemas (the copies under fixtures/winget, from aka.ms)')
+{
+  const { parse } = await import('yaml')
+  const { default: Ajv } = await import('ajv')
+  const ajv = new Ajv({ strict: false, allErrors: true, logger: false })
+  const types = [['MercuryCLI.MercuryCLI.yaml', 'version'], ['MercuryCLI.MercuryCLI.installer.yaml', 'installer'], ['MercuryCLI.MercuryCLI.locale.en-US.yaml', 'defaultLocale']] as const
+  const fresh = join(scratch, 'schema')
+  const made = run('--version', VERSION, '--sums', sumsPath, '--out', fresh, '--release-date', '2026-10-31')
+  check('a --release-date pins the installer manifest\'s ReleaseDate', made.rc === 0 && readFileSync(join(fresh, 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION, 'MercuryCLI.MercuryCLI.installer.yaml'), 'utf8').includes('ReleaseDate: 2026-10-31'), made.out)
+  for (const [name, type] of types) {
+    const schema = JSON.parse(readFileSync(join(ROOT, 'scripts', 'distribution', 'fixtures', 'winget', `manifest.${type}.1.12.0.json`), 'utf8')) as Record<string, unknown>
+    const document = parse(readFileSync(join(fresh, 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION, name), 'utf8')) as Record<string, unknown>
+    const validate = ajv.compile(schema)
+    const ok = validate(document)
+    check(`${name} conforms to manifest.${type}.1.12.0.json`, ok === true && document.ManifestVersion === '1.12.0' && document.ManifestType === type, j(validate.errors ?? null))
+  }
+  const installerDoc = parse(readFileSync(join(fresh, 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION, 'MercuryCLI.MercuryCLI.installer.yaml'), 'utf8')) as { NestedInstallerFiles?: Array<Record<string, string>>; Installers?: Array<Record<string, string>>; ArchiveBinariesDependOnPath?: boolean }
+  check('the parsed installer carries one nested file (mercury\\mercury.exe aliased mercury), two installers and the PATH road', j(installerDoc.NestedInstallerFiles) === j([{ RelativeFilePath: 'mercury\\mercury.exe', PortableCommandAlias: 'mercury' }]) && installerDoc.Installers?.length === 2 && installerDoc.ArchiveBinariesDependOnPath === true, j(installerDoc))
+}
+
+section('§5 the zip layout: --zip reads the archive\'s entries; the nested executable must be one of them, and a .cmd launcher is refused with the reason')
+{
+  const zipOf = (name: string, entries: string[]): string => {
+    const path = join(scratch, name)
+    const made = spawnSync('python3', ['-c', 'import sys, zipfile\nwith zipfile.ZipFile(sys.argv[1], "w") as z:\n  [z.writestr(e, "x") for e in sys.argv[2:]]', path, ...entries], { encoding: 'utf8' })
+    if (made.status !== 0) throw new Error(`python3 zipfile: ${made.stderr}`)
+    return path
+  }
+  const common = ['mercury/mercury.mjs', 'mercury/manifest.json', 'mercury/vendor/node/node.exe', 'mercury/mercury.cmd', 'mercury/mercury.ps1']
+  const withExe = zipOf('with-exe.zip', [...common, 'mercury/mercury.exe'])
+  const armWithExe = zipOf('arm-with-exe.zip', [...common, 'mercury/mercury.exe'])
+  const cmdOnly = zipOf('cmd-only.zip', common)
+  const good = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'zipped'), '--zip', withExe, '--zip', armWithExe)
+  check('two zips that carry mercury/mercury.exe pass the layout check and the manifests are written', good.rc === 0 && good.out.includes('present in every --zip given') && existsSync(join(scratch, 'zipped', 'manifests', 'm', 'MercuryCLI', 'MercuryCLI', VERSION, 'MercuryCLI.MercuryCLI.installer.yaml')), good.out)
+  const refused = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'unzipped'), '--zip', withExe, '--zip', cmdOnly)
+  check('a zip whose only launchers are mercury.cmd and mercury.ps1 is refused with the launchers it has and the reason, nothing written', refused.rc === 2 && refused.out.includes('has no mercury/mercury.exe') && refused.out.includes('mercury/mercury.cmd') && refused.out.includes('.exe entry point') && !existsSync(join(scratch, 'unzipped')), refused.out)
+  const cmdNested = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'cmd'), '--nested', 'mercury\\mercury.cmd', '--zip', cmdOnly)
+  check('--nested naming the .cmd launcher is refused: WinGet links mercury.exe to the nested file', cmdNested.rc === 2 && cmdNested.out.includes('--nested must name an .exe') && !existsSync(join(scratch, 'cmd')), cmdNested.out)
+  const noZip = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'unchecked'), '--zip', join(scratch, 'absent.zip'))
+  check('a --zip that names no file is refused', noZip.rc === 2 && noZip.out.includes('--zip names no file'), noZip.out)
+  const notZip = run('--version', VERSION, '--sums', sumsPath, '--out', join(scratch, 'unchecked'), '--zip', sumsPath)
+  check('a --zip that is not a zip is refused', notZip.rc === 2 && notZip.out.includes('not a zip'), notZip.out)
 }
 
 rmSync(scratch, { recursive: true, force: true })
