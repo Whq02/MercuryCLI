@@ -265,16 +265,20 @@ section('§4 the screenshot retirement follows the same law: a retired screensho
   let rows: AnyMsg[] = [userRow('drive the editor')]
   for (let n = 1; n <= 13; n++) rows = [...rows, ...shot(`toolu_shot_${n}`, n)]
   const thinkingOf = (list: unknown[]): string[] => (list as AnyMsg[]).flatMap(row => (row.type === 'assistant' ? ((row.message as { content: Array<{ type: string; thinking?: string }> }).content).filter(b => b.type === 'thinking').map(b => b.thinking ?? '') : []))
-  const first = retention.retireOlderScreenshots(rows as never, undefined, undefined, owner)
-  check('thirteen live screenshots: the oldest ten retire and the first retired row is reported as the first edit', first.firstEdited === 2 && first.messages.filter(row => j(row).includes('"image"')).length === 3, `${first.firstEdited}`)
+  const warm = retention.retireOlderScreenshots(rows as never, undefined, undefined, owner, { coldPrefix: false })
+  check('thirteen live screenshots while the cached prefix is warm: nothing retires, no edit', warm.firstEdited === -1 && warm.messages.filter(row => j(row).includes('"image"')).length === 13, `${warm.firstEdited}`)
+  const first = retention.retireOlderScreenshots(rows as never, undefined, undefined, owner, { coldPrefix: true })
+  check('thirteen live screenshots at a cold moment: the oldest ten retire and the first retired row is reported as the first edit', first.firstEdited === 2 && first.messages.filter(row => j(row).includes('"image"')).length === 3, `${first.firstEdited}`)
   const later: AnyMsg[] = [...rows, assistantRow([thinkingBlock('minted after the retirement'), { type: 'text', text: 'next' }]), userRow('go on')]
-  const second = retention.retireOlderScreenshots(later as never, undefined, undefined, owner)
+  const second = retention.retireOlderScreenshots(later as never, undefined, undefined, owner, { coldPrefix: false })
   const kept = thinkingOf(second.messages)
   check('the same retirements on the next request are not new edits', second.firstEdited === -1, `${second.firstEdited}`)
   check('the reasoning that stood after the first retired row leaves the wire; the reasoning minted after stays', j(kept) === j(['reasoning before shot 1', 'minted after the retirement']), j(kept))
   const fourteen: AnyMsg[] = [...later, ...shot('toolu_shot_14', 14)]
-  const third = retention.retireOlderScreenshots(fourteen as never, undefined, undefined, owner)
-  check('a fourteenth screenshot retires one more: that retirement is the new edit, at its own row', third.firstEdited === 22, `${third.firstEdited}`)
+  const warmFourteen = retention.retireOlderScreenshots(fourteen as never, undefined, undefined, owner, { coldPrefix: false })
+  check('a fourteenth screenshot while warm: the ten stay retired, the newest four stay live, no new edit', warmFourteen.firstEdited === -1 && warmFourteen.messages.filter(row => j(row).includes('"image"')).length === 4, `${warmFourteen.firstEdited}`)
+  const third = retention.retireOlderScreenshots(fourteen as never, undefined, undefined, owner, { coldPrefix: true })
+  check('the fourteenth at the next cold moment retires one more: that retirement is the new edit, at its own row', third.firstEdited === 22, `${third.firstEdited}`)
 }
 
 await fixture.close()

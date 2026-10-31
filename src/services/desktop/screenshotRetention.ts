@@ -1,13 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs'
 import type { Message } from '../../types/message.js'
 import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
+import { getLastApiCompletionTimestamp } from '../../bootstrap/state.js'
+import { cacheClockSnapshot } from '../../utils/cache/cacheClock.js'
+import { TTL_MS } from '../../utils/cache/cacheClockCore.js'
 import { detectImageFormatFromBuffer } from '../../utils/imageResizer.js'
-import { settleWireEdits, type WireEdit } from '../../utils/messages/wireEdits.js'
+import { conversationEditKey, settleWireEdits, type WireEdit } from '../../utils/messages/wireEdits.js'
 import { noteScreenshot, screenshotPathForToolUse } from './desktopSession.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
 
 export const SCREENSHOT_KEEP_RECENT = 3
 export const SCREENSHOT_WIRE_HIGH_WATER = 12
+export const SCREENSHOT_WIRE_CEILING = 96
 
 export function screenshotStubText(filePath: string): string {
   return `[screenshot not kept in the conversation file — the image is at ${filePath}; take a new screenshot before acting]`
@@ -151,11 +155,40 @@ interface RetiredScreenshots<M extends Message> {
   firstEdited: number
 }
 
+interface RetirementMoment {
+  coldPrefix?: boolean
+  now?: number
+}
+
+const retiredByConversation = new Map<string, Set<string>>()
+
+export function resetScreenshotRetirementForTesting(): void {
+  retiredByConversation.clear()
+}
+
+function lastAssistantTimestamp(messages: readonly Message[]): number | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]!
+    if (row.type !== 'assistant') continue
+    const at = Date.parse((row as { timestamp?: string }).timestamp ?? '')
+    return Number.isFinite(at) ? at : null
+  }
+  return null
+}
+
+export function prefixIsCold(messages: readonly Message[], now: number = Date.now()): boolean {
+  const basis = getLastApiCompletionTimestamp() ?? lastAssistantTimestamp(messages)
+  if (basis === null) return true
+  const ttl = cacheClockSnapshot().ttl ?? '5m'
+  return now - basis > TTL_MS[ttl]
+}
+
 export function retireOlderScreenshots<M extends Message>(
   messages: M[],
   keep: number = SCREENSHOT_KEEP_RECENT,
   highWater: number = SCREENSHOT_WIRE_HIGH_WATER,
   owner?: string,
+  moment?: RetirementMoment,
 ): RetiredScreenshots<M> {
   const live: Array<{ index: number; toolUseId: string }> = []
   messages.forEach((message, index) => {
@@ -165,10 +198,22 @@ export function retireOlderScreenshots<M extends Message>(
       if (isScreenshotResult(block)) live.push({ index, toolUseId: block.tool_use_id })
     }
   })
-  if (live.length <= Math.max(0, highWater)) return { messages, firstEdited: -1 }
-  const retireCount = Math.max(0, live.length - Math.max(0, keep))
+  const conversation = owner === undefined ? null : conversationEditKey(owner, messages)
+  const remembered = conversation === null ? new Set<string>() : (retiredByConversation.get(conversation) ?? new Set<string>())
+  const liveIds = new Set(live.map(entry => entry.toolUseId))
+  const held = new Set([...remembered].filter(id => liveIds.has(id)))
+  const unretired = live.filter(entry => !held.has(entry.toolUseId))
+  const cold = moment?.coldPrefix ?? prefixIsCold(messages, moment?.now)
+  const ceilingReached = unretired.length > SCREENSHOT_WIRE_CEILING
+  const retiring = new Set(held)
+  if (live.length > Math.max(0, highWater) && (cold || ceilingReached)) {
+    const retireCount = Math.max(0, live.length - Math.max(0, keep))
+    for (const entry of live.slice(0, retireCount)) retiring.add(entry.toolUseId)
+  }
+  if (conversation !== null && retiring.size > 0) retiredByConversation.set(conversation, new Set(retiring))
   const retired = new Map<number, Set<string>>()
-  for (const entry of live.slice(0, retireCount)) {
+  for (const entry of live) {
+    if (!retiring.has(entry.toolUseId)) continue
     const ids = retired.get(entry.index)
     if (ids) ids.add(entry.toolUseId)
     else retired.set(entry.index, new Set([entry.toolUseId]))

@@ -67,13 +67,15 @@ section('§1 the transcript projection stubs a Computer screenshot and leaves ev
   check('an assistant message and a plain user message pass by reference', retention.projectForTranscript(assistant) === assistant && retention.projectForTranscript(plain) === plain)
 }
 
-section('§2 the wire window keeps the newest three once thirteen are live')
+section('§2 the wire window keeps the newest three once thirteen are live — at a moment the cached prefix is cold anyway')
 {
-  check('the constants: keep 3, high water 12', retention.SCREENSHOT_KEEP_RECENT === 3 && retention.SCREENSHOT_WIRE_HIGH_WATER === 12)
+  check('the constants: keep 3, high water 12, ceiling 96', retention.SCREENSHOT_KEEP_RECENT === 3 && retention.SCREENSHOT_WIRE_HIGH_WATER === 12 && retention.SCREENSHOT_WIRE_CEILING === 96)
   const { messages, ids } = conversation(13)
-  const retired = retention.retireOlderScreenshots(messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER)
+  const warm = retention.retireOlderScreenshots(messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, undefined, { coldPrefix: false })
+  check('thirteen live while the prefix is warm: nothing is retired (an edit to a sent row would re-write every later byte of the cache)', warm.messages === messages && warm.firstEdited === -1 && warm.messages.filter(hasImage).length === 13, `${warm.messages.filter(hasImage).length} images, firstEdited=${warm.firstEdited}`)
+  const retired = retention.retireOlderScreenshots(messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, undefined, { coldPrefix: true })
   const kept = retired.messages.filter(hasImage).length
-  check('three images remain', kept === 3, `${kept} images`)
+  check('three images remain once the prefix is cold', kept === 3, `${kept} images`)
   const oldest = retired.messages[2]!
   const oldestBlocks = resultBlocks(oldest)
   check('the oldest screenshot\'s image became the earlier-screenshot text and its text line stayed', oldestBlocks.length === 2 && oldestBlocks[0]?.type === 'text' && String(oldestBlocks[0]?.text).startsWith('screenshot: ') && oldestBlocks[1]?.type === 'text' && String(oldestBlocks[1]?.text) === retention.earlierScreenshotText(pathOf(1)), JSON.stringify(oldestBlocks))
@@ -83,8 +85,48 @@ section('§2 the wire window keeps the newest three once thirteen are live')
   check('untouched messages pass by reference', retired.messages[0] === messages[0] && retired.messages[1] === messages[1] && retired.messages[retired.messages.length - 1] === messages[messages.length - 1])
   check('ten screenshots were retired: the ids of the newest three are the last three', ids.slice(-3).every(id => retired.messages.some(m => resultBlocks(m).some(b => b.type === 'image') && blocksOf(m).some(b => b.tool_use_id === id))))
   const { messages: twelve } = conversation(12)
-  const untouched = retention.retireOlderScreenshots(twelve, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER)
+  const untouched = retention.retireOlderScreenshots(twelve, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, undefined, { coldPrefix: true })
   check('twelve or fewer: the same array by reference and firstEdited -1', untouched.messages === twelve && untouched.firstEdited === -1)
+}
+
+section('§2b a retired screenshot stays retired; the next one waits for the next cold moment; the ceiling forces a batch')
+{
+  retention.resetScreenshotRetirementForTesting()
+  const conversationOwner = String(processOwnerForLane('agent-retention-memory'))
+  const { messages: thirteen } = conversation(13)
+  const cold = retention.retireOlderScreenshots(thirteen, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, conversationOwner, { coldPrefix: true })
+  check('a cold moment retires ten of thirteen', cold.messages.filter(hasImage).length === 3 && cold.firstEdited === 2, `${cold.messages.filter(hasImage).length} images firstEdited=${cold.firstEdited}`)
+  const fourteen = [...thirteen, toolUseTurn('toolu_shot_14', 'Computer', { action: 'screenshot' }), toolResultTurn(screenshotResult('toolu_shot_14', pathOf(14)))]
+  session.noteScreenshot(owner, 'toolu_shot_14', pathOf(14))
+  const next = retention.retireOlderScreenshots(fourteen, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, conversationOwner, { coldPrefix: false })
+  check('the fourteenth arrives while warm: the ten stay retired, the newest four stay live, no new edit (firstEdited -1)', next.messages.filter(hasImage).length === 4 && next.firstEdited === -1 && !retention.screenshotVisibleInContext(next.messages, 'toolu_shot_1') && retention.screenshotVisibleInContext(next.messages, 'toolu_shot_11'), `${next.messages.filter(hasImage).length} images firstEdited=${next.firstEdited}`)
+  const again = retention.retireOlderScreenshots(fourteen, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, conversationOwner, { coldPrefix: true })
+  check('the next cold moment retires the eleventh too, leaving the newest three', again.messages.filter(hasImage).length === 3 && !retention.screenshotVisibleInContext(again.messages, 'toolu_shot_11'), `${again.messages.filter(hasImage).length} images`)
+  const otherOwner = String(processOwnerForLane('agent-retention-other'))
+  const fresh = retention.retireOlderScreenshots(fourteen, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, otherOwner, { coldPrefix: false })
+  check('another conversation holds no memory of those retirements: warm, nothing retired', fresh.messages === fourteen && fresh.firstEdited === -1)
+  const { messages: many } = conversation(retention.SCREENSHOT_WIRE_CEILING + 1)
+  const forced = retention.retireOlderScreenshots(many, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, String(processOwnerForLane('agent-retention-ceiling')), { coldPrefix: false })
+  check(`past the ceiling (${retention.SCREENSHOT_WIRE_CEILING}) a warm request retires down to three anyway (one re-write instead of a refused request)`, forced.messages.filter(hasImage).length === 3 && forced.firstEdited === 2, `${forced.messages.filter(hasImage).length} images firstEdited=${forced.firstEdited}`)
+  const atCeiling = retention.retireOlderScreenshots(conversation(retention.SCREENSHOT_WIRE_CEILING).messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, String(processOwnerForLane('agent-retention-below')), { coldPrefix: false })
+  check('at the ceiling, still warm: nothing retired', atCeiling.firstEdited === -1)
+  retention.resetScreenshotRetirementForTesting()
+}
+
+section('§2c the cold-prefix reading: the last completion against the cache clock\'s tier')
+{
+  const state = await import('../../src/bootstrap/state.ts')
+  const before = state.getLastApiCompletionTimestamp()
+  const now = Date.now()
+  state.setLastApiCompletionTimestamp(now - 4 * 60_000)
+  check('four minutes after the last completion on the 5m tier the prefix is warm', retention.prefixIsCold([], now) === false)
+  state.setLastApiCompletionTimestamp(now - 6 * 60_000)
+  check('six minutes after it the prefix is cold', retention.prefixIsCold([], now) === true)
+  state.setLastApiCompletionTimestamp(null)
+  const assistantAt = new Date(now - 6 * 60_000).toISOString()
+  const resumed = [toolUseTurn('toolu_resumed', 'Computer', { action: 'screenshot' })].map(row => ({ ...row, timestamp: assistantAt }) as Message)
+  check('with no completion in this process the last assistant row\'s timestamp is the basis (a resumed session)', retention.prefixIsCold(resumed, now) === true && retention.prefixIsCold(resumed, now - 3 * 60_000) === false)
+  state.setLastApiCompletionTimestamp(before)
 }
 
 section('§3 the wire call sites (structural)')
@@ -114,7 +156,7 @@ section('§4 the screenshot a coordinate act refers to must still be visible')
   check('an unknown id is not visible', retention.screenshotVisibleInContext(messages, 'toolu_never') === false)
   const stripped = stripImagesFromMessages(messages)
   check('after the compaction strip nothing is visible', retention.screenshotVisibleInContext(stripped, 'toolu_shot_13') === false)
-  const retired = retention.retireOlderScreenshots(messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER)
+  const retired = retention.retireOlderScreenshots(messages, retention.SCREENSHOT_KEEP_RECENT, retention.SCREENSHOT_WIRE_HIGH_WATER, undefined, { coldPrefix: true })
   check('after the window the retired one is gone and the newest stays visible', retention.screenshotVisibleInContext(retired.messages, 'toolu_shot_1') === false && retention.screenshotVisibleInContext(retired.messages, 'toolu_shot_13') === true)
 }
 
