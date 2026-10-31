@@ -259,6 +259,11 @@ section('§9 the sign-in screen fits the window: the method list and its pointer
   const { MORE_BELOW_ROW } = await import('../../src/components/ConsoleOAuthFlow.tsx')
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const rosterRows = loginFamilyRows({ engineLegs: true }).length
+  const { default: figures } = await import('figures')
+  const POINTER = figures.pointer
+  const escaped = POINTER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pointerRow = new RegExp(`${escaped} \\S.* — `)
+  const methodRow = new RegExp(`^[│ ]+(?:${escaped}| ) \\S.* — `)
   class Output extends EventEmitter {
     isTTY = true
     bytes: string[] = []
@@ -297,7 +302,7 @@ section('§9 the sign-in screen fits the window: the method list and its pointer
     const settledOutcomes: Array<{ ok: boolean }> = []
     root.render(acpLoginElement(settled => { settledOutcomes.push(settled) }))
     const frameText = (): string => bare(engine.lastFrameText()).replace(/\n$/, '')
-    const painted = await until(() => frameText().includes('❯'), 30_000)
+    const painted = await until(() => frameText().split('\n').some(line => pointerRow.test(line)), 30_000)
     await sleep(250)
     const lines = frameText().split('\n')
     const written = stdout.bytes.join('')
@@ -305,12 +310,14 @@ section('§9 the sign-in screen fits the window: the method list and its pointer
     check(`${label}: the card paints with the method list`, painted, lines.slice(0, 6).join(' | '))
     check(`${label}: the whole card fits the window (${lines.length} lines of ${rows} rows)`, lines.length <= rows, String(lines.length))
     check(`${label}: the intro is in view`, lines.some(line => line.includes(ACP_LOGIN_INTRO.slice(0, 40))), lines.join('\n'))
-    check(`${label}: the pointer sits on a method row`, lines.some(line => /❯ \S.* — /.test(line)), lines.filter(line => line.includes('❯')).join(' | '))
-    const shown = lines.filter(line => /^[│ ]+[❯ ] \S.* — /.test(line) && !line.includes('Mercury —')).length
+    check(`${label}: the pointer sits on a method row`, lines.some(line => pointerRow.test(line)), lines.filter(line => line.includes(POINTER)).join(' | '))
+    const shown = lines.filter(line => methodRow.test(line) && !line.includes('Mercury —')).length
     const moreBelow = lines.map(line => /…and (\d+) more below/.exec(line)?.[1]).find(hidden => hidden !== undefined)
     check(`${label}: the list scrolls inside the card — ${shown} methods shown, the rest counted in the “more below” row`, moreBelow !== undefined && shown + Number(moreBelow) === rosterRows && lines.some(line => line.includes(MORE_BELOW_ROW(Number(moreBelow)))), `shown=${shown} hidden=${moreBelow ?? 'none'} roster=${rosterRows}`)
     check(`${label}: the footer says what to do next`, lines.some(line => line.includes(ACP_LOGIN_FOOTER)), lines.at(-2) ?? '')
-    check(`${label}: the alternate screen is entered before the first paint`, written.includes(ENTER_ALT) && written.indexOf(ENTER_ALT) < written.indexOf('❯'), j({ enterAt: written.indexOf(ENTER_ALT), pointerAt: written.indexOf('❯') }))
+    const pointedName = lines.find(line => pointerRow.test(line))?.split(POINTER)[1]?.trim().split(' ')[0] ?? 'Mercury'
+    const paintedAt = written.indexOf(pointedName)
+    check(`${label}: the alternate screen is entered before the first paint`, written.includes(ENTER_ALT) && paintedAt >= 0 && written.indexOf(ENTER_ALT) < paintedAt, j({ enterAt: written.indexOf(ENTER_ALT), paintedAt, pointedName }))
     stdout.bytes.length = 0
     stdin.press('\x1b')
     const settled = await until(() => settledOutcomes.length > 0, 5_000)
@@ -339,9 +346,10 @@ if (process.platform === 'win32') {
     path: join(projDir, 'acp-login.pty'),
   })
   const output = (): string => Buffer.concat(recording.records.filter(record => record.direction === 'output').map(record => record.bytes)).toString('utf8')
-  const painted = await until(() => output().includes('❯') && output().includes(ACP_LOGIN_INTRO.slice(0, 40)), 90_000)
+  const { default: figures } = await import('figures')
+  const painted = await until(() => output().includes(figures.pointer) && output().includes(ACP_LOGIN_INTRO.slice(0, 40)), 90_000)
   check('pty: the card paints with its intro and the method pointer', painted, bare(output()).slice(-600))
-  check('pty: the alternate screen was entered before the card painted', output().indexOf('\x1b[?1049h') >= 0 && output().indexOf('\x1b[?1049h') < output().indexOf('❯'))
+  check('pty: the alternate screen was entered before the card painted', output().indexOf('\x1b[?1049h') >= 0 && output().indexOf('\x1b[?1049h') < output().indexOf(figures.pointer))
   recording.send('\x1b')
   const exit = await Promise.race([recording.exited, new Promise<number | null>(resolve => setTimeout(() => resolve(null), 20_000))])
   check('pty: Esc ends the process with exit 1', exit === 1, `exit=${exit}`)
