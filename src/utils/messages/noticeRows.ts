@@ -27,6 +27,7 @@ export type AdvisorOrigin = {
 export type NoticeBlock =
   | { kind: 'monitor'; taskId: string; name: string; lines: string[]; count?: number; last?: string }
   | { kind: 'notice'; lines: string[] }
+  | { kind: 'crew-board'; name: string; postKind: string; lines: string[] }
   | { kind: 'task'; plate: string; status: string; lines: string[] }
   | { kind: 'saturn'; origin: SaturnOrigin; lines: string[] }
   | { kind: 'advisor'; origin: AdvisorOrigin; lines: string[] }
@@ -131,7 +132,7 @@ export function saturnBlockOf(origin: SaturnOrigin, text: string): NoticeBlock {
 }
 
 export function isMutedNoticeBlock(block: NoticeBlock): boolean {
-  return block.kind === 'saturn' || block.kind === 'advisor' || block.kind === 'monitor' || block.kind === 'outside-report'
+  return block.kind === 'saturn' || block.kind === 'advisor' || block.kind === 'monitor' || block.kind === 'outside-report' || block.kind === 'crew-board'
 }
 
 export function noticeCarriesOwnClock(block: NoticeBlock): boolean {
@@ -220,7 +221,18 @@ export function wrappedNoticeBlocks(text: string): NoticeBlock[] | null {
   return blocks.length === 0 ? null : foldSameWatch(blocks)
 }
 
+export function crewBoardNotice(name: string, kind: string, text: string): string {
+  return `<crew-board>${JSON.stringify({ name, kind, text })}</crew-board>`
+}
+
 export function noticeOfText(text: string, fromNotificationLane: boolean): NoticeBlock[] | null {
+  const board = /^<crew-board>([\s\S]*)<\/crew-board>$/.exec(text.trim())
+  if (board) {
+    try {
+      const value = JSON.parse(board[1]!)
+      if (typeof value.name === 'string' && typeof value.kind === 'string' && typeof value.text === 'string') return [{ kind: 'crew-board', name: stripTerminalControls(value.name), postKind: stripTerminalControls(value.kind), lines: noticeLines(value.text) }]
+    } catch {}
+  }
   if (text.trimStart().startsWith(`<${TASK_NOTIFICATION_TAG}`)) return null
   const wrapped = wrappedNoticeBlocks(text)
   if (wrapped !== null) return wrapped
@@ -266,6 +278,7 @@ export function hasNoticeFold(row: { type?: string; isMeta?: boolean; origin?: u
 export function noticePlate(block: NoticeBlock, rowStamp?: string): string {
   if (block.kind === 'outside-report') return outsideReportHeading(block.origin.sender)
   if (block.kind === 'task') return block.plate
+  if (block.kind === 'crew-board') return `[Crewboard] ${block.name} · ${block.postKind} · ${block.lines.join(' ')}`.replace(/[\r\n]+/g, ' ')
   if (block.kind === 'notice') return PLAIN_NOTICE_WORD
   if (block.kind === 'saturn') return `[${SATURN_PLATE_NAME}] · ${saturnFirstLine(block.origin, rowStamp)}`
   if (block.kind === 'advisor') return `[${ADVISOR_PLATE_NAME}] · ${advisorFirstLine(block.origin)}`

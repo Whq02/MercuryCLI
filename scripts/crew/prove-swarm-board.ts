@@ -193,14 +193,15 @@ const costFile = join(work, 'cost.sqlite')
 const cost = open(costFile, 'cost-session', smallLimits)
 const peers = Array.from({ length: 8 }, (_, i) => ({ author: { sessionId: 'cost-session', agentId: `peer-${i}`, executionId: 'run' }, name: `peer-${i}` }))
 for (const peer of peers) cost.enroll(peer)
-for (let i = 0; i < 8; i++) assert(cost.post(peers[0]!, { clientOpId: `topic-${i}`, kind: 'ask', taskId: `task-${i}`, text: 'A measured finding from the same recorded schedule.', mentions: ['peer-1', 'peer-2', 'peer-3'] }).ok)
+cost.read(peers[3]!, { task: 'task-0', watch: true })
+for (let i = 0; i < 8; i++) assert(cost.post(peers[0]!, { clientOpId: `topic-${i}`, kind: 'result', taskId: `task-${i}`, text: 'A measured finding from the same recorded schedule.', mentions: ['peer-1', 'peer-2'] }).ok)
 const full = cost.view().events
 const push = full.reduce((n, event) => n + Buffer.byteLength(JSON.stringify(event)), 0) * 7
 let selective = 0
 for (const peer of peers.slice(1, 3)) {
   for (;;) { const packet = cost.boundary(peer, new Set()); if (!packet) break; selective += Buffer.byteLength(packet.text); cost.presented(peer, packet.eventIds, `request-${selective}`) }
 }
-check('selective index replay admits less than full push with no missed mentions', selective < push && peers.slice(1, 3).every(peer => cost.boundary(peer, new Set()) === null))
+check('selective packet replay admits less than full push with no missed mentions', selective < push && peers.slice(1, 3).every(peer => cost.boundary(peer, new Set()) === null))
 console.log(`Recorded schedule: push ${push} bytes, selective ${selective} bytes; at 60 appearances ${push * 60} versus ${selective * 60}; zero extra turns`)
 const readPackets = Array.from({ length: 4 }, () => cost.read(peers[0]!, { limitTokens: 1500 }))
 const packetIds = readPackets.map(packet => packet.packetId!).filter(Boolean)

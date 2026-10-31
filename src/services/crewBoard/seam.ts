@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID, createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { buildTool, type Tool, type ToolUseContext } from '../../Tool.js'
@@ -9,12 +10,13 @@ import { getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage
 import { operatorPauseGate } from '../../run-core/pauseGate.js'
 import type { AgentId } from '../../types/ids.js'
 import type { Message } from '../../types/message.js'
-import { DEFAULT_BOARD_LIMITS, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
+import { DEFAULT_BOARD_LIMITS, type BoardEvent, type BoardLimits, type BoardModule, type BoardPrincipal, type BoardReceipt, type BoardStore, type BoardViewSnapshot } from './contracts.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
 const sessions = new Map<string, { store: BoardStore; execution: string; tool?: Tool }>()
 const roads = new Map<string, { on: boolean; execution: string; name: string; active: boolean }>()
+const leadChecks = new Set<() => void>()
 const key = (agent: string): string => `${getSessionId()}:${agent}`
 const EMPTY: BoardViewSnapshot = { on: false, events: [], snapshot: 0, omitted: 0, admitted: 0, peerTurns: 0 }
 
@@ -77,7 +79,33 @@ export function swarmStore(): BoardStore | null {
   const execution = randomUUID()
   sessions.set(sessionId, { store, execution })
   store.enroll({ author: { sessionId, agentId: 'main', executionId: execution }, name: 'main' })
+  store.subscribe(() => { for (const check of leadChecks) check() })
   return store
+}
+
+export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (event: BoardEvent) => void): { check: () => void; stop: () => void } {
+  const notified = new Map<string, string>()
+  const painted = new Map<string, number>()
+  const leadContext = AsyncLocalStorage.snapshot()
+  const check = (): void => leadContext(() => {
+    if (!swarmSessionEnabled()) return
+    const session = String(getSessionId())
+    const store = sessions.get(session)?.store
+    if (!store) return
+    for (const event of store.leadPosts(painted.get(session) ?? 0)) {
+      painted.set(session, event.seq)
+      paint(event)
+    }
+    if (operatorPauseGate.holds('main') || !idle()) return
+    const event = store.leadMention()
+    if (!event || notified.get(session) === event.eventId) return
+    notified.set(session, event.eventId)
+    wake()
+  })
+  leadChecks.add(check)
+  const resume = operatorPauseGate.subscribe(check)
+  check()
+  return { check, stop: () => { leadChecks.delete(check); resume() } }
 }
 
 export function swarmRoad(agentId = 'main'): boolean {

@@ -64,7 +64,8 @@ try {
   const skipped = handed(delivery.board, receiver, {})
   check('a whole presented boundary event is skipped by the next read', skipped.events.length === 0 && skipped.skippedSeen === 1 && skipped.tokens === 0)
   check('a whole boundary event is still explicitly re-readable', handed(delivery.board, receiver, { since: whole.seq - 1 }).events[0]?.eventId === whole.eventId)
-  const indexed = delivery.post('An indexed finding.', { to: ['receiver'] })
+  delivery.board.read(receiver, { task: 'indexed', watch: true })
+  const indexed = delivery.post('An indexed finding.', { taskId: 'indexed' })
   const index = delivery.board.boundary(receiver, new Set())!
   delivery.board.presented(receiver, index.eventIds, 'indexed')
   check('an id-only boundary does not mark the body seen', handed(delivery.board, receiver, {}).events[0]?.eventId === indexed.eventId)
@@ -111,7 +112,8 @@ try {
   degraded.post('x'.repeat(5000))
   handed(degraded.board, filling, { limitTokens: 1700 })
   const body = 'y'.repeat(200)
-  const message = degraded.post(body, { kind: 'message', threadId: 'short', to: ['notified'] }, 'body')
+  degraded.board.read(notified, { task: 'short', watch: true })
+  const message = degraded.post(body, { kind: 'result', threadId: 'short', taskId: 'short' }, 'body')
   const reduced = degraded.board.boundary(notified, new Set())!
   check('unsolicited body degrades to an index when that still fits', reduced.eventIds.includes(message.eventId) && !reduced.text.includes(body))
   degraded.board.presented(notified, reduced.eventIds, 'reduced')
@@ -126,7 +128,8 @@ try {
   active.post('x'.repeat(8000), { threadId: 'large' })
   const pa = handed(active.board, a, {}), pb = handed(active.board, b, {})
   check('a wave cap does not refuse a seat’s own read', pa.tokens > 8000 && pb.tokens > 8000 && !pb.reason && active.board.view().admitted > 10000)
-  const delayed = active.post('An unsolicited body', { kind: 'message', threadId: 'small', to: ['d'] }, 'body')
+  active.board.read(d, { task: 'small', watch: true })
+  const delayed = active.post('An unsolicited body', { kind: 'result', threadId: 'small', taskId: 'small' }, 'body')
   check('unsolicited delivery yields when the wave is full', active.board.boundary(d, new Set()) === null)
   const ownerNotice = active.board.boundary(active.main, new Set())!
   check('the lead gets the seat, allowance and uncap road', ownerNotice.text.includes('d:') && ownerNotice.text.includes('swarm.waveAllowance') && ownerNotice.text.includes('/swarm uncap'))

@@ -32,6 +32,7 @@ export function UserNoticeMessage({
         const clock = block.kind === 'outside-report' ? null : index === 0 ? <NameplateClock /> : <Text>{CLOCK_COLUMN}</Text>
         const dot = isMutedNoticeBlock(block) ? null : <Text color={dotColor ?? accent}>● </Text>
         const plate = noticePlate(block, meta?.timestamp)
+        if (block.kind === 'crew-board') return <Text key={index} dimColor wrap="truncate-end">{clock}{plate}</Text>
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''
         const delivery = index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''
         const count = block.kind === 'monitor' ? block.count ?? block.lines.length : block.lines.length
