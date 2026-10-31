@@ -94,7 +94,7 @@ export function watchSwarmLead(idle: () => boolean, wake: () => void, paint: (ev
   const check = (): void => leadContext(() => {
     if (!swarmSessionEnabled()) return
     const session = String(getSessionId())
-    const store = sessions.get(session)?.store
+    const store = sessions.get(session)?.store ?? swarmStore()
     if (!store) return
     for (const event of store.leadPosts(painted.get(session) ?? store.leadPainted())) {
       painted.set(session, event.seq)
