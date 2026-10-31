@@ -201,7 +201,8 @@ section('L3 — THE TEAR-DOWN: the fixture sees the connection drop within a sec
 section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
 {
   const before = markGrids.get('esc-sent') ?? ''
-  check("the turn was LIVE at the esc (the status row said thinking, the way-back hint offered esc)", /thinking/.test(before) && /esc interrupts/.test(before), before.split('\n').slice(-8).join('\n'))
+  const status = before.split('\n').find(line => line.includes('esc interrupts')) ?? ''
+  check('the live status row shows Opus 5 and high effort with the esc hint, without a phase or ready label', status.includes('Opus 5 · high') && status.includes('esc interrupts · ⇧← back') && !/thinking|ready ·/.test(status), status)
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), gridText.split('\n').slice(-12).join('\n'))
   check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("the status row reads ready — no 'interrupting' left standing", /ready · [^\n]*← back/.test(gridText) && !/interrupting —/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
