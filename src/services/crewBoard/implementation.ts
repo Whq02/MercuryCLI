@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import type { Tool, ToolDef } from '../../Tool.js'
 import { DEFAULT_BOARD_LIMITS, type BoardHost, type BoardLimits, type BoardModule, type BoardPost, type BoardRead, type BoardStore } from './contracts.js'
+import { WHEEL_STEP_ROWS } from '../../components/mercury-ui/composerFloor.js'
 import { open } from './store.js'
 import { existsSync } from 'node:fs'
 import { chatKindColor, chatNameColor, chatRows } from './chat.js'
@@ -120,8 +121,9 @@ export const view: BoardModule['view'] = host => {
       const offset = Math.min(scroll, end)
       if (key.upArrow && offset === 0 && snapshot.omitted && snapshot.events[0]) { setEarlier(history => [...history, snapshot.events[0]!.seq]); setScroll(Number.MAX_SAFE_INTEGER); return }
       if (key.downArrow && offset === end && before !== undefined) { setEarlier(history => history.slice(0, -1)); setScroll(0); return }
-      if (key.upArrow) setScroll(Math.max(0, offset - 1))
-      if (key.downArrow) setScroll(Math.min(end, offset + 1))
+      const step = key.wheelUp || key.wheelDown ? WHEEL_STEP_ROWS : 1
+      if (key.upArrow) setScroll(Math.max(0, offset - step))
+      if (key.downArrow) setScroll(Math.min(end, offset + step))
       return
     }
     if (key.upArrow && index === 0 && snapshot.omitted && snapshot.events[0]) { setEarlier(history => [...history, snapshot.events[0]!.seq]); setSelected(undefined); return }

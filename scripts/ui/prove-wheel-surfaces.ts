@@ -79,21 +79,21 @@ async function open(body: React.ReactNode): Promise<Mounted> {
   return mounted
 }
 const shot = (m: Mounted): string => JSON.stringify([m.screen(), m.cursor()])
-async function equivalent(name: string, body: () => React.ReactNode, setup: string, direction: 'up' | 'down', notches = 1): Promise<Mounted> {
+async function equivalent(name: string, body: () => React.ReactNode, setup: string, direction: 'up' | 'down', notches = 1, rowsPerNotch = 1): Promise<Mounted> {
   const wheel = direction === 'up' ? WHEEL_UP : WHEEL_DOWN
   const arrow = direction === 'up' ? UP : DOWN
   let m = await open(body())
   if (setup) { m.push(setup); await settle(100) }
   const before = shot(m)
-  m.push(arrow.repeat(notches))
+  m.push(arrow.repeat(notches * rowsPerNotch))
   await settle(100)
   const expected = shot(m)
-  check(`${name}: one arrow per notch moves the surface`, before !== expected)
+  check(`${name}: ${rowsPerNotch === 1 ? 'one arrow' : `${rowsPerNotch} arrows`} per notch move the surface`, before !== expected)
   m = await open(body())
   if (setup) { m.push(setup); await settle(100) }
   m.push(wheel.repeat(notches))
   await settle(100)
-  check(`${name}: SGR wheel matches ${notches} arrow press${notches === 1 ? '' : 'es'} — a notch moves a selection one row`, shot(m) === expected, m.screen())
+  check(`${name}: SGR wheel matches ${notches * rowsPerNotch} arrow press${notches * rowsPerNotch === 1 ? '' : 'es'} — a notch moves a selection one row and scrolls a body three`, shot(m) === expected, m.screen())
   return m
 }
 
@@ -119,7 +119,7 @@ try {
   await equivalent('crew traffic list', () => h(PromptsPanel, { onClose: noop }), '2', 'down')
   await equivalent('saved prompts list', () => h(PromptsPanel, { onClose: noop }), '3', 'down')
   await equivalent('Crew chat', () => h(CrewChatPanel, { snapshot: board, traffic: [], onClose: noop, onSection: noop }), '', 'up')
-  await equivalent('Crew chat detail', () => h(CrewChatPanel, { snapshot: board, traffic: [], onClose: noop, onSection: noop }), '\r', 'down')
+  await equivalent('Crew chat detail', () => h(CrewChatPanel, { snapshot: board, traffic: [], onClose: noop, onSection: noop }), '\r', 'down', 1, 3)
   boardOn = true
   await equivalent('CrewView Board tab', () => h(CrewView, { onClose: noop }), '\t', 'up')
   boardOn = false

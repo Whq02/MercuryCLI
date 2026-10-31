@@ -1532,6 +1532,7 @@ function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width:
   useInput((_input, key, event) => {
     if (!key.upArrow && !key.downArrow) return
     event.stopImmediatePropagation()
+    if (key.wheelUp || key.wheelDown) return
     setPosition(key.upArrow ? view.previous : view.next)
   })
   let bandTop = 0
