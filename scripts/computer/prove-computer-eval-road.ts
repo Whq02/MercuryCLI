@@ -112,9 +112,11 @@ try {
     session.noteScreenshot(owner, id, `/shots/${i}.png`)
     crowded.push(toolUseTurn(id, 'Computer', { action: 'screenshot' }), toolResultTurn({ type: 'tool_result', tool_use_id: id, content: [{ type: 'text', text: `screenshot: /shots/${i}.png — display 1` }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgo=' } }] }))
   }
-  const retired = retention.retireOlderScreenshots(crowded)
+  const warm = retention.retireOlderScreenshots(crowded, undefined, undefined, undefined, { coldPrefix: false })
+  check('a warm prefix keeps the Eval screenshot even with twelve newer ones', warm.firstEdited === -1 && retention.screenshotVisibleInContext(warm.messages, 'toolu_road_eval_1') && retention.screenshotVisibleInContext(warm.messages, 'toolu_road_pad_11'))
+  const retired = retention.retireOlderScreenshots(crowded, undefined, undefined, undefined, { coldPrefix: true })
   const retiredEval = retired.messages[wrapped.messages.length - 1]!
-  check('the wire window counts it as a screenshot: with twelve newer ones it is retired to the earlier-screenshot line naming its file', resultBlocks(retiredEval).some(b => b.type === 'text' && String(b.text) === retention.earlierScreenshotText(path ?? '')) && imageOf(resultBlocks(retiredEval)) === undefined && retention.screenshotVisibleInContext(retired.messages, 'toolu_road_pad_11'), JSON.stringify({ firstEdited: retired.firstEdited, blocks: resultBlocks(retiredEval) }).slice(0, 400))
+  check('a cold prefix counts it as a screenshot: with twelve newer ones it is retired to the earlier-screenshot line naming its file', resultBlocks(retiredEval).some(b => b.type === 'text' && String(b.text) === retention.earlierScreenshotText(path ?? '')) && imageOf(resultBlocks(retiredEval)) === undefined && retention.screenshotVisibleInContext(retired.messages, 'toolu_road_pad_11'), JSON.stringify({ firstEdited: retired.firstEdited, blocks: resultBlocks(retiredEval) }).slice(0, 400))
 
   section('§5 the GPT wire shape of the cell result')
   const assistant = (wrapped.messages[wrapped.messages.length - 2] as { message: { content: unknown } }).message.content
