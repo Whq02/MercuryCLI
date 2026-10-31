@@ -5,7 +5,7 @@ type UncPathRisk = { risky: false } | { risky: true; host: string; form: string 
 export function uncPathRisk(input: string, opts: { command?: boolean } = {}): UncPathRisk {
   if (getPlatform() !== 'windows') return { risky: false }
   const decoded = input.replace(/%(?:2f|5c|3a|40)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
-  const spelling = decoded.replace(/[`'"]/g, '')
+  const spelling = decoded.replace(/[`'"]/g, '').replace(/(^|[\s=(,;])([A-Za-z]:\S*)/g, (_m, lead: string, token: string) => lead + token.replace(/[\\/]{2,}/g, run => run[0]!))
   const text = spelling.replace(/\\/g, '/')
   const namespace = /\/{1,2}(?:\?\?|[?.])\/(?:UNC\/|GLOBALROOT\/Device\/(?:Mup|LanmanRedirector)\/)([^\s/]+)/ig
   const extended = namespace.exec(text)

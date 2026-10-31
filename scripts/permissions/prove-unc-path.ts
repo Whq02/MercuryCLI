@@ -122,7 +122,9 @@ if (!process.argv.includes('--file-roads')) {
   check('a path input keeps the host-alone floor off the command road', uncPathRisk('//localhost').risky)
   const flagged = await bashToolHasPermission({ command: 'taskkill //PID 1234 //F' }, shellContext)
   check('Bash on Windows does not raise the share floor for a Git Bash flag spelling', !flagged.message.includes('SMB/WebDAV'))
-  for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
+  for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`, String.raw`"C:\\Users\\someone\\x"`, String.raw`cp "C:\\Users\\someone\\x" D:\\y`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
+  for (const command of [String.raw`cp "C:\\Users\\someone\\x" "D:\\y"`, String.raw`type C:\\Users\\someone\\notes.txt`]) check(`an escaped drive path is no share on the command road: ${command}`, !uncPathRisk(command, { command: true }).risky)
+  check('an escaped share root still asks', uncPathRisk(String.raw`type \\\\server\\share\\x.txt`, { command: true }).risky)
   const { windowsPathNeedsPermission } = await import('../../src/utils/permissions/windowsPath.js')
   const inherited = [
     ['host then separator', String.raw`\\server\share`],
