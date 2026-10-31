@@ -58,7 +58,7 @@ try {
     check('batch or truncated bytes renamed .exe are refused', rejects(() => checkWindowsLauncher(fixture, 'windows-x64')))
   }
   const workflow = readFileSync(join(root, '.github/workflows/private-release.yml'), 'utf8')
-  check('both Windows rows build and test the native launcher before packaging', workflow.includes('target: windows-x64') && workflow.includes('target: windows-arm64') && workflow.includes('cargo test --locked --manifest-path native/windows-launcher/Cargo.toml') && workflow.indexOf('node scripts/release/windowsLauncher.mjs --target') < workflow.indexOf('node scripts/release/package.mjs --target'))
+  check('both Windows rows build and test the native launcher before packaging', workflow.includes('target: windows-x64') && workflow.includes('target: windows-arm64') && workflow.includes('cargo test --locked --manifest-path native/windows-launcher/Cargo.toml') && workflow.indexOf('node scripts/release/windowsLauncher.mjs --target') !== -1 && workflow.indexOf('node scripts/release/package.mjs --target') !== -1 && workflow.indexOf('node scripts/release/windowsLauncher.mjs --target') < workflow.indexOf('node scripts/release/package.mjs --target'))
   const args = process.argv.slice(2)
   const archives = args.flatMap((arg, i) => arg === '--archive' ? [resolve(args[i + 1]!)] : [])
   for (const archive of archives) {

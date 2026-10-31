@@ -108,7 +108,7 @@ section('§2 THE CMD TEMPLATE (structural)')
   check('every pointer line passes through :pick before it can become the version', cmd.includes('do if not defined MVER (set "MLINE=%%v" & call :pick)'))
   check(':pick strips the mark in its one-, two- and three-character readings', ['3', '2', '1'].every(n => cmd.includes(`if "%MLINE:~0,${n}%"=="%MBOM%" set "MLINE=%MLINE:~${n}%"`)))
   check(':pick skips a line that is blank once the mark and spaces are gone, so the next line is read', cmd.includes('set "MVER=%MLINE%"') && cmd.includes(':pickblank'))
-  check(':pick sits after the final exit, reachable only by call', cmd.indexOf('\r\n:pick\r\n') > cmd.indexOf('exit /b %ERRORLEVEL%'))
+  check(':pick sits after the final exit, reachable only by call', cmd.indexOf('\r\n:pick\r\n') !== -1 && cmd.indexOf('exit /b %ERRORLEVEL%') !== -1 && cmd.indexOf('\r\n:pick\r\n') > cmd.indexOf('exit /b %ERRORLEVEL%'))
   check('the refusal never echoes pointer content', !cmd.split('\r\n').some(l => l.includes('echo') && (l.includes('%MVER%') || l.includes('%MLINE%'))))
   const pick = cmd.slice(cmd.indexOf('\r\n:pick\r\n') + 2).split('\r\n').filter(Boolean)
   const guarded = pick.every((line, at) => {
