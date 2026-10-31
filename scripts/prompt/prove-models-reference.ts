@@ -148,6 +148,10 @@ section('§3 the known page: the pin tables this build ships, with the version, 
   check('Anthropic, Gemini, Hugging Face and OpenCode Zen are listed from their own tables', ['anthropic', 'gemini', 'huggingface', 'zen'].every(route => (byRoute.get(route)?.models.length ?? 0) > 0) && byRoute.get('anthropic')!.models.some(row => row.id === 'claude-fable-5-1' && row.displayName === 'Fable 5.1'), j([...byRoute.keys()]))
   check('the text names the default each family word runs when its list cannot be read, and closes on reachability being the live page\'s to say', text.includes("xAI — family word 'grok' — runs grok-4.7 when the live list cannot be read") && text.includes('this page never says a model is reachable'), text.slice(-300))
   check('the known page never claims a live read', !text.includes('live list read') && !j(page).includes('readAt'))
+  const routes = (page?.providers ?? []).map(provider => provider.provider)
+  check('every provider has one block on the known page (Qwen rode twice: once from the family-word table and once from its own pins)', new Set(routes).size === routes.length && routes.filter(route => route === 'qwen').length === 1, j(routes))
+  const ids = (page?.providers ?? []).flatMap(provider => provider.models.map(row => row.id))
+  check('no model id is listed twice', new Set(ids).size === ids.length, j(ids.filter((id, index) => ids.indexOf(id) !== index)))
 }
 
 section('§4 the Read tool renders both pages like mercury://seat')

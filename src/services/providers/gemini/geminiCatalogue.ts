@@ -569,6 +569,17 @@ export function geminiDispatchReady(
   return route('gemini-2.5-pro') === 'gemini'
 }
 
+export function geminiRowLabels(models: ReadonlyArray<Pick<GeminiLiveModel, 'id' | 'displayName'>>): (model: Pick<GeminiLiveModel, 'id' | 'displayName'>) => string {
+  const idsByName = new Map<string, Set<string>>()
+  for (const model of models) {
+    if (model.displayName === undefined) continue
+    const ids = idsByName.get(model.displayName) ?? new Set<string>()
+    ids.add(model.id)
+    idsByName.set(model.displayName, ids)
+  }
+  return model => (model.displayName === undefined || (idsByName.get(model.displayName)?.size ?? 0) > 1 ? model.id : model.displayName)
+}
+
 export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
   const availability = getGeminiAvailability(env)
   if (availability.state === 'disabled') {
@@ -601,21 +612,24 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
   const wireReady = geminiDispatchReady()
   const pendingReason = 'dispatch wire pending — the provider-wire fold routes Gemini turns'
   const snapshot = getCachedGeminiCatalogue(availability.sourceKind, env)
-  const disabledRows: ModelOption[] = geminiDisabledRosterModels(snapshot).map(model => ({
+  const generateModels = geminiGenerateModels(snapshot)
+  const disabledModels = geminiDisabledRosterModels(snapshot)
+  const label = geminiRowLabels([...generateModels, ...disabledModels])
+  const disabledRows: ModelOption[] = disabledModels.map(model => ({
     value: model.id,
-    label: model.displayName ?? model.id,
+    label: label(model),
     description: '',
     descriptionForModel: `${model.displayName ?? model.id} (${model.id}) — ${geminiPlanDisabledWords(model)}.`,
     group: GEMINI_MODEL_GROUP,
     unavailable: geminiPlanDisabledWords(model),
     ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),
   }))
-  return [...geminiGenerateModels(snapshot).map(model => {
+  return [...generateModels.map(model => {
     const routed = declaredRouteOf(model.id) === 'gemini'
     const unroutableReason = `outside the routable gemini-* id space — selecting it would misroute; not selectable`
     return {
       value: model.id,
-      label: model.displayName ?? model.id,
+      label: label(model),
       description: '',
       descriptionForModel: availability.sourceKind === 'plan' ? `${model.displayName ?? model.id} (${model.id}) — on the roster Google serves the connected ${availability.source}${model.id.startsWith(GEMINI_PLAN_ROSTER_PREFIX) ? `; Google's own id for it is ${model.id.slice(GEMINI_PLAN_ROSTER_PREFIX.length)}, served through the Google sign-in's Code Assist endpoint, never the vendor's own lane` : ''}.` : `${model.displayName ?? model.id} (${model.id}) — live-listed generateContent model on the connected ${availability.source}.`,
       group: GEMINI_MODEL_GROUP,

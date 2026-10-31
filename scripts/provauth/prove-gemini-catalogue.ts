@@ -165,6 +165,27 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: noChat })
   const availability = getGeminiAvailability()
   check('a chat-less catalogue ⇒ disabled/no-generate-models (never an invented row)', availability.state === 'disabled' && availability.why === 'no-generate-models')
+
+  __resetGeminiCatalogueForTest()
+  const sharedName: typeof fetch = (async () =>
+    new Response(
+      JSON.stringify({ models: [
+        { name: 'models/gemini-2.5-flash', displayName: 'Gemini 3.5 Flash Lite', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-thinking', displayName: 'Gemini 3.5 Flash Lite', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-flash-lite', displayName: 'Gemini 3.5 Flash Lite', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-2.5-pro', displayName: 'Gemini 2.5 Pro', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/gemini-3.8-flash-tiered', supportedGenerationMethods: ['generateContent'] },
+      ] }),
+      { status: 200 },
+    )) as unknown as typeof fetch
+  await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: sharedName })
+  const rows = getGeminiModelOptions()
+  const labels = Object.fromEntries(rows.map(row => [row.value, row.label]))
+  check('a display name the roster gives several ids labels none of them: each of those rows reads as its id', labels['gemini-2.5-flash'] === 'gemini-2.5-flash' && labels['gemini-2.5-flash-thinking'] === 'gemini-2.5-flash-thinking' && labels['gemini-2.5-flash-lite'] === 'gemini-2.5-flash-lite', JSON.stringify(labels))
+  check('a display name one id owns still labels its row', labels['gemini-2.5-pro'] === 'Gemini 2.5 Pro', JSON.stringify(labels))
+  check('a row the roster leaves unnamed reads as its id', labels['gemini-3.8-flash-tiered'] === 'gemini-3.8-flash-tiered', JSON.stringify(labels))
+  check('no two rows share a label', new Set(rows.map(row => row.label)).size === rows.length, JSON.stringify(rows.map(row => row.label)))
+  check("the model-facing description keeps Google's name beside the id", (rows.find(row => row.value === 'gemini-2.5-flash')?.descriptionForModel ?? '').startsWith('Gemini 3.5 Flash Lite (gemini-2.5-flash)'))
 }
 
 delete process.env.GEMINI_API_KEY
