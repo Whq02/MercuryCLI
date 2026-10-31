@@ -4,6 +4,7 @@ import type { MessageParam } from '../../../types/wire.js'
 export function normalizeAnthropicToolIds(rows: MessageParam[]): MessageParam[] {
   const ids = new Set<string>()
   for (const row of rows) if (Array.isArray(row.content)) for (const block of row.content) {
+    if (block === undefined || block === null) continue
     if (block.type === 'tool_use') ids.add(block.id)
     if (block.type === 'tool_result') ids.add(block.tool_use_id)
   }
@@ -20,6 +21,7 @@ export function normalizeAnthropicToolIds(rows: MessageParam[]): MessageParam[] 
   if (replacements.size === 0) return rows
   const replace = (value: string): string => replacements.get(value) ?? value
   return rows.map(row => ({ ...row, content: typeof row.content === 'string' ? row.content : row.content.map(block => {
+    if (block === undefined || block === null) return block
     if (block.type === 'tool_use') return { ...block, id: replace(block.id) }
     if (block.type === 'tool_result') {
       const ref = block as typeof block & { cache_reference?: string }
