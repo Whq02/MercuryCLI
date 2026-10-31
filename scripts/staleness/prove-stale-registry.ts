@@ -209,6 +209,7 @@ src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/capacityCheck.ts :: memorySampleMemo :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/tokenEstimation.ts :: pdfPageCountMemo :: keyed-by-truth
 src/services/vulcan/portabilityHealth.ts :: presenceMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
 src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
@@ -300,6 +301,7 @@ src/utils/permissions/filesystem.ts :: bundledSkillsRootCache :: static-for-proc
 src/utils/permissions/filesystem.ts :: tempDirCache :: static-for-process
 src/utils/permissions/filesystem.ts :: workingDirResolutionCache :: ttl-bounded
 src/utils/permissions/decision/rules.ts :: tableCache :: keyed-by-truth
+src/utils/permissions/flowLaw.ts :: ownRootsCache :: keyed-by-truth
 src/utils/permissions/shellRuleMatching.ts :: compiledCache :: keyed-by-truth
 src/utils/platform.ts :: getLinuxDistroInfo :: static-for-process
 src/utils/platform.ts :: getPlatform :: static-for-process
