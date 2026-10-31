@@ -122,7 +122,7 @@ check('the file road loads the conversation and names the tip\'s session', byFil
 check(`${RED}: the file road carries the worktree record`, byFile?.worktreeSession?.worktreePath === worktree, `worktreeSession=${j(byFile?.worktreeSession)}`)
 check(`${RED}: the file road carries the title, the agent name and the mode`, byFile?.customTitle === TITLE && byFile?.agentName === AGENT && byFile?.mode === MODE, j({ customTitle: byFile?.customTitle, agentName: byFile?.agentName, mode: byFile?.mode }))
 check(`${RED}: the file road carries the agent setting, the colour, the tag and the PR link`, byFile?.agentSetting === SETTING && byFile?.agentColor === COLOR && byFile?.tag === TAG && byFile?.prNumber === PR.prNumber && byFile?.prUrl === PR.prUrl && byFile?.prRepository === PR.prRepository, j(factsOf(byFile)))
-check('the file road still carries no fullPath (the explicit-path road keeps its own home)', byFile?.fullPath === undefined, j(byFile?.fullPath))
+check('the file road carries the file it loaded as its fullPath (the explicit-path road names its own file)', byFile?.fullPath === transcriptPath, j(byFile?.fullPath))
 
 section('§3 the daemon\'s cold resume — the plain road as the runner boots it: cwd inside the worktree, the home pinned, --resume <id>')
 clearSessionMetadata()
