@@ -81,6 +81,13 @@ for (const road of roads) {
   check(`${road.name}: a pointer with a leading blank line launches, as the status reader reads it (f07)`, blankFirst.rc === 0 && blankFirst.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: blankFirst.rc, err: blankFirst.err.slice(0, 120) }))
   const bomBlank = runShim('\uFEFF\n1.2.3')
   check(`${road.name}: a byte-order mark on a blank first line launches too (f06 + f07)`, bomBlank.rc === 0 && bomBlank.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: bomBlank.rc, err: bomBlank.err.slice(0, 120) }))
+  const bomSpaces = runShim('\uFEFF   \n1.2.3')
+  check(`${road.name}: a byte-order mark on a spaces-only first line launches the version on the next line`, bomSpaces.rc === 0 && bomSpaces.out.includes('LEGIT-LAUNCH'), JSON.stringify({ rc: bomSpaces.rc, err: bomSpaces.err.slice(0, 120) }))
+  const refusedPlainly = (launch: Launch): boolean => launch.rc === 1 && !launch.out.includes('LEGIT-LAUNCH') && /is empty|does not name an installed version/.test(launch.err)
+  const bomOnly = runShim('\uFEFF')
+  check(`${road.name}: a byte-order mark alone refuses with the shim's own sentence, never a parse abort`, refusedPlainly(bomOnly), JSON.stringify({ rc: bomOnly.rc, err: bomOnly.err.slice(0, 160) }))
+  const bomSpacesOnly = runShim('\uFEFF   ')
+  check(`${road.name}: a byte-order mark then spaces alone refuses the same way`, refusedPlainly(bomSpacesOnly), JSON.stringify({ rc: bomSpacesOnly.rc, err: bomSpacesOnly.err.slice(0, 160) }))
   const escapeAfterBom = runShim('\uFEFF../outside/evil')
   check(`${road.name}: the byte-order mark buys no escape: a traversal pointer behind it still refuses`, escapeAfterBom.rc === 1 && !escapeAfterBom.out.includes('ESCAPED-THE-ROOT'), `rc=${escapeAfterBom.rc}`)
 }
@@ -99,10 +106,154 @@ section('§2 THE CMD TEMPLATE (structural)')
   check('the cmd twin trims trailing whitespace before the guards (FC-055)', cmd.includes(':trimver') && cmd.indexOf(':trimver') < cmd.indexOf('%MVER:..=%'))
   check('the byte-order mark is held as its own bytes, so it decodes as the pointer file does under any code page', cmd.includes('set "MBOM=\uFEFF"'))
   check('every pointer line passes through :pick before it can become the version', cmd.includes('do if not defined MVER (set "MLINE=%%v" & call :pick)'))
-  check(':pick strips the mark in its one-, two- and three-character readings', ['3', '2', '1'].every(n => cmd.includes(`if defined MLINE if "%MLINE:~0,${n}%"=="%MBOM%" set "MLINE=%MLINE:~${n}%"`)))
-  check(':pick skips a line that is blank once the mark and spaces are gone, so the next line is read', cmd.includes('if defined MLINE set "MVER=%MLINE%"') && cmd.includes(':pickblank'))
+  check(':pick strips the mark in its one-, two- and three-character readings', ['3', '2', '1'].every(n => cmd.includes(`if "%MLINE:~0,${n}%"=="%MBOM%" set "MLINE=%MLINE:~${n}%"`)))
+  check(':pick skips a line that is blank once the mark and spaces are gone, so the next line is read', cmd.includes('set "MVER=%MLINE%"') && cmd.includes(':pickblank'))
   check(':pick sits after the final exit, reachable only by call', cmd.indexOf('\r\n:pick\r\n') > cmd.indexOf('exit /b %ERRORLEVEL%'))
   check('the refusal never echoes pointer content', !cmd.split('\r\n').some(l => l.includes('echo') && (l.includes('%MVER%') || l.includes('%MLINE%'))))
+  const pick = cmd.slice(cmd.indexOf('\r\n:pick\r\n') + 2).split('\r\n').filter(Boolean)
+  const guarded = pick.every((line, at) => {
+    if (!line.includes('%MLINE:') || at === 1) return true
+    const before = pick[at - 1]!
+    return before === 'if not defined MLINE exit /b 0' || before.endsWith('& goto pickblank')
+  })
+  check('every substring of MLINE in :pick expands right after a line that leaves when MLINE is undefined (cmd expands %MLINE:~…% before any if defined on the same line)', guarded && !pick.some(line => line.startsWith('if defined MLINE if')), pick.join(' | '))
+}
+
+section('§3 THE :pick SUBROUTINE UNDER CMD\'S PERCENT RULE (static, calibrated against a Windows trace)')
+{
+  type Vars = Map<string, string>
+  const substring = (value: string, spec: string): string => {
+    const [a, b] = spec.split(',').map(Number)
+    const start = (a ?? 0) < 0 ? Math.max(0, value.length + (a ?? 0)) : Math.min(a ?? 0, value.length)
+    const end = b === undefined ? value.length : b < 0 ? Math.max(start, value.length + b) : Math.min(value.length, start + b)
+    return value.slice(start, end)
+  }
+  const replaceSpec = (value: string, spec: string): string => {
+    const eq = spec.indexOf('=')
+    const search = spec.slice(0, eq)
+    const by = spec.slice(eq + 1)
+    return search === '' ? value : value.split(search).join(by)
+  }
+  const percentExpand = (line: string, vars: Vars): string => {
+    let out = ''
+    let i = 0
+    while (i < line.length) {
+      if (line[i] !== '%') {
+        out += line[i]
+        i++
+        continue
+      }
+      if (line[i + 1] === '%') {
+        out += '%'
+        i += 2
+        continue
+      }
+      let j = i + 1
+      while (j < line.length && line[j] !== '%' && line[j] !== ':') j++
+      if (j >= line.length) {
+        out += line.slice(i + 1)
+        break
+      }
+      const value = vars.get(line.slice(i + 1, j).toUpperCase())
+      if (line[j] === '%') {
+        if (value !== undefined) out += value
+        i = j + 1
+        continue
+      }
+      if (value === undefined) {
+        i = j + 1
+        continue
+      }
+      const end = line.indexOf('%', j + 1)
+      if (end === -1) {
+        out += line.slice(i + 1)
+        break
+      }
+      const spec = line.slice(j + 1, end)
+      out += spec.startsWith('~') ? substring(value, spec.slice(1)) : replaceSpec(value, spec)
+      i = end + 1
+    }
+    return out
+  }
+  const SET = /^set "([A-Z]+)=(.*)"$/
+  const GUARD = /^if not defined ([A-Z]+) exit \/b 0$/
+  const COMPARE = /^(?:if defined ([A-Z]+) )?if "([^"]*)"=="([^"]*)" set "([A-Z]+)=([^"]*)"(?: & goto ([a-z]+))?$/
+  const runPick = (lines: string[], mline: string, mbom: string): { mver: string | undefined; fault: string | null } => {
+    const vars: Vars = new Map([['MBOM', mbom], ['MLINE', mline]])
+    const assign = (name: string, value: string): void => {
+      if (value === '') vars.delete(name)
+      else vars.set(name, value)
+    }
+    let pc = lines.indexOf(':pick') + 1
+    for (let steps = 0; steps < 2000 && pc < lines.length; steps++, pc++) {
+      const raw = lines[pc]!
+      if (raw.startsWith(':')) continue
+      const line = percentExpand(raw, vars)
+      if (line === 'exit /b 0') break
+      const guard = GUARD.exec(line)
+      if (guard) {
+        if (!vars.has(guard[1]!)) break
+        continue
+      }
+      const set = SET.exec(line)
+      if (set) {
+        assign(set[1]!, set[2]!)
+        continue
+      }
+      const compare = COMPARE.exec(line)
+      if (!compare) return { mver: vars.get('MVER'), fault: line }
+      if (compare[1] !== undefined && !vars.has(compare[1])) continue
+      if (compare[2] !== compare[3]) continue
+      assign(compare[4]!, compare[5]!)
+      if (compare[6] !== undefined) pc = lines.indexOf(`:${compare[6]}`)
+    }
+    return { mver: vars.get('MVER'), fault: null }
+  }
+  const FOLD_ELEVEN_PICK = [
+    ':pick',
+    'set "MLINE=%MLINE:"=%"',
+    'if defined MLINE if "%MLINE:~0,3%"=="%MBOM%" set "MLINE=%MLINE:~3%"',
+    'if defined MLINE if "%MLINE:~0,2%"=="%MBOM%" set "MLINE=%MLINE:~2%"',
+    'if defined MLINE if "%MLINE:~0,1%"=="%MBOM%" set "MLINE=%MLINE:~1%"',
+    ':pickblank',
+    'if defined MLINE if "%MLINE:~0,1%"==" " set "MLINE=%MLINE:~1%" & goto pickblank',
+    'if defined MLINE if "%MLINE:~0,1%"=="\t" set "MLINE=%MLINE:~1%" & goto pickblank',
+    'if defined MLINE set "MVER=%MLINE%"',
+    'exit /b 0',
+  ]
+  const traced = runPick(FOLD_ELEVEN_PICK, 'ABC', 'ABC')
+  check('calibration: the model reproduces the box\'s trace of the earlier :pick on a mark-only line, word for word', traced.fault === 'if defined MLINE if "~0,2MBOMMLINE:~2"', JSON.stringify(traced))
+  const spacesOnly = runPick(FOLD_ELEVEN_PICK, ' ', 'ABC')
+  check('calibration: the earlier :pick on a spaces-only line corrupts at the blank strip, as the box saw (& was unexpected)', spacesOnly.fault !== null && spacesOnly.fault.startsWith('if defined MLINE if "~0,1MLINE:~1"'), JSON.stringify(spacesOnly))
+
+  const shipped = shimContent(true).split('\r\n')
+  const pickLines = shipped.slice(shipped.indexOf(':pick'))
+  const ideal = (line: string, bom: string): string | undefined => {
+    let s = line.replaceAll('"', '')
+    if (s.startsWith(bom)) s = s.slice(bom.length)
+    s = s.replace(/^[ \t]+/, '')
+    return s === '' ? undefined : s
+  }
+  const readings: Array<[string, string]> = [['three characters (a single-byte console page)', '\u00b4\u2557\u2510'], ['two characters (a double-byte page)', '\u30c6\u30b5'], ['one character (code page 65001)', '\uFEFF']]
+  let simulated = 0
+  for (const [reading, bom] of readings) {
+    const shapes = ['1.2.3', `${bom}1.2.3`, bom, '   ', `${bom}   `, '\t1.2.3', `${bom}  1.2.3  `, '"1.2.3"', '""', '"', `${bom}"1.2.3"`, `"${bom}"`, '..\\outside\\evil', '%MBOM%', 'a&b', 'a|b<c>d', '(1.2.3)', '1.2.3 & del x', '=1.2.3', '^1.2.3', '!1.2.3!', `${bom}${bom}1.2.3`]
+    let faults = 0
+    let wrong = 0
+    for (const shape of shapes) {
+      const run = runPick(pickLines, shape, bom)
+      simulated++
+      if (run.fault !== null) {
+        faults++
+        console.log(`    fault on ${JSON.stringify(shape)} under ${reading}: ${run.fault}`)
+      } else if (run.mver !== ideal(shape, bom)) {
+        wrong++
+        console.log(`    ${JSON.stringify(shape)} under ${reading}: MVER ${JSON.stringify(run.mver)}, expected ${JSON.stringify(ideal(shape, bom))}`)
+      }
+    }
+    check(`the shipped :pick, the mark read as ${reading}: ${shapes.length} first-line shapes expand to well-formed lines and pick the version the ideal picks`, faults === 0 && wrong === 0, `${faults} faults, ${wrong} wrong`)
+  }
+  check('the simulation covered every shape under every reading', simulated === 66, String(simulated))
 }
 
 removeScratch(BASE)
